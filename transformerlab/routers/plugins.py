@@ -12,10 +12,10 @@ from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
 from pathlib import Path
 
-import llmlab.db as db
+import transformerlab.db as db
 
 from typing import Annotated, Any
-from llmlab.shared import shared
+from transformerlab.shared import shared
 
 
 import httpx
@@ -29,7 +29,7 @@ async def plugin_gallery():
 
     # There are three places that we can get plugins from (to add to an experiment):
     #  1. The remote gallery on the Transformer Lab website
-    #  2. The pre-installed local gallery in the llmlab/plugins folder. These are hadcoded
+    #  2. The pre-installed local gallery in the transformerlab/plugins folder. These are hadcoded
     #     plugins that are included with LLMLab.
     #  3. The local gallery in the workspace/plugins folder. These are plugins
     #     that the user can create and are made accessible to all experiments
@@ -39,7 +39,7 @@ async def plugin_gallery():
 
     local_workspace_gallery_directory = "workspace/plugins"
     # today the remote gallery is a local file, we will move it remote later
-    remote_gallery_file = "llmlab/galleries/plugin-gallery.json"
+    remote_gallery_file = "transformerlab/galleries/plugin-gallery.json"
 
     # first get the remote gallery from the remote gallery file:
     with open(remote_gallery_file) as f:
@@ -72,6 +72,6 @@ async def plugin_gallery():
     return gallery
 
 
-# on startup, copy all plugins from the llmlab/plugins directory to the workspace/plugins directory
-print("Copying plugins from llmlab/plugins to workspace/plugins")
-copy_tree("llmlab/plugins", "workspace/plugins", update=1)
+# on startup, copy all plugins from the transformerlab/plugins directory to the workspace/plugins directory
+print("Copying plugins from transformerlab/plugins to workspace/plugins")
+copy_tree("transformerlab/plugins", "workspace/plugins", update=1)

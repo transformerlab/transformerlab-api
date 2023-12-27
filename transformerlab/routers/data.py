@@ -7,8 +7,8 @@ from datasets import load_dataset, load_dataset_builder
 from fastapi import APIRouter, UploadFile
 from fastapi.responses import FileResponse
 
-import llmlab.db as db
-from llmlab.shared.shared import slugify
+import transformerlab.db as db
+from transformerlab.shared.shared import slugify
 
 router = APIRouter(prefix="/data", tags=["datasets"])
 
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/data", tags=["datasets"])
 
 @router.get("/gallery", summary="Display the models available for LLMLab to download.")
 async def model_gallery():
-    return FileResponse("llmlab/galleries/data-gallery.json")
+    return FileResponse("transformerlab/galleries/data-gallery.json")
 
 
 # Get info on dataset from huggingface

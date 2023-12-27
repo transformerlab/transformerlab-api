@@ -12,7 +12,7 @@ import unicodedata
 from anyio import open_process
 from anyio.streams.text import TextReceiveStream
 
-import llmlab.db as db
+import transformerlab.db as db
 
 # Root dir is the parent of the parent of this current directory:
 ROOT_DIR = os.path.dirname(os.path.dirname(

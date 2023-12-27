@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from fastapi.responses import FileResponse
-import llmlab.db as db
+import transformerlab.db as db
 
 
 router = APIRouter(prefix="/config", tags=["config"])

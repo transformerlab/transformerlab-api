@@ -33,10 +33,10 @@ from fastchat.protocol.openai_api_protocol import (
     ErrorResponse,
 )
 
-import llmlab.db as db
-from llmlab.routers import data, experiment, model, serverinfo, train, plugins, evals, config
-from llmlab import fastchat_openai_api
-from llmlab.shared import shared
+import transformerlab.db as db
+from transformerlab.routers import data, experiment, model, serverinfo, train, plugins, evals, config
+from transformerlab import fastchat_openai_api
+from transformerlab.shared import shared
 
 
 # The following environment variable can be used by other scripts
@@ -73,7 +73,7 @@ description = "LLMLab API helps you do awesome stuff. 🚀"
 tags_metadata = [
     {
         "name": "datasets",
-        "description": "Actions used to manage the datasets used by LLMLab.",
+        "description": "Actions used to manage the datasets used by Transformer Lab.",
     },
     {"name": "train", "description": "Actions for training models."},
     {"name": "experiment", "descriptions": "Actions for managinging experiments."},
@@ -339,7 +339,7 @@ def parse_args():
 
 def print_launch_message():
     # Print the welcome message to the CLI
-    with open(os.path.join(os.path.dirname(__file__), "llmlab/launch_header_text.txt"), "r") as f:
+    with open(os.path.join(os.path.dirname(__file__), "transformerlab/launch_header_text.txt"), "r") as f:
         print(f.read())
 
 

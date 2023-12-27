@@ -12,9 +12,9 @@ from fastapi import APIRouter, Body
 
 from jinja2 import Template
 
-import llmlab.db as db
+import transformerlab.db as db
 
-from llmlab.shared import shared
+from transformerlab.shared import shared
 
 router = APIRouter(prefix="/experiment", tags=["experiment"])
 
@@ -571,7 +571,8 @@ async def plugin_download(plugin_slug: str):
     plugin = await db.get_plugin(plugin_slug)
     # Right now this plugin object doesn't contain the URL to the plugin, so we need to get that from the plugin gallery:
     # Fix this later by storing the information locally in the database
-    plugin_gallery_json = open("llmlab/galleries/plugin-gallery.json", "r")
+    plugin_gallery_json = open(
+        "transformerlab/galleries/plugin-gallery.json", "r")
     plugin_gallery = json.load(plugin_gallery_json)
 
     # We hardcode this to the first object -- fix later

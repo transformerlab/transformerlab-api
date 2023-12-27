@@ -1,13 +1,13 @@
 import json
 import shutil
 from typing import Annotated
-import llmlab.db as db
+import transformerlab.db as db
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
 from fastchat.model.model_adapter import get_conversation_template
 import os
 
-from llmlab.shared import shared
+from transformerlab.shared import shared
 
 router = APIRouter(tags=["model"])
 
@@ -19,7 +19,7 @@ async def healthz():
 
 @router.get("/model/gallery")
 async def model_gallery_list_all():
-    with open("llmlab/galleries/model-gallery.json") as f:
+    with open("transformerlab/galleries/model-gallery.json") as f:
         gallery = json.load(f)
 
     local_models = await db.model_local_list()
@@ -38,7 +38,7 @@ async def model_gallery(model_id: str):
     # convert "~~~"" in string to "/":
     model_id = model_id.replace("~~~", "/")
 
-    with open("llmlab/galleries/model-gallery.json") as f:
+    with open("transformerlab/galleries/model-gallery.json") as f:
         gallery = json.load(f)
 
     result = None
@@ -79,7 +79,8 @@ async def download_model_from_huggingface(model: str):
     job_id = await db.job_create(type="DOWNLOAD_MODEL", status="STARTED",
                                  job_data='{}')
 
-    args = ["llmlab/shared/download_huggingface_model.py", "--model_name", model]
+    args = ["transformerlab/shared/download_huggingface_model.py",
+            "--model_name", model]
 
     try:
         await shared.async_run_python_script_and_update_status(python_script=args, job_id=job_id, begin_string="Fetching")
@@ -98,7 +99,7 @@ async def download_model_from_gallery(gallery_id: str):
     from huggingface"""
 
     # get all models from gallery
-    with open("llmlab/galleries/model-gallery.json") as f:
+    with open("transformerlab/galleries/model-gallery.json") as f:
         gallery = json.load(f)
 
     gallery_entry = None
@@ -121,7 +122,7 @@ async def download_model_from_gallery(gallery_id: str):
     job_id = await db.job_create(type="DOWNLOAD_MODEL", status="STARTED",
                                  job_data='{}')
 
-    args = ["llmlab/shared/download_huggingface_model.py",
+    args = ["transformerlab/shared/download_huggingface_model.py",
             "--model_name", hugging_face_id,
             ]
 

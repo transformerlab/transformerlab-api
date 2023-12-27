@@ -4,8 +4,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Body
 
-import llmlab.db as db
-from llmlab.shared import shared
+import transformerlab.db as db
+from transformerlab.shared import shared
 
 
 # @TODO hook this up to an endpoint so we can cancel a finetune

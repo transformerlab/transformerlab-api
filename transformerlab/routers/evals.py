@@ -1,7 +1,7 @@
 import json
 import os
 from typing import Annotated
-import llmlab.db as db
+import transformerlab.db as db
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
 from fastchat.model.model_adapter import get_conversation_template
