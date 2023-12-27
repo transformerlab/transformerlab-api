@@ -1,0 +1,70 @@
+[
+  {
+    "id": 1,
+    "name": "Alpaca Data",
+    "type": "Conversational",
+    "huggingfacerepo": "tatsu-lab/alpaca",
+    "description": "Contains 52K instruction-following data used for fine-tuning the Alpaca model.",
+    "size": "24200000",
+    "license": "GPL"
+  },
+  {
+    "id": 2,
+    "name": "Open Orca",
+    "type": "Conversational",
+    "huggingfacerepo": "Open-Orca/OpenOrca",
+    "description": "Rich collection of augmented FLAN data aligns, as best as possible, with the distributions outlined in the Orca paper. It has been instrumental in generating high-performing model checkpoints and serves as a valuable resource for all NLP researchers and developers!",
+    "size": "4224200000",
+    "license": "GPL"
+  },
+  {
+    "id": 3,
+    "name": "Salesforce DialogStudio",
+    "type": "Conversational",
+    "website": "https://github.com/salesforce/DialogStudio",
+    "huggingfacerepo": "Salesforce/dialogstudio",
+    "description": "DialogStudio is a large collection and unified dialog datasets. The figure below provides a summary of the general statistics associated with DialogStudio. DialogStudio unified each dataset while preserving its original information, and this aids in supporting research on both individual datasets and Large Language Model (LLM) training.",
+    "size": "330000000",
+    "license": "GPL"
+  },
+  {
+    "id": 4,
+    "name": "OpenChat ShareGPT GPT-4",
+    "type": "Conversational",
+    "website": "https://github.com/salesforce/DialogStudio",
+    "huggingfacerepo": "openchat/openchat_sharegpt4_dataset",
+    "description": "DialogStudio is a large collection and unified dialog datasets. The figure below provides a summary of the general statistics associated with DialogStudio. DialogStudio unified each dataset while preserving its original information, and this aids in supporting research on both individual datasets and Large Language Model (LLM) training.",
+    "size": "330000000",
+    "license": "GPL"
+  },
+  {
+    "id": 5,
+    "name": "Clinical Dataset",
+    "type": "Conversational",
+    "website": "https://github.com/salesforce/DialogStudio",
+    "huggingfacerepo": "Elfsong/ClinicalDataset",
+    "description": "The training set consists of 1,201 pairs of conversations and associated section headers and contents. The validation set consists of 100 pairs of conversations and their summaries.",
+    "size": "330000000",
+    "license": "GPL"
+  },
+  {
+    "id": 6,
+    "name": "OpenChat ShareGPT GPT-4",
+    "type": "Conversational",
+    "website": "",
+    "huggingfacerepo": "openchat/openchat_sharegpt4_dataset",
+    "description": "OpenChat is a series of open-source language models based on supervised fine-tuning (SFT). We leverage the ~80k ShareGPT conversations with a conditioning strategy and weighted loss to achieve remarkable performance despite our simple methods. Our final vision is to develop a high-performance, open-source, and commercially available large language model, and we are continuously making progress.",
+    "size": "24200000",
+    "license": "GPL"
+  },
+  {
+    "id": 7,
+    "name": "SAMSum Corpus",
+    "type": "Conversational",
+    "website": "",
+    "huggingfacerepo": "samsum",
+    "description": "The SAMSum dataset contains about 16k messenger-like conversations with summaries. Conversations were created and written down by linguists fluent in English. Linguists were asked to create conversations similar to those they write on a daily basis, reflecting the proportion of topics of their real-life messenger convesations. The style and register are diversified - conversations could be informal, semi-formal or formal, they may contain slang words, emoticons and typos. Then, the conversations were annotated with summaries. It was assumed that summaries should be a concise brief of what people talked about in the conversation in third person. The SAMSum dataset was prepared by Samsung R&D Institute Poland and is distributed for research purposes (non-commercial licence: CC BY-NC-ND 4.0).",
+    "size": 6.5e+6,
+    "license": "GPL"
+  }
+]

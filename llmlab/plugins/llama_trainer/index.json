@@ -1,0 +1,31 @@
+{
+    "name": "LLama2 Model Trainer",
+    "uniqueId": "llama_trainer",
+    "description": "A training script adapted from https://www.philschmid.de/instruction-tune-llama-2 for training Llama2 using PeFT",
+    "plugin-format": "python",
+    "type": "training",
+    "model_architectures": [
+        "LlamaForCausalLM"
+    ],
+    "git": "",
+    "url": "",
+    "files": [
+        "main.py",
+        "setup.sh"
+    ],
+    "setup-script": "setup.sh",
+    "parameters": [
+        {
+            "name": "model",
+            "type": "string",
+            "default": "NousResearch/Llama-2-7b-hf",
+            "required": "true"
+        },
+        {
+            "name": "model_type",
+            "type": "string",
+            "default": "LlamaForCausalLM",
+            "required": "true"
+        }
+    ]
+}

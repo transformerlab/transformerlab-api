@@ -1,0 +1,16 @@
+{
+    "name": "Llama-cpp Server",
+    "uniqueId": "llama_cpp_server",
+    "description": "Runs llama-cpp-python and provides and OpenAI compatible API, allowing you to run llama.cpp gguf models.",
+    "plugin-format": "python",
+    "type": "loader",
+    "model_architectures": [
+        "GGUF"
+    ],
+    "files": [
+        "main.py",
+        "setup.sh"
+    ],
+    "setup-script": "setup.sh",
+    "parameters": []
+}
