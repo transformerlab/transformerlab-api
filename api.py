@@ -1,11 +1,5 @@
-"""A server that provides OpenAI-compatible RESTful APIs. It supports:
-
-- Chat Completions. (Reference: https://platform.openai.com/docs/api-reference/chat)
-- Completions. (Reference: https://platform.openai.com/docs/api-reference/completions)
-- Embeddings. (Reference: https://platform.openai.com/docs/api-reference/embeddings)
-
-Usage:
-python3 -m fastchat.serve.openai_api_server
+"""
+The Entrypoint File for Transformer Lab's API Server.
 """
 import os
 import argparse
