@@ -225,37 +225,22 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
             if "inferenceParams" in experiment_details["config"]:
                 experiment_details["config"]["inferenceParams"] = json.loads(
                     experiment_details["config"]["inferenceParams"])
-        input = {"experiment": experiment_details, "config": template_config}
+        input_contents = {"experiment": experiment_details,
+                          "config": template_config}
         with open(input_file, 'w') as outfile:
-            json.dump(input, outfile, indent=4)
+            json.dump(input_contents, outfile, indent=4)
 
         training_popen_command = [
             "python3",
             plugin_script,
             "--model_name_or_path",
             model_name,
-            "--data_path",
-            "samsum",  # TODO <-- samsum is hardcoded here
             "--output_dir",
             "workspace/training_output/",
-            "--peft_model_id",
-            adaptor_name,
-            "--num_train_epochs",
-            "1",  # TODO <-- hardcoded here
-            "--logging_steps",
-            "50",  # TODO <-- hardcoded here
             "--job_id",
             str(job_id),
-            "--formatting_template",
-            formatting_template,
-            "--lora_r",
-            str(template_config["lora_r"]),
-            "--lora_alpha",
-            str(template_config["lora_alpha"]),
-            "--lora_dropout",
-            str(template_config["lora_dropout"]),
-            "--learning_rate",
-            str(template_config["learning_rate"]),
+            "--input_file",
+            input_file,
         ]
         print("RUNNING: popen command:")
         print(training_popen_command)

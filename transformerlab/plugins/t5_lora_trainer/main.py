@@ -6,6 +6,8 @@
 # that will need to be fixed before it can work
 # for anyone
 
+import argparse
+import json
 import os
 import sqlite3
 
@@ -226,9 +228,13 @@ class Trainer:
     def train_lora(
         self,
         peft_model_id,
-        training_args=TrainingArguments,
-        lora_args=LoraArguments,
-        job_id="1",
+        lora_r,
+        lora_alpha,
+        lora_dropout,
+        learning_rate,
+        num_train_epochs,
+        logging_steps,
+        job_id,
     ):
         self.peft_model_id = peft_model_id
 
@@ -236,10 +242,10 @@ class Trainer:
 
         # Define LoRA Config
         lora_config = LoraConfig(
-            r=lora_args.lora_r,
-            lora_alpha=lora_args.lora_alpha,
+            r=lora_r,
+            lora_alpha=lora_alpha,
             target_modules=["q", "v"],
-            lora_dropout=lora_args.lora_dropout,
+            lora_dropout=lora_dropout,
             bias="none",
             task_type=TaskType.SEQ_2_SEQ_LM,
         )
@@ -273,11 +279,11 @@ class Trainer:
         training_args = Seq2SeqTrainingArguments(
             output_dir=output_dir,
             auto_find_batch_size=True,
-            learning_rate=training_args.learning_rate,  # higher learning rate
-            num_train_epochs=training_args.num_train_epochs,
+            learning_rate=learning_rate,  # higher learning rate
+            num_train_epochs=num_train_epochs,
             logging_dir=f"{output_dir}/logs",
             logging_strategy="steps",
-            logging_steps=training_args.logging_steps,
+            logging_steps=logging_steps,
             save_strategy="no",
             report_to="tensorboard",
         )
@@ -418,17 +424,18 @@ class Trainer:
         return
 
     def train(
-        self, peft_model_id, model_args, data_args, training_args, lora_args, job_id
+        self, peft_model_id, model_name_or_path, data_path, lora_r, lora_alpha, lora_dropout, learning_rate, num_train_epochs, logging_steps, job_id
     ):
-        self.set_model(model_args.model_name_or_path)
+        self.set_model(model_name_or_path)
 
-        self.load_dataset(data_args.data_path)
+        self.load_dataset(data_path)
         self.tokenize_dataset()
         self.preprocess()
 
         self.load_model()
 
-        self.train_lora(peft_model_id, training_args, lora_args, job_id)
+        self.train_lora(peft_model_id=peft_model_id, lora_r=lora_r, lora_alpha=lora_alpha, lora_dropout=lora_dropout,
+                        learning_rate=learning_rate, num_train_epochs=num_train_epochs, logging_steps=logging_steps, job_id=job_id)
 
         # # t.load_peft()
         # # t.evaluate('rouge')
@@ -442,35 +449,28 @@ class Trainer:
 JOB_ID = None
 
 if __name__ == "__main__":
-    parser = transformers.HfArgumentParser(
-        (ModelArguments, DataArguments, TrainingArguments, LoraArguments)
-    )
-
-    (
-        model_args,
-        data_args,
-        training_args,
-        lora_args,
-        other,
-    ) = parser.parse_args_into_dataclasses(return_remaining_strings=True)
-
-    parser.add_argument("--peft_model_id", required=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model_name_or_path', type=str)
     parser.add_argument("--job_id", required=True)
+    parser.add_argument('--input_file', type=str)
 
-    args = parser.parse_args()
+    args, unknown = parser.parse_known_args()
     print("args:")
     print(args)
-    print("training args")
-    print(training_args.__dict__)
+
+    input_config = None
+    # open the input file that provides configs
+    with open(args.input_file) as json_file:
+        input_config = json.load(json_file)
+    config = input_config["config"]
+    print("Input:")
+    print(input_config)
 
     JOB_ID = args.job_id
 
     t = Trainer()
     t.train(
-        args.peft_model_id,
-        model_args,
-        data_args,
-        training_args,
-        lora_args,
+        peft_model_id=config['adaptor_name'], model_name_or_path=args.model_name_or_path, data_path=config['dataset_name'], lora_r=config['lora_r'], lora_alpha=config[
+            'lora_alpha'], lora_dropout=config['lora_dropout'], learning_rate=config['learning_rate'], num_train_epochs=config['num_train_epochs'], logging_steps=100,
         job_id=args.job_id,
     )

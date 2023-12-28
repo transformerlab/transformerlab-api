@@ -14,16 +14,18 @@ import json
 if __name__ == "__main__":
     # Get all arguments provided to this script using argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--param1', type=str, help='First parameter')
-    parser.add_argument('--param2', type=str, help='Second parameter')
-    # allow other arguments:
-    parser.add_argument('--other_args', nargs=argparse.REMAINDER)
+    parser.add_argument('--model_name_or_path',
+                        type=str, help='First parameter')
+    parser.add_argument('--output_dir', type=str, help='Second parameter')
+    parser.add_argument('--input_file', type=str)
     args, unknown = parser.parse_known_args()
 
     print("Sample plugin called with parameters:")
-    print("param1: " + args.param1)
-    print("param2: " + args.param2)
+    print("model_name_or_path: " + args.model_name_or_path)
+    print("output_dir: " + args.output_dir)
 
-    # treat stdin as one json string:
-    experiment_info = json.loads(sys.stdin.read())
-    print(experiment_info)
+    with open(args.input_file) as json_file:
+        input = json.load(json_file)
+
+    print("Input:")
+    print(input)
