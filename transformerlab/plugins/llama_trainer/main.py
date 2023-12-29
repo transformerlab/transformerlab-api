@@ -16,9 +16,6 @@ use_flash_attention = False
 
 # Get all parameters provided to this script from Transformer Lab
 parser = argparse.ArgumentParser()
-parser.add_argument('--model_name_or_path', type=str)
-parser.add_argument('--output_dir', type=str)
-parser.add_argument('--job_id', type=str)
 parser.add_argument('--input_file', type=str)
 args, unknown = parser.parse_known_args()
 
@@ -32,7 +29,6 @@ with open(args.input_file) as json_file:
 config = input_config["config"]
 print("Input:")
 print(input_config)
-
 
 model_id = input_config["experiment"]["config"]["foundation"]
 # model_id = "NousResearch/Llama-2-7b-hf"  # non-gated

@@ -208,10 +208,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
     if job_type == "LoRA":
         # print(template[5])
         template_config = json.loads(template['config'])
-        model_name = template_config["model_name"]
-        adaptor_name = 'workspace/adaptors/' + model_name + \
-            '/' + template_config["adaptor_name"]
-        formatting_template = template_config["formatting_template"]
+        template_config["job_id"] = job_id
+        template_config["output_dir"] = "workspace/training_output/"
 
         # Create a file in the temp directory to store the inputs:
         if not os.path.exists("workspace/temp"):
@@ -233,12 +231,6 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
         training_popen_command = [
             "python3",
             plugin_script,
-            "--model_name_or_path",
-            model_name,
-            "--output_dir",
-            "workspace/training_output/",
-            "--job_id",
-            str(job_id),
             "--input_file",
             input_file,
         ]

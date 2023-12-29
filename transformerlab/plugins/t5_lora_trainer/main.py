@@ -450,8 +450,6 @@ JOB_ID = None
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_name_or_path', type=str)
-    parser.add_argument("--job_id", required=True)
     parser.add_argument('--input_file', type=str)
 
     args, unknown = parser.parse_known_args()
@@ -466,11 +464,11 @@ if __name__ == "__main__":
     print("Input:")
     print(input_config)
 
-    JOB_ID = args.job_id
+    JOB_ID = config["job_id"]
 
     t = Trainer()
     t.train(
-        peft_model_id=config['adaptor_name'], model_name_or_path=args.model_name_or_path, data_path=config['dataset_name'], lora_r=config['lora_r'], lora_alpha=config[
+        peft_model_id=config['adaptor_name'], model_name_or_path=input_config["experiment"]["config"]["foundation"], data_path=config['dataset_name'], lora_r=config['lora_r'], lora_alpha=config[
             'lora_alpha'], lora_dropout=config['lora_dropout'], learning_rate=config['learning_rate'], num_train_epochs=config['num_train_epochs'], logging_steps=100,
-        job_id=args.job_id,
+        job_id=JOB_ID,
     )
