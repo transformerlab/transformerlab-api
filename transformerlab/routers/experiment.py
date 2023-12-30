@@ -125,7 +125,7 @@ async def experiment_get_file_contents(id: int, filename: str):
         filename + file_ext).resolve().relative_to(experiment_dir)
 
     final_path = experiment_dir + "/" + str(final_path)
-    print(final_path)
+    # print(final_path)
 
     # now get the file contents
     try:
@@ -249,7 +249,7 @@ async def get_evaluation_plugin_file_contents(id: int, eval_name: str):
 
     experiment_name = data["name"]
 
-    print(f"{EXPERIMENTS_DIR}/{experiment_name}/evals/{eval_name}/main.py")
+    # print(f"{EXPERIMENTS_DIR}/{experiment_name}/evals/{eval_name}/main.py")
 
     # now get the file contents
     try:
