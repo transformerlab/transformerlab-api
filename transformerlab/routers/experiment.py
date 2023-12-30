@@ -496,10 +496,13 @@ async def install_plugin_to_experiment(id: int, plugin_name: str):
     for plugin in plugins:
         # there is a bug below -- it's not matching even if installed @TODO
         if plugin == plugin_name:
+            print("Error, plugin already installed")
             return {"error": "true", "message": f"Plugin {plugin_name} already installed. Delete from experiment before reinstalling"}
 
     # check that the directory exists:
     if not os.path.exists(f"workspace/plugins/{plugin_name}"):
+        print(
+            f"Error: plugin does not exist in workspace at workspace/plugins/{plugin_name}")
         return {"error": "true", "message": f"Plugin {plugin_name} does not exist in your local workspace"}
 
     # now copy the entire directory to the experiment:
