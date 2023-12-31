@@ -178,6 +178,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
     # Get the template
     template: dict[_KT, _VT] = await db.get_training_template(template_id)
 
+    print("Template: " + str(template))
     job_type = str(template['type'])
 
     # Get the plugin script name:

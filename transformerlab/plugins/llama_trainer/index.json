@@ -46,20 +46,23 @@
             "type": "number",
             "minimum": 4,
             "maximum": 64,
-            "multipleOf": 4
+            "multipleOf": 4,
+            "default": 16
         },
         "lora_alpha": {
             "title": "Lora Alpha",
             "type": "number",
             "minimum": 4,
             "maximum": 128,
-            "multipleOf": 4
+            "multipleOf": 4,
+            "default": 32
         },
         "lora_dropout": {
             "title": "Lora Dropout",
             "type": "number",
             "minimum": 0.05,
-            "maximum": 0.9
+            "maximum": 0.9,
+            "default": 0.05
         },
         "adaptor_name": {
             "title": "Adaptor Name",

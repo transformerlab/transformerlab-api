@@ -45,8 +45,10 @@ print("formatting_template: " + config['formatting_template'])
 # e.g. "$who likes $what"
 template = Template(config['formatting_template'])
 
+
 def format_instruction(mapping):
     return template.substitute(mapping)
+
 
 print("formatted instruction: (example) ")
 print(format_instruction(dataset[randrange(len(dataset))]))
@@ -71,9 +73,9 @@ tokenizer.padding_side = "right"
 
 # LoRA config based on QLoRA paper
 peft_config = LoraConfig(
-    lora_alpha=config['lora_alpha'],
-    lora_dropout=config['lora_dropout'],
-    r=config['lora_r'],
+    lora_alpha=int(config['lora_alpha']),
+    lora_dropout=float(config['lora_dropout']),
+    r=int(config['lora_r']),
     bias="none",
     task_type="CAUSAL_LM",
 )
@@ -83,15 +85,15 @@ model = prepare_model_for_kbit_training(model)
 model = get_peft_model(model, peft_config)
 
 args = TrainingArguments(
-    output_dir=config['adaptor_name']
-    num_train_epochs=config['num_train_epochs'],
+    output_dir=config['adaptor_name'],
+    num_train_epochs=int(config['num_train_epochs']),
     per_device_train_batch_size=6 if use_flash_attention else 4,
     gradient_accumulation_steps=2,
     gradient_checkpointing=True,
     optim="paged_adamw_32bit",
     logging_steps=10,
     save_strategy="epoch",
-    learning_rate=config['learning_rate'],
+    learning_rate=float(config['learning_rate']),
     bf16=True,
     tf32=True,
     max_grad_norm=0.3,
