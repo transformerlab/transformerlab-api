@@ -325,9 +325,9 @@ class Trainer:
         self.trainer.train()
 
         self.trainer.model.save_pretrained(
-            'workspace/peft/' + self.model_id + '/' + self.peft_model_id)
+            'workspace/adaptors/' + self.model_id + '/' + self.peft_model_id)
         self.tokenizer.save_pretrained(
-            'workspace/peft/' + self.model_id + '/' + self.peft_model_id)
+            'workspace/adaptors/' + self.model_id + '/' + self.peft_model_id)
 
     def load_peft(self):
         # Load peft config for pre-trained checkpoint etc.

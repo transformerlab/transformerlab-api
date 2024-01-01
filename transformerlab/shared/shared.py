@@ -207,10 +207,12 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
         db.job_update_sync(job_id, "COMPLETE")
 
     if job_type == "LoRA":
+        model_name = template_config["model_name"]
         # print(template[5])
         template_config = json.loads(template['config'])
+        adaptor_name = template_config["adaptor_name"]
         template_config["job_id"] = job_id
-        template_config["output_dir"] = "workspace/training_output/"
+        template_config["output_dir"] = f"workspace/adaptors/{model_name}/{adaptor_name}"
 
         # Create a file in the temp directory to store the inputs:
         if not os.path.exists("workspace/temp"):
