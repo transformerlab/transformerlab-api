@@ -66,7 +66,30 @@
         },
         "adaptor_name": {
             "title": "Adaptor Name",
-            "type": "string"
+            "type": "string",
+            "required": true
+        },
+        "radio": {
+            "title": "Radio Test",
+            "type": "number",
+            "enum": [
+                1,
+                2,
+                3
+            ]
+        }
+    },
+    "parameters_ui": {
+        "maximum_sequence_length": {
+            "ui:help": "Maximum sequence length for the model. Longer sequences will be truncated. Keep lower to save memory."
+        },
+        "lora_r": {
+            "ui:widget": "range",
+            "ui:help": "Rank of the update matrices, expressed in int. Lower rank results in smaller update matrices with fewer trainable parameters."
+        },
+        "lora_alpha": {
+            "ui:widget": "range",
+            "ui:help": "LoRA scaling factor. Make it a multiple of LoRA R."
         }
     }
 }
