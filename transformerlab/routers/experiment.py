@@ -537,8 +537,6 @@ async def delete_plugin_from_experiment(id: int, plugin_name: str):
 
     remove_tree(final_path)
 
-    await db.experiment_update_config(id, "plugins", plugins)
-
     return {"message": f"Plugin {plugin_name} deleted from experiment {id}"}
 
 

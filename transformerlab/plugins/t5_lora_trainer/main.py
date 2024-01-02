@@ -267,12 +267,7 @@ class Trainer:
         )
 
         output_dir = (
-            "workspace/tensorboards/"
-            + self.model_id
-            + "__"
-            + self.peft_model_id
-            + "/job"
-            + job_id
+            f"workspace/tensorboards/{self.model_id}/{self.peft_model_id}/job{job_id}/"
         )
 
         # Define training args
@@ -468,7 +463,14 @@ if __name__ == "__main__":
 
     t = Trainer()
     t.train(
-        peft_model_id=config['adaptor_name'], model_name_or_path=input_config["experiment"]["config"]["foundation"], data_path=config['dataset_name'], lora_r=config['lora_r'], lora_alpha=config[
-            'lora_alpha'], lora_dropout=config['lora_dropout'], learning_rate=config['learning_rate'], num_train_epochs=config['num_train_epochs'], logging_steps=100,
+        peft_model_id=config['adaptor_name'],
+        model_name_or_path=config['model_name'],
+        data_path=config['dataset_name'],
+        lora_r=int(config['lora_r']),
+        lora_alpha=int(config['lora_alpha']),
+        lora_dropout=float(config['lora_dropout']),
+        learning_rate=float(config['learning_rate']),
+        num_train_epochs=int(config['num_train_epochs']),
+        logging_steps=100,
         job_id=JOB_ID,
     )
