@@ -68,15 +68,6 @@
             "title": "Adaptor Name",
             "type": "string",
             "required": true
-        },
-        "radio": {
-            "title": "Radio Test",
-            "type": "number",
-            "enum": [
-                1,
-                2,
-                3
-            ]
         }
     },
     "parameters_ui": {
