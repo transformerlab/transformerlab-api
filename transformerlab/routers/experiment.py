@@ -487,18 +487,6 @@ async def install_plugin_to_experiment(id: int, plugin_name: str):
 
     experiment_name = experiment["name"]
 
-    if "plugins" not in experiment_config:
-        experiment_config["plugins"] = []
-
-    plugins = experiment_config["plugins"]
-
-    # check if the plugin is already installed:
-    for plugin in plugins:
-        # there is a bug below -- it's not matching even if installed @TODO
-        if plugin == plugin_name:
-            print("Error, plugin already installed")
-            return {"error": "true", "message": f"Plugin {plugin_name} already installed. Delete from experiment before reinstalling"}
-
     # check that the directory exists:
     if not os.path.exists(f"workspace/plugins/{plugin_name}"):
         print(
@@ -524,11 +512,6 @@ async def install_plugin_to_experiment(id: int, plugin_name: str):
     else:
         print("No install script found")
 
-    # add the plugin to the experiment config:
-    plugins.append(plugin_name)
-
-    await db.experiment_update_config(id, "plugins", plugins)
-
     return {"message": f"Plugin {plugin_name} installed to experiment {experiment_name}"}
 
 
@@ -542,14 +525,6 @@ async def delete_plugin_from_experiment(id: int, plugin_name: str):
         return {"message": f"Experiment {id} does not exist"}
 
     experiment_config = json.loads(experiment["config"])
-
-    if "plugins" not in experiment_config:
-        return {"message": f"Experiment {id} has no plugins"}
-
-    plugins = experiment_config["plugins"]
-
-    # remove the plugin from the list:
-    plugins = [e for e in plugins if e != plugin_name]
 
     # The following prevents path traversal attacks:
     rootdir = os.environ.get("LLM_LAB_ROOT_PATH")
