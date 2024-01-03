@@ -266,9 +266,7 @@ class Trainer:
             pad_to_multiple_of=8,
         )
 
-        output_dir = (
-            f"workspace/tensorboards/{self.model_id}/{self.peft_model_id}/job{job_id}/"
-        )
+        output_dir: str = f"workspace/tensorboards/job{job_id}/"
 
         # Define training args
         training_args = Seq2SeqTrainingArguments(
@@ -280,7 +278,7 @@ class Trainer:
             logging_strategy="steps",
             logging_steps=logging_steps,
             save_strategy="no",
-            report_to="tensorboard",
+            report_to=["tensorboard"],
         )
 
         class ProgressTableUpdateCallback(TrainerCallback):

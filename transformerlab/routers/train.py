@@ -170,12 +170,12 @@ async def stop_tensorboard():
 
 
 @router.get("/tensorboard/start")
-async def start_tensorboard():
-    await spawn_tensorboard()
+async def start_tensorboard(job_id: str):
+    await spawn_tensorboard(job_id)
     return {"message": "OK"}
 
 
-async def spawn_tensorboard():
+async def spawn_tensorboard(job_id: str):
     global tensorboard_process
 
     # call stop to ensure that if there is thread running we kill it first
@@ -186,7 +186,7 @@ async def spawn_tensorboard():
 
     # hardcoded for now, later on we should get the information from the job id in SQLITE
     # and use the config of the job to determine the logdir
-    logdir = "workspace/tensorboards/google/flan-t5-small__samsumadaptor1/"
+    logdir = f"workspace/tensorboards/job{job_id}"
 
     tensorboard_process = subprocess.Popen(
         ["tensorboard", "--logdir", logdir, "--host", "0.0.0.0"]

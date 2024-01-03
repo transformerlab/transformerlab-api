@@ -91,8 +91,12 @@ peft_config = LoraConfig(
 model = prepare_model_for_kbit_training(model)
 model = get_peft_model(model, peft_config)
 
+JOB_ID = config["job_id"]
+
+output_dir: str = f"workspace/tensorboards/job{JOB_ID}/"
+
 args = TrainingArguments(
-    output_dir=config['adaptor_name'],
+    output_dir=output_dir,
     num_train_epochs=int(config['num_train_epochs']),
     per_device_train_batch_size=6 if use_flash_attention else 4,
     gradient_accumulation_steps=2,
@@ -106,12 +110,11 @@ args = TrainingArguments(
     max_grad_norm=0.3,
     warmup_ratio=0.03,
     lr_scheduler_type="constant",
-    disable_tqdm=False  # disable tqdm since with packing values are in correct
+    disable_tqdm=False,  # disable tqdm since with packing values are in correct
+    report_to=["tensorboard"],
 )
 
 max_seq_length = 2048  # max sequence length for model and packing of the dataset
-
-JOB_ID = config["job_id"]
 
 
 class ProgressTableUpdateCallback(TrainerCallback):
