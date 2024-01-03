@@ -212,7 +212,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
         template_config = json.loads(template['config'])
         adaptor_name = template_config["adaptor_name"]
         template_config["job_id"] = job_id
-        template_config["output_dir"] = f"workspace/adaptors/{model_name}/{adaptor_name}"
+        template_config["adaptor_output_dir"] = f"workspace/adaptors/{model_name}/{adaptor_name}"
+        template_config["output_dir"] = f"workspace/tensorboards/job{job_id}/"
 
         # Create a file in the temp directory to store the inputs:
         if not os.path.exists("workspace/temp"):

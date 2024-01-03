@@ -238,6 +238,7 @@ class Trainer:
         num_train_epochs,
         logging_steps,
         job_id,
+        output_dir
     ):
         self.peft_model_id = peft_model_id
 
@@ -268,8 +269,6 @@ class Trainer:
             label_pad_token_id=label_pad_token_id,
             pad_to_multiple_of=8,
         )
-
-        output_dir: str = f"workspace/tensorboards/job{job_id}/"
 
         # Define training args
         training_args = Seq2SeqTrainingArguments(
@@ -420,7 +419,7 @@ class Trainer:
         return
 
     def train(
-        self, peft_model_id, model_name_or_path, data_path, lora_r, lora_alpha, lora_dropout, learning_rate, num_train_epochs, logging_steps, job_id
+        self, peft_model_id, model_name_or_path, data_path, lora_r, lora_alpha, lora_dropout, learning_rate, num_train_epochs, logging_steps, job_id, output_dir
     ):
         self.set_model(model_name_or_path)
 
@@ -431,7 +430,7 @@ class Trainer:
         self.load_model()
 
         self.train_lora(peft_model_id=peft_model_id, lora_r=lora_r, lora_alpha=lora_alpha, lora_dropout=lora_dropout,
-                        learning_rate=learning_rate, num_train_epochs=num_train_epochs, logging_steps=logging_steps, job_id=job_id)
+                        learning_rate=learning_rate, num_train_epochs=num_train_epochs, logging_steps=logging_steps, job_id=job_id, output_dir=output_dir)
 
         # # t.load_peft()
         # # t.evaluate('rouge')
@@ -474,4 +473,5 @@ if __name__ == "__main__":
         num_train_epochs=int(config['num_train_epochs']),
         logging_steps=100,
         job_id=JOB_ID,
+        output_dir=config["output_dir"]
     )

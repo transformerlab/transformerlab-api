@@ -93,7 +93,7 @@ model = get_peft_model(model, peft_config)
 
 JOB_ID = config["job_id"]
 
-output_dir: str = f"workspace/tensorboards/job{JOB_ID}/"
+output_dir: str = config["output_dir"]
 
 args = TrainingArguments(
     output_dir=output_dir,
