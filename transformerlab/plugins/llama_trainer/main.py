@@ -3,6 +3,7 @@
 
 import json
 from random import randrange
+import sqlite3
 from string import Template
 from datasets import load_dataset
 from trl import SFTTrainer
@@ -10,9 +11,15 @@ from transformers import TrainingArguments
 from peft import LoraConfig, prepare_model_for_kbit_training, get_peft_model
 import argparse
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, TrainerCallback
+import os
 
 use_flash_attention = False
+
+# Connect to the LLM Lab database
+llmlab_root_dir = os.getenv('LLM_LAB_ROOT_PATH')
+db = sqlite3.connect(llmlab_root_dir + "/workspace/llmlab.sqlite3")
+
 
 # Get all parameters provided to this script from Transformer Lab
 parser = argparse.ArgumentParser()
@@ -104,6 +111,32 @@ args = TrainingArguments(
 
 max_seq_length = 2048  # max sequence length for model and packing of the dataset
 
+JOB_ID = config["job_id"]
+
+
+class ProgressTableUpdateCallback(TrainerCallback):
+    "A callback that prints updates progress percent in the TransformerLab DB"
+
+    def on_step_end(self, args, state, control, **kwargs):
+        if state.is_local_process_zero:
+            # print(state.epoch)
+            # print(state.global_step)
+            # print(state.max_steps)
+            # I think the following works but it may need to be
+            # augmented by the epoch number
+            progress = state.global_step / state.max_steps
+            progress = int(progress * 100)
+            db_job_id = JOB_ID
+            # Write to jobs table in database, updating the
+            # progress column:
+            db.execute(
+                "UPDATE job SET progress = ? WHERE id = ?",
+                (progress, db_job_id),
+            )
+            db.commit()
+        return
+
+
 trainer = SFTTrainer(
     model=model,
     train_dataset=dataset,
@@ -113,6 +146,7 @@ trainer = SFTTrainer(
     packing=True,
     formatting_func=format_instruction,
     args=args,
+    callbacks=[ProgressTableUpdateCallback]
 )
 
 # train

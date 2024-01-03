@@ -284,7 +284,7 @@ class Trainer:
         )
 
         class ProgressTableUpdateCallback(TrainerCallback):
-            "A callback that prints updates progress percent in the DB"
+            "A callback that prints updates progress percent in the TransformerLab DB"
 
             def on_step_end(self, args, state, control, **kwargs):
                 if state.is_local_process_zero:
