@@ -2,9 +2,13 @@
 # https://www.philschmid.de/fine-tune-flan-t5-peft
 # and works with T5 models using
 # transformers.Seq2SeqTrainer
-# it hard codes some assumptions about the data
-# that will need to be fixed before it can work
-# for anyone
+# It is designed to only work with datasets that look
+# like the samsum dataset. If you see the function called
+# preprocess_function you will see it assumes specific
+# column names in the dataset and it ignores the
+# formatting_template parameter. If you want to use
+# this to train T5 on a different dataset, edit the
+# preprocess function
 
 import argparse
 import json
@@ -122,8 +126,8 @@ class Trainer:
         print(f"Train dataset size: {len(self.dataset['train'])}")
         print(f"Test dataset size: {len(self.dataset['test'])}")
 
-        self.train_dataset = load_dataset("samsum", split="train[:100%]")
-        self.test_dataset = load_dataset("samsum", split="test[:100%]")
+        self.train_dataset = load_dataset(dataset_id, split="train[:100%]")
+        self.test_dataset = load_dataset(dataset_id, split="test[:100%]")
         print(f"Train dataset size: {len(self.train_dataset)}")
         print(f"Test dataset size: {len(self.test_dataset)}")
 
@@ -174,7 +178,6 @@ class Trainer:
     def __preprocess_function(self, sample, padding="max_length"):
         # add prefix to the input for t5
         inputs = ["summarize: " + item for item in sample["dialogue"]]
-
         # tokenize inputs
         model_inputs = self.tokenizer(
             inputs, max_length=self.max_source_length, padding=padding, truncation=True
@@ -341,7 +344,7 @@ class Trainer:
 
     def evaluate(self, evaluation_id):
         # Load dataset from the hub and get a sample
-        dataset = load_dataset("samsum")
+        dataset = load_dataset(self.dataset_id)
         sample = dataset["test"][randrange(len(dataset["test"]))]
 
         input_ids = self.tokenizer(

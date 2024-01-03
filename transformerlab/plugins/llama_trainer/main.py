@@ -1,4 +1,4 @@
-# The following comes from
+# The following is adapted from
 # https://www.philschmid.de/instruction-tune-llama-2
 
 import json
