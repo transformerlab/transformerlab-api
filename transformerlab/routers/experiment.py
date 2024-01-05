@@ -143,6 +143,7 @@ async def experiment_add_evaluation(id: int, plugin: Any = Body()):
     and add global plugin to the specific experiment. By copying the plugin to the experiment
     directory, we can modify the plugin code for the specific experiment without affecting
     other experiments that use the same plugin. """
+
     experiment = await db.experiment_get(id)
 
     if experiment is None:
@@ -169,42 +170,6 @@ async def experiment_add_evaluation(id: int, plugin: Any = Body()):
 
     evaluations.append(evaluation)
 
-    # make the destination directory if it does not exist:
-    os.makedirs(
-        f"{EXPERIMENTS_DIR}/{experiment['name']}/scripts/evals/{slug}/", mode=0o755, exist_ok=True)
-
-    #######################################################
-    # If the plugin is a plain script, then just copy it:
-    #######################################################
-    # copy the plugin to the experiment directory
-    # right now this is hard coded to only copy one file "main.py" but in the future
-    # we could read the details of the plugin and copy all relevant files
-    filename = f"workspace/plugins/{plugin_name}/main.py"
-    if not os.path.isfile(filename):
-        print(f'Python file named {filename} does not exist')
-    else:
-        copy_experiment_script = f"cp -r {filename} {EXPERIMENTS_DIR}/{experiment['name']}/scripts/evals/{slug}/main.py"
-        os.system(copy_experiment_script)
-
-    #######################################################
-    # If there is a script template, then render it and save it
-    #######################################################
-    filename = f"workspace/plugins/{plugin_name}/main.py.j2"
-    if not os.path.isfile(filename):
-        print(f'Python file named {filename} does not exist')
-    else:
-        with open(filename) as f:
-            script_template = f.read()
-
-        # Then convert the script template to a string using Jinja2
-        script_j2 = Template(script_template)
-        parameters = script_parameters
-        script = script_j2.render(parameters)
-
-        # Now write the file:
-        with open(f"{EXPERIMENTS_DIR}/{experiment['name']}/scripts/evals/{slug}/main.py", "w") as f:
-            f.write(script)
-
     await db.experiment_update_config(id, "evaluations", json.dumps(evaluations))
 
     return {"message": f"Experiment {id} updated with plugin {plugin_name}"}
@@ -229,17 +194,15 @@ async def experiment_delete_eval(id: int, eval_name: str):
     # remove the evaluation from the list:
     evaluations = [e for e in evaluations if e["name"] != eval_name]
 
-    # remove the directory:
-    os.system(
-        f"rm -rf {EXPERIMENTS_DIR}/{experiment['name']}/scripts/evals/{eval_name}")
-
     await db.experiment_update_config(id, "evaluations", json.dumps(evaluations))
 
     return {"message": f"Evaluation {eval_name} deleted from experiment {id}"}
 
+# @TODO delete the following function and use the plugin file function
+
 
 @router.get("/{id}/get_evaluation_plugin_file_contents")
-async def get_evaluation_plugin_file_contents(id: int, eval_name: str):
+async def get_evaluation_plugin_file_contents(id: int, plugin_name: str):
     # first get the experiment name:
     data = await db.experiment_get(id)
 
@@ -253,34 +216,79 @@ async def get_evaluation_plugin_file_contents(id: int, eval_name: str):
 
     # now get the file contents
     try:
-        with open(f"{EXPERIMENTS_DIR}/{experiment_name}/scripts/evals/{eval_name}/main.py", "r") as f:
+        with open(f"{EXPERIMENTS_DIR}/{experiment_name}/plugins/{plugin_name}/main.py", "r") as f:
             file_contents = f.read()
     except FileNotFoundError:
-        return ""
+        return "error file not found"
 
     return file_contents
 
 
 @router.get("/{id}/run_evaluation_script")
-async def run_evaluation_script(id: int, eval_name: str):
-    data = await db.experiment_get(id)
-    if data is None:
-        return {"message": f"Experiment {id} does not exist"}
-    config = json.loads(data["config"])
+async def run_evaluation_script(id: int, plugin_name: str, eval_name: str):
+    experiment_details = await db.experiment_get(id=id)
 
-    experiment_name = data["name"]
+    if experiment_details is None:
+        return {"message": f"Experiment {id} does not exist"}
+    config = json.loads(experiment_details["config"])
+
+    experiment_name = experiment_details["name"]
     model_name = config["foundation"]
-    # model_type = config["model_type"]
-    model_type = "hf-seq2seq"  # hardcoded
-    model_adapter = ""  # config["model_adapter"]
+    model_type = config["foundation_model_architecture"]
+    model_adapter = config["adaptor"]
+
+    # @TODO: This whole thing can be re-written to use the shared function to run a plugin
+
+    # Create the input file for the script:
+    if not os.path.exists("workspace/temp"):
+        os.makedirs("workspace/temp")
+    input_file = "workspace/temp/plugin_input_" + str(plugin_name) + ".json"
+
+    # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
+    # and should be done in the API itself
+    if "config" in experiment_details:
+        experiment_details["config"] = json.loads(
+            experiment_details["config"])
+        if "inferenceParams" in experiment_details["config"]:
+            experiment_details["config"]["inferenceParams"] = json.loads(
+                experiment_details["config"]["inferenceParams"])
+        if "evaluations" in experiment_details["config"]:
+            experiment_details["config"]["evaluations"] = json.loads(
+                experiment_details["config"]["evaluations"])
+
+    all_evaluations = experiment_details["config"]["evaluations"]
+    this_evaluation = None
+    for evaluation in all_evaluations:
+        if evaluation["name"] == eval_name:
+            this_evaluation = evaluation
+            break
+
+    if this_evaluation is None:
+        return {"message": f"Error: evaluation {eval_name} does not exist in experiment"}
+
+    template_config = this_evaluation["script_parameters"]
+
+    input_contents = {"experiment": experiment_details,
+                      "config": template_config}
+    with open(input_file, 'w') as outfile:
+        json.dump(input_contents, outfile, indent=4)
+
+    # For now, even though we have the file above, we are also going to pass all params
+    # as command line arguments to the script.
+
+    # Create a list of all the parameters:
+    extra_args = []
+    for key in template_config:
+        extra_args.append("--" + key)
+        extra_args.append(template_config[key])
 
     # now run the script
     root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
     if root_dir is None:
         return {"message": "LLM_LAB_ROOT_PATH not set"}
-    script_path = f"{root_dir}/{EXPERIMENTS_DIR}/{experiment_name}/scripts/evals/{eval_name}/main.py"
-    extra_args = ["--experiment_name", experiment_name, "--eval_name",
-                  eval_name, "--model_name", model_name, "--model_type", model_type, "--model_adapter", model_adapter]
+    script_path = f"{root_dir}/{EXPERIMENTS_DIR}/{experiment_name}/plugins/{plugin_name}/main.py"
+    extra_args.extend(["--experiment_name", experiment_name, "--eval_name", "--input_file", input_file,
+                       eval_name, "--model_name", model_name, "--model_architecture", model_type, "--model_adapter", model_adapter])
 
     subprocess_command = [sys.executable, script_path] + extra_args
 
