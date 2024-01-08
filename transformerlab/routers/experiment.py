@@ -125,7 +125,7 @@ async def experiment_get_file_contents(id: int, filename: str):
         filename + file_ext).resolve().relative_to(experiment_dir)
 
     final_path = experiment_dir + "/" + str(final_path)
-    # print(final_path)
+    print("Listing Contents of File: " + final_path)
 
     # now get the file contents
     try:
@@ -286,15 +286,18 @@ async def run_evaluation_script(id: int, plugin_name: str, eval_name: str):
     root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
     if root_dir is None:
         return {"message": "LLM_LAB_ROOT_PATH not set"}
-    script_path = f"{root_dir}/{EXPERIMENTS_DIR}/{experiment_name}/plugins/{plugin_name}/main.py"
-    extra_args.extend(["--experiment_name", experiment_name, "--eval_name", "--input_file", input_file,
-                       eval_name, "--model_name", model_name, "--model_architecture", model_type, "--model_adapter", model_adapter])
+
+    script_directory = f"{root_dir}/{EXPERIMENTS_DIR}/{experiment_name}/plugins/{plugin_name}"
+    script_path = f"{script_directory}/main.py"
+    extra_args.extend(["--experiment_name", experiment_name, "--eval_name", eval_name, "--input_file", input_file,
+                       "--model_name", model_name, "--model_architecture", model_type, "--model_adapter", model_adapter])
 
     subprocess_command = [sys.executable, script_path] + extra_args
 
-    print(f"Running {script_path} with args {extra_args}")
+    print(f">Running {subprocess_command}")
 
-    subprocess.run(args=subprocess_command, cwd=root_dir + "/workspace")
+    with open(f"{script_directory}/output.txt", "w") as f:
+        subprocess.run(args=subprocess_command, stdout=f)
 
 
 @router.get(path="/{id}/get_conversations")

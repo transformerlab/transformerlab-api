@@ -12,14 +12,16 @@ parser.add_argument('--model_type', default='hf-causal',
                     type=str, help='Type of model to use for evaluation.')
 parser.add_argument('--experiment_name', default='', type=str)
 parser.add_argument('--eval_name', default='', type=str)
+parser.add_argument('--task', default='', type=str)
+
 
 args, other = parser.parse_known_args()
 
-print(args)
+# print("Calling Eleuther AI LM Evaluation Harness with args:")
+# print(args)
 
 root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
-output_file_path = root_dir + "workspace/experiments/" + args.experiment_name + \
-    "/scripts/evals/" + args.eval_name + "/output.txt"
+plugin_dir = f"{root_dir}/workspace/experiments/{args.experiment_name}/plugins/eleuther-ai-lm-evaluation-harness"
 
 # example command from https://github.com/EleutherAI/lm-evaluation-harness
 # python main.py \
@@ -29,15 +31,12 @@ output_file_path = root_dir + "workspace/experiments/" + args.experiment_name + 
 #    --device cuda:0
 
 # type = args.model_type
-# type = "hf-causal" # hardcoded for now
-type = "hf-seq2seq"  # hardcoded for now
-model_args = 'pretrained=' + args.model_name
-task = "{{ task }}"
 
-with open(output_file_path, 'w') as fd:
-    subprocess.Popen(
-        [sys.executable, root_dir + '/workspace/plugins/eleuther-ai-lm-evaluation-harness/lm-evaluation-harness/main.py',
-            '--model', type, '--model_args', model_args, '--tasks', task, '--device', 'cuda:0'],
-        cwd=root_dir + "/workspace",
-        stdout=fd
-    )
+model_args = 'pretrained=' + args.model_name
+task = args.task
+
+subprocess.Popen(
+    ["lm-eval",
+        '--model_args', model_args, '--tasks', task, '--device', 'cuda:0'],
+    cwd=plugin_dir,
+)
