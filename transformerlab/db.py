@@ -199,6 +199,12 @@ async def model_local_create(model_id, name, json_data):
     await db.commit()
 
 
+async def model_local_delete(model_id):
+    global db
+    await db.execute("DELETE FROM model WHERE model_id = ?", (model_id,))
+    await db.commit()
+
+
 ###############
 # TRAINING and TRAINING JOBS MODELS
 ###############

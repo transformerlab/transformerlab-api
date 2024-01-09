@@ -159,6 +159,16 @@ async def model_local_create(id: str, name: str, json_data={}):
     return {"message": "model created"}
 
 
+@router.get("/model/delete")
+async def model_local_delete(model_id: str):
+    print(
+        f"Deleting model {model_id}. Note that this will not free up space because it remains in the HuggingFace cache.")
+    print("If you want to delete the model from the HuggingFace cache, you must delete it from:")
+    print("~/.cache/huggingface/hub/")
+    await db.model_local_delete(model_id=model_id)
+    return {"message": "model deleted"}
+
+
 @router.post("/model/pefts")
 async def model_gets_pefts(model_id: Annotated[str, Body()],):
     workspace_dir = shared.WORKSPACE_DIR
