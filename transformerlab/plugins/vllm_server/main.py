@@ -20,7 +20,7 @@ llmlab_root_dir = os.getenv('LLM_LAB_ROOT_PATH')
 # https://github.com/lm-sys/FastChat/blob/main/docs/vllm_integration.md
 
 popen_args = [sys.executable, '-m',
-              'fastchat.serve.vllm_worker', '--model', model]
+              'fastchat.serve.vllm_worker', '--model-path', model]
 
 print(popen_args)
 proc = subprocess.Popen(popen_args, stderr=subprocess.PIPE, stdout=None)
