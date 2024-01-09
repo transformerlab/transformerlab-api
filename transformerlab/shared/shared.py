@@ -97,15 +97,15 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
 
     The FastAPI worker uses stderr, not stdout"""
 
-    print("Running python script: " + str(python_script))
+    print("Running async python script: " + str(python_script))
 
     command = [sys.executable, *python_script]
 
-    process = await open_process(command=command, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    process = await open_process(command=command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
 
     # read stderr and print:
-    if process.stderr:
-        async for text in TextReceiveStream(process.stderr):
+    if process.stdout:
+        async for text in TextReceiveStream(process.stdout):
             print("**SUB PROCESS:( "+text+" )**")
             if begin_string in text:
                 print("WE ARE STARTED!")
@@ -116,10 +116,13 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
     if process.returncode == 0:
         print("Process completed successfully")
     else:
+        print("Task ERROR")
+        await db.job_update(job_id=job_id, status="FAILED")
         msg = (
             f"Command failed with exit code {process.returncode}:\n"
         )
-        raise RuntimeError(msg)
+        print(msg)
+        return process
 
     print("Task Complete")
     await db.job_update(job_id=job_id, status="COMPLETE")
