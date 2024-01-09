@@ -1,17 +1,31 @@
+<!-- PROJECT LOGO -->
+<br />
+<div align="center">
+  <a href="https://github.com/transformerlab/transformerlab-app">
+    <img src="https://transformerlab.ai/img/flask.svg" alt="Logo" width="80" height="80">
+  </a>
+
+  <h1 align="center" style="color: rgb(68, 73, 80); letter-spacing: -1px">Transformer Lab API</h1>
+
+  <p align="center">
+    API for <a href="http://github.com/transformerlab/transformerlab-app">Transformer Lab App</a>.
+    <br />
+    <a href=https://transformerlab.ai/docs/intro"><strong>Explore the docs »</strong></a>
+  </p>
+</div>
+
+# API for Transformer Lab
+
+This is the API for the [Transformer Lab App](https://github.com/transformerlab/transformerlab-app) which is the main repo for this project. Please go the Transformer Lab App repository to learn more and access documentation.
+
+Use the instructions below if you are installing and running the API on a server, manually.
+
 # Requirements
 
-## If you want to finetune a model you will need:
+* Linux or WSL (for training)
+* Mac, Linux, WSL for inference only
 
-* Linux or WSL
-* NVIDIA GPU with >= 16 GB of VRAM
-
-## If you just want to do inference:
-
-* Mac M1 or M2
-* Windows
-* Linux
-
-# Installation
+# Automatic Installation
 
 You can use the install script to get the application running: 
 ```bash
@@ -19,7 +33,13 @@ You can use the install script to get the application running:
 ```
 
 This will install [conda](https://docs.conda.io/projects/miniconda/en/latest/) if it's not installed, and then use conda and pip to
-install the rest of the applications requirements.
+install the rest of the application requirements.
+
+# Manual Installation
+
+If you prefer to install the API without using the install script you can follow the steps on this page:
+
+[Manual Install](transformerlab/docs/manual_install.md)
 
 # Run
 
