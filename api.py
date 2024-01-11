@@ -162,7 +162,7 @@ async def server_worker_start(model_name: str, model_filename: str | None = None
 
         experiment_config = experiment['config']
         experiment_config = json.loads(experiment_config)
-        if (experiment_config['inferenceParams'] is not None):
+        if ('inferenceParams' in experiment_config and experiment_config['inferenceParams'] is not None):
             inference_params = experiment_config['inferenceParams']
             inference_params = json.loads(inference_params)
 
