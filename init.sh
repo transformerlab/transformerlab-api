@@ -73,7 +73,7 @@ echo "HAS_GPU=$HAS_GPU"
 
 if [ "$HAS_GPU" = true ] ; then
     echo "Your computer has a GPU; installing cuda:"
-    conda install -y cuda -c nvidia/label/cuda-11.8.0
+    conda install -y cuda -c nvidia/label/cuda-12.1.1
 
     echo "Installing requirements:"
     # Install the python requirements

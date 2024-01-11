@@ -18,7 +18,7 @@ https://docs.conda.io/projects/miniconda/en/latest/index.html#quick-command-line
 
 ```bash
 conda create -y -n "transformerlab" python=3.10
-conda install -y cuda -c nvidia/label/cuda-11.8.0
+conda install -y cuda -c nvidia/label/cuda-12.1.1
 ```
 
 ### 3. Download this Project:
