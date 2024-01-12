@@ -116,6 +116,12 @@ async def get_dataset(dataset_id):
         "SELECT * FROM dataset WHERE dataset_id = ?", (dataset_id,)
     )
     row = await cursor.fetchone()
+
+    # convert to json
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    row = dict(itertools.zip_longest(column_names, row))
+
     await cursor.close()
     return row
 

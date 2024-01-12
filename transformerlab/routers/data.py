@@ -32,7 +32,7 @@ async def dataset_info(dataset_id: str):
 
     r = {}
 
-    if d[1] == "local":
+    if d["location"] == "local":
         dataset = load_dataset(path=f"workspace/datasets/{dataset_id}")
         # print(dataset['train'].features)
         r["features"] = dataset["train"].features
@@ -59,7 +59,9 @@ async def dataset_preview(dataset_id: str):
 
     result = []
 
-    if d[1] == "local":
+    print(d)
+
+    if d["location"] == "local":
         dataset = load_dataset(path=f"workspace/datasets/{dataset_id}")
         # print(dataset['train'].features)
 
