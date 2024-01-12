@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 import unicodedata
 
 import aiofiles
@@ -103,13 +104,17 @@ async def dataset_new(dataset_id: str):
     await db.create_local_dataset(dataset_id)
     print(dataset_id)
     # Now make a directory that maps to the above dataset_id
-    os.makedirs(f"workspace/datasets/{dataset_id}")
+    # Check if the directory already exists
+    if not os.path.exists(f"workspace/datasets/{dataset_id}"):
+        os.makedirs(f"workspace/datasets/{dataset_id}")
     return {"message": "OK", "dataset_id": dataset_id}
 
 
 @router.get("/delete", summary="Delete a dataset.")
 async def dataset_delete(dataset_id: str):
     await db.delete_dataset(dataset_id)
+    # delete directory and contents
+    shutil.rmtree(f"workspace/datasets/{dataset_id}")
     return {"message": "OK"}
 
 
