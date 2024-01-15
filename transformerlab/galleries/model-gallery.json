@@ -264,6 +264,28 @@
     }
   },
   {
+    "uniqueID": "mlx-community/Mistral-7B-Instruct-v0.1-4bit-mlx",
+    "name": "Mistral-7B-Instruct-v0.1 MLX 4bit",
+    "description": "The Mistral-7B-Instruct-v0.1 Large Language Model (LLM) is a instruct fine-tuned version of the Mistral-7B-v0.1 generative text model using a variety of publicly available conversation datasets.",
+    "parameters": "7B",
+    "context": "4k",
+    "architecture": "MLX",
+    "huggingface_repo": "mlx-community/Mistral-7B-Instruct-v0.1-4bit-mlx",
+    "transformers_version": "4.34.0.dev0",
+    "license": "Apache 2.0",
+    "logo": "https://docs.mistral.ai/img/logo.svg",
+    "author": {
+      "name": "Mistral AI",
+      "url": "https://docs.mistral.ai/",
+      "blurb": ""
+    },
+    "resources": {
+      "canonicalUrl": "https://huggingface.co/mistralai/Mistral-7B-v0.1",
+      "downloadUrl": "https://huggingface.co/mistralai/Mistral-7B-v0.1",
+      "paperUrl": "?"
+    }
+  },
+  {
     "uniqueID": "tiiuae/falcon-7b",
     "name": "Falcon 7b",
     "description": "Best overall smaller model. Fast responses. Instruction based. Trained by TII. Licensed for commercial use.",
@@ -374,6 +396,28 @@
     }
   },
   {
+    "uniqueID": "microsoft/phi-2",
+    "name": "Phi 2",
+    "description": "Phi-2 is a Transformer with 2.7 billion parameters. The model hasn't been fine-tuned through reinforcement learning from human feedback. The intention behind crafting this open-source model is to provide the research community with a non-restricted small model to explore vital safety challenges, such as reducing toxicity, understanding societal biases, enhancing controllability, and more.",
+    "parameters": "2.7B",
+    "context": "?k",
+    "architecture": "PhiForCausalLM",
+    "huggingface_repo": "microsoft/phi-2",
+    "transformers_version": "4.37.0.dev0",
+    "license": "MIT",
+    "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRTwt9xAK7ih0gG74r3XLTpbiWmcd-9PTwXAQ&usqp=CAU",
+    "author": {
+      "name": "Microsoft",
+      "url": "https://www.microsoft.com/en-us/research/blog/phi-2-the-surprising-power-of-small-language-models/",
+      "blurb": ""
+    },
+    "resources": {
+      "canonicalUrl": "https://huggingface.co/microsoft/phi-2",
+      "downloadUrl": "https://huggingface.co/microsoft/phi-2",
+      "paperUrl": "https://www.microsoft.com/en-us/research/blog/phi-2-the-surprising-power-of-small-language-models/"
+    }
+  },
+  {
     "uniqueID": "Nous-Hermes-13b",
     "name": "Nous Hermes 13b",
     "description": "Extremely good model. Instruction based. Gives long responses. Curated with 300,000 uncensored instructions. Trained by Nous Research. Cannot be used commercially",
@@ -447,7 +491,7 @@
     "context": "4k",
     "architecture": "GGUF",
     "huggingface_repo": "TheBloke/Llama-2-7B-Chat-GGUF",
-    "huggingface_filename": "llama-2-7b-chat.Q4_0.gguf",
+    "huggingface_filename": "llama-2-7b.Q4_0.gguf",
     "license": "Meta Custom",
     "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
     "author": {
@@ -469,7 +513,7 @@
     "context": "4k",
     "architecture": "GGUF",
     "huggingface_repo": "TheBloke/Llama-2-7B-GGUF",
-    "huggingface_filename": "llama-2-7b.Q4_0.gguf",
+    "huggingface_filename": "llama-2-7b-chat.Q4_0.gguf",
     "license": "Meta Custom",
     "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
     "author": {
@@ -480,6 +524,28 @@
     "resources": {
       "canonicalUrl": "https://huggingface.co/meta-llama/Llama-2-7b-chat",
       "downloadUrl": "https://huggingface.co/meta-llama/Llama-2-7b-chat",
+      "paperUrl": "?"
+    }
+  },
+  {
+    "uniqueID": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+    "name": "Tiny Llama 1.1B Chat",
+    "description": "The TinyLlama project aims to pretrain a 1.1B Llama model on 3 trillion tokens. With some proper optimization, we can achieve this within a span of 90 days using 16 A100-40G GPUs \ud83d\ude80\ud83d\ude80. The training has started on 2023-09-01.",
+    "parameters": "1.1B",
+    "context": "4k",
+    "architecture": "LlamaForCausalLM",
+    "huggingface_repo": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+    "transformers_version": "4.35.0",
+    "license": "Apache 2.0",
+    "logo": "https://eu-images.contentstack.com/v3/assets/blt6b0f74e5591baa03/bltf495f117670d330a/65985db56b9c04040d633f56/image.png?width=700&auto=webp&quality=80&disable=upscale",
+    "author": {
+      "name": "TinyLlama",
+      "url": "https://github.com/jzhang38/TinyLlama",
+      "blurb": ""
+    },
+    "resources": {
+      "canonicalUrl": "https://github.com/jzhang38/TinyLlama",
+      "downloadUrl": "https://github.com/jzhang38/TinyLlama",
       "paperUrl": "?"
     }
   }
