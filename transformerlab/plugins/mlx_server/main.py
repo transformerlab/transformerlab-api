@@ -4,8 +4,8 @@ A model worker using FastChat
 
 import argparse
 import asyncio
+import atexit
 import json
-import random
 from typing import List
 import uuid
 
@@ -97,6 +97,8 @@ class MLXWorker(BaseModelWorker):
                 if s != "":
                     stop.add(s)
 
+        print("Stop patterns: ", stop)
+
         # make sampling params in vllm
         top_p = max(top_p, 1e-5)
         if temperature <= 1e-5:
@@ -119,29 +121,36 @@ class MLXWorker(BaseModelWorker):
         tokens = []
         skip = 0
 
-        context = mx.array(self.tokenizer.encode(context))
+        context_mlx = mx.array(self.tokenizer.encode(context))
 
-        for token, n in zip(
-            generate_step(context, self.mlx_model, temperature), range(
-                max_new_tokens)
-        ):
+        for token in generate_step(context_mlx, self.mlx_model, temperature):
             if token == self.mlx_tokenizer.eos_token_id:
                 break
             tokens.append(token.item())
-            s = self.mlx_tokenizer.decode(tokens)
-            t = self.mlx_tokenizer.decode([token.item()])
-            print(t, end="", flush=True)
-            skip = len(s)
+            tokens_decoded = self.mlx_tokenizer.decode(tokens)
+            last_token_decoded = self.mlx_tokenizer.decode([token.item()])
+            print(last_token_decoded, end="", flush=True)
+            skip = len(tokens_decoded)
+
+            partial_stop = any(is_partial_stop(tokens_decoded, i)
+                               for i in stop)
+            # prevent yielding partial stop sequence
+            if partial_stop:
+                break
 
             ret = {
-                "text": s,
+                "text": tokens_decoded,
                 "error_code": 0,
                 "usage": {
+                    "prompt_tokens": len(context),
+                    "completion_tokens": len(tokens),
+                    "total_tokens": len(context) + len(tokens),
                 },
                 "cumulative_logprob": [
                 ],
-                "finish_reason": "length"  # hard code for now
+                "finish_reason": None   # hard code for now
             }
+            # print(ret)
             yield (json.dumps(ret) + "\0").encode()
         ret = {
             "text": self.mlx_tokenizer.decode(tokens),
@@ -150,15 +159,10 @@ class MLXWorker(BaseModelWorker):
             },
             "cumulative_logprob": [
             ],
-            "finish_reason": "length"  # hard code for now
+            "finish_reason": "stop"  # hard code for now -- it should detect for stop vs "length"
         }
         yield (json.dumps(obj={**ret, **{"finish_reason": None}}) + "\0").encode()
-
-        # # Emit twice here to ensure a 'finish_reason' with empty content in the OpenAI API response.
-        # # This aligns with the behavior of model_worker.
-        # if request_output.finished:
-        #     yield (json.dumps({**ret, **{"finish_reason": None}}) + "\0").encode()
-        # yield (json.dumps(ret) + "\0").encode()
+        yield (json.dumps(ret) + "\0").encode()
 
     async def generate(self, params):
         async for x in self.generate_stream(params):
@@ -191,7 +195,7 @@ async def api_generate_stream(request: Request):
     params = await request.json()
     await acquire_worker_semaphore()
     request_id = uuid.uuid4()
-    params["request_id"] = request_id
+    params["request_id"] = str(request_id)
     generator = worker.generate_stream(params)
     background_tasks = create_background_tasks(request_id)
     return StreamingResponse(generator, background=background_tasks)
@@ -202,7 +206,7 @@ async def api_generate(request: Request):
     params = await request.json()
     await acquire_worker_semaphore()
     request_id = uuid.uuid4()
-    params["request_id"] = request_id
+    params["request_id"] = str(request_id)
     output = await worker.generate(params)
     release_worker_semaphore()
     # await engine.abort(request_id)
@@ -229,6 +233,17 @@ async def api_get_conv(request: Request):
 @app.post("/model_details")
 async def api_model_details(request: Request):
     return {"context_length": worker.context_len}
+
+worker = None
+
+
+def cleanup_at_exit():
+    global worker
+    print("Cleaning up...")
+    del worker
+
+
+atexit.register(cleanup_at_exit)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -268,7 +283,7 @@ if __name__ == "__main__":
         worker_id,
         args.model_path,
         args.model_names,
-        1,
+        1024,
         False,
         "MLX",
         args.conv_template,
