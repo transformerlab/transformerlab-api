@@ -1,0 +1,17 @@
+{
+    "name": "MLX Exporter",
+    "uniqueId": "mlx_exporter",
+    "description": "This plugin exports the current model and adaptor",
+    "plugin-format": "python",
+    "type": "exporter",
+    "model_architectures": [
+        "LlamaForCausalLM"
+    ],
+    "files": [
+        "main.py",
+        "setup.sh"
+    ],
+    "setup-script": "setup.sh",
+    "parameters": [
+    ]
+}
