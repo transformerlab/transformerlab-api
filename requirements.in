@@ -8,6 +8,7 @@ evaluate
 fastapi==0.100.0
 fschat==0.2.32
 loralib
+mlx_lm
 nvidia-ml-py3
 packaging
 psutil
