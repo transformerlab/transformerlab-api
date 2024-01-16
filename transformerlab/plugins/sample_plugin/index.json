@@ -12,18 +12,18 @@
         "setup.sh"
     ],
     "setup-script": "setup.sh",
-    "parameters": [
-        {
-            "name": "model",
+    "parameters": {
+        "model": {
+            "title": "Model",
             "type": "string",
             "default": "EleutherAI/gpt-neo-2.7B",
             "required": "true"
         },
-        {
-            "name": "model_type",
+        "model_type": {
+            "title": "Model Type",
             "type": "string",
             "default": "hf-causal",
             "required": "true"
         }
-    ]
+    }
 }

@@ -16,5 +16,16 @@
         "setup.sh"
     ],
     "setup-script": "setup.sh",
-    "parameters": []
+    "parameters": {
+        "eight_bit": {
+            "title": "8-bit",
+            "type": "boolean",
+            "default": false
+        },
+        "cpu_offload": {
+            "title": "CPU Offload",
+            "type": "boolean",
+            "default": false
+        }
+    }
 }
