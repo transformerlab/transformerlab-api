@@ -1,24 +1,10 @@
 from distutils.dir_util import copy_tree
 import json
 import os
-import subprocess
-import sys
-from urllib.request import urlopen
-import shutil
 
 
-from datasets import load_dataset, load_dataset_builder
-from fastapi import APIRouter, Body
-from fastapi.responses import FileResponse
-from pathlib import Path
+from fastapi import APIRouter
 
-import transformerlab.db as db
-
-from typing import Annotated, Any
-from transformerlab.shared import shared
-
-
-import httpx
 
 router = APIRouter(prefix="/plugins", tags=["plugins"])
 
