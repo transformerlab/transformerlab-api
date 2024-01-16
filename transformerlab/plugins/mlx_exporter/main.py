@@ -16,9 +16,9 @@ if __name__ == "__main__":
     parser.add_argument('--input_file', type=str)
     args, unknown = parser.parse_known_args()
 
-    with open(args.input_file) as json_file:
-        input = json.load(json_file)
-
     # Testing: Verify input
-    print("Input to Script:")
-    print(input)
+    model_name = "model"
+    model_architecture = "architecture"
+    adaptor_name = "adaptor"
+
+    print("Exporting model", model_name, "and adaptor", adaptor_name, "to MLX")
