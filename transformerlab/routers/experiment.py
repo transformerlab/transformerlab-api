@@ -300,6 +300,22 @@ async def run_evaluation_script(id: int, plugin_name: str, eval_name: str):
         subprocess.run(args=subprocess_command, stdout=f)
 
 
+@router.get("/{id}/run_exporter_script")
+async def run_exporter_script(id: int, plugin_name: str):
+    experiment_details = await db.experiment_get(id=id)
+
+    if experiment_details is None:
+        return {"message": f"Experiment {id} does not exist"}
+    config = json.loads(experiment_details["config"])
+
+    experiment_name = experiment_details["name"]
+    model_name = config["foundation"]
+    model_type = config["foundation_model_architecture"]
+    model_adapter = config["adaptor"]
+
+    print("Exporting model", model_name, "from experiment", experiment_name, "using plugin", plugin_name)
+
+
 @router.get(path="/{id}/get_conversations")
 async def get_conversations(id: int):
     # first get the experiment name:
