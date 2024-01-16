@@ -6,7 +6,9 @@
     "type": "loader",
     "model_architectures": [
         "LlamaForCausalLM",
-        "MistralForCausalLM"
+        "MistralForCausalLM",
+        "PhiForCausalLM",
+        "MLX"
     ],
     "files": [
         "main.py",

@@ -1,5 +1,13 @@
 """
-A model worker using FastChat
+A model worker using Apple MLX
+
+https://github.com/ml-explore/mlx-examples/tree/main/llms
+
+Code based on vllm_worker https://github.com/lm-sys/FastChat/blob/main/fastchat/serve/vllm_worker.py
+
+You must install MLX python:
+
+pip install mlx-lm
 """
 
 import argparse
@@ -99,43 +107,31 @@ class MLXWorker(BaseModelWorker):
 
         print("Stop patterns: ", stop)
 
-        # make sampling params in vllm
         top_p = max(top_p, 1e-5)
         if temperature <= 1e-5:
             top_p = 1.0
-
-        # sampling_params = SamplingParams(
-        #     n=1,
-        #     temperature=temperature,
-        #     top_p=top_p,
-        #     use_beam_search=use_beam_search,
-        #     stop=list(stop),
-        #     stop_token_ids=stop_token_ids,
-        #     max_tokens=max_new_tokens,
-        #     top_k=top_k,
-        #     presence_penalty=presence_penalty,
-        #     frequency_penalty=frequency_penalty,
-        #     best_of=best_of,
-        # )
 
         tokens = []
         skip = 0
 
         context_mlx = mx.array(self.tokenizer.encode(context))
 
-        for token in generate_step(context_mlx, self.mlx_model, temperature):
+        finish_reason = "length"
+
+        for token, _ in zip(generate_step(context_mlx, self.mlx_model, temperature), range(max_new_tokens)):
             if token == self.mlx_tokenizer.eos_token_id:
+                finish_reason = "stop"
                 break
             tokens.append(token.item())
             tokens_decoded = self.mlx_tokenizer.decode(tokens)
             last_token_decoded = self.mlx_tokenizer.decode([token.item()])
-            print(last_token_decoded, end="", flush=True)
             skip = len(tokens_decoded)
 
             partial_stop = any(is_partial_stop(tokens_decoded, i)
                                for i in stop)
-            # prevent yielding partial stop sequence
+
             if partial_stop:
+                finish_reason = "stop"
                 break
 
             ret = {
@@ -159,7 +155,7 @@ class MLXWorker(BaseModelWorker):
             },
             "cumulative_logprob": [
             ],
-            "finish_reason": "stop"  # hard code for now -- it should detect for stop vs "length"
+            "finish_reason": finish_reason
         }
         yield (json.dumps(obj={**ret, **{"finish_reason": None}}) + "\0").encode()
         yield (json.dumps(ret) + "\0").encode()
