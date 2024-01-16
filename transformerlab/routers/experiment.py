@@ -320,7 +320,7 @@ async def run_exporter_script(id: int, plugin_name: str):
     script_directory = f"{root_dir}/{EXPERIMENTS_DIR}/{experiment_name}/plugins/{plugin_name}"
     script_path = f"{script_directory}/main.py"
 
-    args = ["--model_name", model_name, "--model_architecture", model_type, "--model_adapter", model_adapter]
+    args = ["--model_name", model_name, "--model_architecture", model_type, "--experiment_name", experiment_name, "--model_adapter", model_adapter]
 
     subprocess_command = [sys.executable, script_path] + args
 
