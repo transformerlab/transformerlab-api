@@ -3,7 +3,7 @@
     "uniqueId": "t5_lora_trainer",
     "description": "A training script adapted from https://www.philschmid.de/fine-tune-flan-t5-peft . Works with T5 models using transformers.Se2SecTrainer.",
     "plugin-format": "python",
-    "type": "training",
+    "type": "trainer",
     "model_architectures": [
         "T5ForConditionalGeneration"
     ],
