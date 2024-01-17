@@ -1,5 +1,6 @@
 # This plugin exports a model to MLX format so you can interact and train on a MBP with Apple Silicon
 import os
+import subprocess
 import sqlite3
 import argparse
 import sys
@@ -23,7 +24,6 @@ args, unknown = parser.parse_known_args()
 # According to MLX docs (as of Jan 16/24) supported formats are:
 # Mistral, Llama, Phi-2
 model_architecture = args.model_architecture
-print("Model architecture: ", model_architecture)
 
 # TODO: move the outputted model somewhere that the app can use it
 output_path = "."
@@ -32,15 +32,11 @@ output_path = "."
 root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
 plugin_dir = f"{root_dir}/workspace/experiments/{args.experiment_name}/plugins/mlx_exporter"
 
-# TODO: Call the MLX convert function instead of just printing
-print(
+# Call MLX Convert function
+print("Exporting", args.model_name, "to MLX format in", plugin_dir)
+subprocess.Popen(
     ["python", '-m',  'mlx_lm.convert', 
         '--hf-path', args.model_name, '--mlx-path', output_path, '-q'],
+    cwd=plugin_dir,
 )
-print("cwd:",plugin_dir)
-#subprocess.Popen(
-#    ["python", '-m',  'mlx_lm.convert', 
-#        '--hf-path', args.model_name, '--mlx-path', output_path, '-q'],
-#    cwd=plugin_dir,
-#)
 
