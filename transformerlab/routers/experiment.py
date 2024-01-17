@@ -300,6 +300,36 @@ async def run_evaluation_script(id: int, plugin_name: str, eval_name: str):
         subprocess.run(args=subprocess_command, stdout=f)
 
 
+@router.get("/{id}/run_exporter_script")
+async def run_exporter_script(id: int, plugin_name: str):
+    experiment_details = await db.experiment_get(id=id)
+
+    if experiment_details is None:
+        return {"message": f"Experiment {id} does not exist"}
+    config = json.loads(experiment_details["config"])
+
+    experiment_name = experiment_details["name"]
+    model_name = config["foundation"]
+    model_type = config["foundation_model_architecture"]
+    model_adapter = config["adaptor"]
+
+    root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
+    if root_dir is None:
+        return {"message": "LLM_LAB_ROOT_PATH not set"}
+
+    script_directory = f"{root_dir}/{EXPERIMENTS_DIR}/{experiment_name}/plugins/{plugin_name}"
+    script_path = f"{script_directory}/main.py"
+
+    args = ["--model_name", model_name, "--model_architecture", model_type, "--experiment_name", experiment_name, "--model_adapter", model_adapter]
+
+    subprocess_command = [sys.executable, script_path] + args
+
+    print(f">Running {subprocess_command}")
+
+#    with open(f"{script_directory}/output.txt", "w") as f:
+#        subprocess.run(args=subprocess_command, stdout=f)
+    subprocess.run(args=subprocess_command)
+
 @router.get(path="/{id}/get_conversations")
 async def get_conversations(id: int):
     # first get the experiment name:
