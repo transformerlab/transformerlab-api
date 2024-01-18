@@ -320,7 +320,8 @@ async def run_exporter_script(id: int, plugin_name: str):
     script_directory = f"{root_dir}/{EXPERIMENTS_DIR}/{experiment_name}/plugins/{plugin_name}"
     script_path = f"{script_directory}/main.py"
 
-    args = ["--model_name", model_name, "--model_architecture", model_type, "--experiment_name", experiment_name, "--model_adapter", model_adapter]
+    args = ["--model_name", model_name, "--model_architecture", model_type,
+            "--experiment_name", experiment_name, "--model_adapter", model_adapter]
 
     subprocess_command = [sys.executable, script_path] + args
 
@@ -329,6 +330,7 @@ async def run_exporter_script(id: int, plugin_name: str):
 #    with open(f"{script_directory}/output.txt", "w") as f:
 #        subprocess.run(args=subprocess_command, stdout=f)
     subprocess.run(args=subprocess_command)
+
 
 @router.get(path="/{id}/get_conversations")
 async def get_conversations(id: int):
@@ -833,7 +835,7 @@ async def plugin_new_plugin_directory(experimentId: str, pluginId: str):
         "name": pluginId,
         "description": "",
         "plugin-format": "python",
-        "type": "training",
+        "type": "trainer",
         "files": [],
         "parameters": [],
     }

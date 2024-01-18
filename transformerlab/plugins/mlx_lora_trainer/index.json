@@ -1,0 +1,69 @@
+{
+    "name": "Apple MLX LoRA Trainer",
+    "uniqueId": "mlx_lora_trainer",
+    "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
+    "plugin-format": "python",
+    "type": "trainer",
+    "model_architectures": [
+        "LlamaForCausalLM",
+        "MistralForCausalLM",
+        "PhiForCausalLM",
+        "MLX"
+    ],
+    "files": [
+        "main.py",
+        "setup.sh"
+    ],
+    "setup-script": "setup.sh",
+    "parameters": {
+        "lora_layers": {
+            "title": "LoRA Layers",
+            "type": "integer",
+            "default": 16,
+            "minimum": 4,
+            "maximum": 64
+        },
+        "learning_rate": {
+            "title": "Learning Rate",
+            "type": "number",
+            "default": 5e-5,
+            "minimum": 1e-6,
+            "maximum": 1e+6
+        },
+        "iters": {
+            "title": "Iterations",
+            "type": "integer",
+            "default": 1,
+            "minimum": 1,
+            "maximum": 1000000
+        },
+        "steps_per_report": {
+            "title": "Steps per Report",
+            "type": "integer",
+            "default": 100,
+            "minimum": 1
+        },
+        "steps_per_eval": {
+            "title": "Steps per Evaluation",
+            "type": "integer",
+            "default": 100,
+            "minimum": 1
+        },
+        "save_every": {
+            "title": "Save Every",
+            "type": "integer",
+            "default": 100,
+            "minimum": 1
+        },
+        "adaptor_name": {
+            "title": "Adaptor Name",
+            "type": "string",
+            "required": true
+        }
+    },
+    "parameters_ui": {
+        "lora_layers": {
+            "ui:help": "Number of layers to fine-tune."
+        }
+    }
+}

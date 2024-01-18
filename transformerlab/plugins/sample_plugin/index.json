@@ -3,7 +3,7 @@
     "uniqueId": "sample_plugin",
     "description": "This plugin just takes in the inputs provided, and prints them out. Use it as a template to see what parameters are avialable to a script.",
     "plugin-format": "python",
-    "type": "training",
+    "type": "trainer",
     "model_architectures": [
         "LlamaForCausalLM"
     ],
