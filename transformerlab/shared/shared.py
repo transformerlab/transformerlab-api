@@ -194,6 +194,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
     # Get the experiment details from the database:
     experiment_details = await db.experiment_get(experiment_id)
     experiment_details_as_string = json.dumps(experiment_details)
+    experiment_name = experiment_details["name"]
 
     # The script is in workspace/experiments/plugins/<plugin_name>/main.py so we need to
     # form that string:
@@ -240,6 +241,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
             plugin_script,
             "--input_file",
             input_file,
+            "--experiment_name",
+            experiment_name
         ]
         print("RUNNING: popen command:")
         print(training_popen_command)
