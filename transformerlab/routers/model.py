@@ -149,7 +149,37 @@ async def get_model_prompt_template(model: str):
 
 @router.get("/model/list")
 async def model_local_list():
+
+    # the model list is a combination of downloaded hugging face models and locally generated models
+    # start with the list of downloaded models which is stored in the db
     models = await db.model_local_list()
+
+    # now generate a list of local models by reading the filesystem
+    # models are stored in separate subdirectories under workspace/models
+    rootdir = os.environ.get("LLM_LAB_ROOT_PATH")
+    models_dir = os.path.join(rootdir, "workspace/models/")
+
+    # make models directory if it does not exist:
+    if not os.path.exists(f"{models_dir}"):
+        os.makedirs(f"{models_dir}")
+
+    # now iterate through all the subdirectories in the models directory
+    with os.scandir(models_dir) as dirlist:
+        for entry in dirlist:
+            if entry.is_dir():
+
+                # Look for model information in info.json
+                info_file = os.path.join(models_dir, entry, "info.json")
+                try:
+                    with open(info_file, "r") as f:
+                        filedata = json.load(f)
+                        print(filedata)
+                        f.close()
+                        models += filedata
+                except FileNotFoundError:
+                    # do nothing: just ignore this directory
+                    pass
+
     return models
 
 
