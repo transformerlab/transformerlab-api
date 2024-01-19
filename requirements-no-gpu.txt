@@ -80,13 +80,12 @@ frozenlist==1.4.0
     # via
     #   aiohttp
     #   aiosignal
-fschat==0.2.32
+fschat==0.2.35
     # via -r requirements.in
 fsspec[http]==2023.10.0
     # via
     #   datasets
     #   evaluate
-    #   fsspec
     #   huggingface-hub
     #   torch
 google-auth==2.23.4
@@ -187,7 +186,7 @@ pandas==2.1.2
     # via
     #   datasets
     #   evaluate
-peft @ git+https://github.com/huggingface/peft.git
+peft==0.7.1
     # via -r requirements.in
 pillow==10.1.0
     # via torchvision
@@ -327,7 +326,7 @@ tqdm==4.66.1
     #   nltk
     #   peft
     #   transformers
-transformers==4.35.0
+transformers==4.35.2
     # via
     #   -r requirements.in
     #   peft

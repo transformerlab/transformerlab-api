@@ -1,4 +1,4 @@
-accelerate==0.21.0
+accelerate
 aiofiles
 aiosqlite
 bitsandbytes
@@ -6,7 +6,7 @@ datasets
 einops
 evaluate
 fastapi==0.100.0
-fschat==0.2.32
+fschat==0.2.35
 loralib
 nvidia-ml-py3
 packaging
@@ -22,6 +22,5 @@ tiktoken
 torch
 torchaudio
 torchvision
-transformers==4.35.0
-
-git+https://github.com/huggingface/peft.git
+transformers==4.35.2
+peft
