@@ -20,6 +20,7 @@ parser.add_argument('--model_name', default='gpt-j-6b', type=str, help='Name of 
 parser.add_argument('--model_architecture', default='hf-causal', type=str, help='Type of model to export.')
 parser.add_argument('--experiment_name', default='', type=str, help='Name of experiment.')
 parser.add_argument('--model_adaptor', default='', type=str, help='Name of model adaptor.')
+parser.add_argument('--quant_bits', default='4', type=str, help='Bits per weight for quantization.')
 args, unknown = parser.parse_known_args()
 
 # TODO: Verify that the model uses a supported format
@@ -59,8 +60,9 @@ json.dump(model_description, model_description_file)
 # Call MLX Convert function
 print("Exporting", args.model_name, "to MLX format in", output_dir)
 subprocess.Popen(
-    ["python", '-m',  'mlx_lm.convert', 
-        '--hf-path', args.model_name, '--mlx-path', output_dir, '-q'],
+    ["python", '-u', '-m',  'mlx_lm.convert', 
+        '--hf-path', args.model_name, '--mlx-path', output_dir, 
+        '-q', '--q-bits', args.quant_bits],
     cwd=plugin_dir,
 )
 
