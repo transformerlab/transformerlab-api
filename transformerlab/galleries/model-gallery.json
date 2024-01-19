@@ -491,7 +491,7 @@
     "context": "4k",
     "architecture": "GGUF",
     "huggingface_repo": "TheBloke/Llama-2-7B-Chat-GGUF",
-    "huggingface_filename": "llama-2-7b.Q4_0.gguf",
+    "huggingface_filename": "llama-2-7b-chat.Q4_0.gguf",
     "license": "Meta Custom",
     "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
     "author": {
@@ -513,7 +513,7 @@
     "context": "4k",
     "architecture": "GGUF",
     "huggingface_repo": "TheBloke/Llama-2-7B-GGUF",
-    "huggingface_filename": "llama-2-7b-chat.Q4_0.gguf",
+    "huggingface_filename": "llama-2-7b.Q4_0.gguf",
     "license": "Meta Custom",
     "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
     "author": {

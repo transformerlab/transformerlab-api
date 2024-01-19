@@ -18,9 +18,10 @@ if model_filename is not None:
     # This is useful for downloading GGUF repos which contain multiple versions of the model
     # make the directory if it doesn't exist
     print("downloading model to workspace/models using filename mode")
-    os.makedirs("workspace/models", exist_ok=True)
+    location = f"workspace/models/{model_filename}"
+    os.makedirs(location, exist_ok=True)
     hf_hub_download(repo_id=model, filename=model_filename,
-                    resume_download=True, local_dir="workspace/models", local_dir_use_symlinks=True)
+                    resume_download=True, local_dir=location, local_dir_use_symlinks=True)
 else:
     # Download the whole repo
     try:
