@@ -301,13 +301,14 @@ async def run_evaluation_script(id: int, plugin_name: str, eval_name: str):
 
 
 @router.get("/{id}/run_exporter_script")
-async def run_exporter_script(id: int, plugin_name: str):
+async def run_exporter_script(id: int, plugin_name: str, quant_bits: int = 4):
     experiment_details = await db.experiment_get(id=id)
 
     if experiment_details is None:
         return {"message": f"Experiment {id} does not exist"}
     config = json.loads(experiment_details["config"])
 
+    # get exporter parameters
     experiment_name = experiment_details["name"]
     model_name = config["foundation"]
     model_type = config["foundation_model_architecture"]
@@ -321,7 +322,8 @@ async def run_exporter_script(id: int, plugin_name: str):
     script_path = f"{script_directory}/main.py"
 
     args = ["--model_name", model_name, "--model_architecture", model_type,
-            "--experiment_name", experiment_name, "--model_adapter", model_adapter]
+            "--experiment_name", experiment_name, "--model_adapter", model_adapter,
+            "--quant_bits", str(quant_bits)]
 
     subprocess_command = [sys.executable, script_path] + args
 
