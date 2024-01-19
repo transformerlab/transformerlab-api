@@ -62,7 +62,7 @@ print("Exporting", args.model_name, "to MLX format in", output_dir)
 subprocess.Popen(
     ["python", '-u', '-m',  'mlx_lm.convert', 
         '--hf-path', args.model_name, '--mlx-path', output_dir, 
-        '-q', '--q-bits', args.quant_bits],
+        '-q', '--q-bits', str(args.quant_bits)],
     cwd=plugin_dir,
 )
 
