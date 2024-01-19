@@ -128,6 +128,9 @@ async def download_model_from_gallery(gallery_id: str):
 
     if hugging_face_filename is not None:
         args += ["--model_filename", hugging_face_filename]
+    else:
+        # only save to local database if we are downloading the whole repo
+        await model_local_create(id=hugging_face_id, name=name, json_data=gallery_entry)
 
     try:
         await shared.async_run_python_script_and_update_status(python_script=args, job_id=job_id, begin_string="Fetching")
@@ -135,8 +138,6 @@ async def download_model_from_gallery(gallery_id: str):
         await db.job_update(job_id=job_id, status="FAILED")
         return {"message": "Failed to download model"}
 
-    # Now save this to the local database
-    await model_local_create(id=hugging_face_id, name=name, json_data=gallery_entry)
     return {"message": "success", "model": model, "job_id": job_id}
 
 
