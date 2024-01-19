@@ -28,5 +28,5 @@ if __name__ == "__main__":
     # users can edit the following line in the plugin editor themselves for now
 
     app = create_app(Settings(
-        model=f"workspace/models/{model}", n_gpu_layers=1), )
+        model=f"workspace/models/{model}/{model}", n_gpu_layers=1), )
     uvicorn.run(app, host="0.0.0.0", port=8001)
