@@ -25,15 +25,15 @@ args, unknown = parser.parse_known_args()
 # Mistral, Llama, Phi-2
 model_architecture = args.model_architecture
 
-# TODO: move the outputted model somewhere that the app can use it
-output_path = "."
-
 # Directory to run conversion subprocess
 root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
 plugin_dir = f"{root_dir}/workspace/experiments/{args.experiment_name}/plugins/mlx_exporter"
 
+# Directory to output quantized model
+output_path = f"{root_dir}/workspace/models"
+
 # Call MLX Convert function
-print("Exporting", args.model_name, "to MLX format in", plugin_dir)
+print("Exporting", args.model_name, "to MLX format in", output_dir)
 subprocess.Popen(
     ["python", '-m',  'mlx_lm.convert', 
         '--hf-path', args.model_name, '--mlx-path', output_path, '-q'],

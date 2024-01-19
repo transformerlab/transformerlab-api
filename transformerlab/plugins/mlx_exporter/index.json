@@ -5,7 +5,9 @@
     "plugin-format": "python",
     "type": "exporter",
     "model_architectures": [
-        "LlamaForCausalLM"
+        "LlamaForCausalLM",
+        "MistralForCausalLM",
+        "PhiForCausalLM",
     ],
     "files": [
         "main.py",
