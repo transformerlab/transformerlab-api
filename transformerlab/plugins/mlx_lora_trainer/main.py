@@ -108,23 +108,27 @@ for dataset_type in dataset_types:
             # if (i > 40):
             #     break
 
-# copy file text.jsonl to valid.jsonl:
+# copy file test.jsonl to valid.jsonl. Our test set is the same as our validation set.
 os.system(
-    f"cp {llmlab_root_dir}/workspace/experiments/{args.experiment_name}/plugins/mlx_lora_trainer/data/train.jsonl {llmlab_root_dir}/workspace/experiments/{args.experiment_name}/plugins/mlx_lora_trainer/data/valid.jsonl")
+    f"cp {llmlab_root_dir}/workspace/experiments/{args.experiment_name}/plugins/mlx_lora_trainer/data/test.jsonl {llmlab_root_dir}/workspace/experiments/{args.experiment_name}/plugins/mlx_lora_trainer/data/valid.jsonl")
 
 print("Example formatted training example:")
 example = formatting_template.substitute(dataset["train"][1])
+print(example)
 
-adaptor_output_dir = config["adaptor_output_dir"]
-if not os.path.exists(adaptor_output_dir):
-    os.makedirs(adaptor_output_dir)
+# adaptor_output_dir = config["adaptor_output_dir"]
+# if not os.path.exists(adaptor_output_dir):
+#     os.makedirs(adaptor_output_dir)
+
+# adaptor_file_name = f"{adaptor_output_dir}/{config['adaptor_name']}.npz"
+adaptor_file_name = f"{llmlab_root_dir}/workspace/experiments/{args.experiment_name}/plugins/mlx_lora_trainer/{config['adaptor_name']}.npz"
 
 root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
 plugin_dir = f"{root_dir}/workspace/experiments/{args.experiment_name}/plugins/mlx_lora_trainer"
 
-popen_command = [sys.executable, f"{plugin_dir}/mlx-examples/lora/lora.py",
+popen_command = [sys.executable, "-u", f"{plugin_dir}/mlx-examples/lora/lora.py",
                  "--model", config["model_name"], "--iters", iters, "--train", "--adapter-file",
-                 f"{adaptor_output_dir}/{config['adaptor_name']}.npz", "--lora-layers", lora_layers, "--learning-rate",
+                 adaptor_file_name, "--lora-layers", lora_layers, "--learning-rate",
                  learning_rate, "--data", f"{plugin_dir}/data/", "--steps-per-report", config['steps_per_report'],
                  #  "--steps_per_eval", config["steps_per_eval"],
                  "--save-every", config["save_every"]]
@@ -132,9 +136,16 @@ popen_command = [sys.executable, f"{plugin_dir}/mlx-examples/lora/lora.py",
 print("Running command:")
 print(popen_command)
 
+
+db.execute(
+    "UPDATE job SET progress = ? WHERE id = ?",
+    (0, config["job_id"]),
+)
+db.commit()
+
 print("Training beginning:")
 print("Adaptor will be saved as:")
-print(f"{plugin_dir}/{config['adaptor_name']}.npz", flush=True)
+# print(f"{plugin_dir}/{config['adaptor_name']}.npz", flush=True)
 
 # define a regext pattern to look for "Iter: 100" in the output
 pattern = r"Iter (\d+):"
@@ -152,14 +163,39 @@ with subprocess.Popen(
         # We do this because, @TODO later we can use this number to update progress
         if match:
             first_number = match.group(1)
-            print(first_number)
-            print(iters)
             percent_complete = float(first_number) / float(iters) * 100
             print("Progress: ", f"{percent_complete:.2f}%")
+            # print(percent_complete, ' ', config["job_id"])
             db.execute(
                 "UPDATE job SET progress = ? WHERE id = ?",
                 (percent_complete, config["job_id"]),
             )
+            db.commit()
         print(line, end="", flush=True)
 
 print("Finished training.")
+
+# TIME TO FUSE THE MODEL WITH THE BASE MODEL
+
+print("Now fusing the adaptor with the model.")
+
+fused_model_name = f"{config['model_name']}_{config['adaptor_name']}"
+fused_model_location = f"{llmlab_root_dir}/workspace/models/{fused_model_name}"
+
+# Make the directory to save the fused model
+if not os.path.exists(fused_model_location):
+    os.makedirs(fused_model_location)
+
+fuse_popen_command = [
+    sys.executable,
+    f"{plugin_dir}/mlx-examples/lora/fuse.py",
+    "--model", config["model_name"],
+    "--adapter-file", adaptor_file_name,
+    "--save-path", fused_model_location]
+
+with subprocess.Popen(
+        fuse_popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True) as process:
+    for line in process.stdout:
+        print(line, end="", flush=True)
+
+print("Finished fusing the adaptor with the model.")
