@@ -7,7 +7,7 @@
     "model_architectures": [
         "LlamaForCausalLM",
         "MistralForCausalLM",
-        "PhiForCausalLM",
+        "PhiForCausalLM"
     ],
     "files": [
         "main.py",

@@ -174,7 +174,6 @@ async def model_local_list():
                 try:
                     with open(info_file, "r") as f:
                         filedata = json.load(f)
-                        print(filedata)
                         f.close()
                         models += filedata
                 except FileNotFoundError:
