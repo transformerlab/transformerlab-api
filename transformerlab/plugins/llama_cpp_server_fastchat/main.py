@@ -19,6 +19,7 @@ import json
 from typing import List
 import uuid
 
+
 from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.responses import StreamingResponse, JSONResponse
 import uvicorn
@@ -86,7 +87,9 @@ class LlamaCppServer(BaseModelWorker):
 
         self.model_name = model_path
         print("Loading model: ", self.model_name)
-        self.model = llama_cpp.Llama(self.model_name, n_gpu_layers=1)
+        # setting _n_ctx to 0 pins it to the trained context length
+        # setting gpu layers to 1 is needed on a mac, but may not be the right setting for other platforms
+        self.model = llama_cpp.Llama(self.model_name, n_ctx=0, n_gpu_layers=1)
         self.tokenizer = LlamaCppTokenizer(model=self.model)
 
         # self.context_len = get_context_length(
@@ -192,9 +195,26 @@ class LlamaCppServer(BaseModelWorker):
         yield (json.dumps(ret) + "\0").encode()
 
     async def generate(self, params):
-        for x in self.generate_stream(params):
-            pass
-        return json.loads(x[:-1].decode())
+        prompt = params.pop("prompt")
+        max_tokens = params.get("max_new_tokens", 256)
+        temperature = float(params.get("temperature", 1.0))
+        top_p = float(params.get("top_p", 1.0))
+
+        print("Generating with params: ", params)
+        thread = asyncio.to_thread(self.model.create_completion,
+                                   prompt, suffix=None, max_tokens=max_tokens, temperature=temperature, top_p=top_p, echo=False)
+        response = await thread
+        print(response)
+
+        ret = {
+            "text": response['choices'][0]['text'],
+            "error_code": 0,
+            "usage": response['usage'],
+            "cumulative_logprob": [
+            ],
+            "finish_reason": response['choices'][0]['finish_reason']
+        }
+        return ret
 
 
 def release_worker_semaphore():
