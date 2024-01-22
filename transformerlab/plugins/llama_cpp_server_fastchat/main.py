@@ -21,6 +21,7 @@ import uuid
 
 
 from fastapi import FastAPI, Request, BackgroundTasks
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse, JSONResponse
 import uvicorn
 
@@ -100,7 +101,7 @@ class LlamaCppServer(BaseModelWorker):
         if not no_register:
             self.init_heart_beat()
 
-    def generate_stream(self, params):
+    async def generate_stream(self, params):
         # We set "generate_stream" as def not, async def, so that it can
         # run on another thread. Otherwise, it will block the main thread.
         self.call_ct += 1
@@ -150,8 +151,12 @@ class LlamaCppServer(BaseModelWorker):
 
         finish_reason = "length"
         print("max length: " + str(max_new_tokens))
+        #        iterator = await run_in_threadpool(generate_step, context_mlx, self.mlx_model, temperature)
 
-        for token, _ in zip(self.model.generate(context_tokens), range(max_new_tokens)):
+        iterator = await run_in_threadpool(self.model.generate, context_tokens)
+
+        for i in range(max_new_tokens):
+            token = await run_in_threadpool(next, iterator)
             t = self.model.detokenize([token])
             # convert bytes to string:
             t = t.decode("utf-8")
