@@ -11,7 +11,6 @@ from transformerlab.shared import shared
 
 router = APIRouter(tags=["model"])
 
-
 @router.get("/healthz")  # TODO: why isn't this /model/helathz?
 async def healthz():
     return {"message": "OK"}
@@ -175,7 +174,22 @@ async def model_local_list():
                     with open(info_file, "r") as f:
                         filedata = json.load(f)
                         f.close()
-                        models += filedata
+
+                        # TODO: In some places info.json may be a list and in others not
+                        # Once finalized remove this
+                        if isinstance(filedata, list):
+                            filedata = filedata[0]
+
+                        # tells the app this model was loaded from workspace directory
+                        filedata["stored_in_filesystem"] = True
+
+                        # if this is a local model then model_filename should point to the filesystem location
+                        # this will override the default behaviour to load from huggingface
+                        if ("local_model" in filedata and filedata["local_model"]):
+                            filedata["model_filename"] = os.path.join(models_dir, entry)
+
+                        models.append(filedata)
+
                 except FileNotFoundError:
                     # do nothing: just ignore this directory
                     pass
