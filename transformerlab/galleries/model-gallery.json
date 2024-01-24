@@ -264,28 +264,6 @@
     }
   },
   {
-    "uniqueID": "mlx-community/Mistral-7B-Instruct-v0.1-4bit-mlx",
-    "name": "Mistral-7B-Instruct-v0.1 MLX 4bit",
-    "description": "The Mistral-7B-Instruct-v0.1 Large Language Model (LLM) is a instruct fine-tuned version of the Mistral-7B-v0.1 generative text model using a variety of publicly available conversation datasets.",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "MLX",
-    "huggingface_repo": "mlx-community/Mistral-7B-Instruct-v0.1-4bit-mlx",
-    "transformers_version": "4.34.0.dev0",
-    "license": "Apache 2.0",
-    "logo": "https://docs.mistral.ai/img/logo.svg",
-    "author": {
-      "name": "Mistral AI",
-      "url": "https://docs.mistral.ai/",
-      "blurb": ""
-    },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/mistralai/Mistral-7B-v0.1",
-      "downloadUrl": "https://huggingface.co/mistralai/Mistral-7B-v0.1",
-      "paperUrl": "?"
-    }
-  },
-  {
     "uniqueID": "tiiuae/falcon-7b",
     "name": "Falcon 7b",
     "description": "Best overall smaller model. Fast responses. Instruction based. Trained by TII. Licensed for commercial use.",
@@ -480,6 +458,138 @@
     "resources": {
       "canonicalUrl": "https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha",
       "downloadUrl": "https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha",
+      "paperUrl": "?"
+    }
+  },
+  {
+    "uniqueID": "mlx-community/Mistral-7B-Instruct-v0.1-4bit-mlx",
+    "name": "Mistral-7B-Instruct-v0.1 MLX 4bit",
+    "description": "The Mistral-7B-Instruct-v0.1 Large Language Model (LLM) is a instruct fine-tuned version of the Mistral-7B-v0.1 generative text model using a variety of publicly available conversation datasets.",
+    "parameters": "7B",
+    "context": "4k",
+    "architecture": "MLX",
+    "huggingface_repo": "mlx-community/Mistral-7B-Instruct-v0.1-4bit-mlx",
+    "transformers_version": "4.34.0.dev0",
+    "license": "Apache 2.0",
+    "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
+    "author": {
+      "name": "Mistral AI",
+      "url": "https://docs.mistral.ai/",
+      "blurb": ""
+    },
+    "resources": {
+      "canonicalUrl": "https://huggingface.co/mistralai/Mistral-7B-v0.1",
+      "downloadUrl": "https://huggingface.co/mistralai/Mistral-7B-v0.1",
+      "paperUrl": "?"
+    }
+  },
+  {
+    "uniqueID": "mlx-community/TinyDolphin-2.8-1.1b-4bit-mlx",
+    "name": "TinyDolphin-2.8-1.1b MLX 4bit",
+    "description": "This is an experimental model trained on 2 3090's by Kearm on the new Dolphin 2.8 dataset by Eric Hartford https://erichartford.com/dolphin.",
+    "parameters": "1.1B",
+    "context": "4k",
+    "architecture": "MLX",
+    "huggingface_repo": "mlx-community/TinyDolphin-2.8-1.1b-4bit-mlx",
+    "transformers_version": "4.34.0.dev0",
+    "license": "Apache 2.0",
+    "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
+    "author": {
+      "name": "",
+      "url": "",
+      "blurb": ""
+    },
+    "resources": {
+      "canonicalUrl": "",
+      "downloadUrl": "",
+      "paperUrl": "?"
+    }
+  },
+  {
+    "uniqueID": "mlx-community/Mistral-7B-Instruct-v0.2-4-bit",
+    "name": "Mistral-7B-Instruct-v0.2 4 bit MLX",
+    "description": "The Mistral-7B-Instruct-v0.2 Large Language Model (LLM) is an improved instruct fine-tuned version of Mistral-7B-Instruct-v0.1.",
+    "parameters": "7B",
+    "context": "4k",
+    "architecture": "MLX",
+    "huggingface_repo": "mlx-community/Mistral-7B-Instruct-v0.2-4-bit",
+    "transformers_version": "4.34.0.dev0",
+    "license": "Apache 2.0",
+    "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
+    "author": {
+      "name": "",
+      "url": "",
+      "blurb": ""
+    },
+    "resources": {
+      "canonicalUrl": "",
+      "downloadUrl": "",
+      "paperUrl": "?"
+    }
+  },
+  {
+    "uniqueID": "mlx-community/Mistral-7B-Instruct-v0.2",
+    "name": "Mistral-7B-Instruct-v0.2 MLX",
+    "description": "The Mistral-7B-Instruct-v0.2 Large Language Model (LLM) is an improved instruct fine-tuned version of Mistral-7B-Instruct-v0.1.",
+    "parameters": "7B",
+    "context": "4k",
+    "architecture": "MLX",
+    "huggingface_repo": "mlx-community/Mistral-7B-Instruct-v0.2",
+    "transformers_version": "4.34.0.dev0",
+    "license": "Apache 2.0",
+    "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
+    "author": {
+      "name": "",
+      "url": "",
+      "blurb": ""
+    },
+    "resources": {
+      "canonicalUrl": "",
+      "downloadUrl": "",
+      "paperUrl": "?"
+    }
+  },
+  {
+    "uniqueID": "mlx-community/Llama-2-7b-mlx",
+    "name": "Llama-2 7b MLX",
+    "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B fine-tuned model, in npz format suitable for use in Apple's MLX framework.",
+    "parameters": "7B",
+    "context": "4k",
+    "architecture": "MLX",
+    "huggingface_repo": "mlx-community/Llama-2-7b-mlx",
+    "transformers_version": "4.34.0.dev0",
+    "license": "Apache 2.0",
+    "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
+    "author": {
+      "name": "",
+      "url": "",
+      "blurb": ""
+    },
+    "resources": {
+      "canonicalUrl": "",
+      "downloadUrl": "",
+      "paperUrl": "?"
+    }
+  },
+  {
+    "uniqueID": "mlx-community/Llama-2-7b-chat-4-bit",
+    "name": "Llama 2 7B Chat 4-bit MLX",
+    "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B fine-tuned model, in npz format suitable for use in Apple's MLX framework.",
+    "parameters": "7B",
+    "context": "4k",
+    "architecture": "MLX",
+    "huggingface_repo": "mlx-community/Llama-2-7b-chat-4-bit",
+    "transformers_version": "4.34.0.dev0",
+    "license": "Apache 2.0",
+    "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
+    "author": {
+      "name": "",
+      "url": "",
+      "blurb": ""
+    },
+    "resources": {
+      "canonicalUrl": "",
+      "downloadUrl": "",
       "paperUrl": "?"
     }
   },
