@@ -4,6 +4,8 @@ import os
 import subprocess
 import sys
 
+import torch
+
 # Get all arguments provided to this script using argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--model-path', type=str)
@@ -19,13 +21,22 @@ parameters = args.parameters
 parameters = json.loads(parameters)
 print(parameters)
 
-device = parameters.get("device", "gpu")
+device = parameters.get("device", None)
 if (parameters.get("eight_bit") == 'on'):
     eight_bit = True
 else:
     eight_bit = False
 num_gpus = parameters.get("num_gpus", 1)
 
+# Auto detect backend if device not specified
+if device is None or device == "":
+    if torch.cuda.is_available():
+        device = "cuda"
+    elif torch.backends.mps.is_available():
+        device = "mps"
+    else:
+        device = "cpu"
+        num_gpus = 0
 
 llmlab_root_dir = os.getenv('LLM_LAB_ROOT_PATH')
 

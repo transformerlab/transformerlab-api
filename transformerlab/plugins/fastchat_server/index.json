@@ -19,8 +19,7 @@
     "parameters": {
         "num_gpus": {
             "title": "Number of GPUs",
-            "type": "integer",
-            "default": 1
+            "type": "integer"
         },
         "device": {
             "title": "Device",
