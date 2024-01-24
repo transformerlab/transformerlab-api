@@ -710,7 +710,7 @@ async def plugin_get_file_contents(experimentId: str, pluginId: str, filename: s
         with open(final_path, "r") as f:
             file_contents = f.read()
     except FileNotFoundError:
-        return "FILE NOTE FOUND"
+        return "FILE NOT FOUND"
 
     return file_contents
 

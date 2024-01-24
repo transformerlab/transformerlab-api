@@ -1,0 +1,41 @@
+{
+    "name": "Fastchat Server",
+    "uniqueId": "fastchat_server",
+    "description": "Fastchat loads models for inference using Huggingface Transformers for generation.",
+    "plugin-format": "python",
+    "type": "loader",
+    "model_architectures": [
+        "LlamaForCausalLM",
+        "T5ForConditionalGeneration",
+        "FalconForCausalLM",
+        "MistralForCausalLM",
+        "GPTBigCodeForCausalLM"
+    ],
+    "files": [
+        "main.py",
+        "setup.sh"
+    ],
+    "setup-script": "setup.sh",
+    "parameters": {
+        "num_gpus": {
+            "title": "Number of GPUs",
+            "type": "integer",
+            "default": 1
+        },
+        "device": {
+            "title": "Device",
+            "type": "string",
+            "enum": [
+                "cuda",
+                "cpu",
+                "mps",
+                "xpu"
+            ]
+        },
+        "eight_bit": {
+            "title": "8-bit",
+            "type": "boolean",
+            "default": false
+        }
+    }
+}

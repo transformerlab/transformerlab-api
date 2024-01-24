@@ -167,8 +167,6 @@ async def server_worker_start(model_name: str, model_filename: str | None = None
             inference_params = json.loads(inference_params)
 
             engine = inference_params.get('inferenceEngine')
-            eight_bit = inference_params.get('8-bit')
-            cpu_offload = inference_params.get('cpu-offload')
 
             if (engine is not None and engine != 'default'):
                 inference_engine = engine
@@ -185,6 +183,8 @@ async def server_worker_start(model_name: str, model_filename: str | None = None
                     plugin_location,
                     "--model-path",
                     model,
+                    "--parameters",
+                    json.dumps(inference_params)
                 ]
 
                 job_id = await db.job_create(type="LOAD_MODEL", status="STARTED", job_data='{}')
