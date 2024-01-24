@@ -175,18 +175,18 @@ async def model_local_list():
                         filedata = json.load(f)
                         f.close()
 
-                        # TODO: In some places info.json may be a list and in others not
-                        # Once finalized remove this
+                        # NOTE: In some places info.json may be a list and in others not
+                        # Once info.json format is finalized we can remove this
                         if isinstance(filedata, list):
                             filedata = filedata[0]
 
                         # tells the app this model was loaded from workspace directory
                         filedata["stored_in_filesystem"] = True
 
-                        # if this is a local model then model_filename should point to the filesystem location
+                        # if this is a local model then set local_path to the filesystem location
                         # this will override the default behaviour to load from huggingface
                         if ("local_model" in filedata and filedata["local_model"]):
-                            filedata["model_filename"] = os.path.join(models_dir, entry)
+                            filedata["local_path"] = os.path.join(models_dir, entry)
 
                         models.append(filedata)
 
