@@ -325,13 +325,22 @@ async def run_exporter_script(id: int, plugin_name: str, quant_bits: int = 4):
             "--experiment_name", experiment_name, "--model_adapter", model_adapter,
             "--quant_bits", str(quant_bits)]
 
-    subprocess_command = [sys.executable, script_path] + args
+    # Create a database job 
+    job_id = await db.job_create(type="EXPORT_MODEL", status="STARTED",
+                                 job_data='{}')
 
-    print(f">Running {subprocess_command}")
+    subprocess_command = [script_path] + args
 
-#    with open(f"{script_directory}/output.txt", "w") as f:
-#        subprocess.run(args=subprocess_command, stdout=f)
-    subprocess.run(args=subprocess_command)
+    try:
+        process = await shared.async_run_python_script_and_update_status(python_script=subprocess_command, job_id=job_id, begin_string="Exporting")
+    except Exception as e:
+        await db.job_update(job_id=job_id, status="FAILED")
+        return {"message": f"Failed to export model. Exception: {e}"}
+
+    if process.returncode == 0:
+        return {"message": f"Failed to export model. Return code: {process.returncode}"}
+ 
+    return {"message": "success", "job_id": job_id}
 
 
 @router.get(path="/{id}/get_conversations")
