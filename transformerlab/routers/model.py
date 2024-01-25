@@ -146,6 +146,18 @@ async def get_model_prompt_template(model: str):
     # solution by passing in the model name
     return get_conversation_template(model)
 
+# get_models_dir
+# Helper function to get the models directory and create it if it doesn't exist
+# models are stored in separate subdirectories under workspace/models    
+def get_models_dir():
+    rootdir = os.environ.get("LLM_LAB_ROOT_PATH")
+    models_dir = os.path.join(rootdir, "workspace/models/")
+
+    # make models directory if it does not exist:
+    if not os.path.exists(f"{models_dir}"):
+        os.makedirs(f"{models_dir}")
+
+    return models_dir
 
 @router.get("/model/list")
 async def model_local_list():
@@ -155,13 +167,7 @@ async def model_local_list():
     models = await db.model_local_list()
 
     # now generate a list of local models by reading the filesystem
-    # models are stored in separate subdirectories under workspace/models
-    rootdir = os.environ.get("LLM_LAB_ROOT_PATH")
-    models_dir = os.path.join(rootdir, "workspace/models/")
-
-    # make models directory if it does not exist:
-    if not os.path.exists(f"{models_dir}"):
-        os.makedirs(f"{models_dir}")
+    models_dir = get_models_dir()
 
     # now iterate through all the subdirectories in the models directory
     with os.scandir(models_dir) as dirlist:
@@ -205,10 +211,24 @@ async def model_local_create(id: str, name: str, json_data={}):
 
 @router.get("/model/delete")
 async def model_local_delete(model_id: str):
-    print(
-        f"Deleting model {model_id}. Note that this will not free up space because it remains in the HuggingFace cache.")
-    print("If you want to delete the model from the HuggingFace cache, you must delete it from:")
-    print("~/.cache/huggingface/hub/")
+    # If this is a locally generated model then actually delete from filesystem
+    # Check for the model stored in a directory based on the model name (i.e. the part after teh slash)
+    root_models_dir = get_models_dir()
+    model_dir = model_id.rsplit('/',1)[-1]
+    info_file = os.path.join(root_models_dir, model_dir, "info.json")
+    if (os.path.isfile(info_file)):
+        model_path = os.path.join(root_models_dir, model_dir)
+        print(f"Deleteing {model_path}")
+        shutil.rmtree(model_path)
+    
+    else:
+        # If this is a hugging face model then delete from the database but leave in the cache
+        print(
+            f"Deleting model {model_id}. Note that this will not free up space because it remains in the HuggingFace cache.")
+        print("If you want to delete the model from the HuggingFace cache, you must delete it from:")
+        print("~/.cache/huggingface/hub/")
+        
+    # Delete from the database    
     await db.model_local_delete(model_id=model_id)
     return {"message": "model deleted"}
 
