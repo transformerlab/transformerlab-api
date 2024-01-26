@@ -1,0 +1,20 @@
+{
+    "name": "GGUF Exporter",
+    "uniqueId": "gguf_exporter",
+    "description": "Exports the current model to GGUF format so it can be run on computers without a GPU.",
+    "plugin-format": "python",
+    "type": "exporter",
+    "model_architectures": [
+        "LlamaForCausalLM",
+        "MistralForCausalLM",
+        "GPTJForCausalLM",
+        "FalconForCausalLM"
+    ],
+    "files": [
+        "main.py",
+        "setup.sh"
+    ],
+    "setup-script": "setup.sh",
+    "parameters": [
+    ]
+}
