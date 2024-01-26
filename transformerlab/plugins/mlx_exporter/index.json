@@ -1,7 +1,7 @@
 {
     "name": "MLX Exporter",
     "uniqueId": "mlx_exporter",
-    "description": "Exports the current model and adaptor to MLX format so it can be run on Apple Silicon.",
+    "description": "Exports the current model to MLX format so it can be run on Apple Silicon.",
     "plugin-format": "python",
     "type": "exporter",
     "model_architectures": [
