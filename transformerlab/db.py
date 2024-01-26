@@ -268,7 +268,8 @@ async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
     cursor = await db.execute(
         "SELECT * FROM job \
         WHERE experiment_id = ? \
-        AND type = ?", (experiment_id, job_type))
+        AND type = ? \
+        ORDER BY created_at DESC", (experiment_id, job_type))
     rows = await cursor.fetchall()
 
     # Add column names to output
