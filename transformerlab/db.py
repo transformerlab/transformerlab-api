@@ -263,8 +263,29 @@ async def job_get(job_id):
     await cursor.close()
     return row
 
+async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
+    global db
+    cursor = await db.execute(
+        "SELECT * FROM job \
+        WHERE experiment_id = ? \
+        AND type = ?", (experiment_id, job_type))
+    rows = await cursor.fetchall()
 
-async def jobs_get_all():
+    # Add column names to output
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
+    await cursor.close()
+
+    # for each row in data, convert the job_data
+    # column from JSON to a Python object
+    #for row in data:
+    #    row["job_data"] = json.loads(row["job_data"])
+
+    return data
+
+# Because this joins on training template it only returns training jobs
+async def training_jobs_get_all():
     global db
     # Join on the nested JSON value "template_id"
     # #in the job_data column
@@ -309,11 +330,11 @@ async def training_job_create(template_id, description, experiment_id):
     return row[0]
 
 
-async def job_create(type, status, job_data):
+async def job_create(type, status, job_data, experiment_id):
     global db
     row = await db.execute_insert(
-        "INSERT INTO job(type, status, job_data) VALUES (?, ?, json(?))",
-        (type, status, job_data),
+        "INSERT INTO job(type, status, experiment_id, job_data) VALUES (?, ?, ?, json(?))",
+        (type, status, experiment_id, job_data),
     )
     await db.commit()  # is this necessary?
     return row[0]

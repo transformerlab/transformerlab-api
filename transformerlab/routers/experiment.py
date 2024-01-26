@@ -327,7 +327,7 @@ async def run_exporter_script(id: int, plugin_name: str, quant_bits: int = 4):
 
     # Create a database job 
     job_id = await db.job_create(type="EXPORT_MODEL", status="STARTED",
-                                 job_data='{}')
+                                 job_data='{}', experiment_id=id)
 
     subprocess_command = [script_path] + args
 
@@ -344,7 +344,7 @@ async def run_exporter_script(id: int, plugin_name: str, quant_bits: int = 4):
 
 @router.get("/{id}/export/jobs")
 async def get_export_jobs(id: int):
-    jobs = await db.jobs_get_all()
+    jobs = await db.jobs_get_all_by_experiment_and_type(id, 'EXPORT_MODEL')
     return jobs
 
 @router.get(path="/{id}/get_conversations")

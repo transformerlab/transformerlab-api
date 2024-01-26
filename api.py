@@ -187,7 +187,7 @@ async def server_worker_start(model_name: str, model_filename: str | None = None
                     json.dumps(inference_params)
                 ]
 
-                job_id = await db.job_create(type="LOAD_MODEL", status="STARTED", job_data='{}')
+                job_id = await db.job_create(type="LOAD_MODEL", status="STARTED", job_data='{}', experiment_id=experiment_id)
 
                 print("Loading plugin loader instead of default worker")
                 worker_process = await shared.async_run_python_daemon_and_update_status(python_script=params,
@@ -225,7 +225,7 @@ async def server_worker_start(model_name: str, model_filename: str | None = None
     print("let's start a worker for: " + model_name)
 
     # create a new job in the jobs DB:
-    job_id = await db.job_create(type="LOAD_MODEL", status="STARTED", job_data='{}')
+    job_id = await db.job_create(type="LOAD_MODEL", status="STARTED", job_data='{}', experiment_id=experiment_id)
 
     worker_process = await shared.async_run_python_daemon_and_update_status(python_script=params,
                                                                             job_id=job_id,

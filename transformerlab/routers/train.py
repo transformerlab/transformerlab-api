@@ -62,7 +62,7 @@ async def delete_training_template(template_id: str):
 
 @router.get("/jobs")
 async def jobs_get_all():
-    jobs = await db.jobs_get_all()
+    jobs = await db.training_jobs_get_all()
     return jobs
 
 
