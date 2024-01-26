@@ -280,8 +280,8 @@ async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
 
     # for each row in data, convert the job_data
     # column from JSON to a Python object
-    #for row in data:
-    #    row["job_data"] = json.loads(row["job_data"])
+    for row in data:
+        row["job_data"] = json.loads(row["job_data"])
 
     return data
 
