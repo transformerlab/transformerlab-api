@@ -5,6 +5,7 @@ import sqlite3
 import argparse
 import sys
 import json
+import time
 
 # Get all arguments provided to this script using argparse
 parser = argparse.ArgumentParser(description='Convert a model to GGUF format.')
