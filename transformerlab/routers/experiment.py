@@ -326,8 +326,10 @@ async def run_exporter_script(id: int, plugin_name: str, quant_bits: int = 4):
             "--quant_bits", str(quant_bits)]
 
     # Create a database job 
+    job_data = dict(from_model=config["foundation"],exporter=plugin_name, params={})
+    job_data_json = json.dumps(job_data)
     job_id = await db.job_create(type="EXPORT_MODEL", status="STARTED",
-                                 job_data='{}', experiment_id=id)
+                                 job_data=job_data_json, experiment_id=id)
 
     subprocess_command = [script_path] + args
 
