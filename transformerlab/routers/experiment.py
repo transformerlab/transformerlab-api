@@ -342,6 +342,10 @@ async def run_exporter_script(id: int, plugin_name: str, quant_bits: int = 4):
  
     return {"message": "success", "job_id": job_id}
 
+@router.get("/{id}/export/jobs")
+async def get_export_jobs(id: int):
+    jobs = await db.jobs_get_all()
+    return jobs
 
 @router.get(path="/{id}/get_conversations")
 async def get_conversations(id: int):
