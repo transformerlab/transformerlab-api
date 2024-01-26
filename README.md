@@ -41,6 +41,7 @@ install the rest of the application requirements.
 If you prefer to install the API without using the install script you can follow the steps on this page:
 
 [Manual Install - Apple Mac (Silicon)](transformerlab/docs/manual_install_osx.md)
+
 [Manual Install - Other Architectures](transformerlab/docs/manual_install.md)
 
 # Run
