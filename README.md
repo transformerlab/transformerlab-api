@@ -22,12 +22,13 @@ Use the instructions below if you are installing and running the API on a server
 
 # Requirements
 
-* Linux or WSL (for training)
-* Mac, Linux, WSL for inference only
+- Linux or WSL (for training)
+- Mac, Linux, WSL for inference only
 
 # Automatic Installation
 
-You can use the install script to get the application running: 
+You can use the install script to get the application running:
+
 ```bash
 ./init.sh
 ```
@@ -39,7 +40,8 @@ install the rest of the application requirements.
 
 If you prefer to install the API without using the install script you can follow the steps on this page:
 
-[Manual Install](transformerlab/docs/manual_install.md)
+[Manual Install - Apple Mac (Silicon)](transformerlab/docs/manual_install_osx.md)
+[Manual Install - Other Architectures](transformerlab/docs/manual_install.md)
 
 # Run
 
@@ -49,7 +51,7 @@ Within your virtual environment run the following command:
 conda activate transformerlab
 python3 api.py
 ```
- 
+
 If you want the API to be available to other machines on your network run:
 
 ```bash
@@ -81,13 +83,12 @@ pip-compile \
 
 We have not tested running the API on Windows extensively, but it should work.
 
-On WSL, you might need to install CUDA manually by following: 
+On WSL, you might need to install CUDA manually by following:
 
 https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=WSL-Ubuntu&target_version=2.0&target_type=deb_local)
 
-then running the following before you launch: 
+then running the following before you launch:
 
 ```bash
 export LD_LIBRARY_PATH=/usr/lib/wsl/lib
 ```
- 
