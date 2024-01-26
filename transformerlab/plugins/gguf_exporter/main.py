@@ -37,7 +37,7 @@ os.makedirs(output_dir)
 print("Exporting", args.model_name, "to GGUF format in", output_dir)
 export_process = subprocess.run(
 #    ["python", '-u', '-m',  _TODO_conversion_class, '--hf-path', args.model_name, '--output-path', output_dir, '-q', '--q-bits', str(args.quant_bits)],
-    ["sleep", 10],
+    ["sleep", '10'],
     cwd=plugin_dir,
     capture_output=True
 )
