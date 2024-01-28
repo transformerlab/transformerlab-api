@@ -428,6 +428,35 @@ async def job_get_for_template_id(template_id):
     await cursor.close()
     return rows
 
+####################
+# EXPEORT JOBS MODEL
+# Export jobs use the job_data JSON object to store:
+# - exporter_name
+# - input_model_id
+# - input_model_architecture
+# - output_model_id
+# - output_model_architecture
+# - output_model_name
+# - output_model_path
+# - params 
+####################
+async def export_job_create(experiment_id, exporter_name, input_model_id, input_model_architecture, params={}):
+    job_data = dict(
+        exporter_name=exporter_name, 
+        input_model_id=input_model_id,
+        input_model_architecture=input_model_architecture,
+        output_model_id = "",
+        output_model_architecture="",
+        output_model_name = "",
+        output_model_path = "",
+        params=params
+    )
+    job_data_json = json.dumps(job_data)
+    job_id = await job_create("EXPORT_MODEL", "Started", job_data_json, experiment_id)
+    print("Job ID")
+    print(job_id)
+    return job_id
+
 
 ###################
 # EXPERIMENTS MODEL
