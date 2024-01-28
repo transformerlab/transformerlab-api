@@ -210,6 +210,126 @@ async def model_local_delete(model_id):
     await db.execute("DELETE FROM model WHERE model_id = ?", (model_id,))
     await db.commit()
 
+###############
+# GENERIC JOBS MODEL
+###############
+ 
+async def job_create(type, status, job_data, experiment_id):
+    global db
+    row = await db.execute_insert(
+        "INSERT INTO job(type, status, experiment_id, job_data) VALUES (?, ?, ?, json(?))",
+        (type, status, experiment_id, job_data),
+    )
+    await db.commit()  # is this necessary?
+    return row[0]
+    
+async def job_get(job_id):
+    global db
+    cursor = await db.execute("SELECT * FROM job WHERE job_id = ?", (job_id,))
+    row = await cursor.fetchone()
+    await cursor.close()
+    return row
+
+async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
+    global db
+    cursor = await db.execute(
+        "SELECT * FROM job \
+        WHERE experiment_id = ? \
+        AND type = ? \
+        ORDER BY created_at DESC", (experiment_id, job_type))
+    rows = await cursor.fetchall()
+
+    # Add column names to output
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
+    await cursor.close()
+
+    # for each row in data, convert the job_data
+    # column from JSON to a Python object
+    for row in data:
+        row["job_data"] = json.loads(row["job_data"])
+
+    return data
+
+async def job_get_status(job_id):
+    global db
+    cursor = await db.execute("SELECT status FROM job WHERE job_id = ?", (job_id,))
+    row = await cursor.fetchone()
+    await cursor.close()
+    return row
+
+async def job_get(job_id):
+    global db
+    cursor = await db.execute("SELECT * FROM job WHERE id = ?", (job_id,))
+    row = await cursor.fetchone()
+    # convert to json:
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    row = dict(itertools.zip_longest(column_names, row))
+
+    await cursor.close()
+    return row
+
+async def job_count_running():
+    global db
+    cursor = await db.execute("SELECT COUNT(*) FROM job WHERE status = 'RUNNING'")
+    row = await cursor.fetchone()
+    await cursor.close()
+    return row[0]
+
+
+async def jobs_get_next_queued_job():
+    global db
+    cursor = await db.execute(
+        "SELECT * FROM job WHERE status = 'QUEUED' ORDER BY created_at ASC LIMIT 1"
+    )
+    row = await cursor.fetchone()
+
+    # if no results, return None
+    if row is None:
+        return None
+
+    # convert to json:
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    row = dict(itertools.zip_longest(column_names, row))
+
+    await cursor.close()
+    return row
+
+async def job_update(job_id, status):
+    global db
+    await db.execute("UPDATE job SET status = ? WHERE id = ?", (status, job_id))
+    await db.commit()
+    return
+
+def job_update_sync(job_id, status):
+    # This is a synchronous version of job_update
+    # It is used by popen_and_call function
+    # which can only support sychronous functions
+    # This is a hack to get around that limitation
+    global DATABASE_FILE_NAME
+    db_sync = sqlite3.connect(DATABASE_FILE_NAME)
+
+    db_sync.execute("UPDATE job SET status = ? WHERE id = ?", (status, job_id))
+    db_sync.commit()
+    db_sync.close()
+    return
+
+async def job_delete_all():
+    global db
+    await db.execute("DELETE FROM job")
+    await db.commit()
+    return
+
+
+async def job_delete(job_id):
+    global db
+    print("Deleting job: " + job_id)
+    await db.execute("DELETE FROM job WHERE id = ?", (job_id,))
+    await db.commit()
+    return
 
 ###############
 # TRAINING and TRAINING JOBS MODELS
@@ -256,35 +376,6 @@ async def delete_training_template(id):
     return
 
 
-async def job_get(job_id):
-    global db
-    cursor = await db.execute("SELECT * FROM job WHERE job_id = ?", (job_id,))
-    row = await cursor.fetchone()
-    await cursor.close()
-    return row
-
-async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
-    global db
-    cursor = await db.execute(
-        "SELECT * FROM job \
-        WHERE experiment_id = ? \
-        AND type = ? \
-        ORDER BY created_at DESC", (experiment_id, job_type))
-    rows = await cursor.fetchall()
-
-    # Add column names to output
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    await cursor.close()
-
-    # for each row in data, convert the job_data
-    # column from JSON to a Python object
-    for row in data:
-        row["job_data"] = json.loads(row["job_data"])
-
-    return data
-
 # Because this joins on training template it only returns training jobs
 async def training_jobs_get_all():
     global db
@@ -330,74 +421,6 @@ async def training_job_create(template_id, description, experiment_id):
     await db.commit()  # is this necessary?
     return row[0]
 
-
-async def job_create(type, status, job_data, experiment_id):
-    global db
-    row = await db.execute_insert(
-        "INSERT INTO job(type, status, experiment_id, job_data) VALUES (?, ?, ?, json(?))",
-        (type, status, experiment_id, job_data),
-    )
-    await db.commit()  # is this necessary?
-    return row[0]
-
-
-async def job_delete_all():
-    global db
-    await db.execute("DELETE FROM job")
-    await db.commit()
-    return
-
-
-async def job_delete(job_id):
-    global db
-    print("Deleting job: " + job_id)
-    await db.execute("DELETE FROM job WHERE id = ?", (job_id,))
-    await db.commit()
-    return
-
-
-async def job_update(job_id, status):
-    global db
-    await db.execute("UPDATE job SET status = ? WHERE id = ?", (status, job_id))
-    await db.commit()
-    return
-
-
-def job_update_sync(job_id, status):
-    # This is a synchronous version of job_update
-    # It is used by popen_and_call function
-    # which can only support sychronous functions
-    # This is a hack to get around that limitation
-    global DATABASE_FILE_NAME
-    db_sync = sqlite3.connect(DATABASE_FILE_NAME)
-
-    db_sync.execute("UPDATE job SET status = ? WHERE id = ?", (status, job_id))
-    db_sync.commit()
-    db_sync.close()
-    return
-
-
-async def job_get_status(job_id):
-    global db
-    cursor = await db.execute("SELECT status FROM job WHERE job_id = ?", (job_id,))
-    row = await cursor.fetchone()
-    await cursor.close()
-    return row
-
-
-async def job_get(job_id):
-    global db
-    cursor = await db.execute("SELECT * FROM job WHERE id = ?", (job_id,))
-    row = await cursor.fetchone()
-    # convert to json:
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
-
-    await cursor.close()
-    return row
-
-
 async def job_get_for_template_id(template_id):
     global db
     cursor = await db.execute("SELECT * FROM job WHERE template_id = ?", (template_id,))
@@ -406,33 +429,9 @@ async def job_get_for_template_id(template_id):
     return rows
 
 
-async def job_count_running():
-    global db
-    cursor = await db.execute("SELECT COUNT(*) FROM job WHERE status = 'RUNNING'")
-    row = await cursor.fetchone()
-    await cursor.close()
-    return row[0]
-
-
-async def jobs_get_next_queued_job():
-    global db
-    cursor = await db.execute(
-        "SELECT * FROM job WHERE status = 'QUEUED' ORDER BY created_at ASC LIMIT 1"
-    )
-    row = await cursor.fetchone()
-
-    # if no results, return None
-    if row is None:
-        return None
-
-    # convert to json:
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
-
-    await cursor.close()
-    return row
-
+###################
+# EXPERIMENTS MODEL
+###################
 
 async def experiment_get_all():
     global db
