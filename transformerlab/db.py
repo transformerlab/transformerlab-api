@@ -453,8 +453,6 @@ async def export_job_create(experiment_id, exporter_name, input_model_id, input_
     )
     job_data_json = json.dumps(job_data)
     job_id = await job_create("EXPORT_MODEL", "Started", job_data_json, experiment_id)
-    print("Job ID")
-    print(job_id)
     return job_id
 
 
