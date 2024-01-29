@@ -17,7 +17,9 @@
     "parameters": [{
         "quant_bits": {
             "title": "Quantization Bits",
-            "type": "integer"
+            "type": "integer",
+            "default": 4,
+            "minimum": 1
         }
     }]
 }
