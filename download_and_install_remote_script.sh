@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VERSION="0.1.3"
+VERSION="0.1.4"
 ENV_NAME="transformerlab"
 
 TFL_DIR="$HOME/.transformerlab"
