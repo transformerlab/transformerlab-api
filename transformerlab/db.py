@@ -214,7 +214,7 @@ async def model_local_delete(model_id):
 # GENERIC JOBS MODEL
 ###############
  
-async def job_create(type, status, job_data, experiment_id):
+async def job_create(type, status, job_data, experiment_id=""):
     global db
     row = await db.execute_insert(
         "INSERT INTO job(type, status, experiment_id, job_data) VALUES (?, ?, ?, json(?))",
