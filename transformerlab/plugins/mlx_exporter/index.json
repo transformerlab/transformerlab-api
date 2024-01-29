@@ -14,6 +14,10 @@
         "setup.sh"
     ],
     "setup-script": "setup.sh",
-    "parameters": [
-    ]
+    "parameters": [{
+        "quant_bits": {
+            "title": "Quantization Bits",
+            "type": "integer"
+        }
+    }]
 }
