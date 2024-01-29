@@ -1,9 +1,12 @@
 #!/bin/bash
 set -e
 
-VERSION="0.1.0"
+VERSION="0.1.4"
 ENV_NAME="transformerlab"
 
+TFL_DIR="$HOME/.transformerlab"
+TFL_CODE_DIR="${TFL_DIR}/src"
+TFL_URL="https://github.com/transformerlab/transformerlab-api/archive/refs/heads/main.zip"
 
 # This script is meant to be run  on a new computer. 
 # It will pull down the API and install
@@ -56,26 +59,15 @@ elif [[ "${OS}" == "Darwin" ]]
 then
   TFL_ON_MACOS=1
 else
-  abort "Tranformer Lab is only supported on macOS and Linux."
+  abort "Transformer Lab is only supported on macOS and Linux."
 fi
 
-TFL_DIR="$HOME/.transfomerlab/src"
-TFL_GIT_REPO="https://github.com/transformerlab/transformerlab-api"
-
-# Check if the user has installed the required tools.
-if [[ -z "$(command -v git)" ]]
-then
-  # Right now this script depends on git but we could
-  # change this to pull down a zip file instead from git
-  # hub instead
-  abort "Git is not installed. Please install Git and try again."
-fi
 
 # Check if the user has already installed Transformer Lab.
-if [[ -d "${TFL_DIR}" ]]
+if [[ -d "${TFL_CODE_DIR}" ]]
 then
   # Check what version has been installed by looking at the version file:
-  if [[ -f "${TFL_DIR}/VERSION" ]]
+  if [[ -f "${TFL_CODE_DIR}/VERSION" ]]
   then
     INSTALLED_VERSION="$(cat "${TFL_DIR}/VERSION")"
   else
@@ -98,20 +90,24 @@ then
     # Otherwise, the user has an different version installed, so we should try to upgrade.
     ohai "Transformer Lab ${INSTALLED_VERSION} is already installed, but you have ${VERSION}."
     ohai "Upgrading to Transformer Lab ${VERSION} ..."
-    pushd "${TFL_DIR}"
-    git pull
+    pushd "${TFL_CODE_DIR}"
+    echo "DO UPGRADE HERE @TODO"
     popd
   fi
 else
   # If the user has not installed Transformer Lab, then we should install it.
   ohai "Installing Transformer Lab ${VERSION}..."
-  # Clone the repository:
-  git clone --depth=1 "${TFL_GIT_REPO}" "${TFL_DIR}"
+  # Fetch the latest version of Transformer Lab from GitHub:
+  mkdir -p "${TFL_DIR}"
+  curl -L "${TFL_URL}" -o "${TFL_DIR}/transformerlab.zip"
+  unzip "${TFL_DIR}/transformerlab.zip" -d "${TFL_DIR}"
+  mv "${TFL_DIR}/transformerlab-api-main" "${TFL_CODE_DIR}"
+  rm "${TFL_DIR}/transformerlab.zip"
 fi
 
 # Now time to install dependencies and requirements.txt by running
 # the init.sh script.
-INIT_SCRIPT="${TFL_DIR}/init.sh"
+INIT_SCRIPT="${TFL_CODE_DIR}/init.sh"
 
 # check if conda environment already exists:
 if ! command -v conda &> /dev/null; then
