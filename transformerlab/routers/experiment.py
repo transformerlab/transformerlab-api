@@ -299,7 +299,8 @@ async def run_evaluation_script(id: int, plugin_name: str, eval_name: str):
     with open(f"{script_directory}/output.txt", "w") as f:
         subprocess.run(args=subprocess_command, stdout=f)
 
-
+# TODO: this takes quant_bits as a parameter
+# but this probably needs to take a flexible list of parameters as defined by the plugin?
 @router.get("/{id}/run_exporter_script")
 async def run_exporter_script(id: int, plugin_name: str, quant_bits: int = 4):
     experiment_details = await db.experiment_get(id=id)
@@ -321,10 +322,6 @@ async def run_exporter_script(id: int, plugin_name: str, quant_bits: int = 4):
     script_directory = f"{root_dir}/{EXPERIMENTS_DIR}/{experiment_name}/plugins/{plugin_name}"
     script_path = f"{script_directory}/main.py"
 
-    args = ["--model_name", model_name, "--model_architecture", model_type,
-            "--experiment_name", experiment_name, "--model_adapter", model_adapter,
-            "--quant_bits", str(quant_bits)]
-
     # Create a database job 
     params = dict(
         quant_bits=quant_bits
@@ -337,6 +334,10 @@ async def run_exporter_script(id: int, plugin_name: str, quant_bits: int = 4):
         params=params
     )
 
+    # Setup arguments to pass to plugin
+    args = ["--model_name", model_name, "--model_architecture", model_type,
+            "--experiment_name", experiment_name, "--model_adapter", model_adapter,
+            "--quant_bits", str(quant_bits), "--job_id", str(job_id)]
     subprocess_command = [script_path] + args
 
     try:
