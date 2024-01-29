@@ -357,12 +357,8 @@ async def get_export_jobs(id: int):
     return jobs
 
 @router.get("/{id}/export/job")
-async def get_export_job(id: int):
-    print("id", str(id)) 
-    jobId = "112"
-    print("JobId", jobId)
+async def get_export_job(id: int, jobId: str):
     job = await db.job_get(jobId)
-    print(job)
     return job
 
 @router.get(path="/{id}/get_conversations")
