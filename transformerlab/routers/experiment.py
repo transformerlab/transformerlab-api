@@ -356,6 +356,11 @@ async def get_export_jobs(id: int):
     jobs = await db.jobs_get_all_by_experiment_and_type(id, 'EXPORT_MODEL')
     return jobs
 
+@router.get("/{id}/export/job")
+async def get_export_job(id: int, jobId: str):
+    job = await db.job_get(jobId)
+    return job
+
 @router.get(path="/{id}/get_conversations")
 async def get_conversations(id: int):
     # first get the experiment name:
