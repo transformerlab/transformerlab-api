@@ -43,8 +43,8 @@ ENV_NAME="transformerlab"
 if { conda env list | grep "$ENV_NAME"; } >/dev/null 2>&1; then
     echo "Conda environment $ENV_NAME already exists."
 else
-    echo conda create -y -n "$ENV_NAME" python=3.10
-    conda create -y -n "$ENV_NAME" python=3.10 
+    echo conda create -y -n "$ENV_NAME" python=3.11
+    conda create -y -n "$ENV_NAME" python=3.11
 fi
 
 # Activate the newly created environment
