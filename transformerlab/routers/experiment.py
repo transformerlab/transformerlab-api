@@ -299,21 +299,26 @@ async def run_evaluation_script(id: int, plugin_name: str, eval_name: str):
     with open(f"{script_directory}/output.txt", "w") as f:
         subprocess.run(args=subprocess_command, stdout=f)
 
-# TODO: this takes quant_bits as a parameter
-# but this probably needs to take a flexible list of parameters as defined by the plugin?
+# run_export_script
+# This gets a plugin_name and a json list of parameters 
+# and sets everything up for an exporter plugin to run
 @router.get("/{id}/run_exporter_script")
-async def run_exporter_script(id: int, plugin_name: str, quant_bits: int = 4):
-    experiment_details = await db.experiment_get(id=id)
+async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{}"):
 
+    # Load experiment details into config
+    experiment_details = await db.experiment_get(id=id)
     if experiment_details is None:
         return {"message": f"Experiment {id} does not exist"}
-    config = json.loads(experiment_details["config"])
 
     # get exporter parameters
     experiment_name = experiment_details["name"]
+    config = json.loads(experiment_details["config"])
     model_name = config["foundation"]
     model_type = config["foundation_model_architecture"]
     model_adapter = config["adaptor"]
+
+    # Convert JSON parameters
+    params = json.loads(plugin_params)
 
     root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
     if root_dir is None:
@@ -323,9 +328,6 @@ async def run_exporter_script(id: int, plugin_name: str, quant_bits: int = 4):
     script_path = f"{script_directory}/main.py"
 
     # Create a database job 
-    params = dict(
-        quant_bits=quant_bits
-    )
     job_id = await db.export_job_create(
         experiment_id=id, 
         exporter_name=plugin_name, 
@@ -337,7 +339,7 @@ async def run_exporter_script(id: int, plugin_name: str, quant_bits: int = 4):
     # Setup arguments to pass to plugin
     args = ["--model_name", model_name, "--model_architecture", model_type,
             "--experiment_name", experiment_name, "--model_adapter", model_adapter,
-            "--quant_bits", str(quant_bits), "--job_id", str(job_id)]
+            "--quant_bits", "4", "--job_id", str(job_id)]
     subprocess_command = [script_path] + args
 
     try:
