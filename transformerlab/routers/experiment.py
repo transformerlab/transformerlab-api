@@ -355,7 +355,7 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
         await db.job_update(job_id=job_id, status="FAILED")
         return {"message": f"Failed to export model. Exception: {e}"}
 
-    if process.returncode == 0:
+    if process.returncode != 0:
         return {"message": f"Failed to export model. Return code: {process.returncode}"}
  
     return {"message": "success", "job_id": job_id}
