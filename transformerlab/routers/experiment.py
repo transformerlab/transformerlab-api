@@ -4,6 +4,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import time
 from distutils.dir_util import copy_tree, remove_tree
 
 from typing import Annotated, Any
@@ -314,27 +315,32 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
     if experiment_details is None:
         return {"message": f"Experiment {id} does not exist"}
 
-    # get exporter parameters
+    # Get input model parameters
     experiment_name = experiment_details["name"]
     config = json.loads(experiment_details["config"])
     input_model_id = config["foundation"]
     input_model_architecture = config["foundation_model_architecture"]
-    model_adapter = config["adaptor"]
+
+    # Generate output model details
+    conversion_time = int(time.time())
+    # TEMPORARY HACK to get model architecture assumes exporter is named <format>_exporter
+    output_model_architecture = plugin_name.split('_')[0]
+    output_model_dir = f"{output_model_architecture}-{input_model_id}-{conversion_time}"
+    output_quant_bits = 4
 
     # Convert JSON parameters
     # And set default parameters for anything that didn't get passed in
     params = json.loads(plugin_params)
     if ("output_model_architecture" not in params):
-        # TEMPORARY HACK to get model architecture assumes exporter is named <format>_exporter
-        params["output_model_architecture"] = plugin_name.split('_')[0]
+        params["output_model_architecture"] = output_model_architecture
     if ("output_quant_bits" not in params):
-        params["output_quant_bits"] = 4
-    if ("output_model_id" not in params):
-        params["output_model_id"] = f"{input_model_id}-{params['output_model_architecture']}"
-    if ("output_model_name" not in params):
-        params["output_model_name"] = f"{input_model_id}-{params['output_model_architecture']}"
+        params["output_quant_bits"] = output_quant_bits
     if ("output_dir" not in params):
-        params["output_dir"] = params["output_model_id"]
+        params["output_dir"] = output_model_dir
+    if ("output_model_id" not in params):
+        params["output_model_id"] = f"TransformerLab/({output_model_dir})"
+    if ("output_model_name" not in params):
+        params["output_model_name"] = f"{input_model_id} - {output_model_architecture} {output_quant_bits}bit"
 
     root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
     if root_dir is None:
@@ -354,7 +360,6 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
 
     # Setup arguments to pass to plugin
     args = ["--model_name", input_model_id, "--model_architecture", input_model_architecture,
-            "--experiment_name", experiment_name, "--model_adapter", model_adapter,
             "--quant_bits", "4", "--job_id", str(job_id)]
     subprocess_command = [script_path] + args
 
