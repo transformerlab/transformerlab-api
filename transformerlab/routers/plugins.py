@@ -25,7 +25,7 @@ async def plugin_gallery():
     # For location 2., we will copy all of these plugins to the workspace/plugins folder
     # on startup (see bottom of this file). So we do not need to check this directory here.
 
-    local_workspace_gallery_directory = "workspace/plugins"
+    local_workspace_gallery_directory = "transformerlab/plugins"
     # today the remote gallery is a local file, we will move it remote later
     remote_gallery_file = "transformerlab/galleries/plugin-gallery.json"
 

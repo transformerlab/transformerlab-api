@@ -150,7 +150,7 @@ async def get_training_job_output(job_id: str):
 
     # Now we can get the output.txt from the plugin which is stored in
     # /workspace/experiments/{experiment_name}/plugins/{plugin_name}/output.txt
-    output_file = f"workspace/experiments/{experiment_name}/plugins/{plugin_name}/output.txt"
+    output_file = f"workspace/plugins/{plugin_name}/output.txt"
     with open(output_file, "r") as f:
         output = f.read()
     return output

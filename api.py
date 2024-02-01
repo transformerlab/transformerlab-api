@@ -173,7 +173,7 @@ async def server_worker_start(model_name: str, model_filename: str | None = None
 
                 experiment_name = experiment['name']
                 plugin_name = inference_engine
-                plugin_location = f"workspace/experiments/{experiment_name}/plugins/{plugin_name}/main.py"
+                plugin_location = f"workspace/plugins/{plugin_name}/main.py"
 
                 model = model_name
                 if (model_filename is not None and model_filename != ''):

@@ -16,6 +16,8 @@ import transformerlab.db as db
 
 from transformerlab.shared import shared
 
+from transformerlab.routers.plugins import install_plugin
+
 router = APIRouter(prefix="/experiment", tags=["experiment"])
 
 EXPERIMENTS_DIR: str = "workspace/experiments"
@@ -216,7 +218,7 @@ async def get_evaluation_plugin_file_contents(id: int, plugin_name: str):
 
     # now get the file contents
     try:
-        with open(f"{EXPERIMENTS_DIR}/{experiment_name}/plugins/{plugin_name}/main.py", "r") as f:
+        with open(f"workspace/plugins/{plugin_name}/main.py", "r") as f:
             file_contents = f.read()
     except FileNotFoundError:
         return "error file not found"
@@ -287,7 +289,7 @@ async def run_evaluation_script(id: int, plugin_name: str, eval_name: str):
     if root_dir is None:
         return {"message": "LLM_LAB_ROOT_PATH not set"}
 
-    script_directory = f"{root_dir}/{EXPERIMENTS_DIR}/{experiment_name}/plugins/{plugin_name}"
+    script_directory = f"{root_dir}/workspace/plugins/{plugin_name}"
     script_path = f"{script_directory}/main.py"
     extra_args.extend(["--experiment_name", experiment_name, "--eval_name", eval_name, "--input_file", input_file,
                        "--model_name", model_name, "--model_architecture", model_type, "--model_adapter", model_adapter])
@@ -300,8 +302,10 @@ async def run_evaluation_script(id: int, plugin_name: str, eval_name: str):
         subprocess.run(args=subprocess_command, stdout=f)
 
 # run_export_script
-# This gets a plugin_name and a json list of parameters 
+# This gets a plugin_name and a json list of parameters
 # and sets everything up for an exporter plugin to run
+
+
 @router.get("/{id}/run_exporter_script")
 async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{}"):
 
@@ -335,10 +339,11 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
     root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
     if root_dir is None:
         return {"message": "LLM_LAB_ROOT_PATH not set"}
-    script_directory = f"{root_dir}/{EXPERIMENTS_DIR}/{experiment_name}/plugins/{plugin_name}"
+
+    script_directory = f"{root_dir}/workspace/plugins/{plugin_name}"
     script_path = f"{script_directory}/main.py"
 
-    # Create a database job 
+    # Create a database job
     job_id = await db.export_job_create(
         experiment_id=id, 
         exporter_name=plugin_name, 
@@ -361,18 +366,21 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
 
     if process.returncode != 0:
         return {"message": f"Failed to export model. Return code: {process.returncode}"}
- 
+
     return {"message": "success", "job_id": job_id}
+
 
 @router.get("/{id}/export/jobs")
 async def get_export_jobs(id: int):
     jobs = await db.jobs_get_all_by_experiment_and_type(id, 'EXPORT_MODEL')
     return jobs
 
+
 @router.get("/{id}/export/job")
 async def get_export_job(id: int, jobId: str):
     job = await db.job_get(jobId)
     return job
+
 
 @router.get(path="/{id}/get_conversations")
 async def get_conversations(id: int):
@@ -503,8 +511,7 @@ async def experiment_list_scripts(id: int, type: str = None, filter: str = None)
     if rootdir is None:
         return {"message": "LLM_LAB_ROOT_PATH not set"}
 
-    scripts_dir = rootdir + f"/{EXPERIMENTS_DIR}/" + \
-        experiment_name + '/plugins'
+    scripts_dir = rootdir + f"/workspace/plugins"
 
     # now get a list of all the directories in the scripts directory:
     scripts_full_json = []
@@ -554,74 +561,15 @@ async def experiment_list_scripts(id: int, type: str = None, filter: str = None)
 
 @router.get(path="/{id}/install_plugin_to_experiment")
 async def install_plugin_to_experiment(id: int, plugin_name: str):
-    """ Install a local plugin to an experiment. This will create a new directory in the experiment
-    and add all the files from the plugin to the specific experiment. By copying the plugin to the 
-    experiment directory, we can modify the plugin code for the specific experiment without affecting
-    other experiments that use the same plugin. """
-
-    plugin_name = shared.slugify(plugin_name)
-
-    experiment = await db.experiment_get(id)
-
-    if experiment is None:
-        return {"message": f"Experiment {id} does not exist"}
-
-    print("Installing plugin " + plugin_name + " to experiment " + str(id))
-
-    experiment_config = json.loads(experiment["config"])
-
-    experiment_name = experiment["name"]
-
-    # check that the directory exists:
-    if not os.path.exists(f"workspace/plugins/{plugin_name}"):
-        print(
-            f"Error: plugin does not exist in workspace at workspace/plugins/{plugin_name}")
-        return {"error": "true", "message": f"Plugin {plugin_name} does not exist in your local workspace"}
-
-    # now copy the entire directory to the experiment:
-    copy_tree(f"workspace/plugins/{plugin_name}",
-              f"{EXPERIMENTS_DIR}/{experiment_name}/plugins/{plugin_name}")
-
-    # Open the Plugin index.json:
-    plugin_index_json = open(
-        f"workspace/plugins/{plugin_name}/index.json", "r")
-    plugin_index = json.load(plugin_index_json)
-
-    # If index object contains a key called setup-script, run it:
-    if "setup-script" in plugin_index:
-        # Run shell script
-        print("Running Plugin Install script...")
-        setup_script_name = plugin_index["setup-script"]
-        subprocess.run(['/bin/bash', shared.ROOT_DIR + f"/{EXPERIMENTS_DIR}/{experiment_name}/plugins/{plugin_name}/{setup_script_name}"],
-                       cwd=shared.ROOT_DIR + f"/{EXPERIMENTS_DIR}/{experiment_name}/plugins/{plugin_name}")
-    else:
-        print("No install script found")
-
-    return {"message": f"Plugin {plugin_name} installed to experiment {experiment_name}"}
+    await install_plugin(plugin_name)
+    return {"message": f"Plugin {plugin_name} installed"}
 
 
 @router.get(path="/{id}/delete_plugin_from_experiment")
 async def delete_plugin_from_experiment(id: int, plugin_name: str):
-    """ Delete a plugin from an experiment. This will delete the directory in the experiment
-    and remove the global plugin from the specific experiment. """
-    experiment = await db.experiment_get(id)
-
-    if experiment is None:
-        return {"message": f"Experiment {id} does not exist"}
-
-    experiment_config = json.loads(experiment["config"])
-
-    # The following prevents path traversal attacks:
     rootdir = os.environ.get("LLM_LAB_ROOT_PATH")
-    experiment_dir = rootdir + f"/{EXPERIMENTS_DIR}/" + experiment['name']
-    plugin_dir = experiment_dir + "/plugins/" + plugin_name
-    final_path = Path(experiment_dir).joinpath(
-        plugin_dir).resolve().relative_to(experiment_dir)
-
-    final_path = experiment_dir + "/" + str(final_path)
-
+    final_path = rootdir + "/workspace/plugins/" + plugin_name
     remove_tree(final_path)
-
     return {"message": f"Plugin {plugin_name} deleted from experiment {id}"}
 
 
@@ -705,7 +653,7 @@ async def plugin_save_file_contents(experimentId: str, pluginId: str, filename: 
     filename = shared.slugify(filename)
     pluginId = shared.slugify(pluginId)
 
-    script_path = f"{EXPERIMENTS_DIR}/{experiment_name}/plugins/{pluginId}"
+    script_path = f"workspace/plugins/{pluginId}"
 
     # make directory if it does not exist:
     if not os.path.exists(f"{script_path}"):
@@ -738,8 +686,7 @@ async def plugin_get_file_contents(experimentId: str, pluginId: str, filename: s
 
     # The following prevents path traversal attacks:
     rootdir = os.environ.get("LLM_LAB_ROOT_PATH")
-    plugin_dir = rootdir + f"/{EXPERIMENTS_DIR}/" + \
-        experiment_name + "/plugins/" + pluginId
+    plugin_dir = rootdir + f"/workspace/plugins/" + pluginId
     final_path = Path(plugin_dir).joinpath(
         filename + file_ext).resolve().relative_to(plugin_dir)
 
@@ -766,8 +713,7 @@ async def plugin_list_files(experimentId: str, pluginId: str):
 
     experiment_name = data["name"]
     rootdir = os.environ.get("LLM_LAB_ROOT_PATH")
-    scripts_dir = rootdir + f"/{EXPERIMENTS_DIR}/" + \
-        experiment_name + '/plugins/' + pluginId
+    scripts_dir = rootdir + f"/workspace/plugins/" + pluginId
 
     # check if directory exists:
     if not os.path.exists(scripts_dir):
@@ -804,7 +750,7 @@ async def plugin_create_new_file(experimentId: str, pluginId: str, filename: str
     filename = shared.slugify(filename)
     pluginId = shared.slugify(pluginId)
 
-    script_path = f"{EXPERIMENTS_DIR}/{experiment_name}/plugins/{pluginId}"
+    script_path = f"workspace/plugins/{pluginId}"
 
     # make directory if it does not exist:
     if not os.path.exists(f"{script_path}"):
@@ -840,7 +786,7 @@ async def plugin_delete_file(experimentId: str, pluginId: str, filename: str):
     filename = shared.slugify(filename)
     pluginId = shared.slugify(pluginId)
 
-    script_path = f"{EXPERIMENTS_DIR}/{experiment_name}/plugins/{pluginId}"
+    script_path = f"workspace/plugins/{pluginId}"
 
     # make directory if it does not exist:
     if not os.path.exists(f"{script_path}"):
@@ -866,7 +812,7 @@ async def plugin_new_plugin_directory(experimentId: str, pluginId: str):
     # clean the file name:
     pluginId = shared.slugify(value=pluginId)
 
-    script_path = f"{EXPERIMENTS_DIR}/{experiment_name}/plugins/{pluginId}"
+    script_path = f"workspace/plugins/{pluginId}"
 
     # make directory if it does not exist:
     if not os.path.exists(f"{script_path}"):

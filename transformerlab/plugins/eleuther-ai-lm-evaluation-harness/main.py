@@ -21,7 +21,7 @@ args, other = parser.parse_known_args()
 # print(args)
 
 root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
-plugin_dir = f"{root_dir}/workspace/experiments/{args.experiment_name}/plugins/eleuther-ai-lm-evaluation-harness"
+plugin_dir = f"{root_dir}/workspace/plugins/eleuther-ai-lm-evaluation-harness"
 
 # example command from https://github.com/EleutherAI/lm-evaluation-harness
 # python main.py \

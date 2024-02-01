@@ -97,7 +97,7 @@ for dataset_type in dataset_types:
         dataset_id, split=f"{dataset_type}[:100%]")
     print(
         f"Loaded {dataset_type} dataset with {len(dataset[dataset_type])} examples.")
-    data_directory = f"{llmlab_root_dir}/workspace/experiments/{args.experiment_name}/plugins/mlx_lora_trainer/data"
+    data_directory = f"{llmlab_root_dir}/workspace/plugins/mlx_lora_trainer/data"
     if not os.path.exists(data_directory):
         os.makedirs(data_directory)
     with open(f"{data_directory}/{dataset_type}.jsonl", "w") as f:
@@ -114,7 +114,7 @@ for dataset_type in dataset_types:
 
 # copy file test.jsonl to valid.jsonl. Our test set is the same as our validation set.
 os.system(
-    f"cp {llmlab_root_dir}/workspace/experiments/{args.experiment_name}/plugins/mlx_lora_trainer/data/test.jsonl {llmlab_root_dir}/workspace/experiments/{args.experiment_name}/plugins/mlx_lora_trainer/data/valid.jsonl")
+    f"cp {llmlab_root_dir}/workspace/plugins/mlx_lora_trainer/data/test.jsonl {llmlab_root_dir}/workspace/plugins/mlx_lora_trainer/data/valid.jsonl")
 
 print("Example formatted training example:")
 example = formatting_template.substitute(dataset["train"][1])
@@ -125,10 +125,10 @@ print(example)
 #     os.makedirs(adaptor_output_dir)
 
 # adaptor_file_name = f"{adaptor_output_dir}/{config['adaptor_name']}.npz"
-adaptor_file_name = f"{llmlab_root_dir}/workspace/experiments/{args.experiment_name}/plugins/mlx_lora_trainer/{config['adaptor_name']}.npz"
+adaptor_file_name = f"{llmlab_root_dir}/workspace/plugins/mlx_lora_trainer/{config['adaptor_name']}.npz"
 
 root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
-plugin_dir = f"{root_dir}/workspace/experiments/{args.experiment_name}/plugins/mlx_lora_trainer"
+plugin_dir = f"{root_dir}/workspace/plugins/mlx_lora_trainer"
 
 popen_command = [sys.executable, "-u", f"{plugin_dir}/mlx-examples/lora/lora.py",
                  "--model", config["model_name"], "--iters", iters, "--train", "--adapter-file",

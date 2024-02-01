@@ -198,8 +198,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
 
     # The script is in workspace/experiments/plugins/<plugin_name>/main.py so we need to
     # form that string:
-    plugin_location = f"{EXPERIMENTS_DIR}/" + experiment_name + \
-        "/plugins/" + plugin_name
+    plugin_location = f"workspace/plugins/" + plugin_name
     plugin_script = plugin_location + "/main.py"
     output_file = plugin_location + "/output.txt"
 
