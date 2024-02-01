@@ -313,7 +313,7 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
     # get exporter parameters
     experiment_name = experiment_details["name"]
     config = json.loads(experiment_details["config"])
-    input_model_name = config["foundation"]
+    input_model_id = config["foundation"]
     input_model_architecture = config["foundation_model_architecture"]
     model_adapter = config["adaptor"]
 
@@ -323,10 +323,14 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
     if ("output_model_architecture" not in params):
         # TEMPORARY HACK to get model architecture assumes exporter is named <format>_exporter
         params["output_model_architecture"] = plugin_name.split('_')[0]
+    if ("output_quant_bits" not in params):
+        params["output_quant_bits"] = 4
+    if ("output_model_id" not in params):
+        params["output_model_id"] = f"{input_model_id}-{params['output_model_architecture']}"
     if ("output_model_name" not in params):
-        params["output_model_name"] = f"{input_model_name}-{params['output_model_architecture']}"
+        params["output_model_name"] = f"{input_model_id}-{params['output_model_architecture']}"
     if ("output_dir" not in params):
-        params["output_dir"] = params["output_model_name"]
+        params["output_dir"] = params["output_model_id"]
 
     root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
     if root_dir is None:
@@ -338,13 +342,13 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
     job_id = await db.export_job_create(
         experiment_id=id, 
         exporter_name=plugin_name, 
-        input_model_id=input_model_name, 
+        input_model_id=input_model_id, 
         input_model_architecture=input_model_architecture,
         params=params
     )
 
     # Setup arguments to pass to plugin
-    args = ["--model_name", input_model_name, "--model_architecture", input_model_architecture,
+    args = ["--model_name", input_model_id, "--model_architecture", input_model_architecture,
             "--experiment_name", experiment_name, "--model_adapter", model_adapter,
             "--quant_bits", "4", "--job_id", str(job_id)]
     subprocess_command = [script_path] + args
