@@ -11,7 +11,6 @@ import time
 parser = argparse.ArgumentParser(description='Convert a model to GGUF format.')
 parser.add_argument('--model_name', default='gpt-j-6b', type=str, help='Name of model to export.')
 parser.add_argument('--model_architecture', default='hf-causal', type=str, help='Type of model to export.')
-parser.add_argument('--experiment_name', default='', type=str, help='Name of experiment.')
 parser.add_argument('--quant_bits', default='4', type=str, help='Bits per weight for quantization.')
 args, unknown = parser.parse_known_args()
 
