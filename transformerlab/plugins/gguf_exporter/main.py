@@ -19,8 +19,7 @@ args, unknown = parser.parse_known_args()
 model_architecture = args.model_architecture
 
 # Directory to run conversion subprocess
-root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
-plugin_dir = f"{root_dir}/workspace/experiments/{args.experiment_name}/plugins/gguf_exporter"
+plugin_dir = os.path.realpath(os.path.dirname(__file__))
 
 # Use the original model's ID to name the converted model
 model_id = args.model_name.split("/")[-1]
@@ -29,6 +28,7 @@ output_model_name = f"gguf-{model_id}-{conversion_time}"
 
 # Name of directory to output quantized model
 # Generate a name with a timestamp and create the directory
+root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
 output_dir = f"{root_dir}/workspace/models/{output_model_name}"
 os.makedirs(output_dir)
 
@@ -37,7 +37,7 @@ os.makedirs(output_dir)
 print("Exporting", args.model_name, "to GGUF format in", output_dir)
 export_process = subprocess.run(
 #    ["python", '-u', '-m',  _TODO_conversion_class, '--hf-path', args.model_name, '--output-path', output_dir, '-q', '--q-bits', str(args.quant_bits)],
-    ["sleep", '10'],
+    ["sleep", '5'],
     cwd=plugin_dir,
     capture_output=True
 )

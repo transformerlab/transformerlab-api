@@ -33,7 +33,7 @@ input_model_architecture = args.model_architecture
 # Mistral, Llama, Phi-2
 
 # Directory to run conversion subprocess
-plugin_dir = f"{root_dir}/workspace/experiments/{args.experiment_name}/plugins/mlx_exporter"
+plugin_dir = os.path.realpath(os.path.dirname(__file__))
 
 # Use the original model's ID to name the converted model
 # Generate a name with a timestamp in case we repeat this process
