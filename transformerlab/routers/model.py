@@ -8,8 +8,10 @@ from fastchat.model.model_adapter import get_conversation_template
 import os
 
 from transformerlab.shared import shared
+from transformerlab.shared import dirs
 
 router = APIRouter(tags=["model"])
+
 
 @router.get("/healthz")  # TODO: why isn't this /model/helathz?
 async def healthz():
@@ -18,7 +20,7 @@ async def healthz():
 
 @router.get("/model/gallery")
 async def model_gallery_list_all():
-    with open("transformerlab/galleries/model-gallery.json") as f:
+    with open(f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/galleries/model-gallery.json") as f:
         gallery = json.load(f)
 
     local_models = await db.model_local_list()
@@ -37,7 +39,7 @@ async def model_gallery(model_id: str):
     # convert "~~~"" in string to "/":
     model_id = model_id.replace("~~~", "/")
 
-    with open("transformerlab/galleries/model-gallery.json") as f:
+    with open(f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/galleries/model-gallery.json") as f:
         gallery = json.load(f)
 
     result = None
@@ -78,7 +80,7 @@ async def download_model_from_huggingface(model: str):
     job_id = await db.job_create(type="DOWNLOAD_MODEL", status="STARTED",
                                  job_data='{}')
 
-    args = ["transformerlab/shared/download_huggingface_model.py",
+    args = [f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
             "--model_name", model]
 
     try:
@@ -98,7 +100,7 @@ async def download_model_from_gallery(gallery_id: str):
     from huggingface"""
 
     # get all models from gallery
-    with open("transformerlab/galleries/model-gallery.json") as f:
+    with open(f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/galleries/model-gallery.json") as f:
         gallery = json.load(f)
 
     gallery_entry = None
@@ -121,7 +123,7 @@ async def download_model_from_gallery(gallery_id: str):
     job_id = await db.job_create(type="DOWNLOAD_MODEL", status="STARTED",
                                  job_data='{}')
 
-    args = ["transformerlab/shared/download_huggingface_model.py",
+    args = [f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
             "--model_name", hugging_face_id,
             ]
 
@@ -148,16 +150,18 @@ async def get_model_prompt_template(model: str):
 
 # get_models_dir
 # Helper function to get the models directory and create it if it doesn't exist
-# models are stored in separate subdirectories under workspace/models    
+# models are stored in separate subdirectories under workspace/models
+
+
 def get_models_dir():
-    rootdir = os.environ.get("LLM_LAB_ROOT_PATH")
-    models_dir = os.path.join(rootdir, "workspace/models/")
+    models_dir = os.path.join(dirs.WORKSPACE_DIR, "models")
 
     # make models directory if it does not exist:
     if not os.path.exists(f"{models_dir}"):
         os.makedirs(f"{models_dir}")
 
     return models_dir
+
 
 @router.get("/model/list")
 async def model_local_list():
@@ -192,7 +196,8 @@ async def model_local_list():
                         # if this is a local model then set local_path to the filesystem location
                         # this will override the default behaviour to load from huggingface
                         if ("local_model" in filedata and filedata["local_model"]):
-                            filedata["local_path"] = os.path.join(models_dir, entry)
+                            filedata["local_path"] = os.path.join(
+                                models_dir, entry)
 
                         models.append(filedata)
 
@@ -214,28 +219,28 @@ async def model_local_delete(model_id: str):
     # If this is a locally generated model then actually delete from filesystem
     # Check for the model stored in a directory based on the model name (i.e. the part after teh slash)
     root_models_dir = get_models_dir()
-    model_dir = model_id.rsplit('/',1)[-1]
+    model_dir = model_id.rsplit('/', 1)[-1]
     info_file = os.path.join(root_models_dir, model_dir, "info.json")
     if (os.path.isfile(info_file)):
         model_path = os.path.join(root_models_dir, model_dir)
         print(f"Deleteing {model_path}")
         shutil.rmtree(model_path)
-    
+
     else:
         # If this is a hugging face model then delete from the database but leave in the cache
         print(
             f"Deleting model {model_id}. Note that this will not free up space because it remains in the HuggingFace cache.")
         print("If you want to delete the model from the HuggingFace cache, you must delete it from:")
         print("~/.cache/huggingface/hub/")
-        
-    # Delete from the database    
+
+    # Delete from the database
     await db.model_local_delete(model_id=model_id)
     return {"message": "model deleted"}
 
 
 @router.post("/model/pefts")
 async def model_gets_pefts(model_id: Annotated[str, Body()],):
-    workspace_dir = shared.WORKSPACE_DIR
+    workspace_dir = dirs.WORKSPACE_DIR
     adaptors_dir = f"{workspace_dir}/adaptors/{model_id}"
     adaptors = []
     if (os.path.exists(adaptors_dir)):
@@ -245,7 +250,7 @@ async def model_gets_pefts(model_id: Annotated[str, Body()],):
 
 @router.get("/model/delete_peft")
 async def model_delete_peft(model_id: str, peft: str):
-    workspace_dir = shared.WORKSPACE_DIR
+    workspace_dir = dirs.WORKSPACE_DIR
     adaptors_dir = f"{workspace_dir}/adaptors/{model_id}"
     peft_path = f"{adaptors_dir}/{peft}"
     shutil.rmtree(peft_path)

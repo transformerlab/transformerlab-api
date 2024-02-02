@@ -9,6 +9,7 @@ import re
 import time
 import unicodedata
 from pathlib import Path
+from transformerlab.shared import dirs
 
 
 from anyio import open_process
@@ -196,7 +197,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
 
     # The script is in workspace/experiments/plugins/<plugin_name>/main.py so we need to
     # form that string:
-    plugin_location = f"workspace/plugins/" + plugin_name
+    plugin_location = dirs.plugin_dir_by_name(plugin_name)
     plugin_script = plugin_location + "/main.py"
     output_file = plugin_location + "/output.txt"
 
@@ -213,13 +214,14 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
         template_config = json.loads(template['config'])
         adaptor_name = template_config["adaptor_name"]
         template_config["job_id"] = job_id
-        template_config["adaptor_output_dir"] = f"workspace/adaptors/{model_name}/{adaptor_name}"
-        template_config["output_dir"] = f"workspace/tensorboards/job{job_id}/"
+        template_config["adaptor_output_dir"] = f"{dirs.WORKSPACE_DIR}/adaptors/{model_name}/{adaptor_name}"
+        template_config["output_dir"] = f"{dirs.WORKSPACE_DIR}/tensorboards/job{job_id}/"
 
         # Create a file in the temp directory to store the inputs:
-        if not os.path.exists("workspace/temp"):
-            os.makedirs("workspace/temp")
-        input_file = "workspace/temp/plugin_input_" + str(job_id) + ".json"
+        if not os.path.exists(f"{dirs.WORKSPACE_DIR}/temp"):
+            os.makedirs(f"{dirs.WORKSPACE_DIR}/temp")
+        input_file = f"{dirs.WORKSPACE_DIR}/temp/plugin_input_" + \
+            str(job_id) + ".json"
         # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
         # and should be done in the API itself
         if "config" in experiment_details:

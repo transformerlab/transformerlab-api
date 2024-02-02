@@ -4,6 +4,8 @@ import json
 import os
 import platform
 
+from transformerlab.shared import dirs
+
 
 from fastapi import APIRouter
 
@@ -15,19 +17,10 @@ router = APIRouter(prefix="/plugins", tags=["plugins"])
 async def plugin_gallery():
     """Get list of plugins that we can access"""
 
-    # There are three places that we can get plugins from (to add to an experiment):
-    #  1. The remote gallery on the Transformer Lab website
-    #  2. The pre-installed local gallery in the transformerlab/plugins folder. These are hadcoded
-    #     plugins that are included with LLMLab.
-    #  3. The local gallery in the workspace/plugins folder. These are plugins
-    #     that the user can create and are made accessible to all experiments
-
-    # For location 2., we will copy all of these plugins to the workspace/plugins folder
-    # on startup (see bottom of this file). So we do not need to check this directory here.
-
-    local_workspace_gallery_directory = "transformerlab/plugins"
+    local_workspace_gallery_directory = dirs.PLUGIN_PRELOADED_GALLERY
     # today the remote gallery is a local file, we will move it remote later
-    remote_gallery_file = "transformerlab/galleries/plugin-gallery.json"
+    remote_gallery_file = os.path.join(
+        dirs.TFL_SOURCE_CODE_DIR, "transformerlab/galleries/plugin-gallery.json")
 
     # first get the remote gallery from the remote gallery file:
     with open(remote_gallery_file) as f:
@@ -66,10 +59,11 @@ async def install_plugin(plugin_id: str):
     # For now we assume all gallery plugins are stored at transformerlab/plugins and installed ones go to
     # workspace/plugins
 
-    plugin_path = os.path.join("transformerlab", "plugins", plugin_id)
+    plugin_path = os.path.join(dirs.PLUGIN_PRELOADED_GALLERY, plugin_id)
 
     # Check if plugin exists at the location:
     if not os.path.exists(plugin_path):
+        print(f"Plugin {plugin_path} not found in gallery.")
         return {"error": "Plugin not found in gallery."}
 
     # # Check if plugin is already installed:
@@ -81,11 +75,12 @@ async def install_plugin(plugin_id: str):
     plugin_index = json.load(plugin_index_json)
 
     # create the directory if it doesn't exist
-    new_directory = os.path.join("workspace", "plugins", plugin_id)
+    new_directory = os.path.join(dirs.PLUGIN_DIR, plugin_id)
     if not os.path.exists(new_directory):
         os.makedirs(new_directory)
     # Now copy it to the workspace:
-    copy_tree(plugin_path, os.path.join("workspace", "plugins", plugin_id))
+    print(f"Copying {plugin_path} to {new_directory}")
+    copy_tree(plugin_path, dirs.plugin_dir_by_name(plugin_id))
 
     # If index object contains a key called setup-script, run it:
     if "setup-script" in plugin_index:
@@ -102,7 +97,7 @@ async def install_plugin(plugin_id: str):
 async def list_plugins() -> list[object]:
     """Get list of plugins that are currently installed"""
 
-    local_workspace_gallery_directory = "workspace/plugins"
+    local_workspace_gallery_directory = dirs.PLUGIN_DIR
 
     # now get the local workspace gallery
     workspace_gallery = []
@@ -156,6 +151,7 @@ async def install_missing_plugins_for_current_platform():
     missing_plugins = await missing_platform_plugins()
 
     for plugin in missing_plugins:
+        print(f"Installing missing plugin: {plugin}")
         await install_plugin(plugin)
     return missing_plugins
 

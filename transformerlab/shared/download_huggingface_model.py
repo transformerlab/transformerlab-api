@@ -2,6 +2,13 @@ import json
 from huggingface_hub import snapshot_download, hf_hub_download
 import argparse
 import os
+from pathlib import Path
+
+WORKSPACE_DIR = os.environ.get("_TFL_WORKSPACE_DIR")
+
+if WORKSPACE_DIR is None:
+    WORKSPACE_DIR = Path.home() / ".transformerlab" / "workspace"
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--model_name', type=str)
@@ -21,7 +28,7 @@ if model_filename is not None:
     # Right now the logo is hard coded to assuming if you are downloading one file, you are looking
     # at GGUF
     print("downloading model to workspace/models using filename mode")
-    location = f"workspace/models/{model_filename}"
+    location = f"{WORKSPACE_DIR}/models/{model_filename}"
     os.makedirs(location, exist_ok=True)
     hf_hub_download(repo_id=model, filename=model_filename,
                     resume_download=True, local_dir=location, local_dir_use_symlinks=True)

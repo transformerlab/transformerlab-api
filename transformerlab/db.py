@@ -4,10 +4,11 @@ import os
 import sqlite3
 
 import aiosqlite
+from transformerlab.shared import dirs
 
 db = None
 
-DATABASE_FILE_NAME = "workspace/llmlab.sqlite3"
+DATABASE_FILE_NAME = f"{dirs.WORKSPACE_DIR}/llmlab.sqlite3"
 
 
 async def init():
@@ -213,7 +214,8 @@ async def model_local_delete(model_id):
 ###############
 # GENERIC JOBS MODEL
 ###############
- 
+
+
 async def job_create(type, status, job_data, experiment_id=""):
     global db
     row = await db.execute_insert(
@@ -222,13 +224,15 @@ async def job_create(type, status, job_data, experiment_id=""):
     )
     await db.commit()  # is this necessary?
     return row[0]
-    
+
+
 async def job_get(job_id):
     global db
     cursor = await db.execute("SELECT * FROM job WHERE job_id = ?", (job_id,))
     row = await cursor.fetchone()
     await cursor.close()
     return row
+
 
 async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
     global db
@@ -252,12 +256,14 @@ async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
 
     return data
 
+
 async def job_get_status(job_id):
     global db
     cursor = await db.execute("SELECT status FROM job WHERE job_id = ?", (job_id,))
     row = await cursor.fetchone()
     await cursor.close()
     return row
+
 
 async def job_get(job_id):
     global db
@@ -270,6 +276,7 @@ async def job_get(job_id):
 
     await cursor.close()
     return row
+
 
 async def job_count_running():
     global db
@@ -298,11 +305,13 @@ async def jobs_get_next_queued_job():
     await cursor.close()
     return row
 
+
 async def job_update(job_id, status):
     global db
     await db.execute("UPDATE job SET status = ? WHERE id = ?", (status, job_id))
     await db.commit()
     return
+
 
 def job_update_sync(job_id, status):
     # This is a synchronous version of job_update
@@ -316,6 +325,7 @@ def job_update_sync(job_id, status):
     db_sync.commit()
     db_sync.close()
     return
+
 
 async def job_delete_all():
     global db
@@ -421,6 +431,7 @@ async def training_job_create(template_id, description, experiment_id):
     await db.commit()  # is this necessary?
     return row[0]
 
+
 async def job_get_for_template_id(template_id):
     global db
     cursor = await db.execute("SELECT * FROM job WHERE template_id = ?", (template_id,))
@@ -438,17 +449,19 @@ async def job_get_for_template_id(template_id):
 # - output_model_architecture
 # - output_model_name
 # - output_model_path
-# - params 
+# - params
 ####################
+
+
 async def export_job_create(experiment_id, exporter_name, input_model_id, input_model_architecture, params={}):
     job_data = dict(
-        exporter_name=exporter_name, 
+        exporter_name=exporter_name,
         input_model_id=input_model_id,
         input_model_architecture=input_model_architecture,
-        output_model_id = "",
+        output_model_id="",
         output_model_architecture="",
-        output_model_name = "",
-        output_model_path = "",
+        output_model_name="",
+        output_model_path="",
         params=params
     )
     job_data_json = json.dumps(job_data)

@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 from typing import Annotated
 
@@ -6,6 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Body
 
 import transformerlab.db as db
 from transformerlab.shared import shared
+from transformerlab.shared import dirs
 
 
 # @TODO hook this up to an endpoint so we can cancel a finetune
@@ -105,7 +107,6 @@ async def start_next_job():
 
         experiment_name = data["name"]
         await shared.run_job(job_id=nextjob['id'], job_config=job_config, experiment_name=experiment_name)
-
         return nextjob
     else:
         return {"message": "No jobs in queue"}
@@ -150,7 +151,7 @@ async def get_training_job_output(job_id: str):
 
     # Now we can get the output.txt from the plugin which is stored in
     # /workspace/experiments/{experiment_name}/plugins/{plugin_name}/output.txt
-    output_file = f"workspace/plugins/{plugin_name}/output.txt"
+    output_file = f"{dirs.plugin_dir_by_name(plugin_name)}/output.txt"
     with open(output_file, "r") as f:
         output = f.read()
     return output
@@ -184,9 +185,12 @@ async def spawn_tensorboard(job_id: str):
 
     print("Starting tensorboard")
 
+    os.makedirs(
+        f"{dirs.WORKSPACE_DIR}/tensorboards/job{job_id}", exist_ok=True)
+
     # hardcoded for now, later on we should get the information from the job id in SQLITE
     # and use the config of the job to determine the logdir
-    logdir = f"workspace/tensorboards/job{job_id}"
+    logdir = f"{dirs.WORKSPACE_DIR}/tensorboards/job{job_id}"
 
     tensorboard_process = subprocess.Popen(
         ["tensorboard", "--logdir", logdir, "--host", "0.0.0.0"]

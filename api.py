@@ -31,11 +31,13 @@ import transformerlab.db as db
 from transformerlab.routers import data, experiment, model, serverinfo, train, plugins, evals, config
 from transformerlab import fastchat_openai_api
 from transformerlab.shared import dirs
+from transformerlab.shared import shared
 
 
 # The following environment variable can be used by other scripts
 # who need to connect to the root DB, for example
 os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
+os.environ["_TFL_WORKSPACE_DIR"] = dirs.WORKSPACE_DIR
 
 
 @asynccontextmanager
@@ -62,7 +64,7 @@ async def run_over_and_over():
         await train.start_next_job()
 
 
-description = "LLMLab API helps you do awesome stuff. 🚀"
+description = "Transformerlab API helps you do awesome stuff. 🚀"
 
 tags_metadata = [
     {
@@ -82,7 +84,7 @@ tags_metadata = [
 ]
 
 app = fastapi.FastAPI(
-    title="LLMLab API",
+    title="Transformerlab API",
     description=description,
     summary="An API for working with LLMs.",
     version="0.0.1",
@@ -173,7 +175,8 @@ async def server_worker_start(model_name: str, model_filename: str | None = None
 
                 experiment_name = experiment['name']
                 plugin_name = inference_engine
-                plugin_location = f"workspace/plugins/{plugin_name}/main.py"
+                plugin_location = dirs.plugin_dir_by_name(
+                    plugin_name) + '/main.py'
 
                 model = model_name
                 if (model_filename is not None and model_filename != ''):

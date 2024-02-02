@@ -9,6 +9,8 @@ from fastapi import APIRouter, UploadFile
 from fastapi.responses import FileResponse
 
 import transformerlab.db as db
+from transformerlab.shared import dirs
+
 from transformerlab.shared.shared import slugify
 
 router = APIRouter(prefix="/data", tags=["datasets"])
@@ -18,7 +20,9 @@ router = APIRouter(prefix="/data", tags=["datasets"])
 
 @router.get("/gallery", summary="Display the models available for LLMLab to download.")
 async def model_gallery():
-    return FileResponse("transformerlab/galleries/data-gallery.json")
+    file_location = os.path.join(dirs.TFL_SOURCE_CODE_DIR,
+                                 "transformerlab", "galleries", "data-gallery.json")
+    return FileResponse(file_location)
 
 
 # Get info on dataset from huggingface
@@ -34,7 +38,8 @@ async def dataset_info(dataset_id: str):
     r = {}
 
     if d["location"] == "local":
-        dataset = load_dataset(path=f"workspace/datasets/{dataset_id}")
+        dataset = load_dataset(
+            path=f"{dirs.WORKSPACE_DIR}/datasets/{dataset_id}")
         # print(dataset['train'].features)
         r["features"] = dataset["train"].features
     else:
@@ -63,7 +68,8 @@ async def dataset_preview(dataset_id: str):
     print(d)
 
     if d["location"] == "local":
-        dataset = load_dataset(path=f"workspace/datasets/{dataset_id}")
+        dataset = load_dataset(
+            path=f"{dirs.WORKSPACE_DIR}/datasets/{dataset_id}")
         # print(dataset['train'].features)
 
         # convert dataset to array of dicts
@@ -105,8 +111,8 @@ async def dataset_new(dataset_id: str):
     print(dataset_id)
     # Now make a directory that maps to the above dataset_id
     # Check if the directory already exists
-    if not os.path.exists(f"workspace/datasets/{dataset_id}"):
-        os.makedirs(f"workspace/datasets/{dataset_id}")
+    if not os.path.exists(f"{dirs.WORKSPACE_DIR}/datasets/{dataset_id}"):
+        os.makedirs(f"{dirs.WORKSPACE_DIR}/datasets/{dataset_id}")
     return {"message": "OK", "dataset_id": dataset_id}
 
 
@@ -114,7 +120,7 @@ async def dataset_new(dataset_id: str):
 async def dataset_delete(dataset_id: str):
     await db.delete_dataset(dataset_id)
     # delete directory and contents
-    shutil.rmtree(f"workspace/datasets/{dataset_id}")
+    shutil.rmtree(f"{dirs.WORKSPACE_DIR}/datasets/{dataset_id}")
     return {"message": "OK"}
 
 
@@ -123,7 +129,7 @@ async def create_upload_file(dataset_id: str, file: UploadFile):
     dataset_id = slugify(dataset_id)
     # Save the file to the dataset directory
     async with aiofiles.open(
-        f"workspace/datasets/{dataset_id}/{file.filename}", "wb"
+        f"{dirs.WORKSPACE_DIR}/datasets/{dataset_id}/{file.filename}", "wb"
     ) as out_file:
         content = await file.read()
         await out_file.write(content)

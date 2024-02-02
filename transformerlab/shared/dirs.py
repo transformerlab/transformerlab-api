@@ -69,7 +69,8 @@ async def experiment_dir_by_id(experiment_id: str) -> str:
     return os.path.join(EXPERIMENTS_DIR, experiment_name)
 
 # PLUGIN_PRELOADED_GALLERY
-PLUGIN_PRELOADED_GALLERY = os.path.join(TFL_SOURCE_CODE_DIR, "plugins")
+PLUGIN_PRELOADED_GALLERY = os.path.join(
+    TFL_SOURCE_CODE_DIR, "transformerlab", "plugins")
 
 # PLUGIN_DIR
 PLUGIN_DIR = os.path.join(WORKSPACE_DIR, "plugins")
@@ -77,3 +78,7 @@ PLUGIN_DIR = os.path.join(WORKSPACE_DIR, "plugins")
 
 def plugin_dir_by_name(plugin_name: str) -> str:
     return os.path.join(PLUGIN_DIR, plugin_name)
+
+
+TEMP_DIR = os.path.join(WORKSPACE_DIR, "temp")
+os.makedirs(name=TEMP_DIR, exist_ok=True)
