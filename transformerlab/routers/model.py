@@ -154,7 +154,7 @@ async def get_model_prompt_template(model: str):
 
 
 def get_models_dir():
-    models_dir = os.path.join(dirs.WORKSPACE_DIR, "models")
+    models_dir = dirs.MODELS_DIR
 
     # make models directory if it does not exist:
     if not os.path.exists(f"{models_dir}"):
