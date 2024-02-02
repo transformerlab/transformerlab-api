@@ -373,12 +373,16 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
     try:
         process = await shared.async_run_python_script_and_update_status(python_script=subprocess_command, job_id=job_id, begin_string="Exporting")
     except Exception as e:
+        fail_msg = f"Failed to export model. Exception: {e}"
         await db.job_update(job_id=job_id, status="FAILED")
-        return {"message": f"Failed to export model. Exception: {e}"}
+        print(fail_msg)
+        return {"message": fail_msg}
 
     if process.returncode != 0:
+        fail_msg = f"Failed to export model. Return code: {process.returncode}"
         await db.job_update(job_id=job_id, status="FAILED")
-        return {"message": f"Failed to export model. Return code: {process.returncode}"}
+        print(fail_msg)
+        return {"message": fail_msg}
 
     # Model create was successful! 
     # Create an info.json file so this can be read by the system

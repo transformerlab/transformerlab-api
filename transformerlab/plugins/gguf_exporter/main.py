@@ -30,17 +30,9 @@ root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
 
 # Call GGUF Convert function
 # TODO: This is a placeholder for now! Sleep 10 seconds to test app functionality
-print("Exporting", args.model_name, "to GGUF format in", output_path)
 export_process = subprocess.run(
 #    ["python", '-u', '-m',  _TODO_conversion_class, '--hf-path', args.model_name, '--output-path', output_path, '-q', '--q-bits', str(args.quant_bits)],
     ["sleep", '5'],
     cwd=plugin_dir,
     capture_output=True
 )
-
-if (export_process.returncode == 0):
-
-    print("Export to GGUF completed successfully")
-
-else:
-    print("Export to GGUF failed. Return code:", export_process.returncode)

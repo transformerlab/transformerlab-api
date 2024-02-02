@@ -42,7 +42,6 @@ output_model_architecture = "MLX"
 output_model_full_id = f"TransformerLab/{output_model_id}"
 
 # Call MLX Convert function
-print("Exporting", args.model_name, "to MLX format in", output_path)
 export_process = subprocess.run(
     ["python", '-u', '-m',  'mlx_lm.convert', 
         '--hf-path', args.model_name, '--mlx-path', output_path, 
@@ -50,11 +49,3 @@ export_process = subprocess.run(
     cwd=plugin_dir,
     capture_output=True
 )
-
-# If model create was successful update the job status in the database
-if (export_process.returncode == 0):
-    
-    print("Export to MLX completed successfully")
-
-else:
-    print("Export to MLX failed. Return code:", export_process.returncode)
