@@ -325,7 +325,7 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
     conversion_time = int(time.time())
     # TEMPORARY HACK to get model architecture assumes exporter is named <format>_exporter
     output_model_architecture = plugin_name.split('_')[0]
-    output_model_dir = f"{output_model_architecture}-{input_model_id}-{conversion_time}"
+    output_model_id = f"{output_model_architecture}-{input_model_id}-{conversion_time}"
     output_quant_bits = 4
 
     # Convert JSON parameters
@@ -333,21 +333,22 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
     params = json.loads(plugin_params)
     if ("output_model_architecture" not in params):
         params["output_model_architecture"] = output_model_architecture
-    if ("output_quant_bits" not in params):
-        params["output_quant_bits"] = output_quant_bits
-    if ("output_dir" not in params):
-        params["output_dir"] = output_model_dir
     if ("output_model_id" not in params):
-        params["output_model_id"] = f"TransformerLab/({output_model_dir})"
+        params["output_model_id"] = output_model_id
     if ("output_model_name" not in params):
         params["output_model_name"] = f"{input_model_id} - {output_model_architecture} {output_quant_bits}bit"
+    if ("output_quant_bits" not in params):
+        params["output_quant_bits"] = output_quant_bits
 
+    # Determine directory for running plugin and for creating model output
     root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
     if root_dir is None:
         return {"message": "LLM_LAB_ROOT_PATH not set"}
-
     script_directory = f"{root_dir}/workspace/plugins/{plugin_name}"
     script_path = f"{script_directory}/main.py"
+
+    # TEMPORARY HACK just pass the model_id and use that as teh dir, but eventually pass full dir and make it
+    output_path = output_model_id
 
     # Create a database job
     job_id = await db.export_job_create(
@@ -359,9 +360,18 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
     )
 
     # Setup arguments to pass to plugin
-    args = ["--model_name", input_model_id, "--model_architecture", input_model_architecture,
-            "--quant_bits", "4", "--job_id", str(job_id)]
+    print(params)
+    args = [
+        "--model_name", input_model_id,
+        "--model_architecture", input_model_architecture,
+        "--output_dir", output_path,
+        "--output_model_id", params["output_model_id"],
+        "--quant_bits", "4",
+        "--job_id", str(job_id)
+    ]
     subprocess_command = [script_path] + args
+
+    # full_output_model_id = f"TransformerLab/({output_model_id})"
 
     try:
         process = await shared.async_run_python_script_and_update_status(python_script=subprocess_command, job_id=job_id, begin_string="Exporting")
