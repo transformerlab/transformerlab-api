@@ -37,6 +37,8 @@ from transformers.tokenization_utils_base import BatchEncoding
 
 app = FastAPI()
 
+WORKSPACE_DIR: str | None = os.getenv("_TFL_WORKSPACE_DIR")
+
 
 class LlamaCppTokenizer:
     def __init__(self, model):
@@ -330,7 +332,7 @@ if __name__ == "__main__":
         args.model = args.model_path
 
     model_path = args.model_path
-    model_path = f"workspace/models/{model_path}/{model_path}"
+    model_path = f"{WORKSPACE_DIR}/models/{model_path}/{model_path}"
 
     worker = LlamaCppServer(
         args.controller_address,
