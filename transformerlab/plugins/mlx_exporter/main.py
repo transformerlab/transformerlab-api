@@ -53,30 +53,6 @@ export_process = subprocess.run(
 
 # If model create was successful update the job status in the database
 if (export_process.returncode == 0):
-
-    # update output details in the db
-    # first get job details and then add additional fields
-    cursor = db.execute("SELECT job_data FROM job WHERE id = ?", (args.job_id,))
-    row = cursor.fetchone()
-    cursor.close()
-
-    if (row):
-        job_data = json.loads(row[0])
-        print(job_data["output_model_id"])
-        job_data["output_model_id"] = output_model_id
-        job_data["output_model_name"] = output_model_id
-        job_data["output_model_architecture"] = output_model_architecture
-        job_data["output_model_path"] = output_path
-        output_job_json = json.dumps(job_data)
-
-        db.execute("UPDATE job \
-                   SET job_data = ? \
-                   WHERE id = ?",
-                   (output_job_json, args.job_id))
-        db.commit()
-
-    else:
-        print("Failed to update job status. No job with id", args.job_id)
     
     print("Export to MLX completed successfully")
 

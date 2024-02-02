@@ -453,18 +453,7 @@ async def job_get_for_template_id(template_id):
 ####################
 
 
-async def export_job_create(experiment_id, exporter_name, input_model_id, input_model_architecture, params={}):
-    job_data = dict(
-        exporter_name=exporter_name,
-        input_model_id=input_model_id,
-        input_model_architecture=input_model_architecture,
-        output_model_id="",
-        output_model_architecture="",
-        output_model_name="",
-        output_model_path="",
-        params=params
-    )
-    job_data_json = json.dumps(job_data)
+async def export_job_create(experiment_id, job_data_json):
     job_id = await job_create("EXPORT_MODEL", "Started", job_data_json, experiment_id)
     return job_id
 
