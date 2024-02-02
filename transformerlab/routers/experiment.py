@@ -337,11 +337,11 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
     if ("output_quant_bits" not in params):
         params["output_quant_bits"] = output_quant_bits
 
+    # Figure out plugin and model output directories
     script_directory = dirs.plugin_dir_by_name(plugin_name)
     script_path = f"{script_directory}/main.py"
 
-    # Full directory to output quantized model
-    output_path = f"{root_dir}/workspace/models/{output_model_id}"
+    output_path = os.path.join(dirs.MODELS_DIR, output_model_id)
     os.makedirs(output_path)
 
     # Create a database job
