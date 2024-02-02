@@ -30,12 +30,12 @@ from fastchat.protocol.openai_api_protocol import (
 import transformerlab.db as db
 from transformerlab.routers import data, experiment, model, serverinfo, train, plugins, evals, config
 from transformerlab import fastchat_openai_api
-from transformerlab.shared import shared
+from transformerlab.shared import dirs
 
 
 # The following environment variable can be used by other scripts
 # who need to connect to the root DB, for example
-os.environ["LLM_LAB_ROOT_PATH"] = shared.ROOT_DIR
+os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 
 
 @asynccontextmanager
