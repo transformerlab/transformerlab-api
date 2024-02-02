@@ -18,7 +18,8 @@ use_flash_attention = False
 
 # Connect to the LLM Lab database
 llmlab_root_dir = os.getenv('LLM_LAB_ROOT_PATH')
-db = sqlite3.connect(llmlab_root_dir + "/workspace/llmlab.sqlite3")
+WORKSPACE_DIR: str | None = os.getenv("_TFL_WORKSPACE_DIR")
+db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
 
 
 # Get all parameters provided to this script from Transformer Lab
