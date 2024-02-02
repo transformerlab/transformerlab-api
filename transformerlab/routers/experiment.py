@@ -318,6 +318,10 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
     input_model_id_without_author = input_model_id.split("/")[-1]
     input_model_architecture = config["foundation_model_architecture"]
 
+    # TODO: Verify that the model uses a supported format
+    # According to MLX docs (as of Jan 16/24) supported formats are:
+    # Mistral, Llama, Phi-2
+
     # Generate output model details
     conversion_time = int(time.time())
     # TEMPORARY HACK to get model architecture assumes exporter is named <format>_exporter
@@ -365,8 +369,7 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
         "--model_architecture", input_model_architecture,
         "--output_dir", output_path,
         "--output_model_id", output_model_id,
-        "--quant_bits", str(output_quant_bits),
-        "--job_id", str(job_id)
+        "--quant_bits", str(output_quant_bits)
     ]
     subprocess_command = [script_path] + args
 
