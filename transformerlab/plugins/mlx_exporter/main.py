@@ -25,10 +25,9 @@ parser.add_argument('--job_id', type=str, help='Job to update in the database.')
 
 args, unknown = parser.parse_known_args()
 
-input_model_id = args.model_name.split("/")[-1]
 input_model_architecture = args.model_architecture
 output_model_id = args.output_model_id
-output_model_dir = args.output_dir
+output_path = args.output_dir
 
 # TODO: Verify that the model uses a supported format
 # According to MLX docs (as of Jan 16/24) supported formats are:
@@ -41,10 +40,6 @@ plugin_dir = os.path.realpath(os.path.dirname(__file__))
 # Generate a name with a timestamp in case we repeat this process
 output_model_architecture = "MLX"
 output_model_full_id = f"TransformerLab/{output_model_id}"
-
-# Full directory to output quantized model
-output_path = f"{root_dir}/workspace/models/{output_model_dir}"
-os.makedirs(output_path)
 
 # Call MLX Convert function
 print("Exporting", args.model_name, "to MLX format in", output_path)
@@ -62,7 +57,7 @@ if (export_process.returncode == 0):
 
     model_description = [{
         "model_id": output_model_full_id,
-        "model_filename": output_model_dir,
+        "model_filename": output_model_id,
         "name" : output_model_id,
         "local_model": True,
         "json_data" : {

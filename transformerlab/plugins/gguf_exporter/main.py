@@ -17,7 +17,7 @@ parser.add_argument('--quant_bits', default='4', type=str, help='Bits per weight
 args, unknown = parser.parse_known_args()
 
 output_model_id = args.output_model_id
-output_model_dir = args.output_dir
+output_path = args.output_dir
 
 # TODO: Verify that the model uses a supported format (see main.json for list)
 model_architecture = args.model_architecture
@@ -27,8 +27,6 @@ plugin_dir = os.path.realpath(os.path.dirname(__file__))
 
 # Full directory to output quantized model
 root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
-output_path = f"{root_dir}/workspace/models/{output_model_dir}"
-os.makedirs(output_path)
 
 # Call GGUF Convert function
 # TODO: This is a placeholder for now! Sleep 10 seconds to test app functionality
@@ -44,7 +42,7 @@ export_process = subprocess.run(
 if (export_process.returncode == 0):
     model_description = [{
         "model_id": f"TransformerLab-gguf/{output_model_id}",
-        "model_filename": output_model_dir,
+        "model_filename": output_model_id,
         "name": output_model_id,
         "local_model": True,
         "json_data": {

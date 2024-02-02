@@ -319,13 +319,14 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
     experiment_name = experiment_details["name"]
     config = json.loads(experiment_details["config"])
     input_model_id = config["foundation"]
+    input_model_id_without_author = input_model_id.split("/")[-1]
     input_model_architecture = config["foundation_model_architecture"]
 
     # Generate output model details
     conversion_time = int(time.time())
     # TEMPORARY HACK to get model architecture assumes exporter is named <format>_exporter
     output_model_architecture = plugin_name.split('_')[0]
-    output_model_id = f"{output_model_architecture}-{input_model_id}-{conversion_time}"
+    output_model_id = f"{output_model_architecture}-{input_model_id_without_author}-{conversion_time}"
     output_quant_bits = 4
 
     # Convert JSON parameters
@@ -336,7 +337,7 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
     if ("output_model_id" not in params):
         params["output_model_id"] = output_model_id
     if ("output_model_name" not in params):
-        params["output_model_name"] = f"{input_model_id} - {output_model_architecture} {output_quant_bits}bit"
+        params["output_model_name"] = f"{input_model_id_without_author} - {output_model_architecture} {output_quant_bits}bit"
     if ("output_quant_bits" not in params):
         params["output_quant_bits"] = output_quant_bits
 
@@ -347,8 +348,9 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
     script_directory = f"{root_dir}/workspace/plugins/{plugin_name}"
     script_path = f"{script_directory}/main.py"
 
-    # TEMPORARY HACK just pass the model_id and use that as teh dir, but eventually pass full dir and make it
-    output_path = output_model_id
+    # Full directory to output quantized model
+    output_path = f"{root_dir}/workspace/models/{output_model_id}"
+    os.makedirs(output_path)
 
     # Create a database job
     job_id = await db.export_job_create(
