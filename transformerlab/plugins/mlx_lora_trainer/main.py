@@ -60,6 +60,7 @@ import os
 
 # Connect to the LLM Lab database
 llmlab_root_dir = os.getenv('LLM_LAB_ROOT_PATH')
+WORKSPACE_DIR = os.getenv("_TFL_WORKSPACE_DIR")
 db = sqlite3.connect(llmlab_root_dir + "/workspace/llmlab.sqlite3")
 
 
@@ -97,7 +98,7 @@ for dataset_type in dataset_types:
         dataset_id, split=f"{dataset_type}[:100%]")
     print(
         f"Loaded {dataset_type} dataset with {len(dataset[dataset_type])} examples.")
-    data_directory = f"{llmlab_root_dir}/workspace/plugins/mlx_lora_trainer/data"
+    data_directory = f"{WORKSPACE_DIR}/plugins/mlx_lora_trainer/data"
     if not os.path.exists(data_directory):
         os.makedirs(data_directory)
     with open(f"{data_directory}/{dataset_type}.jsonl", "w") as f:
@@ -114,7 +115,7 @@ for dataset_type in dataset_types:
 
 # copy file test.jsonl to valid.jsonl. Our test set is the same as our validation set.
 os.system(
-    f"cp {llmlab_root_dir}/workspace/plugins/mlx_lora_trainer/data/test.jsonl {llmlab_root_dir}/workspace/plugins/mlx_lora_trainer/data/valid.jsonl")
+    f"cp {WORKSPACE_DIR}/plugins/mlx_lora_trainer/data/test.jsonl {WORKSPACE_DIR}/plugins/mlx_lora_trainer/data/valid.jsonl")
 
 print("Example formatted training example:")
 example = formatting_template.substitute(dataset["train"][1])
@@ -125,10 +126,10 @@ print(example)
 #     os.makedirs(adaptor_output_dir)
 
 # adaptor_file_name = f"{adaptor_output_dir}/{config['adaptor_name']}.npz"
-adaptor_file_name = f"{llmlab_root_dir}/workspace/plugins/mlx_lora_trainer/{config['adaptor_name']}.npz"
+adaptor_file_name = f"{WORKSPACE_DIR}/plugins/mlx_lora_trainer/{config['adaptor_name']}.npz"
 
 root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
-plugin_dir = f"{root_dir}/workspace/plugins/mlx_lora_trainer"
+plugin_dir = f"{WORKSPACE_DIR}/plugins/mlx_lora_trainer"
 
 popen_command = [sys.executable, "-u", f"{plugin_dir}/mlx-examples/lora/lora.py",
                  "--model", config["model_name"], "--iters", iters, "--train", "--adapter-file",
@@ -155,7 +156,7 @@ print("Adaptor will be saved as:")
 pattern = r"Iter (\d+):"
 
 llmlab_root_dir = os.getenv('LLM_LAB_ROOT_PATH')
-db = sqlite3.connect(llmlab_root_dir + "/workspace/llmlab.sqlite3")
+db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
 
 with subprocess.Popen(
         popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True) as process:
@@ -187,7 +188,7 @@ model_name = config['model_name']
 if "/" in model_name:
     model_name = model_name.split("/")[-1]
 fused_model_name = f"{model_name}_{config['adaptor_name']}"
-fused_model_location = f"{llmlab_root_dir}/workspace/models/{fused_model_name}"
+fused_model_location = f"{WORKSPACE_DIR}/models/{fused_model_name}"
 
 # Make the directory to save the fused model
 if not os.path.exists(fused_model_location):
