@@ -8,18 +8,16 @@ import threading
 import re
 import time
 import unicodedata
+from pathlib import Path
+
 
 from anyio import open_process
 from anyio.streams.text import TextReceiveStream
 
 import transformerlab.db as db
 
-# Root dir is the parent of the parent of this current directory:
-ROOT_DIR = os.path.dirname(os.path.dirname(
-    os.path.dirname(os.path.abspath(__file__))))
-GLOBAL_LOG_PATH = ROOT_DIR + "/transformer_lab.log"
-WORKSPACE_DIR = ROOT_DIR + "/workspace"
-EXPERIMENTS_DIR: str = "workspace/experiments"
+from transformerlab.shared.dirs import (
+    GLOBAL_LOG_PATH)
 
 
 def popen_and_call(onExit, input='', output_file=None, *popenArgs, **popenKWArgs):
