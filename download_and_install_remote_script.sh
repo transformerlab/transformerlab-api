@@ -6,7 +6,15 @@ ENV_NAME="transformerlab"
 
 TFL_DIR="$HOME/.transformerlab"
 TFL_CODE_DIR="${TFL_DIR}/src"
-TFL_URL="https://github.com/transformerlab/transformerlab-api/archive/refs/heads/main.zip"
+# TFL_URL="https://github.com/transformerlab/transformerlab-api/archive/refs/heads/main.zip"
+
+LATEST_RELEASE_VERSION=$(curl -Ls -o /dev/null -w %{url_effective} https://github.com/transformerlab/transformerlab-api/releases/latest)
+LATEST_RELEASE_VERSION=$(basename $LATEST_RELEASE_VERSION)
+LATEST_RELEASE_VERSION_WITHOUT_V=$(echo $LATEST_RELEASE_VERSION | sed 's/v//g')
+echo "Latest Release on Github: $LATEST_RELEASE_VERSION"
+echo "Latest Release without V: $LATEST_RELEASE_VERSION_WITHOUT_V"
+TFL_URL="https://github.com/transformerlab/transformerlab-api/archive/refs/tags/${LATEST_RELEASE_VERSION}.zip"
+echo "Download Location: $TFL_URL"
 
 # This script is meant to be run  on a new computer. 
 # It will pull down the API and install
@@ -63,47 +71,19 @@ else
 fi
 
 
-# Check if the user has already installed Transformer Lab.
-if [[ -d "${TFL_CODE_DIR}" ]]
-then
-  # Check what version has been installed by looking at the version file:
-  if [[ -f "${TFL_CODE_DIR}/VERSION" ]]
-  then
-    INSTALLED_VERSION="$(cat "${TFL_DIR}/VERSION")"
-  else
-    INSTALLED_VERSION="unknown"
-  fi
-  # If the installed version is the same as the current version, then
-  # we don't need to do anything, unless the user passes --force:
-  if [[ "${INSTALLED_VERSION}" == "${VERSION}" ]]
-  then
-    if [[ "$1" == "--force" ]]
-    then
-      ohai "Transformer Lab ${VERSION} is already installed, but --force was passed."
-      pushd "${TFL_DIR}"
-      git pull
-      popd
-    else
-      ohai "Transformer Lab ${VERSION} is already installed. Skipping Install."
-    fi
-  else
-    # Otherwise, the user has an different version installed, so we should try to upgrade.
-    ohai "Transformer Lab ${INSTALLED_VERSION} is already installed, but you have ${VERSION}."
-    ohai "Upgrading to Transformer Lab ${VERSION} ..."
-    pushd "${TFL_CODE_DIR}"
-    echo "DO UPGRADE HERE @TODO"
-    popd
-  fi
-else
-  # If the user has not installed Transformer Lab, then we should install it.
-  ohai "Installing Transformer Lab ${VERSION}..."
-  # Fetch the latest version of Transformer Lab from GitHub:
-  mkdir -p "${TFL_DIR}"
-  curl -L "${TFL_URL}" -o "${TFL_DIR}/transformerlab.zip"
-  unzip "${TFL_DIR}/transformerlab.zip" -d "${TFL_DIR}"
-  mv "${TFL_DIR}/transformerlab-api-main" "${TFL_CODE_DIR}"
-  rm "${TFL_DIR}/transformerlab.zip"
-fi
+# If the user has not installed Transformer Lab, then we should install it.
+ohai "Installing Transformer Lab ${LATEST_RELEASE_VERSION}..."
+# Fetch the latest version of Transformer Lab from GitHub:
+mkdir -p "${TFL_DIR}"
+curl -L "${TFL_URL}" -o "${TFL_DIR}/transformerlab.zip"
+NEW_DIRECTORY_NAME="transformerlab-api-${LATEST_RELEASE_VERSION_WITHOUT_V}"
+rm -rf "${TFL_DIR}/${NEW_DIRECTORY_NAME}"
+rm -rf "${TFL_CODE_DIR}"
+unzip -o "${TFL_DIR}/transformerlab.zip" -d "${TFL_DIR}"
+mv "${TFL_DIR}/${NEW_DIRECTORY_NAME}" "${TFL_CODE_DIR}"
+rm "${TFL_DIR}/transformerlab.zip"
+# Create a file called LATEST_VERSION that contains the latest version of Transformer Lab.
+echo "${LATEST_RELEASE_VERSION}" > "${TFL_CODE_DIR}/LATEST_VERSION"
 
 # Now time to install dependencies and requirements.txt by running
 # the init.sh script.
@@ -133,8 +113,10 @@ ohai "Installation successful!"
 echo "------------------------------------------"
 echo "Transformer Lab is installed to:"
 echo "  ${TFL_DIR}"
+echo "Your workspace is located at:"
+echo "  ${TFL_DIR}/workspace"
 echo "You can run Transformer Lab with:"
 echo "  conda activate ${ENV_NAME}"
-echo "  ${TFL_DIR}/run.sh"
+echo "  ${TFL_DIR}/src/run.sh"
 echo "------------------------------------------"
 echo
