@@ -10,6 +10,7 @@
         "GPTJForCausalLM",
         "FalconForCausalLM"
     ],
+    "export_architecture": "GGUF",
     "files": [
         "main.py",
         "setup.sh"

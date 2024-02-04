@@ -9,6 +9,7 @@
         "MistralForCausalLM",
         "PhiForCausalLM"
     ],
+    "export_architecture": "MLX",
     "files": [
         "main.py",
         "setup.sh"
