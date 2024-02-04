@@ -324,8 +324,8 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
     # Convert JSON parameters
     # And set default parameters for anything that didn't get passed in
     params = json.loads(plugin_params)
-    if ("output_model_architecture" in params):
-        output_model_architecture = params["output_model_architecture"]
+    if ("plugin_architecture" in params):
+        output_model_architecture = params["plugin_architecture"]
     else:
         # Hack: if missing export architecture for some reason, then infer from exporter name
         output_model_architecture = plugin_name.split('_')[0]
