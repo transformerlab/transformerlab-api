@@ -1,6 +1,6 @@
 {
     "name": "Llama-cpp Server",
-    "uniqueId": "llama_cpp_server_fastchat",
+    "uniqueId": "llama_cpp_server",
     "description": "Runs llama-cpp-python server that can run GGUF models that work well on CPU only machines.",
     "plugin-format": "python",
     "type": "loader",
