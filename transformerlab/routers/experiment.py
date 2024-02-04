@@ -312,7 +312,6 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
         return {"message": f"Experiment {id} does not exist"}
 
     # Get input model parameters
-    experiment_name = experiment_details["name"]
     config = json.loads(experiment_details["config"])
     input_model_id = config["foundation"]
     input_model_id_without_author = input_model_id.split("/")[-1]
@@ -322,21 +321,23 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
     # According to MLX docs (as of Jan 16/24) supported formats are:
     # Mistral, Llama, Phi-2
 
-    # Generate output model details
-    conversion_time = int(time.time())
-    # TEMPORARY HACK to get model architecture assumes exporter is named <format>_exporter
-    output_model_architecture = plugin_name.split('_')[0]
-    output_model_id = f"{output_model_architecture}-{input_model_id_without_author}-{conversion_time}"
-    output_quant_bits = 4
-    output_model_name = f"{input_model_id_without_author} - {output_model_architecture} {output_quant_bits}bit"
-
     # Convert JSON parameters
     # And set default parameters for anything that didn't get passed in
     params = json.loads(plugin_params)
-    if ("output_model_architecture" not in params):
-        params["output_model_architecture"] = output_model_architecture
-    if ("output_quant_bits" not in params):
-        params["output_quant_bits"] = output_quant_bits
+    if ("output_model_architecture" in params):
+        output_model_architecture = params["output_model_architecture"]
+    else:
+        # Hack: if missing export architecture for some reason, then infer from exporter name
+        output_model_architecture = plugin_name.split('_')[0]
+    if ("output_quant_bits" in params):
+        output_quant_bits = params["output_quant_bits"]
+    else:
+        output_quant_bits = 4
+
+    # Generate output model details
+    conversion_time = int(time.time())
+    output_model_id = f"{output_model_architecture}-{input_model_id_without_author}-{conversion_time}"
+    output_model_name = f"{input_model_id_without_author} - {output_model_architecture} {output_quant_bits}bit"
 
     # Figure out plugin and model output directories
     script_directory = dirs.plugin_dir_by_name(plugin_name)
