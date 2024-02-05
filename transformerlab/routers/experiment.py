@@ -393,7 +393,7 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
     output_model_full_id = f"TransformerLab/{output_model_id}"
     model_description = [{
         "model_id": output_model_full_id,
-        "model_filename": output_model_id,
+        "model_filename": "",
         "name" : output_model_name,
         "local_model": True,
         "json_data" : {
