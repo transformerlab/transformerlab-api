@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-pip install mlx-lm>=0.0.6
+pip install "mlx-lm>=0.0.6"
