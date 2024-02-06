@@ -193,11 +193,14 @@ async def model_local_list():
                         # tells the app this model was loaded from workspace directory
                         filedata["stored_in_filesystem"] = True
 
-                        # if this is a local model then set local_path to the filesystem location
-                        # this will override the default behaviour to load from huggingface
-                        if ("local_model" in filedata and filedata["local_model"]):
-                            filedata["local_path"] = os.path.join(
-                                models_dir, entry)
+                        # Set local_path to the filesystem location
+                        # this will tell Hugging Face to not try downloading
+                        filedata["local_path"] = os.path.join(models_dir, entry)
+
+                        # Some models are a single file (possibly of many in a directory, e.g. GGUF)
+                        # For models that have model_filename set we should link directly to that specific file
+                        if ("model_filename" in filedata and filedata["model_filename"]):
+                            filedata["local_path"] = os.path.join(filedata["local_path"], filedata["model_filename"])
 
                         models.append(filedata)
 
