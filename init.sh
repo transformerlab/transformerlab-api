@@ -19,6 +19,11 @@ if ! command -v conda &> /dev/null; then
     echo Downloading "$MINICONDA_URL"
 
     curl -o miniconda_installer.sh "$MINICONDA_URL" && bash miniconda_installer.sh -b -p "$HOME/$MINICONDA_DIRNAME" && rm miniconda_installer.sh
+    # Install conda to bash and zsh
+    ~/miniconda3/bin/conda init bash
+    if [ -n "$(command -v zsh)" ]; then
+        ~/miniconda3/bin/conda init zsh
+    fi
 fi
 
 # Check if conda activate file exists:
