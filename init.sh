@@ -23,6 +23,7 @@ if ! command -v conda &> /dev/null; then
     ~/miniconda3/bin/conda init bash
     if [ -n "$(command -v zsh)" ]; then
         ~/miniconda3/bin/conda init zsh
+    fi
 fi
 
 # Check if conda activate file exists:
