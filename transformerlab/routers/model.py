@@ -114,10 +114,7 @@ async def download_model_from_gallery(gallery_id: str):
         return {"message": "Model not found in gallery"}
 
     hugging_face_id = gallery_entry['huggingface_repo']
-
-    print(gallery_entry)
     hugging_face_filename = gallery_entry.get("huggingface_filename", None)
-
     name = gallery_entry['name']
 
     job_id = await db.job_create(type="DOWNLOAD_MODEL", status="STARTED",
@@ -127,19 +124,24 @@ async def download_model_from_gallery(gallery_id: str):
             "--model_name", hugging_face_id,
             ]
 
+    try:
+        process = await shared.async_run_python_script_and_update_status(python_script=args, job_id=job_id, begin_string="Fetching")
+        exitcode = process.returncode
+        print(f"exitcode: {exitcode}")
+        if (exitcode != 0):
+            await db.job_update(job_id=job_id, status="FAILED")
+            return {"status": "error", "message": "Failed to download model"}
+    except Exception as e:
+        await db.job_update(job_id=job_id, status="FAILED")
+        return {"status": "error", "message": "Failed to download model"}
+
     if hugging_face_filename is not None:
         args += ["--model_filename", hugging_face_filename]
     else:
         # only save to local database if we are downloading the whole repo
         await model_local_create(id=hugging_face_id, name=name, json_data=gallery_entry)
 
-    try:
-        await shared.async_run_python_script_and_update_status(python_script=args, job_id=job_id, begin_string="Fetching")
-    except Exception as e:
-        await db.job_update(job_id=job_id, status="FAILED")
-        return {"message": "Failed to download model"}
-
-    return {"message": "success", "model": model, "job_id": job_id}
+    return {"status": "success", "message": "success", "model": model, "job_id": job_id}
 
 
 @router.get("/model/get_conversation_template")
@@ -195,12 +197,14 @@ async def model_local_list():
 
                         # Set local_path to the filesystem location
                         # this will tell Hugging Face to not try downloading
-                        filedata["local_path"] = os.path.join(models_dir, entry)
+                        filedata["local_path"] = os.path.join(
+                            models_dir, entry)
 
                         # Some models are a single file (possibly of many in a directory, e.g. GGUF)
                         # For models that have model_filename set we should link directly to that specific file
                         if ("model_filename" in filedata and filedata["model_filename"]):
-                            filedata["local_path"] = os.path.join(filedata["local_path"], filedata["model_filename"])
+                            filedata["local_path"] = os.path.join(
+                                filedata["local_path"], filedata["model_filename"])
 
                         models.append(filedata)
 
