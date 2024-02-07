@@ -9,6 +9,7 @@ from huggingface_hub import snapshot_download
 # Get all arguments provided to this script using argparse
 parser = argparse.ArgumentParser(description='Convert a model to GGUF format.')
 parser.add_argument('--output_dir', type=str, help='Directory to save the model in.')
+parser.add_argument('--output_model_id', type=str, help='Directory to save the model in.')
 parser.add_argument('--model_name', default='gpt-j-6b', type=str, help='Name of model to export.')
 args, unknown = parser.parse_known_args()
 
@@ -16,7 +17,7 @@ args, unknown = parser.parse_known_args()
 input_model = args.model_name
 
 # For internals to work we need the directory and output filename to be the same
-output_filename = args.output_dir
+output_filename = args.output_model_id
 output_path = os.path.join(args.output_dir, output_filename) 
 
 # Directory to run conversion subprocess
