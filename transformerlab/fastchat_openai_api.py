@@ -129,7 +129,7 @@ async def check_model(request) -> Optional[JSONResponse]:
             models = models_ret.json()["models"]
             ret = create_error_response(
                 ErrorCode.INVALID_MODEL,
-                f"Only {'&&'.join(models)} allowed now, your model {request.model}",
+                f"Expected model: {'&&'.join(models)}. Your model: {request.model}",
             )
     return ret
 
