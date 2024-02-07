@@ -14,7 +14,9 @@ args, unknown = parser.parse_known_args()
 
 # input arguments
 input_model = args.model_name
-output_filename = f"{input_model.split('/')[-1]}.gguf"
+
+# For internals to work we need the directory and output filename to be the same
+output_filename = args.output_dir"
 output_path = os.path.join(args.output_dir, output_filename) 
 
 # Directory to run conversion subprocess
