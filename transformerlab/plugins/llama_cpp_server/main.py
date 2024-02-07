@@ -329,11 +329,12 @@ if __name__ == "__main__":
 
     args, unknown = parser.parse_known_args()
 
-    if args.model_path:
-        args.model = args.model_path
+    # model_path can be a hugging face ID, or a local file
 
+    # TODO? Does the model need to check if it is in the local file system?
+    # Not sure if it's possible to get here with a huggingface ID
+    #if os.path.exists(args.model_path):
     model_path = args.model_path
-    model_path = f"{WORKSPACE_DIR}/models/{model_path}/{model_path}"
 
     worker = LlamaCppServer(
         args.controller_address,
