@@ -402,7 +402,6 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
         "model_id": output_model_full_id,
         "model_filename": output_filename,
         "name" : output_model_name,
-        "local_model": True,
         "json_data" : {
             "uniqueID": output_model_full_id,
             "name": output_model_name,
