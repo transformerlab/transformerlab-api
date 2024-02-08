@@ -308,7 +308,7 @@ async def jobs_get_next_queued_job():
 
 async def job_update(job_id, status):
     global db
-    await db.execute("UPDATE job SET status = ? WHERE id = ?", (status, job_id))
+    await db.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
     await db.commit()
     return
 
@@ -321,7 +321,7 @@ def job_update_sync(job_id, status):
     global DATABASE_FILE_NAME
     db_sync = sqlite3.connect(DATABASE_FILE_NAME)
 
-    db_sync.execute("UPDATE job SET status = ? WHERE id = ?", (status, job_id))
+    db_sync.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
     db_sync.commit()
     db_sync.close()
     return
