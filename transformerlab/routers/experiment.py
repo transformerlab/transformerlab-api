@@ -299,12 +299,13 @@ async def run_evaluation_script(id: int, plugin_name: str, eval_name: str):
         subprocess.run(args=subprocess_command, stdout=f)
 
 # run_export_script
-# This gets a plugin_name and a json list of parameters
-# and sets everything up for an exporter plugin to run
+# plugin_name: the id of the exporter plugin to run
+# plugin_architecture: A string containing the standard name of plugin architecture
+# plugin_params: a string of JSON containing parameters for this plugin (found in plugins info.json)
 
 
 @router.get("/{id}/run_exporter_script")
-async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{}"):
+async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: str, plugin_params: str = "{}"):
 
     # Load experiment details into config
     experiment_details = await db.experiment_get(id=id)
@@ -324,11 +325,6 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
     # Convert JSON parameters
     # And set default parameters for anything that didn't get passed in
     params = json.loads(plugin_params)
-    if ("plugin_architecture" in params):
-        output_model_architecture = params["plugin_architecture"]
-    else:
-        # Hack: if missing export architecture for some reason, then infer from exporter name
-        output_model_architecture = plugin_name.split('_')[0]
     if ("output_quant_bits" in params):
         output_quant_bits = params["output_quant_bits"]
     else:
@@ -336,6 +332,7 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_params: str = "{
 
     # Generate output model details
     conversion_time = int(time.time())
+    output_model_architecture = plugin_architecture
     output_model_id = f"{output_model_architecture}-{input_model_id_without_author}-{conversion_time}"
     output_model_name = f"{input_model_id_without_author} - {output_model_architecture} {output_quant_bits}bit"
     output_filename = ""
