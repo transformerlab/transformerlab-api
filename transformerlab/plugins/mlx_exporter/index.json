@@ -16,12 +16,15 @@
     ],
     "setup-script": "setup.sh",
     "parameters": {
-        "quant_bits": {
-            "title": "Quantization Bits",
-            "type": "integer",
-            "default": 4,
-            "minimum": 1,
-            "maximum": 8
+        "q-bits": {
+            "title": "Bits per weight for quantization",
+            "type": "string",
+            "default": "4",
+            "enum": [
+                "8",
+                "4",
+                "2"
+            ]
         }
     }
 }
