@@ -16,7 +16,7 @@
     ],
     "setup-script": "setup.sh",
     "parameters": {
-        "q-bits": {
+        "q_bits": {
             "title": "Bits per weight for quantization",
             "type": "string",
             "default": "4",
