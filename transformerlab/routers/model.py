@@ -122,6 +122,9 @@ async def download_model_from_gallery(gallery_id: str):
 
     args = [f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
             "--model_name", hugging_face_id,
+            "--job_id", str(job_id),
+            "--total_size_of_model_in_mb", str(
+                gallery_entry.get("size_of_model_in_mb", 7000))
             ]
 
     if hugging_face_filename is not None:

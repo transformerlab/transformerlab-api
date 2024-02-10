@@ -5,6 +5,24 @@ from pathlib import Path
 import transformerlab.db as db
 
 
+"""
+TFL_HOME_DIR is the directory that is the parent of the src and workspace directories.
+By default, it is set to ~/.transformerlab
+
+TFL_WORKSPACE_DIR is the directory where all the experiments, plugins, and models are stored.
+By default, it is set to TFL_HOME_DIR/workspace
+
+TFL_SOURCE_CODE_DIR is the directory where the source code is stored.
+By default, it is set to TFL_HOME_DIR/src
+This directory stores code but shouldn't store any data because it is erased and replaced
+on updates.
+
+You can set any of the above using environment parameters and it will override the defaults.
+
+ROOT_DIR is a legacy variable that we should replace with the above, eventually.
+"""
+
+
 # TFL_HOME_DIR
 if "TFL_HOME_DIR" in os.environ:
     HOME_DIR = os.environ["TFL_HOME_DIR"]
@@ -78,6 +96,7 @@ PLUGIN_DIR = os.path.join(WORKSPACE_DIR, "plugins")
 # MODELS DIR
 MODELS_DIR = os.path.join(WORKSPACE_DIR, "models")
 print(f"Models directory is set to: {MODELS_DIR}")
+
 
 def plugin_dir_by_name(plugin_name: str) -> str:
     return os.path.join(PLUGIN_DIR, plugin_name)

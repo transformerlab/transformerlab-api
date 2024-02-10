@@ -37,6 +37,9 @@ from transformerlab.shared import shared
 # The following environment variable can be used by other scripts
 # who need to connect to the root DB, for example
 os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
+# environment variables that start with _ are
+# used internally to set constants that are shared between separate processes. They are not meant to be
+# to be overriden by the user.
 os.environ["_TFL_WORKSPACE_DIR"] = dirs.WORKSPACE_DIR
 
 

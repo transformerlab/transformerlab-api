@@ -98,7 +98,7 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
 
     print("Running async python script: " + str(python_script))
 
-    command = [sys.executable, *python_script]
+    command = [sys.executable, '-u', *python_script]
 
     process = await open_process(command=command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
 
