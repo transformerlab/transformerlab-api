@@ -11,10 +11,12 @@ parser = argparse.ArgumentParser(description='Convert a model to GGUF format.')
 parser.add_argument('--output_dir', type=str, help='Directory to save the model in.')
 parser.add_argument('--output_model_id', type=str, help='Directory to save the model in.')
 parser.add_argument('--model_name', default='gpt-j-6b', type=str, help='Name of model to export.')
+parser.add_argument('--outtype', default='q8_0', type=str, help='GGUF output format. q8_0 quantizes the model to 8 bits.')
 args, unknown = parser.parse_known_args()
 
 # input arguments
 input_model = args.model_name
+outtype = args.outtype
 
 # For internals to work we need the directory and output filename to be the same
 output_filename = args.output_model_id
@@ -44,7 +46,7 @@ subprocess_cmd = [
     sys.executable,
     os.path.join(plugin_dir, 'llama.cpp', 'convert.py'),
     '--outfile', output_path,
-    '--outtype', 'q8_0',
+    '--outtype', outtype,
     model_path
 ]
 

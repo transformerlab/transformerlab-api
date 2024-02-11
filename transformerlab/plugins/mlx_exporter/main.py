@@ -9,7 +9,7 @@ from mlx_lm import convert
 parser = argparse.ArgumentParser(description='Convert a model to MLX format.')
 parser.add_argument('--output_dir', type=str, help='Directory to save the model in.')
 parser.add_argument('--model_name', default='gpt-j-6b', type=str, help='Name of model to export.')
-parser.add_argument('--quant_bits', default='4', type=str, help='Bits per weight for quantization.')
+parser.add_argument('--q_bits', default='4', type=str, help='Bits per weight for quantization.')
 args, unknown = parser.parse_known_args()
 
 output_path = args.output_dir
@@ -21,7 +21,7 @@ plugin_dir = os.path.realpath(os.path.dirname(__file__))
 export_process = subprocess.run(
     ["python", '-u', '-m',  'mlx_lm.convert', 
         '--hf-path', args.model_name, '--mlx-path', output_path, 
-        '-q', '--q-bits', str(args.quant_bits)],
+        '-q', '--q-bits', str(args.q_bits)],
     cwd=plugin_dir,
     capture_output=True
 )

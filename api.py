@@ -203,6 +203,11 @@ async def server_worker_start(model_name: str, model_filename: str | None = None
                 print(params)
                 return {"message": "OK", "job_id": job_id}
 
+    # NOTE: this code path is not reachable unless something unexpected happens:
+    # - experiment ID is None
+    # - Something wrong with inference parameters
+    # - Somehow the app passed "default" as the inference engine
+
     params = [
         "-u", "-m",
         "fastchat.serve.model_worker",
@@ -211,6 +216,8 @@ async def server_worker_start(model_name: str, model_filename: str | None = None
         # "--seed", uncommenting breaks the app
         # app_settings.seed,
     ]
+
+    print("Default!")
 
     if torch.cuda.is_available():
         device = "cuda"
