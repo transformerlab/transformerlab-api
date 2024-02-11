@@ -20,6 +20,7 @@
         "outtype": {
             "title": "Output Format",
             "type": "string",
+            "default": "q8_0",
             "enum": [
                 "q8_0",
                 "f16",
