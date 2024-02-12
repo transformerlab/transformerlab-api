@@ -50,6 +50,20 @@ async def plugin_gallery():
     # now combine all the galleries into one
     gallery = workspace_gallery + remote_gallery
 
+    # Now get a list of the plugins that are already installed:
+    local_workspace_gallery_directory = dirs.PLUGIN_DIR
+    installed_plugins = []
+    if os.path.exists(local_workspace_gallery_directory):
+        for lp in os.listdir(local_workspace_gallery_directory):
+            installed_plugins.append(lp)
+
+    # Now add a field to each plugin in the gallery to indicate if it is installed:
+    for plugin in gallery:
+        if plugin["uniqueId"] in installed_plugins:
+            plugin["installed"] = True
+        else:
+            plugin["installed"] = False
+
     return gallery
 
 
