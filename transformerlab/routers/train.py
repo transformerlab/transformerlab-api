@@ -83,7 +83,7 @@ async def job_create(template_id: str, description: str, experiment_id, config: 
 
 @router.get("/job/update/{job_id}")
 async def job_update(job_id: str, status: str):
-    await db.job_update(job_id, status)
+    await db.job_update_status(job_id, status)
     return {"message": "OK"}
 
 

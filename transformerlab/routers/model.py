@@ -86,7 +86,7 @@ async def download_model_from_huggingface(model: str):
     try:
         await shared.async_run_python_script_and_update_status(python_script=args, job_id=job_id, begin_string="Fetching")
     except Exception as e:
-        await db.job_update(job_id=job_id, status="FAILED")
+        await db.job_update_status(job_id=job_id, status="FAILED")
         return {"message": "Failed to download model"}
 
     # Now save this to the local database
@@ -95,9 +95,12 @@ async def download_model_from_huggingface(model: str):
 
 
 @router.get(path="/model/download_model_from_gallery")
-async def download_model_from_gallery(gallery_id: str):
+async def download_model_from_gallery(gallery_id: str, job_id: int | None = None):
     """Provide a reference to a model in the gallery, and we will download it
-    from huggingface"""
+    from huggingface
+
+    You can manually specify a pre-created job_id if you want to track the progress of the download with
+    a defined job_id provided by the API using /job/createId"""
 
     # get all models from gallery
     with open(f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/galleries/model-gallery.json") as f:
@@ -117,8 +120,11 @@ async def download_model_from_gallery(gallery_id: str):
     hugging_face_filename = gallery_entry.get("huggingface_filename", None)
     name = gallery_entry['name']
 
-    job_id = await db.job_create(type="DOWNLOAD_MODEL", status="STARTED",
-                                 job_data='{}')
+    if job_id is None:
+        job_id = await db.job_create(type="DOWNLOAD_MODEL", status="STARTED",
+                                     job_data='{}')
+    else:
+        await db.job_update(job_id=job_id, type="DOWNLOAD_MODEL", status="STARTED")
 
     args = [f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
             "--model_name", hugging_face_id,
@@ -135,10 +141,10 @@ async def download_model_from_gallery(gallery_id: str):
         exitcode = process.returncode
         print(f"exitcode: {exitcode}")
         if (exitcode != 0):
-            await db.job_update(job_id=job_id, status="FAILED")
+            await db.job_update_status(job_id=job_id, status="FAILED")
             return {"status": "error", "message": "Failed to download model"}
     except Exception as e:
-        await db.job_update(job_id=job_id, status="FAILED")
+        await db.job_update_status(job_id=job_id, status="FAILED")
         return {"status": "error", "message": "Failed to download model"}
 
     if hugging_face_filename is None:

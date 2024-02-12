@@ -108,7 +108,7 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
             print("**SUB PROCESS:( "+text+" )**")
             if begin_string in text:
                 print("WE ARE STARTED!")
-                await db.job_update(job_id=job_id, status="IN_PROGRESS")
+                await db.job_update_status(job_id=job_id, status="IN_PROGRESS")
 
     await process.wait()
 
@@ -116,7 +116,7 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
         print("Process completed successfully")
     else:
         print("Task ERROR")
-        await db.job_update(job_id=job_id, status="FAILED")
+        await db.job_update_status(job_id=job_id, status="FAILED")
         msg = (
             f"Command failed with exit code {process.returncode}:\n"
         )
@@ -124,7 +124,7 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
         return process
 
     print("Task Complete")
-    await db.job_update(job_id=job_id, status="COMPLETE")
+    await db.job_update_status(job_id=job_id, status="COMPLETE")
 
     return process
 
@@ -155,7 +155,7 @@ async def async_run_python_daemon_and_update_status(python_script: list[str], jo
         decoded = line.decode()
         if begin_string in decoded:
             print("WE ARE STARTED!")
-            await db.job_update(job_id=job_id, status="COMPLETE")
+            await db.job_update_status(job_id=job_id, status="COMPLETE")
             if set_process_id_function != None:
                 set_process_id_function(process)
             break
@@ -251,5 +251,5 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
         print("I don't know what to do with this job type: " + job_type)
         on_job_complete()
 
-    await db.job_update(job_id, "RUNNING")
+    await db.job_update_status(job_id, "RUNNING")
     return

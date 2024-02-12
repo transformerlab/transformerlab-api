@@ -216,7 +216,7 @@ async def model_local_delete(model_id):
 ###############
 
 
-async def job_create(type, status, job_data, experiment_id=""):
+async def job_create(type, status, job_data='{}', experiment_id=""):
     global db
     row = await db.execute_insert(
         "INSERT INTO job(type, status, experiment_id, job_data) VALUES (?, ?, ?, json(?))",
@@ -306,9 +306,17 @@ async def jobs_get_next_queued_job():
     return row
 
 
-async def job_update(job_id, status):
+async def job_update_status(job_id, status):
     global db
     await db.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
+    await db.commit()
+    return
+
+
+async def job_update(job_id, type, status):
+    global db
+    await db.execute(
+        "UPDATE job SET type = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (type, status, job_id))
     await db.commit()
     return
 
@@ -321,7 +329,8 @@ def job_update_sync(job_id, status):
     global DATABASE_FILE_NAME
     db_sync = sqlite3.connect(DATABASE_FILE_NAME)
 
-    db_sync.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
+    db_sync.execute(
+        "UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
     db_sync.commit()
     db_sync.close()
     return

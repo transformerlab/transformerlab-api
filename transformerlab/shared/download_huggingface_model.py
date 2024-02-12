@@ -76,7 +76,7 @@ print("starting script with progressbar updater")
 
 def download_blocking(model_is_downloaded):
     print("Downloading model")
-    db = sqlite3.connect(f"{WORKSPACE_DIR}/lab.sqlite3")
+    db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
     db.execute(
         "UPDATE job SET progress=? WHERE id=?", (0, job_id))
     db.commit()
@@ -120,7 +120,7 @@ def download_blocking(model_is_downloaded):
     print("Downloaded model")
 
 
-def check_disk_size(model_is_downloaded):
+def check_disk_size(model_is_downloaded: Event):
     # Recursively checks the size of the huggingface cache
     # which is stored at ~/.cache/huggingface/hub
     db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
@@ -143,6 +143,7 @@ def check_disk_size(model_is_downloaded):
         # progress column:
         db.execute(
             "UPDATE job SET progress=? WHERE id=?", (progress, job_id))
+        print(f"flag:  {model_is_downloaded.is_set()}")
         db.commit()
         if (model_is_downloaded.is_set()):
             print("I was told to quit")
@@ -153,6 +154,8 @@ def check_disk_size(model_is_downloaded):
 
 def main():
     model_is_downloaded = Event()  # A threadsafe flag to coordinate the two threads
+    print(f"flag:  {model_is_downloaded.is_set()}")
+
     p1 = Thread(target=check_disk_size, args=(model_is_downloaded,))
     p2 = Thread(target=download_blocking, args=(
         model_is_downloaded,))
