@@ -142,6 +142,7 @@
     "transformers_version": "4.31.0",
     "license": "Llama 2 CLA",
     "logo": "https://lmsys.org/images/blog/vicuna/vicuna.jpeg",
+    "size_of_model_in_mb": 8737.3,
     "author": {
       "name": "LMSYS Org",
       "url": "https://lmsys.org/",
@@ -252,6 +253,7 @@
     "transformers_version": "4.34.0.dev0",
     "license": "Apache 2.0",
     "logo": "https://docs.mistral.ai/img/logo.svg",
+    "size_of_model_in_mb": 56254.8,
     "author": {
       "name": "Mistral AI",
       "url": "https://docs.mistral.ai/",
@@ -450,6 +452,7 @@
     "transformers_version": "4.34.0",
     "license": "MIT",
     "logo": "https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha/resolve/main/thumbnail.png",
+    "size_of_model_in_mb": 55256.3,
     "author": {
       "name": "HuggingFace H4",
       "url": "https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha",
@@ -648,6 +651,7 @@
     "transformers_version": "4.35.0",
     "license": "Apache 2.0",
     "logo": "https://eu-images.contentstack.com/v3/assets/blt6b0f74e5591baa03/bltf495f117670d330a/65985db56b9c04040d633f56/image.png?width=700&auto=webp&quality=80&disable=upscale",
+    "size_of_model_in_mb": 4200.9,
     "author": {
       "name": "TinyLlama",
       "url": "https://github.com/jzhang38/TinyLlama",
