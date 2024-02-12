@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
-# The following will cause major issues
-# because fastchat depends on pydantic1
-# while llama-cpp-python depends on pydantic2
-# so installing llama-cpp-python will break fastchat
-# The best fix would be to fix FastChat
-# For now, let's leave this broken.
+# If we install llama-cpp-python[server] it will install
+# Pydantic2 which will break FastChat which depends on Pydantic1
+# So we will install llama-cpp-python only and implement our
+# own server using FastAPI
 
 pip install llama-cpp-python
