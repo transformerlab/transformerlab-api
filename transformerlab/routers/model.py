@@ -80,8 +80,14 @@ async def download_model_from_huggingface(model: str):
     job_id = await db.job_create(type="DOWNLOAD_MODEL", status="STARTED",
                                  job_data='{}')
 
+
     args = [f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
-            "--model_name", model]
+            "--model_name", model,
+            "--job_id", str(job_id)
+            ]
+    
+    # TODO: We need to pass model size for the progress bar, but we don't know so add a default
+    args.extend(["--total_size_of_model_in_mb", "7000"])
 
     try:
         process = await shared.async_run_python_script_and_update_status(python_script=args, job_id=job_id, begin_string="Fetching")
