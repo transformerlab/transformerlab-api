@@ -13,6 +13,32 @@ from transformerlab.shared import dirs
 router = APIRouter(tags=["model"])
 
 
+"""
+get_models_dir
+Helper function to get the models directory and create it if it doesn't exist
+models are stored in separate subdirectories under workspace/models
+"""
+def get_models_dir():
+    models_dir = dirs.MODELS_DIR
+
+    # make models directory if it does not exist:
+    if not os.path.exists(f"{models_dir}"):
+        os.makedirs(f"{models_dir}")
+
+    return models_dir
+
+
+"""
+get_model_dir
+Helper function gets the directory for a model ID
+model_id may be in Hugging Face format
+"""
+def get_model_dir(model_id: str):
+    models_dir = get_models_dir()
+    model_id_without_author = model_id.split("/")[-1]
+    return os.path.join(models_dir, model_id_without_author)
+
+
 @router.get("/healthz")  # TODO: why isn't this /model/helathz?
 async def healthz():
     return {"message": "OK"}
@@ -51,6 +77,19 @@ async def model_gallery(model_id: str):
 
     return result
 
+# Tries to load model details from file system
+@router.get("/model/details/{model_id}")
+async def model_gallery(model_id: str):
+
+    # convert "~~~"" in string to "/":
+    model_id = model_id.replace("~~~", "/")
+
+    # see if the model local exists
+    model_path = get_model_dir(model_id)
+    print(model_path)
+
+    result = []
+    return result
 
 @router.get(path="/model/login_to_huggingface")
 async def login_to_huggingface():
@@ -170,20 +209,6 @@ async def get_model_prompt_template(model: str):
     # Below we grab the conversation template from FastChat's model adapter
     # solution by passing in the model name
     return get_conversation_template(model)
-
-# get_models_dir
-# Helper function to get the models directory and create it if it doesn't exist
-# models are stored in separate subdirectories under workspace/models
-
-
-def get_models_dir():
-    models_dir = dirs.MODELS_DIR
-
-    # make models directory if it does not exist:
-    if not os.path.exists(f"{models_dir}"):
-        os.makedirs(f"{models_dir}")
-
-    return models_dir
 
 
 @router.get("/model/list")
