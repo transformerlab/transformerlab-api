@@ -84,14 +84,19 @@ async def download_model_from_huggingface(model: str):
             "--model_name", model]
 
     try:
-        await shared.async_run_python_script_and_update_status(python_script=args, job_id=job_id, begin_string="Fetching")
+        process = await shared.async_run_python_script_and_update_status(python_script=args, job_id=job_id, begin_string="Fetching")
+        exitcode = process.returncode
+        if (exitcode != 0):
+            await db.job_update_status(job_id=job_id, status="FAILED")
+            print(process)
+            return {"status": "error", "message": f"Return code: {exitcode}"}
     except Exception as e:
         await db.job_update_status(job_id=job_id, status="FAILED")
-        return {"message": "Failed to download model"}
+        return {"status": "error", "message": f"Exception: {e}"}
 
     # Now save this to the local database
     await model_local_create(id=model, name=model)
-    return {"message": "success", "model": model, "job_id": job_id}
+    return {"status": "success", "message": "success", "model": model, "job_id": job_id}
 
 
 @router.get(path="/model/download_model_from_gallery")
