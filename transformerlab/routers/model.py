@@ -79,17 +79,49 @@ async def model_gallery(model_id: str):
 
 # Tries to load model details from file system
 @router.get("/model/details/{model_id}")
-async def model_gallery(model_id: str):
+async def model_details_from_filesystem(model_id: str):
 
-    # convert "~~~"" in string to "/":
+     # convert "~~~"" in string to "/":
     model_id = model_id.replace("~~~", "/")
 
-    # see if the model local exists
+    # TODO: Refactor this code with models/list function
+    # see if the model exists locally
     model_path = get_model_dir(model_id)
-    print(model_path)
+    if (os.path.isdir(model_path)):
 
-    result = []
-    return result
+        # Look for model information in info.json
+        info_file = os.path.join(model_path, "info.json")
+        try:
+            with open(info_file, "r") as f:
+                filedata = json.load(f)
+                f.close()
+
+                # NOTE: In some places info.json may be a list and in others not
+                # Once info.json format is finalized we can remove this
+                if isinstance(filedata, list):
+                    filedata = filedata[0]
+
+                # tells the app this model was loaded from workspace directory
+                filedata["stored_in_filesystem"] = True
+
+                # Set local_path to the filesystem location
+                # this will tell Hugging Face to not try downloading
+                filedata["local_path"] = model_path
+
+                # Some models are a single file (possibly of many in a directory, e.g. GGUF)
+                # For models that have model_filename set we should link directly to that specific file
+                if ("model_filename" in filedata and filedata["model_filename"]):
+                    filedata["local_path"] = os.path.join(
+                        filedata["local_path"], filedata["model_filename"])
+
+                return filedata
+
+        except FileNotFoundError:
+            # do nothing: file doesn't exist
+            pass
+
+ 
+    return []
 
 @router.get(path="/model/login_to_huggingface")
 async def login_to_huggingface():
