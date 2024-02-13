@@ -101,20 +101,10 @@ async def model_details_from_filesystem(model_id: str):
                 if isinstance(filedata, list):
                     filedata = filedata[0]
 
-                # tells the app this model was loaded from workspace directory
-                filedata["stored_in_filesystem"] = True
-
-                # Set local_path to the filesystem location
-                # this will tell Hugging Face to not try downloading
-                filedata["local_path"] = model_path
-
                 # Some models are a single file (possibly of many in a directory, e.g. GGUF)
                 # For models that have model_filename set we should link directly to that specific file
-                if ("model_filename" in filedata and filedata["model_filename"]):
-                    filedata["local_path"] = os.path.join(
-                        filedata["local_path"], filedata["model_filename"])
-
-                return filedata
+                if ("json_data" in filedata and filedata["json_data"]):
+                    return filedata["json_data"]
 
         except FileNotFoundError:
             # do nothing: file doesn't exist
