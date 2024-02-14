@@ -142,6 +142,14 @@ async def missing_platform_plugins() -> list[str]:
             if plugin not in installed_plugins_names:
                 missing_plugins.append(plugin)
 
+    if (system == "Darwin" and cpu == "x86_64"):
+        # This is an OSX Machine with x86_64
+        osx_plugins = ["llama_cpp_server", "gguf_exporter"]
+
+        for plugin in osx_plugins:
+            if plugin not in installed_plugins_names:
+                missing_plugins.append(plugin)
+
     if (system == "Linux" and cpu == "x86_64"):
         # This is an Linux Machine with x86_64
         # @TODO fill in soon
@@ -154,7 +162,7 @@ async def missing_platform_plugins() -> list[str]:
     return missing_plugins
 
 
-@router.get("/list_missing_plugins_for_current_platform", summary="Returns true if the default platform plugins are installed.")
+@router.get("/list_missing_plugins_for_current_platform", summary="Returns a list of plugins that are recommended for the current platform.")
 async def list_missing_plugins_for_current_platform():
     missing_plugins = await missing_platform_plugins()
     return missing_plugins
