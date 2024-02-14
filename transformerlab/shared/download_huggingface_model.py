@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--model_name', type=str, required=True)
 parser.add_argument('--model_filename', type=str, required=False)
 parser.add_argument('--job_id', type=str, required=True)
-parser.add_argument('--total_size_of_model_in_mb', type=int, required=True)
+parser.add_argument('--total_size_of_model_in_mb', type=float, required=True)
 
 args, other = parser.parse_known_args()
 model = args.model_name
@@ -143,8 +143,9 @@ def check_disk_size(model_is_downloaded: Event):
         print(f"\nModel Download Progress: {progress:.2f}%\n")
         # Write to jobs table in database, updating the
         # progress column:
+        job_data = json.dumps({"downloaded": cache_size_growth})
         db.execute(
-            "UPDATE job SET progress=? WHERE id=?", (progress, job_id))
+            "UPDATE job SET progress=?, job_data=json(?) WHERE id=?", (progress, job_data, job_id))
         print(f"flag:  {model_is_downloaded.is_set()}")
         db.commit()
 
