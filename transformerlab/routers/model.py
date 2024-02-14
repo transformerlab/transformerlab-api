@@ -13,12 +13,12 @@ from transformerlab.shared import dirs
 router = APIRouter(tags=["model"])
 
 
-"""
-get_models_dir
-Helper function to get the models directory and create it if it doesn't exist
-models are stored in separate subdirectories under workspace/models
-"""
 def get_models_dir():
+    """
+    get_models_dir
+    Helper function to get the models directory and create it if it doesn't exist
+    models are stored in separate subdirectories under workspace/models
+    """
     models_dir = dirs.MODELS_DIR
 
     # make models directory if it does not exist:
@@ -28,12 +28,12 @@ def get_models_dir():
     return models_dir
 
 
-"""
-get_model_dir
-Helper function gets the directory for a model ID
-model_id may be in Hugging Face format
-"""
 def get_model_dir(model_id: str):
+    """
+    get_model_dir
+    Helper function gets the directory for a model ID
+    model_id may be in Hugging Face format
+    """
     models_dir = get_models_dir()
     model_id_without_author = model_id.split("/")[-1]
     return os.path.join(models_dir, model_id_without_author)
@@ -186,8 +186,9 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
             gallery_entry = model
             break
     else:
-        return {"message": "Model not found in gallery"}
+        return {"status": "error", "message": "Model not found in gallery"}
 
+    print(gallery_entry)
     hugging_face_id = gallery_entry['huggingface_repo']
     hugging_face_filename = gallery_entry.get("huggingface_filename", None)
     name = gallery_entry['name']
