@@ -24,6 +24,7 @@ import uuid
 from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse, JSONResponse
+import torch
 import uvicorn
 
 from fastchat.serve.base_model_worker import BaseModelWorker
@@ -92,8 +93,17 @@ class LlamaCppServer(BaseModelWorker):
         self.model_name = model_path
         print("Loading model: ", self.model_name)
         # setting _n_ctx to 0 pins it to the trained context length
-        # setting gpu layers to 1 is needed on a mac, but may not be the right setting for other platforms
-        self.model = llama_cpp.Llama(self.model_name, n_ctx=0, n_gpu_layers=1)
+
+        n_gpu_layers = 0
+
+        if torch.cuda.is_available():
+            n_gpu_layers = torch.cuda.device_count()
+            print("Using ", n_gpu_layers, " GPUs")
+        else:
+            print("No GPUs available")
+
+        self.model = llama_cpp.Llama(
+            self.model_name, n_ctx=0, n_gpu_layers=n_gpu_layers)
         self.tokenizer = LlamaCppTokenizer(model=self.model)
 
         # self.context_len = get_context_length(
@@ -333,7 +343,7 @@ if __name__ == "__main__":
 
     # TODO? Does the model need to check if it is in the local file system?
     # Not sure if it's possible to get here with a huggingface ID
-    #if os.path.exists(args.model_path):
+    # if os.path.exists(args.model_path):
     model_path = args.model_path
 
     worker = LlamaCppServer(
