@@ -15,7 +15,6 @@ router = APIRouter(tags=["model"])
 
 def get_models_dir():
     """
-    get_models_dir
     Helper function to get the models directory and create it if it doesn't exist
     models are stored in separate subdirectories under workspace/models
     """
@@ -30,13 +29,30 @@ def get_models_dir():
 
 def get_model_dir(model_id: str):
     """
-    get_model_dir
     Helper function gets the directory for a model ID
     model_id may be in Hugging Face format
     """
     models_dir = get_models_dir()
     model_id_without_author = model_id.split("/")[-1]
     return os.path.join(models_dir, model_id_without_author)
+
+
+def get_model_details_from_gallery(model_id: str):
+    """
+    Given a model ID this returns the associated data from the model gallery file.
+    Returns None if no such value found.
+    """
+    with open(f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/galleries/model-gallery.json") as f:
+        gallery = json.load(f)
+
+    result = None
+
+    for model in gallery:
+        if model['huggingface_repo'] == model_id or model['uniqueID'] == model_id:
+            result = model
+            break
+
+    return result
 
 
 @router.get("/healthz")  # TODO: why isn't this /model/helathz?
@@ -65,17 +81,8 @@ async def model_gallery(model_id: str):
     # convert "~~~"" in string to "/":
     model_id = model_id.replace("~~~", "/")
 
-    with open(f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/galleries/model-gallery.json") as f:
-        gallery = json.load(f)
+    return get_model_details_from_gallery(model_id)
 
-    result = None
-
-    for model in gallery:
-        if model['huggingface_repo'] == model_id:
-            result = model
-            break
-
-    return result
 
 # Tries to load model details from file system
 @router.get("/model/details/{model_id}")
@@ -112,6 +119,7 @@ async def model_details_from_filesystem(model_id: str):
 
  
     return []
+
 
 @router.get(path="/model/login_to_huggingface")
 async def login_to_huggingface():
@@ -174,21 +182,12 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
     You can manually specify a pre-created job_id if you want to track the progress of the download with
     a defined job_id provided by the API using /job/createId"""
 
-    # get all models from gallery
-    with open(f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/galleries/model-gallery.json") as f:
-        gallery = json.load(f)
-
-    gallery_entry = None
-
-    # for each entry in the gallery, check if the model_id matches
-    for model in gallery:
-        if model['uniqueID'] == gallery_id:
-            gallery_entry = model
-            break
-    else:
+    # Get model details from the gallery
+    # If None then return an error
+    gallery_entry = get_model_details_from_gallery(gallery_id)
+    if gallery_entry is None:
         return {"status": "error", "message": "Model not found in gallery"}
 
-    print(gallery_entry)
     hugging_face_id = gallery_entry['huggingface_repo']
     hugging_face_filename = gallery_entry.get("huggingface_filename", None)
     name = gallery_entry['name']
@@ -224,7 +223,7 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
         # only save to local database if we are downloading the whole repo
         await model_local_create(id=hugging_face_id, name=name, json_data=gallery_entry)
 
-    return {"status": "success", "message": "success", "model": model, "job_id": job_id}
+    return {"status": "success", "message": "success", "model": gallery_entry, "job_id": job_id}
 
 
 @router.get("/model/get_conversation_template")
