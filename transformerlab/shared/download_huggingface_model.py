@@ -132,6 +132,8 @@ def check_disk_size(model_is_downloaded: Event):
     starting_size_of_cache = starting_size_of_huggingface_cache_in_mb + \
         starting_size_of_model_dir_in_mb
 
+    counter = 0
+
     while True:
         hf_size = get_dir_size(path=cache_dir) / 1024 / 1024
         model_dir_size = get_dir_size(
@@ -145,8 +147,14 @@ def check_disk_size(model_is_downloaded: Event):
             "UPDATE job SET progress=? WHERE id=?", (progress, job_id))
         print(f"flag:  {model_is_downloaded.is_set()}")
         db.commit()
+
         if (model_is_downloaded.is_set()):
             print("I was told to quit")
+            break
+
+        counter += 1
+        if counter > 5000:  # around 3 hours
+            print("I've been running for a while, I'm going to quit")
             break
 
         sleep(2)
@@ -161,7 +169,7 @@ def main():
         model_is_downloaded,))
     p1.start()
     p2.start()
-    p1.join()
+    # p1.join()
     p2.join()
 
 
