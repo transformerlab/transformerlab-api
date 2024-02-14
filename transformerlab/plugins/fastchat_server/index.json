@@ -21,20 +21,16 @@
             "title": "Number of GPUs",
             "type": "integer"
         },
-        "device": {
-            "title": "Device",
-            "type": "string",
-            "enum": [
-                "cuda",
-                "cpu",
-                "mps",
-                "xpu"
-            ]
-        },
         "eight_bit": {
-            "title": "8-bit",
+            "title": "Enable 8-bit compression",
             "type": "boolean",
             "default": false
+        }
+    },
+    "parameters_ui": {
+        "num_gpus": {
+            "ui:emptyValue": "",
+            "ui:help": "Used to spread models over multiple GPUs. Leave empty to use default."
         }
     }
 }

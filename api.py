@@ -218,8 +218,6 @@ async def server_worker_start(model_name: str, model_filename: str | None = None
         # app_settings.seed,
     ]
 
-    print("Default!")
-
     if torch.cuda.is_available():
         device = "cuda"
     elif torch.backends.mps.is_available():
@@ -236,7 +234,7 @@ async def server_worker_start(model_name: str, model_filename: str | None = None
     if (cpu_offload):
         params.extend(["--cpu-offload"])
 
-    print("let's start a worker for: " + model_name)
+    print("Loading default worker for: " + model_name)
 
     # create a new job in the jobs DB:
     job_id = await db.job_create(type="LOAD_MODEL", status="STARTED", job_data='{}', experiment_id=experiment_id)

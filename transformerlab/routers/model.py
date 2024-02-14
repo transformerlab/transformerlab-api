@@ -13,6 +13,32 @@ from transformerlab.shared import dirs
 router = APIRouter(tags=["model"])
 
 
+"""
+get_models_dir
+Helper function to get the models directory and create it if it doesn't exist
+models are stored in separate subdirectories under workspace/models
+"""
+def get_models_dir():
+    models_dir = dirs.MODELS_DIR
+
+    # make models directory if it does not exist:
+    if not os.path.exists(f"{models_dir}"):
+        os.makedirs(f"{models_dir}")
+
+    return models_dir
+
+
+"""
+get_model_dir
+Helper function gets the directory for a model ID
+model_id may be in Hugging Face format
+"""
+def get_model_dir(model_id: str):
+    models_dir = get_models_dir()
+    model_id_without_author = model_id.split("/")[-1]
+    return os.path.join(models_dir, model_id_without_author)
+
+
 @router.get("/healthz")  # TODO: why isn't this /model/helathz?
 async def healthz():
     return {"message": "OK"}
@@ -51,6 +77,41 @@ async def model_gallery(model_id: str):
 
     return result
 
+# Tries to load model details from file system
+@router.get("/model/details/{model_id}")
+async def model_details_from_filesystem(model_id: str):
+
+     # convert "~~~"" in string to "/":
+    model_id = model_id.replace("~~~", "/")
+
+    # TODO: Refactor this code with models/list function
+    # see if the model exists locally
+    model_path = get_model_dir(model_id)
+    if (os.path.isdir(model_path)):
+
+        # Look for model information in info.json
+        info_file = os.path.join(model_path, "info.json")
+        try:
+            with open(info_file, "r") as f:
+                filedata = json.load(f)
+                f.close()
+
+                # NOTE: In some places info.json may be a list and in others not
+                # Once info.json format is finalized we can remove this
+                if isinstance(filedata, list):
+                    filedata = filedata[0]
+
+                # Some models are a single file (possibly of many in a directory, e.g. GGUF)
+                # For models that have model_filename set we should link directly to that specific file
+                if ("json_data" in filedata and filedata["json_data"]):
+                    return filedata["json_data"]
+
+        except FileNotFoundError:
+            # do nothing: file doesn't exist
+            pass
+
+ 
+    return []
 
 @router.get(path="/model/login_to_huggingface")
 async def login_to_huggingface():
@@ -80,18 +141,29 @@ async def download_model_from_huggingface(model: str):
     job_id = await db.job_create(type="DOWNLOAD_MODEL", status="STARTED",
                                  job_data='{}')
 
+
     args = [f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
-            "--model_name", model]
+            "--model_name", model,
+            "--job_id", str(job_id)
+            ]
+    
+    # TODO: We need to pass model size for the progress bar, but we don't know so add a default
+    args.extend(["--total_size_of_model_in_mb", "7000"])
 
     try:
-        await shared.async_run_python_script_and_update_status(python_script=args, job_id=job_id, begin_string="Fetching")
+        process = await shared.async_run_python_script_and_update_status(python_script=args, job_id=job_id, begin_string="Fetching")
+        exitcode = process.returncode
+        if (exitcode != 0):
+            await db.job_update_status(job_id=job_id, status="FAILED")
+            print(process)
+            return {"status": "error", "message": f"Return code: {exitcode}"}
     except Exception as e:
         await db.job_update_status(job_id=job_id, status="FAILED")
-        return {"message": "Failed to download model"}
+        return {"status": "error", "message": f"Exception: {e}"}
 
     # Now save this to the local database
     await model_local_create(id=model, name=model)
-    return {"message": "success", "model": model, "job_id": job_id}
+    return {"status": "success", "message": "success", "model": model, "job_id": job_id}
 
 
 @router.get(path="/model/download_model_from_gallery")
@@ -159,20 +231,6 @@ async def get_model_prompt_template(model: str):
     # Below we grab the conversation template from FastChat's model adapter
     # solution by passing in the model name
     return get_conversation_template(model)
-
-# get_models_dir
-# Helper function to get the models directory and create it if it doesn't exist
-# models are stored in separate subdirectories under workspace/models
-
-
-def get_models_dir():
-    models_dir = dirs.MODELS_DIR
-
-    # make models directory if it does not exist:
-    if not os.path.exists(f"{models_dir}"):
-        os.makedirs(f"{models_dir}")
-
-    return models_dir
 
 
 @router.get("/model/list")
