@@ -25,6 +25,9 @@ if (parameters.get("eight_bit") == 'on'):
 else:
     eight_bit = False
 
+# Used only if memory on multiple cards is needed. Do not include if this is not not set.
+num_gpus = parameters.get("num_gpus", None)
+
 # Auto detect backend if device not specified
 device = parameters.get("device", None)
 if device is None or device == "":
@@ -34,9 +37,9 @@ if device is None or device == "":
         device = "mps"
     else:
         device = "cpu"
+        num_gpus = 0
 
-# Used only if memory on multiple cards is needed. Do not include if this is not not set.
-num_gpus = parameters.get("num_gpus", None)
+
 
 llmlab_root_dir = os.getenv('LLM_LAB_ROOT_PATH')
 
