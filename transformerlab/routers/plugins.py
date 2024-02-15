@@ -150,10 +150,11 @@ async def missing_platform_plugins() -> list[str]:
             if plugin not in installed_plugins_names:
                 missing_plugins.append(plugin)
 
-    if (system == "Linux" and cpu == "x86_64"):
-        # This is an Linux Machine with x86_64
-        # @TODO fill in soon
-        linux_plugins = []
+    if (system == "Linux"):
+        # This is an Linux Machine, hopefully with a GPU but we could
+        # test for that further
+        linux_plugins = ["fastchat_server", "llama_trainer",
+                         "eleuther-ai-lm-evaluation-harness"]
 
         for plugin in linux_plugins:
             if plugin not in installed_plugins_names:
