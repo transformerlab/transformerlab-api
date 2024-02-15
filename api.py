@@ -204,7 +204,7 @@ async def server_worker_start(model_name: str, model_filename: str | None = None
                 print(f"return code: {worker_process.returncode}")
                 if (worker_process.returncode == 99):
                     return {"status": "error", "message": "GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources."}
-                if (worker_process.returncode != 0):
+                if (worker_process.returncode != None and worker_process.returncode != 0):
                     return {"status": "error", "message": "Error starting worker process."}
                 return {"message": "OK", "job_id": job_id}
 
