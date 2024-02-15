@@ -1,0 +1,20 @@
+{
+    "name": "LightLLM Server",
+    "uniqueId": "lightllm_server",
+    "description": "LightLLM (https://github.com/ModelTC/lightllm) is a Python-based LLM (Large Language Model) inference and serving framework, notable for its lightweight design, easy scalability, and high-speed performance.",
+    "plugin-format": "python",
+    "type": "loader",
+    "model_architectures": [
+        "LlamaForCausalLM",
+        "FalconForCausalLM",
+        "MistralForCausalLM",
+        "GPTBigCodeForCausalLM"
+    ],
+    "files": [
+        "main.py",
+        "setup.sh",
+        "requirements.txt"
+    ],
+    "setup-script": "setup.sh",
+    "parameters": {}
+}
