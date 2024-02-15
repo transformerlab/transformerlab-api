@@ -40,7 +40,6 @@ if device is None or device == "":
         num_gpus = 0
 
 
-
 llmlab_root_dir = os.getenv('LLM_LAB_ROOT_PATH')
 
 popen_args = [sys.executable, '-m',
@@ -60,7 +59,11 @@ with open(f"{llmlab_root_dir}/worker.pid", "w") as f:
     f.write(str(proc.pid))
 
 # read output:
-for line in iter(proc.stderr.readline, b''):
+for line in proc.stderr:
+    # if line contains "Ready to serve" then we can break
+    if "torch.cuda.OutOfMemoryError" in line.decode("utf-8"):
+        print("CUDA Out of memory error", file=sys.stderr)
+        sys.exit(99)  # 99 is our code for CUDA OOM
     print(line, file=sys.stderr)
 
 print("FastChat Worker exited", file=sys.stderr)
