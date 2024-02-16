@@ -63,7 +63,16 @@
     },
     "parameters_ui": {
         "lora_layers": {
-            "ui:help": "Number of layers to fine-tune."
+            "ui:help": "Number of layers to fine-tune. The default is 16, so you can try 8 or 4. This reduces the amount of memory needed for back propagation. It may also reduce the quality of the fine-tuned model if you are fine-tuning with a lot of data."
+        },
+        "learning_rate": {
+            "ui:help": "Adam Learning rate."
+        },
+        "iters": {
+            "ui:help": "Number of iterations (not epochs) to train -- 1000 could be a starting point."
+        },
+        "steps_per_report": {
+            "ui:help": "Number of training steps between loss reporting."
         }
     }
 }
