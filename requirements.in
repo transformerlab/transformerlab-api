@@ -22,5 +22,5 @@ tiktoken
 torch
 torchaudio
 torchvision
-transformers==4.35.2
+transformers==4.37.2
 peft
