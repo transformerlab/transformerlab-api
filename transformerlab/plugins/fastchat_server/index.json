@@ -9,6 +9,7 @@
         "T5ForConditionalGeneration",
         "FalconForCausalLM",
         "MistralForCausalLM",
+        "MixtralForCausalLM",
         "GPTBigCodeForCausalLM"
     ],
     "files": [
