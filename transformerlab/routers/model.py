@@ -141,7 +141,7 @@ async def login_to_huggingface():
         return {"message": "Login failed"}
 
 
-async def download_huggingface_model(hugging_face_id: str, model_details: str = {}, hugging_face_filename: str | None = None, job_id: int | None = None):
+async def download_huggingface_model(hugging_face_id: str, model_details: str = {}, job_id: int | None = None):
     """
     TODO: gallery_entry for size_of_model_in_mb?!?
     Tries to download a model with the id hugging_face_id (and optionally hugging_face_filename)
@@ -159,6 +159,7 @@ async def download_huggingface_model(hugging_face_id: str, model_details: str = 
 
     name = model_details.get("name", hugging_face_id)
     model_size = str(model_details.get("size_of_model_in_mb", 7000))
+    hugging_face_filename = model_details.get("huggingface_filename", None)
 
     args = [f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
             "--model_name", hugging_face_id,
@@ -189,7 +190,7 @@ async def download_huggingface_model(hugging_face_id: str, model_details: str = 
 
 @router.get(path="/model/download_from_huggingface")
 async def download_model_from_huggingface(model: str):
-    """specify a specific model from huggingface to download
+    """Takes a specific model string that must match huggingface ID to download
     This function will not be able to infer out description etc of the model
     since it is not in the gallery"""
 
