@@ -147,8 +147,12 @@ def get_model_details_from_huggingface(hugging_face_id: str):
     Gets model config details from hugging face and convert in to gallery format
     """
 
-    # This may get called before model is downloaded, so get this file
-    hf_hub_download(repo_id=hugging_face_id, filename="config.json")
+    # Use the Hugging Face Hub API to download the config.json file for this model
+    # This may throw an exception if the model doesn't exist or we don't have access rights
+    try:
+        hf_hub_download(repo_id=hugging_face_id, filename="config.json")
+    except Exception as e:
+        return None
 
     # Use Hugging Face file system API and let it figure out which file we should be reading
     fs = HfFileSystem()
@@ -157,11 +161,9 @@ def get_model_details_from_huggingface(hugging_face_id: str):
     # Also get model card for license details
     model_card = ModelCard.load(hugging_face_id)
     model_card_data = model_card.data.to_dict()
-    print(model_card_data)
 
     with fs.open(filename) as f:
         filedata = json.load(f)
-        print(filedata)
 
         # config.json stores a list of architectures but we only store one so just take the first!
         architecture_list = filedata.get("architectures", [])
@@ -183,11 +185,10 @@ def get_model_details_from_huggingface(hugging_face_id: str):
             "license": model_card_data.get("license", ""),
             "logo": ""
         }
-        print(config)
         return config
 
     # Something did not go to plan
-    return {}
+    return None
 
 
 async def download_huggingface_model(hugging_face_id: str, model_details: str = {}, job_id: int | None = None):
@@ -248,7 +249,15 @@ async def download_model_by_huggingface_id(model: str):
     This function will not be able to infer out description etc of the model
     since it is not in the gallery"""
 
-    return await download_huggingface_model(model, get_model_details_from_huggingface(model))
+    # Get model details from Hugging Face 
+    # If None then that means either the model doesn't exist
+    # Or we don't have proper Hugging Face authentication setup
+    model_details = get_model_details_from_huggingface(model)
+    if model_details is None:
+        return {"status": "error", "message": f"No model found with the ID {model}. "
+                "If accessing a private repo, make sure you are authenticated"}
+
+    return await download_huggingface_model(model, model_details)
 
 
 @router.get(path="/model/download_model_from_gallery")
