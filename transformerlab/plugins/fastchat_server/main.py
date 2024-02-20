@@ -67,3 +67,4 @@ for line in proc.stderr:
     print(line, file=sys.stderr)
 
 print("FastChat Worker exited", file=sys.stderr)
+sys.exit(1)
