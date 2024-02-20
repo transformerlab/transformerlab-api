@@ -600,7 +600,10 @@ async def config_get(key: str):
     cursor = await db.execute("SELECT value FROM config WHERE key = ?", (key,))
     row = await cursor.fetchone()
     await cursor.close()
-    return row[0]
+    if row:
+        return row[0]
+    else:
+        return None
 
 
 async def config_set(key: str, value: str):
