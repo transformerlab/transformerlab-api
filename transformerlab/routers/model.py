@@ -5,6 +5,7 @@ import transformerlab.db as db
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
 from fastchat.model.model_adapter import get_conversation_template
+from huggingface_hub import hf_hub_download, HfFileSystem, ModelCard
 import os
 
 from transformerlab.shared import shared
@@ -141,6 +142,54 @@ async def login_to_huggingface():
         return {"message": "Login failed"}
 
 
+def get_model_details_from_huggingface(hugging_face_id: str):
+    """
+    Gets model config details from hugging face and convert in to gallery format
+    """
+
+    # This may get called before model is downloaded, so get this file
+    hf_hub_download(repo_id=hugging_face_id, filename="config.json")
+
+    # Use Hugging Face file system API and let it figure out which file we should be reading
+    fs = HfFileSystem()
+    filename = os.path.join(hugging_face_id, "config.json")
+
+    # Also get model card for license details
+    model_card = ModelCard.load(hugging_face_id)
+    model_card_data = model_card.data.to_dict()
+    print(model_card_data)
+
+    with fs.open(filename) as f:
+        filedata = json.load(f)
+        print(filedata)
+
+        # config.json stores a list of architectures but we only store one so just take the first!
+        architecture_list = filedata.get("architectures", [])
+        architecture = architecture_list[0]
+
+        # TODO: Context length definition seems to vary by architecture. May need conditional logic here.
+        context_size = filedata.get("max_position_embeddings", "??")
+
+        # TODO: Figure out description, paramters, model size
+        config = {
+            "uniqueID": hugging_face_id,
+            "name": filedata.get("name", hugging_face_id),
+            "description": f"Downloaded by TransformerLab from Hugging Face at {hugging_face_id}",
+            "parameters": "",
+            "context": context_size,
+            "architecture": architecture,
+            "huggingface_repo": hugging_face_id,
+            "transformers_version": filedata.get("transformers_version", ""),
+            "license": model_card_data.get("license", ""),
+            "logo": ""
+        }
+        print(config)
+        return config
+
+    # Something did not go to plan
+    return {}
+
+
 async def download_huggingface_model(hugging_face_id: str, model_details: str = {}, job_id: int | None = None):
     """
     Tries to download a model with the id hugging_face_id
@@ -199,7 +248,7 @@ async def download_model_by_huggingface_id(model: str):
     This function will not be able to infer out description etc of the model
     since it is not in the gallery"""
 
-    return await download_huggingface_model(model)
+    return await download_huggingface_model(model, get_model_details_from_huggingface(model))
 
 
 @router.get(path="/model/download_model_from_gallery")
