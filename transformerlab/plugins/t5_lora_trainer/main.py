@@ -238,7 +238,8 @@ class Trainer:
         num_train_epochs,
         logging_steps,
         job_id,
-        output_dir
+        output_dir,
+        adaptor_output_dir
     ):
         self.peft_model_id = peft_model_id
 
@@ -320,9 +321,9 @@ class Trainer:
         self.trainer.train()
 
         self.trainer.model.save_pretrained(
-            'workspace/adaptors/' + self.model_id + '/' + self.peft_model_id)
+            adaptor_output_dir)
         self.tokenizer.save_pretrained(
-            'workspace/adaptors/' + self.model_id + '/' + self.peft_model_id)
+            adaptor_output_dir)
 
     def load_peft(self):
         # Load peft config for pre-trained checkpoint etc.
@@ -419,7 +420,7 @@ class Trainer:
         return
 
     def train(
-        self, peft_model_id, model_name_or_path, data_path, lora_r, lora_alpha, lora_dropout, learning_rate, num_train_epochs, logging_steps, job_id, output_dir
+        self, peft_model_id, model_name_or_path, data_path, lora_r, lora_alpha, lora_dropout, learning_rate, num_train_epochs, logging_steps, job_id, output_dir, adaptor_output_dir
     ):
         self.set_model(model_name_or_path)
 
@@ -430,7 +431,7 @@ class Trainer:
         self.load_model()
 
         self.train_lora(peft_model_id=peft_model_id, lora_r=lora_r, lora_alpha=lora_alpha, lora_dropout=lora_dropout,
-                        learning_rate=learning_rate, num_train_epochs=num_train_epochs, logging_steps=logging_steps, job_id=job_id, output_dir=output_dir)
+                        learning_rate=learning_rate, num_train_epochs=num_train_epochs, logging_steps=logging_steps, job_id=job_id, output_dir=output_dir, adaptor_output_dir=adaptor_output_dir)
 
         # # t.load_peft()
         # # t.evaluate('rouge')
@@ -473,5 +474,6 @@ if __name__ == "__main__":
         num_train_epochs=int(config['num_train_epochs']),
         logging_steps=100,
         job_id=JOB_ID,
-        output_dir=config["output_dir"]
+        output_dir=config["output_dir"],
+        adaptor_output_dir=config["adaptor_output_dir"]
     )
