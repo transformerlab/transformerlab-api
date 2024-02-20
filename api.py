@@ -186,6 +186,11 @@ async def server_worker_start(model_name: str, model_filename: str | None = None
                 if (model_filename is not None and model_filename != ''):
                     model = model_filename
 
+                # Check if we are trying to load an adaptor
+                if (model.startswith('workspace/adaptors/')):
+                    model = model.replace(
+                        'workspace/adaptors/', dirs.WORKSPACE_DIR + '/adaptors/')
+
                 params = [
                     plugin_location,
                     "--model-path",
