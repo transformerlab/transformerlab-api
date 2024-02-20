@@ -143,9 +143,12 @@ async def login_to_huggingface():
 
 async def download_huggingface_model(hugging_face_id: str, model_details: str = {}, job_id: int | None = None):
     """
-    TODO: gallery_entry for size_of_model_in_mb?!?
-    Tries to download a model with the id hugging_face_id (and optionally hugging_face_filename)
+    Tries to download a model with the id hugging_face_id
     model_details is the object created from the gallery json
+        or a similarly-formatted object containing the fields:
+        - name (display name)
+        - size_of_model_in_mb (for progress meter)
+        - huggingface_filename (for models with many files like GGUF)
 
     Returns an object with the following fields:
     - status: "success" or "error"
@@ -157,6 +160,8 @@ async def download_huggingface_model(hugging_face_id: str, model_details: str = 
     else:
         await db.job_update(job_id=job_id, type="DOWNLOAD_MODEL", status="STARTED")
 
+    # try to figure out model details from model_details object
+    # default is empty object so can't assume any of this exists
     name = model_details.get("name", hugging_face_id)
     model_size = str(model_details.get("size_of_model_in_mb", 7000))
     hugging_face_filename = model_details.get("huggingface_filename", None)
@@ -176,10 +181,10 @@ async def download_huggingface_model(hugging_face_id: str, model_details: str = 
 
         if (exitcode != 0):
             await db.job_update_status(job_id=job_id, status="FAILED")
-            return {"status": "error", "message": f"Return code: {exitcode}"}
+            return {"status": "error", "message": f"Failed to download. Return code: {exitcode}"}
     except Exception as e:
         await db.job_update_status(job_id=job_id, status="FAILED")
-        return {"status": "error", "message": f"Exception: {e}"}
+        return {"status": "error", "message": f"Failed to download. Exception: {e}"}
 
     if hugging_face_filename is None:
         # only save to local database if we are downloading the whole repo
@@ -189,7 +194,7 @@ async def download_huggingface_model(hugging_face_id: str, model_details: str = 
 
 
 @router.get(path="/model/download_from_huggingface")
-async def download_model_from_huggingface(model: str):
+async def download_model_by_huggingface_id(model: str):
     """Takes a specific model string that must match huggingface ID to download
     This function will not be able to infer out description etc of the model
     since it is not in the gallery"""
@@ -211,42 +216,7 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
     if gallery_entry is None:
         return {"status": "error", "message": "Model not found in gallery"}
 
-    hugging_face_id = gallery_entry['huggingface_repo']
-    hugging_face_filename = gallery_entry.get("huggingface_filename", None)
-    name = gallery_entry['name']
-
-    if job_id is None:
-        job_id = await db.job_create(type="DOWNLOAD_MODEL", status="STARTED",
-                                     job_data='{}')
-    else:
-        await db.job_update(job_id=job_id, type="DOWNLOAD_MODEL", status="STARTED")
-
-    args = [f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
-            "--model_name", hugging_face_id,
-            "--job_id", str(job_id),
-            "--total_size_of_model_in_mb", str(
-                gallery_entry.get("size_of_model_in_mb", 7000))
-            ]
-
-    if hugging_face_filename is not None:
-        args += ["--model_filename", hugging_face_filename]
-
-    try:
-        process = await shared.async_run_python_script_and_update_status(python_script=args, job_id=job_id, begin_string="Fetching")
-        exitcode = process.returncode
-
-        if (exitcode != 0):
-            await db.job_update_status(job_id=job_id, status="FAILED")
-            return {"status": "error", "message": "Failed to download model"}
-    except Exception as e:
-        await db.job_update_status(job_id=job_id, status="FAILED")
-        return {"status": "error", "message": "Failed to download model"}
-
-    if hugging_face_filename is None:
-        # only save to local database if we are downloading the whole repo
-        await model_local_create(id=hugging_face_id, name=name, json_data=gallery_entry)
-
-    return {"status": "success", "message": "success", "model": gallery_entry, "job_id": job_id}
+    return await download_huggingface_model(gallery_id, gallery_entry, job_id)
 
 
 @router.get("/model/get_conversation_template")
