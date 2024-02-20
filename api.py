@@ -160,7 +160,7 @@ def set_worker_process_id(process):
 
 
 @app.get("/server/worker_start", tags=["serverinfo"])
-async def server_worker_start(model_name: str, model_filename: str | None = None, eight_bit: bool = False, cpu_offload: bool = False, inference_engine: str = "default", experiment_id: str = None):
+async def server_worker_start(model_name: str, adaptor: str = '', model_filename: str | None = None, eight_bit: bool = False, cpu_offload: bool = False, inference_engine: str = "default", experiment_id: str = None):
     global worker_process
 
     if (experiment_id is not None):
@@ -186,15 +186,15 @@ async def server_worker_start(model_name: str, model_filename: str | None = None
                 if (model_filename is not None and model_filename != ''):
                     model = model_filename
 
-                # Check if we are trying to load an adaptor
-                if (model.startswith('workspace/adaptors/')):
-                    model = model.replace(
-                        'workspace/adaptors/', dirs.WORKSPACE_DIR + '/adaptors/')
+                if (adaptor != ''):
+                    adaptor = f"{dirs.WORKSPACE_DIR}/adaptors/{model}/{adaptor}"
 
                 params = [
                     plugin_location,
                     "--model-path",
                     model,
+                    "--adaptor-path",
+                    adaptor,
                     "--parameters",
                     json.dumps(inference_params)
                 ]

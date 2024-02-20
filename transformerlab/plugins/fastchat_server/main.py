@@ -9,6 +9,7 @@ import torch
 # Get all arguments provided to this script using argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--model-path', type=str)
+parser.add_argument('--adaptor-path', type=str)
 parser.add_argument('--parameters', type=str, default="{}")
 
 args, unknown = parser.parse_known_args()
@@ -16,6 +17,10 @@ args, unknown = parser.parse_known_args()
 print("Starting Standard FastChat Worker", file=sys.stderr)
 
 model = args.model_path
+adaptor = args.adaptor_path
+
+if adaptor != "":
+    model = adaptor
 
 parameters = args.parameters
 parameters = json.loads(parameters)
