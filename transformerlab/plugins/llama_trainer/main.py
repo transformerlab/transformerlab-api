@@ -157,4 +157,4 @@ trainer = SFTTrainer(
 trainer.train()
 
 # save model
-trainer.save_model()
+trainer.save_model(output_dir=config["adaptor_output_dir"])
