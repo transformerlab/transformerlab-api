@@ -102,7 +102,6 @@ for dataset_type in dataset_types:
         os.makedirs(data_directory)
     with open(f"{data_directory}/{dataset_type}.jsonl", "w") as f:
         for i in range(len(dataset[dataset_type])):
-            print(dataset[dataset_type][i])
             line = formatting_template.substitute(dataset[dataset_type][i])
             # convert line breaks to "\n" so that the jsonl file is valid
             line = line.replace("\n", "\\n")
