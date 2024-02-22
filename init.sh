@@ -2,6 +2,9 @@
 # -e: Exit immediately on error. -u: treat unset variables as an error and exit immediately.
 set -eu
 
+# Need the directory of this script to reference other files
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 OS=$(uname -s)
 ARCH=$(uname -m)
 
@@ -82,13 +85,13 @@ if [ "$HAS_GPU" = true ] ; then
 
     echo "Installing requirements:"
     # Install the python requirements
-    pip install -r requirements.txt
+    pip install -r $SCRIPT_DIR/requirements.txt
 else
     echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."
     echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
     echo "Installing Tranformer Lab requirements without GPU support"
 
-    pip install -r requirements-no-gpu.txt
+    pip install -r $SCRIPT_DIR/requirements-no-gpu.txt
 fi
 
 # Deactivate the environment when done 
