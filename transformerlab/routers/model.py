@@ -49,7 +49,7 @@ def get_model_details_from_gallery(model_id: str):
     result = None
 
     for model in gallery:
-        if model['huggingface_repo'] == model_id or model['uniqueID'] == model_id:
+        if model['uniqueID'] == model_id or model['huggingface_repo'] == model_id:
             result = model
             break
 
@@ -274,7 +274,9 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
     if gallery_entry is None:
         return {"status": "error", "message": "Model not found in gallery"}
 
-    return await download_huggingface_model(gallery_id, gallery_entry, job_id)
+    # Need to use huggingface repo to download - not always the same as uniqueID
+    huggingface_id = gallery_entry.get('huggingface_repo', gallery_id)
+    return await download_huggingface_model(huggingface_id, gallery_entry, job_id)
 
 
 @router.get("/model/get_conversation_template")
