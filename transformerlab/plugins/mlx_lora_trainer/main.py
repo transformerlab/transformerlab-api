@@ -59,9 +59,8 @@ import argparse
 import os
 
 # Connect to the LLM Lab database
-llmlab_root_dir = os.getenv('LLM_LAB_ROOT_PATH')
 WORKSPACE_DIR = os.getenv("_TFL_WORKSPACE_DIR")
-db = sqlite3.connect(llmlab_root_dir + "/workspace/llmlab.sqlite3")
+db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
 
 
 # Get all parameters provided to this script from Transformer Lab
@@ -103,6 +102,7 @@ for dataset_type in dataset_types:
         os.makedirs(data_directory)
     with open(f"{data_directory}/{dataset_type}.jsonl", "w") as f:
         for i in range(len(dataset[dataset_type])):
+            print(dataset[dataset_type][i])
             line = formatting_template.substitute(dataset[dataset_type][i])
             # convert line breaks to "\n" so that the jsonl file is valid
             line = line.replace("\n", "\\n")
@@ -155,8 +155,6 @@ print("Adaptor will be saved as:")
 # define a regext pattern to look for "Iter: 100" in the output
 pattern = r"Iter (\d+):"
 
-llmlab_root_dir = os.getenv('LLM_LAB_ROOT_PATH')
-db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
 
 with subprocess.Popen(
         popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True) as process:
