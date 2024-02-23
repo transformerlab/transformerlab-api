@@ -104,9 +104,16 @@ async def dataset_list():
 @router.get("/new", summary="Create a new dataset.")
 async def dataset_new(dataset_id: str):
     dataset_id = slugify(dataset_id)
+
+    # Check to make sure we don't have a dataset with this name
+    row = await db.get_dataset(dataset_id)
+    if row is not None:
+        #raise Exception("Dataset exists")
+        return {"status":"error", "message": f"A dataset with the name {dataset_id} already exists"}
+
     # Create a new dataset in the database
     await db.create_local_dataset(dataset_id)
-    print(dataset_id)
+
     # Now make a directory that maps to the above dataset_id
     # Check if the directory already exists
     if not os.path.exists(dirs.dataset_dir_by_id(dataset_id)):
@@ -117,8 +124,10 @@ async def dataset_new(dataset_id: str):
 @router.get("/delete", summary="Delete a dataset.")
 async def dataset_delete(dataset_id: str):
     await db.delete_dataset(dataset_id)
-    # delete directory and contents
-    shutil.rmtree(dirs.dataset_dir_by_id(dataset_id))
+
+    # delete directory and contents. ignore_errors because we don't care if the directory doesn't exist
+    shutil.rmtree(dirs.dataset_dir_by_id(dataset_id),ignore_errors=True)
+
     return {"message": "OK"}
 
 

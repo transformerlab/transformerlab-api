@@ -118,6 +118,10 @@ async def get_dataset(dataset_id):
     )
     row = await cursor.fetchone()
 
+    # Make sure the dataset exists before formatting repsonse
+    if row is None:
+        return None
+
     # convert to json
     desc = cursor.description
     column_names = [col[0] for col in desc]
