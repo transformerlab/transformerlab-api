@@ -67,11 +67,13 @@ async def dataset_preview(dataset_id: str):
     print(d)
 
     if d["location"] == "local":
+        # TODO: This can fail in many ways considering this is user generated input.  
+        # Need to catch exception and return error
         dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
         # print(dataset['train'].features)
 
         # convert dataset to array of dicts
-        for i in range(0, 10):
+        for i in range(0, min(10, len(dataset["train"]))):
             result.append(dataset["train"][i])
 
     else:
