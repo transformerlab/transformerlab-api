@@ -93,14 +93,19 @@ PLUGIN_PRELOADED_GALLERY = os.path.join(
 # PLUGIN_DIR
 PLUGIN_DIR = os.path.join(WORKSPACE_DIR, "plugins")
 
-# MODELS DIR
-MODELS_DIR = os.path.join(WORKSPACE_DIR, "models")
-print(f"Models directory is set to: {MODELS_DIR}")
-
-
 def plugin_dir_by_name(plugin_name: str) -> str:
     return os.path.join(PLUGIN_DIR, plugin_name)
 
+# MODELS_DIR
+MODELS_DIR = os.path.join(WORKSPACE_DIR, "models")
+print(f"Models directory is set to: {MODELS_DIR}")
+
+# DATASETS_DIR
+DATASETS_DIR = os.path.join(WORKSPACE_DIR, "datasets")
+os.makedirs(name=DATASETS_DIR, exist_ok=True)
+
+def dataset_dir_by_id(dataset_id: str) -> str:
+    return os.path.join(DATASETS_DIR, dataset_id)
 
 TEMP_DIR = os.path.join(WORKSPACE_DIR, "temp")
 os.makedirs(name=TEMP_DIR, exist_ok=True)

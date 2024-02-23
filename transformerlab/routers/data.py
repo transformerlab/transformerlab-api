@@ -38,8 +38,7 @@ async def dataset_info(dataset_id: str):
     r = {}
 
     if d["location"] == "local":
-        dataset = load_dataset(
-            path=f"{dirs.WORKSPACE_DIR}/datasets/{dataset_id}")
+        dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
         # print(dataset['train'].features)
         r["features"] = dataset["train"].features
     else:
@@ -68,8 +67,7 @@ async def dataset_preview(dataset_id: str):
     print(d)
 
     if d["location"] == "local":
-        dataset = load_dataset(
-            path=f"{dirs.WORKSPACE_DIR}/datasets/{dataset_id}")
+        dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
         # print(dataset['train'].features)
 
         # convert dataset to array of dicts
@@ -111,27 +109,30 @@ async def dataset_new(dataset_id: str):
     print(dataset_id)
     # Now make a directory that maps to the above dataset_id
     # Check if the directory already exists
-    if not os.path.exists(f"{dirs.WORKSPACE_DIR}/datasets/{dataset_id}"):
-        os.makedirs(f"{dirs.WORKSPACE_DIR}/datasets/{dataset_id}")
-    return {"message": "OK", "dataset_id": dataset_id}
+    if not os.path.exists(dirs.dataset_dir_by_id(dataset_id)):
+        os.makedirs(dirs.dataset_dir_by_id(dataset_id))
+    return {"status":"success", "dataset_id": dataset_id}
 
 
 @router.get("/delete", summary="Delete a dataset.")
 async def dataset_delete(dataset_id: str):
     await db.delete_dataset(dataset_id)
     # delete directory and contents
-    shutil.rmtree(f"{dirs.WORKSPACE_DIR}/datasets/{dataset_id}")
+    shutil.rmtree(dirs.dataset_dir_by_id(dataset_id))
     return {"message": "OK"}
 
 
 @router.post("/fileupload", summary="Upload the contents of a dataset.")
 async def create_upload_file(dataset_id: str, file: UploadFile):
     dataset_id = slugify(dataset_id)
-    # Save the file to the dataset directory
-    async with aiofiles.open(
-        f"{dirs.WORKSPACE_DIR}/datasets/{dataset_id}/{file.filename}", "wb"
-    ) as out_file:
-        content = await file.read()
-        await out_file.write(content)
 
-    return {"filename": file.filename}
+    # Save the file to the dataset directory
+    try:
+        content = await file.read()
+        newfilename = os.path.join(dirs.dataset_dir_by_id(dataset_id), file.filename)
+        async with aiofiles.open(newfilename, "wb") as out_file:
+            await out_file.write(content)
+    except Exception:
+        return {"status": "error", "message": "There was an error uploading the file"}
+
+    return {"status": "success", "filename": file.filename}
