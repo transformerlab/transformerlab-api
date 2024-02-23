@@ -18,7 +18,7 @@ router = APIRouter(prefix="/data", tags=["datasets"])
 # Get list of datasets that we have in our hardcoded gallery
 
 
-@router.get("/gallery", summary="Display the models available for LLMLab to download.")
+@router.get("/gallery", summary="Display the datasets available in the dataset gallery.")
 async def model_gallery():
     file_location = os.path.join(dirs.TFL_SOURCE_CODE_DIR,
                                  "transformerlab", "galleries", "data-gallery.json")
