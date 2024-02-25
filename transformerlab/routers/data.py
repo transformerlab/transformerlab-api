@@ -86,11 +86,12 @@ async def dataset_preview(dataset_id: str):
 @router.get("/download", summary="Download a dataset from the HuggingFace Hub to the LLMLab server.")
 async def dataset_download(dataset_id: str):
     ds_builder = load_dataset_builder(dataset_id)
+    load_dataset(dataset_id)
+
     await db.create_huggingface_dataset(
         dataset_id, ds_builder.info.description, ds_builder.info.download_size
     )
 
-    load_dataset(dataset_id)
     return {"status": "success"}
 
 
