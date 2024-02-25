@@ -85,6 +85,12 @@ async def dataset_preview(dataset_id: str):
 
 @router.get("/download", summary="Download a dataset from the HuggingFace Hub to the LLMLab server.")
 async def dataset_download(dataset_id: str):
+    # Check to make sure we don't have a dataset with this name
+    # Possibly we want to allow redownloading in the future but for we can't add duplicate dataset_id to the DB
+    row = await db.get_dataset(dataset_id)
+    if row is not None:
+        return {"status":"error", "message": f"A dataset with the name {dataset_id} already exists"}
+
     ds_builder = load_dataset_builder(dataset_id)
     try:
         dataset = load_dataset(dataset_id)
