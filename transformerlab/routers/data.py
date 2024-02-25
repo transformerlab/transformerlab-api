@@ -94,7 +94,7 @@ async def dataset_download(dataset_id: str):
     )
 
     load_dataset(dataset_id)
-    return {"message": "OK"}
+    return {"status": "success"}
 
 
 @router.get("/list", summary="List available datasets.")
@@ -130,7 +130,7 @@ async def dataset_delete(dataset_id: str):
     # delete directory and contents. ignore_errors because we don't care if the directory doesn't exist
     shutil.rmtree(dirs.dataset_dir_by_id(dataset_id),ignore_errors=True)
 
-    return {"message": "OK"}
+    return {"status": "success"}
 
 
 @router.post("/fileupload", summary="Upload the contents of a dataset.")
