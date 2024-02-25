@@ -83,10 +83,7 @@ async def dataset_preview(dataset_id: str):
     return result
 
 
-# Load a specified dataset from the HuggingFace Hub
-
-
-@router.get("/download", summary="Download a dataset to the LLMLab server.")
+@router.get("/download", summary="Download a dataset from the HuggingFace Hub to the LLMLab server.")
 async def dataset_download(dataset_id: str):
     ds_builder = load_dataset_builder(dataset_id)
     await db.create_huggingface_dataset(
@@ -110,7 +107,6 @@ async def dataset_new(dataset_id: str):
     # Check to make sure we don't have a dataset with this name
     row = await db.get_dataset(dataset_id)
     if row is not None:
-        #raise Exception("Dataset exists")
         return {"status":"error", "message": f"A dataset with the name {dataset_id} already exists"}
 
     # Create a new dataset in the database
