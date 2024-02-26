@@ -199,7 +199,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
     # form that string:
     plugin_location = dirs.plugin_dir_by_name(plugin_name)
     plugin_script = plugin_location + "/main.py"
-    output_file = plugin_location + "/output.txt"
+    output_file = plugin_location + f"/output_{job_id}.txt"
 
     def on_train_complete():
         print('Training Job is Complete')

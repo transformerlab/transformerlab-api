@@ -130,7 +130,7 @@ async def get_training_job_output(job_id: str):
 
     job_data = json.loads(job["job_data"])
     if "template_id" not in job_data:
-        return {"error": 'true'}
+        return {"status": "error", "error": 'true'}
 
     template_id = job_data["template_id"]
     # Then get the template:
@@ -139,7 +139,7 @@ async def get_training_job_output(job_id: str):
 
     template_config = json.loads(template["config"])
     if "plugin_name" not in template_config:
-        return {"error": 'true'}
+        return {"status": "error", "error": 'true'}
 
     plugin_name = template_config["plugin_name"]
 
@@ -150,8 +150,19 @@ async def get_training_job_output(job_id: str):
     experiment_name = experiment["name"]
 
     # Now we can get the output.txt from the plugin which is stored in
-    # /workspace/experiments/{experiment_name}/plugins/{plugin_name}/output.txt
-    output_file = f"{dirs.plugin_dir_by_name(plugin_name)}/output.txt"
+    plugin_dir = dirs.plugin_dir_by_name(plugin_name)
+
+    # job output is stored in separate files with a job number in the name...
+    if os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
+        output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
+
+    # but it used to be all stored in a single file called output.txt, so check that as well
+    elif os.path.exists(os.path.join(plugin_dir, "output.txt")):
+        output_file = os.path.join(plugin_dir, "output.txt")
+
+    else:
+        return {"status": "error", "message": f"No output file found for job {job_id}"}
+
     with open(output_file, "r") as f:
         output = f.read()
     return output
