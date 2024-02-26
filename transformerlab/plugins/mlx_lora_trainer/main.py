@@ -63,6 +63,18 @@ WORKSPACE_DIR = os.getenv("_TFL_WORKSPACE_DIR")
 db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
 
 
+def get_dataset_file(dataset_id: str, slice: str):
+    """
+    Given the slice, return the name of the associated file in the dataset
+    TODO: We don't tell the user the file has to be named with dataset_id
+            Either change the instructions or change this to be more flexible.
+    TODO: Move this all into the code that runs jobs
+    """
+    dataset_dir = os.path.join(WORKSPACE_DIR, "datasets", dataset_id)
+    slice_filename = f"{dataset_id}_train.jsonl"
+    return os.path.join(dataset_dir, slice_filename)
+
+
 # Get all parameters provided to this script from Transformer Lab
 parser = argparse.ArgumentParser()
 parser.add_argument('--input_file', type=str)
@@ -86,20 +98,43 @@ iters = config["iters"]
 
 
 # Get the dataset
+# Datasets can be a huggingface ID or the name of a locally uploaded dataset
+# Need to check the DB to figure out which because it changes how we load the dataset
+# TODO: Refactor this to somehow simplify across training plugins
 dataset_id = config["dataset_name"]
+cursor = db.execute("SELECT location FROM dataset WHERE dataset_id = ?", (dataset_id,))
+row = cursor.fetchone()
+cursor.close()
+
+# if no rows exist then the dataset hasn't been installed! 
+if row is None:
+    print(f"No dataset named {dataset_id} installed.")
+    exit
+
+# dataset_location will be either "local" or "huggingface"
+# (and if it's something else we're going to treat "huggingface" as default)
+dataset_location = row[0]
 
 dataset_types = ["train", "test"]
 dataset = {}
 formatting_template = Template(config["formatting_template"])
 
 for dataset_type in dataset_types:
-    dataset[dataset_type] = load_dataset(
-        dataset_id, split=f"{dataset_type}[:100%]")
-    print(
-        f"Loaded {dataset_type} dataset with {len(dataset[dataset_type])} examples.")
+
+    # Load dataset - if it's local then assume jsonl files in the right location
+    if (dataset_location == "local"):
+        slicefile = get_dataset_file(dataset_id, dataset_type)
+        dataset[dataset_type] = load_dataset("json", data_files=slicefile, split=f"{dataset_type}[:100%]")
+    else:
+        dataset[dataset_type] = load_dataset(dataset_id, split=f"{dataset_type}[:100%]")
+    print(f"Loaded {dataset_type} dataset with {len(dataset[dataset_type])} examples.")
+
+    # Directory for storing temporary working files
     data_directory = f"{WORKSPACE_DIR}/plugins/mlx_lora_trainer/data"
     if not os.path.exists(data_directory):
         os.makedirs(data_directory)
+
+    # output training files in templated format in to data directory
     with open(f"{data_directory}/{dataset_type}.jsonl", "w") as f:
         for i in range(len(dataset[dataset_type])):
             line = formatting_template.substitute(dataset[dataset_type][i])
