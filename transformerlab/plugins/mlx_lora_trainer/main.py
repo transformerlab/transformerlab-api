@@ -83,6 +83,8 @@ lora_layers = config["lora_layers"]
 learning_rate = config["learning_rate"]
 iters = config["iters"]
 
+# we need to adapter parameter so set a default  
+adaptor_name = config.get('adaptor_name', "default")
 
 # Get the dataset
 # Datasets can be a huggingface ID or the name of a locally uploaded dataset
@@ -164,7 +166,7 @@ print(example)
 #     os.makedirs(adaptor_output_dir)
 
 # adaptor_file_name = f"{adaptor_output_dir}/{config['adaptor_name']}.npz"
-adaptor_file_name = f"{WORKSPACE_DIR}/plugins/mlx_lora_trainer/{config['adaptor_name']}.npz"
+adaptor_file_name = f"{WORKSPACE_DIR}/plugins/mlx_lora_trainer/{adaptor_name}.npz"
 
 root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
 plugin_dir = f"{WORKSPACE_DIR}/plugins/mlx_lora_trainer"
@@ -187,8 +189,7 @@ db.execute(
 db.commit()
 
 print("Training beginning:")
-print("Adaptor will be saved as:")
-# print(f"{plugin_dir}/{config['adaptor_name']}.npz", flush=True)
+print("Adaptor will be saved as:", adaptor_file_name)
 
 # define a regext pattern to look for "Iter: 100" in the output
 pattern = r"Iter (\d+):"
