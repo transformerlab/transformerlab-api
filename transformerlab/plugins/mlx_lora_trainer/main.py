@@ -58,6 +58,10 @@ from datasets import load_dataset
 import argparse
 import os
 
+root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
+plugin_dir = os.path.dirname(os.path.realpath(__file__))
+print("Plugin dir:", plugin_dir)
+
 # Connect to the LLM Lab database
 WORKSPACE_DIR = os.getenv("_TFL_WORKSPACE_DIR")
 db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
@@ -161,20 +165,22 @@ print("Example formatted training example:")
 example = formatting_template.substitute(dataset["train"][1])
 print(example)
 
+# TODO: For now create adapter in the plugin directory but this should probably go somewhere else
+adaptor_output_dir = plugin_dir
 # adaptor_output_dir = config["adaptor_output_dir"]
 # if not os.path.exists(adaptor_output_dir):
 #     os.makedirs(adaptor_output_dir)
-
-# adaptor_file_name = f"{adaptor_output_dir}/{config['adaptor_name']}.npz"
-adaptor_file_name = f"{WORKSPACE_DIR}/plugins/mlx_lora_trainer/{adaptor_name}.npz"
-
-root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
-plugin_dir = f"{WORKSPACE_DIR}/plugins/mlx_lora_trainer"
+adaptor_file_name = os.path.join(adaptor_output_dir, "adaptor_name.npz")
 
 popen_command = [sys.executable, "-u", f"{plugin_dir}/mlx-examples/lora/lora.py",
-                 "--model", config["model_name"], "--iters", iters, "--train", "--adapter-file",
-                 adaptor_file_name, "--lora-layers", lora_layers, "--learning-rate",
-                 learning_rate, "--data", f"{plugin_dir}/data/", "--steps-per-report", config['steps_per_report'],
+                 "--model", config["model_name"],
+                 "--iters", iters,
+                 "--train",
+                 "--adapter-file", adaptor_file_name,
+                 "--lora-layers", lora_layers,
+                 "--learning-rate", learning_rate,
+                 "--data", f"{plugin_dir}/data/",
+                 "--steps-per-report", config['steps_per_report'],
                  #  "--steps_per_eval", config["steps_per_eval"],
                  "--save-every", config["save_every"]]
 
@@ -224,8 +230,8 @@ print("Now fusing the adaptor with the model.")
 model_name = config['model_name']
 if "/" in model_name:
     model_name = model_name.split("/")[-1]
-fused_model_name = f"{model_name}_{config['adaptor_name']}"
-fused_model_location = f"{WORKSPACE_DIR}/models/{fused_model_name}"
+fused_model_name = f"{model_name}_{adaptor_name}"
+fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
 
 # Make the directory to save the fused model
 if not os.path.exists(fused_model_location):
@@ -251,7 +257,7 @@ with subprocess.Popen(
         model_description = [{
             "model_id": f"TransformerLab-mlx/{fused_model_name}",
             "model_filename": fused_model_name,
-            "name": f"{fused_model_name}",
+            "name": fused_model_name,
             "local_model": True,
             "json_data": {
                 "uniqueID": f"TransformerLab-mlx/{fused_model_name}",
