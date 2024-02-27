@@ -679,7 +679,7 @@ async def get_embedding(payload: Dict[str, Any]):
 ### GENERAL API - NOT OPENAI COMPATIBLE ###
 
 
-@router.post("/api/v1/token_check", tags=["chat"])
+@router.post("/api/v1/token_check", tags=["chat"], include_in_schema=False)
 async def count_tokens(request: APITokenCheckRequest):
     """
     Checks the token count for each message in your list
@@ -722,7 +722,7 @@ async def count_tokens(request: APITokenCheckRequest):
 # TODO: this more or less duplicates create_openapi_chat_completion and we
 #       should merge them together. The two request types are similar, the
 #       response is the same.
-@router.post("/api/v1/chat/completions", tags=["chat"])
+@router.post("/api/v1/chat/completions", tags=["chat"], include_in_schema=False)
 async def create_chat_completion(request: APIChatCompletionRequest):
     """Creates a completion for the chat message"""
     error_check_ret = await check_model(request)
