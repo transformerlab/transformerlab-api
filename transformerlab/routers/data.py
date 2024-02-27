@@ -143,10 +143,15 @@ async def dataset_delete(dataset_id: str):
 async def create_upload_file(dataset_id: str, file: UploadFile):
     print("uploading filename is: " + str(file.filename))
 
-    # ensure filename is in the format <something>_train.jsonl or <something>_eval.jsonl
-    if not re.match(r"^.+_(train|eval).jsonl$", str(file.filename)):
+    # # ensure filename is in the format <something>_train.jsonl or <something>_eval.jsonl
+    # if not re.match(r"^.+_(train|eval).jsonl$", str(file.filename)):
+    #     raise HTTPException(
+    #         status_code=403, detail=f"The filenames must be named EXACTLY: {dataset_id}_train.jsonl and {dataset_id}_eval.jsonl")
+
+    # ensure the filename is exactly {dataset_id}_train.jsonl or {dataset_id}_eval.jsonl
+    if not re.match(rf"^{dataset_id}_(train|eval).jsonl$", str(file.filename)):
         raise HTTPException(
-            status_code=403, detail="The filename must be in the format <name>_train.jsonl or <name>_eval.jsonl")
+            status_code=403, detail=f"The filenames must be named EXACTLY: {dataset_id}_train.jsonl and {dataset_id}_eval.jsonl")
 
     dataset_id = slugify(dataset_id)
 
