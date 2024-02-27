@@ -71,7 +71,7 @@ def get_dataset_file(dataset_id: str, slice: str):
     TODO: Move this all into the code that runs jobs
     """
     dataset_dir = os.path.join(WORKSPACE_DIR, "datasets", dataset_id)
-    slice_filename = f"{dataset_id}_train.jsonl"
+    slice_filename = f"{dataset_id}_{slice}.jsonl"
     return os.path.join(dataset_dir, slice_filename)
 
 
