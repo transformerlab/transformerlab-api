@@ -62,19 +62,6 @@ import os
 WORKSPACE_DIR = os.getenv("_TFL_WORKSPACE_DIR")
 db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
 
-
-def get_dataset_file(dataset_id: str, slice: str):
-    """
-    Given the slice, return the name of the associated file in the dataset
-    TODO: We don't tell the user the file has to be named with dataset_id
-            Either change the instructions or change this to be more flexible.
-    TODO: Move this all into the code that runs jobs
-    """
-    dataset_dir = os.path.join(WORKSPACE_DIR, "datasets", dataset_id)
-    slice_filename = f"{dataset_id}_{slice}.jsonl"
-    return os.path.join(dataset_dir, slice_filename)
-
-
 # Get all parameters provided to this script from Transformer Lab
 parser = argparse.ArgumentParser()
 parser.add_argument('--input_file', type=str)
@@ -121,12 +108,29 @@ formatting_template = Template(config["formatting_template"])
 
 for dataset_type in dataset_types:
 
-    # Load dataset - if it's local then assume jsonl files in the right location
+    # Load dataset - if it's local then pass it the path to the dataset directory
     if (dataset_location == "local"):
-        slicefile = get_dataset_file(dataset_id, dataset_type)
-        dataset[dataset_type] = load_dataset("json", data_files=slicefile, split=f"{dataset_type}[:100%]")
+        dataset_target = os.path.join(WORKSPACE_DIR, "datasets", dataset_id)
+
+    # Otherwise assume it is a Huggingface ID
     else:
-        dataset[dataset_type] = load_dataset(dataset_id, split=f"{dataset_type}[:100%]")
+        dataset_target = dataset_id
+
+
+    try:
+        dataset[dataset_type] = load_dataset(dataset_target, split=dataset_type)
+
+    except ValueError as e:
+        # This is to catch this error-> ValueError: Unknown split "test". Should be one of ['train']
+        # Generally that means there is a single file in the dataset and we're trying to make a test dataset
+        # So we're going to ignore that! (Unless we're trying to load the train dataset...check that)
+        if (dataset_target == "train"):
+            raise
+
+        print(f"Continuing without any data for \"{dataset_type}\" slice.")
+        #print(">", str(e))
+        continue
+
     print(f"Loaded {dataset_type} dataset with {len(dataset[dataset_type])} examples.")
 
     # Directory for storing temporary working files
