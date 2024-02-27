@@ -5,7 +5,7 @@ import unicodedata
 
 import aiofiles
 from datasets import load_dataset, load_dataset_builder
-from fastapi import APIRouter, UploadFile
+from fastapi import APIRouter, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 import transformerlab.db as db
@@ -67,7 +67,7 @@ async def dataset_preview(dataset_id: str):
     print(d)
 
     if d["location"] == "local":
-        # TODO: This can fail in many ways considering this is user generated input.  
+        # TODO: This can fail in many ways considering this is user generated input.
         # Need to catch exception and return error
         dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
         # print(dataset['train'].features)
@@ -89,7 +89,7 @@ async def dataset_download(dataset_id: str):
     # Possibly we want to allow redownloading in the future but for we can't add duplicate dataset_id to the DB
     row = await db.get_dataset(dataset_id)
     if row is not None:
-        return {"status":"error", "message": f"A dataset with the name {dataset_id} already exists"}
+        return {"status": "error", "message": f"A dataset with the name {dataset_id} already exists"}
 
     ds_builder = load_dataset_builder(dataset_id)
     try:
@@ -117,7 +117,7 @@ async def dataset_new(dataset_id: str):
     # Check to make sure we don't have a dataset with this name
     row = await db.get_dataset(dataset_id)
     if row is not None:
-        return {"status":"error", "message": f"A dataset with the name {dataset_id} already exists"}
+        return {"status": "error", "message": f"A dataset with the name {dataset_id} already exists"}
 
     # Create a new dataset in the database
     await db.create_local_dataset(dataset_id)
@@ -126,7 +126,7 @@ async def dataset_new(dataset_id: str):
     # Check if the directory already exists
     if not os.path.exists(dirs.dataset_dir_by_id(dataset_id)):
         os.makedirs(dirs.dataset_dir_by_id(dataset_id))
-    return {"status":"success", "dataset_id": dataset_id}
+    return {"status": "success", "dataset_id": dataset_id}
 
 
 @router.get("/delete", summary="Delete a dataset.")
@@ -134,22 +134,31 @@ async def dataset_delete(dataset_id: str):
     await db.delete_dataset(dataset_id)
 
     # delete directory and contents. ignore_errors because we don't care if the directory doesn't exist
-    shutil.rmtree(dirs.dataset_dir_by_id(dataset_id),ignore_errors=True)
+    shutil.rmtree(dirs.dataset_dir_by_id(dataset_id), ignore_errors=True)
 
     return {"status": "success"}
 
 
 @router.post("/fileupload", summary="Upload the contents of a dataset.")
 async def create_upload_file(dataset_id: str, file: UploadFile):
+    print("uploading filename is: " + str(file.filename))
+
+    # ensure filename is in the format <something>_train.jsonl or <something>_eval.jsonl
+    if not re.match(r"^.+_(train|eval).jsonl$", str(file.filename)):
+        raise HTTPException(
+            status_code=403, detail="The filename must be in the format <name>_train.jsonl or <name>_eval.jsonl")
+
     dataset_id = slugify(dataset_id)
 
     # Save the file to the dataset directory
     try:
         content = await file.read()
-        newfilename = os.path.join(dirs.dataset_dir_by_id(dataset_id), file.filename)
+        newfilename = os.path.join(
+            dirs.dataset_dir_by_id(dataset_id), str(file.filename))
         async with aiofiles.open(newfilename, "wb") as out_file:
             await out_file.write(content)
     except Exception:
-        return {"status": "error", "message": "There was an error uploading the file"}
+        raise HTTPException(
+            status_code=403, detail="There was a problem uploading the file")
 
     return {"status": "success", "filename": file.filename}
