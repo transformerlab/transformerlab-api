@@ -237,9 +237,10 @@ fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
 if not os.path.exists(fused_model_location):
     os.makedirs(fused_model_location)
 
+fuse_script_filename = os.path.join(plugin_dir, "mlx-examples", "lora", "fuse.py")
 fuse_popen_command = [
     sys.executable,
-    f"{plugin_dir}/mlx-examples/lora/fuse.py",
+    fuse_script_filename,
     "--model", config["model_name"],
     "--adapter-file", adaptor_file_name,
     "--save-path", fused_model_location]
