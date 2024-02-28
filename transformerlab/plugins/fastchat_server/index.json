@@ -4,6 +4,7 @@
     "description": "Fastchat loads models for inference using Huggingface Transformers for generation.",
     "plugin-format": "python",
     "type": "loader",
+    "version": "1.0.0",
     "model_architectures": [
         "LlamaForCausalLM",
         "T5ForConditionalGeneration",
