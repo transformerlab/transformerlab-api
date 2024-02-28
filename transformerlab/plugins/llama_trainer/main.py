@@ -94,7 +94,16 @@ model = get_peft_model(model, peft_config)
 
 JOB_ID = config["job_id"]
 
+# This is where the tensorboard output is stored
 output_dir: str = config["output_dir"]
+print(f"Storing Tensorboard Output to: {output_dir}")
+
+# In the json job_data column for this job, store the tensorboard output dir
+db.execute(
+    "UPDATE job SET job_data = json_insert(job_data, '$.tensorboard_output_dir', ?) WHERE id = ?",
+    (output_dir, JOB_ID),
+)
+db.commit()
 
 args = TrainingArguments(
     output_dir=output_dir,

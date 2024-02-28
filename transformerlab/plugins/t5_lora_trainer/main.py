@@ -43,7 +43,8 @@ from transformers import (
 
 # Connect to the LLM Lab database
 llmlab_root_dir = os.getenv('LLM_LAB_ROOT_PATH')
-db = sqlite3.connect(llmlab_root_dir + "/workspace/llmlab.sqlite3")
+WORKSPACE_DIR: str | None = os.getenv("_TFL_WORKSPACE_DIR")
+db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
 
 
 @dataclass
@@ -270,6 +271,14 @@ class Trainer:
             label_pad_token_id=label_pad_token_id,
             pad_to_multiple_of=8,
         )
+
+        print(f"Storing Tensorboard Output to: {output_dir}")
+        # In the json job_data column for this job, store the tensorboard output dir
+        db.execute(
+            "UPDATE job SET job_data = json_insert(job_data, '$.tensorboard_output_dir', ?) WHERE id = ?",
+            (output_dir, JOB_ID),
+        )
+        db.commit()
 
         # Define training args
         training_args = Seq2SeqTrainingArguments(
