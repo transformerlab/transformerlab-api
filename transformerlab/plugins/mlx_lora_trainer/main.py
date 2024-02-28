@@ -256,7 +256,7 @@ with subprocess.Popen(
     if (return_code == 0):
         model_description = [{
             "model_id": f"TransformerLab-mlx/{fused_model_name}",
-            "model_filename": fused_model_name,
+            "model_filename": "",
             "name": fused_model_name,
             "local_model": True,
             "json_data": {
