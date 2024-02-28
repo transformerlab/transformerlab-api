@@ -141,15 +141,8 @@ async def get_training_job_output(job_id: str):
     if "plugin_name" not in template_config:
         return {"status": "error", "error": 'true'}
 
+    # get the output.txt from the plugin which is stored in
     plugin_name = template_config["plugin_name"]
-
-    # Now we need the current experiment id from the job:
-    experiment_id = job["experiment_id"]
-    # Then get the experiment name:
-    experiment = await db.experiment_get(experiment_id)
-    experiment_name = experiment["name"]
-
-    # Now we can get the output.txt from the plugin which is stored in
     plugin_dir = dirs.plugin_dir_by_name(plugin_name)
 
     # job output is stored in separate files with a job number in the name...
