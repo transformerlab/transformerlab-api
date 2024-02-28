@@ -198,8 +198,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
     # The script is in workspace/experiments/plugins/<plugin_name>/main.py so we need to
     # form that string:
     plugin_location = dirs.plugin_dir_by_name(plugin_name)
-    plugin_script = plugin_location + "/main.py"
-    output_file = plugin_location + f"/output_{job_id}.txt"
+    plugin_script = os.path.join(plugin_location, "main.py")
+    output_file = os.path.join(plugin_location, f"output_{job_id}.txt")
 
     def on_train_complete():
         print('Training Job is Complete')
@@ -214,14 +214,14 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
         template_config = json.loads(template['config'])
         adaptor_name = template_config["adaptor_name"]
         template_config["job_id"] = job_id
-        template_config["adaptor_output_dir"] = f"{dirs.WORKSPACE_DIR}/adaptors/{model_name}/{adaptor_name}"
-        template_config["output_dir"] = f"{dirs.WORKSPACE_DIR}/tensorboards/job{job_id}/"
+        template_config["adaptor_output_dir"] = os.path.join(dirs.WORKSPACE_DIR, "adaptors", model_name, adaptor_name)
+        template_config["output_dir"] = os.path.join(dirs.WORKSPACE_DIR, "tensorboards", f"/job{job_id}/")
 
         # Create a file in the temp directory to store the inputs:
-        if not os.path.exists(f"{dirs.WORKSPACE_DIR}/temp"):
-            os.makedirs(f"{dirs.WORKSPACE_DIR}/temp")
-        input_file = f"{dirs.WORKSPACE_DIR}/temp/plugin_input_" + \
-            str(job_id) + ".json"
+        tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
+        if not os.path.exists(tempdir):
+            os.makedirs(tempdir)
+        input_file = os.path.join(tempdir, "plugin_input_{job_id}.json")
         # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
         # and should be done in the API itself
         if "config" in experiment_details:
