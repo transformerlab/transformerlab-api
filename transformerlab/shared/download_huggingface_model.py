@@ -39,7 +39,11 @@ def get_dir_size(path):
 
 
 total_size_of_model_in_mb = args.total_size_of_model_in_mb
-cache_dir = Path.home() / ".cache" / "huggingface" / "hub"
+hf_home = os.getenv("HF_HOME")
+if hf_home:
+    cache_dir = Path(hf_home) / "hub"
+else:
+    cache_dir = Path.home() / ".cache" / "huggingface" / "hub"
 
 print("starting script with progressbar updater")
 
