@@ -18,7 +18,7 @@ import transformerlab.db as db
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
 
-from transformerlab.routers.plugins import install_plugin
+from transformerlab.routers.plugins import install_plugin, list_plugins, plugin_gallery
 
 router = APIRouter(prefix="/experiment", tags=["experiment"])
 
@@ -537,7 +537,9 @@ async def experiment_list_scripts(id: int, type: str = None, filter: str = None)
     if data is None:
         return {"message": f"Experiment {id} does not exist"}
 
-    experiment_name = data["name"]
+    # Get all plugins in the gallery, so we can compare their version number
+    # to plugins that are installed in the experiment
+    gallery_plugins = await plugin_gallery()
 
     # parse the filter variable which is formatted as key:value
     # for example, model_architecture:LLamaArchitecture
@@ -572,6 +574,18 @@ async def experiment_list_scripts(id: int, type: str = None, filter: str = None)
             plugin_type = None
             if "type" in plugin_info:
                 plugin_type = plugin_info['type']
+
+            # Look up this plugin in the gallery to get the version number
+            gallery_version = None
+            for gallery_plugin in gallery_plugins:
+                if gallery_plugin.get("uniqueId") == filename:
+                    gallery_version = gallery_plugin.get("version")
+                    break
+
+            plugin_info["gallery_version"] = gallery_version
+
+            # print(
+            #     f"Plugin {filename} has version {plugin_info.get('version')} but in Gallery it is {plugin_version}")
 
             # if the type of plugin matches with the type filter, or no filter is provided then continue:
             if type is None or type == plugin_type:
