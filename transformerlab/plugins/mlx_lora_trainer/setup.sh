@@ -2,6 +2,7 @@
 pip install trl
 pip install "mlx-lm>=0.0.6"
 git clone https://github.com/ml-explore/mlx-examples.git
+pip install tensorflow # for tensorboard
 # requires:
 # mlx>=0.0.7
 # transformers

@@ -57,6 +57,8 @@ import time
 from datasets import load_dataset
 import argparse
 import os
+import tensorflow as tf
+
 
 root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
 plugin_dir = os.path.dirname(os.path.realpath(__file__))
@@ -87,7 +89,7 @@ lora_layers = config["lora_layers"]
 learning_rate = config["learning_rate"]
 iters = config["iters"]
 
-# we need to adapter parameter so set a default  
+# we need to adapter parameter so set a default
 adaptor_name = config.get('adaptor_name', "default")
 
 # Get the dataset
@@ -95,11 +97,12 @@ adaptor_name = config.get('adaptor_name', "default")
 # Need to check the DB to figure out which because it changes how we load the dataset
 # TODO: Refactor this to somehow simplify across training plugins
 dataset_id = config["dataset_name"]
-cursor = db.execute("SELECT location FROM dataset WHERE dataset_id = ?", (dataset_id,))
+cursor = db.execute(
+    "SELECT location FROM dataset WHERE dataset_id = ?", (dataset_id,))
 row = cursor.fetchone()
 cursor.close()
 
-# if no rows exist then the dataset hasn't been installed! 
+# if no rows exist then the dataset hasn't been installed!
 if row is None:
     print(f"No dataset named {dataset_id} installed.")
     exit
@@ -122,9 +125,9 @@ for dataset_type in dataset_types:
     else:
         dataset_target = dataset_id
 
-
     try:
-        dataset[dataset_type] = load_dataset(dataset_target, split=dataset_type)
+        dataset[dataset_type] = load_dataset(
+            dataset_target, split=dataset_type)
 
     except ValueError as e:
         # This is to catch this error-> ValueError: Unknown split "test". Should be one of ['train']
@@ -134,10 +137,11 @@ for dataset_type in dataset_types:
             raise
 
         print(f"Continuing without any data for \"{dataset_type}\" slice.")
-        #print(">", str(e))
+        # print(">", str(e))
         continue
 
-    print(f"Loaded {dataset_type} dataset with {len(dataset[dataset_type])} examples.")
+    print(
+        f"Loaded {dataset_type} dataset with {len(dataset[dataset_type])} examples.")
 
     # Directory for storing temporary working files
     data_directory = f"{WORKSPACE_DIR}/plugins/mlx_lora_trainer/data"
@@ -197,18 +201,16 @@ db.commit()
 print("Training beginning:")
 print("Adaptor will be saved as:", adaptor_file_name)
 
-# define a regext pattern to look for "Iter: 100" in the output
-pattern = r"Iter (\d+):"
-
+w = tf.summary.create_file_writer(os.path.join(config["output_dir"], "logs"))
+print("Writing logs to:", os.path.join(config["output_dir"], "logs"))
 
 with subprocess.Popen(
         popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True) as process:
     for line in process.stdout:
-        # Use re.search to find the match
+        # Each output line from lora.py looks like
+        # "Iter 190: Train loss 1.997, It/sec 0.159, Tokens/sec 103.125"
+        pattern = r"Iter (\d+):"
         match = re.search(pattern, line)
-
-        # Extract the first number if a match is found
-        # We do this because, @TODO later we can use this number to update progress
         if match:
             first_number = match.group(1)
             percent_complete = float(first_number) / float(iters) * 100
@@ -219,6 +221,25 @@ with subprocess.Popen(
                 (percent_complete, config["job_id"]),
             )
             db.commit()
+
+            # Now parse the rest of the line and write to tensorboard
+            pattern = r"Train loss (\d+\.\d+), It/sec (\d+\.\d+), Tokens/sec (\d+\.\d+)"
+            match = re.search(pattern, line)
+            if match:
+                loss = float(match.group(1))
+                it_per_sec = float(match.group(2))
+                tokens_per_sec = float(match.group(3))
+                print("Loss: ", loss)
+                print("It/sec: ", it_per_sec)
+                print("Tokens/sec: ", tokens_per_sec)
+                with w.as_default():
+                    tf.summary.scalar("loss", loss, int(first_number))
+                    tf.summary.scalar(
+                        "it_per_sec", it_per_sec, int(first_number))
+                    tf.summary.scalar("tokens_per_sec",
+                                      tokens_per_sec, int(first_number))
+                    w.flush()
+
         print(line, end="", flush=True)
 
 print("Finished training.")
@@ -237,10 +258,9 @@ fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
 if not os.path.exists(fused_model_location):
     os.makedirs(fused_model_location)
 
-fuse_script_filename = os.path.join(plugin_dir, "mlx-examples", "lora", "fuse.py")
 fuse_popen_command = [
     sys.executable,
-    fuse_script_filename,
+    f"{plugin_dir}/mlx-examples/lora/fuse.py",
     "--model", config["model_name"],
     "--adapter-file", adaptor_file_name,
     "--save-path", fused_model_location]
