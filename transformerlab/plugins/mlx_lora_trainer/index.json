@@ -4,7 +4,7 @@
     "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
     "plugin-format": "python",
     "type": "trainer",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "model_architectures": [
         "LlamaForCausalLM",
         "MistralForCausalLM",
@@ -34,7 +34,7 @@
         "iters": {
             "title": "Iterations",
             "type": "integer",
-            "default": 1,
+            "default": 1000,
             "minimum": 1,
             "maximum": 1000000
         },
