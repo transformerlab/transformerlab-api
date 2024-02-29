@@ -575,6 +575,8 @@ async def experiment_list_scripts(id: int, type: str = None, filter: str = None)
             if "type" in plugin_info:
                 plugin_type = plugin_info['type']
 
+            plugin_info["installed"] = True
+
             # Look up this plugin in the gallery to get the version number
             gallery_version = None
             for gallery_plugin in gallery_plugins:
