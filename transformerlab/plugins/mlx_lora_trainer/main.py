@@ -174,7 +174,7 @@ adaptor_output_dir = plugin_dir
 # adaptor_output_dir = config["adaptor_output_dir"]
 # if not os.path.exists(adaptor_output_dir):
 #     os.makedirs(adaptor_output_dir)
-adaptor_file_name = os.path.join(adaptor_output_dir, "adaptor_name.npz")
+adaptor_file_name = os.path.join(adaptor_output_dir, f"{adaptor_name}.npz")
 
 popen_command = [sys.executable, "-u", f"{plugin_dir}/mlx-examples/lora/lora.py",
                  "--model", config["model_name"],
@@ -201,7 +201,10 @@ db.commit()
 print("Training beginning:")
 print("Adaptor will be saved as:", adaptor_file_name)
 
-output_dir = os.path.join(config["output_dir"], "logs")
+# todays date with seconds:
+today = time.strftime("%Y%m%d-%H%M%S")
+
+output_dir = os.path.join(config["output_dir"], today)
 # w = tf.summary.create_file_writer(os.path.join(config["output_dir"], "logs"))
 writer = SummaryWriter(output_dir)
 print("Writing logs to:", output_dir)
@@ -209,7 +212,7 @@ print("Writing logs to:", output_dir)
 # In the json job_data column for this job, store the tensorboard output dir
 db.execute(
     "UPDATE job SET job_data = json_insert(job_data, '$.tensorboard_output_dir', ?) WHERE id = ?",
-    (output_dir, JOB_ID),
+    (output_dir, config["job_id"]),
 )
 db.commit()
 
