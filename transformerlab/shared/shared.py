@@ -214,14 +214,16 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
         template_config = json.loads(template['config'])
         adaptor_name = template_config["adaptor_name"]
         template_config["job_id"] = job_id
-        template_config["adaptor_output_dir"] = os.path.join(dirs.WORKSPACE_DIR, "adaptors", model_name, adaptor_name)
-        template_config["output_dir"] = os.path.join(dirs.WORKSPACE_DIR, "tensorboards", f"/job{job_id}/")
+        template_config["adaptor_output_dir"] = os.path.join(
+            dirs.WORKSPACE_DIR, "adaptors", model_name, adaptor_name)
+        template_config["output_dir"] = os.path.join(
+            dirs.WORKSPACE_DIR, "tensorboards", f"job{job_id}")
 
         # Create a file in the temp directory to store the inputs:
         tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
         if not os.path.exists(tempdir):
             os.makedirs(tempdir)
-        input_file = os.path.join(tempdir, "plugin_input_{job_id}.json")
+        input_file = os.path.join(tempdir, f"plugin_input_{job_id}.json")
         # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
         # and should be done in the API itself
         if "config" in experiment_details:

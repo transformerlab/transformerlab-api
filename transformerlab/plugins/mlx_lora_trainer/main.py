@@ -201,9 +201,17 @@ db.commit()
 print("Training beginning:")
 print("Adaptor will be saved as:", adaptor_file_name)
 
+output_dir = os.path.join(config["output_dir"], "logs")
 # w = tf.summary.create_file_writer(os.path.join(config["output_dir"], "logs"))
-writer = SummaryWriter(os.path.join(config["output_dir"], "logs"))
-print("Writing logs to:", os.path.join(config["output_dir"], "logs"))
+writer = SummaryWriter(output_dir)
+print("Writing logs to:", output_dir)
+
+# In the json job_data column for this job, store the tensorboard output dir
+db.execute(
+    "UPDATE job SET job_data = json_insert(job_data, '$.tensorboard_output_dir', ?) WHERE id = ?",
+    (output_dir, JOB_ID),
+)
+db.commit()
 
 with subprocess.Popen(
         popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True) as process:
