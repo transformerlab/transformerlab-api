@@ -57,7 +57,7 @@ import time
 from datasets import load_dataset
 import argparse
 import os
-import tensorflow as tf
+from tensorboardX import SummaryWriter
 
 
 root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
@@ -201,7 +201,8 @@ db.commit()
 print("Training beginning:")
 print("Adaptor will be saved as:", adaptor_file_name)
 
-w = tf.summary.create_file_writer(os.path.join(config["output_dir"], "logs"))
+# w = tf.summary.create_file_writer(os.path.join(config["output_dir"], "logs"))
+writer = SummaryWriter(os.path.join(config["output_dir"], "logs"))
 print("Writing logs to:", os.path.join(config["output_dir"], "logs"))
 
 with subprocess.Popen(
@@ -232,13 +233,13 @@ with subprocess.Popen(
                 print("Loss: ", loss)
                 print("It/sec: ", it_per_sec)
                 print("Tokens/sec: ", tokens_per_sec)
-                with w.as_default():
-                    tf.summary.scalar("loss", loss, int(first_number))
-                    tf.summary.scalar(
-                        "it_per_sec", it_per_sec, int(first_number))
-                    tf.summary.scalar("tokens_per_sec",
-                                      tokens_per_sec, int(first_number))
-                    w.flush()
+                # The code snippet `with w.as_default(): tf.summary.scalar` is using TensorFlow's
+                # `tf.summary.scalar` function to log scalar values to a TensorBoard summary writer
+                # `w`.
+                writer.add_scalar("loss", loss, int(first_number))
+                writer.add_scalar("it_per_sec", it_per_sec, int(first_number))
+                writer.add_scalar("tokens_per_sec",
+                                  tokens_per_sec, int(first_number))
 
         print(line, end="", flush=True)
 
