@@ -10,10 +10,6 @@ TFL_DIR="$HOME/.transformerlab"
 TFL_CODE_DIR="${TFL_DIR}/src"
 MINICONDA_DIRNAME=${MINICONDA_DIRNAME:-miniconda3}
 
-# DO NOT COMMIT THIS CHANGE -- must return it to the commented out path when in production
-# INIT_SCRIPT="${TFL_CODE_DIR}/init.sh"
-INIT_SCRIPT="./init.sh"
-
 ##############################
 # Helper Functions
 ##############################
