@@ -1,19 +1,43 @@
 #!/bin/bash
-MINICONDA_DIRNAME="miniconda3"
+set -eu
 
-# Check if conda activate file exists:
-if [ ! -f "$HOME/$MINICONDA_DIRNAME/bin/activate" ]; then
-    echo "Conda is installed but it's not stored in $HOME/$MINICONDA_DIRNAME/"
-    # Check if conda is installed in the macbrew location:
-    if [ -f "/opt/homebrew/Caskroom/miniconda/base/etc/profile.d/conda.sh" ]; then
-        echo "Conda is installed in the macbrew location -- running activate script"
-        . "/opt/homebrew/Caskroom/miniconda/base/etc/profile.d/conda.sh"
-    fi
+MINICONDA_DIRNAME=${MINICONDA_DIRNAME:-miniconda3}
+ENV_NAME="transformerlab"
+
+err_report() {
+  echo "Error in run.sh on line $1"
+}
+
+trap 'err_report $LINENO' ERR
+
+if ! command -v conda &> /dev/null; then
+    echo "❌ Conda is not installed. Please install Conda and try again."
 else
-    # activate the conda base env
-    source "$HOME/$MINICONDA_DIRNAME/bin/activate"
+    echo "✅ Conda is installed."
 fi
 
-# The following conda command "run" is equivalent to
-# conda activate transformerlab; unicorn api:app --port 8000 --host
-conda run -n transformerlab --live-stream uvicorn api:app --port 8000 --host 0.0.0.0 
+
+# Check if the conda environment is activated:
+if { conda env list | grep "$ENV_NAME"; } >/dev/null 2>&1; then
+    echo "✅ Conda environment $ENV_NAME exists."
+else
+    echo "❌ Conda environment $ENV_NAME does not exist. Please run ./install.sh and try again."
+    exit 1
+fi
+
+echo "👏 Enabling conda in shell"
+eval "$(conda shell.bash hook)"
+
+echo "👏 Activating transformerlab conda environment"
+conda activate transformerlab
+
+# Check if the uvicorn command works:
+if ! command -v uvicorn &> /dev/null; then
+    echo "❌ Uvicorn is not installed. This usually means that the installation of dependencies failed. Run ./install.sh to install the dependencies."
+    exit 1
+else
+    echo "✅ Uvicorn is installed."
+fi
+
+echo "👏 Starting the API server"
+uvicorn api:app --port 8000 --host 0.0.0.0 
