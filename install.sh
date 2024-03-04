@@ -95,6 +95,9 @@ then
 elif [[ "${OS}" == "Darwin" ]]
 then
   TFL_ON_MACOS=1
+elif [[ "${OS}" == "MINGW64_NT-10.0-19045" ]]
+then
+  TFL_ON_WINDOWS=1
 else
   abort "Transformer Lab is only supported on macOS and Linux, you are running ${OS}."
 fi
