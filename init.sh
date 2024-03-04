@@ -13,4 +13,4 @@ trap 'err_report $LINENO' ERR
 # Need the directory of this script to reference other files
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
-$SCRIPT_DIR/download_and_install_remote_script.sh install_dependencies
+$SCRIPT_DIR/install.sh
