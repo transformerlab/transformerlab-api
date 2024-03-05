@@ -357,7 +357,7 @@
   },
   {
     "uniqueID": "berkeley-nest/Starling-LM-7B-alpha",
-    "name": "Starling-RM-7B-alpha",
+    "name": "Starling-LM-7B-alpha",
     "description": "We introduce Starling-7B, an open large language model (LLM) trained by Reinforcement Learning from AI Feedback (RLAIF). The model harnesses the power of our new GPT-4 labeled ranking dataset, berkeley-nest/Nectar, and our new reward training and policy tuning pipeline. Starling-7B-alpha scores 8.09 in MT Bench with GPT-4 as a judge, outperforming every model to date on MT-Bench except for OpenAI's GPT-4 and GPT-4 Turbo.",
     "parameters": "7B",
     "context": "4k",
