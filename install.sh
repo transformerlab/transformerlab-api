@@ -78,7 +78,7 @@ check_conda() {
 
 check_python() {
   if ! command -v python &> /dev/null; then
-    abort "❌ Python is not installed. Please install Python and try again."
+    abort "❌ Python is not installed as 'python'. Please install Python and try again or it could be installed as 'python3'"
   else
     # store python version in variable:
     PYTHON_VERSION=$(python --version)
@@ -265,6 +265,29 @@ install_dependencies() {
   fi
 }
 
+doctor() {
+  title "Doctor"
+  ohai "Checking if everything is installed correctly."
+  echo "Your machine is: $OS"
+  echo "Your shell is: $SHELL"
+  if command -v conda &> /dev/null; then
+    echo "Your conda version is: $(conda --version)"
+    echo "Conda is installed at: $(which conda)"
+  else
+    echo "Conda is not installed."
+  fi
+  if command -v nvidia-smi &> /dev/null; then
+    echo "Your nvidia-smi version is: $(nvidia-smi --version)"
+  else
+    echo "nvidia-smi is not installed."
+  fi
+  check_conda
+  check_python
+  conda activate "$ENV_NAME"
+  install_dependencies
+  print_success_message
+}
+
 print_success_message() {
   title "Installation Complete"
   echo "------------------------------------------"
@@ -302,6 +325,9 @@ else
         ;;
       install_dependencies)
         install_dependencies
+        ;;
+      doctor)
+        doctor
         ;;
       *)
         # Print allowed arguments
