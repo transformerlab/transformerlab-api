@@ -8,6 +8,7 @@
     "model_architectures": [
         "LlamaForCausalLM",
         "MistralForCausalLM",
+        "MixtralForCausalLM",
         "PhiForCausalLM",
         "MLX"
     ],
