@@ -4,7 +4,7 @@
     "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
     "plugin-format": "python",
     "type": "trainer",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "model_architectures": [
         "LlamaForCausalLM",
         "MistralForCausalLM",
@@ -23,6 +23,13 @@
             "default": 16,
             "minimum": 4,
             "maximum": 64
+        },
+        "batch_size": {
+            "title": "Batch Size",
+            "type": "integer",
+            "default": 4,
+            "minimum": 1,
+            "maximum": 8
         },
         "learning_rate": {
             "title": "Learning Rate",
@@ -64,7 +71,10 @@
     },
     "parameters_ui": {
         "lora_layers": {
-            "ui:help": "Number of layers to fine-tune. The default is 16, so you can try 8 or 4. This reduces the amount of memory needed for back propagation. It may also reduce the quality of the fine-tuned model if you are fine-tuning with a lot of data."
+            "ui:help": "Default fine-tune layers is 16. Setting to 8 or 4 reduces memory needed for back propagation, but may reduce the quality if you are tuning with a lot of data."
+        },
+        "batch_size": {
+            "ui:help": "Default batch is 4. Setting this to 2 or 1 will reduce memory consumption but may slow performance."
         },
         "learning_rate": {
             "ui:help": "Adam Learning rate."
