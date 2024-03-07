@@ -271,6 +271,12 @@ install_dependencies() {
   fi
 }
 
+list_installed_packages() {
+  eval "$(${CONDA_BIN} shell.bash hook)"
+  conda activate ${ENV_NAME}
+  pip list --format json
+}
+
 doctor() {
   title "Doctor"
   ohai "Checking if everything is installed correctly."
@@ -334,6 +340,9 @@ else
         ;;
       doctor)
         doctor
+        ;;
+      list_installed_packages)
+        list_installed_packages
         ;;
       *)
         # Print allowed arguments

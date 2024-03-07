@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eu
+set -e
 
 MINICONDA_DIRNAME=${MINICONDA_DIRNAME:-miniconda3}
 CONDA_BIN=${HOME}/${MINICONDA_DIRNAME}/bin/conda
@@ -7,6 +7,7 @@ ENV_NAME="transformerlab"
 
 echo "Your shell is $SHELL"
 echo "Conda's binary is at ${CONDA_BIN}"
+echo "Your current directory is $(pwd)"
 
 err_report() {
   echo "Error in run.sh on line $1"
