@@ -4,7 +4,7 @@
     "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
     "plugin-format": "python",
     "type": "trainer",
-    "version": "0.1.5",
+    "version": "0.1.6",
     "model_architectures": [
         "LlamaForCausalLM",
         "MistralForCausalLM",
@@ -54,7 +54,7 @@
         "steps_per_eval": {
             "title": "Steps per Evaluation",
             "type": "integer",
-            "default": 100,
+            "default": 200,
             "minimum": 1
         },
         "save_every": {
@@ -84,6 +84,9 @@
         },
         "steps_per_report": {
             "ui:help": "Number of training steps between loss reporting."
+        },
+        "steps_per_eval": {
+            "ui:help": "Number of training steps between validations."
         }
     }
 }

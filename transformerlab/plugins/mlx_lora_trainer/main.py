@@ -86,8 +86,9 @@ print("Input:")
 print(json.dumps(input_config, indent=4))
 
 lora_layers = config["lora_layers"]
-batch_size = config.get("batch_size",4)
 learning_rate = config["learning_rate"]
+batch_size = config.get("batch_size",4)
+steps_per_eval = config.get("steps_per_eval",200)
 iters = config["iters"]
 
 # we need to adapter parameter so set a default
@@ -185,9 +186,9 @@ popen_command = [sys.executable, "-u", f"{plugin_dir}/mlx-examples/lora/lora.py"
                  "--lora-layers", lora_layers,
                  "--batch-size", batch_size,
                  "--learning-rate", learning_rate,
-                 "--data", f"{plugin_dir}/data/",
+                 "--data", os.path.join(plugin_dir, "data"),
                  "--steps-per-report", config['steps_per_report'],
-                 #  "--steps_per_eval", config["steps_per_eval"],
+                 "--steps-per-eval", steps_per_eval,
                  "--save-every", config["save_every"]]
 
 print("Running command:")
