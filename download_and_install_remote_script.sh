@@ -277,6 +277,11 @@ list_installed_packages() {
   pip list --format json
 }
 
+list_environments() {
+  eval "$(${CONDA_BIN} shell.bash hook)"
+  conda env list
+}
+
 doctor() {
   title "Doctor"
   ohai "Checking if everything is installed correctly."
@@ -343,6 +348,9 @@ else
         ;;
       list_installed_packages)
         list_installed_packages
+        ;;
+      list_environments)
+        list_environments
         ;;
       *)
         # Print allowed arguments
