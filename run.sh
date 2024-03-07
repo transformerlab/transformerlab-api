@@ -2,7 +2,11 @@
 set -eu
 
 MINICONDA_DIRNAME=${MINICONDA_DIRNAME:-miniconda3}
+CONDA_BIN=${HOME}/${MINICONDA_DIRNAME}/bin/conda
 ENV_NAME="transformerlab"
+
+echo "Your shell is $SHELL"
+echo "Conda's binary is at ${CONDA_BIN}"
 
 err_report() {
   echo "Error in run.sh on line $1"
@@ -10,23 +14,15 @@ err_report() {
 
 trap 'err_report $LINENO' ERR
 
-if ! command -v conda &> /dev/null; then
-    echo "❌ Conda is not installed. Please install Conda and try again."
+if ! command -v ${CONDA_BIN} &> /dev/null; then
+    echo "❌ Conda is not installed at ${HOME}/${MINICONDA_DIRNAME}. Please install Conda there (and only there) and try again."
 else
     echo "✅ Conda is installed."
 fi
 
-
-# Check if the conda environment is activated:
-if { conda env list | grep "$ENV_NAME"; } >/dev/null 2>&1; then
-    echo "✅ Conda environment $ENV_NAME exists."
-else
-    echo "❌ Conda environment $ENV_NAME does not exist. Please run ./install.sh and try again."
-    exit 1
-fi
-
 echo "👏 Enabling conda in shell"
-eval "$(conda shell.bash hook)"
+
+eval "$(${CONDA_BIN} shell.bash hook)"
 
 echo "👏 Activating transformerlab conda environment"
 conda activate transformerlab

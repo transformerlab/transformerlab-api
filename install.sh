@@ -9,6 +9,8 @@ ENV_NAME="transformerlab"
 TFL_DIR="$HOME/.transformerlab"
 TFL_CODE_DIR="${TFL_DIR}/src"
 MINICONDA_DIRNAME=${MINICONDA_DIRNAME:-miniconda3}
+CONDA_BIN=${HOME}/${MINICONDA_DIRNAME}/bin/conda
+
 
 ##############################
 # Helper Functions
@@ -69,8 +71,8 @@ title() {
 }
 
 check_conda() {
-  if ! command -v conda &> /dev/null; then
-    abort "❌ Conda is not installed. Please install Conda and try again."
+  if ! command -v ${CONDA_BIN} &> /dev/null; then
+    abort "❌ Conda is not installed at ${HOME}/${MINICONDA_DIRNAME}. Please install Conda and try again."
   else
     ohai "✅ Conda is installed."
   fi
@@ -139,8 +141,8 @@ install_conda() {
   title "Step 2: Install Conda"
 
   # check if conda already exists:
-  if ! command -v conda &> /dev/null; then
-    echo "Conda is not installed."
+  if ! command -v ${CONDA_BIN} &> /dev/null; then
+    echo "Conda is not installed at ${HOME}/${MINICONDA_DIRNAME}."
     OS=$(uname -s)
     ARCH=$(uname -m)
 
@@ -158,14 +160,17 @@ install_conda() {
 
         curl -o miniconda_installer.sh "$MINICONDA_URL" && bash miniconda_installer.sh -b -p "$HOME/$MINICONDA_DIRNAME" && rm miniconda_installer.sh
         # Install conda to bash and zsh
-        $HOME/$MINICONDA_DIRNAME/bin/conda init bash
-        if [ -n "$(command -v zsh)" ]; then
-            $HOME/$MINICONDA_DIRNAME/bin/conda init zsh
-        fi
+        # $HOME/$MINICONDA_DIRNAME/bin/conda init bash
+        # if [ -n "$(command -v zsh)" ]; then
+        #     $HOME/$MINICONDA_DIRNAME/bin/conda init zsh
+        # fi
     fi
   else
       ohai "Conda is installed, we do not need to install it"
   fi
+
+  # Enable conda in shell
+  eval "$(${CONDA_BIN} shell.bash hook)"
 
   check_conda
 }
@@ -190,11 +195,12 @@ create_conda_environment() {
 
   check_conda
 
-  # A better way than above:
-  eval "$(conda shell.bash hook)"
+  eval "$(${CONDA_BIN} shell.bash hook)"
+
+  conda info --envs
 
   # Create the conda environment for Transformer Lab
-  if { conda env list | grep "$ENV_NAME"; } >/dev/null 2>&1; then
+  if { conda env list | grep -q "^$ENV_NAME"; } >/dev/null 2>&1; then
       echo "Conda environment $ENV_NAME already exists."
   else
       echo conda create -y -n "$ENV_NAME" python=3.11
@@ -220,7 +226,7 @@ create_conda_environment() {
 install_dependencies() {
   title "Step 4: Install Dependencies"
 
-  eval "$(conda shell.bash hook)"
+  eval "$(${CONDA_BIN} shell.bash hook)"
   conda activate "$ENV_NAME"
 
   check_python
@@ -270,11 +276,13 @@ doctor() {
   ohai "Checking if everything is installed correctly."
   echo "Your machine is: $OS"
   echo "Your shell is: $SHELL"
-  if command -v conda &> /dev/null; then
-    echo "Your conda version is: $(conda --version)"
-    echo "Conda is installed at: $(which conda)"
+
+  
+  if command -v ${CONDA_BIN} &> /dev/null; then
+    echo "Your conda version is: $(${CONDA_BIN} --version)" || echo "Issue with conda"
+    echo "Conda is seen in path at at: $(which conda)" || echo "Conda is not in your path"
   else
-    echo "Conda is not installed."
+    echo "Conda is not installed at ${HOME}/${MINICONDA_DIRNAME}. Please install Conda and try again."
   fi
   if command -v nvidia-smi &> /dev/null; then
     echo "Your nvidia-smi version is: $(nvidia-smi --version)"
@@ -283,9 +291,7 @@ doctor() {
   fi
   check_conda
   check_python
-  conda activate "$ENV_NAME"
-  install_dependencies
-  print_success_message
+
 }
 
 print_success_message() {
