@@ -252,13 +252,13 @@ install_dependencies() {
 
       echo "Installing requirements:"
       # Install the python requirements
-      pip install -r $TFL_CODE_DIR/requirements.txt
+      pip install --upgrade -r $TFL_CODE_DIR/requirements.txt
   else
       echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
       echo "Installing Tranformer Lab requirements without GPU support"
 
-      pip install -r $TFL_CODE_DIR/requirements-no-gpu.txt
+      pip install --upgrade -r $TFL_CODE_DIR/requirements-no-gpu.txt
   fi
 
   # Check if the uvicorn command works:
