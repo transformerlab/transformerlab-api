@@ -86,6 +86,7 @@ print("Input:")
 print(json.dumps(input_config, indent=4))
 
 lora_layers = config["lora_layers"]
+batch_size = config.get("batch_size",4)
 learning_rate = config["learning_rate"]
 iters = config["iters"]
 
@@ -182,6 +183,7 @@ popen_command = [sys.executable, "-u", f"{plugin_dir}/mlx-examples/lora/lora.py"
                  "--train",
                  "--adapter-file", adaptor_file_name,
                  "--lora-layers", lora_layers,
+                 "--batch-size", batch_size,
                  "--learning-rate", learning_rate,
                  "--data", f"{plugin_dir}/data/",
                  "--steps-per-report", config['steps_per_report'],
