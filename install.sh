@@ -151,6 +151,10 @@ install_conda() {
 
     if [ "$OS" == "Darwin" ]; then
         OS="MacOSX"
+
+    # This won't work on Windows because windows installer is an exe
+    elif [ "$TFL_ON_WINDOWS" == "1" ]; then
+        abort "❌ Conda installer not supported on Windows. Please install Conda manually and try again."
     fi
 
     MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-$OS-$ARCH.sh"
