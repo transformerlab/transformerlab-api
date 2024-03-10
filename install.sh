@@ -149,15 +149,19 @@ install_conda() {
     OS=$(uname -s)
     ARCH=$(uname -m)
 
+    # Mac/Linux run an sh file. Windows is an exe.
+    INSTALLER_FILE_EXTENSION="sh"
+
     if [ "$OS" == "Darwin" ]; then
         OS="MacOSX"
 
     # This won't work on Windows because windows installer is an exe
     elif [ "$TFL_ON_WINDOWS" == "1" ]; then
-        abort "❌ Conda installer not supported on Windows. Please install Conda manually and try again."
+        OS="Windows"
+        INSTALLER_FILE_EXTENSION="exe"
     fi
 
-    MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-$OS-$ARCH.sh"
+    MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-$OS-$ARCH.$INSTALLER_FILE_EXTENSION"
     
     if ! command -v conda &> /dev/null; then
         echo Conda is not installed.
@@ -165,7 +169,13 @@ install_conda() {
         # download and install conda (headless/silent)
         echo Downloading "$MINICONDA_URL"
 
-        curl -o miniconda_installer.sh "$MINICONDA_URL" && bash miniconda_installer.sh -b -p "$HOME/$MINICONDA_DIRNAME" && rm miniconda_installer.sh
+        $ TODO: Refactor so you dont need the if statement
+        if [ "$OS" == "Windows" ]; then
+            curl -o miniconda.exe "$MINICONDA_URL" && start miniconda.exe /D="$HOME/$MINICONDA_DIRNAME" /S && rm miniconda.exe
+        else
+            curl -o miniconda_installer.sh "$MINICONDA_URL" && bash miniconda_installer.sh -b -p "$HOME/$MINICONDA_DIRNAME" && rm miniconda_installer.sh
+        fi
+
         # Install conda to bash and zsh
         # $HOME/$MINICONDA_DIRNAME/bin/conda init bash
         # if [ -n "$(command -v zsh)" ]; then
