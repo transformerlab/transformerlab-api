@@ -2,8 +2,8 @@
 set -eu
 
 ENV_NAME="transformerlab"
-TFL_DIR="$HOME/.transformerlab"
-TFL_CODE_DIR="${TFL_DIR}/src"
+TLAB_DIR="$HOME/.transformerlab"
+TLAB_CODE_DIR="${TLAB_DIR}/src"
 MINICONDA_DIRNAME=${MINICONDA_DIRNAME:-miniconda3}
 CONDA_BIN=${HOME}/${MINICONDA_DIRNAME}/bin/conda
 
@@ -88,10 +88,10 @@ check_python() {
 OS="$(uname)"
 if [[ "${OS}" == "Linux" ]]
 then
-  TFL_ON_LINUX=1
+  TLAB_ON_LINUX=1
 elif [[ "${OS}" == "Darwin" ]]
 then
-  TFL_ON_MACOS=1
+  TLAB_ON_MACOS=1
 else
   abort "Transformer Lab is only supported on macOS and Linux, you are running ${OS}."
 fi
@@ -110,22 +110,22 @@ download_transformer_lab() {
   LATEST_RELEASE_VERSION=$(basename $LATEST_RELEASE_VERSION)
   LATEST_RELEASE_VERSION_WITHOUT_V=$(echo $LATEST_RELEASE_VERSION | sed 's/v//g')
   echo "Latest Release on Github: $LATEST_RELEASE_VERSION"
-  TFL_URL="https://github.com/transformerlab/transformerlab-api/archive/refs/tags/${LATEST_RELEASE_VERSION}.zip"
-  echo "Download Location: $TFL_URL"
+  TLAB_URL="https://github.com/transformerlab/transformerlab-api/archive/refs/tags/${LATEST_RELEASE_VERSION}.zip"
+  echo "Download Location: $TLAB_URL"
 
   # If the user has not installed Transformer Lab, then we should install it.
   ohai "Installing Transformer Lab ${LATEST_RELEASE_VERSION}..."
   # Fetch the latest version of Transformer Lab from GitHub:
-  mkdir -p "${TFL_DIR}"
-  curl -L "${TFL_URL}" -o "${TFL_DIR}/transformerlab.zip"
+  mkdir -p "${TLAB_DIR}"
+  curl -L "${TLAB_URL}" -o "${TLAB_DIR}/transformerlab.zip"
   NEW_DIRECTORY_NAME="transformerlab-api-${LATEST_RELEASE_VERSION_WITHOUT_V}"
-  rm -rf "${TFL_DIR}/${NEW_DIRECTORY_NAME}"
-  rm -rf "${TFL_CODE_DIR}"
-  unzip -o "${TFL_DIR}/transformerlab.zip" -d "${TFL_DIR}"
-  mv "${TFL_DIR}/${NEW_DIRECTORY_NAME}" "${TFL_CODE_DIR}"
-  rm "${TFL_DIR}/transformerlab.zip"
+  rm -rf "${TLAB_DIR}/${NEW_DIRECTORY_NAME}"
+  rm -rf "${TLAB_CODE_DIR}"
+  unzip -o "${TLAB_DIR}/transformerlab.zip" -d "${TLAB_DIR}"
+  mv "${TLAB_DIR}/${NEW_DIRECTORY_NAME}" "${TLAB_CODE_DIR}"
+  rm "${TLAB_DIR}/transformerlab.zip"
   # Create a file called LATEST_VERSION that contains the latest version of Transformer Lab.
-  echo "${LATEST_RELEASE_VERSION}" > "${TFL_CODE_DIR}/LATEST_VERSION"
+  echo "${LATEST_RELEASE_VERSION}" > "${TLAB_CODE_DIR}/LATEST_VERSION"
 }
 
 ##############################
@@ -244,13 +244,13 @@ install_dependencies() {
 
       echo "Installing requirements:"
       # Install the python requirements
-      pip install --upgrade -r $TFL_CODE_DIR/requirements.txt
+      pip install --upgrade -r $TLAB_CODE_DIR/requirements.txt
   else
       echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
       echo "Installing Tranformer Lab requirements without GPU support"
 
-      pip install --upgrade -r $TFL_CODE_DIR/requirements-no-gpu.txt
+      pip install --upgrade -r $TLAB_CODE_DIR/requirements-no-gpu.txt
   fi
 
   # Check if the uvicorn command works:
@@ -299,12 +299,12 @@ print_success_message() {
   title "Installation Complete"
   echo "------------------------------------------"
   echo "Transformer Lab is installed to:"
-  echo "  ${TFL_DIR}"
+  echo "  ${TLAB_DIR}"
   echo "Your workspace is located at:"
-  echo "  ${TFL_DIR}/workspace"
+  echo "  ${TLAB_DIR}/workspace"
   echo "You can run Transformer Lab with:"
   echo "  conda activate ${ENV_NAME}"
-  echo "  ${TFL_DIR}/src/run.sh"
+  echo "  ${TLAB_DIR}/src/run.sh"
   echo "------------------------------------------"
   echo
 }
