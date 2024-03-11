@@ -7,7 +7,7 @@ TLAB_CODE_DIR="${TLAB_DIR}/src"
 
 MINICONDA_ROOT=${TLAB_DIR}/miniconda3
 CONDA_BIN=${MINICONDA_ROOT}/bin/conda
-ENV_DIR=${TLAB_DIR}/envs/
+ENV_DIR=${TLAB_DIR}/envs/${ENV_NAME}
 
 ##############################
 # Helper Functions
@@ -68,8 +68,8 @@ title() {
 }
 
 check_conda() {
-  if ! command -v ${CONDA_BIN} &> /dev/null; then
-    abort "❌ Conda is not installed at ${MINICONDA_ROOT}. Please install Conda and try again."
+  if ! command -v "${CONDA_BIN}" &> /dev/null; then
+    abort "❌ Conda is not installed at ${MINICONDA_ROOT}. Please install Conda using 'install.sh install_conda' and try again."
   else
     ohai "✅ Conda is installed at ${MINICONDA_ROOT}."
   fi
@@ -108,8 +108,8 @@ download_transformer_lab() {
 
   # Figure out the path to the lastest release of Transformer Lab
   LATEST_RELEASE_VERSION=$(curl -Ls -o /dev/null -w %{url_effective} https://github.com/transformerlab/transformerlab-api/releases/latest)
-  LATEST_RELEASE_VERSION=$(basename $LATEST_RELEASE_VERSION)
-  LATEST_RELEASE_VERSION_WITHOUT_V=$(echo $LATEST_RELEASE_VERSION | sed 's/v//g')
+  LATEST_RELEASE_VERSION=$(basename "$LATEST_RELEASE_VERSION")
+  LATEST_RELEASE_VERSION_WITHOUT_V=$(echo "$LATEST_RELEASE_VERSION" | sed 's/v//g')
   echo "Latest Release on Github: $LATEST_RELEASE_VERSION"
   TLAB_URL="https://github.com/transformerlab/transformerlab-api/archive/refs/tags/${LATEST_RELEASE_VERSION}.zip"
   echo "Download Location: $TLAB_URL"
@@ -137,7 +137,7 @@ install_conda() {
   title "Step 2: Install Conda"
 
   # check if conda already exists:
-  if ! command -v ${CONDA_BIN} &> /dev/null; then
+  if ! command -v "${CONDA_BIN}" &> /dev/null; then
     echo "Conda is not installed at ${MINICONDA_ROOT}."
     OS=$(uname -s)
     ARCH=$(uname -m)
@@ -157,7 +157,7 @@ install_conda() {
     #     $MINICONDA_ROOT/bin/conda init zsh
     # fi
   else
-      ohai "Conda is installed at ${$MINICONDA_ROOT}, we do not need to install it"
+      ohai "Conda is installed at ${MINICONDA_ROOT}, we do not need to install it"
   fi
 
   # Enable conda in shell
@@ -191,23 +191,23 @@ create_conda_environment() {
   conda info --envs
 
   # Create the conda environment for Transformer Lab
-  if { conda env list | grep -q "^$ENV_NAME"; } >/dev/null 2>&1; then
-      echo "✅ Conda environment $ENV_NAME already exists."
+  if { conda env list | grep "$ENV_DIR"; } >/dev/null 2>&1; then
+      echo "✅ Conda environment $ENV_DIR already exists."
   else
-      echo conda create -y -n "$ENV_NAME" python=3.11
-      conda create -y -n "$ENV_NAME" python=3.11
+      echo conda create -y -n "$ENV_DIR" python=3.11
+      conda create -y -k --prefix "$ENV_DIR" python=3.11
   fi
 
   # Activate the newly created environment
-  echo conda activate "$ENV_NAME"
-  conda activate "$ENV_NAME"
+  echo conda activate "$ENV_DIR"
+  conda activate "$ENV_DIR"
 
-  # Check if the conda environment is activated:
-  if [[ "$CONDA_DEFAULT_ENV" == "$ENV_NAME" ]]; then
-    ohai "✅ Conda environment is activated."
-  else
-    abort "❌ Conda environment is not activated. Please run 'conda activate $ENV_NAME' and try again."
-  fi
+  # # Check if the conda environment is activated:
+  # if [[ "$CONDA_DEFAULT_ENV" == "$ENV_DIR" ]]; then
+  #   ohai "✅ Conda environment is activated."
+  # else
+  #   abort "❌ Conda environment is not activated. Please run 'conda activate $ENV_DIR' and try again."
+  # fi
 }
 
 ##############################
@@ -218,7 +218,7 @@ install_dependencies() {
   title "Step 4: Install Dependencies"
 
   eval "$(${CONDA_BIN} shell.bash hook)"
-  conda activate "$ENV_NAME"
+  conda activate "$ENV_DIR"
 
   check_python
 
@@ -228,7 +228,7 @@ install_dependencies() {
       # Check if nvidia-smi is available
       echo "nvidia-smi is available"
       GPU_INFO=$(nvidia-smi --query-gpu=name --format=csv,noheader,nounits) || echo "Issue with NVIDIA SMI"
-      echo $GPU_INFO
+      echo "$GPU_INFO"
       if [ -n "$GPU_INFO" ]; then
           echo "NVIDIA GPU detected: $GPU_INFO"
           HAS_GPU=true 
@@ -245,13 +245,13 @@ install_dependencies() {
 
       echo "Installing requirements:"
       # Install the python requirements
-      pip install --upgrade -r $TLAB_CODE_DIR/requirements.txt
+      pip install --upgrade -r "$TLAB_CODE_DIR"/requirements.txt
   else
       echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
       echo "Installing Tranformer Lab requirements without GPU support"
 
-      pip install --upgrade -r $TLAB_CODE_DIR/requirements-no-gpu.txt
+      pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-no-gpu.txt
   fi
 
   # Check if the uvicorn command works:
@@ -264,7 +264,7 @@ install_dependencies() {
 
 list_installed_packages() {
   eval "$(${CONDA_BIN} shell.bash hook)"
-  conda activate ${ENV_NAME}
+  conda activate ${ENV_DIR}
   pip list --format json
 }
 
@@ -280,11 +280,11 @@ doctor() {
   echo "Your shell is: $SHELL"
 
   
-  if command -v ${CONDA_BIN} &> /dev/null; then
+  if command -v "${CONDA_BIN}" &> /dev/null; then
     echo "Your conda version is: $(${CONDA_BIN} --version)" || echo "Issue with conda"
     echo "Conda is seen in path at at: $(which conda)" || echo "Conda is not in your path"
   else
-    echo "Conda is not installed at ${$MINICONDA_ROOT}. Please install Conda and try again."
+    echo "Conda is not installed at ${MINICONDA_ROOT}. Please install Conda using 'install.sh install_conda' and try again."
   fi
   if command -v nvidia-smi &> /dev/null; then
     echo "Your nvidia-smi version is: $(nvidia-smi --version)"
@@ -303,8 +303,10 @@ print_success_message() {
   echo "  ${TLAB_DIR}"
   echo "Your workspace is located at:"
   echo "  ${TLAB_DIR}/workspace"
+  echo "Your conda environment is at:"
+  echo "  ${ENV_DIR}"
   echo "You can run Transformer Lab with:"
-  echo "  conda activate ${ENV_NAME}"
+  echo "  conda activate ${ENV_DIR}"
   echo "  ${TLAB_DIR}/src/run.sh"
   echo "------------------------------------------"
   echo

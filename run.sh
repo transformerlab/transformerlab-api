@@ -1,9 +1,13 @@
 #!/bin/bash
 set -e
 
-MINICONDA_DIRNAME=${MINICONDA_DIRNAME:-miniconda3}
-CONDA_BIN=${HOME}/${MINICONDA_DIRNAME}/bin/conda
 ENV_NAME="transformerlab"
+TLAB_DIR="$HOME/.transformerlab"
+TLAB_CODE_DIR="${TLAB_DIR}/src"
+
+MINICONDA_ROOT=${TLAB_DIR}/miniconda3
+CONDA_BIN=${MINICONDA_ROOT}/bin/conda
+ENV_DIR=${TLAB_DIR}/envs/${ENV_NAME}
 
 echo "Your shell is $SHELL"
 echo "Conda's binary is at ${CONDA_BIN}"
@@ -16,7 +20,7 @@ err_report() {
 trap 'err_report $LINENO' ERR
 
 if ! command -v ${CONDA_BIN} &> /dev/null; then
-    echo "❌ Conda is not installed at ${HOME}/${MINICONDA_DIRNAME}. Please install Conda there (and only there) and try again."
+    echo "❌ Conda is not installed at ${MINICONDA_ROOT}. Please install Conda there (and only there) and try again."
 else
     echo "✅ Conda is installed."
 fi
@@ -26,7 +30,7 @@ echo "👏 Enabling conda in shell"
 eval "$(${CONDA_BIN} shell.bash hook)"
 
 echo "👏 Activating transformerlab conda environment"
-conda activate transformerlab
+conda activate "${ENV_DIR}"
 
 # Check if the uvicorn command works:
 if ! command -v uvicorn &> /dev/null; then
