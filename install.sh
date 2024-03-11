@@ -1,10 +1,6 @@
 #!/bin/bash
 set -eu
 
-# This script is meant to be run  on a new computer. 
-# It will pull down the API and install
-# it at ~/.transfomerlab/src
-
 ENV_NAME="transformerlab"
 TFL_DIR="$HOME/.transformerlab"
 TFL_CODE_DIR="${TFL_DIR}/src"
@@ -74,7 +70,7 @@ check_conda() {
   if ! command -v ${CONDA_BIN} &> /dev/null; then
     abort "❌ Conda is not installed at ${HOME}/${MINICONDA_DIRNAME}. Please install Conda and try again."
   else
-    ohai "✅ Conda is installed."
+    ohai "✅ Conda is installed at ${HOME}/${MINICONDA_DIRNAME}."
   fi
 }
 
@@ -87,7 +83,6 @@ check_python() {
     ohai "✅ Python is installed: $PYTHON_VERSION"
   fi
 }
-
 
 # First check OS.
 OS="$(uname)"
@@ -108,7 +103,7 @@ fi
 ##############################
 
 download_transformer_lab() {
-  title "Step 1: Download Transformer Lab"
+  title "Step 1: Download the latest release of Transformer Lab"
 
   # Figure out the path to the lastest release of Transformer Lab
   LATEST_RELEASE_VERSION=$(curl -Ls -o /dev/null -w %{url_effective} https://github.com/transformerlab/transformerlab-api/releases/latest)
@@ -151,22 +146,17 @@ install_conda() {
     fi
 
     MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-$OS-$ARCH.sh"
-    
-    if ! command -v conda &> /dev/null; then
-        echo Conda is not installed.
+    echo Downloading "$MINICONDA_URL"
 
-        # download and install conda (headless/silent)
-        echo Downloading "$MINICONDA_URL"
-
-        curl -o miniconda_installer.sh "$MINICONDA_URL" && bash miniconda_installer.sh -b -p "$HOME/$MINICONDA_DIRNAME" && rm miniconda_installer.sh
-        # Install conda to bash and zsh
-        # $HOME/$MINICONDA_DIRNAME/bin/conda init bash
-        # if [ -n "$(command -v zsh)" ]; then
-        #     $HOME/$MINICONDA_DIRNAME/bin/conda init zsh
-        # fi
-    fi
+    curl -o miniconda_installer.sh "$MINICONDA_URL" && bash miniconda_installer.sh -b -p "$HOME/$MINICONDA_DIRNAME" && rm miniconda_installer.sh
+    # Install conda to bash and zsh. We keep these commented out
+    # to avoid adding our conda to the user's shell as the default.
+    # $HOME/$MINICONDA_DIRNAME/bin/conda init bash
+    # if [ -n "$(command -v zsh)" ]; then
+    #     $HOME/$MINICONDA_DIRNAME/bin/conda init zsh
+    # fi
   else
-      ohai "Conda is installed, we do not need to install it"
+      ohai "Conda is installed at ${HOME}/${MINICONDA_DIRNAME}, we do not need to install it"
   fi
 
   # Enable conda in shell
@@ -201,7 +191,7 @@ create_conda_environment() {
 
   # Create the conda environment for Transformer Lab
   if { conda env list | grep -q "^$ENV_NAME"; } >/dev/null 2>&1; then
-      echo "Conda environment $ENV_NAME already exists."
+      echo "✅ Conda environment $ENV_NAME already exists."
   else
       echo conda create -y -n "$ENV_NAME" python=3.11
       conda create -y -n "$ENV_NAME" python=3.11
