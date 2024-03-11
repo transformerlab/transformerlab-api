@@ -92,10 +92,10 @@ then
   TLAB_ON_LINUX=1
 elif [[ "${OS}" == "Darwin" ]]
 then
-  TFL_ON_MACOS=1
+  TLAB_ON_MACOS=1
 elif [[ "${OS}" == "MINGW64_NT-10.0-19045" ]]
 then
-  TFL_ON_WINDOWS=1
+  TLAB_ON_WINDOWS=1
 else
   abort "Transformer Lab is only supported on macOS and Linux, you are running ${OS}."
 fi
@@ -152,18 +152,13 @@ install_conda() {
         OS="MacOSX"
 
     # This won't work on Windows because windows installer is an exe
-    elif [ "$TFL_ON_WINDOWS" == "1" ]; then
+    elif [ "$TLAB_ON_WINDOWS" == "1" ]; then
         OS="Windows"
         INSTALLER_FILE_EXTENSION="exe"
     fi
 
     MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-$OS-$ARCH.$INSTALLER_FILE_EXTENSION"
-    
-    if ! command -v conda &> /dev/null; then
-        echo Conda is not installed.
-
-        # download and install conda (headless/silent)
-        echo Downloading "$MINICONDA_URL"
+    echo Downloading "$MINICONDA_URL"
 
     curl -o miniconda_installer.sh "$MINICONDA_URL" && bash miniconda_installer.sh -b -p "$MINICONDA_ROOT" && rm miniconda_installer.sh
     # Install conda to bash and zsh. We keep these commented out
