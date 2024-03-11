@@ -4,9 +4,10 @@ set -eu
 ENV_NAME="transformerlab"
 TLAB_DIR="$HOME/.transformerlab"
 TLAB_CODE_DIR="${TLAB_DIR}/src"
-MINICONDA_DIRNAME=${MINICONDA_DIRNAME:-miniconda3}
-CONDA_BIN=${HOME}/${MINICONDA_DIRNAME}/bin/conda
 
+MINICONDA_ROOT=${TLAB_DIR}/miniconda3
+CONDA_BIN=${MINICONDA_ROOT}/bin/conda
+ENV_DIR=${TLAB_DIR}/envs/
 
 ##############################
 # Helper Functions
@@ -68,9 +69,9 @@ title() {
 
 check_conda() {
   if ! command -v ${CONDA_BIN} &> /dev/null; then
-    abort "❌ Conda is not installed at ${HOME}/${MINICONDA_DIRNAME}. Please install Conda and try again."
+    abort "❌ Conda is not installed at ${MINICONDA_ROOT}. Please install Conda and try again."
   else
-    ohai "✅ Conda is installed at ${HOME}/${MINICONDA_DIRNAME}."
+    ohai "✅ Conda is installed at ${MINICONDA_ROOT}."
   fi
 }
 
@@ -137,7 +138,7 @@ install_conda() {
 
   # check if conda already exists:
   if ! command -v ${CONDA_BIN} &> /dev/null; then
-    echo "Conda is not installed at ${HOME}/${MINICONDA_DIRNAME}."
+    echo "Conda is not installed at ${MINICONDA_ROOT}."
     OS=$(uname -s)
     ARCH=$(uname -m)
 
@@ -148,15 +149,15 @@ install_conda() {
     MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-$OS-$ARCH.sh"
     echo Downloading "$MINICONDA_URL"
 
-    curl -o miniconda_installer.sh "$MINICONDA_URL" && bash miniconda_installer.sh -b -p "$HOME/$MINICONDA_DIRNAME" && rm miniconda_installer.sh
+    curl -o miniconda_installer.sh "$MINICONDA_URL" && bash miniconda_installer.sh -b -p "$MINICONDA_ROOT" && rm miniconda_installer.sh
     # Install conda to bash and zsh. We keep these commented out
     # to avoid adding our conda to the user's shell as the default.
-    # $HOME/$MINICONDA_DIRNAME/bin/conda init bash
+    # $MINICONDA_ROOT/bin/conda init bash
     # if [ -n "$(command -v zsh)" ]; then
-    #     $HOME/$MINICONDA_DIRNAME/bin/conda init zsh
+    #     $MINICONDA_ROOT/bin/conda init zsh
     # fi
   else
-      ohai "Conda is installed at ${HOME}/${MINICONDA_DIRNAME}, we do not need to install it"
+      ohai "Conda is installed at ${$MINICONDA_ROOT}, we do not need to install it"
   fi
 
   # Enable conda in shell
@@ -173,14 +174,14 @@ create_conda_environment() {
   title "Step 3: Create the Conda Environment"
 
   # # Check if conda activate file exists:
-  # if [ ! -f "$HOME/$MINICONDA_DIRNAME/bin/activate" ]; then
-  #     echo "Conda is installed but it's not stored in $HOME/$MINICONDA_DIRNAME/"
+  # if [ ! -f "$MINICONDA_ROOT/bin/activate" ]; then
+  #     echo "Conda is installed but it's not stored in $$MINICONDA_ROOT"
   #     CONDA_BASE=$(conda info --base)
   #     echo "Conda is installed here: $CONDA_BASE"
   #     source $CONDA_BASE/etc/profile.d/conda.sh
   # else
   #     # activate the conda base env
-  #     source $HOME/$MINICONDA_DIRNAME/etc/profile.d/conda.sh
+  #     source $MINICONDA_ROOT/etc/profile.d/conda.sh
   # fi
 
   check_conda
@@ -283,7 +284,7 @@ doctor() {
     echo "Your conda version is: $(${CONDA_BIN} --version)" || echo "Issue with conda"
     echo "Conda is seen in path at at: $(which conda)" || echo "Conda is not in your path"
   else
-    echo "Conda is not installed at ${HOME}/${MINICONDA_DIRNAME}. Please install Conda and try again."
+    echo "Conda is not installed at ${$MINICONDA_ROOT}. Please install Conda and try again."
   fi
   if command -v nvidia-smi &> /dev/null; then
     echo "Your nvidia-smi version is: $(nvidia-smi --version)"
