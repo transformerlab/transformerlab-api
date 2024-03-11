@@ -30,7 +30,7 @@ Use the instructions below if you are installing and running the API on a server
 You can use the install script to get the application running:
 
 ```bash
-./init.sh
+./install.sh
 ```
 
 This will install [conda](https://docs.conda.io/projects/miniconda/en/latest/) if it's not installed, and then use conda and pip to
@@ -40,9 +40,7 @@ install the rest of the application requirements.
 
 If you prefer to install the API without using the install script you can follow the steps on this page:
 
-[Manual Install - Apple Mac (Silicon)](transformerlab/docs/manual_install_osx.md)
-
-[Manual Install - Other Architectures](transformerlab/docs/manual_install.md)
+[https://transformerlab.ai/docs/advanced-install](https://transformerlab.ai/docs/advanced-install)
 
 # Run
 

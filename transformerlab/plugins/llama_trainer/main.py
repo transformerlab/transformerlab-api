@@ -41,8 +41,34 @@ print(input_config)
 model_id = input_config["experiment"]["config"]["foundation"]
 # model_id = "NousResearch/Llama-2-7b-hf"  # non-gated
 
-# Load dataset from the hub
-dataset = load_dataset(config['dataset_name'], split="train")
+# Get the dataset
+# Datasets can be a huggingface ID or the name of a locally uploaded dataset
+# Need to check the DB to figure out which because it changes how we load the dataset
+# TODO: Refactor this to somehow simplify across training plugins
+dataset_id = config["dataset_name"]
+cursor = db.execute(
+    "SELECT location FROM dataset WHERE dataset_id = ?", (dataset_id,))
+row = cursor.fetchone()
+cursor.close()
+
+# if no rows exist then the dataset hasn't been installed!
+if row is None:
+    print(f"No dataset named {dataset_id} installed.")
+    exit
+
+# dataset_location will be either "local" or "huggingface"
+# (and if it's something else we're going to treat "huggingface" as default)
+dataset_location = row[0]
+
+# Load dataset - if it's local then pass it the path to the dataset directory
+if (dataset_location == "local"):
+    dataset_target = os.path.join(WORKSPACE_DIR, "datasets", dataset_id)
+
+# Otherwise assume it is a Huggingface ID
+else:
+    dataset_target = dataset_id
+
+dataset = load_dataset(dataset_target, split="train")
 
 print(f"dataset size: {len(dataset)}")
 print(dataset[randrange(len(dataset))])
