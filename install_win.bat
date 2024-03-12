@@ -67,7 +67,7 @@ if %ERRORLEVEL%==1 (
 EXIT /B 0
 
 :check_python
-call python > NUL
+call python --version > NUL
 if %ERRORLEVEL%==1 (
   echo ❌ Python is not installed as 'python'. Please install Python and try again or it could be installed as 'python3'
 ) else (
