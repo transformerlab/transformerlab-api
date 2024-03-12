@@ -7,6 +7,7 @@ set TLAB_CODE_DIR=%TLAB_DIR%\%src
 @rem deactivate existing conda envs as needed to avoid conflicts
 (call conda deactivate && call conda deactivate && call conda deactivate) 2>nul
 
+@rem Check if there are arguments to this script, and if so, run the appropriate function.
 if [%1]==[] (
   @rem title "Performing a full installation of Transformer Lab."
   call :download_transformer_lab
@@ -18,7 +19,11 @@ if [%1]==[] (
   echo Argument %1
 )
 
+:end
 EXIT /B %ERRORLEVEL%
+
+
+:: ---------------------------------------- INSTALLATION STEPS -------------------------------------
 
 :title
 @rem Remove all of the commented lines
