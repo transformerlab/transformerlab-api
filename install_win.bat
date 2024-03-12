@@ -16,7 +16,9 @@ if [%1]==[] (
   call :install_dependencies
   call :print_success_message
 ) else (
-  echo Argument %1
+  call :%1
+  @rem TODO fix emoji
+  if ERRORLEVEL 1 echo ❌ Unknown argument: %1
 )
 
 :end
@@ -26,14 +28,14 @@ EXIT /B %ERRORLEVEL%
 :: ---------------------------------------- INSTALLATION STEPS -------------------------------------
 
 :title
-@rem Remove all of the commented lines
-echo ""
+@rem TODO Remove all of the commented lines
+echo TITLE
 :: printf "%tty_blue%#########################################################################%tty_reset%\n"
 :: SET _INTERPOLATION_0=
 :: FOR /f "delims=" %%a in ('shell_join "$@"') DO (SET "_INTERPOLATION_0=!_INTERPOLATION_0! %%a")
 :: printf "%tty_blue%#### %tty_bold% %s%tty_reset%\n" "!_INTERPOLATION_0:~1!"
 :: printf "!tty_blue!#########################################################################!tty_reset!\n"
-:: EXIT /B 0
+EXIT /B 0
 
 :download_transformer_lab
 echo downloading transformer lab
