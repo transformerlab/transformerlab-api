@@ -1,7 +1,7 @@
 @echo off
 
 set ENV_NAME=transformerlab
-set TLAB_DIR=%HOME%\.transformerlab
+set TLAB_DIR=%USERPROFILE%\.transformerlab
 set TLAB_CODE_DIR=%TLAB_DIR%\%src
 
 set MINICONDA_ROOT=%TLAB_DIR%\miniconda3
@@ -13,7 +13,7 @@ set ENV_DIR=%TLAB_DIR%\envs\%ENV_NAME%
 
 @rem Check if there are arguments to this script, and if so, run the appropriate function.
 if [%1]==[] (
-  @rem title "Performing a full installation of Transformer Lab."
+  title "Performing a full installation of Transformer Lab."
   call :download_transformer_lab
   call :install_conda
   call :create_conda_environment
@@ -56,6 +56,41 @@ EXIT /B 0
 :install_dependencies
 echo installing dependencies
 EXIT /B 0
+
+:check_conda
+EXIT /B 0
+
+:check_python
+EXIT /B 0
+
+
+:doctor
+@rem TODO clear all lines strating with ::
+title "Doctor"
+:: ohai "Checking if everything is installed correctly."
+echo Your machine is running: %OS%
+@rem Check for Conda installation
+call %CONDA_BIN% > NUL
+if %ERRORLEVEL%==1 (
+  echo Error %ERRORLEVEL%
+  echo Conda is not installed at %MINICONDA_ROOT%. Please install Conda using 'install_win.bat install_conda' and try again.
+) else (
+  @rem TODO figure out how to report conda version
+::  echo Your conda version is: %CONDA_BIN%
+::  @rem Check for conda in the path
+  echo Conda is installed at %CONDA_BIN%
+)
+@rem Check for Conda installation
+call nvidia-smi > NUL
+if %ERRORLEVEL%==1 (
+  echo nvidia-smi is not installed.
+) else (
+  echo Your nvidia-smi version is: 
+)
+call :check_conda
+call :check_python
+EXIT /B 0
+
 
 :print_success_message
 title "Installation Complete"
