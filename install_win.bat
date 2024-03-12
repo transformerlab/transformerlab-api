@@ -45,8 +45,31 @@ EXIT /B 0
 echo downloading transformer lab
 EXIT /B 0
 
+:: ##############################
+:: ## Step 2: Install Conda
+:: ##############################
 :install_conda
-echo installing conda
+title "Step 2: Install Conda"
+
+@rem check if conda already exists:
+call %CONDA_BIN% > NUL
+if %ERRORLEVEL%==1 (
+  echo Conda is not installed at %MINICONDA_ROOT%.
+
+  MINICONDA_URL=https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe
+  echo Downloading %MINICONDA_URL%
+  call curl -o miniconda.exe "$MINICONDA_URL"; then
+  call start /wait "" miniconda.exe /InstallationType=JustMe /RegisterPython=0 /S /D=%UserProfile%\.transformerlab\miniconda3
+  rm miniconda.exe
+) else (
+  @rem TODO ohai
+  echo Conda is installed at %MINICONDA_ROOT%, we do not need to install it
+)
+  
+@rem Enable conda in shell
+@rem TODO WTF?
+:: eval conda shell.bash hook
+call :check_conda
 EXIT /B 0
 
 :create_conda_environment
