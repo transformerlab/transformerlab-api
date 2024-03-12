@@ -82,17 +82,16 @@ echo installing dependencies
 EXIT /B 0
 
 :list_installed_packages
-@rem TODO!
+@rem TODO: is this next line necessary given the call to conda activate?
 :: eval "$(${CONDA_BIN} shell.bash hook)"
-conda activate ${ENV_DIR}
-pip list --format json
+call "%MINICONDA_ROOT%\Scripts\activate.bat" || ( echo Miniconda hook not found.)
+call pip list --format json
 EXIT /B 0
 
 :list_environments
-@rem TODO!
-@rem THIS LINE BROKE THINGS AND NOW IT CAN'T FIND THIS FUNCTION!
-call "%MINICONDA_ROOT%\Scripts\activate.bat" || ( echo Miniconda hook not found.)
+@rem TODO: is this next line necessary given the call to conda activate?
 :: eval "$(${CONDA_BIN} shell.bash hook)"
+call "%MINICONDA_ROOT%\Scripts\activate.bat" || ( echo Miniconda hook not found.)
 call conda env list
 EXIT /B 0
 
