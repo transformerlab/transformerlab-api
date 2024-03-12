@@ -4,6 +4,10 @@ set ENV_NAME=transformerlab
 set TLAB_DIR=%HOME%\.transformerlab
 set TLAB_CODE_DIR=%TLAB_DIR%\%src
 
+set MINICONDA_ROOT=%TLAB_DIR%\miniconda3
+set CONDA_BIN=%MINICONDA_ROOT%\Scripts\conda
+set ENV_DIR=%TLAB_DIR%\envs\%ENV_NAME%
+
 @rem deactivate existing conda envs as needed to avoid conflicts
 (call conda deactivate && call conda deactivate && call conda deactivate) 2>nul
 
