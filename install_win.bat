@@ -26,6 +26,7 @@ if [%1]==[] (
 )
 
 :end
+call conda deactivate
 EXIT /B %ERRORLEVEL%
 
 
@@ -58,8 +59,8 @@ if %ERRORLEVEL%==1 (
 
   MINICONDA_URL=https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe
   echo Downloading %MINICONDA_URL%
-  call curl -o miniconda.exe "$MINICONDA_URL"; then
-  call start /wait "" miniconda.exe /InstallationType=JustMe /RegisterPython=0 /S /D=%UserProfile%\.transformerlab\miniconda3
+  call curl -o miniconda.exe "$MINICONDA_URL"
+  start /wait "" miniconda.exe /InstallationType=JustMe /RegisterPython=0 /S /D=%UserProfile%\.transformerlab\miniconda3
   rm miniconda.exe
 ) else (
   @rem TODO ohai
@@ -78,6 +79,21 @@ EXIT /B 0
 
 :install_dependencies
 echo installing dependencies
+EXIT /B 0
+
+:list_installed_packages
+@rem TODO!
+:: eval "$(${CONDA_BIN} shell.bash hook)"
+conda activate ${ENV_DIR}
+pip list --format json
+EXIT /B 0
+
+:list_environments
+@rem TODO!
+@rem THIS LINE BROKE THINGS AND NOW IT CAN'T FIND THIS FUNCTION!
+call "%MINICONDA_ROOT%\Scripts\activate.bat" || ( echo Miniconda hook not found.)
+:: eval "$(${CONDA_BIN} shell.bash hook)"
+call conda env list
 EXIT /B 0
 
 :check_conda
@@ -142,3 +158,4 @@ echo   %TLAB_DIR%\src\run.bat
 echo ------------------------------------------
 echo
 EXIT /B 0
+
