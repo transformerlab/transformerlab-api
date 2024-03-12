@@ -58,9 +58,21 @@ echo installing dependencies
 EXIT /B 0
 
 :check_conda
+call %CONDA_BIN% > NUL
+if %ERRORLEVEL%==1 (
+  echo ❌ Conda is not installed at %MINICONDA_ROOT%. Please install Conda using 'install_win.bat install_conda' and try again.
+) else (
+  echo ✅ Conda is installed at %CONDA_BIN%
+)
 EXIT /B 0
 
 :check_python
+call python > NUL
+if %ERRORLEVEL%==1 (
+  echo ❌ Python is not installed as 'python'. Please install Python and try again or it could be installed as 'python3'
+) else (
+  echo ✅ Python is installed: $PYTHON_VERSION
+)
 EXIT /B 0
 
 
