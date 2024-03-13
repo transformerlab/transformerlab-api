@@ -26,7 +26,8 @@ if [%1]==[] (
 )
 
 :end
-call conda deactivate
+@rem TODO: Do we need to deactivate? Maybe within individual functions?
+call conda deactivate 2>nul
 EXIT /B %ERRORLEVEL%
 
 
@@ -73,13 +74,35 @@ if %ERRORLEVEL%==1 (
 call :check_conda
 EXIT /B 0
 
+
+:: #########################################
+:: ## Step 3: Create the Conda Environment
+:: #########################################
 :create_conda_environment
-echo creating conda environemtn
+title "Step 3: Create the Conda Environment"
+call :check_conda
+
+@rem TODO: How do on windows?
+:: eval conda shell.bash hook
+call "%MINICONDA_ROOT%\Scripts\activate.bat" || ( echo Miniconda hook not found.)
+call conda env list | FIND "%ENV_DIR%"
+
+@rem NOTE: This will SET TLAB_ENV_CHECK with output of any environment that matches our target
+FOR /F %%I IN ('conda env list ^| FIND "%ENV_DIR%"') DO @SET "TLAB_ENV_CHECK=%%I"
+if %TLAB_ENV_CHECK%=="" (
+    echo conda create -y -n %ENV_DIR% python=3.11
+    call conda create -y -k --prefix "%ENV_DIR%" python=3.11
+) else (
+    echo ✅ Conda environment $ENV_DIR already exists.
+)
+echo conda activate %ENV_DIR%
+call conda activate %ENV_DIR%
 EXIT /B 0
 
 :install_dependencies
 echo installing dependencies
 EXIT /B 0
+
 
 :list_installed_packages
 @rem TODO: is this next line necessary given the call to conda activate?
@@ -130,7 +153,7 @@ if %ERRORLEVEL%==1 (
 ::  @rem Check for conda in the path
   echo Conda is installed at %CONDA_BIN%
 )
-@rem Check for Conda installation
+@rem Check for nvidia installation
 call nvidia-smi > NUL
 if %ERRORLEVEL%==1 (
   echo nvidia-smi is not installed.
