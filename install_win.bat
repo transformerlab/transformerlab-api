@@ -188,11 +188,11 @@ if %HAS_GPU%==true (
 @rem TODO fix the abort and ohai calls
 call uvicorn > NUL
 if %ERRORLEVEL%==0 (
-::  abort "❌ Uvicorn is not installed. This usually means that the installation of dependencies failed."
-  echo ❌ Uvicorn is not installed. This usually means that the installation of dependencies failed.
-) else (
 ::  ohai "✅ Uvicorn is installed."
   echo ✅ Uvicorn is installed.
+) else (
+::  abort "❌ Uvicorn is not installed. This usually means that the installation of dependencies failed."
+  echo ❌ Uvicorn is not installed. This usually means that the installation of dependencies failed.
 )
 EXIT /B 0
 
