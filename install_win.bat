@@ -136,8 +136,64 @@ echo conda activate %ENV_DIR%
 call conda activate %ENV_DIR%
 EXIT /B 0
 
+
+:: ################################
+:: ## Step 4: Install Dependencies
+:: ################################
 :install_dependencies
-echo installing dependencies
+title "Step 4: Install Dependencies"
+
+@rem TODO: How do on windows?
+:: eval conda shell.bash hook
+call "%MINICONDA_ROOT%\Scripts\activate.bat" || ( echo Miniconda hook not found.)
+call conda activate %ENV_DIR%
+
+call :check_python
+
+@rem Check if nvidia-smi is available
+set HAS_GPU=false
+call nvidia-smi > NUL
+if %ERRORLEVEL%==0 (
+    set NVIDIA_CMD=nvidia-smi --query-gpu=name --format=csv,noheader,nounits
+    for /F %%G in ('call %NVIDIA_CMD%') do set "GPU_INFO=%%G"
+    echo nvidia-smi is available
+    echo %GPU_INFO%
+
+    if %GPU_INFO%=="" (
+        echo Nvidia SMI exists, No NVIDIA GPU detected. Perhaps you need to re-install NVIDIA drivers.
+    ) else (
+        echo NVIDIA GPU detected: %GPU_INFO%
+        set HAS_GPU=true
+    )
+)
+echo HAS_GPU=%HAS_GPU%
+
+@rem Install CUDA if there is an NVIDIA GPU
+if %HAS_GPU%==true (
+    echo Your computer has a GPU; installing cuda:
+    call conda install -y cuda -c nvidia/label/cuda-12.1.1
+    echo Installing requirements:
+) else (
+    echo No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support.
+    echo https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions
+    echo Installing Tranformer Lab requirements without GPU support
+)
+
+::    call pip install --upgrade -r %TLAB_CODE_DIR%\requirements-no-gpu.txt
+::    call pip install --upgrade -r %TLAB_CODE_DIR%\requirements.txt
+
+::    call pip install --upgrade -r %TLAB_CODE_DIR%\requirements-no-gpu.txt
+
+@rem As a test for if things completed, check if the uvicorn command works:
+@rem TODO fix the abort and ohai calls
+call uvicorn > NUL
+if %ERRORLEVEL%==0 (
+::  abort "❌ Uvicorn is not installed. This usually means that the installation of dependencies failed."
+  echo ❌ Uvicorn is not installed. This usually means that the installation of dependencies failed.
+) else (
+::  ohai "✅ Uvicorn is installed."
+  echo ✅ Uvicorn is installed.
+)
 EXIT /B 0
 
 
