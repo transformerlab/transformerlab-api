@@ -44,18 +44,11 @@ If you prefer to install the API without using the install script you can follow
 
 # Run
 
-Within your virtual environment run the following command:
+Once conda and dependencies are installed, run the following:
 
 ```bash
 conda activate transformerlab
-python3 api.py
-```
-
-If you want the API to be available to other machines on your network run:
-
-```bash
-conda activate transformerlab
-python3 api.py --host 0.0.0.0
+uvicorn api:app --port 8000 --host 0.0.0.0
 ```
 
 # Developers:
