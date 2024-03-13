@@ -43,8 +43,45 @@ echo TITLE
 :: printf "!tty_blue!#########################################################################!tty_reset!\n"
 EXIT /B 0
 
+:: ###########################################
+:: ## Step 1: Download Transformer Lab
+:: ## in the ~/.transformerlab/src directory.
+:: ###########################################
 :download_transformer_lab
-echo downloading transformer lab
+title "Step 1: Download the latest release of Transformer Lab"
+
+@rem Figure out the path to the lastest release of Transformer Lab
+@rem The second line saves the output of the curl call to a variable called curl_response
+@rem The third line to pulls the filename from the full URL: nx is filename n and extension x
+set CURL_CMD=curl -Ls -o /dev/null -w %%{url_effective} https://github.com/transformerlab/transformerlab-api/releases/latest
+for /F %%G In ('%CURL_CMD%') do set "curl_response=%%G"
+echo %curl_response%
+for %%f in (%curl_response%) do set LATEST_RELEASE_VERSION=%%~nxf
+echo Latest Release on Github: %LATEST_RELEASE_VERSION%
+
+set TLAB_URL="https://github.com/transformerlab/transformerlab-api/archive/refs/tags/%LATEST_RELEASE_VERSION%.zip"
+echo Download Location: %TLAB_URL%
+
+@rem If the user has not installed Transformer Lab, then we should install it.
+:: ohai "Installing Transformer Lab ${LATEST_RELEASE_VERSION}..."
+echo Installing Transformer Lab %LATEST_RELEASE_VERSION%...
+@rem TODO: Shut up if it exists already
+md %TLAB_DIR%
+call curl -L "%TLAB_URL%" -o "%TLAB_DIR%\transformerlab.zip"
+set NEW_DIRECTORY_NAME="transformerlab-api-%LATEST_RELEASE_VERSION%"
+
+@rem TODO: Shut up if this is already gone?
+rd /s /q "%TLAB_DIR\%NEW_DIRECTORY_NAME%"
+rd /s /q "%TLAB_CODE_DIR%"
+call tar -xf "%TLAB_DIR%\transformerlab.zip" -C "%TLAB_DIR%"
+
+goto :endskip
+rename "${TLAB_DIR}/${NEW_DIRECTORY_NAME}" "${TLAB_CODE_DIR}"
+del "${TLAB_DIR}/transformerlab.zip"
+
+@rem Create a file called LATEST_VERSION that contains the latest version of Transformer Lab.
+echo "${LATEST_RELEASE_VERSION}" > "%TLAB_CODE_DIR%/LATEST_VERSION"
+:endskip
 EXIT /B 0
 
 :: ##############################
