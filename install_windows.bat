@@ -121,7 +121,7 @@ call :check_conda
 
 @rem TODO: How do on windows?
 :: eval conda shell.bash hook
-call "%MINICONDA_ROOT%\Scripts\activate.bat" || ( echo Miniconda hook not found.)
+call "%MINICONDA_ROOT%\Scripts\activate.bat"
 call conda env list | FIND "%ENV_DIR%"
 
 @rem NOTE: This will SET TLAB_ENV_CHECK with output of any environment that matches our target
@@ -145,7 +145,7 @@ title "Step 4: Install Dependencies"
 
 @rem TODO: How do on windows?
 :: eval conda shell.bash hook
-call "%MINICONDA_ROOT%\Scripts\activate.bat" || ( echo Miniconda hook not found.)
+call "%MINICONDA_ROOT%\Scripts\activate.bat"
 call conda activate %ENV_DIR%
 
 call :check_python
@@ -198,14 +198,14 @@ EXIT /B 0
 :list_installed_packages
 @rem TODO: is this next line necessary given the call to conda activate?
 :: eval "$(${CONDA_BIN} shell.bash hook)"
-call "%MINICONDA_ROOT%\Scripts\activate.bat" || ( echo Miniconda hook not found.)
+call "%MINICONDA_ROOT%\Scripts\activate.bat"
 call pip list --format json
 EXIT /B 0
 
 :list_environments
 @rem TODO: is this next line necessary given the call to conda activate?
 :: eval "$(${CONDA_BIN} shell.bash hook)"
-call "%MINICONDA_ROOT%\Scripts\activate.bat" || ( echo Miniconda hook not found.)
+call "%MINICONDA_ROOT%\Scripts\activate.bat"
 call conda env list
 EXIT /B 0
 
