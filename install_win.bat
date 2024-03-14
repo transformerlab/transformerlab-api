@@ -155,7 +155,7 @@ set HAS_GPU=false
 call nvidia-smi > NUL
 if %ERRORLEVEL%==0 (
     set NVIDIA_CMD=nvidia-smi --query-gpu=name --format=csv,noheader,nounits
-    for /F %%G in ('call %NVIDIA_CMD%') do set "GPU_INFO=%%G"
+    for /F "delims=" %%G in ('call %NVIDIA_CMD%') do set "GPU_INFO=%%G"
     echo nvidia-smi is available
     echo %GPU_INFO%
 
@@ -225,7 +225,8 @@ call python --version > NUL
 if %ERRORLEVEL%==1 (
   echo ❌ Python is not installed as 'python'. Please install Python and try again or it could be installed as 'python3'
 ) else (
-  echo ✅ Python is installed: $PYTHON_VERSION
+  for /F "delims=" %%G in ('call python --version') do set "CURRENT_PYTHON_VERSION=%%G"
+  echo ✅ Python is installed: %CURRENT_PYTHON_VERSION%
 )
 EXIT /B 0
 
