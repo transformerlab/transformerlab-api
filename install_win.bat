@@ -171,16 +171,17 @@ if %HAS_GPU%==true (
     echo Your computer has a GPU; installing cuda:
     call conda install -y cuda -c nvidia/label/cuda-12.1.1
     echo Installing requirements:
+    call pip install --upgrade -r %TLAB_CODE_DIR%\requirements-no-gpu.txt
+    call pip install --upgrade -r %TLAB_CODE_DIR%\requirements.txt
 ) else (
     echo No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support.
     echo https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions
     echo Installing Tranformer Lab requirements without GPU support
+    call pip install --upgrade -r %TLAB_CODE_DIR%\requirements-no-gpu.txt
 )
 
-::    call pip install --upgrade -r %TLAB_CODE_DIR%\requirements-no-gpu.txt
-::    call pip install --upgrade -r %TLAB_CODE_DIR%\requirements.txt
 
-::    call pip install --upgrade -r %TLAB_CODE_DIR%\requirements-no-gpu.txt
+
 
 @rem As a test for if things completed, check if the uvicorn command works:
 @rem TODO fix the abort and ohai calls
