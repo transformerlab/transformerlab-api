@@ -13,6 +13,8 @@ set ENV_DIR=%TLAB_DIR%\envs\%ENV_NAME%
 
 @rem Check if there are arguments to this script, and if so, run the appropriate function.
 if [%1]==[] (
+  @rem TEMPORARY STOP IF NO ARGUMENTS
+  goto :end
   title "Performing a full installation of Transformer Lab."
   call :download_transformer_lab
   call :install_conda
@@ -26,7 +28,7 @@ if [%1]==[] (
 )
 
 :end
-@rem TODO: Do we need to deactivate? Maybe within individual functions?
+@rem TODO: Do we need to deactivate? Maybe within individual functions? End on same environment as start!
 call conda deactivate 2>nul
 EXIT /B %ERRORLEVEL%
 
