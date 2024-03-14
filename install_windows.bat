@@ -75,13 +75,12 @@ rd /s /q "%TLAB_DIR\%NEW_DIRECTORY_NAME%"
 rd /s /q "%TLAB_CODE_DIR%"
 call tar -xf "%TLAB_DIR%\transformerlab.zip" -C "%TLAB_DIR%"
 
-goto :endskip
 rename "${TLAB_DIR}/${NEW_DIRECTORY_NAME}" "${TLAB_CODE_DIR}"
 del "${TLAB_DIR}/transformerlab.zip"
 
 @rem Create a file called LATEST_VERSION that contains the latest version of Transformer Lab.
 echo "${LATEST_RELEASE_VERSION}" > "%TLAB_CODE_DIR%/LATEST_VERSION"
-:endskip
+
 EXIT /B 0
 
 :: ##############################
@@ -272,4 +271,3 @@ echo   %TLAB_DIR%\src\run.bat
 echo ------------------------------------------
 echo
 EXIT /B 0
-
