@@ -152,14 +152,12 @@ call :check_python
 
 @rem Check if nvidia-smi is available
 set HAS_GPU=false
-call nvidia-smi > NUL
+call "nvidia-smi" > NUL
 if %ERRORLEVEL%==0 (
     set NVIDIA_CMD=nvidia-smi --query-gpu=name --format=csv,noheader,nounits
-    for /F "delims=" %%G in ('call %NVIDIA_CMD%') do set "GPU_INFO=%%G"
+    for /F "delims=" %%G in ('call %%NVIDIA_CMD%%') do set GPU_INFO=%%G
     echo nvidia-smi is available
-    echo %GPU_INFO%
-
-    if %GPU_INFO%=="" (
+    if "%GPU_INFO%" == "" (
         echo Nvidia SMI exists, No NVIDIA GPU detected. Perhaps you need to re-install NVIDIA drivers.
     ) else (
         echo NVIDIA GPU detected: %GPU_INFO%
