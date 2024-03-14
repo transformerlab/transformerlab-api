@@ -180,12 +180,12 @@ if %HAS_GPU%==true (
     call pip install --upgrade -r %TLAB_CODE_DIR%\requirements-no-gpu.txt
 )
 
-
-
+@rem Missing Windows dependencies
+call pip install --upgrade colorama
 
 @rem As a test for if things completed, check if the uvicorn command works:
 @rem TODO fix the abort and ohai calls
-call uvicorn > NUL
+call uvicorn --version > NUL
 if %ERRORLEVEL%==0 (
 ::  ohai "✅ Uvicorn is installed."
   echo ✅ Uvicorn is installed.
@@ -194,7 +194,6 @@ if %ERRORLEVEL%==0 (
   echo ❌ Uvicorn is not installed. This usually means that the installation of dependencies failed.
 )
 EXIT /B 0
-
 
 :list_installed_packages
 @rem TODO: is this next line necessary given the call to conda activate?
