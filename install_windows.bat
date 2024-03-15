@@ -37,7 +37,7 @@ EXIT /B %ERRORLEVEL%
 
 :title
 @rem TODO Remove all of the commented lines
-echo TITLE
+echo %1
 :: printf "%tty_blue%#########################################################################%tty_reset%\n"
 :: SET _INTERPOLATION_0=
 :: FOR /f "delims=" %%a in ('shell_join "$@"') DO (SET "_INTERPOLATION_0=!_INTERPOLATION_0! %%a")
