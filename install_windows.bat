@@ -70,18 +70,24 @@ echo Installing Transformer Lab %LATEST_RELEASE_VERSION%...
 @rem TODO: Shut up if it exists already
 md %TLAB_DIR%
 call curl -L "%TLAB_URL%" -o "%TLAB_DIR%\transformerlab.zip"
+echo NEW_DIRECTORY_NAME=transformerlab-api-%LATEST_RELEASE_VERSION%
 set NEW_DIRECTORY_NAME="transformerlab-api-%LATEST_RELEASE_VERSION%"
 
 @rem TODO: Shut up if this is already gone?
+echo rd "%TLAB_DIR\%NEW_DIRECTORY_NAME%"
 rd /s /q "%TLAB_DIR\%NEW_DIRECTORY_NAME%"
+echo rd "%TLAB_CODE_DIR%"
 rd /s /q "%TLAB_CODE_DIR%"
+echo  unzipping "%TLAB_DIR%\transformerlab.zip" to "%TLAB_DIR%"
 call tar -xf "%TLAB_DIR%\transformerlab.zip" -C "%TLAB_DIR%"
 
-rename "${TLAB_DIR}/${NEW_DIRECTORY_NAME}" "${TLAB_CODE_DIR}"
-del "${TLAB_DIR}/transformerlab.zip"
+echo Moving "%TLAB_DIR%/%NEW_DIRECTORY_NAME%" to "%TLAB_CODE_DIR%"
+rename "%TLAB_DIR%/%NEW_DIRECTORY_NAME%" "%TLAB_CODE_DIR%"
+echo deleting "%TLAB_DIR%/transformerlab.zip"
+del "%TLAB_DIR%/transformerlab.zip"
 
 @rem Create a file called LATEST_VERSION that contains the latest version of Transformer Lab.
-echo "${LATEST_RELEASE_VERSION}" > "%TLAB_CODE_DIR%/LATEST_VERSION"
+echo %LATEST_RELEASE_VERSION% > "%TLAB_CODE_DIR%/LATEST_VERSION"
 
 EXIT /B 0
 
