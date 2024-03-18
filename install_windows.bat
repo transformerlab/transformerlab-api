@@ -2,7 +2,7 @@
 
 set ENV_NAME=transformerlab
 set TLAB_DIR=%USERPROFILE%\.transformerlab
-set TLAB_CODE_DIR=%TLAB_DIR%\%src
+set TLAB_CODE_DIR=%TLAB_DIR%\src
 
 set MINICONDA_ROOT=%TLAB_DIR%\miniconda3
 set CONDA_BIN=%MINICONDA_ROOT%\Scripts\conda
@@ -72,22 +72,13 @@ if "%LATEST_RELEASE_VERSION:~0,1%" == "v" (
 ) else (
   set LATEST_RELEASE_VERSION_WITHOUT_V=%LATEST_RELEASE_VERSION%
 )
-echo LATEST_RELEASE_VERSION_WITHOUT_V is %LATEST_RELEASE_VERSION_WITHOUT_V%
 set NEW_DIRECTORY_NAME=transformerlab-api-%LATEST_RELEASE_VERSION_WITHOUT_V%
-echo NEW_DIRECTORY_NAME is %NEW_DIRECTORY_NAME%
 
 @rem Remove old code direcotories, unzip the new code and move it in to the right place
-@rem TODO: Shut up if this is already gone?
-echo rd "%TLAB_DIR%\%NEW_DIRECTORY_NAME%"
 if exist "%TLAB_DIR%\%NEW_DIRECTORY_NAME%\" rd /s /q "%TLAB_DIR%\%NEW_DIRECTORY_NAME%"
-echo rd "%TLAB_CODE_DIR%"
 if exist "%TLAB_CODE_DIR%\" rd /s /q "%TLAB_CODE_DIR%"
-echo  unzipping "%TLAB_DIR%\transformerlab.zip" to "%TLAB_DIR%"
 call tar -xf "%TLAB_DIR%\transformerlab.zip" -C "%TLAB_DIR%"
-
-echo Moving "%TLAB_DIR%\%NEW_DIRECTORY_NAME%" to "%TLAB_CODE_DIR%"
-rename "%TLAB_DIR%\%NEW_DIRECTORY_NAME%" "%TLAB_CODE_DIR%"
-echo deleting "%TLAB_DIR%\transformerlab.zip"
+rename "%TLAB_DIR%\%NEW_DIRECTORY_NAME%" src
 del "%TLAB_DIR%\transformerlab.zip"
 
 @rem Create a file called LATEST_VERSION that contains the latest version of Transformer Lab.
