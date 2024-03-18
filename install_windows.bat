@@ -201,6 +201,7 @@ EXIT /B 0
 @rem TODO: is this next line necessary given the call to conda activate?
 :: eval "$(${CONDA_BIN} shell.bash hook)"
 call "%MINICONDA_ROOT%\Scripts\activate.bat"
+call conda activate %ENV_DIR%
 call pip list --format json
 EXIT /B 0
 
