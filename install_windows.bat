@@ -63,8 +63,7 @@ echo Download Location: %TLAB_URL%
 @rem TODO ohai replace
 :: ohai "Installing Transformer Lab %LATEST_RELEASE_VERSION% ..."
 echo Installing Transformer Lab %LATEST_RELEASE_VERSION% ...
-@rem TODO: Shut up if it exists already
-md %TLAB_DIR%
+if not exist "%TLAB_DIR%\" mkdir %TLAB_DIR%
 call curl -L "%TLAB_URL%" -o "%TLAB_DIR%\transformerlab.zip"
 
 @rem If there's a leading v in the github version string, remove it to get the directory name inside of the zip
