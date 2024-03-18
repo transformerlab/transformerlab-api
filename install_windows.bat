@@ -79,9 +79,9 @@ echo NEW_DIRECTORY_NAME is %NEW_DIRECTORY_NAME%
 @rem Remove old code direcotories, unzip the new code and move it in to the right place
 @rem TODO: Shut up if this is already gone?
 echo rd "%TLAB_DIR%\%NEW_DIRECTORY_NAME%"
-rd /s /q "%TLAB_DIR%\%NEW_DIRECTORY_NAME%"
+if exist "%TLAB_DIR%\%NEW_DIRECTORY_NAME%\" rd /s /q "%TLAB_DIR%\%NEW_DIRECTORY_NAME%"
 echo rd "%TLAB_CODE_DIR%"
-rd /s /q "%TLAB_CODE_DIR%"
+if exist "%TLAB_CODE_DIR%\" rd /s /q "%TLAB_CODE_DIR%"
 echo  unzipping "%TLAB_DIR%\transformerlab.zip" to "%TLAB_DIR%"
 call tar -xf "%TLAB_DIR%\transformerlab.zip" -C "%TLAB_DIR%"
 
