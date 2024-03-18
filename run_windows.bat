@@ -35,6 +35,7 @@ if %ERRORLEVEL%==0 (
 )
 
 echo 👏 Starting the API server
+set PYTHONUTF8=1
 uvicorn api:app --port 8000 --host 0.0.0.0 
 
 :endscript
