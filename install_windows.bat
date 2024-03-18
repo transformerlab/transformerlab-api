@@ -53,27 +53,31 @@ EXIT /B 0
 title "Step 1: Download the latest release of Transformer Lab"
 
 @rem Figure out the path to the lastest release of Transformer Lab
-@rem The second line saves the output of the curl call to a variable called curl_response
-@rem The third line to pulls the filename from the full URL: nx is filename n and extension x
 set CURL_CMD=curl -Ls -o /dev/null -w %%{url_effective} https://github.com/transformerlab/transformerlab-api/releases/latest
-for /F %%G In ('%CURL_CMD%') do set "curl_response=%%G"
-echo %curl_response%
-for %%f in (%curl_response%) do set LATEST_RELEASE_VERSION=%%~nxf
-set LATEST_RELEASE_VERSION_WITHOUT_V=LATEST_RELEASE_VERSION
+for /F %%G In ('%CURL_CMD%') do set "CURL_RESPONSE=%%G"
+for %%f in (%CURL_RESPONSE%) do set LATEST_RELEASE_VERSION=%%~nxf
 echo Latest Release on Github: %LATEST_RELEASE_VERSION%
-
 set TLAB_URL="https://github.com/transformerlab/transformerlab-api/archive/refs/tags/%LATEST_RELEASE_VERSION%.zip"
 echo Download Location: %TLAB_URL%
 
-@rem If the user has not installed Transformer Lab, then we should install it.
-:: ohai "Installing Transformer Lab ${LATEST_RELEASE_VERSION}..."
-echo Installing Transformer Lab %LATEST_RELEASE_VERSION_WITHOUT_V%...
+@rem TODO ohai replace
+:: ohai "Installing Transformer Lab %LATEST_RELEASE_VERSION% ..."
+echo Installing Transformer Lab %LATEST_RELEASE_VERSION% ...
 @rem TODO: Shut up if it exists already
 md %TLAB_DIR%
 call curl -L "%TLAB_URL%" -o "%TLAB_DIR%\transformerlab.zip"
-echo NEW_DIRECTORY_NAME=transformerlab-api-%LATEST_RELEASE_VERSION_WITHOUT_V%
-set NEW_DIRECTORY_NAME=transformerlab-api-%LATEST_RELEASE_VERSION_WITHOUT_V%
 
+@rem If there's a leading v in the github version string, remove it to get the directory name inside of the zip
+if "%LATEST_RELEASE_VERSION:~0,1%" == "v" (
+  set LATEST_RELEASE_VERSION_WITHOUT_V=%LATEST_RELEASE_VERSION:~1%
+) else (
+  set LATEST_RELEASE_VERSION_WITHOUT_V=%LATEST_RELEASE_VERSION%
+)
+echo LATEST_RELEASE_VERSION_WITHOUT_V is %LATEST_RELEASE_VERSION_WITHOUT_V%
+set NEW_DIRECTORY_NAME=transformerlab-api-%LATEST_RELEASE_VERSION_WITHOUT_V%
+echo NEW_DIRECTORY_NAME is %NEW_DIRECTORY_NAME%
+
+@rem Remove old code direcotories, unzip the new code and move it in to the right place
 @rem TODO: Shut up if this is already gone?
 echo rd "%TLAB_DIR%\%NEW_DIRECTORY_NAME%"
 rd /s /q "%TLAB_DIR%\%NEW_DIRECTORY_NAME%"
