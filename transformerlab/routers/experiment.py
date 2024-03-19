@@ -13,6 +13,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
+from fastapi import FastAPI, File, UploadFile
 
 
 from jinja2 import Template
@@ -902,13 +903,13 @@ async def plugin_new_plugin_directory(experimentId: str, pluginId: str):
 
 
 # Get info on dataset from huggingface
-@router.get("/{experimentId}/documents/{document_name}/info", summary="Fetch the details of a particular dataset.")
+@router.get("/{experimentId}/documents/{document_name}/info", summary="Fetch the details of a particular document.")
 async def document_info():
     r = {"message": "This endpoint is not yet implemented"}
     return r
 
 
-@router.get("/{experimentId}/documents/open/{document_name}", summary="View the contents of a dataset.")
+@router.get("/{experimentId}/documents/open/{document_name}", summary="View the contents of a document.")
 async def document_view(experimentId: str, document_name: str):
     try:
         experiment_dir = await dirs.experiment_dir_by_id(experimentId)
@@ -922,7 +923,7 @@ async def document_view(experimentId: str, document_name: str):
     return FileResponse(file_location)
 
 
-@router.get("/{experimentId}/documents/list", summary="List available datasets.")
+@router.get("/{experimentId}/documents/list", summary="List available documents.")
 async def document_list(experimentId: str):
     documents = []
     ## List the files that are in the experiment/<experiment_name>/documents directory:
@@ -943,32 +944,51 @@ async def document_list(experimentId: str):
     return documents  # convert list to JSON object
 
 
-@router.get("/{experimentId}/documents/new", summary="Create a new dataset.")
-async def dataset_new(dataset_id: str):
+@router.get("/{experimentId}/documents/new", summary="Create a new document.")
+async def document_new(dataset_id: str):
+    print("Not yet implemented")
     return {"status": "success", "dataset_id": dataset_id}
 
 
-@router.get("/{experimentId}/documents/{document_name}/delete", summary="Delete a dataset.")
-async def dataset_delete(dataset_id: str):
+@router.get("/{experimentId}/documents/delete/{document_name}", summary="Delete a document.")
+async def delete_document(experimentId: str, document_name: str):
+    experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+    path = os.path.join(experiment_dir, "documents", document_name)
+    if os.path.exists(path):
+        os.remove(path)
     return {"status": "success"}
 
 
-@router.post("/{experimentId}/documents/fileupload", summary="Upload the contents of a dataset.")
-async def create_upload_file(dataset_id: str, file: UploadFile):
+@router.post("/{experimentId}/documents/upload", summary="Upload the contents of a document.")
+async def document_upload(experimentId: str, file: UploadFile):
     print("uploading filename is: " + str(file.filename))
 
     # ensure the filename is exactly {dataset_id}_train.jsonl or {dataset_id}_eval.jsonl
-    if not re.match(rf"^{dataset_id}_(train|eval).jsonl$", str(file.filename)):
-        raise HTTPException(
-            status_code=403, detail=f"The filenames must be named EXACTLY: {dataset_id}_train.jsonl and {dataset_id}_eval.jsonl")
+    # if not re.match(rf"^{dataset_id}_(train|eval).jsonl$", str(file.filename)):
+    #     raise HTTPException(
+    #         status_code=403, detail=f"The filenames must be named EXACTLY: {dataset_id}_train.jsonl and {dataset_id}_eval.jsonl")
 
-    dataset_id = slugify(dataset_id)
+    print("file content type is: " + str(file.content_type))
+
+    if file.content_type not in ["text/plain", "application/json", "application/pdf", "application/octet-stream"]:
+        raise HTTPException(
+            status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
+    
+    file_ext = os.path.splitext(file.filename)[1]
+    if file_ext not in [".txt", ".jsonl", ".pdf"]:
+        raise HTTPException(
+            status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
+
+    experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+
+    if not os.path.exists(os.path.join(experiment_dir, "documents")):
+        os.makedirs(os.path.join(experiment_dir, "documents"))
 
     # Save the file to the dataset directory
     try:
         content = await file.read()
         newfilename = os.path.join(
-            dirs.dataset_dir_by_id(dataset_id), str(file.filename))
+            experiment_dir, "documents", str(file.filename))
         async with aiofiles.open(newfilename, "wb") as out_file:
             await out_file.write(content)
     except Exception:
