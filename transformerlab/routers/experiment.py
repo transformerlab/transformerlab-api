@@ -1,3 +1,5 @@
+import datetime
+from http.client import HTTPException
 import json
 import os
 from pathlib import Path
@@ -10,8 +12,13 @@ from distutils.dir_util import copy_tree, remove_tree
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Body
+from fastapi.responses import FileResponse
+
 
 from jinja2 import Template
+
+import aiofiles
+from fastapi import APIRouter, HTTPException, UploadFile
 
 import transformerlab.db as db
 
@@ -889,3 +896,83 @@ async def plugin_new_plugin_directory(experimentId: str, pluginId: str):
         f.write(json.dumps(index_json, indent=4))
 
     return {"message": f"{script_path} directory created"}
+
+
+
+
+
+# Get info on dataset from huggingface
+@router.get("/{experimentId}/documents/{document_name}/info", summary="Fetch the details of a particular dataset.")
+async def document_info():
+    r = {"message": "This endpoint is not yet implemented"}
+    return r
+
+
+@router.get("/{experimentId}/documents/open/{document_name}", summary="View the contents of a dataset.")
+async def document_view(experimentId: str, document_name: str):
+    try:
+        experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+        file_location = os.path.join(
+            experiment_dir, "documents", document_name)
+        print(f"Returning document from {file_location}")
+        # with open(file_location, "r") as f:
+        #     file_contents = f.read()
+    except FileNotFoundError:
+        return "error file not found"
+    return FileResponse(file_location)
+
+
+@router.get("/{experimentId}/documents/list", summary="List available datasets.")
+async def document_list(experimentId: str):
+    documents = []
+    ## List the files that are in the experiment/<experiment_name>/documents directory:
+    experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+    documents_dir = os.path.join(experiment_dir,  "documents")
+    if os.path.exists(documents_dir):
+        for filename in os.listdir(documents_dir):
+            if filename.endswith(".txt") or filename.endswith(".jsonl") or filename.endswith(".pdf"):
+                name = filename
+                size = os.path.getsize(os.path.join(documents_dir, filename))
+                date = os.path.getmtime(os.path.join(documents_dir, filename))
+                date = datetime.datetime.fromtimestamp(date).strftime('%Y-%m-%d %H:%M:%S')
+                type = os.path.splitext(filename)[1]
+                documents.append(
+                    {"name": name, "size": size, "date": date, "type": type}
+                )
+
+    return documents  # convert list to JSON object
+
+
+@router.get("/{experimentId}/documents/new", summary="Create a new dataset.")
+async def dataset_new(dataset_id: str):
+    return {"status": "success", "dataset_id": dataset_id}
+
+
+@router.get("/{experimentId}/documents/{document_name}/delete", summary="Delete a dataset.")
+async def dataset_delete(dataset_id: str):
+    return {"status": "success"}
+
+
+@router.post("/{experimentId}/documents/fileupload", summary="Upload the contents of a dataset.")
+async def create_upload_file(dataset_id: str, file: UploadFile):
+    print("uploading filename is: " + str(file.filename))
+
+    # ensure the filename is exactly {dataset_id}_train.jsonl or {dataset_id}_eval.jsonl
+    if not re.match(rf"^{dataset_id}_(train|eval).jsonl$", str(file.filename)):
+        raise HTTPException(
+            status_code=403, detail=f"The filenames must be named EXACTLY: {dataset_id}_train.jsonl and {dataset_id}_eval.jsonl")
+
+    dataset_id = slugify(dataset_id)
+
+    # Save the file to the dataset directory
+    try:
+        content = await file.read()
+        newfilename = os.path.join(
+            dirs.dataset_dir_by_id(dataset_id), str(file.filename))
+        async with aiofiles.open(newfilename, "wb") as out_file:
+            await out_file.write(content)
+    except Exception:
+        raise HTTPException(
+            status_code=403, detail="There was a problem uploading the file")
+
+    return {"status": "success", "filename": file.filename}
