@@ -29,7 +29,7 @@ async def query(experimentId: str, query: str):
     # Check if it exists in workspace/plugins:
     plugin_path = os.path.join(dirs.PLUGIN_DIR, plugin)
     if not os.path.exists(plugin_path):
-        return {"message": f"Plugin {plugin} does not exist"}
+        return f"This is a beta feature. Plugin {plugin} does not exist -- you must install this plugin first."
     # Call main.py which is at plugin_path/main.py
     plugin_main = os.path.join(plugin_path, "main.py")
     print(f"Calling plugin {plugin_main}" +
