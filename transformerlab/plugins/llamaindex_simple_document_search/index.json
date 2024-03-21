@@ -1,0 +1,29 @@
+{
+    "name": "LlamaIndex Simple Document Search",
+    "uniqueId": "llamaindex_simple_document_search",
+    "description": "",
+    "plugin-format": "python",
+    "type": "rag",
+    "version": "0.0.1",
+    "model_architectures": [
+        "LlamaForCausalLM",
+        "MistralForCausalLM"
+    ],
+    "files": [
+        "main.py",
+        "setup.sh"
+    ],
+    "setup-script": "setup.sh",
+    "parameters": {
+        "response_mode": {
+            "title": "Response Mode",
+            "type": "string",
+            "default": "compact"
+        }
+    },
+    "parameters_ui": {
+        "response_mode": {
+            "ui:help": "Can be 'compact', 'refine', 'tree_summarize',  'simple_summarize', 'no_text', 'accumulate', 'compact_accumulate'"
+        }
+    }
+}
