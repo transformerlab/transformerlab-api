@@ -122,7 +122,13 @@ download_transformer_lab() {
   NEW_DIRECTORY_NAME="transformerlab-api-${LATEST_RELEASE_VERSION_WITHOUT_V}"
   rm -rf "${TLAB_DIR}/${NEW_DIRECTORY_NAME}"
   rm -rf "${TLAB_CODE_DIR}"
-  unzip -o "${TLAB_DIR}/transformerlab.zip" -d "${TLAB_DIR}"
+
+  # unzip is not installed on some platforms
+  if command -v unzip &> /dev/null; then
+    unzip -o "${TLAB_DIR}/transformerlab.zip" -d "${TLAB_DIR}"
+  else
+    tar -xf "${TLAB_DIR}/transformerlab.zip" -C "${TLAB_DIR}"
+  fi
   mv "${TLAB_DIR}/${NEW_DIRECTORY_NAME}" "${TLAB_CODE_DIR}"
   rm "${TLAB_DIR}/transformerlab.zip"
   # Create a file called LATEST_VERSION that contains the latest version of Transformer Lab.
