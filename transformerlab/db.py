@@ -499,6 +499,8 @@ async def experiment_create(name, config):
 
 async def experiment_get(id):
     global db
+    if (id == None or id == "undefined"):
+        return None
     cursor = await db.execute("SELECT * FROM experiment WHERE id = ?", (id,))
     row = await cursor.fetchone()
 

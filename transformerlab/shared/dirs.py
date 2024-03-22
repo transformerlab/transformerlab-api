@@ -77,10 +77,10 @@ def experiment_dir_by_name(experiment_name: str) -> str:
 
 
 async def experiment_dir_by_id(experiment_id: str) -> str:
-    if (experiment_id is not None):
+    if (experiment_id is not None and experiment_id != "undefined"):
         experiment = await db.experiment_get(experiment_id)
     else:
-        print("Error: experiment_id is None")
+        print("Error: experiment_id is None or undefined")
         return os.path.join(EXPERIMENTS_DIR, "error")
 
     experiment_name = experiment['name']

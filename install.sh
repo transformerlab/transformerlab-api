@@ -117,20 +117,20 @@ download_transformer_lab() {
   LATEST_RELEASE_VERSION=$(basename "$LATEST_RELEASE_VERSION")
   LATEST_RELEASE_VERSION_WITHOUT_V=$(echo "$LATEST_RELEASE_VERSION" | sed 's/v//g')
   echo "Latest Release on Github: $LATEST_RELEASE_VERSION"
-  TLAB_URL="https://github.com/transformerlab/transformerlab-api/archive/refs/tags/${LATEST_RELEASE_VERSION}.zip"
+  TLAB_URL="https://github.com/transformerlab/transformerlab-api/archive/refs/tags/${LATEST_RELEASE_VERSION}.tar.gz"
   echo "Download Location: $TLAB_URL"
 
   # If the user has not installed Transformer Lab, then we should install it.
   ohai "Installing Transformer Lab ${LATEST_RELEASE_VERSION}..."
   # Fetch the latest version of Transformer Lab from GitHub:
   mkdir -p "${TLAB_DIR}"
-  curl -L "${TLAB_URL}" -o "${TLAB_DIR}/transformerlab.zip"
+  curl -L "${TLAB_URL}" -o "${TLAB_DIR}/transformerlab.tar.gz"
   NEW_DIRECTORY_NAME="transformerlab-api-${LATEST_RELEASE_VERSION_WITHOUT_V}"
   rm -rf "${TLAB_DIR}/${NEW_DIRECTORY_NAME}"
   rm -rf "${TLAB_CODE_DIR}"
-  unzip -o "${TLAB_DIR}/transformerlab.zip" -d "${TLAB_DIR}"
+  tar -xf "${TLAB_DIR}/transformerlab.tar.gz" -C "${TLAB_DIR}"
   mv "${TLAB_DIR}/${NEW_DIRECTORY_NAME}" "${TLAB_CODE_DIR}"
-  rm "${TLAB_DIR}/transformerlab.zip"
+  rm "${TLAB_DIR}/transformerlab.tar.gz"
   # Create a file called LATEST_VERSION that contains the latest version of Transformer Lab.
   echo "${LATEST_RELEASE_VERSION}" > "${TLAB_CODE_DIR}/LATEST_VERSION"
 }

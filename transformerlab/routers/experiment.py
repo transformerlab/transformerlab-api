@@ -1,3 +1,4 @@
+from transformerlab.routers import rag
 import datetime
 from http.client import HTTPException
 import json
@@ -29,6 +30,9 @@ from transformerlab.shared import dirs
 from transformerlab.routers.plugins import install_plugin, list_plugins, plugin_gallery
 
 router = APIRouter(prefix="/experiment", tags=["experiment"])
+
+router.include_router(
+    router=rag.router, prefix="/{experimentId}", tags=["rag"])
 
 EXPERIMENTS_DIR: str = dirs.EXPERIMENTS_DIR
 
@@ -899,9 +903,6 @@ async def plugin_new_plugin_directory(experimentId: str, pluginId: str):
     return {"message": f"{script_path} directory created"}
 
 
-
-
-
 # Get info on dataset from huggingface
 @router.get("/{experimentId}/documents/{document_name}/info", summary="Fetch the details of a particular document.")
 async def document_info():
@@ -926,7 +927,7 @@ async def document_view(experimentId: str, document_name: str):
 @router.get("/{experimentId}/documents/list", summary="List available documents.")
 async def document_list(experimentId: str):
     documents = []
-    ## List the files that are in the experiment/<experiment_name>/documents directory:
+    # List the files that are in the experiment/<experiment_name>/documents directory:
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir,  "documents")
     if os.path.exists(documents_dir):
@@ -935,7 +936,8 @@ async def document_list(experimentId: str):
                 name = filename
                 size = os.path.getsize(os.path.join(documents_dir, filename))
                 date = os.path.getmtime(os.path.join(documents_dir, filename))
-                date = datetime.datetime.fromtimestamp(date).strftime('%Y-%m-%d %H:%M:%S')
+                date = datetime.datetime.fromtimestamp(
+                    date).strftime('%Y-%m-%d %H:%M:%S')
                 type = os.path.splitext(filename)[1]
                 documents.append(
                     {"name": name, "size": size, "date": date, "type": type}
@@ -973,7 +975,7 @@ async def document_upload(experimentId: str, file: UploadFile):
     if file.content_type not in ["text/plain", "application/json", "application/pdf", "application/octet-stream"]:
         raise HTTPException(
             status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
-    
+
     file_ext = os.path.splitext(file.filename)[1]
     if file_ext not in [".txt", ".jsonl", ".pdf"]:
         raise HTTPException(
