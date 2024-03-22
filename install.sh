@@ -86,7 +86,9 @@ check_python() {
 }
 
 # First check OS.
+# WSL will return "Linux" which is OK. We will check KERNEL to detect WSL.
 OS="$(uname)"
+KERNEL=$(uname -r)
 if [[ "${OS}" == "Linux" ]]
 then
   TLAB_ON_LINUX=1
@@ -97,6 +99,10 @@ else
   abort "Transformer Lab is only supported on macOS and Linux, you are running ${OS}."
 fi
 
+# Stack Overflow says the best way to check for WSL is looking for Microsoft in the uname kernel
+if [[ -n $(echo ${KERNEL} | sed -n 's/.*\( *Microsoft *\).*/\1/ip') ]]; then
+  TLAB_ON_WSL=1
+fi
 
 ##############################
 ## Step 1: Download Transformer Lab
