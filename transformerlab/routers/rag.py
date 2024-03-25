@@ -27,12 +27,15 @@ async def query(experimentId: str, query: str):
 
     print("Querying RAG with model " + model + " and query " + query)
 
-    # Hardcode calling the 1 RAG plugin for now
-    plugin = "llamaindex_simple_document_search"
+    plugin = experiment_config.get("rag_engine")
+
+    if plugin is None or plugin == "":
+        return "Error: No RAG Engine has been assigned to this experiment."
+
     # Check if it exists in workspace/plugins:
     plugin_path = os.path.join(dirs.PLUGIN_DIR, plugin)
     if not os.path.exists(plugin_path):
-        return f"This is a beta feature. Plugin {plugin} does not exist -- you must install this plugin first."
+        return f"Plugin {plugin} does not exist on the filesystem -- you must install or reinstall this plugin."
     # Call main.py which is at plugin_path/main.py
     plugin_main = os.path.join(plugin_path, "main.py")
     print(f"Calling plugin {plugin_main}" +
