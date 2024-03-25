@@ -13,9 +13,13 @@ pip install mlx-lm
 import argparse
 import asyncio
 import atexit
+from collections import namedtuple
 import json
+import os
 from typing import List
 import uuid
+
+from huggingface_hub import snapshot_download
 
 from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.concurrency import run_in_threadpool
@@ -67,9 +71,10 @@ class MLXWorker(BaseModelWorker):
         self.mlx_model, self.mlx_tokenizer = load(model_path)
 
         self.tokenizer = self.mlx_tokenizer
-        # self.context_len = get_context_length(
-        #     llm_engine.engine.model_config.hf_config)
-        self.context_len = 2048  # hard code for now -- not sure how to get in MLX
+
+        config = get_hugggingface_config(model_path)
+
+        self.context_len = get_context_length(config)
 
         if not no_register:
             self.init_heart_beat()
@@ -235,6 +240,20 @@ async def api_model_details(request: Request):
     return {"context_length": worker.context_len}
 
 worker = None
+
+
+def get_hugggingface_config(model_path):
+    local_file = snapshot_download(model_path, local_files_only=True)
+    config_json = os.path.join(local_file , "config.json")
+    contents = "{}"
+    with open(config_json) as f:
+        contents = f.read()
+    d = json.loads(contents)
+    # rename all keys that start with an underscore, because they break convertion to object
+    d = {k[1:] if k.startswith('_') else k: v for k, v in d.items()}
+    # convert the dictionary to a namedtuple because later logic expects it that way
+    config = namedtuple('config', d.keys())(**d)
+    return contents
 
 
 def cleanup_at_exit():
