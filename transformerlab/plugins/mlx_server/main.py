@@ -75,6 +75,7 @@ class MLXWorker(BaseModelWorker):
         config = get_hugggingface_config(model_path)
 
         self.context_len = get_context_length(config)
+        print("Context length: ", self.context_len)
 
         if not no_register:
             self.init_heart_beat()
@@ -253,7 +254,7 @@ def get_hugggingface_config(model_path):
     d = {k[1:] if k.startswith('_') else k: v for k, v in d.items()}
     # convert the dictionary to a namedtuple because later logic expects it that way
     config = namedtuple('config', d.keys())(**d)
-    return contents
+    return config
 
 
 def cleanup_at_exit():
