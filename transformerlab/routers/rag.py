@@ -24,6 +24,9 @@ async def query(experimentId: str, query: str):
     experiment_details = await db.experiment_get(id=experimentId)
     experiment_config = json.loads(experiment_details["config"])
     model = experiment_config.get("foundation")
+
+    print("Querying RAG with model " + model + " and query " + query)
+
     # Hardcode calling the 1 RAG plugin for now
     plugin = "llamaindex_simple_document_search"
     # Check if it exists in workspace/plugins:
@@ -40,4 +43,5 @@ async def query(experimentId: str, query: str):
         stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
     stdout, stderr = await process.communicate()
+    print(stderr)
     return stdout.decode()
