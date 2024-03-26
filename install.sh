@@ -255,7 +255,7 @@ install_dependencies() {
 
       # Install Flash Attention separately - it doesn't play well in requirements file
       pip install ninja
-      pip install flash_attn=1.0.9
+      pip install flash_attn==1.0.9
   else
       echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
