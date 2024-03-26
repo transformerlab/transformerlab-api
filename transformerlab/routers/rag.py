@@ -46,4 +46,13 @@ async def query(experimentId: str, query: str):
     )
     stdout, stderr = await process.communicate()
     print(stderr)
-    return stdout.decode()
+
+    output = stdout.decode()
+
+    # if output is json, convert it to an object:
+    try:
+        output = json.loads(output)
+    except:
+        pass
+
+    return output
