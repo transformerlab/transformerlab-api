@@ -60,7 +60,7 @@ Dependencies are managed with pip-tools (installed separately). Add new requirem
 ```bash
 # default GPU enabled requirements
 pip-compile \
-    --extra-index-url=https://download.pytorch.org/whl/cu118 \
+    --extra-index-url=https://download.pytorch.org/whl/cu121 \
     --output-file=requirements.txt \
     requirements-gpu.in requirements.in
 
