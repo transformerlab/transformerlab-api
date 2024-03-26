@@ -55,7 +55,7 @@ Settings.embed_model = HuggingFaceEmbedding(
 Settings.callback_manager = callback_manager
 
 vector_index = VectorStoreIndex.from_documents(
-    documents, required_exts=[".txt", ".pdf", ".docx", ".jsonl"])
+    documents, required_exts=[".txt", ".pdf", ".docx", ".csv", ".epub", ".ipynb", ".mbox", ".md", ".ppt", ".pptm", ".pptx"])
 
 query_engine = vector_index.as_query_engine(
     response_mode="compact")
