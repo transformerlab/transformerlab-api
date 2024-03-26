@@ -40,7 +40,6 @@ async def query(experimentId: str, query: str):
     plugin_main = os.path.join(plugin_path, "main.py")
     print(f"Calling plugin {plugin_main}" +
           " with model " + model + " and query " + query)
-    # This is blocking, we should change or run in a thread...
     process = await asyncio.create_subprocess_exec(
         sys.executable, plugin_main, "--model_name", model, "--query", query, "--documents_dir", documents_dir,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE
