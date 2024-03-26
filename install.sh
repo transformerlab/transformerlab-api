@@ -237,7 +237,7 @@ install_dependencies() {
       echo "$GPU_INFO"
       if [ -n "$GPU_INFO" ]; then
           echo "NVIDIA GPU detected: $GPU_INFO"
-          HAS_GPU=true 
+          HAS_GPU=true
       else
           echo "Nvidia SMI exists, No NVIDIA GPU detected. Perhaps you need to re-install NVIDIA drivers."
       fi
@@ -252,6 +252,10 @@ install_dependencies() {
       echo "Installing requirements:"
       # Install the python requirements
       pip install --upgrade -r "$TLAB_CODE_DIR"/requirements.txt
+
+      # Install Flash Attention separately - it doesn't play well in requirements file
+      pip install ninja
+      pip install flash_attn=1.0.9
   else
       echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
