@@ -17,7 +17,7 @@ router = APIRouter(prefix="/rag", tags=["rag"])
 
 
 @router.get("/query")
-async def query(experimentId: str, query: str):
+async def query(experimentId: str, query: str, settings: str = None):
     """Query the RAG engine"""
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
@@ -25,7 +25,8 @@ async def query(experimentId: str, query: str):
     experiment_config = json.loads(experiment_details["config"])
     model = experiment_config.get("foundation")
 
-    print("Querying RAG with model " + model + " and query " + query)
+    print("Querying RAG with model " + model +
+          " and query " + query + " and settings " + settings)
 
     plugin = experiment_config.get("rag_engine")
 
@@ -41,11 +42,17 @@ async def query(experimentId: str, query: str):
     print(f"Calling plugin {plugin_main}" +
           " with model " + model + " and query " + query)
     process = await asyncio.create_subprocess_exec(
-        sys.executable, plugin_main, "--model_name", model, "--query", query, "--documents_dir", documents_dir,
+        sys.executable, plugin_main, "--model_name", model, "--query", query, "--documents_dir", documents_dir, "--settings", settings,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
     stdout, stderr = await process.communicate()
     print(stderr)
+
+    # if the process is erroring, return the error message
+    if process.returncode != 0:
+        output = stderr.decode()
+        return_object = {"response": output}
+        return return_object
 
     output = stdout.decode()
 

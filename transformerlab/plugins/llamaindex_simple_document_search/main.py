@@ -58,6 +58,7 @@ if args.settings:
     if ("temperature" in settings_param):
         temperature = float(settings_param["temperature"])
 
+print(f"Settings: {Settings.__dict__}", file=sys.stderr)
 
 llama_debug = LlamaDebugHandler(print_trace_on_end=False)
 callback_manager = CallbackManager([llama_debug])

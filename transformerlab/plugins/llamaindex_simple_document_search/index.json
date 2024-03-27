@@ -65,13 +65,13 @@
             "ui:help": "LLama Index Response Mode. More info here https://tinyurl.com/3nurvee5"
         },
         "context_window": {
-            "ui:help": "Number of tokens to include in the input context, which includes the combination of all the search results."
+            "ui:help": "Number of tokens to include in the input context, which includes the combination of all the search results. Default is 4096."
         },
         "num_output": {
-            "ui:help": "Number of tokens to include in the output. Input + Output Size should be less than model's Context Length. Default is 4096."
+            "ui:help": "Number of tokens to include in the output. Input + Output Size should be less than model's Context Length. Default is 256."
         },
         "number_of_search_results": {
-            "ui:help": "Number of search results to return. Too large and the context will become too big, too small and the LLM will not have enough candidate results to look at. Default is 256."
+            "ui:help": "Number of search results to return. Too large and the context will become too big, too small and the LLM will not have enough candidate results to look at. Default is 2."
         },
         "temperature": {
             "ui:widget": "range",
