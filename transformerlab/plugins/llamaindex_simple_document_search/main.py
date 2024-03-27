@@ -22,7 +22,42 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--model_name', type=str, required=True)
 parser.add_argument('--documents_dir', default='', type=str, required=True)
 parser.add_argument('--query', default='', type=str, required=True)
+parser.add_argument('--settings', default='', type=str, required=False)
+
 args, unknown = parser.parse_known_args()
+
+# SETTINGS
+number_of_search_results = 2
+
+Settings.context_window = 4096
+Settings.num_output = 256
+
+Settings.chunk_size = 512
+Settings.chunk_overlap = 50
+
+response_mode = "compact"
+
+temperature = 0.7
+# END SETTINGS
+
+if args.settings:
+    settings_param = json.loads(args.settings)
+    if ("number_of_search_results" in settings_param):
+        number_of_search_results = int(
+            settings_param["number_of_search_results"])
+    if ("context_window" in settings_param):
+        Settings.context_window = int(settings_param["context_window"])
+    if ("num_output" in settings_param):
+        Settings.num_output = int(settings_param["num_output"])
+    if ("chunk_size" in settings_param):
+        Settings.chunk_size = int(settings_param["chunk_size"])
+    if ("chunk_overlap" in settings_param):
+        Settings.chunk_overlap = int(settings_param["chunk_overlap"])
+    if ("response_mode" in settings_param):
+        response_mode = settings_param["response_mode"]
+    if ("temperature" in settings_param):
+        temperature = float(settings_param["temperature"])
+
 
 llama_debug = LlamaDebugHandler(print_trace_on_end=False)
 callback_manager = CallbackManager([llama_debug])
@@ -45,10 +80,11 @@ llm = OpenAILike(
     timeout=40,
     # context_window=32000,
     tokenizer=model_short_name,
-    temperature=0.7,
+    temperature=temperature,
 )
 
 Settings.llm = llm
+
 Settings.embed_model = HuggingFaceEmbedding(
     model_name="BAAI/bge-small-en-v1.5"
 )
@@ -58,7 +94,7 @@ vector_index = VectorStoreIndex.from_documents(
     documents, required_exts=[".txt", ".pdf", ".docx", ".csv", ".epub", ".ipynb", ".mbox", ".md", ".ppt", ".pptm", ".pptx"])
 
 query_engine = vector_index.as_query_engine(
-    response_mode="compact")
+    response_mode=response_mode, similarity_top_k=number_of_search_results)
 
 rag_response = query_engine.query(args.query)
 
