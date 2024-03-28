@@ -51,7 +51,7 @@ async def query(experimentId: str, query: str, settings: str = None):
     # if the process is erroring, return the error message
     if process.returncode != 0:
         output = stderr.decode()
-        return_object = {"response": output}
+        return_object = {"error": output}
         return return_object
 
     output = stdout.decode()
