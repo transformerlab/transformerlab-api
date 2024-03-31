@@ -11,7 +11,8 @@
         "FalconForCausalLM",
         "MistralForCausalLM",
         "MixtralForCausalLM",
-        "GPTBigCodeForCausalLM"
+        "GPTBigCodeForCausalLM",
+        "GemmaForCausalLM"
     ],
     "files": [
         "main.py",
