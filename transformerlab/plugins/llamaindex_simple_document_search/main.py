@@ -41,7 +41,11 @@ temperature = 0.7
 # END SETTINGS
 
 if args.settings:
-    settings_param = json.loads(args.settings)
+    try:
+        settings_param = json.loads(args.settings)
+    except json.JSONDecodeError as e:
+        print(f"Error decoding settings JSON: {e}", file=sys.stderr)
+        settings_param = {}
     if ("number_of_search_results" in settings_param):
         number_of_search_results = int(
             settings_param["number_of_search_results"])
