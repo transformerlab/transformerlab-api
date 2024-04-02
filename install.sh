@@ -85,6 +85,13 @@ check_python() {
   fi
 }
 
+unset_conda_for_sure() {
+  { conda deactivate && conda deactivate && conda deactivate; } 2> /dev/null
+  export PYTHONNOUSERSITE=1
+  unset PYTHONPATH
+  unset PYTHONHOME
+}
+
 # First check OS.
 # WSL will return "Linux" which is OK. We will check KERNEL to detect WSL.
 OS="$(uname)"
@@ -142,6 +149,8 @@ download_transformer_lab() {
 install_conda() {
   title "Step 2: Install Conda"
 
+  unset_conda_for_sure
+
   # check if conda already exists:
   if ! command -v "${CONDA_BIN}" &> /dev/null; then
     echo "Conda is not installed at ${MINICONDA_ROOT}."
@@ -189,9 +198,11 @@ create_conda_environment() {
   #     # activate the conda base env
   #     source $MINICONDA_ROOT/etc/profile.d/conda.sh
   # fi
+  
 
   check_conda
 
+  unset_conda_for_sure
   eval "$(${CONDA_BIN} shell.bash hook)"
 
   conda info --envs
@@ -223,6 +234,7 @@ create_conda_environment() {
 install_dependencies() {
   title "Step 4: Install Dependencies"
 
+  unset_conda_for_sure
   eval "$(${CONDA_BIN} shell.bash hook)"
   conda activate "$ENV_DIR"
 
@@ -273,12 +285,14 @@ install_dependencies() {
 }
 
 list_installed_packages() {
+  unset_conda_for_sure
   eval "$(${CONDA_BIN} shell.bash hook)"
   conda activate ${ENV_DIR}
   pip list --format json
 }
 
 list_environments() {
+  unset_conda_for_sure
   eval "$(${CONDA_BIN} shell.bash hook)"
   conda env list
 }
