@@ -115,8 +115,16 @@ def download_blocking(model_is_downloaded):
     else:
         try:
             snapshot_download(
-                repo_id=model, resume_download=True)
-            # sleep(20)
+                repo_id=model, resume_download=True,
+                allow_patterns=[
+                    "*.json",
+                    "*.safetensors",
+                    "*.py",
+                    "tokenizer.model",
+                    "*.tiktoken",
+                    "*.npz"
+                ])
+
         except Exception as e:
             print(f"Error downloading model: {e}")
 
