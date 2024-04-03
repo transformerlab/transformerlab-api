@@ -642,14 +642,14 @@
       }
   },
   {
-      "uniqueID": "mlx-community/Mistral-7B-Instruct-v0.2-4-bit",
+      "uniqueID": "mlx-community/Mistral-7B-Instruct-v0.2-4bit",
       "name": "Mistral-7B-Instruct-v0.2 4 bit MLX",
       "description": "The Mistral-7B-Instruct-v0.2 Large Language Model (LLM) is an improved instruct fine-tuned version of Mistral-7B-Instruct-v0.1.",
       "parameters": "7B",
       "context": "4k",
       "architecture": "MLX",
-      "huggingface_repo": "mlx-community/Mistral-7B-Instruct-v0.2-4-bit",
-      "transformers_version": "4.34.0.dev0",
+      "huggingface_repo": "mlx-community/Mistral-7B-Instruct-v0.2-4bit",
+      "transformers_version": "4.39.0.dev0",
       "license": "Apache 2.0",
       "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
       "author": {
