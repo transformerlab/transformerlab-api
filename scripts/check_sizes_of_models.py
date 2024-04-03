@@ -18,7 +18,11 @@ def get_dir_size(path):
 cache_dir = os.path.expanduser("~/.cache/huggingface/hub")
 for entry in os.scandir(cache_dir):
     if entry.is_dir():
-        dir_size = get_dir_size(entry.path) / 1024 / 1024
+        blobs_dir = os.path.join(entry.path, "blobs")
+        if not os.path.isdir(blobs_dir):
+            continue
+
+        dir_size = get_dir_size(blobs_dir) / 1024 / 1024
         # print(f"{entry.name}: {dir_size:.1f} MB")
 
         # obtain the model name by getting the part of entry after the last "--":
