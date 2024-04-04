@@ -23,6 +23,7 @@ args, other = parser.parse_known_args()
 model = args.model_name
 model_filename = args.model_filename
 job_id = args.job_id
+error_msg = False
 
 print(f"Downloading model {model} with job_id {job_id}")
 
@@ -79,6 +80,7 @@ print("starting script with progressbar updater")
 
 
 def download_blocking(model_is_downloaded):
+    global error_msg
     print("Downloading model")
     db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
     db.execute(
@@ -126,7 +128,7 @@ def download_blocking(model_is_downloaded):
                 ])
 
         except Exception as e:
-            print(f"Error downloading model: {e}")
+            error_msg = e
 
     model_is_downloaded.set()
     print("Downloaded model")
@@ -184,6 +186,12 @@ def main():
     p2.start()
     p1.join()
     p2.join()
+
+    if error_msg:
+        returncode = 1
+        print("Exiting with return code: ", returncode)
+        print(f"Error downloading model: {error_msg}")
+        exit(returncode)
 
 
 if __name__ == '__main__':
