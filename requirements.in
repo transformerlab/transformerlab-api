@@ -5,14 +5,14 @@ bitsandbytes
 datasets
 einops
 evaluate
-fastapi==0.100.0
-fschat==0.2.35
+fastapi
+fschat==0.2.36
 loralib
 nvidia-ml-py3
 packaging
 psutil
 py7zr
-pydantic>=1.4.0,<2
+pydantic>= 2.0
 python-multipart
 rouge-score
 scipy
@@ -22,5 +22,5 @@ tiktoken
 torch
 torchaudio
 torchvision
-transformers==4.38.2
+transformers==4.39.3
 peft
