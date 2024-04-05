@@ -269,6 +269,15 @@ async def job_get_status(job_id):
     return row
 
 
+async def job_get_error_msg(job_id):
+    global db
+    cursor = await db.execute("SELECT job_data FROM job WHERE id = ?", (job_id,))
+    row = await cursor.fetchone()
+    await cursor.close()
+    job_data = json.loads(row[0])
+    return job_data.get("error_msg", None)
+
+
 async def job_get(job_id):
     global db
     cursor = await db.execute("SELECT * FROM job WHERE id = ?", (job_id,))
@@ -310,10 +319,14 @@ async def jobs_get_next_queued_job():
     return row
 
 
-async def job_update_status(job_id, status):
+async def job_update_status(job_id, status, error_msg=None):
     global db
     await db.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
     await db.commit()
+    if error_msg:
+        job_data = json.dumps({"error_msg": str(error_msg)})
+        await db.execute("UPDATE job SET job_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (job_data, job_id))
+        await db.commit()
     return
 
 
