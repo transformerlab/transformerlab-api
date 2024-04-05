@@ -1,6 +1,4 @@
 #!/bin/bash
-set -e
-
 ENV_NAME="transformerlab"
 TLAB_DIR="$HOME/.transformerlab"
 TLAB_CODE_DIR="${TLAB_DIR}/src"
