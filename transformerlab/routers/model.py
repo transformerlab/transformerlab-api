@@ -230,11 +230,16 @@ async def download_huggingface_model(hugging_face_id: str, model_details: str = 
         exitcode = process.returncode
 
         if (exitcode != 0):
-            await db.job_update_status(job_id=job_id, status="FAILED")
-            return {"status": "error", "message": f"Return code: {exitcode}"}
+            error_msg = await db.job_get_error_msg(job_id)
+            if not error_msg:
+                error_msg = f"Exit code {exitcode}"
+                await db.job_update_status(job_id, "FAILED", error_msg)
+            return {"status": "error", "message": error_msg}
+
     except Exception as e:
-        await db.job_update_status(job_id=job_id, status="FAILED")
-        return {"status": "error", "message": f"{e}"}
+        error_msg = f"{type(e).__name__}: {e}"
+        await db.job_update_status(job_id, "FAILED", error_msg)
+        return {"status": "error", "message": error_msg}
 
     if hugging_face_filename is None:
         # only save to local database if we are downloading the whole repo
