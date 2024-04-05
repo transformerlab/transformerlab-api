@@ -3,6 +3,7 @@ import sqlite3
 from threading import Thread, Event
 from time import sleep
 from huggingface_hub import hf_hub_download, snapshot_download
+from huggingface_hub.utils import GatedRepoError
 import argparse
 import os
 from pathlib import Path
@@ -127,8 +128,14 @@ def download_blocking(model_is_downloaded):
                     "*.npz"
                 ])
 
+        except GatedRepoError as e:
+            error_msg = f"{model} is a gated HuggingFace repo \
+that requires authentication.\n\
+To continue downloading, create an access token \
+on HuggingFace and copy it in to the User Access Token \
+field ion the Transformer Lab Settings page."
         except Exception as e:
-            error_msg = e
+            error_msg = f"{type(e).__name__}: {e}"
 
     model_is_downloaded.set()
     print("Downloaded model")
@@ -189,9 +196,16 @@ def main():
 
     if error_msg:
         returncode = 1
-        print("Exiting with return code: ", returncode)
         print(f"Error downloading model: {error_msg}")
-        exit(returncode)
+
+        # save to job database
+        db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
+        job_data = json.dumps({"error_msg": str(error_msg)})
+        db.execute(
+            "UPDATE job SET status='FAILED', job_data=json(?)\
+                WHERE id=?", (job_data, job_id))
+        db.commit()
+        exit(1)
 
 
 if __name__ == '__main__':
