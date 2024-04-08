@@ -456,6 +456,7 @@
         "transformers_version": "4.35.0",
         "license": "Non commercial license",
         "logo": "https://starling.cs.berkeley.edu/starling.png",
+        "size_of_model_in_mb": 13814.8,
         "author": {
             "name": "Berkeley",
             "url": "https://starling.cs.berkeley.edu/",
