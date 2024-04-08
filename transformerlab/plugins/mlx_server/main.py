@@ -244,12 +244,17 @@ worker = None
 
 
 def get_hugggingface_config(model_path):
-    local_file = snapshot_download(model_path, local_files_only=True)
-    config_json = os.path.join(local_file , "config.json")
-    contents = "{}"
-    with open(config_json) as f:
-        contents = f.read()
-    d = json.loads(contents)
+    try:
+        local_file = snapshot_download(model_path, local_files_only=True)
+        config_json = os.path.join(local_file , "config.json")
+        contents = "{}"
+        with open(config_json) as f:
+            contents = f.read()
+        d = json.loads(contents)
+    except:
+        # failed to open config.json so create an empty config
+        d = {}
+
     # rename all keys that start with an underscore, because they break convertion to object
     d = {k[1:] if k.startswith('_') else k: v for k, v in d.items()}
     # convert the dictionary to a namedtuple because later logic expects it that way
