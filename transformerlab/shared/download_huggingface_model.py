@@ -125,7 +125,8 @@ def download_blocking(model_is_downloaded):
                     "*.py",
                     "tokenizer.model",
                     "*.tiktoken",
-                    "*.npz"
+                    "*.npz",
+                    "*.bin"
                 ])
 
         except GatedRepoError as e:
