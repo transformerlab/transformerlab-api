@@ -9,6 +9,7 @@ import json
 import signal
 import subprocess
 from contextlib import asynccontextmanager
+import sys
 
 import fastapi
 import httpx
@@ -134,9 +135,11 @@ worker_process = None
 def spawn_fastchat_controller_subprocess():
     global controller_process
 
+    logfile = open('controller.log', 'w')
+
     port = "21001"
     controller_process = subprocess.Popen(
-        ["python3", "-m", "fastchat.serve.controller", "--port", port], stderr=subprocess.DEVNULL
+        [sys.executable, "-m", "fastchat.serve.controller", "--port", port], stdout=logfile, stderr=logfile
     )
 
     print(f"Started fastchat controller on port {port}")
