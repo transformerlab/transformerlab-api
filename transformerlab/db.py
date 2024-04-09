@@ -325,7 +325,7 @@ async def job_update_status(job_id, status, error_msg=None):
     await db.commit()
     if error_msg:
         job_data = json.dumps({"error_msg": str(error_msg)})
-        await db.execute("UPDATE job SET job_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (job_data, job_id))
+        await db.execute("UPDATE job SET job_data = ? WHERE id = ?", (job_data, job_id))
         await db.commit()
     return
 
