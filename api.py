@@ -258,7 +258,7 @@ async def server_worker_start(model_name: str, adaptor: str = '', model_filename
 
     print('Finished starting worker process')
 
-    return {"message": "OK", "job_id": job_id}
+    return {"status": "success", "job_id": job_id}
 
 
 @app.get("/server/worker_stop", tags=["serverinfo"])
