@@ -209,11 +209,15 @@ async def server_worker_start(model_name: str, adaptor: str = '', model_filename
                                                                                         job_id=job_id,
                                                                                         begin_string="Application startup complete.",
                                                                                         set_process_id_function=set_worker_process_id)
-                print(f"return code: {worker_process.returncode}")
-                if (worker_process.returncode == 99):
+                exitcode = worker_process.returncode
+                if (exitcode == 99):
                     return {"status": "error", "message": "GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources."}
-                if (worker_process.returncode != None and worker_process.returncode != 0):
-                    return {"status": "error", "message": f"Return code {worker_process.returncode}. Check server logs: {dirs.GLOBAL_LOG_PATH}"}
+                if (exitcode != None and exitcode != 0):
+                    error_msg = await db.job_get_error_msg(job_id)
+                    if not error_msg:
+                        error_msg = f"Exit code {exitcode}"
+                        await db.job_update_status(job_id, "FAILED", error_msg)
+                    return {"status": "error", "message": error_msg}
                 return {"status": "success", "job_id": job_id}
 
     # NOTE: this code path is not reachable unless something unexpected happens:
