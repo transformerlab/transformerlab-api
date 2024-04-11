@@ -1,3 +1,4 @@
+from collections import namedtuple
 import json
 import shutil
 from typing import Annotated
@@ -6,6 +7,8 @@ from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
 from fastchat.model.model_adapter import get_conversation_template
 from huggingface_hub import hf_hub_download, HfFileSystem, ModelCard
+from huggingface_hub import snapshot_download
+
 import os
 
 from transformerlab.shared import shared
@@ -89,7 +92,7 @@ async def model_gallery(model_id: str):
 @router.get("/model/details/{model_id}")
 async def model_details_from_filesystem(model_id: str):
 
-     # convert "~~~"" in string to "/":
+    # convert "~~~"" in string to "/":
     model_id = model_id.replace("~~~", "/")
 
     # TODO: Refactor this code with models/list function
@@ -118,7 +121,6 @@ async def model_details_from_filesystem(model_id: str):
             # do nothing: file doesn't exist
             pass
 
- 
     return []
 
 
@@ -254,7 +256,7 @@ async def download_model_by_huggingface_id(model: str):
     This function will not be able to infer out description etc of the model
     since it is not in the gallery"""
 
-    # Get model details from Hugging Face 
+    # Get model details from Hugging Face
     # If None then that means either the model doesn't exist
     # Or we don't have proper Hugging Face authentication setup
     model_details = get_model_details_from_huggingface(model)
@@ -388,3 +390,22 @@ async def model_delete_peft(model_id: str, peft: str):
     peft_path = f"{adaptors_dir}/{peft}"
     shutil.rmtree(peft_path)
     return {"message": "success"}
+
+
+@router.get(path="/model/get_local_hfconfig")
+async def get_local_hfconfig(model_id: str):
+    """
+    Returns the config.json file for a model stored in the local filesystem
+    """
+    try:
+        local_file = snapshot_download(model_id, local_files_only=True)
+        config_json = os.path.join(local_file, "config.json")
+        contents = "{}"
+        with open(config_json) as f:
+            contents = f.read()
+        d = json.loads(contents)
+    except:
+        # failed to open config.json so create an empty config
+        d = {}
+
+    return d
