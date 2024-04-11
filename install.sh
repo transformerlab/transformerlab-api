@@ -282,6 +282,10 @@ install_dependencies() {
   else
     ohai "✅ Uvicorn is installed."
   fi
+
+  # Record the status after this install for debugging and to check if an install has been attmeped
+  PIP_LIST=$(pip list --format json)
+  echo "${PIP_LIST}" > "${TLAB_CODE_DIR}/INSTALLED_DEPENDENCIES"
 }
 
 list_installed_packages() {
