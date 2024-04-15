@@ -87,6 +87,7 @@ def download_blocking(model_is_downloaded):
     db.execute(
         "UPDATE job SET progress=? WHERE id=?", (0, job_id))
     db.commit()
+    db.close()
     if model_filename is not None:
         # Filename mode means we download just one file from the repo, not the whole repo
         # This is useful for downloading GGUF repos which contain multiple versions of the model
@@ -145,7 +146,6 @@ field ion the Transformer Lab Settings page."
 def check_disk_size(model_is_downloaded: Event):
     # Recursively checks the size of the huggingface cache
     # which is stored at ~/.cache/huggingface/hub
-    db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
 
     starting_size_of_huggingface_cache_in_mb = get_dir_size(
         cache_dir) / 1024 / 1024
@@ -166,18 +166,23 @@ def check_disk_size(model_is_downloaded: Event):
         # Write to jobs table in database, updating the
         # progress column:
         job_data = json.dumps({"downloaded": cache_size_growth})
+
+        db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
         db.execute(
             "UPDATE job SET progress=?, job_data=json(?) WHERE id=?", (progress, job_data, job_id))
-        print(f"flag:  {model_is_downloaded.is_set()}")
         db.commit()
+        db.close()
+
+        print(f"flag:  {model_is_downloaded.is_set()}")
 
         if (model_is_downloaded.is_set()):
-            print("I was told to quit")
+            print("Model is downloaded, exiting check_disk_size thread")
             break
 
         counter += 1
         if counter > 5000:  # around 3 hours
-            print("I've been running for a while, I'm going to quit")
+            print(
+                "Model is not yet downloaded, but check disk size thread is exiting after running for 3 hours.")
             break
 
         sleep(2)
@@ -206,6 +211,7 @@ def main():
             "UPDATE job SET status='FAILED', job_data=json(?)\
                 WHERE id=?", (job_data, job_id))
         db.commit()
+        db.close()
         exit(1)
 
 
