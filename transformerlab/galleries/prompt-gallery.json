@@ -8,7 +8,7 @@
   },
   {
     "id": "convert-to-standard-english",
-    "text": "You will be provided with a statement, and your task is to convert it to standard English.\\n\\n\nStatement:\\n\\n\n{text}\\n\\n\nStandard English:\\n'\n",
+    "text": "You will be provided with a statement, and your task is to convert it to standard English.\\n\\n\nStatement:\\n\\n\n{text}\\n\\n\nStandard English:\\n\n",
     "title": "Convert any text to standard English",
     "parameters": {
       "temperature": 0.7,
