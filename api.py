@@ -29,7 +29,7 @@ from fastchat.protocol.openai_api_protocol import (
 )
 
 import transformerlab.db as db
-from transformerlab.routers import data, experiment, model, serverinfo, train, plugins, evals, config, jobs
+from transformerlab.routers import data, experiment, model, serverinfo, train, plugins, evals, config, jobs, prompts
 from transformerlab import fastchat_openai_api
 from transformerlab.shared import dirs
 from transformerlab.shared import shared
@@ -125,6 +125,7 @@ app.include_router(plugins.router)
 app.include_router(evals.router)
 app.include_router(jobs.router)
 app.include_router(router=config.router)
+app.include_router(router=prompts.router)
 app.include_router(router=fastchat_openai_api.router)
 
 
