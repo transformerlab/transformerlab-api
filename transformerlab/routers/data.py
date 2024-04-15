@@ -91,11 +91,12 @@ async def dataset_download(dataset_id: str):
     if row is not None:
         return {"status": "error", "message": f"A dataset with the name {dataset_id} already exists"}
 
-    ds_builder = load_dataset_builder(dataset_id)
     try:
+        ds_builder = load_dataset_builder(dataset_id)
         dataset = load_dataset(dataset_id)
     except Exception as e:
-        return {"status": "error", "message":  str(e)}
+        error_msg = f"{type(e).__name__}: {e}"
+        return {"status": "error", "message":  error_msg}
 
     await db.create_huggingface_dataset(
         dataset_id, ds_builder.info.description, ds_builder.info.download_size
