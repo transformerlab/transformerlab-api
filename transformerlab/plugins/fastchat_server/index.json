@@ -1,39 +1,37 @@
 {
-    "name": "Fastchat Server",
-    "uniqueId": "fastchat_server",
-    "description": "Fastchat loads models for inference using Huggingface Transformers for generation.",
-    "plugin-format": "python",
-    "type": "loader",
-    "version": "1.0.0",
-    "model_architectures": [
-        "LlamaForCausalLM",
-        "T5ForConditionalGeneration",
-        "FalconForCausalLM",
-        "MistralForCausalLM",
-        "MixtralForCausalLM",
-        "GPTBigCodeForCausalLM",
-        "GemmaForCausalLM"
-    ],
-    "files": [
-        "main.py",
-        "setup.sh"
-    ],
-    "setup-script": "setup.sh",
-    "parameters": {
-        "num_gpus": {
-            "title": "Number of GPUs",
-            "type": "integer"
-        },
-        "eight_bit": {
-            "title": "Enable 8-bit compression",
-            "type": "boolean",
-            "default": false
-        }
+  "name": "Fastchat Server",
+  "uniqueId": "fastchat_server",
+  "description": "Fastchat loads models for inference using Huggingface Transformers for generation.",
+  "plugin-format": "python",
+  "type": "loader",
+  "version": "1.0.0",
+  "model_architectures": [
+    "LlamaForCausalLM",
+    "T5ForConditionalGeneration",
+    "FalconForCausalLM",
+    "MistralForCausalLM",
+    "MixtralForCausalLM",
+    "GPTBigCodeForCausalLM",
+    "GemmaForCausalLM",
+    "CohereForCausalLM"
+  ],
+  "files": ["main.py", "setup.sh"],
+  "setup-script": "setup.sh",
+  "parameters": {
+    "num_gpus": {
+      "title": "Number of GPUs",
+      "type": "integer"
     },
-    "parameters_ui": {
-        "num_gpus": {
-            "ui:emptyValue": "",
-            "ui:help": "Used to spread models over multiple GPUs. Leave empty to use default."
-        }
+    "eight_bit": {
+      "title": "Enable 8-bit compression",
+      "type": "boolean",
+      "default": false
     }
+  },
+  "parameters_ui": {
+    "num_gpus": {
+      "ui:emptyValue": "",
+      "ui:help": "Used to spread models over multiple GPUs. Leave empty to use default."
+    }
+  }
 }
