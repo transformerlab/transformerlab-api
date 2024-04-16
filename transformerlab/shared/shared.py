@@ -147,29 +147,34 @@ async def async_run_python_daemon_and_update_status(python_script: list[str], jo
     error_msg = None
     while line:
         decoded = line.decode()
+
+        # If we hit the begin_string then the daemon is started and we can return!
         if begin_string in decoded:
-            print("WE ARE STARTED!")
             if set_process_id_function != None:
                 set_process_id_function(process)
-            break
+            print(f"Worker job {job_id} started successfully")
+            await db.job_update_status(job_id=job_id, status="COMPLETE")
+            return process
 
         # Watch the output for any errors and store the latest error
         elif ("stderr" in decoded) and ("ERROR" in decoded):
-            error_msg = decoded.split("|")[-1]
+            error_msg = decoded.split("| ")[-1]
 
         print(decoded)
         log.write(decoded)
         log.flush()
         line = await process.stdout.readline()
 
-    # returncode shouldn't be set if the worker is running
-    if (process.returncode is None) or (process.returncode == 0):
-        print(f"Worker job {job_id} started successfully")
-        await db.job_update_status(job_id=job_id, status="COMPLETE")
-    else:
-        print(f"ERROR: Worker job {job_id} failed with exit code {process.returncode}.")
-        print(error_msg)
-        await db.job_update_status(job_id=job_id, status="FAILED", error_msg=error_msg)
+    # If we're here then stdout didn't return and we didn't start the daemon
+    # Wait on the process and return the error
+    await process.wait()
+    returncode = process.returncode
+    if not error_msg:
+        error_msg = f"Process terminated prematurely with exit code {returncode}"
+
+    print(f"ERROR: Worker job {job_id} failed with exit code {returncode}.")
+    print(error_msg)
+    await db.job_update_status(job_id=job_id, status="FAILED", error_msg=error_msg)
     return process
 
 
