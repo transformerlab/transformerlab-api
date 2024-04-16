@@ -512,6 +512,28 @@
     }
   },
   {
+    "uniqueID": "mlx-community/Liberated-Qwen1.5-72B-4bit",
+    "name": "Liberated Qwen1.5 72B",
+    "description": "Brought to you by AbacusAI and Eric Hartford. This model is based on Qwen/Qwen1.5-72B and subject to the tongyi-qianwen license. Liberated consists of open source datasets, including SystemChat a new dataset I created, designed to teach the model compliance to the system prompt, over long multiturn conversations, even with unusual or mechanical system prompts. These are tasks that Open Source Models have been lacking in thus far. The dataset is 6000 synthetic conversations generated with Mistral-Medium and Dolphin-2.7-mixtral-8x7b. There are no guardrails or censorship added to the dataset. You are advised to implement your own alignment layer before exposing the model as a service. Please read my blog post about uncensored models. https://erichartford.com/uncensored-models.",
+    "parameters": "72B",
+    "context": "32768",
+    "architecture": "MLX",
+    "huggingface_repo": "mlx-community/Liberated-Qwen1.5-72B-4bit",
+    "transformers_version": "4.39.3",
+    "license": "CC-BY-NC-4.0",
+    "logo": "https://cdn-uploads.huggingface.co/production/uploads/63111b2d88942700629f5771/xCWGByXr8YNwGxKVh_x9H.png",
+    "author": {
+      "name": "AbacusAI",
+      "url": "",
+      "blurb": ""
+    },
+    "resources": {
+      "canonicalUrl": "",
+      "downloadUrl": "",
+      "paperUrl": "?"
+    }
+  },
+  {
     "uniqueID": "berkeley-nest/Starling-LM-7B-alpha",
     "name": "Starling-LM-7B-alpha",
     "description": "We introduce Starling-7B, an open large language model (LLM) trained by Reinforcement Learning from AI Feedback (RLAIF). The model harnesses the power of our new GPT-4 labeled ranking dataset, berkeley-nest/Nectar, and our new reward training and policy tuning pipeline. Starling-7B-alpha scores 8.09 in MT Bench with GPT-4 as a judge, outperforming every model to date on MT-Bench except for OpenAI's GPT-4 and GPT-4 Turbo.",
