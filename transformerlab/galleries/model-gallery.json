@@ -1,898 +1,898 @@
 [
-  {
-    "uniqueID": "meta-llama/Llama-2-7b-chat-hf",
-    "name": "LLama 2 7B - Chat",
-    "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B fine-tuned model, optimized for dialogue use cases and converted for the Hugging Face Transformers format.",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "LlamaForCausalLM",
-    "huggingface_repo": "meta-llama/Llama-2-7b-chat-hf",
-    "transformers_version": "4.31.0.dev0",
-    "license": "Meta Custom",
-    "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
-    "author": {
-      "name": "Meta",
-      "url": "https://huggingface.co/meta-llama/",
-      "blurb": ""
+    {
+        "uniqueID": "meta-llama/Llama-2-7b-chat-hf",
+        "name": "LLama 2 7B - Chat",
+        "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B fine-tuned model, optimized for dialogue use cases and converted for the Hugging Face Transformers format.",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "LlamaForCausalLM",
+        "huggingface_repo": "meta-llama/Llama-2-7b-chat-hf",
+        "transformers_version": "4.31.0.dev0",
+        "license": "Meta Custom",
+        "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
+        "author": {
+            "name": "Meta",
+            "url": "https://huggingface.co/meta-llama/",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/meta-llama/Llama-2-7b-chat",
+            "downloadUrl": "https://huggingface.co/meta-llama/Llama-2-7b-chat",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/meta-llama/Llama-2-7b-chat",
-      "downloadUrl": "https://huggingface.co/meta-llama/Llama-2-7b-chat",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "meta-llama/Llama-2-7b-hf",
-    "name": "LLama 2 7B",
-    "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B pretrained model, converted for the Hugging Face Transformers format",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "LlamaForCausalLM",
-    "huggingface_repo": "meta-llama/Llama-2-7b-hf",
-    "transformers_version": "4.31.0.dev0",
-    "license": "Meta Custom",
-    "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
-    "author": {
-      "name": "Meta",
-      "url": "https://huggingface.co/meta-llama/",
-      "blurb": ""
+    {
+        "uniqueID": "meta-llama/Llama-2-7b-hf",
+        "name": "LLama 2 7B",
+        "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B pretrained model, converted for the Hugging Face Transformers format",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "LlamaForCausalLM",
+        "huggingface_repo": "meta-llama/Llama-2-7b-hf",
+        "transformers_version": "4.31.0.dev0",
+        "license": "Meta Custom",
+        "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
+        "author": {
+            "name": "Meta",
+            "url": "https://huggingface.co/meta-llama/",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/meta-llama/Llama-2-7b-hf",
+            "downloadUrl": "https://huggingface.co/meta-llama/Llama-2-7b-hf",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/meta-llama/Llama-2-7b-hf",
-      "downloadUrl": "https://huggingface.co/meta-llama/Llama-2-7b-hf",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "meta-llama/Llama-2-13b-hf",
-    "name": "LLama 2 13B",
-    "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B pretrained model, converted for the Hugging Face Transformers format",
-    "parameters": "13B",
-    "context": "4k",
-    "architecture": "LlamaForCausalLM",
-    "huggingface_repo": "meta-llama/Llama-2-13b-hf",
-    "transformers_version": "4.31.0.dev0",
-    "license": "Meta Custom",
-    "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
-    "author": {
-      "name": "Meta",
-      "url": "https://huggingface.co/meta-llama/",
-      "blurb": ""
+    {
+        "uniqueID": "meta-llama/Llama-2-13b-hf",
+        "name": "LLama 2 13B",
+        "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B pretrained model, converted for the Hugging Face Transformers format",
+        "parameters": "13B",
+        "context": "4k",
+        "architecture": "LlamaForCausalLM",
+        "huggingface_repo": "meta-llama/Llama-2-13b-hf",
+        "transformers_version": "4.31.0.dev0",
+        "license": "Meta Custom",
+        "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
+        "author": {
+            "name": "Meta",
+            "url": "https://huggingface.co/meta-llama/",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/meta-llama/Llama-2-13b-hf",
+            "downloadUrl": "https://huggingface.co/meta-llama/Llama-2-13b-hf",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/meta-llama/Llama-2-13b-hf",
-      "downloadUrl": "https://huggingface.co/meta-llama/Llama-2-13b-hf",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "meta-llama/Llama-2-13b-chat-hf",
-    "name": "LLama 2 13B - Chat",
-    "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B pretrained model, converted for the Hugging Face Transformers format",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "LlamaForCausalLM",
-    "huggingface_repo": "meta-llama/Llama-2-13b-chat-hf",
-    "transformers_version": "4.31.0.dev0",
-    "license": "Meta Custom",
-    "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
-    "author": {
-      "name": "Meta",
-      "url": "https://huggingface.co/meta-llama/",
-      "blurb": ""
+    {
+        "uniqueID": "meta-llama/Llama-2-13b-chat-hf",
+        "name": "LLama 2 13B - Chat",
+        "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B pretrained model, converted for the Hugging Face Transformers format",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "LlamaForCausalLM",
+        "huggingface_repo": "meta-llama/Llama-2-13b-chat-hf",
+        "transformers_version": "4.31.0.dev0",
+        "license": "Meta Custom",
+        "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
+        "author": {
+            "name": "Meta",
+            "url": "https://huggingface.co/meta-llama/",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/meta-llama/Llama-2-13b-chat-hf",
+            "downloadUrl": "https://huggingface.co/meta-llama/Llama-2-13b-chat-hf",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/meta-llama/Llama-2-13b-chat-hf",
-      "downloadUrl": "https://huggingface.co/meta-llama/Llama-2-13b-chat-hf",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "CohereForAI/c4ai-command-r-v01",
-    "name": "C4AI Command-R",
-    "description": "C4AI Command-R is a research release of a 35 billion parameter highly performant generative model. Command-R is a large language model with open weights optimized for a variety of use cases including reasoning, summarization, and question answering. Command-R has the capability for multilingual generation evaluated in 10 languages and highly performant RAG capabilities.",
-    "parameters": "35B",
-    "context": "8192",
-    "architecture": "CohereForCausalLM",
-    "huggingface_repo": "CohereForAI/c4ai-command-r-v01",
-    "transformers_version": "4.38.2",
-    "license": "CC-BY-NC-4.0",
-    "logo": "https://txt.cohere.com/content/images/size/w2000/2024/04/r--Blog-Header.png",
-    "author": {
-      "name": "Cohere 4 AI",
-      "url": "https://cohere.com/research",
-      "blurb": ""
+    {
+        "uniqueID": "CohereForAI/c4ai-command-r-v01",
+        "name": "C4AI Command-R",
+        "description": "C4AI Command-R is a research release of a 35 billion parameter highly performant generative model. Command-R is a large language model with open weights optimized for a variety of use cases including reasoning, summarization, and question answering. Command-R has the capability for multilingual generation evaluated in 10 languages and highly performant RAG capabilities.",
+        "parameters": "35B",
+        "context": "8192",
+        "architecture": "CohereForCausalLM",
+        "huggingface_repo": "CohereForAI/c4ai-command-r-v01",
+        "transformers_version": "4.38.2",
+        "license": "CC-BY-NC-4.0",
+        "logo": "https://txt.cohere.com/content/images/size/w2000/2024/04/r--Blog-Header.png",
+        "author": {
+            "name": "Cohere 4 AI",
+            "url": "https://cohere.com/research",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "",
+            "downloadUrl": "",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "",
-      "downloadUrl": "",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "mlx-community/c4ai-command-r-v01-4bit",
-    "name": "C4AI Command-R 4bit MLX",
-    "description": "C4AI Command-R 4bit for MLX is a research release of a 35 billion parameter highly performant generative model. Command-R is a large language model with open weights optimized for a variety of use cases including reasoning, summarization, and question answering. Command-R has the capability for multilingual generation evaluated in 10 languages and highly performant RAG capabilities.",
-    "parameters": "35B",
-    "context": "8192",
-    "architecture": "MLX",
-    "huggingface_repo": "mlx-community/c4ai-command-r-v01-4bit",
-    "transformers_version": "4.38.2",
-    "license": "CC-BY-NC-4.0",
-    "logo": "https://txt.cohere.com/content/images/size/w2000/2024/04/r--Blog-Header.png",
-    "author": {
-      "name": "Cohere 4 AI",
-      "url": "https://cohere.com/research",
-      "blurb": ""
+    {
+        "uniqueID": "mlx-community/c4ai-command-r-v01-4bit",
+        "name": "C4AI Command-R 4bit MLX",
+        "description": "C4AI Command-R 4bit for MLX is a research release of a 35 billion parameter highly performant generative model. Command-R is a large language model with open weights optimized for a variety of use cases including reasoning, summarization, and question answering. Command-R has the capability for multilingual generation evaluated in 10 languages and highly performant RAG capabilities.",
+        "parameters": "35B",
+        "context": "8192",
+        "architecture": "MLX",
+        "huggingface_repo": "mlx-community/c4ai-command-r-v01-4bit",
+        "transformers_version": "4.38.2",
+        "license": "CC-BY-NC-4.0",
+        "logo": "https://txt.cohere.com/content/images/size/w2000/2024/04/r--Blog-Header.png",
+        "author": {
+            "name": "Cohere 4 AI",
+            "url": "https://cohere.com/research",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "",
+            "downloadUrl": "",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "",
-      "downloadUrl": "",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "CohereForAI/c4ai-command-r-v01-4bit",
-    "name": "C4AI Command-R 4bit Bits and Bytes",
-    "description": "C4AI Command-R 4bit for MLX is a research release of a 35 billion parameter highly performant generative model. Command-R is a large language model with open weights optimized for a variety of use cases including reasoning, summarization, and question answering. Command-R has the capability for multilingual generation evaluated in 10 languages and highly performant RAG capabilities.",
-    "parameters": "35B",
-    "context": "8192",
-    "architecture": "CohereForCausalLM",
-    "huggingface_repo": "CohereForAI/c4ai-command-r-v01-4bit",
-    "transformers_version": "4.38.2",
-    "license": "CC-BY-NC-4.0",
-    "logo": "https://txt.cohere.com/content/images/size/w2000/2024/04/r--Blog-Header.png",
-    "author": {
-      "name": "Cohere 4 AI",
-      "url": "https://cohere.com/research",
-      "blurb": ""
+    {
+        "uniqueID": "CohereForAI/c4ai-command-r-v01-4bit",
+        "name": "C4AI Command-R 4bit Bits and Bytes",
+        "description": "C4AI Command-R 4bit for MLX is a research release of a 35 billion parameter highly performant generative model. Command-R is a large language model with open weights optimized for a variety of use cases including reasoning, summarization, and question answering. Command-R has the capability for multilingual generation evaluated in 10 languages and highly performant RAG capabilities.",
+        "parameters": "35B",
+        "context": "8192",
+        "architecture": "CohereForCausalLM",
+        "huggingface_repo": "CohereForAI/c4ai-command-r-v01-4bit",
+        "transformers_version": "4.38.2",
+        "license": "CC-BY-NC-4.0",
+        "logo": "https://txt.cohere.com/content/images/size/w2000/2024/04/r--Blog-Header.png",
+        "author": {
+            "name": "Cohere 4 AI",
+            "url": "https://cohere.com/research",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "",
+            "downloadUrl": "",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "",
-      "downloadUrl": "",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "vicuna-7b-v1.5",
-    "name": "Vicuna 7b",
-    "description": "Vicuna is a state-of-the-art chat assistant developed by LMSYS, leveraging the transformative power of an auto-regressive language model based on the transformer architecture. Trained via fine-tuning the Llama 2 model, Vicuna is used primarily for research in large language models and chatbots, catering to the needs of AI enthusiasts, machine learning researchers, and hobbyists. The model operates under the Llama 2 CLA. The latest version, Vicuna v1.5 (16k), has been fine-tuned using supervised instruction and linear RoPE scaling, with training data comprising around 125K conversations collected from ShareGPT.com, packed into sequences of 16K tokens each. A comprehensive explanation of the training details can be found in the appendix to the linked paper titled \"Training Details of Vicuna Models.\"",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "LlamaForCausalLM",
-    "huggingface_repo": "lmsys/vicuna-7b-v1.5",
-    "transformers_version": "4.31.0",
-    "license": "Llama 2 CLA",
-    "logo": "https://lmsys.org/images/blog/vicuna/vicuna.jpeg",
-    "size_of_model_in_mb": 12853.1,
-    "author": {
-      "name": "LMSYS Org",
-      "url": "https://lmsys.org/",
-      "blurb": "Large Model Systems Organization (LMSYS Org) is an open research organization founded by students and faculty from UC Berkeley in collaboration with UCSD and CMU."
+    {
+        "uniqueID": "lmsys/vicuna-7b-v1.5",
+        "name": "Vicuna 7b",
+        "description": "Vicuna is a state-of-the-art chat assistant developed by LMSYS, leveraging the transformative power of an auto-regressive language model based on the transformer architecture. Trained via fine-tuning the Llama 2 model, Vicuna is used primarily for research in large language models and chatbots, catering to the needs of AI enthusiasts, machine learning researchers, and hobbyists. The model operates under the Llama 2 CLA. The latest version, Vicuna v1.5 (16k), has been fine-tuned using supervised instruction and linear RoPE scaling, with training data comprising around 125K conversations collected from ShareGPT.com, packed into sequences of 16K tokens each. A comprehensive explanation of the training details can be found in the appendix to the linked paper titled \"Training Details of Vicuna Models.\"",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "LlamaForCausalLM",
+        "huggingface_repo": "lmsys/vicuna-7b-v1.5",
+        "transformers_version": "4.31.0",
+        "license": "Llama 2 CLA",
+        "logo": "https://lmsys.org/images/blog/vicuna/vicuna.jpeg",
+        "size_of_model_in_mb": 12853.1,
+        "author": {
+            "name": "LMSYS Org",
+            "url": "https://lmsys.org/",
+            "blurb": "Large Model Systems Organization (LMSYS Org) is an open research organization founded by students and faculty from UC Berkeley in collaboration with UCSD and CMU."
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/lmsys/vicuna-7b-v1.5",
+            "downloadUrl": "https://huggingface.co/lmsys/vicuna-7b-v1.5",
+            "paperUrl": "https://arxiv.org/abs/2306.05685"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/lmsys/vicuna-7b-v1.5",
-      "downloadUrl": "https://huggingface.co/lmsys/vicuna-7b-v1.5",
-      "paperUrl": "https://arxiv.org/abs/2306.05685"
-    }
-  },
-  {
-    "uniqueID": "vicuna-13b-v1.5",
-    "name": "Vicuna 13b",
-    "description": "Vicuna is a state-of-the-art chat assistant developed by LMSYS, leveraging the transformative power of an auto-regressive language model based on the transformer architecture. Trained via fine-tuning the Llama 2 model, Vicuna is used primarily for research in large language models and chatbots, catering to the needs of AI enthusiasts, machine learning researchers, and hobbyists. The model operates under the Llama 2 CLA. The latest version, Vicuna v1.5 (16k), has been fine-tuned using supervised instruction and linear RoPE scaling, with training data comprising around 125K conversations collected from ShareGPT.com, packed into sequences of 16K tokens each. A comprehensive explanation of the training details can be found in the appendix to the linked paper titled \"Training Details of Vicuna Models.\"",
-    "parameters": "13B",
-    "context": "4k",
-    "architecture": "LlamaForCausalLM",
-    "huggingface_repo": "lmsys/vicuna-13b-v1.5",
-    "transformers_version": "4.31.0",
-    "license": "Llama 2 CLA",
-    "logo": "https://lmsys.org/images/blog/vicuna/vicuna.jpeg",
-    "author": {
-      "name": "LMSYS Org",
-      "url": "https://lmsys.org/",
-      "blurb": "Large Model Systems Organization (LMSYS Org) is an open research organization founded by students and faculty from UC Berkeley in collaboration with UCSD and CMU."
+    {
+        "uniqueID": "lmsys/vicuna-13b-v1.5",
+        "name": "Vicuna 13b",
+        "description": "Vicuna is a state-of-the-art chat assistant developed by LMSYS, leveraging the transformative power of an auto-regressive language model based on the transformer architecture. Trained via fine-tuning the Llama 2 model, Vicuna is used primarily for research in large language models and chatbots, catering to the needs of AI enthusiasts, machine learning researchers, and hobbyists. The model operates under the Llama 2 CLA. The latest version, Vicuna v1.5 (16k), has been fine-tuned using supervised instruction and linear RoPE scaling, with training data comprising around 125K conversations collected from ShareGPT.com, packed into sequences of 16K tokens each. A comprehensive explanation of the training details can be found in the appendix to the linked paper titled \"Training Details of Vicuna Models.\"",
+        "parameters": "13B",
+        "context": "4k",
+        "architecture": "LlamaForCausalLM",
+        "huggingface_repo": "lmsys/vicuna-13b-v1.5",
+        "transformers_version": "4.31.0",
+        "license": "Llama 2 CLA",
+        "logo": "https://lmsys.org/images/blog/vicuna/vicuna.jpeg",
+        "author": {
+            "name": "LMSYS Org",
+            "url": "https://lmsys.org/",
+            "blurb": "Large Model Systems Organization (LMSYS Org) is an open research organization founded by students and faculty from UC Berkeley in collaboration with UCSD and CMU."
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/lmsys/vicuna-13b-v1.5",
+            "downloadUrl": "https://huggingface.co/lmsys/vicuna-13b-v1.5",
+            "paperUrl": "https://arxiv.org/abs/2306.05685"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/lmsys/vicuna-13b-v1.5",
-      "downloadUrl": "https://huggingface.co/lmsys/vicuna-13b-v1.5",
-      "paperUrl": "https://arxiv.org/abs/2306.05685"
-    }
-  },
-  {
-    "uniqueID": "vicuna-7b-v1.5-16k",
-    "name": "Vicuna 7b - 16k",
-    "description": "Vicuna is a state-of-the-art chat assistant developed by LMSYS, leveraging the transformative power of an auto-regressive language model based on the transformer architecture. Trained via fine-tuning the Llama 2 model, Vicuna is used primarily for research in large language models and chatbots, catering to the needs of AI enthusiasts, machine learning researchers, and hobbyists. The model operates under the Llama 2 CLA. The latest version, Vicuna v1.5 (16k), has been fine-tuned using supervised instruction and linear RoPE scaling, with training data comprising around 125K conversations collected from ShareGPT.com, packed into sequences of 16K tokens each. A comprehensive explanation of the training details can be found in the appendix to the linked paper titled \"Training Details of Vicuna Models.\"",
-    "parameters": "7B",
-    "context": "16k",
-    "architecture": "LlamaForCausalLM",
-    "huggingface_repo": "lmsys/vicuna-7b-v1.5-16k",
-    "transformers_version": "4.31.0",
-    "license": "Llama 2 CLA",
-    "logo": "https://lmsys.org/images/blog/vicuna/vicuna.jpeg",
-    "size_of_model_in_mb": 8737.3,
-    "author": {
-      "name": "LMSYS Org",
-      "url": "https://lmsys.org/",
-      "blurb": "Large Model Systems Organization (LMSYS Org) is an open research organization founded by students and faculty from UC Berkeley in collaboration with UCSD and CMU."
+    {
+        "uniqueID": "lmsys/vicuna-7b-v1.5-16k",
+        "name": "Vicuna 7b - 16k",
+        "description": "Vicuna is a state-of-the-art chat assistant developed by LMSYS, leveraging the transformative power of an auto-regressive language model based on the transformer architecture. Trained via fine-tuning the Llama 2 model, Vicuna is used primarily for research in large language models and chatbots, catering to the needs of AI enthusiasts, machine learning researchers, and hobbyists. The model operates under the Llama 2 CLA. The latest version, Vicuna v1.5 (16k), has been fine-tuned using supervised instruction and linear RoPE scaling, with training data comprising around 125K conversations collected from ShareGPT.com, packed into sequences of 16K tokens each. A comprehensive explanation of the training details can be found in the appendix to the linked paper titled \"Training Details of Vicuna Models.\"",
+        "parameters": "7B",
+        "context": "16k",
+        "architecture": "LlamaForCausalLM",
+        "huggingface_repo": "lmsys/vicuna-7b-v1.5-16k",
+        "transformers_version": "4.31.0",
+        "license": "Llama 2 CLA",
+        "logo": "https://lmsys.org/images/blog/vicuna/vicuna.jpeg",
+        "size_of_model_in_mb": 8737.3,
+        "author": {
+            "name": "LMSYS Org",
+            "url": "https://lmsys.org/",
+            "blurb": "Large Model Systems Organization (LMSYS Org) is an open research organization founded by students and faculty from UC Berkeley in collaboration with UCSD and CMU."
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/lmsys/vicuna-7b-v1.5-16k",
+            "downloadUrl": "https://huggingface.co/lmsys/vicuna-7b-v1.5-16k",
+            "paperUrl": "https://arxiv.org/abs/2306.05685"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/lmsys/vicuna-7b-v1.5-16k",
-      "downloadUrl": "https://huggingface.co/lmsys/vicuna-7b-v1.5-16k",
-      "paperUrl": "https://arxiv.org/abs/2306.05685"
-    }
-  },
-  {
-    "uniqueID": "openlm-research/open_llama_3b_v2",
-    "name": "Open LLama 3b v2",
-    "description": " we are releasing our public preview of OpenLLaMA, a permissively licensed open source reproduction of Meta AI\u2019s LLaMA. We are releasing a series of 3B, 7B and 13B models trained on different data mixtures. Our model weights can serve as the drop in replacement of LLaMA in existing implementations.",
-    "parameters": "3B",
-    "context": "4k",
-    "architecture": "LlamaForCausalLM",
-    "huggingface_repo": "openlm-research/open_llama_3b_v2",
-    "transformers_version": "4.31.0.dev0",
-    "license": "Apache 2.0",
-    "logo": "https://avatars.githubusercontent.com/u/132110378?s=48&v=4",
-    "author": {
-      "name": "OpenLLaMA",
-      "url": "https://github.com/openlm-research/open_llama",
-      "blurb": ""
+    {
+        "uniqueID": "openlm-research/open_llama_3b_v2",
+        "name": "Open LLama 3b v2",
+        "description": " we are releasing our public preview of OpenLLaMA, a permissively licensed open source reproduction of Meta AI\u2019s LLaMA. We are releasing a series of 3B, 7B and 13B models trained on different data mixtures. Our model weights can serve as the drop in replacement of LLaMA in existing implementations.",
+        "parameters": "3B",
+        "context": "4k",
+        "architecture": "LlamaForCausalLM",
+        "huggingface_repo": "openlm-research/open_llama_3b_v2",
+        "transformers_version": "4.31.0.dev0",
+        "license": "Apache 2.0",
+        "logo": "https://avatars.githubusercontent.com/u/132110378?s=48&v=4",
+        "author": {
+            "name": "OpenLLaMA",
+            "url": "https://github.com/openlm-research/open_llama",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/openlm-research/open_llama_3b",
+            "downloadUrl": "https://huggingface.co/openlm-research/open_llama_3b",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/openlm-research/open_llama_3b",
-      "downloadUrl": "https://huggingface.co/openlm-research/open_llama_3b",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "openlm-research/open_llama_7b_v2",
-    "name": "Open LLama 7b v2",
-    "description": " we are releasing our public preview of OpenLLaMA, a permissively licensed open source reproduction of Meta AI\u2019s LLaMA. We are releasing a series of 3B, 7B and 13B models trained on different data mixtures. Our model weights can serve as the drop in replacement of LLaMA in existing implementations.",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "LlamaForCausalLM",
-    "huggingface_repo": "openlm-research/open_llama_7b_v2",
-    "transformers_version": "4.31.0.dev0",
-    "license": "Apache 2.0",
-    "logo": "https://avatars.githubusercontent.com/u/132110378?s=48&v=4",
-    "author": {
-      "name": "OpenLLaMA",
-      "url": "https://github.com/openlm-research/open_llama",
-      "blurb": ""
+    {
+        "uniqueID": "openlm-research/open_llama_7b_v2",
+        "name": "Open LLama 7b v2",
+        "description": " we are releasing our public preview of OpenLLaMA, a permissively licensed open source reproduction of Meta AI\u2019s LLaMA. We are releasing a series of 3B, 7B and 13B models trained on different data mixtures. Our model weights can serve as the drop in replacement of LLaMA in existing implementations.",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "LlamaForCausalLM",
+        "huggingface_repo": "openlm-research/open_llama_7b_v2",
+        "transformers_version": "4.31.0.dev0",
+        "license": "Apache 2.0",
+        "logo": "https://avatars.githubusercontent.com/u/132110378?s=48&v=4",
+        "author": {
+            "name": "OpenLLaMA",
+            "url": "https://github.com/openlm-research/open_llama",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/openlm-research/open_llama_3b",
+            "downloadUrl": "https://huggingface.co/openlm-research/open_llama_3b",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/openlm-research/open_llama_3b",
-      "downloadUrl": "https://huggingface.co/openlm-research/open_llama_3b",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "google/gemma-7b",
-    "name": "Gemma 7B",
-    "description": "Gemma is a family of lightweight, state-of-the-art open models from Google, built from the same research and technology used to create the Gemini models. They are text-to-text, decoder-only large language models, available in English, with open weights, pre-trained variants, and instruction-tuned variants. Gemma models are well-suited for a variety of text generation tasks, including question answering, summarization, and reasoning. Their relatively small size makes it possible to deploy them in environments with limited resources such as a laptop, desktop or your own cloud infrastructure, democratizing access to state of the art AI models and helping foster innovation for everyone.",
-    "parameters": "7B",
-    "context": "8192",
-    "architecture": "GemmaForCausalLM",
-    "huggingface_repo": "google/gemma-7b",
-    "transformers_version": "4.38.0.dev0",
-    "license": "Gemma",
-    "logo": "https://storage.googleapis.com/gweb-uniblog-publish-prod/images/gemma-header.width-1200.format-webp.webp",
-    "size_of_model_in_mb": 16305.1,
-    "author": {
-      "name": "Google",
-      "url": "https://huggingface.co/google/gemma-7b",
-      "blurb": ""
+    {
+        "uniqueID": "google/gemma-7b",
+        "name": "Gemma 7B",
+        "description": "Gemma is a family of lightweight, state-of-the-art open models from Google, built from the same research and technology used to create the Gemini models. They are text-to-text, decoder-only large language models, available in English, with open weights, pre-trained variants, and instruction-tuned variants. Gemma models are well-suited for a variety of text generation tasks, including question answering, summarization, and reasoning. Their relatively small size makes it possible to deploy them in environments with limited resources such as a laptop, desktop or your own cloud infrastructure, democratizing access to state of the art AI models and helping foster innovation for everyone.",
+        "parameters": "7B",
+        "context": "8192",
+        "architecture": "GemmaForCausalLM",
+        "huggingface_repo": "google/gemma-7b",
+        "transformers_version": "4.38.0.dev0",
+        "license": "Gemma",
+        "logo": "https://storage.googleapis.com/gweb-uniblog-publish-prod/images/gemma-header.width-1200.format-webp.webp",
+        "size_of_model_in_mb": 16305.1,
+        "author": {
+            "name": "Google",
+            "url": "https://huggingface.co/google/gemma-7b",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/google/gemma-7b",
+            "downloadUrl": "https://huggingface.co/google/gemma-7b",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/google/gemma-7b",
-      "downloadUrl": "https://huggingface.co/google/gemma-7b",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "google/gemma-7b-it",
-    "name": "Gemma 7B Instruct",
-    "description": "Gemma is a family of lightweight, state-of-the-art open models from Google, built from the same research and technology used to create the Gemini models. They are text-to-text, decoder-only large language models, available in English, with open weights, pre-trained variants, and instruction-tuned variants. Gemma models are well-suited for a variety of text generation tasks, including question answering, summarization, and reasoning. Their relatively small size makes it possible to deploy them in environments with limited resources such as a laptop, desktop or your own cloud infrastructure, democratizing access to state of the art AI models and helping foster innovation for everyone.",
-    "parameters": "7B",
-    "context": "8192",
-    "architecture": "GemmaForCausalLM",
-    "huggingface_repo": "google/gemma-7b-it",
-    "transformers_version": "4.38.0.dev0",
-    "license": "Gemma",
-    "logo": "https://storage.googleapis.com/gweb-uniblog-publish-prod/images/gemma-header.width-1200.format-webp.webp",
-    "author": {
-      "name": "Google",
-      "url": "https://huggingface.co/google/gemma-7b-it",
-      "blurb": ""
+    {
+        "uniqueID": "google/gemma-7b-it",
+        "name": "Gemma 7B Instruct",
+        "description": "Gemma is a family of lightweight, state-of-the-art open models from Google, built from the same research and technology used to create the Gemini models. They are text-to-text, decoder-only large language models, available in English, with open weights, pre-trained variants, and instruction-tuned variants. Gemma models are well-suited for a variety of text generation tasks, including question answering, summarization, and reasoning. Their relatively small size makes it possible to deploy them in environments with limited resources such as a laptop, desktop or your own cloud infrastructure, democratizing access to state of the art AI models and helping foster innovation for everyone.",
+        "parameters": "7B",
+        "context": "8192",
+        "architecture": "GemmaForCausalLM",
+        "huggingface_repo": "google/gemma-7b-it",
+        "transformers_version": "4.38.0.dev0",
+        "license": "Gemma",
+        "logo": "https://storage.googleapis.com/gweb-uniblog-publish-prod/images/gemma-header.width-1200.format-webp.webp",
+        "author": {
+            "name": "Google",
+            "url": "https://huggingface.co/google/gemma-7b-it",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/google/gemma-7b-it",
+            "downloadUrl": "https://huggingface.co/google/gemma-7b-it",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/google/gemma-7b-it",
-      "downloadUrl": "https://huggingface.co/google/gemma-7b-it",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "google/gemma-2b-it",
-    "name": "Gemma 2B Instruct",
-    "description": "Gemma is a family of lightweight, state-of-the-art open models from Google, built from the same research and technology used to create the Gemini models. They are text-to-text, decoder-only large language models, available in English, with open weights, pre-trained variants, and instruction-tuned variants. Gemma models are well-suited for a variety of text generation tasks, including question answering, summarization, and reasoning. Their relatively small size makes it possible to deploy them in environments with limited resources such as a laptop, desktop or your own cloud infrastructure, democratizing access to state of the art AI models and helping foster innovation for everyone.",
-    "parameters": "2B",
-    "context": "8192",
-    "architecture": "GemmaForCausalLM",
-    "huggingface_repo": "google/gemma-2b-it",
-    "transformers_version": "4.38.0.dev0",
-    "license": "Gemma",
-    "logo": "https://storage.googleapis.com/gweb-uniblog-publish-prod/images/gemma-header.width-1200.format-webp.webp",
-    "author": {
-      "name": "Google",
-      "url": "https://huggingface.co/google/gemma-2b-it",
-      "blurb": ""
+    {
+        "uniqueID": "google/gemma-2b-it",
+        "name": "Gemma 2B Instruct",
+        "description": "Gemma is a family of lightweight, state-of-the-art open models from Google, built from the same research and technology used to create the Gemini models. They are text-to-text, decoder-only large language models, available in English, with open weights, pre-trained variants, and instruction-tuned variants. Gemma models are well-suited for a variety of text generation tasks, including question answering, summarization, and reasoning. Their relatively small size makes it possible to deploy them in environments with limited resources such as a laptop, desktop or your own cloud infrastructure, democratizing access to state of the art AI models and helping foster innovation for everyone.",
+        "parameters": "2B",
+        "context": "8192",
+        "architecture": "GemmaForCausalLM",
+        "huggingface_repo": "google/gemma-2b-it",
+        "transformers_version": "4.38.0.dev0",
+        "license": "Gemma",
+        "logo": "https://storage.googleapis.com/gweb-uniblog-publish-prod/images/gemma-header.width-1200.format-webp.webp",
+        "author": {
+            "name": "Google",
+            "url": "https://huggingface.co/google/gemma-2b-it",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/google/gemma-2b-it",
+            "downloadUrl": "https://huggingface.co/google/gemma-2b-it",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/google/gemma-2b-it",
-      "downloadUrl": "https://huggingface.co/google/gemma-2b-it",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "google/gemma-2b",
-    "name": "Gemma 2B",
-    "description": "Gemma is a family of lightweight, state-of-the-art open models from Google, built from the same research and technology used to create the Gemini models. They are text-to-text, decoder-only large language models, available in English, with open weights, pre-trained variants, and instruction-tuned variants. Gemma models are well-suited for a variety of text generation tasks, including question answering, summarization, and reasoning. Their relatively small size makes it possible to deploy them in environments with limited resources such as a laptop, desktop or your own cloud infrastructure, democratizing access to state of the art AI models and helping foster innovation for everyone.",
-    "parameters": "2B",
-    "context": "8192",
-    "architecture": "GemmaForCausalLM",
-    "huggingface_repo": "google/gemma-2b",
-    "transformers_version": "4.38.0.dev0",
-    "license": "Gemma",
-    "logo": "https://storage.googleapis.com/gweb-uniblog-publish-prod/images/gemma-header.width-1200.format-webp.webp",
-    "author": {
-      "name": "Google",
-      "url": "https://huggingface.co/google/gemma-2b",
-      "blurb": ""
+    {
+        "uniqueID": "google/gemma-2b",
+        "name": "Gemma 2B",
+        "description": "Gemma is a family of lightweight, state-of-the-art open models from Google, built from the same research and technology used to create the Gemini models. They are text-to-text, decoder-only large language models, available in English, with open weights, pre-trained variants, and instruction-tuned variants. Gemma models are well-suited for a variety of text generation tasks, including question answering, summarization, and reasoning. Their relatively small size makes it possible to deploy them in environments with limited resources such as a laptop, desktop or your own cloud infrastructure, democratizing access to state of the art AI models and helping foster innovation for everyone.",
+        "parameters": "2B",
+        "context": "8192",
+        "architecture": "GemmaForCausalLM",
+        "huggingface_repo": "google/gemma-2b",
+        "transformers_version": "4.38.0.dev0",
+        "license": "Gemma",
+        "logo": "https://storage.googleapis.com/gweb-uniblog-publish-prod/images/gemma-header.width-1200.format-webp.webp",
+        "author": {
+            "name": "Google",
+            "url": "https://huggingface.co/google/gemma-2b",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/google/gemma-2b",
+            "downloadUrl": "https://huggingface.co/google/gemma-2b",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/google/gemma-2b",
-      "downloadUrl": "https://huggingface.co/google/gemma-2b",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "huggyllama/llama-7b",
-    "name": "LLama 7B",
-    "description": "",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "LlamaForCausalLM",
-    "huggingface_repo": "huggyllama/llama-7b",
-    "transformers_version": "4.27.4",
-    "license": "Meta Custom",
-    "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
-    "size_of_model_in_mb": 24783.0,
-    "author": {
-      "name": "Meta",
-      "url": "https://huggingface.co/meta-llama/",
-      "blurb": ""
+    {
+        "uniqueID": "huggyllama/llama-7b",
+        "name": "LLama 7B",
+        "description": "",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "LlamaForCausalLM",
+        "huggingface_repo": "huggyllama/llama-7b",
+        "transformers_version": "4.27.4",
+        "license": "Meta Custom",
+        "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
+        "size_of_model_in_mb": 24783.0,
+        "author": {
+            "name": "Meta",
+            "url": "https://huggingface.co/meta-llama/",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/huggyllama/llama-7b",
+            "downloadUrl": "https://huggingface.co/huggyllama/llama-7b",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/huggyllama/llama-7b",
-      "downloadUrl": "https://huggingface.co/huggyllama/llama-7b",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "Mistral-7B-v0.1",
-    "name": "Mistral 7B v0.1",
-    "description": "The Mistral-7B-v0.1 Large Language Model (LLM) is a pretrained generative text model with 7 billion parameters. Mistral-7B-v0.1 outperforms Llama 2 13B on all benchmarks we tested.",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "MistralForCausalLM",
-    "huggingface_repo": "mistralai/Mistral-7B-v0.1",
-    "transformers_version": "4.34.0.dev0",
-    "license": "Apache 2.0",
-    "logo": "https://docs.mistral.ai/img/logo.svg",
-    "author": {
-      "name": "Mistral AI",
-      "url": "https://docs.mistral.ai/",
-      "blurb": ""
+    {
+        "uniqueID": "Mistral-7B-v0.1",
+        "name": "Mistral 7B v0.1",
+        "description": "The Mistral-7B-v0.1 Large Language Model (LLM) is a pretrained generative text model with 7 billion parameters. Mistral-7B-v0.1 outperforms Llama 2 13B on all benchmarks we tested.",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "MistralForCausalLM",
+        "huggingface_repo": "mistralai/Mistral-7B-v0.1",
+        "transformers_version": "4.34.0.dev0",
+        "license": "Apache 2.0",
+        "logo": "https://docs.mistral.ai/img/logo.svg",
+        "author": {
+            "name": "Mistral AI",
+            "url": "https://docs.mistral.ai/",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/mistralai/Mistral-7B-v0.1",
+            "downloadUrl": "https://huggingface.co/mistralai/Mistral-7B-v0.1",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/mistralai/Mistral-7B-v0.1",
-      "downloadUrl": "https://huggingface.co/mistralai/Mistral-7B-v0.1",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "Mistral-7B-v0.2 Instruct",
-    "name": "Mistral-7B-Instruct-v0.2",
-    "description": "The Mistral-7B-Instruct-v0.2 Large Language Model (LLM) is a instruct fine-tuned version of the Mistral-7B-v0.1 generative text model using a variety of publicly available conversation datasets.",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "MistralForCausalLM",
-    "huggingface_repo": "mistralai/Mistral-7B-Instruct-v0.2",
-    "transformers_version": "4.36.0",
-    "license": "Apache 2.0",
-    "logo": "https://docs.mistral.ai/img/logo.svg",
-    "size_of_model_in_mb": 28127.4,
-    "author": {
-      "name": "Mistral AI",
-      "url": "https://docs.mistral.ai/",
-      "blurb": ""
+    {
+        "uniqueID": "Mistral-7B-v0.2 Instruct",
+        "name": "Mistral-7B-Instruct-v0.2",
+        "description": "The Mistral-7B-Instruct-v0.2 Large Language Model (LLM) is a instruct fine-tuned version of the Mistral-7B-v0.1 generative text model using a variety of publicly available conversation datasets.",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "MistralForCausalLM",
+        "huggingface_repo": "mistralai/Mistral-7B-Instruct-v0.2",
+        "transformers_version": "4.36.0",
+        "license": "Apache 2.0",
+        "logo": "https://docs.mistral.ai/img/logo.svg",
+        "size_of_model_in_mb": 28127.4,
+        "author": {
+            "name": "Mistral AI",
+            "url": "https://docs.mistral.ai/",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.2",
+            "downloadUrl": "https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.2",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.2",
-      "downloadUrl": "https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.2",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "Mixtral-8x7B-Instruct-v0.1",
-    "name": "Mixtral 8x7B Instruct",
-    "description": "The Mixtral-8x7B Large Language Model (LLM) is a pretrained generative Sparse Mixture of Experts. The Mistral-8x7B outperforms Llama 2 70B on most benchmarks we tested.",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "MixtralForCausalLM",
-    "huggingface_repo": "mistralai/Mixtral-8x7B-Instruct-v0.1",
-    "transformers_version": "4.36.0.dev0",
-    "license": "Apache 2.0",
-    "logo": "https://mistral.ai/images/product/models/mistral-8x7b-v0.1.jpg",
-    "size_of_model_in_mb": 56254.8,
-    "author": {
-      "name": "Mistral AI",
-      "url": "https://mistral.ai/news/mixtral-of-experts/",
-      "blurb": ""
+    {
+        "uniqueID": "Mixtral-8x7B-Instruct-v0.1",
+        "name": "Mixtral 8x7B Instruct",
+        "description": "The Mixtral-8x7B Large Language Model (LLM) is a pretrained generative Sparse Mixture of Experts. The Mistral-8x7B outperforms Llama 2 70B on most benchmarks we tested.",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "MixtralForCausalLM",
+        "huggingface_repo": "mistralai/Mixtral-8x7B-Instruct-v0.1",
+        "transformers_version": "4.36.0.dev0",
+        "license": "Apache 2.0",
+        "logo": "https://mistral.ai/images/product/models/mistral-8x7b-v0.1.jpg",
+        "size_of_model_in_mb": 56254.8,
+        "author": {
+            "name": "Mistral AI",
+            "url": "https://mistral.ai/news/mixtral-of-experts/",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://mistral.ai/news/mixtral-of-experts/",
+            "downloadUrl": "https://huggingface.co/mistralai/Mixtral-8x7B-Instruct-v0.1",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://mistral.ai/news/mixtral-of-experts/",
-      "downloadUrl": "https://huggingface.co/mistralai/Mixtral-8x7B-Instruct-v0.1",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "tiiuae/falcon-7b",
-    "name": "Falcon 7b",
-    "description": "Best overall smaller model. Fast responses. Instruction based. Trained by TII. Licensed for commercial use.",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "FalconForCausalLM",
-    "huggingface_repo": "tiiuae/falcon-7b",
-    "transformers_version": "4.27.4",
-    "license": "Apache 2.0",
-    "logo": "https://falconllm.tii.ae/assets/images/logo.svg",
-    "author": {
-      "name": "TII",
-      "url": "https://falconllm.tii.ae/index.html",
-      "blurb": ""
+    {
+        "uniqueID": "tiiuae/falcon-7b",
+        "name": "Falcon 7b",
+        "description": "Best overall smaller model. Fast responses. Instruction based. Trained by TII. Licensed for commercial use.",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "FalconForCausalLM",
+        "huggingface_repo": "tiiuae/falcon-7b",
+        "transformers_version": "4.27.4",
+        "license": "Apache 2.0",
+        "logo": "https://falconllm.tii.ae/assets/images/logo.svg",
+        "author": {
+            "name": "TII",
+            "url": "https://falconllm.tii.ae/index.html",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/tiiuae/falcon-7b",
+            "downloadUrl": "https://huggingface.co/tiiuae/falcon-7b",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/tiiuae/falcon-7b",
-      "downloadUrl": "https://huggingface.co/tiiuae/falcon-7b",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "tiiuae/falcon-7b-instruct",
-    "name": "Falcon 7b Instruct",
-    "description": "Best overall smaller model. Fast responses. Instruction based. Trained by TII. Licensed for commercial use.",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "FalconForCausalLM",
-    "huggingface_repo": "tiiuae/falcon-7b-instruct",
-    "transformers_version": "4.27.4",
-    "license": "Apache 2.0",
-    "logo": "https://falconllm.tii.ae/assets/images/logo.svg",
-    "author": {
-      "name": "TII",
-      "url": "https://falconllm.tii.ae/index.html",
-      "blurb": ""
+    {
+        "uniqueID": "tiiuae/falcon-7b-instruct",
+        "name": "Falcon 7b Instruct",
+        "description": "Best overall smaller model. Fast responses. Instruction based. Trained by TII. Licensed for commercial use.",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "FalconForCausalLM",
+        "huggingface_repo": "tiiuae/falcon-7b-instruct",
+        "transformers_version": "4.27.4",
+        "license": "Apache 2.0",
+        "logo": "https://falconllm.tii.ae/assets/images/logo.svg",
+        "author": {
+            "name": "TII",
+            "url": "https://falconllm.tii.ae/index.html",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/tiiuae/falcon-7b-instruct",
+            "downloadUrl": "https://huggingface.co/tiiuae/falcon-7b-instruct",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/tiiuae/falcon-7b-instruct",
-      "downloadUrl": "https://huggingface.co/tiiuae/falcon-7b-instruct",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "google/flan-t5-small",
-    "name": "Google Flan T5 Small",
-    "description": "",
-    "parameters": "80M",
-    "context": "2048",
-    "architecture": "T5ForConditionalGeneration",
-    "huggingface_repo": "google/flan-t5-small",
-    "transformers_version": "4.23.1",
-    "license": "Apache 2.0",
-    "logo": "https://ai.google/static/images/share.png",
-    "author": {
-      "name": "Google",
-      "url": "https://github.com/google-research/FLAN",
-      "blurb": ""
+    {
+        "uniqueID": "google/flan-t5-small",
+        "name": "Google Flan T5 Small",
+        "description": "",
+        "parameters": "80M",
+        "context": "2048",
+        "architecture": "T5ForConditionalGeneration",
+        "huggingface_repo": "google/flan-t5-small",
+        "transformers_version": "4.23.1",
+        "license": "Apache 2.0",
+        "logo": "https://ai.google/static/images/share.png",
+        "author": {
+            "name": "Google",
+            "url": "https://github.com/google-research/FLAN",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/google/flan-t5-small",
+            "downloadUrl": "https://huggingface.co/google/flan-t5-small",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/google/flan-t5-small",
-      "downloadUrl": "https://huggingface.co/google/flan-t5-small",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "mlx-community/Liberated-Qwen1.5-72B-4bit",
-    "name": "Liberated Qwen1.5 72B",
-    "description": "Brought to you by AbacusAI and Eric Hartford. This model is based on Qwen/Qwen1.5-72B and subject to the tongyi-qianwen license. Liberated consists of open source datasets, including SystemChat a new dataset I created, designed to teach the model compliance to the system prompt, over long multiturn conversations, even with unusual or mechanical system prompts. These are tasks that Open Source Models have been lacking in thus far. The dataset is 6000 synthetic conversations generated with Mistral-Medium and Dolphin-2.7-mixtral-8x7b. There are no guardrails or censorship added to the dataset. You are advised to implement your own alignment layer before exposing the model as a service. Please read my blog post about uncensored models. https://erichartford.com/uncensored-models.",
-    "parameters": "72B",
-    "context": "32768",
-    "architecture": "MLX",
-    "huggingface_repo": "mlx-community/Liberated-Qwen1.5-72B-4bit",
-    "transformers_version": "4.39.3",
-    "license": "CC-BY-NC-4.0",
-    "logo": "https://cdn-uploads.huggingface.co/production/uploads/63111b2d88942700629f5771/xCWGByXr8YNwGxKVh_x9H.png",
-    "author": {
-      "name": "AbacusAI",
-      "url": "",
-      "blurb": ""
+    {
+        "uniqueID": "mlx-community/Liberated-Qwen1.5-72B-4bit",
+        "name": "Liberated Qwen1.5 72B",
+        "description": "Brought to you by AbacusAI and Eric Hartford. This model is based on Qwen/Qwen1.5-72B and subject to the tongyi-qianwen license. Liberated consists of open source datasets, including SystemChat a new dataset I created, designed to teach the model compliance to the system prompt, over long multiturn conversations, even with unusual or mechanical system prompts. These are tasks that Open Source Models have been lacking in thus far. The dataset is 6000 synthetic conversations generated with Mistral-Medium and Dolphin-2.7-mixtral-8x7b. There are no guardrails or censorship added to the dataset. You are advised to implement your own alignment layer before exposing the model as a service. Please read my blog post about uncensored models. https://erichartford.com/uncensored-models.",
+        "parameters": "72B",
+        "context": "32768",
+        "architecture": "MLX",
+        "huggingface_repo": "mlx-community/Liberated-Qwen1.5-72B-4bit",
+        "transformers_version": "4.39.3",
+        "license": "CC-BY-NC-4.0",
+        "logo": "https://cdn-uploads.huggingface.co/production/uploads/63111b2d88942700629f5771/xCWGByXr8YNwGxKVh_x9H.png",
+        "author": {
+            "name": "AbacusAI",
+            "url": "",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "",
+            "downloadUrl": "",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "",
-      "downloadUrl": "",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "berkeley-nest/Starling-LM-7B-alpha",
-    "name": "Starling-LM-7B-alpha",
-    "description": "We introduce Starling-7B, an open large language model (LLM) trained by Reinforcement Learning from AI Feedback (RLAIF). The model harnesses the power of our new GPT-4 labeled ranking dataset, berkeley-nest/Nectar, and our new reward training and policy tuning pipeline. Starling-7B-alpha scores 8.09 in MT Bench with GPT-4 as a judge, outperforming every model to date on MT-Bench except for OpenAI's GPT-4 and GPT-4 Turbo.",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "MistralForCausalLM",
-    "huggingface_repo": "berkeley-nest/Starling-LM-7B-alpha",
-    "transformers_version": "4.35.0",
-    "license": "Non commercial license",
-    "logo": "https://starling.cs.berkeley.edu/starling.png",
-    "size_of_model_in_mb": 13814.8,
-    "author": {
-      "name": "Berkeley",
-      "url": "https://starling.cs.berkeley.edu/",
-      "blurb": ""
+    {
+        "uniqueID": "berkeley-nest/Starling-LM-7B-alpha",
+        "name": "Starling-LM-7B-alpha",
+        "description": "We introduce Starling-7B, an open large language model (LLM) trained by Reinforcement Learning from AI Feedback (RLAIF). The model harnesses the power of our new GPT-4 labeled ranking dataset, berkeley-nest/Nectar, and our new reward training and policy tuning pipeline. Starling-7B-alpha scores 8.09 in MT Bench with GPT-4 as a judge, outperforming every model to date on MT-Bench except for OpenAI's GPT-4 and GPT-4 Turbo.",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "MistralForCausalLM",
+        "huggingface_repo": "berkeley-nest/Starling-LM-7B-alpha",
+        "transformers_version": "4.35.0",
+        "license": "Non commercial license",
+        "logo": "https://starling.cs.berkeley.edu/starling.png",
+        "size_of_model_in_mb": 13814.8,
+        "author": {
+            "name": "Berkeley",
+            "url": "https://starling.cs.berkeley.edu/",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://starling.cs.berkeley.edu/",
+            "downloadUrl": "https://huggingface.co/berkeley-nest/Starling-LM-7B-alpha",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://starling.cs.berkeley.edu/",
-      "downloadUrl": "https://huggingface.co/berkeley-nest/Starling-LM-7B-alpha",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "lmsys/fastchat-t5-3b-v1.0",
-    "name": "FastChat-T5",
-    "description": "Open-source chatbot trained by fine-tuning Flan-t5-xl (3B parameters) on user-shared conversations collected from ShareGPT. It is based on an encoder-decoder transformer architecture, and can autoregressively generate responses to users' inputs.",
-    "parameters": "3B",
-    "context": "4k",
-    "architecture": "T5ForConditionalGeneration",
-    "huggingface_repo": "lmsys/fastchat-t5-3b-v1.0",
-    "transformers_version": "4.28.1",
-    "license": "Apache 2.0",
-    "logo": "https://lmsys.org/images/blog/vicuna/vicuna.jpeg",
-    "author": {
-      "name": "LMSYS Org",
-      "url": "https://lmsys.org/",
-      "blurb": "Large Model Systems Organization (LMSYS Org) is an open research organization founded by students and faculty from UC Berkeley in collaboration with UCSD and CMU."
+    {
+        "uniqueID": "lmsys/fastchat-t5-3b-v1.0",
+        "name": "FastChat-T5",
+        "description": "Open-source chatbot trained by fine-tuning Flan-t5-xl (3B parameters) on user-shared conversations collected from ShareGPT. It is based on an encoder-decoder transformer architecture, and can autoregressively generate responses to users' inputs.",
+        "parameters": "3B",
+        "context": "4k",
+        "architecture": "T5ForConditionalGeneration",
+        "huggingface_repo": "lmsys/fastchat-t5-3b-v1.0",
+        "transformers_version": "4.28.1",
+        "license": "Apache 2.0",
+        "logo": "https://lmsys.org/images/blog/vicuna/vicuna.jpeg",
+        "author": {
+            "name": "LMSYS Org",
+            "url": "https://lmsys.org/",
+            "blurb": "Large Model Systems Organization (LMSYS Org) is an open research organization founded by students and faculty from UC Berkeley in collaboration with UCSD and CMU."
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/lmsys/fastchat-t5-3b-v1.0",
+            "downloadUrl": "https://huggingface.co/lmsys/fastchat-t5-3b-v1.0",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/lmsys/fastchat-t5-3b-v1.0",
-      "downloadUrl": "https://huggingface.co/lmsys/fastchat-t5-3b-v1.0",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "microsoft/phi-2",
-    "name": "Phi 2",
-    "description": "Phi-2 is a Transformer with 2.7 billion parameters. The model hasn't been fine-tuned through reinforcement learning from human feedback. The intention behind crafting this open-source model is to provide the research community with a non-restricted small model to explore vital safety challenges, such as reducing toxicity, understanding societal biases, enhancing controllability, and more.",
-    "parameters": "2B",
-    "context": "?k",
-    "architecture": "PhiForCausalLM",
-    "huggingface_repo": "microsoft/phi-2",
-    "transformers_version": "4.37.0.dev0",
-    "license": "MIT",
-    "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRTwt9xAK7ih0gG74r3XLTpbiWmcd-9PTwXAQ&usqp=CAU",
-    "size_of_model_in_mb": 5305.2,
-    "author": {
-      "name": "Microsoft",
-      "url": "https://www.microsoft.com/en-us/research/blog/phi-2-the-surprising-power-of-small-language-models/",
-      "blurb": ""
+    {
+        "uniqueID": "microsoft/phi-2",
+        "name": "Phi 2",
+        "description": "Phi-2 is a Transformer with 2.7 billion parameters. The model hasn't been fine-tuned through reinforcement learning from human feedback. The intention behind crafting this open-source model is to provide the research community with a non-restricted small model to explore vital safety challenges, such as reducing toxicity, understanding societal biases, enhancing controllability, and more.",
+        "parameters": "2B",
+        "context": "?k",
+        "architecture": "PhiForCausalLM",
+        "huggingface_repo": "microsoft/phi-2",
+        "transformers_version": "4.37.0.dev0",
+        "license": "MIT",
+        "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRTwt9xAK7ih0gG74r3XLTpbiWmcd-9PTwXAQ&usqp=CAU",
+        "size_of_model_in_mb": 5305.2,
+        "author": {
+            "name": "Microsoft",
+            "url": "https://www.microsoft.com/en-us/research/blog/phi-2-the-surprising-power-of-small-language-models/",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/microsoft/phi-2",
+            "downloadUrl": "https://huggingface.co/microsoft/phi-2",
+            "paperUrl": "https://www.microsoft.com/en-us/research/blog/phi-2-the-surprising-power-of-small-language-models/"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/microsoft/phi-2",
-      "downloadUrl": "https://huggingface.co/microsoft/phi-2",
-      "paperUrl": "https://www.microsoft.com/en-us/research/blog/phi-2-the-surprising-power-of-small-language-models/"
-    }
-  },
-  {
-    "uniqueID": "Nous-Hermes-13b",
-    "name": "Nous Hermes 13b",
-    "description": "Extremely good model. Instruction based. Gives long responses. Curated with 300,000 uncensored instructions. Trained by Nous Research. Cannot be used commercially",
-    "parameters": "13B",
-    "context": "?",
-    "architecture": "LlamaForCausalLM",
-    "huggingface_repo": "NousResearch/Nous-Hermes-13b",
-    "transformers_version": "4.29.2",
-    "license": "GPL",
-    "logo": "https://aeiljuispo.cloudimg.io/v7/https://cdn-uploads.huggingface.co/production/uploads/62fc06a221c444a56f7cc595/ngyQKdhaykfC8lN6Jfqlz.png?w=200&h=200&f=face",
-    "size_of_model_in_mb": 24826.4,
-    "author": {
-      "name": "Nous Research",
-      "url": "https://nousresearch.com/",
-      "blurb": "We are dedicated to advancing the field of natural language processing, in collaboration with the open-source community, through bleeding-edge research and a commitment to symbiotic development."
+    {
+        "uniqueID": "Nous-Hermes-13b",
+        "name": "Nous Hermes 13b",
+        "description": "Extremely good model. Instruction based. Gives long responses. Curated with 300,000 uncensored instructions. Trained by Nous Research. Cannot be used commercially",
+        "parameters": "13B",
+        "context": "?",
+        "architecture": "LlamaForCausalLM",
+        "huggingface_repo": "NousResearch/Nous-Hermes-13b",
+        "transformers_version": "4.29.2",
+        "license": "GPL",
+        "logo": "https://aeiljuispo.cloudimg.io/v7/https://cdn-uploads.huggingface.co/production/uploads/62fc06a221c444a56f7cc595/ngyQKdhaykfC8lN6Jfqlz.png?w=200&h=200&f=face",
+        "size_of_model_in_mb": 24826.4,
+        "author": {
+            "name": "Nous Research",
+            "url": "https://nousresearch.com/",
+            "blurb": "We are dedicated to advancing the field of natural language processing, in collaboration with the open-source community, through bleeding-edge research and a commitment to symbiotic development."
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/NousResearch/Nous-Hermes-13b",
+            "downloadUrl": "https://huggingface.co/NousResearch/Nous-Hermes-13b",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/lmsys/vicuna-7b-v1.5",
-      "downloadUrl": "https://huggingface.co/lmsys/vicuna-7b-v1.5",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO",
-    "name": "Nous Hermes 2 - Mixtral 8x7B - DPO",
-    "description": "Nous Hermes 2 Mixtral 8x7B DPO is the new flagship Nous Research model trained over the Mixtral 8x7B MoE LLM.",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "MixtralForCausalLM",
-    "huggingface_repo": "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO",
-    "transformers_version": "4.37.0.dev0",
-    "license": "Apache 2.0",
-    "logo": "https://pbs.twimg.com/profile_images/1722061115453272064/dydqIH88_400x400.jpg",
-    "author": {
-      "name": "Nous Research",
-      "url": "https://nousresearch.com/",
-      "blurb": ""
+    {
+        "uniqueID": "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO",
+        "name": "Nous Hermes 2 - Mixtral 8x7B - DPO",
+        "description": "Nous Hermes 2 Mixtral 8x7B DPO is the new flagship Nous Research model trained over the Mixtral 8x7B MoE LLM.",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "MixtralForCausalLM",
+        "huggingface_repo": "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO",
+        "transformers_version": "4.37.0.dev0",
+        "license": "Apache 2.0",
+        "logo": "https://pbs.twimg.com/profile_images/1722061115453272064/dydqIH88_400x400.jpg",
+        "author": {
+            "name": "Nous Research",
+            "url": "https://nousresearch.com/",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO",
+            "downloadUrl": "https://huggingface.co/NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO",
-      "downloadUrl": "https://huggingface.co/NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "bigcode/starcoder",
-    "name": "StarCoder",
-    "description": "The StarCoder models are 15.5B parameter models trained on 80+ programming languages from The Stack (v1.2), with opt-out requests excluded. The model uses Multi Query Attention, a context window of 8192 tokens, and was trained using the Fill-in-the-Middle objective on 1 trillion tokens.",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "GPTBigCodeForCausalLM",
-    "huggingface_repo": "bigcode/starcoder",
-    "transformers_version": "4.28.1",
-    "license": "bigcode-openrail-m",
-    "logo": "https://www.bigcode-project.org/flow.png",
-    "author": {
-      "name": "Big Code",
-      "url": "https://www.bigcode-project.org/",
-      "blurb": "BigCode is an open scientific collaboration working on the responsible development and use of large language models for code"
+    {
+        "uniqueID": "bigcode/starcoder",
+        "name": "StarCoder",
+        "description": "The StarCoder models are 15.5B parameter models trained on 80+ programming languages from The Stack (v1.2), with opt-out requests excluded. The model uses Multi Query Attention, a context window of 8192 tokens, and was trained using the Fill-in-the-Middle objective on 1 trillion tokens.",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "GPTBigCodeForCausalLM",
+        "huggingface_repo": "bigcode/starcoder",
+        "transformers_version": "4.28.1",
+        "license": "bigcode-openrail-m",
+        "logo": "https://www.bigcode-project.org/flow.png",
+        "author": {
+            "name": "Big Code",
+            "url": "https://www.bigcode-project.org/",
+            "blurb": "BigCode is an open scientific collaboration working on the responsible development and use of large language models for code"
+        },
+        "resources": {
+            "canonicalUrl": "https://www.bigcode-project.org/",
+            "downloadUrl": "https://huggingface.co/bigcode/starcoder",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://www.bigcode-project.org/",
-      "downloadUrl": "https://huggingface.co/bigcode/starcoder",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "mlx-community/Mistral-7B-Instruct-v0.1-4bit-mlx",
-    "name": "Mistral-7B-Instruct-v0.1 MLX 4bit",
-    "description": "The Mistral-7B-Instruct-v0.1 Large Language Model (LLM) is a instruct fine-tuned version of the Mistral-7B-v0.1 generative text model using a variety of publicly available conversation datasets.",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "MLX",
-    "huggingface_repo": "mlx-community/Mistral-7B-Instruct-v0.1-4bit-mlx",
-    "transformers_version": "4.34.0.dev0",
-    "license": "Apache 2.0",
-    "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
-    "author": {
-      "name": "Mistral AI",
-      "url": "https://docs.mistral.ai/",
-      "blurb": ""
+    {
+        "uniqueID": "mlx-community/Mistral-7B-Instruct-v0.1-4bit-mlx",
+        "name": "Mistral-7B-Instruct-v0.1 MLX 4bit",
+        "description": "The Mistral-7B-Instruct-v0.1 Large Language Model (LLM) is a instruct fine-tuned version of the Mistral-7B-v0.1 generative text model using a variety of publicly available conversation datasets.",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "MLX",
+        "huggingface_repo": "mlx-community/Mistral-7B-Instruct-v0.1-4bit-mlx",
+        "transformers_version": "4.34.0.dev0",
+        "license": "Apache 2.0",
+        "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
+        "author": {
+            "name": "Mistral AI",
+            "url": "https://docs.mistral.ai/",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/mistralai/Mistral-7B-v0.1",
+            "downloadUrl": "https://huggingface.co/mistralai/Mistral-7B-v0.1",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/mistralai/Mistral-7B-v0.1",
-      "downloadUrl": "https://huggingface.co/mistralai/Mistral-7B-v0.1",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "mlx-community/TinyDolphin-2.8-1.1b-4bit-mlx",
-    "name": "TinyDolphin-2.8-1.1b MLX 4bit",
-    "description": "This is an experimental model trained on 2 3090's by Kearm on the new Dolphin 2.8 dataset by Eric Hartford https://erichartford.com/dolphin.",
-    "parameters": "1.1B",
-    "context": "4k",
-    "architecture": "MLX",
-    "huggingface_repo": "mlx-community/TinyDolphin-2.8-1.1b-4bit-mlx",
-    "transformers_version": "4.34.0.dev0",
-    "license": "Apache 2.0",
-    "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
-    "size_of_model_in_mb": 772.2,
-    "author": {
-      "name": "",
-      "url": "",
-      "blurb": ""
+    {
+        "uniqueID": "mlx-community/TinyDolphin-2.8-1.1b-4bit-mlx",
+        "name": "TinyDolphin-2.8-1.1b MLX 4bit",
+        "description": "This is an experimental model trained on 2 3090's by Kearm on the new Dolphin 2.8 dataset by Eric Hartford https://erichartford.com/dolphin.",
+        "parameters": "1.1B",
+        "context": "4k",
+        "architecture": "MLX",
+        "huggingface_repo": "mlx-community/TinyDolphin-2.8-1.1b-4bit-mlx",
+        "transformers_version": "4.34.0.dev0",
+        "license": "Apache 2.0",
+        "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
+        "size_of_model_in_mb": 772.2,
+        "author": {
+            "name": "",
+            "url": "",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "",
+            "downloadUrl": "",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "",
-      "downloadUrl": "",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "mlx-community/Mistral-7B-Instruct-v0.2-4bit",
-    "name": "Mistral-7B-Instruct-v0.2 4 bit MLX",
-    "description": "The Mistral-7B-Instruct-v0.2 Large Language Model (LLM) is an improved instruct fine-tuned version of Mistral-7B-Instruct-v0.1.",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "MLX",
-    "huggingface_repo": "mlx-community/Mistral-7B-Instruct-v0.2-4bit",
-    "transformers_version": "4.39.0.dev0",
-    "license": "Apache 2.0",
-    "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
-    "size_of_model_in_mb": 4067.1,
-    "author": {
-      "name": "",
-      "url": "",
-      "blurb": ""
+    {
+        "uniqueID": "mlx-community/Mistral-7B-Instruct-v0.2-4bit",
+        "name": "Mistral-7B-Instruct-v0.2 4 bit MLX",
+        "description": "The Mistral-7B-Instruct-v0.2 Large Language Model (LLM) is an improved instruct fine-tuned version of Mistral-7B-Instruct-v0.1.",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "MLX",
+        "huggingface_repo": "mlx-community/Mistral-7B-Instruct-v0.2-4bit",
+        "transformers_version": "4.39.0.dev0",
+        "license": "Apache 2.0",
+        "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
+        "size_of_model_in_mb": 4067.1,
+        "author": {
+            "name": "",
+            "url": "",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "",
+            "downloadUrl": "",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "",
-      "downloadUrl": "",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "mlx-community/Mistral-7B-Instruct-v0.2",
-    "name": "Mistral-7B-Instruct-v0.2 MLX",
-    "description": "The Mistral-7B-Instruct-v0.2 Large Language Model (LLM) is an improved instruct fine-tuned version of Mistral-7B-Instruct-v0.1.",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "MLX",
-    "huggingface_repo": "mlx-community/Mistral-7B-Instruct-v0.2",
-    "transformers_version": "4.34.0.dev0",
-    "license": "Apache 2.0",
-    "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
-    "author": {
-      "name": "",
-      "url": "",
-      "blurb": ""
+    {
+        "uniqueID": "mlx-community/Mistral-7B-Instruct-v0.2",
+        "name": "Mistral-7B-Instruct-v0.2 MLX",
+        "description": "The Mistral-7B-Instruct-v0.2 Large Language Model (LLM) is an improved instruct fine-tuned version of Mistral-7B-Instruct-v0.1.",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "MLX",
+        "huggingface_repo": "mlx-community/Mistral-7B-Instruct-v0.2",
+        "transformers_version": "4.34.0.dev0",
+        "license": "Apache 2.0",
+        "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
+        "author": {
+            "name": "",
+            "url": "",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "",
+            "downloadUrl": "",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "",
-      "downloadUrl": "",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "mlx-community/Llama-2-7b-mlx",
-    "name": "Llama-2 7b MLX",
-    "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B fine-tuned model, in npz format suitable for use in Apple's MLX framework.",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "MLX",
-    "huggingface_repo": "mlx-community/Llama-2-7b-mlx",
-    "transformers_version": "4.34.0.dev0",
-    "license": "Apache 2.0",
-    "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
-    "author": {
-      "name": "",
-      "url": "",
-      "blurb": ""
+    {
+        "uniqueID": "mlx-community/Llama-2-7b-mlx",
+        "name": "Llama-2 7b MLX",
+        "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B fine-tuned model, in npz format suitable for use in Apple's MLX framework.",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "MLX",
+        "huggingface_repo": "mlx-community/Llama-2-7b-mlx",
+        "transformers_version": "4.34.0.dev0",
+        "license": "Apache 2.0",
+        "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
+        "author": {
+            "name": "",
+            "url": "",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "",
+            "downloadUrl": "",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "",
-      "downloadUrl": "",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "mlx-community/Llama-2-7b-chat-4-bit",
-    "name": "Llama 2 7B Chat 4-bit MLX",
-    "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B fine-tuned model, in npz format suitable for use in Apple's MLX framework.",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "MLX",
-    "huggingface_repo": "mlx-community/Llama-2-7b-chat-4-bit",
-    "transformers_version": "4.34.0.dev0",
-    "license": "Apache 2.0",
-    "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
-    "size_of_model_in_mb": 3795.5,
-    "author": {
-      "name": "",
-      "url": "",
-      "blurb": ""
+    {
+        "uniqueID": "mlx-community/Llama-2-7b-chat-4-bit",
+        "name": "Llama 2 7B Chat 4-bit MLX",
+        "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B fine-tuned model, in npz format suitable for use in Apple's MLX framework.",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "MLX",
+        "huggingface_repo": "mlx-community/Llama-2-7b-chat-4-bit",
+        "transformers_version": "4.34.0.dev0",
+        "license": "Apache 2.0",
+        "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
+        "size_of_model_in_mb": 3795.5,
+        "author": {
+            "name": "",
+            "url": "",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "",
+            "downloadUrl": "",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "",
-      "downloadUrl": "",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "llama2:7b-chat",
-    "name": "LLama 2 - 7B chat - GGUF - Q4_0",
-    "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B fine-tuned model, optimized for dialogue use cases and converted for the Hugging Face Transformers format.",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "GGUF",
-    "huggingface_repo": "TheBloke/Llama-2-7B-Chat-GGUF",
-    "huggingface_filename": "llama-2-7b-chat.Q4_0.gguf",
-    "license": "Meta Custom",
-    "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
-    "size_of_model_in_mb": 3648.6,
-    "author": {
-      "name": "Meta",
-      "url": "https://huggingface.co/meta-llama/",
-      "blurb": ""
+    {
+        "uniqueID": "llama2:7b-chat",
+        "name": "LLama 2 - 7B chat - GGUF - Q4_0",
+        "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B fine-tuned model, optimized for dialogue use cases and converted for the Hugging Face Transformers format.",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "GGUF",
+        "huggingface_repo": "TheBloke/Llama-2-7B-Chat-GGUF",
+        "huggingface_filename": "llama-2-7b-chat.Q4_0.gguf",
+        "license": "Meta Custom",
+        "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
+        "size_of_model_in_mb": 3648.6,
+        "author": {
+            "name": "Meta",
+            "url": "https://huggingface.co/meta-llama/",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/meta-llama/Llama-2-7b-chat",
+            "downloadUrl": "https://huggingface.co/meta-llama/Llama-2-7b-chat",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/meta-llama/Llama-2-7b-chat",
-      "downloadUrl": "https://huggingface.co/meta-llama/Llama-2-7b-chat",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "llama2:7b",
-    "name": "LLama 2 - 7B - GGUF - Q4_0",
-    "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B fine-tuned model, optimized for dialogue use cases and converted for the Hugging Face Transformers format.",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "GGUF",
-    "huggingface_repo": "TheBloke/Llama-2-7B-GGUF",
-    "huggingface_filename": "llama-2-7b.Q4_0.gguf",
-    "license": "Meta Custom",
-    "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
-    "size_of_model_in_mb": 3648.6,
-    "author": {
-      "name": "Meta",
-      "url": "https://huggingface.co/meta-llama/",
-      "blurb": ""
+    {
+        "uniqueID": "llama2:7b",
+        "name": "LLama 2 - 7B - GGUF - Q4_0",
+        "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B fine-tuned model, optimized for dialogue use cases and converted for the Hugging Face Transformers format.",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "GGUF",
+        "huggingface_repo": "TheBloke/Llama-2-7B-GGUF",
+        "huggingface_filename": "llama-2-7b.Q4_0.gguf",
+        "license": "Meta Custom",
+        "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
+        "size_of_model_in_mb": 3648.6,
+        "author": {
+            "name": "Meta",
+            "url": "https://huggingface.co/meta-llama/",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/meta-llama/Llama-2-7b-chat",
+            "downloadUrl": "https://huggingface.co/meta-llama/Llama-2-7b-chat",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/meta-llama/Llama-2-7b-chat",
-      "downloadUrl": "https://huggingface.co/meta-llama/Llama-2-7b-chat",
-      "paperUrl": "?"
-    }
-  },
-  {
-    "uniqueID": "HuggingFaceH4/zephyr-7b-alpha",
-    "name": "Zephyr 7b Alpha",
-    "description": "Zephyr is a series of language models that are trained to act as helpful assistants. Zephyr-7B-\u03b1 is the first model in the series, and is a fine-tuned version of mistralai/Mistral-7B-v0.1 that was trained on on a mix of publicly available, synthetic datasets using Direct Preference Optimization (DPO).",
-    "parameters": "7B",
-    "context": "4k",
-    "architecture": "MistralForCausalLM",
-    "huggingface_repo": "HuggingFaceH4/zephyr-7b-alpha",
-    "transformers_version": "4.34.0",
-    "license": "MIT",
-    "logo": "https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha/resolve/main/thumbnail.png",
-    "size_of_model_in_mb": 27628.1,
-    "author": {
-      "name": "HuggingFace H4",
-      "url": "https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha",
-      "blurb": ""
+    {
+        "uniqueID": "HuggingFaceH4/zephyr-7b-alpha",
+        "name": "Zephyr 7b Alpha",
+        "description": "Zephyr is a series of language models that are trained to act as helpful assistants. Zephyr-7B-\u03b1 is the first model in the series, and is a fine-tuned version of mistralai/Mistral-7B-v0.1 that was trained on on a mix of publicly available, synthetic datasets using Direct Preference Optimization (DPO).",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "MistralForCausalLM",
+        "huggingface_repo": "HuggingFaceH4/zephyr-7b-alpha",
+        "transformers_version": "4.34.0",
+        "license": "MIT",
+        "logo": "https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha/resolve/main/thumbnail.png",
+        "size_of_model_in_mb": 27628.1,
+        "author": {
+            "name": "HuggingFace H4",
+            "url": "https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha",
+            "downloadUrl": "https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha",
+            "paperUrl": "?"
+        }
     },
-    "resources": {
-      "canonicalUrl": "https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha",
-      "downloadUrl": "https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha",
-      "paperUrl": "?"
+    {
+        "uniqueID": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+        "name": "Tiny Llama 1.1B Chat",
+        "description": "The TinyLlama project aims to pretrain a 1.1B Llama model on 3 trillion tokens. With some proper optimization, we can achieve this within a span of 90 days using 16 A100-40G GPUs \ud83d\ude80\ud83d\ude80. The training has started on 2023-09-01.",
+        "parameters": "1.1B",
+        "context": "4k",
+        "architecture": "LlamaForCausalLM",
+        "huggingface_repo": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+        "transformers_version": "4.35.0",
+        "license": "Apache 2.0",
+        "logo": "https://eu-images.contentstack.com/v3/assets/blt6b0f74e5591baa03/bltf495f117670d330a/65985db56b9c04040d633f56/image.png?width=700&auto=webp&quality=80&disable=upscale",
+        "size_of_model_in_mb": 4200.9,
+        "author": {
+            "name": "TinyLlama",
+            "url": "https://github.com/jzhang38/TinyLlama",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://github.com/jzhang38/TinyLlama",
+            "downloadUrl": "https://github.com/jzhang38/TinyLlama",
+            "paperUrl": "?"
+        }
     }
-  },
-  {
-    "uniqueID": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-    "name": "Tiny Llama 1.1B Chat",
-    "description": "The TinyLlama project aims to pretrain a 1.1B Llama model on 3 trillion tokens. With some proper optimization, we can achieve this within a span of 90 days using 16 A100-40G GPUs \ud83d\ude80\ud83d\ude80. The training has started on 2023-09-01.",
-    "parameters": "1.1B",
-    "context": "4k",
-    "architecture": "LlamaForCausalLM",
-    "huggingface_repo": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-    "transformers_version": "4.35.0",
-    "license": "Apache 2.0",
-    "logo": "https://eu-images.contentstack.com/v3/assets/blt6b0f74e5591baa03/bltf495f117670d330a/65985db56b9c04040d633f56/image.png?width=700&auto=webp&quality=80&disable=upscale",
-    "size_of_model_in_mb": 4200.9,
-    "author": {
-      "name": "TinyLlama",
-      "url": "https://github.com/jzhang38/TinyLlama",
-      "blurb": ""
-    },
-    "resources": {
-      "canonicalUrl": "https://github.com/jzhang38/TinyLlama",
-      "downloadUrl": "https://github.com/jzhang38/TinyLlama",
-      "paperUrl": "?"
-    }
-  }
 ]
