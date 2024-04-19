@@ -409,3 +409,9 @@ async def get_local_hfconfig(model_id: str):
         d = {}
 
     return d
+
+
+async def model_is_installed(model_id: str):
+    # Returns true if this model is available in Transformer Lab's local models
+    return await db.model_local_get(model_id) is not None
+
