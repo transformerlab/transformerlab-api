@@ -415,3 +415,37 @@ async def model_is_installed(model_id: str):
     # Returns true if this model is available in Transformer Lab's local models
     return await db.model_local_get(model_id) is not None
 
+
+@router.get("/model/hfcache_list")
+async def model_list_hf_models():
+
+    # Scan the HuggingFace cache repos for cached models
+    from huggingface_hub import scan_cache_dir
+    hf_cache_info = scan_cache_dir()
+    repos=hf_cache_info.repos
+
+    models = []
+    for repo in repos:
+
+        # Filter out anything that isn't a model
+        if (repo.repo_type != "model"):
+            continue
+
+        model_id = repo.repo_id
+
+        # Check if this model is already imported in to TransformerLab
+        installed = await model_is_installed(model_id)
+
+        # Try to determine if this is supported in TransformerLab
+        supported = True
+
+        newmodel = {
+            "id": model_id,
+            "type": repo.repo_type,
+            "installed": installed,
+            "supported": supported,
+            "size_on_disk": repo.size_on_disk
+        }
+        models.append(newmodel)
+    return{"status":"success", "data":models}
+
