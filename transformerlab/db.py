@@ -210,6 +210,27 @@ async def model_local_create(model_id, name, json_data):
     await db.commit()
 
 
+async def model_local_get(model_id):
+    global db
+    cursor = await db.execute("SELECT rowid, * FROM model WHERE model_id = ?", (model_id,))
+    row = await cursor.fetchone()
+
+    # Returns None if the model_id isn't in the database
+    if row is None:
+        return None
+    
+    # Map column names to row data
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    row = dict(itertools.zip_longest(column_names, row))
+    await cursor.close()
+
+    # convert json_data column from JSON to Python object
+    row["json_data"] = json.loads(row["json_data"])
+
+    return row
+
+
 async def model_local_delete(model_id):
     global db
     await db.execute("DELETE FROM model WHERE model_id = ?", (model_id,))
