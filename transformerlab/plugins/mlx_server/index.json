@@ -1,22 +1,19 @@
 {
-    "name": "Apple MLX Server",
-    "uniqueId": "mlx_server",
-    "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
-    "plugin-format": "python",
-    "type": "loader",
-    "version": "0.1.5",
-    "model_architectures": [
-        "LlamaForCausalLM",
-        "MistralForCausalLM",
-        "MixtralForCausalLM",
-        "PhiForCausalLM",
-        "MLX",
-        "GemmaForCausalLM"
-    ],
-    "files": [
-        "main.py",
-        "setup.sh"
-    ],
-    "setup-script": "setup.sh",
-    "parameters": []
+  "name": "Apple MLX Server",
+  "uniqueId": "mlx_server",
+  "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
+  "plugin-format": "python",
+  "type": "loader",
+  "version": "0.1.6",
+  "model_architectures": [
+    "LlamaForCausalLM",
+    "MistralForCausalLM",
+    "MixtralForCausalLM",
+    "PhiForCausalLM",
+    "MLX",
+    "GemmaForCausalLM"
+  ],
+  "files": ["main.py", "setup.sh"],
+  "setup-script": "setup.sh",
+  "parameters": []
 }

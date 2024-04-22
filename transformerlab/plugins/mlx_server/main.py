@@ -70,7 +70,7 @@ class MLXWorker(BaseModelWorker):
         self.model_name = model_path
         self.mlx_model, self.mlx_tokenizer = load(model_path)
 
-        self.tokenizer = self.mlx_tokenizer
+        self.tokenizer = self.mlx_tokenizer._tokenizer
 
         config = get_hugggingface_config(model_path)
 
@@ -129,16 +129,26 @@ class MLXWorker(BaseModelWorker):
 
         for i in range(max_new_tokens):
             (token, _) = await run_in_threadpool(next, iterator)
-            if token == self.mlx_tokenizer.eos_token_id:
+            if token == self.tokenizer.eos_token_id:
                 finish_reason = "stop"
                 break
-            tokens.append(token.item())
-            tokens_decoded = self.mlx_tokenizer.decode(tokens)
-            last_token_decoded = self.mlx_tokenizer.decode([token.item()])
+            tokens.append(token)
+            tokens_decoded = self.tokenizer.decode(tokens)
+            # last_token_decoded = self.mlx_tokenizer.decode([token])
             skip = len(tokens_decoded)
 
-            partial_stop = any(is_partial_stop(tokens_decoded, i)
-                               for i in stop)
+            # Check if the generated text contains any of the stop strings:
+            partial_stop = False
+
+            for s in stop:
+                if s in tokens_decoded:
+                    # print("tokens:")
+                    # print(tokens_decoded)
+                    # print("Partial stop found")
+                    # print("stop tokens: ")
+                    # print(stop)
+                    partial_stop = True
+                    break
 
             if partial_stop:
                 finish_reason = "stop"
@@ -159,7 +169,7 @@ class MLXWorker(BaseModelWorker):
             # print(ret)
             yield (json.dumps(ret) + "\0").encode()
         ret = {
-            "text": self.mlx_tokenizer.decode(tokens),
+            "text": self.tokenizer.decode(tokens),
             "error_code": 0,
             "usage": {
             },
@@ -246,7 +256,7 @@ worker = None
 def get_hugggingface_config(model_path):
     try:
         local_file = snapshot_download(model_path, local_files_only=True)
-        config_json = os.path.join(local_file , "config.json")
+        config_json = os.path.join(local_file, "config.json")
         contents = "{}"
         with open(config_json) as f:
             contents = f.read()
