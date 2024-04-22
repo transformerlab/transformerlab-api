@@ -416,9 +416,7 @@ async def model_is_installed(model_id: str):
     return await db.model_local_get(model_id) is not None
 
 
-@router.get("/model/hfcache_list")
-async def model_list_hf_models():
-
+async def list_hfcache_models():
     # Scan the HuggingFace cache repos for cached models
     from huggingface_hub import scan_cache_dir
     hf_cache_info = scan_cache_dir()
@@ -448,19 +446,34 @@ async def model_list_hf_models():
         }
         models.append(newmodel)
 
-    return{"status":"success", "data":models}
+    return models
+
+
+@router.get("/model/hfcache_list")
+async def model_list_hf_models():
+
+    try:
+        models = await list_hfcache_models()
+        return {"status":"success", "data":models}
+    except Exception as e:
+        error_msg = f"{type(e).__name__}: {e}"
+        return {"status":"error", "message":error_msg}
+
 
 @router.get("/model/hfcache_import")
 async def model_import_hf_models():
 
-    repos = model_list_hf_models()
+    repos = await list_hfcache_models()
 
     # Only add a row for uninstalled and supported repos
     added_repos = []
     for repo in repos:
-        if repo.supported and not repo.installed:
-            added_repos.append(repo.id)
-            print(repo.id)
+        if repo.get("supported") and repo.get("installed") == False:
+            repo_id = repo.get("id")
+            if repo_id:
+                added_repos.append(repo_id)
+                print(f"Importing {repo_id}")
+                # TODO: IMPORT!
     
-    return{"status":"success", "data":added_repos}
+    return {"status":"success", "data":added_repos}
 
