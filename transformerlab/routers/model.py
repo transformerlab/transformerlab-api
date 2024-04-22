@@ -447,5 +447,20 @@ async def model_list_hf_models():
             "size_on_disk": repo.size_on_disk
         }
         models.append(newmodel)
+
     return{"status":"success", "data":models}
+
+@router.get("/model/hfcache_import")
+async def model_import_hf_models():
+
+    repos = model_list_hf_models()
+
+    # Only add a row for uninstalled and supported repos
+    added_repos = []
+    for repo in repos:
+        if repo.supported and not repo.installed:
+            added_repos.append(repo.id)
+            print(repo.id)
+    
+    return{"status":"success", "data":added_repos}
 
