@@ -4,14 +4,15 @@
   "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
   "plugin-format": "python",
   "type": "loader",
-  "version": "0.1.6",
+  "version": "0.1.8",
   "model_architectures": [
     "LlamaForCausalLM",
     "MistralForCausalLM",
     "MixtralForCausalLM",
     "PhiForCausalLM",
     "MLX",
-    "GemmaForCausalLM"
+    "GemmaForCausalLM",
+    "Phi3ForCausalLM"
   ],
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
