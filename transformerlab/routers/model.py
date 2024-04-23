@@ -169,7 +169,7 @@ def get_model_details_from_huggingface(hugging_face_id: str):
 
         # config.json stores a list of architectures but we only store one so just take the first!
         architecture_list = filedata.get("architectures", [])
-        architecture = architecture_list[0]
+        architecture = architecture_list[0] if architecture_list else "unknown"
 
         # TODO: Context length definition seems to vary by architecture. May need conditional logic here.
         context_size = filedata.get("max_position_embeddings", "??")
