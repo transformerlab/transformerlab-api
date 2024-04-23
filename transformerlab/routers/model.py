@@ -470,10 +470,15 @@ async def model_import_hf_models():
     for repo in repos:
         if repo.get("supported") and repo.get("installed") == False:
             repo_id = repo.get("id")
+
+            # If model is not yet installed and is supported then create a DB entry
             if repo_id:
+                print(f"Importing {repo_id}...")
+                model_details = get_model_details_from_huggingface(repo_id)
+                name = model_details.get("name", repo_id)
+                await model_local_create(id=repo_id, name=name, json_data=model_details)
                 added_repos.append(repo_id)
-                print(f"Importing {repo_id}")
-                # TODO: IMPORT!
+                print(f"Import complete: {repo_id}!")
     
     return {"status":"success", "data":added_repos}
 
