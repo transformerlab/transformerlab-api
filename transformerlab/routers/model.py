@@ -425,9 +425,28 @@ async def get_local_hfconfig(model_id: str):
     return d
 
 
-async def model_is_installed(model_id: str):
-    # Returns true if this model is available in Transformer Lab's local models
-    return await db.model_local_get(model_id) is not None
+async def get_model_from_db(model_id: str):
+    return await db.model_local_get(model_id)
+
+
+async def model_architecture_is_supported(model_architecture: str):
+    # Return true if the passed string is a supported model architecture
+    supported_architectures = [
+        "GGUF",
+        "MLX",
+        "LlamaForCausalLM",
+        "T5ForConditionalGeneration",
+        "FalconForCausalLM",
+        "MistralForCausalLM",
+        "MixtralForCausalLM",
+        "GPTBigCodeForCausalLM",
+        "GemmaForCausalLM",
+        "CohereForCausalLM",
+        "PhiForCausalLM",
+        "Phi3ForCausalLM"
+
+    ]
+    return model_architecture in supported_architectures
 
 
 async def list_hfcache_models():
@@ -446,14 +465,28 @@ async def list_hfcache_models():
         model_id = repo.repo_id
 
         # Check if this model is already imported in to TransformerLab
-        installed = await model_is_installed(model_id)
+        db_model = await get_model_from_db(model_id)
+        installed = db_model is not None
 
         # Try to determine if this is supported in TransformerLab
-        supported = True
+        if installed:
+            json_data = db_model.get("json_data", {})
+            architecture = json_data.get("architecture", "unknown")
+            supported = True
+        else:
+            try:
+                model_details = get_model_details_from_huggingface(model_id)
+            except Exception as e:
+                # TODO: Catch GatedRepo?
+                print(e)
+                model_details = {}
+            architecture = model_details.get("architecture", "unknown")
+            supported = await model_architecture_is_supported(architecture)
 
         newmodel = {
             "id": model_id,
             "type": repo.repo_type,
+            "architecture": architecture,
             "installed": installed,
             "supported": supported,
             "size_on_disk": repo.size_on_disk
