@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse
 from fastchat.model.model_adapter import get_conversation_template
 from huggingface_hub import hf_hub_download, HfFileSystem, model_info
 from huggingface_hub import snapshot_download
+from huggingface_hub.utils import GatedRepoError
 
 import os
 
@@ -449,7 +450,7 @@ async def model_architecture_is_supported(model_architecture: str):
     return model_architecture in supported_architectures
 
 
-async def list_hfcache_models():
+async def list_hfcache_models(uninstalled_only: boolean = False):
     # Scan the HuggingFace cache repos for cached models
     from huggingface_hub import scan_cache_dir
     hf_cache_info = scan_cache_dir()
@@ -468,20 +469,30 @@ async def list_hfcache_models():
         db_model = await get_model_from_db(model_id)
         installed = db_model is not None
 
-        # Try to determine if this is supported in TransformerLab
+        # If we're only fetching uninstalled, then skip installed model
+        if uninstalled_only and installed then:
+            continue
+
+        # Try to determine if this model is supported in TransformerLab
+        status = "Not Supported"
         if installed:
             json_data = db_model.get("json_data", {})
             architecture = json_data.get("architecture", "unknown")
             supported = True
+            status = "Installed"
         else:
+            model_details = {}
             try:
                 model_details = get_model_details_from_huggingface(model_id)
+            except GatedRepoError:
+                status = "Auth required"
             except Exception as e:
-                # TODO: Catch GatedRepo?
-                print(e)
-                model_details = {}
+                print(f"{type(e).__name__}: {e}")
+                status = "Error"
             architecture = model_details.get("architecture", "unknown")
             supported = await model_architecture_is_supported(architecture)
+            if supported:
+                status = "Supported"
 
         newmodel = {
             "id": model_id,
@@ -489,6 +500,7 @@ async def list_hfcache_models():
             "architecture": architecture,
             "installed": installed,
             "supported": supported,
+            "status": status,
             "size_on_disk": repo.size_on_disk
         }
         models.append(newmodel)
