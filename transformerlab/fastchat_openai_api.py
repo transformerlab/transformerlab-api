@@ -144,8 +144,25 @@ def log_prompt(prompt):
     """ Log the prompt to the global prompt.log file """
     log_entry = {"date":  time.strftime("%Y-%m-%d %H:%M:%S")}
     log_entry.update(prompt)
+
+    MAX_LOG_SIZE_BEFORE_ROTATE = 1000000  # 1MB in bytes
+
+    if os.path.exists(os.path.join(dirs.LOGS_DIR, "prompt.log")):
+        if os.path.getsize(os.path.join(dirs.LOGS_DIR, "prompt.log")) > MAX_LOG_SIZE_BEFORE_ROTATE:
+            with open(os.path.join(dirs.LOGS_DIR, "prompt.log"), "r") as f:
+                lines = f.readlines()
+            with open(os.path.join(dirs.LOGS_DIR, "prompt.log"), "w") as f:
+                f.writelines(lines[-1000:])
+            with open(os.path.join(dirs.LOGS_DIR, f"prompt_{time.strftime('%Y%m%d%H%M%S')}.log"), "w") as f:
+                f.writelines(lines[:-1000])
+
     with open(os.path.join(dirs.LOGS_DIR, "prompt.log"), "a") as f:
         f.write(f"{log_entry}\n")
+
+
+@router.get("/prompt_log", tags=["chat"])
+async def get_prompt_log():
+    return FileResponse(os.path.join(dirs.LOGS_DIR, "prompt.log"))
 
 
 async def check_length(request, prompt, max_tokens):
