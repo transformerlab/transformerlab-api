@@ -191,6 +191,8 @@ def get_model_details_from_huggingface(hugging_face_id: str):
             "description": f"Downloaded by TransformerLab from Hugging Face at {hugging_face_id}",
             "parameters": "",
             "context": context_size,
+            "private": getattr(hf_model_info, "private", False),
+            "gated": getattr(hf_model_info, "gated", False),
             "architecture": architecture,
             "huggingface_repo": hugging_face_id,
             "transformers_version": filedata.get("transformers_version", ""),
