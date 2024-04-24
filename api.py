@@ -286,29 +286,6 @@ async def server_worker_stop():
 @app.get("/server/worker_healthz", tags=["serverinfo"])
 async def server_worker_health(request: Request):
     models = []
-
-    domain = request.base_url
-
-    # First check if you have manually run a model on port 8001 (which
-    # happens using the plugin model for example for llama-cpp-server)
-    # check port localhost:8001/v1/models and see what it returns:
-    try:
-        async with httpx.AsyncClient() as client:
-            ret = await client.get("http://localhost:8001/v1/models")
-            models = ret.json()
-
-            model_domain = domain.replace('8000', '8001')
-            models['data'][0]['location'] = model_domain
-            # check if the model name has /'s in it, just respond with the last
-            # part of the model name after the last /, which is the model name
-            # e.g. workspace/blahblah/llama3k.gguf -> llama3k.gguf
-            if (models['data'][0]['id'].find('/') != -1):
-                models['data'][0]['id'] = models['data'][0]['id'].split(
-                    '/')[-1]
-            return models['data']
-    except:
-        pass
-
     try:
         models = await fastchat_openai_api.show_available_models()
     except httpx.HTTPError as exc:
