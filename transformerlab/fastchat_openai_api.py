@@ -68,6 +68,9 @@ try:
 except ImportError:
     from pydantic import BaseSettings
 
+
+from transformerlab.shared import dirs
+
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.ERROR)
 headers = {"User-Agent": "FastChat API Server"}
@@ -135,6 +138,14 @@ async def check_model(request) -> Optional[JSONResponse]:
                 f"Expected model: {'&&'.join(models)}. Your model: {request.model}",
             )
     return ret
+
+
+def log_prompt(prompt):
+    """ Log the prompt to the global prompt.log file """
+    log_entry = {"date":  time.strftime("%Y-%m-%d %H:%M:%S")}
+    log_entry.update(prompt)
+    with open(os.path.join(dirs.LOGS_DIR, "prompt.log"), "a") as f:
+        f.write(f"{log_entry}\n")
 
 
 async def check_length(request, prompt, max_tokens):
@@ -293,7 +304,6 @@ async def get_gen_params(
     else:
         gen_params.update({"stop": stop})
 
-    logger.debug(f"==== request ====\n{gen_params}")
     return gen_params
 
 
@@ -377,6 +387,8 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
     )
     if error_check_ret is not None:
         return error_check_ret
+
+    log_prompt(gen_params)
 
     if request.stream:
         generator = chat_completion_stream_generator(
@@ -527,6 +539,9 @@ async def create_completion(request: CompletionRequest):
                 stream=request.stream,
                 stop=request.stop,
             )
+
+            log_prompt(gen_params)
+
             for i in range(request.n):
                 content = asyncio.create_task(generate_completion(gen_params))
                 text_completions.append(content)
@@ -577,6 +592,9 @@ async def generate_completion_stream_generator(request: CompletionRequest, n: in
                 stream=request.stream,
                 stop=request.stop,
             )
+
+            log_prompt(gen_params)
+
             async for content in generate_completion_stream(gen_params):
                 if content["error_code"] != 0:
                     # Convert the content to a dictionary
@@ -889,6 +907,8 @@ async def count_chat_tokens(request: ChatCompletionRequest):
 
 @router.post("/tokenize")
 async def tokenize(request: Request):
+    """ Tokenize a string and return the tokenized output as a set of input_ids and strings -- this only works
+    if the worker implements the tokenize endpoint."""
     data = await request.json()
     model = data["model"]
     text = data["text"]

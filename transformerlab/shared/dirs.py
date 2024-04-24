@@ -67,6 +67,10 @@ os.makedirs(name=EXPERIMENTS_DIR, exist_ok=True)
 # GLOBAL_LOG_PATH
 GLOBAL_LOG_PATH = os.path.join(HOME_DIR, "transformerlab.log")
 
+# OTHER LOGS DIR:
+LOGS_DIR = os.path.join(HOME_DIR, "logs")
+os.makedirs(name=LOGS_DIR, exist_ok=True)
+
 # ROOT_DIR (deprecate later)
 ROOT_DIR = os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))))
