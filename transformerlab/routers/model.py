@@ -195,6 +195,8 @@ def get_model_details_from_huggingface(hugging_face_id: str):
             "gated": getattr(hf_model_info, "gated", False),
             "architecture": architecture,
             "huggingface_repo": hugging_face_id,
+            "model_type": filedata.get("model_type", ""),
+            "library_name": library_name,
             "transformers_version": filedata.get("transformers_version", ""),
             "license": model_card_data.get("license", ""),
             "logo": ""
