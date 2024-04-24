@@ -142,11 +142,7 @@ async def check_model(request) -> Optional[JSONResponse]:
 
 def log_prompt(prompt):
     """ Log the prompt to the global prompt.log file """
-    log_entry = {"date":  time.strftime("%Y-%m-%d %H:%M:%S")}
-    log_entry.update(prompt)
-
     MAX_LOG_SIZE_BEFORE_ROTATE = 1000000  # 1MB in bytes
-
     if os.path.exists(os.path.join(dirs.LOGS_DIR, "prompt.log")):
         if os.path.getsize(os.path.join(dirs.LOGS_DIR, "prompt.log")) > MAX_LOG_SIZE_BEFORE_ROTATE:
             with open(os.path.join(dirs.LOGS_DIR, "prompt.log"), "r") as f:
@@ -157,6 +153,10 @@ def log_prompt(prompt):
                 f.writelines(lines[:-1000])
 
     with open(os.path.join(dirs.LOGS_DIR, "prompt.log"), "a") as f:
+        log_entry = {}
+        log_entry["date"] = time.strftime("%Y-%m-%d %H:%M:%S")
+        log_entry["log"] = prompt
+        log_entry = json.dumps(log_entry)
         f.write(f"{log_entry}\n")
 
 
