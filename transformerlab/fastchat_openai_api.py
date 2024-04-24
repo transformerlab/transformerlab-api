@@ -885,3 +885,19 @@ async def count_chat_tokens(request: ChatCompletionRequest):
         token_num = response.json()["count"]
 
     return {"tokenCount": token_num + max_tokens, "contextLength": context_len, "tokensInHistory": token_num,  "tokensInCompletion": max_tokens}
+
+
+@router.post("/tokenize")
+async def tokenize(request: Request):
+    data = await request.json()
+    model = data["model"]
+    text = data["text"]
+    async with httpx.AsyncClient() as client:
+        worker_addr = await get_worker_address(model, client)
+        response = await client.post(
+            worker_addr + "/tokenize",
+            headers=headers,
+            json={"model": model, "text": text},
+            timeout=WORKER_API_TIMEOUT,
+        )
+        return response.json()

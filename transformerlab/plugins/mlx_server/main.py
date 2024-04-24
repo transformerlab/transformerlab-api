@@ -253,6 +253,15 @@ async def api_model_details(request: Request):
 worker = None
 
 
+@app.post("/tokenize")
+async def api_tokenize(request: Request):
+    params = await request.json()
+    text = params["text"]
+    token_ids = worker.tokenizer(text).input_ids
+    tokens = worker.tokenizer.convert_ids_to_tokens(token_ids)
+    return {"tokens": tokens, "token_ids": token_ids}
+
+
 def get_hugggingface_config(model_path):
     try:
         local_file = snapshot_download(model_path, local_files_only=True)
