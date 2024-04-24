@@ -6,7 +6,7 @@ import transformerlab.db as db
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
 from fastchat.model.model_adapter import get_conversation_template
-from huggingface_hub import hf_hub_download, HfFileSystem, ModelCard
+from huggingface_hub import hf_hub_download, HfFileSystem, model_info
 from huggingface_hub import snapshot_download
 
 import os
@@ -160,19 +160,29 @@ def get_model_details_from_huggingface(hugging_face_id: str):
     fs = HfFileSystem()
     filename = os.path.join(hugging_face_id, "config.json")
 
-    # Also get model card for license details
-    model_card = ModelCard.load(hugging_face_id)
-    model_card_data = model_card.data.to_dict()
+    # Also get model info for metadata and license details
+    # Some models don't have a model card (mostly models that have been deprecated)
+    hf_model_info = model_info(hugging_face_id)
+    try:
+        model_card = hf_model_info.card_data
+        model_card_data = model_card.data.to_dict()
+    except AttributeError:
+        model_card_data = {}
 
     with fs.open(filename) as f:
         filedata = json.load(f)
 
         # config.json stores a list of architectures but we only store one so just take the first!
         architecture_list = filedata.get("architectures", [])
-        architecture = architecture_list[0] if architecture_list else "unknown"
+        architecture = architecture_list[0] if architecture_list else ""
+
+        # Oh except that GGUF and MLX aren't listed as architectures, we have to look in library_name
+        library_name = getattr(hf_model_info, "library", "")
+        if (library_name == "MLX" or library_name == "GGUF"):
+            architecture = library_name
 
         # TODO: Context length definition seems to vary by architecture. May need conditional logic here.
-        context_size = filedata.get("max_position_embeddings", "??")
+        context_size = filedata.get("max_position_embeddings", "")
 
         # TODO: Figure out description, paramters, model size
         config = {
