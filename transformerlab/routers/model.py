@@ -450,7 +450,7 @@ async def model_architecture_is_supported(model_architecture: str):
     return model_architecture in supported_architectures
 
 
-async def list_hfcache_models(uninstalled_only: boolean = False):
+async def list_hfcache_models(uninstalled_only: bool = False):
     # Scan the HuggingFace cache repos for cached models
     from huggingface_hub import scan_cache_dir
     hf_cache_info = scan_cache_dir()
@@ -470,7 +470,7 @@ async def list_hfcache_models(uninstalled_only: boolean = False):
         installed = db_model is not None
 
         # If we're only fetching uninstalled, then skip installed model
-        if uninstalled_only and installed then:
+        if uninstalled_only and installed:
             continue
 
         # Try to determine if this model is supported in TransformerLab
