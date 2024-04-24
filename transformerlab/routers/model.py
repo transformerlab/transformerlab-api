@@ -450,8 +450,9 @@ async def model_architecture_is_supported(model_architecture: str):
     return model_architecture in supported_architectures
 
 
-async def list_hfcache_models(uninstalled_only: bool = False):
+async def list_hfcache_models(uninstalled_only: bool = True):
     # Scan the HuggingFace cache repos for cached models
+    # If uninstalled_only is True then skip any models TLab has already
     from huggingface_hub import scan_cache_dir
     hf_cache_info = scan_cache_dir()
     repos=hf_cache_info.repos
