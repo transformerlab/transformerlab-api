@@ -511,6 +511,21 @@ async def list_hfcache_models(uninstalled_only: bool = True):
     return models
 
 
+async def get_hfcache_model(model_id: str):
+    # TODO: once we fix up the model helper, we should update this
+    #  so that it doesn't have to build the whole list unnecessarily
+
+    models = await list_hfcache_models(False)
+
+    result = None
+    for model in models:
+        if model['id'] == model_id:
+            result = model
+            break
+
+    return result
+
+
 @router.get("/model/hfcache_list")
 async def model_list_hf_models():
 
@@ -525,24 +540,22 @@ async def model_list_hf_models():
 @router.get("/model/hfcache_import")
 async def model_import_from_hfcache(model_id: str):
 
-    repos = await list_hfcache_models()
+    model = await get_hfcache_model(model_id)
 
     # Only add a row for uninstalled and supported repos
-    added_repos = []
-    for repo in repos:
-        if repo.get("supported") and repo.get("installed") == False:
-            repo_id = repo.get("id")
+    if not model.get("supported"):
+        return {"status":"error", "message": f"{model_id} architecture is not supported."}
+    elif model.get("installed"):
+        return {"status":"error", "message": f"{model_id} is already installed."}
 
-            # If model is not yet installed and is supported then create a DB entry
-            if repo_id:
-                print(f"Importing {repo_id}...")
-                model_details = get_model_details_from_huggingface(repo_id)
-                name = model_details.get("name", repo_id)
-                await model_local_create(id=repo_id, name=name, json_data=model_details)
-                added_repos.append(repo_id)
-                print(f"Import complete: {repo_id}!")
+    print(f"Importing {model_id}...")
+
+    # TODO: Once we have model_helper updated, we can remove this call to huggingface
+    model_details = get_model_details_from_huggingface(model_id)
+    name = model_details.get("name", model_id)
+    await model_local_create(id=model_id, name=name, json_data=model_details)
     
-    return {"status":"success", "data":added_repos}
+    return {"status":"success", "data":repo_id}
 
 
 @router.get("/model/hfcache_import_all")
