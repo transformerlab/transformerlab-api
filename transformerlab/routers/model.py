@@ -555,7 +555,7 @@ async def model_import_from_hfcache(model_id: str):
     name = model_details.get("name", model_id)
     await model_local_create(id=model_id, name=name, json_data=model_details)
     
-    return {"status":"success", "data":repo_id}
+    return {"status":"success", "data":model_id}
 
 
 @router.get("/model/hfcache_import_all")
