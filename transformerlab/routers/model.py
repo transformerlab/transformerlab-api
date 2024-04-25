@@ -14,6 +14,7 @@ import os
 
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
+from transformerlab.helpers import model_helper
 
 router = APIRouter(tags=["model"])
 
@@ -186,6 +187,7 @@ def get_model_details_from_huggingface(hugging_face_id: str):
         context_size = filedata.get("max_position_embeddings", "")
 
         # TODO: Figure out description, paramters, model size
+        config = model_helper.get_default_model_jsondata(hugging_face_id)
         config = {
             "uniqueID": hugging_face_id,
             "name": filedata.get("name", hugging_face_id),
@@ -521,7 +523,7 @@ async def model_list_hf_models():
 
 
 @router.get("/model/hfcache_import")
-async def model_import_hf_models():
+async def model_import_from_hfcache(model_id: str):
 
     repos = await list_hfcache_models()
 
@@ -542,3 +544,25 @@ async def model_import_hf_models():
     
     return {"status":"success", "data":added_repos}
 
+
+@router.get("/model/hfcache_import_all")
+async def model_import_all_from_hfcache():
+
+    repos = await list_hfcache_models()
+
+    # Only add a row for uninstalled and supported repos
+    added_repos = []
+    for repo in repos:
+        if repo.get("supported") and repo.get("installed") == False:
+            repo_id = repo.get("id")
+
+            # If model is not yet installed and is supported then create a DB entry
+            if repo_id:
+                print(f"Importing {repo_id}...")
+                model_details = get_model_details_from_huggingface(repo_id)
+                name = model_details.get("name", repo_id)
+                await model_local_create(id=repo_id, name=name, json_data=model_details)
+                added_repos.append(repo_id)
+                print(f"Import complete: {repo_id}!")
+
+    return {"status":"success", "data":added_repos}
