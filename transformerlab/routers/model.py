@@ -503,6 +503,7 @@ async def list_hfcache_models(uninstalled_only: bool = True):
             "architecture": architecture,
             "installed": installed,
             "supported": supported,
+            "source": "huggingface",
             "status": status,
             "size_on_disk": repo.size_on_disk
         }
@@ -556,3 +557,8 @@ async def model_import_from_hfcache(model_id: str):
     await model_local_create(id=model_id, name=name, json_data=model_details)
     
     return {"status":"success", "data":model_id}
+
+
+@router.get("/model/find_local_uninstalled")
+async def models_find_local_uninstalled(model_id: str):
+    return await model_list_hf_models()
