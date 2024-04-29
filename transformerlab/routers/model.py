@@ -559,20 +559,11 @@ async def model_import_from_hfcache(model_id: str):
     return {"status":"success", "data":model_id}
 
 
-def get_ollama_models_dir():
-    try:
-        ollama_dir = os.environ['OLLAMA_MODELS']
-    except:
-        ollama_dir = os.path.join(os.getenv("HOME"), ".ollama", "models")
-    return ollama_dir
-
-
 @router.get("/model/ollama_list")
 async def list_ollama_models(uninstalled_only: bool = True):
     # Scan the ollama cache repos for cached models
     # If uninstalled_only is True then skip any models TLab has already
-    ollama_models_dir = get_ollama_models_dir()
-    ollama_model_library = os.path.join(ollama_models_dir, "manifests", "registry.ollama.ai", "library")
+    ollama_model_library = model_helper.get_ollama_models_library_dir()
 
     models = []
     with os.scandir(ollama_model_library) as dirlist:
