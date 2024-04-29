@@ -559,6 +559,42 @@ async def model_import_from_hfcache(model_id: str):
     return {"status":"success", "data":model_id}
 
 
+def get_ollama_models_dir():
+    try:
+        ollama_dir = os.environ['OLLAMA_MODELS']
+    except:
+        ollama_dir = os.path.join(os.getenv("HOME"), ".ollama", "models")
+    return ollama_dir
+
+
+@router.get("/model/ollama_list")
+async def list_ollama_models(uninstalled_only: bool = True):
+    # Scan the ollama cache repos for cached models
+    # If uninstalled_only is True then skip any models TLab has already
+    ollama_models_dir = get_ollama_models_dir()
+    ollama_model_library = os.path.join(ollama_models_dir, "manifests", "registry.ollama.ai", "library")
+
+    models = []
+    with os.scandir(ollama_model_library) as dirlist:
+        for entry in dirlist:
+            if entry.is_dir():
+                model_installed = False
+                ollama_model = {
+                    "id": entry.name,
+                    "type": "model",
+                    "architecture": "GGUF",
+                    "installed": False,
+                    "supported": True,
+                    "source": "ollama",
+                    "status": "Supported",
+                    "size_on_disk": 0 # TODO
+                }
+                if (not uninstalled_only or not model_installed):
+                    models.append(ollama_model)
+
+    return models
+
+
 @router.get("/model/find_local_uninstalled")
 async def models_find_local_uninstalled(model_id: str):
     return await model_list_hf_models()
