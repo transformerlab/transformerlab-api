@@ -582,5 +582,24 @@ async def list_ollama_models(uninstalled_only: bool = True):
 
 
 @router.get("/model/find_local_uninstalled")
-async def models_find_local_uninstalled(model_id: str):
-    return await model_list_hf_models()
+async def models_find_local_uninstalled():
+    models = []
+
+    # Check Hugging Face
+    try:
+        hfcache_models = await list_hfcache_models()
+        models.extend(hfcache_models)
+    except Exception as e:
+        error_msg = f"{type(e).__name__}: {e}"
+        print(error_msg)
+
+    # Check Ollama
+    try:
+        ollama_models = await list_ollama_models()
+        print(ollama_models)
+        models.extend(ollama_models)
+    except Exception as e:
+        error_msg = f"{type(e).__name__}: {e}"
+        print(error_msg)
+
+    return {"status":"success", "data":models}
