@@ -48,4 +48,14 @@ def get_ollama_models_library_dir():
 
 
 def get_ollama_model(model_id: str):
-    return get_default_model_jsondata(model_id)
+    model = get_default_model_jsondata(model_id)
+    model["supported"] = True
+    model["source"] = "ollama"
+    model["architecture"] = "GGUF"
+
+    # TODO
+    model["installed"] = False
+    model["model_path"] = ""
+    model["model_filename"] = ""
+    model["size_on_disk"] = 0
+    return model

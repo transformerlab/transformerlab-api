@@ -569,17 +569,9 @@ async def list_ollama_models(uninstalled_only: bool = True):
     with os.scandir(ollama_model_library) as dirlist:
         for entry in dirlist:
             if entry.is_dir():
-                model_installed = False
-                ollama_model = {
-                    "id": entry.name,
-                    "type": "model",
-                    "architecture": "GGUF",
-                    "installed": False,
-                    "supported": True,
-                    "source": "ollama",
-                    "status": "Supported",
-                    "size_on_disk": 0 # TODO
-                }
+                ollama_model = model_helper.get_ollama_model(entry.name)
+
+                model_installed = ollama_model.get("installed", False)
                 if (not uninstalled_only or not model_installed):
                     models.append(ollama_model)
 
