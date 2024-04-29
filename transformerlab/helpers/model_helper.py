@@ -39,12 +39,26 @@ def get_ollama_models_dir():
         ollama_dir = os.environ['OLLAMA_MODELS']
     except:
         ollama_dir = os.path.join(os.getenv("HOME"), ".ollama", "models")
+
+    # Check that the directory actually exists
+    if not os.path.isdir(ollama_dir):
+        return None
+
     return ollama_dir
 
 
 def get_ollama_models_library_dir():
     ollama_models_dir = get_ollama_models_dir()
-    return os.path.join(ollama_models_dir, "manifests", "registry.ollama.ai", "library")
+
+    if not ollama_models_dir:
+        return None
+
+    library_dir = os.path.join(ollama_models_dir, "manifests", "registry.ollama.ai", "library")
+
+    if not os.path.isdir(library_dir):
+        return None
+
+    return library_dir
 
 
 def get_ollama_model(model_id: str):

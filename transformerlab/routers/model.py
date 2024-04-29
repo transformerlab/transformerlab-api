@@ -561,12 +561,15 @@ async def model_import_from_hfcache(model_id: str):
 
 @router.get("/model/ollama_list")
 async def list_ollama_models(uninstalled_only: bool = True):
-    # Scan the ollama cache repos for cached models
-    # If uninstalled_only is True then skip any models TLab has already
+
     ollama_model_library = model_helper.get_ollama_models_library_dir()
+    if ollama_model_library is None:
+        return []
 
     models = []
     with os.scandir(ollama_model_library) as dirlist:
+        # Scan the ollama cache repos for cached models
+        # If uninstalled_only is True then skip any models TLab has already
         for entry in dirlist:
             if entry.is_dir():
                 ollama_model = model_helper.get_ollama_model(entry.name)
