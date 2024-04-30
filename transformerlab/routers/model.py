@@ -149,21 +149,22 @@ async def login_to_huggingface():
 def get_model_details_from_huggingface(hugging_face_id: str):
     """
     Gets model config details from hugging face and convert in to gallery format
+
+    This function can raise several Exceptions from HuggingFace:
+        RepositoryNotFoundError: invalid model ID or private repo without access
+        GatedRepoError: Model exists but this user is not on the authorized lsit
+        EntryNotFoundError: this model doesn't have a config.json
+        HfHubHTTPError: Catch all for everything else
     """
 
     # Use the Hugging Face Hub API to download the config.json file for this model
     # This may throw an exception if the model doesn't exist or we don't have access rights
-    try:
-        hf_hub_download(repo_id=hugging_face_id, filename="config.json")
-    except Exception as e:
-        return None
-
-    # Use Hugging Face file system API and let it figure out which file we should be reading
-    fs = HfFileSystem()
-    filename = os.path.join(hugging_face_id, "config.json")
+    hf_hub_download(repo_id=hugging_face_id, filename="config.json")
 
     # Also get model info for metadata and license details
+    # Similar to hf_hub_download this can throw exceptions
     # Some models don't have a model card (mostly models that have been deprecated)
+    # In that case just set model_card_data to an empty object
     hf_model_info = model_info(hugging_face_id)
     try:
         model_card = hf_model_info.card_data
@@ -171,6 +172,9 @@ def get_model_details_from_huggingface(hugging_face_id: str):
     except AttributeError:
         model_card_data = {}
 
+    # Use Hugging Face file system API and let it figure out which file we should be reading
+    fs = HfFileSystem()
+    filename = os.path.join(hugging_face_id, "config.json")
     with fs.open(filename) as f:
         filedata = json.load(f)
 
@@ -276,10 +280,15 @@ async def download_model_by_huggingface_id(model: str):
     # Get model details from Hugging Face
     # If None then that means either the model doesn't exist
     # Or we don't have proper Hugging Face authentication setup
-    model_details = get_model_details_from_huggingface(model)
+    try:
+        model_details = get_model_details_from_huggingface(model)
+    except Exception as e:
+        error_msg = f"{type(e).__name__}: {e}"
+        return {"status": "error", "message": error_msg}
+
     if model_details is None:
-        return {"status": "error", "message": f"No model found with the ID {model}. "
-                "If accessing a private repo, make sure you are authenticated"}
+        error_msg = f"Error reading config for model with ID {model}"
+        return {"status": "error", "message": error_msg}
 
     return await download_huggingface_model(model, model_details)
 
@@ -488,6 +497,7 @@ async def list_hfcache_models(uninstalled_only: bool = True):
             try:
                 model_details = get_model_details_from_huggingface(model_id)
             except GatedRepoError:
+                model_details = {"architecture": "Auth required"}
                 status = "Auth required"
             except Exception as e:
                 print(f"{type(e).__name__}: {e}")
@@ -552,7 +562,14 @@ async def model_import_from_hfcache(model_id: str):
     print(f"Importing {model_id}...")
 
     # TODO: Once we have model_helper updated, we can remove this call to huggingface
-    model_details = get_model_details_from_huggingface(model_id)
+    try:
+        model_details = get_model_details_from_huggingface(model_id)
+    except Exception as e:
+        error_msg = f"{type(e).__name__}: {e}"
+        print(f"Error while importing {model_id}")
+        print(error_msg)
+        return {"status":"error", "message":error_msg}
+
     name = model_details.get("name", model_id)
     await model_local_create(id=model_id, name=name, json_data=model_details)
     
