@@ -38,7 +38,7 @@ def get_ollama_models_dir():
     try:
         ollama_dir = os.environ['OLLAMA_MODELS']
     except:
-        ollama_dir = os.path.join(os.getenv("HOME"), ".ollama", "models")
+        ollama_dir = os.path.join(os.path.expanduser("~"), ".ollama", "models")
 
     # Check that the directory actually exists
     if not os.path.isdir(ollama_dir):
