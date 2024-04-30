@@ -13,6 +13,8 @@ class BaseModel:
                     or a unique repo ID to get a model out of an app's cache.
     model_filename: With model_path, a specific filename for this model (vs. a folder)
                     For example, this is used for GGUF files.
+    architecture:   A string describing the model architecture used to determine
+                    support for the model and how to run
 
     json_data:      an unstructured data blob that can contain any data relevant 
                     to the model or its model_store.
@@ -35,8 +37,8 @@ class BaseModel:
 
         self.installed = False
         self.model_path = None
-        self.model_file = None
-        self.supported = False
+        self.model_filename = None
+        self.architecture = "unknown"
 
         # While json_data is unstructured and flexible
         # These are the fields that the app generally expects to exist
@@ -47,7 +49,7 @@ class BaseModel:
             "huggingface_repo": "",
             "parameters": "",
             "context": "",
-            "architecture": "",
+            "architecture": self.architecture,
             "license": "",
             "logo": "",
 
@@ -58,3 +60,10 @@ class BaseModel:
             "library_name": "", 
             "transformers_version": ""
         }
+
+
+    def get_path_to_model(self):
+        if self.model_filename:
+            return os.path.join(model_path, self.model_filename)
+        else:
+            return self.model_path
