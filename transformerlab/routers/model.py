@@ -14,7 +14,9 @@ import os
 
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
-from transformerlab.helpers import model_helper
+
+from transformerlab.models import basemodel
+from transformerlab.models import ollamamodel
 
 router = APIRouter(tags=["model"])
 
@@ -191,7 +193,8 @@ def get_model_details_from_huggingface(hugging_face_id: str):
         context_size = filedata.get("max_position_embeddings", "")
 
         # TODO: Figure out description, paramters, model size
-        config = model_helper.get_default_model_jsondata(hugging_face_id)
+        newmodel = basemodel.BaseModel(hugging_face_id)
+        config = newmodel.json_data
         config = {
             "uniqueID": hugging_face_id,
             "name": filedata.get("name", hugging_face_id),
@@ -574,24 +577,7 @@ async def model_import_from_hfcache(model_id: str):
 
 @router.get("/model/ollama_list")
 async def list_ollama_models(uninstalled_only: bool = True):
-
-    ollama_model_library = model_helper.get_ollama_models_library_dir()
-    if ollama_model_library is None:
-        return []
-
-    models = []
-    with os.scandir(ollama_model_library) as dirlist:
-        # Scan the ollama cache repos for cached models
-        # If uninstalled_only is True then skip any models TLab has already
-        for entry in dirlist:
-            if entry.is_dir():
-                ollama_model = model_helper.get_ollama_model(entry.name)
-
-                model_installed = ollama_model.get("installed", False)
-                if (not uninstalled_only or not model_installed):
-                    models.append(ollama_model)
-
-    return models
+    return ollamamodel.list_models(uninstalled_only)
 
 
 @router.get("/model/find_local_uninstalled")
