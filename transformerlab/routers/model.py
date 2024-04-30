@@ -486,26 +486,23 @@ async def list_hfcache_models(uninstalled_only: bool = True):
             continue
 
         # Try to determine if this model is supported in TransformerLab
-        status = "Not Supported"
         if installed:
             json_data = db_model.get("json_data", {})
             architecture = json_data.get("architecture", "unknown")
             supported = True
-            status = "Installed"
         else:
             model_details = {}
             try:
                 model_details = get_model_details_from_huggingface(model_id)
+                architecture = model_details.get("architecture", "unknown")
+                supported = await model_architecture_is_supported(architecture)
             except GatedRepoError:
-                model_details = {"architecture": "Auth required"}
-                status = "Auth required"
+                architecture = "Not Authenticated"
+                supported = None
             except Exception as e:
                 print(f"{type(e).__name__}: {e}")
-                status = "Error"
-            architecture = model_details.get("architecture", "unknown")
-            supported = await model_architecture_is_supported(architecture)
-            if supported:
-                status = "Supported"
+                architecture = "Error"
+                supported = false
 
         newmodel = {
             "id": model_id,
@@ -514,7 +511,6 @@ async def list_hfcache_models(uninstalled_only: bool = True):
             "installed": installed,
             "supported": supported,
             "source": "huggingface",
-            "status": status,
             "size_on_disk": repo.size_on_disk
         }
         models.append(newmodel)
