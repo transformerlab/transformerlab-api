@@ -577,7 +577,7 @@ async def model_import_from_hfcache(model_id: str):
 
 @router.get("/model/ollama_list")
 async def list_ollama_models(uninstalled_only: bool = True):
-    return ollamamodel.list_models(uninstalled_only)
+    return await ollamamodel.list_models(uninstalled_only)
 
 
 @router.get("/model/find_local_uninstalled")

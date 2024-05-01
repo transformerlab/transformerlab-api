@@ -1,50 +1,51 @@
+import transformerlab.db as db
+
+
 class BaseModel:
     """
     A basic representation of a Model in TransformerLab.
 
     Properties:
-    model_id:       a string that is unique to Transformer Lab
+    tlab_id:        a string that is unique to Transformer Lab
     name:           Printable name for the model (how it appears in the app)
-    model_store:    Where the model is stored (huggingface, local_path, etc.)
-
-    installed:      True if this model can be used in TLab's Local Store
-    model_path:     Path to the model in its model_store.
-                    This is usually either a file system path, 
-                    or a unique repo ID to get a model out of an app's cache.
-    model_filename: With model_path, a specific filename for this model (vs. a folder)
-                    For example, this is used for GGUF files.
     architecture:   A string describing the model architecture used to determine
                     support for the model and how to run
 
+    model_source:   Where the model is stored ("huggingface", "local", etc.)
+    source_id_or_path:
+                    The id of this model in it source (or path for local files)
+    model_filename: With aource_id_or_path, a specific filename for this model.
+                    For example, GGUF repos have several files representing
+                    different versions of teh model.
+
     json_data:      an unstructured data blob that can contain any data relevant 
-                    to the model or its model_store.
+                    to the model or its model_source.
     """
 
     
-    def __init__(self, id_in_model_store):
+    def __init__(self, id):
         """
-        The constructor takes an ID (id_in_model_store) that is unique to the model source.
-        This may be different than the unique ID used in Transformer Lab (self.id).
+        The constructor takes an ID that is unique to the model source.
+        This may be different than the unique ID used in Transformer Lab (self.unique_id).
 
         That is, model sources (hard drive folders, application caches, web sites, etc.)
-        may have many models with the same id_in_model_store, but their self.id must be 
-        unique to TransformerLab in order to import in to the Transfoerm Lab store.
+        will have subclasses of this BaseModel and may use the same id, but their unique_id
+        must be unique to TransformerLab in order to import into the Transfoerm Lab store.
         """
 
-        self.id = id_in_model_store
-        self.name = id_in_model_store
-        self.model_store = None
-
-        self.installed = False
-        self.model_path = None
-        self.model_filename = None
+        self.tlab_id = id
+        self.name = id
         self.architecture = "unknown"
+
+        self.model_source = None
+        self.source_id_or_path = id
+        self.model_filename = None
 
         # While json_data is unstructured and flexible
         # These are the fields that the app generally expects to exist
         self.json_data = {
-            "uniqueID": self.id,
-            "name": self.id,
+            "uniqueID": self.tlab_id,
+            "name": self.tlab_id,
             "description": "",
             "huggingface_repo": "",
             "parameters": "",
@@ -62,8 +63,16 @@ class BaseModel:
         }
 
 
+    async def is_installed(self):
+        '''
+        Returns true if this model is saved in Transformer Lab's Local Store.
+        '''
+        db_model = await db.model_local_get(self.tlab_id)
+        return db_model is not None
+
+
     def get_path_to_model(self):
         if self.model_filename:
-            return os.path.join(model_path, self.model_filename)
+            return os.path.join(self.source_id_or_path, self.model_filename)
         else:
-            return self.model_path
+            return self.source_id_or_path
