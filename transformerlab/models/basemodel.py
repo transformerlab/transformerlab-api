@@ -63,6 +63,11 @@ class BaseModel:
         }
 
 
+    def __str__(self):
+        # For debug output
+        return str(self.__class__) + ": " + str(self.__dict__)
+
+
     async def is_installed(self):
         '''
         Returns true if this model is saved in Transformer Lab's Local Store.
