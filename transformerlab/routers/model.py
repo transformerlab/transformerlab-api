@@ -17,6 +17,7 @@ from transformerlab.shared import dirs
 
 from transformerlab.models import basemodel
 from transformerlab.models import ollamamodel
+from transformerlab.models import huggingfacemodel
 
 router = APIRouter(tags=["model"])
 
@@ -444,7 +445,7 @@ async def get_model_from_db(model_id: str):
     return await db.model_local_get(model_id)
 
 
-async def model_architecture_is_supported(model_architecture: str):
+def model_architecture_is_supported(model_architecture: str):
     # Return true if the passed string is a supported model architecture
     supported_architectures = [
         "GGUF",
@@ -498,7 +499,7 @@ async def list_hfcache_models(uninstalled_only: bool = True):
             try:
                 model_details = get_model_details_from_huggingface(model_id)
                 architecture = model_details.get("architecture", "unknown")
-                supported = await model_architecture_is_supported(architecture)
+                supported = model_architecture_is_supported(architecture)
             except GatedRepoError:
                 architecture = "Not Authenticated"
                 supported = None
@@ -586,25 +587,40 @@ async def list_uninstalled_models_from_source(model_source: str):
           case "ollama":
             return await ollamamodel.list_models()
           case "huggingface":
-            return await list_hfcache_models()
-          case _:
-            return []
+            return await huggingfacemodel.list_models()
     except Exception as e:
-        error_msg = f"{type(e).__name__}: {e}"
-        print(error_msg)
-        return []
+        print(e)
+    return []
 
 
 @router.get("/model/list_local_uninstalled")
 async def models_list_local_uninstalled():
-    models = []
     modelsources = [
-        "ollama",
-        "huggingface"
+        "huggingface",
+        "ollama"
     ]
 
+    # iterate through each model source and look for uninstalled models
+    models = []
     for source in modelsources:
-        new_models = await list_uninstalled_models_from_source(source)
-        models.extend(new_models)
+        found_models = await list_uninstalled_models_from_source(source)
+
+        # iterate through each source list and return appropriate details
+        for found_model in found_models:
+            print(found_model)
+
+            # Figure out if this model is supported in TransformerLab
+            architecture = found_model.architecture
+            supported = model_architecture_is_supported(architecture)
+
+            new_model = {
+                "id": found_model.id,
+                "name": found_model.name,
+                "architecture": architecture,
+                "source": found_model.model_source,
+                "installed": False,
+                "supported": supported
+            }
+            models.append(new_model)
 
     return {"status":"success", "data":models}
