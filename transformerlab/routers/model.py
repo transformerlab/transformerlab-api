@@ -575,30 +575,36 @@ async def model_import_from_hfcache(model_id: str):
     return {"status":"success", "data":model_id}
 
 
-@router.get("/model/ollama_list")
-async def list_ollama_models(uninstalled_only: bool = True):
-    return await ollamamodel.list_models(uninstalled_only)
+async def list_uninstalled_models_from_source(model_source: str):
+    """
+    Wrapper to have a standard funciton for getting models.
+    Should architect this more like plugins so we can dynamically 
+    add and remove sources.
+    """
+    try:
+        match model_source:
+          case "ollama":
+            return await ollamamodel.list_models()
+          case "huggingface":
+            return await list_hfcache_models()
+          case _:
+            return []
+    except Exception as e:
+        error_msg = f"{type(e).__name__}: {e}"
+        print(error_msg)
+        return []
 
 
-@router.get("/model/find_local_uninstalled")
-async def models_find_local_uninstalled():
+@router.get("/model/list_local_uninstalled")
+async def models_list_local_uninstalled():
     models = []
+    modelsources = [
+        "ollama",
+        "huggingface"
+    ]
 
-    # Check Hugging Face
-    try:
-        hfcache_models = await list_hfcache_models()
-        models.extend(hfcache_models)
-    except Exception as e:
-        error_msg = f"{type(e).__name__}: {e}"
-        print(error_msg)
-
-    # Check Ollama
-    try:
-        ollama_models = await list_ollama_models()
-        print(ollama_models)
-        models.extend(ollama_models)
-    except Exception as e:
-        error_msg = f"{type(e).__name__}: {e}"
-        print(error_msg)
+    for source in modelsources:
+        new_models = await list_uninstalled_models_from_source(source)
+        models.extend(new_models)
 
     return {"status":"success", "data":models}
