@@ -6,7 +6,7 @@ class BaseModel:
     A basic representation of a Model in TransformerLab.
 
     Properties:
-    tlab_id:        a string that is unique to Transformer Lab
+    id:             Unique Transformer Lab model identifier
     name:           Printable name for the model (how it appears in the app)
     architecture:   A string describing the model architecture used to determine
                     support for the model and how to run
@@ -33,7 +33,7 @@ class BaseModel:
         must be unique to TransformerLab in order to import into the Transfoerm Lab store.
         """
 
-        self.tlab_id = id
+        self.id = id
         self.name = id
         self.architecture = "unknown"
 
@@ -44,8 +44,8 @@ class BaseModel:
         # While json_data is unstructured and flexible
         # These are the fields that the app generally expects to exist
         self.json_data = {
-            "uniqueID": self.tlab_id,
-            "name": self.tlab_id,
+            "uniqueID": self.id,
+            "name": self.id,
             "description": "",
             "huggingface_repo": "",
             "parameters": "",
@@ -67,7 +67,7 @@ class BaseModel:
         '''
         Returns true if this model is saved in Transformer Lab's Local Store.
         '''
-        db_model = await db.model_local_get(self.tlab_id)
+        db_model = await db.model_local_get(self.id)
         return db_model is not None
 
 

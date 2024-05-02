@@ -20,7 +20,7 @@ async def list_models(uninstalled_only: bool = True):
                 # TODO: Create a function to check if this is installed
                 model_installed = await ollama_model.is_installed()
                 if (not uninstalled_only or not model_installed):
-                    models.append(ollama_model.json_data)
+                    models.append(ollama_model)
 
     return models
 
@@ -30,7 +30,7 @@ class OllamaModel(basemodel.BaseModel):
     def __init__(self, ollama_id):
         super().__init__(ollama_id)
 
-        self.tlab_id = f"ollama/{ollama_id}"
+        self.id = f"ollama/{ollama_id}"
         self.name = f"{ollama_id} - GGUF"
 
         # Assume all models from Ollama are GGUF
@@ -43,7 +43,7 @@ class OllamaModel(basemodel.BaseModel):
         self.model_filename = self._get_model_blob_filename()
 
         # inherit json_data from the parent and only update specific fields
-        self.json_data["uniqueID"] = self.tlab_id
+        self.json_data["uniqueID"] = self.id
         self.json_data["name"] = self.name
         self.json_data["architecture"] = self.architecture
 
