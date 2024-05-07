@@ -74,7 +74,17 @@ class MLXWorker(BaseModelWorker):
 
         config = get_hugggingface_config(model_path)
 
-        self.context_len = get_context_length(config)
+        # The following is a hack to fix errors loading Phi-3 128k -- we hardcode an expected value for factor in rope_scaling otherwise fastchat will fail
+        rope_scaling = getattr(config, "rope_scaling", None)
+        if rope_scaling:
+            if "factor" not in rope_scaling:
+                config.rope_scaling["factor"] = 1
+
+        try:
+            self.context_len = get_context_length(config)
+        except:
+            self.context_len = 2048
+
         print("Context length: ", self.context_len)
 
         if not no_register:
