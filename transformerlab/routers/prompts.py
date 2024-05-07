@@ -1,8 +1,11 @@
 import json
 import os
-from fastapi import APIRouter
+from typing import Annotated
+from fastapi import APIRouter, Body
+from pathlib import Path
 
 from transformerlab.shared import dirs
+from transformerlab.shared.shared import slugify
 
 router = APIRouter(prefix="/prompts", tags=["rag"])
 
@@ -16,4 +19,54 @@ async def list_prompts():
 
     with open(remote_gallery_file, "r") as f:
         prompt_gallery = json.load(f)
-    return prompt_gallery
+
+    prompt_templates = []
+    prompts_dir = dirs.PROMPT_TEMPLATES_DIR
+    for file in os.listdir(prompts_dir):
+        if file.endswith(".json"):
+            with open(os.path.join(prompts_dir, file), "r") as f:
+                try:
+                    prompt = json.load(f)
+                    prompt["source"] = "local"
+                    prompt_templates.append(prompt)
+                except:
+                    print(
+                        f"Error loading prompt template from file: {file}, skipping")
+
+    return prompt_gallery + prompt_templates
+
+
+@router.post("/new")
+async def new_prompt(title: Annotated[str, Body()], text: Annotated[str, Body()]):
+    """Create a new prompt template"""
+
+    if "{text}" not in text:
+        return {"status": "error", "message": "The text must include the placeholder {text}"}
+
+    slug = slugify(title)
+    prompts_dir = dirs.PROMPT_TEMPLATES_DIR
+
+    prompt_file = os.path.join(prompts_dir, f"{slug}.json")
+
+    json_str = "{}"
+
+    with open(prompt_file, "w") as f:
+        j = {"id": slug, "title": title, "text": text}
+        json_str = json.dumps(j, indent=4)
+        f.write(json_str)
+
+    return {"status": "success", "data": json_str}
+
+
+@router.get("/delete/{prompt_id}")
+async def delete_prompt(prompt_id: str):
+    """Delete a prompt template"""
+
+    prompts_dir = dirs.PROMPT_TEMPLATES_DIR
+    prompt_file = os.path.join(prompts_dir, f"{prompt_id}.json")
+
+    if os.path.exists(prompt_file):
+        os.remove(prompt_file)
+        return {"status": "success", "message": f"Prompt {prompt_id} deleted"}
+    else:
+        return {"status": "error", "message": f"Prompt {prompt_id} not found"}

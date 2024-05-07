@@ -118,3 +118,8 @@ def dataset_dir_by_id(dataset_id: str) -> str:
 
 TEMP_DIR = os.path.join(WORKSPACE_DIR, "temp")
 os.makedirs(name=TEMP_DIR, exist_ok=True)
+
+
+# Prompt Templates Dir:
+PROMPT_TEMPLATES_DIR = os.path.join(WORKSPACE_DIR, "prompt_templates")
+os.makedirs(name=PROMPT_TEMPLATES_DIR, exist_ok=True)
