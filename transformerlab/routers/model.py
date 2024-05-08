@@ -17,8 +17,6 @@ from transformerlab.shared import dirs
 
 from transformerlab.models import model_helper
 from transformerlab.models import basemodel
-from transformerlab.models import ollamamodel
-from transformerlab.models import huggingfacemodel
 
 router = APIRouter(tags=["model"])
 
@@ -569,23 +567,6 @@ async def model_import_from_hfcache(model_id: str):
     return {"status":"success", "data":model_id}
 
 
-async def list_uninstalled_models_from_source(model_source: str):
-    """
-    Wrapper to have a standard funciton for getting models.
-    Should architect this more like plugins so we can dynamically 
-    add and remove sources.
-    """
-    try:
-        match model_source:
-          case "ollama":
-            return await ollamamodel.list_models()
-          case "huggingface":
-            return await huggingfacemodel.list_models()
-    except Exception as e:
-        print(e)
-    return []
-
-
 @router.get("/model/list_local_uninstalled")
 async def models_list_local_uninstalled():
 
@@ -593,7 +574,7 @@ async def models_list_local_uninstalled():
     modelsources = model_helper.list_model_sources()
     models = []
     for source in modelsources:
-        found_models = await list_uninstalled_models_from_source(source)
+        found_models = await model_helper.list_models_from_source(source, uninstalled_only=True)
 
         # iterate through each source list and return appropriate details
         for found_model in found_models:
