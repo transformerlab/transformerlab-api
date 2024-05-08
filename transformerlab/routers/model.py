@@ -537,20 +537,6 @@ async def get_hfcache_model(model_id: str):
     return result
 
 
-@router.get("/model/hfcache_list")
-async def model_list_hf_models():
-    """
-    DEPRECATED: Delete after next app update
-    """
-
-    try:
-        models = await list_hfcache_models()
-        return {"status":"success", "data":models}
-    except Exception as e:
-        error_msg = f"{type(e).__name__}: {e}"
-        return {"status":"error", "message":error_msg}
-
-
 @router.get("/model/hfcache_import")
 async def model_import_from_hfcache(model_id: str):
     """
