@@ -15,6 +15,7 @@ import os
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
 
+from transformerlab.models import model_helper
 from transformerlab.models import basemodel
 from transformerlab.models import ollamamodel
 from transformerlab.models import huggingfacemodel
@@ -568,13 +569,6 @@ async def model_import_from_hfcache(model_id: str):
     return {"status":"success", "data":model_id}
 
 
-def list_model_sources():
-    return [
-        "huggingface",
-        "ollama"
-    ]
-
-
 async def list_uninstalled_models_from_source(model_source: str):
     """
     Wrapper to have a standard funciton for getting models.
@@ -596,7 +590,7 @@ async def list_uninstalled_models_from_source(model_source: str):
 async def models_list_local_uninstalled():
 
     # iterate through each model source and look for uninstalled models
-    modelsources = list_model_sources()
+    modelsources = model_helper.list_model_sources()
     models = []
     for source in modelsources:
         found_models = await list_uninstalled_models_from_source(source)
@@ -624,7 +618,7 @@ async def models_list_local_uninstalled():
 @router.get("/model/import_local")
 async def model_import_local(model_source: str, model_id: str):
 
-    #if model_source not in list_model_sources():
+    #if model_source not in model_helper.list_model_sources():
     if model_source != "huggingface":
         return {"status":"error", "message": f"{model_source} not supported."}
 
