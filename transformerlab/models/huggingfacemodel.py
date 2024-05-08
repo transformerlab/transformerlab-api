@@ -56,7 +56,6 @@ class HuggingFaceModel(basemodel.BaseModel):
         # Calling huggingface_hub functions can throw a number of exceptions
         try:
             model_details = get_model_details_from_huggingface(hugging_face_id)
-            print(model_details)
             architecture = model_details.get("architecture", "unknown")
             gated = model_details.get("private", False)
             private = model_details.get("gated", False)

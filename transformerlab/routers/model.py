@@ -539,6 +539,9 @@ async def get_hfcache_model(model_id: str):
 
 @router.get("/model/hfcache_list")
 async def model_list_hf_models():
+    """
+    DEPRECATED: Delete after next app update
+    """
 
     try:
         models = await list_hfcache_models()
@@ -550,6 +553,9 @@ async def model_list_hf_models():
 
 @router.get("/model/hfcache_import")
 async def model_import_from_hfcache(model_id: str):
+    """
+    DEPRECATED: Delete after next app update
+    """
 
     model = await get_hfcache_model(model_id)
 
@@ -576,6 +582,13 @@ async def model_import_from_hfcache(model_id: str):
     return {"status":"success", "data":model_id}
 
 
+def list_model_sources():
+    return [
+        "huggingface",
+        "ollama"
+    ]
+
+
 async def list_uninstalled_models_from_source(model_source: str):
     """
     Wrapper to have a standard funciton for getting models.
@@ -595,19 +608,15 @@ async def list_uninstalled_models_from_source(model_source: str):
 
 @router.get("/model/list_local_uninstalled")
 async def models_list_local_uninstalled():
-    modelsources = [
-        "huggingface",
-        "ollama"
-    ]
 
     # iterate through each model source and look for uninstalled models
+    modelsources = list_model_sources()
     models = []
     for source in modelsources:
         found_models = await list_uninstalled_models_from_source(source)
 
         # iterate through each source list and return appropriate details
         for found_model in found_models:
-            print(found_model)
 
             # Figure out if this model is supported in TransformerLab
             architecture = found_model.architecture
@@ -624,3 +633,36 @@ async def models_list_local_uninstalled():
             models.append(new_model)
 
     return {"status":"success", "data":models}
+
+
+@router.get("/model/import_local")
+async def model_import_local(model_source: str, model_id: str):
+
+    #if model_source not in list_model_sources():
+    if model_source != "huggingface":
+        return {"status":"error", "message": f"{model_source} not supported."}
+
+    # TODO: Fix this to be genefic and then update the check for huggingface
+    model = await get_hfcache_model(model_id)
+
+    # Only add a row for uninstalled and supported repos
+    if not model.get("supported"):
+        return {"status":"error", "message": f"{model_id} is not supported."}
+    elif model.get("installed"):
+        return {"status":"error", "message": f"{model_id} is already installed."}
+
+    print(f"Importing {model_id}...")
+
+    # TODO: This call is no longer needed and should be generic anyways
+    try:
+        model_details = get_model_details_from_huggingface(model_id)
+    except Exception as e:
+        error_msg = f"{type(e).__name__}: {e}"
+        print(f"Error while importing {model_id}")
+        print(error_msg)
+        return {"status":"error", "message":error_msg}
+
+    name = model_details.get("name", model_id)
+    await model_local_create(id=model_id, name=name, json_data=model_details)
+
+    return {"status":"success", "data":model_id}
