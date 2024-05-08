@@ -444,26 +444,6 @@ async def get_model_from_db(model_id: str):
     return await db.model_local_get(model_id)
 
 
-def model_architecture_is_supported(model_architecture: str):
-    # Return true if the passed string is a supported model architecture
-    supported_architectures = [
-        "GGUF",
-        "MLX",
-        "LlamaForCausalLM",
-        "T5ForConditionalGeneration",
-        "FalconForCausalLM",
-        "MistralForCausalLM",
-        "MixtralForCausalLM",
-        "GPTBigCodeForCausalLM",
-        "GemmaForCausalLM",
-        "CohereForCausalLM",
-        "PhiForCausalLM",
-        "Phi3ForCausalLM"
-
-    ]
-    return model_architecture in supported_architectures
-
-
 async def list_hfcache_models(uninstalled_only: bool = True):
     # Scan the HuggingFace cache repos for cached models
     # If uninstalled_only is True then skip any models TLab has already
@@ -498,7 +478,7 @@ async def list_hfcache_models(uninstalled_only: bool = True):
             try:
                 model_details = get_model_details_from_huggingface(model_id)
                 architecture = model_details.get("architecture", "unknown")
-                supported = model_architecture_is_supported(architecture)
+                supported = model_helper.model_architecture_is_supported(architecture)
             except GatedRepoError:
                 architecture = "Not Authenticated"
                 supported = None
@@ -581,7 +561,7 @@ async def models_list_local_uninstalled():
 
             # Figure out if this model is supported in TransformerLab
             architecture = found_model.architecture
-            supported = model_architecture_is_supported(architecture)
+            supported = model_helper.model_architecture_is_supported(architecture)
 
             new_model = {
                 "id": found_model.id,

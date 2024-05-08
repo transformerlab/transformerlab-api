@@ -25,3 +25,23 @@ async def list_models_from_source(model_source: str, uninstalled_only: bool = Tr
     except Exception as e:
         print(e)
     return []
+
+
+def model_architecture_is_supported(model_architecture: str):
+    # Return true if the passed string is a supported model architecture
+    supported_architectures = [
+        "GGUF",
+        "MLX",
+        "LlamaForCausalLM",
+        "T5ForConditionalGeneration",
+        "FalconForCausalLM",
+        "MistralForCausalLM",
+        "MixtralForCausalLM",
+        "GPTBigCodeForCausalLM",
+        "GemmaForCausalLM",
+        "CohereForCausalLM",
+        "PhiForCausalLM",
+        "Phi3ForCausalLM"
+
+    ]
+    return model_architecture in supported_architectures
