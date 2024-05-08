@@ -583,27 +583,18 @@ async def model_import_local(model_source: str, model_id: str):
     if model_source != "huggingface":
         return {"status":"error", "message": f"{model_source} not supported."}
 
-    # TODO: Fix this to be genefic and then update the check for huggingface
-    model = await get_hfcache_model(model_id)
+    model = model_helper.get_model_by_source_id(model_source, model_id)
 
     # Only add a row for uninstalled and supported repos
-    if not model.get("supported"):
+    if not model:
+        return {"status":"error", "message": f"{model_id} not found in {model_source}."}
+    if not model_helper.model_architecture_is_supported(model.architecture):
         return {"status":"error", "message": f"{model_id} is not supported."}
-    elif model.get("installed"):
+    if await model.is_installed():
         return {"status":"error", "message": f"{model_id} is already installed."}
 
     print(f"Importing {model_id}...")
 
-    # TODO: This call is no longer needed and should be generic anyways
-    try:
-        model_details = get_model_details_from_huggingface(model_id)
-    except Exception as e:
-        error_msg = f"{type(e).__name__}: {e}"
-        print(f"Error while importing {model_id}")
-        print(error_msg)
-        return {"status":"error", "message":error_msg}
-
-    name = model_details.get("name", model_id)
-    await model_local_create(id=model_id, name=name, json_data=model_details)
+    await model_local_create(id=model_id, name=model.name, json_data=model.json_data)
 
     return {"status":"success", "data":model_id}
