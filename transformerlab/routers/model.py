@@ -581,15 +581,19 @@ async def model_import_local(model_source: str, model_id: str):
 
     #if model_source not in model_helper.list_model_sources():
     if model_source != "huggingface":
-        return {"status":"error", "message": f"{model_source} not supported."}
+        return {"status":"error", "message": f"Invalid model source {model_source}."}
 
     model = model_helper.get_model_by_source_id(model_source, model_id)
 
     # Only add a row for uninstalled and supported repos
     if not model:
         return {"status":"error", "message": f"{model_id} not found in {model_source}."}
+    if model.status != "OK":
+        return {"status":"error", "message": model.status}
+    if model.architecture == "unknown":
+        return {"status":"error", "message": f"Unable to determine model architecture."}
     if not model_helper.model_architecture_is_supported(model.architecture):
-        return {"status":"error", "message": f"{model_id} is not supported."}
+        return {"status":"error", "message": f"Architecture {model.architecture} not supported."}
     if await model.is_installed():
         return {"status":"error", "message": f"{model_id} is already installed."}
 
