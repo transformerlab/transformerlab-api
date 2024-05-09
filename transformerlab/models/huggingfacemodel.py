@@ -62,22 +62,24 @@ class HuggingFaceModel(basemodel.BaseModel):
 
         except huggingface_hub.utils.GatedRepoError:
             # Model exists but this user is not on the authorized list
-            architecture = "Not Authenticated"
+            self.status = "Authentication Required"
             gated = True
 
         except huggingface_hub.utils.RepositoryNotFoundError:
             # invalid model ID or private repo without access
-            architecture = "Not Authenticated"
+            self.status = "Model not found"
             gated = True
             private = True
  
         except huggingface_hub.utils.EntryNotFoundError:
             # This model is missing key configuration information
+            self.status = "Missing configuration file"
             print(f"WARNING: {hugging_face_id} missing configuration ")
             print(f"{type(e).__name__}: {e}")
 
         except Exception as e:
             # Something unexpected happened
+            self.status = str(e)
             print(f"{type(e).__name__}: {e}")
 
         # Use the huggingface details to extend json_data

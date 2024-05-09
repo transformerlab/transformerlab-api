@@ -10,11 +10,12 @@ class BaseModel:
     name:           Printable name for the model (how it appears in the app)
     architecture:   A string describing the model architecture used to determine
                     support for the model and how to run
+    status:         A text string that is either "OK" or contains and error message
 
     model_source:   Where the model is stored ("huggingface", "local", etc.)
     source_id_or_path:
                     The id of this model in it source (or path for local files)
-    model_filename: With aource_id_or_path, a specific filename for this model.
+    model_filename: With source_id_or_path, a specific filename for this model.
                     For example, GGUF repos have several files representing
                     different versions of teh model.
 
@@ -36,6 +37,7 @@ class BaseModel:
         self.id = id
         self.name = id
         self.architecture = "unknown"
+        self.status = "OK"
 
         self.model_source = None
         self.source_id_or_path = id
