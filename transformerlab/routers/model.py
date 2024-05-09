@@ -516,37 +516,6 @@ async def get_hfcache_model(model_id: str):
     return result
 
 
-@router.get("/model/hfcache_import")
-async def model_import_from_hfcache(model_id: str):
-    """
-    DEPRECATED: Delete after next app update
-    """
-
-    model = await get_hfcache_model(model_id)
-
-    # Only add a row for uninstalled and supported repos
-    if not model.get("supported"):
-        return {"status":"error", "message": f"{model_id} architecture is not supported."}
-    elif model.get("installed"):
-        return {"status":"error", "message": f"{model_id} is already installed."}
-
-    print(f"Importing {model_id}...")
-
-    # TODO: Once we have model_helper updated, we can remove this call to huggingface
-    try:
-        model_details = get_model_details_from_huggingface(model_id)
-    except Exception as e:
-        error_msg = f"{type(e).__name__}: {e}"
-        print(f"Error while importing {model_id}")
-        print(error_msg)
-        return {"status":"error", "message":error_msg}
-
-    name = model_details.get("name", model_id)
-    await model_local_create(id=model_id, name=name, json_data=model_details)
-    
-    return {"status":"success", "data":model_id}
-
-
 @router.get("/model/list_local_uninstalled")
 async def models_list_local_uninstalled():
 
