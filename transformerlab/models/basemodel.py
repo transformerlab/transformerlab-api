@@ -47,6 +47,7 @@ class BaseModel:
         # These are the fields that the app generally expects to exist
         self.json_data = {
             "uniqueID": self.id,
+            "model_filename": "",
             "name": self.id,
             "description": "",
             "huggingface_repo": "",
