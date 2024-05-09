@@ -557,8 +557,7 @@ async def models_list_local_uninstalled():
 @router.get("/model/import_local")
 async def model_import_local(model_source: str, model_id: str):
 
-    #if model_source not in model_helper.list_model_sources():
-    if model_source != "huggingface":
+    if model_source not in model_helper.list_model_sources():
         return {"status":"error", "message": f"Invalid model source {model_source}."}
 
     model = model_helper.get_model_by_source_id(model_source, model_id)
