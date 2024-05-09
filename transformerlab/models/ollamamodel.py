@@ -34,7 +34,7 @@ class OllamaModel(basemodel.BaseModel):
         self.name = f"{ollama_id} - GGUF"
 
         # Assume all models from Ollama are GGUF
-        self.architecture = "GGUF"
+        self.architecture = "ollama"
 
         self.model_source = "ollama"
         self.source_id_or_path = ollama_id
