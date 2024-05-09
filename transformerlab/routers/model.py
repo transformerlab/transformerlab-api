@@ -562,6 +562,14 @@ async def models_list_local_uninstalled():
             # Figure out if this model is supported in TransformerLab
             architecture = found_model.architecture
             supported = model_helper.model_architecture_is_supported(architecture)
+            if (found_model.status != "OK"):
+                status = f"❌ found_model.status"
+            elif found_model.architecture == "unknown" or found_model.architecture == "":
+                status = "❌ Unknown architecture"
+            elif not supported:
+                status = f"❌ {architecture}"
+            else:
+                status = f"✅ {architecture}"
 
             new_model = {
                 "id": found_model.id,
@@ -569,6 +577,7 @@ async def models_list_local_uninstalled():
                 "architecture": architecture,
                 "source": found_model.model_source,
                 "installed": False,
+                "status": status, 
                 "supported": supported
             }
             models.append(new_model)
@@ -590,7 +599,7 @@ async def model_import_local(model_source: str, model_id: str):
         return {"status":"error", "message": f"{model_id} not found in {model_source}."}
     if model.status != "OK":
         return {"status":"error", "message": model.status}
-    if model.architecture == "unknown":
+    if model.architecture == "unknown" or model.architecture == "":
         return {"status":"error", "message": f"Unable to determine model architecture."}
     if not model_helper.model_architecture_is_supported(model.architecture):
         return {"status":"error", "message": f"Architecture {model.architecture} not supported."}
