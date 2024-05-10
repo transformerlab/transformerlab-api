@@ -444,63 +444,6 @@ async def get_model_from_db(model_id: str):
     return await db.model_local_get(model_id)
 
 
-async def list_hfcache_models(uninstalled_only: bool = True):
-    # Scan the HuggingFace cache repos for cached models
-    # If uninstalled_only is True then skip any models TLab has already
-    from huggingface_hub import scan_cache_dir
-    hf_cache_info = scan_cache_dir()
-    repos=hf_cache_info.repos
-
-    models = []
-    for repo in repos:
-
-        # Filter out anything that isn't a model
-        if (repo.repo_type != "model"):
-            continue
-
-        model_id = repo.repo_id
-
-        # Check if this model is already imported in to TransformerLab
-        db_model = await get_model_from_db(model_id)
-        installed = db_model is not None
-
-        # If we're only fetching uninstalled, then skip installed model
-        if uninstalled_only and installed:
-            continue
-
-        # Try to determine if this model is supported in TransformerLab
-        if installed:
-            json_data = db_model.get("json_data", {})
-            architecture = json_data.get("architecture", "unknown")
-            supported = True
-        else:
-            model_details = {}
-            try:
-                model_details = get_model_details_from_huggingface(model_id)
-                architecture = model_details.get("architecture", "unknown")
-                supported = model_helper.model_architecture_is_supported(architecture)
-            except GatedRepoError:
-                architecture = "Not Authenticated"
-                supported = None
-            except Exception as e:
-                print(f"{type(e).__name__}: {e}")
-                architecture = "Error"
-                supported = false
-
-        newmodel = {
-            "id": model_id,
-            "type": repo.repo_type,
-            "architecture": architecture,
-            "installed": installed,
-            "supported": supported,
-            "source": "huggingface",
-            "size_on_disk": repo.size_on_disk
-        }
-        models.append(newmodel)
-
-    return models
-
-
 @router.get("/model/list_local_uninstalled")
 async def models_list_local_uninstalled():
 
