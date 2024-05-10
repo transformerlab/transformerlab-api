@@ -3,6 +3,8 @@
 from transformerlab.models import ollamamodel
 from transformerlab.models import huggingfacemodel
 
+import traceback
+
 def model_architecture_is_supported(model_architecture: str):
     # Return true if the passed string is a supported model architecture
     supported_architectures = [
@@ -56,7 +58,8 @@ def get_model_by_source_id(model_source: str, model_source_id: str):
             case "huggingface":
                 return huggingfacemodel.HuggingFaceModel(model_source_id)
     except Exception as e:
-        print(e)
+        print(f"Caught exception getting model {model_source_id} from {model_source}:")
+        traceback.print_exc()
     return None
 
 
@@ -72,5 +75,6 @@ async def list_models_from_source(model_source: str, uninstalled_only: bool = Tr
           case "huggingface":
             return await huggingfacemodel.list_models(uninstalled_only)
     except Exception as e:
-        print(e)
+        print(f"Caught exception listing models from {model_source}:")
+        traceback.print_exc()
     return []
