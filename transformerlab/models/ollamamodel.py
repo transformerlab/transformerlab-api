@@ -31,7 +31,7 @@ class OllamaModel(basemodel.BaseModel):
     def __init__(self, ollama_id):
         super().__init__(ollama_id)
 
-        self.id = f"ollama/{ollama_id}"
+        self.id = f"{ollama_id}"
         self.name = f"{ollama_id} - GGUF"
 
         # Assume all models from Ollama are GGUF
