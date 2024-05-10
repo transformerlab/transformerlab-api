@@ -41,11 +41,11 @@ class OllamaModel(basemodel.BaseModel):
         self.source_id_or_path = ollama_id
 
         # TODO: Figure out the localtion of this blob
-        self.model_filename = self._get_model_blob_filename()
+        self.model_filename = self.get_path_to_model()
 
         # inherit json_data from the parent and only update specific fields
         self.json_data["uniqueID"] = self.id
-        self.json_data["model_filename"] = self.get_path_to_model()
+        self.json_data["model_filename"] = self.model_filename
         self.json_data["name"] = self.name
         self.json_data["architecture"] = self.architecture
 
