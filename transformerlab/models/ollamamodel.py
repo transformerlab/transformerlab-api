@@ -39,8 +39,6 @@ class OllamaModel(basemodel.BaseModel):
 
         self.model_source = "ollama"
         self.source_id_or_path = ollama_id
-
-        # TODO: Figure out the localtion of this blob
         self.model_filename = self.get_path_to_model()
 
         # inherit json_data from the parent and only update specific fields
@@ -84,9 +82,12 @@ class OllamaModel(basemodel.BaseModel):
 
 
     def get_path_to_model(self):
-        models_dir = ollama_models_dir()
-        blobs_dir = os.path.join(models_dir, "blobs")
-        return os.path.join(blobs_dir, self.model_filename)
+        if self.model_filename:
+            return self.model_filename
+        else:
+            models_dir = ollama_models_dir()
+            blobs_dir = os.path.join(models_dir, "blobs")
+            return os.path.join(blobs_dir, self._get_model_blob_filename())
     
 
 #########################
