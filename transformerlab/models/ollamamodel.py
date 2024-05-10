@@ -1,6 +1,7 @@
 from transformerlab.models import basemodel
 
 import os
+import json
 
 
 async def list_models(uninstalled_only: bool = True):
@@ -49,9 +50,37 @@ class OllamaModel(basemodel.BaseModel):
         self.json_data["architecture"] = self.architecture
 
 
+    # This returns just the filename of the blob containing the actual model
+    # If anything goes wrong along the way this returns None
     def _get_model_blob_filename(self):
-        #TODO: Pull this from the digest field of the manifest
-        return "sha256-00e1317cbf74d901080d7100f57580ba8dd8de57203072dc6f668324ba545f29"
+        # Get the path to the manifest file
+        library_dir = ollama_models_library_dir()
+        if not library_dir or not self.source_id_or_path:
+            return None
+
+        # Read in the manifest file
+        manifestfile = os.path.join(library_dir, self.source_id_or_path, "latest")
+        try:
+            with open(manifestfile, "r") as f:
+                filedata = json.load(f)
+                f.close()
+        except FileNotFoundError:
+            return None
+
+        # The format of v2 schema is that there is a list called "layers"
+        # Objects in layers have data on the files in the blobs directory
+        # those files can be model, license, template, params
+        # we are after the model file
+        if filedata.get("schemaVersion", None) == 2:
+            layers = filedata.get("layers", [])
+            for layer in layers:
+
+                # Each layer has a mediaType field describing what the file contains
+                # and a digest field with the name of the file
+                if layer.get("mediaType", None) == "application/vnd.ollama.image.model":
+                    return layer.get("digest", None)
+
+        return None
 
 
     def get_path_to_model(self):
