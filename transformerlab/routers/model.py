@@ -501,21 +501,6 @@ async def list_hfcache_models(uninstalled_only: bool = True):
     return models
 
 
-async def get_hfcache_model(model_id: str):
-    # TODO: once we fix up the model helper, we should update this
-    #  so that it doesn't have to build the whole list unnecessarily
-
-    models = await list_hfcache_models(False)
-
-    result = None
-    for model in models:
-        if model['id'] == model_id:
-            result = model
-            break
-
-    return result
-
-
 @router.get("/model/list_local_uninstalled")
 async def models_list_local_uninstalled():
 
