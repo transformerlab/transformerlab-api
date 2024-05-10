@@ -63,13 +63,15 @@ class OllamaModel(basemodel.BaseModel):
                 filedata = json.load(f)
                 f.close()
         except FileNotFoundError:
+            print(f"Error getting {self.id}: manifest file not found")
             return None
 
         # The format of v2 schema is that there is a list called "layers"
         # Objects in layers have data on the files in the blobs directory
         # those files can be model, license, template, params
         # we are after the model file
-        if filedata.get("schemaVersion", None) == 2:
+        schemaVersion = filedata.get("schemaVersion", None)
+        if schemaVersion == 2:
             layers = filedata.get("layers", [])
             for layer in layers:
 
@@ -78,6 +80,7 @@ class OllamaModel(basemodel.BaseModel):
                 if layer.get("mediaType", None) == "application/vnd.ollama.image.model":
                     return layer.get("digest", None)
 
+        print(f"Error getting {self.id}: unsupported schemaVersion {schemaVersion}")
         return None
 
 
@@ -87,7 +90,11 @@ class OllamaModel(basemodel.BaseModel):
         else:
             models_dir = ollama_models_dir()
             blobs_dir = os.path.join(models_dir, "blobs")
-            return os.path.join(blobs_dir, self._get_model_blob_filename())
+            blobfile = self._get_model_blob_filename()
+            if blobfile:
+                return os.path.join(blobs_dir, blobfile)
+            else:
+                return None
     
 
 #########################
