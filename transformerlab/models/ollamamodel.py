@@ -53,7 +53,11 @@ class OllamaModel(basemodel.BaseModel):
     def _get_model_blob_filename(self):
         # Get the path to the manifest file
         library_dir = ollama_models_library_dir()
-        if not library_dir or not self.source_id_or_path:
+        if not library_dir:
+            print(f"Error getting {self.id}: failed to find ollama library")
+            return None
+        if not self.source_id_or_path:
+            print(f"Error getting {self.id}: no source_id_or_path set")
             return None
 
         # Read in the manifest file
