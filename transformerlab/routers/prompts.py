@@ -7,7 +7,7 @@ from pathlib import Path
 from transformerlab.shared import dirs
 from transformerlab.shared.shared import slugify
 
-router = APIRouter(prefix="/prompts", tags=["rag"])
+router = APIRouter(prefix="/prompts", tags=["prompts"])
 
 
 @router.get("/list")
