@@ -29,8 +29,9 @@ from fastchat.protocol.openai_api_protocol import (
 )
 
 import transformerlab.db as db
-from transformerlab.routers import data, experiment, model, serverinfo, train, plugins, evals, config, jobs, prompts
+from transformerlab.routers import data, model, serverinfo, train, plugins, evals, config, jobs, prompts
 from transformerlab import fastchat_openai_api
+from transformerlab.routers.experiment import experiment
 from transformerlab.shared import dirs
 from transformerlab.shared import shared
 

@@ -3,15 +3,10 @@ import json
 import os
 import subprocess
 import sys
-from typing import Annotated
 import transformerlab.db as db
-from fastapi import APIRouter, Body
-from fastapi.responses import FileResponse
-from fastchat.model.model_adapter import get_conversation_template
-from huggingface_hub import snapshot_download
+from fastapi import APIRouter
 from transformerlab.shared import dirs
 
-import urllib.parse
 
 router = APIRouter(prefix="/rag", tags=["rag"])
 
