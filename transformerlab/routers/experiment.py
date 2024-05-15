@@ -1,4 +1,4 @@
-from transformerlab.routers import rag
+from transformerlab.routers.experiment import rag
 import datetime
 from http.client import HTTPException
 import json
