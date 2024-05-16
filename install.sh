@@ -69,7 +69,7 @@ title() {
 
 check_conda() {
   if ! command -v "${CONDA_BIN}" &> /dev/null; then
-    abort "❌ Conda is not installed at ${MINICONDA_ROOT}. Please install Conda using 'install.sh install_conda' and try again."
+    abort "❌ Conda is not installed at ${MINICONDA_ROOT}. Please install Conda using '${TLAB_DIR}/src/install.sh install_conda' and try again."
   else
     ohai "✅ Conda is installed at ${MINICONDA_ROOT}."
   fi
@@ -312,7 +312,7 @@ doctor() {
     echo "Your conda version is: $(${CONDA_BIN} --version)" || echo "Issue with conda"
     echo "Conda is seen in path at at: $(which conda)" || echo "Conda is not in your path"
   else
-    echo "Conda is not installed at ${MINICONDA_ROOT}. Please install Conda using 'install.sh install_conda' and try again."
+    echo "Conda is not installed at ${MINICONDA_ROOT}. Please install Conda using '${TLAB_DIR}/src/install.sh install_conda' and try again."
   fi
   if command -v nvidia-smi &> /dev/null; then
     echo "Your nvidia-smi version is: $(nvidia-smi --version)"
