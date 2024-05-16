@@ -25,7 +25,7 @@ router.include_router(
 router.include_router(
     router=export.router, prefix="/{id}", tags=["export"])
 router.include_router(
-    router=evals.router, prefix="/{id}", tags=["evals"])
+    router=evals.router, prefix="/{experimentId}", tags=["evals"])
 
 
 EXPERIMENTS_DIR: str = dirs.EXPERIMENTS_DIR

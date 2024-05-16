@@ -16,16 +16,16 @@ router = APIRouter(prefix="/evals", tags=["evals"])
 
 
 @router.post("/add")
-async def experiment_add_evaluation(id: int, plugin: Any = Body()):
+async def experiment_add_evaluation(experimentId: int, plugin: Any = Body()):
     """ Add an evaluation to an experiment. This will create a new directory in the experiment
     and add global plugin to the specific experiment. By copying the plugin to the experiment
     directory, we can modify the plugin code for the specific experiment without affecting
     other experiments that use the same plugin. """
 
-    experiment = await db.experiment_get(id)
+    experiment = await db.experiment_get(experimentId)
 
     if experiment is None:
-        return {"message": f"Experiment {id} does not exist"}
+        return {"message": f"Experiment {experimentId} does not exist"}
 
     experiment_config = json.loads(experiment["config"])
 
@@ -48,24 +48,24 @@ async def experiment_add_evaluation(id: int, plugin: Any = Body()):
 
     evaluations.append(evaluation)
 
-    await db.experiment_update_config(id, "evaluations", json.dumps(evaluations))
+    await db.experiment_update_config(experimentId, "evaluations", json.dumps(evaluations))
 
-    return {"message": f"Experiment {id} updated with plugin {plugin_name}"}
+    return {"message": f"Experiment {experimentId} updated with plugin {plugin_name}"}
 
 
 @router.get("/delete")
-async def experiment_delete_eval(id: int, eval_name: str):
+async def experiment_delete_eval(experimentId: int, eval_name: str):
     """ Delete an evaluation from an experiment. This will delete the directory in the experiment
     and remove the global plugin from the specific experiment. """
-    experiment = await db.experiment_get(id)
+    experiment = await db.experiment_get(experimentId)
 
     if experiment is None:
-        return {"message": f"Experiment {id} does not exist"}
+        return {"message": f"Experiment {experimentId} does not exist"}
 
     experiment_config = json.loads(experiment["config"])
 
     if "evaluations" not in experiment_config:
-        return {"message": f"Experiment {id} has no evaluations"}
+        return {"message": f"Experiment {experimentId} has no evaluations"}
 
     evaluations = json.loads(experiment_config["evaluations"])
 
@@ -74,19 +74,19 @@ async def experiment_delete_eval(id: int, eval_name: str):
 
     await db.experiment_update_config(id, "evaluations", json.dumps(evaluations))
 
-    return {"message": f"Evaluation {eval_name} deleted from experiment {id}"}
+    return {"message": f"Evaluation {eval_name} deleted from experiment {experimentId}"}
 
 # @TODO delete the following function and use the plugin file function
 
 
 @router.get("/get_evaluation_plugin_file_contents")
-async def get_evaluation_plugin_file_contents(id: int, plugin_name: str):
+async def get_evaluation_plugin_file_contents(experimentId: int, plugin_name: str):
     # first get the experiment name:
-    data = await db.experiment_get(id)
+    data = await db.experiment_get(experimentId)
 
     # if the experiment does not exist, return an error:
     if data is None:
-        return {"message": f"Experiment {id} does not exist"}
+        return {"message": f"Experiment {experimentId} does not exist"}
 
     experiment_name = data["name"]
 
@@ -106,11 +106,11 @@ async def get_evaluation_plugin_file_contents(id: int, plugin_name: str):
 
 
 @router.get("/run_evaluation_script")
-async def run_evaluation_script(id: int, plugin_name: str, eval_name: str):
-    experiment_details = await db.experiment_get(id=id)
+async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: str):
+    experiment_details = await db.experiment_get(id=experimentId)
 
     if experiment_details is None:
-        return {"message": f"Experiment {id} does not exist"}
+        return {"message": f"Experiment {experimentId} does not exist"}
     config = json.loads(experiment_details["config"])
 
     experiment_name = experiment_details["name"]
