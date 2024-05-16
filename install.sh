@@ -335,7 +335,8 @@ print_success_message() {
   echo "  ${ENV_DIR}"
   echo "You can run Transformer Lab with:"
   echo "  conda activate ${ENV_DIR}"
-  echo "  ${TLAB_DIR}/src/run.sh"
+  echo "  cd ${TLAB_CODE_DIR}"
+  echo "  ./run.sh"
   echo "------------------------------------------"
   echo
 }
