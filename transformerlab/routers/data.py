@@ -59,28 +59,24 @@ async def dataset_info(dataset_id: str):
 
 
 @router.get("/preview", summary="Preview the contents of a dataset.")
-async def dataset_preview(dataset_id: str):
+async def dataset_preview(dataset_id: str, offset: int = 0, limit: int = 10):
     d = await db.get_dataset(dataset_id)
-
+    datasetLen = 0
     result = []
-
-    print(d)
-
+    #This means it is a custom dataset the user uploaded
     if d["location"] == "local":
         # TODO: This can fail in many ways considering this is user generated input.
         # Need to catch exception and return error
         dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
         # print(dataset['train'].features)
-
-        # convert dataset to array of dicts
-        for i in range(0, min(10, len(dataset["train"]))):
-            result.append(dataset["train"][i])
-
+        datasetLen = len(dataset["train"])
+        result = dataset["train"][offset:min(offset+limit, datasetLen)]
     else:
         dataset = load_dataset(dataset_id)
-        for i in range(0, 10):
-            result.append(dataset["train"][i])
-    return result
+        datasetLen = len(dataset["train"])
+        result = dataset["train"][offset:min(offset+limit, datasetLen)]
+
+    return {"out": result, "len" : datasetLen}
 
 
 @router.get("/download", summary="Download a dataset from the HuggingFace Hub to the LLMLab server.")
