@@ -12,7 +12,7 @@ from transformerlab.shared import dirs
 from transformerlab.routers.experiment import rag, documents, plugins, conversations, export, evals
 
 
-router = APIRouter(prefix="/experiment", tags=["experiment"])
+router = APIRouter(prefix="/experiment")
 
 router.include_router(
     router=rag.router, prefix="/{experimentId}", tags=["rag"])
@@ -31,18 +31,19 @@ router.include_router(
 EXPERIMENTS_DIR: str = dirs.EXPERIMENTS_DIR
 
 
-@router.get("/")
+@router.get("/", summary="Get all Experiments", tags=["experiment"])
 async def experiments_get_all():
+    """Get a list of all experiments"""
     return await db.experiment_get_all()
 
 
-@router.get("/create")
+@router.get("/create", summary="Create Experiment", tags=["experiment"])
 async def experiments_create(name: str):
     newid = await db.experiment_create(name, "{}")
     return newid
 
 
-@router.get("/{id}")
+@router.get("/{id}", summary="Get Experiment by ID", tags=["experiment"])
 async def experiment_get(id: int):
     data = await db.experiment_get(id)
 
@@ -51,31 +52,40 @@ async def experiment_get(id: int):
     return data
 
 
-@router.get("/{id}/delete")
+@router.get("/{name}", summary="Get Experiment by Name", tags=["experiment"])
+async def experiment_get_by_name(name: str):
+    data = await db.experiment_get_by_name(name)
+
+    # convert the JSON string called config to json object
+    data["config"] = json.loads(data["config"])
+    return data
+
+
+@router.get("/{id}/delete", tags=["experiment"])
 async def experiments_delete(id: int):
     await db.experiment_delete(id)
     return {"message": f"Experiment {id} deleted"}
 
 
-@router.get("/{id}/update")
+@router.get("/{id}/update", tags=["experiment"])
 async def experiments_update(id: int, name: str):
     await db.experiment_update(id, name)
     return {"message": f"Experiment {id} updated to {name}"}
 
 
-@router.get("/{id}/update_config")
+@router.get("/{id}/update_config", tags=["experiment"])
 async def experiments_update_config(id: int, key: str, value: str):
     await db.experiment_update_config(id, key, value)
     return {"message": f"Experiment {id} updated"}
 
 
-@router.post("/{id}/prompt")
+@router.post("/{id}/prompt", tags=["experiment"])
 async def experiments_save_prompt_template(id: int, template: Annotated[str, Body()]):
     await db.experiment_save_prompt_template(id, template)
     return {"message": f"Experiment {id} prompt template saved"}
 
 
-@router.post("/{id}/save_file_contents")
+@router.post("/{id}/save_file_contents", tags=["experiment"])
 async def experiment_save_file_contents(id: int, filename: str, file_contents: Annotated[str, Body()]):
     # first get the experiment name:
     data = await db.experiment_get(id)
@@ -106,7 +116,7 @@ async def experiment_save_file_contents(id: int, filename: str, file_contents: A
     return {"message": f"{EXPERIMENTS_DIR}/{experiment_name}/{filename}{file_ext} file contents saved"}
 
 
-@router.get("/{id}/file_contents")
+@router.get("/{id}/file_contents", tags=["experiment"])
 async def experiment_get_file_contents(id: int, filename: str):
     # first get the experiment name:
     data = await db.experiment_get(id)

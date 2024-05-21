@@ -922,7 +922,7 @@ async def count_chat_tokens(request: ChatCompletionRequest):
     return {"tokenCount": token_num + max_tokens, "contextLength": context_len, "tokensInHistory": token_num,  "tokensInCompletion": max_tokens}
 
 
-@router.post("/tokenize")
+@router.post("/tokenize", tags=["chat"])
 async def tokenize(request: Request):
     """ Tokenize a string and return the tokenized output as a set of input_ids and strings -- this only works
     if the worker implements the tokenize endpoint."""
