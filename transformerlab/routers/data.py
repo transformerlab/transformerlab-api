@@ -5,8 +5,10 @@ import unicodedata
 
 import aiofiles
 from datasets import load_dataset, load_dataset_builder
-from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi import APIRouter, HTTPException, UploadFile, Query
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from typing import List, Dict, Union, Any
 
 import transformerlab.db as db
 from transformerlab.shared import dirs
@@ -36,7 +38,7 @@ async def dataset_info(dataset_id: str):
         return {}
 
     r = {}
-
+    #This means it is a custom dataset the user uploaded
     if d["location"] == "local":
         dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
         # print(dataset['train'].features)
@@ -56,27 +58,42 @@ async def dataset_info(dataset_id: str):
             "version": ds_builder.info.version,
         }
     return r
+    
+class PreviewResponse(BaseModel):
+    status: str
+    data: List[Dict[str, List[Any]]]
+    len: int
 
+class ErrorResponse(BaseModel):
+    status: str
+    message: str
 
-@router.get("/preview", summary="Preview the contents of a dataset.")
-async def dataset_preview(dataset_id: str, offset: int = 0, limit: int = 10):
+@router.get("/preview", summary="Preview the contents of a dataset.",responses=
+            {200: {"model": PreviewResponse, "description": "Successful response. Data is a list of column names followed by data, which can be of any datatype."}, 
+            400: {"model": ErrorResponse}, 
+            } 
+            )
+async def dataset_preview(dataset_id: str = Query(description = "The ID of the dataset to preview. This can be a HuggingFace dataset ID or a local dataset ID."), 
+                          offset: int = Query(0, description = 'The starting index from where to fetch the data.', ge = 0), 
+                          limit: int = Query(10, description = "The maximum number of data items to fetch.", ge = 1, le = 1000)) -> Any:
     d = await db.get_dataset(dataset_id)
-    datasetLen = 0
+    dataset_len = 0
     result = []
-    #This means it is a custom dataset the user uploaded
+    #This means it is a custom dataset the user uploaded 
     if d["location"] == "local":
-        # TODO: This can fail in many ways considering this is user generated input.
-        # Need to catch exception and return error
-        dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
-        # print(dataset['train'].features)
-        datasetLen = len(dataset["train"])
-        result = dataset["train"][offset:min(offset+limit, datasetLen)]
+        try:
+            dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
+        except Exception as e:
+            error_msg = f"{type(e).__name__}: {e}"
+            return {"status": "error", "message":  error_msg}
+        dataset_len = len(dataset["train"])
+        result = dataset["train"][offset:min(offset+limit, dataset_len)]
     else:
         dataset = load_dataset(dataset_id)
-        datasetLen = len(dataset["train"])
-        result = dataset["train"][offset:min(offset+limit, datasetLen)]
+        dataset_len = len(dataset["train"])
+        result = dataset["train"][offset:min(offset+limit, dataset_len)]
 
-    return {"out": result, "len" : datasetLen}
+    return {"status": "success", "data": result, "len" : dataset_len}
 
 
 @router.get("/download", summary="Download a dataset from the HuggingFace Hub to the LLMLab server.")
