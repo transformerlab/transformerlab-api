@@ -36,6 +36,7 @@ class OllamaModel(basemodel.BaseModel):
 
         # Assume all models from Ollama are GGUF
         self.architecture = "GGUF"
+        self.formats = ["gguf"]
 
         self.model_source = "ollama"
         self.source_id_or_path = ollama_id
