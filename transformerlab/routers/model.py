@@ -92,6 +92,22 @@ async def model_gallery(model_id: str):
     return get_model_details_from_gallery(model_id)
 
 
+@router.get("/model/{model_id}")
+async def model_details_from_source(model_id: str):
+
+    # convert "~~~"" in string to "/":
+    model_id = model_id.replace("~~~", "/")
+
+    # For now just assume huggingface so I can test
+    model = model_helper.get_model_by_source_id("huggingface", model_id)
+
+    # If there is no model then try looking in the filesystem
+    if not model:
+        model = model_details_from_filesystem(model_id)
+
+    return model
+
+
 # Tries to load model details from file system
 @router.get("/model/details/{model_id}")
 async def model_details_from_filesystem(model_id: str):
@@ -125,7 +141,7 @@ async def model_details_from_filesystem(model_id: str):
             # do nothing: file doesn't exist
             pass
 
-    return []
+    return {}
 
 
 @router.get(path="/model/login_to_huggingface")
