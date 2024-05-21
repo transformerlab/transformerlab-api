@@ -10,6 +10,8 @@ class BaseModel:
     name:           Printable name for the model (how it appears in the app)
     architecture:   A string describing the model architecture used to determine
                     support for the model and how to run
+    formats:        A array of strings describing the file format used to store model
+                    weights. This can be "safetensors", "bin", "gguf", "mlx".
     status:         A text string that is either "OK" or contains and error message
 
     model_source:   Where the model is stored ("huggingface", "local", etc.)
@@ -37,6 +39,7 @@ class BaseModel:
         self.id = id
         self.name = id
         self.architecture = "unknown"
+        self.formats = []
         self.status = "OK"
 
         self.model_source = None
