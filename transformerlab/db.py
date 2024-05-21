@@ -65,6 +65,10 @@ async def init():
                         """
     )
     await db.execute(
+        "CREATE INDEX IF NOT EXISTS idx_name ON experiment (name)"
+    )
+
+    await db.execute(
         """CREATE TABLE IF NOT EXISTS
             plugins
                 (id INTEGER PRIMARY KEY,
@@ -218,7 +222,7 @@ async def model_local_get(model_id):
     # Returns None if the model_id isn't in the database
     if row is None:
         return None
-    
+
     # Map column names to row data
     desc = cursor.description
     column_names = [col[0] for col in desc]
@@ -537,6 +541,26 @@ async def experiment_get(id):
         return None
     cursor = await db.execute("SELECT * FROM experiment WHERE id = ?", (id,))
     row = await cursor.fetchone()
+
+    if row is None:
+        return None
+
+    # Convert the SQLite row into a JSON object with keys
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    row = dict(itertools.zip_longest(column_names, row))
+
+    await cursor.close()
+    return row
+
+
+async def experiment_get_by_name(name):
+    global db
+    cursor = await db.execute("SELECT * FROM experiment WHERE name = ?", (name,))
+    row = await cursor.fetchone()
+
+    if row is None:
+        return None
 
     # Convert the SQLite row into a JSON object with keys
     desc = cursor.description
