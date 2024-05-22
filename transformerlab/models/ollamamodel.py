@@ -44,9 +44,14 @@ class OllamaModel(basemodel.BaseModel):
 
         # inherit json_data from the parent and only update specific fields
         self.json_data["uniqueID"] = self.id
-        self.json_data["model_filename"] = self.model_filename
         self.json_data["name"] = self.name
+
+        # TODO: These fields shouldn't be duplicated
         self.json_data["architecture"] = self.architecture
+        self.json_data["formats"] = self.formats
+        self.json_data["source"] = self.model_source
+        self.json_data["source_id_or_path"] = self.source_id_or_path
+        self.json_data["model_filename"] = self.model_filename
 
 
     # This returns just the filename of the blob containing the actual model

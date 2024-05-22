@@ -90,10 +90,8 @@ class HuggingFaceModel(basemodel.BaseModel):
         else:
             self.json_data["uniqueID"] = hugging_face_id
             self.json_data["name"] = hugging_face_id
-            self.json_data["architecture"] = architecture
             self.json_data["private"] = private
             self.json_data["gated"] = gated
-            self.json_data["formats"] = formats
 
         self.architecture = architecture
         self.formats = formats
@@ -103,6 +101,13 @@ class HuggingFaceModel(basemodel.BaseModel):
 
         # TODO: filename needed for GGUF
         self.model_filename = None
+
+        # TODO: This is a HACK! Need to not have two sources for these fields
+        self.json_data["architecture"] = self.architecture
+        self.json_data["formats"] = self.formats
+        self.json_data["source"] = self.model_source
+        self.json_data["source_id_or_path"] = self.source_id_or_path
+        self.json_data["model_filename"] = self.model_filename
 
 
     def _detect_model_formats(self):

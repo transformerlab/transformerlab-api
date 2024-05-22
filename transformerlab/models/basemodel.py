@@ -51,12 +51,17 @@ class BaseModel:
         self.json_data = {
             "uniqueID": self.id,
             "model_filename": "",
+
             "name": self.id,
             "description": "",
+            "architecture": self.architecture,
+            "formats": self.formats,
+            "source": self.model_source,
+            "source_id_or_path": self.source_id_or_path,
             "huggingface_repo": "",
+
             "parameters": "",
             "context": "",
-            "architecture": self.architecture,
             "license": "",
             "logo": "",
 
