@@ -50,6 +50,7 @@ class HuggingFaceModel(basemodel.BaseModel):
         # We need to access the huggingface_hub to figure out more model details
         model_details = {}
         architecture = "unknown"
+        formats = []
         private = False
         gated = False
 
@@ -59,6 +60,7 @@ class HuggingFaceModel(basemodel.BaseModel):
             architecture = model_details.get("architecture", "unknown")
             gated = model_details.get("private", False)
             private = model_details.get("gated", False)
+            formats = self._detect_model_formats()
 
         except huggingface_hub.utils.GatedRepoError:
             # Model exists but this user is not on the authorized list
@@ -91,8 +93,10 @@ class HuggingFaceModel(basemodel.BaseModel):
             self.json_data["architecture"] = architecture
             self.json_data["private"] = private
             self.json_data["gated"] = gated
+            self.json_data["formats"] = formats
 
         self.architecture = architecture
+        self.formats = formats
 
         # Additional json_data
         # self.json_data["size_on_disk"] = repo.size_on_disk
@@ -101,6 +105,32 @@ class HuggingFaceModel(basemodel.BaseModel):
         self.model_filename = None
 
 
+    def _detect_model_formats(self):
+        """
+        Subroutine that scans the huggingface repo and tries to determine what format(s)
+        the model contains.
+        """
+        detected_formats = []
+        formats = [
+            {"safetensors", ".safetensors"},
+            {"PyTorch", ".bin"},
+            {"PyTorch", ".pt"},
+            {"Keras", ".keras"},
+            {"NPZ", ".npz"},
+            {"GGUF", ".gguf"},
+            {"ONNX", ".onnx"},
+            {"TensorFlow CHeckpoint", ".ckpt"},
+        ]
+
+        repo_files = huggingface_hub.list_repo_files(self.source_id_or_path)
+        for repo_file in repo_files:
+            print(repo_file)
+
+            for format, suffix in formats:
+                if repo_file.endswith(suffix) and format not in detected_formats:
+                    detected_formats.append("safetensors")
+
+        return detected_formats
 
 
 def get_model_details_from_huggingface(hugging_face_id):
@@ -159,6 +189,7 @@ def get_model_details_from_huggingface(hugging_face_id):
             "model_type": filedata.get("model_type", ""),
             "library_name": library_name,
             "transformers_version": filedata.get("transformers_version", ""),
+            "quantization": filedata.get("quantization", ""),
             "license": model_card_data.get("license", "")
         }
         return config
