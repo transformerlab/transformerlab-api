@@ -117,14 +117,17 @@ class HuggingFaceModel(basemodel.BaseModel):
         """
         detected_formats = []
         formats = [
-            {"safetensors", ".safetensors"},
+            {"Safetensors", ".safetensors"},
             {"PyTorch", ".bin"},
             {"PyTorch", ".pt"},
+            {"Pickle", ".pkl"},
+            {"GGUF", ".gguf"},
+            {"GGML", ".ggml"},
             {"Keras", ".keras"},
             {"NPZ", ".npz"},
-            {"GGUF", ".gguf"},
+            {"Llamafile", ".llamafile"},
             {"ONNX", ".onnx"},
-            {"TensorFlow CHeckpoint", ".ckpt"},
+            {"TensorFlow CHeckpoint", ".ckpt"}
         ]
 
         repo_files = huggingface_hub.list_repo_files(self.source_id_or_path)
@@ -133,7 +136,7 @@ class HuggingFaceModel(basemodel.BaseModel):
 
             for format, suffix in formats:
                 if repo_file.endswith(suffix) and format not in detected_formats:
-                    detected_formats.append("safetensors")
+                    detected_formats.append(format)
 
         return detected_formats
 
