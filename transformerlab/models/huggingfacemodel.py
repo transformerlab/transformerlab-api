@@ -141,9 +141,8 @@ class HuggingFaceModel(basemodel.BaseModel):
             # then add it!
             if file_ext in formats:
                 format = formats[file_ext]
-                print(f"Found {repo_file} in {format}")
                 if format not in detected_formats:
-                    detected_formats.append(formats[file_ext])
+                    detected_formats.append(format)
 
         return detected_formats
 
