@@ -38,7 +38,7 @@ async def dataset_info(dataset_id: str):
         return {}
 
     r = {}
-    #This means it is a custom dataset the user uploaded
+    # This means it is a custom dataset the user uploaded
     if d["location"] == "local":
         dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
         # print(dataset['train'].features)
@@ -58,28 +58,30 @@ async def dataset_info(dataset_id: str):
             "version": ds_builder.info.version,
         }
     return r
-    
-class PreviewResponse(BaseModel):
+
+
+class SuccessResponse(BaseModel):
     status: str
-    data: List[Dict[str, List[Any]]]
-    len: int
+    data: Dict[str, Any]
+
 
 class ErrorResponse(BaseModel):
     status: str
     message: str
 
-@router.get("/preview", summary="Preview the contents of a dataset.",responses=
-            {200: {"model": PreviewResponse, "description": "Successful response. Data is a list of column names followed by data, which can be of any datatype."}, 
-            400: {"model": ErrorResponse}, 
-            } 
+
+@router.get("/preview", summary="Preview the contents of a dataset.", responses={200: {"model": SuccessResponse, "description": "Successful response. Data is a list of column names followed by data, which can be of any datatype."},
+                                                                                 400: {"model": ErrorResponse},
+                                                                                 }
             )
-async def dataset_preview(dataset_id: str = Query(description = "The ID of the dataset to preview. This can be a HuggingFace dataset ID or a local dataset ID."), 
-                          offset: int = Query(0, description = 'The starting index from where to fetch the data.', ge = 0), 
-                          limit: int = Query(10, description = "The maximum number of data items to fetch.", ge = 1, le = 1000)) -> Any:
+async def dataset_preview(dataset_id: str = Query(description="The ID of the dataset to preview. This can be a HuggingFace dataset ID or a local dataset ID."),
+                          offset: int = Query(
+                              0, description='The starting index from where to fetch the data.', ge=0),
+                          limit: int = Query(10, description="The maximum number of data items to fetch.", ge=1, le=1000)) -> Any:
     d = await db.get_dataset(dataset_id)
     dataset_len = 0
-    result = []
-    #This means it is a custom dataset the user uploaded 
+    result = {}
+    # This means it is a custom dataset the user uploaded
     if d["location"] == "local":
         try:
             dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
@@ -87,13 +89,15 @@ async def dataset_preview(dataset_id: str = Query(description = "The ID of the d
             error_msg = f"{type(e).__name__}: {e}"
             return {"status": "error", "message":  error_msg}
         dataset_len = len(dataset["train"])
-        result = dataset["train"][offset:min(offset+limit, dataset_len)]
+        result['columns'] = dataset["train"][offset:min(
+            offset+limit, dataset_len)]
     else:
         dataset = load_dataset(dataset_id)
         dataset_len = len(dataset["train"])
-        result = dataset["train"][offset:min(offset+limit, dataset_len)]
-
-    return {"status": "success", "data": result, "len" : dataset_len}
+        result['columns'] = dataset["train"][offset:min(
+            offset+limit, dataset_len)]
+    result['len'] = dataset_len
+    return {"status": "success", "data": result}
 
 
 @router.get("/download", summary="Download a dataset from the HuggingFace Hub to the LLMLab server.")
