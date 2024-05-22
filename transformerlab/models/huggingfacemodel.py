@@ -116,27 +116,34 @@ class HuggingFaceModel(basemodel.BaseModel):
         the model contains.
         """
         detected_formats = []
-        formats = [
-            {"Safetensors", ".safetensors"},
-            {"PyTorch", ".bin"},
-            {"PyTorch", ".pt"},
-            {"Pickle", ".pkl"},
-            {"GGUF", ".gguf"},
-            {"GGML", ".ggml"},
-            {"Keras", ".keras"},
-            {"NPZ", ".npz"},
-            {"Llamafile", ".llamafile"},
-            {"ONNX", ".onnx"},
-            {"TensorFlow CHeckpoint", ".ckpt"}
-        ]
+        formats = {
+            ".safetensors" : "Safetensors",
+            ".bin" : "PyTorch",
+            ".pt" : "PyTorch",
+            ".pth" : "PyTorch",
+            ".pkl": "Pickle",
+            ".gguf": "GGUF",
+            ".ggml": "GGUF",
+            ".keras": "Keras",
+            ".npz": "NPZ",
+            ".llamafile": "Llamafile",
+            ".onnx": "ONNX",
+            ".ckpt": "TensorFlow CHeckpoint"
+        }
 
+        # Get a list of files in this model and iterate over them
         repo_files = huggingface_hub.list_repo_files(self.source_id_or_path)
         for repo_file in repo_files:
             print(repo_file)
+            file_name, file_ext = os.path.splitext(repo_file)
 
-            for format, suffix in formats:
-                if repo_file.endswith(suffix) and format not in detected_formats:
-                    detected_formats.append(format)
+            # If this file is a model weight file and isn't in the list already
+            # then add it!
+            if file_ext in formats:
+                format = formats[file_ext]
+                print(f"Found {repo_file} in {format}")
+                if format not in detected_formats:
+                    detected_formats.append(formats[file_ext])
 
         return detected_formats
 
