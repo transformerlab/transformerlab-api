@@ -7,6 +7,9 @@
         "context": "4k",
         "architecture": "LlamaForCausalLM",
         "huggingface_repo": "meta-llama/Llama-2-7b-chat-hf",
+        "formats": [
+            "PyTorch"
+        ],
         "transformers_version": "4.31.0.dev0",
         "license": "Meta Custom",
         "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
@@ -28,6 +31,9 @@
         "parameters": "7B",
         "context": "4k",
         "architecture": "LlamaForCausalLM",
+        "formats": [
+            "PyTorch"
+        ],
         "huggingface_repo": "meta-llama/Llama-2-7b-hf",
         "transformers_version": "4.31.0.dev0",
         "license": "Meta Custom",
@@ -50,6 +56,9 @@
         "parameters": "13B",
         "context": "4k",
         "architecture": "LlamaForCausalLM",
+        "formats": [
+            "PyTorch"
+        ],
         "huggingface_repo": "meta-llama/Llama-2-13b-hf",
         "transformers_version": "4.31.0.dev0",
         "license": "Meta Custom",
@@ -72,6 +81,9 @@
         "parameters": "7B",
         "context": "4k",
         "architecture": "LlamaForCausalLM",
+        "formats": [
+            "PyTorch"
+        ],
         "huggingface_repo": "meta-llama/Llama-2-13b-chat-hf",
         "transformers_version": "4.31.0.dev0",
         "license": "Meta Custom",
