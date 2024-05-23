@@ -92,3 +92,31 @@ class BaseModel:
             return os.path.join(self.source_id_or_path, self.model_filename)
         else:
             return self.source_id_or_path
+
+
+# MODEL UTILITY FUNCTIONS
+
+
+def get_model_file_format(filename: str):
+    """
+    Helper method available to subclasses to detect format of contained model weight files.
+    Returns None if the file doesn't match any of the known types.
+    """
+    formats = {
+        ".safetensors" : "Safetensors",
+        ".bin" : "PyTorch",
+        ".pt" : "PyTorch",
+        ".pth" : "PyTorch",
+        ".pkl": "Pickle",
+        ".gguf": "GGUF",
+        ".ggml": "GGUF",
+        ".keras": "Keras",
+        ".npz": "NPZ",
+        ".llamafile": "Llamafile",
+        ".onnx": "ONNX",
+        ".ckpt": "TensorFlow CHeckpoint"
+    }
+    _, file_ext = os.path.splitext(filename)
+
+    # If the extension doesn't exist then return None
+    return formats.get(file_ext, None)
