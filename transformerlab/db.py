@@ -15,10 +15,9 @@ async def init():
     """
     Create the database, tables, and workspace folder if they don't exist.
     """
-
+    global db
     os.makedirs(os.path.dirname(DATABASE_FILE_NAME), exist_ok=True)
 
-    global db
     db = await aiosqlite.connect(DATABASE_FILE_NAME)
 
     await db.execute(
@@ -102,11 +101,16 @@ async def init():
             "gamma", "{}")
     )
     await db.commit()
+
+    # On startup, look for any jobs that are in the IN_PROGRESS state and set them to CANCELLED instead:
+    # This is to handle the case where the server is restarted while a job is running.
+    await job_cancel_in_progress_jobs()
+
     return
 
 
 async def close():
-    global db
+
     await db.close()
 
 
@@ -116,7 +120,7 @@ async def close():
 
 
 async def get_dataset(dataset_id):
-    global db
+
     cursor = await db.execute(
         "SELECT * FROM dataset WHERE dataset_id = ?", (dataset_id,)
     )
@@ -136,7 +140,7 @@ async def get_dataset(dataset_id):
 
 
 async def get_datasets():
-    global db
+
     cursor = await db.execute("SELECT rowid, * FROM dataset")
     rows = await cursor.fetchall()
 
@@ -150,7 +154,7 @@ async def get_datasets():
 
 
 async def create_huggingface_dataset(dataset_id, description, size):
-    global db
+
     await db.execute(
         """
         INSERT INTO dataset (dataset_id, location, description, size) 
@@ -162,7 +166,7 @@ async def create_huggingface_dataset(dataset_id, description, size):
 
 
 async def create_local_dataset(dataset_id):
-    global db
+
     await db.execute(
         """
         INSERT INTO dataset (dataset_id, location, description, size) 
@@ -174,7 +178,7 @@ async def create_local_dataset(dataset_id):
 
 
 async def delete_dataset(dataset_id):
-    global db
+
     await db.execute("DELETE FROM dataset WHERE dataset_id = ?", (dataset_id,))
     await db.commit()
 
@@ -184,7 +188,7 @@ async def delete_dataset(dataset_id):
 ###############
 
 async def model_local_list():
-    global db
+
     cursor = await db.execute("SELECT rowid, * FROM model")
     rows = await cursor.fetchall()
 
@@ -202,7 +206,6 @@ async def model_local_list():
 
 
 async def model_local_create(model_id, name, json_data):
-    global db
 
     json_data = json.dumps(obj=json_data)
 
@@ -215,7 +218,7 @@ async def model_local_create(model_id, name, json_data):
 
 
 async def model_local_get(model_id):
-    global db
+
     cursor = await db.execute("SELECT rowid, * FROM model WHERE model_id = ?", (model_id,))
     row = await cursor.fetchone()
 
@@ -236,7 +239,7 @@ async def model_local_get(model_id):
 
 
 async def model_local_delete(model_id):
-    global db
+
     await db.execute("DELETE FROM model WHERE model_id = ?", (model_id,))
     await db.commit()
 
@@ -246,7 +249,7 @@ async def model_local_delete(model_id):
 
 
 async def job_create(type, status, job_data='{}', experiment_id=""):
-    global db
+
     row = await db.execute_insert(
         "INSERT INTO job(type, status, experiment_id, job_data) VALUES (?, ?, ?, json(?))",
         (type, status, experiment_id, job_data),
@@ -256,15 +259,45 @@ async def job_create(type, status, job_data='{}', experiment_id=""):
 
 
 async def job_get(job_id):
-    global db
+
     cursor = await db.execute("SELECT * FROM job WHERE job_id = ?", (job_id,))
     row = await cursor.fetchone()
     await cursor.close()
     return row
 
 
+async def jobs_get_all(type='', status=''):
+
+    base_query = "SELECT * FROM job"
+    if type != '':
+        base_query += " WHERE type = ?"
+    else:
+        base_query += " WHERE ? != 'x'"
+
+    if status != '':
+        base_query += " AND status = ?"
+    else:
+        base_query += " AND ? != 'x'"
+
+    cursor = await db.execute(base_query, (type, status))
+    rows = await cursor.fetchall()
+
+    # Add column names to output
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
+    await cursor.close()
+
+    # for each row in data, convert the job_data
+    # column from JSON to a Python object
+    for row in data:
+        row["job_data"] = json.loads(row["job_data"])
+
+    return data
+
+
 async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
-    global db
+
     cursor = await db.execute(
         "SELECT * FROM job \
         WHERE experiment_id = ? \
@@ -287,7 +320,7 @@ async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
 
 
 async def job_get_status(job_id):
-    global db
+
     cursor = await db.execute("SELECT status FROM job WHERE job_id = ?", (job_id,))
     row = await cursor.fetchone()
     await cursor.close()
@@ -295,7 +328,7 @@ async def job_get_status(job_id):
 
 
 async def job_get_error_msg(job_id):
-    global db
+
     cursor = await db.execute("SELECT job_data FROM job WHERE id = ?", (job_id,))
     row = await cursor.fetchone()
     await cursor.close()
@@ -304,7 +337,7 @@ async def job_get_error_msg(job_id):
 
 
 async def job_get(job_id):
-    global db
+
     cursor = await db.execute("SELECT * FROM job WHERE id = ?", (job_id,))
     row = await cursor.fetchone()
     # convert to json:
@@ -317,7 +350,7 @@ async def job_get(job_id):
 
 
 async def job_count_running():
-    global db
+
     cursor = await db.execute("SELECT COUNT(*) FROM job WHERE status = 'RUNNING'")
     row = await cursor.fetchone()
     await cursor.close()
@@ -325,7 +358,7 @@ async def job_count_running():
 
 
 async def jobs_get_next_queued_job():
-    global db
+
     cursor = await db.execute(
         "SELECT * FROM job WHERE status = 'QUEUED' ORDER BY created_at ASC LIMIT 1"
     )
@@ -345,7 +378,7 @@ async def jobs_get_next_queued_job():
 
 
 async def job_update_status(job_id, status, error_msg=None):
-    global db
+
     await db.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
     await db.commit()
     if error_msg:
@@ -356,7 +389,7 @@ async def job_update_status(job_id, status, error_msg=None):
 
 
 async def job_update(job_id, type, status):
-    global db
+
     await db.execute(
         "UPDATE job SET type = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (type, status, job_id))
     await db.commit()
@@ -379,16 +412,20 @@ def job_update_sync(job_id, status):
 
 
 async def job_delete_all():
-    global db
     await db.execute("DELETE FROM job")
     await db.commit()
     return
 
 
 async def job_delete(job_id):
-    global db
     print("Deleting job: " + job_id)
     await db.execute("DELETE FROM job WHERE id = ?", (job_id,))
+    await db.commit()
+    return
+
+
+async def job_cancel_in_progress_jobs():
+    await db.execute("UPDATE job SET status = 'CANCELLED' WHERE status = 'IN_PROGRESS'")
     await db.commit()
     return
 
@@ -398,7 +435,7 @@ async def job_delete(job_id):
 
 
 async def get_training_template(id):
-    global db
+
     cursor = await db.execute("SELECT * FROM training_template WHERE id = ?", (id,))
     row = await cursor.fetchone()
 
@@ -413,7 +450,7 @@ async def get_training_template(id):
 
 
 async def get_training_templates():
-    global db
+
     cursor = await db.execute("SELECT * FROM training_template")
     rows = await cursor.fetchall()
     await cursor.close()
@@ -421,7 +458,7 @@ async def get_training_templates():
 
 
 async def create_training_template(name, description, type, datasets, config):
-    global db
+
     await db.execute(
         "INSERT INTO training_template(name, description, type, datasets, config) VALUES (?, ?, ?, ?, ?)",
         (name, description, type, datasets, config),
@@ -431,7 +468,7 @@ async def create_training_template(name, description, type, datasets, config):
 
 
 async def delete_training_template(id):
-    global db
+
     await db.execute("DELETE FROM training_template WHERE id = ?", (id,))
     await db.commit()
     return
@@ -439,7 +476,7 @@ async def delete_training_template(id):
 
 # Because this joins on training template it only returns training jobs
 async def training_jobs_get_all():
-    global db
+
     # Join on the nested JSON value "template_id"
     # #in the job_data column
     cursor = await db.execute(
@@ -466,7 +503,6 @@ async def training_jobs_get_all():
 
 
 async def training_job_create(template_id, description, experiment_id):
-    global db
 
     job_data = {
         "template_id": template_id,
@@ -484,7 +520,7 @@ async def training_job_create(template_id, description, experiment_id):
 
 
 async def job_get_for_template_id(template_id):
-    global db
+
     cursor = await db.execute("SELECT * FROM job WHERE template_id = ?", (template_id,))
     rows = await cursor.fetchall()
     await cursor.close()
@@ -514,7 +550,7 @@ async def export_job_create(experiment_id, job_data_json):
 ###################
 
 async def experiment_get_all():
-    global db
+
     cursor = await db.execute("SELECT * FROM experiment")
     rows = await cursor.fetchall()
     # Do the following to convert the return into a JSON object with keys
@@ -526,7 +562,7 @@ async def experiment_get_all():
 
 
 async def experiment_create(name, config):
-    global db
+
     # use python insert and commit command
     row = await db.execute_insert(
         "INSERT INTO experiment(name, config) VALUES (?, ?)", (name, config)
@@ -536,7 +572,7 @@ async def experiment_create(name, config):
 
 
 async def experiment_get(id):
-    global db
+
     if (id == None or id == "undefined"):
         return None
     cursor = await db.execute("SELECT * FROM experiment WHERE id = ?", (id,))
@@ -555,7 +591,7 @@ async def experiment_get(id):
 
 
 async def experiment_get_by_name(name):
-    global db
+
     cursor = await db.execute("SELECT * FROM experiment WHERE name = ?", (name,))
     row = await cursor.fetchone()
 
@@ -572,21 +608,20 @@ async def experiment_get_by_name(name):
 
 
 async def experiment_delete(id):
-    global db
+
     await db.execute("DELETE FROM experiment WHERE id = ?", (id,))
     await db.commit()
     return
 
 
 async def experiment_update(id, config):
-    global db
+
     await db.execute("UPDATE experiment SET config = ? WHERE id = ?", (config, id))
     await db.commit()
     return
 
 
 async def experiment_update_config(id, key, value):
-    global db
 
     value = json.dumps(value)
 
@@ -599,7 +634,7 @@ async def experiment_update_config(id, key, value):
 
 
 async def experiment_save_prompt_template(id, template):
-    global db
+
     # The following looks the JSON blob called "config" and adds a key called "prompt_template" if it doesn't exist
     # it then sets the value of that key to the value of the template parameter
     # This is the pattern to follow for updating fields in the config JSON blob
@@ -616,7 +651,7 @@ async def experiment_save_prompt_template(id, template):
 ###############
 
 async def get_plugins():
-    global db
+
     cursor = await db.execute("SELECT id, * FROM plugins")
     rows = await cursor.fetchall()
     desc = cursor.description
@@ -627,7 +662,7 @@ async def get_plugins():
 
 
 async def get_plugins_of_type(type: str):
-    global db
+
     cursor = await db.execute("SELECT id, * FROM plugins WHERE type = ?", (type,))
     rows = await cursor.fetchall()
     desc = cursor.description
@@ -638,7 +673,7 @@ async def get_plugins_of_type(type: str):
 
 
 async def get_plugin(slug: str):
-    global db
+
     cursor = await db.execute("SELECT id, * FROM plugins WHERE name = ?", (slug,))
     row = await cursor.fetchone()
     desc = cursor.description
@@ -649,7 +684,7 @@ async def get_plugin(slug: str):
 
 
 async def save_plugin(name: str, type: str):
-    global db
+
     await db.execute("INSERT OR REPLACE INTO plugins (name, type) VALUES (?, ?)", (name, type))
     await db.commit()
     return
@@ -660,7 +695,7 @@ async def save_plugin(name: str, type: str):
 ###############
 
 async def config_get(key: str):
-    global db
+
     cursor = await db.execute("SELECT value FROM config WHERE key = ?", (key,))
     row = await cursor.fetchone()
     await cursor.close()
@@ -671,7 +706,7 @@ async def config_get(key: str):
 
 
 async def config_set(key: str, value: str):
-    global db
+
     await db.execute("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)", (key, value))
     await db.commit()
     return

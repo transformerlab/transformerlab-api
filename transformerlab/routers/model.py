@@ -254,7 +254,7 @@ async def download_huggingface_model(hugging_face_id: str, model_details: str = 
     # try to figure out model details from model_details object
     # default is empty object so can't assume any of this exists
     name = model_details.get("name", hugging_face_id)
-    model_size = str(model_details.get("size_of_model_in_mb", 7000))
+    model_size = str(model_details.get("size_of_model_in_mb", -1))
     hugging_face_filename = model_details.get("huggingface_filename", None)
 
     args = [f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
@@ -473,7 +473,8 @@ async def models_list_local_uninstalled():
 
             # Figure out if this model is supported in TransformerLab
             architecture = found_model.architecture
-            supported = model_helper.model_architecture_is_supported(architecture)
+            supported = model_helper.model_architecture_is_supported(
+                architecture)
             if (found_model.status != "OK"):
                 status = f"❌ {found_model.status}"
             elif found_model.architecture == "unknown" or found_model.architecture == "":
@@ -489,36 +490,36 @@ async def models_list_local_uninstalled():
                 "architecture": architecture,
                 "source": found_model.model_source,
                 "installed": False,
-                "status": status, 
+                "status": status,
                 "supported": supported
             }
             models.append(new_model)
 
-    return {"status":"success", "data":models}
+    return {"status": "success", "data": models}
 
 
 @router.get("/model/import_local")
 async def model_import_local(model_source: str, model_id: str):
 
     if model_source not in model_helper.list_model_sources():
-        return {"status":"error", "message": f"Invalid model source {model_source}."}
+        return {"status": "error", "message": f"Invalid model source {model_source}."}
 
     model = model_helper.get_model_by_source_id(model_source, model_id)
 
     # Only add a row for uninstalled and supported repos
     if not model:
-        return {"status":"error", "message": f"{model_id} not found in {model_source}."}
+        return {"status": "error", "message": f"{model_id} not found in {model_source}."}
     if model.status != "OK":
-        return {"status":"error", "message": model.status}
+        return {"status": "error", "message": model.status}
     if model.architecture == "unknown" or model.architecture == "":
-        return {"status":"error", "message": f"Unable to determine model architecture."}
+        return {"status": "error", "message": f"Unable to determine model architecture."}
     if not model_helper.model_architecture_is_supported(model.architecture):
-        return {"status":"error", "message": f"Architecture {model.architecture} not supported."}
+        return {"status": "error", "message": f"Architecture {model.architecture} not supported."}
     if await model.is_installed():
-        return {"status":"error", "message": f"{model_id} is already installed."}
+        return {"status": "error", "message": f"{model_id} is already installed."}
 
     print(f"Importing {model_id}...")
 
     await model_local_create(id=model_id, name=model.name, json_data=model.json_data)
 
-    return {"status":"success", "data":model_id}
+    return {"status": "success", "data": model_id}
