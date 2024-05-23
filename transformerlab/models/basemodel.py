@@ -5,6 +5,11 @@ class BaseModel:
     """
     A basic representation of a Model in TransformerLab.
 
+    To add a new model source, create a subclass.
+    The key function to override in your subclass is get_model_path.
+    Then in your subclass' constructor call super and then set any additional
+    fields you want to store in the model's JSON.
+
     Properties:
     id:             Unique Transformer Lab model identifier
     name:           Printable name for the model (how it appears in the app)
@@ -87,7 +92,12 @@ class BaseModel:
         return db_model is not None
 
 
-    def get_path_to_model(self):
+    def get_model_path(self):
+        '''
+        Returns ID of model in source OR absolute path to file or directory that contains model.
+        Most subclasses will probably want to override this so TransformerLab knows where to
+        find the model.
+        '''
         if self.model_filename:
             return os.path.join(self.source_id_or_path, self.model_filename)
         else:

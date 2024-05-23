@@ -40,7 +40,7 @@ class OllamaModel(basemodel.BaseModel):
 
         self.model_source = "ollama"
         self.source_id_or_path = ollama_id
-        self.model_filename = self.get_path_to_model()
+        self.model_filename = self.get_model_path()
 
         # inherit json_data from the parent and only update specific fields
         self.json_data["uniqueID"] = self.id
@@ -94,7 +94,7 @@ class OllamaModel(basemodel.BaseModel):
         return None
 
 
-    def get_path_to_model(self):
+    def get_model_path(self):
         if self.model_filename:
             return self.model_filename
         else:
