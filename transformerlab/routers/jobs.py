@@ -1,3 +1,4 @@
+import asyncio
 import json
 from fastapi import APIRouter
 
@@ -10,8 +11,8 @@ router = APIRouter(prefix="/jobs", tags=["train"])
 
 
 @router.get("/list")
-async def jobs_get_all():
-    jobs = await db.training_jobs_get_all()
+async def jobs_get_all(type: str = '', status: str = ''):
+    jobs = await db.jobs_get_all(type=type, status=status)
     return jobs
 
 

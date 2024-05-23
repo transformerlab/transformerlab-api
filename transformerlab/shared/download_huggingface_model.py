@@ -84,8 +84,11 @@ def download_blocking(model_is_downloaded):
     global error_msg
     print("Downloading model")
     db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
+    job_data = json.dumps({"downloaded": 0, "model": model,
+                          "total_size_of_model_in_mb": total_size_of_model_in_mb})
+    print(job_data)
     db.execute(
-        "UPDATE job SET progress=? WHERE id=?", (0, job_id))
+        "UPDATE job SET progress=?, job_data=json(?) WHERE id=?", (0, job_data, job_id))
     db.commit()
     db.close()
     if model_filename is not None:
@@ -161,7 +164,8 @@ def check_disk_size(model_is_downloaded: Event):
         model_dir_size = get_dir_size(
             str(WORKSPACE_DIR) + "/models") / 1024 / 1024
         cache_size_growth = (hf_size + model_dir_size) - starting_size_of_cache
-        progress = cache_size_growth / total_size_of_model_in_mb * 100
+        adjusted_total_size = total_size_of_model_in_mb if total_size_of_model_in_mb > 0 else 7000
+        progress = cache_size_growth / adjusted_total_size * 100
         print(f"\nModel Download Progress: {progress:.2f}%\n")
         # Write to jobs table in database, updating the
         # progress column:
@@ -169,7 +173,7 @@ def check_disk_size(model_is_downloaded: Event):
 
         db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
         db.execute(
-            "UPDATE job SET progress=?, job_data=json(?) WHERE id=?", (progress, job_data, job_id))
+            "UPDATE job SET job_data=json_set(job_data, '$.downloaded', ?),  progress=? WHERE id=?", (cache_size_growth, progress, job_id))
         db.commit()
         db.close()
 
