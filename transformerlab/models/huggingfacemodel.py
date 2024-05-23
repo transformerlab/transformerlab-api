@@ -112,37 +112,20 @@ class HuggingFaceModel(basemodel.BaseModel):
 
     def _detect_model_formats(self):
         """
-        Subroutine that scans the huggingface repo and tries to determine what format(s)
-        the model contains.
+        Scans the files in the HuggingFace repo to try to determine the format
+        of the model.
         """
         detected_formats = []
-        formats = {
-            ".safetensors" : "Safetensors",
-            ".bin" : "PyTorch",
-            ".pt" : "PyTorch",
-            ".pth" : "PyTorch",
-            ".pkl": "Pickle",
-            ".gguf": "GGUF",
-            ".ggml": "GGUF",
-            ".keras": "Keras",
-            ".npz": "NPZ",
-            ".llamafile": "Llamafile",
-            ".onnx": "ONNX",
-            ".ckpt": "TensorFlow CHeckpoint"
-        }
 
         # Get a list of files in this model and iterate over them
         repo_files = huggingface_hub.list_repo_files(self.source_id_or_path)
         for repo_file in repo_files:
             print(repo_file)
-            file_name, file_ext = os.path.splitext(repo_file)
+            format = basemodel.get_model_file_format(repo_file)
 
-            # If this file is a model weight file and isn't in the list already
-            # then add it!
-            if file_ext in formats:
-                format = formats[file_ext]
-                if format not in detected_formats:
-                    detected_formats.append(format)
+            # If this format isn't in the list already then add it!
+            if format and (format not in detected_formats):
+                detected_formats.append(format)
 
         return detected_formats
 
