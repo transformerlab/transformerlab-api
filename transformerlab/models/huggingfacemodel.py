@@ -24,6 +24,11 @@ async def list_models(uninstalled_only: bool = True):
         if (repo.repo_type != "model"):
             continue
 
+        # Filter out anything that hasn't actually been downloaded
+        # Minor hack: Check repo size and if it's under 10K it's probably just config
+        if (repo.size_on_disk < 10000):
+            continue
+
         model = HuggingFaceModel(repo.repo_id)
 
         # Save ourselves some time if we're only looking for uninstalled models
@@ -120,7 +125,6 @@ class HuggingFaceModel(basemodel.BaseModel):
         # Get a list of files in this model and iterate over them
         repo_files = huggingface_hub.list_repo_files(self.source_id_or_path)
         for repo_file in repo_files:
-            print(repo_file)
             format = basemodel.get_model_file_format(repo_file)
 
             # If this format isn't in the list already then add it!
