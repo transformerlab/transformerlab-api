@@ -1,4 +1,5 @@
 import os
+import json
 
 from transformerlab.models import basemodel
 
@@ -6,16 +7,48 @@ import huggingface_hub
 
 async def list_models(path: str, uninstalled_only: bool = True):
     """
-    This function recursively calls itself to generate a list of models under folder.
+    This function recursively calls itself to generate a list of models under path.
     First try to determine if this directory is itself a model (and then check
     to see if we can support it).
     If this directory is not a model then search subdirectories for models.
     NOTE: If you pass this a directory with a large tree under it, this can take 
     a long time to run!
     """
+    print(f"Scanning {path} for models")
+    if not os.path.isdir(path):
+        return []
 
-    # TODO: Implement! :D
-    return []
+    # First decide if this directory is a model or if any files in it are models
+    # 1. If this contains a file called config.json it might be a model
+    config_file = os.path.join(path, "config.json")
+    try:
+        with open(config_file, "r") as f:
+            filedata = json.load(f)
+            f.close()
+
+            # TODO Verify that this is something we can support
+            model = LocalFilesystemModel(path)
+            return [model]
+
+    except FileNotFoundError:
+        # No config.json. Keep going
+        pass
+    except json.JSONDecodeError:
+        # Invalid JSON means invlalid model
+        print(f"ERROR: Found invalid config.json in {path}")
+
+    models = []
+    with os.scandir(path) as dirlist:
+        # It looks like this directory isn't a model
+        # Try searching through subdirectories
+        for entry in dirlist:
+            if entry.is_dir():
+                models.extend(await list_models(entry.path))
+
+        dirlist.close()
+
+    return models
+
 
 class LocalFilesystemModel(basemodel.BaseModel):
     def __init__(self, model_path):
