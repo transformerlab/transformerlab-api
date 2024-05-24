@@ -8,7 +8,6 @@ from fastapi.responses import FileResponse
 from fastchat.model.model_adapter import get_conversation_template
 from huggingface_hub import hf_hub_download, HfFileSystem, model_info
 from huggingface_hub import snapshot_download
-from huggingface_hub.utils import GatedRepoError
 
 import os
 
@@ -17,6 +16,7 @@ from transformerlab.shared import dirs
 
 from transformerlab.models import model_helper
 from transformerlab.models import basemodel
+from transformerlab.models import localmodel
 
 router = APIRouter(tags=["model"])
 
@@ -92,7 +92,7 @@ async def model_gallery(model_id: str):
     return get_model_details_from_gallery(model_id)
 
 
-@router.get("/model/db/{model_id}")
+@router.get("/model/local/{model_id}")
 async def model_details_from_source(model_id: str):
 
     # convert "~~~"" in string to "/":
@@ -460,8 +460,24 @@ async def get_model_from_db(model_id: str):
 
 
 @router.get("/model/list_local_uninstalled")
-async def models_list_local_uninstalled():
+async def models_list_local_uninstalled(path: str = ""):
 
+    if path is not None and path != "":
+        if os.path.isfile(path):
+            return {"status": "success", "data": []}
+        elif os.path.isdir(path):
+            models = await localmodel.list_models(path)
+            print(models)
+            return {"status": "success", "data": models}
+        else:
+            return {"status": "error", "message": "Invalid path"}
+
+    # If a folder wasn't given then search known sources for uninstalled models
+    else:
+        return await models_search_for_local_uninstalled()
+
+
+async def models_search_for_local_uninstalled():
     # iterate through each model source and look for uninstalled models
     modelsources = model_helper.list_model_sources()
     models = []
