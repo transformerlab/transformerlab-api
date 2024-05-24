@@ -258,14 +258,6 @@ async def job_create(type, status, job_data='{}', experiment_id=""):
     return row[0]
 
 
-async def job_get(job_id):
-
-    cursor = await db.execute("SELECT * FROM job WHERE job_id = ?", (job_id,))
-    row = await cursor.fetchone()
-    await cursor.close()
-    return row
-
-
 async def jobs_get_all(type='', status=''):
 
     base_query = "SELECT * FROM job"
@@ -290,8 +282,8 @@ async def jobs_get_all(type='', status=''):
 
     # for each row in data, convert the job_data
     # column from JSON to a Python object
-    for row in data:
-        row["job_data"] = json.loads(row["job_data"])
+    for i in range(len(data)):
+        data[i]["job_data"] = json.loads(data[i]["job_data"])
 
     return data
 
@@ -344,8 +336,9 @@ async def job_get(job_id):
     desc = cursor.description
     column_names = [col[0] for col in desc]
     row = dict(itertools.zip_longest(column_names, row))
-
     await cursor.close()
+
+    row['job_data'] = json.loads(row['job_data'])
     return row
 
 
