@@ -1,5 +1,6 @@
 import atexit
 import json
+import os
 import platform
 import sys
 import subprocess
@@ -33,6 +34,8 @@ system_info = {
     "gpu_memory": "",
     "device": "cpu",
     "cuda_version": "n/a",
+    "conda_environment": os.environ.get("CONDA_DEFAULT_ENV", "n/a"),
+    "conda_prefix": os.environ.get("CONDA_PREFIX", "n/a"),
 }
 
 # Determine which device to use (cuda/mps/cpu)
