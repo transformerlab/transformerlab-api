@@ -30,7 +30,9 @@ class ErrorResponse(BaseModel):
     message: str
 
 
-@router.get("/gallery", summary="Display the datasets available in the dataset gallery.")
+@router.get("/gallery", summary="Display the datasets available in the dataset gallery.", responses={200: {"model": SuccessResponse, "description": "Successful response. Data is a list of column names followed by data, which can be of any datatype."},
+                                                                                                     400: {"model": ErrorResponse},
+                                                                                                     })
 async def dataset_gallery() -> Any:
 
     file_location = os.path.join(
