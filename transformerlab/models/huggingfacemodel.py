@@ -168,13 +168,17 @@ def get_model_details_from_huggingface(hugging_face_id):
         architecture_list = filedata.get("architectures", [])
         architecture = architecture_list[0] if architecture_list else ""
 
-        # Oh except that GGUF and MLX aren't listed as architectures
-        # For MLX we need to look in library_name
+        # Oh except we list MLX as an architecture but HuggingFace doesn't
+        # For MLX it is sometimes stored in library_name
         library_name = getattr(hf_model_info, "library_name", "")
         if (library_name.lower() == "mlx"):
             architecture = "MLX"
 
-        # TODO: to detect GGUF we'll have to look at files
+        # And sometimes it is stored in the tags for the repo
+        model_tags = getattr(hf_model_info, "tags", [])
+        print(hugging_face_id)
+        if ("mlx" in model_tags):
+            architecture = "MLX"
 
         # TODO: Context length definition seems to vary by architecture. May need conditional logic here.
         context_size = filedata.get("max_position_embeddings", "")
@@ -192,6 +196,7 @@ def get_model_details_from_huggingface(hugging_face_id):
             "huggingface_repo": hugging_face_id,
             "model_type": filedata.get("model_type", ""),
             "library_name": library_name,
+            "tags": model_tags,
             "transformers_version": filedata.get("transformers_version", ""),
             "quantization": filedata.get("quantization", ""),
             "license": model_card_data.get("license", "")
