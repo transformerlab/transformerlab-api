@@ -462,56 +462,57 @@ async def get_model_from_db(model_id: str):
 @router.get("/model/list_local_uninstalled")
 async def models_list_local_uninstalled(path: str = ""):
 
+    # first search and get a list of BaseModel objects 
+    found_models = []
     if path is not None and path != "":
         if os.path.isfile(path):
-            return {"status": "success", "data": []}
+            found_models = []
         elif os.path.isdir(path):
-            models = await localmodel.list_models(path)
-            print(models)
-            return {"status": "success", "data": models}
+            found_models = await localmodel.list_models(path)
         else:
             return {"status": "error", "message": "Invalid path"}
 
     # If a folder wasn't given then search known sources for uninstalled models
     else:
-        return await models_search_for_local_uninstalled()
+        found_models = await models_search_for_local_uninstalled()
 
+    # Then iterate through models and return appropriate details
+    response_models = []
+    for found_model in found_models:
+        # Figure out if this model is supported in TransformerLab
+        architecture = found_model.architecture
+        supported = model_helper.model_architecture_is_supported(architecture)
+        if (found_model.status != "OK"):
+            status = f"❌ {found_model.status}"
+        elif found_model.architecture == "unknown" or found_model.architecture == "":
+            status = "❌ Unknown architecture"
+        elif not supported:
+            status = f"❌ {architecture}"
+        else:
+            status = f"✅ {architecture}"
+
+        new_model = {
+            "id": found_model.id,
+            "name": found_model.name,
+            "architecture": architecture,
+            "source": found_model.model_source,
+            "installed": False,
+            "status": status,
+            "supported": supported
+        }
+        response_models.append(new_model)
+
+    return {"status": "success", "data": response_models}
 
 async def models_search_for_local_uninstalled():
     # iterate through each model source and look for uninstalled models
     modelsources = model_helper.list_model_sources()
     models = []
     for source in modelsources:
-        found_models = await model_helper.list_models_from_source(source, uninstalled_only=True)
+        source_models = await model_helper.list_models_from_source(source, uninstalled_only=True)
+        models += source_models
 
-        # iterate through each source list and return appropriate details
-        for found_model in found_models:
-
-            # Figure out if this model is supported in TransformerLab
-            architecture = found_model.architecture
-            supported = model_helper.model_architecture_is_supported(
-                architecture)
-            if (found_model.status != "OK"):
-                status = f"❌ {found_model.status}"
-            elif found_model.architecture == "unknown" or found_model.architecture == "":
-                status = "❌ Unknown architecture"
-            elif not supported:
-                status = f"❌ {architecture}"
-            else:
-                status = f"✅ {architecture}"
-
-            new_model = {
-                "id": found_model.id,
-                "name": found_model.name,
-                "architecture": architecture,
-                "source": found_model.model_source,
-                "installed": False,
-                "status": status,
-                "supported": supported
-            }
-            models.append(new_model)
-
-    return {"status": "success", "data": models}
+    return models
 
 
 @router.get("/model/import_local")
