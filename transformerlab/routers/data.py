@@ -2,7 +2,7 @@ import os
 import re
 import shutil
 import unicodedata
-
+import json
 import aiofiles
 from datasets import load_dataset, load_dataset_builder
 from fastapi import APIRouter, HTTPException, UploadFile, Query
@@ -20,12 +20,32 @@ router = APIRouter(prefix="/data", tags=["datasets"])
 # Get list of datasets that we have in our hardcoded gallery
 
 
-@router.get("/gallery", summary="Display the datasets available in the dataset gallery.")
-async def dataset_gallery():
-    file_location = os.path.join(dirs.TFL_SOURCE_CODE_DIR,
-                                 "transformerlab", "galleries", "data-gallery.json")
-    return FileResponse(file_location)
+class SuccessResponse(BaseModel):
+    status: str
+    data: Dict[str, Any]
 
+
+class ErrorResponse(BaseModel):
+    status: str
+    message: str
+
+
+@router.get("/gallery", summary="Display the datasets available in the dataset gallery.", responses={200: {"model": SuccessResponse, "description": "Successful response. Data is a list of column names followed by data, which can be of any datatype."},
+                                                                                                     400: {"model": ErrorResponse},
+                                                                                                     })
+async def dataset_gallery() -> Any:
+
+    file_location = os.path.join(
+        dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "data-gallery.json")
+    with open(file_location) as f:
+        gallery = json.load(f)
+    local_datasets = await db.get_datasets()
+
+    local_dataset_names = set(str(dataset['dataset_id'])
+                              for dataset in local_datasets)
+    for dataset in gallery:
+        dataset['downloaded'] = True if dataset['huggingfacerepo'] in local_dataset_names else False
+    return {"status": "success", "data": gallery}
 
 # Get info on dataset from huggingface
 
@@ -58,16 +78,6 @@ async def dataset_info(dataset_id: str):
             "version": ds_builder.info.version,
         }
     return r
-
-
-class SuccessResponse(BaseModel):
-    status: str
-    data: Dict[str, Any]
-
-
-class ErrorResponse(BaseModel):
-    status: str
-    message: str
 
 
 @router.get("/preview", summary="Preview the contents of a dataset.", responses={200: {"model": SuccessResponse, "description": "Successful response. Data is a list of column names followed by data, which can be of any datatype."},
