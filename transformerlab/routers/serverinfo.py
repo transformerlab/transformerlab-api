@@ -1,5 +1,9 @@
 import atexit
+import json
 import platform
+import sys
+import subprocess
+
 
 # Could also use https://github.com/gpuopenanalytics/pynvml but this is simpler
 import psutil
@@ -99,6 +103,17 @@ async def get_computer_information():
     r["gpu"] = g
 
     return r
+
+
+@router.get("/python_libraries")
+async def get_python_library_versions():
+    # get the list of installed python packages
+    packages = subprocess.check_output(
+        sys.executable + " -m pip list --format=json", shell=True)
+
+    packages = packages.decode("utf-8")
+    packages = json.loads(packages)
+    return packages
 
 
 def cleanup_at_exit():
