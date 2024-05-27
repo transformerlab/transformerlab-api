@@ -154,7 +154,7 @@ def get_model_details_from_huggingface(hugging_face_id):
     hf_model_info = huggingface_hub.model_info(hugging_face_id)
     try:
         model_card = hf_model_info.card_data
-        model_card_data = model_card.data.to_dict()
+        model_card_data = model_card.to_dict()
     except AttributeError:
         model_card_data = {}
 
