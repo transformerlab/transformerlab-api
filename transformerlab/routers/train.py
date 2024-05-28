@@ -62,16 +62,16 @@ async def delete_training_template(template_id: str):
     return {"message": "OK"}
 
 
-@router.get("/jobs")
-async def jobs_get_all():
-    jobs = await db.training_jobs_get_all()
-    return jobs
+# @router.get("/jobs")
+# async def jobs_get_all():
+#     jobs = await db.training_jobs_get_all()
+#     return jobs
 
 
-@router.get("/job/delete/{job_id}")
-async def job_delete(job_id: str):
-    await db.job_delete(job_id)
-    return {"message": "OK"}
+# @router.get("/job/delete/{job_id}")
+# async def job_delete(job_id: str):
+#     await db.job_delete(job_id)
+#     return {"message": "OK"}
 
 
 @router.get("/job/create")
@@ -81,10 +81,10 @@ async def job_create(template_id: str, description: str, experiment_id, config: 
     return jobid
 
 
-@router.get("/job/update/{job_id}")
-async def job_update(job_id: str, status: str):
-    await db.job_update_status(job_id, status)
-    return {"message": "OK"}
+# @router.get("/job/update/{job_id}")
+# async def job_update(job_id: str, status: str):
+#     await db.job_update_status(job_id, status)
+#     return {"message": "OK"}
 
 
 @router.get("/job/start_next")
@@ -112,10 +112,10 @@ async def start_next_job():
         return {"message": "No jobs in queue"}
 
 
-@router.get("/job/delete_all")
-async def job_delete_all():
-    await db.job_delete_all()
-    return {"message": "OK"}
+# @router.get("/job/delete_all")
+# async def job_delete_all():
+#     await db.job_delete_all()
+#     return {"message": "OK"}
 
 
 @router.get("/job/{job_id}")
