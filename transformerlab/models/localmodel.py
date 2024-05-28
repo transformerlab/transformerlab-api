@@ -28,7 +28,13 @@ async def list_models(path: str, uninstalled_only: bool = True):
 
             # TODO Verify that this is something we can support
             model = LocalFilesystemModel(path)
-            return [model]
+
+            # Save ourselves some time if we're only looking for uninstalled models
+            installed = await model.is_installed()
+            if uninstalled_only and not installed:
+                return [model]
+            else:
+                return []
 
     except FileNotFoundError:
         # No config.json. Keep going
@@ -43,7 +49,7 @@ async def list_models(path: str, uninstalled_only: bool = True):
         # Try searching through subdirectories
         for entry in dirlist:
             if entry.is_dir():
-                models.extend(await list_models(entry.path))
+                models.extend(await list_models(entry.path, uninstalled_only))
 
         dirlist.close()
 
