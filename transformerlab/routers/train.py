@@ -87,29 +87,29 @@ async def job_create(template_id: str, description: str, experiment_id, config: 
 #     return {"message": "OK"}
 
 
-@router.get("/job/start_next")
-async def start_next_job():
-    num_running_jobs = await db.job_count_running()
-    if num_running_jobs > 0:
-        return {"message": "A job is already running"}
-    nextjob = await db.jobs_get_next_queued_job()
-    if nextjob:
-        print(nextjob)
-        print("Starting job: " + str(nextjob['id']))
-        print(nextjob['job_data'])
-        job_config = json.loads(nextjob['job_data'])
-        print(job_config["template_id"])
-        experiment_id = nextjob["experiment_id"]
-        data = await db.experiment_get(experiment_id)
-        if data is None:
-            return {"message": f"Experiment {id} does not exist"}
-        config = json.loads(data["config"])
+# @router.get("/job/start_next")
+# async def start_next_job():
+#     num_running_jobs = await db.job_count_running()
+#     if num_running_jobs > 0:
+#         return {"message": "A job is already running"}
+#     nextjob = await db.jobs_get_next_queued_job()
+#     if nextjob:
+#         print(nextjob)
+#         print("Starting job: " + str(nextjob['id']))
+#         print(nextjob['job_data'])
+#         job_config = json.loads(nextjob['job_data'])
+#         print(job_config["template_id"])
+#         experiment_id = nextjob["experiment_id"]
+#         data = await db.experiment_get(experiment_id)
+#         if data is None:
+#             return {"message": f"Experiment {id} does not exist"}
+#         config = json.loads(data["config"])
 
-        experiment_name = data["name"]
-        await shared.run_job(job_id=nextjob['id'], job_config=job_config, experiment_name=experiment_name)
-        return nextjob
-    else:
-        return {"message": "No jobs in queue"}
+#         experiment_name = data["name"]
+#         await shared.run_job(job_id=nextjob['id'], job_config=job_config, experiment_name=experiment_name)
+#         return nextjob
+#     else:
+#         return {"message": "No jobs in queue"}
 
 
 # @router.get("/job/delete_all")

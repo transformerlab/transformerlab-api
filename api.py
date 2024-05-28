@@ -66,7 +66,7 @@ async def run_over_and_over():
     """Every three seconds, check for new jobs to run."""
     while True:
         await asyncio.sleep(3)
-        await train.start_next_job()
+        await jobs.start_next_job()
 
 
 description = "Transformerlab API helps you do awesome stuff. 🚀"
