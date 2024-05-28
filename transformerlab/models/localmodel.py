@@ -49,8 +49,6 @@ async def list_models(path: str, uninstalled_only: bool = True):
 
         dirlist.close()
 
-    print(f"Finished scanning {path} for models")
-    print(f"{len(models)} found")
     return models
 
 
