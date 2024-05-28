@@ -515,17 +515,47 @@ async def models_search_for_local_uninstalled():
     return models
 
 
-@router.get("/model/import_local")
-async def model_import_local(model_source: str, model_id: str):
+@router.get("/model/import_from_source")
+async def model_import_local_source(model_source: str, model_id: str):
+    """
+    Given a model_source and a model_id within that source,
+    try to import a file into TransformerLab.
+    """
 
     if model_source not in model_helper.list_model_sources():
         return {"status": "error", "message": f"Invalid model source {model_source}."}
 
     model = model_helper.get_model_by_source_id(model_source, model_id)
-
-    # Only add a row for uninstalled and supported repos
     if not model:
         return {"status": "error", "message": f"{model_id} not found in {model_source}."}
+
+    return await model_import(model)
+
+
+@router.get("/model/import_from_local_path")
+async def model_import_local_path(model_path: str):
+    """
+    Given model_path pointing to a local directory of a file, 
+    try to import a model into TransformerLab.
+    """
+
+    if os.path.isdir(model_path):
+        model = localmodel.LocalFilesystemModel(model_source, model_id)
+    elif os.path.isfile(model_path):
+        model = localmodel.LocalFilesystemGGUFModel(model_source, model_id)
+    else:
+        return {"status": "error", "message": f"Invalid model path {model_path}."}
+
+    return await model_import(model)
+
+
+async def model_import(model: basemodel.BaseModel):
+    """
+    Called by model import endpoints.
+    Takes a BaseMOdel object and uses the information contained within to import.
+    """
+
+    # Only add a row for uninstalled and supported repos
     if model.status != "OK":
         return {"status": "error", "message": model.status}
     if model.architecture == "unknown" or model.architecture == "":
@@ -533,10 +563,10 @@ async def model_import_local(model_source: str, model_id: str):
     if not model_helper.model_architecture_is_supported(model.architecture):
         return {"status": "error", "message": f"Architecture {model.architecture} not supported."}
     if await model.is_installed():
-        return {"status": "error", "message": f"{model_id} is already installed."}
+        return {"status": "error", "message": f"{model.id} is already installed."}
 
-    print(f"Importing {model_id}...")
+    print(f"Importing {model.id}...")
 
-    await model_local_create(id=model_id, name=model.name, json_data=model.json_data)
+    await model_local_create(id=model.id, name=model.name, json_data=model.json_data)
 
-    return {"status": "success", "data": model_id}
+    return {"status": "success", "data": model.id}
