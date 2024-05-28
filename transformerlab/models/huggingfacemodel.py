@@ -81,7 +81,7 @@ class HuggingFaceModel(basemodel.BaseModel):
         except huggingface_hub.utils.EntryNotFoundError:
             # This model is missing key configuration information
             self.status = "Missing configuration file"
-            print(f"WARNING: {hugging_face_id} missing configuration ")
+            print(f"WARNING: {hugging_face_id} missing configuration")
             print(f"{type(e).__name__}: {e}")
 
         except Exception as e:

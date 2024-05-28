@@ -21,27 +21,16 @@ async def list_models(path: str, uninstalled_only: bool = True):
     # First decide if this directory is a model or if any files in it are models
     # 1. If this contains a file called config.json it might be a model
     config_file = os.path.join(path, "config.json")
-    try:
-        with open(config_file, "r") as f:
-            filedata = json.load(f)
-            f.close()
+    if os.path.exists(config_file):
+        # TODO Verify that this is something we can support
+        model = LocalFilesystemModel(path)
 
-            # TODO Verify that this is something we can support
-            model = LocalFilesystemModel(path)
-
-            # Save ourselves some time if we're only looking for uninstalled models
-            installed = await model.is_installed()
-            if uninstalled_only and not installed:
-                return [model]
-            else:
-                return []
-
-    except FileNotFoundError:
-        # No config.json. Keep going
-        pass
-    except json.JSONDecodeError:
-        # Invalid JSON means invlalid model
-        print(f"ERROR: Found invalid config.json in {path}")
+        # Save ourselves some time if we're only looking for uninstalled models
+        installed = await model.is_installed()
+        if uninstalled_only and not installed:
+            return [model]
+        else:
+            return []
 
     models = []
     with os.scandir(path) as dirlist:
@@ -72,10 +61,39 @@ class LocalFilesystemModel(basemodel.BaseModel):
 
         model_details = {}
         architecture = "unknown"
+        context_size = ""
         formats = []
+        quantization = {}
+
+        # Get model details from configuration file
+        config_file = os.path.join(model_path, "config.json")
+        try:
+            with open(config_file, "r") as f:
+                filedata = json.load(f)
+                f.close()
+
+                architecture_list = filedata.get("architectures", [])
+                architecture = architecture_list[0] if architecture_list else ""
+                context_size = filedata.get("max_position_embeddings", "")
+                quantization = filedata.get("quantization", {})
+
+                # TODO: Check formats to make sure this is a valid model
+                # formats = self._detect_model_formats()
+
+        except FileNotFoundError:
+            self.status = "Missing configuration file"
+            print(f"WARNING: {self.id} missing configuration")
+
+        except json.JSONDecodeError:
+            # Invalid JSON means invlalid model
+            self.status = "{self.id} has invalid JSON for configuration"
+            print(f"ERROR: Invalid config.json in {model_path}")
 
         self.architecture = architecture
         self.formats = formats
+
+        self.json_data["context_size"] = context_size
+        self.json_data["quantization"] = quantization
 
         # TODO: This is a HACK! Need to not have two sources for these fields
         self.json_data["architecture"] = self.architecture
