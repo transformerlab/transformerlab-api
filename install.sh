@@ -92,6 +92,24 @@ unset_conda_for_sure() {
   unset PYTHONHOME
 }
 
+# We've seen users who installed conda using root have problems if their
+# ~/.conda directory is not writable. This checks for that.
+check_if_conda_envronments_dot_text_is_writable() {
+    # Check if a file called ~/.conda/environments.txt exists:
+  if [ -f "$HOME/.conda/environments.txt" ]; then
+    # Now check if it is writable:
+    if [ -w "$HOME/.conda/environments.txt" ]; then
+      echo -n
+      # echo "✅ The file ~/.conda/environments.txt is writable."
+    else
+      abort "❌ The file $HOME/.conda/environments.txt exists but is not writable. Please run [sudo chown -R \$USER ~/.conda] in the terminal to fix conda permissions."
+    fi
+  else
+    echo -n
+    # echo "The file $HOME/.conda/environments.txt does not exist. No problem we will create it below"
+  fi
+}
+
 # First check OS.
 # WSL will return "Linux" which is OK. We will check KERNEL to detect WSL.
 OS="$(uname)"
@@ -188,21 +206,12 @@ install_conda() {
 create_conda_environment() {
   title "Step 3: Create the Conda Environment"
 
-  # # Check if conda activate file exists:
-  # if [ ! -f "$MINICONDA_ROOT/bin/activate" ]; then
-  #     echo "Conda is installed but it's not stored in $$MINICONDA_ROOT"
-  #     CONDA_BASE=$(conda info --base)
-  #     echo "Conda is installed here: $CONDA_BASE"
-  #     source $CONDA_BASE/etc/profile.d/conda.sh
-  # else
-  #     # activate the conda base env
-  #     source $MINICONDA_ROOT/etc/profile.d/conda.sh
-  # fi
-  
+  check_if_conda_envronments_dot_text_is_writable
 
   check_conda
 
   unset_conda_for_sure
+
   eval "$(${CONDA_BIN} shell.bash hook)"
 
   conda info --envs
@@ -219,12 +228,6 @@ create_conda_environment() {
   echo conda activate "$ENV_DIR"
   conda activate "$ENV_DIR"
 
-  # # Check if the conda environment is activated:
-  # if [[ "$CONDA_DEFAULT_ENV" == "$ENV_DIR" ]]; then
-  #   ohai "✅ Conda environment is activated."
-  # else
-  #   abort "❌ Conda environment is not activated. Please run 'conda activate $ENV_DIR' and try again."
-  # fi
 }
 
 ##############################
@@ -296,6 +299,7 @@ list_installed_packages() {
 }
 
 list_environments() {
+  check_if_conda_envronments_dot_text_is_writable
   unset_conda_for_sure
   eval "$(${CONDA_BIN} shell.bash hook)"
   conda env list
