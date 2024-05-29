@@ -31,12 +31,22 @@ async def list_models(uninstalled_only: bool = True):
 
         model = HuggingFaceModel(repo.repo_id)
 
-        # Save ourselves some time if we're only looking for uninstalled models
-        installed = await model.is_installed()
-        if uninstalled_only and installed:
-            continue
+        # Check if this model is only GGUF files, in which case handle those separately
+        gguf_only = (len(model.formats) == 1) and (model.formats[0] == "GGUF")
+        if not gguf_only:
 
-        models.append(model)
+            # Regular (i.e. not GGUF only) model
+            # Check if it's installed already if we are filtering on that
+            installed = await model.is_installed()
+            if not uninstalled_only or not installed:
+                models.append(model)
+
+        # If this repo is tagged GGUF then it might contain multiple
+        # GGUF files each of which is a potential model to import
+        if "GGUF" in model.formats:
+            # TODO: This requires making a new Model class or using LocalGGUFModel
+            # Not trivial given how we currently download GGUF in to workspace/models
+            pass
 
     return models
 
