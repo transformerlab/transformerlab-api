@@ -494,6 +494,7 @@ async def models_list_local_uninstalled(path: str = ""):
         new_model = {
             "id": found_model.id,
             "name": found_model.name,
+            "path": found_model.json_data.get("source_id_or_path", found_model.id),
             "architecture": architecture,
             "source": found_model.model_source,
             "installed": False,
