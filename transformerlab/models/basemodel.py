@@ -94,6 +94,10 @@ class BaseModel:
         return db_model is not None
 
 
+    async def install(self):
+        await db.model_local_create(model_id=self.id, name=self.name, json_data=self.json_data)
+
+
     def get_model_path(self):
         '''
         Returns ID of model in source OR absolute path to file or directory that contains model.

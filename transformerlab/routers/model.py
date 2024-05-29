@@ -568,6 +568,6 @@ async def model_import(model: basemodel.BaseModel):
 
     print(f"Importing {model.id}...")
 
-    await model_local_create(id=model.id, name=model.name, json_data=model.json_data)
+    await model.install()
 
     return {"status": "success", "data": model.id}
