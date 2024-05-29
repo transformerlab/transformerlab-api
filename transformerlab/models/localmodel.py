@@ -52,7 +52,7 @@ async def list_models(path: str, uninstalled_only: bool = True):
 class LocalFilesystemModel(basemodel.BaseModel):
     def __init__(self, model_path):
 
-        # The ID for this model will be the file or directory name without path
+        # The ID for this model will be the directory name without path
         model_id = os.path.basename(model_path)
 
         super().__init__(model_id)
@@ -62,6 +62,7 @@ class LocalFilesystemModel(basemodel.BaseModel):
 
         self.model_source = "local"
         self.source_id_or_path = model_path
+        self.model_filename = model_path
 
         architecture = "unknown"
         context_size = ""
@@ -109,7 +110,7 @@ class LocalFilesystemModel(basemodel.BaseModel):
 class LocalFilesystemGGUFModel(basemodel.BaseModel):
     def __init__(self, model_path):
 
-        # The ID for this model will be the file or directory name without path
+        # The ID for this model will be the filename without path
         model_id = os.path.basename(model_path)
 
         super().__init__(model_id)
@@ -119,6 +120,7 @@ class LocalFilesystemGGUFModel(basemodel.BaseModel):
 
         self.model_source = "local"
         self.source_id_or_path = model_path
+        self.model_filename = model_path
 
         # TODO: Pull data from model metadata?
         architecture = "unknown"
@@ -135,7 +137,6 @@ class LocalFilesystemGGUFModel(basemodel.BaseModel):
 
         self.architecture = architecture
         self.formats = formats
-        self.model_filename = model_path
 
         # TODO: This is a HACK! Need to not have two sources for these fields
         self.json_data["architecture"] = self.architecture
