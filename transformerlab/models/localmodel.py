@@ -7,8 +7,7 @@ async def list_models(path: str, uninstalled_only: bool = True):
     """
     This function recursively calls itself to generate a list of models under path.
     First try to determine if this directory is itself a model (and then check
-    to see if we can support it).
-    If this directory is not a model then search subdirectories for models.
+    to see if we can support it). Then search subdirectories for models.
     NOTE: If you pass this a directory with a large tree under it, this can take 
     a long time to run!
     """
@@ -26,8 +25,6 @@ async def list_models(path: str, uninstalled_only: bool = True):
         installed = await model.is_installed()
         if uninstalled_only and not installed:
             return [model]
-        else:
-            return []
 
     # Otherwise scan this directory for single-file models 
     # And then scan subdirectories recursively
