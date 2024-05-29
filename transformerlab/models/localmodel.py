@@ -23,7 +23,7 @@ async def list_models(path: str, uninstalled_only: bool = True):
 
         # Save ourselves some time if we're only looking for uninstalled models
         installed = await model.is_installed()
-        if uninstalled_only and not installed:
+        if not uninstalled_only or not installed:
             return [model]
 
     # Otherwise scan this directory for single-file models 
@@ -40,7 +40,7 @@ async def list_models(path: str, uninstalled_only: bool = True):
                 if fileext.lower() == ".gguf" or fileext.lower() == ".ggml":
                     model = LocalFilesystemGGUFModel(entry.path)
                     installed = await model.is_installed()
-                    if uninstalled_only and not installed:
+                    if not uninstalled_only or not installed:
                         models.append(model)
 
 
