@@ -188,18 +188,6 @@ install_conda() {
 create_conda_environment() {
   title "Step 3: Create the Conda Environment"
 
-  # # Check if conda activate file exists:
-  # if [ ! -f "$MINICONDA_ROOT/bin/activate" ]; then
-  #     echo "Conda is installed but it's not stored in $$MINICONDA_ROOT"
-  #     CONDA_BASE=$(conda info --base)
-  #     echo "Conda is installed here: $CONDA_BASE"
-  #     source $CONDA_BASE/etc/profile.d/conda.sh
-  # else
-  #     # activate the conda base env
-  #     source $MINICONDA_ROOT/etc/profile.d/conda.sh
-  # fi
-  
-
   check_conda
 
   unset_conda_for_sure
@@ -219,12 +207,6 @@ create_conda_environment() {
   echo conda activate "$ENV_DIR"
   conda activate "$ENV_DIR"
 
-  # # Check if the conda environment is activated:
-  # if [[ "$CONDA_DEFAULT_ENV" == "$ENV_DIR" ]]; then
-  #   ohai "✅ Conda environment is activated."
-  # else
-  #   abort "❌ Conda environment is not activated. Please run 'conda activate $ENV_DIR' and try again."
-  # fi
 }
 
 ##############################
