@@ -130,6 +130,8 @@ class LocalFilesystemGGUFModel(basemodel.BaseModel):
         if os.path.isfile(model_path):
             architecture = "GGUF"
             formats = ["GGUF"]
+        else:
+            self.status = f"Invalid GGUF model: {model_path}"
 
         self.architecture = architecture
         self.formats = formats
