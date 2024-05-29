@@ -92,6 +92,24 @@ unset_conda_for_sure() {
   unset PYTHONHOME
 }
 
+# We've seen users who installed conda using root have problems if their
+# ~/.conda directory is not writable. This checks for that.
+check_if_conda_envronments_dot_text_is_writable() {
+    # Check if a file called ~/.conda/environments.txt exists:
+  if [ -f "$HOME/.conda/environments.txt" ]; then
+    # Now check if it is writable:
+    if [ -w "$HOME/.conda/environments.txt" ]; then
+      echo -n
+      # echo "✅ The file ~/.conda/environments.txt is writable."
+    else
+      abort "❌ The file $HOME/.conda/environments.txt exists but is not writable. Please run [sudo chown -R \$USER ~/.conda] in the terminal to fix conda permissions."
+    fi
+  else
+    echo -n
+    # echo "The file $HOME/.conda/environments.txt does not exist. No problem we will create it below"
+  fi
+}
+
 # First check OS.
 # WSL will return "Linux" which is OK. We will check KERNEL to detect WSL.
 OS="$(uname)"
@@ -188,9 +206,12 @@ install_conda() {
 create_conda_environment() {
   title "Step 3: Create the Conda Environment"
 
+  check_if_conda_envronments_dot_text_is_writable
+
   check_conda
 
   unset_conda_for_sure
+
   eval "$(${CONDA_BIN} shell.bash hook)"
 
   conda info --envs
@@ -278,6 +299,7 @@ list_installed_packages() {
 }
 
 list_environments() {
+  check_if_conda_envronments_dot_text_is_writable
   unset_conda_for_sure
   eval "$(${CONDA_BIN} shell.bash hook)"
   conda env list
