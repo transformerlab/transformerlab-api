@@ -480,11 +480,11 @@ async def models_list_local_uninstalled(path: str = ""):
     response_models = []
     for found_model in found_models:
         # Figure out if this model is supported in TransformerLab
-        architecture = found_model.architecture
+        architecture = found_model.json_data.get("architecture", "unknown")
         supported = model_helper.model_architecture_is_supported(architecture)
         if (found_model.status != "OK"):
             status = f"❌ {found_model.status}"
-        elif found_model.architecture == "unknown" or found_model.architecture == "":
+        elif architecture == "unknown" or architecture == "":
             status = "❌ Unknown architecture"
         elif not supported:
             status = f"❌ {architecture}"
@@ -496,7 +496,7 @@ async def models_list_local_uninstalled(path: str = ""):
             "name": found_model.name,
             "path": found_model.json_data.get("source_id_or_path", found_model.id),
             "architecture": architecture,
-            "source": found_model.model_source,
+            "source": found_model.json_data.get("source", "unknown"),
             "installed": False,
             "status": status,
             "supported": supported
@@ -557,14 +557,15 @@ async def model_import(model: basemodel.BaseModel):
     """
 
     # Only add a row for uninstalled and supported repos
+    architecture = model.json_data.get("architecture", "unknown");
     if model.status != "OK":
         return {"status": "error", "message": model.status}
-    if model.architecture == "unknown" or model.architecture == "":
-        return {"status": "error", "message": f"Unable to determine model architecture."}
-    if not model_helper.model_architecture_is_supported(model.architecture):
-        return {"status": "error", "message": f"Architecture {model.architecture} not supported."}
     if await model.is_installed():
         return {"status": "error", "message": f"{model.id} is already installed."}
+    if architecture == "unknown" or architecture == "":
+        return {"status": "error", "message": f"Unable to determine model architecture."}
+    if not model_helper.model_architecture_is_supported(architecture):
+        return {"status": "error", "message": f"Architecture {architecture} not supported."}
 
     print(f"Importing {model.id}...")
 
