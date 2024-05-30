@@ -57,10 +57,10 @@ class LocalFilesystemModel(basemodel.BaseModel):
 
         super().__init__(model_id)
 
-        architecture = "unknown"
-        context_size = ""
-        formats = []
-        quantization = {}
+        # model_path is the key piece of data for local models
+        self.json_data["source"] = "local"
+        self.json_data["source_id_or_path"] = model_path
+        self.json_data["model_filename"] = model_path
 
         # Get model details from configuration file
         config_file = os.path.join(model_path, "config.json")
@@ -70,12 +70,11 @@ class LocalFilesystemModel(basemodel.BaseModel):
                 f.close()
 
                 architecture_list = filedata.get("architectures", [])
-                architecture = architecture_list[0] if architecture_list else ""
-                context_size = filedata.get("max_position_embeddings", "")
-                quantization = filedata.get("quantization", {})
+                self.json_data["architecture"] = architecture_list[0] if architecture_list else ""
+                self.json_data["context_size"] = filedata.get("max_position_embeddings", "")
+                self.json_data["quantization"] = filedata.get("quantization", {})
 
-                # TODO: Check formats to make sure this is a valid model
-                # formats = self._detect_model_formats()
+                # TODO: Check formats to make sure this is a valid model?
 
         except FileNotFoundError:
             self.status = "Missing configuration file"
@@ -86,20 +85,6 @@ class LocalFilesystemModel(basemodel.BaseModel):
             self.status = "{self.id} has invalid JSON for configuration"
             print(f"ERROR: Invalid config.json in {model_path}")
 
-        self.architecture = architecture
-        self.formats = formats
-
-        # TODO: This is a HACK! Need to not have two sources for these fields
-        self.json_data["architecture"] = architecture
-        self.json_data["formats"] = formats
-        self.json_data["source"] = "local"
-        self.json_data["source_id_or_path"] = model_path
-        self.json_data["model_filename"] = model_path
-
-        # More data from config file
-        self.json_data["context_size"] = context_size
-        self.json_data["quantization"] = quantization
-
 
 class LocalFilesystemGGUFModel(basemodel.BaseModel):
     def __init__(self, model_path):
@@ -109,19 +94,14 @@ class LocalFilesystemGGUFModel(basemodel.BaseModel):
 
         super().__init__(model_id)
 
-        # TODO: Pull data from model metadata?
-        architecture = "unknown"
-        formats = []
-
         # Get model details from configuration file
         if os.path.isfile(model_path):
             architecture = "GGUF"
             formats = ["GGUF"]
         else:
             self.status = f"Invalid GGUF model: {model_path}"
-
-        self.architecture = architecture
-        self.formats = formats
+            architecture = "unknown"
+            formats = []
 
         # TODO: This is a HACK! Need to not have two sources for these fields
         self.json_data["architecture"] = architecture
