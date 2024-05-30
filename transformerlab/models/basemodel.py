@@ -15,21 +15,26 @@ class BaseModel:
     Properties:
     id:             Unique Transformer Lab model identifier
     name:           Printable name for the model (how it appears in the app)
+    status:         A text string that is either "OK" or contains and error message
     architecture:   A string describing the model architecture used to determine
                     support for the model and how to run
     formats:        A array of strings describing the file format used to store model
                     weights. This can be "safetensors", "bin", "gguf", "mlx".
-    status:         A text string that is either "OK" or contains and error message
 
-    model_source:   Where the model is stored ("huggingface", "local", etc.)
+    json_data:      an unstructured data blob that can contain any data relevant 
+                    to the model or its model_source.
+
+    JSON FIELDS:
+    While the json_data blob is completely flexible, there are certain fields
+    that are expected to be present on functioning models including:
+
+    source:         Where the model is stored ("huggingface", "local", etc.)
     source_id_or_path:
                     The id of this model in it source (or path for local files)
     model_filename: With source_id_or_path, a specific filename for this model.
                     For example, GGUF repos have several files representing
                     different versions of teh model.
 
-    json_data:      an unstructured data blob that can contain any data relevant 
-                    to the model or its model_source.
     """
 
     
@@ -49,10 +54,6 @@ class BaseModel:
         self.formats = []
         self.status = "OK"
 
-        self.model_source = None
-        self.source_id_or_path = id
-        self.model_filename = None
-
         # While json_data is unstructured and flexible
         # These are the fields that the app generally expects to exist
         self.json_data = {
@@ -63,8 +64,8 @@ class BaseModel:
             "description": "",
             "architecture": self.architecture,
             "formats": self.formats,
-            "source": self.model_source,
-            "source_id_or_path": self.source_id_or_path,
+            "source": None,
+            "source_id_or_path": id,
             "huggingface_repo": "",
 
             "parameters": "",
@@ -104,10 +105,12 @@ class BaseModel:
         Most subclasses will probably want to override this so TransformerLab knows where to
         find the model.
         '''
-        if self.model_filename:
-            return os.path.join(self.source_id_or_path, self.model_filename)
+        source_id_or_path = self.json_data.get("source_id_or_path", self.id)
+        model_filename = self.json_data.get("model_filename", "")
+        if model_filename:
+            return os.path.join(source_id_or_path, model_filename)
         else:
-            return self.source_id_or_path
+            return source_id_or_path
 
 
 # MODEL UTILITY FUNCTIONS
