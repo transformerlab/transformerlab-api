@@ -34,24 +34,16 @@ class OllamaModel(basemodel.BaseModel):
         self.id = f"{ollama_id}"
         self.name = f"{ollama_id} - GGUF"
 
-        # Assume all models from Ollama are GGUF
-        self.architecture = "GGUF"
-        self.formats = ["gguf"]
-
-        self.model_source = "ollama"
-        self.source_id_or_path = ollama_id
-        self.model_filename = self.get_model_path()
-
         # inherit json_data from the parent and only update specific fields
         self.json_data["uniqueID"] = self.id
         self.json_data["name"] = self.name
 
-        # TODO: These fields shouldn't be duplicated
-        self.json_data["architecture"] = self.architecture
-        self.json_data["formats"] = self.formats
-        self.json_data["source"] = self.model_source
-        self.json_data["source_id_or_path"] = self.source_id_or_path
-        self.json_data["model_filename"] = self.model_filename
+        # Assume all models from ollama are GGUF
+        self.json_data["architecture"] = "GGUF"
+        self.json_data["formats"] = ["GGUF"]
+        self.json_data["source"] = "ollama"
+        self.json_data["source_id_or_path"] = ollama_id
+        self.json_data["model_filename"] = self.get_model_path()
 
 
     # This returns just the filename of the blob containing the actual model
@@ -59,15 +51,14 @@ class OllamaModel(basemodel.BaseModel):
     def _get_model_blob_filename(self):
         # Get the path to the manifest file
         library_dir = ollama_models_library_dir()
+        ollamaid = self.json_data.get("source_id_or_path", self.id)
+
         if not library_dir:
             print(f"Error getting {self.id}: failed to find ollama library")
             return None
-        if not self.source_id_or_path:
-            print(f"Error getting {self.id}: no source_id_or_path set")
-            return None
 
         # Read in the manifest file
-        manifestfile = os.path.join(library_dir, self.source_id_or_path, "latest")
+        manifestfile = os.path.join(library_dir, ollamaid, "latest")
         try:
             with open(manifestfile, "r") as f:
                 filedata = json.load(f)
@@ -95,8 +86,9 @@ class OllamaModel(basemodel.BaseModel):
 
 
     def get_model_path(self):
-        if self.model_filename:
-            return self.model_filename
+        model_filename = self.json_data.get("model_filename", "")
+        if model_filename:
+            return model_filename
         else:
             models_dir = ollama_models_dir()
             blobs_dir = os.path.join(models_dir, "blobs")
