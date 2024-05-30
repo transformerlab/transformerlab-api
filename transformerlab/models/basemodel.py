@@ -16,11 +16,6 @@ class BaseModel:
     id:             Unique Transformer Lab model identifier
     name:           Printable name for the model (how it appears in the app)
     status:         A text string that is either "OK" or contains and error message
-    architecture:   A string describing the model architecture used to determine
-                    support for the model and how to run
-    formats:        A array of strings describing the file format used to store model
-                    weights. This can be "safetensors", "bin", "gguf", "mlx".
-
     json_data:      an unstructured data blob that can contain any data relevant 
                     to the model or its model_source.
 
@@ -34,6 +29,10 @@ class BaseModel:
     model_filename: With source_id_or_path, a specific filename for this model.
                     For example, GGUF repos have several files representing
                     different versions of teh model.
+    architecture:   A string describing the model architecture used to determine
+                    support for the model and how to run
+    formats:        A array of strings describing the file format used to store model
+                    weights. This can be "safetensors", "bin", "gguf", "mlx".
 
     """
 
@@ -50,8 +49,6 @@ class BaseModel:
 
         self.id = id
         self.name = id
-        self.architecture = "unknown"
-        self.formats = []
         self.status = "OK"
 
         # While json_data is unstructured and flexible
@@ -62,8 +59,8 @@ class BaseModel:
 
             "name": self.id,
             "description": "",
-            "architecture": self.architecture,
-            "formats": self.formats,
+            "architecture": "unknown",
+            "formats": []],
             "source": None,
             "source_id_or_path": id,
             "huggingface_repo": "",
