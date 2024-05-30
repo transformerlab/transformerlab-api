@@ -60,7 +60,7 @@ class BaseModel:
             "name": self.id,
             "description": "",
             "architecture": "unknown",
-            "formats": []],
+            "formats": [],
             "source": None,
             "source_id_or_path": id,
             "huggingface_repo": "",
