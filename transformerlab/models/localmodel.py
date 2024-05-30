@@ -57,13 +57,6 @@ class LocalFilesystemModel(basemodel.BaseModel):
 
         super().__init__(model_id)
 
-        self.id = model_id
-        self.name = model_id
-
-        self.model_source = "local"
-        self.source_id_or_path = model_path
-        self.model_filename = model_path
-
         architecture = "unknown"
         context_size = ""
         formats = []
@@ -96,15 +89,16 @@ class LocalFilesystemModel(basemodel.BaseModel):
         self.architecture = architecture
         self.formats = formats
 
+        # TODO: This is a HACK! Need to not have two sources for these fields
+        self.json_data["architecture"] = architecture
+        self.json_data["formats"] = formats
+        self.json_data["source"] = "local"
+        self.json_data["source_id_or_path"] = model_path
+        self.json_data["model_filename"] = model_path
+
+        # More data from config file
         self.json_data["context_size"] = context_size
         self.json_data["quantization"] = quantization
-
-        # TODO: This is a HACK! Need to not have two sources for these fields
-        self.json_data["architecture"] = self.architecture
-        self.json_data["formats"] = self.formats
-        self.json_data["source"] = self.model_source
-        self.json_data["source_id_or_path"] = self.source_id_or_path
-        self.json_data["model_filename"] = self.model_filename
 
 
 class LocalFilesystemGGUFModel(basemodel.BaseModel):
@@ -115,18 +109,9 @@ class LocalFilesystemGGUFModel(basemodel.BaseModel):
 
         super().__init__(model_id)
 
-        self.id = model_id
-        self.name = model_id
-
-        self.model_source = "local"
-        self.source_id_or_path = model_path
-        self.model_filename = model_path
-
         # TODO: Pull data from model metadata?
         architecture = "unknown"
-        context_size = ""
         formats = []
-        quantization = {}
 
         # Get model details from configuration file
         if os.path.isfile(model_path):
@@ -139,10 +124,8 @@ class LocalFilesystemGGUFModel(basemodel.BaseModel):
         self.formats = formats
 
         # TODO: This is a HACK! Need to not have two sources for these fields
-        self.json_data["architecture"] = self.architecture
-        self.json_data["formats"] = self.formats
-        self.json_data["context_size"] = context_size
-        self.json_data["quantization"] = quantization
-        self.json_data["source"] = self.model_source
-        self.json_data["source_id_or_path"] = self.source_id_or_path
-        self.json_data["model_filename"] = self.model_filename
+        self.json_data["architecture"] = architecture
+        self.json_data["formats"] = formats
+        self.json_data["source"] = "local"
+        self.json_data["source_id_or_path"] = model_path
+        self.json_data["model_filename"] = model_path
