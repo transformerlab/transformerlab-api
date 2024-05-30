@@ -32,7 +32,8 @@ async def list_models(uninstalled_only: bool = True):
         model = HuggingFaceModel(repo.repo_id)
 
         # Check if this model is only GGUF files, in which case handle those separately
-        gguf_only = (len(model.formats) == 1) and (model.formats[0] == "GGUF")
+        formats = model.json_data.get("formats", [])
+        gguf_only = (len(formats) == 1) and (formats[0] == "GGUF")
         if not gguf_only:
 
             # Regular (i.e. not GGUF only) model
@@ -43,7 +44,7 @@ async def list_models(uninstalled_only: bool = True):
 
         # If this repo is tagged GGUF then it might contain multiple
         # GGUF files each of which is a potential model to import
-        if "GGUF" in model.formats:
+        if "GGUF" in formats:
             # TODO: This requires making a new Model class or using LocalGGUFModel
             # Not trivial given how we currently download GGUF in to workspace/models
             pass
@@ -56,20 +57,20 @@ class HuggingFaceModel(basemodel.BaseModel):
     def __init__(self, hugging_face_id):
         super().__init__(hugging_face_id)
 
+        # HuggingFace models just need the repo_id to load
+        self.json_data["source"] = "huggingface"
+        self.json_data["source_id_or_path"] = hugging_face_id
+        self.json_data["model_filename"] = None # TODO: What about GGUF?
+
         # We need to access the huggingface_hub to figure out more model details
+        # We'll get details and merge them with our json_data
+        # Calling huggingface_hub functions can throw a number of exceptions
         model_details = {}
-        architecture = "unknown"
-        formats = []
         private = False
         gated = False
-
-        # Calling huggingface_hub functions can throw a number of exceptions
         try:
             model_details = get_model_details_from_huggingface(hugging_face_id)
-            architecture = model_details.get("architecture", "unknown")
-            gated = model_details.get("private", False)
-            private = model_details.get("gated", False)
-            formats = self._detect_model_formats()
+            self.json_data["formats"] = self._detect_model_formats()
 
         except huggingface_hub.utils.GatedRepoError:
             # Model exists but this user is not on the authorized list
@@ -101,16 +102,6 @@ class HuggingFaceModel(basemodel.BaseModel):
             self.json_data["name"] = hugging_face_id
             self.json_data["private"] = private
             self.json_data["gated"] = gated
-
-        self.architecture = architecture
-        self.formats = formats
-
-        # TODO: This is a HACK! Need to not have two sources for these fields
-        self.json_data["architecture"] = self.architecture
-        self.json_data["formats"] = self.formats
-        self.json_data["source"] = "huggingface"
-        self.json_data["source_id_or_path"] = hugging_face_id
-        self.json_data["model_filename"] = None # TODO: What about GGUF?
 
 
     def _detect_model_formats(self):
