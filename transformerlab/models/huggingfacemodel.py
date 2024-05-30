@@ -56,12 +56,6 @@ class HuggingFaceModel(basemodel.BaseModel):
     def __init__(self, hugging_face_id):
         super().__init__(hugging_face_id)
 
-        self.id = hugging_face_id
-        self.name = hugging_face_id
-
-        self.model_source = "huggingface"
-        self.source_id_or_path = hugging_face_id
-
         # We need to access the huggingface_hub to figure out more model details
         model_details = {}
         architecture = "unknown"
@@ -111,18 +105,12 @@ class HuggingFaceModel(basemodel.BaseModel):
         self.architecture = architecture
         self.formats = formats
 
-        # Additional json_data
-        # self.json_data["size_on_disk"] = repo.size_on_disk
-
-        # TODO: filename needed for GGUF
-        self.model_filename = None
-
         # TODO: This is a HACK! Need to not have two sources for these fields
         self.json_data["architecture"] = self.architecture
         self.json_data["formats"] = self.formats
-        self.json_data["source"] = self.model_source
-        self.json_data["source_id_or_path"] = self.source_id_or_path
-        self.json_data["model_filename"] = self.model_filename
+        self.json_data["source"] = "huggingface"
+        self.json_data["source_id_or_path"] = hugging_face_id
+        self.json_data["model_filename"] = None # TODO: What about GGUF?
 
 
     def _detect_model_formats(self):
@@ -130,10 +118,14 @@ class HuggingFaceModel(basemodel.BaseModel):
         Scans the files in the HuggingFace repo to try to determine the format
         of the model.
         """
-        detected_formats = []
-
         # Get a list of files in this model and iterate over them
-        repo_files = huggingface_hub.list_repo_files(self.source_id_or_path)
+        source_id_or_path = self.json_data.get("source_id_or_path", self.id)
+        try:
+            repo_files = huggingface_hub.list_repo_files(source_id_or_path)
+        except:
+            return []
+
+        detected_formats = []
         for repo_file in repo_files:
             format = basemodel.get_model_file_format(repo_file)
 
