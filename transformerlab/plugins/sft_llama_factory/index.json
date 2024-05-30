@@ -1,0 +1,89 @@
+{
+  "name": "(WIP) SFT Training - Llama Factory (not ready for production use)",
+  "uniqueId": "sft_llama_factory",
+  "description": "An implementation of Supervised Finetuning using Llama Factory. This plugin is not ready for production use -- it only implements a demo finetune right now. Requires a GPU.",
+  "plugin-format": "python",
+  "type": "trainer",
+  "version": "0.0.1",
+  "model_architectures": [
+    "LlamaForCausalLM",
+    "MistralForCausalLM",
+    "MixtralForCausalLM",
+    "PhiForCausalLM"
+  ],
+  "files": ["main.py", "setup.sh"],
+  "setup-script": "setup.sh",
+  "parameters": {
+    "lora_layers": {
+      "title": "LoRA Layers",
+      "type": "integer",
+      "default": 16,
+      "minimum": 4,
+      "maximum": 64
+    },
+    "batch_size": {
+      "title": "Batch Size",
+      "type": "integer",
+      "default": 4,
+      "minimum": 1,
+      "maximum": 8
+    },
+    "learning_rate": {
+      "title": "Learning Rate",
+      "type": "number",
+      "default": 5e-5,
+      "minimum": 1e-6,
+      "maximum": 1e6
+    },
+    "iters": {
+      "title": "Iterations",
+      "type": "integer",
+      "default": 1000,
+      "minimum": 1,
+      "maximum": 1000000
+    },
+    "steps_per_report": {
+      "title": "Steps per Report",
+      "type": "integer",
+      "default": 100,
+      "minimum": 1
+    },
+    "steps_per_eval": {
+      "title": "Steps per Evaluation",
+      "type": "integer",
+      "default": 200,
+      "minimum": 1
+    },
+    "save_every": {
+      "title": "Save Every",
+      "type": "integer",
+      "default": 100,
+      "minimum": 1
+    },
+    "adaptor_name": {
+      "title": "Adaptor Name",
+      "type": "string",
+      "required": true
+    }
+  },
+  "parameters_ui": {
+    "lora_layers": {
+      "ui:help": "Default fine-tune layers is 16. Setting to 8 or 4 reduces memory needed for back propagation, but may reduce the quality if you are tuning with a lot of data."
+    },
+    "batch_size": {
+      "ui:help": "Default batch is 4. Setting this to 2 or 1 will reduce memory consumption but may slow performance."
+    },
+    "learning_rate": {
+      "ui:help": "Adam Learning rate."
+    },
+    "iters": {
+      "ui:help": "Number of iterations (not epochs) to train -- 1000 could be a starting point."
+    },
+    "steps_per_report": {
+      "ui:help": "Number of training steps between loss reporting."
+    },
+    "steps_per_eval": {
+      "ui:help": "Number of training steps between validations."
+    }
+  }
+}
