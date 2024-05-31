@@ -29,7 +29,7 @@ async def init():
 
     try:
         await db.execute(
-            """ALTER TABLE dataset ADD COLUMN json_data TEXT DEFAULT '{}'"""
+            """ALTER TABLE dataset ADD COLUMN json_data JSON"""
         )
     except sqlite3.OperationalError as e:
         if 'duplicate column name' in str(e):
