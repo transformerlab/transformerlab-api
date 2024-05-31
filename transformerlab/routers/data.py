@@ -56,7 +56,6 @@ async def dataset_info(dataset_id: str):
 
     if d is None:
         return {}
-
     r = {}
     # This means it is a custom dataset the user uploaded
     if d["location"] == "local":
@@ -64,7 +63,10 @@ async def dataset_info(dataset_id: str):
         # print(dataset['train'].features)
         r["features"] = dataset["train"].features
     else:
-        ds_builder = load_dataset_builder(dataset_id)
+        if (dataset_id == "wikipedia"):
+            ds_builder = load_dataset_builder(dataset_id, "20220301.en")
+        else:
+            ds_builder = load_dataset_builder(dataset_id)
         r = {
             "description": ds_builder.info.description,
             "features": ds_builder.info.features,
@@ -102,7 +104,10 @@ async def dataset_preview(dataset_id: str = Query(description="The ID of the dat
         result['columns'] = dataset["train"][offset:min(
             offset+limit, dataset_len)]
     else:
-        dataset = load_dataset(dataset_id)
+        if (dataset_id == "wikipedia"):
+            dataset = load_dataset(dataset_id, "20220301.en")
+        else:
+            dataset = load_dataset(dataset_id)
         dataset_len = len(dataset["train"])
         result['columns'] = dataset["train"][offset:min(
             offset+limit, dataset_len)]
@@ -119,11 +124,13 @@ async def dataset_download(dataset_id: str):
         return {"status": "error", "message": f"A dataset with the name {dataset_id} already exists"}
 
     try:
-        dataset = load_dataset(dataset_id)
-        ds_builder = load_dataset_builder(dataset_id)
+        if (dataset_id == "wikipedia"):
+            ds_builder = load_dataset_builder(dataset_id, "20220301.en")
+        else:
+            ds_builder = load_dataset_builder(dataset_id)
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
-        return {"status": "error", "message":  error_msg}
+        return {"status": "error", "message": error_msg}
 
     dataset_size = ds_builder.info.download_size
     if not dataset_size:
