@@ -24,8 +24,17 @@ async def init():
         "CREATE TABLE IF NOT EXISTS model(id INTEGER PRIMARY KEY, model_id UNIQUE, name, json_data JSON)"
     )
     await db.execute(
-        "CREATE TABLE IF NOT EXISTS dataset(id INTEGER PRIMARY KEY, dataset_id UNIQUE, location, description, size, json_data JSON)"
+        "CREATE TABLE IF NOT EXISTS dataset(id INTEGER PRIMARY KEY, dataset_id UNIQUE, location, description, size)"
     )
+
+    try:
+        await db.execute(
+            """ALTER TABLE dataset ADD COLUMN json_data TEXT DEFAULT '{}'"""
+        )
+    except sqlite3.OperationalError as e:
+        if 'duplicate column name' in str(e):
+            pass
+
     await db.execute(
         """CREATE TABLE IF NOT EXISTS 
                      training_template
@@ -119,25 +128,7 @@ async def close():
 ###############
 
 
-async def get_dataset(dataset_id, json_data):
-    try:
-        await db.execute(
-            """
-        ALTER TABLE dataset ADD COLUMN json_data TEXT DEFAULT '{}'
-        """
-        )
-        await db.commit()
-        # json_data is the entire gallery
-        json_data_dict = {data.get('huggingfacerepo'): data for data in json_data}
-        data = json_data_dict.get(dataset_id)
-        if data is not None:
-            update_db_gallery_data(dataset_id, data)
-        # if its a custom dataset
-        else:
-            update_db_gallery_data(dataset_id, "{}")
-    except sqlite3.OperationalError as e:
-        if 'duplicate column name' in str(e):
-            pass
+async def get_dataset(dataset_id):
     cursor = await db.execute(
         "SELECT * FROM dataset WHERE dataset_id = ?", (dataset_id,)
     )
@@ -158,21 +149,7 @@ async def get_dataset(dataset_id, json_data):
     return row
 
 
-async def get_datasets(json_data):
-    try:
-        await db.execute(
-            """
-            ALTER TABLE dataset ADD COLUMN json_data TEXT DEFAULT '{}'
-            """
-        )
-        for data in json_data:
-            huggingfacerepo = data.get('huggingfacerepo')
-            if huggingfacerepo:
-                update_db_gallery_data(huggingfacerepo, data)
-    except sqlite3.OperationalError as e:
-        if 'duplicate column name' in str(e):
-            pass
-
+async def get_datasets():
     cursor = await db.execute("SELECT rowid, * FROM dataset")
     rows = await cursor.fetchall()
 
@@ -183,14 +160,6 @@ async def get_datasets(json_data):
     await cursor.close()
 
     return data
-
-
-async def update_db_gallery_data(dataset_id, json_data):
-    await db.execute(
-        "UPDATE dataset SET json_data = json(?) WHERE dataset_id = ?", (
-            json.dumps(json_data), dataset_id)
-    )
-    db.commit()
 
 
 async def create_huggingface_dataset(dataset_id, description, size, json_data):
@@ -205,7 +174,7 @@ async def create_huggingface_dataset(dataset_id, description, size, json_data):
             pass
     await db.execute(
         """
-        INSERT INTO dataset (dataset_id, location, description, size, json_data) 
+        INSERT INTO dataset (dataset_id, location, description, size, json_data)
         VALUES (?, ?, ?, ?, json(?))
         """,
         (dataset_id, "huggingfacehub", description, size, json.dumps(json_data)),
@@ -225,7 +194,7 @@ async def create_local_dataset(dataset_id):
             pass
     await db.execute(
         """
-        INSERT INTO dataset (dataset_id, location, description, size, json_data) 
+        INSERT INTO dataset (dataset_id, location, description, size, json_data)
         VALUES (?, ?, ?, ?, json(?))
         """,
         (dataset_id, "local", "", -1, "{}"),

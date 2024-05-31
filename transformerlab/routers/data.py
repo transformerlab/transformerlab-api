@@ -39,7 +39,7 @@ async def dataset_gallery() -> Any:
         dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "data-gallery.json")
     with open(file_location) as f:
         gallery = json.load(f)
-    local_datasets = await db.get_datasets(gallery)
+    local_datasets = await db.get_datasets()
 
     local_dataset_names = set(str(dataset['dataset_id'])
                               for dataset in local_datasets)
@@ -52,11 +52,7 @@ async def dataset_gallery() -> Any:
 
 @router.get("/info", summary="Fetch the details of a particular dataset.")
 async def dataset_info(dataset_id: str):
-    file_location = os.path.join(
-        dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "data-gallery.json")
-    with open(file_location) as f:
-        gallery = json.load(f)
-    d = await db.get_dataset(dataset_id, gallery)
+    d = await db.get_dataset(dataset_id)
     if d is None:
         return {}
     r = {}
@@ -94,11 +90,7 @@ async def dataset_preview(dataset_id: str = Query(description="The ID of the dat
                           offset: int = Query(
                               0, description='The starting index from where to fetch the data.', ge=0),
                           limit: int = Query(10, description="The maximum number of data items to fetch.", ge=1, le=1000)) -> Any:
-    file_location = os.path.join(
-        dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "data-gallery.json")
-    with open(file_location) as f:
-        gallery = json.load(f)
-    d = await db.get_dataset(dataset_id, gallery)
+    d = await db.get_dataset(dataset_id)
     dataset_len = 0
     result = {}
     # This means it is a custom dataset the user uploaded
@@ -128,11 +120,7 @@ async def dataset_preview(dataset_id: str = Query(description="The ID of the dat
 async def dataset_download(dataset_id: str):
     # Check to make sure we don't have a dataset with this name
     # Possibly we want to allow redownloading in the future but for we can't add duplicate dataset_id to the DB
-    file_location = os.path.join(
-        dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "data-gallery.json")
-    with open(file_location) as f:
-        gallery = json.load(f)
-    row = await db.get_dataset(dataset_id, gallery)
+    row = await db.get_dataset(dataset_id)
     if row is not None:
         return {"status": "error", "message": f"A dataset with the name {dataset_id} already exists"}
     # Get the dataset from the gallery
@@ -166,11 +154,7 @@ async def dataset_download(dataset_id: str):
 
 @router.get("/list", summary="List available datasets.")
 async def dataset_list():
-    file_location = os.path.join(
-        dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "data-gallery.json")
-    with open(file_location) as f:
-        gallery = json.load(f)
-    list = await db.get_datasets(gallery)
+    list = await db.get_datasets()
     return list  # convert list to JSON object
 
 
@@ -179,11 +163,7 @@ async def dataset_new(dataset_id: str):
     dataset_id = slugify(dataset_id)
 
     # Check to make sure we don't have a dataset with this name
-    file_location = os.path.join(
-        dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "data-gallery.json")
-    with open(file_location) as f:
-        gallery = json.load(f)
-    row = await db.get_dataset(dataset_id, gallery)
+    row = await db.get_dataset(dataset_id)
     if row is not None:
         return {"status": "error", "message": f"A dataset with the name {dataset_id} already exists"}
 
