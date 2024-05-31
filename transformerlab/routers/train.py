@@ -128,7 +128,7 @@ async def get_training_job_output(job_id: str):
     # First get the template Id from this job:
     job = await db.job_get(job_id)
 
-    job_data = json.loads(job["job_data"])
+    job_data = job["job_data"]
     if "template_id" not in job_data:
         return {"status": "error", "error": 'true'}
 
