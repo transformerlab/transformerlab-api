@@ -39,7 +39,7 @@ async def dataset_gallery() -> Any:
         dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "data-gallery.json")
     with open(file_location) as f:
         gallery = json.load(f)
-    local_datasets = await db.get_datasets()
+    local_datasets = await db.get_datasets(gallery)
 
     local_dataset_names = set(str(dataset['dataset_id'])
                               for dataset in local_datasets)
@@ -52,8 +52,11 @@ async def dataset_gallery() -> Any:
 
 @router.get("/info", summary="Fetch the details of a particular dataset.")
 async def dataset_info(dataset_id: str):
-    d = await db.get_dataset(dataset_id)
-
+    file_location = os.path.join(
+        dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "data-gallery.json")
+    with open(file_location) as f:
+        gallery = json.load(f)
+    d = await db.get_dataset(dataset_id, gallery)
     if d is None:
         return {}
     r = {}
@@ -63,8 +66,9 @@ async def dataset_info(dataset_id: str):
         # print(dataset['train'].features)
         r["features"] = dataset["train"].features
     else:
-        if (dataset_id == "wikipedia"):
-            ds_builder = load_dataset_builder(dataset_id, "20220301.en")
+        dataset_config = d.get("json_data").get("dataset_config")
+        if (dataset_config is not None):
+            ds_builder = load_dataset_builder(dataset_id, dataset_config)
         else:
             ds_builder = load_dataset_builder(dataset_id)
         r = {
@@ -90,7 +94,11 @@ async def dataset_preview(dataset_id: str = Query(description="The ID of the dat
                           offset: int = Query(
                               0, description='The starting index from where to fetch the data.', ge=0),
                           limit: int = Query(10, description="The maximum number of data items to fetch.", ge=1, le=1000)) -> Any:
-    d = await db.get_dataset(dataset_id)
+    file_location = os.path.join(
+        dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "data-gallery.json")
+    with open(file_location) as f:
+        gallery = json.load(f)
+    d = await db.get_dataset(dataset_id, gallery)
     dataset_len = 0
     result = {}
     # This means it is a custom dataset the user uploaded
@@ -104,8 +112,9 @@ async def dataset_preview(dataset_id: str = Query(description="The ID of the dat
         result['columns'] = dataset["train"][offset:min(
             offset+limit, dataset_len)]
     else:
-        if (dataset_id == "wikipedia"):
-            dataset = load_dataset(dataset_id, "20220301.en")
+        dataset_config = d.get("json_data").get("dataset_config")
+        if (dataset_config is not None):
+            dataset = load_dataset(dataset_id, dataset_config)
         else:
             dataset = load_dataset(dataset_id)
         dataset_len = len(dataset["train"])
@@ -119,13 +128,26 @@ async def dataset_preview(dataset_id: str = Query(description="The ID of the dat
 async def dataset_download(dataset_id: str):
     # Check to make sure we don't have a dataset with this name
     # Possibly we want to allow redownloading in the future but for we can't add duplicate dataset_id to the DB
-    row = await db.get_dataset(dataset_id)
+    file_location = os.path.join(
+        dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "data-gallery.json")
+    with open(file_location) as f:
+        gallery = json.load(f)
+    row = await db.get_dataset(dataset_id, gallery)
     if row is not None:
         return {"status": "error", "message": f"A dataset with the name {dataset_id} already exists"}
-
+    # Get the dataset from the gallery
+    file_location = os.path.join(
+        dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "data-gallery.json")
+    with open(file_location) as f:
+        gallery = json.load(f)
+    # Gauranteed that the dataset exists in the gallery
+    for dataset in gallery:
+        if dataset["huggingfacerepo"] == dataset_id:
+            json_data = dataset
     try:
-        if (dataset_id == "wikipedia"):
-            ds_builder = load_dataset_builder(dataset_id, "20220301.en")
+        if (json_data.get("dataset_config") != None):
+            ds_builder = load_dataset_builder(
+                dataset_id, json_data.get("dataset_config"))
         else:
             ds_builder = load_dataset_builder(dataset_id)
     except Exception as e:
@@ -136,7 +158,7 @@ async def dataset_download(dataset_id: str):
     if not dataset_size:
         dataset_size = -1
     await db.create_huggingface_dataset(
-        dataset_id, ds_builder.info.description, dataset_size
+        dataset_id, ds_builder.info.description, dataset_size, json_data
     )
 
     return {"status": "success"}
@@ -144,7 +166,11 @@ async def dataset_download(dataset_id: str):
 
 @router.get("/list", summary="List available datasets.")
 async def dataset_list():
-    list = await db.get_datasets()
+    file_location = os.path.join(
+        dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "data-gallery.json")
+    with open(file_location) as f:
+        gallery = json.load(f)
+    list = await db.get_datasets(gallery)
     return list  # convert list to JSON object
 
 
@@ -153,7 +179,11 @@ async def dataset_new(dataset_id: str):
     dataset_id = slugify(dataset_id)
 
     # Check to make sure we don't have a dataset with this name
-    row = await db.get_dataset(dataset_id)
+    file_location = os.path.join(
+        dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "data-gallery.json")
+    with open(file_location) as f:
+        gallery = json.load(f)
+    row = await db.get_dataset(dataset_id, gallery)
     if row is not None:
         return {"status": "error", "message": f"A dataset with the name {dataset_id} already exists"}
 
