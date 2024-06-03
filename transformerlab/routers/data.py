@@ -62,7 +62,7 @@ async def dataset_info(dataset_id: str):
         # print(dataset['train'].features)
         r["features"] = dataset["train"].features
     else:
-        dataset_config = d["json_data"].get("dataset_config", None)
+        dataset_config = d.get("json_data", {}).get("dataset_config", None)
         if (dataset_config is not None):
             ds_builder = load_dataset_builder(dataset_id, dataset_config)
         else:
@@ -104,7 +104,7 @@ async def dataset_preview(dataset_id: str = Query(description="The ID of the dat
         result['columns'] = dataset["train"][offset:min(
             offset+limit, dataset_len)]
     else:
-        dataset_config = d["json_data"].get("dataset_config", None)
+        dataset_config = d.get("json_data", {}).get("dataset_config", None)
         if (dataset_config is not None):
             dataset = load_dataset(dataset_id, dataset_config)
         else:
