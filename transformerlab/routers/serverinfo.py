@@ -49,6 +49,7 @@ system_info = {
     "conda_environment": os.environ.get("CONDA_DEFAULT_ENV", "n/a"),
     "conda_prefix": os.environ.get("CONDA_PREFIX", "n/a"),
     "flash_attn_version": flash_attn_version,
+    "pytorch_version": torch.__version__,
 }
 
 # Determine which device to use (cuda/mps/cpu)
