@@ -26,7 +26,7 @@ try:
     print("⚡️ Flash Attention is installed.")
     print(f"flash_attn version: {flash_attn_version}")
 except ImportError:
-    flash_attention_version = "n/a"
+    flash_attn_version = "n/a"
     print("🟡 Flash Attention is not installed. If you are running on GPU, install to accelerate inference and training. https://github.com/Dao-AILab/flash-attention")
 
 # Read in static system info
