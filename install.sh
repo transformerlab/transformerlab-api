@@ -269,8 +269,11 @@ install_dependencies() {
       pip install --upgrade -r "$TLAB_CODE_DIR"/requirements.txt
 
       # Install Flash Attention separately - it doesn't play well in requirements file
+      # Using instructions from https://github.com/Dao-AILab/flash-attention
+      pip install packaging
       pip install ninja
-      pip install flash_attn==1.0.9
+      pip install -U flash-attn --no-build-isolation
+      ###
   else
       echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
