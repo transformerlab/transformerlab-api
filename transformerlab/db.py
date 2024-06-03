@@ -163,15 +163,6 @@ async def get_datasets():
 
 
 async def create_huggingface_dataset(dataset_id, description, size, json_data):
-    try:
-        await db.execute(
-            """
-            ALTER TABLE dataset ADD COLUMN json_data TEXT DEFAULT '{}'
-            """
-        )
-    except sqlite3.OperationalError as e:
-        if 'duplicate column name' in str(e):
-            pass
     await db.execute(
         """
         INSERT INTO dataset (dataset_id, location, description, size, json_data)
@@ -183,15 +174,6 @@ async def create_huggingface_dataset(dataset_id, description, size, json_data):
 
 
 async def create_local_dataset(dataset_id):
-    try:
-        await db.execute(
-            """
-            ALTER TABLE dataset ADD COLUMN json_data TEXT DEFAULT '{}'
-            """
-        )
-    except sqlite3.OperationalError as e:
-        if 'duplicate column name' in str(e):
-            pass
     await db.execute(
         """
         INSERT INTO dataset (dataset_id, location, description, size, json_data)
