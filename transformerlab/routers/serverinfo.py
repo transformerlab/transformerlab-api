@@ -133,6 +133,15 @@ async def get_python_library_versions():
     return packages
 
 
+@router.get("/pytorch_collect_env")
+async def get_pytorch_collect_env():
+    # run python -m torch.utils.collect_env and return the output
+    output = subprocess.check_output(
+        sys.executable + " -m torch.utils.collect_env", shell=True
+    )
+    return output.decode("utf-8")
+
+
 def cleanup_at_exit():
     if torch.cuda.is_available():
         nvmlShutdown()
