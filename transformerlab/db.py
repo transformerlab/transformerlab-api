@@ -26,6 +26,15 @@ async def init():
     await db.execute(
         "CREATE TABLE IF NOT EXISTS dataset(id INTEGER PRIMARY KEY, dataset_id UNIQUE, location, description, size)"
     )
+
+    try:
+        await db.execute(
+            """ALTER TABLE dataset ADD COLUMN json_data JSON"""
+        )
+    except sqlite3.OperationalError as e:
+        if 'duplicate column name' in str(e):
+            pass
+
     await db.execute(
         """CREATE TABLE IF NOT EXISTS 
                      training_template
@@ -120,7 +129,6 @@ async def close():
 
 
 async def get_dataset(dataset_id):
-
     cursor = await db.execute(
         "SELECT * FROM dataset WHERE dataset_id = ?", (dataset_id,)
     )
@@ -134,13 +142,14 @@ async def get_dataset(dataset_id):
     desc = cursor.description
     column_names = [col[0] for col in desc]
     row = dict(itertools.zip_longest(column_names, row))
+    if 'json_data' in row and row['json_data']:
+        row['json_data'] = json.loads(row['json_data'])
 
     await cursor.close()
     return row
 
 
 async def get_datasets():
-
     cursor = await db.execute("SELECT rowid, * FROM dataset")
     rows = await cursor.fetchall()
 
@@ -153,26 +162,24 @@ async def get_datasets():
     return data
 
 
-async def create_huggingface_dataset(dataset_id, description, size):
-
+async def create_huggingface_dataset(dataset_id, description, size, json_data):
     await db.execute(
         """
-        INSERT INTO dataset (dataset_id, location, description, size) 
-        VALUES (?, ?, ?, ?)
+        INSERT INTO dataset (dataset_id, location, description, size, json_data)
+        VALUES (?, ?, ?, ?, json(?))
         """,
-        (dataset_id, "huggingfacehub", description, size),
+        (dataset_id, "huggingfacehub", description, size, json.dumps(json_data)),
     )
     await db.commit()
 
 
 async def create_local_dataset(dataset_id):
-
     await db.execute(
         """
-        INSERT INTO dataset (dataset_id, location, description, size) 
-        VALUES (?, ?, ?, ?)
+        INSERT INTO dataset (dataset_id, location, description, size, json_data)
+        VALUES (?, ?, ?, ?, json(?))
         """,
-        (dataset_id, "local", "", -1),
+        (dataset_id, "local", "", -1, "{}"),
     )
     await db.commit()
 
