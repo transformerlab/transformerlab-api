@@ -169,15 +169,28 @@ db.commit()
 os.system(
     f"cp {plugin_dir}/LLaMA-Factory/examples/lora_single_gpu/llama3_lora_sft.yaml {yaml_config_path}")
 # Now replace specific values in the file using the PyYAML library:
-with open(yaml_config_path, 'r+') as file:
+
+yml = {}
+with open(yaml_config_path, 'r') as file:
     yml = yaml.safe_load(file)
-    print("Template configuration:")
-    print(yml)
-    # replace model_name with the model name
-    yml["model_name_or_path"] = model_name
-    yml["output_dir"] = adaptor_output_dir
-    yml["logging_dir"] = output_dir
-    print("--------")
+
+print("Template configuration:")
+print(yml)
+yml["model_name_or_path"] = model_name
+yml["output_dir"] = adaptor_output_dir
+yml["logging_dir"] = output_dir
+yml["max_length"] = config['maximum_sequence_length']
+yml["learning_rate"] = config["learning_rate"]
+yml["num_train_epochs"] = config["num_train_epochs"]
+yml["max_steps"] = config["max_steps"]
+yml['lora_alpha'] = config['lora_alpha']
+yml["lora_rank"] = config["lora_r"]
+yml['lora_dropout'] = config['lora_dropout']
+# yml["lora_alpha"] = TODO
+
+print("--------")
+
+with open(yaml_config_path, 'w') as file:
     # Now write out the new file
     yaml.dump(yml, file)
     print("New configuration:")
