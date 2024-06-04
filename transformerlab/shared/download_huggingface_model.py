@@ -17,6 +17,7 @@ if WORKSPACE_DIR is None:
 parser = argparse.ArgumentParser()
 parser.add_argument('--model_name', type=str, required=True)
 parser.add_argument('--model_filename', type=str, required=False)
+parser.add_argument('--allow_patterns', type=str, required=False)
 parser.add_argument('--job_id', type=str, required=True)
 parser.add_argument('--total_size_of_model_in_mb', type=float, required=True)
 
@@ -25,6 +26,27 @@ model = args.model_name
 model_filename = args.model_filename
 job_id = args.job_id
 error_msg = False
+
+# Models can have custom allow_patterns filters
+# Start with a default set of allow_patterns
+# but if we are able to read a list from the passed parameter use that instead
+allow_patterns = [
+                    "*.json",
+                    "*.safetensors",
+                    "*.py",
+                    "tokenizer.model",
+                    "*.tiktoken",
+                    "*.npz",
+                    "*.bin"
+                ]
+if args.allow_patterns:
+    allow_patterns_json = args.allow_patterns
+    try:
+        converted_json = json.loads(allow_patterns_json)
+        if isinstance(converted_json, list):
+            allow_patterns = converted_json
+    except:
+        pass
 
 print(f"Downloading model {model} with job_id {job_id}")
 
@@ -124,15 +146,7 @@ def download_blocking(model_is_downloaded):
         try:
             snapshot_download(
                 repo_id=model, resume_download=True,
-                allow_patterns=[
-                    "*.json",
-                    "*.safetensors",
-                    "*.py",
-                    "tokenizer.model",
-                    "*.tiktoken",
-                    "*.npz",
-                    "*.bin"
-                ])
+                allow_patterns=allow_patterns)
 
         except GatedRepoError as e:
             error_msg = f"{model} is a gated HuggingFace repo \
