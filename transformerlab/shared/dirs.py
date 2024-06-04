@@ -61,7 +61,6 @@ else:
 
 # EXPERIMENTS_DIR
 EXPERIMENTS_DIR: str = os.path.join(WORKSPACE_DIR, "experiments")
-print(f"Experiments directory is set to: {EXPERIMENTS_DIR}")
 os.makedirs(name=EXPERIMENTS_DIR, exist_ok=True)
 
 # GLOBAL_LOG_PATH
@@ -93,7 +92,6 @@ async def experiment_dir_by_id(experiment_id: str) -> str:
 # PLUGIN_PRELOADED_GALLERY
 PLUGIN_PRELOADED_GALLERY = os.path.join(
     TFL_SOURCE_CODE_DIR, "transformerlab", "plugins")
-print(f"Preloaded gallery directory is set to: {PLUGIN_PRELOADED_GALLERY}")
 
 # PLUGIN_DIR
 PLUGIN_DIR = os.path.join(WORKSPACE_DIR, "plugins")
@@ -105,7 +103,6 @@ def plugin_dir_by_name(plugin_name: str) -> str:
 
 # MODELS_DIR
 MODELS_DIR = os.path.join(WORKSPACE_DIR, "models")
-print(f"Models directory is set to: {MODELS_DIR}")
 
 # DATASETS_DIR
 DATASETS_DIR = os.path.join(WORKSPACE_DIR, "datasets")

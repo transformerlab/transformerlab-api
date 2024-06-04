@@ -83,7 +83,8 @@ print("starting script with progressbar updater")
 def download_blocking(model_is_downloaded):
     global error_msg
     print("Downloading model")
-    db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
+    db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3",
+                         isolation_level="DEFERRED")
     job_data = json.dumps({"downloaded": 0, "model": model,
                           "total_size_of_model_in_mb": total_size_of_model_in_mb})
     print(job_data)

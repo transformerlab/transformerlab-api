@@ -13,11 +13,13 @@ import re
 import sqlite3
 from string import Template
 import subprocess
+import sys
 import time
 from datasets import load_dataset
 import argparse
 import os
 from tensorboardX import SummaryWriter
+import yaml
 
 ########################################
 # First set up arguments and parameters
@@ -48,6 +50,9 @@ with open(args.input_file) as json_file:
 config = input_config["config"]
 print("Input:")
 print(json.dumps(input_config, indent=4))
+
+model_name = config['model_name']
+adaptor_output_dir = config['adaptor_output_dir']
 
 lora_layers = config["lora_layers"]
 learning_rate = config["learning_rate"]
@@ -142,6 +147,55 @@ print(example)
 adaptor_output_dir = data_directory
 adaptor_file_name = os.path.join(adaptor_output_dir, f"{adaptor_name}.npz")
 
+########################################
+# Generate a config YAML file that will be used by LLaMA-Factory
+########################################
+
+yaml_config_path = f"{data_directory}/llama3_lora_sft.yaml"
+
+
+today = time.strftime("%Y%m%d-%H%M%S")
+output_dir = os.path.join(config["output_dir"], today)
+print(f"Storing Tensorboard Output to: {output_dir}")
+
+# In the json job_data column for this job, store the tensorboard output dir
+db.execute(
+    "UPDATE job SET job_data = json_insert(job_data, '$.tensorboard_output_dir', ?) WHERE id = ?",
+    (output_dir, config["job_id"]),
+)
+db.commit()
+
+# First copy a template file to the data directory
+os.system(
+    f"cp {plugin_dir}/LLaMA-Factory/examples/lora_single_gpu/llama3_lora_sft.yaml {yaml_config_path}")
+# Now replace specific values in the file using the PyYAML library:
+
+yml = {}
+with open(yaml_config_path, 'r') as file:
+    yml = yaml.safe_load(file)
+
+print("Template configuration:")
+print(yml)
+yml["model_name_or_path"] = model_name
+yml["output_dir"] = adaptor_output_dir
+yml["logging_dir"] = output_dir
+yml["max_length"] = config['maximum_sequence_length']
+yml["learning_rate"] = config["learning_rate"]
+yml["num_train_epochs"] = config["num_train_epochs"]
+yml["max_steps"] = config["max_steps"]
+yml['lora_alpha'] = config['lora_alpha']
+yml["lora_rank"] = config["lora_r"]
+yml['lora_dropout'] = config['lora_dropout']
+# yml["lora_alpha"] = TODO
+
+print("--------")
+
+with open(yaml_config_path, 'w') as file:
+    # Now write out the new file
+    yaml.dump(yml, file)
+    print("New configuration:")
+    print(yml)
+
 
 ########################################
 # Now train
@@ -149,8 +203,7 @@ adaptor_file_name = os.path.join(adaptor_output_dir, f"{adaptor_name}.npz")
 ########################################
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-popen_command = ['llamafactory-cli', 'train',
-                 f"{plugin_dir}/LLaMA-Factory/examples/lora_single_gpu/llama3_lora_sft.yaml"]
+popen_command = ['llamafactory-cli', 'train', yaml_config_path]
 
 print("Running command:")
 print(popen_command)
@@ -164,21 +217,6 @@ db.commit()
 
 print("Training beginning:")
 print("Adaptor will be saved as:", adaptor_file_name)
-
-# todays date with seconds:
-today = time.strftime("%Y%m%d-%H%M%S")
-
-output_dir = os.path.join(config["output_dir"], today)
-# w = tf.summary.create_file_writer(os.path.join(config["output_dir"], "logs"))
-writer = SummaryWriter(output_dir)
-print("Writing logs to:", output_dir)
-
-# In the json job_data column for this job, store the tensorboard output dir
-db.execute(
-    "UPDATE job SET job_data = json_insert(job_data, '$.tensorboard_output_dir', ?) WHERE id = ?",
-    (output_dir, config["job_id"]),
-)
-db.commit()
 
 with subprocess.Popen(
         popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True, cwd=os.path.join(plugin_dir, 'LLaMA-Factory')) as process:

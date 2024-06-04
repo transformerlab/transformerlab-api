@@ -20,7 +20,9 @@ from pynvml import (
     nvmlShutdown,
 )
 
+
 # Check for version of flash_attn:
+flash_attn_version = ""
 try:
     from flash_attn import __version__ as flash_attn_version
     print("⚡️ Flash Attention is installed.")
@@ -28,6 +30,7 @@ try:
 except ImportError:
     flash_attn_version = "n/a"
     print("🟡 Flash Attention is not installed. If you are running on GPU, install to accelerate inference and training. https://github.com/Dao-AILab/flash-attention")
+
 
 # Read in static system info
 system_info = {
@@ -45,7 +48,8 @@ system_info = {
     "cuda_version": "n/a",
     "conda_environment": os.environ.get("CONDA_DEFAULT_ENV", "n/a"),
     "conda_prefix": os.environ.get("CONDA_PREFIX", "n/a"),
-    "flash_attn_version": flash_attn_version
+    "flash_attn_version": flash_attn_version,
+    "pytorch_version": torch.__version__,
 }
 
 # Determine which device to use (cuda/mps/cpu)
@@ -58,11 +62,11 @@ if torch.cuda.is_available():
     # get CUDA version:
     system_info["cuda_version"] = torch.version.cuda
 
+    print(f"🔥 PyTorch is using CUDA, version {torch.version.cuda}")
+
 elif torch.backends.mps.is_available():
     system_info["device"] = "mps"
-
-print("Using", system_info["device"])
-
+    print(f"🔥 PyTorch is using MPS for Apple Metal acceleration")
 
 router = APIRouter(prefix="/server", tags=["serverinfo"])
 
@@ -127,6 +131,15 @@ async def get_python_library_versions():
     packages = packages.decode("utf-8")
     packages = json.loads(packages)
     return packages
+
+
+@router.get("/pytorch_collect_env")
+async def get_pytorch_collect_env():
+    # run python -m torch.utils.collect_env and return the output
+    output = subprocess.check_output(
+        sys.executable + " -m torch.utils.collect_env", shell=True
+    )
+    return output.decode("utf-8")
 
 
 def cleanup_at_exit():
