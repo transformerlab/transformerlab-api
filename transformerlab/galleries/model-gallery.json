@@ -118,14 +118,15 @@
         "gated": true,
         "license": "CC-BY-NC-4.0",
         "logo": "https://cohere-ai.ghost.io/content/images/2024/03/CMDR--1--1-1.png",
+        "size_of_model_in_mb": 43306.2173233032,
         "author": {
             "name": "Cohere 4 AI",
             "url": "https://cohere.com/research",
             "blurb": ""
         },
         "resources": {
-            "canonicalUrl": "",
-            "downloadUrl": "",
+            "canonicalUrl": "https://huggingface.co/CohereForAI/c4ai-command-r-v01",
+            "downloadUrl": "https://huggingface.co/CohereForAI/c4ai-command-r-v01",
             "paperUrl": "?"
         }
     },
@@ -150,8 +151,8 @@
             "blurb": ""
         },
         "resources": {
-            "canonicalUrl": "",
-            "downloadUrl": "",
+            "canonicalUrl": "https://huggingface.co/mlx-community/c4ai-command-r-v01-4bit",
+            "downloadUrl": "https://huggingface.co/mlx-community/c4ai-command-r-v01-4bit",
             "paperUrl": "?"
         }
     },
@@ -176,8 +177,8 @@
             "blurb": ""
         },
         "resources": {
-            "canonicalUrl": "",
-            "downloadUrl": "",
+            "canonicalUrl": "https://huggingface.co/CohereForAI/c4ai-command-r-v01-4bit",
+            "downloadUrl": "https://huggingface.co/CohereForAI/c4ai-command-r-v01-4bit",
             "paperUrl": "?"
         }
     },
@@ -376,8 +377,8 @@
             "blurb": ""
         },
         "resources": {
-            "canonicalUrl": "https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct",
-            "downloadUrl": "https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct",
+            "canonicalUrl": "https://huggingface.co/meta-llama/Meta-Llama-3-8B",
+            "downloadUrl": "https://huggingface.co/meta-llama/Meta-Llama-3-8B",
             "paperUrl": "?"
         }
     },
@@ -402,8 +403,8 @@
             "blurb": ""
         },
         "resources": {
-            "canonicalUrl": "https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct",
-            "downloadUrl": "https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct",
+            "canonicalUrl": "https://huggingface.co/mlx-community/Meta-Llama-3-8B-Instruct-4bit",
+            "downloadUrl": "https://huggingface.co/mlx-community/Meta-Llama-3-8B-Instruct-4bit",
             "paperUrl": "?"
         }
     },
@@ -428,8 +429,8 @@
             "blurb": ""
         },
         "resources": {
-            "canonicalUrl": "https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct",
-            "downloadUrl": "https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct",
+            "canonicalUrl": "https://huggingface.co/mlx-community/Meta-Llama-3-70B-Instruct-4bit",
+            "downloadUrl": "https://huggingface.co/mlx-community/Meta-Llama-3-70B-Instruct-4bit",
             "paperUrl": "?"
         }
     },
@@ -582,6 +583,11 @@
             "PyTorch"
         ],
         "huggingface_repo": "mistralai/Mistral-7B-v0.3",
+        "allow_patterns": [
+            "params.json",
+            "consolidated.safetensors",
+            "tokenizer.model.v3"
+        ],
         "transformers_version": "4.42.0.dev0",
         "gated": "auto",
         "license": "Apache 2.0",
@@ -599,6 +605,11 @@
             "PyTorch"
         ],
         "huggingface_repo": "mistralai/Mistral-7B-Instruct-v0.3",
+        "allow_patterns": [
+            "params.json",
+            "consolidated.safetensors",
+            "tokenizer.model.v3"
+        ],
         "transformers_version": "4.42.0.dev0",
         "gated": "auto",
         "license": "Apache 2.0",
