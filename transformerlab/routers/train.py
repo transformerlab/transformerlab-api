@@ -69,11 +69,11 @@ async def delete_training_template(template_id: str):
 #     return {"message": "OK"}
 
 
-@router.get("/job/create")
-async def job_create(template_id: str, description: str, experiment_id, config: str = "{}"):
-    print("template_id: " + template_id)
-    jobid = await db.training_job_create(template_id=template_id, description=description, experiment_id=experiment_id)
-    return jobid
+# @router.get("/job/create")
+# async def job_create(template_id: str, description: str, experiment_id, config: str = "{}"):
+#     print("template_id: " + template_id)
+#     jobid = await db.training_job_create(template_id=template_id, description=description, experiment_id=experiment_id)
+#     return jobid
 
 
 # @router.get("/job/update/{job_id}")

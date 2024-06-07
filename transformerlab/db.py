@@ -434,20 +434,20 @@ async def job_cancel_in_progress_jobs():
 ###############
 
 
-async def get_training_template(id):
+# async def get_training_template(id):
 
-    cursor = await db.execute("SELECT * FROM training_template WHERE id = ?", (id,))
-    row = await cursor.fetchone()
-    if (row == None):
-        return None
-    # convert to json:
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
+#     cursor = await db.execute("SELECT * FROM training_template WHERE id = ?", (id,))
+#     row = await cursor.fetchone()
+#     if (row == None):
+#         return None
+#     # convert to json:
+#     desc = cursor.description
+#     column_names = [col[0] for col in desc]
+#     row = dict(itertools.zip_longest(column_names, row))
 
-    await cursor.close()
+#     await cursor.close()
 
-    return row
+#     return row
 
 
 async def get_training_templates():
