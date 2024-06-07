@@ -51,11 +51,6 @@ async def get_training_templates():
     return await db.get_training_templates()
 
 
-@router.get("/template/{template_id}")
-async def get_training_template(template_id: str):
-    return await db.get_training_template(template_id)
-
-
 @router.get("/template/{template_id}/delete")
 async def delete_training_template(template_id: str):
     await db.delete_training_template(template_id)
@@ -72,13 +67,6 @@ async def delete_training_template(template_id: str):
 # async def job_delete(job_id: str):
 #     await db.job_delete(job_id)
 #     return {"message": "OK"}
-
-
-@router.get("/job/create")
-async def job_create(template_id: str, description: str, experiment_id, config: str = "{}"):
-    print("template_id: " + template_id)
-    jobid = await db.training_job_create(template_id=template_id, description=description, experiment_id=experiment_id)
-    return jobid
 
 
 # @router.get("/job/update/{job_id}")

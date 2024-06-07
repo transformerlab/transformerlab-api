@@ -1,10 +1,12 @@
 import asyncio
 import json
-from fastapi import APIRouter
+from fastapi import APIRouter, Body
 
 import transformerlab.db as db
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
+from typing import Annotated
+from json import JSONDecodeError
 
 
 router = APIRouter(prefix="/jobs", tags=["train"])
@@ -102,3 +104,26 @@ async def get_training_job_output(job_id: str):
     with open(output_file, "r") as f:
         output = f.read()
     return output
+
+# Templates
+
+
+@router.get("/template/{template_id}")
+async def get_training_template(template_id: str):
+    return await db.get_training_template(template_id)
+
+
+@router.put("/template/update")
+async def update_training_template(template_id: str, name: str,
+                                   description: str,
+                                   type: str,
+                                   config: Annotated[str, Body(embed=True)]):
+    try:
+        configObject = json.loads(config)
+        datasets = configObject["dataset_name"]
+        await db.update_training_template(template_id, name, description, type, datasets, config)
+    except JSONDecodeError as e:
+        return {"status": "error", "message": str(e)}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    return {"status": "success"}
