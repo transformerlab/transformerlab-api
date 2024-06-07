@@ -51,11 +51,6 @@ async def get_training_templates():
     return await db.get_training_templates()
 
 
-@router.get("/template/{template_id}")
-async def get_training_template(template_id: str):
-    return await db.get_training_template(template_id)
-
-
 @router.get("/template/{template_id}/delete")
 async def delete_training_template(template_id: str):
     await db.delete_training_template(template_id)

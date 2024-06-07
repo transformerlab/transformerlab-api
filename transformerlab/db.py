@@ -438,7 +438,8 @@ async def get_training_template(id):
 
     cursor = await db.execute("SELECT * FROM training_template WHERE id = ?", (id,))
     row = await cursor.fetchone()
-
+    if (row == None):
+        return None
     # convert to json:
     desc = cursor.description
     column_names = [col[0] for col in desc]
@@ -462,6 +463,15 @@ async def create_training_template(name, description, type, datasets, config):
     await db.execute(
         "INSERT INTO training_template(name, description, type, datasets, config) VALUES (?, ?, ?, ?, ?)",
         (name, description, type, datasets, config),
+    )
+    await db.commit()
+    return
+
+
+async def update_training_template(id, name, description, type, datasets, config):
+    await db.execute(
+        "UPDATE training_template SET name = ?, description = ?, type = ?, datasets = ?, config = ? WHERE id = ?",
+        (name, description, type, datasets, config, id),
     )
     await db.commit()
     return
