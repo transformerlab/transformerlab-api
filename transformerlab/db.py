@@ -434,20 +434,20 @@ async def job_cancel_in_progress_jobs():
 ###############
 
 
-# async def get_training_template(id):
+async def get_training_template(id):
 
-#     cursor = await db.execute("SELECT * FROM training_template WHERE id = ?", (id,))
-#     row = await cursor.fetchone()
-#     if (row == None):
-#         return None
-#     # convert to json:
-#     desc = cursor.description
-#     column_names = [col[0] for col in desc]
-#     row = dict(itertools.zip_longest(column_names, row))
+    cursor = await db.execute("SELECT * FROM training_template WHERE id = ?", (id,))
+    row = await cursor.fetchone()
+    if (row == None):
+        return None
+    # convert to json:
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    row = dict(itertools.zip_longest(column_names, row))
 
-#     await cursor.close()
+    await cursor.close()
 
-#     return row
+    return row
 
 
 async def get_training_templates():
@@ -512,21 +512,21 @@ async def training_jobs_get_all():
     return data
 
 
-async def training_job_create(template_id, description, experiment_id):
+# async def training_job_create(template_id, description, experiment_id):
 
-    job_data = {
-        "template_id": template_id,
-        "description": description,
-    }
+#     job_data = {
+#         "template_id": template_id,
+#         "description": description,
+#     }
 
-    job_data = json.dumps(job_data)
+#     job_data = json.dumps(job_data)
 
-    row = await db.execute_insert(
-        "INSERT INTO job(type, status, experiment_id, job_data) VALUES (?, ?, ?, json(?))",
-        ("TRAIN", "QUEUED", experiment_id, job_data),
-    )
-    await db.commit()  # is this necessary?
-    return row[0]
+#     row = await db.execute_insert(
+#         "INSERT INTO job(type, status, experiment_id, job_data) VALUES (?, ?, ?, json(?))",
+#         ("TRAIN", "QUEUED", experiment_id, job_data),
+#     )
+#     await db.commit()  # is this necessary?
+#     return row[0]
 
 
 async def job_get_for_template_id(template_id):

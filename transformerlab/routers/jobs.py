@@ -6,6 +6,7 @@ import transformerlab.db as db
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
 from typing import Annotated
+from json import JSONDecodeError
 
 
 router = APIRouter(prefix="/jobs", tags=["train"])
@@ -117,7 +118,12 @@ async def update_training_template(template_id: str, name: str,
                                    description: str,
                                    type: str,
                                    config: Annotated[str, Body(embed=True)]):
-    configObject = json.loads(config)
-    datasets = configObject["dataset_name"]
-    await db.update_training_template(template_id, name, description, type, datasets, config)
+    try:
+        configObject = json.loads(config)
+        datasets = configObject["dataset_name"]
+        await db.update_training_template(template_id, name, description, type, datasets, config)
+    except JSONDecodeError as e:
+        return {"status": "error", "message": str(e)}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
     return {"status": "success"}
