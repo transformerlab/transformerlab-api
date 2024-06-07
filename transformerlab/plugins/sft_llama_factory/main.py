@@ -11,7 +11,6 @@ CUDA_VISIBLE_DEVICES=0 llamafactory-cli train examples/lora_single_gpu/llama3_lo
 import json
 import re
 import sqlite3
-from string import Template
 import subprocess
 import sys
 import time
@@ -20,6 +19,9 @@ import argparse
 import os
 from tensorboardX import SummaryWriter
 import yaml
+from jinja2 import Environment, PackageLoader, select_autoescape
+
+jinja_environment = Environment()
 
 ########################################
 # First set up arguments and parameters
@@ -54,14 +56,36 @@ print(json.dumps(input_config, indent=4))
 model_name = config['model_name']
 adaptor_output_dir = config['adaptor_output_dir']
 
-lora_layers = config["lora_layers"]
+lora_layers = config.get("lora_layers", 1)
 learning_rate = config["learning_rate"]
 batch_size = config.get("batch_size", 4)
 steps_per_eval = config.get("steps_per_eval", 200)
-iters = config["iters"]
+iters = config.get("iters", -1)
 
 # we need to adapter parameter so set a default
 adaptor_name = config.get('adaptor_name', "default")
+
+
+# Directory for storing temporary working files
+data_directory = f"{WORKSPACE_DIR}/temp/llama_factory/data"
+if not os.path.exists(data_directory):
+    os.makedirs(data_directory)
+
+
+def create_data_directory_in_llama_factory_format():
+    """This function creates a directory in the data_directory location
+    that contains the files in the format that LLaMA-Factory expects.
+    The main file being a dataset_info.json file that acts as an index to the JSON training data
+    """
+    dataset_info = {
+        "training_data": {
+            "file_name": "train.json"
+        }
+    }
+
+    with open(f"{data_directory}/dataset_info.json", "w") as f:
+        json.dump(dataset_info, f, indent=2)
+
 
 ########################################
 # Now process the Datatset
@@ -77,6 +101,8 @@ cursor = db.execute(
 row = cursor.fetchone()
 cursor.close()
 
+dataset = {}
+
 # if no rows exist then the dataset hasn't been installed!
 if row is None:
     print(f"No dataset named {dataset_id} installed.")
@@ -86,66 +112,58 @@ if row is None:
 # (and if it's something else we're going to treat "huggingface" as default)
 dataset_location = row[0]
 
-dataset_types = ["train", "test"]
-dataset = {}
-formatting_template = Template(config["formatting_template"])
+# Load dataset - if it's local then pass it the path to the dataset directory
+if (dataset_location == "local"):
+    dataset_target = os.path.join(WORKSPACE_DIR, "datasets", dataset_id)
+# Otherwise assume it is a Huggingface ID
+else:
+    dataset_target = dataset_id
 
-# Directory for storing temporary working files
-data_directory = f"{WORKSPACE_DIR}/temp/llama_factory"
-if not os.path.exists(data_directory):
-    os.makedirs(data_directory)
+dataset = load_dataset(
+    dataset_target, split='train')
 
-for dataset_type in dataset_types:
+print(
+    f"Loaded Training dataset with {len(dataset)} examples.")
 
-    # Load dataset - if it's local then pass it the path to the dataset directory
-    if (dataset_location == "local"):
-        dataset_target = os.path.join(WORKSPACE_DIR, "datasets", dataset_id)
+# Format the dataset into the alpaca format
+instruction_template = jinja_environment.from_string(
+    config.get("instruction_template", ""))
+input_template = jinja_environment.from_string(
+    config.get("input_template", ""))
+output_template = jinja_environment.from_string(
+    config.get("output_template", ""))
 
-    # Otherwise assume it is a Huggingface ID
-    else:
-        dataset_target = dataset_id
+instruction_text = instruction_template.render(dataset[0])
+input_text = input_template.render(dataset[0])
+output_text = output_template.render(dataset[0])
 
-    try:
-        dataset[dataset_type] = load_dataset(
-            dataset_target, split=dataset_type)
+example = {
+    "instruction": instruction_text,
+    "input": input_text,
+    "output": output_text
+}
 
-    except ValueError as e:
-        # This is to catch this error-> ValueError: Unknown split "test". Should be one of ['train']
-        # Generally that means there is a single file in the dataset and we're trying to make a test dataset
-        # So we're going to ignore that! (Unless we're trying to load the train dataset...check that)
-        if (dataset_target == "train"):
-            raise
-
-        print(f"Continuing without any data for \"{dataset_type}\" slice.")
-        # print(">", str(e))
-        continue
-
-    print(
-        f"Loaded {dataset_type} dataset with {len(dataset[dataset_type])} examples.")
-
-    # output training files in templated format in to data directory
-    with open(f"{data_directory}/{dataset_type}.jsonl", "w") as f:
-        for i in range(len(dataset[dataset_type])):
-            line = formatting_template.substitute(dataset[dataset_type][i])
-            # convert line breaks to "\n" so that the jsonl file is valid
-            line = line.replace("\n", "\\n")
-            line = line.replace("\r", "\\r")
-            o = {"text": line}
-            f.write(json.dumps(o) + "\n")
-            # trimming dataset as a hack, to reduce training time"
-            # if (i > 40):
-            #     break
-
-# copy file test.jsonl to valid.jsonl. Our test set is the same as our validation set.
-os.system(
-    f"cp {data_directory}/test.jsonl {data_directory}/valid.jsonl")
-
-print("Example formatted training example:")
-example = formatting_template.substitute(dataset["train"][1])
 print(example)
 
-adaptor_output_dir = data_directory
-adaptor_file_name = os.path.join(adaptor_output_dir, f"{adaptor_name}.npz")
+
+formatted_dataset = []
+for i in range(len(dataset)):
+    instruction_text = instruction_template.render(dataset[i])
+    input_text = input_template.render(dataset[i])
+    output_text = output_template.render(dataset[i])
+
+    formatted_dataset.append({
+        "instruction": instruction_text,
+        "input": input_text,
+        "output": output_text
+    })
+
+# output training files in templated format in to data directory
+with open(f"{data_directory}/train.json", "w") as f:
+    json.dump(formatted_dataset, f, indent=2)
+
+print("Example formatted training example:")
+print(example)
 
 ########################################
 # Generate a config YAML file that will be used by LLaMA-Factory
@@ -174,20 +192,23 @@ yml = {}
 with open(yaml_config_path, 'r') as file:
     yml = yaml.safe_load(file)
 
+
+create_data_directory_in_llama_factory_format()
+
 print("Template configuration:")
 print(yml)
 yml["model_name_or_path"] = model_name
 yml["output_dir"] = adaptor_output_dir
 yml["logging_dir"] = output_dir
-yml["max_length"] = config['maximum_sequence_length']
-yml["learning_rate"] = config["learning_rate"]
-yml["num_train_epochs"] = config["num_train_epochs"]
-yml["max_steps"] = config["max_steps"]
-yml['lora_alpha'] = config['lora_alpha']
-yml["lora_rank"] = config["lora_r"]
-yml['lora_dropout'] = config['lora_dropout']
-# yml["lora_alpha"] = TODO
-
+yml["max_length"] = int(config.get('maximum_sequence_length', 1024))
+yml["learning_rate"] = float(config.get("learning_rate", 0.001))
+yml["num_train_epochs"] = int(config.get("num_train_epochs", 1))
+yml["max_steps"] = float(config.get("max_steps", -1))
+yml['lora_alpha'] = int(config.get('lora_alpha', 32))
+yml["lora_rank"] = int(config.get("lora_r", 16))
+yml['lora_dropout'] = float(config.get('lora_dropout', 0.1))
+yml['dataset_dir'] = data_directory
+yml['dataset'] = 'training_data'
 print("--------")
 
 with open(yaml_config_path, 'w') as file:
@@ -216,7 +237,6 @@ db.execute(
 db.commit()
 
 print("Training beginning:")
-print("Adaptor will be saved as:", adaptor_file_name)
 
 with subprocess.Popen(
         popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True, cwd=os.path.join(plugin_dir, 'LLaMA-Factory')) as process:
