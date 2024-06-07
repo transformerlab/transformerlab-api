@@ -584,9 +584,14 @@
         ],
         "huggingface_repo": "mistralai/Mistral-7B-v0.3",
         "allow_patterns": [
-            "params.json",
-            "consolidated.safetensors",
-            "tokenizer.model.v3"
+            "tokenizer.model.v3",
+            "*.json",
+            "*.safetensors",
+            "*.py",
+            "tokenizer.model",
+            "*.tiktoken",
+            "*.npz",
+            "*.bin"
         ],
         "transformers_version": "4.42.0.dev0",
         "gated": "auto",
@@ -606,9 +611,14 @@
         ],
         "huggingface_repo": "mistralai/Mistral-7B-Instruct-v0.3",
         "allow_patterns": [
-            "params.json",
-            "consolidated.safetensors",
-            "tokenizer.model.v3"
+            "tokenizer.model.v3",
+            "*.json",
+            "*.safetensors",
+            "*.py",
+            "tokenizer.model",
+            "*.tiktoken",
+            "*.npz",
+            "*.bin"
         ],
         "transformers_version": "4.42.0.dev0",
         "gated": "auto",
