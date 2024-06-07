@@ -256,6 +256,7 @@ async def download_huggingface_model(hugging_face_id: str, model_details: str = 
     name = model_details.get("name", hugging_face_id)
     model_size = str(model_details.get("size_of_model_in_mb", -1))
     hugging_face_filename = model_details.get("huggingface_filename", None)
+    allow_patterns = model_details.get("allow_patterns", None)
 
     args = [f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
             "--model_name", hugging_face_id,
@@ -265,6 +266,10 @@ async def download_huggingface_model(hugging_face_id: str, model_details: str = 
 
     if hugging_face_filename is not None:
         args += ["--model_filename", hugging_face_filename]
+
+    if isinstance(allow_patterns, list):
+        allow_patterns_json = json.dumps(allow_patterns)
+        args += ["--allow_patterns", allow_patterns_json]
 
     try:
         process = await shared.async_run_python_script_and_update_status(python_script=args, job_id=job_id, begin_string="Model Download Progress")
