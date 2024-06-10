@@ -25,7 +25,7 @@ async def job_delete(job_id: str):
 
 
 @router.get("/create")
-async def job_create(type: str = 'UNDEFINED', status: str = 'UNDEFINED', data: str = '{}', experiment_id: str = '-1'):
+async def job_create(type: str = 'UNDEFINED', status: str = 'CREATED', data: str = '{}', experiment_id: str = '-1'):
     jobid = await db.job_create(type=type, status=status, job_data=data, experiment_id=experiment_id)
     return jobid
 
