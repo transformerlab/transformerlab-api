@@ -275,7 +275,14 @@ async def download_huggingface_model(hugging_face_id: str, model_details: str = 
         process = await shared.async_run_python_script_and_update_status(python_script=args, job_id=job_id, begin_string="Model Download Progress")
         exitcode = process.returncode
 
-        if (exitcode != 0):
+        if (exitcode == 77):
+            # This means we got a GatedRepoError
+            # The user needs to agree to terms on HuggingFace to download
+            error_msg = await db.job_get_error_msg(job_id)
+            await db.job_update_status(job_id, "UNAUTHORIZED", error_msg)
+            return {"status": "unauthorized", "message": error_msg}
+
+        elif (exitcode != 0):
             error_msg = await db.job_get_error_msg(job_id)
             if not error_msg:
                 error_msg = f"Exit code {exitcode}"
