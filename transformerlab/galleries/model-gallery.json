@@ -788,6 +788,84 @@
         }
     },
     {
+        "uniqueID": "Qwen/Qwen2-7B-Instruct",
+        "name": "Qwen2 7B Instruct",
+        "description": "Qwen2 has generally surpassed most opensource models and demonstrated competitiveness against proprietary models across a series of benchmarks targeting for language understanding, language generation, multilingual capability, coding, mathematics, reasoning, etc. Qwen2-7B-Instruct supports a context length of up to 131,072 tokens, enabling the processing of extensive inputs. This repo contains the instruction-tuned 7B Qwen2 model.",
+        "parameters": "7B",
+        "context": "32768",
+        "architecture": "Qwen2ForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "Qwen/Qwen2-7B-Instruct",
+        "transformers_version": "4.41.2",
+        "gated": false,
+        "license": "Apache 2.0",
+        "logo": "https://cdn-avatars.huggingface.co/v1/production/uploads/62088594a5943c8a8fc94560/y5SEKiE8TkjBKs9xfjCx5.png",
+        "author": {
+            "name": "Alibaba Cloud",
+            "url": "",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/Qwen/Qwen2-7B-Instruct",
+            "downloadUrl": "https://huggingface.co/Qwen/Qwen2-7B-Instruct",
+            "paperUrl": "?"
+        }
+    },
+    {
+        "uniqueID": "Qwen/Qwen2-7B",
+        "name": "Qwen2 7B",
+        "description": "Qwen2 has generally surpassed most opensource models and demonstrated competitiveness against proprietary models across a series of benchmarks targeting for language understanding, language generation, multilingual capability, coding, mathematics, reasoning, etc. This repo contains the 7B Qwen2 base language model.",
+        "parameters": "7B",
+        "context": "32768",
+        "architecture": "Qwen2ForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "Qwen/Qwen2-7B",
+        "transformers_version": "4.41.2",
+        "gated": false,
+        "license": "Apache 2.0",
+        "logo": "https://cdn-avatars.huggingface.co/v1/production/uploads/62088594a5943c8a8fc94560/y5SEKiE8TkjBKs9xfjCx5.png",
+        "author": {
+            "name": "Alibaba Cloud",
+            "url": "",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/Qwen/Qwen2-7B",
+            "downloadUrl": "https://huggingface.co/Qwen/Qwen2-7B",
+            "paperUrl": "?"
+        }
+    },
+    {
+        "uniqueID": "Qwen/Qwen2-1.5B-Instruct",
+        "name": "Qwen2 1.5B Instruct",
+        "description": "Qwen2 has generally surpassed most opensource models and demonstrated competitiveness against proprietary models across a series of benchmarks targeting for language understanding, language generation, multilingual capability, coding, mathematics, reasoning, etc. This repo contains the instruction-tuned 1.5B Qwen2 model.",
+        "parameters": "1.5B",
+        "context": "32768",
+        "architecture": "Qwen2ForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "Qwen/Qwen2-1.5B-Instruct",
+        "transformers_version": "4.41.2",
+        "gated": false,
+        "license": "Apache 2.0",
+        "logo": "https://cdn-avatars.huggingface.co/v1/production/uploads/62088594a5943c8a8fc94560/y5SEKiE8TkjBKs9xfjCx5.png",
+        "author": {
+            "name": "Alibaba Cloud",
+            "url": "",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/Qwen/Qwen2-1.5B-Instruct",
+            "downloadUrl": "https://huggingface.co/Qwen/Qwen2-1.5B-Instruct",
+            "paperUrl": "?"
+        }
+    },
+    {
         "uniqueID": "mlx-community/Liberated-Qwen1.5-72B-4bit",
         "name": "Liberated Qwen1.5 72B",
         "description": "Brought to you by AbacusAI and Eric Hartford. This model is based on Qwen/Qwen1.5-72B and subject to the tongyi-qianwen license. Liberated consists of open source datasets, including SystemChat a new dataset I created, designed to teach the model compliance to the system prompt, over long multiturn conversations, even with unusual or mechanical system prompts. These are tasks that Open Source Models have been lacking in thus far. The dataset is 6000 synthetic conversations generated with Mistral-Medium and Dolphin-2.7-mixtral-8x7b. There are no guardrails or censorship added to the dataset. You are advised to implement your own alignment layer before exposing the model as a service. Please read my blog post about uncensored models. https://erichartford.com/uncensored-models.",
