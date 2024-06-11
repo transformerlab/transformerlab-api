@@ -161,8 +161,7 @@ def download_blocking(model_is_downloaded):
 
         except GatedRepoError as e:
             returncode = 77
-            error_msg = f"{model} is a gated HuggingFace repo \
-that requires authentication.\n\
+            error_msg = f"{model} is a gated HuggingFace model. \
 To continue downloading, you must agree to the terms \
 on the model's Huggingface page."
 
