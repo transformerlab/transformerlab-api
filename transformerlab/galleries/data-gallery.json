@@ -72,6 +72,41 @@
     "size": 6458670,
     "license": "GPL",
     "dataset_config": "20220301.en"
+  }, {
+    "id": 9,
+    "name": "PKU-SafeRLHF",
+    "type": "Text-Generation",
+    "huggingfacerepo": "PKU-Alignment/PKU-SafeRLHF",
+    "description": "The preference dataset consists of 30k+ expert comparison data. Each entry in this dataset includes two responses to a question, along with safety meta-labels and preferences for both responses, taking into consideration their helpfulness and harmlessness. The dataset is designed to help train models to generate safe and helpful responses.",
+    "size": 330438,
+    "license": "CC BY-NC 4.0"
+  },
+  {
+    "id": 10,
+    "name": "Nectar",
+    "type": "Conversational",
+    "huggingfacerepo": "berkeley-nest/Nectar",
+    "description": "Nectar is the first high-quality 7-wise comparison dataset, generated through GPT-4-based ranking. Nectar contains diverse chat prompts, high-quality and diverse responses, and accurate ranking labels. Nectar's prompts are an amalgamation of diverse sources, including lmsys-chat-1M, ShareGPT, Antropic/hh-rlhf, UltraFeedback, Evol-Instruct, and Flan. ",
+    "size": 182954,
+    "license": "APACHE-2.0"
+  },
+  {
+    "id": 11,
+    "name": "OpenHermes",
+    "type": "Text-Generation",
+    "huggingfacerepo": "teknium/openhermes",
+    "description": "The OpenHermes dataset is composed of 242,000 entries of primarily GPT-4 generated data.",
+    "size": 242831,
+    "license": "GPL"
+  },
+  {
+    "id": 12,
+    "name": "MetaMathQA",
+    "type": "Conversational",
+    "huggingfacerepo": "meta-math/MetaMathQA",
+    "description": "MetaMath-Mistral-7B is fully fine-tuned on the MetaMathQA datasets and based on the powerful Mistral-7B model. It is glad to see using MetaMathQA datasets and changing the base model from llama-2-7B to Mistral-7b can boost the GSM8K performance from 66.5 to 77.7.",
+    "size": 395000,
+    "license": "MIT"
   }
 
 ]
