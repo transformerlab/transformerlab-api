@@ -26,7 +26,7 @@
     "learning_rate": {
       "title": "Learning Rate",
       "type": "number",
-      "default": 5e-5,
+      "default": 0.001,
       "minimum": 1e-6,
       "maximum": 1e6
     },

@@ -27,7 +27,6 @@ jinja_environment = Environment()
 
 root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
 plugin_dir = os.path.dirname(os.path.realpath(__file__))
-plugin_dir = os.path.join(plugin_dir)
 print("Plugin dir:", plugin_dir)
 
 # Connect to the LLM Lab database
