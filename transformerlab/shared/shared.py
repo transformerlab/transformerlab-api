@@ -209,7 +209,6 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
     # The script is in workspace/experiments/plugins/<plugin_name>/main.py so we need to
     # form that string:
     plugin_location = dirs.plugin_dir_by_name(plugin_name)
-    plugin_script = os.path.join(plugin_location, "main.py")
     output_file = os.path.join(plugin_location, f"output_{job_id}.txt")
 
     def on_train_complete():
@@ -221,7 +220,6 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
 
     if job_type == "LoRA":
         model_name = template_config["model_name"]
-        # print(template[5])
         template_config = json.loads(template['config'])
         adaptor_name = template_config["adaptor_name"]
         template_config["job_id"] = job_id
@@ -248,9 +246,13 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
         with open(input_file, 'w') as outfile:
             json.dump(input_contents, outfile, indent=4)
 
+        # This calls the training plugin harness, which calls the actual training plugin
+        plugin_harness = os.path.join(dirs.PLUGIN_SDK_DIR, "training_plugin_harness.py")
         training_popen_command = [
             "python3",
-            plugin_script,
+            plugin_harness,
+            "--plugin_dir",
+            plugin_location,
             "--input_file",
             input_file,
             "--experiment_name",
