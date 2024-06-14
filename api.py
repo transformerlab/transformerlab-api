@@ -43,6 +43,7 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 # used internally to set constants that are shared between separate processes. They are not meant to be
 # to be overriden by the user.
 os.environ["_TFL_WORKSPACE_DIR"] = dirs.WORKSPACE_DIR
+os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 
 
 @asynccontextmanager

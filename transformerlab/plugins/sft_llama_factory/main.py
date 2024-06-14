@@ -7,19 +7,25 @@ Standard command:
 CUDA_VISIBLE_DEVICES=0 llamafactory-cli train examples/lora_single_gpu/llama3_lora_sft.yaml
 
 """
-
-import json
-import re
-import sqlite3
+import os
+import sys
 import subprocess
 import time
-from datasets import load_dataset
-import argparse
-import os
+
+import json
 import yaml
+import re
+import sqlite3
+import argparse
+from transformerlab.shared import plugin_library
+
+
+from datasets import load_dataset
 from jinja2 import Environment
 
 jinja_environment = Environment()
+
+print("Plugin Library:", plugin_library.HEY)
 
 ########################################
 # First set up arguments and parameters
@@ -206,6 +212,8 @@ yml["lora_rank"] = int(config.get("lora_r", 16))
 yml['lora_dropout'] = float(config.get('lora_dropout', 0.1))
 yml['dataset_dir'] = data_directory
 yml['dataset'] = 'training_data'
+# Without resize_vocab the training fails for many models including Mistral
+yml['resize_vocab'] = True
 print("--------")
 
 with open(yaml_config_path, 'w') as file:

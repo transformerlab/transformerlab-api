@@ -116,7 +116,8 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
         print(f"Job {job_id} completed successfully")
         await db.job_update_status(job_id=job_id, status="COMPLETE")
     else:
-        print(f"ERROR: Job {job_id} failed with exit code {process.returncode}.")
+        print(
+            f"ERROR: Job {job_id} failed with exit code {process.returncode}.")
         await db.job_update_status(job_id=job_id, status="FAILED")
 
     return process
