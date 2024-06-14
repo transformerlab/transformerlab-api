@@ -105,7 +105,7 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
     # read stderr and print:
     if process.stdout:
         async for text in TextReceiveStream(process.stdout):
-            print("**SUB PROCESS:( "+text+" )**")
+            print(">> " + text)
             if begin_string in text:
                 print(f"Job {job_id} now in progress!")
                 await db.job_update_status(job_id=job_id, status="IN_PROGRESS")
@@ -134,7 +134,7 @@ async def async_run_python_daemon_and_update_status(python_script: list[str], jo
 
     The FastAPI worker uses stderr, not stdout"""
 
-    print("🥼 Running python script: " + str(python_script))
+    print("🏃‍♂️ Running python script: " + str(python_script))
 
     command = [sys.executable, *python_script]
     print(command)
