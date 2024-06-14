@@ -96,6 +96,7 @@ PLUGIN_PRELOADED_GALLERY = os.path.join(
 # PLUGIN_DIR
 PLUGIN_DIR = os.path.join(WORKSPACE_DIR, "plugins")
 
+
 def plugin_dir_by_name(plugin_name: str) -> str:
     return os.path.join(PLUGIN_DIR, plugin_name)
 
