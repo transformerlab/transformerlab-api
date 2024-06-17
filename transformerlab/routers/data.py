@@ -190,7 +190,6 @@ async def dataset_delete(dataset_id: str):
 
 @router.post("/fileupload", summary="Upload the contents of a dataset.")
 async def create_upload_file(dataset_id: str, files: list[UploadFile]):
-    print("test2")
     for file in files:
         print("uploading filename is: " + str(file.filename))
 
