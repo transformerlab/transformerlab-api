@@ -246,7 +246,7 @@ with subprocess.Popen(
     for line in process.stdout:
         # Each output line from lora.py looks like
         # "  2%|▏         | 8/366 [00:15<11:28,  1.92s/it]"
-        pattern = r'(\d+)%\|.*\| (\d+)\/(\d+) \[(\d+):(\d+)<(\d+):(\d+),  (\d+\.\d+)s\/it]'
+        pattern = r'(\d+)%\|.*\| (\d+)\/(\d+) \[(\d+):(\d+)<(\d+):(\d+),  (\d+\.\d+)it\/s]'
         match = re.search(pattern, line)
         if match:
             percentage = match.group(1)
@@ -264,7 +264,7 @@ with subprocess.Popen(
             )
             db.commit()
 
-        # We will not log the training progress to tensorboard yet because the above output doesn't display it...
+        # We will not log the training progress to tensorboard yet  because the above output doesn't display it...
         # loss = float(match.group(1))
         # it_per_sec = float(match.group(2))
         # tokens_per_sec = float(match.group(3))
