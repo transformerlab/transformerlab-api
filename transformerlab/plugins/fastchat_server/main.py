@@ -69,7 +69,7 @@ for line in proc.stderr:
     if "torch.cuda.OutOfMemoryError" in line.decode("utf-8"):
         print("CUDA Out of memory error", file=sys.stderr)
         sys.exit(99)  # 99 is our code for CUDA OOM
-    print(line, file=sys.stderr)
+    print(line.decode('utf-8'), file=sys.stderr)
 
 print("FastChat Worker exited", file=sys.stderr)
 sys.exit(1)

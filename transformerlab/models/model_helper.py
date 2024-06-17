@@ -10,16 +10,17 @@ def model_architecture_is_supported(model_architecture: str):
     supported_architectures = [
         "GGUF",
         "MLX",
-        "LlamaForCausalLM",
-        "T5ForConditionalGeneration",
+        "CohereForCausalLM",
         "FalconForCausalLM",
+        "GemmaForCausalLM",
+        "GPTBigCodeForCausalLM",
+        "LlamaForCausalLM",
         "MistralForCausalLM",
         "MixtralForCausalLM",
-        "GPTBigCodeForCausalLM",
-        "GemmaForCausalLM",
-        "CohereForCausalLM",
         "PhiForCausalLM",
-        "Phi3ForCausalLM"
+        "Phi3ForCausalLM",
+        "Qwen2ForCausalLM",
+        "T5ForConditionalGeneration"
 
     ]
     return model_architecture in supported_architectures

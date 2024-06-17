@@ -4,12 +4,18 @@
     "description": "vLLM is a fast and easy-to-use library for LLM inference and serving.",
     "plugin-format": "python",
     "type": "loader",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "model_architectures": [
-        "LlamaForCausalLM",
+        "CohereForCausalLM",
         "FalconForCausalLM",
+        "GemmaForCausalLM",
+        "GPTBigCodeForCausalLM",
+        "LlamaForCausalLM",
         "MistralForCausalLM",
-        "GPTBigCodeForCausalLM"
+        "MixtralForCausalLM",
+        "PhiForCausalLM",
+        "Phi3ForCausalLM",
+        "Qwen2ForCausalLM"
     ],
     "files": [
         "main.py",

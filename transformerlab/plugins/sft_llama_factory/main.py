@@ -7,21 +7,23 @@ Standard command:
 CUDA_VISIBLE_DEVICES=0 llamafactory-cli train examples/lora_single_gpu/llama3_lora_sft.yaml
 
 """
+import os
+import sys
+import subprocess
+import time
 
 import json
+import yaml
 import re
 import sqlite3
-import subprocess
-import sys
-import time
-from datasets import load_dataset
 import argparse
-import os
-from tensorboardX import SummaryWriter
-import yaml
-from jinja2 import Environment, PackageLoader, select_autoescape
+
+
+from datasets import load_dataset
+from jinja2 import Environment
 
 jinja_environment = Environment()
+
 
 ########################################
 # First set up arguments and parameters
@@ -29,7 +31,6 @@ jinja_environment = Environment()
 
 root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
 plugin_dir = os.path.dirname(os.path.realpath(__file__))
-plugin_dir = os.path.join(plugin_dir)
 print("Plugin dir:", plugin_dir)
 
 # Connect to the LLM Lab database
@@ -209,6 +210,8 @@ yml["lora_rank"] = int(config.get("lora_r", 16))
 yml['lora_dropout'] = float(config.get('lora_dropout', 0.1))
 yml['dataset_dir'] = data_directory
 yml['dataset'] = 'training_data'
+# Without resize_vocab the training fails for many models including Mistral
+yml['resize_vocab'] = True
 print("--------")
 
 with open(yaml_config_path, 'w') as file:
@@ -243,7 +246,7 @@ with subprocess.Popen(
     for line in process.stdout:
         # Each output line from lora.py looks like
         # "  2%|▏         | 8/366 [00:15<11:28,  1.92s/it]"
-        pattern = r'(\d+)%\|.*\| (\d+)\/(\d+) \[(\d+):(\d+)<(\d+):(\d+),  (\d+\.\d+)s\/it]'
+        pattern = r'(\d+)%\|.*\| (\d+)\/(\d+) \[(\d+):(\d+)<(\d+):(\d+),  (\d+\.\d+)it\/s]'
         match = re.search(pattern, line)
         if match:
             percentage = match.group(1)
@@ -261,7 +264,7 @@ with subprocess.Popen(
             )
             db.commit()
 
-        # We will not log the training progress to tensorboard yet because the above output doesn't display it...
+        # We will not log the training progress to tensorboard yet  because the above output doesn't display it...
         # loss = float(match.group(1))
         # it_per_sec = float(match.group(2))
         # tokens_per_sec = float(match.group(3))

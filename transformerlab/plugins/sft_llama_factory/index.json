@@ -1,5 +1,5 @@
 {
-  "name": "alpha SFT Training - Llama Factory (not ready for production use)",
+  "name": "SFT Training powered by Llama Factory",
   "uniqueId": "sft_llama_factory",
   "description": "An implementation of Supervised Finetuning using Llama Factory. This plugin is not ready for production use -- it only implements a demo finetune right now. Requires a GPU.",
   "plugin-format": "python",
@@ -9,7 +9,9 @@
     "LlamaForCausalLM",
     "MistralForCausalLM",
     "MixtralForCausalLM",
-    "PhiForCausalLM"
+    "PhiForCausalLM",
+    "GemmaForCausalLM",
+    "Qwen2ForCausalLM"
   ],
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
@@ -24,7 +26,7 @@
     "learning_rate": {
       "title": "Learning Rate",
       "type": "number",
-      "default": 5e-5,
+      "default": 0.001,
       "minimum": 1e-6,
       "maximum": 1e6
     },

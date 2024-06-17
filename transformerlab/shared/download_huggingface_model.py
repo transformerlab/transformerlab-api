@@ -8,6 +8,18 @@ import argparse
 import os
 from pathlib import Path
 
+# If there is an error set returncode and error_msg
+# returncode is used by API to know about errors and
+# error_msg will get passed back in API response.
+# We're using the following exit codes by convention
+# based on Stack Overflow advice:
+# 0 = success
+# 1 = general failure
+# 77 = permission denied (GatedRepoError)
+returncode = 0
+error_msg = False
+
+
 WORKSPACE_DIR = os.environ.get("_TFL_WORKSPACE_DIR")
 
 if WORKSPACE_DIR is None:
@@ -25,7 +37,6 @@ args, other = parser.parse_known_args()
 model = args.model_name
 model_filename = args.model_filename
 job_id = args.job_id
-error_msg = False
 
 # Models can have custom allow_patterns filters
 # Start with a default set of allow_patterns
@@ -103,7 +114,7 @@ print("starting script with progressbar updater")
 
 
 def download_blocking(model_is_downloaded):
-    global error_msg
+    global error_msg, returncode
     print("Downloading model")
     db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3",
                          isolation_level="DEFERRED")
@@ -149,12 +160,13 @@ def download_blocking(model_is_downloaded):
                 allow_patterns=allow_patterns)
 
         except GatedRepoError as e:
-            error_msg = f"{model} is a gated HuggingFace repo \
-that requires authentication.\n\
-To continue downloading, create an access token \
-on HuggingFace and copy it in to the User Access Token \
-field ion the Transformer Lab Settings page."
+            returncode = 77
+            error_msg = f"{model} is a gated HuggingFace model. \
+To continue downloading, you must agree to the terms \
+on the model's Huggingface page."
+
         except Exception as e:
+            returncode = 1
             error_msg = f"{type(e).__name__}: {e}"
 
     model_is_downloaded.set()
@@ -220,18 +232,20 @@ def main():
     p2.join()
 
     if error_msg:
-        returncode = 1
         print(f"Error downloading model: {error_msg}")
 
         # save to job database
         db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
         job_data = json.dumps({"error_msg": str(error_msg)})
+        status = "FAILED"
+        if returncode == 77:
+            status = "UNAUTHORIZED"
         db.execute(
-            "UPDATE job SET status='FAILED', job_data=json(?)\
-                WHERE id=?", (job_data, job_id))
+            "UPDATE job SET status=?, job_data=json(?)\
+                WHERE id=?", (status, job_data, job_id))
         db.commit()
         db.close()
-        exit(1)
+        exit(returncode)
 
 
 if __name__ == '__main__':

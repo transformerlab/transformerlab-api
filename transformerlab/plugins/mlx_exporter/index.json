@@ -4,14 +4,16 @@
     "description": "Exports the current model to MLX format so it can be run on Apple Silicon.",
     "plugin-format": "python",
     "type": "exporter",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "model_architectures": [
+        "CohereForCausalLM",
+        "GemmaForCausalLM",
         "LlamaForCausalLM",
         "MistralForCausalLM",
         "MixtralForCausalLM",
         "PhiForCausalLM",
-        "GemmaForCausalLM",
-        "Phi3ForCausalLM"
+        "Phi3ForCausalLM",
+        "Qwen2ForCausalLM"
     ],
     "export_architecture": "MLX",
     "files": [

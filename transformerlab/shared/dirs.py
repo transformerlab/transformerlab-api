@@ -101,6 +101,9 @@ def plugin_dir_by_name(plugin_name: str) -> str:
     return os.path.join(PLUGIN_DIR, plugin_name)
 
 
+PLUGIN_SDK_DIR = os.path.join(TFL_SOURCE_CODE_DIR, "transformerlab", "plugin_sdk")
+PLUGIN_HARNESS = os.path.join(PLUGIN_SDK_DIR, "plugin_harness.py")
+
 # MODELS_DIR
 MODELS_DIR = os.path.join(WORKSPACE_DIR, "models")
 

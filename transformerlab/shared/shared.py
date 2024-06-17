@@ -105,7 +105,7 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
     # read stderr and print:
     if process.stdout:
         async for text in TextReceiveStream(process.stdout):
-            print("**SUB PROCESS:( "+text+" )**")
+            print(">> " + text)
             if begin_string in text:
                 print(f"Job {job_id} now in progress!")
                 await db.job_update_status(job_id=job_id, status="IN_PROGRESS")
@@ -116,7 +116,8 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
         print(f"Job {job_id} completed successfully")
         await db.job_update_status(job_id=job_id, status="COMPLETE")
     else:
-        print(f"ERROR: Job {job_id} failed with exit code {process.returncode}.")
+        print(
+            f"ERROR: Job {job_id} failed with exit code {process.returncode}.")
         await db.job_update_status(job_id=job_id, status="FAILED")
 
     return process
@@ -133,7 +134,7 @@ async def async_run_python_daemon_and_update_status(python_script: list[str], jo
 
     The FastAPI worker uses stderr, not stdout"""
 
-    print("🥼 Running python script: " + str(python_script))
+    print("🏃‍♂️ Running python script: " + str(python_script))
 
     command = [sys.executable, *python_script]
     print(command)
@@ -208,7 +209,6 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
     # The script is in workspace/experiments/plugins/<plugin_name>/main.py so we need to
     # form that string:
     plugin_location = dirs.plugin_dir_by_name(plugin_name)
-    plugin_script = os.path.join(plugin_location, "main.py")
     output_file = os.path.join(plugin_location, f"output_{job_id}.txt")
 
     def on_train_complete():
@@ -220,7 +220,6 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
 
     if job_type == "LoRA":
         model_name = template_config["model_name"]
-        # print(template[5])
         template_config = json.loads(template['config'])
         adaptor_name = template_config["adaptor_name"]
         template_config["job_id"] = job_id
@@ -247,9 +246,12 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
         with open(input_file, 'w') as outfile:
             json.dump(input_contents, outfile, indent=4)
 
+        # This calls the training plugin harness, which calls the actual training plugin
         training_popen_command = [
             "python3",
-            plugin_script,
+            dirs.PLUGIN_HARNESS,
+            "--plugin_dir",
+            plugin_location,
             "--input_file",
             input_file,
             "--experiment_name",

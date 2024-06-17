@@ -256,10 +256,6 @@ async def model_local_delete(model_id):
 
 
 async def job_create(type, status, job_data='{}', experiment_id=""):
-    print("type", type)
-    print("type", status)
-    print("job_data", job_data)
-    print("experiment_id", experiment_id)
     row = await db.execute_insert(
         "INSERT INTO job(type, status, experiment_id, job_data) VALUES (?, ?, ?, json(?))",
         (type, status, experiment_id, job_data),
