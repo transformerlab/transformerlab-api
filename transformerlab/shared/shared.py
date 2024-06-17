@@ -247,10 +247,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
             json.dump(input_contents, outfile, indent=4)
 
         # This calls the training plugin harness, which calls the actual training plugin
-        plugin_harness = os.path.join(dirs.PLUGIN_SDK_DIR, "training_plugin_harness.py")
         training_popen_command = [
             "python3",
-            plugin_harness,
+            dirs.PLUGIN_HARNESS,
             "--plugin_dir",
             plugin_location,
             "--input_file",
