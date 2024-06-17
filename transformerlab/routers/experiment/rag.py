@@ -32,12 +32,13 @@ async def query(experimentId: str, query: str, settings: str = None):
     plugin_path = os.path.join(dirs.PLUGIN_DIR, plugin)
     if not os.path.exists(plugin_path):
         return f"Plugin {plugin} does not exist on the filesystem -- you must install or reinstall this plugin."
-    # Call main.py which is at plugin_path/main.py
-    plugin_main = os.path.join(plugin_path, "main.py")
-    print(f"Calling plugin {plugin_main}" +
+
+    # Call plug by passing plugin_path to plugin harness
+    print(f"Calling plugin {plugin_path}" +
           " with model " + model + " and query " + query)
     process = await asyncio.create_subprocess_exec(
-        sys.executable, plugin_main, "--model_name", model, "--query", query, "--documents_dir", documents_dir, "--settings", settings,
+        sys.executable, dirs.PLUGIN_HARNESS, "--plugin_dir", plugin_path, "--model_name", model,
+        "--query", query, "--documents_dir", documents_dir, "--settings", settings,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
     stdout, stderr = await process.communicate()
