@@ -47,7 +47,6 @@ async def start_next_job():
         print("Starting job: " + str(nextjob['id']))
         print(nextjob['job_data'])
         job_config = json.loads(nextjob['job_data'])
-        print(job_config["template_id"])
         experiment_id = nextjob["experiment_id"]
         data = await db.experiment_get(experiment_id)
         if data is None:
