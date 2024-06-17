@@ -189,30 +189,33 @@ async def dataset_delete(dataset_id: str):
 
 
 @router.post("/fileupload", summary="Upload the contents of a dataset.")
-async def create_upload_file(dataset_id: str, file: UploadFile):
-    print("uploading filename is: " + str(file.filename))
+async def create_upload_file(dataset_id: str, files: list[UploadFile]):
+    print("test2")
+    for file in files:
+        print("uploading filename is: " + str(file.filename))
 
-    # # ensure filename is in the format <something>_train.jsonl or <something>_eval.jsonl
-    # if not re.match(r"^.+_(train|eval).jsonl$", str(file.filename)):
-    #     raise HTTPException(
-    #         status_code=403, detail=f"The filenames must be named EXACTLY: {dataset_id}_train.jsonl and {dataset_id}_eval.jsonl")
+        # # ensure filename is in the format <something>_train.jsonl or <something>_eval.jsonl
+        # if not re.match(r"^.+_(train|eval).jsonl$", str(file.filename)):
+        #     raise HTTPException(
+        #         status_code=403, detail=f"The filenames must be named EXACTLY: {dataset_id}_train.jsonl and {dataset_id}_eval.jsonl")
 
-    # ensure the filename is exactly {dataset_id}_train.jsonl or {dataset_id}_eval.jsonl
-    if not re.match(rf"^{dataset_id}_(train|eval).jsonl$", str(file.filename)):
-        raise HTTPException(
-            status_code=403, detail=f"The filenames must be named EXACTLY: {dataset_id}_train.jsonl and {dataset_id}_eval.jsonl")
+        # ensure the filename is exactly {dataset_id}_train.jsonl or {dataset_id}_eval.jsonl
 
-    dataset_id = slugify(dataset_id)
+        if not re.match(rf"^{dataset_id}_(train|eval).jsonl$", str(file.filename)):
+            raise HTTPException(
+                status_code=403, detail=f"The filenames must be named EXACTLY: {dataset_id}_train.jsonl and {dataset_id}_eval.jsonl")
 
-    # Save the file to the dataset directory
-    try:
-        content = await file.read()
-        newfilename = os.path.join(
-            dirs.dataset_dir_by_id(dataset_id), str(file.filename))
-        async with aiofiles.open(newfilename, "wb") as out_file:
-            await out_file.write(content)
-    except Exception:
-        raise HTTPException(
-            status_code=403, detail="There was a problem uploading the file")
+        dataset_id = slugify(dataset_id)
 
-    return {"status": "success", "filename": file.filename}
+        # Save the file to the dataset directory
+        try:
+            content = await file.read()
+            newfilename = os.path.join(
+                dirs.dataset_dir_by_id(dataset_id), str(file.filename))
+            async with aiofiles.open(newfilename, "wb") as out_file:
+                await out_file.write(content)
+        except Exception:
+            raise HTTPException(
+                status_code=403, detail="There was a problem uploading the file")
+
+    return {"status": "success"}
