@@ -55,7 +55,6 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
 
     # Figure out plugin and model output directories
     script_directory = dirs.plugin_dir_by_name(plugin_name)
-    script_path = f"{script_directory}/main.py"
 
     output_path = os.path.join(dirs.MODELS_DIR, output_model_id)
     os.makedirs(output_path)
@@ -79,6 +78,7 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
 
     # Setup arguments to pass to plugin
     args = [
+        "--plugin_dir", script_directory,
         "--model_name", input_model_id,
         "--model_architecture", input_model_architecture,
         "--output_dir", output_path,
@@ -91,7 +91,8 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
         args.extend(new_param)
 
     # Run the export plugin
-    subprocess_command = [script_path] + args
+    # This calls the training plugin harness, which calls the actual training plugin
+    subprocess_command = [dirs.PLUGIN_HARNESS] + args
     try:
         process = await shared.async_run_python_script_and_update_status(python_script=subprocess_command, job_id=job_id, begin_string="Exporting")
     except Exception as e:
