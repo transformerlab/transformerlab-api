@@ -156,19 +156,18 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
     # as command line arguments to the script.
 
     # Create a list of all the parameters:
-    extra_args = []
+    script_directory = dirs.plugin_dir_by_name(plugin_name)
+    extra_args = ["--plugin_dir", script_directory]
     for key in template_config:
         extra_args.append("--" + key)
         extra_args.append(template_config[key])
 
     print(template_config)
 
-    script_directory = dirs.plugin_dir_by_name(plugin_name)
-    script_path = f"{script_directory}/main.py"
     extra_args.extend(["--experiment_name", experiment_name, "--eval_name", eval_name, "--input_file", input_file,
                        "--model_name", model_name, "--model_architecture", model_type, "--model_adapter", model_adapter])
 
-    subprocess_command = [sys.executable, script_path] + extra_args
+    subprocess_command = [sys.executable, dirs.PLUGIN_HARNESS] + extra_args
 
     print(f">Running {subprocess_command}")
 
