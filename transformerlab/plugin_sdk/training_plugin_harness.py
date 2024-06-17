@@ -1,19 +1,17 @@
 """
 This is the main file that gets called by popen when a training plugin is run.
-It will get passed:
+It must get passed:
 
     --plugin_dir            full path to the directory containing the plugin
-    --input_file            full path to the input configuration for the plugin
-    --experiment_name       string name of experiment
 
-The plugin expects that input_file and experiment_file are passed on.
+All other parameters can be passed as if you are calling the plugin directly.
 
 """
 import sys
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--plugin_dir', type=str)
+parser.add_argument('--plugin_dir', type=str, required=True)
 args, unknown = parser.parse_known_args()
 
 # Add the plugin directory to the path
