@@ -17,7 +17,6 @@ import yaml
 import re
 import sqlite3
 import argparse
-from transformerlab.shared import plugin_library
 
 
 from datasets import load_dataset
@@ -25,7 +24,6 @@ from jinja2 import Environment
 
 jinja_environment = Environment()
 
-print("Plugin Library:", plugin_library.HEY)
 
 ########################################
 # First set up arguments and parameters
