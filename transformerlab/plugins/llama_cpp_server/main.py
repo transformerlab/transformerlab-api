@@ -310,7 +310,9 @@ def cleanup_at_exit():
 
 atexit.register(cleanup_at_exit)
 
-if __name__ == "__main__":
+def main():
+    global app, worker
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", type=str, default="localhost")
     parser.add_argument("--port", type=int, default=21002)
@@ -358,3 +360,7 @@ if __name__ == "__main__":
         args.conv_template,
     )
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+
+
+if __name__ == "__main__":
+    main()
