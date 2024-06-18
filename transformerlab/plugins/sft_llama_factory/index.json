@@ -68,7 +68,8 @@
     "adaptor_name": {
       "title": "Adaptor Name",
       "type": "string",
-      "required": true
+      "required": true,
+      "default": "adaptor"
     },
     "instruction_template": {
       "title": "Instruction Template for Alpaca Format (Jinja2)",
