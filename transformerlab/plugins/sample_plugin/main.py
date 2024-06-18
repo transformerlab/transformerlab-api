@@ -11,7 +11,7 @@ import json
 # db = sqlite3.connect(llmlab_root_dir + "/workspace/llmlab.sqlite3")
 
 
-if __name__ == "__main__":
+def main():
     # Get all arguments provided to this script using argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_file', type=str)
@@ -22,3 +22,7 @@ if __name__ == "__main__":
 
     print("Input to Script:")
     print(input)
+
+
+if __name__ == "__main__":
+    main()

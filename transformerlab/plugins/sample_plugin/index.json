@@ -4,7 +4,7 @@
     "description": "This plugin just takes in the inputs provided, and prints them out. Use it as a template to see what parameters are avialable to a script.",
     "plugin-format": "python",
     "type": "trainer",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "model_architectures": [
         "LlamaForCausalLM"
     ],
@@ -14,6 +14,11 @@
     ],
     "setup-script": "setup.sh",
     "parameters": {
+        "adaptor_name": {
+            "title": "Adaptor Name",
+            "type": "string",
+            "required": true
+        },
         "model": {
             "title": "Model",
             "type": "string",
