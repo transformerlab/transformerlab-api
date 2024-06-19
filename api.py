@@ -339,10 +339,27 @@ def parse_args():
     return parser.parse_args()
 
 
+rainbow = ['\033[38;5;196m', '\033[38;5;202m', '\033[38;5;226m',
+           '\033[38;5;082m', '\033[38;5;021m', '\033[38;5;093m', '\033[38;5;163m']
+reset = '\033[0m'
+
+
+def print_in_rainbow(text):
+    for i, line in enumerate(text.split("\n")):
+        chunks = [line[i:i + 6] for i in range(0, len(line), 6)]
+        for j, chunk in enumerate(chunks):
+            print(rainbow[j % len(rainbow)], end="")
+            print(chunk, end="")
+            print(reset, end="")
+        print('')
+
+
 def print_launch_message():
     # Print the welcome message to the CLI
     with open(os.path.join(os.path.dirname(__file__), "transformerlab/launch_header_text.txt"), "r") as f:
-        print(f.read())
+        text = f.read()
+        print_in_rainbow(text)
+    print('http://www.transformerlab.ai\nhttps://github.com/transformerlab/llmlab-api\n')
 
 
 def run():

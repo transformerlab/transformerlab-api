@@ -11,8 +11,3 @@
    | |    / _` | '_ \                                      
    | |___| (_| | |_) |                                     
    \_____/\__,_|_.__/
-                                                                                 
-http://www.transformerlab.ai
-https://github.com/transformerlab/llmlab-api
-
-
