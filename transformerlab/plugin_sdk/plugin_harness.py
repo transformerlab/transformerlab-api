@@ -19,3 +19,7 @@ args, unknown = parser.parse_known_args()
 # So the plugin is able to import the SDK
 sys.path.append(args.plugin_dir)
 import main
+
+# Also execute the function main.main(), if it exists
+if "main" in dir(main) and callable(getattr(main,'main')):
+    main.main()
