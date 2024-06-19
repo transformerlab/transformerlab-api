@@ -453,7 +453,10 @@ class Trainer:
 # This is set by argument passed to the script
 JOB_ID = None
 
-if __name__ == "__main__":
+
+def main():
+    global JOB_ID
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_file', type=str)
 
@@ -486,3 +489,7 @@ if __name__ == "__main__":
         output_dir=config["output_dir"],
         adaptor_output_dir=config["adaptor_output_dir"]
     )
+
+
+if __name__ == "__main__":
+    main()
