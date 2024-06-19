@@ -4,7 +4,7 @@
   "description": "An implementation of Supervised Finetuning using Llama Factory. This plugin is not ready for production use -- it only implements a demo finetune right now. Requires a GPU.",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "model_architectures": [
     "LlamaForCausalLM",
     "MistralForCausalLM",
@@ -15,6 +15,7 @@
   ],
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
+  "training_template_format": "alpaca",
   "parameters": {
     "maximum_sequence_length": {
       "title": "Maximum Sequence Length",
@@ -70,21 +71,6 @@
       "type": "string",
       "required": true,
       "default": "adaptor"
-    },
-    "instruction_template": {
-      "title": "Instruction Template for Alpaca Format (Jinja2)",
-      "type": "string",
-      "required": true
-    },
-    "input_template": {
-      "title": "Input Template for Alpaca Format (Jinja2)",
-      "type": "string",
-      "required": false
-    },
-    "output_template": {
-      "title": "Output Template for Alpaca Format (Jinja2)",
-      "type": "string",
-      "required": true
     }
   },
   "parameters_ui": {
