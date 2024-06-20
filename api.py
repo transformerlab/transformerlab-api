@@ -183,10 +183,8 @@ async def server_worker_start(model_name: str, adaptor: str = '', model_filename
             if (engine is not None and engine != 'default'):
                 inference_engine = engine
 
-                experiment_name = experiment['name']
                 plugin_name = inference_engine
-                plugin_location = dirs.plugin_dir_by_name(
-                    plugin_name) + '/main.py'
+                plugin_location = dirs.plugin_dir_by_name(plugin_name)
 
                 model = model_name
                 if (model_filename is not None and model_filename != ''):
@@ -196,6 +194,8 @@ async def server_worker_start(model_name: str, adaptor: str = '', model_filename
                     adaptor = f"{dirs.WORKSPACE_DIR}/adaptors/{model}/{adaptor}"
 
                 params = [
+                    dirs.PLUGIN_HARNESS,
+                    "--plugin_dir",
                     plugin_location,
                     "--model-path",
                     model,
