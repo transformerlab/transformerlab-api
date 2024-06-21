@@ -23,7 +23,7 @@ def get_db_connection():
 
 class Job:
     """
-    For updating the status and info of a job.
+    Used to update status and info of long-running jobs.
     """
 
     def __init__(self, job_id):
@@ -31,10 +31,25 @@ class Job:
         self.db = get_db_connection()
 
     def update_progress(self, progress: int):
+        """
+        Update the percent complete for this job.
+
+        progress: int representing percent complete
+        """
         self.db.execute(
             "UPDATE job SET progress = ?, updated_at = CURRENT_TIMESTAMP "
                 "WHERE id = ?",
             (progress, self.id),
+        )
+
+    def set_tensorboard_output_dir(self, tensorboard_dir: str):
+        """
+        Sets the directory that tensorboard output is stored.
+        """
+        self.db.execute(
+            "UPDATE job SET job_data = json_insert(job_data, '$.tensorboard_output_dir', ?) "
+                "WHERE id = ?",
+            (tensorboard_dir, self.id),
         )
 
 
