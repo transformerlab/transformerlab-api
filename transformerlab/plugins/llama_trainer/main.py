@@ -14,6 +14,10 @@ import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, TrainerCallback
 import os
 
+from jinja2 import Environment
+
+jinja_environment = Environment()
+
 use_flash_attention = False
 
 # Connect to the LLM Lab database
@@ -74,14 +78,11 @@ print(f"dataset size: {len(dataset)}")
 print(dataset[randrange(len(dataset))])
 print("formatting_template: " + config['formatting_template'])
 
-# Takes in a template in the form of String.Template from Python's standard library
-# https://docs.python.org/3.4/library/string.html#template-strings
-# e.g. "$who likes $what"
-template = Template(config['formatting_template'])
+template = jinja_environment.from_string(config["formatting_template"])
 
 
 def format_instruction(mapping):
-    return template.substitute(mapping)
+    return template.render(mapping)
 
 
 print("formatted instruction: (example) ")

@@ -1,5 +1,5 @@
 {
-  "name": "SFT Training powered by Llama Factory",
+  "name": "SFT Training -- Llama Factory",
   "uniqueId": "sft_llama_factory",
   "description": "An implementation of Supervised Finetuning using Llama Factory. This plugin is not ready for production use -- it only implements a demo finetune right now. Requires a GPU.",
   "plugin-format": "python",
