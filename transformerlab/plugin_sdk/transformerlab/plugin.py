@@ -13,7 +13,7 @@ def get_db_connection():
     Returns an SQLite DB connection to the TransformerLab DB
     """
     dbfile = os.path.join(WORKSPACE_DIR, "llmlab.sqlite3")
-    return sqlite3.connect(dbfile, isolation_level="DEFERRED")
+    return sqlite3.connect(dbfile, isolation_level=None)
 
 
 def generate_model_json(model_id: str, architecture: str, 

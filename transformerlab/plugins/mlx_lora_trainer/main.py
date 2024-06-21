@@ -61,12 +61,11 @@ from tensorboardX import SummaryWriter
 import transformerlab.plugin
 
 
-root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
 plugin_dir = os.path.dirname(os.path.realpath(__file__))
 print("Plugin dir:", plugin_dir)
 
-# Connect to the LLM Lab database
-WORKSPACE_DIR = os.getenv("_TFL_WORKSPACE_DIR")
+# A few things we need from Plugin SDK
+WORKSPACE_DIR = transformerlab.plugin.WORKSPACE_DIR
 db = transformerlab.plugin.get_db_connection()
 
 # Get all parameters provided to this script from Transformer Lab
@@ -200,7 +199,6 @@ db.execute(
     "UPDATE job SET progress = ? WHERE id = ?",
     (0, config["job_id"]),
 )
-db.commit()
 
 print("Training beginning:")
 print("Adaptor will be saved as:", adaptor_file_name)
@@ -218,7 +216,6 @@ db.execute(
     "UPDATE job SET job_data = json_insert(job_data, '$.tensorboard_output_dir', ?) WHERE id = ?",
     (output_dir, config["job_id"]),
 )
-db.commit()
 
 with subprocess.Popen(
         popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True) as process:
@@ -236,7 +233,6 @@ with subprocess.Popen(
                 "UPDATE job SET progress = ? WHERE id = ?",
                 (percent_complete, config["job_id"]),
             )
-            db.commit()
 
             # Now parse the rest of the line and write to tensorboard
             pattern = r"Train loss (\d+\.\d+), It/sec (\d+\.\d+), Tokens/sec (\d+\.\d+)"
