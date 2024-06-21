@@ -7,13 +7,35 @@ import sqlite3
 # useful constants
 WORKSPACE_DIR = os.getenv("_TFL_WORKSPACE_DIR")
 
+# Maintain a singleton database connection
+db = None
 
 def get_db_connection():
     """
     Returns an SQLite DB connection to the TransformerLab DB
     """
-    dbfile = os.path.join(WORKSPACE_DIR, "llmlab.sqlite3")
-    return sqlite3.connect(dbfile, isolation_level=None)
+    global db
+    if db is None:
+        dbfile = os.path.join(WORKSPACE_DIR, "llmlab.sqlite3")
+        db = sqlite3.connect(dbfile, isolation_level=None)
+    return db
+
+
+class Job:
+    """
+    For updating the status and info of a job.
+    """
+
+    def __init__(self, job_id):
+        self.id = job_id
+        self.db = get_db_connection()
+
+    def update_progress(self, progress: int):
+        self.db.execute(
+            "UPDATE job SET progress = ?, updated_at = CURRENT_TIMESTAMP "
+                "WHERE id = ?",
+            (progress, self.id),
+        )
 
 
 def generate_model_json(model_id: str, architecture: str, 
