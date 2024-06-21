@@ -49,7 +49,6 @@ options:
 
 import json
 import re
-import sqlite3
 from string import Template
 import subprocess
 import sys
@@ -68,7 +67,7 @@ print("Plugin dir:", plugin_dir)
 
 # Connect to the LLM Lab database
 WORKSPACE_DIR = os.getenv("_TFL_WORKSPACE_DIR")
-db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
+db = transformerlab.plugin.get_db_connection()
 
 # Get all parameters provided to this script from Transformer Lab
 parser = argparse.ArgumentParser()
