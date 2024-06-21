@@ -74,7 +74,6 @@ db = transformerlab.plugin.get_db_connection()
 # Get all parameters provided to this script from Transformer Lab
 parser = argparse.ArgumentParser()
 parser.add_argument('--input_file', type=str)
-parser.add_argument('--experiment_name', default='', type=str)
 args, unknown = parser.parse_known_args()
 
 print("Arguments:")
@@ -200,11 +199,8 @@ popen_command = [sys.executable, "-u", f"{plugin_dir}/mlx-examples/lora/lora.py"
 print("Running command:")
 print(popen_command)
 
-
-db.execute(
-    "UPDATE job SET progress = ? WHERE id = ?",
-    (0, config["job_id"]),
-)
+job = transformerlab.plugin.Job(config["job_id"])
+job.update_progress(0)
 
 print("Training beginning:")
 print("Adaptor will be saved as:", adaptor_file_name)
@@ -217,11 +213,8 @@ output_dir = os.path.join(config["output_dir"], today)
 writer = SummaryWriter(output_dir)
 print("Writing logs to:", output_dir)
 
-# In the json job_data column for this job, store the tensorboard output dir
-db.execute(
-    "UPDATE job SET job_data = json_insert(job_data, '$.tensorboard_output_dir', ?) WHERE id = ?",
-    (output_dir, config["job_id"]),
-)
+# Store the tensorboard output dir in the job
+job.set_tensorboard_output_dir(output_dir)
 
 with subprocess.Popen(
         popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True) as process:
@@ -235,10 +228,7 @@ with subprocess.Popen(
             percent_complete = float(first_number) / float(iters) * 100
             print("Progress: ", f"{percent_complete:.2f}%")
             # print(percent_complete, ' ', config["job_id"])
-            db.execute(
-                "UPDATE job SET progress = ? WHERE id = ?",
-                (percent_complete, config["job_id"]),
-            )
+            job.update_progress(percent_complete)
 
             # Now parse the rest of the line and write to tensorboard
             pattern = r"Train loss (\d+\.\d+), It/sec (\d+\.\d+), Tokens/sec (\d+\.\d+)"
