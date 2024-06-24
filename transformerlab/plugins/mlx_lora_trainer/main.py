@@ -97,23 +97,11 @@ iters = config["iters"]
 adaptor_name = config.get('adaptor_name', "default")
 
 # Get the dataset
-# Datasets can be a huggingface ID or the name of a locally uploaded dataset
-# Need to check the DB to figure out which because it changes how we load the dataset
-# TODO: Refactor this to somehow simplify across training plugins
-dataset_id = config["dataset_name"]
-cursor = db.execute(
-    "SELECT location FROM dataset WHERE dataset_id = ?", (dataset_id,))
-row = cursor.fetchone()
-cursor.close()
-
-# if no rows exist then the dataset hasn't been installed!
-if row is None:
-    print(f"No dataset named {dataset_id} installed.")
+try:
+    dataset_target = transformerlab.plugin.get_dataset_path(config["dataset_name"])
+except Exception as e: 
+    print(e)
     exit
-
-# dataset_location will be either "local" or "huggingface"
-# (and if it's something else we're going to treat "huggingface" as default)
-dataset_location = row[0]
 
 dataset_types = ["train", "test"]
 dataset = {}
@@ -122,14 +110,7 @@ formatting_template = jinja_environment.from_string(
 
 for dataset_type in dataset_types:
 
-    # Load dataset - if it's local then pass it the path to the dataset directory
-    if (dataset_location == "local"):
-        dataset_target = os.path.join(WORKSPACE_DIR, "datasets", dataset_id)
-
-    # Otherwise assume it is a Huggingface ID
-    else:
-        dataset_target = dataset_id
-
+    # Load dataset
     try:
         dataset[dataset_type] = load_dataset(
             dataset_target, split=dataset_type)

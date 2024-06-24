@@ -21,6 +21,32 @@ def get_db_connection():
     return db
 
 
+def get_dataset_path(dataset_id: str):
+    """
+    Returns the ID or filesystem path to pass to load_dataset() for a given ID.
+    """
+    db = get_db_connection()
+    cursor = db.execute(
+        "SELECT location FROM dataset WHERE dataset_id = ?", (dataset_id,))
+    row = cursor.fetchone()
+    cursor.close()
+
+    # if no rows exist then the dataset hasn't been installed!
+    if row is None:
+        raise Exception(f"No dataset named {dataset_id} installed.")
+
+    # dataset_location will be either "local" or "huggingface"
+    # (and if it's something else we're going to treat "huggingface" as default)
+    # if it's local then pass it the path to the dataset directory
+    dataset_location = row[0]
+    if (dataset_location == "local"):
+        return os.path.join(WORKSPACE_DIR, "datasets", dataset_id)
+
+    # Otherwise assume it is a Huggingface ID
+    else:
+        return dataset_id
+
+
 class Job:
     """
     Used to update status and info of long-running jobs.
