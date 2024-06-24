@@ -18,7 +18,7 @@ import re
 import sqlite3
 import argparse
 
-
+import transformerlab.plugin
 from datasets import load_dataset
 from jinja2 import Environment
 
@@ -29,13 +29,9 @@ jinja_environment = Environment()
 # First set up arguments and parameters
 ########################################
 
-root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
+WORKSPACE_DIR = transformerlab.plugin.WORKSPACE_DIR
 plugin_dir = os.path.dirname(os.path.realpath(__file__))
 print("Plugin dir:", plugin_dir)
-
-# Connect to the LLM Lab database
-WORKSPACE_DIR = os.getenv("_TFL_WORKSPACE_DIR")
-db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
 
 # Get all parameters provided to this script from Transformer Lab
 parser = argparse.ArgumentParser()
@@ -92,33 +88,12 @@ def create_data_directory_in_llama_factory_format():
 # Now process the Datatset
 ########################################
 
-# Get the dataset
-# Datasets can be a huggingface ID or the name of a locally uploaded dataset
-# Need to check the DB to figure out which because it changes how we load the dataset
-# TODO: Refactor this to somehow simplify across training plugins
-dataset_id = config["dataset_name"]
-cursor = db.execute(
-    "SELECT location FROM dataset WHERE dataset_id = ?", (dataset_id,))
-row = cursor.fetchone()
-cursor.close()
-
-dataset = {}
-
-# if no rows exist then the dataset hasn't been installed!
-if row is None:
-    print(f"No dataset named {dataset_id} installed.")
+# Get the dataset - if this fails exit the script
+try:
+    dataset_target = transformerlab.plugin.get_dataset_path(config["dataset_name"])
+except Exception as e:
+    print("Failed loading dataset from db:", e)
     exit
-
-# dataset_location will be either "local" or "huggingface"
-# (and if it's something else we're going to treat "huggingface" as default)
-dataset_location = row[0]
-
-# Load dataset - if it's local then pass it the path to the dataset directory
-if (dataset_location == "local"):
-    dataset_target = os.path.join(WORKSPACE_DIR, "datasets", dataset_id)
-# Otherwise assume it is a Huggingface ID
-else:
-    dataset_target = dataset_id
 
 dataset = load_dataset(
     dataset_target, split='train')
@@ -177,12 +152,9 @@ today = time.strftime("%Y%m%d-%H%M%S")
 output_dir = os.path.join(config["output_dir"], today)
 print(f"Storing Tensorboard Output to: {output_dir}")
 
-# In the json job_data column for this job, store the tensorboard output dir
-db.execute(
-    "UPDATE job SET job_data = json_insert(job_data, '$.tensorboard_output_dir', ?) WHERE id = ?",
-    (output_dir, config["job_id"]),
-)
-db.commit()
+# Create a job and store the tensorboard output dir in the job
+job = transformerlab.plugin.Job(config["job_id"])
+job.set_tensorboard_output_dir(output_dir)
 
 # First copy a template file to the data directory
 os.system(
@@ -232,13 +204,7 @@ popen_command = ['llamafactory-cli', 'train', yaml_config_path]
 print("Running command:")
 print(popen_command)
 
-
-db.execute(
-    "UPDATE job SET progress = ? WHERE id = ?",
-    (0, config["job_id"]),
-)
-db.commit()
-
+job.update_progress(0)
 print("Training beginning:")
 
 with subprocess.Popen(
@@ -258,11 +224,7 @@ with subprocess.Popen(
 
             print(
                 f"Percentage: {percentage}, Current: {current}, Total: {total}, Minutes: {minutes}, Seconds: {seconds}, It/s: {it_s}")
-            db.execute(
-                "UPDATE job SET progress = ? WHERE id = ?",
-                (percentage, config["job_id"]),
-            )
-            db.commit()
+            job.update_progress(percentage)
 
         print(line, end="", flush=True)
 
