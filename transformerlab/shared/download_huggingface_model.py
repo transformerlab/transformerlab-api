@@ -197,7 +197,8 @@ def check_disk_size(model_is_downloaded: Event):
         # progress column:
         job_data = json.dumps({"downloaded": cache_size_growth})
 
-        db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
+        db = sqlite3.connect(
+            f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
         db.execute(
             "UPDATE job SET job_data=json_set(job_data, '$.downloaded', ?),  progress=? WHERE id=?", (cache_size_growth, progress, job_id))
         db.close()
@@ -233,7 +234,8 @@ def main():
         print(f"Error downloading model: {error_msg}")
 
         # save to job database
-        db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
+        db = sqlite3.connect(
+            f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
         job_data = json.dumps({"error_msg": str(error_msg)})
         status = "FAILED"
         if returncode == 77:
