@@ -42,14 +42,14 @@ job_id = args.job_id
 # Start with a default set of allow_patterns
 # but if we are able to read a list from the passed parameter use that instead
 allow_patterns = [
-                    "*.json",
-                    "*.safetensors",
-                    "*.py",
-                    "tokenizer.model",
-                    "*.tiktoken",
-                    "*.npz",
-                    "*.bin"
-                ]
+    "*.json",
+    "*.safetensors",
+    "*.py",
+    "tokenizer.model",
+    "*.tiktoken",
+    "*.npz",
+    "*.bin"
+]
 if args.allow_patterns:
     allow_patterns_json = args.allow_patterns
     try:
@@ -117,13 +117,12 @@ def download_blocking(model_is_downloaded):
     global error_msg, returncode
     print("Downloading model")
     db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3",
-                         isolation_level="DEFERRED")
+                         isolation_level=None)
     job_data = json.dumps({"downloaded": 0, "model": model,
                           "total_size_of_model_in_mb": total_size_of_model_in_mb})
     print(job_data)
     db.execute(
         "UPDATE job SET progress=?, job_data=json(?) WHERE id=?", (0, job_data, job_id))
-    db.commit()
     db.close()
     if model_filename is not None:
         # Filename mode means we download just one file from the repo, not the whole repo
@@ -198,10 +197,10 @@ def check_disk_size(model_is_downloaded: Event):
         # progress column:
         job_data = json.dumps({"downloaded": cache_size_growth})
 
-        db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
+        db = sqlite3.connect(
+            f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
         db.execute(
             "UPDATE job SET job_data=json_set(job_data, '$.downloaded', ?),  progress=? WHERE id=?", (cache_size_growth, progress, job_id))
-        db.commit()
         db.close()
 
         print(f"flag:  {model_is_downloaded.is_set()}")
@@ -235,7 +234,8 @@ def main():
         print(f"Error downloading model: {error_msg}")
 
         # save to job database
-        db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
+        db = sqlite3.connect(
+            f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
         job_data = json.dumps({"error_msg": str(error_msg)})
         status = "FAILED"
         if returncode == 77:
@@ -243,7 +243,6 @@ def main():
         db.execute(
             "UPDATE job SET status=?, job_data=json(?)\
                 WHERE id=?", (status, job_data, job_id))
-        db.commit()
         db.close()
         exit(returncode)
 
