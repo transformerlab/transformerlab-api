@@ -69,7 +69,6 @@ print("Plugin dir:", plugin_dir)
 
 # A few things we need from Plugin SDK
 WORKSPACE_DIR = transformerlab.plugin.WORKSPACE_DIR
-db = transformerlab.plugin.get_db_connection()
 
 # Get all parameters provided to this script from Transformer Lab
 parser = argparse.ArgumentParser()
