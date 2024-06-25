@@ -200,9 +200,9 @@ async def create_upload_file(dataset_id: str, files: list[UploadFile]):
 
         # ensure the filename is exactly {dataset_id}_train.jsonl or {dataset_id}_eval.jsonl
 
-        if not re.match(rf"^{dataset_id}_(train|eval).jsonl$", str(file.filename)):
-            raise HTTPException(
-                status_code=403, detail=f"The filenames must be named EXACTLY: {dataset_id}_train.jsonl and {dataset_id}_eval.jsonl")
+        # if not re.match(rf"^{dataset_id}_(train|eval).jsonl$", str(file.filename)):
+        #     raise HTTPException(
+        #         status_code=403, detail=f"The filenames must be named EXACTLY: {dataset_id}_train.jsonl and {dataset_id}_eval.jsonl")
 
         dataset_id = slugify(dataset_id)
 
