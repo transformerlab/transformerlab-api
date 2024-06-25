@@ -1,10 +1,10 @@
 {
-  "name": "SFT Training - Llama Factory",
-  "uniqueId": "sft_llama_factory",
-  "description": "An implementation of Supervised Finetuning using Llama Factory.",
+  "name": "Reward Modeling - Llama Factory",
+  "uniqueId": "reward_modeling_llama_factory",
+  "description": "An implementation of HFRL (Reward Modeling) using Llama Factory.",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.0.2",
+  "version": "0.0.1",
   "model_architectures": [
     "LlamaForCausalLM",
     "MistralForCausalLM",
