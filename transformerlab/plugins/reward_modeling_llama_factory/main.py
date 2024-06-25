@@ -141,7 +141,7 @@ yml["num_train_epochs"] = float(config.get("num_train_epochs", 1))
 yml["max_steps"] = float(config.get("max_steps", -1))
 yml['dataset_dir'] = data_directory
 yml['dataset'] = 'training_data'
-yml['template'] = 'llama2'
+yml['template'] = 'llama3'
 # Without resize_vocab the training fails for many models including Mistral
 yml['resize_vocab'] = True
 print("--------")
