@@ -90,7 +90,8 @@ def create_data_directory_in_llama_factory_format():
 
 # Get the dataset - if this fails exit the script
 try:
-    dataset_target = transformerlab.plugin.get_dataset_path(config["dataset_name"])
+    dataset_target = transformerlab.plugin.get_dataset_path(
+        config["dataset_name"])
 except Exception as e:
     print("Failed loading dataset from db:", e)
     exit
@@ -212,7 +213,7 @@ with subprocess.Popen(
     for line in process.stdout:
         # Each output line from lora.py looks like
         # "  2%|▏         | 8/366 [00:15<11:28,  1.92s/it]"
-        pattern = r'(\d+)%\|.*\| (\d+)\/(\d+) \[(\d+):(\d+)<(\d+):(\d+),  (\d+\.\d+)(.+)]'
+        pattern = r'(\d+)%\|.*\| (\d+)\/(\d+) \[(\d+):(\d+)<(\d+):(\d+),(\s*)(\d+\.\d+)(.+)]'
         match = re.search(pattern, line)
         if match:
             percentage = match.group(1)

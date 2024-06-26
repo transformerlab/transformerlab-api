@@ -18,6 +18,7 @@ import re
 import sqlite3
 import argparse
 
+import transformerlab.plugin
 
 from datasets import load_dataset
 from jinja2 import Environment
@@ -34,7 +35,7 @@ plugin_dir = os.path.dirname(os.path.realpath(__file__))
 print("Plugin dir:", plugin_dir)
 
 # Connect to the LLM Lab database
-WORKSPACE_DIR = os.getenv("_TFL_WORKSPACE_DIR")
+WORKSPACE_DIR = transformerlab.plugin.WORKSPACE_DIR
 db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
 
 # Get all parameters provided to this script from Transformer Lab
@@ -99,8 +100,23 @@ def create_data_directory_in_llama_factory_format():
 # Now process the Datatset
 ########################################
 
-# Copy local file dpo_en_demo.json to the data directory:
-os.system(f"cp {plugin_dir}/dpo_en_demo.json {data_directory}/train.json")
+try:
+    dataset_target = transformerlab.plugin.get_dataset_path(
+        config["dataset_name"])
+except Exception as e:
+    print(e)
+    exit()
+
+
+dataset = load_dataset(dataset_target)
+
+# output dataset['train'] to a json file, row by row:
+# This will exhaust memory if the data is large
+with open(f"{data_directory}/train2.json", "w") as f:
+    all_data = []
+    for row in dataset['train']:
+        all_data.append(row)
+    json.dump(all_data, f, indent=2)
 
 
 ########################################
@@ -175,10 +191,20 @@ print("Training beginning:")
 
 with subprocess.Popen(
         popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True, cwd=os.path.join(plugin_dir, 'LLaMA-Factory')) as process:
+
+    training_step_has_started = False
+
     for line in process.stdout:
+
+        if "***** Running training *****" in line:
+            training_step_has_started = True
+
+        if not training_step_has_started:
+            continue
+
         # Each output line from lora.py looks like
         # "  2%|▏         | 8/366 [00:15<11:28,  1.92s/it]"
-        pattern = r'(\d+)%\|.*\| (\d+)\/(\d+) \[(\d+):(\d+)<(\d+):(\d+),  (\d+\.\d+)(.+)]'
+        pattern = r'(\d+)%\|.*\| (\d+)\/(\d+) \[(\d+):(\d+)<(\d+):(\d+),(\s*)(\d+\.\d+)(.+)]'
         match = re.search(pattern, line)
         if match:
             percentage = match.group(1)
