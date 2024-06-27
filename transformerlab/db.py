@@ -277,6 +277,8 @@ async def jobs_get_all(type='', status=''):
     else:
         base_query += " AND ? != 'x'"
 
+    base_query += " AND status != 'DELETED' ORDER BY created_at DESC"
+
     cursor = await db.execute(base_query, (type, status))
     rows = await cursor.fetchall()
 
@@ -300,6 +302,7 @@ async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
         "SELECT * FROM job \
         WHERE experiment_id = ? \
         AND type = ? \
+        AND status != 'DELETED' \
         ORDER BY created_at DESC", (experiment_id, job_type))
     rows = await cursor.fetchall()
 
@@ -411,14 +414,17 @@ def job_update_sync(job_id, status):
 
 
 async def job_delete_all():
-    await db.execute("DELETE FROM job")
+    # await db.execute("DELETE FROM job")
+    await db.execute("UPDATE job SET status = 'DELETED'")
     await db.commit()
     return
 
 
 async def job_delete(job_id):
     print("Deleting job: " + job_id)
-    await db.execute("DELETE FROM job WHERE id = ?", (job_id,))
+    # await db.execute("DELETE FROM job WHERE id = ?", (job_id,))
+    # instead of deleting, set status of job to deleted:
+    await db.execute("UPDATE job SET status = 'DELETED' WHERE id = ?", (job_id,))
     await db.commit()
     return
 
