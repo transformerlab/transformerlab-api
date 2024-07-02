@@ -1,0 +1,55 @@
+{
+    "name": "Autotrain SFT Trainer",
+    "uniqueId": "autotrain_sft_trainer",
+    "description": "Basic SFT training using Huggingface autotrain",
+    "plugin-format": "python",
+    "type": "trainer",
+    "version": "0.1.0",
+    "model_architectures": [
+        "LlamaForCausalLM",
+        "MistralForCausalLM",
+        "MixtralForCausalLM",
+        "PhiForCausalLM"
+    ],
+    "files": [
+        "main.py",
+        "setup.sh"
+    ],
+    "setup-script": "setup.sh",
+    "parameters": {
+        "batch_size": {
+            "title": "Batch Size",
+            "type": "integer",
+            "default": 4,
+            "minimum": 1,
+            "maximum": 8
+        },
+        "learning_rate": {
+            "title": "Learning Rate",
+            "type": "number",
+            "default": 2e-4,
+            "minimum": 1e-6,
+            "maximum": 1e+6
+        },
+        "num_train_epochs": {
+          "title": "Number of Training Epochs",
+          "type": "integer",
+          "default": 1,
+          "minimum": 1,
+          "maximum": 24
+        },
+        "adaptor_name": {
+            "title": "Adaptor Name",
+            "type": "string",
+            "required": true
+        }
+    },
+    "parameters_ui": {
+        "batch_size": {
+            "ui:help": "Default batch is 4. Setting this to 1 or 2 will reduce memory consumption but may slow performance."
+        },
+        "learning_rate": {
+            "ui:help": "Learning rate default is 2e-4."
+        }
+    }
+}
