@@ -145,6 +145,7 @@
         "gated": false,
         "license": "CC-BY-NC-4.0",
         "logo": "https://cohere-ai.ghost.io/content/images/2024/03/CMDR--1--1-1.png",
+        "size_of_model_in_mb": 1265.4,
         "author": {
             "name": "Cohere 4 AI",
             "url": "https://cohere.com/research",
@@ -505,6 +506,7 @@
         "license": "Gemma",
         "gated": "manual",
         "logo": "https://storage.googleapis.com/gweb-uniblog-publish-prod/images/gemma-header.width-1200.format-webp.webp",
+        "size_of_model_in_mb": 4801.0,
         "author": {
             "name": "Google",
             "url": "https://huggingface.co/google/gemma-2b-it",
@@ -532,6 +534,7 @@
         "license": "Gemma",
         "gated": "manual",
         "logo": "https://storage.googleapis.com/gweb-uniblog-publish-prod/images/gemma-header.width-1200.format-webp.webp",
+        "size_of_model_in_mb": 4801.0,
         "author": {
             "name": "Google",
             "url": "https://huggingface.co/google/gemma-2b",
@@ -854,6 +857,7 @@
         "gated": false,
         "license": "Apache 2.0",
         "logo": "https://cdn-avatars.huggingface.co/v1/production/uploads/62088594a5943c8a8fc94560/y5SEKiE8TkjBKs9xfjCx5.png",
+        "size_of_model_in_mb": 2955.4,
         "author": {
             "name": "Alibaba Cloud",
             "url": "",
@@ -1278,6 +1282,7 @@
         "gated": "auto",
         "license": "MIT",
         "logo": "https://blogs.microsoft.com/wp-content/uploads/prod/2012/08/8867.Microsoft_5F00_Logo_2D00_for_2D00_screen.jpg",
+        "size_of_model_in_mb": 7290.5,
         "author": {
             "name": "Microsoft",
             "url": "https://huggingface.co/papers/2404.14219",
@@ -1304,6 +1309,7 @@
         "gated": "auto",
         "license": "MIT",
         "logo": "https://blogs.microsoft.com/wp-content/uploads/prod/2012/08/8867.Microsoft_5F00_Logo_2D00_for_2D00_screen.jpg",
+        "size_of_model_in_mb": 7290.5,
         "author": {
             "name": "Microsoft",
             "url": "https://huggingface.co/papers/2404.14219",
@@ -1357,7 +1363,7 @@
         "gated": "auto",
         "license": "Apache 2.0",
         "logo": "https://eu-images.contentstack.com/v3/assets/blt6b0f74e5591baa03/bltf495f117670d330a/65985db56b9c04040d633f56/image.png?width=700&auto=webp&quality=80&disable=upscale",
-        "size_of_model_in_mb": 4200.9,
+        "size_of_model_in_mb": 2100.4,
         "author": {
             "name": "TinyLlama",
             "url": "https://github.com/jzhang38/TinyLlama",
