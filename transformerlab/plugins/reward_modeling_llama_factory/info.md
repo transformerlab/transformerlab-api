@@ -8,7 +8,7 @@ In this plugin we implement RLHF using reward modeling. The plugin uses Llama Fa
 ### Data format
 
 Llama Factory requires data to be structured in a very specific format. It requires a better response in chosen column and a worse response in rejected column.
-
+<!-- 
 ```json
 [
   {
@@ -17,12 +17,21 @@ Llama Factory requires data to be structured in a very specific format. It requi
     "chosen": "chosen answer (required)",
     "rejected": "rejected answer (required)"
   }
+] -->
+```json
+[
+  {
+    "conversations": "conversation before response (required)",
+    "chosen": "preferred answer (required)",
+    "rejected": "rejected answer (required)"
+  }
 ]
 ```
 
 An example dataset is here:
 
-https://github.com/hiyouga/LLaMA-Factory/blob/main/data/dpo_en_demo.json
+<a href="https://github.com/hiyouga/LLaMA-Factory/blob/main/data/dpo_en_demo.json" target="_blank">dpo_en_demo.json</a>
+
 
 
 ### What is Reward Modeling

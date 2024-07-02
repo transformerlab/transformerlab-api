@@ -1,7 +1,7 @@
 {
-  "name": "Reward Modeling - Llama Factory",
-  "uniqueId": "reward_modeling_llama_factory",
-  "description": "An implementation of RLHF (Reward Modeling) using Llama Factory.",
+  "name": "DPO / ORPO / SIMPO RLHF - Llama Factory",
+  "uniqueId": "dpo_orpo_simpo_trainer_llama_factory",
+  "description": "An implementation of several Preference Optimization methods using Llama Factory.",
   "plugin-format": "python",
   "type": "trainer",
   "version": "0.0.1",
@@ -17,8 +17,19 @@
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "training_template_format": "none",
-  "training_data_instructions": "Enxure that the dataset below has the following required columns: \"conversations\", \"chosen\", \"rejected\"",
+  "training_data_instructions": "Ensure that the dataset below has the following required columns: \"conversations\", \"chosen\", \"rejected\"",
+
   "parameters": {
+    "pref_loss": {
+      "title": "Task",
+      "type": "string",
+      "enum": [
+        "dpo",
+        "orpo",
+        "simpo"
+      ],
+      "required": true
+    },
     "learning_rate": {
       "title": "Learning Rate",
       "type": "number",
@@ -42,7 +53,7 @@
       "title": "Adaptor Name",
       "type": "string",
       "required": true,
-      "default": "adaptor"
+      "default": "dpo"
     }
   }
 }
