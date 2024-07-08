@@ -93,7 +93,7 @@ for dataset_type in dataset_types:
 
 # copy file test.jsonl to valid.jsonl. Our test set is the same as our validation set.
 os.system(
-    f"cp {WORKSPACE_DIR}/plugins/mlx_lora_trainer/data/test.jsonl {WORKSPACE_DIR}/plugins/mlx_lora_trainer/data/valid.jsonl")
+    f"cp {WORKSPACE_DIR}/plugins/autotrain_sft_trainer/data/test.jsonl {WORKSPACE_DIR}/plugins/autotrain_sft_trainer/data/valid.jsonl")
 
 print("Example formatted training example:")
 example = formatting_template.render(dataset["train"][1])
