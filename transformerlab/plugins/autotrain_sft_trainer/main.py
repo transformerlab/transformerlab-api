@@ -2,7 +2,6 @@ import json
 import re
 from string import Template
 import subprocess
-import sys
 import time
 from datasets import load_dataset
 import argparse
@@ -145,8 +144,8 @@ with subprocess.Popen(
     for line in process.stdout:
         # Progress complete output lines looks like
         # "0%|          | 1/1710 [00:05<2:46:58,  5.86s/it]""
-        # I'm sorry this is insane
-        pattern = r"\s*(\d+)\%\|.+?(?=[\d+]/)([\d+])/.+?(?=\d+.\d+s/it)(\d+.\d+)s/it"
+        # I'm sorry this regex is insane
+        pattern = r"\s*(\d+)\%\|.+?(?=\d+/)(\d+)/.+?(?=\d+.\d+s/it)(\d+.\d+)s/it"
         match = re.search(pattern, line)
         if match:
             percent_complete = match.group(1)
@@ -172,9 +171,7 @@ with subprocess.Popen(
             print("Epoch:", epoch)
             job.update_progress(percent_complete)
 
-            # The code snippet `with w.as_default(): tf.summary.scalar` is using TensorFlow's
-            # `tf.summary.scalar` function to log scalar values to a TensorBoard summary writer
-            # `w`.
+            # Output to tensorboard
             writer.add_scalar("loss", loss, iteration)
             writer.add_scalar("it_per_sec", it_per_sec, iteration)
             writer.add_scalar("learning_rate", learning_rate, iteration)
