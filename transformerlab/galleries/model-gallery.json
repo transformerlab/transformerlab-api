@@ -479,6 +479,7 @@
         "license": "Gemma",
         "gated": "manual",
         "logo": "https://storage.googleapis.com/gweb-uniblog-publish-prod/images/gemma-header.width-1200.format-webp.webp",
+        "size_of_model_in_mb": 16305.1,
         "author": {
             "name": "Google",
             "url": "https://huggingface.co/google/gemma-7b-it",
