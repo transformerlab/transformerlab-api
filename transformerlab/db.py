@@ -435,7 +435,7 @@ async def job_cancel_in_progress_jobs():
     return
 
 
-async def job_update_single_key_val_in_job_data(job_id, key, value):
+async def job_update_job_data_insert_key_value(job_id, key, value):
     value = json.dumps(value)
 
     await db.execute(

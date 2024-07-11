@@ -214,9 +214,15 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
     def on_train_complete():
         print('Training Job is Complete')
         db.job_update_sync(job_id, "COMPLETE")
+        end_time = time.strftime("%Y-%m-%d %H:%M:%S")
+        asyncio.run(db.job_update_job_data_insert_key_value(
+            job_id, "end_time", end_time))
 
     def on_job_complete():
         db.job_update_sync(job_id, "COMPLETE")
+        end_time = time.strftime("%Y-%m-%d %H:%M:%S")
+        asyncio.run(db.job_update_job_data_insert_key_value(
+            job_id, "end_time", end_time))
 
     if job_type == "LoRA":
         model_name = template_config["model_name"]
@@ -245,6 +251,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
                           "config": template_config}
         with open(input_file, 'w') as outfile:
             json.dump(input_contents, outfile, indent=4)
+
+        start_time = time.strftime("%Y-%m-%d %H:%M:%S")
+        await db.job_update_job_data_insert_key_value(
+            job_id, "start_time", start_time)
 
         # This calls the training plugin harness, which calls the actual training plugin
         training_popen_command = [
