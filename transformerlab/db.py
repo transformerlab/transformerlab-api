@@ -404,7 +404,7 @@ def job_update_sync(job_id, status):
     # which can only support sychronous functions
     # This is a hack to get around that limitation
     global DATABASE_FILE_NAME
-    db_sync = sqlite3.connect(DATABASE_FILE_NAME)
+    db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
 
     db_sync.execute(
         "UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
@@ -431,6 +431,17 @@ async def job_delete(job_id):
 
 async def job_cancel_in_progress_jobs():
     await db.execute("UPDATE job SET status = 'CANCELLED' WHERE status = 'IN_PROGRESS'")
+    await db.commit()
+    return
+
+
+async def job_update_single_key_val_in_job_data(job_id, key, value):
+    value = json.dumps(value)
+
+    await db.execute(
+        f"UPDATE job SET job_data = json_set(job_data,'$.{key}', json(?))  WHERE id = ?",
+        (value, job_id),
+    )
     await db.commit()
     return
 
