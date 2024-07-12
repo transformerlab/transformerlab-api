@@ -97,8 +97,9 @@ adaptor_name = config.get('adaptor_name', "default")
 
 # Get the dataset
 try:
-    dataset_target = transformerlab.plugin.get_dataset_path(config["dataset_name"])
-except Exception as e: 
+    dataset_target = transformerlab.plugin.get_dataset_path(
+        config["dataset_name"])
+except Exception as e:
     print(e)
     exit
 
@@ -209,6 +210,11 @@ with subprocess.Popen(
             print("Progress: ", f"{percent_complete:.2f}%")
             # print(percent_complete, ' ', config["job_id"])
             job.update_progress(percent_complete)
+
+            if job.should_stop:
+                print("Stopping job because of user interruption.")
+                job.update_status("STOPPED")
+                process.terminate()
 
             # Now parse the rest of the line and write to tensorboard
             pattern = r"Train loss (\d+\.\d+), It/sec (\d+\.\d+), Tokens/sec (\d+\.\d+)"

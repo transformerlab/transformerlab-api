@@ -41,8 +41,9 @@ adaptor_name = config.get('adaptor_name', "default")
 
 # Get the dataset
 try:
-    dataset_target = transformerlab.plugin.get_dataset_path(config["dataset_name"])
-except Exception as e: 
+    dataset_target = transformerlab.plugin.get_dataset_path(
+        config["dataset_name"])
+except Exception as e:
     print(e)
     exit
 
@@ -112,9 +113,9 @@ popen_command = ["autotrain", "llm",
                  "--trainer", "sft",
                  "--peft",
                  "--merge-adapter",
-                 "--auto_find_batch_size", # automatically find optimal batch size
+                 "--auto_find_batch_size",  # automatically find optimal batch size
                  "--project-name", adaptor_name
-]
+                 ]
 
 print("Running command:")
 print(popen_command)
@@ -137,7 +138,7 @@ job.set_tensorboard_output_dir(output_dir)
 
 with subprocess.Popen(
         popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True) as process:
-    
+
     iteration = 0
     it_per_sec = 0
     percent_complete = 0
@@ -154,7 +155,7 @@ with subprocess.Popen(
             # Don't update the job database here. Only when we get a major update.
 
         # Progress data for tensorboard comes from lines formatted like:
-        # INFO     | 2024-06-25 18:01:04 | autotrain.trainers.common:on_log:226 - 
+        # INFO     | 2024-06-25 18:01:04 | autotrain.trainers.common:on_log:226 -
         # {'loss': 1.7918, 'grad_norm': 0.55, 'learning_rate': 0.0007, 'epoch': 0.073}
         pattern = r"INFO.+?{'loss': (\d+\.\d+), 'grad_norm': (\d+\.\d+), 'learning_rate': (\d+\.\d+), 'epoch': (\d+\.\d+)}"
         match = re.search(pattern, line)
@@ -170,6 +171,11 @@ with subprocess.Popen(
             print("Loss: ", loss)
             print("Epoch:", epoch)
             job.update_progress(percent_complete)
+
+            if job.should_stop:
+                print("Stopping job because of user interruption.")
+                job.update_status("STOPPED")
+                process.terminate()
 
             # Output to tensorboard
             writer.add_scalar("loss", loss, iteration)
