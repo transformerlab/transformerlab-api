@@ -10,6 +10,7 @@ WORKSPACE_DIR = os.getenv("_TFL_WORKSPACE_DIR")
 # Maintain a singleton database connection
 db = None
 
+
 def get_db_connection():
     """
     Returns an SQLite DB connection to the TransformerLab DB
@@ -55,6 +56,7 @@ class Job:
     def __init__(self, job_id):
         self.id = job_id
         self.db = get_db_connection()
+        self.should_stop = False
 
     def update_progress(self, progress: int):
         """
@@ -64,8 +66,32 @@ class Job:
         """
         self.db.execute(
             "UPDATE job SET progress = ?, updated_at = CURRENT_TIMESTAMP "
-                "WHERE id = ?",
+            "WHERE id = ?",
             (progress, self.id),
+        )
+
+        # While we are updating the progress, check if we should stop by
+        # checking if should_stop == True in the job_data:
+        cursor = self.db.execute(
+            "SELECT job_data FROM job WHERE id = ?", (self.id,))
+        row = cursor.fetchone()
+        cursor.close()
+
+        if row is not None:
+            job_data = json.loads(row[0])
+            if job_data.get("stop", False):
+                self.should_stop = True
+
+    def update_status(self, status: str):
+        """
+        Update the status of this job.
+
+        status: str representing the status of the job
+        """
+        self.db.execute(
+            "UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP "
+            "WHERE id = ?",
+            (status, self.id),
         )
 
     def set_tensorboard_output_dir(self, tensorboard_dir: str):
@@ -74,12 +100,12 @@ class Job:
         """
         self.db.execute(
             "UPDATE job SET job_data = json_insert(job_data, '$.tensorboard_output_dir', ?) "
-                "WHERE id = ?",
+            "WHERE id = ?",
             (tensorboard_dir, self.id),
         )
 
 
-def generate_model_json(model_id: str, architecture: str, 
+def generate_model_json(model_id: str, architecture: str,
                         model_filename: str = "", output_directory: str | None = None,
                         json_data: dict = {}):
     """

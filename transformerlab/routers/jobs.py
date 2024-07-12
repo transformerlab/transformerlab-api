@@ -60,6 +60,14 @@ async def start_next_job():
         return {"message": "No jobs in queue"}
 
 
+@router.get("/{job_id}/stop")
+async def stop_job(job_id: str):
+    # The way a job is stopped is simply by adding "stop: true" to the job_data
+    # This will be checked by the plugin as it runs
+    await db.job_stop(job_id)
+    return {"message": "OK"}
+
+
 @router.get("/delete_all")
 async def job_delete_all():
     await db.job_delete_all()

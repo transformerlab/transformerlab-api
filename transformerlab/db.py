@@ -445,6 +445,12 @@ async def job_update_job_data_insert_key_value(job_id, key, value):
     await db.commit()
     return
 
+
+async def job_stop(job_id):
+    print("Stopping job: " + job_id)
+    await job_update_job_data_insert_key_value(job_id, "stop", True)
+    return
+
 ###############
 # TRAINING and TRAINING JOBS MODELS
 ###############

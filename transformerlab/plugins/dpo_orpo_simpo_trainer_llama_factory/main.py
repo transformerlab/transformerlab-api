@@ -36,7 +36,6 @@ print("Plugin dir:", plugin_dir)
 
 # Connect to the LLM Lab database
 WORKSPACE_DIR = transformerlab.plugin.WORKSPACE_DIR
-db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
 
 # Get all parameters provided to this script from Transformer Lab
 parser = argparse.ArgumentParser()
@@ -135,12 +134,6 @@ today = time.strftime("%Y%m%d-%H%M%S")
 output_dir = os.path.join(config["output_dir"], today)
 print(f"Storing Tensorboard Output to: {output_dir}")
 
-# In the json job_data column for this job, store the tensorboard output dir
-db.execute(
-    "UPDATE job SET job_data = json_insert(job_data, '$.tensorboard_output_dir', ?) WHERE id = ?",
-    (output_dir, config["job_id"]),
-)
-db.commit()
 
 # First copy a template file to the data directory
 os.system(
@@ -189,11 +182,11 @@ print("Running command:")
 print(popen_command)
 
 
-db.execute(
-    "UPDATE job SET progress = ? WHERE id = ?",
-    (0, config["job_id"]),
-)
-db.commit()
+job = transformerlab.plugin.Job(config["job_id"])
+job.update_progress(0)
+# In the json job_data column for this job, store the tensorboard output dir
+job.set_tensorboard_output_dir(output_dir)
+
 
 print("Training beginning:")
 
@@ -203,6 +196,11 @@ with subprocess.Popen(
     training_step_has_started = False
 
     for line in process.stdout:
+
+        if job.should_stop:
+            print("Stopping job because of user interruption.")
+            job.update_status("STOPPED")
+            process.terminate()
 
         if "***** Running training *****" in line:
             training_step_has_started = True
@@ -224,11 +222,7 @@ with subprocess.Popen(
 
             print(
                 f"Percentage: {percentage}, Current: {current}, Total: {total}, Minutes: {minutes}, Seconds: {seconds}, It/s: {it_s}")
-            db.execute(
-                "UPDATE job SET progress = ? WHERE id = ?",
-                (percentage, config["job_id"]),
-            )
-            db.commit()
+            job.update_progress(percentage)
 
         print(line, end="", flush=True)
 
