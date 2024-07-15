@@ -17,6 +17,7 @@ jinja_environment = Environment()
 # Setup some directories we'll use
 plugin_dir = os.path.dirname(os.path.realpath(__file__))
 WORKSPACE_DIR = transformerlab.plugin.WORKSPACE_DIR
+TLAB_CODE_DIR = WORKSPACE_DIR
 
 # Get all parameters provided to this script from Transformer Lab
 parser = argparse.ArgumentParser()
@@ -36,8 +37,9 @@ learning_rate = config["learning_rate"]
 batch_size = config.get("batch_size", 4)
 num_train_epochs = config.get("num_train_epochs", 4)
 
-# this will also get concatenated to the output model name
+# Generate a model name using the original model and the passed adaptor
 adaptor_name = config.get('adaptor_name', "default")
+output_model_name = f"{config["model_name"]}-{adaptor_name}"
 
 # Get the dataset
 try:
@@ -51,6 +53,11 @@ dataset_types = ["train", "test"]
 dataset = {}
 formatting_template = jinja_environment.from_string(
     config["formatting_template"])
+
+# Directory for storing temporary working files
+data_directory = os.path.join(plugin_dir, "data")
+if not os.path.exists(data_directory):
+    os.makedirs(data_directory)
 
 for dataset_type in dataset_types:
 
@@ -73,11 +80,6 @@ for dataset_type in dataset_types:
     print(
         f"Loaded {dataset_type} dataset with {len(dataset[dataset_type])} examples.")
 
-    # Directory for storing temporary working files
-    data_directory = os.path.join(plugin_dir, "data")
-    if not os.path.exists(data_directory):
-        os.makedirs(data_directory)
-
     # output training files in templated format in to data directory
     with open(f"{data_directory}/{dataset_type}.jsonl", "w") as f:
         for i in range(len(dataset[dataset_type])):
@@ -93,15 +95,11 @@ for dataset_type in dataset_types:
 
 # copy file test.jsonl to valid.jsonl. Our test set is the same as our validation set.
 os.system(
-    f"cp {WORKSPACE_DIR}/plugins/autotrain_sft_trainer/data/test.jsonl {WORKSPACE_DIR}/plugins/autotrain_sft_trainer/data/valid.jsonl")
+    f"cp {data_directory}/test.jsonl {data_directory}/valid.jsonl")
 
 print("Example formatted training example:")
 example = formatting_template.render(dataset["train"][1])
 print(example)
-
-# TODO: For now create adapter in the plugin directory but this should probably go somewhere else
-adaptor_output_dir = plugin_dir
-adaptor_file_name = os.path.join(adaptor_output_dir, f"{adaptor_name}.npz")
 
 popen_command = ["autotrain", "llm",
                  "--train",
@@ -114,7 +112,7 @@ popen_command = ["autotrain", "llm",
                  "--peft",
                  "--merge-adapter",
                  "--auto_find_batch_size",  # automatically find optimal batch size
-                 "--project-name", adaptor_name
+                 "--project-name", output_model_name
                  ]
 
 print("Running command:")
@@ -124,7 +122,6 @@ job = transformerlab.plugin.Job(config["job_id"])
 job.update_progress(0)
 
 print("Training beginning:")
-print("Adaptor will be saved as:", adaptor_file_name)
 
 # todays date with seconds:
 today = time.strftime("%Y%m%d-%H%M%S")
@@ -184,5 +181,15 @@ with subprocess.Popen(
             writer.add_scalar("epoch", epoch, iteration)
 
         print(line, end="", flush=True)
+
+# Clean up
+# Autotrain outputs its data in a directory named <output_model_name>
+# We don't need to keep the arrow-formatted data Autotrain uses
+os.system(
+    f"rm -rf {output_model_name}/autotrain_data")
+
+# Move the model to the TransformerLab directory
+os.system(
+    f"mv {output_model_name} {WORKSPACE_DIR}/models/")
 
 print("Finished training.")
