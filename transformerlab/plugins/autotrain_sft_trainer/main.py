@@ -39,7 +39,7 @@ num_train_epochs = config.get("num_train_epochs", 4)
 
 # Generate a model name using the original model and the passed adaptor
 adaptor_name = config.get('adaptor_name', "default")
-output_model_name = f"{config["model_name"]}-{adaptor_name}"
+output_model_name = f"{config['model_name']}-{adaptor_name}"
 
 # Get the dataset
 try:
