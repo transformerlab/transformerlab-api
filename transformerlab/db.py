@@ -583,7 +583,7 @@ async def export_job_create(experiment_id, job_data_json):
 
 async def experiment_get_all():
 
-    cursor = await db.execute("SELECT * FROM experiment")
+    cursor = await db.execute("SELECT * FROM experiment order by created_at desc")
     rows = await cursor.fetchall()
     # Do the following to convert the return into a JSON object with keys
     desc = cursor.description
