@@ -123,3 +123,8 @@ os.makedirs(name=TEMP_DIR, exist_ok=True)
 # Prompt Templates Dir:
 PROMPT_TEMPLATES_DIR = os.path.join(WORKSPACE_DIR, "prompt_templates")
 os.makedirs(name=PROMPT_TEMPLATES_DIR, exist_ok=True)
+
+
+# Galleries cache directory
+GALLERIES_DIR = os.path.join(WORKSPACE_DIR, "galleries")
+os.makedirs(name=GALLERIES_DIR, exist_ok=True)
