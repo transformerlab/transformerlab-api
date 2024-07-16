@@ -13,6 +13,7 @@ import argparse
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, TrainerCallback
 import os
+import transformerlab.plugin
 
 from jinja2 import Environment
 
@@ -24,7 +25,6 @@ use_flash_attention = False
 llmlab_root_dir = os.getenv('LLM_LAB_ROOT_PATH')
 WORKSPACE_DIR: str | None = os.getenv("_TFL_WORKSPACE_DIR")
 db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
-
 
 # Get all parameters provided to this script from Transformer Lab
 parser = argparse.ArgumentParser()
@@ -121,6 +121,9 @@ model = get_peft_model(model, peft_config)
 
 JOB_ID = config["job_id"]
 
+job = transformerlab.plugin.Job(config["job_id"])
+job.update_progress(0)
+
 # This is where the tensorboard output is stored
 output_dir: str = config["output_dir"]
 print(f"Storing Tensorboard Output to: {output_dir}")
@@ -169,11 +172,11 @@ class ProgressTableUpdateCallback(TrainerCallback):
             db_job_id = JOB_ID
             # Write to jobs table in database, updating the
             # progress column:
-            db.execute(
-                "UPDATE job SET progress = ? WHERE id = ?",
-                (progress, db_job_id),
-            )
-            db.commit()
+            job.update_progress(progress)
+            if job.should_stop:
+                control.should_training_stop = True
+                return control
+
         return
 
 
