@@ -111,7 +111,7 @@ async def init():
     )
     await db.commit()
 
-    # On startup, look for any jobs that are in the IN_PROGRESS state and set them to CANCELLED instead:
+    # On startup, look for any jobs that are in the RUNNING state and set them to CANCELLED instead:
     # This is to handle the case where the server is restarted while a job is running.
     await job_cancel_in_progress_jobs()
 
@@ -430,7 +430,7 @@ async def job_delete(job_id):
 
 
 async def job_cancel_in_progress_jobs():
-    await db.execute("UPDATE job SET status = 'CANCELLED' WHERE status = 'IN_PROGRESS'")
+    await db.execute("UPDATE job SET status = 'CANCELLED' WHERE status = 'RUNNING'")
     await db.commit()
     return
 

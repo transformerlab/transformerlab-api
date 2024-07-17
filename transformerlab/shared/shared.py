@@ -92,7 +92,7 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
     downloading a model.
 
     This function runs a python script and updates the status of the job in the database
-    to IN_PROGRESS when the python script prints begin_string to stderr
+    to RUNNING when the python script prints begin_string to stderr
 
     The FastAPI worker uses stderr, not stdout"""
 
@@ -108,7 +108,7 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
             print(">> " + text)
             if begin_string in text:
                 print(f"Job {job_id} now in progress!")
-                await db.job_update_status(job_id=job_id, status="IN_PROGRESS")
+                await db.job_update_status(job_id=job_id, status="RUNNING")
 
     await process.wait()
 
@@ -130,7 +130,7 @@ async def async_run_python_daemon_and_update_status(python_script: list[str], jo
     the daemon is ready to accept input.
 
     This function runs a python script and updates the status of the job in the database
-    to IN_PROGRESS when the python script prints begin_string to stderr
+    to RUNNING when the python script prints begin_string to stderr
 
     The FastAPI worker uses stderr, not stdout"""
 
@@ -212,7 +212,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
     output_file = os.path.join(plugin_location, f"output_{job_id}.txt")
 
     def on_train_complete():
-        print('Training Job is Complete')
+        print('Training Job: The process has finished')
         db.job_update_sync(job_id, "COMPLETE")
         end_time = time.strftime("%Y-%m-%d %H:%M:%S")
         asyncio.run(db.job_update_job_data_insert_key_value(
