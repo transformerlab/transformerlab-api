@@ -474,7 +474,7 @@ async def get_model_from_db(model_id: str):
 @router.get("/model/list_local_uninstalled")
 async def models_list_local_uninstalled(path: str = ""):
 
-    # first search and get a list of BaseModel objects 
+    # first search and get a list of BaseModel objects
     found_models = []
     if path is not None and path != "":
         if os.path.isfile(path):
@@ -516,6 +516,7 @@ async def models_list_local_uninstalled(path: str = ""):
         response_models.append(new_model)
 
     return {"status": "success", "data": response_models}
+
 
 async def models_search_for_local_uninstalled():
     # iterate through each model source and look for uninstalled models
@@ -569,7 +570,7 @@ async def model_import(model: basemodel.BaseModel):
     """
 
     # Only add a row for uninstalled and supported repos
-    architecture = model.json_data.get("architecture", "unknown");
+    architecture = model.json_data.get("architecture", "unknown")
     if model.status != "OK":
         return {"status": "error", "message": model.status}
     if await model.is_installed():
