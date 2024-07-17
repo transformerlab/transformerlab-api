@@ -213,7 +213,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
 
     def on_train_complete():
         print('Training Job: The process has finished')
-        db.job_update_sync(job_id, "COMPLETE")
+        db.job_mark_as_complete_if_running(job_id)
         end_time = time.strftime("%Y-%m-%d %H:%M:%S")
         asyncio.run(db.job_update_job_data_insert_key_value(
             job_id, "end_time", end_time))

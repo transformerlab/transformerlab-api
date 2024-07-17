@@ -413,6 +413,20 @@ def job_update_sync(job_id, status):
     return
 
 
+def job_mark_as_complete_if_running(job_id):
+    # This synchronous update to jobs
+    # only marks a job as "COMPLETE" if it is currenty "RUNNING"
+    # This avoids updating "stopped" jobs and marking them as complete
+    global DATABASE_FILE_NAME
+    db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
+
+    db_sync.execute(
+        "UPDATE job SET status = 'COMPLETE', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'RUNNING'", (job_id,))
+    db_sync.commit()
+    db_sync.close()
+    return
+
+
 async def job_delete_all():
     # await db.execute("DELETE FROM job")
     await db.execute("UPDATE job SET status = 'DELETED'")
