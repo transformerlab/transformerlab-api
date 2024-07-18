@@ -288,12 +288,22 @@ async def server_worker_stop():
 @app.get("/server/worker_healthz", tags=["serverinfo"])
 async def server_worker_health(request: Request):
     models = []
+    result = []
     try:
         models = await fastchat_openai_api.show_available_models()
     except httpx.HTTPError as exc:
         print(f"HTTP Exception for {exc.request.url} - {exc}")
         raise HTTPException(status_code=503, detail="No worker")
-    return models.data
+
+    # We create a new object with JUST the id of the models
+    # we do this so that we get a clean object that can be used
+    # by react to see if the object changed. If we returned the whole
+    # model object, you would see some changes in the object that are
+    # not relevant to the user -- triggering renders in React
+    for model in models.data:
+        result.append({"id": model.id})
+
+    return result
 
 
 def cleanup_at_exit():
