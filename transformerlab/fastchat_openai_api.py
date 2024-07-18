@@ -258,7 +258,12 @@ def process_input(model_name, inp):
 
 async def get_gen_params(
     model_name: str,
-    messages: Union[str, List[Dict[str, str]]],
+    messages: Union[
+        str,
+        List[Dict[str, str]],
+        # necessary for image support
+        List[Dict[str, Union[str, List[Dict[str, Union[str, Dict[str, str]]]]]]],
+    ],
     *,
     temperature: float,
     top_p: float,
@@ -283,7 +288,7 @@ async def get_gen_params(
         stop_str=conv["stop_str"],
         stop_token_ids=conv["stop_token_ids"],
     )
-
+    image_url = None
     if isinstance(messages, str):
         prompt = messages
     else:
@@ -292,6 +297,13 @@ async def get_gen_params(
             if msg_role == "system":
                 conv.set_system_message(message["content"])
             elif msg_role == "user":
+                if isinstance(message["content"], list):
+                    text = message["content"][0].get("text", "")
+                    # If we want to support multiple images in the future we need to change the following:
+                    # 1. Support multiple instances of image_url in the message
+                    # 2. Change the tuple to take in multiple image_url strings in the list
+                    image_url = message["content"][1].get("image_url", "")
+                    message["content"] = tuple([text, [image_url]])
                 conv.append_message(conv.roles[0], message["content"])
             elif msg_role == "assistant":
                 conv.append_message(conv.roles[1], message["content"])
@@ -301,12 +313,13 @@ async def get_gen_params(
         # Add a blank message for the assistant.
         conv.append_message(conv.roles[1], None)
         prompt = conv.get_prompt()
-
+        image_url = conv.get_images()
     if max_tokens is None:
         max_tokens = 512
     gen_params = {
         "model": model_name,
         "prompt": prompt,
+        "image_url": image_url,
         "temperature": temperature,
         "top_p": top_p,
         "max_new_tokens": max_tokens,
@@ -320,7 +333,6 @@ async def get_gen_params(
         )
     else:
         gen_params.update({"stop": stop})
-
     return gen_params
 
 
@@ -404,15 +416,12 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
     )
     if error_check_ret is not None:
         return error_check_ret
-
     log_prompt(gen_params)
-
     if request.stream:
         generator = chat_completion_stream_generator(
             request.model, gen_params, request.n
         )
         return StreamingResponse(generator, media_type="text/event-stream")
-
     choices = []
     chat_completions = []
     for i in range(request.n):
