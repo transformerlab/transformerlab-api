@@ -488,7 +488,7 @@ async def get_training_template(id):
 
 async def get_training_templates():
 
-    cursor = await db.execute("SELECT * FROM training_template")
+    cursor = await db.execute("SELECT * FROM training_template ORDER BY created_at DESC")
     rows = await cursor.fetchall()
     await cursor.close()
     return rows
