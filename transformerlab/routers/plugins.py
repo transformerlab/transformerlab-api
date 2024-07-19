@@ -100,6 +100,8 @@ async def install_plugin(plugin_id: str):
 
     await copy_plugin_files_to_workspace(plugin_id)
 
+    new_directory = os.path.join(dirs.PLUGIN_DIR, plugin_id)
+
     # If index object contains a key called setup-script, run it:
     if "setup-script" in plugin_index:
         # Run shell script
