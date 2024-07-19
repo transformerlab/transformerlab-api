@@ -10,13 +10,13 @@ absl-py==2.1.0
     # via
     #   rouge-score
     #   tensorboard
-accelerate==0.27.2
+accelerate==0.32.1
     # via
     #   -r requirements.in
     #   peft
-aiofiles==23.2.1
+aiofiles==24.1.0
     # via -r requirements.in
-aiohttp==3.9.3
+aiohttp==3.9.5
     # via
     #   datasets
     #   fschat
@@ -25,19 +25,20 @@ aiosignal==1.3.1
     # via aiohttp
 aiosqlite==0.20.0
     # via -r requirements.in
-annotated-types==0.6.0
+annotated-types==0.7.0
     # via pydantic
-anyio==4.3.0
+anyio==4.4.0
     # via
     #   httpx
     #   starlette
+    #   watchfiles
 attrs==23.2.0
     # via aiohttp
 bitsandbytes==0.42.0
     # via -r requirements.in
 brotli==1.1.0
     # via py7zr
-certifi==2024.2.2
+certifi==2024.7.4
     # via
     #   httpcore
     #   httpx
@@ -47,8 +48,9 @@ charset-normalizer==3.3.2
 click==8.1.7
     # via
     #   nltk
+    #   typer
     #   uvicorn
-datasets==2.18.0
+datasets==2.20.0
     # via
     #   -r requirements.in
     #   evaluate
@@ -57,15 +59,21 @@ dill==0.3.8
     #   datasets
     #   evaluate
     #   multiprocess
-einops==0.7.0
+dnspython==2.6.1
+    # via email-validator
+einops==0.8.0
     # via -r requirements.in
-evaluate==0.4.1
+email-validator==2.2.0
+    # via fastapi
+evaluate==0.4.2
     # via -r requirements.in
-fastapi==0.100.0
+fastapi==0.111.1
     # via
     #   -r requirements.in
     #   fschat
-filelock==3.13.1
+fastapi-cli==0.0.4
+    # via fastapi
+filelock==3.15.4
     # via
     #   datasets
     #   huggingface-hub
@@ -77,23 +85,27 @@ frozenlist==1.4.1
     #   aiosignal
 fschat==0.2.36
     # via -r requirements.in
-fsspec[http]==2024.2.0
+fsspec[http]==2024.5.0
     # via
     #   datasets
     #   evaluate
     #   huggingface-hub
     #   torch
-grpcio==1.62.0
+grpcio==1.65.1
     # via tensorboard
 h11==0.14.0
     # via
     #   httpcore
     #   uvicorn
-httpcore==1.0.4
+httpcore==1.0.5
     # via httpx
+httptools==0.6.1
+    # via uvicorn
 httpx==0.27.0
-    # via fschat
-huggingface-hub==0.21.4
+    # via
+    #   fastapi
+    #   fschat
+huggingface-hub==0.24.0
     # via
     #   accelerate
     #   datasets
@@ -101,25 +113,30 @@ huggingface-hub==0.21.4
     #   peft
     #   tokenizers
     #   transformers
-idna==3.6
+idna==3.7
     # via
     #   anyio
+    #   email-validator
     #   httpx
     #   requests
     #   yarl
 inflate64==1.0.0
     # via py7zr
-jinja2==3.1.3
-    # via torch
-joblib==1.3.2
+jinja2==3.1.4
+    # via
+    #   fastapi
+    #   torch
+joblib==1.4.2
     # via nltk
+latex2mathml==3.77.0
+    # via markdown2
 loralib==0.1.2
     # via -r requirements.in
-markdown==3.5.2
+markdown==3.6
     # via tensorboard
 markdown-it-py==3.0.0
     # via rich
-markdown2[all]==2.4.13
+markdown2[all]==2.5.0
     # via fschat
 markupsafe==2.1.5
     # via
@@ -139,9 +156,9 @@ multiprocess==0.70.16
     #   evaluate
 multivolumefile==0.2.3
     # via py7zr
-networkx==3.2.1
+networkx==3.3
     # via torch
-nh3==0.2.15
+nh3==0.2.18
     # via fschat
 nltk==3.8.1
     # via rouge-score
@@ -161,7 +178,7 @@ numpy==1.26.4
     #   transformers
 nvidia-ml-py3==7.352.0
     # via -r requirements.in
-packaging==23.2
+packaging==24.1
     # via
     #   -r requirements.in
     #   accelerate
@@ -170,27 +187,27 @@ packaging==23.2
     #   huggingface-hub
     #   peft
     #   transformers
-pandas==2.2.1
+pandas==2.2.2
     # via
     #   datasets
     #   evaluate
-peft==0.9.0
+peft==0.11.1
     # via -r requirements.in
-pillow==10.2.0
+pillow==10.4.0
     # via torchvision
-prompt-toolkit==3.0.43
+prompt-toolkit==3.0.47
     # via fschat
 protobuf==4.25.3
     # via tensorboard
-psutil==5.9.8
+psutil==6.0.0
     # via
     #   -r requirements.in
     #   accelerate
     #   peft
     #   py7zr
-py7zr==0.21.0
+py7zr==0.21.1
     # via -r requirements.in
-pyarrow==15.0.0
+pyarrow==17.0.0
     # via datasets
 pyarrow-hotfix==0.6
     # via datasets
@@ -198,14 +215,14 @@ pybcj==1.0.2
     # via py7zr
 pycryptodomex==3.20.0
     # via py7zr
-pydantic==2.6.4
+pydantic==2.8.2
     # via
     #   -r requirements.in
     #   fastapi
     #   fschat
-pydantic-core==2.16.3
+pydantic-core==2.20.1
     # via pydantic
-pygments==2.17.2
+pygments==2.18.0
     # via
     #   markdown2
     #   rich
@@ -213,8 +230,12 @@ pyppmd==1.1.0
     # via py7zr
 python-dateutil==2.9.0.post0
     # via pandas
+python-dotenv==1.0.1
+    # via uvicorn
 python-multipart==0.0.9
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   fastapi
 pytz==2024.1
     # via pandas
 pyyaml==6.0.1
@@ -224,41 +245,43 @@ pyyaml==6.0.1
     #   huggingface-hub
     #   peft
     #   transformers
+    #   uvicorn
     #   wavedrom
-pyzstd==0.15.9
+pyzstd==0.16.0
     # via py7zr
-regex==2023.12.25
+regex==2024.5.15
     # via
     #   nltk
     #   tiktoken
     #   transformers
-requests==2.31.0
+requests==2.32.3
     # via
     #   datasets
     #   evaluate
     #   fschat
     #   huggingface-hub
-    #   responses
     #   tiktoken
     #   transformers
-responses==0.18.0
-    # via evaluate
 rich==13.7.1
-    # via fschat
+    # via
+    #   fschat
+    #   typer
 rouge-score==0.1.2
     # via -r requirements.in
-safetensors==0.4.2
+safetensors==0.4.3
     # via
     #   accelerate
     #   peft
     #   transformers
-scipy==1.12.0
+scipy==1.14.0
     # via
     #   -r requirements.in
     #   bitsandbytes
 sentencepiece==0.2.0
     # via -r requirements.in
-shortuuid==1.0.12
+shellingham==1.5.4
+    # via typer
+shortuuid==1.0.13
     # via fschat
 six==1.16.0
     # via
@@ -270,36 +293,36 @@ sniffio==1.3.1
     # via
     #   anyio
     #   httpx
-starlette==0.27.0
+starlette==0.37.2
     # via fastapi
 svgwrite==1.4.3
     # via wavedrom
-sympy==1.12
+sympy==1.13.1
     # via torch
-tensorboard==2.16.2
+tensorboard==2.17.0
     # via -r requirements.in
 tensorboard-data-server==0.7.2
     # via tensorboard
 texttable==1.7.0
     # via py7zr
-tiktoken==0.6.0
+tiktoken==0.7.0
     # via
     #   -r requirements.in
     #   fschat
-tokenizers==0.15.2
+tokenizers==0.19.1
     # via transformers
-torch==2.2.1
+torch==2.3.1
     # via
     #   -r requirements.in
     #   accelerate
     #   peft
     #   torchaudio
     #   torchvision
-torchaudio==2.2.1
+torchaudio==2.3.1
     # via -r requirements.in
-torchvision==0.17.1
+torchvision==0.18.1
     # via -r requirements.in
-tqdm==4.66.2
+tqdm==4.66.4
     # via
     #   datasets
     #   evaluate
@@ -307,11 +330,13 @@ tqdm==4.66.2
     #   nltk
     #   peft
     #   transformers
-transformers==4.39.3
+transformers==4.42.4
     # via
     #   -r requirements.in
     #   peft
-typing-extensions==4.10.0
+typer==0.12.3
+    # via fastapi-cli
+typing-extensions==4.12.2
     # via
     #   aiosqlite
     #   fastapi
@@ -319,19 +344,26 @@ typing-extensions==4.10.0
     #   pydantic
     #   pydantic-core
     #   torch
+    #   typer
 tzdata==2024.1
     # via pandas
-urllib3==2.2.1
+urllib3==2.2.2
+    # via requests
+uvicorn[standard]==0.30.1
     # via
-    #   requests
-    #   responses
-uvicorn==0.27.1
-    # via fschat
+    #   fastapi
+    #   fschat
+uvloop==0.19.0
+    # via uvicorn
+watchfiles==0.22.0
+    # via uvicorn
 wavedrom==2.0.3.post3
     # via markdown2
 wcwidth==0.2.13
     # via prompt-toolkit
-werkzeug==3.0.1
+websockets==12.0
+    # via uvicorn
+werkzeug==3.0.3
     # via tensorboard
 xxhash==3.4.1
     # via
