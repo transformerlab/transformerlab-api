@@ -1,5 +1,5 @@
 {
-    "name": "LlamaIndex Simple Document Search",
+    "name": "LlamaIndex Simple Document Search (RAG)",
     "uniqueId": "llamaindex_simple_document_search",
     "description": "",
     "plugin-format": "python",
