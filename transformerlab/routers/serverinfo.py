@@ -63,11 +63,11 @@ if torch.cuda.is_available():
     # get CUDA version:
     system_info["cuda_version"] = torch.version.cuda
 
-    print(f"🏄‍♀️ PyTorch is using CUDA, version {torch.version.cuda}")
+    print(f"🏄 PyTorch is using CUDA, version {torch.version.cuda}")
 
 elif torch.backends.mps.is_available():
     system_info["device"] = "mps"
-    print(f"🏄‍♀️ PyTorch is using MPS for Apple Metal acceleration")
+    print(f"🏄 PyTorch is using MPS for Apple Metal acceleration")
 
 router = APIRouter(prefix="/server", tags=["serverinfo"])
 

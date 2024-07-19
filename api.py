@@ -51,16 +51,14 @@ async def lifespan(app: FastAPI):
     """Docs on lifespan events: https://fastapi.tiangolo.com/advanced/events/"""
     # Do the following at API Startup:
     print_launch_message()
-    print("FASTAPI LIFESPAN: Start worker process")
     spawn_fastchat_controller_subprocess()
-    print("LIFESPAN: Initialize Database if it does not exist")
     await db.init()
     asyncio.create_task(run_over_and_over())
-    print("FASTAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁")
+    print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁")
     yield
     # Do the following at API Shutdown:
     await db.close()
-    print("FASTAPI LIFESPAN: Complete")
+    print("FastAPI LIFESPAN: Complete")
 
 
 async def run_over_and_over():
@@ -126,9 +124,9 @@ app.include_router(experiment.router)
 app.include_router(plugins.router)
 app.include_router(evals.router)
 app.include_router(jobs.router)
-app.include_router(router=config.router)
-app.include_router(router=prompts.router)
-app.include_router(router=fastchat_openai_api.router)
+app.include_router(config.router)
+app.include_router(prompts.router)
+app.include_router(fastchat_openai_api.router)
 
 
 controller_process = None
