@@ -67,6 +67,16 @@ async def plugin_gallery():
     return gallery
 
 
+async def copy_plugin_files_to_workspace(plugin_id: str):
+    plugin_path = os.path.join(dirs.PLUGIN_PRELOADED_GALLERY, plugin_id)
+    # create the directory if it doesn't exist
+    new_directory = os.path.join(dirs.PLUGIN_DIR, plugin_id)
+    if not os.path.exists(new_directory):
+        os.makedirs(new_directory)
+    # Now copy it to the workspace:
+    copy_tree(plugin_path, dirs.plugin_dir_by_name(plugin_id))
+
+
 @router.get("/gallery/{plugin_id}/install", summary="Install a plugin from the gallery.")
 async def install_plugin(plugin_id: str):
     """Install a plugin from the gallery"""
@@ -88,13 +98,7 @@ async def install_plugin(plugin_id: str):
     plugin_index_json = open(f"{plugin_path}/index.json", "r")
     plugin_index = json.load(plugin_index_json)
 
-    # create the directory if it doesn't exist
-    new_directory = os.path.join(dirs.PLUGIN_DIR, plugin_id)
-    if not os.path.exists(new_directory):
-        os.makedirs(new_directory)
-    # Now copy it to the workspace:
-    print(f"Copying {plugin_path} to {new_directory}")
-    copy_tree(plugin_path, dirs.plugin_dir_by_name(plugin_id))
+    await copy_plugin_files_to_workspace(plugin_id)
 
     # If index object contains a key called setup-script, run it:
     if "setup-script" in plugin_index:
@@ -103,6 +107,7 @@ async def install_plugin(plugin_id: str):
         setup_script_name = plugin_index["setup-script"]
         proc = await asyncio.create_subprocess_exec('/bin/bash', f"{setup_script_name}", cwd=new_directory)
         await proc.wait()
+        print("Plugin Install script completed.")
     else:
         print("No install script found")
 

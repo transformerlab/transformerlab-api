@@ -53,6 +53,8 @@ async def lifespan(app: FastAPI):
     print_launch_message()
     spawn_fastchat_controller_subprocess()
     await db.init()
+    if ("--reload" in sys.argv):
+        await install_all_plugins()
     asyncio.create_task(run_over_and_over())
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁")
     yield
@@ -141,6 +143,15 @@ def spawn_fastchat_controller_subprocess():
         [sys.executable, "-m", "fastchat.serve.controller", "--port", port], stdout=logfile, stderr=logfile
     )
     print(f"Started fastchat controller on port {port}")
+
+
+async def install_all_plugins():
+    all_plugins = await plugins.list_plugins()
+    print("Re-copying all plugin files from source to workspace")
+    for plugin in all_plugins:
+        plugin_id = plugin['uniqueId']
+        print(f"Refreshing workspace plugin: {plugin_id}")
+        await plugins.copy_plugin_files_to_workspace(plugin_id)
 
 
 @app.get("/server/controller_start", tags=["serverinfo"])
@@ -340,6 +351,8 @@ def parse_args():
     parser.add_argument(
         "--allowed-headers", type=json.loads, default=["*"], help="allowed headers"
     )
+    parser.add_argument("auto_reinstall_plugins", type=bool,
+                        default=False, help="auto reinstall plugins")
 
     return parser.parse_args()
 
