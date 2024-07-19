@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # WARNING: THIS SCRIPT IS A WORK IN PROGRESS.
+CONFIGURATION_FILE="aws.conf"
 
 # Temporary variables that will be stored in config
 AWS_ACCOUNT=""
@@ -40,25 +41,28 @@ check_aws_cli_installed() {
     if ! command -v aws &> /dev/null; then
         abort "❌ AWS CLI is not installed. Please install using these instructions: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
         #echo "❌ AWS CLI is not installed. Please install using these instructions: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
-    else
-        # store AWS CLI version in variable:
-        AWS_CLI_VERSION=$(aws --version)
-        echo "✅ AWS CLI is installed: $AWS_CLI_VERSION"
     fi
+
+    # store AWS CLI version in variable:
+    AWS_CLI_VERSION=$(aws --version)
+    echo "✅ AWS CLI is installed: $AWS_CLI_VERSION"
 }
 
 # Call this to set necessary global variables
 # Assumes setup has been run, otherwise will throw an error
 aws_init() {
     check_aws_cli_installed
+    echo
 
-    # TODO: This needs to be setup and read from config
-    AWS_ACCOUNT="851725628160"
-    AWS_SECURITY_GROUP="test"
-    AWS_KEYNAME="test"
+    # Read in configuration
+    if [ ! -f $CONFIGURATION_FILE ]; then
+        echo "Failed to load configuration file $CONFIGURATION_FILE: File not found!"
+    fi
+    echo "Loading configuration from $CONFIGURATION_FILE"
+    source $CONFIGURATION_FILE
 }
 
-aws_doctor() {
+aws_status() {
     aws_init
     echo "AWS Account: $AWS_ACCOUNT"
     echo "AWS Security Group: $AWS_SECURITY_GROUP"
@@ -128,10 +132,10 @@ print_usage_message() {
   echo "usage: aws.sh <command>"
   echo ""
   echo "Commands:"
-  echo "    check_setup               Validates AWS CLI is setup and this script is able to access."
   echo "    create_server             Builds a new Transformer Lab server."
   echo "    start_server <instance>   Starts Transformer Lab server with id <instance> if it exists."
   echo "    stop_server <instance>    Stops Transformer Lab server with id <instance> if it exists."
+  echo "    status                    Validates AWS setup and config and reports on status."
 }
 
 # Check if there are arguments to this script, and if so, run the appropriate function.
@@ -148,11 +152,8 @@ else
     stop_server)
       aws_server_stop "$2"
       ;;
-    setup)
-      aws_setup
-      ;;
-    check_setup)
-      aws_doctor
+    status)
+      aws_status
       ;;
     *)
       # Print allowed arguments
