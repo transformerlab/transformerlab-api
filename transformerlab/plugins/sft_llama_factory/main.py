@@ -97,7 +97,7 @@ except Exception as e:
     exit
 
 dataset = load_dataset(
-    dataset_target, split='train')
+    dataset_target, split='train', trust_remote_code=True)
 
 print(
     f"Loaded Training dataset with {len(dataset)} examples.")

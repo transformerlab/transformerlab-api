@@ -114,7 +114,7 @@ except Exception as e:
     exit()
 
 
-dataset = load_dataset(dataset_target)
+dataset = load_dataset(dataset_target, trust_remote_code=True)
 
 # output dataset['train'] to a json file, row by row:
 # This will exhaust memory if the data is large
