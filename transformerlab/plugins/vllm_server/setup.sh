@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-pip install vllm==0.5.2
+pip install vllm==0.5.1
