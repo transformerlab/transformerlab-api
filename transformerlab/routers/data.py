@@ -64,9 +64,9 @@ async def dataset_info(dataset_id: str):
     else:
         dataset_config = d.get("json_data", {}).get("dataset_config", None)
         if (dataset_config is not None):
-            ds_builder = load_dataset_builder(dataset_id, dataset_config)
+            ds_builder = load_dataset_builder(dataset_id, dataset_config, trust_remote_code=True)
         else:
-            ds_builder = load_dataset_builder(dataset_id)
+            ds_builder = load_dataset_builder(dataset_id, trust_remote_code=True)
         r = {
             "description": ds_builder.info.description,
             "features": ds_builder.info.features,
