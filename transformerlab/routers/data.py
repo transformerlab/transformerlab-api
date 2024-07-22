@@ -136,9 +136,9 @@ async def dataset_download(dataset_id: str):
         dataset_config = json_data.get("dataset_config", None)
         if (dataset_config is not None):
             ds_builder = load_dataset_builder(
-                dataset_id, dataset_config)
+                dataset_id, dataset_config, trust_remote_code=True)
         else:
-            ds_builder = load_dataset_builder(dataset_id)
+            ds_builder = load_dataset_builder(dataset_id, trust_remote_code=True)
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
         return {"status": "error", "message": error_msg}
