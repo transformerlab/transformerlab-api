@@ -106,9 +106,9 @@ async def dataset_preview(dataset_id: str = Query(description="The ID of the dat
     else:
         dataset_config = d.get("json_data", {}).get("dataset_config", None)
         if (dataset_config is not None):
-            dataset = load_dataset(dataset_id, dataset_config)
+            dataset = load_dataset(dataset_id, dataset_config, trust_remote_code=True)
         else:
-            dataset = load_dataset(dataset_id)
+            dataset = load_dataset(dataset_id, trust_remote_code=True)
         dataset_len = len(dataset["train"])
         result['columns'] = dataset["train"][offset:min(
             offset+limit, dataset_len)]
