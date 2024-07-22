@@ -72,7 +72,7 @@ if (dataset_location == "local"):
 else:
     dataset_target = dataset_id
 
-dataset = load_dataset(dataset_target, split="train")
+dataset = load_dataset(dataset_target, split="train", trust_remote_code=True)
 
 print(f"dataset size: {len(dataset)}")
 print(dataset[randrange(len(dataset))])
