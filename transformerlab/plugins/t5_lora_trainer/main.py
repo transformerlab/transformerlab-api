@@ -122,13 +122,13 @@ class Trainer:
             return
 
         # Load dataset from the hub
-        self.dataset = load_dataset(dataset_id)
+        self.dataset = load_dataset(dataset_id, trust_remote_code=True)
 
         print(f"Train dataset size: {len(self.dataset['train'])}")
         print(f"Test dataset size: {len(self.dataset['test'])}")
 
-        self.train_dataset = load_dataset(dataset_id, split="train[:100%]")
-        self.test_dataset = load_dataset(dataset_id, split="test[:100%]")
+        self.train_dataset = load_dataset(dataset_id, split="train[:100%]", trust_remote_code=True)
+        self.test_dataset = load_dataset(dataset_id, split="test[:100%]", trust_remote_code=True)
         print(f"Train dataset size: {len(self.train_dataset)}")
         print(f"Test dataset size: {len(self.test_dataset)}")
 
@@ -353,7 +353,7 @@ class Trainer:
 
     def evaluate(self, evaluation_id):
         # Load dataset from the hub and get a sample
-        dataset = load_dataset(self.dataset_id)
+        dataset = load_dataset(self.dataset_id, trust_remote_code=True)
         sample = dataset["test"][randrange(len(dataset["test"]))]
 
         input_ids = self.tokenizer(
@@ -433,7 +433,7 @@ class Trainer:
     ):
         self.set_model(model_name_or_path)
 
-        self.load_dataset(data_path)
+        self.load_dataset(data_path, trust_remote_code=True)
         self.tokenize_dataset()
         self.preprocess()
 
