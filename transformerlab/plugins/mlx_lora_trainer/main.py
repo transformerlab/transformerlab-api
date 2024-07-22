@@ -113,7 +113,7 @@ for dataset_type in dataset_types:
     # Load dataset
     try:
         dataset[dataset_type] = load_dataset(
-            dataset_target, split=dataset_type)
+            dataset_target, split=dataset_type, trust_remote_code=True)
 
     except ValueError as e:
         # This is to catch this error-> ValueError: Unknown split "test". Should be one of ['train']
