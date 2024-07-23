@@ -436,6 +436,58 @@
         }
     },
     {
+        "uniqueID": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+        "name": "LLama 3.1 8B - Instruct",
+        "description": "The Meta Llama 3.1 collection of multilingual large language models (LLMs) is a collection of pretrained and instruction tuned generative models in 8B, 70B and 405B sizes (text in/text out). The Llama 3.1 instruction tuned text only models (8B, 70B, 405B) are optimized for multilingual dialogue use cases and outperform many of the available open source and closed chat models on common industry benchmarks.",
+        "parameters": "8B",
+        "context": "128k",
+        "architecture": "LlamaForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+        "transformers_version": "4.42.3",
+        "gated": "manual",
+        "license": "Meta Custom",
+        "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
+        "author": {
+            "name": "Meta",
+            "url": "https://huggingface.co/meta-llama/",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct",
+            "downloadUrl": "https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct",
+            "paperUrl": "?"
+        }
+    },
+    {
+        "uniqueID": "meta-llama/Meta-Llama-3.1-8B",
+        "name": "LLama 3.1 8B",
+        "description": "The Meta Llama 3.1 collection of multilingual large language models (LLMs) is a collection of pretrained and instruction tuned generative models in 8B, 70B and 405B sizes (text in/text out). The Llama 3.1 instruction tuned text only models (8B, 70B, 405B) are optimized for multilingual dialogue use cases and outperform many of the available open source and closed chat models on common industry benchmarks.",
+        "parameters": "8B",
+        "context": "128k",
+        "architecture": "LlamaForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "meta-llama/Meta-Llama-3.1-8B",
+        "transformers_version": "4.42.3",
+        "gated": "manual",
+        "license": "Meta Custom",
+        "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
+        "author": {
+            "name": "Meta",
+            "url": "https://huggingface.co/meta-llama/",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/meta-llama/Meta-Llama-3.1-8B",
+            "downloadUrl": "https://huggingface.co/meta-llama/Meta-Llama-3.1-8B",
+            "paperUrl": "?"
+        }
+    },
+    {
         "uniqueID": "google/gemma-7b",
         "name": "Gemma 7B",
         "description": "Gemma is a family of lightweight, state-of-the-art open models from Google, built from the same research and technology used to create the Gemini models. They are text-to-text, decoder-only large language models, available in English, with open weights, pre-trained variants, and instruction-tuned variants. Gemma models are well-suited for a variety of text generation tasks, including question answering, summarization, and reasoning. Their relatively small size makes it possible to deploy them in environments with limited resources such as a laptop, desktop or your own cloud infrastructure, democratizing access to state of the art AI models and helping foster innovation for everyone.",
@@ -572,6 +624,60 @@
         "resources": {
             "canonicalUrl": "https://huggingface.co/huggyllama/llama-7b",
             "downloadUrl": "https://huggingface.co/huggyllama/llama-7b",
+            "paperUrl": "?"
+        }
+    },
+    {
+        "uniqueID": "bczhou/tiny-llava-v1-hf",
+        "name": "TinyLlava v1",
+        "description": "Small scale large multimodal model. Able to take in image input and assess web links.",
+        "parameters": "1.41B",
+        "context": "4k",
+        "architecture": "LlavaForConditionalGeneration",
+        "formats": [
+            "Safetensors",
+            "PyTorch"
+        ],
+        "huggingface_repo": "bczhou/tiny-llava-v1-hf",
+        "transformers_version": "4.42.4",
+        "gated": false,
+        "license": "Apache 2.0",
+        "logo": "https://media.datadriveninvestor.com/uploads/2020/10/llava_logo.png",
+        "author": {
+            "name": "bczhou",
+            "url": "https://huggingface.co/bczhou",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/bczhou/tiny-llava-v1-hf",
+            "downloadUrl": "https://huggingface.co/bczhou/tiny-llava-v1-hf",
+            "paperUrl": "?"
+        }
+    },
+    {
+        "uniqueID": "llava-hf/llava-1.5-7b-hf",
+        "name": "LLaVA 1.5 7B",
+        "description": "LLaVA is an open-source chatbot trained by fine-tuning LLaMA/Vicuna on GPT-generated multimodal instruction-following data.",
+        "parameters": "7B",
+        "context": "4k",
+        "architecture": "LlavaForConditionalGeneration",
+        "formats": [
+            "Safetensors",
+            "PyTorch"
+        ],
+        "huggingface_repo": "llava-hf/llava-1.5-7b-hf",
+        "transformers_version": "4.42.4",
+        "gated": false,
+        "license": "Apache 2.0",
+        "logo": "https://media.datadriveninvestor.com/uploads/2020/10/llava_logo.png",
+        "author": {
+            "name": "llava-hf",
+            "url": "https://huggingface.co/llava-hf",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/llava-hf/llava-1.5-7b-hf",
+            "downloadUrl": "https://huggingface.co/llava-hf/llava-1.5-7b-hf",
             "paperUrl": "?"
         }
     },
@@ -763,56 +869,59 @@
             "downloadUrl": "https://huggingface.co/tiiuae/falcon-7b-instruct",
             "paperUrl": "?"
         }
-    }, {"uniqueID": "bczhou/tiny-llava-v1-hf",
-        "name": "TinyLlava v1",
-        "description": "Small scale large multimodal model. Able to take in image input and assess web links.",
-        "parameters": "1.41B",
-        "context": "4k",
-        "architecture": "LlavaForConditionalGeneration",
+    },
+    {
+        "uniqueID": "google/gemma-2-9b-it",
+        "name": "Gemma2 9B Instruct",
+        "description": "Gemma is a family of lightweight, state-of-the-art open models from Google, built from the same research and technology used to create the Gemini models. They are text-to-text, decoder-only large language models, available in English, with open weights for both pre-trained variants and instruction-tuned variants. Gemma models are well-suited for a variety of text generation tasks, including question answering, summarization, and reasoning. Their relatively small size makes it possible to deploy them in environments with limited resources such as a laptop, desktop or your own cloud infrastructure, democratizing access to state of the art AI models and helping foster innovation for everyone.",
+        "parameters": "9B",
+        "context": "8192",
+        "architecture": "Gemma2ForCausalLM",
         "formats": [
-            "Safetensors",
-            "PyTorch"
+            "Safetensors"
         ],
-        "huggingface_repo": "bczhou/tiny-llava-v1-hf",
-        "transformers_version": "4.42.4",
-        "gated": false,
-        "license": "Apache 2.0",
-        "logo": "https://media.datadriveninvestor.com/uploads/2020/10/llava_logo.png",
+        "huggingface_repo": "google/gemma-2-9b-it",
+        "transformers_version": "4.42.0.dev0",
+        "license": "Gemma",
+        "gated": "manual",
+        "logo": "https://storage.googleapis.com/gweb-uniblog-publish-prod/images/gemma-header.width-1200.format-webp.webp",
         "author": {
-            "name": "bczhou",
-            "url": "https://huggingface.co/bczhou",
+            "name": "Google",
+            "url": "https://huggingface.co/google/gemma-7b",
             "blurb": ""
         },
         "resources": {
-            "canonicalUrl": "https://huggingface.co/bczhou/tiny-llava-v1-hf",
-            "downloadUrl": "https://huggingface.co/bczhou/tiny-llava-v1-hf",
+            "canonicalUrl": "https://huggingface.co/google/gemma-7b",
+            "downloadUrl": "https://huggingface.co/google/gemma-7b",
             "paperUrl": "?"
-        }}, 
-        {"uniqueID": "llava-hf/llava-1.5-7b-hf",
-        "name": "LLaVA 1.5 7B",
-        "description": "LLaVA is an open-source chatbot trained by fine-tuning LLaMA/Vicuna on GPT-generated multimodal instruction-following data.",
-        "parameters": "7B",
-        "context": "4k",
-        "architecture": "LlavaForConditionalGeneration",
+        }
+    },
+    {
+        "uniqueID": "google/gemma-2-27b-it",
+        "name": "Gemma2 27B Instruct",
+        "description": "Gemma is a family of lightweight, state-of-the-art open models from Google, built from the same research and technology used to create the Gemini models. They are text-to-text, decoder-only large language models, available in English, with open weights, pre-trained variants, and instruction-tuned variants. Gemma models are well-suited for a variety of text generation tasks, including question answering, summarization, and reasoning. Their relatively small size makes it possible to deploy them in environments with limited resources such as a laptop, desktop or your own cloud infrastructure, democratizing access to state of the art AI models and helping foster innovation for everyone.",
+        "parameters": "27B",
+        "context": "8192",
+        "architecture": "Gemma2ForCausalLM",
         "formats": [
-            "Safetensors",
-            "PyTorch"
+            "Safetensors"
         ],
-        "huggingface_repo": "llava-hf/llava-1.5-7b-hf",
-        "transformers_version": "4.42.4",
-        "gated": false,
-        "license": "Apache 2.0",
-        "logo": "https://media.datadriveninvestor.com/uploads/2020/10/llava_logo.png",
+        "huggingface_repo": "google/gemma-2-27b-it",
+        "gated": "manual",
+        "transformers_version": "4.42.0.dev0",
+        "license": "Gemma",
+        "logo": "https://storage.googleapis.com/gweb-uniblog-publish-prod/images/gemma-header.width-1200.format-webp.webp",
         "author": {
-            "name": "llava-hf",
-            "url": "https://huggingface.co/llava-hf",
+            "name": "Google",
+            "url": "https://huggingface.co/google/gemma-7b-it",
             "blurb": ""
         },
         "resources": {
-            "canonicalUrl": "https://huggingface.co/llava-hf/llava-1.5-7b-hf",
-            "downloadUrl": "https://huggingface.co/llava-hf/llava-1.5-7b-hf",
+            "canonicalUrl": "https://huggingface.co/google/gemma-7b-it",
+            "downloadUrl": "https://huggingface.co/google/gemma-7b-it",
             "paperUrl": "?"
-        }},
+        }
+    },
     {
         "uniqueID": "google/flan-t5-small",
         "name": "Google Flan T5 Small",
