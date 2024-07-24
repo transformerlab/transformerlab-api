@@ -3,6 +3,7 @@ from fastapi.responses import FileResponse
 from fastapi import APIRouter, HTTPException, UploadFile
 import datetime
 import aiofiles
+from transformerlab.routers.experiment import rag
 from transformerlab.shared import dirs
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -98,6 +99,9 @@ async def document_upload(experimentId: str, file: UploadFile):
             experiment_dir, "documents", str(file.filename))
         async with aiofiles.open(newfilename, "wb") as out_file:
             await out_file.write(content)
+
+        # reindex the vector store on every file upload
+        await rag.reindex(experimentId)
     except Exception:
         raise HTTPException(
             status_code=403, detail="There was a problem uploading the file")

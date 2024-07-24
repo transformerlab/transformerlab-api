@@ -11,21 +11,60 @@ from llama_index.core import VectorStoreIndex
 from llama_index.core import VectorStoreIndex
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core import Settings
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings
+from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, StorageContext, load_index_from_storage, Settings
 import os
 from llama_index.core import SimpleDirectoryReader
+import time
+
+import transformerlab.plugin
+
 
 # Redirect all output to a buffer that we control:
+
+
+def index_documents(documents_dir, persistency_dir):
+    reader = SimpleDirectoryReader(
+        input_dir=documents_dir, exclude_hidden=False)
+    documents = reader.load_data()
+    sys.stderr.write(f"Loaded {len(documents)} docs")
+
+    Settings.embed_model = HuggingFaceEmbedding(
+        model_name="BAAI/bge-small-en-v1.5"
+    )
+
+    vector_index = VectorStoreIndex.from_documents(
+        documents, required_exts=[".txt", ".pdf", ".docx", ".csv", ".epub", ".ipynb", ".mbox", ".md", ".ppt", ".pptm", ".pptx"])
+
+    vector_index.storage_context.persist(persist_dir=persistency_dir)
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_name', type=str, required=True)
     parser.add_argument('--documents_dir', default='', type=str, required=True)
-    parser.add_argument('--query', default='', type=str, required=True)
+    # parser.add_argument('--query', default='', type=str, required=True)
     parser.add_argument('--settings', default='', type=str, required=False)
 
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--query', default='', type=str)
+    group.add_argument('--index', default=False, type=bool)
+
     args, unknown = parser.parse_known_args()
+
+    documents_dir = args.documents_dir
+    persistency_dir = os.path.join(documents_dir, "persist")
+
+    if args.index:
+        start_time = time.time()
+        index_documents(documents_dir, persistency_dir)
+        elapsed_time = time.time() - start_time
+
+        result = {
+            "status": "success",
+            "elapsed_time": elapsed_time
+        }
+        print(json.dumps(result))
+        return
 
     # SETTINGS
     number_of_search_results = 2
@@ -95,8 +134,9 @@ def main():
     )
     Settings.callback_manager = callback_manager
 
-    vector_index = VectorStoreIndex.from_documents(
-        documents, required_exts=[".txt", ".pdf", ".docx", ".csv", ".epub", ".ipynb", ".mbox", ".md", ".ppt", ".pptm", ".pptx"])
+    storage_context = StorageContext.from_defaults(
+        persist_dir=persistency_dir)
+    vector_index = load_index_from_storage(storage_context)
 
     query_engine = vector_index.as_query_engine(
         response_mode=response_mode, similarity_top_k=number_of_search_results)

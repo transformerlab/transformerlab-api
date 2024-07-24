@@ -6,6 +6,10 @@ import sqlite3
 
 # useful constants
 WORKSPACE_DIR = os.getenv("_TFL_WORKSPACE_DIR")
+if WORKSPACE_DIR is None:
+    print("Plugin Harness Error: Environment variable _TFL_WORKSPACE_DIR is not set. Quitting.")
+    exit(1)
+TEMP_DIR = os.path.join(WORKSPACE_DIR, "temp")
 
 # Maintain a singleton database connection
 db = None
