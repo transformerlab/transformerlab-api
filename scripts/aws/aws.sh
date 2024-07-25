@@ -58,6 +58,13 @@ aws_init() {
     fi
     source $CONFIGURATION_FILE
     echo "✅ Loaded configuration from $CONFIGURATION_FILE"
+
+    # Make sure you have credentials setup
+    aws sts get-caller-identity
+    if [[ ! $? -eq 0 ]]; then
+        abort "❌ AWS credentials not credentials not set."
+    fi
+    echo "✅ AWS credentials setup confirmed."
     echo
 }
 
