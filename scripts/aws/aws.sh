@@ -6,6 +6,7 @@ CONFIGURATION_FILE="aws.conf"
 # Temporary/default variables that will be stored/overridden in config
 AWS_ACCOUNT=""
 AWS_SECURITY_GROUP=""
+AWS_KEYNAME=""
 AWS_SERVER_REGION="us-east-1"
 AWS_SERVER_INSTANCETYPE="g5.xlarge"
 AWS_SERVER_VOLUMESIZE=200
@@ -34,7 +35,6 @@ abort() {
 ###################################
 
 check_aws_cli_installed() {
-    echo "Checking for AWS CLI..."
     if ! command -v aws &> /dev/null; then
         abort "❌ AWS CLI is not installed. Please install using these instructions: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
     fi
@@ -71,6 +71,7 @@ aws_server_list() {
 }
 
 aws_status() {
+    echo "Checking for AWS CLI..."
     aws_init
     echo "✅ AWS CLI is installed: $AWS_CLI_VERSION"
     echo "✅ AWS credentials authenticated"
@@ -95,6 +96,7 @@ aws_server_create() {
     
     # Create a new server using the AMI
     CREATE_CMD="aws ec2 run-instances --count 1 --instance-type $AWS_SERVER_INSTANCETYPE \
+        --region $AWS_SERVER_REGION \
         --key-name $AWS_KEYNAME \
         --security-group-ids $AWS_SECURITY_GROUP \
         --image-id $AMI_ID \
@@ -116,7 +118,7 @@ aws_server_start() {
 
     echo "Starting AWS Server..."
     aws_init
-    aws ec2 start-instances --instance-ids $1
+    aws ec2 start-instances --region $AWS_SERVER_REGION --instance-ids $1
     if [[ ! $? -eq 0 ]]; then
         abort "❌ Error starting server."
     fi
@@ -133,7 +135,7 @@ aws_server_stop() {
 
     echo "Stopping AWS Server..."
     aws_init
-    aws ec2 stop-instances --instance-ids $1
+    aws ec2 stop-instances --region $AWS_SERVER_REGION --instance-ids $1
     if [[ ! $? -eq 0 ]]; then
         abort "❌ Error stopping server."
     fi
