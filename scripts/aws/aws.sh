@@ -6,7 +6,7 @@ CONFIGURATION_FILE="aws.conf"
 # Temporary/default variables that will be stored/overridden in config
 AWS_ACCOUNT=""
 AWS_SECURITY_GROUP=""
-AWS_KEYNAME=""
+AWS_KEY_NAME=""
 AWS_SERVER_REGION="us-east-1"
 AWS_SERVER_INSTANCETYPE="g5.xlarge"
 AWS_SERVER_VOLUMESIZE=200
@@ -97,7 +97,7 @@ aws_server_create() {
     # Create a new server using the AMI
     CREATE_CMD="aws ec2 run-instances --count 1 --instance-type $AWS_SERVER_INSTANCETYPE \
         --region $AWS_SERVER_REGION \
-        --key-name $AWS_KEYNAME \
+        --key-name "$AWS_KEY_NAME" \
         --security-group-ids $AWS_SECURITY_GROUP \
         --image-id $AMI_ID \
         --block-device-mapping DeviceName=/dev/xvda,Ebs={VolumeSize=$AWS_SERVER_VOLUMESIZE} \
