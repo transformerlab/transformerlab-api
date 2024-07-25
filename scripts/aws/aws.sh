@@ -67,7 +67,7 @@ aws_init() {
 ###################################
 
 aws_server_list() {
-    aws ec2 describe-instances --region=$AWS_SERVER_REGION
+    aws ec2 describe-instances --region=$AWS_SERVER_REGION | python3 awsservers.py
 }
 
 aws_status() {
@@ -79,7 +79,6 @@ aws_status() {
     echo "AWS Account: $AWS_ACCOUNT"
     echo "AWS Security Group: $AWS_SECURITY_GROUP"
     echo
-    echo "Servers available:"
     aws_server_list
 }
 
