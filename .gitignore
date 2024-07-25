@@ -168,3 +168,6 @@ logs/
 
 *.gguf
 *.pid
+
+# AWS configuration
+scripts/aws/aws.conf
