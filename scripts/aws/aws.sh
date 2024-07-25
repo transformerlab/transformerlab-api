@@ -3,17 +3,16 @@
 # WARNING: THIS SCRIPT IS A WORK IN PROGRESS.
 CONFIGURATION_FILE="aws.conf"
 
-# Temporary variables that will be stored in config
+# Temporary/default variables that will be stored/overridden in config
 AWS_ACCOUNT=""
 AWS_SECURITY_GROUP=""
-AWS_KEYNAME=""
+AWS_SERVER_REGION="us-east-1"
+AWS_SERVER_INSTANCETYPE="g5.xlarge"
+AWS_SERVER_VOLUMESIZE=200
 
 # Constants
 AWS_AMI_SEARCH_TEMPLATE="Deep Learning Base OSS Nvidia Driver AMI (Amazon Linux 2) Version ??.?"
-AWS_SERVER_REGION="us-east-1"
-AWS_SERVER_INSTANCETYPE="g5.xlarge"
 AWS_SERVER_NAME="TransformerLabServer"
-AWS_SERVER_VOLUMESIZE=200
 
 ##############################
 # Helper Functions
@@ -36,7 +35,6 @@ abort() {
 
 check_aws_cli_installed() {
     echo "Checking for AWS CLI..."
-    AWS_CLI_CMD="which aws"
     if ! command -v aws &> /dev/null; then
         abort "❌ AWS CLI is not installed. Please install using these instructions: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
         #echo "❌ AWS CLI is not installed. Please install using these instructions: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
@@ -72,7 +70,6 @@ aws_status() {
     aws_init
     echo "AWS Account: $AWS_ACCOUNT"
     echo "AWS Security Group: $AWS_SECURITY_GROUP"
-    echo "AWS Key Name: $AWS_KEYNAME"
 
 }
 
