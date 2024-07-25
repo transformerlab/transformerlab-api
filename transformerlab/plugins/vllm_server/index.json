@@ -4,7 +4,7 @@
     "description": "vLLM is a fast and easy-to-use library for LLM inference and serving.",
     "plugin-format": "python",
     "type": "loader",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "model_architectures": [
         "CohereForCausalLM",
         "FalconForCausalLM",
@@ -23,15 +23,16 @@
     ],
     "setup-script": "setup.sh",
     "parameters": {
-        "eight_bit": {
-            "title": "8-bit",
-            "type": "boolean",
-            "default": false
+        "max-model-len": {
+            "title": "Maximum Model Length",
+            "type": "integer"
         },
-        "cpu_offload": {
-            "title": "CPU Offload",
-            "type": "boolean",
-            "default": false
+        "gpu-memory-utilization": {
+            "title": "GPU Memory Utilization",
+            "type": "number",
+            "default": 0.9,
+            "minimum": 0.0,
+            "maximum": 1.0
         }
     }
 }
