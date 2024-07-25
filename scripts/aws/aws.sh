@@ -37,12 +37,10 @@ check_aws_cli_installed() {
     echo "Checking for AWS CLI..."
     if ! command -v aws &> /dev/null; then
         abort "❌ AWS CLI is not installed. Please install using these instructions: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
-        #echo "❌ AWS CLI is not installed. Please install using these instructions: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
     fi
 
     # store AWS CLI version in variable:
     AWS_CLI_VERSION=$(aws --version)
-    echo "✅ AWS CLI is installed: $AWS_CLI_VERSION"
 }
 
 # Call this to set necessary global variables
@@ -55,27 +53,35 @@ aws_init() {
         abort "❌ Failed to load configuration file $CONFIGURATION_FILE: File not found!"
     fi
     source $CONFIGURATION_FILE
-    echo "✅ Loaded configuration from $CONFIGURATION_FILE"
 
     # Make sure you have credentials setup
-    aws sts get-caller-identity
+    aws sts get-caller-identity &> /dev/null
     if [[ ! $? -eq 0 ]]; then
-        abort "❌ AWS credentials not credentials not set."
+        abort "❌ AWS credentials not set."
     fi
-    echo "✅ AWS credentials setup confirmed."
-    echo
 }
 
-aws_status() {
-    aws_init
-    echo "AWS Account: $AWS_ACCOUNT"
-    echo "AWS Security Group: $AWS_SECURITY_GROUP"
-
-}
 
 ###################################
 # Transformer Lab Server Management
 ###################################
+
+aws_server_list() {
+    aws ec2 describe-instances --region=$AWS_SERVER_REGION
+}
+
+aws_status() {
+    aws_init
+    echo "✅ AWS CLI is installed: $AWS_CLI_VERSION"
+    echo "✅ AWS credentials authenticated"
+    echo
+    echo "Configuration loaded from $CONFIGURATION_FILE:"
+    echo "AWS Account: $AWS_ACCOUNT"
+    echo "AWS Security Group: $AWS_SECURITY_GROUP"
+    echo
+    echo "Servers available:"
+    aws_server_list
+}
 
 aws_server_create() {
     echo "Building new AWS Server..."
