@@ -93,7 +93,7 @@ aws_server_create() {
     echo $AMI_CMD
     AMI_ID="1234567890"
     
-    # Check for the latest AMI for Amazon Linux 2 with OSS NVIDIA driver
+    # Create a new server using the AMI
     CREATE_CMD="aws ec2 run-instances --count 1 --instance-type $AWS_SERVER_INSTANCETYPE \
         --key-name $AWS_KEYNAME \
         --security-group-ids $AWS_SECURITY_GROUP \
@@ -116,8 +116,10 @@ aws_server_start() {
 
     echo "Starting AWS Server..."
     aws_init
-    START_CMD="aws ec2 start-instances --instance-ids $1"
-    echo $START_CMD
+    aws ec2 start-instances --instance-ids $1
+    if [[ ! $? -eq 0 ]]; then
+        abort "❌ Error starting server."
+    fi
     echo "Server Started!"
 }
 
@@ -131,8 +133,10 @@ aws_server_stop() {
 
     echo "Stopping AWS Server..."
     aws_init
-    STOP_CMD="aws ec2 stop-instances --instance-ids $1"
-    echo $STOP_CMD
+    aws ec2 stop-instances --instance-ids $1
+    if [[ ! $? -eq 0 ]]; then
+        abort "❌ Error stopping server."
+    fi
     echo "Server Stopped!"
 }
 
