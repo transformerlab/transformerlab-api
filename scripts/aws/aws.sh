@@ -123,6 +123,8 @@ aws_server_start() {
         abort "❌ Error starting server."
     fi
     echo "Server Started!"
+    echo "Public IP: $SERVER_PUBLIC_IP"
+    echo "Server Name: $SERVER_NAME"
 }
 
 aws_server_stop() {
