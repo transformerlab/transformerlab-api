@@ -71,6 +71,9 @@ async def copy_plugin_files_to_workspace(plugin_id: str):
     plugin_path = os.path.join(dirs.PLUGIN_PRELOADED_GALLERY, plugin_id)
     # create the directory if it doesn't exist
     new_directory = os.path.join(dirs.PLUGIN_DIR, plugin_id)
+    if not os.path.exists(plugin_path):
+        print(f"Plugin {plugin_path} not found in gallery.")
+        return
     if not os.path.exists(new_directory):
         os.makedirs(new_directory)
     # Now copy it to the workspace:
