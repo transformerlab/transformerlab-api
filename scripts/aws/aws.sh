@@ -67,7 +67,7 @@ aws_init() {
 ###################################
 
 aws_server_list() {
-    aws ec2 describe-instances --region=$AWS_SERVER_REGION | python3 awsservers.py
+    aws ec2 describe-instances --region=$AWS_SERVER_REGION | python3 awsservers.py list_servers
 }
 
 aws_status() {
