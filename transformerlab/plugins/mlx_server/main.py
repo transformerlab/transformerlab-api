@@ -37,6 +37,9 @@ import mlx.core as mx
 from mlx_lm import load, generate
 from mlx_lm.utils import generate_step
 
+from mlx_embedding_models.embedding import EmbeddingModel
+
+
 app = FastAPI()
 
 
@@ -195,6 +198,17 @@ class MLXWorker(BaseModelWorker):
             pass
         return json.loads(x[:-1].decode())
 
+    def get_embeddings(self, params):
+        # For now we hard code embeddings to use the BGE-small model
+        ret = {"embedding": [], "token_num": 0}
+        input_array = params.get("input", [])
+        print("input_array: ", input_array)
+        embedding_model = EmbeddingModel.from_registry("bge-small")
+        output_array = embedding_model.encode(input_array)
+        output_array = output_array.tolist()
+        ret["embedding"] = output_array
+        return ret
+
 
 def release_worker_semaphore():
     worker.semaphore.release()
@@ -260,6 +274,15 @@ async def api_get_conv(request: Request):
 async def api_model_details(request: Request):
     return {"context_length": worker.context_len}
 
+
+@app.post("/worker_get_embeddings")
+async def api_get_embeddings(request: Request):
+    params = await request.json()
+    await acquire_worker_semaphore()
+    embedding = worker.get_embeddings(params)
+    release_worker_semaphore()
+    return JSONResponse(content=embedding)
+
 worker = None
 
 
@@ -271,6 +294,14 @@ async def api_tokenize(request: Request):
     tokens = worker.tokenizer.convert_ids_to_tokens(token_ids)
     return {"tokens": tokens, "token_ids": token_ids}
 
+
+@app.post("/worker_get_embeddings")
+async def api_get_embeddings(request: Request):
+    params = await request.json()
+    await acquire_worker_semaphore()
+    embedding = worker.get_embeddings(params)
+    release_worker_semaphore()
+    return JSONResponse(content=embedding)
 
 def get_hugggingface_config(model_path):
     try:
