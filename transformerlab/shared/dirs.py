@@ -126,5 +126,5 @@ os.makedirs(name=PROMPT_TEMPLATES_DIR, exist_ok=True)
 
 
 # Galleries cache directory
-GALLERIES_DIR = os.path.join(WORKSPACE_DIR, "galleries")
-os.makedirs(name=GALLERIES_DIR, exist_ok=True)
+GALLERIES_CACHE_DIR = os.path.join(WORKSPACE_DIR, "galleries")
+os.makedirs(name=GALLERIES_CACHE_DIR, exist_ok=True)
