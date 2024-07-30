@@ -123,15 +123,18 @@ async def dataset_download(dataset_id: str):
     row = await db.get_dataset(dataset_id)
     if row is not None:
         return {"status": "error", "message": f"A dataset with the name {dataset_id} already exists"}
-    # Get the dataset from the gallery
+
+    # Try to get the dataset info from the gallery
+    gallery = []
+    json_data = {}
     file_location = os.path.join(
         dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "data-gallery.json")
     with open(file_location) as f:
         gallery = json.load(f)
-    # Gauranteed that the dataset exists in the gallery
     for dataset in gallery:
         if dataset["huggingfacerepo"] == dataset_id:
             json_data = dataset
+
     try:
         dataset_config = json_data.get("dataset_config", None)
         if (dataset_config is not None):
