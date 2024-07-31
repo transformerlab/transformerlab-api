@@ -1524,7 +1524,7 @@
         ],
         "huggingface_repo": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
         "transformers_version": "4.35.0",
-        "gated": "auto",
+        "gated": false,
         "license": "Apache 2.0",
         "logo": "https://eu-images.contentstack.com/v3/assets/blt6b0f74e5591baa03/bltf495f117670d330a/65985db56b9c04040d633f56/image.png?width=700&auto=webp&quality=80&disable=upscale",
         "size_of_model_in_mb": 2100.4,
