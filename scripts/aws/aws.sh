@@ -71,7 +71,7 @@ aws_server_list() {
 }
 
 aws_status() {
-    echo "Checking for AWS CLI..."
+    echo "Validating AWS configuration..."
     aws_init
     echo "✅ AWS CLI is installed: $AWS_CLI_VERSION"
     echo "✅ AWS credentials authenticated"
@@ -81,6 +81,7 @@ aws_status() {
     echo "AWS Security Group: $AWS_SECURITY_GROUP"
     echo
     aws_server_list
+    echo
 }
 
 aws_server_create() {
