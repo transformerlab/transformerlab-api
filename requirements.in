@@ -1,7 +1,6 @@
 accelerate
 aiofiles
 aiosqlite
-bitsandbytes
 datasets
 einops
 evaluate
