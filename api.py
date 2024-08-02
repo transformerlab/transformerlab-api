@@ -34,6 +34,7 @@ from transformerlab import fastchat_openai_api
 from transformerlab.routers.experiment import experiment
 from transformerlab.shared import dirs
 from transformerlab.shared import shared
+from transformerlab.shared import galleries
 
 
 # The following environment variable can be used by other scripts
@@ -51,6 +52,7 @@ async def lifespan(app: FastAPI):
     """Docs on lifespan events: https://fastapi.tiangolo.com/advanced/events/"""
     # Do the following at API Startup:
     print_launch_message()
+    galleries.update_gallery_cache()
     spawn_fastchat_controller_subprocess()
     await db.init()
     if ("--reload" in sys.argv):
