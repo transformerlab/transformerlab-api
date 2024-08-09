@@ -68,42 +68,44 @@ async def delete_document(experimentId: str, document_name: str):
 
 
 @router.post("/upload", summary="Upload the contents of a document.")
-async def document_upload(experimentId: str, file: UploadFile):
-    print("uploading filename is: " + str(file.filename))
+async def document_upload(experimentId: str, files: list[UploadFile]):
+    fileNames = []
+    for file in files:
+        print("uploading filename is: " + str(file.filename))
+        fileNames.append(file.filename)
+        # ensure the filename is exactly {dataset_id}_train.jsonl or {dataset_id}_eval.jsonl
+        # if not re.match(rf"^{dataset_id}_(train|eval).jsonl$", str(file.filename)):
+        #     raise HTTPException(
+        #         status_code=403, detail=f"The filenames must be named EXACTLY: {dataset_id}_train.jsonl and {dataset_id}_eval.jsonl")
 
-    # ensure the filename is exactly {dataset_id}_train.jsonl or {dataset_id}_eval.jsonl
-    # if not re.match(rf"^{dataset_id}_(train|eval).jsonl$", str(file.filename)):
-    #     raise HTTPException(
-    #         status_code=403, detail=f"The filenames must be named EXACTLY: {dataset_id}_train.jsonl and {dataset_id}_eval.jsonl")
+        print("file content type is: " + str(file.content_type))
 
-    print("file content type is: " + str(file.content_type))
+        if file.content_type not in ["text/plain", "application/json", "application/pdf", "application/octet-stream"]:
+            raise HTTPException(
+                status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
 
-    if file.content_type not in ["text/plain", "application/json", "application/pdf", "application/octet-stream"]:
-        raise HTTPException(
-            status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
+        file_ext = os.path.splitext(file.filename)[1]
+        if file_ext not in [".txt", ".jsonl", ".pdf"]:
+            raise HTTPException(
+                status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
 
-    file_ext = os.path.splitext(file.filename)[1]
-    if file_ext not in [".txt", ".jsonl", ".pdf"]:
-        raise HTTPException(
-            status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
+        experiment_dir = await dirs.experiment_dir_by_id(experimentId)
 
-    experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+        if not os.path.exists(os.path.join(experiment_dir, "documents")):
+            os.makedirs(os.path.join(experiment_dir, "documents"))
 
-    if not os.path.exists(os.path.join(experiment_dir, "documents")):
-        os.makedirs(os.path.join(experiment_dir, "documents"))
+        # Save the file to the dataset directory
+        try:
+            content = await file.read()
+            newfilename = os.path.join(
+                experiment_dir, "documents", str(file.filename))
+            async with aiofiles.open(newfilename, "wb") as out_file:
+                await out_file.write(content)
 
-    # Save the file to the dataset directory
-    try:
-        content = await file.read()
-        newfilename = os.path.join(
-            experiment_dir, "documents", str(file.filename))
-        async with aiofiles.open(newfilename, "wb") as out_file:
-            await out_file.write(content)
+            # reindex the vector store on every file upload
+            await rag.reindex(experimentId)
+        except Exception:
+            raise HTTPException(
+                status_code=403, detail="There was a problem uploading the file")
 
-        # reindex the vector store on every file upload
-        await rag.reindex(experimentId)
-    except Exception:
-        raise HTTPException(
-            status_code=403, detail="There was a problem uploading the file")
-
-    return {"status": "success", "filename": file.filename}
+    return {"status": "success", "filename": fileNames}
