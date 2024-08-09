@@ -86,7 +86,7 @@ class MLXWorker(BaseModelWorker):
                               params: dict,
                               ):
         processor, model = load_model(self.model_name)
-        image_link = params.get("image_url", None)
+        image_link = params.get("images", None)
         # Image link is sent as an array (to support sending multiple images in the future)
         if (image_link is not None) and (image_link != []):
             image_link = image_link[0]

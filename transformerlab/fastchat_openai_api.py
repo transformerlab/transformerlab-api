@@ -313,20 +313,20 @@ async def get_gen_params(
         # Add a blank message for the assistant.
         conv.append_message(conv.roles[1], None)
         prompt = conv.get_prompt()
-        image_url = conv.get_images()
+        images = conv.get_images()
     if max_tokens is None:
         max_tokens = 512
     gen_params = {
         "model": model_name,
         "prompt": prompt,
-        "image_url": image_url,
         "temperature": temperature,
         "top_p": top_p,
         "max_new_tokens": max_tokens,
         "echo": echo,
         "stream": stream,
     }
-
+    if len(images) > 0:
+        gen_params["images"] = images
     if not stop:
         gen_params.update(
             {"stop": conv.stop_str, "stop_token_ids": conv.stop_token_ids}
