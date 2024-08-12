@@ -87,7 +87,7 @@ tags_metadata = [
     },
     {
         "name": "serverinfo",
-        "description": "Actions for interacting with the LLMLab server.",
+        "description": "Actions for interacting with the TransformerLab server.",
     },
 ]
 
@@ -364,7 +364,7 @@ def print_launch_message():
     with open(os.path.join(os.path.dirname(__file__), "transformerlab/launch_header_text.txt"), "r") as f:
         text = f.read()
         shared.print_in_rainbow(text)
-    print('http://www.transformerlab.ai\nhttps://github.com/transformerlab/llmlab-api\n')
+    print('http://www.transformerlab.ai\nhttps://github.com/transformerlab/transformerlab-api\n')
 
 
 def run():
