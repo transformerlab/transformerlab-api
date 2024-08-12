@@ -8,6 +8,12 @@ TLAB_CODE_DIR="${TLAB_DIR}/src"
 MINICONDA_ROOT=${TLAB_DIR}/miniconda3
 CONDA_BIN=${MINICONDA_ROOT}/bin/conda
 ENV_DIR=${TLAB_DIR}/envs/${ENV_NAME}
+CUSTOM_ENV=false
+
+HOST="0.0.0.0"
+PORT="8000"
+
+RELOAD=false
 
 echo "Your shell is $SHELL"
 echo "Conda's binary is at ${CONDA_BIN}"
@@ -25,12 +31,33 @@ else
     echo "✅ Conda is installed."
 fi
 
-echo "👏 Enabling conda in shell"
+while getopts crp:h: flag
+do
+    case "${flag}" in
+        c) CUSTOM_ENV=true;;
+        r) RELOAD=true;;
+        p) PORT=${OPTARG};;
+        h) HOST=${OPTARG};;
+    esac
+done
 
-eval "$(${CONDA_BIN} shell.bash hook)"
+# Print out everything that was discovered above
+# echo "👏 Using host: ${HOST}
+# 👏 Using port: ${PORT}
+# 👏 Using reload: ${RELOAD}
+# 👏 Using custom environment: ${CUSTOM_ENV}"
 
-echo "👏 Activating transformerlab conda environment"
-conda activate "${ENV_DIR}"
+if [ "$CUSTOM_ENV" = true ]; then
+    echo "🔧 Using current conda environment, I won't activate for you"
+else
+    echo "👏 Using default environment: ${ENV_NAME}"
+    echo "👏 Enabling conda in shell"
+
+    eval "$(${CONDA_BIN} shell.bash hook)"
+
+    echo "👏 Activating transformerlab conda environment"
+    conda activate "${ENV_DIR}"
+fi
 
 # Check if the uvicorn command works:
 if ! command -v uvicorn &> /dev/null; then
@@ -41,4 +68,9 @@ else
 fi
 
 echo "👏 Starting the API server"
-uvicorn api:app --port 8000 --host 0.0.0.0 
+if [ "$RELOAD" = true ]; then
+    echo "🔁 Reload the server on file changes"
+    uvicorn api:app --reload --port ${PORT} --host ${HOST}
+else
+    uvicorn api:app --port ${PORT} --host ${HOST}
+fi
