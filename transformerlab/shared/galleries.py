@@ -4,11 +4,17 @@
 # This is all managed in this file.
 
 import os
+import json
 import shutil
 import urllib.request
 
 from transformerlab.shared import dirs
 
+# This is the list of galleries that are updated remotely
+MODEL_GALLERY_FILE = "model-gallery.json"
+GALLERY_FILES = [
+    MODEL_GALLERY_FILE
+]
 
 TLAB_REMOTE_URL = "https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/"
 REMOTE_GALLERY_DIR_URL = f"{TLAB_REMOTE_URL}{dirs.GALLERIES_SOURCE_PATH}"
@@ -20,12 +26,7 @@ def update_gallery_cache():
     Initializes any cached gallery files and tries to update from remote.
     """
 
-    # This is the list of galleries to update remotely
-    filelist = [
-        "model-gallery.json"
-    ]
-
-    for filename in filelist:
+    for filename in GALLERY_FILES:
         # First, if nothing is cached yet, then initialize with the local copy.
         cached_gallery_file = os.path.join(dirs.GALLERIES_CACHE_DIR, filename)
         if not os.path.isfile(cached_gallery_file):
@@ -54,3 +55,16 @@ def update_cache_from_remote(gallery_filename: str):
     except Exception as e:
         print(f"Failed to update gallery from remote: {remote_gallery}")
 
+
+def get_gallery_file(filename: str):
+    # default empty gallery returned in case of failed gallery file open
+    gallery = []
+
+    gallery_path = os.path.join(dirs.TFL_SOURCE_CODE_DIR, dirs.GALLERIES_SOURCE_PATH, filename)
+    with open(gallery_path) as f:
+        gallery = json.load(f)
+    return gallery
+
+
+def get_models_gallery():
+    return get_gallery_file(MODEL_GALLERY_FILE)
