@@ -169,7 +169,6 @@ def get_model_details_from_huggingface(hugging_face_id):
 
         # And sometimes it is stored in the tags for the repo
         model_tags = getattr(hf_model_info, "tags", [])
-        print(hugging_face_id)
         if ("mlx" in model_tags):
             architecture = "MLX"
 
