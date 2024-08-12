@@ -27,20 +27,32 @@ def update_gallery_cache():
     """
 
     for filename in GALLERY_FILES:
-        # First, if nothing is cached yet, then initialize with the local copy.
-        cached_gallery_file = os.path.join(dirs.GALLERIES_CACHE_DIR, filename)
-        if not os.path.isfile(cached_gallery_file):
-            print(f"Initializing {filename} from local source.")
-
-            sourcefile = os.path.join(dirs.TFL_SOURCE_CODE_DIR, dirs.GALLERIES_SOURCE_PATH, filename)
-            if os.path.isfile(sourcefile):
-                shutil.copyfile(sourcefile, cached_gallery_file)
-            else:
-                print("ERROR: Unable to find local gallery file", sourcefile)
+        update_gallery_cache_file(filename)
 
 
-        # Then, try to update from remote.
-        update_cache_from_remote(filename)
+def gallery_cache_file_path(filename: str):
+    return os.path.join(dirs.TFL_SOURCE_CODE_DIR, dirs.GALLERIES_SOURCE_PATH, filename)
+
+
+def update_gallery_cache_file(filename: str):
+    """
+    Initialize the gallery cache file if it doesn't exist from code,
+    then try to update from remote.
+    """
+
+    # First, if nothing is cached yet, then initialize with the local copy.
+    cached_gallery_file = os.path.join(dirs.GALLERIES_CACHE_DIR, filename)
+    if not os.path.isfile(cached_gallery_file):
+        print(f"Initializing {filename} from local source.")
+
+        sourcefile = gallery_cache_file_path(filename)
+        if os.path.isfile(sourcefile):
+            shutil.copyfile(sourcefile, cached_gallery_file)
+        else:
+            print("ERROR: Unable to find local gallery file", sourcefile)
+
+    # Then, try to update from remote.
+    update_cache_from_remote(filename)
 
 
 def update_cache_from_remote(gallery_filename: str):
@@ -59,10 +71,16 @@ def update_cache_from_remote(gallery_filename: str):
 def get_gallery_file(filename: str):
     # default empty gallery returned in case of failed gallery file open
     gallery = []
+    gallery_path = gallery_cache_file_path(filename)
 
-    gallery_path = os.path.join(dirs.TFL_SOURCE_CODE_DIR, dirs.GALLERIES_SOURCE_PATH, filename)
+    # Check for the cached file. If it's not there then initialize.
+    if not os.path.isfile(gallery_path):
+        print(f"Updating gallery cache file {filename}")
+        update_gallery_cache_file(filename)
+
     with open(gallery_path) as f:
         gallery = json.load(f)
+
     return gallery
 
 
