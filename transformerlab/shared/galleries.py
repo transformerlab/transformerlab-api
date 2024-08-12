@@ -30,8 +30,16 @@ def update_gallery_cache():
         update_gallery_cache_file(filename)
 
 
+def get_models_gallery():
+    return get_gallery_file(MODEL_GALLERY_FILE)
+
+
+######################
+# INTERNAL SUBROUTINES
+######################
+
 def gallery_cache_file_path(filename: str):
-    return os.path.join(dirs.TFL_SOURCE_CODE_DIR, dirs.GALLERIES_SOURCE_PATH, filename)
+    return os.path.join(dirs.GALLERIES_CACHE_DIR, filename)
 
 
 def update_gallery_cache_file(filename: str):
@@ -41,11 +49,11 @@ def update_gallery_cache_file(filename: str):
     """
 
     # First, if nothing is cached yet, then initialize with the local copy.
-    cached_gallery_file = os.path.join(dirs.GALLERIES_CACHE_DIR, filename)
+    cached_gallery_file = gallery_cache_file_path(filename)
     if not os.path.isfile(cached_gallery_file):
         print(f"Initializing {filename} from local source.")
 
-        sourcefile = gallery_cache_file_path(filename)
+        sourcefile = os.path.join(dirs.TFL_SOURCE_CODE_DIR, dirs.GALLERIES_SOURCE_PATH, filename)
         if os.path.isfile(sourcefile):
             shutil.copyfile(sourcefile, cached_gallery_file)
         else:
@@ -61,7 +69,7 @@ def update_cache_from_remote(gallery_filename: str):
     """
     try:
         remote_gallery = REMOTE_GALLERY_DIR_URL + gallery_filename
-        local_cache_filename = os.path.join(dirs.GALLERIES_CACHE_DIR, gallery_filename)
+        local_cache_filename = gallery_cache_file_path(gallery_filename)
         urllib.request.urlretrieve(remote_gallery, local_cache_filename)
         print (f"Updated gallery from remote: {remote_gallery}")
     except Exception as e:
@@ -83,6 +91,3 @@ def get_gallery_file(filename: str):
 
     return gallery
 
-
-def get_models_gallery():
-    return get_gallery_file(MODEL_GALLERY_FILE)

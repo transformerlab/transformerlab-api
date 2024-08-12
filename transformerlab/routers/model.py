@@ -13,6 +13,7 @@ import os
 
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
+from transformerlab.shared import galleries
 
 from transformerlab.models import model_helper
 from transformerlab.models import basemodel
@@ -50,8 +51,7 @@ def get_model_details_from_gallery(model_id: str):
     Given a model ID this returns the associated data from the model gallery file.
     Returns None if no such value found.
     """
-    with open(f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/galleries/model-gallery.json") as f:
-        gallery = json.load(f)
+    gallery = galleries.get_models_gallery()
 
     result = None
 
@@ -70,8 +70,7 @@ async def healthz():
 
 @router.get("/model/gallery")
 async def model_gallery_list_all():
-    with open(f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/galleries/model-gallery.json") as f:
-        gallery = json.load(f)
+    gallery = galleries.get_models_gallery()
 
     local_models = await db.model_local_list()
     local_model_names = set(model['model_id'] for model in local_models)
