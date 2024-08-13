@@ -51,13 +51,13 @@ def update_gallery_cache_file(filename: str):
     # First, if nothing is cached yet, then initialize with the local copy.
     cached_gallery_file = gallery_cache_file_path(filename)
     if not os.path.isfile(cached_gallery_file):
-        print(f"Initializing {filename} from local source.")
+        print(f"✅ Initializing {filename} from local source.")
 
         sourcefile = os.path.join(dirs.TFL_SOURCE_CODE_DIR, dirs.GALLERIES_SOURCE_PATH, filename)
         if os.path.isfile(sourcefile):
             shutil.copyfile(sourcefile, cached_gallery_file)
         else:
-            print("ERROR: Unable to find local gallery file", sourcefile)
+            print("❌ Unable to find local gallery file", sourcefile)
 
     # Then, try to update from remote.
     update_cache_from_remote(filename)
@@ -71,9 +71,9 @@ def update_cache_from_remote(gallery_filename: str):
         remote_gallery = REMOTE_GALLERY_DIR_URL + gallery_filename
         local_cache_filename = gallery_cache_file_path(gallery_filename)
         urllib.request.urlretrieve(remote_gallery, local_cache_filename)
-        print (f"Updated gallery from remote: {remote_gallery}")
+        print (f"☁️  Updated gallery from remote: {remote_gallery}")
     except Exception as e:
-        print(f"Failed to update gallery from remote: {remote_gallery}")
+        print(f"❌ Failed to update gallery from remote: {remote_gallery}")
 
 
 def get_gallery_file(filename: str):
