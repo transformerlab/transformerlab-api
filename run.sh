@@ -72,5 +72,5 @@ if [ "$RELOAD" = true ]; then
     echo "🔁 Reload the server on file changes"
     uvicorn api:app --reload --port ${PORT} --host ${HOST}
 else
-    uvicorn api:app --port ${PORT} --host ${HOST}
+    uvicorn api:app --port ${PORT} --host ${HOST} --no-access-log
 fi
