@@ -69,9 +69,9 @@ def prepare_logits_processor(
     return processor_list
 
 
-def load_model(model_path):
+def load_model(model_path, from_pretrained_kwargs: dict = {}):
     model = AutoModelForPreTraining.from_pretrained(
-        model_path, trust_remote_code=True)
+        model_path, trust_remote_code=True, device_map="auto", torch_dtype=from_pretrained_kwargs.get("torch_dtype", None))
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     tokenizer.add_tokens(
         [
@@ -340,6 +340,7 @@ def generate_stream(
             if not partially_stopped:
                 yield {
                     "text": output,
+                    "error_code": 0,
                     "logprobs": ret_logprobs,
                     "usage": {
                         "prompt_tokens": input_echo_len,
@@ -419,20 +420,16 @@ class ModelWorker(BaseModelWorker):
 
         print(
             f"Loading the model {self.model_names} on worker {worker_id} ...")
+        kwargs = {}
+        if device == "cpu":
+            kwargs["torch_dtype"] = torch.float32
+        elif device == "cuda" or device == "mps" or device == "npu":
+            kwargs["torch_dtype"] = torch.float16
+        elif device == "xpu":
+            kwargs["torch_dtype"] = torch.bfloat16
         loaded_model = load_model(
             model_path,
-            # revision=revision,
-            # device=device,
-            # num_gpus=num_gpus,
-            # max_gpu_memory=max_gpu_memory,
-            # dtype=dtype,
-            # load_8bit=load_8bit,
-            # cpu_offloading=cpu_offloading,
-            # gptq_config=gptq_config,
-            # awq_config=awq_config,
-            # exllama_config=exllama_config,
-            # xft_config=xft_config,
-            # debug=debug,
+            kwargs
         )
         self.processor = None
         if len(loaded_model) == 3:
