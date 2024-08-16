@@ -4,11 +4,12 @@
   "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
   "plugin-format": "python",
   "type": "loader",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "model_architectures": [
     "MLX",
     "CohereForCausalLM",
     "GemmaForCausalLM",
+    "Gemma2ForCausalLM",
     "LlamaForCausalLM",
     "MistralForCausalLM",
     "MixtralForCausalLM",
