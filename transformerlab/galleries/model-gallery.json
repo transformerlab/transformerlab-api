@@ -824,6 +824,32 @@
         }
     },
     {
+        "uniqueID": "mistralai/Mistral-Nemo-Base-2407",
+        "name": "Mistral NeMo Base 2407",
+        "description": "The Mistral-Nemo-Base-2407 Large Language Model (LLM) is a pretrained generative text model of 12B parameters trained jointly by Mistral AI and NVIDIA, it significantly outperforms existing models smaller or similar in size.",
+        "parameters": "12.2B",
+        "context": "128k",
+        "architecture": "MistralForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "mistralai/Mistral-Nemo-Base-2407",
+        "transformers_version": "4.43.0.dev0",
+        "gated": "auto",
+        "license": "Apache 2.0",
+        "logo": "https://docs.mistral.ai/img/logo.svg",
+        "author": {
+            "name": "Mistral AI",
+            "url": "https://docs.mistral.ai/",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/mistralai/Mistral-Nemo-Base-2407",
+            "downloadUrl": "https://huggingface.co/mistralai/Mistral-Nemo-Base-2407",
+            "paperUrl": "?"
+        }
+    },
+    {
         "uniqueID": "mistralai/Mistral-Nemo-Instruct-2407",
         "name": "Mistral NeMo Instruct 2407",
         "description": "The Mistral-Nemo-Instruct-2407 Large Language Model (LLM) is an instruct fine-tuned version of the Mistral-Nemo-Base-2407. Trained jointly by Mistral AI and NVIDIA, it significantly outperforms existing models smaller or similar in size.",
@@ -831,8 +857,7 @@
         "context": "128k",
         "architecture": "MistralForCausalLM",
         "formats": [
-            "Safetensors",
-            "PyTorch"
+            "Safetensors"
         ],
         "huggingface_repo": "mistralai/Mistral-Nemo-Instruct-2407",
         "transformers_version": "4.43.0.dev0",
