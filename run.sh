@@ -15,9 +15,9 @@ PORT="8000"
 
 RELOAD=false
 
-echo "Your shell is $SHELL"
-echo "Conda's binary is at ${CONDA_BIN}"
-echo "Your current directory is $(pwd)"
+# echo "Your shell is $SHELL"
+# echo "Conda's binary is at ${CONDA_BIN}"
+# echo "Your current directory is $(pwd)"
 
 err_report() {
   echo "Error in run.sh on line $1"
@@ -26,7 +26,7 @@ err_report() {
 trap 'err_report $LINENO' ERR
 
 if ! command -v ${CONDA_BIN} &> /dev/null; then
-    echo "❌ Conda is not installed at ${MINICONDA_ROOT}. Please install Conda there (and only there) and try again."
+    echo "❌ Conda is not installed at ${MINICONDA_ROOT}. Please run ./install.sh and try again."
 else
     echo "✅ Conda is installed."
 fi
@@ -50,7 +50,7 @@ done
 if [ "$CUSTOM_ENV" = true ]; then
     echo "🔧 Using current conda environment, I won't activate for you"
 else
-    echo "👏 Using default environment: ${ENV_NAME}"
+    # echo "👏 Using default conda environment: ${ENV_DIR}"
     echo "👏 Enabling conda in shell"
 
     eval "$(${CONDA_BIN} shell.bash hook)"
@@ -64,10 +64,11 @@ if ! command -v uvicorn &> /dev/null; then
     echo "❌ Uvicorn is not installed. This usually means that the installation of dependencies failed. Run ./install.sh to install the dependencies."
     exit 1
 else
-    echo "✅ Uvicorn is installed."
+    echo -n ""
+    # echo "✅ Uvicorn is installed."
 fi
 
-echo "👏 Starting the API server"
+echo "▶️ Starting the API server:"
 if [ "$RELOAD" = true ]; then
     echo "🔁 Reload the server on file changes"
     uvicorn api:app --reload --port ${PORT} --host ${HOST}
