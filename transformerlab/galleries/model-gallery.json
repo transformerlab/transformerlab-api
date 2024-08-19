@@ -648,6 +648,7 @@
         "gated": false,
         "license": "Apache 2.0",
         "logo": "https://media.datadriveninvestor.com/uploads/2020/10/llava_logo.png",
+        "size_of_model_in_mb": 5381.1,
         "author": {
             "name": "bczhou",
             "url": "https://huggingface.co/bczhou",
@@ -711,7 +712,8 @@
         "transformers_version": "4.42.0.dev0",
         "gated": "auto",
         "license": "Apache 2.0",
-        "logo": "https://docs.mistral.ai/img/logo.svg"
+        "logo": "https://docs.mistral.ai/img/logo.svg",
+        "size_of_model_in_mb": 27652.2
     },
     {
         "uniqueID": "mistralai/Mistral-7B-Instruct-v0.3",
@@ -738,7 +740,8 @@
         "transformers_version": "4.42.0.dev0",
         "gated": "auto",
         "license": "Apache 2.0",
-        "logo": "https://docs.mistral.ai/img/logo.svg"
+        "logo": "https://docs.mistral.ai/img/logo.svg",
+        "size_of_model_in_mb": 27652.2
     },
     {
         "uniqueID": "mistralai/Mistral-7B-v0.1",
@@ -942,6 +945,7 @@
         "license": "Gemma",
         "gated": "manual",
         "logo": "https://storage.googleapis.com/gweb-uniblog-publish-prod/images/gemma-header.width-1200.format-webp.webp",
+        "size_of_model_in_mb": 17648.0,
         "author": {
             "name": "Google",
             "url": "https://huggingface.co/google/gemma-7b",
@@ -1153,6 +1157,7 @@
         "gated": false,
         "license": "Apache 2.0",
         "logo": "https://lmsys.org/images/blog/vicuna/vicuna.jpeg",
+        "size_of_model_in_mb": 6396.3,
         "author": {
             "name": "LMSYS Org",
             "url": "https://lmsys.org/",
