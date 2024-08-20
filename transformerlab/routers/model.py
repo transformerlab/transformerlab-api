@@ -7,8 +7,9 @@ from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
 from fastchat.model.model_adapter import get_conversation_template
 from huggingface_hub import hf_hub_download, HfFileSystem, model_info
-from huggingface_hub import snapshot_download
-
+from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi
+from huggingface_hub import ModelCard, ModelCardData
+from huggingface_hub.utils import HfHubHTTPError
 import os
 
 from transformerlab.shared import shared
@@ -89,6 +90,59 @@ async def model_gallery(model_id: str):
     model_id = model_id.replace("~~~", "/")
 
     return get_model_details_from_gallery(model_id)
+
+# Should this be a POST request?
+
+
+@router.get("/model/upload_to_huggingface", summary="Given a model ID, upload it to Hugging Face.")
+async def upload_model_to_huggingface(model_id: str, model_name: str = "transformerlab-model", organization_name: str = "", model_card_data: str = "{}"):
+    """
+    Given a model ID, upload it to Hugging Face.
+    """
+    model_directory = get_model_dir(model_id)
+    api = HfApi()
+    try:
+        # Using HF API to check user info and use it for the model creation
+        user_info = api.whoami()
+        username = user_info['name']
+        orgs = user_info['orgs']
+        if organization_name not in orgs and organization_name != "":
+            return {"status": "error", "message": f"User {username} is not a member of organization {organization_name}"}
+        elif organization_name in orgs and organization_name != "":
+            username = organization_name
+    except Exception as e:
+        return {"status": "error", "message": f"Error getting Hugging Face user info: {e}"}
+    repo_id = f"{username}/{model_name}"
+    try:  # Checking if repo already exists.
+        api.repo_info(repo_id)
+        print(f"Repo {repo_id} already exists")
+    except HfHubHTTPError as e:
+        if e.response.status_code == 404:
+            # Should we add a toggle for them to allow private repos?
+            create_repo(repo_id)
+        else:
+            return {"status": "error", "message": f"Error creating Hugging Face repo: {e}"}
+
+    # Upload regardless in case they want to make changes/add to to an existing repo.
+    upload_folder(folder_path=model_directory,
+                  repo_id=repo_id)
+    # If they added basic model card data, add it to the model card.
+    if model_card_data != "{}":
+        model_card_data = json.loads(model_card_data)
+        card_data = ModelCardData(**model_card_data)
+        content = f"""
+        ---
+        { card_data.to_yaml() }
+        ---
+
+        # My Model Card
+
+        This model created by [@{username}]
+        """
+        card = ModelCard(content)
+        card.push_to_hub(repo_id)
+
+    return {"status": "success", "message": "Model uploaded to Hugging Face: {model_name}"}
 
 
 @router.get("/model/local/{model_id}")
