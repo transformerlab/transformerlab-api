@@ -289,6 +289,7 @@ async def get_gen_params(
         stop_token_ids=conv["stop_token_ids"],
     )
     image_url = None
+    images = None
     if isinstance(messages, str):
         prompt = messages
     else:
@@ -325,7 +326,7 @@ async def get_gen_params(
         "echo": echo,
         "stream": stream,
     }
-    if len(images) > 0:
+    if images is not None and len(images) > 0:
         gen_params["images"] = images
     if not stop:
         gen_params.update(
