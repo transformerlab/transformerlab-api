@@ -291,4 +291,4 @@ def print_in_rainbow(text):
             print(rainbow[j % len(rainbow)], end="")
             print(chunk, end="")
             print(reset, end="")
-        print('')
+        print('', flush=True)

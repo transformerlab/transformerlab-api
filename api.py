@@ -58,7 +58,7 @@ async def lifespan(app: FastAPI):
     if ("--reload" in sys.argv):
         await install_all_plugins()
     asyncio.create_task(run_over_and_over())
-    print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁")
+    print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
     # Do the following at API Shutdown:
     await db.close()
