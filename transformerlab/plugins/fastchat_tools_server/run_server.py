@@ -12,7 +12,7 @@ import torch
 import uvicorn
 import atexit
 
-worker_id = str(uuid.uuid4())[:8] # TODO?
+worker_id = str(uuid.uuid4())[:8]
 
 
 class ToolsModelWorker(ModelWorker):
@@ -56,7 +56,7 @@ class ToolsModelWorker(ModelWorker):
             **kwargs,
         )
 
-worker = None  ## NEW
+worker = None
 
 def cleanup_at_exit():
     global worker
