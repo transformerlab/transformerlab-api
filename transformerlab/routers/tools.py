@@ -69,10 +69,17 @@ async def call_tool(tool_id: str, params: str):
             "message": f"No tool with ID {tool_id} found."
         }
 
-    tool_function = available_tools.get(tool_id)
-    result = tool_function(params)
+    try:
+        tool_function = available_tools.get(tool_id)
+        result = tool_function(params)
 
-    return {
-        "status": "success",
-        "data": result
-    }
+        return {
+            "status": "success",
+            "data": result
+        }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "data": f"{type(e).__name__}: {e}"
+        }
