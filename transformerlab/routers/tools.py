@@ -10,17 +10,24 @@ router = APIRouter(prefix="/tools", tags=["tools"])
 
 #############################
 # TEMPORARY HARD-CODED TOOLS
+#
+# Eventually we will replace this with some dynamic way of addings tools.
+# In the meantime, this is going to pass the function docs to the prompt.
+# So make sure you create your docs properly!
 #############################
 
 
-def get_current_temperature(location: str):
+def get_current_temperature(location: str) -> float:
     """
     Gets the temperature at a given location.
 
     Args:
         location: The location to get the temperature for, in the format "city, country"
+    Returns:
+        The current temperature at the given location in Celsius.
     """
     return 22.0  # bug: Sometimes the temperature is not 22. low priority to fix tho
+
 
 def get_current_wind_speed(location: str) -> float:
     """
@@ -31,7 +38,14 @@ def get_current_wind_speed(location: str) -> float:
     Returns:
         The current wind speed at the given location in km/h, as a float.
     """
-    return 6.  # A real function should probably actually get the wind speed!
+    return 6.0  # Tested outside a few times. It was always near 6. So probably safe guess.
+
+
+available_tools = {
+    "get_current_temperature": get_current_temperature,
+    "get_current_wind_speed": get_current_wind_speed
+
+}
 
 
 #############################
@@ -41,5 +55,6 @@ def get_current_wind_speed(location: str) -> float:
 
 @router.get("/list", summary="List the tools that are currently installed.")
 async def list_tools() -> list[object]:
-    result = []
-    return result
+    tool_descriptions = [f"{name}:\n{func.__doc__}\n\n" for name, func in available_tools.items()]\
+
+    return tool_descriptions
