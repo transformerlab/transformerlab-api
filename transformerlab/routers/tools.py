@@ -44,7 +44,6 @@ def get_current_wind_speed(location: str) -> float:
 available_tools = {
     "get_current_temperature": get_current_temperature,
     "get_current_wind_speed": get_current_wind_speed
-
 }
 
 
@@ -55,6 +54,25 @@ available_tools = {
 
 @router.get("/list", summary="List the tools that are currently installed.")
 async def list_tools() -> list[object]:
-    tool_descriptions = [f"{name}:\n{func.__doc__}\n\n" for name, func in available_tools.items()]\
+    tool_descriptions = [f"{name}:\n{func.__doc__}\n\n" for name, func in available_tools.items()]
 
     return tool_descriptions
+
+
+@router.get("/call/{tool_id}", summary="Executes a tool with parameters supplied in JSON.")
+async def call_tool(tool_id: str, params: str):
+
+    # First make sure we have a tool with this name
+    if tool_id not in available_tools:
+        return {
+            "status": "error",
+            "message": f"No tool with ID {tool_id} found."
+        }
+
+    tool_function = available_tools.get(tool_id)
+    result = tool_function(params)
+
+    return {
+        "status": "success",
+        "data": result
+    }
