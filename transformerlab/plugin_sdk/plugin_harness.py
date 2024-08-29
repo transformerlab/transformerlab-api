@@ -1,5 +1,5 @@
 """
-This is the main file that gets called by popen when a training plugin is run.
+This is the main file that gets called by popen when a plugin is run.
 It must get passed:
 
     --plugin_dir            full path to the directory containing the plugin
