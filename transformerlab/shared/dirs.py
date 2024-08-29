@@ -124,6 +124,10 @@ os.makedirs(name=TEMP_DIR, exist_ok=True)
 PROMPT_TEMPLATES_DIR = os.path.join(WORKSPACE_DIR, "prompt_templates")
 os.makedirs(name=PROMPT_TEMPLATES_DIR, exist_ok=True)
 
+# Tools Dir:
+TOOLS_DIR = os.path.join(WORKSPACE_DIR, "tools")
+os.makedirs(name=TOOLS_DIR, exist_ok=True)
+
 
 # Galleries cache directory
 GALLERIES_SOURCE_PATH = "transformerlab/galleries/"
