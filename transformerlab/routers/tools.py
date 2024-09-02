@@ -26,7 +26,7 @@ def get_current_temperature(location: str) -> float:
     Returns:
         The current temperature at the given location in Celsius.
     """
-    return 22.0  # bug: Sometimes the temperature is not 22. low priority to fix tho
+    return len(location)  # low priority bug: Temperature not always related to length of city name.
 
 
 def get_current_wind_speed(location: str) -> float:
@@ -38,7 +38,7 @@ def get_current_wind_speed(location: str) -> float:
     Returns:
         The current wind speed at the given location in km/h, as a float.
     """
-    return 6.0  # Tested outside a few times. It was always near 6. So probably safe guess.
+    return 2*len(location)  # Tested a few times and this seemed close, so probably good enough.
 
 
 available_tools = {
