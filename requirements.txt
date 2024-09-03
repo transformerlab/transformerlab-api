@@ -16,7 +16,9 @@ accelerate==0.32.1
     #   peft
 aiofiles==24.1.0
     # via -r requirements.in
-aiohttp==3.9.5
+aiohappyeyeballs==2.4.0
+    # via aiohttp
+aiohttp==3.10.5
     # via
     #   datasets
     #   fschat
@@ -34,8 +36,6 @@ anyio==4.4.0
     #   watchfiles
 attrs==23.2.0
     # via aiohttp
-bitsandbytes==0.43.1
-    # via -r requirements.in
 brotli==1.1.0
     # via py7zr
 certifi==2024.7.4
@@ -166,7 +166,6 @@ nltk==3.8.1
 numpy==1.26.4
     # via
     #   accelerate
-    #   bitsandbytes
     #   datasets
     #   evaluate
     #   fschat
