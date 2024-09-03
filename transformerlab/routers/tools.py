@@ -85,5 +85,5 @@ async def call_tool(tool_id: str, params: str):
         print(err_string)
         return {
             "status": "error",
-            "data": err_string
+            "message": err_string
         }
