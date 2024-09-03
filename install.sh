@@ -272,7 +272,7 @@ install_dependencies() {
       # Using instructions from https://github.com/Dao-AILab/flash-attention
       pip install packaging
       pip install ninja
-      pip install -U flash-attn==2.6.1 --no-build-isolation
+      pip install -U flash-attn==2.6.3 --no-build-isolation
       ###
   else
       echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."
