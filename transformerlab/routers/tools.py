@@ -73,13 +73,17 @@ async def call_tool(tool_id: str, params: str):
         tool_function = available_tools.get(tool_id)
         result = tool_function(params)
 
+        print("Successfully called", tool_id)
+        print(result)
         return {
             "status": "success",
             "data": result
         }
 
     except Exception as e:
+        err_string = f"{type(e).__name__}: {e}"
+        print(err_string)
         return {
             "status": "error",
-            "data": f"{type(e).__name__}: {e}"
+            "data": err_string
         }
