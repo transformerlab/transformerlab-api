@@ -61,24 +61,21 @@ async def list_tools() -> list[object]:
 
 @router.get("/prompt", summary="Returns a default system prompt containing a list of available tools")
 async def get_prompt():
-      return """You are a function calling AI model. You are provided with function signatures within <tools></tools> XML tags. You may call one or more functions to assist with the user query. Don't make assumptions about what values to plug into functions.
+      tool_description_string = ""
+      for name, func in available_tools.items():
+          tool_description_string += f"{name}:\n{func.__doc__}\n\n"
+
+
+      return f"""You are a function calling AI model. You are provided with function signatures within <tools></tools> XML tags. You may call one or more functions to assist with the user query. Don't make assumptions about what values to plug into functions.
 Here are the available tools:
 <tools>
-{"type": "function", "function": {"name": "get_current_temperature", "description": "get_current_temperature(location: str) - Gets the temperature at a given location.
-
-    Args:
-        location(str): The location to get the temperature for, in the format "city, country"", "parameters": {"type": "object", "properties": {"location": {"type": "string", "description": "The location to get the temperature for, in the format \"city, country\""}}, "required": ["location"]}}
-{"type": "function", "function": {"name": "get_current_wind_speed", "description": "get_current_wind_speed(location: str) -> float - Get the current wind speed in km/h at a given location.
-
-    Args:
-        location(str): The location to get the temperature for, in the format "City, Country"
-    Returns:
-        The current wind speed at the given location in km/h, as a float.", "parameters": {"type": "object", "properties": {"location": {"type": "string", "description": "The location to get the temperature for, in the format \"City, Country\""}}, "required": ["location"]}} </tools>Use the following pydantic model json schema for each tool call you will make: {"properties": {"name": {"title": "Name", "type": "string"}, "arguments": {"title": "Arguments", "type": "object"}}, "required": ["name", "arguments"], "title": "FunctionCall", "type": "object"}}
+{tool_description_string}
+</tools>
 For each function call return a json object with function name and arguments within <tool_call></tool_call> XML tags as follows:
 <tool_call>
-{"name": <function-name>, "arguments": <args-dict>}
+{{"name": <function-name>, "arguments": <args-dict>}}
 </tool_call>
-"""
+""";
 
 
 @router.get("/call/{tool_id}", summary="Executes a tool with parameters supplied in JSON.")
