@@ -54,7 +54,13 @@ available_tools = {
 
 @router.get("/list", summary="List the tools that are currently installed.")
 async def list_tools() -> list[object]:
-    tool_descriptions = [f"{name}:\n{func.__doc__}\n\n" for name, func in available_tools.items()]
+    tool_descriptions = []
+    for name, func in available_tools.items():
+        tool = {
+            "name": name,
+            "description": f"{name}:\n{func.__doc__}\n\n"
+        }
+        tool_descriptions.append(tool)
 
     return tool_descriptions
 
