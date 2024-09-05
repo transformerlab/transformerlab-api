@@ -98,6 +98,19 @@ async def call_tool(tool_id: str, params: str):
             "message": f"No tool with ID {tool_id} found."
         }
 
+    # Try to parse out parameters
+    try:
+        function_args = json.loads(params)
+    except Exception as e:
+        err_string = f"{type(e).__name__}: {e}"
+        print(err_string)
+        print("Passed JSON parameter string:")
+        print(params)
+        return {
+            "status": "error",
+            "message": err_string
+        }
+
     try:
         tool_function = available_tools.get(tool_id)
         result = tool_function(params)
