@@ -113,7 +113,7 @@ async def call_tool(tool_id: str, params: str):
 
     try:
         tool_function = available_tools.get(tool_id)
-        result = tool_function(params)
+        result = tool_function(**function_args)
 
         print("Successfully called", tool_id)
         print(result)
