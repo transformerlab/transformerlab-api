@@ -105,6 +105,14 @@ app = fastapi.FastAPI(
     openapi_tags=tags_metadata,
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 def create_error_response(code: int, message: str) -> JSONResponse:
     return JSONResponse(
