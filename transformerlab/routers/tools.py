@@ -1,5 +1,6 @@
 import os
 import json
+from transformers.utils import get_json_schema
 
 
 from fastapi import APIRouter
@@ -67,21 +68,24 @@ async def list_tools() -> list[object]:
 
 @router.get("/prompt", summary="Returns a default system prompt containing a list of available tools")
 async def get_prompt():
-      tool_description_string = ""
-      for name, func in available_tools.items():
-          tool_description_string += f"{name}:\n{func.__doc__}\n\n"
 
+    # Follow the format described here: https://huggingface.co/blog/unified-tool-use
+    # Otherwise the models don't respond correclty
+    tool_descriptions = []
+    for name, func in available_tools.items():
+        tool_descriptions.append(get_json_schema(func))
+    tool_json = json.dumps(tool_descriptions)
 
-      return f"""You are a function calling AI model. You are provided with function signatures within <tools></tools> XML tags. You may call one or more functions to assist with the user query. Don't make assumptions about what values to plug into functions.
+    return f"""You are a function calling AI model. You are provided with function signatures within <tools></tools> XML tags. You may call one or more functions to assist with the user query. Don't make assumptions about what values to plug into functions.
 Here are the available tools:
 <tools>
-{tool_description_string}
+{tool_json}
 </tools>
 For each function call return a json object with function name and arguments within <tool_call></tool_call> XML tags as follows:
 <tool_call>
 {{"name": <function-name>, "arguments": <args-dict>}}
 </tool_call>
-""";
+"""
 
 
 @router.get("/call/{tool_id}", summary="Executes a tool with parameters supplied in JSON.")
