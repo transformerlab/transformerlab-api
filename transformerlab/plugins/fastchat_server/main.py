@@ -11,6 +11,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--model-path', type=str)
 parser.add_argument('--adaptor-path', type=str)
 parser.add_argument('--parameters', type=str, default="{}")
+parser.add_argument('--plugin_dir', type=str)
 
 args, unknown = parser.parse_known_args()
 
@@ -46,9 +47,11 @@ if device is None or device == "":
 
 
 llmlab_root_dir = os.getenv('LLM_LAB_ROOT_PATH')
+PLUGIN_DIR = args.plugin_dir
 
-popen_args = [sys.executable, '-m',
-              'fastchat.serve.model_worker', '--model-path', model, "--device", device]
+popen_args = [sys.executable,
+              f"{PLUGIN_DIR}/model_worker.py",
+              '--model-path', model, "--device", device]
 if (num_gpus):
     popen_args.extend(["--num-gpus", num_gpus])
 if (eight_bit):
