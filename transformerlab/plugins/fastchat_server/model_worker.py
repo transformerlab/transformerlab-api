@@ -12,6 +12,7 @@ import os
 from typing import List, Optional
 import uuid
 
+from fastapi import Request
 import torch
 import torch.nn.functional as F
 from transformers import set_seed
@@ -417,6 +418,14 @@ def create_model_worker():
     )
     return args, worker
 
+
+@app.post("/tokenize")
+async def api_tokenize(request: Request):
+    params = await request.json()
+    text = params["text"]
+    token_ids = worker.tokenizer(text).input_ids
+    tokens = worker.tokenizer.convert_ids_to_tokens(token_ids)
+    return {"tokens": tokens, "token_ids": token_ids}
 
 if __name__ == "__main__":
     args, worker = create_model_worker()
