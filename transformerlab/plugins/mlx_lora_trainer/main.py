@@ -1,7 +1,7 @@
 """
 Fine-Tuning with LoRA or QLoRA using MLX
 
-https://github.com/ml-explore/mlx-examples/blob/main/lora/README.md
+https://github.com/ml-explore/mlx-examples/blob/main/llms/mlx_lm/LORA.md
 
 You must install MLX python:
 pip install mlx-lm
@@ -162,13 +162,12 @@ adaptor_output_dir = plugin_dir
 # adaptor_output_dir = config["adaptor_output_dir"]
 # if not os.path.exists(adaptor_output_dir):
 #     os.makedirs(adaptor_output_dir)
-adaptor_file_name = os.path.join(adaptor_output_dir, f"{adaptor_name}.npz")
 
-popen_command = [sys.executable, "-u", f"{plugin_dir}/mlx-examples/lora/lora.py",
+popen_command = [sys.executable, "-m", "mlx_lm.lora",
                  "--model", config["model_name"],
                  "--iters", iters,
                  "--train",
-                 "--adapter-file", adaptor_file_name,
+                 "--adapter-path", adaptor_output_dir,
                  "--lora-layers", lora_layers,
                  "--batch-size", batch_size,
                  "--learning-rate", learning_rate,
@@ -184,7 +183,7 @@ job = transformerlab.plugin.Job(config["job_id"])
 job.update_progress(0)
 
 print("Training beginning:")
-print("Adaptor will be saved as:", adaptor_file_name)
+print("Adaptor will be saved in:", adaptor_output_dir)
 
 # todays date with seconds:
 today = time.strftime("%Y%m%d-%H%M%S")
@@ -253,10 +252,9 @@ if not os.path.exists(fused_model_location):
     os.makedirs(fused_model_location)
 
 fuse_popen_command = [
-    sys.executable,
-    f"{plugin_dir}/mlx-examples/lora/fuse.py",
+    sys.executable, "-m", "mlx_lm.fuse",
     "--model", config["model_name"],
-    "--adapter-file", adaptor_file_name,
+    "--adapter-path", adaptor_output_dir,
     "--save-path", fused_model_location]
 
 with subprocess.Popen(
