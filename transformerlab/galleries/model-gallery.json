@@ -184,6 +184,33 @@
         }
     },
     {
+        "uniqueID": "meta-llama/Llama-3.2-1B-Instruct",
+        "name": "Llama-3.2-1B-Instruct",
+        "description": "The Llama 3.2 instruction-tuned text only models are optimized for multilingual dialogue use cases, including agentic retrieval and summarization tasks. They outperform many of the available open source and closed chat models on common industry benchmarks.",
+        "parameters": "1B",
+        "context": "131072",
+        "architecture": "LlamaForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "meta-llama/Llama-3.2-1B-Instruct",
+        "transformers_version": "4.45.0.dev0",
+        "gated": "manual",
+        "license": "llama3.2",
+        "logo": "",
+        "size_of_model_in_mb": 2365.9,
+        "author": {
+            "name": "meta-llama",
+            "url": "https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct",
+            "downloadUrl": "https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct",
+            "paperUrl": "?"
+        }
+    },
+    {
         "uniqueID": "CohereForAI/aya-23-8B",
         "name": "Aya 23 8B",
         "description": "Aya 23 is an open weights research release of an instruction fine-tuned model with highly advanced multilingual capabilities. Aya 23 focuses on pairing a highly performant pre-trained Command family of models with the recently released Aya Collection. The result is a powerful multilingual large language model serving 23 languages.",
@@ -198,6 +225,33 @@
         "gated": true,
         "license": "CC-By-NC-4.0",
         "logo": "https://cdn.sanity.io/images/rjtqmwfu/production/5bc885878e9f0f1e202b742c86f543c7fe765376-409x144.svg"
+    },
+    {
+        "uniqueID": "meta-llama/Llama-3.2-1B",
+        "name": "Llama-3.2-1B",
+        "description": "Llama 3.2 is an auto-regressive language model that uses an optimized transformer architecture. The tuned versions use supervised fine-tuning (SFT) and reinforcement learning with human feedback (RLHF) to align with human preferences for helpfulness and safety.",
+        "parameters": "1B",
+        "context": "131072",
+        "architecture": "LlamaForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "meta-llama/Llama-3.2-1B",
+        "transformers_version": "4.45.0.dev0",
+        "gated": "manual",
+        "license": "llama3.2",
+        "logo": "",
+        "size_of_model_in_mb": 2365.9,
+        "author": {
+            "name": "meta-llama",
+            "url": "https://huggingface.co/meta-llama/Llama-3.2-1B",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/meta-llama/Llama-3.2-1B",
+            "downloadUrl": "https://huggingface.co/meta-llama/Llama-3.2-1B",
+            "paperUrl": "?"
+        }
     },
     {
         "uniqueID": "lmsys/vicuna-7b-v1.5",
@@ -931,6 +985,33 @@
         }
     },
     {
+        "uniqueID": "mlx-community/Llama-3.2-1B-Instruct-4bit",
+        "name": "Llama-3.2-1B-Instruct-4bit",
+        "description": "The Llama 3.2 instruction-tuned text only models are optimized for multilingual dialogue use cases, including agentic retrieval and summarization tasks. They outperform many of the available open source and closed chat models on common industry benchmarks.",
+        "parameters": "1B",
+        "context": "131072",
+        "architecture": "LlamaForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "mlx-community/Llama-3.2-1B-Instruct-4bit",
+        "transformers_version": "4.45.0.dev0",
+        "gated": "manual",
+        "license": "llama3.2",
+        "logo": "",
+        "size_of_model_in_mb": 671.8,
+        "author": {
+            "name": "mlx-community",
+            "url": "https://huggingface.co/mlx-community/Llama-3.2-1B-Instruct-4bit",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/mlx-community/Llama-3.2-1B-Instruct-4bit",
+            "downloadUrl": "https://huggingface.co/mlx-community/Llama-3.2-1B-Instruct-4bit",
+            "paperUrl": "?"
+        }
+    },
+    {
         "uniqueID": "google/gemma-2-9b-it",
         "name": "Gemma2 9B Instruct",
         "description": "Gemma is a family of lightweight, state-of-the-art open models from Google, built from the same research and technology used to create the Gemini models. They are text-to-text, decoder-only large language models, available in English, with open weights for both pre-trained variants and instruction-tuned variants. Gemma models are well-suited for a variety of text generation tasks, including question answering, summarization, and reasoning. Their relatively small size makes it possible to deploy them in environments with limited resources such as a laptop, desktop or your own cloud infrastructure, democratizing access to state of the art AI models and helping foster innovation for everyone.",
@@ -1592,6 +1673,33 @@
         "resources": {
             "canonicalUrl": "https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha",
             "downloadUrl": "https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha",
+            "paperUrl": "?"
+        }
+    },
+    {
+        "uniqueID": "mattshumer/Reflection-Llama-3.1-70B",
+        "name": "Reflection-Llama-3.1-70B",
+        "description": "",
+        "parameters": "",
+        "context": "8192",
+        "architecture": "LlamaForCausalLM",
+        "formats": [
+            "PyTorch"
+        ],
+        "huggingface_repo": "mattshumer/Reflection-Llama-3.1-70B",
+        "transformers_version": "4.40.0",
+        "gated": false,
+        "license": "llama3.1",
+        "logo": "https://pbs.twimg.com/profile_images/1669714060269461506/9LY7fML7_400x400.jpg",
+        "size_of_model_in_mb": 0,
+        "author": {
+            "name": "mattshumer",
+            "url": "https://huggingface.co/mattshumer/Reflection-Llama-3.1-70B",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/mattshumer/Reflection-Llama-3.1-70B",
+            "downloadUrl": "https://huggingface.co/mattshumer/Reflection-Llama-3.1-70B",
             "paperUrl": "?"
         }
     },
