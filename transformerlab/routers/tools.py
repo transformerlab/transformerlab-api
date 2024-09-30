@@ -1,7 +1,8 @@
 import os
+import sys
 import json
 from transformers.utils import get_json_schema
-
+from transformerlab.shared import dirs
 
 from fastapi import APIRouter
 
@@ -9,42 +10,17 @@ from fastapi import APIRouter
 router = APIRouter(prefix="/tools", tags=["tools"])
 
 
-#############################
-# TEMPORARY HARD-CODED TOOLS
-#
-# Eventually we will replace this with some dynamic way of addings tools.
-# In the meantime, this is going to pass the function docs to the prompt.
-# So make sure you create your docs properly!
-#############################
-
-
-def get_current_temperature(location: str) -> float:
-    """
-    Gets the temperature at a given location.
-
-    Args:
-        location: The location to get the temperature for, in the format "city, country"
-    Returns:
-        The current temperature at the given location in Celsius.
-    """
-    return len(location)  # low priority bug: Temperature not always related to length of city name.
-
-
-def get_current_wind_speed(location: str) -> float:
-    """
-    Get the current wind speed in km/h at a given location.
-    
-    Args:
-        location: The location to get the temperature for, in the format "City, Country"
-    Returns:
-        The current wind speed at the given location in km/h, as a float.
-    """
-    return 2*len(location)  # Tested a few times and this seemed close, so probably good enough.
-
+##################################################
+# TEMPORARY HACK
+# Hard code import the tools directory.
+# At least until we add ability toad dynamically.
+##################################################
+sys.path.append(os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "tools", "weather"))
+import main
 
 available_tools = {
-    "get_current_temperature": get_current_temperature,
-    "get_current_wind_speed": get_current_wind_speed
+    "get_current_temperature": main.get_current_temperature,
+    "get_current_wind_speed": main.get_current_wind_speed
 }
 
 
