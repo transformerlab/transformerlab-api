@@ -990,7 +990,7 @@
         "description": "The Llama 3.2 instruction-tuned text only models are optimized for multilingual dialogue use cases, including agentic retrieval and summarization tasks. They outperform many of the available open source and closed chat models on common industry benchmarks.",
         "parameters": "1B",
         "context": "131072",
-        "architecture": "LlamaForCausalLM",
+        "architecture": "MLX",
         "formats": [
             "Safetensors"
         ],
