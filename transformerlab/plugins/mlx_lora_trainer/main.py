@@ -8,19 +8,29 @@ pip install mlx-lm
 
 LoRA or QLoRA finetuning.
 
+usage: mlx_lm.lora [-h] [--model MODEL] [--train] [--data DATA]
+                   [--lora-layers LORA_LAYERS] [--batch-size BATCH_SIZE]
+                   [--iters ITERS] [--val-batches VAL_BATCHES]
+                   [--learning-rate LEARNING_RATE]
+                   [--steps-per-report STEPS_PER_REPORT]
+                   [--steps-per-eval STEPS_PER_EVAL]
+                   [--resume-adapter-file RESUME_ADAPTER_FILE]
+                   [--adapter-path ADAPTER_PATH] [--save-every SAVE_EVERY]
+                   [--test] [--test-batches TEST_BATCHES]
+                   [--max-seq-length MAX_SEQ_LENGTH] [-c CONFIG]
+                   [--grad-checkpoint] [--seed SEED] [--use-dora]
+
+LoRA or QLoRA finetuning.
+
 options:
   -h, --help            show this help message and exit
   --model MODEL         The path to the local model directory or Hugging Face
                         repo.
-  --max-tokens MAX_TOKENS, -m MAX_TOKENS
-                        The maximum number of tokens to generate
-  --temp TEMP           The sampling temperature
-  --prompt PROMPT, -p PROMPT
-                        The prompt for generation
   --train               Do training
   --data DATA           Directory with {train, valid, test}.jsonl files
   --lora-layers LORA_LAYERS
-                        Number of layers to fine-tune
+                        Number of layers to fine-tune. Default is 16, use -1
+                        for all.
   --batch-size BATCH_SIZE
                         Minibatch size.
   --iters ITERS         Iterations to train for.
@@ -34,17 +44,22 @@ options:
   --steps-per-eval STEPS_PER_EVAL
                         Number of training steps between validations.
   --resume-adapter-file RESUME_ADAPTER_FILE
-                        Load path to resume training with the given adapter
-                        weights.
-  --adapter-file ADAPTER_FILE
-                        Save/load path for the trained adapter weights.
+                        Load path to resume training with the given adapters.
+  --adapter-path ADAPTER_PATH
+                        Save/load path for the adapters.
   --save-every SAVE_EVERY
                         Save the model every N iterations.
   --test                Evaluate on the test set after training
   --test-batches TEST_BATCHES
                         Number of test set batches, -1 uses the entire test
                         set.
+  --max-seq-length MAX_SEQ_LENGTH
+                        Maximum sequence length.
+  -c CONFIG, --config CONFIG
+                        A YAML configuration file with the training options
+  --grad-checkpoint     Use gradient checkpointing to reduce memory use.
   --seed SEED           The PRNG seed
+  --use-dora            Use DoRA to finetune.
 """
 
 import json
