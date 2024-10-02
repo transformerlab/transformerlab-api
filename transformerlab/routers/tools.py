@@ -23,6 +23,14 @@ available_tools = {
     "get_current_wind_speed": main.get_current_wind_speed
 }
 
+sys.path.append(os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "tools"))
+import calculator.main
+
+available_tools = {
+    "add": calculator.main.add,
+    "multiply": calculator.main.multiply,
+    "divide": calculator.main.divide
+}
 
 #############################
 # TOOLS API ENDPOINTS
