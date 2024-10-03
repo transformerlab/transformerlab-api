@@ -15,22 +15,16 @@ router = APIRouter(prefix="/tools", tags=["tools"])
 # Hard code import the tools directory.
 # At least until we add ability toad dynamically.
 ##################################################
-sys.path.append(os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "tools", "weather"))
-import main
-
-available_tools = {
-    "get_current_temperature": main.get_current_temperature,
-    "get_current_wind_speed": main.get_current_wind_speed
-}
-
 sys.path.append(os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "tools"))
+import weather.main
 import calculator.main
 
-available_tools = {
-    "add": calculator.main.add,
-    "multiply": calculator.main.multiply,
-    "divide": calculator.main.divide
-}
+available_tools = {}
+available_tools["get_current_temperature"] = weather.main.get_current_temperature
+available_tools["get_current_wind_speed"] = weather.main.get_current_wind_speed
+available_tools["add"] = calculator.main.add
+available_tools["multiply"] = calculator.main.multiply
+available_tools["divide"] = calculator.main.divide
 
 #############################
 # TOOLS API ENDPOINTS
