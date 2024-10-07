@@ -17,7 +17,7 @@ def add(x: float, y: float) -> float:
     return float(x)+float(y)
 
 
-def add(x: float, y: float) -> float:
+def subtract(x: float, y: float) -> float:
     """
     Get the difference between two numbers.
 
