@@ -11,12 +11,17 @@ from fastapi import APIRouter
 router = APIRouter(prefix="/tools", tags=["tools"])
 
 
-##################################################
-# TEMPORARY HACK
-# Hard code import the tools directory.
-# At least until we add ability toad dynamically.
-# Make sure this doesn't do a directory scan on every API call
-##################################################
+###################################################################
+# Tools loading function
+#
+# This should be called by every tools endpoint that needs
+# access to the list of available tools.
+#
+# NOTE: Adding tools right out of API directory.
+#   This should be updated to copy and then look in workspace.
+####################################################################
+
+
 def load_tools():
     available_tools = {}
 
@@ -49,9 +54,6 @@ def load_tools():
     return available_tools
 
 
-available_tools = load_tools()
-
-
 #############################
 # TOOLS API ENDPOINTS
 #############################
@@ -59,6 +61,8 @@ available_tools = load_tools()
 
 @router.get("/list", summary="List the tools that are currently installed.")
 async def list_tools() -> list[object]:
+    available_tools = load_tools()
+
     tool_descriptions = []
     for name, func in available_tools.items():
         tool = {
@@ -72,6 +76,7 @@ async def list_tools() -> list[object]:
 
 @router.get("/prompt", summary="Returns a default system prompt containing a list of available tools")
 async def get_prompt():
+    available_tools = load_tools()
 
     # Follow the format described here: https://huggingface.co/blog/unified-tool-use
     # Otherwise the models don't respond correclty
@@ -94,6 +99,7 @@ For each function call return a json object with function name and arguments wit
 
 @router.get("/call/{tool_id}", summary="Executes a tool with parameters supplied in JSON.")
 async def call_tool(tool_id: str, params: str):
+    available_tools = load_tools()
 
     # First make sure we have a tool with this name
     if tool_id not in available_tools:
