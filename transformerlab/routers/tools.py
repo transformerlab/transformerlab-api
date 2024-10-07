@@ -41,14 +41,12 @@ def load_tools():
 
                 # Go through package contents and look for functions
                 if pkg:
-                    print(f"Importing tool package {package_name}")
                     for attr in dir(pkg):
                         func = getattr(pkg, attr)
 
                         # Add any functions that has pydocs
                         if callable(func) and func.__doc__:
                             func_name = func.__name__
-                            print(f"Adding tool: {func_name}")
                             available_tools[func_name] = func
 
     return available_tools
