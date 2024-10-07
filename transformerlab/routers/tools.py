@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import importlib
 from transformers.utils import get_json_schema
 from transformerlab.shared import dirs
 
@@ -14,17 +15,42 @@ router = APIRouter(prefix="/tools", tags=["tools"])
 # TEMPORARY HACK
 # Hard code import the tools directory.
 # At least until we add ability toad dynamically.
+# Make sure this doesn't do a directory scan on every API call
 ##################################################
-sys.path.append(os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "tools"))
-import weather.main
-import calculator.main
+def load_tools():
+    available_tools = {}
 
-available_tools = {}
-available_tools["get_current_temperature"] = weather.main.get_current_temperature
-available_tools["get_current_wind_speed"] = weather.main.get_current_wind_speed
-available_tools["add"] = calculator.main.add
-available_tools["multiply"] = calculator.main.multiply
-available_tools["divide"] = calculator.main.divide
+    # TODO: Pull dir from dirs.py
+    tools_dir = os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "tools")
+    sys.path.append(tools_dir)
+
+    # Scan the tools dir to subdirectories
+    with os.scandir(tools_dir) as dirlist:
+        for entry in dirlist:
+            if entry.is_dir():
+
+                # Try importing main.py from the subdirectory
+                package_name = entry.name
+                import_name = f"{package_name}.main"
+                pkg = importlib.import_module(import_name)
+
+                # Go through package contents and look for functions
+                if pkg:
+                    print(f"Importing tool package {package_name}")
+                    for attr in dir(pkg):
+                        func = getattr(pkg, attr)
+
+                        # Add any functions that has pydocs
+                        if callable(func) and func.__doc__:
+                            func_name = func.__name__
+                            print(f"Adding tool: {func_name}")
+                            available_tools[func_name] = func
+
+    return available_tools
+
+
+available_tools = load_tools()
+
 
 #############################
 # TOOLS API ENDPOINTS
