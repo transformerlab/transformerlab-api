@@ -17,6 +17,19 @@ def add(x: float, y: float) -> float:
     return float(x)+float(y)
 
 
+def add(x: float, y: float) -> float:
+    """
+    Get the difference between two numbers.
+
+    Args:
+        x: The minuend being subtracted from as a floating point number.
+        y: The subtrahend being subtracted as a floating point number.
+    Returns:
+        The difference of x minus y as a floating point number.
+    """
+    return float(x)-float(y)
+
+
 def multiply(x: float, y: float) -> float:
     """
     Get the product you get from multiplying two numbers together.
