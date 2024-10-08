@@ -101,7 +101,8 @@ def plugin_dir_by_name(plugin_name: str) -> str:
     return os.path.join(PLUGIN_DIR, plugin_name)
 
 
-PLUGIN_SDK_DIR = os.path.join(TFL_SOURCE_CODE_DIR, "transformerlab", "plugin_sdk")
+PLUGIN_SDK_DIR = os.path.join(
+    TFL_SOURCE_CODE_DIR, "transformerlab", "plugin_sdk")
 PLUGIN_HARNESS = os.path.join(PLUGIN_SDK_DIR, "plugin_harness.py")
 
 # MODELS_DIR
@@ -128,6 +129,9 @@ os.makedirs(name=PROMPT_TEMPLATES_DIR, exist_ok=True)
 TOOLS_DIR = os.path.join(WORKSPACE_DIR, "tools")
 os.makedirs(name=TOOLS_DIR, exist_ok=True)
 
+# Batched Prompts Dir:
+BATCHED_PROMPTS_DIR = os.path.join(WORKSPACE_DIR, "batched_prompts")
+os.makedirs(name=BATCHED_PROMPTS_DIR, exist_ok=True)
 
 # Galleries cache directory
 GALLERIES_SOURCE_PATH = "transformerlab/galleries/"
