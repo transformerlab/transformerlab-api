@@ -307,7 +307,7 @@ tiktoken==0.7.0
     # via
     #   -r requirements.in
     #   fschat
-tokenizers==0.19.1
+tokenizers==0.20.1
     # via transformers
 torch==2.3.1
     # via
@@ -328,7 +328,7 @@ tqdm==4.66.4
     #   nltk
     #   peft
     #   transformers
-transformers==4.43.1
+transformers==4.45.0
     # via
     #   -r requirements.in
     #   peft
