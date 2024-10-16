@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Annotated
+from typing import Annotated, Union
 from fastapi import APIRouter, Body
 
 from transformerlab.shared import dirs
@@ -29,8 +29,10 @@ async def list_prompts():
     return batched_prompts
 
 
+# The prompt can either be a list of lists of dics (for conversations)
+# or a list of strings (for completions)
 @router.post("/new")
-async def new_prompt(name: Annotated[str, Body()], prompts: Annotated[list[str], Body()]):
+async def new_prompt(name: Annotated[str, Body()], prompts: Annotated[Union[list[list[dict]], list[str]], Body()]):
     """Create a new batched prompt"""
 
     slug = slugify(name)
@@ -41,7 +43,7 @@ async def new_prompt(name: Annotated[str, Body()], prompts: Annotated[list[str],
         json_str = json.dumps(prompts, indent=4)
         f.write(json_str)
 
-    return {"status": "success", "data": json_str}
+    return {"status": "success", "data": prompts}
 
 
 @router.get("/delete/{prompt_id}")
