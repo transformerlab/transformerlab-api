@@ -137,3 +137,12 @@ os.makedirs(name=BATCHED_PROMPTS_DIR, exist_ok=True)
 GALLERIES_SOURCE_PATH = "transformerlab/galleries/"
 GALLERIES_CACHE_DIR = os.path.join(WORKSPACE_DIR, "galleries")
 os.makedirs(name=GALLERIES_CACHE_DIR, exist_ok=True)
+
+# Evals output file:
+
+
+async def eval_output_file(experiment_name: str, eval_name: str) -> str:
+    experiment_dir = experiment_dir_by_name(experiment_name)
+    p = os.path.join(experiment_dir, "evals", eval_name)
+    os.makedirs(p, exist_ok=True)
+    return os.path.join(p, "output.txt")

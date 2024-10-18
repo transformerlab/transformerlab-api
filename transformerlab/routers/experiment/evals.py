@@ -1,3 +1,5 @@
+from fastapi.responses import FileResponse
+import urllib
 from transformerlab.routers.experiment import rag, documents, plugins, conversations, export
 from transformerlab.shared import dirs
 from transformerlab.shared import shared
@@ -171,5 +173,30 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
 
     print(f">Running {subprocess_command}")
 
-    with open(f"{script_directory}/output.txt", "w") as f:
+    output_file = dirs.eval_output_file(experimentId, eval_name)
+
+    with open(output_file, "w") as f:
         subprocess.run(args=subprocess_command, stdout=f)
+
+
+@router.get("/get_output")
+async def get_output(experimentId: int, eval_name: str):
+    """Get the output of an evaluation"""
+    data = await db.experiment_get(experimentId)
+    # if the experiment does not exist, return an error:
+    if data is None:
+        return {"message": f"Experiment {experimentId} does not exist"}
+
+    experiment_name = data["name"]
+
+    # sanitize the input:
+    eval_name = urllib.parse.unquote(eval_name)
+
+    eval_output_file = await dirs.eval_output_file(experiment_name, eval_name)
+    if not os.path.exists(eval_output_file):
+        return {"message": "Output file does not exist"}
+
+    print(f"Returning output file: {eval_output_file}")
+
+    # return the whole file as a file response:
+    return FileResponse(eval_output_file)

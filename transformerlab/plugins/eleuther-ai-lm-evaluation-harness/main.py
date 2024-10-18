@@ -35,8 +35,10 @@ plugin_dir = os.path.realpath(os.path.dirname(__file__))
 model_args = 'pretrained=' + args.model_name
 task = args.task
 
+command = ["lm-eval",
+           '--model_args', model_args, '--tasks', task, '--device', 'cuda:0', '--trust_remote_code']
+
 subprocess.Popen(
-    ["lm-eval",
-        '--model_args', model_args, '--tasks', task, '--device', 'cuda:0'],
+    command,
     cwd=plugin_dir,
 )
