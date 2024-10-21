@@ -12,7 +12,7 @@ from typing import List, Dict, Union, Any
 
 import transformerlab.db as db
 from transformerlab.shared import dirs
-
+from datasets.data_files import EmptyDatasetError
 from transformerlab.shared.shared import slugify
 
 router = APIRouter(prefix="/data", tags=["datasets"])
@@ -58,15 +58,20 @@ async def dataset_info(dataset_id: str):
     r = {}
     # This means it is a custom dataset the user uploaded
     if d["location"] == "local":
-        dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
+        try:
+            dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
+        except EmptyDatasetError:
+            return {"status": "error", "message": "The dataset is empty."}
         # print(dataset['train'].features)
         r["features"] = dataset["train"].features
     else:
         dataset_config = d.get("json_data", {}).get("dataset_config", None)
         if (dataset_config is not None):
-            ds_builder = load_dataset_builder(dataset_id, dataset_config, trust_remote_code=True)
+            ds_builder = load_dataset_builder(
+                dataset_id, dataset_config, trust_remote_code=True)
         else:
-            ds_builder = load_dataset_builder(dataset_id, trust_remote_code=True)
+            ds_builder = load_dataset_builder(
+                dataset_id, trust_remote_code=True)
         r = {
             "description": ds_builder.info.description,
             "features": ds_builder.info.features,
@@ -106,7 +111,8 @@ async def dataset_preview(dataset_id: str = Query(description="The ID of the dat
     else:
         dataset_config = d.get("json_data", {}).get("dataset_config", None)
         if (dataset_config is not None):
-            dataset = load_dataset(dataset_id, dataset_config, trust_remote_code=True)
+            dataset = load_dataset(
+                dataset_id, dataset_config, trust_remote_code=True)
         else:
             dataset = load_dataset(dataset_id, trust_remote_code=True)
         dataset_len = len(dataset["train"])
@@ -141,7 +147,8 @@ async def dataset_download(dataset_id: str):
             ds_builder = load_dataset_builder(
                 dataset_id, dataset_config, trust_remote_code=True)
         else:
-            ds_builder = load_dataset_builder(dataset_id, trust_remote_code=True)
+            ds_builder = load_dataset_builder(
+                dataset_id, trust_remote_code=True)
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
         return {"status": "error", "message": error_msg}
