@@ -250,6 +250,12 @@ with subprocess.Popen(
 
         print(line, end="", flush=True)
 
+# Check if the training process completed successfully
+# Terminate if not
+if process.returncode and process.returncode != 0:
+    print("An error occured before training completed.")
+    exit(process.returncode)
+
 print("Finished training.")
 
 # TIME TO FUSE THE MODEL WITH THE BASE MODEL
