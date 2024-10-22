@@ -118,11 +118,19 @@ except Exception as e:
     print(e)
     exit
 
+# RENDER EACH DATASET SPLIT THROUGH THE SUPPLIED TEMPLATE
+
 # Go over each dataset split and render a new file based on the template
 dataset_types = ["train", "test", "validation"]
 dataset = {}
 formatting_template = jinja_environment.from_string(
     config["formatting_template"])
+
+# Directory for storing temporary working files
+# TODO: This should probably be stored per job.
+data_directory = f"{WORKSPACE_DIR}/plugins/mlx_lora_trainer/data"
+if not os.path.exists(data_directory):
+    os.makedirs(data_directory)
 
 for dataset_type in dataset_types:
 
@@ -145,11 +153,6 @@ for dataset_type in dataset_types:
 
     print(
         f"Loaded {dataset_type} dataset with {len(dataset[dataset_type])} examples.")
-
-    # Directory for storing temporary working files
-    data_directory = f"{WORKSPACE_DIR}/plugins/mlx_lora_trainer/data"
-    if not os.path.exists(data_directory):
-        os.makedirs(data_directory)
 
     # output training files in templated format in to data directory
     with open(f"{data_directory}/{dataset_type}.jsonl", "w") as f:
