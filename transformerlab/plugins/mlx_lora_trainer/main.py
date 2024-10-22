@@ -118,7 +118,8 @@ except Exception as e:
     print(e)
     exit
 
-dataset_types = ["train", "test"]
+# Go over each dataset split and render a new file based on the template
+dataset_types = ["train", "test", "validation"]
 dataset = {}
 formatting_template = jinja_environment.from_string(
     config["formatting_template"])
@@ -132,13 +133,14 @@ for dataset_type in dataset_types:
 
     except ValueError as e:
         # This is to catch this error-> ValueError: Unknown split "test". Should be one of ['train']
-        # Generally that means there is a single file in the dataset and we're trying to make a test dataset
-        # So we're going to ignore that! (Unless we're trying to load the train dataset...check that)
-        if (dataset_target == "train"):
+        # We only care about this for the "validation" and "train" splits
+        # The most common situation this gets hit is when there is a single file with no splits
+        # The MLX trainer no longer allows this for local datasets. 
+        # You must have a separate validation split
+        if (dataset_type == "train" or dataset_type == "validation"):
             raise
 
         print(f"Continuing without any data for \"{dataset_type}\" slice.")
-        # print(">", str(e))
         continue
 
     print(
@@ -160,9 +162,6 @@ for dataset_type in dataset_types:
             line = line.replace("\r", "\\r")
             o = {"text": line}
             f.write(json.dumps(o) + "\n")
-            # trimming dataset as a hack, to reduce training time"
-            # if (i > 40):
-            #     break
 
 # copy file test.jsonl to valid.jsonl. Our test set is the same as our validation set.
 os.system(
