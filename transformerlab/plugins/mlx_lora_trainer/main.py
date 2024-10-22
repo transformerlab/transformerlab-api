@@ -68,7 +68,7 @@ from string import Template
 import subprocess
 import sys
 import time
-from datasets import load_dataset
+from datasets import load_dataset, get_dataset_split_names
 import argparse
 import os
 from tensorboardX import SummaryWriter
@@ -120,8 +120,16 @@ except Exception as e:
 
 # RENDER EACH DATASET SPLIT THROUGH THE SUPPLIED TEMPLATE
 
-# Go over each dataset split and render a new file based on the template
+# Check to see if we have the necessary dataset splits
 dataset_types = ["train", "test", "validation"]
+required_dataset_types = ["train", "validation"]
+available_splits = get_dataset_split_names(dataset_target)
+
+for required_dataset_type in required_dataset_types:
+    if required_dataset_type not in available_splits:
+        print(f"Data Error: Missing required \"{required_dataset_type}\" slice in dataset {dataset_target}.")
+        exit(1)
+
 dataset = {}
 formatting_template = jinja_environment.from_string(
     config["formatting_template"])
@@ -132,6 +140,7 @@ data_directory = f"{WORKSPACE_DIR}/plugins/mlx_lora_trainer/data"
 if not os.path.exists(data_directory):
     os.makedirs(data_directory)
 
+# Go over each dataset split and render a new file based on the template
 for dataset_type in dataset_types:
 
     # Load dataset
