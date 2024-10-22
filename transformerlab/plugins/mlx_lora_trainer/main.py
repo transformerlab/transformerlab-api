@@ -231,12 +231,12 @@ with subprocess.Popen(
                 process.terminate()
 
             # Now parse the rest of the line and write to tensorboard
-            pattern = r"Train loss (\d+\.\d+), It/sec (\d+\.\d+), Tokens/sec (\d+\.\d+)"
+            pattern = r"Train loss (\d+\.\d+), Learning Rate (\d+\.[e\-\d]+), It/sec (\d+\.\d+), Tokens/sec (\d+\.\d+)"
             match = re.search(pattern, line)
             if match:
                 loss = float(match.group(1))
-                it_per_sec = float(match.group(2))
-                tokens_per_sec = float(match.group(3))
+                it_per_sec = float(match.group(3))
+                tokens_per_sec = float(match.group(4))
                 print("Loss: ", loss)
                 print("It/sec: ", it_per_sec)
                 print("Tokens/sec: ", tokens_per_sec)
