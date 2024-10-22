@@ -178,7 +178,7 @@ adaptor_output_dir = plugin_dir
 # if not os.path.exists(adaptor_output_dir):
 #     os.makedirs(adaptor_output_dir)
 
-popen_command = [sys.executable, "-m", "mlx_lm.lora",
+popen_command = [sys.executable, "-um", "mlx_lm.lora",
                  "--model", config["model_name"],
                  "--iters", iters,
                  "--train",
