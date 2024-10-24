@@ -159,13 +159,17 @@ async def dataset_preview_with_template(dataset_id: str = Query(description="The
             offset+limit, dataset_len)]
     result['len'] = dataset_len
 
-    # Apply the template to the data
     jinja_template = jinja_environment.from_string(template)
 
+    column_names = list(result['columns'].keys())
+
     rows = []
-    for i in range(len(result['columns'])):
+    # now iterate over all columns and rows, do not use offset or len because we've already
+    # sliced the dataset
+    for i in range(0, len(result['columns'][column_names[0]])):
         row = {}
-        row['__index__'] = i
+        row['__index__'] = i + offset
+        print(i)
         for key in result['columns'].keys():
             row[key] = result['columns'][key][i]
 
@@ -174,7 +178,7 @@ async def dataset_preview_with_template(dataset_id: str = Query(description="The
         # row['__template__'] = template
         rows.append(row)
 
-    return {"status": "success", "data": rows}
+    return {"status": "success", "data": {"columns": column_names, "rows": rows, "len": dataset_len, "offset": offset, "limit": limit}}
 
 
 @router.get("/download", summary="Download a dataset from the HuggingFace Hub to the LLMLab server.")
