@@ -1,0 +1,18 @@
+{
+    "name": "Llamafile Exporter",
+    "uniqueId": "llamafile_exporter",
+    "description": "Exports the current model to a fully contained self-executing llamafile.",
+    "plugin-format": "python",
+    "type": "exporter",
+    "version": "0.1.0",
+    "model_architectures": [
+        "GGUF"
+    ],
+    "export_architecture": "llamafile",
+    "files": [
+        "main.py",
+        "setup.sh"
+    ],
+    "setup-script": "setup.sh",
+    "parameters": {}
+}
