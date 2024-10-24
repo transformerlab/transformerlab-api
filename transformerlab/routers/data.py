@@ -15,6 +15,9 @@ from transformerlab.shared import dirs
 from datasets.data_files import EmptyDatasetError
 from transformerlab.shared.shared import slugify
 
+from jinja2 import Environment
+jinja_environment = Environment()
+
 router = APIRouter(prefix="/data", tags=["datasets"])
 
 # Get list of datasets that we have in our hardcoded gallery
@@ -120,6 +123,58 @@ async def dataset_preview(dataset_id: str = Query(description="The ID of the dat
             offset+limit, dataset_len)]
     result['len'] = dataset_len
     return {"status": "success", "data": result}
+
+
+@router.get("/preview_with_template", summary="Preview the contents of a dataset after applying a jinja template to it.", responses={200: {"model": SuccessResponse, "description": "Successful response. Data is a list of column names followed by data, which can be of any datatype."},
+                                                                                                                                     400: {"model": ErrorResponse},
+                                                                                                                                     }
+            )
+async def dataset_preview_with_template(dataset_id: str = Query(description="The ID of the dataset to preview. This can be a HuggingFace dataset ID or a local dataset ID."),
+                                        template: str = '',
+                                        offset: int = Query(
+        0, description='The starting index from where to fetch the data.', ge=0),
+        limit: int = Query(10, description="The maximum number of data items to fetch.", ge=1, le=1000)) -> Any:
+    d = await db.get_dataset(dataset_id)
+    dataset_len = 0
+    result = {}
+    # This means it is a custom dataset the user uploaded
+    if d["location"] == "local":
+        try:
+            dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
+        except Exception as e:
+            error_msg = f"{type(e).__name__}: {e}"
+            return {"status": "error", "message":  error_msg}
+        dataset_len = len(dataset["train"])
+        result['columns'] = dataset["train"][offset:min(
+            offset+limit, dataset_len)]
+    else:
+        dataset_config = d.get("json_data", {}).get("dataset_config", None)
+        if (dataset_config is not None):
+            dataset = load_dataset(
+                dataset_id, dataset_config, trust_remote_code=True)
+        else:
+            dataset = load_dataset(dataset_id, trust_remote_code=True)
+        dataset_len = len(dataset["train"])
+        result['columns'] = dataset["train"][offset:min(
+            offset+limit, dataset_len)]
+    result['len'] = dataset_len
+
+    # Apply the template to the data
+    jinja_template = jinja_environment.from_string(template)
+
+    rows = []
+    for i in range(len(result['columns'])):
+        row = {}
+        row['__index__'] = i
+        for key in result['columns'].keys():
+            row[key] = result['columns'][key][i]
+
+        # Apply the template to a new key in row called __formatted__
+        row['__formatted__'] = jinja_template.render(row)
+        # row['__template__'] = template
+        rows.append(row)
+
+    return {"status": "success", "data": rows}
 
 
 @router.get("/download", summary="Download a dataset from the HuggingFace Hub to the LLMLab server.")
