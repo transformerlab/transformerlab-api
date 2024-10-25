@@ -169,7 +169,6 @@ async def dataset_preview_with_template(dataset_id: str = Query(description="The
     for i in range(0, len(result['columns'][column_names[0]])):
         row = {}
         row['__index__'] = i + offset
-        print(i)
         for key in result['columns'].keys():
             row[key] = result['columns'][key][i]
 
