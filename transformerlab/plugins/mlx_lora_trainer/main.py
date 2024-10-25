@@ -120,30 +120,37 @@ except Exception as e:
 
 # RENDER EACH DATASET SPLIT THROUGH THE SUPPLIED TEMPLATE
 
-# We need both a "train" and a "validation" split
+# We need both a "train" and a "valid" split
 # If only a "train" split exists then manually carve off
-# 80% train, 10% test, 10% validation
+# 80% train, 10% test, 10% valid
 # TODO: Make this something you can customize via parameters
 available_splits = get_dataset_split_names(dataset_target)
 
 # Verify that we have required "train" split
 if "train" not in available_splits:
-    print(f"Error: Missing required \"train\" slice in dataset {dataset_target}.")
+    print(f"Error: Missing required train slice in dataset {dataset_target}.")
     exit(1)
 
-# And then either use provided "validation" split or create one
+# And then either use provided "valid" split or create one
+# FUN: Some datasets call it "valid", others call it "validation"
 if "validation" in available_splits:
-    validation_split = True
     dataset_splits = {
         "train": "train",
-        "validation": "validation"
+        "valid": "validation"
     }
+
+elif "valid" in available_splits:
+    dataset_splits = {
+        "train": "train",
+        "valid": "valid"
+    }
+
 else:
-    print(f"No explicit \"validation\" slice in dataset {dataset_target}:")
-    print("Using a default 80/10/10 split for training, test and validation.")
+    print(f"No validation slice found in dataset {dataset_target}:")
+    print("Using a default 80/10/10 split for training, test and valid.")
     dataset_splits = {
         "train": "train[:80%]",
-        "validation": "train[-10%:]"
+        "valid": "train[-10%:]"
     }
 
 dataset = {}
