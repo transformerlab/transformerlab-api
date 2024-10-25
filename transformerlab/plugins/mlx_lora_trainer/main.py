@@ -120,15 +120,31 @@ except Exception as e:
 
 # RENDER EACH DATASET SPLIT THROUGH THE SUPPLIED TEMPLATE
 
-# Check to see if we have the necessary dataset splits
-dataset_types = ["train", "test", "validation"]
-required_dataset_types = ["train", "validation"]
+# We need both a "train" and a "validation" split
+# If only a "train" split exists then manually carve off
+# 80% train, 10% test, 10% validation
+# TODO: Make this something you can customize via parameters
 available_splits = get_dataset_split_names(dataset_target)
 
-for required_dataset_type in required_dataset_types:
-    if required_dataset_type not in available_splits:
-        print(f"Data Error: Missing required \"{required_dataset_type}\" slice in dataset {dataset_target}.")
-        exit(1)
+# Verify that we have required "train" split
+if "train" not in available_splits:
+    print(f"Error: Missing required \"train\" slice in dataset {dataset_target}.")
+    exit(1)
+
+# And then either use provided "validation" split or create one
+if "validation" in available_splits:
+    validation_split = True
+    dataset_splits = {
+        "train": "train",
+        "validation": "validation"
+    }
+else:
+    print(f"No explicit \"validation\" slice in dataset {dataset_target}:")
+    print("Using a default 80/10/10 split for training, test and validation.")
+    dataset_splits = {
+        "train": "train[:80%]",
+        "validation": "train[-10%:]"
+    }
 
 dataset = {}
 formatting_template = jinja_environment.from_string(
@@ -141,32 +157,19 @@ if not os.path.exists(data_directory):
     os.makedirs(data_directory)
 
 # Go over each dataset split and render a new file based on the template
-for dataset_type in dataset_types:
+for split_name in dataset_splits:
 
     # Load dataset
-    try:
-        dataset[dataset_type] = load_dataset(
-            dataset_target, split=dataset_type, trust_remote_code=True)
-
-    except ValueError as e:
-        # This is to catch this error-> ValueError: Unknown split "test". Should be one of ['train']
-        # We only care about this for the "validation" and "train" splits
-        # The most common situation this gets hit is when there is a single file with no splits
-        # The MLX trainer no longer allows this for local datasets. 
-        # You must have a separate validation split
-        if (dataset_type == "train" or dataset_type == "validation"):
-            raise
-
-        print(f"Continuing without any data for \"{dataset_type}\" slice.")
-        continue
+    dataset[split_name] = load_dataset(
+        dataset_target, split=dataset_splits[split_name], trust_remote_code=True)
 
     print(
-        f"Loaded {dataset_type} dataset with {len(dataset[dataset_type])} examples.")
+        f"Loaded {split_name} dataset with {len(dataset[split_name])} examples.")
 
     # output training files in templated format in to data directory
-    with open(f"{data_directory}/{dataset_type}.jsonl", "w") as f:
-        for i in range(len(dataset[dataset_type])):
-            data_line = dataset[dataset_type][i]
+    with open(f"{data_directory}/{split_name}.jsonl", "w") as f:
+        for i in range(len(dataset[split_name])):
+            data_line = dataset[split_name][i]
             data_line = dict(data_line)
             line = formatting_template.render(data_line)
             # convert line breaks to "\n" so that the jsonl file is valid
