@@ -31,6 +31,7 @@ outfile = f"{input_model}.llamafile"
 output_dir = args.output_dir
 
 # Setup arguments for executing this model
+argsfile = os.path.join(plugin_dir, ".args")
 argsoutput = f"""-m
 {input_model}
 --host
@@ -41,14 +42,13 @@ argsoutput = f"""-m
 """
 
 # Create a .args file to include in the llamafile
-with open('.args', 'w') as f:
+with open(argsfile, 'w') as f:
     f.write(argsoutput)
 
 # Create a copy of pre-built llamafile to use as a base 
 shutil.copy(os.path.join(plugin_dir, "llamafile"), os.path.join(plugin_dir, outfile))
 
 # Merge files together in single executable using zipalign
-# TODO: This isn't outputting to the models directory!
 subprocess_cmd = [
     "sh", "./zipalign", "-j0",
     outfile,
