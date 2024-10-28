@@ -32,9 +32,12 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
     input_model_id_without_author = input_model_id.split("/")[-1]
     input_model_architecture = config["foundation_model_architecture"]
 
+    # The exporter plugin needs to know where to find the model
+    input_model_path = config.get("foundation_filename", "")
+    if not input_model_path:
+        input_model_path = input_model_id
+
     # TODO: Verify that the model uses a supported format
-    # According to MLX docs (as of Jan 16/24) supported formats are:
-    # Mistral, Llama, Phi-2
 
     # Convert JSON parameters
     # And set default parameters for anything that didn't get passed in
@@ -63,6 +66,7 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
     job_data = dict(
         exporter_name=plugin_name,
         input_model_id=input_model_id,
+        input_model_path=input_model_path,
         input_model_architecture=input_model_architecture,
         output_model_id=output_model_id,
         output_model_architecture=output_model_architecture,
@@ -80,6 +84,7 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
     args = [
         "--plugin_dir", script_directory,
         "--model_name", input_model_id,
+        "--model_path", input_model_path,
         "--model_architecture", input_model_architecture,
         "--output_dir", output_path,
         "--output_model_id", output_model_id
