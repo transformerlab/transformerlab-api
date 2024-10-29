@@ -44,7 +44,7 @@ if not os.path.exists(model_path):
 # TODO: This default quantizes to 8-bit. Need to read that in as a parameter.
 subprocess_cmd = [
     sys.executable,
-    os.path.join(plugin_dir, 'llama.cpp', 'convert.py'),
+    os.path.join(plugin_dir, 'llama.cpp', 'convert_hf_to_gguf.py'),
     '--outfile', output_path,
     '--outtype', outtype,
     model_path
@@ -54,5 +54,8 @@ subprocess_cmd = [
 export_process = subprocess.run(
     subprocess_cmd,
     cwd=plugin_dir,
-    capture_output=True
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+    text=True
 )
+print(export_process.stdout)
