@@ -17,21 +17,24 @@ parser.add_argument('--output_dir', type=str, help='Directory to save the model 
 args, unknown = parser.parse_known_args()
 
 # We need to pass the model ID in the .args file
-# But we need the actual model path to get the GGUF file
+# Make sure we remove the author part (everything before and including "/")
 input_model = args.model_name
+input_model_id_without_author = input_model.split("/")[-1]
+
+# But we need the actual model path to get the GGUF file
 input_model_path = args.model_path
 
 # Directory to run conversion subprocess
 plugin_dir = os.path.realpath(os.path.dirname(__file__))
 
 # Output details - ignoring the output_model_id passed by app
-outfile = f"{input_model}.llamafile"
+outfile = f"{input_model_id_without_author}.llamafile"
 output_dir = args.output_dir
 
 # Setup arguments for executing this model
 argsfile = os.path.join(plugin_dir, ".args")
 argsoutput = f"""-m
-{input_model}
+{input_model_id_without_author}
 --host
 0.0.0.0
 -ngl
@@ -56,8 +59,11 @@ subprocess_cmd = [
 export_process = subprocess.run(
     subprocess_cmd,
     cwd=plugin_dir,
-    capture_output=True
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+    text=True
 )
+print(export_process.stdout)
 
 # Move file to output_dir
 shutil.move(os.path.join(plugin_dir, outfile), os.path.join(output_dir, outfile))
