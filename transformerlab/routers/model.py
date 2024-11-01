@@ -621,7 +621,7 @@ async def import_error(message: str):
     """
     Separate function just to factor out printing and returning the same error.
     """
-    print(f"Error:", message)
+    print(f"Import error:", message)
     return {"status": "error", "message": message}
 
 
