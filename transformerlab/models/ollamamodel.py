@@ -45,8 +45,6 @@ class OllamaModel(basemodel.BaseModel):
 
         # NOTE: This can change self.status if there's an error
         self.json_data["model_filename"] = self.get_model_path()
-        if self.status != "OK":
-            print(f"Error reading {self.id}: {self.status}")
 
 
     # This returns just the filename of the blob containing the actual model
@@ -84,10 +82,16 @@ class OllamaModel(basemodel.BaseModel):
                 if layer.get("mediaType", None) == "application/vnd.ollama.image.model":
 
                     # Check if the specified file exists or not!
-                    modelfile = layer.get("digest", None)
+                    digestvalue = layer.get("digest", None)
+                    models_dir = ollama_models_dir()
+                    blobs_dir = os.path.join(models_dir, "blobs")
+
+                    # ollama lists the file with a ":" that needs to be converted to a "-"
+                    modelfile = digestvalue.replace(":", "-")
+                    model_path = os.path.join(blobs_dir, modelfile)
                     try :
-                        with open(modelfile, "r") as f:
-                            return modelfile
+                        with open(model_path, "r") as f:
+                            return model_path
                     except FileNotFoundError:
                         self.status = f"model file does not exist {modelfile}"
                         return None
@@ -105,11 +109,9 @@ class OllamaModel(basemodel.BaseModel):
         if model_filename:
             return model_filename
         else:
-            models_dir = ollama_models_dir()
-            blobs_dir = os.path.join(models_dir, "blobs")
             blobfile = self._get_model_blob_filename()
             if blobfile:
-                return os.path.join(blobs_dir, blobfile)
+                return blobfile
             else:
                 return None
     
