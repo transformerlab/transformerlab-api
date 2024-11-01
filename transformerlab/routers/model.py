@@ -616,25 +616,35 @@ async def model_import_local_path(model_path: str):
     return await model_import(model)
 
 
+async def import_error(message: str):
+    """
+    Separate function just to factor out printing and returning the same error.
+    """
+    print(f"Error:", message)
+    return {"status": "error", "message": message}
+
+
 async def model_import(model: basemodel.BaseModel):
     """
     Called by model import endpoints.
     Takes a BaseMOdel object and uses the information contained within to import.
     """
 
+    print(f"Importing {model.id}...")
+
     # Only add a row for uninstalled and supported repos
     architecture = model.json_data.get("architecture", "unknown")
     if model.status != "OK":
-        return {"status": "error", "message": model.status}
+        return import_error(model.status)
     if await model.is_installed():
-        return {"status": "error", "message": f"{model.id} is already installed."}
+        return import_error(f"{model.id} is already installed.")
     if architecture == "unknown" or architecture == "":
-        return {"status": "error", "message": f"Unable to determine model architecture."}
+        return import_error(f"Unable to determine model architecture.")
     if not model_helper.model_architecture_is_supported(architecture):
-        return {"status": "error", "message": f"Architecture {architecture} not supported."}
-
-    print(f"Importing {model.id}...")
+        return import_error(f"Architecture {architecture} not supported.")
 
     await model.install()
+
+    print(f"{model.id} imported successfully.")
 
     return {"status": "success", "data": model.id}
