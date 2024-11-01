@@ -30,7 +30,7 @@ class OllamaModel(basemodel.BaseModel):
     def __init__(self, ollama_id):
         super().__init__(ollama_id)
 
-        self.id = f"{ollama_id}.gguf"
+        self.id = f"ollama:{ollama_id}"
         self.name = f"{ollama_id} - GGUF"
 
         # inherit json_data from the parent and only update specific fields
@@ -42,7 +42,11 @@ class OllamaModel(basemodel.BaseModel):
         self.json_data["formats"] = ["GGUF"]
         self.json_data["source"] = "ollama"
         self.json_data["source_id_or_path"] = ollama_id
+
+        # NOTE: This can change self.status if there's an error
         self.json_data["model_filename"] = self.get_model_path()
+        if self.status != "OK":
+            print(f"Error reading {self.id}: {self.status}")
 
 
     # This returns just the filename of the blob containing the actual model
@@ -53,7 +57,7 @@ class OllamaModel(basemodel.BaseModel):
         ollamaid = self.json_data.get("source_id_or_path", self.id)
 
         if not library_dir:
-            print(f"Error getting {self.id}: failed to find ollama library")
+            self.status = f"failed to find ollama library"
             return None
 
         # Read in the manifest file
@@ -63,7 +67,7 @@ class OllamaModel(basemodel.BaseModel):
                 filedata = json.load(f)
 
         except FileNotFoundError:
-            print(f"Error getting {self.id}: manifest file not found")
+            print(f"ollama manifest file not found")
             return None
 
         # The format of v2 schema is that there is a list called "layers"
@@ -85,10 +89,14 @@ class OllamaModel(basemodel.BaseModel):
                         with open(modelfile, "r") as f:
                             return modelfile
                     except FileNotFoundError:
-                        print(f"Error getting {self.id}: model file does not exist at {modelfile}")
+                        self.status = f"model file does not exist {modelfile}"
                         return None
 
-        print(f"Error getting {self.id}: unsupported schemaVersion {schemaVersion}")
+            # If we get here it means schemaVersion is 2 but there was no listed model
+            self.status = f"no valid ollama.image.model attribute"
+
+        # schemaVersion is not 2. We only support 2.
+        self.status = f"unsupported ollama schemaVersion {schemaVersion}"
         return None
 
 
