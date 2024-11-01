@@ -18,7 +18,6 @@ async def list_models(uninstalled_only: bool = True):
             if entry.is_dir():
                 ollama_model = OllamaModel(entry.name)
 
-                # TODO: Create a function to check if this is installed
                 model_installed = await ollama_model.is_installed()
                 if (not uninstalled_only or not model_installed):
                     models.append(ollama_model)
@@ -31,7 +30,7 @@ class OllamaModel(basemodel.BaseModel):
     def __init__(self, ollama_id):
         super().__init__(ollama_id)
 
-        self.id = f"{ollama_id}"
+        self.id = f"{ollama_id}.gguf"
         self.name = f"{ollama_id} - GGUF"
 
         # inherit json_data from the parent and only update specific fields
@@ -62,7 +61,7 @@ class OllamaModel(basemodel.BaseModel):
         try:
             with open(manifestfile, "r") as f:
                 filedata = json.load(f)
-                f.close()
+
         except FileNotFoundError:
             print(f"Error getting {self.id}: manifest file not found")
             return None
@@ -79,7 +78,15 @@ class OllamaModel(basemodel.BaseModel):
                 # Each layer has a mediaType field describing what the file contains
                 # and a digest field with the name of the file
                 if layer.get("mediaType", None) == "application/vnd.ollama.image.model":
-                    return layer.get("digest", None)
+
+                    # Check if the specified file exists or not!
+                    modelfile = layer.get("digest", None)
+                    try :
+                        with open(modelfile, "r") as f:
+                            return modelfile
+                    except FileNotFoundError:
+                        print(f"Error getting {self.id}: model file does not exist at {modelfile}")
+                        return None
 
         print(f"Error getting {self.id}: unsupported schemaVersion {schemaVersion}")
         return None
