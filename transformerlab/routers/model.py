@@ -549,6 +549,7 @@ async def models_list_local_uninstalled(path: str = ""):
         supported = model_helper.model_architecture_is_supported(architecture)
         if (found_model.status != "OK"):
             status = f"❌ {found_model.status}"
+            supported = False
         elif architecture == "unknown" or architecture == "":
             status = "❌ Unknown architecture"
         elif not supported:
