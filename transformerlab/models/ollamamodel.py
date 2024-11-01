@@ -26,12 +26,16 @@ async def list_models(uninstalled_only: bool = True):
 
 
 class OllamaModel(basemodel.BaseModel):
+    """
+    Wrapper for models imported from Ollama.
+    These models are kept in the ollama cache (usually ~/.ollama)
+    """
         
     def __init__(self, ollama_id):
         super().__init__(ollama_id)
 
         self.id = f"ollama:{ollama_id}"
-        self.name = f"{ollama_id} - GGUF"
+        self.name = f"{ollama_id} (ollama)"
 
         # inherit json_data from the parent and only update specific fields
         self.json_data["uniqueID"] = self.id
