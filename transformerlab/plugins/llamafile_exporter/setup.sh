@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # TODO: Get latest version dynamically?
-LATEST_VERSION="0.8.14"
+LATEST_VERSION="0.8.16"
 
 # Download latest built of llamafile
 # This is possibly not great because this is 350MB.
