@@ -57,6 +57,11 @@ async def delete_training_template(template_id: str):
     return {"message": "OK"}
 
 
+@router.get("/template/{template_id}/export")
+async def export_recipe(template_id: str):
+    return await db.get_training_template(template_id)
+
+
 # @router.get("/jobs")
 # async def jobs_get_all():
 #     jobs = await db.training_jobs_get_all()
