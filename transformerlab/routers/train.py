@@ -57,6 +57,25 @@ async def delete_training_template(template_id: str):
     return {"message": "OK"}
 
 
+@router.get("/template/import")
+async def import_recipe(
+    name: str,
+    recipe_yaml: Annotated[str, Body(embed=True)],
+):
+    # TODO: For now recipe_yaml is actuall JSON HAHAHA
+    recipe_json = recipe_yaml
+    recipeObject = json.loads(recipe_json)
+
+    # TODO: Figure these out
+    # TODO: Defaults? Or is it an error?
+    description = recipeObject.get("description", "")
+    type = recipeObject.get("training_plugin", "")
+    datasets = recipeObject.get("dataset_name", "invalid")
+    config = recipeObject["config"]
+    await db.create_training_template(name, description, type, datasets, config)
+    return {"message": "OK"}
+
+
 @router.get("/template/{template_id}/export")
 async def export_recipe(template_id: str):
     return await db.get_training_template(template_id)
