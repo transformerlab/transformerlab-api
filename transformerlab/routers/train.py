@@ -1,4 +1,5 @@
 import json
+import yaml
 import os
 import subprocess
 from typing import Annotated
@@ -78,7 +79,15 @@ async def import_recipe(
 
 @router.get("/template/{template_id}/export")
 async def export_recipe(template_id: str):
-    return await db.get_training_template(template_id)
+    training_template = await db.get_training_template(template_id)
+
+    # Construct recipe object
+    recipe = {}
+    recipe["training"] = training_template
+
+    # Convert recipe to YAML
+    recipe_yaml = yaml.dump(recipe, sort_keys=False)
+    return recipe_yaml
 
 
 # @router.get("/jobs")
