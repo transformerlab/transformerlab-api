@@ -101,16 +101,18 @@ async def export_recipe(template_id: str):
     }
 
     model = {
+        "name": template_config.get("model_name", ""),
         "path": template_config.get("model_name", "")
     }
 
     datasets = {
-        "formatting_template" : template_config.get("formatting_template", ""),
+        "name": template_config.get("datasets", ""),
         "path": training_template.get("datasets", "")
     }
 
     training = {
         "plugin": template_config.get("plugin_name", ""),
+        "formatting_template" : template_config.get("formatting_template", ""),
         "config_json": template_config_json
     }
 
@@ -119,6 +121,7 @@ async def export_recipe(template_id: str):
     recipe["model"] = model
     recipe["datasets"] = datasets
     recipe["training"] = training
+    recipe["test"] = {}
 
     # Convert recipe to YAML
     recipe_yaml = yaml.dump(recipe, sort_keys=False)
