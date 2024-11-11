@@ -5,6 +5,7 @@ import subprocess
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Body
+from fastapi.responses import PlainTextResponse
 
 import transformerlab.db as db
 from transformerlab.shared import shared
@@ -85,7 +86,7 @@ async def import_recipe(
     return {"message": "OK"}
 
 
-@router.get("/template/{template_id}/export")
+@router.get("/template/{template_id}/export", response_class=PlainTextResponse)
 async def export_recipe(template_id: str):
     
     # Read in training template from DB and parse config JSON
