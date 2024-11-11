@@ -73,7 +73,15 @@ async def import_recipe(
     type = recipeObject.get("training_plugin", "")
     datasets = recipeObject.get("dataset_name", "invalid")
     config = recipeObject["config"]
-    await db.create_training_template(name, description, type, datasets, config)
+
+    print("CREATING TEMPLATE")
+    print("Description:", description)
+    print("Type:", type)
+    print("Datasets:", datasets)
+    print("Config:", config)
+
+    # TODO: Temporarily disabling to test more
+    #await db.create_training_template(name, description, type, datasets, config)
     return {"message": "OK"}
 
 
