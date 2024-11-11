@@ -79,7 +79,16 @@ async def import_recipe(
 
 @router.get("/template/{template_id}/export")
 async def export_recipe(template_id: str):
+    
+    # Read in training template from DB and parse config JSON
     training_template = await db.get_training_template(template_id)
+    template_config_json = training_template.get("config", {})
+    try :
+        template_config = json.loads(template_config_json)
+    except:
+        print("Error reading template config:")
+        print(template_config_json)
+        template_config = {}
 
     # Construct recipe object
     recipe = {}
@@ -92,18 +101,24 @@ async def export_recipe(template_id: str):
     }
 
     model = {
-        "path": ""
+        "path": template_config.get("model_name", "")
     }
 
     datasets = {
+        "formatting_template" : template_config.get("formatting_template", ""),
         "path": training_template.get("datasets", "")
+    }
+
+    training = {
+        "plugin": template_config.get("plugin_name", ""),
+        "config_json": template_config_json
     }
 
     recipe["schemaVersion"] = 0.1
     recipe["metadata"] = metadata
     recipe["model"] = model
     recipe["datasets"] = datasets
-    recipe["training"] = training_template
+    recipe["training"] = training
 
     # Convert recipe to YAML
     recipe_yaml = yaml.dump(recipe, sort_keys=False)
