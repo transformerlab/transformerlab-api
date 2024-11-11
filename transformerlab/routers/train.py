@@ -82,6 +82,9 @@ async def export_recipe(template_id: str):
     
     # Read in training template from DB and parse config JSON
     training_template = await db.get_training_template(template_id)
+    if not training_template:
+        return ""
+
     template_config_json = training_template.get("config", {})
     try :
         template_config = json.loads(template_config_json)
