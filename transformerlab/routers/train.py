@@ -83,10 +83,31 @@ async def export_recipe(template_id: str):
 
     # Construct recipe object
     recipe = {}
+    
+    # TODO: Could remove for now but thought let's leave placeholder
+    metadata = {
+        "author": "",
+        "name": training_template.get("name", ""),
+        "description": training_template.get("description", "")
+    }
+
+    model = {
+        "path": ""
+    }
+
+    datasets = {
+        "path": training_template.get("datasets", "")
+    }
+
+    recipe["schemaVersion"] = 0.1
+    recipe["metadata"] = metadata
+    recipe["model"] = model
+    recipe["datasets"] = datasets
     recipe["training"] = training_template
 
     # Convert recipe to YAML
     recipe_yaml = yaml.dump(recipe, sort_keys=False)
+    print(recipe_yaml)
     return recipe_yaml
 
 
