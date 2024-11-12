@@ -60,15 +60,13 @@ async def delete_training_template(template_id: str):
 
 
 @router.post("/template/import")
-async def import_recipe(
-    recipe: str
-):
-    # TODO: For now recipe_yaml is actuall JSON HAHAHA
-    print(recipe)
+async def import_recipe(recipe_yaml: str = Body(...)):
+
+    # TODO: Probably there is a way to do YAML validation automatically
+    print(recipe_yaml)
     return {"message": "OK"}
 
     #name: str,
-    #recipe_yaml: Annotated[str, Body(embed=True)],
     recipe_json = recipe_yaml
     recipeObject = json.loads(recipe_json)
 
