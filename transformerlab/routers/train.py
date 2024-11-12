@@ -64,18 +64,19 @@ async def import_recipe(recipe_yaml: str = Body(...)):
 
     # TODO: Probably there is a way to do YAML validation automatically
     print(recipe_yaml)
-    return {"message": "OK"}
 
-    #name: str,
-    recipe_json = recipe_yaml
-    recipeObject = json.loads(recipe_json)
+    try:
+        recipe = yaml.safe_load(recipe_yaml)
+    except yaml.YAMLError as e:
+        print(e)
+        return {"status": error, "message": e}
 
     # TODO: Figure these out
     # TODO: Defaults? Or is it an error?
-    description = recipeObject.get("description", "")
-    type = recipeObject.get("training_plugin", "")
-    datasets = recipeObject.get("dataset_name", "invalid")
-    config = recipeObject["config"]
+    description = recipe.get("description", "")
+    type = recipe.get("training_plugin", "")
+    datasets = recipe.get("dataset_name", "invalid")
+    config = recipe.get("training", {}).get("config_json", {})
 
     print("CREATING TEMPLATE")
     print("Description:", description)
