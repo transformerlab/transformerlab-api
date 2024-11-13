@@ -60,7 +60,7 @@ async def delete_training_template(template_id: str):
 
 
 @router.post("/template/import")
-async def import_recipe(recipe_yaml: str = Body(...)):
+async def import_recipe(name: str, recipe_yaml: str = Body(...)):
 
     # TODO: Probably there is a way to do YAML validation automatically
     print(recipe_yaml)
@@ -79,6 +79,7 @@ async def import_recipe(recipe_yaml: str = Body(...)):
     config = recipe.get("training", {}).get("config_json", {})
 
     print("CREATING TEMPLATE")
+    print("Name:", name)
     print("Description:", description)
     print("Type:", type)
     print("Datasets:", datasets)
