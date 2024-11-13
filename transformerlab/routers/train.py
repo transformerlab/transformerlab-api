@@ -71,12 +71,19 @@ async def import_recipe(name: str, recipe_yaml: str = Body(...)):
         print(e)
         return {"status": error, "message": e}
 
+    # Get top level sections of recipe
+    # TODO: Is it an error if any of these don't exist?
+    metadata = recipe.get("metadata", {})
+    model = recipe.get("model", {})
+    datasets = recipe.get("datasets", {})
+    training = recipe.get("training", {})
+
     # TODO: Figure these out
     # TODO: Defaults? Or is it an error?
-    description = recipe.get("description", "")
-    type = recipe.get("training_plugin", "")
-    datasets = recipe.get("dataset_name", "invalid")
-    config = recipe.get("training", {}).get("config_json", {})
+    description = metadata.get("description", "")
+    type = training.get("plugin", "")
+    datasets = datasets.get("path", "")
+    config = training.get("config_json", {})
 
     print("CREATING TEMPLATE")
     print("Name:", name)
