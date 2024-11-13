@@ -69,7 +69,7 @@ async def import_recipe(name: str, recipe_yaml: str = Body(...)):
         recipe = yaml.safe_load(recipe_yaml)
     except yaml.YAMLError as e:
         print(e)
-        return {"status": error, "message": e}
+        return {"status": "error", "message": e}
 
     # Get top level sections of recipe
     # TODO: Is it an error if any of these don't exist?
@@ -78,8 +78,8 @@ async def import_recipe(name: str, recipe_yaml: str = Body(...)):
     datasets = recipe.get("datasets", {})
     training = recipe.get("training", {})
 
-    # TODO: Figure these out
-    # TODO: Defaults? Or is it an error?
+    # Get fields needed to save template
+    # TODO: Is it an error if any of these are missing?
     description = metadata.get("description", "")
     type = training.get("plugin", "")
     datasets = datasets.get("path", "")
@@ -92,8 +92,8 @@ async def import_recipe(name: str, recipe_yaml: str = Body(...)):
     print("Datasets:", datasets)
     print("Config:", config)
 
-    # TODO: Temporarily disabling to test more
-    #await db.create_training_template(name, description, type, datasets, config)
+    # TODO: Throw proper error if template name exists
+    await db.create_training_template(name, description, type, datasets, config)
     return {"message": "OK"}
 
 
