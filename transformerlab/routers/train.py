@@ -81,7 +81,7 @@ async def import_recipe(name: str, recipe_yaml: str = Body(...)):
     # Get fields needed to save template
     # TODO: Is it an error if any of these are missing?
     description = metadata.get("description", "")
-    type = training.get("plugin", "")
+    type = training.get("type", "LoRA")
     datasets = datasets.get("path", "")
     config = training.get("config_json", {})
 
@@ -129,11 +129,13 @@ async def export_recipe(template_id: str):
     }
 
     datasets = {
-        "name": template_config.get("datasets", ""),
+        "name": training_template.get("datasets", ""),
         "path": training_template.get("datasets", "")
     }
 
+    # TODO: Read in the type from the DB!
     training = {
+        "type" : "LoRA",
         "plugin": template_config.get("plugin_name", ""),
         "formatting_template" : template_config.get("formatting_template", ""),
         "config_json": template_config_json
