@@ -798,6 +798,33 @@
         "size_of_model_in_mb": 27652.2
     },
     {
+        "uniqueID": "Qwen/Qwen2.5-7B",
+        "name": "Qwen2.5 7B",
+        "description": "Qwen2.5 is the latest series of Qwen large language models",
+        "parameters": "7B",
+        "context": "131072",
+        "architecture": "Qwen2ForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "Qwen/Qwen2.5-7B",
+        "transformers_version": "4.40.1",
+        "gated": false,
+        "license": "apache-2.0",
+        "logo": "https://cdn-avatars.huggingface.co/v1/production/uploads/62088594a5943c8a8fc94560/y5SEKiE8TkjBKs9xfjCx5.png",
+        "size_of_model_in_mb": 16096.9,
+        "author": {
+            "name": "Qwen",
+            "url": "https://huggingface.co/Qwen/Qwen2.5-7B",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/Qwen/Qwen2.5-7B",
+            "downloadUrl": "https://huggingface.co/Qwen/Qwen2.5-7B",
+            "paperUrl": "?"
+        }
+    },
+    {
         "uniqueID": "mistralai/Mistral-7B-v0.1",
         "name": "Mistral 7B v0.1",
         "description": "The Mistral-7B-v0.1 Large Language Model (LLM) is a pretrained generative text model with 7 billion parameters. Mistral-7B-v0.1 outperforms Llama 2 13B on all benchmarks we tested.",
@@ -1118,6 +1145,33 @@
         }
     },
     {
+        "uniqueID": "mlx-community/Qwen2.5-7B-Instruct-4bit",
+        "name": "Qwen2.5 7B Instruct 4bit MLX",
+        "description": "Qwen2.5 is the latest series of Qwen large language models.",
+        "parameters": "7B",
+        "context": "32768",
+        "architecture": "Qwen2ForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "mlx-community/Qwen2.5-7B-Instruct-4bit",
+        "transformers_version": "4.43.1",
+        "gated": false,
+        "license": "apache-2.0",
+        "logo": "https://cdn-avatars.huggingface.co/v1/production/uploads/62088594a5943c8a8fc94560/y5SEKiE8TkjBKs9xfjCx5.png",
+        "size_of_model_in_mb": 4096.9,
+        "author": {
+            "name": "mlx-community",
+            "url": "https://huggingface.co/mlx-community/Qwen2.5-7B-Instruct-4bit",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/mlx-community/Qwen2.5-7B-Instruct-4bit",
+            "downloadUrl": "https://huggingface.co/mlx-community/Qwen2.5-7B-Instruct-4bit",
+            "paperUrl": "?"
+        }
+    },
+    {
         "uniqueID": "Qwen/Qwen2-7B-Instruct",
         "name": "Qwen2 7B Instruct",
         "description": "Qwen2 has generally surpassed most opensource models and demonstrated competitiveness against proprietary models across a series of benchmarks targeting for language understanding, language generation, multilingual capability, coding, mathematics, reasoning, etc. Qwen2-7B-Instruct supports a context length of up to 131,072 tokens, enabling the processing of extensive inputs. This repo contains the instruction-tuned 7B Qwen2 model.",
@@ -1223,6 +1277,33 @@
         }
     },
     {
+        "uniqueID": "mlx-community/Qwen2.5-Coder-14B-Instruct-4bit",
+        "name": "Qwen2.5 Coder 14B Instruct 4bit MLX",
+        "description": "Qwen2.5-Coder is the latest series of Code-Specific Qwen large language models (formerly known as CodeQwen) and performs at a level comparable to the best proprietary models.",
+        "parameters": "14B",
+        "context": "32768",
+        "architecture": "Qwen2ForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "mlx-community/Qwen2.5-Coder-14B-Instruct-4bit",
+        "transformers_version": "4.43.1",
+        "gated": false,
+        "license": "apache-2.0",
+        "logo": "https://cdn-avatars.huggingface.co/v1/production/uploads/62088594a5943c8a8fc94560/y5SEKiE8TkjBKs9xfjCx5.png",
+        "size_of_model_in_mb": 8096.9,
+        "author": {
+            "name": "mlx-community",
+            "url": "https://huggingface.co/mlx-community/Qwen2.5-Coder-14B-Instruct-4bit",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/mlx-community/Qwen2.5-Coder-14B-Instruct-4bit",
+            "downloadUrl": "https://huggingface.co/mlx-community/Qwen2.5-Coder-14B-Instruct-4bit",
+            "paperUrl": "?"
+        }
+    },
+    {
         "uniqueID": "berkeley-nest/Starling-LM-7B-alpha",
         "name": "Starling-LM-7B-alpha",
         "description": "We introduce Starling-7B, an open large language model (LLM) trained by Reinforcement Learning from AI Feedback (RLAIF). The model harnesses the power of our new GPT-4 labeled ranking dataset, berkeley-nest/Nectar, and our new reward training and policy tuning pipeline. Starling-7B-alpha scores 8.09 in MT Bench with GPT-4 as a judge, outperforming every model to date on MT-Bench except for OpenAI's GPT-4 and GPT-4 Turbo.",
@@ -1246,6 +1327,33 @@
         "resources": {
             "canonicalUrl": "https://starling.cs.berkeley.edu/",
             "downloadUrl": "https://huggingface.co/berkeley-nest/Starling-LM-7B-alpha",
+            "paperUrl": "?"
+        }
+    },
+    {
+        "uniqueID": "Qwen/Qwen2.5-Coder-7B-Instruct",
+        "name": "Qwen2.5 Coder 7B Instruct",
+        "description": "Qwen2.5-Coder is the latest series of Code-Specific Qwen large language models (formerly known as CodeQwen) and performs at a level comparable to the best proprietary models.",
+        "parameters": "7B",
+        "context": "32768",
+        "architecture": "Qwen2ForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "Qwen/Qwen2.5-Coder-7B-Instruct",
+        "transformers_version": "4.44.0",
+        "gated": false,
+        "license": "apache-2.0",
+        "logo": "https://cdn-avatars.huggingface.co/v1/production/uploads/62088594a5943c8a8fc94560/y5SEKiE8TkjBKs9xfjCx5.png",
+        "size_of_model_in_mb": 16096.9,
+        "author": {
+            "name": "Qwen",
+            "url": "https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct",
+            "downloadUrl": "https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct",
             "paperUrl": "?"
         }
     },
@@ -1379,6 +1487,33 @@
         "resources": {
             "canonicalUrl": "https://www.bigcode-project.org/",
             "downloadUrl": "https://huggingface.co/bigcode/starcoder",
+            "paperUrl": "?"
+        }
+    },
+    {
+        "uniqueID": "Qwen/Qwen2.5-7B-Instruct",
+        "name": "Qwen2.5 7B Instruct",
+        "description": "Qwen2.5 is the latest series of Qwen large language models",
+        "parameters": "7B",
+        "context": "32768",
+        "architecture": "Qwen2ForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "Qwen/Qwen2.5-7B-Instruct",
+        "transformers_version": "4.43.1",
+        "gated": false,
+        "license": "apache-2.0",
+        "logo": "https://cdn-avatars.huggingface.co/v1/production/uploads/62088594a5943c8a8fc94560/y5SEKiE8TkjBKs9xfjCx5.png",
+        "size_of_model_in_mb": 16096.9,
+        "author": {
+            "name": "Qwen",
+            "url": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct",
+            "downloadUrl": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct",
             "paperUrl": "?"
         }
     },
@@ -1727,6 +1862,33 @@
         "resources": {
             "canonicalUrl": "https://github.com/jzhang38/TinyLlama",
             "downloadUrl": "https://github.com/jzhang38/TinyLlama",
+            "paperUrl": "?"
+        }
+    },
+    {
+        "uniqueID": "infly/OpenCoder-8B-Instruct",
+        "name": "OpenCoder 8B Instruct",
+        "description": "OpenCoder is pretrained on 2.5 trillion tokens composed of 90% raw code and 10% code-related web data, and supervised finetuned on over 4.5M high-quality SFT examples.",
+        "parameters": "8B",
+        "context": "8192",
+        "architecture": "LlamaForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "infly/OpenCoder-8B-Instruct",
+        "transformers_version": "4.37.0",
+        "gated": false,
+        "license": "other",
+        "logo": "https://raw.githubusercontent.com/OpenCoder-llm/opencoder-llm.github.io/refs/heads/main/static/images/opencoder_icon.jpg",
+        "size_of_model_in_mb": 16000.0,
+        "author": {
+            "name": "infly",
+            "url": "https://huggingface.co/infly/OpenCoder-8B-Instruct",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/infly/OpenCoder-8B-Instruct",
+            "downloadUrl": "https://huggingface.co/infly/OpenCoder-8B-Instruct",
             "paperUrl": "?"
         }
     }
