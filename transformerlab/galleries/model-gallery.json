@@ -563,8 +563,7 @@
         "context": "8192",
         "architecture": "GemmaForCausalLM",
         "formats": [
-            "Safetensors",
-            "GGUF"
+            "Safetensors"
         ],
         "huggingface_repo": "google/gemma-7b",
         "transformers_version": "4.38.0.dev0",
@@ -591,8 +590,7 @@
         "context": "8192",
         "architecture": "GemmaForCausalLM",
         "formats": [
-            "Safetensors",
-            "GGUF"
+            "Safetensors"
         ],
         "huggingface_repo": "google/gemma-7b-it",
         "transformers_version": "4.38.0.dev0",
@@ -620,8 +618,7 @@
         "context": "8192",
         "architecture": "GemmaForCausalLM",
         "formats": [
-            "Safetensors",
-            "GGUF"
+            "Safetensors"
         ],
         "huggingface_repo": "google/gemma-2b-it",
         "transformers_version": "4.38.0.dev0",
@@ -649,8 +646,7 @@
         "context": "8192",
         "architecture": "GemmaForCausalLM",
         "formats": [
-            "Safetensors",
-            "GGUF"
+            "Safetensors"
         ],
         "huggingface_repo": "google/gemma-2b",
         "transformers_version": "4.38.0.dev0",
@@ -754,7 +750,7 @@
         }
     },
     {
-        "uniqueID": "bartowski/Llama-3.2-1B-Instruct-GGUF",
+        "uniqueID": "Llama-3.2-1B-Instruct-Q6_K.gguf",
         "name": "LLama 3.2 1B Instruct GGUF - Q6_K",
         "description": "GGUF export of Llama 3.2 1B Instruct model using 6-bit K-quantization. Should maintain near perfect results to original model.",
         "parameters": "1B",
@@ -1724,7 +1720,7 @@
         }
     },
     {
-        "uniqueID": "llama2:7b-chat",
+        "uniqueID": "llama-2-7b-chat.Q4_0.gguf",
         "name": "LLama 2 - 7B chat - GGUF - Q4_0",
         "archived": true,
         "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B fine-tuned model, optimized for dialogue use cases and converted for the Hugging Face Transformers format.",
@@ -1752,7 +1748,7 @@
         }
     },
     {
-        "uniqueID": "llama2:7b",
+        "uniqueID": "llama-2-7b.Q4_0.gguf",
         "name": "LLama 2 - 7B - GGUF - Q4_0",
         "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B fine-tuned model, optimized for dialogue use cases and converted for the Hugging Face Transformers format.",
         "parameters": "7B",
