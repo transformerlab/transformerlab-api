@@ -73,7 +73,7 @@ async def healthz():
 async def model_gallery_list_all():
     gallery = galleries.get_models_gallery()
 
-    local_models = await db.model_local_list()
+    local_models = await model_local_list()
     local_model_names = set(model['model_id'] for model in local_models)
 
     # Mark which models have been downloaded already. The huggingfacerepo is our model_id.
