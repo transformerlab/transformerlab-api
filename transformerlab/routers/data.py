@@ -101,8 +101,11 @@ async def dataset_preview(dataset_id: str = Query(description="The ID of the dat
     d = await db.get_dataset(dataset_id)
     dataset_len = 0
     result = {}
+    print('ho')
+
     # This means it is a custom dataset the user uploaded
     if d["location"] == "local":
+        print('hi')
         try:
             dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
         except Exception as e:
@@ -111,7 +114,9 @@ async def dataset_preview(dataset_id: str = Query(description="The ID of the dat
         dataset_len = len(dataset["train"])
         result['columns'] = dataset["train"][offset:min(
             offset+limit, dataset_len)]
+        result['splits'] = list(dataset.keys())
     else:
+        print('other')
         dataset_config = d.get("json_data", {}).get("dataset_config", None)
         if (dataset_config is not None):
             dataset = load_dataset(
@@ -121,6 +126,8 @@ async def dataset_preview(dataset_id: str = Query(description="The ID of the dat
         dataset_len = len(dataset["train"])
         result['columns'] = dataset["train"][offset:min(
             offset+limit, dataset_len)]
+        result['splits'] = list(dataset.keys())
+
     result['len'] = dataset_len
     return {"status": "success", "data": result}
 

@@ -75,6 +75,7 @@ class LlamaCppServer(BaseModelWorker):
         no_register: bool,
         llm_engine: "llama-cpp-python",
         conv_template: str,
+        n_gpu_layers: int = 0,
     ):
         super().__init__(
             controller_addr,
@@ -93,14 +94,6 @@ class LlamaCppServer(BaseModelWorker):
         self.model_name = model_path
         print("Loading model: ", self.model_name)
         # setting _n_ctx to 0 pins it to the trained context length
-
-        n_gpu_layers = 0
-
-        if torch.cuda.is_available():
-            n_gpu_layers = torch.cuda.device_count()
-            print("Using ", n_gpu_layers, " GPUs")
-        else:
-            print("No GPUs available")
 
         self.model = llama_cpp.Llama(
             self.model_name, n_ctx=0, n_gpu_layers=n_gpu_layers)
@@ -310,6 +303,7 @@ def cleanup_at_exit():
 
 atexit.register(cleanup_at_exit)
 
+
 def main():
     global app, worker
 
@@ -338,8 +332,25 @@ def main():
         help="Trust remote code (e.g., from HuggingFace) when"
         "downloading the model and tokenizer.",
     )
+    parser.add_argument("--parameters", type=str, default=None)
 
     args, unknown = parser.parse_known_args()
+
+    # parameters is a JSON string, so we parse it:
+    parameters = json.loads(args.parameters)
+
+    n_gpu_layers = parameters.get("n_gpu_layers", 'auto')
+
+    if (n_gpu_layers == 'auto'):
+        if torch.cuda.is_available():
+            n_gpu_layers = -1
+            print("GPU detected, setting n_gpu_layers to ", n_gpu_layers)
+        else:
+            n_gpu_layers = 0
+            print("No GPUs available, setting n_gpu_layers to ", n_gpu_layers)
+    else:
+        n_gpu_layers = int(n_gpu_layers)
+        print("Setting n_gpu_layers to user selection", n_gpu_layers)
 
     # model_path can be a hugging face ID, or a local file
 
@@ -358,6 +369,7 @@ def main():
         False,
         "llama-cpp-python",
         args.conv_template,
+        n_gpu_layers
     )
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 
