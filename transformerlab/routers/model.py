@@ -78,7 +78,7 @@ async def model_gallery_list_all():
 
     # Mark which models have been downloaded already. The huggingfacerepo is our model_id.
     for model in gallery:
-        model['downloaded'] = True if model['huggingface_repo'] in local_model_names else False
+        model['downloaded'] = True if model['uniqueID'] in local_model_names else False
 
     return gallery
 
