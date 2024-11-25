@@ -2,6 +2,7 @@
     {
         "uniqueID": "meta-llama/Llama-2-7b-chat-hf",
         "name": "LLama 2 7B - Chat",
+        "archived": true,
         "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B fine-tuned model, optimized for dialogue use cases and converted for the Hugging Face Transformers format.",
         "parameters": "7B",
         "context": "4k",
@@ -28,6 +29,7 @@
     {
         "uniqueID": "meta-llama/Llama-2-7b-hf",
         "name": "LLama 2 7B",
+        "archived": true,
         "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B pretrained model, converted for the Hugging Face Transformers format",
         "parameters": "7B",
         "context": "4k",
@@ -54,6 +56,7 @@
     {
         "uniqueID": "meta-llama/Llama-2-13b-hf",
         "name": "LLama 2 13B",
+        "archived": true,
         "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B pretrained model, converted for the Hugging Face Transformers format",
         "parameters": "13B",
         "context": "4k",
@@ -80,6 +83,7 @@
     {
         "uniqueID": "meta-llama/Llama-2-13b-chat-hf",
         "name": "LLama 2 13B - Chat",
+        "archived": true,
         "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B pretrained model, converted for the Hugging Face Transformers format",
         "parameters": "7B",
         "context": "4k",
@@ -388,6 +392,7 @@
     {
         "uniqueID": "meta-llama/Meta-Llama-3-8B-Instruct",
         "name": "LLama 3 8B - Instruct",
+        "archived": true,
         "description": "Meta developed and released the Meta Llama 3 family of large language models (LLMs), a collection of pretrained and instruction tuned generative text models in 8 and 70B sizes. The Llama 3 instruction tuned models are optimized for dialogue use cases and outperform many of the available open source chat models on common industry benchmarks. Further, in developing these models, we took great care to optimize helpfulness and safety.",
         "parameters": "8B",
         "context": "8k",
@@ -415,6 +420,7 @@
     {
         "uniqueID": "meta-llama/Meta-Llama-3-8B",
         "name": "LLama 3 8B",
+        "archived": true,
         "description": "Meta developed and released the Meta Llama 3 family of large language models (LLMs), a collection of pretrained and instruction tuned generative text models in 8 and 70B sizes. The Llama 3 instruction tuned models are optimized for dialogue use cases and outperform many of the available open source chat models on common industry benchmarks. Further, in developing these models, we took great care to optimize helpfulness and safety.",
         "parameters": "8B",
         "context": "8k",
@@ -442,6 +448,7 @@
     {
         "uniqueID": "mlx-community/Meta-Llama-3-8B-Instruct-4bit",
         "name": "Llama 3 8B Instruct 4bit MLX",
+        "archived": true,
         "description": "Meta developed and released the Meta Llama 3 family of large language models (LLMs), a collection of pretrained and instruction tuned generative text models in 8 and 70B sizes. The Llama 3 instruction tuned models are optimized for dialogue use cases and outperform many of the available open source chat models on common industry benchmarks. Further, in developing these models, we took great care to optimize helpfulness and safety.",
         "parameters": "8B",
         "context": "8k",
@@ -469,6 +476,7 @@
     {
         "uniqueID": "mlx-community/Meta-Llama-3-70B-Instruct-4bit",
         "name": "Llama 3 70B Instruct 4bit MLX",
+        "archived": true,
         "description": "Meta developed and released the Meta Llama 3 family of large language models (LLMs), a collection of pretrained and instruction tuned generative text models in 8 and 70B sizes. The Llama 3 instruction tuned models are optimized for dialogue use cases and outperform many of the available open source chat models on common industry benchmarks. Further, in developing these models, we took great care to optimize helpfulness and safety.",
         "parameters": "8B",
         "context": "8k",
@@ -549,6 +557,7 @@
     {
         "uniqueID": "google/gemma-7b",
         "name": "Gemma 7B",
+        "archived": true,
         "description": "Gemma is a family of lightweight, state-of-the-art open models from Google, built from the same research and technology used to create the Gemini models. They are text-to-text, decoder-only large language models, available in English, with open weights, pre-trained variants, and instruction-tuned variants. Gemma models are well-suited for a variety of text generation tasks, including question answering, summarization, and reasoning. Their relatively small size makes it possible to deploy them in environments with limited resources such as a laptop, desktop or your own cloud infrastructure, democratizing access to state of the art AI models and helping foster innovation for everyone.",
         "parameters": "7B",
         "context": "8192",
@@ -605,6 +614,7 @@
     {
         "uniqueID": "google/gemma-2b-it",
         "name": "Gemma 2B Instruct",
+        "archived": true,
         "description": "Gemma is a family of lightweight, state-of-the-art open models from Google, built from the same research and technology used to create the Gemini models. They are text-to-text, decoder-only large language models, available in English, with open weights, pre-trained variants, and instruction-tuned variants. Gemma models are well-suited for a variety of text generation tasks, including question answering, summarization, and reasoning. Their relatively small size makes it possible to deploy them in environments with limited resources such as a laptop, desktop or your own cloud infrastructure, democratizing access to state of the art AI models and helping foster innovation for everyone.",
         "parameters": "2B",
         "context": "8192",
@@ -633,6 +643,7 @@
     {
         "uniqueID": "google/gemma-2b",
         "name": "Gemma 2B",
+        "archived": true,
         "description": "Gemma is a family of lightweight, state-of-the-art open models from Google, built from the same research and technology used to create the Gemini models. They are text-to-text, decoder-only large language models, available in English, with open weights, pre-trained variants, and instruction-tuned variants. Gemma models are well-suited for a variety of text generation tasks, including question answering, summarization, and reasoning. Their relatively small size makes it possible to deploy them in environments with limited resources such as a laptop, desktop or your own cloud infrastructure, democratizing access to state of the art AI models and helping foster innovation for everyone.",
         "parameters": "2B",
         "context": "8192",
@@ -661,6 +672,7 @@
     {
         "uniqueID": "huggyllama/llama-7b",
         "name": "LLama 7B",
+        "archived": true,
         "description": "",
         "parameters": "7B",
         "context": "4k",
@@ -738,6 +750,33 @@
         "resources": {
             "canonicalUrl": "https://huggingface.co/llava-hf/llava-1.5-7b-hf",
             "downloadUrl": "https://huggingface.co/llava-hf/llava-1.5-7b-hf",
+            "paperUrl": "?"
+        }
+    },
+    {
+        "uniqueID": "bartowski/Llama-3.2-1B-Instruct-GGUF",
+        "name": "LLama 3.2 1B Instruct GGUF - Q6_K",
+        "description": "GGUF export of Llama 3.2 1B Instruct model using 6-bit K-quantization. Should maintain near perfect results to original model.",
+        "parameters": "1B",
+        "context": "131072",
+        "architecture": "GGUF",
+        "formats": [
+            "GGUF"
+        ],
+        "huggingface_repo": "bartowski/Llama-3.2-1B-Instruct-GGUF",
+        "huggingface_filename": "Llama-3.2-1B-Instruct-Q6_K.gguf",
+        "gated": false,
+        "license": "llama3.2",
+        "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
+        "size_of_model_in_mb": 1044,
+        "author": {
+            "name": "Meta",
+            "url": "https://huggingface.co/meta-llama/",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF",
+            "downloadUrl": "https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF",
             "paperUrl": "?"
         }
     },
@@ -827,6 +866,7 @@
     {
         "uniqueID": "mistralai/Mistral-7B-v0.1",
         "name": "Mistral 7B v0.1",
+        "archived": true,
         "description": "The Mistral-7B-v0.1 Large Language Model (LLM) is a pretrained generative text model with 7 billion parameters. Mistral-7B-v0.1 outperforms Llama 2 13B on all benchmarks we tested.",
         "parameters": "7B",
         "context": "4k",
@@ -854,6 +894,7 @@
     {
         "uniqueID": "mistralai/Mistral-7B-Instruct-v0.2",
         "name": "Mistral-7B-Instruct-v0.2",
+        "archived": true,
         "description": "The Mistral-7B-Instruct-v0.2 Large Language Model (LLM) is a instruct fine-tuned version of the Mistral-7B-v0.1 generative text model using a variety of publicly available conversation datasets.",
         "parameters": "7B",
         "context": "4k",
@@ -1387,6 +1428,7 @@
     {
         "uniqueID": "microsoft/phi-2",
         "name": "Phi 2",
+        "archived": true,
         "description": "Phi-2 is a Transformer with 2.7 billion parameters. The model hasn't been fine-tuned through reinforcement learning from human feedback. The intention behind crafting this open-source model is to provide the research community with a non-restricted small model to explore vital safety challenges, such as reducing toxicity, understanding societal biases, enhancing controllability, and more.",
         "parameters": "2B",
         "context": "?k",
@@ -1520,6 +1562,7 @@
     {
         "uniqueID": "mlx-community/Mistral-7B-Instruct-v0.1-4bit-mlx",
         "name": "Mistral-7B-Instruct-v0.1 MLX 4bit",
+        "archived": true,
         "description": "The Mistral-7B-Instruct-v0.1 Large Language Model (LLM) is a instruct fine-tuned version of the Mistral-7B-v0.1 generative text model using a variety of publicly available conversation datasets.",
         "parameters": "7B",
         "context": "4k",
@@ -1573,6 +1616,7 @@
     {
         "uniqueID": "mlx-community/Mistral-7B-Instruct-v0.2-4bit",
         "name": "Mistral-7B-Instruct-v0.2 4 bit MLX",
+        "archived": true,
         "description": "The Mistral-7B-Instruct-v0.2 Large Language Model (LLM) is an improved instruct fine-tuned version of Mistral-7B-Instruct-v0.1.",
         "parameters": "7B",
         "context": "4k",
@@ -1600,6 +1644,7 @@
     {
         "uniqueID": "mlx-community/Mistral-7B-Instruct-v0.2",
         "name": "Mistral-7B-Instruct-v0.2 MLX",
+        "archived": true,
         "description": "The Mistral-7B-Instruct-v0.2 Large Language Model (LLM) is an improved instruct fine-tuned version of Mistral-7B-Instruct-v0.1.",
         "parameters": "7B",
         "context": "4k",
@@ -1626,6 +1671,7 @@
     {
         "uniqueID": "mlx-community/Llama-2-7b-mlx",
         "name": "Llama 2 7b MLX",
+        "archived": true,
         "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B fine-tuned model, in npz format suitable for use in Apple's MLX framework.",
         "parameters": "7B",
         "context": "4k",
@@ -1652,6 +1698,7 @@
     {
         "uniqueID": "mlx-community/Llama-2-7b-chat-4-bit",
         "name": "Llama 2 7B Chat 4-bit MLX",
+        "archived": true,
         "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B fine-tuned model, in npz format suitable for use in Apple's MLX framework.",
         "parameters": "7B",
         "context": "4k",
@@ -1679,6 +1726,7 @@
     {
         "uniqueID": "llama2:7b-chat",
         "name": "LLama 2 - 7B chat - GGUF - Q4_0",
+        "archived": true,
         "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B fine-tuned model, optimized for dialogue use cases and converted for the Hugging Face Transformers format.",
         "parameters": "7B",
         "context": "4k",
