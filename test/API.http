@@ -93,3 +93,11 @@ Content-Type: application/json
     [{"role":"system","content":"You are a helpful assistant."},{"role":"user","content":"Hello"}],
   "max_tokens": 60
 }
+
+###
+## Data: request a preview of a dataset
+GET http://localhost:8000/data/preview?dataset_id=samsum&offset=1&limit=10
+
+###
+## Data: request a preview of a dataset with a split
+GET http://localhost:8000/data/preview?dataset_id=samsum&offset=1&limit=10&split=validation
