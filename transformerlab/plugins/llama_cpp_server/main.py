@@ -172,7 +172,9 @@ class LlamaCppServer(BaseModelWorker):
             tokens.append(token)
             tokens_decoded = self.model.detokenize(tokens)
 
-            partial_stop = any(is_partial_stop(tokens_decoded, i)
+            # tokens_decoded returns bytes, we need a string
+            tokens_decoded_str = tokens_decoded.decode("utf-8")
+            partial_stop = any(is_partial_stop(tokens_decoded_str, i)
                                for i in stop)
 
             if partial_stop:
@@ -180,7 +182,7 @@ class LlamaCppServer(BaseModelWorker):
                 break
 
             ret = {
-                "text": tokens_decoded.decode("utf-8"),
+                "text": tokens_decoded_str,
                 "error_code": 0,
                 "usage": {
                     "prompt_tokens": len(context),
