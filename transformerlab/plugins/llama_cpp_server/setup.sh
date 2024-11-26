@@ -4,4 +4,4 @@
 # So we will install llama-cpp-python only and implement our
 # own server using FastAPI
 
-pip install llama-cpp-python
+pip install llama-cpp-python --upgrade --force-reinstall --no-cache-dir
