@@ -3,6 +3,9 @@ import subprocess
 import sys
 import os
 
+import requests
+import torch
+
 
 parser = argparse.ArgumentParser(
     description='Run Eleuther AI LM Evaluation Harness.')
@@ -35,10 +38,40 @@ plugin_dir = os.path.realpath(os.path.dirname(__file__))
 model_args = 'pretrained=' + args.model_name
 task = args.task
 
-command = ["lm-eval",
-           '--model_args', model_args, '--tasks', task, '--device', 'cuda:0', '--trust_remote_code']
+# Call the evaluation harness using HTTP if the platform is not CUDA
+if not torch.cuda.is_available():
+    print("CUDA is not available. Running eval using HTTP.")
 
-subprocess.Popen(
-    command,
-    cwd=plugin_dir,
-)
+    # first check http://localhost:8000/healthz
+    response = requests.get('http://localhost:8000/server/worker_healthz')
+    print(response.json())
+    if response.status_code != 200 or not isinstance(response.json(), list) or len(response.json()) == 0:
+        print("Local completions server is not running. Please start it before running the evaluation.")
+        sys.exit(0)
+
+    # lm_eval --model local-completions --tasks gsm8k --model_args model=mlx-community/Llama-3.2-1B-Instruct-4bit,base_url=http://localhost:8000/v1/completions,num_concurrent=1,max_retries=3,tokenized_requests=False
+    model_args = 'model=mlx-community/Llama-3.2-1B-Instruct-4bit,base_url=http://localhost:8000/v1/completions,num_concurrent=1,max_retries=3,tokenized_requests=False'
+    command = ["lm-eval", '--model', 'local-completions',
+               '--model_args', model_args, '--tasks', task]
+    print('Running command: $ ' + ' '.join(command))
+    print("--Beginning to run evaluations (please wait)...")
+    try:
+        process = subprocess.Popen(
+            command,
+            cwd=plugin_dir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT
+        )
+        for line in process.stdout:
+            print(line.decode('utf-8').strip())
+    except Exception as e:
+        print(f"An error occurred while running the subprocess: {e}")
+    print('--Evaluation task complete')
+else:
+    command = ["lm-eval",
+               '--model_args', model_args, '--tasks', task, '--device', 'cuda:0', '--trust_remote_code']
+
+    subprocess.Popen(
+        command,
+        cwd=plugin_dir,
+    )

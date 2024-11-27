@@ -1,3 +1,4 @@
+import asyncio
 from fastapi.responses import FileResponse
 import urllib
 from transformerlab.routers.experiment import rag, documents, plugins, conversations, export
@@ -173,10 +174,15 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
 
     print(f">Running {subprocess_command}")
 
-    output_file = dirs.eval_output_file(experimentId, eval_name)
+    output_file = await dirs.eval_output_file(experiment_name, eval_name)
 
     with open(output_file, "w") as f:
-        subprocess.run(args=subprocess_command, stdout=f)
+        process = await asyncio.create_subprocess_exec(
+            *subprocess_command,
+            stdout=f,
+            stderr=subprocess.PIPE
+        )
+        await process.communicate()
 
 
 @router.get("/get_output")
