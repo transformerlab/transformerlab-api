@@ -129,7 +129,9 @@ async def check_model(request) -> Optional[JSONResponse]:
     ret = None
     async with httpx.AsyncClient() as client:
         try:
-            _worker_addr = await get_worker_address(request.model, client)
+            # First, if there is a slash in the name of the model, just use the second part:
+            model_name = request.model.split("/")[-1]
+            _worker_addr = await get_worker_address(model_name, client)
         except ValueError:
             models_ret = await client.post(controller_address + "/list_models")
             models = models_ret.json()["models"]
@@ -347,6 +349,8 @@ async def get_worker_address(model_name: str, client: httpx.AsyncClient) -> str:
     :raises: :class:`ValueError`: No available worker for requested model
     """
     controller_address = app_settings.controller_address
+
+    model_name = model_name.split("/")[-1]
 
     ret = await client.post(
         controller_address + "/get_worker_address", json={"model": model_name}
