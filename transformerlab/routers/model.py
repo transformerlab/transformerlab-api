@@ -77,9 +77,14 @@ async def model_gallery_list_all():
     local_models = await model_local_list()
     local_model_names = set(model['model_id'] for model in local_models)
 
-    # Mark which models have been downloaded already by checking for uniqueID
+    # Iterate through models and add any values needed in result
     for model in gallery:
+        # Mark which models have been downloaded already by checking for uniqueID
         model['downloaded'] = True if model['uniqueID'] in local_model_names else False
+
+        # Application filters on archived flag. If none set then set to false
+        if "archived" not in model:
+            model["archived"] = False
 
     return gallery
 
