@@ -73,10 +73,11 @@ async def healthz():
 async def model_gallery_list_all():
     gallery = galleries.get_models_gallery()
 
+    # Get a list of local models to determine what has been downloaded already
     local_models = await model_local_list()
     local_model_names = set(model['model_id'] for model in local_models)
 
-    # Mark which models have been downloaded already. The huggingfacerepo is our model_id.
+    # Mark which models have been downloaded already by checking for uniqueID
     for model in gallery:
         model['downloaded'] = True if model['uniqueID'] in local_model_names else False
 
