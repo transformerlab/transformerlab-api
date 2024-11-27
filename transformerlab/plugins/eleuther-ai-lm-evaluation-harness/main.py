@@ -49,8 +49,12 @@ if not torch.cuda.is_available():
         print("Local completions server is not running. Please start it before running the evaluation.")
         sys.exit(0)
 
+    # model name is the first item in the list:
+    model_name = args.model_name
+
     # lm_eval --model local-completions --tasks gsm8k --model_args model=mlx-community/Llama-3.2-1B-Instruct-4bit,base_url=http://localhost:8000/v1/completions,num_concurrent=1,max_retries=3,tokenized_requests=False
-    model_args = 'model=mlx-community/Llama-3.2-1B-Instruct-4bit,base_url=http://localhost:8000/v1/completions,num_concurrent=1,max_retries=3,tokenized_requests=False'
+    model_args = 'model=' + model_name + \
+        ',base_url=http://localhost:8000/v1/completions,num_concurrent=1,max_retries=3,tokenized_requests=False'
     command = ["lm-eval", '--model', 'local-completions',
                '--model_args', model_args, '--tasks', task]
     print('Running command: $ ' + ' '.join(command))
