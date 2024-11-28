@@ -1,6 +1,8 @@
 from collections import namedtuple
 import json
 import shutil
+import datetime
+import dateutil.relativedelta
 from typing import Annotated
 import transformerlab.db as db
 from fastapi import APIRouter, Body
@@ -21,7 +23,6 @@ from transformerlab.models import basemodel
 from transformerlab.models import localmodel
 
 router = APIRouter(tags=["model"])
-
 
 def get_models_dir():
     """
@@ -77,6 +78,10 @@ async def model_gallery_list_all():
     local_models = await model_local_list()
     local_model_names = set(model['model_id'] for model in local_models)
 
+    # Set a date one month in the past to identify "new" models
+    one_month_ago = datetime.date.today() + dateutil.relativedelta.relativedelta(months=-1)
+    new_model_cutoff_date = one_month_ago.strftime("%Y-%m-%d")
+
     # Iterate through models and add any values needed in result
     for model in gallery:
         # Mark which models have been downloaded already by checking for uniqueID
@@ -85,6 +90,14 @@ async def model_gallery_list_all():
         # Application filters on archived flag. If none set then set to false
         if "archived" not in model:
             model["archived"] = False
+
+        # If no added date then set to a default
+        if "added" not in model:
+            model["added"] = "2024-02-01"
+
+        # Application uses the new flag to decide whether to display a badge
+        # TODO: Probably shouldn't be doing > string comparison for dates
+        model['new'] = True if ( model['added'] > new_model_cutoff_date ) else False
 
     return gallery
 
