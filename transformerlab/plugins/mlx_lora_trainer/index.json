@@ -4,13 +4,20 @@
   "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "model_architectures": [
+    "MLX",
+    "CohereForCausalLM",
+    "DeepseekV2ForCausalLM",
+    "GemmaForCausalLM",
+    "Gemma2ForCausalLM",
+    "GPTBigCodeForCausalLM",
     "LlamaForCausalLM",
     "MistralForCausalLM",
     "MixtralForCausalLM",
     "PhiForCausalLM",
-    "MLX"
+    "Phi3ForCausalLM",
+    "Qwen2ForCausalLM"
   ],
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
