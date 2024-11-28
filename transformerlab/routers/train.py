@@ -10,6 +10,7 @@ from fastapi.responses import PlainTextResponse
 import transformerlab.db as db
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
+from transformerlab.shared import galleries
 
 
 # @TODO hook this up to an endpoint so we can cancel a finetune
@@ -152,6 +153,13 @@ async def export_recipe(template_id: str):
     recipe_yaml = yaml.dump(recipe, sort_keys=False)
     print(recipe_yaml)
     return recipe_yaml
+
+
+@router.get("/template/gallery")
+async def recipe_gallery_get_all():
+    gallery = galleries.get_recipes_gallery()
+
+    return gallery
 
 
 # @router.get("/jobs")
