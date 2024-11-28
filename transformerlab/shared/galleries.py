@@ -12,8 +12,10 @@ from transformerlab.shared import dirs
 
 # This is the list of galleries that are updated remotely
 MODEL_GALLERY_FILE = "model-gallery.json"
+RECIPE_GALLERY_FILE = "recipe-gallery.json"
 GALLERY_FILES = [
-    MODEL_GALLERY_FILE
+    MODEL_GALLERY_FILE,
+    RECIPE_GALLERY_FILE
 ]
 
 TLAB_REMOTE_URL = "https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/"
@@ -32,6 +34,10 @@ def update_gallery_cache():
 
 def get_models_gallery():
     return get_gallery_file(MODEL_GALLERY_FILE)
+
+
+def get_recipes_gallery():
+    return get_gallery_file(RECIPE_GALLERY_FILE)
 
 
 ######################
