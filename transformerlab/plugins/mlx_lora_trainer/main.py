@@ -233,7 +233,7 @@ with subprocess.Popen(
         popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True) as process:
     for line in process.stdout:
         # Each output line from lora.py looks like
-        # "Iter 190: Train loss 1.997, It/sec 0.159, Tokens/sec 103.125"
+        # "Iter 190: ....."
         pattern = r"Iter (\d+):"
         match = re.search(pattern, line)
         if match:
@@ -249,13 +249,16 @@ with subprocess.Popen(
                 process.terminate()
 
             # Now parse the rest of the line and write to tensorboard
+            # There are two types of output we are looking for:
+            # 1. Training progress updates which look like: 
+            # "Iter 190: Train loss 1.997, It/sec 0.159, Tokens/sec 103.125"
             pattern = r"Train loss (\d+\.\d+), Learning Rate (\d+\.[e\-\d]+), It/sec (\d+\.\d+), Tokens/sec (\d+\.\d+)"
             match = re.search(pattern, line)
             if match:
                 loss = float(match.group(1))
                 it_per_sec = float(match.group(3))
                 tokens_per_sec = float(match.group(4))
-                print("Loss: ", loss)
+                print("Training Loss: ", loss)
                 print("It/sec: ", it_per_sec)
                 print("Tokens/sec: ", tokens_per_sec)
                 # The code snippet `with w.as_default(): tf.summary.scalar` is using TensorFlow's
@@ -265,6 +268,16 @@ with subprocess.Popen(
                 writer.add_scalar("it_per_sec", it_per_sec, int(first_number))
                 writer.add_scalar("tokens_per_sec",
                                   tokens_per_sec, int(first_number))
+
+            # 2. Validation updates which look like: 
+            # "Iter 190: Val loss 1.009, Val took 1.696s"
+            else :
+                pattern = r"Val loss (\d+\.\d+), Val took (\d+\.\d+)s"
+                match = re.search(pattern, line)
+                if match:
+                    validation_loss = float(match.group(1))
+                    print("Validation Loss: ", validation_loss)
+                    writer.add_scalar("validation-loss", validation_loss, int(first_number))
 
         print(line, end="", flush=True)
 
