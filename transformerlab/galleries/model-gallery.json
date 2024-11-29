@@ -587,6 +587,7 @@
     {
         "uniqueID": "google/gemma-7b-it",
         "name": "Gemma 7B Instruct",
+        "archived": true,
         "description": "Gemma is a family of lightweight, state-of-the-art open models from Google, built from the same research and technology used to create the Gemini models. They are text-to-text, decoder-only large language models, available in English, with open weights, pre-trained variants, and instruction-tuned variants. Gemma models are well-suited for a variety of text generation tasks, including question answering, summarization, and reasoning. Their relatively small size makes it possible to deploy them in environments with limited resources such as a laptop, desktop or your own cloud infrastructure, democratizing access to state of the art AI models and helping foster innovation for everyone.",
         "parameters": "7B",
         "context": "8192",
@@ -1217,6 +1218,7 @@
     {
         "uniqueID": "Qwen/Qwen2-7B-Instruct",
         "name": "Qwen2 7B Instruct",
+        "archived": true,
         "description": "Qwen2 has generally surpassed most opensource models and demonstrated competitiveness against proprietary models across a series of benchmarks targeting for language understanding, language generation, multilingual capability, coding, mathematics, reasoning, etc. Qwen2-7B-Instruct supports a context length of up to 131,072 tokens, enabling the processing of extensive inputs. This repo contains the instruction-tuned 7B Qwen2 model.",
         "parameters": "7B",
         "context": "32768",
@@ -1243,6 +1245,7 @@
     {
         "uniqueID": "Qwen/Qwen2-7B",
         "name": "Qwen2 7B",
+        "archived": true,
         "description": "Qwen2 has generally surpassed most opensource models and demonstrated competitiveness against proprietary models across a series of benchmarks targeting for language understanding, language generation, multilingual capability, coding, mathematics, reasoning, etc. This repo contains the 7B Qwen2 base language model.",
         "parameters": "7B",
         "context": "32768",
@@ -1759,6 +1762,7 @@
     {
         "uniqueID": "llama-2-7b.Q4_0.gguf",
         "name": "LLama 2 - 7B - GGUF - Q4_0",
+        "archived": true,
         "description": "Llama 2 is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters. This is the repository for the 7B fine-tuned model, optimized for dialogue use cases and converted for the Hugging Face Transformers format.",
         "parameters": "7B",
         "context": "4k",
