@@ -63,6 +63,7 @@ options:
 """
 
 import json
+import yaml
 import re
 from string import Template
 import subprocess
@@ -106,6 +107,31 @@ learning_rate = config["learning_rate"]
 batch_size = config.get("batch_size", 4)
 steps_per_eval = config.get("steps_per_eval", 200)
 iters = config["iters"]
+
+# Check if LoRA parameters are set
+lora_rank = config.get("lora_rank", None)
+lora_alpha = config.get("lora_alpha", None)
+
+# LoRA parameters have to be passed in a config file
+config_file = None
+if lora_rank or lora_alpha:
+    config_file = os.path.join(plugin_dir, 'config.yaml')
+    with open(config_file, 'w') as file:
+
+        # It looks like the MLX code doesn't actually read the alpha parameter!
+        # Instead it uses another parameter called scale to imply alpha
+        # scale = alpha / rank
+        lora_scale = int(lora_alpha)/int(lora_rank)
+
+        lora_config = {}
+        lora_config["lora_parameters"] = {}
+        lora_config["lora_parameters"]['alpha'] = lora_alpha
+        lora_config["lora_parameters"]['rank'] = lora_rank
+        lora_config["lora_parameters"]['scale'] = lora_scale
+        lora_config["lora_parameters"]['dropout'] = 0
+        yaml.dump(lora_config, file)
+        print("LoRA config:")
+        print(lora_config)
 
 # we need to adapter parameter so set a default
 adaptor_name = config.get('adaptor_name', "default")
@@ -208,6 +234,10 @@ popen_command = [sys.executable, "-um", "mlx_lm.lora",
                  "--steps-per-report", config['steps_per_report'],
                  "--steps-per-eval", steps_per_eval,
                  "--save-every", config["save_every"]]
+
+# If a config file has been created then include it
+if config_file:
+    popen_command.extend(["--config", config_file])
 
 print("Running command:")
 print(popen_command)
