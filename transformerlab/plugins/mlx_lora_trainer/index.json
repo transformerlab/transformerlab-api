@@ -4,7 +4,7 @@
   "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "model_architectures": [
     "MLX",
     "CohereForCausalLM",
@@ -42,6 +42,20 @@
       "default": 5e-5,
       "minimum": 1e-6,
       "maximum": 1e6
+    },
+    "lora_rank": {
+      "title": "LoRA Rank",
+      "type": "integer",
+      "default": 8,
+      "minimum": 1,
+      "maximum": 256
+    },
+    "lora_alpha": {
+      "title": "LoRA Alpha",
+      "type": "integer",
+      "default": 16,
+      "minimum": 1,
+      "maximum": 256
     },
     "iters": {
       "title": "Iterations",
@@ -84,6 +98,12 @@
     },
     "learning_rate": {
       "ui:help": "Adam Learning rate."
+    },
+    "lora_rank": {
+      "ui:help": "Number of trainable parameters to use during training. Default is 8. Increasing can improve learning new concepts but will use more RAM."
+    },
+    "lora_alpha": {
+      "ui:help": "Scaling factor for learned weights. Default is 16. Increasing the ratio of alpha/rank will cause new weights to carry more influence."
     },
     "iters": {
       "ui:help": "Number of iterations (not epochs) to train -- 1000 could be a starting point."
