@@ -486,6 +486,22 @@ async def get_training_template(id):
     return row
 
 
+async def get_training_template_by_name(name):
+
+    cursor = await db.execute("SELECT * FROM training_template WHERE name = ?", (name,))
+    row = await cursor.fetchone()
+    if (row == None):
+        return None
+    # convert to json:
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    row = dict(itertools.zip_longest(column_names, row))
+
+    await cursor.close()
+
+    return row
+
+
 async def get_training_templates():
 
     cursor = await db.execute("SELECT * FROM training_template ORDER BY created_at DESC")
