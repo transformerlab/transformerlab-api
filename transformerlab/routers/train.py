@@ -63,8 +63,13 @@ async def delete_training_template(template_id: str):
 @router.post("/template/import")
 async def import_recipe(name: str, recipe_yaml: str = Body(...)):
 
-    # TODO: Probably there is a way to do YAML validation automatically
-    print(recipe_yaml)
+    # Check if a template with this name exists already
+    template_check = await db.get_training_template_by_name(name)
+    if template_check is not None:
+        error_msg = f"A template named {name} already exists"
+        print("ERROR", error_msg)
+        return {"status": "error", "message": error_msg}
+    
 
     try:
         recipe = yaml.safe_load(recipe_yaml)
