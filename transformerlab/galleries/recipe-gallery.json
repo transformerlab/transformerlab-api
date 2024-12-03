@@ -60,7 +60,7 @@
             "path": "google/gemma-2-2b-it"
         },
         "datasets": {
-            "name": "win-wang/Machine_Learning_QA_Collection",
+            "name": "Machine Learning QA Collection",
             "path": "win-wang/Machine_Learning_QA_Collection"
         },
         "training": {
