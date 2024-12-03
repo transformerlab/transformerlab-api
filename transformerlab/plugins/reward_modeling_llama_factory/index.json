@@ -6,13 +6,13 @@
   "type": "trainer",
   "version": "0.0.3",
   "model_architectures": [
+    "GemmaForCausalLM",
     "LlamaForCausalLM",
     "MistralForCausalLM",
     "MixtralForCausalLM",
     "PhiForCausalLM",
-    "GemmaForCausalLM",
-    "Qwen2ForCausalLM",
-    "Phi3ForCausalLM"
+    "Phi3ForCausalLM",
+    "Qwen2ForCausalLM"
   ],
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
