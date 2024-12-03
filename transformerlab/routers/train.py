@@ -69,7 +69,6 @@ async def import_recipe(name: str, recipe_yaml: str = Body(...)):
         error_msg = f"A template named {name} already exists"
         print("ERROR", error_msg)
         return {"status": "error", "message": error_msg}
-    
 
     try:
         recipe = yaml.safe_load(recipe_yaml)
@@ -88,6 +87,7 @@ async def import_recipe(name: str, recipe_yaml: str = Body(...)):
     # TODO: Is it an error if any of these are missing?
     description = metadata.get("description", "")
     type = training.get("type", "LoRA")
+    model_path = model.get("path", "")
     datasets = datasets.get("path", "")
     config = training.get("config_json", {})
 
@@ -98,9 +98,22 @@ async def import_recipe(name: str, recipe_yaml: str = Body(...)):
     print("Datasets:", datasets)
     print("Config:", config)
 
-    # TODO: Throw proper error if template name exists
     await db.create_training_template(name, description, type, datasets, config)
-    return {"message": "OK"}
+
+    # generate a repsonse to tell if model and dataset need to be downloaded
+    response = {}
+
+    dataset_status = {}
+    dataset_status["path"] = datasets
+    dataset_status["downloaded"] = True
+    response["dataset"] = dataset_status
+
+    model_status = {}
+    model_status["path"] = model_path
+    model_status["downloaded"] = True
+    response["model"] = model_status
+
+    return {"status": "OK", "data": response}
 
 
 @router.get("/template/{template_id}/export", response_class=PlainTextResponse)
@@ -122,7 +135,6 @@ async def export_recipe(template_id: str):
     # Construct recipe object
     recipe = {}
     
-    # TODO: Could remove for now but thought let's leave placeholder
     metadata = {
         "author": "",
         "name": training_template.get("name", ""),
@@ -148,12 +160,15 @@ async def export_recipe(template_id: str):
         "config_json": template_config_json
     }
 
+    test = {
+    }
+
     recipe["schemaVersion"] = "0.1"
     recipe["metadata"] = metadata
     recipe["model"] = model
     recipe["datasets"] = datasets
     recipe["training"] = training
-    recipe["test"] = {}
+    recipe["test"] = test
 
     # Convert recipe to YAML
     recipe_yaml = yaml.dump(recipe, sort_keys=False)
