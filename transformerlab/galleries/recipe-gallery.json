@@ -51,6 +51,30 @@
         "schemaVersion": "0.1",
         "metadata": {
             "author": "",
+            "name": "Dialogue Summarizing",
+            "version": "1.0",
+            "description": "Trains Gemma base model to summarize conversations."
+        },
+        "model": {
+            "name": "google/gemma-2b",
+            "path": "google/gemma-2b"
+        },
+        "datasets": {
+            "name": "samsum",
+            "path": "samsum"
+        },
+        "training": {
+            "type": "LoRA",
+            "plugin": "sft_llama_factory",
+            "formatting_template": "",
+            "config_json": "{\"template_name\":\"Dialogue Summarizing\",\"plugin_name\":\"sft_llama_factory\",\"model_name\":\"google/gemma-2b\",\"model_architecture\":\"GemmaForCausalLM\",\"instruction_template\":\"Summarize the following text:\",\"input_template\":\"{{dialogue}}\",\"output_template\":\"{{summary}}\",\"dataset_name\":\"samsum\",\"maximum_sequence_length\":\"2048\",\"learning_rate\":\"0.001\",\"num_train_epochs\":\"2\",\"max_steps\":\"-1\",\"lora_r\":\"16\",\"lora_alpha\":\"32\",\"lora_dropout\":\"0.05\",\"adaptor_name\":\"summarizer\"}"
+        },
+        "test": {}
+    },
+    {
+        "schemaVersion": "0.1",
+        "metadata": {
+            "author": "",
             "version": "1.0",
             "name": "MachineLearningQnA",
             "description": "Trains a Gemma 2 model to answer machine learning questions. Adapted from https://medium.com/tutorial-by-winston-wang/beginners-guide-to-fine-tuning-models-using-mlx-on-apple-silicon-1a21ebb70aed"
