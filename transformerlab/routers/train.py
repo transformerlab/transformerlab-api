@@ -126,6 +126,7 @@ async def export_recipe(template_id: str):
     metadata = {
         "author": "",
         "name": training_template.get("name", ""),
+        "name": training_template.get("version", "1.0"),
         "description": training_template.get("description", "")
     }
 
@@ -147,7 +148,7 @@ async def export_recipe(template_id: str):
         "config_json": template_config_json
     }
 
-    recipe["schemaVersion"] = 0.1
+    recipe["schemaVersion"] = "0.1"
     recipe["metadata"] = metadata
     recipe["model"] = model
     recipe["datasets"] = datasets
