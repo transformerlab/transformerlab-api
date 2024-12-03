@@ -333,7 +333,11 @@ def cleanup_at_exit():
         controller_process.kill()
     if worker_process is not None:
         print("🔴 Quitting spawned workers.")
-        worker_process.kill()
+        try:
+            worker_process.kill()
+        except ProcessLookupError:
+            print(
+                f"Process {worker_process.pid} doesn't exist so nothing to kill")
     if (os.path.isfile('worker.pid')):
         with open('worker.pid', 'r') as f:
             pid = f.readline()
