@@ -23,7 +23,7 @@ err_report() {
   echo "Error in run.sh on line $1"
 }
 
-trap 'err_report $LINENO' ERR
+# trap 'err_report $LINENO' ERR
 
 if ! command -v ${CONDA_BIN} &> /dev/null; then
     echo "❌ Conda is not installed at ${MINICONDA_ROOT}. Please run ./install.sh and try again."
