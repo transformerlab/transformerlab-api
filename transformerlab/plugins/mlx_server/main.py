@@ -16,7 +16,7 @@ import atexit
 from collections import namedtuple
 import json
 import os
-from typing import List
+from typing import Any, Dict, List, Optional
 import uuid
 
 from huggingface_hub import snapshot_download
@@ -66,9 +66,8 @@ class MLXWorker(BaseModelWorker):
             conv_template,
         )
 
-        logger.info(
-            f"Loading the model {self.model_names} on worker {worker_id}, worker type: MLX worker..."
-        )
+        logger.info(f"Loading the model {self.model_names} on worker" +
+                    f"{worker_id}, worker type: MLX worker...")
 
         self.model_name = model_path
         self.mlx_model, self.mlx_tokenizer = load(model_path)
@@ -93,6 +92,89 @@ class MLXWorker(BaseModelWorker):
         if not no_register:
             self.init_heart_beat()
 
+    # copied from https://github.com/madroidmaq/mlx-omni-server/blob/main/src/mlx_omni_server/services/chat/mlx_model.py#L198
+    def _process_logprobs(
+        self,
+        tokenizer,
+        response,
+        top_k: Optional[int],
+    ) -> Optional[Dict[str, Any]]:
+        """Process logprobs information from generation response to match OpenAI format"""
+        current_token = response.token
+        current_logprobs = response.logprobs
+
+        # Get current token info
+        token_str = tokenizer.decode([current_token])
+        token_logprob = current_logprobs[current_token].item()
+        token_bytes = token_str.encode("utf-8")
+
+        # Base token info
+        token_info = {
+            "token": token_str,
+            "logprob": token_logprob,
+            "bytes": list(token_bytes),
+        }
+
+        # Process top logprobs
+        top_logprobs = []
+        if top_k is not None:
+            # Get indices of top_k tokens
+            top_indices = mx.argpartition(-current_logprobs,
+                                          kth=top_k - 1)[:top_k]
+            top_probs = current_logprobs[top_indices]
+
+            # Create detailed token information for each top token
+            for idx, logprob in zip(top_indices.tolist(), top_probs.tolist()):
+                token = tokenizer.decode([idx])
+                token_bytes = token.encode("utf-8")
+                top_logprobs.append(
+                    {"token": token, "logprob": logprob,
+                        "bytes": list(token_bytes)}
+                )
+
+        return {**token_info, "top_logprobs": top_logprobs}
+
+    def _process_logprobs(
+        self,
+        tokenizer,
+        response,
+        top_k: Optional[int],
+    ) -> Optional[Dict[str, Any]]:
+        """Process logprobs information from generation response to match OpenAI format"""
+        current_token = response.token
+        current_logprobs = response.logprobs
+
+        # Get current token info
+        token_str = tokenizer.decode([current_token])
+        token_logprob = current_logprobs[current_token].item()
+        token_bytes = token_str.encode("utf-8")
+
+        # Base token info
+        token_info = {
+            "token": token_str,
+            "logprob": token_logprob,
+            "bytes": list(token_bytes),
+        }
+
+        # Process top logprobs
+        top_logprobs = []
+        if top_k is not None:
+            # Get indices of top_k tokens
+            top_indices = mx.argpartition(-current_logprobs,
+                                          kth=top_k - 1)[:top_k]
+            top_probs = current_logprobs[top_indices]
+
+            # Create detailed token information for each top token
+            for idx, logprob in zip(top_indices.tolist(), top_probs.tolist()):
+                token = tokenizer.decode([idx])
+                token_bytes = token.encode("utf-8")
+                top_logprobs.append(
+                    {"token": token, "logprob": logprob,
+                        "bytes": list(token_bytes)}
+                )
+
+        return {**token_info, "top_logprobs": top_logprobs}
+
     async def generate_stream(self, params):
         self.call_ct += 1
 
@@ -100,7 +182,7 @@ class MLXWorker(BaseModelWorker):
         request_id = params.pop("request_id")
         temperature = float(params.get("temperature", 1.0))
         top_p = float(params.get("top_p", 1.0))
-        top_k = params.get("top_k", -1.0)
+        top_k = int(params.get("top_k", 10))
         presence_penalty = float(params.get("presence_penalty", 0.0))
         frequency_penalty = float(params.get("frequency_penalty", 0.0))
         max_new_tokens = params.get("max_new_tokens", 256)
@@ -138,14 +220,23 @@ class MLXWorker(BaseModelWorker):
 
         finish_reason = "length"
 
-        iterator = await run_in_threadpool(generate_step, context_mlx, self.mlx_model,
-                                           temp=temperature, top_p=top_p)
+        iterator = await run_in_threadpool(generate_step, context_mlx, self.mlx_model, temperature)
 
         for i in range(max_new_tokens):
-            (token, _) = await run_in_threadpool(next, iterator)
+            (token, logprobs) = await run_in_threadpool(next, iterator)
             if token == self.tokenizer.eos_token_id:
                 finish_reason = "stop"
                 break
+
+            # define an object with parameters token and lobprobs:
+            response = namedtuple("response", ["token", "logprobs"])
+            response.token = token
+            response.logprobs = logprobs
+
+            # logprobs = self._process_logprobs(
+            #     self.tokenizer, response, top_k)
+            # print("logprobs: ", logprobs)
+
             tokens.append(token)
             tokens_decoded = self.tokenizer.decode(tokens)
             # last_token_decoded = self.mlx_tokenizer.decode([token])
@@ -304,6 +395,7 @@ async def api_get_embeddings(request: Request):
     release_worker_semaphore()
     return JSONResponse(content=embedding)
 
+
 def get_hugggingface_config(model_path):
     try:
         local_file = snapshot_download(model_path, local_files_only=True)
@@ -378,6 +470,7 @@ def main():
         args.conv_template,
     )
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+
 
 if __name__ == "__main__":
     main()
