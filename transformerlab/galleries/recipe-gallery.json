@@ -18,8 +18,8 @@
         "training": {
             "type": "LoRA",
             "plugin": "mlx_lora_trainer",
-            "formatting_template": "<|start_header_id|>system<|end_header_id|>\n\nYou are a helpful assistant<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n{{prompt}}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n{{completion}}",
-            "config_json": "{\"template_name\":\"TouchRugby\",\"plugin_name\":\"mlx_lora_trainer\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"<|start_header_id|>system<|end_header_id|>\\n\\nYou are a helpful assistant<|eot_id|><|start_header_id|>user<|end_header_id|>\\n\\n{{prompt}}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\\n\\n{{completion}}\",\"dataset_name\":\"Trelis/touch-rugby-rules\",\"lora_layers\":\"16\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"16\",\"lora_alpha\":\"32\",\"iters\":\"100\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"16\",\"save_every\":\"10\",\"adaptor_name\":\"touch-rugby\"}"
+            "formatting_template": "<|start_header_id|>system<|end_header_id|>\n\nYou are a helpful assistant<|eot_id|><|start_header_id|>user<|end_header_id|>\n{{prompt}}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n{{completion}}",
+            "config_json": "{\"template_name\":\"TouchRugby\",\"plugin_name\":\"mlx_lora_trainer\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"LlamaForCausalLM\", \"formatting_template\":\"<|start_header_id|>system<|end_header_id|>\\n\\nYou are a helpful assistant<|eot_id|><|start_header_id|>user<|end_header_id|>\\n\\n{{prompt}}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\\n\\n{{completion}}\",\"dataset_name\":\"Trelis/touch-rugby-rules\",\"lora_layers\":\"16\",\"batch_size\":\"8\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"8\",\"lora_alpha\":\"16\",\"iters\":\"80\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"16\",\"save_every\":\"10\",\"adaptor_name\":\"touch-rugby\"}"
         },
         "test": {}
     },
@@ -36,14 +36,14 @@
             "path": "meta-llama/Llama-3.2-1B"
         },
         "datasets": {
-            "name": "WikiSQL",
-            "path": "WikiSQL"
+            "name": "mlx-community/wikisql",
+            "path": "mlx-community/wikisql"
         },
         "training": {
             "type": "LoRA",
             "plugin": "mlx_lora_trainer",
             "formatting_template": "Given the following description of an SQL table and its columns, provide the corresponding SQL to answer the question. {{text}}",
-            "config_json": "{\"template_name\":\"WikiSQL\",\"plugin_name\":\"mlx_lora_trainer\",\"model_name\":\"meta-llama/Llama-3.2-1B\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"Given the following description of an SQL table and its columns, provide the corresponding SQL to answer the question.\\n{{text}}\",\"dataset_name\":\"WikiSQL\",\"lora_layers\":\"8\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"8\",\"lora_alpha\":\"160\",\"iters\":\"200\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"50\",\"save_every\":\"50\",\"adaptor_name\":\"ml-qa\"}"
+            "config_json": "{\"template_name\":\"WikiSQL\",\"plugin_name\":\"mlx_lora_trainer\",\"model_name\":\"meta-llama/Llama-3.2-1B\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"Given the following description of an SQL table and its columns, provide the corresponding SQL to answer the question.\\n{{text}}\",\"dataset_name\":\"mlx-community/wikisql\",\"lora_layers\":\"8\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"8\",\"lora_alpha\":\"160\",\"iters\":\"200\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"50\",\"save_every\":\"50\",\"adaptor_name\":\"ml-qa\"}"
         },
         "test": {}
     },
