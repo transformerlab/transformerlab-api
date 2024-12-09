@@ -107,6 +107,7 @@ PLUGIN_HARNESS = os.path.join(PLUGIN_SDK_DIR, "plugin_harness.py")
 
 # MODELS_DIR
 MODELS_DIR = os.path.join(WORKSPACE_DIR, "models")
+os.makedirs(name=MODELS_DIR, exist_ok=True)
 
 # DATASETS_DIR
 DATASETS_DIR = os.path.join(WORKSPACE_DIR, "datasets")
