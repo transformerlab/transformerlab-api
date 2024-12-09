@@ -61,7 +61,7 @@ async def model_gallery_list_all():
     gallery = galleries.get_models_gallery()
 
     # Get a list of local models to determine what has been downloaded already
-    local_models = await model_local_list()
+    local_models = await model_helper.list_installed_models()
     local_model_names = set(model['model_id'] for model in local_models)
 
     # Set a date one month in the past to identify "new" models
@@ -409,15 +409,8 @@ async def get_model_prompt_template(model: str):
 
 @router.get("/model/list")
 async def model_local_list():
-
     # the model list is a combination of downloaded hugging face models and locally generated models
-    # start with the list of downloaded models which is stored in the db
-    models = await db.model_local_list()
-
-    # Get the list of locally generated models and add it to the end fo the models list
-    models.extend(model_helper.list_workspace_models())
-
-    return models
+    return await model_helper.list_installed_models()
 
 
 @router.get("/model/create")
