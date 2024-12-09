@@ -8,9 +8,9 @@ from fastapi import APIRouter, BackgroundTasks, Body
 from fastapi.responses import PlainTextResponse
 
 import transformerlab.db as db
-from transformerlab.shared import shared
 from transformerlab.shared import dirs
 from transformerlab.shared import galleries
+from transformerlab.models import model_helper
 
 
 # @TODO hook this up to an endpoint so we can cancel a finetune
@@ -100,17 +100,27 @@ async def import_recipe(name: str, recipe_yaml: str = Body(...)):
 
     await db.create_training_template(name, description, type, datasets, config)
 
+    # Check if the model and dataset are installed
+    # For model: get a list of local models to determine what has been downloaded already
+    model_downloaded = False
+    local_models = await model_helper.list_installed_models()
+    for model in local_models:
+        if model['model_id'] == model_path:
+            model_downloaded = True
+
     # generate a repsonse to tell if model and dataset need to be downloaded
     response = {}
 
+    # Dataset info - including whether it needs to be downloaded or not
     dataset_status = {}
     dataset_status["path"] = datasets
     dataset_status["downloaded"] = True
     response["dataset"] = dataset_status
 
+    # Model info - including whether it needs to be downloaded or not
     model_status = {}
     model_status["path"] = model_path
-    model_status["downloaded"] = True
+    model_status["downloaded"] = model_downloaded
     response["model"] = model_status
 
     return {"status": "OK", "data": response}
