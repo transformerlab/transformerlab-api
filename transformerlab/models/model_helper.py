@@ -3,6 +3,7 @@
 import os
 import json
 
+import transformerlab.db as db
 from transformerlab.shared import dirs
 from transformerlab.models import ollamamodel
 from transformerlab.models import huggingfacemodel
@@ -36,16 +37,19 @@ def model_architecture_is_supported(model_architecture: str):
 # SHARED MODEL FUNCTIONS
 
 
-def list_workspace_models():
+async def list_installed_models():
     """
-    This function checks the workspace models directory and returns
-    a list of models with the same format as those stored in the DB.
+    This function checks both the DB and the workspace models directory
+    and returns a list of models in the format that models are stored in the DB.
     """
+
+    # start with the list of downloaded models which is stored in the db
+    models = await db.model_local_list()
+
     # now generate a list of local models by reading the filesystem
     models_dir = dirs.MODELS_DIR
 
     # now iterate through all the subdirectories in the models directory
-    models = []
     with os.scandir(models_dir) as dirlist:
         for entry in dirlist:
             if entry.is_dir():
