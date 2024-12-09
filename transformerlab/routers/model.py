@@ -24,28 +24,14 @@ from transformerlab.models import localmodel
 
 router = APIRouter(tags=["model"])
 
-def get_models_dir():
-    """
-    Helper function to get the models directory and create it if it doesn't exist
-    models are stored in separate subdirectories under workspace/models
-    """
-    models_dir = dirs.MODELS_DIR
-
-    # make models directory if it does not exist:
-    if not os.path.exists(f"{models_dir}"):
-        os.makedirs(f"{models_dir}")
-
-    return models_dir
-
 
 def get_model_dir(model_id: str):
     """
     Helper function gets the directory for a model ID
     model_id may be in Hugging Face format
     """
-    models_dir = get_models_dir()
     model_id_without_author = model_id.split("/")[-1]
-    return os.path.join(models_dir, model_id_without_author)
+    return os.path.join(dirs.MODELS_DIR, model_id_without_author)
 
 
 def get_model_details_from_gallery(model_id: str):
@@ -429,7 +415,7 @@ async def model_local_list():
     models = await db.model_local_list()
 
     # now generate a list of local models by reading the filesystem
-    models_dir = get_models_dir()
+    models_dir = dirs.MODELS_DIR
 
     # now iterate through all the subdirectories in the models directory
     with os.scandir(models_dir) as dirlist:
@@ -481,7 +467,7 @@ async def model_local_create(id: str, name: str, json_data={}):
 async def model_local_delete(model_id: str):
     # If this is a locally generated model then actually delete from filesystem
     # Check for the model stored in a directory based on the model name (i.e. the part after teh slash)
-    root_models_dir = get_models_dir()
+    root_models_dir = dirs.MODELS_DIR
     model_dir = model_id.rsplit('/', 1)[-1]
     info_file = os.path.join(root_models_dir, model_dir, "info.json")
     if (os.path.isfile(info_file)):
