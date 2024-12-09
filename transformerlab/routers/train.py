@@ -108,13 +108,20 @@ async def import_recipe(name: str, recipe_yaml: str = Body(...)):
         if model['model_id'] == model_path:
             model_downloaded = True
 
+    # Repeat for dataset
+    dataset_downloaded = False
+    local_datasets = await db.get_datasets()
+    for dataset in local_datasets:
+        if dataset['dataset_id'] == datasets:
+            dataset_downloaded = True
+
     # generate a repsonse to tell if model and dataset need to be downloaded
     response = {}
 
     # Dataset info - including whether it needs to be downloaded or not
     dataset_status = {}
     dataset_status["path"] = datasets
-    dataset_status["downloaded"] = True
+    dataset_status["downloaded"] = dataset_downloaded
     response["dataset"] = dataset_status
 
     # Model info - including whether it needs to be downloaded or not
