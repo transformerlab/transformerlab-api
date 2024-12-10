@@ -193,6 +193,7 @@ class MLXWorker(BaseModelWorker):
         echo = params.get("echo", True)
         use_beam_search = params.get("use_beam_search", False)
         best_of = params.get("best_of", None)
+        include_logprobs = params.get("logprobs", None)
 
         # Handle stop_str
         stop = set()
@@ -233,9 +234,12 @@ class MLXWorker(BaseModelWorker):
             response.token = token
             response.logprobs = logprobs
 
-            # logprobs = self._process_logprobs(
-            #     self.tokenizer, response, top_k)
-            # print("logprobs: ", logprobs)
+            if (include_logprobs):
+                logprobs = self._process_logprobs(
+                    self.tokenizer, response, top_k)
+                # print("logprobs: ", logprobs)
+            else:
+                logprobs = None
 
             tokens.append(token)
             tokens_decoded = self.tokenizer.decode(tokens)
@@ -267,8 +271,7 @@ class MLXWorker(BaseModelWorker):
                     "completion_tokens": len(tokens),
                     "total_tokens": len(context) + len(tokens),
                 },
-                "cumulative_logprob": [
-                ],
+                "logprobs": logprobs,
                 "finish_reason": None   # hard code for now
             }
             # print(ret)
