@@ -2,6 +2,7 @@
 # FastChat.
 # https://github.com/lm-sys/FastChat/blob/main/fastchat/serve/openai_api_server.py
 
+from transformerlab.shared import dirs
 from fastapi import APIRouter
 from fastapi.responses import FileResponse
 
@@ -37,13 +38,11 @@ from fastchat.constants import (
 )
 from fastchat.conversation import Conversation, SeparatorStyle
 from fastchat.protocol.api_protocol import (
-    APIChatCompletionRequest,
     APITokenCheckRequest,
     APITokenCheckResponse,
-    APITokenCheckResponseItem,
+    APITokenCheckResponseItem, BaseModel
 )
 from fastchat.protocol.openai_api_protocol import (
-    ChatCompletionRequest,
     ChatCompletionResponse,
     ChatCompletionResponseChoice,
     ChatCompletionResponseStreamChoice,
@@ -62,14 +61,52 @@ from fastchat.protocol.openai_api_protocol import (
     ModelList,
     ModelPermission,
     UsageInfo,
+
 )
+
+
+class APIChatCompletionRequest(BaseModel):
+    model: str
+    messages: Union[str, List[Dict[str, str]], List[List[Dict[str, str]]]]
+    temperature: Optional[float] = 0.7
+    top_p: Optional[float] = 1.0
+    top_k: Optional[int] = -1
+    n: Optional[int] = 1
+    max_tokens: Optional[int] = None
+    stop: Optional[Union[str, List[str]]] = None
+    stream: Optional[bool] = False
+    user: Optional[str] = None
+    repetition_penalty: Optional[float] = 1.0
+    frequency_penalty: Optional[float] = 0.0
+    presence_penalty: Optional[float] = 0.0
+    logprobs: Optional[bool] = False
+
+
+class ChatCompletionRequest(BaseModel):
+    model: str
+    messages: Union[
+        str,
+        List[Dict[str, str]],
+        List[Dict[str, Union[str, List[Dict[str, Union[str, Dict[str, str]]]]]]],
+    ]
+    temperature: Optional[float] = 0.7
+    top_p: Optional[float] = 1.0
+    top_k: Optional[int] = -1
+    n: Optional[int] = 1
+    max_tokens: Optional[int] = None
+    stop: Optional[Union[str, List[str]]] = None
+    stream: Optional[bool] = False
+    presence_penalty: Optional[float] = 0.0
+    frequency_penalty: Optional[float] = 0.0
+    user: Optional[str] = None
+    logprobs: Optional[bool] = False
+
+
 try:
     from pydantic.v1 import BaseSettings
 except ImportError:
     from pydantic import BaseSettings
 
-
-from transformerlab.shared import dirs
 
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.ERROR)
@@ -273,6 +310,7 @@ async def get_gen_params(
     echo: Optional[bool],
     stream: Optional[bool],
     stop: Optional[Union[str, List[str]]],
+    logprobs: Optional[bool] = False,
 ) -> Dict[str, Any]:
     conv = await get_conv(model_name)
     conv = Conversation(
@@ -327,6 +365,7 @@ async def get_gen_params(
         "max_new_tokens": max_tokens,
         "echo": echo,
         "stream": stream,
+        "logprobs": logprobs,
     }
     if images is not None and len(images) > 0:
         gen_params["images"] = images
@@ -415,6 +454,7 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
         echo=False,
         stream=request.stream,
         stop=request.stop,
+        logprobs=request.logprobs,
     )
     error_check_ret = await check_length(
         request, gen_params["prompt"], gen_params["max_new_tokens"]
@@ -569,6 +609,7 @@ async def create_completion(request: CompletionRequest):
                 echo=request.echo,
                 stream=request.stream,
                 stop=request.stop,
+                logprobs=request.logprobs,
             )
 
             log_prompt(gen_params)
@@ -622,6 +663,7 @@ async def generate_completion_stream_generator(request: CompletionRequest, n: in
                 echo=request.echo,
                 stream=request.stream,
                 stop=request.stop,
+                logprobs=request.logprobs,
             )
 
             log_prompt(gen_params)
@@ -851,6 +893,7 @@ async def create_chat_completion(request: APIChatCompletionRequest):
         echo=False,
         stream=request.stream,
         stop=request.stop,
+        logprobs=request.logprobs,
     )
 
     if request.repetition_penalty is not None:
