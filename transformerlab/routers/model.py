@@ -8,10 +8,11 @@ import transformerlab.db as db
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
 from fastchat.model.model_adapter import get_conversation_template
-from huggingface_hub import hf_hub_download, HfFileSystem, model_info
+from huggingface_hub import hf_hub_download, HfFileSystem, model_info, list_repo_tree
 from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi
 from huggingface_hub import ModelCard, ModelCardData
 from huggingface_hub.utils import HfHubHTTPError
+from huggingface_hub.hf_api import RepoFile
 import os
 
 from transformerlab.shared import shared
@@ -219,6 +220,32 @@ async def login_to_huggingface():
         return {"message": "OK"}
     except:
         return {"message": "Login failed"}
+
+
+@router.get(path="/model/download_size")
+def get_huggingface_model_size(model_id: str):
+    """
+    Get the size in bytes of all files to be downloaded from Hugging Face.
+    """
+    try:
+        #hf_model_info = model_info(model_id, files_metadata=True)
+        hf_model_info = list_repo_tree(model_id)
+    except Exception as e:
+        error_msg = f"{type(e).__name__}: {e}"
+        return {"status": "error", "message": error_msg}
+
+    # Iterate over files in the model repo and add up size if they are included in download
+    download_size = 0
+    total_size = 0
+    for file in hf_model_info:
+        if isinstance(file, RepoFile):
+            total_size += file.size
+
+            # TODO: Only count towards download if the file will be included
+            if True:
+                download_size += file.size
+
+    return {"status": "success", "data": {"download_size": download_size, "total_size": total_size}}
 
 
 def get_model_details_from_huggingface(hugging_face_id: str):
