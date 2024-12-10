@@ -588,12 +588,12 @@ async def create_completion(request: CompletionRequest):
             if content["error_code"] != 0:
                 return create_error_response(content["error_code"], content["text"])
             choices.append(
-                CompletionResponseChoice(
-                    index=i,
-                    text=content["text"],
-                    logprobs=content.get("logprobs", None),
-                    finish_reason=content.get("finish_reason", "stop"),
-                )
+                {
+                    "index": i,
+                    "text": content["text"],
+                    "logprobs": content.get("logprobs", None),
+                    "finish_reason": content.get("finish_reason", "stop"),
+                }
             )
             task_usage = UsageInfo.parse_obj(content["usage"])
             for usage_key, usage_value in task_usage.dict().items():
@@ -644,24 +644,25 @@ async def generate_completion_stream_generator(request: CompletionRequest, n: in
                 delta_text = decoded_unicode[len(previous_text):]
                 previous_text = decoded_unicode
                 # todo: index is not apparent
-                choice_data = CompletionResponseStreamChoice(
-                    index=i,
-                    text=delta_text,
-                    logprobs=content.get("logprobs", None),
-                    finish_reason=content.get("finish_reason", None),
-                )
-                chunk = CompletionStreamResponse(
-                    id=id,
-                    object="text_completion",
-                    choices=[choice_data],
-                    model=model_name,
-                )
+                choice_data = {
+                    "index": i,
+                    "text": delta_text,
+                    "logprobs": content.get("logprobs", None),
+                    "finish_reason": content.get("finish_reason", None),
+                }
+                chunk = {
+                    "id": id,
+                    "object": "text_completion",
+                    "choices": [choice_data],
+                    "model": model_name,
+                }
                 if len(delta_text) == 0:
+                    print('delta_text', delta_text)
                     if content.get("finish_reason", None) is not None:
                         finish_stream_events.append(chunk)
                     continue
                 # Convert the chunk to a dictionary
-                chunk_dict = chunk.model_dump()
+                chunk_dict = chunk
 
                 # Convert the dictionary to a JSON string
                 sorted_json = json.dumps(
@@ -672,7 +673,9 @@ async def generate_completion_stream_generator(request: CompletionRequest, n: in
     # There is not "content" field in the last delta message, so exclude_none to exclude field "content".
     for finish_chunk in finish_stream_events:
         # Convert the finish_chunk to a dictionary
-        finish_chunk_dict = finish_chunk.dict(exclude_none=True)
+        finish_chunk_dict = finish_chunk
+
+        print('finish_chunk_dict', finish_chunk_dict)
 
         # Convert the dictionary to a JSON string
         sorted_json = json.dumps(finish_chunk_dict, ensure_ascii=False)
@@ -698,6 +701,7 @@ async def generate_completion_stream(payload: Dict[str, Any]):
                 for chunk in raw_chunk.split(delimiter):
                     if not chunk:
                         continue
+                    # print(chunk.decode())
                     data = json.loads(chunk.decode())
                     yield data
 
