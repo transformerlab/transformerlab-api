@@ -57,6 +57,31 @@ async def healthz():
     return {"message": "OK"}
 
 
+def get_huggingface_model_size(model_id: str, allow_params: list = []):
+    """
+    Get the size in bytes of all files to be downloaded from Hugging Face.
+
+    Raises: RepositoryNotFoundError if model_id doesn't exist on huggingface (or can't be accessed)
+    """
+
+    # This can throw Exceptions: RepositoryNotFoundError
+    hf_model_info = list_repo_tree(model_id)
+
+    # Iterate over files in the model repo and add up size if they are included in download
+    download_size = 0
+    total_size = 0
+    for file in hf_model_info:
+        if isinstance(file, RepoFile):
+            total_size += file.size
+
+            # TODO: Only count towards download if the file will be included
+            if True:
+                download_size += file.size
+
+    return download_size
+
+
+
 @router.get("/model/gallery")
 async def model_gallery_list_all():
     gallery = galleries.get_models_gallery()
@@ -223,29 +248,14 @@ async def login_to_huggingface():
 
 
 @router.get(path="/model/download_size")
-def get_huggingface_model_size(model_id: str):
-    """
-    Get the size in bytes of all files to be downloaded from Hugging Face.
-    """
+def get_model_download_size(model_id: str, allow_patterns: list = []):
     try:
-        #hf_model_info = model_info(model_id, files_metadata=True)
-        hf_model_info = list_repo_tree(model_id)
+        download_size_in_bytes = get_huggingface_model_size(model_id, allow_patterns)
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
         return {"status": "error", "message": error_msg}
 
-    # Iterate over files in the model repo and add up size if they are included in download
-    download_size = 0
-    total_size = 0
-    for file in hf_model_info:
-        if isinstance(file, RepoFile):
-            total_size += file.size
-
-            # TODO: Only count towards download if the file will be included
-            if True:
-                download_size += file.size
-
-    return {"status": "success", "data": {"download_size": download_size, "total_size": total_size}}
+    return {"status": "success", "data": download_size_in_bytes}
 
 
 def get_model_details_from_huggingface(hugging_face_id: str):
