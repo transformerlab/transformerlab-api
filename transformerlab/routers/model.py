@@ -123,6 +123,48 @@ async def model_gallery_list_all():
     return gallery
 
 
+@router.get("/model/gallery/sizes")
+async def model_gallery_update_sizes():
+    """
+    TEMP INTERNAL TOOL
+    Calculates updated sizes for all models in the gallery and prints.
+    """
+
+    gallery = await model_gallery_list_all()
+
+    # Iterate through models and calculate updated model size
+    for model in gallery:
+
+        gallery_size = model.get("size_of_model_in_mb", "unknown")
+        try:
+            default_allow_patterns = [
+                "*.json",
+                "*.safetensors",
+                "*.py",
+                "tokenizer.model",
+                "*.tiktoken",
+                "*.npz",
+                "*.bin"
+            ]
+            download_size = get_huggingface_model_size(model['uniqueID'], model.get("allow_patterns", default_allow_patterns))
+        except Exception:
+            download_size = -1
+        try:
+            total_size = get_huggingface_model_size(model['uniqueID'], [])
+        except Exception:
+            total_size = -1
+        print(model['uniqueID'])
+        print("Gallery size:", gallery_size)
+        print("Calculated size:", download_size/(1024*1024))
+        print("Total size:", total_size/(1024*1024))
+        print("--")
+
+        if download_size > 0:
+            model["size_of_model_in_mb"] = download_size/(1024*1024)
+
+    return gallery
+
+
 @router.get("/model/gallery/{model_id}")
 async def model_gallery(model_id: str):
 
