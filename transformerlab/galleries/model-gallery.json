@@ -15,6 +15,7 @@
         "gated": "manual",
         "license": "Meta Custom",
         "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
+        "size_of_model_in_mb": 25707.46,
         "author": {
             "name": "Meta",
             "url": "https://huggingface.co/meta-llama/",
@@ -42,6 +43,7 @@
         "gated": "manual",
         "license": "Meta Custom",
         "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
+        "size_of_model_in_mb": 25707.46,
         "author": {
             "name": "Meta",
             "url": "https://huggingface.co/meta-llama/",
@@ -69,6 +71,7 @@
         "gated": "manual",
         "license": "Meta Custom",
         "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
+        "size_of_model_in_mb": 49654.08,
         "author": {
             "name": "Meta",
             "url": "https://huggingface.co/meta-llama/",
@@ -96,6 +99,7 @@
         "gated": "manual",
         "license": "Meta Custom",
         "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
+        "size_of_model_in_mb": 49654.08,
         "author": {
             "name": "Meta",
             "url": "https://huggingface.co/meta-llama/",
@@ -122,7 +126,7 @@
         "gated": true,
         "license": "CC-BY-NC-4.0",
         "logo": "https://cohere-ai.ghost.io/content/images/2024/03/CMDR--1--1-1.png",
-        "size_of_model_in_mb": 43306.2173233032,
+        "size_of_model_in_mb": 66732.91,
         "author": {
             "name": "Cohere 4 AI",
             "url": "https://cohere.com/research",
@@ -149,7 +153,7 @@
         "gated": false,
         "license": "CC-BY-NC-4.0",
         "logo": "https://cohere-ai.ghost.io/content/images/2024/03/CMDR--1--1-1.png",
-        "size_of_model_in_mb": 1265.4,
+        "size_of_model_in_mb": 21653.11,
         "author": {
             "name": "Cohere 4 AI",
             "url": "https://cohere.com/research",
@@ -176,6 +180,7 @@
         "gated": true,
         "license": "CC-BY-NC-4.0",
         "logo": "https://cohere-ai.ghost.io/content/images/2024/03/CMDR--1--1-1.png",
+        "size_of_model_in_mb": 21653.17,
         "author": {
             "name": "Cohere 4 AI",
             "url": "https://cohere.com/research",
@@ -203,7 +208,7 @@
         "gated": "manual",
         "license": "llama3.2",
         "logo": "",
-        "size_of_model_in_mb": 2365.9,
+        "size_of_model_in_mb": 2365.86,
         "author": {
             "name": "meta-llama",
             "url": "https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct",
@@ -229,7 +234,8 @@
         "transformers_version": "4.40.0.dev0",
         "gated": true,
         "license": "CC-By-NC-4.0",
-        "logo": "https://cdn.sanity.io/images/rjtqmwfu/production/5bc885878e9f0f1e202b742c86f543c7fe765376-409x144.svg"
+        "logo": "https://cdn.sanity.io/images/rjtqmwfu/production/5bc885878e9f0f1e202b742c86f543c7fe765376-409x144.svg",
+        "size_of_model_in_mb": 15328.09
     },
     {
         "uniqueID": "meta-llama/Llama-3.2-1B",
@@ -247,7 +253,7 @@
         "gated": "manual",
         "license": "llama3.2",
         "logo": "",
-        "size_of_model_in_mb": 2365.9,
+        "size_of_model_in_mb": 2365.86,
         "author": {
             "name": "meta-llama",
             "url": "https://huggingface.co/meta-llama/Llama-3.2-1B",
@@ -274,7 +280,7 @@
         "gated": false,
         "license": "Llama 2 CLA",
         "logo": "https://lmsys.org/images/blog/vicuna/vicuna.jpeg",
-        "size_of_model_in_mb": 12853.1,
+        "size_of_model_in_mb": 12853.13,
         "author": {
             "name": "LMSYS Org",
             "url": "https://lmsys.org/",
@@ -301,6 +307,7 @@
         "gated": false,
         "license": "Llama 2 CLA",
         "logo": "https://lmsys.org/images/blog/vicuna/vicuna.jpeg",
+        "size_of_model_in_mb": 24826.44,
         "author": {
             "name": "LMSYS Org",
             "url": "https://lmsys.org/",
@@ -327,7 +334,7 @@
         "gated": false,
         "license": "Llama 2 CLA",
         "logo": "https://lmsys.org/images/blog/vicuna/vicuna.jpeg",
-        "size_of_model_in_mb": 8737.3,
+        "size_of_model_in_mb": 12853.13,
         "author": {
             "name": "LMSYS Org",
             "url": "https://lmsys.org/",
@@ -354,6 +361,7 @@
         "gated": false,
         "license": "Apache 2.0",
         "logo": "https://avatars.githubusercontent.com/u/132110378?s=48&v=4",
+        "size_of_model_in_mb": 6536.06,
         "author": {
             "name": "OpenLLaMA",
             "url": "https://github.com/openlm-research/open_llama",
@@ -380,6 +388,7 @@
         "gated": false,
         "license": "Apache 2.0",
         "logo": "https://avatars.githubusercontent.com/u/132110378?s=48&v=4",
+        "size_of_model_in_mb": 12853.14,
         "author": {
             "name": "OpenLLaMA",
             "url": "https://github.com/openlm-research/open_llama",
@@ -407,7 +416,7 @@
         "gated": "manual",
         "license": "Meta Custom",
         "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
-        "size_of_model_in_mb": 15325.3,
+        "size_of_model_in_mb": 15325.28,
         "author": {
             "name": "Meta",
             "url": "https://huggingface.co/meta-llama/",
@@ -435,7 +444,7 @@
         "gated": "manual",
         "license": "Meta Custom",
         "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
-        "size_of_model_in_mb": 15325.3,
+        "size_of_model_in_mb": 15325.28,
         "author": {
             "name": "Meta",
             "url": "https://huggingface.co/meta-llama/",
@@ -463,7 +472,7 @@
         "gated": false,
         "license": "Meta Custom",
         "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
-        "size_of_model_in_mb": 5037.2,
+        "size_of_model_in_mb": 5037.17,
         "author": {
             "name": "Meta",
             "url": "https://huggingface.co/meta-llama/",
@@ -491,6 +500,7 @@
         "gated": false,
         "license": "Meta Custom",
         "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
+        "size_of_model_in_mb": 37858.83,
         "author": {
             "name": "Meta",
             "url": "https://huggingface.co/meta-llama/",
@@ -517,7 +527,7 @@
         "gated": "manual",
         "license": "Meta Custom",
         "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
-        "size_of_model_in_mb": 15325.3,
+        "size_of_model_in_mb": 15325.28,
         "author": {
             "name": "Meta",
             "url": "https://huggingface.co/meta-llama/",
@@ -544,7 +554,7 @@
         "gated": "manual",
         "license": "Meta Custom",
         "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
-        "size_of_model_in_mb": 15325.3,
+        "size_of_model_in_mb": 15325.28,
         "author": {
             "name": "Meta",
             "url": "https://huggingface.co/meta-llama/",
@@ -572,7 +582,7 @@
         "license": "Gemma",
         "gated": "manual",
         "logo": "https://storage.googleapis.com/gweb-uniblog-publish-prod/images/gemma-header.width-1200.format-webp.webp",
-        "size_of_model_in_mb": 16305.1,
+        "size_of_model_in_mb": 16305.17,
         "author": {
             "name": "Google",
             "url": "https://huggingface.co/google/gemma-7b",
@@ -600,7 +610,7 @@
         "license": "Gemma",
         "gated": "manual",
         "logo": "https://storage.googleapis.com/gweb-uniblog-publish-prod/images/gemma-header.width-1200.format-webp.webp",
-        "size_of_model_in_mb": 16305.1,
+        "size_of_model_in_mb": 16305.17,
         "author": {
             "name": "Google",
             "url": "https://huggingface.co/google/gemma-7b-it",
@@ -628,7 +638,7 @@
         "license": "Gemma",
         "gated": "manual",
         "logo": "https://storage.googleapis.com/gweb-uniblog-publish-prod/images/gemma-header.width-1200.format-webp.webp",
-        "size_of_model_in_mb": 4801.0,
+        "size_of_model_in_mb": 4800.96,
         "author": {
             "name": "Google",
             "url": "https://huggingface.co/google/gemma-2b-it",
@@ -656,7 +666,7 @@
         "license": "Gemma",
         "gated": "manual",
         "logo": "https://storage.googleapis.com/gweb-uniblog-publish-prod/images/gemma-header.width-1200.format-webp.webp",
-        "size_of_model_in_mb": 4801.0,
+        "size_of_model_in_mb": 4800.96,
         "author": {
             "name": "Google",
             "url": "https://huggingface.co/google/gemma-2b",
@@ -685,7 +695,7 @@
         "gated": false,
         "license": "Meta Custom",
         "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
-        "size_of_model_in_mb": 24783.0,
+        "size_of_model_in_mb": 25707.46,
         "author": {
             "name": "Meta",
             "url": "https://huggingface.co/meta-llama/",
@@ -713,7 +723,7 @@
         "gated": false,
         "license": "Apache 2.0",
         "logo": "https://media.datadriveninvestor.com/uploads/2020/10/llava_logo.png",
-        "size_of_model_in_mb": 5381.1,
+        "size_of_model_in_mb": 5381.05,
         "author": {
             "name": "bczhou",
             "url": "https://huggingface.co/bczhou",
@@ -741,6 +751,7 @@
         "gated": false,
         "license": "Apache 2.0",
         "logo": "https://media.datadriveninvestor.com/uploads/2020/10/llava_logo.png",
+        "size_of_model_in_mb": 13476.51,
         "author": {
             "name": "llava-hf",
             "url": "https://huggingface.co/llava-hf",
@@ -806,7 +817,7 @@
         "gated": "auto",
         "license": "Apache 2.0",
         "logo": "https://docs.mistral.ai/img/logo.svg",
-        "size_of_model_in_mb": 27652.2
+        "size_of_model_in_mb": 27652.22
     },
     {
         "uniqueID": "mistralai/Mistral-7B-Instruct-v0.3",
@@ -834,7 +845,7 @@
         "gated": "auto",
         "license": "Apache 2.0",
         "logo": "https://docs.mistral.ai/img/logo.svg",
-        "size_of_model_in_mb": 27652.2
+        "size_of_model_in_mb": 27652.23
     },
     {
         "uniqueID": "Qwen/Qwen2.5-7B",
@@ -852,7 +863,7 @@
         "gated": false,
         "license": "apache-2.0",
         "logo": "https://cdn-avatars.huggingface.co/v1/production/uploads/62088594a5943c8a8fc94560/y5SEKiE8TkjBKs9xfjCx5.png",
-        "size_of_model_in_mb": 16096.9,
+        "size_of_model_in_mb": 14535.06,
         "author": {
             "name": "Qwen",
             "url": "https://huggingface.co/Qwen/Qwen2.5-7B",
@@ -881,6 +892,7 @@
         "gated": "auto",
         "license": "Apache 2.0",
         "logo": "https://docs.mistral.ai/img/logo.svg",
+        "size_of_model_in_mb": 28127.37,
         "author": {
             "name": "Mistral AI",
             "url": "https://docs.mistral.ai/",
@@ -909,7 +921,7 @@
         "gated": "auto",
         "license": "Apache 2.0",
         "logo": "https://docs.mistral.ai/img/logo.svg",
-        "size_of_model_in_mb": 28127.4,
+        "size_of_model_in_mb": 28127.38,
         "author": {
             "name": "Mistral AI",
             "url": "https://docs.mistral.ai/",
@@ -964,6 +976,7 @@
         "gated": "auto",
         "license": "Apache 2.0",
         "logo": "https://docs.mistral.ai/img/logo.svg",
+        "size_of_model_in_mb": 46747.18,
         "author": {
             "name": "Mistral AI",
             "url": "https://docs.mistral.ai/",
@@ -990,6 +1003,7 @@
         "gated": "auto",
         "license": "Apache 2.0",
         "logo": "https://docs.mistral.ai/img/logo.svg",
+        "size_of_model_in_mb": 46747.18,
         "author": {
             "name": "Mistral AI",
             "url": "https://docs.mistral.ai/",
@@ -1016,6 +1030,7 @@
         "gated": false,
         "license": "Apache 2.0",
         "logo": "https://falconllm.tii.ae/assets/images/logo.svg",
+        "size_of_model_in_mb": 27534.19,
         "author": {
             "name": "TII",
             "url": "https://falconllm.tii.ae/index.html",
@@ -1042,6 +1057,7 @@
         "gated": false,
         "license": "Apache 2.0",
         "logo": "https://falconllm.tii.ae/assets/images/logo.svg",
+        "size_of_model_in_mb": 27534.19,
         "author": {
             "name": "TII",
             "url": "https://falconllm.tii.ae/index.html",
@@ -1069,7 +1085,7 @@
         "gated": "manual",
         "license": "llama3.2",
         "logo": "",
-        "size_of_model_in_mb": 671.8,
+        "size_of_model_in_mb": 671.82,
         "author": {
             "name": "mlx-community",
             "url": "https://huggingface.co/mlx-community/Llama-3.2-1B-Instruct-4bit",
@@ -1096,7 +1112,7 @@
         "license": "Gemma",
         "gated": "manual",
         "logo": "https://storage.googleapis.com/gweb-uniblog-publish-prod/images/gemma-header.width-1200.format-webp.webp",
-        "size_of_model_in_mb": 17648.0,
+        "size_of_model_in_mb": 17648.05,
         "author": {
             "name": "Google",
             "url": "https://huggingface.co/google/gemma-2-9b-it",
@@ -1123,6 +1139,7 @@
         "transformers_version": "4.42.0.dev0",
         "license": "Gemma",
         "logo": "https://storage.googleapis.com/gweb-uniblog-publish-prod/images/gemma-header.width-1200.format-webp.webp",
+        "size_of_model_in_mb": 51952.53,
         "author": {
             "name": "Google",
             "url": "https://huggingface.co/google/gemma-2-27b-it",
@@ -1149,6 +1166,7 @@
         "license": "Gemma",
         "gated": "manual",
         "logo": "https://storage.googleapis.com/gweb-uniblog-publish-prod/images/gemma-header.width-1200.format-webp.webp",
+        "size_of_model_in_mb": 5007.32,
         "author": {
             "name": "Google",
             "url": "https://huggingface.co/google/gemma-2-2b-it",
@@ -1176,6 +1194,7 @@
         "gated": false,
         "license": "Apache 2.0",
         "logo": "https://ai.google/static/images/share.png",
+        "size_of_model_in_mb": 589.56,
         "author": {
             "name": "Google",
             "url": "https://github.com/google-research/FLAN",
@@ -1203,7 +1222,7 @@
         "gated": false,
         "license": "apache-2.0",
         "logo": "https://cdn-avatars.huggingface.co/v1/production/uploads/62088594a5943c8a8fc94560/y5SEKiE8TkjBKs9xfjCx5.png",
-        "size_of_model_in_mb": 4096.9,
+        "size_of_model_in_mb": 4095.28,
         "author": {
             "name": "mlx-community",
             "url": "https://huggingface.co/mlx-community/Qwen2.5-7B-Instruct-4bit",
@@ -1231,6 +1250,7 @@
         "gated": false,
         "license": "Apache 2.0",
         "logo": "https://cdn-avatars.huggingface.co/v1/production/uploads/62088594a5943c8a8fc94560/y5SEKiE8TkjBKs9xfjCx5.png",
+        "size_of_model_in_mb": 14535.05,
         "author": {
             "name": "Alibaba Cloud",
             "url": "",
@@ -1258,6 +1278,7 @@
         "gated": false,
         "license": "Apache 2.0",
         "logo": "https://cdn-avatars.huggingface.co/v1/production/uploads/62088594a5943c8a8fc94560/y5SEKiE8TkjBKs9xfjCx5.png",
+        "size_of_model_in_mb": 14535.05,
         "author": {
             "name": "Alibaba Cloud",
             "url": "",
@@ -1284,7 +1305,7 @@
         "gated": false,
         "license": "Apache 2.0",
         "logo": "https://cdn-avatars.huggingface.co/v1/production/uploads/62088594a5943c8a8fc94560/y5SEKiE8TkjBKs9xfjCx5.png",
-        "size_of_model_in_mb": 2955.4,
+        "size_of_model_in_mb": 2953.79,
         "author": {
             "name": "Alibaba Cloud",
             "url": "",
@@ -1311,6 +1332,7 @@
         "gated": false,
         "license": "CC-BY-NC-4.0",
         "logo": "https://cdn-uploads.huggingface.co/production/uploads/63111b2d88942700629f5771/xCWGByXr8YNwGxKVh_x9H.png",
+        "size_of_model_in_mb": 40500.27,
         "author": {
             "name": "AbacusAI",
             "url": "",
@@ -1338,7 +1360,7 @@
         "gated": false,
         "license": "apache-2.0",
         "logo": "https://cdn-avatars.huggingface.co/v1/production/uploads/62088594a5943c8a8fc94560/y5SEKiE8TkjBKs9xfjCx5.png",
-        "size_of_model_in_mb": 8096.9,
+        "size_of_model_in_mb": 7934.02,
         "author": {
             "name": "mlx-community",
             "url": "https://huggingface.co/mlx-community/Qwen2.5-Coder-14B-Instruct-4bit",
@@ -1365,7 +1387,7 @@
         "gated": false,
         "license": "Non commercial license",
         "logo": "https://starling.cs.berkeley.edu/starling.png",
-        "size_of_model_in_mb": 13814.8,
+        "size_of_model_in_mb": 13814.78,
         "author": {
             "name": "Berkeley",
             "url": "https://starling.cs.berkeley.edu/",
@@ -1393,7 +1415,7 @@
         "gated": false,
         "license": "apache-2.0",
         "logo": "https://cdn-avatars.huggingface.co/v1/production/uploads/62088594a5943c8a8fc94560/y5SEKiE8TkjBKs9xfjCx5.png",
-        "size_of_model_in_mb": 16096.9,
+        "size_of_model_in_mb": 14535.06,
         "author": {
             "name": "Qwen",
             "url": "https://huggingface.co/Qwen/Qwen2.5-Coder-7B-Instruct",
@@ -1420,7 +1442,7 @@
         "gated": false,
         "license": "Apache 2.0",
         "logo": "https://lmsys.org/images/blog/vicuna/vicuna.jpeg",
-        "size_of_model_in_mb": 6396.3,
+        "size_of_model_in_mb": 6395.57,
         "author": {
             "name": "LMSYS Org",
             "url": "https://lmsys.org/",
@@ -1448,7 +1470,7 @@
         "gated": false,
         "license": "MIT",
         "logo": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRTwt9xAK7ih0gG74r3XLTpbiWmcd-9PTwXAQ&usqp=CAU",
-        "size_of_model_in_mb": 5305.2,
+        "size_of_model_in_mb": 5304.69,
         "author": {
             "name": "Microsoft",
             "url": "https://www.microsoft.com/en-us/research/blog/phi-2-the-surprising-power-of-small-language-models/",
@@ -1502,6 +1524,7 @@
         "gated": false,
         "license": "Apache 2.0",
         "logo": "https://pbs.twimg.com/profile_images/1722061115453272064/dydqIH88_400x400.jpg",
+        "size_of_model_in_mb": 89080.94,
         "author": {
             "name": "Nous Research",
             "url": "https://nousresearch.com/",
@@ -1528,6 +1551,7 @@
         "gated": "auto",
         "license": "bigcode-openrail-m",
         "logo": "https://www.bigcode-project.org/flow.png",
+        "size_of_model_in_mb": 120695.78,
         "author": {
             "name": "Big Code",
             "url": "https://www.bigcode-project.org/",
@@ -1555,7 +1579,7 @@
         "gated": false,
         "license": "apache-2.0",
         "logo": "https://cdn-avatars.huggingface.co/v1/production/uploads/62088594a5943c8a8fc94560/y5SEKiE8TkjBKs9xfjCx5.png",
-        "size_of_model_in_mb": 16096.9,
+        "size_of_model_in_mb": 14535.06,
         "author": {
             "name": "Qwen",
             "url": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct",
@@ -1583,6 +1607,7 @@
         "gated": "auto",
         "license": "Apache 2.0",
         "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
+        "size_of_model_in_mb": 4066.62,
         "author": {
             "name": "Mistral AI",
             "url": "https://docs.mistral.ai/",
@@ -1609,7 +1634,7 @@
         "gated": "auto",
         "license": "Apache 2.0",
         "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
-        "size_of_model_in_mb": 772.2,
+        "size_of_model_in_mb": 772.23,
         "author": {
             "name": "",
             "url": "",
@@ -1637,7 +1662,7 @@
         "gated": "auto",
         "license": "Apache 2.0",
         "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
-        "size_of_model_in_mb": 4067.1,
+        "size_of_model_in_mb": 4067.14,
         "author": {
             "name": "",
             "url": "",
@@ -1665,6 +1690,7 @@
         "gated": "auto",
         "license": "Apache 2.0",
         "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
+        "size_of_model_in_mb": 13813.07,
         "author": {
             "name": "",
             "url": "",
@@ -1692,6 +1718,7 @@
         "gated": "auto",
         "license": "Apache 2.0",
         "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
+        "size_of_model_in_mb": 12853.07,
         "author": {
             "name": "",
             "url": "",
@@ -1719,7 +1746,7 @@
         "gated": "auto",
         "license": "Apache 2.0",
         "logo": "https://ml-explore.github.io/mlx/build/html/_static/mlx_logo.png",
-        "size_of_model_in_mb": 3795.5,
+        "size_of_model_in_mb": 3795.51,
         "author": {
             "name": "",
             "url": "",
@@ -1802,7 +1829,7 @@
         "gated": "auto",
         "license": "MIT",
         "logo": "https://blogs.microsoft.com/wp-content/uploads/prod/2012/08/8867.Microsoft_5F00_Logo_2D00_for_2D00_screen.jpg",
-        "size_of_model_in_mb": 7290.5,
+        "size_of_model_in_mb": 7290.59,
         "author": {
             "name": "Microsoft",
             "url": "https://huggingface.co/papers/2404.14219",
@@ -1829,7 +1856,7 @@
         "gated": "auto",
         "license": "MIT",
         "logo": "https://blogs.microsoft.com/wp-content/uploads/prod/2012/08/8867.Microsoft_5F00_Logo_2D00_for_2D00_screen.jpg",
-        "size_of_model_in_mb": 7290.5,
+        "size_of_model_in_mb": 7290.58,
         "author": {
             "name": "Microsoft",
             "url": "https://huggingface.co/papers/2404.14219",
@@ -1856,7 +1883,7 @@
         "gated": "auto",
         "license": "MIT",
         "logo": "https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha/resolve/main/thumbnail.png",
-        "size_of_model_in_mb": 27628.1,
+        "size_of_model_in_mb": 27627.48,
         "author": {
             "name": "HuggingFace H4",
             "url": "https://huggingface.co/HuggingFaceH4/zephyr-7b-alpha",
@@ -1883,7 +1910,7 @@
         "gated": false,
         "license": "llama3.1",
         "logo": "https://pbs.twimg.com/profile_images/1669714060269461506/9LY7fML7_400x400.jpg",
-        "size_of_model_in_mb": 0,
+        "size_of_model_in_mb": 269150.26,
         "author": {
             "name": "mattshumer",
             "url": "https://huggingface.co/mattshumer/Reflection-Llama-3.1-70B",
@@ -1910,7 +1937,7 @@
         "gated": false,
         "license": "Apache 2.0",
         "logo": "https://eu-images.contentstack.com/v3/assets/blt6b0f74e5591baa03/bltf495f117670d330a/65985db56b9c04040d633f56/image.png?width=700&auto=webp&quality=80&disable=upscale",
-        "size_of_model_in_mb": 2100.4,
+        "size_of_model_in_mb": 2100.43,
         "author": {
             "name": "TinyLlama",
             "url": "https://github.com/jzhang38/TinyLlama",
@@ -1938,7 +1965,7 @@
         "gated": false,
         "license": "other",
         "logo": "https://raw.githubusercontent.com/OpenCoder-llm/opencoder-llm.github.io/refs/heads/main/static/images/opencoder_icon.jpg",
-        "size_of_model_in_mb": 16000.0,
+        "size_of_model_in_mb": 14824.05,
         "author": {
             "name": "infly",
             "url": "https://huggingface.co/infly/OpenCoder-8B-Instruct",
