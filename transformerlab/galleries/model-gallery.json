@@ -349,6 +349,7 @@
     {
         "uniqueID": "openlm-research/open_llama_3b_v2",
         "name": "Open LLama 3b v2",
+        "archived": true,
         "description": " we are releasing our public preview of OpenLLaMA, a permissively licensed open source reproduction of Meta AI\u2019s LLaMA. We are releasing a series of 3B, 7B and 13B models trained on different data mixtures. Our model weights can serve as the drop in replacement of LLaMA in existing implementations.",
         "parameters": "3B",
         "context": "4k",
@@ -376,6 +377,7 @@
     {
         "uniqueID": "openlm-research/open_llama_7b_v2",
         "name": "Open LLama 7b v2",
+        "archived": true,
         "description": " we are releasing our public preview of OpenLLaMA, a permissively licensed open source reproduction of Meta AI\u2019s LLaMA. We are releasing a series of 3B, 7B and 13B models trained on different data mixtures. Our model weights can serve as the drop in replacement of LLaMA in existing implementations.",
         "parameters": "7B",
         "context": "4k",
@@ -1293,6 +1295,7 @@
     {
         "uniqueID": "Qwen/Qwen2-1.5B-Instruct",
         "name": "Qwen2 1.5B Instruct",
+        "archived": true,
         "description": "Qwen2 has generally surpassed most opensource models and demonstrated competitiveness against proprietary models across a series of benchmarks targeting for language understanding, language generation, multilingual capability, coding, mathematics, reasoning, etc. This repo contains the instruction-tuned 1.5B Qwen2 model.",
         "parameters": "1.5B",
         "context": "32768",
@@ -1320,6 +1323,7 @@
     {
         "uniqueID": "mlx-community/Liberated-Qwen1.5-72B-4bit",
         "name": "Liberated Qwen1.5 72B",
+        "archived": true,
         "description": "Brought to you by AbacusAI and Eric Hartford. This model is based on Qwen/Qwen1.5-72B and subject to the tongyi-qianwen license. Liberated consists of open source datasets, including SystemChat a new dataset I created, designed to teach the model compliance to the system prompt, over long multiturn conversations, even with unusual or mechanical system prompts. These are tasks that Open Source Models have been lacking in thus far. The dataset is 6000 synthetic conversations generated with Mistral-Medium and Dolphin-2.7-mixtral-8x7b. There are no guardrails or censorship added to the dataset. You are advised to implement your own alignment layer before exposing the model as a service. Please read my blog post about uncensored models. https://erichartford.com/uncensored-models.",
         "parameters": "72B",
         "context": "32768",
