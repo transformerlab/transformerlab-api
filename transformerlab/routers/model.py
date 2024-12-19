@@ -418,7 +418,7 @@ async def download_huggingface_model(hugging_face_id: str, model_details: str = 
         args += ["--allow_patterns", allow_patterns_json]
 
     try:
-        process = await shared.async_run_python_script_and_update_status(python_script=args, job_id=job_id, begin_string="Model Download Progress")
+        process = await shared.async_run_python_script_and_update_status(python_script=args, job_id=job_id, begin_string="Fetching")
         exitcode = process.returncode
 
         if (exitcode == 77):
