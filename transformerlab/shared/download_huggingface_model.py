@@ -199,8 +199,13 @@ def check_disk_size(model_is_downloaded: Event):
 
         db = sqlite3.connect(
             f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
-        db.execute(
-            "UPDATE job SET job_data=json_set(job_data, '$.downloaded', ?),  progress=? WHERE id=?", (cache_size_growth, progress, job_id))
+        try:
+            db.execute(
+                "UPDATE job SET job_data=json_set(job_data, '$.downloaded', ?),  progress=? WHERE id=?", (cache_size_growth, progress, job_id))
+        except sqlite3.OperationalError:
+            # Bit of a hack: We were having DB lock errors and this update isn't crucial
+            # So for now just skip if something goes wrong.
+            print(f"Failed to update download progress in DB ({progress}%). Skipping.")
         db.close()
 
         print(f"flag:  {model_is_downloaded.is_set()}")
