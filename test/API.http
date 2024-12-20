@@ -9,10 +9,19 @@ Content-Type: application/json
   "prompt": "Translate the ",
   "temperature": 0,
   "n": 1,
-    "logprobs": 1,
+    "logprobs": true,
     "echo": true,
     "max_tokens": 8,
     "top_p": 0.95
+}
+
+###
+POST http://localhost:21002/worker_generate
+Content-Type: application/json
+
+{
+  "prompt": "Translate the ",
+  "logprobs": true
 }
 
 ###

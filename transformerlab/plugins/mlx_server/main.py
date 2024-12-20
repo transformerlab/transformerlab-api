@@ -195,6 +195,8 @@ class MLXWorker(BaseModelWorker):
         best_of = params.get("best_of", None)
         include_logprobs = params.get("logprobs", None)
 
+        print("logprobs: ", include_logprobs)
+
         # Handle stop_str
         stop = set()
         if isinstance(stop_str, str) and stop_str != "":
@@ -223,6 +225,8 @@ class MLXWorker(BaseModelWorker):
 
         iterator = await run_in_threadpool(generate_step, context_mlx, self.mlx_model, temperature)
 
+        cummulative_logprobs = []
+
         for i in range(max_new_tokens):
             (token, logprobs) = await run_in_threadpool(next, iterator)
             if token == self.tokenizer.eos_token_id:
@@ -238,6 +242,7 @@ class MLXWorker(BaseModelWorker):
                 logprobs = self._process_logprobs(
                     self.tokenizer, response, top_k)
                 # print("logprobs: ", logprobs)
+                cummulative_logprobs.append(logprobs)
             else:
                 logprobs = None
 
@@ -281,8 +286,7 @@ class MLXWorker(BaseModelWorker):
             "error_code": 0,
             "usage": {
             },
-            "cumulative_logprob": [
-            ],
+            "logprobs": cummulative_logprobs,
             "finish_reason": finish_reason
         }
         yield (json.dumps(obj={**ret, **{"finish_reason": None}}) + "\0").encode()
