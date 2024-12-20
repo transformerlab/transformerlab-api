@@ -92,7 +92,7 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
     downloading a model.
 
     This function runs a python script and updates the status of the job in the database
-    to RUNNING when the python script prints begin_string to stderr
+    to IN_PROGRESS when the python script prints begin_string to stderr
 
     The FastAPI worker uses stderr, not stdout"""
 
@@ -108,7 +108,7 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
             print(">> " + text)
             if begin_string in text:
                 print(f"Job {job_id} now in progress!")
-                await db.job_update_status(job_id=job_id, status="RUNNING")
+                await db.job_update_status(job_id=job_id, status="IN_PROGRESS")
 
     await process.wait()
 
