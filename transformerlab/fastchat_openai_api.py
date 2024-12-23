@@ -744,7 +744,16 @@ async def generate_completion_stream(payload: Dict[str, Any]):
                     if not chunk:
                         continue
                     # print(chunk.decode())
-                    data = json.loads(chunk.decode())
+                    data = None
+                    try:
+                        data = json.loads(chunk.decode())
+                    except Exception as e:
+                        # Catching this exception is a hack -- we do it because with log probs turned on,
+                        # the response gets really long, more than 63892 bytes, and the stream gets cut off.
+                        # This is a workaround to prevent the stream from breaking. But we should fix
+                        # the underlying issue in the worker.
+                        print('Caught Exception in OpenAI API: ', e)
+                        continue
                     yield data
 
 
