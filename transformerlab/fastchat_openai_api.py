@@ -647,6 +647,44 @@ async def create_completion(request: CompletionRequest):
         )
 
 
+def convert_to_openai_format(token_data):
+    """
+    Convert custom logprobs format to OpenAI API format.
+
+    Input format:
+    {
+        'token': str,
+        'logprob': float,
+        'bytes': List[int],
+        'top_logprobs': List[Dict]
+    }
+
+    Output format:
+    {
+        'text_offset': List[int],
+        'token_logprobs': List[float],
+        'tokens': List[str],
+        'top_logprobs': List[Dict[str, float]]
+    }
+    """
+    # Initialize OpenAI format
+    openai_format = {
+        'text_offset': [0],  # Assuming this is the first token
+        'token_logprobs': [token_data['logprob']],
+        'tokens': [token_data['token']],
+        'top_logprobs': []
+    }
+
+    # Convert top_logprobs array to OpenAI's dictionary format
+    top_logprobs_dict = {}
+    for item in token_data['top_logprobs']:
+        top_logprobs_dict[item['token']] = item['logprob']
+
+    openai_format['top_logprobs'].append(top_logprobs_dict)
+
+    return openai_format
+
+
 async def generate_completion_stream_generator(request: CompletionRequest, n: int):
     model_name = request.model
     id = f"cmpl-{shortuuid.random()}"
@@ -685,11 +723,26 @@ async def generate_completion_stream_generator(request: CompletionRequest, n: in
                 decoded_unicode = content["text"].replace("\ufffd", "")
                 delta_text = decoded_unicode[len(previous_text):]
                 previous_text = decoded_unicode
+
+                logprob_formatted = {
+                    "text_offset": [],
+                    "token_logprobs": [],
+                    "tokens": [],
+                    "top_logprobs": [],
+                }
+
+                logprobs = content.get("logprobs", None)
+                if logprobs is not None:
+                    logprob_formatted = convert_to_openai_format(logprobs)
+                    logprob_formatted['text_offset'] = [i]
+
+                # print(logprob_formatted)
+
                 # todo: index is not apparent
                 choice_data = {
                     "index": i,
                     "text": delta_text,
-                    "logprobs": content.get("logprobs", None),
+                    "logprobs": logprob_formatted,
                     "finish_reason": content.get("finish_reason", None),
                 }
                 chunk = {
