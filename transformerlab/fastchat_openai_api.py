@@ -623,19 +623,32 @@ async def create_completion(request: CompletionRequest):
         except Exception as e:
             return create_error_response(ErrorCode.INTERNAL_ERROR, str(e))
 
+        # In "content" there is an array of logprobs, we need to collapse that so that
+        # logprobs = [{token: 'xx', ... }, {token: 'yy', ... }, ...]
+        # becomes:
+        # logprobs = { "tokens": ['xx', 'yy', ...], "top_logprobs": [{ 'xx': 0.1, 'yy': 0.2, ... }, ...] }
+
         choices = []
         usage = UsageInfo()
         for i, content in enumerate(all_tasks):
             if content["error_code"] != 0:
                 return create_error_response(content["error_code"], content["text"])
+
+            logprobs = content.get("logprobs", None)
+            logprob_formatted = None
+            if logprobs is not None:
+                logprob_formatted = convert_group_of_logprobs_to_openai_format(
+                    logprobs)
+
             choices.append(
                 {
                     "index": i,
                     "text": content["text"],
-                    "logprobs": content.get("logprobs", None),
+                    "logprobs": logprob_formatted,
                     "finish_reason": content.get("finish_reason", "stop"),
                 }
             )
+
             task_usage = UsageInfo.parse_obj(content["usage"])
             for usage_key, usage_value in task_usage.dict().items():
                 setattr(usage, usage_key, getattr(
@@ -681,6 +694,59 @@ def convert_to_openai_format(token_data):
         top_logprobs_dict[item['token']] = item['logprob']
 
     openai_format['top_logprobs'].append(top_logprobs_dict)
+
+    return openai_format
+
+
+def convert_group_of_logprobs_to_openai_format(logprobs: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Convert custom logprobs format to OpenAI API format.
+
+    Input format:
+    [
+        {
+            'token': str,
+            'logprob': float,
+            'bytes': List[int],
+            'top_logprobs': List[Dict]
+        },
+        ...
+    ]
+
+    Output format:
+    {
+        'text_offset': List[int],
+        'token_logprobs': List[float],
+        'tokens': List[str],
+        'top_logprobs': List[Dict[str, float]]
+    }
+    """
+    # Initialize OpenAI format
+    openai_format = {
+        'text_offset': [],
+        'token_logprobs': [],
+        'tokens': [],
+        'top_logprobs': []
+    }
+
+    offset_counter = 0
+
+    for token_data in logprobs:
+        # Append token logprobs
+        openai_format['token_logprobs'].append(token_data['logprob'])
+
+        # Append token
+        openai_format['tokens'].append(token_data['token'])
+
+        # Convert top_logprobs array to OpenAI's dictionary format
+        top_logprobs_dict = {}
+        for item in token_data['top_logprobs']:
+            top_logprobs_dict[item['token']] = item['logprob']
+
+        openai_format['top_logprobs'].append(top_logprobs_dict)
+
+        openai_format['text_offset'].append(offset_counter)
+        offset_counter += len(token_data['token'])
 
     return openai_format
 
