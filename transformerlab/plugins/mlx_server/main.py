@@ -223,7 +223,8 @@ class MLXWorker(BaseModelWorker):
 
         finish_reason = "length"
 
-        iterator = await run_in_threadpool(generate_step, context_mlx, self.mlx_model, temperature)
+        iterator = await run_in_threadpool(generate_step, context_mlx, self.mlx_model, 
+                                           temp=temperature, top_p=top_p)
 
         cummulative_logprobs = []
 
