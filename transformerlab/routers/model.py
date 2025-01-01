@@ -90,7 +90,6 @@ def get_huggingface_model_size(model_id: str, allow_patterns: list = []):
     return download_size
 
 
-
 @router.get("/model/gallery")
 async def model_gallery_list_all():
     gallery = galleries.get_models_gallery()
@@ -118,7 +117,8 @@ async def model_gallery_list_all():
 
         # Application uses the new flag to decide whether to display a badge
         # TODO: Probably shouldn't be doing > string comparison for dates
-        model['new'] = True if ( model['added'] > new_model_cutoff_date ) else False
+        model['new'] = True if (
+            model['added'] > new_model_cutoff_date) else False
 
     return gallery
 
@@ -146,7 +146,8 @@ async def model_gallery_update_sizes():
                 "*.npz",
                 "*.bin"
             ]
-            download_size = get_huggingface_model_size(model['uniqueID'], model.get("allow_patterns", default_allow_patterns))
+            download_size = get_huggingface_model_size(
+                model['uniqueID'], model.get("allow_patterns", default_allow_patterns))
         except Exception:
             download_size = -1
         try:
@@ -283,6 +284,13 @@ async def login_to_huggingface():
     from huggingface_hub import login
     token = await db.config_get("HuggingfaceUserAccessToken")
 
+    # First just try to login without checking the token in the DB:
+    try:
+        login()
+        return {"message": "OK"}
+    except:
+        pass
+
     if token is None:
         return {"message": "HuggingfaceUserAccessToken not set"}
 
@@ -301,7 +309,8 @@ async def login_to_huggingface():
 @router.get(path="/model/download_size")
 def get_model_download_size(model_id: str, allow_patterns: list = []):
     try:
-        download_size_in_bytes = get_huggingface_model_size(model_id, allow_patterns)
+        download_size_in_bytes = get_huggingface_model_size(
+            model_id, allow_patterns)
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
         return {"status": "error", "message": error_msg}
