@@ -191,12 +191,9 @@ with subprocess.Popen(
 os.system(
     f"rm -rf {project_name}/autotrain_data")
 
-# Move the model to the TransformerLab directory, as well as rename it
+# Move the model to the TransformerLab directory
 os.system(
-    f"mv {project_name} {output_model_name}")
-
-os.system(
-    f"mv {output_model_name} {config['adaptor_output_dir']}/")
+    f"mv {project_name} {config['adaptor_output_dir']}/")
 
 
 print("Finished training.")
