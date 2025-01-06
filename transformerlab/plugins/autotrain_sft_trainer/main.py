@@ -40,7 +40,8 @@ num_train_epochs = config.get("num_train_epochs", 4)
 # Generate a model name using the original model and the passed adaptor
 adaptor_name = config.get('adaptor_name', "default")
 input_model_no_author = config["model_name"].split("/")[-1]
-output_model_name = f"{input_model_no_author}-{adaptor_name}"
+
+project_name = f"{input_model_no_author}-{adaptor_name}".replace(".","")
 
 # Get the dataset
 try:
@@ -113,7 +114,7 @@ popen_command = ["autotrain", "llm",
                  "--peft",
                  "--merge-adapter",
                  "--auto_find_batch_size",  # automatically find optimal batch size
-                 "--project-name", output_model_name
+                 "--project-name", project_name 
                  ]
 
 print("Running command:")
@@ -184,13 +185,14 @@ with subprocess.Popen(
         print(line, end="", flush=True)
 
 # Clean up
-# Autotrain outputs its data in a directory named <output_model_name>
-# We don't need to keep the arrow-formatted data Autotrain uses
+# Autotrain outputs its data in a directory named <project_name>
+# We don't need to keep the arrow-formatted data Autotrain uses, so we delete it
 os.system(
-    f"rm -rf {output_model_name}/autotrain_data")
+    f"rm -rf {project_name}/autotrain_data")
 
 # Move the model to the TransformerLab directory
 os.system(
-    f"mv {output_model_name} {WORKSPACE_DIR}/models/")
+    f"mv {project_name} {config['adaptor_output_dir']}/")
+
 
 print("Finished training.")
