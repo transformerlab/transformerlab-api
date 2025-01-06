@@ -41,8 +41,7 @@ num_train_epochs = config.get("num_train_epochs", 4)
 adaptor_name = config.get('adaptor_name', "default")
 input_model_no_author = config["model_name"].split("/")[-1]
 
-output_model_name = f"{input_model_no_author}-{adaptor_name}"
-project_name = output_model_name.replace(".","")
+project_name = f"{input_model_no_author}-{adaptor_name}".replace(".","")
 
 # Get the dataset
 try:
@@ -186,8 +185,8 @@ with subprocess.Popen(
         print(line, end="", flush=True)
 
 # Clean up
-# Autotrain outputs its data in a directory named <output_model_name>
-# We don't need to keep the arrow-formatted data Autotrain uses
+# Autotrain outputs its data in a directory named <project_name>
+# We don't need to keep the arrow-formatted data Autotrain uses, so we delete it
 os.system(
     f"rm -rf {project_name}/autotrain_data")
 
