@@ -134,7 +134,8 @@ db.execute(
 )
 db.commit()
 
-max_seq_length = config["maximum_sequence_length"]  # max sequence length for model and packing of the dataset
+max_seq_length = int(config["maximum_sequence_length"])  # max sequence length for model and packing of the dataset
+print(max_seq_length)
 
 args = SFTConfig(
     output_dir=output_dir,
@@ -175,11 +176,9 @@ class ProgressTableUpdateCallback(TrainerCallback):
             # Write to jobs table in database, updating the
             # progress column:
             job.update_progress(progress)
-
-            #changed to let the trainer handle the stopping of the job instead of the table, as the table was prematurely stopping the job
-            #if job.should_stop:
-            #    control.should_training_stop = True
-            #    return control
+            if job.should_stop:
+                control.should_training_stop = True
+                return control
 
         return
 
