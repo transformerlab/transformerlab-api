@@ -6,7 +6,7 @@ from random import randrange
 import sqlite3
 from string import Template
 from datasets import load_dataset
-from trl import SFTTrainer
+from trl import SFTTrainer, SFTConfig
 from transformers import TrainingArguments
 from peft import LoraConfig, prepare_model_for_kbit_training, get_peft_model
 import argparse
@@ -135,7 +135,9 @@ db.execute(
 )
 db.commit()
 
-args = TrainingArguments(
+max_seq_length = config["maximum_sequence_length"]  # max sequence length for model and packing of the dataset
+
+args = SFTConfig(
     output_dir=output_dir,
     num_train_epochs=int(config['num_train_epochs']),
     per_device_train_batch_size=6 if use_flash_attention else 4,
@@ -150,11 +152,12 @@ args = TrainingArguments(
     max_grad_norm=0.3,
     warmup_ratio=0.03,
     lr_scheduler_type="constant",
+    max_seq_length=max_seq_length,
     disable_tqdm=False,  # disable tqdm since with packing values are in correct
+    packing=True,
     report_to=["tensorboard"],
 )
 
-max_seq_length = 2048  # max sequence length for model and packing of the dataset
 
 
 class ProgressTableUpdateCallback(TrainerCallback):
@@ -173,9 +176,11 @@ class ProgressTableUpdateCallback(TrainerCallback):
             # Write to jobs table in database, updating the
             # progress column:
             job.update_progress(progress)
-            if job.should_stop:
-                control.should_training_stop = True
-                return control
+
+            #changed to let the trainer handle the stopping of the job instead of the table, as the table was prematurely stopping the job
+            #if job.should_stop:
+            #    control.should_training_stop = True
+            #    return control
 
         return
 
@@ -184,9 +189,7 @@ trainer = SFTTrainer(
     model=model,
     train_dataset=dataset,
     peft_config=peft_config,
-    max_seq_length=max_seq_length,
     tokenizer=tokenizer,
-    packing=True,
     formatting_func=format_instruction,
     args=args,
     callbacks=[ProgressTableUpdateCallback]
