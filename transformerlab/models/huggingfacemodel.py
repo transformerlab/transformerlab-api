@@ -164,7 +164,7 @@ def get_model_details_from_huggingface(hugging_face_id):
         # Oh except we list MLX as an architecture but HuggingFace doesn't
         # For MLX it is sometimes stored in library_name
         library_name = getattr(hf_model_info, "library_name", "")
-        if (library_name.lower() == "mlx"):
+        if (library_name and library_name.lower() == "mlx"):
             architecture = "MLX"
 
         # And sometimes it is stored in the tags for the repo
