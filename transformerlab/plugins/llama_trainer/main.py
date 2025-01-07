@@ -7,7 +7,6 @@ import sqlite3
 from string import Template
 from datasets import load_dataset
 from trl import SFTTrainer, SFTConfig
-from transformers import TrainingArguments
 from peft import LoraConfig, prepare_model_for_kbit_training, get_peft_model
 import argparse
 import torch
