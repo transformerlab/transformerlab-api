@@ -97,10 +97,11 @@ async def get_computer_information():
 
             # Certain versions of the NVML library on WSL return a byte string,
             # and this creates a utf error. This is a workaround:
-            try:
-                info["name"] = nvmlDeviceGetName(handle)
-            except UnicodeDecodeError as e:
-                info["name"] = "unknown"
+            device_name = nvmlDeviceGetName(handle)
+            if (device_name.hasattr('decode')):
+                device_name = device_name.decode()
+
+            info["name"] = device_name
 
             memory = nvmlDeviceGetMemoryInfo(handle)
             info["total_memory"] = memory.total
