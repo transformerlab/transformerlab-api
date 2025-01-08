@@ -53,11 +53,11 @@
             "author": "",
             "name": "Dialogue Summarizing",
             "version": "1.0",
-            "description": "Trains Gemma base model to summarize conversations."
+            "description": "Trains TinyLlama to summarize conversations."
         },
         "model": {
-            "name": "google/gemma-2b",
-            "path": "google/gemma-2b"
+            "name": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+            "path": "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
         },
         "datasets": {
             "name": "samsum",
@@ -65,9 +65,9 @@
         },
         "training": {
             "type": "LoRA",
-            "plugin": "sft_llama_factory",
-            "formatting_template": "",
-            "config_json": "{\"template_name\":\"Dialogue Summarizing\",\"plugin_name\":\"sft_llama_factory\",\"model_name\":\"google/gemma-2b\",\"model_architecture\":\"GemmaForCausalLM\",\"instruction_template\":\"Summarize the following text:\",\"input_template\":\"{{dialogue}}\",\"output_template\":\"{{summary}}\",\"dataset_name\":\"samsum\",\"maximum_sequence_length\":\"2048\",\"learning_rate\":\"0.001\",\"num_train_epochs\":\"2\",\"max_steps\":\"-1\",\"lora_r\":\"16\",\"lora_alpha\":\"32\",\"lora_dropout\":\"0.05\",\"adaptor_name\":\"summarizer\"}"
+            "plugin": "llama_trainer",
+            "formatting_template": "Instruction: Summarize the Following\nPrompt: {{dialogue}}\nGeneration: {{summary}}",
+            "config_json": "{\"template_name\": \"Dialogue Summarizer\", \"plugin_name\": \"llama_trainer\", \"model_name\": \"TinyLlama/TinyLlama-1.1B-Chat-v1.0\", \"model_architecture\": \"LlamaForCausalLM\", \"formatting_template\": \"Instruction: Summarize the Following\\nPrompt: {{dialogue}}\\nGeneration: {{summary}}\", \"dataset_name\": \"samsum\", \"maximum_sequence_length\": \"2048\", \"learning_rate\": \"0.00005\", \"num_train_epochs\": \"1\", \"max_steps\": \"-1\", \"lora_r\": \"32\", \"lora_alpha\": \"64\", \"lora_dropout\": \"0.05\", \"adaptor_name\": \"Summarizer\"}"
         },
         "test": {}
     },
