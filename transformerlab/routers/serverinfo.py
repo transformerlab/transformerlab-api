@@ -90,6 +90,7 @@ async def get_computer_information():
 
     try:
         deviceCount = nvmlDeviceGetCount()
+        # print('device count: ', deviceCount)
         for i in range(deviceCount):
             info = {}
 
@@ -98,8 +99,11 @@ async def get_computer_information():
             # Certain versions of the NVML library on WSL return a byte string,
             # and this creates a utf error. This is a workaround:
             device_name = nvmlDeviceGetName(handle)
-            if (device_name.hasattr('decode')):
-                device_name = device_name.decode()
+            # print('device name: ', device_name)
+
+            # check if device_name is a byte string, if so convert to string:
+            if (isinstance(device_name, bytes)):
+                device_name = device_name.decode()     
 
             info["name"] = device_name
 
@@ -113,7 +117,9 @@ async def get_computer_information():
 
             # info["temp"] = nvmlDeviceGetTemperature(handle)
             g.append(info)
-    except:  # noqa: E722 (TODO: what are the exceptions to chat here?)
+    except Exception as e:  # Catch all exceptions and print them
+        print(f"Error retrieving GPU information: {e}")
+
         g.append(
             {
                 "name": "cpu",
