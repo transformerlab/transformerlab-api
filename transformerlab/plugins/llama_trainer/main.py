@@ -6,8 +6,7 @@ from random import randrange
 import sqlite3
 from string import Template
 from datasets import load_dataset
-from trl import SFTTrainer
-from transformers import TrainingArguments
+from trl import SFTTrainer, SFTConfig
 from peft import LoraConfig, prepare_model_for_kbit_training, get_peft_model
 import argparse
 import torch
@@ -135,7 +134,10 @@ db.execute(
 )
 db.commit()
 
-args = TrainingArguments(
+max_seq_length = int(config["maximum_sequence_length"])  # max sequence length for model and packing of the dataset
+print(max_seq_length)
+
+args = SFTConfig(
     output_dir=output_dir,
     num_train_epochs=int(config['num_train_epochs']),
     per_device_train_batch_size=6 if use_flash_attention else 4,
@@ -150,11 +152,12 @@ args = TrainingArguments(
     max_grad_norm=0.3,
     warmup_ratio=0.03,
     lr_scheduler_type="constant",
+    max_seq_length=max_seq_length,
     disable_tqdm=False,  # disable tqdm since with packing values are in correct
+    packing=True,
     report_to=["tensorboard"],
 )
 
-max_seq_length = 2048  # max sequence length for model and packing of the dataset
 
 
 class ProgressTableUpdateCallback(TrainerCallback):
@@ -184,9 +187,7 @@ trainer = SFTTrainer(
     model=model,
     train_dataset=dataset,
     peft_config=peft_config,
-    max_seq_length=max_seq_length,
     tokenizer=tokenizer,
-    packing=True,
     formatting_func=format_instruction,
     args=args,
     callbacks=[ProgressTableUpdateCallback]
