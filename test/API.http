@@ -131,3 +131,8 @@ GET http://localhost:8000/data/preview?dataset_id=samsum&offset=0&limit=100&spli
 ###
 ## Data: request a preview of a dataset with a split using streaming
 GET http://localhost:8000/data/preview?dataset_id=samsum&offset=0&limit=100&split=validation&stream=true
+
+
+###
+# Test huggingface hub endpoint
+GET http://localhost:8000/model/login_to_huggingface
