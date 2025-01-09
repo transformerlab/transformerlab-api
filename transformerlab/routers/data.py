@@ -106,11 +106,11 @@ async def dataset_preview(dataset_id: str = Query(description="The ID of the dat
     dataset_len = 0
     result = {}
 
-    print(f"stream: {stream}")
+    # print(f"stream: {streaming}")
 
     # This means it is a custom dataset the user uploaded
     if d["location"] == "local":
-        print("local")
+        # print("local")
         try:
             dataset = load_dataset(path=dirs.dataset_dir_by_id(
                 dataset_id), streaming=streaming)
@@ -129,7 +129,7 @@ async def dataset_preview(dataset_id: str = Query(description="The ID of the dat
                 offset+limit, dataset_len)]
             result['splits'] = list(dataset.keys())
     else:
-        print("remote")
+        # print("remote")
         dataset_config = d.get("json_data", {}).get("dataset_config", None)
         if (dataset_config is not None):
             dataset = load_dataset(
@@ -139,7 +139,7 @@ async def dataset_preview(dataset_id: str = Query(description="The ID of the dat
                 dataset_id, trust_remote_code=True, streaming=streaming)
 
         if streaming:
-            print("streaming")
+            # print("streaming")
             dataset_len = -1
             dataset = dataset[split].skip(offset)
             result['rows'] = list(dataset.take(limit))
