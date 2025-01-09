@@ -251,6 +251,14 @@ async def dataset_download(dataset_id: str):
         dataset_id, ds_builder.info.description, dataset_size, json_data
     )
 
+    # Download the dataset
+    # Later on we can move this to a job
+    try:
+        dataset = load_dataset(dataset_id, trust_remote_code=True)
+    except Exception as e:
+        error_msg = f"{type(e).__name__}: {e}"
+        return {"status": "error", "message": error_msg}
+
     return {"status": "success"}
 
 
