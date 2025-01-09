@@ -281,15 +281,17 @@ async def model_details_from_filesystem(model_id: str):
 
 @router.get(path="/model/login_to_huggingface")
 async def login_to_huggingface():
-    from huggingface_hub import login
+    from huggingface_hub import get_token, login
     token = await db.config_get("HuggingfaceUserAccessToken")
 
-    # First just try to login without checking the token in the DB:
-    try:
-        login()
-        return {"message": "OK"}
-    except:
-        pass
+    saved_token_in_hf_cache = get_token()
+    print(f"Saved token in HF cache: {saved_token_in_hf_cache}")
+    if saved_token_in_hf_cache:
+        try:
+            login(token=saved_token_in_hf_cache)
+            return {"message": "OK"}
+        except:
+            pass
 
     if token is None:
         return {"message": "HuggingfaceUserAccessToken not set"}
