@@ -99,38 +99,60 @@ async def dataset_preview(dataset_id: str = Query(description="The ID of the dat
                               0, description='The starting index from where to fetch the data.', ge=0),
                           split: str = Query(
                               'train', description='The split to preview. This can be train, test, or validation.'),
-                          limit: int = Query(10, description="The maximum number of data items to fetch.", ge=1, le=1000)) -> Any:
+                          limit: int = Query(
+                              10, description="The maximum number of data items to fetch.", ge=1, le=1000),
+                          streaming: bool = False) -> Any:
     d = await db.get_dataset(dataset_id)
     dataset_len = 0
     result = {}
 
+    print(f"stream: {stream}")
+
     # This means it is a custom dataset the user uploaded
     if d["location"] == "local":
+        print("local")
         try:
-            dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
+            dataset = load_dataset(path=dirs.dataset_dir_by_id(
+                dataset_id), streaming=streaming)
         except Exception as e:
             error_msg = f"{type(e).__name__}: {e}"
             return {"status": "error", "message":  error_msg}
-        dataset_len = len(dataset[split])
-        result['columns'] = dataset[split][offset:min(
-            offset+limit, dataset_len)]
-        result['splits'] = list(dataset.keys())
+        if streaming:
+            print("streaming")
+            dataset_len = -1
+            dataset = dataset[split].skip(offset)
+            result['rows'] = list(dataset.take(limit))
+            result['splits'] = None
+        else:
+            dataset_len = len(dataset[split])
+            result['columns'] = dataset[split][offset:min(
+                offset+limit, dataset_len)]
+            result['splits'] = list(dataset.keys())
     else:
+        print("remote")
         dataset_config = d.get("json_data", {}).get("dataset_config", None)
         if (dataset_config is not None):
             dataset = load_dataset(
-                dataset_id, dataset_config, trust_remote_code=True)
+                dataset_id, dataset_config, trust_remote_code=True, streaming=streaming)
         else:
-            dataset = load_dataset(dataset_id, trust_remote_code=True)
+            dataset = load_dataset(
+                dataset_id, trust_remote_code=True, streaming=streaming)
 
-        # test if the split exists
-        if split not in dataset.keys():
-            return {"status": "error", "message": f"Split '{split}' does not exist in the dataset."}
+        if streaming:
+            print("streaming")
+            dataset_len = -1
+            dataset = dataset[split].skip(offset)
+            result['rows'] = list(dataset.take(limit))
+            result['splits'] = None
+        else:
+            # test if the split exists
+            if split not in dataset.keys():
+                return {"status": "error", "message": f"Split '{split}' does not exist in the dataset."}
 
-        dataset_len = len(dataset[split])
-        result['columns'] = dataset[split][offset:min(
-            offset+limit, dataset_len)]
-        result['splits'] = list(dataset.keys())
+            dataset_len = len(dataset[split])
+            result['columns'] = dataset[split][offset:min(
+                offset+limit, dataset_len)]
+            result['splits'] = list(dataset.keys())
 
     result['len'] = dataset_len
     return {"status": "success", "data": result}
