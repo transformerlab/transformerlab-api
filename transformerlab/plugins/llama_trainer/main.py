@@ -41,7 +41,7 @@ config = input_config["config"]
 print("Input:")
 print(input_config)
 
-model_id = input_config["experiment"]["config"]["foundation"]
+model_id = config["model_name"]
 # model_id = "NousResearch/Llama-2-7b-hf"  # non-gated
 
 # Get the dataset
