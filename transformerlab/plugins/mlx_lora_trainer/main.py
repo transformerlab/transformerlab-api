@@ -79,7 +79,6 @@ from jinja2 import Environment
 
 jinja_environment = Environment()
 
-
 plugin_dir = os.path.dirname(os.path.realpath(__file__))
 print("Plugin dir:", plugin_dir)
 
@@ -112,6 +111,8 @@ iters = config["iters"]
 lora_rank = config.get("lora_rank", None)
 lora_alpha = config.get("lora_alpha", None)
 
+job = transformerlab.plugin.Job(config["job_id"])
+
 # LoRA parameters have to be passed in a config file
 config_file = None
 if lora_rank or lora_alpha:
@@ -142,7 +143,8 @@ try:
         config["dataset_name"])
 except Exception as e:
     print(e)
-    exit
+    job.set_job_completion_status("failed", "Could not find dataset.")
+    exit(1)
 
 # RENDER EACH DATASET SPLIT THROUGH THE SUPPLIED TEMPLATE
 
@@ -155,6 +157,8 @@ available_splits = get_dataset_split_names(dataset_target)
 # Verify that we have required "train" split
 if "train" not in available_splits:
     print(f"Error: Missing required train slice in dataset {dataset_target}.")
+    job.set_job_completion_status(
+        "failed", "This training algorithm requires a split called 'train' in the dataset.")
     exit(1)
 
 # And then either use provided "valid" split or create one
@@ -242,7 +246,6 @@ if config_file:
 print("Running command:")
 print(popen_command)
 
-job = transformerlab.plugin.Job(config["job_id"])
 job.update_progress(0)
 
 print("Training beginning:")
@@ -280,7 +283,7 @@ with subprocess.Popen(
 
             # Now parse the rest of the line and write to tensorboard
             # There are two types of output we are looking for:
-            # 1. Training progress updates which look like: 
+            # 1. Training progress updates which look like:
             # "Iter 190: Train loss 1.997, It/sec 0.159, Tokens/sec 103.125"
             pattern = r"Train loss (\d+\.\d+), Learning Rate (\d+\.[e\-\d]+), It/sec (\d+\.\d+), Tokens/sec (\d+\.\d+)"
             match = re.search(pattern, line)
@@ -299,15 +302,16 @@ with subprocess.Popen(
                 writer.add_scalar("tokens_per_sec",
                                   tokens_per_sec, int(first_number))
 
-            # 2. Validation updates which look like: 
+            # 2. Validation updates which look like:
             # "Iter 190: Val loss 1.009, Val took 1.696s"
-            else :
+            else:
                 pattern = r"Val loss (\d+\.\d+), Val took (\d+\.\d+)s"
                 match = re.search(pattern, line)
                 if match:
                     validation_loss = float(match.group(1))
                     print("Validation Loss: ", validation_loss)
-                    writer.add_scalar("validation-loss", validation_loss, int(first_number))
+                    writer.add_scalar("validation-loss",
+                                      validation_loss, int(first_number))
 
         print(line, end="", flush=True)
 
@@ -315,6 +319,7 @@ with subprocess.Popen(
 # Terminate if not
 if process.returncode and process.returncode != 0:
     print("An error occured before training completed.")
+    job.set_job_completion_status("failed", "Failed during training.")
     exit(process.returncode)
 
 print("Finished training.")
@@ -355,6 +360,8 @@ with subprocess.Popen(
         transformerlab.plugin.generate_model_json(
             fused_model_name, "MLX", json_data=json_data)
         print("Finished fusing the adaptor with the model.")
+        job.set_job_completion_status("success", "Model fused successfully.")
 
     else:
         print("Fusing model with adaptor failed: ", return_code)
+        job.set_job_completion_status("failed", "Model fusion failed.")

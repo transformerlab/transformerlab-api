@@ -1,4 +1,3 @@
-# This file provides a library of methods that Transformer Lab Plugins can use
 
 import os
 import json
@@ -106,6 +105,23 @@ class Job:
             "UPDATE job SET job_data = json_insert(job_data, '$.tensorboard_output_dir', ?) "
             "WHERE id = ?",
             (tensorboard_dir, self.id),
+        )
+
+    def set_job_completion_status(self, completion_status: str, completion_details: str):
+        """
+        A job could be in the "complete" state but still have failed, so this
+        function is used to set the job completion status. i.e. how the task
+        that the job is executing has completed.
+        and if the job failed, the details of the failure.
+        """
+        if not (completion_status == "success" or completion_status == "failed"):
+            raise ValueError(
+                "completion_status must be either 'success' or 'failed'")
+
+        self.db.execute(
+            "UPDATE job SET job_data = json_insert(job_data, '$.completion_status', ?, '$.completion_details', ?) "
+            "WHERE id = ?",
+            (completion_status, completion_details, self.id),
         )
 
 

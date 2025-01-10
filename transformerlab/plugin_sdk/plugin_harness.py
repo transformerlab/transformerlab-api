@@ -9,6 +9,8 @@ All other parameters can be passed as if you are calling the plugin directly.
 """
 import sys
 import argparse
+import traceback
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--plugin_dir', type=str, required=True)
@@ -18,8 +20,14 @@ args, unknown = parser.parse_known_args()
 # Note that this will allow the plugin to import files in this file's directory
 # So the plugin is able to import the SDK
 sys.path.append(args.plugin_dir)
-import main
+
+try:
+    import main
+except ImportError as e:
+    print(f"Error executing plugin: {e}")
+    traceback.print_exc()
+    sys.exit(1)
 
 # Also execute the function main.main(), if it exists
-if "main" in dir(main) and callable(getattr(main,'main')):
+if "main" in dir(main) and callable(getattr(main, 'main')):
     main.main()
