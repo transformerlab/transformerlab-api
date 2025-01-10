@@ -26,6 +26,12 @@ try:
 except ImportError as e:
     print(f"Error executing plugin: {e}")
     traceback.print_exc()
+
+    # if e is a ModuleNotFoundError, the plugin is missing a required package
+    if isinstance(e, ModuleNotFoundError):
+        print("ModuleNotFoundError means a Python package is missing. "
+              "This is usually fixed by reinstalling the plugin")
+
     sys.exit(1)
 
 # Also execute the function main.main(), if it exists
