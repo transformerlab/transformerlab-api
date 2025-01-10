@@ -136,7 +136,7 @@ fi
 
 download_transformer_lab() {
   title "Step 1: Download the latest release of Transformer Lab"
-
+  echo "🌘 Step 1: START"
   # Figure out the path to the lastest release of Transformer Lab
   LATEST_RELEASE_VERSION=$(curl -Ls -o /dev/null -w %{url_effective} https://github.com/transformerlab/transformerlab-api/releases/latest)
   LATEST_RELEASE_VERSION=$(basename "$LATEST_RELEASE_VERSION")
@@ -158,6 +158,7 @@ download_transformer_lab() {
   rm "${TLAB_DIR}/transformerlab.tar.gz"
   # Create a file called LATEST_VERSION that contains the latest version of Transformer Lab.
   echo "${LATEST_RELEASE_VERSION}" > "${TLAB_CODE_DIR}/LATEST_VERSION"
+  echo "🌕 Step 1: COMPLETE"
 }
 
 ##############################
@@ -166,6 +167,7 @@ download_transformer_lab() {
 
 install_conda() {
   title "Step 2: Install Conda"
+  echo "🌘 Step 2: START"
 
   unset_conda_for_sure
 
@@ -197,6 +199,7 @@ install_conda() {
   eval "$(${CONDA_BIN} shell.bash hook)"
 
   check_conda
+  echo "🌕 Step 2: COMPLETE"
 }
 
 ##############################
@@ -205,6 +208,7 @@ install_conda() {
 
 create_conda_environment() {
   title "Step 3: Create the Conda Environment"
+  echo "🌘 Step 3: START"
 
   check_if_conda_envronments_dot_text_is_writable
 
@@ -227,7 +231,7 @@ create_conda_environment() {
   # Activate the newly created environment
   echo conda activate "$ENV_DIR"
   conda activate "$ENV_DIR"
-
+  echo "🌕 Step 3: COMPLETE"
 }
 
 ##############################
@@ -236,6 +240,10 @@ create_conda_environment() {
 
 install_dependencies() {
   title "Step 4: Install Dependencies"
+  echo "Warning: this step may take a while to complete the first time."
+  echo "In this step, all Python dependencies for a full ML workspace"
+  echo "will be installed in the conda environment."
+  echo "🌘 Step 4: START"
 
   unset_conda_for_sure
   eval "$(${CONDA_BIN} shell.bash hook)"
@@ -292,6 +300,7 @@ install_dependencies() {
   # Record the status after this install for debugging and to check if an install has been attmeped
   PIP_LIST=$(pip list --format json)
   echo "${PIP_LIST}" > "${TLAB_CODE_DIR}/INSTALLED_DEPENDENCIES"
+  echo "🌕 Step 4: COMPLETE"
 }
 
 list_installed_packages() {
