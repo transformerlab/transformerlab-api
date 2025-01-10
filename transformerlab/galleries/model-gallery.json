@@ -1445,8 +1445,8 @@
         "transformers_version": "4.43.1",
         "gated": false,
         "license": "apache-2.0",
-        "logo": "",
-        "size_of_model_in_mb": 0,
+        "logo": "https://cdn-avatars.huggingface.co/v1/production/uploads/62088594a5943c8a8fc94560/y5SEKiE8TkjBKs9xfjCx5.png",
+        "size_of_model_in_mb": 2953.8,
         "author": {
             "name": "Qwen",
             "url": "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct",
