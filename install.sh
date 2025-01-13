@@ -137,6 +137,14 @@ fi
 download_transformer_lab() {
   title "Step 1: Download the latest release of Transformer Lab"
   echo "🌘 Step 1: START"
+
+  # First check that curl is installed:
+  if ! command -v curl &> /dev/null; then
+    abort "❌ curl is not installed. Please install curl and try again."
+  else
+    ohai "✅ curl is installed."
+  fi
+  
   # Figure out the path to the lastest release of Transformer Lab
   LATEST_RELEASE_VERSION=$(curl -Ls -o /dev/null -w %{url_effective} https://github.com/transformerlab/transformerlab-api/releases/latest)
   LATEST_RELEASE_VERSION=$(basename "$LATEST_RELEASE_VERSION")
