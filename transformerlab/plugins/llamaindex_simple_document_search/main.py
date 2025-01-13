@@ -118,7 +118,7 @@ def main():
     llm = OpenAILike(
         api_key="fake",
         api_type="fake",
-        api_base="http://localhost:8000/v1",
+        api_base="http://localhost:8338/v1",
         model=model_short_name,
         is_chat_model=True,
         timeout=40,

@@ -49,7 +49,7 @@ Once conda and dependencies are installed, run the following:
 
 ```bash
 conda activate transformerlab
-uvicorn api:app --port 8000 --host 0.0.0.0
+uvicorn api:app --port 8338 --host 0.0.0.0
 ```
 
 # Developers:

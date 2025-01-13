@@ -11,7 +11,7 @@ ENV_DIR=${TLAB_DIR}/envs/${ENV_NAME}
 CUSTOM_ENV=false
 
 HOST="0.0.0.0"
-PORT="8000"
+PORT="8338"
 
 RELOAD=false
 

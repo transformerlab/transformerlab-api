@@ -42,8 +42,8 @@ task = args.task
 if not torch.cuda.is_available():
     print("CUDA is not available. Running eval using HTTP.")
 
-    # first check http://localhost:8000/healthz
-    response = requests.get('http://localhost:8000/server/worker_healthz')
+    # first check http://localhost:8338/healthz
+    response = requests.get('http://localhost:8338/server/worker_healthz')
     print(response.json())
     if response.status_code != 200 or not isinstance(response.json(), list) or len(response.json()) == 0:
         print("Local completions server is not running. Please start it before running the evaluation.")
@@ -52,9 +52,9 @@ if not torch.cuda.is_available():
     # model name is the first item in the list:
     model_name = args.model_name
 
-    # lm_eval --model local-completions --tasks gsm8k --model_args model=mlx-community/Llama-3.2-1B-Instruct-4bit,base_url=http://localhost:8000/v1/completions,num_concurrent=1,max_retries=3,tokenized_requests=False
+    # lm_eval --model local-completions --tasks gsm8k --model_args model=mlx-community/Llama-3.2-1B-Instruct-4bit,base_url=http://localhost:8338/v1/completions,num_concurrent=1,max_retries=3,tokenized_requests=False
     model_args = 'model=' + model_name + \
-        ',base_url=http://localhost:8000/v1/completions,num_concurrent=1,max_retries=3,tokenized_requests=False'
+        ',base_url=http://localhost:8338/v1/completions,num_concurrent=1,max_retries=3,tokenized_requests=False'
     command = ["lm-eval", '--model', 'local-completions',
                '--model_args', model_args, '--tasks', task]
     print('Running command: $ ' + ' '.join(command))

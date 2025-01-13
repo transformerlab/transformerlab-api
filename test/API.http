@@ -1,7 +1,7 @@
 
 
 ## Test Logprobs:
-POST http://localhost:8000/v1/completions
+POST http://localhost:8338/v1/completions
 Content-Type: application/json
 
 {
@@ -18,7 +18,7 @@ Content-Type: application/json
 ###
 
 ## Test Logprobs on Pop-os:
-POST http://pop-os:8000/v1/completions
+POST http://pop-os:8338/v1/completions
 Content-Type: application/json
 
 {
@@ -43,7 +43,7 @@ Content-Type: application/json
 
 ###
 ## Test batched prompt creation with objects
-POST http://localhost:8000/batched_prompts/new
+POST http://localhost:8338/batched_prompts/new
 Content-Type: application/json
 
 {
@@ -56,7 +56,7 @@ Content-Type: application/json
 
 ###
 ## test with string prompts
-POST http://localhost:8000/batched_prompts/new
+POST http://localhost:8338/batched_prompts/new
 Content-Type: application/json
 
 {
@@ -68,7 +68,7 @@ Content-Type: application/json
 }
 
 ###
-POST http://localhost:8000/batched_prompts/new
+POST http://localhost:8338/batched_prompts/new
 Content-Type: application/json
 
 {
@@ -82,7 +82,7 @@ Content-Type: application/json
 }
 ###
 ## Test batch request mode on completions endpoint
-POST http://localhost:8000/v1/completions
+POST http://localhost:8338/v1/completions
 Content-Type: application/json
 
 {
@@ -96,7 +96,7 @@ Content-Type: application/json
 
 ###
 ## Test sending multiple chats -- note that this doesn't work!
-POST http://localhost:8000/v1/chat/completions
+POST http://localhost:8338/v1/chat/completions
 Content-Type: application/json
 
 {
@@ -110,7 +110,7 @@ Content-Type: application/json
 
 ###
 ## Test sending a single chat
-POST http://localhost:8000/v1/chat/completions
+POST http://localhost:8338/v1/chat/completions
 Content-Type: application/json
 
 {
@@ -122,17 +122,17 @@ Content-Type: application/json
 
 ###
 ## Data: request a preview of a dataset
-GET http://localhost:8000/data/preview?dataset_id=samsum&offset=1&limit=10
+GET http://localhost:8338/data/preview?dataset_id=samsum&offset=1&limit=10
 
 ###
 ## Data: request a preview of a dataset with a split
-GET http://localhost:8000/data/preview?dataset_id=samsum&offset=0&limit=100&split=validation
+GET http://localhost:8338/data/preview?dataset_id=samsum&offset=0&limit=100&split=validation
 
 ###
 ## Data: request a preview of a dataset with a split using streaming
-GET http://localhost:8000/data/preview?dataset_id=samsum&offset=0&limit=100&split=validation&stream=true
+GET http://localhost:8338/data/preview?dataset_id=samsum&offset=0&limit=100&split=validation&stream=true
 
 
 ###
 # Test huggingface hub endpoint
-GET http://localhost:8000/model/login_to_huggingface
+GET http://localhost:8338/model/login_to_huggingface
