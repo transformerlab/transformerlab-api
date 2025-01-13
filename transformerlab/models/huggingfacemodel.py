@@ -127,7 +127,7 @@ class HuggingFaceModel(basemodel.BaseModel):
         return detected_formats
 
 
-def get_model_details_from_huggingface(hugging_face_id):
+def get_model_details_from_huggingface(hugging_face_id: str):
     """
     Gets model config details from huggingface_hub
     and return in the format of BaseModel's json_data.
@@ -161,11 +161,14 @@ def get_model_details_from_huggingface(hugging_face_id):
         architecture_list = filedata.get("architectures", [])
         architecture = architecture_list[0] if architecture_list else ""
 
-        # Oh except we list MLX as an architecture but HuggingFace doesn't
-        # For MLX it is sometimes stored in library_name
+        # Oh except we list GGUF and MLX as architectures, but HuggingFace sometimes doesn't
+        # It is usually stored in library, or sometimes in tags
         library_name = getattr(hf_model_info, "library_name", "")
-        if (library_name and library_name.lower() == "mlx"):
-            architecture = "MLX"
+        if (library_name):
+            if (library_name.lower() == "mlx"):
+                architecture = "MLX"
+            if (library_name.lower() == "gguf"):
+                architecture = "GGUF"
 
         # And sometimes it is stored in the tags for the repo
         model_tags = getattr(hf_model_info, "tags", [])
