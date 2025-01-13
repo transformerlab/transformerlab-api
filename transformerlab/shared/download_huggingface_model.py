@@ -118,7 +118,11 @@ def download_blocking(model_is_downloaded):
     print("Downloading model")
     db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3",
                          isolation_level=None)
+
+    # NOTE: For now storing size in two fields.
+    # Will remove total_size_of_model_in_mb in the future.
     job_data = json.dumps({"downloaded": 0, "model": model,
+                          "total_size_in_mb": total_size_of_model_in_mb,
                           "total_size_of_model_in_mb": total_size_of_model_in_mb})
     print(job_data)
     db.execute(
