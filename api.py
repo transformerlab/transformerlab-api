@@ -297,6 +297,7 @@ async def server_worker_stop():
     if (os.path.isfile('worker.pid')):
         with open('worker.pid', 'r') as f:
             pid = f.readline()
+            print(f"Killing worker process with PID: {pid}")
             os.kill(int(pid), signal.SIGTERM)
         # delete the worker.pid file:
         os.remove('worker.pid')
