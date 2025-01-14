@@ -123,6 +123,19 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
     return process
 
 
+async def read_process_output(process, job_id):
+    await process.wait()
+    returncode = process.returncode
+    if returncode == 0:
+        print("Worker Process completed successfully")
+    else:
+        print(f"ERROR: Worker Process ended with exit code {returncode}.")
+        # so we should delete the pid file:
+        pid_file = os.path.join(dirs.TEMP_DIR, f"worker_job_{job_id}.pid")
+        if os.path.exists(pid_file):
+            os.remove(pid_file)
+
+
 async def async_run_python_daemon_and_update_status(python_script: list[str], job_id: str, begin_string: str, set_process_id_function=None):
     """Use this function for daemon processes, for example setting up a model for inference.
     This function is helpful when the start of the daemon process takes a while. So you can
@@ -144,6 +157,11 @@ async def async_run_python_daemon_and_update_status(python_script: list[str], jo
 
     process = await asyncio.create_subprocess_exec(*command, stdin=None, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
 
+    pid = process.pid
+    pid_file = os.path.join(dirs.TEMP_DIR, f"worker_job_{job_id}.pid")
+    with open(pid_file, 'w') as f:
+        f.write(str(pid))
+
     line = await process.stdout.readline()
     error_msg = None
     while line:
@@ -151,18 +169,26 @@ async def async_run_python_daemon_and_update_status(python_script: list[str], jo
 
         # If we hit the begin_string then the daemon is started and we can return!
         if begin_string in decoded:
-            if set_process_id_function != None:
-                set_process_id_function(process)
+            if set_process_id_function is not None:
+                if set_process_id_function:
+                    set_process_id_function(process)
             print(f"Worker job {job_id} started successfully")
             await db.job_update_status(job_id=job_id, status="COMPLETE")
+
+            # Schedule the read_process_output coroutine in the current event
+            # so we can keep watching this process, but return back to the caller
+            # so that the REST call can complete
+            asyncio.create_task(read_process_output(process, job_id))
+
             return process
 
         # Watch the output for any errors and store the latest error
         elif ("stderr" in decoded) and ("ERROR" in decoded):
             error_msg = decoded.split("| ")[-1]
 
-        print(decoded)
-        log.write(decoded)
+        if log:
+            log.write(decoded)
+            log.flush()
         log.flush()
         line = await process.stdout.readline()
 
