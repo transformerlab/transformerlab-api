@@ -110,7 +110,6 @@ try:
 except Exception as e:
     job.set_job_completion_status("failed", f"Failed to load model")
     raise e
-    exit
 
 try:
     tokenizer = AutoTokenizer.from_pretrained(model_id)
@@ -119,7 +118,6 @@ try:
 except Exception as e:
     job.set_job_completion_status("failed", f"Failure to load tokenizer")
     raise e
-    exit
 
 # LoRA config based on QLoRA paper
 peft_config = LoraConfig(
@@ -210,7 +208,6 @@ try:
 except Exception as e:
     job.set_job_completion_status("failed", f"Failure during training")
     raise e
-    exit
 
 
 try:
@@ -219,6 +216,5 @@ try:
 except Exception as e:
     job.set_job_completion_status("failed", f"Failure to save model")
     raise e
-    exit
 
 job.set_job_completion_status("success", f"Adaptor trained successfully")
