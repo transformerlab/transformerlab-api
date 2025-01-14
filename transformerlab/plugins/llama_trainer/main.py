@@ -44,6 +44,11 @@ print(input_config)
 model_id = config["model_name"]
 # model_id = "NousResearch/Llama-2-7b-hf"  # non-gated
 
+JOB_ID = config["job_id"]
+
+job = transformerlab.plugin.Job(config["job_id"])
+job.update_progress(0)
+
 # Get the dataset
 # Datasets can be a huggingface ID or the name of a locally uploaded dataset
 # Need to check the DB to figure out which because it changes how we load the dataset
@@ -57,7 +62,8 @@ cursor.close()
 # if no rows exist then the dataset hasn't been installed!
 if row is None:
     print(f"No dataset named {dataset_id} installed.")
-    exit
+    job.set_job_completion_status("failed", f"No dataset named {dataset_id} installed.")
+    raise RuntimeError(f"No dataset named {dataset_id} installed")
 
 # dataset_location will be either "local" or "huggingface"
 # (and if it's something else we're going to treat "huggingface" as default)
@@ -92,18 +98,26 @@ bnb_config = BitsAndBytesConfig(
 )
 
 # Load model and tokenizer
-model = AutoModelForCausalLM.from_pretrained(
-    model_id,
-    quantization_config=bnb_config,
-    use_cache=False,
-    use_flash_attention_2=use_flash_attention,
-    device_map="auto",
-)
-model.config.pretraining_tp = 1
+try:
+    model = AutoModelForCausalLM.from_pretrained(
+        model_id,
+        quantization_config=bnb_config,
+        use_cache=False,
+        use_flash_attention_2=use_flash_attention,
+        device_map="auto",
+    )
+    model.config.pretraining_tp = 1
+except Exception as e:
+    job.set_job_completion_status("failed", f"Failed to load model")
+    raise e
 
-tokenizer = AutoTokenizer.from_pretrained(model_id)
-tokenizer.pad_token = tokenizer.eos_token
-tokenizer.padding_side = "right"
+try:
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "right"
+except Exception as e:
+    job.set_job_completion_status("failed", f"Failure to load tokenizer")
+    raise e
 
 # LoRA config based on QLoRA paper
 peft_config = LoraConfig(
@@ -118,10 +132,6 @@ peft_config = LoraConfig(
 model = prepare_model_for_kbit_training(model)
 model = get_peft_model(model, peft_config)
 
-JOB_ID = config["job_id"]
-
-job = transformerlab.plugin.Job(config["job_id"])
-job.update_progress(0)
 
 # This is where the tensorboard output is stored
 output_dir: str = config["output_dir"]
@@ -192,9 +202,19 @@ trainer = SFTTrainer(
     args=args,
     callbacks=[ProgressTableUpdateCallback]
 )
+try:
+    # train
+    trainer.train()
+except Exception as e:
+    job.set_job_completion_status("failed", f"Failure during training")
+    raise e
 
-# train
-trainer.train()
 
-# save model
-trainer.save_model(output_dir=config["adaptor_output_dir"])
+try:
+    # save model
+    trainer.save_model(output_dir=config["adaptor_output_dir"])
+except Exception as e:
+    job.set_job_completion_status("failed", f"Failure to save model")
+    raise e
+
+job.set_job_completion_status("success", f"Adaptor trained successfully")
