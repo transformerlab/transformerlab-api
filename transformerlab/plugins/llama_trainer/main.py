@@ -107,15 +107,19 @@ try:
         device_map="auto",
     )
     model.config.pretraining_tp = 1
-except:
+except Exception as e:
     job.set_job_completion_status("failed", f"Failed to load model")
+    raise e
+    exit
 
 try:
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
-except:
+except Exception as e:
     job.set_job_completion_status("failed", f"Failure to load tokenizer")
+    raise e
+    exit
 
 # LoRA config based on QLoRA paper
 peft_config = LoraConfig(
@@ -203,14 +207,18 @@ trainer = SFTTrainer(
 try:
     # train
     trainer.train()
-except :
+except Exception as e:
     job.set_job_completion_status("failed", f"Failure during training")
+    raise e
+    exit
 
 
 try:
     # save model
     trainer.save_model(output_dir=config["adaptor_output_dir"])
-except :
+except Exception as e:
     job.set_job_completion_status("failed", f"Failure to save model")
+    raise e
+    exit
 
 job.set_job_completion_status("success", f"Adaptor trained successfully")
