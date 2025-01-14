@@ -63,7 +63,7 @@ cursor.close()
 if row is None:
     print(f"No dataset named {dataset_id} installed.")
     job.set_job_completion_status("failed", f"No dataset named {dataset_id} installed.")
-    exit
+    raise RuntimeError(f"No dataset named {dataset_id} installed")
 
 # dataset_location will be either "local" or "huggingface"
 # (and if it's something else we're going to treat "huggingface" as default)
