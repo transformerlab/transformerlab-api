@@ -184,6 +184,11 @@ async def watch_file(filename: str, start_from_beginning=False) -> AsyncGenerato
     last_position = 0
     if start_from_beginning:
         last_position = 0
+        with open(filename, "r") as f:
+            f.seek(last_position)
+            new_lines = f.readlines()
+            yield (f"data: {json.dumps(new_lines)}\n\n")
+            last_position = f.tell()
     else:
         try:
             with open(filename, "r") as f:
