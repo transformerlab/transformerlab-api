@@ -23,4 +23,4 @@ torchaudio
 torchvision
 transformers==4.47.1
 peft
-watchdog
+watchfiles

@@ -362,6 +362,8 @@ urllib3==2.3.0
     # via requests
 uvicorn==0.34.0
     # via fschat
+watchfiles==1.0.4
+    # via -r requirements.in
 wavedrom==2.0.3.post3
     # via markdown2
 wcwidth==0.2.13
