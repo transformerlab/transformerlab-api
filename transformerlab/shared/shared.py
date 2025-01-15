@@ -130,10 +130,13 @@ async def read_process_output(process, job_id):
         print("Worker Process completed successfully")
     else:
         print(f"ERROR: Worker Process ended with exit code {returncode}.")
-        # so we should delete the pid file:
-        pid_file = os.path.join(dirs.TEMP_DIR, f"worker_job_{job_id}.pid")
-        if os.path.exists(pid_file):
-            os.remove(pid_file)
+    with open(GLOBAL_LOG_PATH, 'a') as log:
+        log.write(f"Inference Server Terminated with {returncode}.\n")
+        log.flush()
+    # so we should delete the pid file:
+    pid_file = os.path.join(dirs.TEMP_DIR, f"worker_job_{job_id}.pid")
+    if os.path.exists(pid_file):
+        os.remove(pid_file)
 
 
 async def async_run_python_daemon_and_update_status(python_script: list[str], job_id: str, begin_string: str, set_process_id_function=None):
