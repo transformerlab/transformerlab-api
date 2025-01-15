@@ -12,6 +12,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from fastapi.responses import StreamingResponse
 from typing import AsyncGenerator
+from asyncio import Queue
 
 # Could also use https://github.com/gpuopenanalytics/pynvml but this is simpler
 import psutil
@@ -174,14 +175,12 @@ atexit.register(cleanup_at_exit)
 
 GLOBAL_LOG_PATH = dirs.GLOBAL_LOG_PATH
 
-# Queue to store file changes
-file_changes = asyncio.Queue()
-
 
 class LogFileHandler(FileSystemEventHandler):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, filename):
+        self.filename = filename
         self.last_position = 0
+        self.file_changes = Queue()
         # Initialize last_position to the current end of the file
         try:
             with open(GLOBAL_LOG_PATH, 'r') as f:
@@ -191,33 +190,33 @@ class LogFileHandler(FileSystemEventHandler):
             print(f"Error initializing LogFileHandler: {str(e)}")
 
     def on_modified(self, event):
-        print(f"📝 Log file changed: {event.src_path}")
-        if event.src_path == GLOBAL_LOG_PATH:
+        if event.src_path == self.filename:
             try:
-                with open(GLOBAL_LOG_PATH, 'r') as f:
+                with open(self.filename, 'r') as f:
                     f.seek(self.last_position)
                     new_lines = f.readlines()
                     self.last_position = f.tell()
                     if new_lines:
                         print(f"📝 New lines: {new_lines}")
-                        file_changes.put_nowait(new_lines)
+                        self.file_changes.put_nowait(new_lines)
             except Exception as e:
-                file_changes.put_nowait(f"Error reading file: {str(e)}")
+                self.file_changes.put_nowait(f"Error reading file: {str(e)}")
 
 
-async def watch_file() -> AsyncGenerator[str, None]:
+async def watch_file(filename: str) -> AsyncGenerator[str, None]:
     # Set up the observer
-    event_handler = LogFileHandler()
+    event_handler = LogFileHandler(filename)
     observer = Observer()
     observer.schedule(event_handler, path=os.path.dirname(
-        GLOBAL_LOG_PATH), recursive=False)
+        filename), recursive=False)
     observer.start()
-    print(f"👀 Watching file: {GLOBAL_LOG_PATH}")
+    print(f"👀 Watching file: {filename}")
 
     try:
         while True:
             # Wait for changes
-            change = await file_changes.get()
+            change = await event_handler.file_changes.get()
+
             yield f"data: {json.dumps(change)}\n\n"
     except asyncio.CancelledError:
         print("🛑 Watch file task cancelled")
@@ -227,7 +226,7 @@ async def watch_file() -> AsyncGenerator[str, None]:
 @router.get("/stream_log")
 async def watch_log():
     return StreamingResponse(
-        watch_file(),
+        watch_file(GLOBAL_LOG_PATH),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
