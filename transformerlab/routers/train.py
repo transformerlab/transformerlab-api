@@ -5,9 +5,10 @@ import subprocess
 from typing import Annotated
 
 from fastapi import APIRouter, BackgroundTasks, Body
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, StreamingResponse
 
 import transformerlab.db as db
+from transformerlab.routers.serverinfo import watch_file
 from transformerlab.shared import dirs
 from transformerlab.shared import galleries
 from transformerlab.models import model_helper
@@ -306,6 +307,20 @@ async def get_training_job_output(job_id: str):
         # Handle general error
         return (f"Error: {e}")
 
+
+@router.get("/job/{job_id}/stream_output")
+async def watch_log(job_id: str):
+    output_file_name = await get_output_file_name(job_id)
+
+    return StreamingResponse(
+        watch_file(output_file_name, start_from_beginning=True),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*"
+        }
+    )
 
 tensorboard_process = None
 
