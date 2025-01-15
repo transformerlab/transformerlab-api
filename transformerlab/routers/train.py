@@ -135,14 +135,14 @@ async def import_recipe(name: str, recipe_yaml: str = Body(...)):
 
 @router.get("/template/{template_id}/export", response_class=PlainTextResponse)
 async def export_recipe(template_id: str):
-    
+
     # Read in training template from DB and parse config JSON
     training_template = await db.get_training_template(template_id)
     if not training_template:
         return ""
 
     template_config_json = training_template.get("config", {})
-    try :
+    try:
         template_config = json.loads(template_config_json)
     except:
         print("Error reading template config:")
@@ -151,7 +151,7 @@ async def export_recipe(template_id: str):
 
     # Construct recipe object
     recipe = {}
-    
+
     metadata = {
         "author": "",
         "name": training_template.get("name", ""),
@@ -171,9 +171,9 @@ async def export_recipe(template_id: str):
 
     # TODO: Read in the type from the DB!
     training = {
-        "type" : "LoRA",
+        "type": "LoRA",
         "plugin": template_config.get("plugin_name", ""),
-        "formatting_template" : template_config.get("formatting_template", ""),
+        "formatting_template": template_config.get("formatting_template", ""),
         "config_json": template_config_json
     }
 
@@ -254,42 +254,57 @@ async def get_training_job(job_id: str):
     return await db.job_get(job_id)
 
 
+async def get_output_file_name(job_id: str):
+    try:
+        # First get the template Id from this job:
+        job = await db.job_get(job_id)
+
+        job_data = job["job_data"]
+        if "template_id" not in job_data:
+            raise ValueError('Template ID not found in job data')
+
+        template_id = job_data["template_id"]
+        # Then get the template:
+        template = await db.get_training_template(template_id)
+        # Then get the plugin name from the template:
+
+        template_config = json.loads(template["config"])
+        if "plugin_name" not in template_config:
+            raise ValueError('Plugin name not found in template config')
+
+        # get the output.txt from the plugin which is stored in
+        plugin_name = template_config["plugin_name"]
+        plugin_dir = dirs.plugin_dir_by_name(plugin_name)
+
+        # job output is stored in separate files with a job number in the name...
+        if os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
+            output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
+
+        # but it used to be all stored in a single file called output.txt, so check that as well
+        elif os.path.exists(os.path.join(plugin_dir, "output.txt")):
+            output_file = os.path.join(plugin_dir, "output.txt")
+        else:
+            raise ValueError(f"No output file found for job {job_id}")
+
+        return output_file
+    except Exception as e:
+        raise e
+
+
 @router.get("/job/{job_id}/output")
 async def get_training_job_output(job_id: str):
-    # First get the template Id from this job:
-    job = await db.job_get(job_id)
+    try:
+        output_file_name = await get_output_file_name(job_id)
 
-    job_data = job["job_data"]
-    if "template_id" not in job_data:
-        return {"status": "error", "error": 'true'}
-
-    template_id = job_data["template_id"]
-    # Then get the template:
-    template = await db.get_training_template(template_id)
-    # Then get the plugin name from the template:
-
-    template_config = json.loads(template["config"])
-    if "plugin_name" not in template_config:
-        return {"status": "error", "error": 'true'}
-
-    # get the output.txt from the plugin which is stored in
-    plugin_name = template_config["plugin_name"]
-    plugin_dir = dirs.plugin_dir_by_name(plugin_name)
-
-    # job output is stored in separate files with a job number in the name...
-    if os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
-        output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
-
-    # but it used to be all stored in a single file called output.txt, so check that as well
-    elif os.path.exists(os.path.join(plugin_dir, "output.txt")):
-        output_file = os.path.join(plugin_dir, "output.txt")
-
-    else:
-        return {"status": "error", "message": f"No output file found for job {job_id}"}
-
-    with open(output_file, "r") as f:
-        output = f.read()
-    return output
+        with open(output_file_name, "r") as f:
+            output = f.read()
+        return output
+    except ValueError as e:
+        # Handle specific error
+        return (f"ValueError: {e}")
+    except Exception as e:
+        # Handle general error
+        return (f"Error: {e}")
 
 
 tensorboard_process = None
