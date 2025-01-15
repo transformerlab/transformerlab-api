@@ -1,3 +1,5 @@
+from watchfiles import awatch
+from queue import Queue
 import asyncio
 import atexit
 import json
@@ -176,51 +178,27 @@ atexit.register(cleanup_at_exit)
 GLOBAL_LOG_PATH = dirs.GLOBAL_LOG_PATH
 
 
-class LogFileHandler(FileSystemEventHandler):
-    def __init__(self, filename):
-        self.filename = filename
-        self.last_position = 0
-        self.file_changes = Queue()
-        # Initialize last_position to the current end of the file
-        try:
-            with open(GLOBAL_LOG_PATH, 'r') as f:
-                f.seek(0, os.SEEK_END)
-                self.last_position = f.tell()
-        except Exception as e:
-            print(f"Error initializing LogFileHandler: {str(e)}")
-
-    def on_modified(self, event):
-        if event.src_path == self.filename:
-            try:
-                with open(self.filename, 'r') as f:
-                    f.seek(self.last_position)
-                    new_lines = f.readlines()
-                    self.last_position = f.tell()
-                    if new_lines:
-                        print(f"📝 New lines: {new_lines}")
-                        self.file_changes.put_nowait(new_lines)
-            except Exception as e:
-                self.file_changes.put_nowait(f"Error reading file: {str(e)}")
-
-
-async def watch_file(filename: str) -> AsyncGenerator[str, None]:
-    # Set up the observer
-    event_handler = LogFileHandler(filename)
-    observer = Observer()
-    observer.schedule(event_handler, path=os.path.dirname(
-        filename), recursive=False)
-    observer.start()
+async def watch_file(filename: str, start_from_beginning=False) -> AsyncGenerator[str, None]:
     print(f"👀 Watching file: {filename}")
 
-    try:
-        while True:
-            # Wait for changes
-            change = await event_handler.file_changes.get()
+    last_position = 0
+    if start_from_beginning:
+        last_position = 0
+    else:
+        try:
+            with open(filename, "r") as f:
+                f.seek(0, os.SEEK_END)
+                last_position = f.tell()
+        except Exception as e:
+            print(f"Error seeking to end of file: {e}")
 
-            yield f"data: {json.dumps(change)}\n\n"
-    except asyncio.CancelledError:
-        print("🛑 Watch file task cancelled")
-        observer.unschedule(event_handler)
+    async for changes in awatch(filename):
+        print(f"📝 File changed: {filename}")
+        with open(filename, "r") as f:
+            f.seek(last_position)
+            new_lines = f.readlines()
+            yield (f"data: {json.dumps(new_lines)}\n\n")
+            last_position = f.tell()
 
 
 @router.get("/stream_log")
