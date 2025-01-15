@@ -32,6 +32,9 @@ config = input_config["config"]
 print("Input:")
 print(json.dumps(input_config, indent=4))
 
+job = transformerlab.plugin.Job(config["job_id"])
+job.update_progress(0)
+
 # Parameters to pass to autotrain
 learning_rate = config["learning_rate"]
 batch_size = config.get("batch_size", 4)
@@ -48,8 +51,8 @@ try:
     dataset_target = transformerlab.plugin.get_dataset_path(
         config["dataset_name"])
 except Exception as e:
-    print(e)
-    exit
+    job.set_job_completion_status("failed", "Failure to get dataset")
+    raise e
 
 dataset_types = ["train", "test"]
 dataset = {}
@@ -73,6 +76,7 @@ for dataset_type in dataset_types:
         # Generally that means there is a single file in the dataset and we're trying to make a test dataset
         # So we're going to ignore that! (Unless we're trying to load the train dataset...check that)
         if (dataset_target == "train"):
+            job.set_job_completion_status("failed", "Failure to load dataset")
             raise
 
         print(f"Continuing without any data for \"{dataset_type}\" slice.")
@@ -120,8 +124,6 @@ popen_command = ["autotrain", "llm",
 print("Running command:")
 print(popen_command)
 
-job = transformerlab.plugin.Job(config["job_id"])
-job.update_progress(0)
 
 print("Training beginning:")
 
@@ -135,64 +137,79 @@ print("Writing logs to:", output_dir)
 # Store the tensorboard output dir in the job
 job.set_tensorboard_output_dir(output_dir)
 
-with subprocess.Popen(
+try:
+    with subprocess.Popen(
         popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True) as process:
 
-    iteration = 0
-    it_per_sec = 0
-    percent_complete = 0
-    for line in process.stdout:
-        # Progress complete output lines looks like
-        # "0%|          | 1/1710 [00:05<2:46:58,  5.86s/it]""
-        # I'm sorry this regex is insane
-        pattern = r"\s*(\d+)\%\|.+?(?=\d+/)(\d+)/.+?(?=\d+.\d+s/it)(\d+.\d+)s/it"
-        match = re.search(pattern, line)
-        if match:
-            percent_complete = match.group(1)
-            iteration = int(match.group(2))
-            it_per_sec = float(match.group(3))
-            # Don't update the job database here. Only when we get a major update.
+        iteration = 0
+        it_per_sec = 0
+        percent_complete = 0
+        for line in process.stdout:
+            # Progress complete output lines looks like
+            # "0%|          | 1/1710 [00:05<2:46:58,  5.86s/it]""
+            # I'm sorry this regex is insane
+            pattern = r"\s*(\d+)\%\|.+?(?=\d+/)(\d+)/.+?(?=\d+.\d+s/it)(\d+.\d+)s/it"
+            match = re.search(pattern, line)
+            if match:
+                percent_complete = match.group(1)
+                iteration = int(match.group(2))
+                it_per_sec = float(match.group(3))
+                # Don't update the job database here. Only when we get a major update.
 
-        # Progress data for tensorboard comes from lines formatted like:
-        # INFO     | 2024-06-25 18:01:04 | autotrain.trainers.common:on_log:226 -
-        # {'loss': 1.7918, 'grad_norm': 0.55, 'learning_rate': 0.0007, 'epoch': 0.073}
-        pattern = r"INFO.+?{'loss': (\d+\.\d+), 'grad_norm': (\d+\.\d+), 'learning_rate': (\d+\.\d+), 'epoch': (\d+\.\d+)}"
-        match = re.search(pattern, line)
-        if match:
-            loss = float(match.group(1))
-            grad_norm = float(match.group(2))
-            learning_rate = float(match.group(3))
-            epoch = float(match.group(4))
-            token_per_sec = 0
-            print("Progress: ", f"{percent_complete}%")
-            print("Iteration: ", iteration)
-            print("It/sec: ", it_per_sec)
-            print("Loss: ", loss)
-            print("Epoch:", epoch)
-            job.update_progress(percent_complete)
+            # Progress data for tensorboard comes from lines formatted like:
+            # INFO     | 2024-06-25 18:01:04 | autotrain.trainers.common:on_log:226 -
+            # {'loss': 1.7918, 'grad_norm': 0.55, 'learning_rate': 0.0007, 'epoch': 0.073}
+            pattern = r"INFO.+?{'loss': (\d+\.\d+), 'grad_norm': (\d+\.\d+), 'learning_rate': (\d+\.\d+), 'epoch': (\d+\.\d+)}"
+            match = re.search(pattern, line)
+            if match:
+                loss = float(match.group(1))
+                grad_norm = float(match.group(2))
+                learning_rate = float(match.group(3))
+                epoch = float(match.group(4))
+                token_per_sec = 0
+                print("Progress: ", f"{percent_complete}%")
+                print("Iteration: ", iteration)
+                print("It/sec: ", it_per_sec)
+                print("Loss: ", loss)
+                print("Epoch:", epoch)
+                job.update_progress(percent_complete)
 
-            if job.should_stop:
-                print("Stopping job because of user interruption.")
-                job.update_status("STOPPED")
-                process.terminate()
+                if job.should_stop:
+                    print("Stopping job because of user interruption.")
+                    job.update_status("STOPPED")
+                    process.terminate()
 
-            # Output to tensorboard
-            writer.add_scalar("loss", loss, iteration)
-            writer.add_scalar("it_per_sec", it_per_sec, iteration)
-            writer.add_scalar("learning_rate", learning_rate, iteration)
-            writer.add_scalar("epoch", epoch, iteration)
+                # Output to tensorboard
+                writer.add_scalar("loss", loss, iteration)
+                writer.add_scalar("it_per_sec", it_per_sec, iteration)
+                writer.add_scalar("learning_rate", learning_rate, iteration)
+                writer.add_scalar("epoch", epoch, iteration)
 
-        print(line, end="", flush=True)
+            print(line, end="", flush=True)
+
+except Exception as e:
+    job.set_job_completion_status("failed", "Failure during training")
+    raise e
 
 # Clean up
 # Autotrain outputs its data in a directory named <project_name>
 # We don't need to keep the arrow-formatted data Autotrain uses, so we delete it
-os.system(
-    f"rm -rf {project_name}/autotrain_data")
+try:
+    os.system(
+        f"rm -rf {project_name}/autotrain_data")
+except:
+    print("failed to delete unneccesary data")
+    #No exception raised here or stats set, as this data just gets ignored later
 
 # Move the model to the TransformerLab directory
-os.system(
-    f"mv {project_name} {config['adaptor_output_dir']}/")
+try:
+    os.system(
+        f"mv {project_name} {config['adaptor_output_dir']}/")
+except Exception as e:
+    job.set_job_completion_status("failed", "Failure to move model to transformerlab directory")
+    raise e
+
 
 
 print("Finished training.")
+job.set_job_completion_status("success", "Adaptor trained successfully")
