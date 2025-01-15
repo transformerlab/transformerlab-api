@@ -221,8 +221,7 @@ async def watch_file() -> AsyncGenerator[str, None]:
             yield f"data: {json.dumps(change)}\n\n"
     except asyncio.CancelledError:
         print("🛑 Watch file task cancelled")
-        observer.stop()
-        observer.join()
+        observer.unschedule(event_handler)
 
 
 @router.get("/stream_log")
