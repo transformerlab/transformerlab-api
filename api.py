@@ -226,19 +226,33 @@ async def server_worker_start(model_name: str, adaptor: str = '', model_filename
                 job_id = await db.job_create(type="LOAD_MODEL", status="STARTED", job_data='{}', experiment_id=experiment_id)
 
                 print("Loading plugin loader instead of default worker")
+
+                with open(dirs.GLOBAL_LOG_PATH, 'a') as global_log:
+                    global_log.write(
+                        f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
+
                 worker_process = await shared.async_run_python_daemon_and_update_status(python_script=params,
                                                                                         job_id=job_id,
                                                                                         begin_string="Application startup complete.",
                                                                                         set_process_id_function=set_worker_process_id)
                 exitcode = worker_process.returncode
                 if (exitcode == 99):
+                    with open(dirs.GLOBAL_LOG_PATH, 'a') as global_log:
+                        global_log.write(
+                            f"GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources.\n")
                     return {"status": "error", "message": "GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources."}
                 if (exitcode != None and exitcode != 0):
+                    with open(dirs.GLOBAL_LOG_PATH, 'a') as global_log:
+                        global_log.write(
+                            f"Error loading model: {model_name} with exit code {exitcode}\n")
                     error_msg = await db.job_get_error_msg(job_id)
                     if not error_msg:
                         error_msg = f"Exit code {exitcode}"
                         await db.job_update_status(job_id, "FAILED", error_msg)
                     return {"status": "error", "message": error_msg}
+                with open(dirs.GLOBAL_LOG_PATH, 'a') as global_log:
+                    global_log.write(
+                        f"Model loaded successfully: {model_name}\n")
                 return {"status": "success", "job_id": job_id}
 
     # NOTE: this code path is not reachable unless something unexpected happens:
