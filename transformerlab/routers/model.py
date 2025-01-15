@@ -23,6 +23,7 @@ from transformerlab.shared import galleries
 from transformerlab.models import model_helper
 from transformerlab.models import basemodel
 from transformerlab.models import localmodel
+from transformerlab.models import huggingfacemodel
 
 router = APIRouter(tags=["model"])
 
@@ -320,75 +321,6 @@ def get_model_download_size(model_id: str, allow_patterns: list = []):
     return {"status": "success", "data": download_size_in_bytes}
 
 
-def get_model_details_from_huggingface(hugging_face_id: str):
-    """
-    Gets model config details from hugging face and convert in to gallery format
-
-    This function can raise several Exceptions from HuggingFace:
-        RepositoryNotFoundError: invalid model ID or private repo without access
-        GatedRepoError: Model exists but this user is not on the authorized lsit
-        EntryNotFoundError: this model doesn't have a config.json
-        HfHubHTTPError: Catch all for everything else
-    """
-
-    # Use the Hugging Face Hub API to download the config.json file for this model
-    # This may throw an exception if the model doesn't exist or we don't have access rights
-    hf_hub_download(repo_id=hugging_face_id, filename="config.json")
-
-    # Also get model info for metadata and license details
-    # Similar to hf_hub_download this can throw exceptions
-    # Some models don't have a model card (mostly models that have been deprecated)
-    # In that case just set model_card_data to an empty object
-    hf_model_info = model_info(hugging_face_id)
-    try:
-        model_card = hf_model_info.card_data
-        model_card_data = model_card.data.to_dict()
-    except AttributeError:
-        model_card_data = {}
-
-    # Use Hugging Face file system API and let it figure out which file we should be reading
-    fs = HfFileSystem()
-    filename = os.path.join(hugging_face_id, "config.json")
-    with fs.open(filename) as f:
-        filedata = json.load(f)
-
-        # config.json stores a list of architectures but we only store one so just take the first!
-        architecture_list = filedata.get("architectures", [])
-        architecture = architecture_list[0] if architecture_list else ""
-
-        # Oh except that GGUF and MLX aren't listed as architectures, we have to look in library_name
-        library_name = getattr(hf_model_info, "library", "")
-        if (library_name == "MLX" or library_name == "GGUF"):
-            architecture = library_name
-
-        # TODO: Context length definition seems to vary by architecture. May need conditional logic here.
-        context_size = filedata.get("max_position_embeddings", "")
-
-        # TODO: Figure out description, paramters, model size
-        newmodel = basemodel.BaseModel(hugging_face_id)
-        config = newmodel.json_data
-        config = {
-            "uniqueID": hugging_face_id,
-            "name": filedata.get("name", hugging_face_id),
-            "description": f"Downloaded by TransformerLab from Hugging Face at {hugging_face_id}",
-            "parameters": "",
-            "context": context_size,
-            "private": getattr(hf_model_info, "private", False),
-            "gated": getattr(hf_model_info, "gated", False),
-            "architecture": architecture,
-            "huggingface_repo": hugging_face_id,
-            "model_type": filedata.get("model_type", ""),
-            "library_name": library_name,
-            "transformers_version": filedata.get("transformers_version", ""),
-            "license": model_card_data.get("license", ""),
-            "logo": ""
-        }
-        return config
-
-    # Something did not go to plan
-    return None
-
-
 async def download_huggingface_model(hugging_face_id: str, model_details: str = {}, job_id: int | None = None):
     """
     Tries to download a model with the id hugging_face_id
@@ -468,7 +400,7 @@ async def download_model_by_huggingface_id(model: str):
     # If None then that means either the model doesn't exist
     # Or we don't have proper Hugging Face authentication setup
     try:
-        model_details = get_model_details_from_huggingface(model)
+        model_details = huggingfacemodel.get_model_details_from_huggingface(model)
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
         return {"status": "error", "message": error_msg}
