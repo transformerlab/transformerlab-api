@@ -1,9 +1,11 @@
 import os
 import json
+import fnmatch
 
 from transformerlab.models import basemodel
 
 import huggingface_hub
+from huggingface_hub.hf_api import RepoFile
 
 
 async def list_models(uninstalled_only: bool = True):
@@ -210,7 +212,7 @@ def get_huggingface_download_size(model_id: str, allow_patterns: list = []):
     """
 
     # This can throw Exceptions: RepositoryNotFoundError
-    hf_model_info = list_repo_tree(model_id)
+    hf_model_info = huggingface_hub.list_repo_tree(model_id)
 
     # Iterate over files in the model repo and add up size if they are included in download
     download_size = 0
