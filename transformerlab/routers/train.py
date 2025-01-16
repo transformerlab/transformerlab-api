@@ -1,3 +1,4 @@
+import asyncio
 import json
 import yaml
 import os
@@ -310,7 +311,18 @@ async def get_training_job_output(job_id: str):
 
 @router.get("/job/{job_id}/stream_output")
 async def watch_log(job_id: str):
-    output_file_name = await get_output_file_name(job_id)
+
+    try:
+        output_file_name = await get_output_file_name(job_id)
+    except ValueError as e:
+        # if the value error starts with "No output file found for job" then wait 4 seconds and try again
+        # because the file might not have been created yet
+        if str(e).startswith("No output file found for job"):
+            await asyncio.sleep(4)
+            print("Retrying to get output file in 4 seconds...")
+            output_file_name = await get_output_file_name(job_id)
+        else:
+            return (f"ValueError: {e}")
 
     return StreamingResponse(
         # we force polling because i can't get this to work otherwise -- changes aren't detected
