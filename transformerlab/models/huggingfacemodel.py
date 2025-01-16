@@ -220,12 +220,10 @@ def get_huggingface_download_size(model_id: str, allow_patterns: list = []):
     for file in hf_model_info:
         if isinstance(file, RepoFile):
             total_size += file.size
-            print(f"{file.path} ({file.size})")
 
             # if there are no allow_patterns to filter on then add every file
             if len(allow_patterns) == 0:
                 download_size += file.size
-                print(F"ADDED. Total {download_size}")
 
             # If there is an array of allow_patterns then only add this file
             # if it matches one of the allow_patterns
@@ -233,10 +231,6 @@ def get_huggingface_download_size(model_id: str, allow_patterns: list = []):
                 for pattern in allow_patterns:
                     if fnmatch.fnmatch(file.path, pattern):
                         download_size += file.size
-                        print(F"ADDED. Total {download_size}")
                         break
 
-            print(F"SKIPPED.")
-
-    print(F"Final size: {download_size}")
     return download_size
