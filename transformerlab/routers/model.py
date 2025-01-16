@@ -410,6 +410,13 @@ async def model_local_list():
     return await model_helper.list_installed_models()
 
 
+@router.get("/model/count_downloaded")
+async def model_count_downloaded():
+    # Currently used to determine if user has any downloaded models
+    count = await db.model_local_count()
+    return  {"status": "success", "data": count}
+
+
 @router.get("/model/create")
 async def model_local_create(id: str, name: str, json_data={}):
     await db.model_local_create(model_id=id, name=name, json_data=json_data)
