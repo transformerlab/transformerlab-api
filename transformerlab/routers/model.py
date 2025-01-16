@@ -2,18 +2,15 @@ from collections import namedtuple
 import json
 import shutil
 import datetime
-import fnmatch
 import dateutil.relativedelta
 from typing import Annotated
 import transformerlab.db as db
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
 from fastchat.model.model_adapter import get_conversation_template
-from huggingface_hub import hf_hub_download, HfFileSystem, model_info, list_repo_tree
 from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi
 from huggingface_hub import ModelCard, ModelCardData
 from huggingface_hub.utils import HfHubHTTPError
-from huggingface_hub.hf_api import RepoFile
 import os
 
 from transformerlab.shared import shared
@@ -57,38 +54,6 @@ def get_model_details_from_gallery(model_id: str):
 @router.get("/healthz")  # TODO: why isn't this /model/helathz?
 async def healthz():
     return {"message": "OK"}
-
-
-def get_huggingface_model_size(model_id: str, allow_patterns: list = []):
-    """
-    Get the size in bytes of all files to be downloaded from Hugging Face.
-
-    Raises: RepositoryNotFoundError if model_id doesn't exist on huggingface (or can't be accessed)
-    """
-
-    # This can throw Exceptions: RepositoryNotFoundError
-    hf_model_info = list_repo_tree(model_id)
-
-    # Iterate over files in the model repo and add up size if they are included in download
-    download_size = 0
-    total_size = 0
-    for file in hf_model_info:
-        if isinstance(file, RepoFile):
-            total_size += file.size
-
-            # if there are no allow_patterns to filter on then add every file
-            if len(allow_patterns) == 0:
-                download_size += file.size
-
-            # If there is an array of allow_patterns then only add this file
-            # if it matches one of the allow_patterns
-            else:
-                for pattern in allow_patterns:
-                    if fnmatch.fnmatch(file.path, pattern):
-                        download_size += file.size
-                        break
-
-    return download_size
 
 
 @router.get("/model/gallery")
@@ -147,12 +112,13 @@ async def model_gallery_update_sizes():
                 "*.npz",
                 "*.bin"
             ]
-            download_size = get_huggingface_model_size(
+            download_size = huggingfacemodel.get_huggingface_download_size(
                 model['uniqueID'], model.get("allow_patterns", default_allow_patterns))
-        except Exception:
+        except Exception as e:
             download_size = -1
+            print(e)
         try:
-            total_size = get_huggingface_model_size(model['uniqueID'], [])
+            total_size = huggingfacemodel.get_huggingface_download_size(model['uniqueID'], [])
         except Exception:
             total_size = -1
         print(model['uniqueID'])
@@ -312,7 +278,7 @@ async def login_to_huggingface():
 @router.get(path="/model/download_size")
 def get_model_download_size(model_id: str, allow_patterns: list = []):
     try:
-        download_size_in_bytes = get_huggingface_model_size(
+        download_size_in_bytes = huggingfacemodel.get_huggingface_download_size(
             model_id, allow_patterns)
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
