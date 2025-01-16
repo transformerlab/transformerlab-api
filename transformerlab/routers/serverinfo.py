@@ -171,7 +171,7 @@ atexit.register(cleanup_at_exit)
 GLOBAL_LOG_PATH = dirs.GLOBAL_LOG_PATH
 
 
-async def watch_file(filename: str, start_from_beginning=False) -> AsyncGenerator[str, None]:
+async def watch_file(filename: str, start_from_beginning=False, force_polling=False) -> AsyncGenerator[str, None]:
     print(f"👀 Watching file: {filename}")
 
     last_position = 0
@@ -190,7 +190,7 @@ async def watch_file(filename: str, start_from_beginning=False) -> AsyncGenerato
         except Exception as e:
             print(f"Error seeking to end of file: {e}")
 
-    async for changes in awatch(filename):
+    async for changes in awatch(filename, force_polling=force_polling):
         print(f"📝 File changed: {filename}")
         with open(filename, "r") as f:
             f.seek(last_position)
