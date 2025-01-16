@@ -313,7 +313,9 @@ async def watch_log(job_id: str):
     output_file_name = await get_output_file_name(job_id)
 
     return StreamingResponse(
-        watch_file(output_file_name, start_from_beginning=True),
+        # we force polling because i can't get this to work otherwise -- changes aren't detected
+        watch_file(output_file_name, start_from_beginning=True,
+                   force_polling=True),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
