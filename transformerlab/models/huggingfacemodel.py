@@ -200,3 +200,41 @@ def get_model_details_from_huggingface(hugging_face_id: str):
 
     # Something did not go to plan
     return None
+
+
+def get_huggingface_download_size(model_id: str, allow_patterns: list = []):
+    """
+    Get the size in bytes of all files to be downloaded from Hugging Face.
+
+    Raises: RepositoryNotFoundError if model_id doesn't exist on huggingface (or can't be accessed)
+    """
+
+    # This can throw Exceptions: RepositoryNotFoundError
+    hf_model_info = list_repo_tree(model_id)
+
+    # Iterate over files in the model repo and add up size if they are included in download
+    download_size = 0
+    total_size = 0
+    for file in hf_model_info:
+        if isinstance(file, RepoFile):
+            total_size += file.size
+            print(f"{file.path} ({file.size})")
+
+            # if there are no allow_patterns to filter on then add every file
+            if len(allow_patterns) == 0:
+                download_size += file.size
+                print(F"ADDED. Total {download_size}")
+
+            # If there is an array of allow_patterns then only add this file
+            # if it matches one of the allow_patterns
+            else:
+                for pattern in allow_patterns:
+                    if fnmatch.fnmatch(file.path, pattern):
+                        download_size += file.size
+                        print(F"ADDED. Total {download_size}")
+                        break
+
+            print(F"SKIPPED.")
+
+    print(F"Final size: {download_size}")
+    return download_size
