@@ -1,6 +1,4 @@
 from watchfiles import awatch
-from queue import Queue
-import asyncio
 import atexit
 import json
 import os
@@ -8,18 +6,13 @@ import platform
 import sys
 import subprocess
 from fastapi.responses import StreamingResponse
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
 from fastapi.responses import StreamingResponse
 from typing import AsyncGenerator
-from asyncio import Queue
 
 # Could also use https://github.com/gpuopenanalytics/pynvml but this is simpler
 import psutil
 import torch
-from fastapi import APIRouter, Response
+from fastapi import APIRouter
 from pynvml import (
     nvmlDeviceGetCount,
     nvmlDeviceGetHandleByIndex,
