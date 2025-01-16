@@ -212,6 +212,15 @@ async def model_local_list():
     return data
 
 
+async def model_local_count():
+
+    cursor = await db.execute("SELECT COUNT(*) FROM model")
+    row = await cursor.fetchone()
+    await cursor.close()
+
+    return row[0]
+
+
 async def model_local_create(model_id, name, json_data):
 
     json_data = json.dumps(obj=json_data)
