@@ -350,6 +350,11 @@ async def job_get(job_id):
 
     cursor = await db.execute("SELECT * FROM job WHERE id = ?", (job_id,))
     row = await cursor.fetchone()
+
+    # if no results, return None
+    if row is None:
+        return None
+
     # convert to json:
     desc = cursor.description
     column_names = [col[0] for col in desc]
