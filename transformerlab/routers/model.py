@@ -357,7 +357,7 @@ async def download_huggingface_model(hugging_face_id: str, model_details: str = 
 
 
 @router.get(path="/model/download_from_huggingface")
-async def download_model_by_huggingface_id(model: str):
+async def download_model_by_huggingface_id(model: str, job_id: int | None = None):
     """Takes a specific model string that must match huggingface ID to download
     This function will not be able to infer out description etc of the model
     since it is not in the gallery"""
@@ -375,7 +375,7 @@ async def download_model_by_huggingface_id(model: str):
         error_msg = f"Error reading config for model with ID {model}"
         return {"status": "error", "message": error_msg}
 
-    return await download_huggingface_model(model, model_details)
+    return await download_huggingface_model(model, model_details, job_id)
 
 
 @router.get(path="/model/download_model_from_gallery")
