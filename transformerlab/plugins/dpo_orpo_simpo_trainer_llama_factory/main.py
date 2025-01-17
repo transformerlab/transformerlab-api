@@ -54,6 +54,9 @@ config = input_config["config"]
 print("Input:")
 print(json.dumps(input_config, indent=4))
 
+job = transformerlab.plugin.Job(config["job_id"])
+job.update_progress(0)
+
 model_name = config['model_name']
 adaptor_output_dir = config['adaptor_output_dir']
 
@@ -71,6 +74,7 @@ if preference_strategy == 'dpo':
     preference_strategy = 'sigmoid'  # llama factory calls dpo "sigmoid"
 if preference_strategy not in ["sigmoid", "orpo", "simpo"]:
     print("Invalid preference strategy")
+    job.set_job_completion_status("failed", "Invalid preference strategy")
     exit()
 
 
@@ -110,20 +114,26 @@ try:
     dataset_target = transformerlab.plugin.get_dataset_path(
         config["dataset_name"])
 except Exception as e:
-    print(e)
-    exit()
+    job.set_job_completion_status("failed", "failed to get dataset path")
+    raise e
 
-
-dataset = load_dataset(dataset_target, trust_remote_code=True)
+try:
+    dataset = load_dataset(dataset_target, trust_remote_code=True)
+except Exception as e:
+    job.set_job_completion_status("failed", "failed to load dataset")
+    raise e
 
 # output dataset['train'] to a json file, row by row:
 # This will exhaust memory if the data is large
-with open(f"{data_directory}/train.json", "w") as f:
-    all_data = []
-    for row in dataset['train']:
-        all_data.append(row)
-    json.dump(all_data, f, indent=2)
-
+try:
+    with open(f"{data_directory}/train.json", "w") as f:
+        all_data = []
+        for row in dataset['train']:
+            all_data.append(row)
+        json.dump(all_data, f, indent=2)
+except Exception as e:
+    job.set_job_completion_status("failed", "failed to process the dataset")
+    raise e
 
 ########################################
 # Generate a config YAML file that will be used by LLaMA-Factory
@@ -144,8 +154,12 @@ yml = {}
 with open(yaml_config_path, 'r') as file:
     yml = yaml.safe_load(file)
 
+try:
+    create_data_directory_in_llama_factory_format()
+except Exception as e:
+    job.set_job_completion_status("failed", "failed to create llama factory data directory")
+    raise e
 
-create_data_directory_in_llama_factory_format()
 
 print("Template configuration:")
 print(yml)
@@ -182,13 +196,13 @@ print("Running command:")
 print(popen_command)
 
 
-job = transformerlab.plugin.Job(config["job_id"])
-job.update_progress(0)
 # In the json job_data column for this job, store the tensorboard output dir
 job.set_tensorboard_output_dir(output_dir)
 
 
 print("Training beginning:")
+
+error_output = ""
 
 with subprocess.Popen(
         popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True, cwd=os.path.join(plugin_dir, 'LLaMA-Factory')) as process:
@@ -196,10 +210,12 @@ with subprocess.Popen(
     training_step_has_started = False
 
     for line in process.stdout:
+        error_output += line
 
         if job.should_stop:
             print("Stopping job because of user interruption.")
             job.update_status("STOPPED")
+            job.set_job_completion_status("failed", "user stopped the job")
             process.terminate()
 
         if "***** Running training *****" in line:
@@ -225,6 +241,12 @@ with subprocess.Popen(
             job.update_progress(percentage)
 
         print(line, end="", flush=True)
+
+    return_code = process.wait()
+
+    if return_code!=0:
+        job.set_job_completion_status("failed", "failed during training")
+        raise RuntimeError(f"Training failed: {error_output}")
 
 print("Finished training.")
 
@@ -273,12 +295,13 @@ with subprocess.Popen(
     print("Return code: ", return_code)
     if (return_code == 0):
         model_description = [{
-            "model_id": f"TransformerLab-mlx/{fused_model_name}",
+            "model_id": f"TransformerLab/{fused_model_name}",
             "model_filename": "",
             "name": fused_model_name,
             "local_model": True,
             "json_data": {
                 "uniqueID": f"TransformerLab/{fused_model_name}",
+                # TODO: figure out the MLX here
                 "name": f"MLX",
                 "description": f"Model generated using Llama Factory in TransformerLab based on {config['model_name']}",
                 "architecture": config["model_architecture"],
@@ -290,6 +313,7 @@ with subprocess.Popen(
         model_description_file.close()
 
         print("Finished fusing the adaptor with the model.")
-
+        job.set_job_completion_status("success", "succesfully trained model")
     else:
         print("Fusing model with adaptor failed: ", return_code)
+        job.set_job_completion_status("failed", "failed to fuse model")
