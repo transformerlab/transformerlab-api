@@ -1,9 +1,14 @@
+import sys
+import io
+import contextlib
+import logging
 import os
 import re
 import shutil
 import unicodedata
 import json
 import aiofiles
+import asyncio
 from datasets import load_dataset, load_dataset_builder
 from fastapi import APIRouter, HTTPException, UploadFile, Query
 from fastapi.responses import FileResponse
@@ -17,6 +22,18 @@ from transformerlab.shared.shared import slugify
 
 from jinja2 import Environment
 jinja_environment = Environment()
+
+
+# Configure logging
+GLOBAL_LOG_PATH = dirs.GLOBAL_LOG_PATH
+
+
+def log(msg):
+    with open(GLOBAL_LOG_PATH, "a") as f:
+        f.write(msg + "\n")
+# logging.basicConfig(filename=GLOBAL_LOG_PATH, level=logging.INFO,
+#                     format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 router = APIRouter(prefix="/data", tags=["datasets"])
 
@@ -227,8 +244,10 @@ async def dataset_download(dataset_id: str):
         else:
             ds_builder = load_dataset_builder(
                 dataset_id, trust_remote_code=True)
+        log(f"Dataset builder loaded for dataset_id: {dataset_id}")
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
+        log(error_msg)
         return {"status": "error", "message": error_msg}
 
     dataset_size = ds_builder.info.download_size
@@ -237,14 +256,28 @@ async def dataset_download(dataset_id: str):
     await db.create_huggingface_dataset(
         dataset_id, ds_builder.info.description, dataset_size, json_data
     )
+    log(f"Dataset created in database for dataset_id: {dataset_id}")
 
     # Download the dataset
     # Later on we can move this to a job
+    async def load_dataset_thread(dataset_id):
+        logFile = open(GLOBAL_LOG_PATH, "a")
+        flushLogFile = FlushFile(logFile)
+        with contextlib.redirect_stdout(flushLogFile), contextlib.redirect_stderr(flushLogFile):
+            try:
+                dataset = load_dataset(dataset_id, trust_remote_code=True)
+                print(
+                    f"Dataset downloaded for dataset_id: {dataset_id}")
+                return dataset
+            except Exception as e:
+                error_msg = f"{type(e).__name__}: {e}"
+                print(error_msg)
+                raise
+
     try:
-        dataset = load_dataset(dataset_id, trust_remote_code=True)
+        dataset = await load_dataset_thread(dataset_id)
     except Exception as e:
-        error_msg = f"{type(e).__name__}: {e}"
-        return {"status": "error", "message": error_msg}
+        return {"status": "error", "message": str(e)}
 
     return {"status": "success"}
 
@@ -314,3 +347,15 @@ async def create_upload_file(dataset_id: str, files: list[UploadFile]):
                 status_code=403, detail="There was a problem uploading the file")
 
     return {"status": "success"}
+
+
+class FlushFile:
+    def __init__(self, file):
+        self.file = file
+
+    def write(self, data):
+        self.file.write(data)
+        self.file.flush()
+
+    def flush(self):
+        self.file.flush()
