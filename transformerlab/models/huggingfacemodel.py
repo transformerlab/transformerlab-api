@@ -177,6 +177,9 @@ def get_model_details_from_huggingface(hugging_face_id: str):
         if ("mlx" in model_tags):
             architecture = "MLX"
 
+        # calculate model size
+        model_size = get_huggingface_download_size(hugging_face_id)/(1024*1024)
+
         # TODO: Context length definition seems to vary by architecture. May need conditional logic here.
         context_size = filedata.get("max_position_embeddings", "")
 
@@ -192,6 +195,7 @@ def get_model_details_from_huggingface(hugging_face_id: str):
             "architecture": architecture,
             "huggingface_repo": hugging_face_id,
             "model_type": filedata.get("model_type", ""),
+            "size_of_model_in_mb": model_size,
             "library_name": library_name,
             "tags": model_tags,
             "transformers_version": filedata.get("transformers_version", ""),
