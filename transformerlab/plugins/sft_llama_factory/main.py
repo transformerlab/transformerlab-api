@@ -50,6 +50,8 @@ config = input_config["config"]
 print("Input:")
 print(json.dumps(input_config, indent=4))
 
+job = transformerlab.plugin.Job(config["job_id"])
+
 model_name = config['model_name']
 adaptor_output_dir = config['adaptor_output_dir']
 
@@ -93,11 +95,15 @@ try:
     dataset_target = transformerlab.plugin.get_dataset_path(
         config["dataset_name"])
 except Exception as e:
-    print("Failed loading dataset from db:", e)
-    exit
+    job.set_job_completion_status("failed", f"Failure to load dataset")
+    raise e 
 
-dataset = load_dataset(
-    dataset_target, split='train', trust_remote_code=True)
+try:
+    dataset = load_dataset(
+        dataset_target, split='train', trust_remote_code=True)
+except Exception as e:
+    job.set_job_completion_status("failed", f"Failure to load dataset")
+    raise e
 
 print(
     f"Loaded Training dataset with {len(dataset)} examples.")
@@ -153,13 +159,15 @@ today = time.strftime("%Y%m%d-%H%M%S")
 output_dir = os.path.join(config["output_dir"], today)
 print(f"Storing Tensorboard Output to: {output_dir}")
 
-# Create a job and store the tensorboard output dir in the job
-job = transformerlab.plugin.Job(config["job_id"])
 job.set_tensorboard_output_dir(output_dir)
 
-# First copy a template file to the data directory
-os.system(
-    f"cp {plugin_dir}/LLaMA-Factory/examples/train_lora/llama3_lora_sft.yaml {yaml_config_path}")
+try:
+    # First copy a template file to the data directory
+    os.system(
+        f"cp {plugin_dir}/LLaMA-Factory/examples/train_lora/llama3_lora_sft.yaml {yaml_config_path}")
+except Exception as e:
+    job.set_job_completion_status("failed", f"failed to copy template file")
+    raise e
 # Now replace specific values in the file using the PyYAML library:
 
 yml = {}
@@ -167,7 +175,11 @@ with open(yaml_config_path, 'r') as file:
     yml = yaml.safe_load(file)
 
 
-create_data_directory_in_llama_factory_format()
+try:
+    create_data_directory_in_llama_factory_format()
+except Exception as e:
+    job.set_job_completion_status("failed", f"failed to create data directory")
+    raise e
 
 print("Template configuration:")
 print(yml)
@@ -232,6 +244,12 @@ with subprocess.Popen(
                 process.terminate()
 
         print(line, end="", flush=True)
+    
+    return_code = process.wait()
+
+    if return_code!=0 and not "TypeError: DPOTrainer.create_model_card() got an unexpected keyword argument 'license'" in error_output:
+        job.set_job_completion_status("failed", "failed during training")
+        raise RuntimeError(f"Training failed: {error_output}")
 
 print("Finished training.")
 
@@ -283,13 +301,13 @@ with subprocess.Popen(
     print("Return code: ", return_code)
     if (return_code == 0):
         model_description = [{
-            "model_id": f"TransformerLab-mlx/{fused_model_name}",
+            "model_id": f"TransformerLab/{fused_model_name}",
             "model_filename": "",
             "name": fused_model_name,
             "local_model": True,
             "json_data": {
-                "uniqueID": f"TransformerLab-mlx/{fused_model_name}",
-                "name": f"MLX",
+                "uniqueID": f"TransformerLab/{fused_model_name}",
+                "name": f"sft_llama_factory",
                 "description": f"Model generated using Llama Factory in TransformerLab based on {config['model_name']}",
                 "architecture": config["model_architecture"],
                 "huggingface_repo": ""
@@ -300,6 +318,7 @@ with subprocess.Popen(
         model_description_file.close()
 
         print("Finished fusing the adaptor with the model.")
-
+        job.set_job_completion_status("success", "succesfully trained model")
     else:
         print("Fusing model with adaptor failed: ", return_code)
+        job.set_job_completion_status("failed", "failed to fuse model")
