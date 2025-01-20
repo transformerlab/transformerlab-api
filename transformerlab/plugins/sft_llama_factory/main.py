@@ -301,13 +301,13 @@ with subprocess.Popen(
     print("Return code: ", return_code)
     if (return_code == 0):
         model_description = [{
-            "model_id": f"TransformerLab-mlx/{fused_model_name}",
+            "model_id": f"TransformerLab/{fused_model_name}",
             "model_filename": "",
             "name": fused_model_name,
             "local_model": True,
             "json_data": {
-                "uniqueID": f"TransformerLab-mlx/{fused_model_name}",
-                "name": f"MLX",
+                "uniqueID": f"TransformerLab/{fused_model_name}",
+                "name": f"sft_llama_factory",
                 "description": f"Model generated using Llama Factory in TransformerLab based on {config['model_name']}",
                 "architecture": config["model_architecture"],
                 "huggingface_repo": ""
