@@ -1682,6 +1682,7 @@
         "uniqueID": "bigcode/starcoder",
         "name": "StarCoder",
         "description": "The StarCoder models are 15.5B parameter models trained on 80+ programming languages from The Stack (v1.2), with opt-out requests excluded. The model uses Multi Query Attention, a context window of 8192 tokens, and was trained using the Fill-in-the-Middle objective on 1 trillion tokens.",
+        "archived": true,
         "parameters": "7B",
         "context": "4k",
         "architecture": "GPTBigCodeForCausalLM",
