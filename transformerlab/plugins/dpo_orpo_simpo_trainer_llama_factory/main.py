@@ -301,8 +301,7 @@ with subprocess.Popen(
             "local_model": True,
             "json_data": {
                 "uniqueID": f"TransformerLab/{fused_model_name}",
-                # TODO: figure out the MLX here
-                "name": f"MLX",
+                "name": f"dpo_orpo_simpo_trainer_llama_factory",
                 "description": f"Model generated using Llama Factory in TransformerLab based on {config['model_name']}",
                 "architecture": config["model_architecture"],
                 "huggingface_repo": ""
