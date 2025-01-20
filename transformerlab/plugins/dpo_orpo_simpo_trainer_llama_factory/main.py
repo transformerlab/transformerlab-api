@@ -244,7 +244,7 @@ with subprocess.Popen(
 
     return_code = process.wait()
 
-    if return_code!=0:
+    if return_code!=0 and not "TypeError: DPOTrainer.create_model_card() got an unexpected keyword argument 'license'" in error_output:
         job.set_job_completion_status("failed", "failed during training")
         raise RuntimeError(f"Training failed: {error_output}")
 
