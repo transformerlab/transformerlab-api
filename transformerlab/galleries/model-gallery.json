@@ -1,5 +1,33 @@
 [
     {
+        "uniqueID": "phi-4-q4.gguf",
+        "name": "LLama 3.2 1B Instruct GGUF - Q6_K",
+        "description": "GGUF export of Microsoft's Phi-4 using 4-bit quantization.",
+        "added": "2024-1-20",
+        "parameters": "14B",
+        "context": "16384",
+        "architecture": "GGUF",
+        "formats": [
+            "GGUF"
+        ],
+        "huggingface_repo": "microsoft/phi-4-gguf",
+        "huggingface_filename": "phi-4-q4.gguf",
+        "gated": false,
+        "license": "mit",
+        "logo": "https://blogs.microsoft.com/wp-content/uploads/prod/2012/08/8867.Microsoft_5F00_Logo_2D00_for_2D00_screen.jpg",
+        "size_of_model_in_mb": 0,
+        "author": {
+            "name": "microsoft",
+            "url": "https://huggingface.co/microsoft/phi-4",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/microsoft/phi-4",
+            "downloadUrl": "https://huggingface.co/microsoft/phi-4",
+            "paperUrl": "?"
+        }
+    },
+    {
         "uniqueID": "meta-llama/Llama-2-7b-chat-hf",
         "name": "LLama 2 7B - Chat",
         "archived": true,
@@ -1569,6 +1597,34 @@
         }
     },
     {
+        "uniqueID": "microsoft/phi-4",
+        "name": "Phi-4",
+        "description": "Fourth generation of Microsoft's Phi model. Text, best suited for prompts in the chat format.",
+        "added": "2024-1-20",
+        "parameters": "14B",
+        "context": "16384",
+        "architecture": "Phi3ForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "microsoft/phi-4",
+        "transformers_version": "4.47.0",
+        "gated": false,
+        "license": "mit",
+        "logo": "https://blogs.microsoft.com/wp-content/uploads/prod/2012/08/8867.Microsoft_5F00_Logo_2D00_for_2D00_screen.jpg",
+        "size_of_model_in_mb": 0,
+        "author": {
+            "name": "microsoft",
+            "url": "https://huggingface.co/microsoft/phi-4",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/microsoft/phi-4",
+            "downloadUrl": "https://huggingface.co/microsoft/phi-4",
+            "paperUrl": "?"
+        }
+    },
+    {
         "uniqueID": "Nous-Hermes-13b",
         "name": "Nous Hermes 13b",
         "description": "Extremely good model. Instruction based. Gives long responses. Curated with 300,000 uncensored instructions. Trained by Nous Research. Cannot be used commercially",
@@ -1646,6 +1702,34 @@
         "resources": {
             "canonicalUrl": "https://www.bigcode-project.org/",
             "downloadUrl": "https://huggingface.co/bigcode/starcoder",
+            "paperUrl": "?"
+        }
+    },
+    {
+        "uniqueID": "mlx-community/phi-4-4bit",
+        "name": "Phi-4 MLX 4-bit",
+        "description": "MLX export of Microsoft's Phi-4 using 4-bit quantization.",
+        "added": "2024-1-20",
+        "parameters": "14B",
+        "context": "16384",
+        "architecture": "Phi3ForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "mlx-community/phi-4-4bit",
+        "transformers_version": "4.47.0",
+        "gated": false,
+        "license": "mit",
+        "logo": "https://blogs.microsoft.com/wp-content/uploads/prod/2012/08/8867.Microsoft_5F00_Logo_2D00_for_2D00_screen.jpg",
+        "size_of_model_in_mb": 0,
+        "author": {
+            "name": "mlx-community",
+            "url": "https://huggingface.co/mlx-community/phi-4-4bit",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/mlx-community/phi-4-4bit",
+            "downloadUrl": "https://huggingface.co/mlx-community/phi-4-4bit",
             "paperUrl": "?"
         }
     },
