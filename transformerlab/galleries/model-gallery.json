@@ -15,7 +15,7 @@
         "gated": false,
         "license": "mit",
         "logo": "https://blogs.microsoft.com/wp-content/uploads/prod/2012/08/8867.Microsoft_5F00_Logo_2D00_for_2D00_screen.jpg",
-        "size_of_model_in_mb": 0,
+        "size_of_model_in_mb": 9267.2,
         "author": {
             "name": "microsoft",
             "url": "https://huggingface.co/microsoft/phi-4",
@@ -1612,7 +1612,7 @@
         "gated": false,
         "license": "mit",
         "logo": "https://blogs.microsoft.com/wp-content/uploads/prod/2012/08/8867.Microsoft_5F00_Logo_2D00_for_2D00_screen.jpg",
-        "size_of_model_in_mb": 0,
+        "size_of_model_in_mb": 27966.45,
         "author": {
             "name": "microsoft",
             "url": "https://huggingface.co/microsoft/phi-4",
@@ -1721,7 +1721,7 @@
         "gated": false,
         "license": "mit",
         "logo": "https://blogs.microsoft.com/wp-content/uploads/prod/2012/08/8867.Microsoft_5F00_Logo_2D00_for_2D00_screen.jpg",
-        "size_of_model_in_mb": 0,
+        "size_of_model_in_mb": 7873.03,
         "author": {
             "name": "mlx-community",
             "url": "https://huggingface.co/mlx-community/phi-4-4bit",
