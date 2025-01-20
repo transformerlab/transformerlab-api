@@ -1,7 +1,7 @@
 [
     {
         "uniqueID": "phi-4-q4.gguf",
-        "name": "LLama 3.2 1B Instruct GGUF - Q6_K",
+        "name": "Phi-4 GGUF - 4bit",
         "description": "GGUF export of Microsoft's Phi-4 using 4-bit quantization.",
         "added": "2024-1-20",
         "parameters": "14B",
