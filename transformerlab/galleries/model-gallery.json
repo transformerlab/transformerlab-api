@@ -1271,7 +1271,7 @@
         "added": "2024-11-19",
         "parameters": "7B",
         "context": "32768",
-        "architecture": "Qwen2ForCausalLM",
+        "architecture": "MLX",
         "formats": [
             "Safetensors"
         ],
@@ -1298,7 +1298,7 @@
         "description": "MLX export of Llama 3.3 70B Instruct model quantized to 4 bit. Loses some quality but useful for systems with lower RAM.",
         "parameters": "70B",
         "context": "131072",
-        "architecture": "LlamaForCausalLM",
+        "architecture": "MLX",
         "formats": [
             "Safetensors"
         ],
@@ -1438,7 +1438,7 @@
         "added": "2024-11-19",
         "parameters": "14B",
         "context": "32768",
-        "architecture": "Qwen2ForCausalLM",
+        "architecture": "MLX",
         "formats": [
             "Safetensors"
         ],
@@ -1712,7 +1712,7 @@
         "added": "2024-1-20",
         "parameters": "14B",
         "context": "16384",
-        "architecture": "Phi3ForCausalLM",
+        "architecture": "MLX",
         "formats": [
             "Safetensors"
         ],
