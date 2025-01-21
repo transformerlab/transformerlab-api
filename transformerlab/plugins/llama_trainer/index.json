@@ -6,7 +6,7 @@
     "type": "trainer",
     "version": "1.0.6",
     "model_architectures": [
-        "LlamaForCausalLM"
+        "LlamaForCausalLM",
     ],
     "git": "",
     "url": "",
@@ -22,6 +22,13 @@
             "default": 2048,
             "minimum": 1,
             "maximum": 4096
+        },
+        "batch_size": {
+            "title": "Batch Size",
+            "type": "integer",
+            "default": 4,
+            "minimum": 1,
+            "maximum": 64
         },
         "learning_rate": {
             "title": "Learning Rate",
