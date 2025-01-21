@@ -150,7 +150,7 @@ print(max_seq_length)
 args = SFTConfig(
     output_dir=output_dir,
     num_train_epochs=int(config['num_train_epochs']),
-    per_device_train_batch_size=6 if use_flash_attention else 4,
+    per_device_train_batch_size=int(config['batch_size']),
     gradient_accumulation_steps=2,
     gradient_checkpointing=True,
     optim="paged_adamw_32bit",
