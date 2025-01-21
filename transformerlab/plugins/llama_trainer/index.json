@@ -82,6 +82,9 @@
         "maximum_sequence_length": {
             "ui:help": "Maximum sequence length for the model. Longer sequences will be truncated. Keep lower to save memory."
         },
+        "batch_size": {
+            "ui:help": "The number of sequences processed simultaneously during training. Higher values lower number of iterations but require more memory."
+        },
         "lora_r": {
             "ui:widget": "range",
             "ui:help": "Rank of the update matrices, expressed in int. Lower rank results in smaller update matrices with fewer trainable parameters."
