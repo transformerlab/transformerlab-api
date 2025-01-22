@@ -29,6 +29,30 @@
             "author": "",
             "version": "1.0",
             "name": "MachineLearningQnA",
+            "description": "Trains a Qwen 2.5 model to answer machine learning questions"
+        },
+        "model": {
+            "name": "Qwen/Qwen2.5-1.5B-Instruct",
+            "path": "Qwen/Qwen2.5-1.5B-Instruct"
+        },
+        "datasets": {
+            "name": "win-wang/Machine_Learning_QA_Collection",
+            "path": "win-wang/Machine_Learning_QA_Collection"
+        },
+        "training": {
+            "type": "LoRA",
+            "plugin": "llama_trainer",
+            "formatting_template": "{{text}}",
+            "config_json": "{\"template_name\":\"MachineLearningQA\",\"plugin_name\":\"llama_trainer\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"formatting_template\":\"{{text}}\\n\",\"dataset_name\":\"win-wang/Machine_Learning_QA_Collection\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"1\",\"learning_rate\":\"0.00005\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"16\",\"lora_alpha\":\"64\",\"lora_dropout\":\"0.1\",\"adaptor_name\":\"ML-QA\"}"
+        },
+        "test": {}
+    },
+    {
+        "schemaVersion": "0.1",
+        "metadata": {
+            "author": "",
+            "version": "1.0",
+            "name": "MachineLearningQnA-MLX",
             "description": "Trains a Gemma 2 model to answer machine learning questions. Adapted from https://medium.com/tutorial-by-winston-wang/beginners-guide-to-fine-tuning-models-using-mlx-on-apple-silicon-1a21ebb70aed"
         },
         "model": {
@@ -51,23 +75,23 @@
         "schemaVersion": "0.1",
         "metadata": {
             "author": "",
-            "version": "1.0",
-            "name": "Machine Learning QA",
-            "description": "Trains a Qwen 2.5 model to answer machine learning questions"
+            "version": "0.1",
+            "name": "WikiSQL-MLX",
+            "description": "Trains a model to answer SQL queries. Adapted from https://github.com/ml-explore/mlx-examples/"
         },
         "model": {
-            "name": "Qwen/Qwen2.5-1.5B-Instruct",
-            "path": "Qwen/Qwen2.5-1.5B-Instruct"
+            "name": "meta-llama/Llama-3.2-1B",
+            "path": "meta-llama/Llama-3.2-1B"
         },
         "datasets": {
-            "name": "win-wang/Machine_Learning_QA_Collection",
-            "path": "win-wang/Machine_Learning_QA_Collection"
+            "name": "mlx-community/wikisql",
+            "path": "mlx-community/wikisql"
         },
         "training": {
             "type": "LoRA",
-            "plugin": "llama_trainer",
-            "formatting_template": "{{text}}",
-            "config_json": "{\"template_name\":\"MachineLearningQA\",\"plugin_name\":\"llama_trainer\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"formatting_template\":\"{{text}}\\n\",\"dataset_name\":\"win-wang/Machine_Learning_QA_Collection\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"1\",\"learning_rate\":\"0.00005\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"16\",\"lora_alpha\":\"64\",\"lora_dropout\":\"0.1\",\"adaptor_name\":\"ML-QA\"}"
+            "plugin": "mlx_lora_trainer",
+            "formatting_template": "Given the following description of an SQL table and its columns, provide the corresponding SQL to answer the question. {{text}}",
+            "config_json": "{\"template_name\":\"WikiSQL\",\"plugin_name\":\"mlx_lora_trainer\",\"model_name\":\"meta-llama/Llama-3.2-1B\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"Given the following description of an SQL table and its columns, provide the corresponding SQL to answer the question.\\n{{text}}\",\"dataset_name\":\"mlx-community/wikisql\",\"lora_layers\":\"8\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"8\",\"lora_alpha\":\"160\",\"iters\":\"200\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"50\",\"save_every\":\"50\",\"adaptor_name\":\"ml-qa\"}"
         },
         "test": {}
     },
@@ -99,7 +123,7 @@
         "schemaVersion": "0.1",
         "metadata": {
             "author": "",
-            "name": "Wiki SQL",
+            "name": "WikiSQL",
             "version": "1.0",
             "description": "Trains a model to answer SQL queries"
         },
@@ -116,30 +140,6 @@
             "plugin": "llama_trainer",
             "formatting_template": "{{text}} ;",
             "config_json": "{\"template_name\":\"Wiki SQL\",\"plugin_name\":\"llama_trainer\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"formatting_template\":\"{{text}} ;\",\"dataset_name\":\"mlx-community/wikisql\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"1\",\"learning_rate\":\"0.005\",\"num_train_epochs\":\"2\",\"max_steps\":\"-1\",\"lora_r\":\"32\",\"lora_alpha\":\"64\",\"lora_dropout\":\"0.1\",\"adaptor_name\":\"WikiSQL\"}"
-        },
-        "test": {}
-    },
-    {
-        "schemaVersion": "0.1",
-        "metadata": {
-            "author": "",
-            "version": "0.1",
-            "name": "WikiSQL",
-            "description": "Trains a model to answer SQL queries. Adapted from https://github.com/ml-explore/mlx-examples/"
-        },
-        "model": {
-            "name": "meta-llama/Llama-3.2-1B",
-            "path": "meta-llama/Llama-3.2-1B"
-        },
-        "datasets": {
-            "name": "mlx-community/wikisql",
-            "path": "mlx-community/wikisql"
-        },
-        "training": {
-            "type": "LoRA",
-            "plugin": "mlx_lora_trainer",
-            "formatting_template": "Given the following description of an SQL table and its columns, provide the corresponding SQL to answer the question. {{text}}",
-            "config_json": "{\"template_name\":\"WikiSQL\",\"plugin_name\":\"mlx_lora_trainer\",\"model_name\":\"meta-llama/Llama-3.2-1B\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"Given the following description of an SQL table and its columns, provide the corresponding SQL to answer the question.\\n{{text}}\",\"dataset_name\":\"mlx-community/wikisql\",\"lora_layers\":\"8\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"8\",\"lora_alpha\":\"160\",\"iters\":\"200\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"50\",\"save_every\":\"50\",\"adaptor_name\":\"ml-qa\"}"
         },
         "test": {}
     },
