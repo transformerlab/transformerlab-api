@@ -6,7 +6,8 @@
     "type": "trainer",
     "version": "1.0.7",
     "model_architectures": [
-        "LlamaForCausalLM"
+        "LlamaForCausalLM",
+        "Qwen2ForCausalLM"
     ],
     "git": "",
     "url": "",
