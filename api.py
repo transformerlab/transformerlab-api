@@ -184,14 +184,14 @@ def set_worker_process_id(process):
 
 
 @app.get("/server/worker_start", tags=["serverinfo"])
-async def server_worker_start(model_name: str, adaptor: str = '', model_filename: str | None = None, eight_bit: bool = False, cpu_offload: bool = False, inference_engine: str = "default", experiment_id: str = None, inference_params: str = "{}" ):
+async def server_worker_start(model_name: str, adaptor: str = '', model_filename: str | None = None, eight_bit: bool = False, cpu_offload: bool = False, inference_engine: str = "default", experiment_id: str = None, inference_params: str = "" ):
     global worker_process
 
     if (experiment_id is not None):
         error = None
-        if inference_params == "{}":
+        if inference_params == "":
             experiment = await db.experiment_get(experiment_id)
-    
+
             experiment_config = experiment['config']
             experiment_config = json.loads(experiment_config)
             if 'inferenceParams' in experiment_config:
@@ -202,111 +202,74 @@ async def server_worker_start(model_name: str, adaptor: str = '', model_filename
             try:
                 inference_params = json.loads(inference_params)
             except:
-                inference_params = None
-        if (inference_params is not None and "inferenceEngine" in inference_params):
-            engine = inference_params.get('inferenceEngine')
+                return {"status": "error", "message":"malformed inference params passed"}
+    else:
+        try:
+            inference_params = json.loads(inference_params)
+        except:
+            return {"status": "error", "message":"malformed inference params passed"}
+    engine = inference_engine
+    if("inferenceEngine" in inference_params and engine=="default"):
+        engine = inference_params.get('inferenceEngine')
 
-            if (engine is not None and engine != 'default'):
-                inference_engine = engine
+    if(engine == "default"):
+        return {"status": "error", "message":"no inference engine specified"}
 
-                plugin_name = inference_engine
-                plugin_location = dirs.plugin_dir_by_name(plugin_name)
+    inference_engine = engine
 
-                model = model_name
-                if (model_filename is not None and model_filename != ''):
-                    model = model_filename
+    plugin_name = inference_engine
+    plugin_location = dirs.plugin_dir_by_name(plugin_name)
 
-                if (adaptor != ''):
-                    adaptor = f"{dirs.WORKSPACE_DIR}/adaptors/{model}/{adaptor}"
+    model = model_name
+    if (model_filename is not None and model_filename != ''):
+        model = model_filename
 
-                params = [
-                    dirs.PLUGIN_HARNESS,
-                    "--plugin_dir",
-                    plugin_location,
-                    "--model-path",
-                    model,
-                    "--adaptor-path",
-                    adaptor,
-                    "--parameters",
-                    json.dumps(inference_params)
-                ]
+    if (adaptor != ''):
+        adaptor = f"{dirs.WORKSPACE_DIR}/adaptors/{model}/{adaptor}"
 
-                job_id = await db.job_create(type="LOAD_MODEL", status="STARTED", job_data='{}', experiment_id=experiment_id)
+    params = [
+        dirs.PLUGIN_HARNESS,
+        "--plugin_dir",
+        plugin_location,
+        "--model-path",
+        model,
+        "--adaptor-path",
+        adaptor,
+        "--parameters",
+        json.dumps(inference_params)
+    ]
 
-                print("Loading plugin loader instead of default worker")
+    job_id = await db.job_create(type="LOAD_MODEL", status="STARTED", job_data='{}', experiment_id=experiment_id)
 
-                with open(dirs.GLOBAL_LOG_PATH, 'a') as global_log:
-                    global_log.write(
-                        f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
+    print("Loading plugin loader instead of default worker")
 
-                worker_process = await shared.async_run_python_daemon_and_update_status(python_script=params,
+    with open(dirs.GLOBAL_LOG_PATH, 'a') as global_log:
+        global_log.write(
+            f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
+
+    worker_process = await shared.async_run_python_daemon_and_update_status(python_script=params,
                                                                                         job_id=job_id,
                                                                                         begin_string="Application startup complete.",
                                                                                         set_process_id_function=set_worker_process_id)
-                exitcode = worker_process.returncode
-                if (exitcode == 99):
-                    with open(dirs.GLOBAL_LOG_PATH, 'a') as global_log:
-                        global_log.write(
-                            f"GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources.\n")
-                    return {"status": "error", "message": "GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources."}
-                if (exitcode != None and exitcode != 0):
-                    with open(dirs.GLOBAL_LOG_PATH, 'a') as global_log:
-                        global_log.write(
-                            f"Error loading model: {model_name} with exit code {exitcode}\n")
-                    error_msg = await db.job_get_error_msg(job_id)
-                    if not error_msg:
-                        error_msg = f"Exit code {exitcode}"
-                        await db.job_update_status(job_id, "FAILED", error_msg)
-                    return {"status": "error", "message": error_msg}
-                with open(dirs.GLOBAL_LOG_PATH, 'a') as global_log:
-                    global_log.write(
-                        f"Model loaded successfully: {model_name}\n")
-                return {"status": "success", "job_id": job_id}
-
-    # NOTE: this code path is not reachable unless something unexpected happens:
-    # - experiment ID is None
-    # - Something wrong with inference parameters
-    # - Somehow the app passed "default" as the inference engine
-
-    params = [
-        "-u", "-m",
-        "fastchat.serve.model_worker",
-        "--model-path",
-        model_name,
-        # "--seed", uncommenting breaks the app
-        # app_settings.seed,
-    ]
-
-    if torch.cuda.is_available():
-        device = "cuda"
-    elif torch.backends.mps.is_available():
-        device = "mps"
-    else:
-        device = "cpu"
-
-    params.extend(["--device", device])
-
-    # Choose hardware-specific worker parameters
-    if (eight_bit):
-        params.extend(["--load-8bit"])
-
-    if (cpu_offload):
-        params.extend(["--cpu-offload"])
-
-    print("Loading default worker for: " + model_name)
-
-    # create a new job in the jobs DB:
-    job_id = await db.job_create(type="LOAD_MODEL", status="STARTED", job_data='{}', experiment_id=experiment_id)
-
-    worker_process = await shared.async_run_python_daemon_and_update_status(python_script=params,
-                                                                            job_id=job_id,
-                                                                            begin_string="Register to controller",
-                                                                            set_process_id_function=set_worker_process_id)
-
-    print('Finished starting worker process')
-
+    exitcode = worker_process.returncode
+    if (exitcode == 99):
+        with open(dirs.GLOBAL_LOG_PATH, 'a') as global_log:
+            global_log.write(
+                f"GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources.\n")
+        return {"status": "error", "message": "GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources."}
+    if (exitcode != None and exitcode != 0):
+        with open(dirs.GLOBAL_LOG_PATH, 'a') as global_log:
+            global_log.write(
+                f"Error loading model: {model_name} with exit code {exitcode}\n")
+        error_msg = await db.job_get_error_msg(job_id)
+        if not error_msg:
+            error_msg = f"Exit code {exitcode}"
+            await db.job_update_status(job_id, "FAILED", error_msg)
+        return {"status": "error", "message": error_msg}
+    with open(dirs.GLOBAL_LOG_PATH, 'a') as global_log:
+        global_log.write(
+            f"Model loaded successfully: {model_name}\n")
     return {"status": "success", "job_id": job_id}
-
 
 @app.get("/server/worker_stop", tags=["serverinfo"])
 async def server_worker_stop():
