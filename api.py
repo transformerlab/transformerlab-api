@@ -186,28 +186,28 @@ def set_worker_process_id(process):
 @app.get("/server/worker_start", tags=["serverinfo"])
 async def server_worker_start(model_name: str, adaptor: str = '', model_filename: str | None = None, eight_bit: bool = False, cpu_offload: bool = False, inference_engine: str = "default", experiment_id: str = None, inference_params: str = "" ):
     global worker_process
-
-    if (experiment_id is not None):
-        error = None
-        if inference_params == "":
-            experiment = await db.experiment_get(experiment_id)
-
-            experiment_config = experiment['config']
-            experiment_config = json.loads(experiment_config)
-            if 'inferenceParams' in experiment_config:
-                inference_params = experiment_config['inferenceParams']
-                if inference_params is not None:
-                    inference_params = json.loads(inference_params)
-        else:
-            try:
-                inference_params = json.loads(inference_params)
-            except:
-                return {"status": "error", "message":"malformed inference params passed"}
-    else:
+    
+    #the first priority for inference params should be the inference params passed in, then the inference parameters in the experiment
+    #first we check to see if any inference params were passed in
+    if inference_params!="":
         try:
             inference_params = json.loads(inference_params)
         except:
             return {"status": "error", "message":"malformed inference params passed"}
+    #then we check to see if we are an experiment
+    elif (experiment_id is not None):
+        try:
+            experiment = await db.experiment_get(experiment_id)
+            experiment_config = experiment['config']
+            experiment_config = json.loads(experiment_config)
+            inference_params = experiment_config['inferenceParams']
+            inference_params = json.loads(inference_params)
+        except:
+            return {"status": "error", "message":"malformed inference params passed"}
+    #if neither are true, then we have an issue
+    else:
+        return {"status": "error", "message":"malformed inference params passed"}
+
     engine = inference_engine
     if("inferenceEngine" in inference_params and engine=="default"):
         engine = inference_params.get('inferenceEngine')
