@@ -184,18 +184,26 @@ def set_worker_process_id(process):
 
 
 @app.get("/server/worker_start", tags=["serverinfo"])
-async def server_worker_start(model_name: str, adaptor: str = '', model_filename: str | None = None, eight_bit: bool = False, cpu_offload: bool = False, inference_engine: str = "default", experiment_id: str = None):
+async def server_worker_start(model_name: str, adaptor: str = '', model_filename: str | None = None, eight_bit: bool = False, cpu_offload: bool = False, inference_engine: str = "default", experiment_id: str = None, inference_params: str = "{}" ):
     global worker_process
 
     if (experiment_id is not None):
-        experiment = await db.experiment_get(experiment_id)
-
-        experiment_config = experiment['config']
-        experiment_config = json.loads(experiment_config)
-        if ('inferenceParams' in experiment_config and experiment_config['inferenceParams'] is not None):
-            inference_params = experiment_config['inferenceParams']
-            inference_params = json.loads(inference_params)
-
+        error = None
+        if inference_params == "{}":
+            experiment = await db.experiment_get(experiment_id)
+    
+            experiment_config = experiment['config']
+            experiment_config = json.loads(experiment_config)
+            if 'inferenceParams' in experiment_config:
+                inference_params = experiment_config['inferenceParams']
+                if inference_params is not None:
+                    inference_params = json.loads(inference_params)
+        else:
+            try:
+                inference_params = json.loads(inference_params)
+            except:
+                inference_params = None
+        if (inference_params is not None and "inferenceEngine" in inference_params):
             engine = inference_params.get('inferenceEngine')
 
             if (engine is not None and engine != 'default'):
