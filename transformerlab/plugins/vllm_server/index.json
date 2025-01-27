@@ -27,7 +27,7 @@
             "title": "Maximum Model Length",
             "type": "integer"
         },
-        "gpu-memory-utilization": {
+        "gpu_memory_utilization": {
             "title": "GPU Memory Utilization",
             "type": "number",
             "default": 0.9,

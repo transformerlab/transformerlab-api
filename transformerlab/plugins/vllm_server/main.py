@@ -49,6 +49,12 @@ if "max-model-len" in parameters:
     if parameters["max-model-len"] == "":
         del parameters["max-model-len"]
 
+if "inferenceEngineFriendlyName" in parameters:
+    del parameters["inferenceEngineFriendlyName"]
+
+if "num_gpus" in parameters:
+    del parameters["num_gpus"]
+
 # The command to run a VLLM server is:
 # python -m vllm.entrypoints.openai.api_server --model facebook/opt-125m
 # but we can also run it through FastChat's VLLM integration:
