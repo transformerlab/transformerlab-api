@@ -192,6 +192,16 @@ install_conda() {
     MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-$OS-$ARCH.sh"
     echo Downloading "$MINICONDA_URL"
 
+    # Output the current directory we are in:
+    echo "Current directory: $(pwd)"
+    # # Explain the write permissions of this current directory:
+    # echo "Checking write permissions of current directory:"
+    # if [ -w "$(pwd)" ]; then
+    #     echo "✅ Current directory is writable."
+    # else
+    #     abort "❌ Current directory is not writable. Please run this script in a directory where you have write permissions."
+    # fi
+
     curl -o miniconda_installer.sh "$MINICONDA_URL" && bash miniconda_installer.sh -b -p "$MINICONDA_ROOT" && rm miniconda_installer.sh
     # Install conda to bash and zsh. We keep these commented out
     # to avoid adding our conda to the user's shell as the default.
