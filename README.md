@@ -10,7 +10,7 @@
   <p align="center">
     API for <a href="http://github.com/transformerlab/transformerlab-app">Transformer Lab App</a>.
     <br />
-    <a href=https://transformerlab.ai/docs/intro"><strong>Explore the docs »</strong></a>
+    <a href="https://transformerlab.ai/docs/intro"><strong>Explore the docs »</strong></a>
   </p>
 </div>
 
