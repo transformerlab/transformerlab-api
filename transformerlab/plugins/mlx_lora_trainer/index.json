@@ -19,7 +19,10 @@
     "Phi3ForCausalLM",
     "Qwen2ForCausalLM"
   ],
-  "files": ["main.py", "setup.sh"],
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
   "setup-script": "setup.sh",
   "parameters": {
     "lora_layers": {
@@ -87,6 +90,12 @@
       "type": "string",
       "default": "adaptor",
       "required": true
+    },
+    "fuse_model": {
+      "title": "Fuse Model after Training",
+      "type": "boolean",
+      "default": true,
+      "required": true
     }
   },
   "parameters_ui": {
@@ -113,6 +122,9 @@
     },
     "steps_per_eval": {
       "ui:help": "Number of training steps between validations."
+    },
+    "fuse_model": {
+      "ui:help": "Fuse model after training. Tick this if you'd like to fuse and create a new model after training."
     }
   }
 }
