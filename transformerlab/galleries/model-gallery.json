@@ -1048,6 +1048,7 @@
     {
         "uniqueID": "tiiuae/falcon-7b",
         "name": "Falcon 7b",
+        "archived": true,
         "description": "Best overall smaller model. Fast responses. Instruction based. Trained by TII. Licensed for commercial use.",
         "parameters": "7B",
         "context": "4k",
@@ -1075,6 +1076,7 @@
     {
         "uniqueID": "tiiuae/falcon-7b-instruct",
         "name": "Falcon 7b Instruct",
+        "archived": true,
         "description": "Best overall smaller model. Fast responses. Instruction based. Trained by TII. Licensed for commercial use.",
         "parameters": "7B",
         "context": "4k",
@@ -1112,7 +1114,7 @@
         ],
         "huggingface_repo": "mlx-community/Llama-3.2-1B-Instruct-4bit",
         "transformers_version": "4.45.0.dev0",
-        "gated": "manual",
+        "gated": false,
         "license": "llama3.2",
         "logo": "",
         "size_of_model_in_mb": 671.82,
