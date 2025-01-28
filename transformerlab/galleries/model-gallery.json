@@ -266,6 +266,34 @@
         "size_of_model_in_mb": 15328.09
     },
     {
+        "uniqueID": "deepseek-ai/DeepSeek-R1",
+        "name": "DeepSeek-R1",
+        "description": "Full version of DeepSeek's flagship Chain-of-Thought model.",
+        "added": "2025-01-27",
+        "parameters": "671B",
+        "context": "163840",
+        "architecture": "DeepseekV3ForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "deepseek-ai/DeepSeek-R1",
+        "transformers_version": "4.46.3",
+        "gated": false,
+        "license": "MIT",
+        "logo": "https://www.deepseek.com/favicon.ico",
+        "size_of_model_in_mb": 0,
+        "author": {
+            "name": "deepseek-ai",
+            "url": "https://huggingface.co/deepseek-ai/DeepSeek-R1",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/deepseek-ai/DeepSeek-R1",
+            "downloadUrl": "https://huggingface.co/deepseek-ai/DeepSeek-R1",
+            "paperUrl": "?"
+        }
+    },
+    {
         "uniqueID": "meta-llama/Llama-3.2-1B",
         "name": "Llama 3.2 1B",
         "description": "Llama 3.2 is an auto-regressive language model that uses an optimized transformer architecture. The tuned versions use supervised fine-tuning (SFT) and reinforcement learning with human feedback (RLHF) to align with human preferences for helpfulness and safety.",
@@ -372,6 +400,34 @@
             "canonicalUrl": "https://huggingface.co/lmsys/vicuna-7b-v1.5-16k",
             "downloadUrl": "https://huggingface.co/lmsys/vicuna-7b-v1.5-16k",
             "paperUrl": "https://arxiv.org/abs/2306.05685"
+        }
+    },
+    {
+        "uniqueID": "mlx-community/DeepSeek-R1-Distill-Qwen-32B-4bit",
+        "name": "DeepSeek-R1-Distill-Qwen-32B-4bit",
+        "description": "A 4-bit quantized MLX-formatted version of DeeSeek R1 Qwen Distill that is good for running on Apple Silicon.",
+        "added": "2025-01-27",
+        "parameters": "32B",
+        "context": "131072",
+        "architecture": "Qwen2ForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "mlx-community/DeepSeek-R1-Distill-Qwen-32B-4bit",
+        "transformers_version": "4.43.1",
+        "gated": false,
+        "license": "MIT",
+        "logo": "https://www.deepseek.com/favicon.ico",
+        "size_of_model_in_mb": 0,
+        "author": {
+            "name": "mlx-community",
+            "url": "https://huggingface.co/mlx-community/DeepSeek-R1-Distill-Qwen-32B-4bit",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/mlx-community/DeepSeek-R1-Distill-Qwen-32B-4bit",
+            "downloadUrl": "https://huggingface.co/mlx-community/DeepSeek-R1-Distill-Qwen-32B-4bit",
+            "paperUrl": "?"
         }
     },
     {
@@ -902,6 +958,34 @@
         "resources": {
             "canonicalUrl": "https://huggingface.co/Qwen/Qwen2.5-7B",
             "downloadUrl": "https://huggingface.co/Qwen/Qwen2.5-7B",
+            "paperUrl": "?"
+        }
+    },
+    {
+        "uniqueID": "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+        "name": "DeepSeek-R1-Distill-Qwen-7B",
+        "description": "Qwen distillation of DeepSeek chain-of-thought model.",
+        "added": "2025-01-27",
+        "parameters": "7B",
+        "context": "131072",
+        "architecture": "Qwen2ForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+        "transformers_version": "4.44.0",
+        "gated": false,
+        "license": "MIT",
+        "logo": "https://www.deepseek.com/favicon.ico",
+        "size_of_model_in_mb": 0,
+        "author": {
+            "name": "deepseek-ai",
+            "url": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+            "downloadUrl": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
             "paperUrl": "?"
         }
     },
@@ -1567,6 +1651,35 @@
         "resources": {
             "canonicalUrl": "https://huggingface.co/lmsys/fastchat-t5-3b-v1.0",
             "downloadUrl": "https://huggingface.co/lmsys/fastchat-t5-3b-v1.0",
+            "paperUrl": "?"
+        }
+    },
+    {
+        "uniqueID": "unsloth/DeepSeek-R1-Distill-Qwen-14B-GGUF",
+        "name": "DeepSeek R1 Distill Qwen 14B GGUF - Q6_K4",
+        "description": "A Q6_K quantized GGUF version of DeepSeek R1 Qwen Distill 14B.",
+        "added": "2025-01-27",
+        "parameters": "14B",
+        "context": "131072",
+        "architecture": "GGUF",
+        "formats": [
+            "GGUF"
+        ],
+        "huggingface_repo": "unsloth/DeepSeek-R1-Distill-Qwen-14B-GGUF",
+        "huggingface_filename": "DeepSeek-R1-Distill-Qwen-14B-Q6_K.gguf",
+        "transformers_version": "4.43.1",
+        "gated": false,
+        "license": "MIT",
+        "logo": "https://www.deepseek.com/favicon.ico",
+        "size_of_model_in_mb": 12390.4,
+        "author": {
+            "name": "unsloth",
+            "url": "hhttps://huggingface.co/unsloth/DeepSeek-R1-Distill-Qwen-14B-GGUF",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/unsloth/DeepSeek-R1-Distill-Qwen-14B-GGUF",
+            "downloadUrl": "https://huggingface.co/unsloth/DeepSeek-R1-Distill-Qwen-14B-GGUF",
             "paperUrl": "?"
         }
     },
