@@ -281,7 +281,7 @@
         "gated": false,
         "license": "MIT",
         "logo": "https://www.deepseek.com/favicon.ico",
-        "size_of_model_in_mb": 0,
+        "size_of_model_in_mb": 656703.53,
         "author": {
             "name": "deepseek-ai",
             "url": "https://huggingface.co/deepseek-ai/DeepSeek-R1",
@@ -418,7 +418,7 @@
         "gated": false,
         "license": "MIT",
         "logo": "https://www.deepseek.com/favicon.ico",
-        "size_of_model_in_mb": 0,
+        "size_of_model_in_mb": 17588.67,
         "author": {
             "name": "mlx-community",
             "url": "https://huggingface.co/mlx-community/DeepSeek-R1-Distill-Qwen-32B-4bit",
@@ -977,7 +977,7 @@
         "gated": false,
         "license": "MIT",
         "logo": "https://www.deepseek.com/favicon.ico",
-        "size_of_model_in_mb": 0,
+        "size_of_model_in_mb": 14532.41,
         "author": {
             "name": "deepseek-ai",
             "url": "https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
