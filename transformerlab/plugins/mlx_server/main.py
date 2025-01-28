@@ -18,6 +18,7 @@ import json
 import os
 from typing import Any, Dict, List, Optional
 import uuid
+import traceback
 
 from huggingface_hub import snapshot_download
 
@@ -230,7 +231,7 @@ class MLXWorker(BaseModelWorker):
         sampler = make_sampler(temperature, top_p=top_p)
 
         iterator = await run_in_threadpool(generate_step, context_mlx, self.mlx_model, 
-                                           sampler=sampler)
+                                           max_tokens=max_new_tokens, sampler=sampler)
 
         cummulative_logprobs = []
 
@@ -239,17 +240,12 @@ class MLXWorker(BaseModelWorker):
                 (token, logprobs) = await run_in_threadpool(next, iterator)
 
             except RuntimeError as e:
-                # Sometimes the iterator doesn't return logprobs on CoT models?
-                # TODO: How can we get it to keep going? It gets stuck.
-                # Make this do something if include_logprobs?
-                if token and (logprobs is None):
-                    print("Error getting logprobs")
-                    finish_reason = "stop"
-                    break
-
-                else:
-                    # This isn't good? Just kill the generator.
-                    raise
+                # If the error throws an exception (e.g. StopIteration)
+                # Let's print it out and then stop streaming
+                print(e)
+                print(traceback.format_exc())
+                finish_reason = "stop"
+                break
 
             if token == self.tokenizer.eos_token_id:
                 finish_reason = "stop"
