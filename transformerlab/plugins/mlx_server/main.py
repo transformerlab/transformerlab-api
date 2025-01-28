@@ -235,7 +235,22 @@ class MLXWorker(BaseModelWorker):
         cummulative_logprobs = []
 
         for i in range(max_new_tokens):
-            (token, logprobs) = await run_in_threadpool(next, iterator)
+            try:
+                (token, logprobs) = await run_in_threadpool(next, iterator)
+
+            except RuntimeError as e:
+                # Sometimes the iterator doesn't return logprobs on CoT models?
+                # TODO: How can we get it to keep going? It gets stuck.
+                # Make this do something if include_logprobs?
+                if token and (logprobs is None):
+                    print("Error getting logprobs")
+                    finish_reason = "stop"
+                    break
+
+                else:
+                    # This isn't good? Just kill the generator.
+                    raise
+
             if token == self.tokenizer.eos_token_id:
                 finish_reason = "stop"
                 break
