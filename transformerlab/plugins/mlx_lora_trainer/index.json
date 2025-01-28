@@ -124,7 +124,7 @@
       "ui:help": "Number of training steps between validations."
     },
     "fuse_model": {
-      "ui:help": "Fuse model after training. Tick this if you'd like to fuse and create a new model after training."
+      "ui:help": "Fuse adapter and model together. If unchecked, this will create a separate adapter which can be loaded from within the model in Foundation tab."
     }
   }
 }
