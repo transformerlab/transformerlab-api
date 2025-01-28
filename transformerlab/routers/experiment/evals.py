@@ -75,7 +75,7 @@ async def experiment_delete_eval(experimentId: int, eval_name: str):
     # remove the evaluation from the list:
     evaluations = [e for e in evaluations if e["name"] != eval_name]
 
-    await db.experiment_update_config(id, "evaluations", json.dumps(evaluations))
+    await db.experiment_update_config(experimentId, "evaluations", json.dumps(evaluations))
 
     return {"message": f"Evaluation {eval_name} deleted from experiment {experimentId}"}
 
@@ -202,7 +202,7 @@ async def get_output(experimentId: int, eval_name: str):
     if not os.path.exists(eval_output_file):
         return {"message": "Output file does not exist"}
 
-    print(f"Returning output file: {eval_output_file}")
+    print(f"Returning output file: {eval_output_file}.")
 
     # return the whole file as a file response:
     return FileResponse(eval_output_file)
