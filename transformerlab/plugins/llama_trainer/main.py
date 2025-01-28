@@ -147,14 +147,10 @@ db.commit()
 max_seq_length = int(config["maximum_sequence_length"])  # max sequence length for model and packing of the dataset
 print(max_seq_length)
 
-batchSize = 4
-if("batch_size" in config):
-    batchSize = int(config["batch_size"])
-
 args = SFTConfig(
     output_dir=output_dir,
     num_train_epochs=int(config['num_train_epochs']),
-    per_device_train_batch_size=batchSize,
+    per_device_train_batch_size=int(config.get("batch_size",4)),
     gradient_accumulation_steps=2,
     gradient_checkpointing=True,
     optim="paged_adamw_32bit",
