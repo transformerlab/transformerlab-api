@@ -36,6 +36,7 @@ from fastchat.utils import get_context_length, is_partial_stop
 import mlx.core as mx
 from mlx_lm import load, generate
 from mlx_lm.utils import generate_step
+from mlx_lm.sample_utils import make_sampler
 
 from mlx_embedding_models.embedding import EmbeddingModel
 
@@ -223,8 +224,13 @@ class MLXWorker(BaseModelWorker):
 
         finish_reason = "length"
 
+        # MLX makes you build a sampler to set temperature and top_p
+        # NOTE: We could also pass in top_k and min_p here
+        # but they aren't getting set in UI
+        sampler = make_sampler(temperature, top_p=top_p)
+
         iterator = await run_in_threadpool(generate_step, context_mlx, self.mlx_model, 
-                                           temp=temperature, top_p=top_p)
+                                           sampler=sampler)
 
         cummulative_logprobs = []
 
