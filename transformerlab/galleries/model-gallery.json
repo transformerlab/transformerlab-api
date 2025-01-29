@@ -322,6 +322,33 @@
         }
     },
     {
+        "uniqueID": "HuggingFaceTB/SmolLM-135M-Instruct",
+        "name": "SmolLM 135M Instruct",
+        "description": "The SMOLest version of HuggingFace's SLM trained on publicly available datasets.",
+        "parameters": "135M",
+        "context": "2048",
+        "architecture": "LlamaForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "HuggingFaceTB/SmolLM-135M-Instruct",
+        "transformers_version": "4.42.3",
+        "gated": false,
+        "license": "apache-2.0",
+        "logo": "https://webml-community-smollm-webgpu.static.hf.space/logo.png",
+        "size_of_model_in_mb": 0,
+        "author": {
+            "name": "HuggingFaceTB",
+            "url": "https://huggingface.co/HuggingFaceTB/SmolLM-135M-Instruct",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/HuggingFaceTB/SmolLM-135M-Instruct",
+            "downloadUrl": "https://huggingface.co/HuggingFaceTB/SmolLM-135M-Instruct",
+            "paperUrl": "https://huggingface.co/blog/smollm"
+        }
+    },
+    {
         "uniqueID": "lmsys/vicuna-7b-v1.5",
         "name": "Vicuna 7b",
         "description": "Vicuna is a state-of-the-art chat assistant developed by LMSYS, leveraging the transformative power of an auto-regressive language model based on the transformer architecture. Trained via fine-tuning the Llama 2 model, Vicuna is used primarily for research in large language models and chatbots, catering to the needs of AI enthusiasts, machine learning researchers, and hobbyists. The model operates under the Llama 2 CLA. The latest version, Vicuna v1.5 (16k), has been fine-tuned using supervised instruction and linear RoPE scaling, with training data comprising around 125K conversations collected from ShareGPT.com, packed into sequences of 16K tokens each. A comprehensive explanation of the training details can be found in the appendix to the linked paper titled \"Training Details of Vicuna Models.\"",
@@ -650,6 +677,33 @@
             "canonicalUrl": "https://huggingface.co/meta-llama/Meta-Llama-3.1-8B",
             "downloadUrl": "https://huggingface.co/meta-llama/Meta-Llama-3.1-8B",
             "paperUrl": "?"
+        }
+    },
+    {
+        "uniqueID": "HuggingFaceTB/SmolLM2-1.7B-Instruct",
+        "name": "SmolLM2 1.7B Instruct",
+        "description": "1.7B parameter version of HuggingFace's SLM trained on publicly available datasets.",
+        "parameters": "1.7B",
+        "context": "8192",
+        "architecture": "LlamaForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "HuggingFaceTB/SmolLM2-1.7B-Instruct",
+        "transformers_version": "4.42.3",
+        "gated": false,
+        "license": "apache-2.0",
+        "logo": "https://webml-community-smollm-webgpu.static.hf.space/logo.png",
+        "size_of_model_in_mb": 0,
+        "author": {
+            "name": "HuggingFaceTB",
+            "url": "https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B-Instruct",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B-Instruct",
+            "downloadUrl": "https://huggingface.co/HuggingFaceTB/SmolLM2-1.7B-Instruct",
+            "paperUrl": "https://huggingface.co/blog/smollm"
         }
     },
     {
@@ -1737,6 +1791,33 @@
             "canonicalUrl": "https://huggingface.co/microsoft/phi-4",
             "downloadUrl": "https://huggingface.co/microsoft/phi-4",
             "paperUrl": "?"
+        }
+    },
+    {
+        "uniqueID": "mlx-community/SmolLM-135M-4bit",
+        "name": "SmolLM 135M MLX 4bit",
+        "description": "Tiny SLM created by HuggingFace in 4-bit MLX format.",
+        "parameters": "135M",
+        "context": "2048",
+        "architecture": "MLX",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "mlx-community/SmolLM-135M-4bit",
+        "transformers_version": "4.41.2",
+        "gated": false,
+        "license": "apache-2.0",
+        "logo": "https://webml-community-smollm-webgpu.static.hf.space/logo.png",
+        "size_of_model_in_mb": 0,
+        "author": {
+            "name": "mlx-community",
+            "url": "https://huggingface.co/mlx-community/SmolLM-135M-4bit",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/mlx-community/SmolLM-135M-4bit",
+            "downloadUrl": "https://huggingface.co/mlx-community/SmolLM-135M-4bit",
+            "paperUrl": "https://huggingface.co/blog/smollm"
         }
     },
     {
