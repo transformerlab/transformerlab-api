@@ -1673,6 +1673,7 @@
         "name": "watt-tool-8B",
         "description": "Leading tool use model based on Llama architecture.",
         "parameters": "8B",
+        "added": "2025-01-28",
         "tags": [
             "Tool USe"
         ],
@@ -1686,7 +1687,7 @@
         "gated": false,
         "license": "apache-2.0",
         "logo": "",
-        "size_of_model_in_mb": 0,
+        "size_of_model_in_mb": 15325.28,
         "author": {
             "name": "watt-ai",
             "url": "https://huggingface.co/watt-ai/watt-tool-8B",
