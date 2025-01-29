@@ -20,8 +20,6 @@ parser.add_argument("--model_adapter", default=None, type=str,)
 
 args, other = parser.parse_known_args()
 
-# print("Calling Eleuther AI LM Evaluation Harness with args:")
-# print(args)
 
 root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
 plugin_dir = os.path.realpath(os.path.dirname(__file__))
@@ -32,14 +30,6 @@ task = args.task
 
 # Call the evaluation harness using HTTP if the platform is not CUDA
 if not torch.cuda.is_available():
-    print("CUDA is not available. Running eval using HTTP.")
-
-    # first check http://localhost:8338/healthz
-    response = requests.get('http://localhost:8338/server/worker_healthz')
-    print(response.json())
-    if response.status_code != 200 or not isinstance(response.json(), list) or len(response.json()) == 0:
-        print("Local completions server is not running. Please start it before running the evaluation.")
-        sys.exit(0)
 
     # model name is the first item in the list:
     model_name = args.model_name

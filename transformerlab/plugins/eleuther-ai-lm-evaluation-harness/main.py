@@ -40,14 +40,9 @@ task = args.task
 
 # Call the evaluation harness using HTTP if the platform is not CUDA
 if not torch.cuda.is_available():
-    print("CUDA is not available. Running eval using HTTP.")
-
-    # # first check http://localhost:8338/healthz
-    # response = requests.get('http://localhost:8338/server/worker_healthz')
-    # print(response.json())
-    # if response.status_code != 200 or not isinstance(response.json(), list) or len(response.json()) == 0:
-    #     print("Local completions server is not running. Please start it before running the evaluation.")
-    #     sys.exit(0)
+    # print("CUDA is not available. Running eval using the MLX Plugin.")
+    print("CUDA is not available. Please use the `eleuther-ai-lm-evaluation-harness-mlx-plugin` if using a Mac.")
+    sys.exit(0)
 
     # model name is the first item in the list:
     model_name = args.model_name
