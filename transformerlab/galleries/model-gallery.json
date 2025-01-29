@@ -271,6 +271,9 @@
         "description": "Full version of DeepSeek's flagship Chain-of-Thought model.",
         "added": "2025-01-27",
         "parameters": "671B",
+        "tags": [
+            "Chain of Thought"
+        ],
         "context": "163840",
         "architecture": "DeepseekV3ForCausalLM",
         "formats": [
@@ -436,6 +439,9 @@
         "description": "A 4-bit quantized MLX-formatted version of DeeSeek R1 Qwen Distill that is good for running on Apple Silicon.",
         "added": "2025-01-27",
         "parameters": "32B",
+        "tags": [
+            "Chain of Thought"
+        ],
         "context": "131072",
         "architecture": "Qwen2ForCausalLM",
         "formats": [
@@ -1051,6 +1057,9 @@
         "description": "Qwen distillation of DeepSeek chain-of-thought model.",
         "added": "2025-01-27",
         "parameters": "7B",
+        "tags": [
+            "Chain of Thought"
+        ],
         "context": "131072",
         "architecture": "Qwen2ForCausalLM",
         "formats": [
@@ -1607,6 +1616,9 @@
         "description": "Qwen2.5-Coder is the latest series of Code-Specific Qwen large language models (formerly known as CodeQwen) and performs at a level comparable to the best proprietary models.",
         "added": "2024-11-19",
         "parameters": "14B",
+        "tags": [
+            "Coding"
+        ],
         "context": "32768",
         "architecture": "MLX",
         "formats": [
@@ -1689,6 +1701,9 @@
         "description": "Qwen2.5-Coder is the latest series of Code-Specific Qwen large language models (formerly known as CodeQwen) and performs at a level comparable to the best proprietary models.",
         "added": "2024-11-19",
         "parameters": "7B",
+        "tags": [
+            "Coding"
+        ],
         "context": "32768",
         "architecture": "Qwen2ForCausalLM",
         "formats": [
@@ -1744,6 +1759,9 @@
         "description": "A Q6_K quantized GGUF version of DeepSeek R1 Qwen Distill 14B.",
         "added": "2025-01-27",
         "parameters": "14B",
+        "tags": [
+            "Chain of Thought"
+        ],
         "context": "131072",
         "architecture": "GGUF",
         "formats": [
@@ -1911,6 +1929,9 @@
         "description": "The StarCoder models are 15.5B parameter models trained on 80+ programming languages from The Stack (v1.2), with opt-out requests excluded. The model uses Multi Query Attention, a context window of 8192 tokens, and was trained using the Fill-in-the-Middle objective on 1 trillion tokens.",
         "archived": true,
         "parameters": "7B",
+        "tags": [
+            "Coding"
+        ],
         "context": "4k",
         "architecture": "GPTBigCodeForCausalLM",
         "formats": [
@@ -2299,6 +2320,9 @@
         "name": "Zephyr 7b Alpha",
         "description": "Zephyr is a series of language models that are trained to act as helpful assistants. Zephyr-7B-\u03b1 is the first model in the series, and is a fine-tuned version of mistralai/Mistral-7B-v0.1 that was trained on on a mix of publicly available, synthetic datasets using Direct Preference Optimization (DPO).",
         "parameters": "7B",
+        "tags": [
+            "RAG"
+        ],
         "context": "4k",
         "architecture": "MistralForCausalLM",
         "formats": [
@@ -2381,6 +2405,9 @@
         "description": "OpenCoder is pretrained on 2.5 trillion tokens composed of 90% raw code and 10% code-related web data, and supervised finetuned on over 4.5M high-quality SFT examples.",
         "added": "2024-11-19",
         "parameters": "8B",
+        "tags": [
+            "Coding"
+        ],
         "context": "8192",
         "architecture": "LlamaForCausalLM",
         "formats": [
