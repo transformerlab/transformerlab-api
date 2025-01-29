@@ -202,7 +202,7 @@ async def get_output(experimentId: int, eval_name: str):
     if not os.path.exists(eval_output_file):
         return {"message": "Output file does not exist"}
 
-    print(f"Returning output file: {eval_output_file}")
+    print(f"Returning output file: {eval_output_file}.")
 
     # return the whole file as a file response:
     return FileResponse(eval_output_file)
