@@ -277,6 +277,9 @@ install_dependencies() {
       fi
   fi
 
+  #install uv
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+
   echo "HAS_GPU=$HAS_GPU"
 
   if [ "$HAS_GPU" = true ] ; then
@@ -285,7 +288,7 @@ install_dependencies() {
 
       echo "Installing requirements:"
       # Install the python requirements
-      pip install --upgrade -r "$TLAB_CODE_DIR"/requirements.txt
+      uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-uv.txt
 
       # Install Flash Attention separately - it doesn't play well in requirements file
       # Using instructions from https://github.com/Dao-AILab/flash-attention
@@ -298,7 +301,7 @@ install_dependencies() {
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
       echo "Installing Tranformer Lab requirements without GPU support"
 
-      pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-no-gpu.txt
+      uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
   fi
 
   # Check if the uvicorn command works:
