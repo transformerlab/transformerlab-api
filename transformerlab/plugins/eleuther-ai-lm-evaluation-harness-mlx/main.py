@@ -24,8 +24,6 @@ args, other = parser.parse_known_args()
 root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
 plugin_dir = os.path.realpath(os.path.dirname(__file__))
 
-
-model_args = 'pretrained=' + args.model_name
 task = args.task
 
 # Call the evaluation harness using HTTP if the platform is not CUDA
