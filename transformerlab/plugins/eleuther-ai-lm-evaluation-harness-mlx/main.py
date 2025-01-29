@@ -26,6 +26,10 @@ plugin_dir = os.path.realpath(os.path.dirname(__file__))
 
 task = args.task
 
+if not args.model_name or args.model_name == '':
+    print('No model provided. Please re-run after setting a Foundation model.')
+    sys.exit(1)
+
 # Call the evaluation harness using HTTP if the platform is not CUDA
 if not torch.cuda.is_available():
 
