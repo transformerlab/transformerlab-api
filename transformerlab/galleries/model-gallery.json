@@ -1016,6 +1016,33 @@
         }
     },
     {
+        "uniqueID": "Qwen/Qwen2.5-7B-Instruct-1M",
+        "name": "Qwen2.5-7B-Instruct-1M",
+        "description": "Long-context version of the Qwen2.5 series models, supporting a context length of up to 1M tokens. Compared to the Qwen2.5 128K version, Qwen2.5-1M demonstrates significantly improved performance in handling long-context tasks while maintaining its capability in short tasks.",
+        "parameters": "7B",
+        "context": "1010000",
+        "architecture": "Qwen2ForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "Qwen/Qwen2.5-7B-Instruct-1M",
+        "transformers_version": "4.47.1",
+        "gated": false,
+        "license": "apache-2.0",
+        "logo": "https://cdn-avatars.huggingface.co/v1/production/uploads/62088594a5943c8a8fc94560/y5SEKiE8TkjBKs9xfjCx5.png",
+        "size_of_model_in_mb": 0,
+        "author": {
+            "name": "Qwen",
+            "url": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-1M",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-1M",
+            "downloadUrl": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct-1M",
+            "paperUrl": "?"
+        }
+    },
+    {
         "uniqueID": "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
         "name": "DeepSeek-R1-Distill-Qwen-7B",
         "description": "Qwen distillation of DeepSeek chain-of-thought model.",
@@ -2178,6 +2205,33 @@
         "resources": {
             "canonicalUrl": "https://huggingface.co/meta-llama/Llama-2-7b-chat",
             "downloadUrl": "https://huggingface.co/meta-llama/Llama-2-7b-chat",
+            "paperUrl": "?"
+        }
+    },
+    {
+        "uniqueID": "mlx-community/Qwen2.5-14B-Instruct-1M-8bit",
+        "name": "Qwen2.5 14B Instruct 1M (MLX 8bit)",
+        "description": "MLX 8-bit version of the long-context version of Qwen's 2.5 model.",
+        "parameters": "14B",
+        "context": "1010000",
+        "architecture": "MLX",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "mlx-community/Qwen2.5-14B-Instruct-1M-8bit",
+        "transformers_version": "4.45.2",
+        "gated": false,
+        "license": "apache-2.0",
+        "logo": "https://cdn-avatars.huggingface.co/v1/production/uploads/62088594a5943c8a8fc94560/y5SEKiE8TkjBKs9xfjCx5.png",
+        "size_of_model_in_mb": 0,
+        "author": {
+            "name": "mlx-community",
+            "url": "https://huggingface.co/mlx-community/Qwen2.5-14B-Instruct-1M-8bit",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/mlx-community/Qwen2.5-14B-Instruct-1M-8bit",
+            "downloadUrl": "https://huggingface.co/mlx-community/Qwen2.5-14B-Instruct-1M-8bit",
             "paperUrl": "?"
         }
     },
