@@ -249,7 +249,6 @@ create_conda_environment() {
 ## Step 4: Install Dependencies
 ##############################
 
-
 install_dependencies() {
   title "Step 4: Install Dependencies"
   echo "Warning: this step may take a while to complete the first time."
@@ -280,8 +279,7 @@ install_dependencies() {
 
   #install uv
   pip install uv
-  cp ~/mountedSpace/transformerlab/transformerlab-api/requirements-uv.txt ~/.transformerlab/src/
-
+  
   echo "HAS_GPU=$HAS_GPU"
 
   if [ "$HAS_GPU" = true ] ; then
