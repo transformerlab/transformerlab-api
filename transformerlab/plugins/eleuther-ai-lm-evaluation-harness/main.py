@@ -47,7 +47,7 @@ if not args.model_name or args.model_name == '':
 if not torch.cuda.is_available():
     # print("CUDA is not available. Running eval using the MLX Plugin.")
     print("CUDA is not available. Please use the `eleuther-ai-lm-evaluation-harness-mlx-plugin` if using a Mac.")
-    sys.exit(1)
+    sys.exit(0)
 
     # model name is the first item in the list:
     model_name = args.model_name
