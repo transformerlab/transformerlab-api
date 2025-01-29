@@ -75,7 +75,7 @@ async def experiment_delete_eval(experimentId: int, eval_name: str):
     # remove the evaluation from the list:
     evaluations = [e for e in evaluations if e["name"] != eval_name]
 
-    await db.experiment_update_config(id, "evaluations", json.dumps(evaluations))
+    await db.experiment_update_config(experimentId, "evaluations", json.dumps(evaluations))
 
     return {"message": f"Evaluation {eval_name} deleted from experiment {experimentId}"}
 

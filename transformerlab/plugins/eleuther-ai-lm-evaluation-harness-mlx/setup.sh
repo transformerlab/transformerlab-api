@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# git clone https://github.com/EleutherAI/lm-evaluation-harness
-# cd lm-evaluation-harness
-# pip install -e .
-# pip install lm-eval==0.4.7
-# pip install "lm-eval[api]"
-git clone https://github.com/EleutherAI/lm-evaluation-harness-mlx
+# Clone the repository
+git clone https://github.com/chimezie/lm-evaluation-harness-mlx || { echo "Git clone failed or repository already exists"; exit 1; }
+
+# Navigate to the directory
 cd lm-evaluation-harness-mlx
+
 git checkout mlx
+
+# Install dependencies
 pip install -e .
