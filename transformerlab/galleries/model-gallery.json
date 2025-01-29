@@ -168,7 +168,7 @@
     },
     {
         "uniqueID": "mlx-community/c4ai-command-r-v01-4bit",
-        "name": "C4AI Command-R 4bit MLX",
+        "name": "C4AI Command-R (MLX 4-bit)",
         "description": "C4AI Command-R 4bit for MLX is a research release of a 35 billion parameter highly performant generative model. Command-R is a large language model with open weights optimized for a variety of use cases including reasoning, summarization, and question answering. Command-R has the capability for multilingual generation evaluated in 10 languages and highly performant RAG capabilities.",
         "parameters": "35B",
         "context": "8192",
@@ -267,7 +267,7 @@
     },
     {
         "uniqueID": "deepseek-ai/DeepSeek-R1",
-        "name": "DeepSeek-R1",
+        "name": "DeepSeek R1",
         "description": "Full version of DeepSeek's flagship Chain-of-Thought model.",
         "added": "2025-01-27",
         "parameters": "671B",
@@ -435,7 +435,7 @@
     },
     {
         "uniqueID": "mlx-community/DeepSeek-R1-Distill-Qwen-32B-4bit",
-        "name": "DeepSeek-R1-Distill-Qwen-32B-4bit",
+        "name": "DeepSeek R1 Distill Qwen 32B (MLX 4bit)",
         "description": "A 4-bit quantized MLX-formatted version of DeeSeek R1 Qwen Distill that is good for running on Apple Silicon.",
         "added": "2025-01-27",
         "parameters": "32B",
@@ -578,7 +578,7 @@
     },
     {
         "uniqueID": "mlx-community/Meta-Llama-3-8B-Instruct-4bit",
-        "name": "Llama 3 8B Instruct 4bit MLX",
+        "name": "Llama 3 8B Instruct (MLX 4-bit)",
         "archived": true,
         "description": "Meta developed and released the Meta Llama 3 family of large language models (LLMs), a collection of pretrained and instruction tuned generative text models in 8 and 70B sizes. The Llama 3 instruction tuned models are optimized for dialogue use cases and outperform many of the available open source chat models on common industry benchmarks. Further, in developing these models, we took great care to optimize helpfulness and safety.",
         "parameters": "8B",
@@ -606,7 +606,7 @@
     },
     {
         "uniqueID": "mlx-community/Meta-Llama-3-70B-Instruct-4bit",
-        "name": "Llama 3 70B Instruct 4bit MLX",
+        "name": "Llama 3 70B Instruct (MLX 4-bit)",
         "archived": true,
         "description": "Meta developed and released the Meta Llama 3 family of large language models (LLMs), a collection of pretrained and instruction tuned generative text models in 8 and 70B sizes. The Llama 3 instruction tuned models are optimized for dialogue use cases and outperform many of the available open source chat models on common industry benchmarks. Further, in developing these models, we took great care to optimize helpfulness and safety.",
         "parameters": "8B",
@@ -634,7 +634,7 @@
     },
     {
         "uniqueID": "meta-llama/Meta-Llama-3.1-8B-Instruct",
-        "name": "LLama 3.1 8B - Instruct",
+        "name": "LLama 3.1 8B Instruct",
         "description": "The Meta Llama 3.1 collection of multilingual large language models (LLMs) is a collection of pretrained and instruction tuned generative models in 8B, 70B and 405B sizes (text in/text out). The Llama 3.1 instruction tuned text only models (8B, 70B, 405B) are optimized for multilingual dialogue use cases and outperform many of the available open source and closed chat models on common industry benchmarks.",
         "parameters": "8B",
         "context": "128k",
@@ -913,7 +913,7 @@
     },
     {
         "uniqueID": "Llama-3.2-1B-Instruct-Q6_K.gguf",
-        "name": "LLama 3.2 1B Instruct GGUF - Q6_K",
+        "name": "LLama 3.2 1B Instruct (GGUF Q6_K)",
         "description": "GGUF export of Llama 3.2 1B Instruct model using 6-bit K-quantization. Should maintain near perfect results to original model.",
         "added": "2024-11-21",
         "parameters": "1B",
@@ -1053,7 +1053,7 @@
     },
     {
         "uniqueID": "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
-        "name": "DeepSeek-R1-Distill-Qwen-7B",
+        "name": "DeepSeek R1 Distill Qwen 7B",
         "description": "Qwen distillation of DeepSeek chain-of-thought model.",
         "added": "2025-01-27",
         "parameters": "7B",
@@ -1113,7 +1113,7 @@
     },
     {
         "uniqueID": "mistralai/Mistral-7B-Instruct-v0.2",
-        "name": "Mistral-7B-Instruct-v0.2",
+        "name": "Mistral 7B Instruct v0.2",
         "archived": true,
         "description": "The Mistral-7B-Instruct-v0.2 Large Language Model (LLM) is a instruct fine-tuned version of the Mistral-7B-v0.1 generative text model using a variety of publicly available conversation datasets.",
         "parameters": "7B",
@@ -1224,7 +1224,7 @@
     },
     {
         "uniqueID": "tiiuae/falcon-7b",
-        "name": "Falcon 7b",
+        "name": "Falcon 7B",
         "archived": true,
         "description": "Best overall smaller model. Fast responses. Instruction based. Trained by TII. Licensed for commercial use.",
         "parameters": "7B",
@@ -1252,7 +1252,7 @@
     },
     {
         "uniqueID": "tiiuae/falcon-7b-instruct",
-        "name": "Falcon 7b Instruct",
+        "name": "Falcon 7B Instruct",
         "archived": true,
         "description": "Best overall smaller model. Fast responses. Instruction based. Trained by TII. Licensed for commercial use.",
         "parameters": "7B",
@@ -1280,7 +1280,7 @@
     },
     {
         "uniqueID": "mlx-community/Llama-3.2-1B-Instruct-4bit",
-        "name": "Llama 3.2 1B Instruct MLX 4bit",
+        "name": "Llama 3.2 1B Instruct (MLX 4bit)",
         "description": "The Llama 3.2 instruction-tuned text only models are optimized for multilingual dialogue use cases, including agentic retrieval and summarization tasks. They outperform many of the available open source and closed chat models on common industry benchmarks.",
         "added": "2024-09-27",
         "parameters": "1B",
@@ -1308,7 +1308,7 @@
     },
     {
         "uniqueID": "Llama-3.3-70B-Instruct-GGUF",
-        "name": "LLama 3.2 70B Instruct GGUF - IQ2_M",
+        "name": "LLama 3.2 70B Instruct (GGUF IQ2_M)",
         "description": "GGUF export of Llama 3.3 70B Instruct model IQ2_M variant. Loses some quality but useful for systems with lower RAM.",
         "added": "2024-12-12",
         "parameters": "70B",
@@ -1473,7 +1473,7 @@
     },
     {
         "uniqueID": "mlx-community/Llama-3.3-70B-Instruct-4bit",
-        "name": "Llama-3.3-70B-Instruct-4bit",
+        "name": "Llama 3.3 70B Instruct (MLX 4bit)",
         "description": "MLX export of Llama 3.3 70B Instruct model quantized to 4 bit. Loses some quality but useful for systems with lower RAM.",
         "parameters": "70B",
         "context": "131072",
@@ -1612,7 +1612,7 @@
     },
     {
         "uniqueID": "mlx-community/Qwen2.5-Coder-14B-Instruct-4bit",
-        "name": "Qwen2.5 Coder 14B Instruct 4bit MLX",
+        "name": "Qwen2.5 Coder 14B Instruct (MLX 4bit)",
         "description": "Qwen2.5-Coder is the latest series of Code-Specific Qwen large language models (formerly known as CodeQwen) and performs at a level comparable to the best proprietary models.",
         "added": "2024-11-19",
         "parameters": "14B",
@@ -1643,7 +1643,7 @@
     },
     {
         "uniqueID": "Qwen/Qwen2.5-1.5B-Instruct",
-        "name": "Qwen2.5-1.5B-Instruct",
+        "name": "Qwen2.5 1.5B Instruct",
         "description": "Qwen2.5 is the latest series of Qwen large language models.",
         "parameters": "1.5B",
         "context": "32768",
@@ -1670,12 +1670,12 @@
     },
     {
         "uniqueID": "watt-ai/watt-tool-8B",
-        "name": "watt-tool-8B",
+        "name": "Watt Tool Use 8B",
         "description": "Leading tool use model based on Llama architecture.",
         "parameters": "8B",
         "added": "2025-01-28",
         "tags": [
-            "Tool USe"
+            "Tool Use"
         ],
         "context": "131072",
         "architecture": "LlamaForCausalLM",
@@ -1759,7 +1759,7 @@
     },
     {
         "uniqueID": "lmsys/fastchat-t5-3b-v1.0",
-        "name": "FastChat-T5",
+        "name": "FastChat T5",
         "description": "Open-source chatbot trained by fine-tuning Flan-t5-xl (3B parameters) on user-shared conversations collected from ShareGPT. It is based on an encoder-decoder transformer architecture, and can autoregressively generate responses to users' inputs.",
         "parameters": "3B",
         "context": "4k",
@@ -1786,7 +1786,7 @@
     },
     {
         "uniqueID": "unsloth/DeepSeek-R1-Distill-Qwen-14B-GGUF",
-        "name": "DeepSeek R1 Distill Qwen 14B GGUF - Q6_K4",
+        "name": "DeepSeek R1 Distill Qwen 14B (GGUF - Q6_K4)",
         "description": "A Q6_K quantized GGUF version of DeepSeek R1 Qwen Distill 14B.",
         "added": "2025-01-27",
         "parameters": "14B",
@@ -1987,7 +1987,7 @@
     },
     {
         "uniqueID": "mlx-community/phi-4-4bit",
-        "name": "Phi-4 MLX 4-bit",
+        "name": "Phi-4 (MLX 4-bit)",
         "description": "MLX export of Microsoft's Phi-4 using 4-bit quantization.",
         "added": "2025-1-20",
         "parameters": "14B",
@@ -2043,7 +2043,7 @@
     },
     {
         "uniqueID": "mlx-community/Mistral-7B-Instruct-v0.1-4bit-mlx",
-        "name": "Mistral-7B-Instruct-v0.1 MLX 4bit",
+        "name": "Mistral 7B Instruct v0.1 (MLX 4bit)",
         "archived": true,
         "description": "The Mistral-7B-Instruct-v0.1 Large Language Model (LLM) is a instruct fine-tuned version of the Mistral-7B-v0.1 generative text model using a variety of publicly available conversation datasets.",
         "parameters": "7B",
@@ -2071,7 +2071,7 @@
     },
     {
         "uniqueID": "mlx-community/TinyDolphin-2.8-1.1b-4bit-mlx",
-        "name": "TinyDolphin-2.8-1.1b MLX 4bit",
+        "name": "TinyDolphin 2.8 1.1B (MLX 4bit)",
         "description": "This is an experimental model trained on 2 3090's by Kearm on the new Dolphin 2.8 dataset by Eric Hartford https://erichartford.com/dolphin.",
         "parameters": "1.1B",
         "context": "4k",
@@ -2266,7 +2266,7 @@
     },
     {
         "uniqueID": "mlx-community/Qwen2.5-14B-Instruct-1M-8bit",
-        "name": "Qwen2.5 14B Instruct 1M (MLX 8bit)",
+        "name": "Qwen2.5 14B Instruct - 1M context (MLX 8bit)",
         "description": "MLX 8-bit version of the long-context version of Qwen's 2.5 model.",
         "parameters": "14B",
         "added": "2025-01-28",
