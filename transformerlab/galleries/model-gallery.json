@@ -1669,6 +1669,36 @@
         }
     },
     {
+        "uniqueID": "watt-ai/watt-tool-8B",
+        "name": "watt-tool-8B",
+        "description": "Leading tool use model based on Llama architecture.",
+        "parameters": "8B",
+        "tags": [
+            "Tool USe"
+        ],
+        "context": "131072",
+        "architecture": "LlamaForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "watt-ai/watt-tool-8B",
+        "transformers_version": "4.45.2",
+        "gated": false,
+        "license": "apache-2.0",
+        "logo": "",
+        "size_of_model_in_mb": 0,
+        "author": {
+            "name": "watt-ai",
+            "url": "https://huggingface.co/watt-ai/watt-tool-8B",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/watt-ai/watt-tool-8B",
+            "downloadUrl": "https://huggingface.co/watt-ai/watt-tool-8B",
+            "paperUrl": "?"
+        }
+    },
+    {
         "uniqueID": "berkeley-nest/Starling-LM-7B-alpha",
         "name": "Starling-LM-7B-alpha",
         "description": "We introduce Starling-7B, an open large language model (LLM) trained by Reinforcement Learning from AI Feedback (RLAIF). The model harnesses the power of our new GPT-4 labeled ranking dataset, berkeley-nest/Nectar, and our new reward training and policy tuning pipeline. Starling-7B-alpha scores 8.09 in MT Bench with GPT-4 as a judge, outperforming every model to date on MT-Bench except for OpenAI's GPT-4 and GPT-4 Turbo.",
