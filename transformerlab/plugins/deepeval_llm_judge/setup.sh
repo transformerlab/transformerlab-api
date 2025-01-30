@@ -1,0 +1,1 @@
+pip install deepeval langchain-openai
