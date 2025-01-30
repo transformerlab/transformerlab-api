@@ -171,3 +171,8 @@ logs/
 
 # AWS configuration
 scripts/aws/aws.conf
+
+# DeepEval Cache
+*/.deepeval-cache.json
+*/.deepeval-telemetry.txt
+
