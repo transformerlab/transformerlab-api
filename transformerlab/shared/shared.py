@@ -287,6 +287,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default"):
 
         # This calls the training plugin harness, which calls the actual training plugin
         training_popen_command = [
+            "uv",
+            "run",
             sys.executable,
             dirs.PLUGIN_HARNESS,
             "--plugin_dir",
