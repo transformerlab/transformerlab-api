@@ -263,8 +263,15 @@ async def model_local_delete(model_id):
 # GENERIC JOBS MODEL
 ###############
 
+# Allowed job types:
+ALLOWED_JOB_TYPES = ["TRAIN", "EXPORT_MODEL",
+                     "DOWNLOAD_MODEL", "LOAD_MODEL", "TASK", "UNDEFINED"]
+
 
 async def job_create(type, status, job_data='{}', experiment_id=""):
+    # check if type is allowed
+    if type not in ALLOWED_JOB_TYPES:
+        raise ValueError(f"Job type {type} is not allowed")
     row = await db.execute_insert(
         "INSERT INTO job(type, status, experiment_id, job_data) VALUES (?, ?, ?, json(?))",
         (type, status, experiment_id, job_data),
@@ -467,7 +474,8 @@ async def job_update_job_data_insert_key_value(job_id, key, value):
     value = json.dumps(value)
 
     await db.execute(
-        f"UPDATE job SET job_data = json_set(job_data,'$.{key}', json(?))  WHERE id = ?",
+        f"UPDATE job SET job_data = " +
+        f"json_set(job_data,'$.{key}', json(?))  WHERE id = ?",
         (value, job_id),
     )
     await db.commit()
@@ -702,7 +710,8 @@ async def experiment_update_config(id, key, value):
     value = json.dumps(value)
 
     await db.execute(
-        f"UPDATE experiment SET config = json_set(config,'$.{key}', json(?))  WHERE id = ?",
+        f"UPDATE experiment SET config = " +
+        "json_set(config,'$.{key}', json(?))  WHERE id = ?",
         (value, id),
     )
     await db.commit()
