@@ -17,20 +17,34 @@
             "title": "Evaluation Metric",
             "type": "string",
             "enum": [
-                "Answer Relevancy",
-                "FaithFulness",
-                "Hallucination",
                 "Bias",
                 "Toxicity",
+                "FaithFulness",
+                "Hallucination",
+                "Answer Relevancy",
                 "Contextual Precision",
                 "Contextual Recall",
-                "Contextual Relevancy"
+                "Contextual Relevancy",
+                "Custom (GEval)"
             ]
         },
         "dataset_path": {
             "title": "Dataset Path",
-            "type": "string",
-            "format": "data-url"
+            "type": "string"
+        },
+        "geval_name": {
+            "title": "Criteria Name (Only for GEval)",
+            "type": "string"
+        },
+        "geval_context": {
+            "title": "Criteria Description (Only for GEval)",
+            "type": "string"
+        },
+        "context_required": {
+            "title": "Should `context` field be considered in dataset? (Only for GEval)",
+            "type": "boolean",
+            "default": false,
+            "required": true
         }
     },
     "parameters-ui": {
@@ -38,8 +52,7 @@
             "ui:help": "Select an evaluation metric from the drop-down list"
         },
         "dataset_path": {
-            "ui:widget": "file",
-            "ui:help": "Enter the local path to the dataset file. Ensure that this is a csv file with columns: 'input', 'output', 'context'. The context column is optional if using metrics which don't require it."
+            "ui:help": "Enter the local path to the dataset file. Ensure that this is a csv file with columns: 'input', 'output', 'expected_output'. The context column is optional if using metrics which don't require it."
         }
     }
 }
