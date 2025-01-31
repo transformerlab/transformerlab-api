@@ -842,7 +842,7 @@
         "gated": false,
         "license": "apache-2.0",
         "logo": "https://docs.mistral.ai/img/logo.svg",
-        "size_of_model_in_mb": 0,
+        "size_of_model_in_mb": 12662.46,
         "author": {
             "name": "mlx-community",
             "url": "https://huggingface.co/mlx-community/Mistral-Small-24B-Instruct-2501-4bit",
@@ -955,7 +955,7 @@
         "gated": "auto",
         "license": "apache-2.0",
         "logo": "https://docs.mistral.ai/img/logo.svg",
-        "size_of_model_in_mb": 0,
+        "size_of_model_in_mb": 89952.3,
         "author": {
             "name": "mistralai",
             "url": "https://huggingface.co/mistralai/Mistral-Small-24B-Instruct-2501",
@@ -2353,6 +2353,7 @@
         "name": "Llama 3.1 Tulu 3 8B",
         "description": "T\u00fclu3 is a leading instruction following model family, offering fully open-source data, code, and recipes designed to serve as a comprehensive guide for modern post-training techniques. T\u00fclu3 is designed for state-of-the-art performance on a diversity of tasks in addition to chat, such as MATH, GSM8K, and IFEval.",
         "parameters": "8B",
+        "added": "2025-01-31",
         "context": "131072",
         "architecture": "LlamaForCausalLM",
         "formats": [
@@ -2363,7 +2364,7 @@
         "gated": false,
         "license": "llama3.1",
         "logo": "https://pbs.twimg.com/profile_images/1819065604370051072/UrIOp6zI_400x400.png",
-        "size_of_model_in_mb": 0,
+        "size_of_model_in_mb": 15325.4,
         "author": {
             "name": "allenai",
             "url": "https://huggingface.co/allenai/Llama-3.1-Tulu-3-8B",
