@@ -338,10 +338,10 @@ async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
 
 async def job_get_status(job_id):
 
-    cursor = await db.execute("SELECT status FROM job WHERE job_id = ?", (job_id,))
+    cursor = await db.execute("SELECT status FROM job WHERE id = ?", (job_id,))
     row = await cursor.fetchone()
     await cursor.close()
-    return row
+    return row[0]
 
 
 async def job_get_error_msg(job_id):
