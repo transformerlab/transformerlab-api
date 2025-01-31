@@ -4,6 +4,7 @@ import os
 import sys
 import traceback
 
+
 import pandas as pd
 import requests
 from deepeval import evaluate
@@ -14,7 +15,7 @@ from deepeval.test_case import LLMTestCase, LLMTestCaseParams
 from langchain_openai import ChatOpenAI
 
 parser = argparse.ArgumentParser(
-    description='Run Eleuther AI LM Evaluation Harness.')
+    description='Run DeepEval metrics for LLM-as-judge evaluation.')
 parser.add_argument('--model_name', default='gpt-j-6b', type=str,
                     help='Model to use for evaluation.')
 parser.add_argument('--experiment_name', default='', type=str)
@@ -166,9 +167,7 @@ def run_evaluation():
             model=trlab_model, threshold=args.threshold, include_reason=True)
         print("Metric loaded successfully")
         test_cases = []
-        print("Task in two input metrics", args.task in two_input_metrics)
         if args.task in two_input_metrics:
-            print("COMING IN HERE")
             for _, row in df.iterrows():
                 try:
                     # print("ROW", row)
