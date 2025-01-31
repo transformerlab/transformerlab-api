@@ -45,6 +45,7 @@ async def job_update(job_id: str, status: str):
 async def start_next_job():
     num_running_jobs = await db.job_count_running()
     if num_running_jobs > 0:
+        print("A job is already running")
         return {"message": "A job is already running"}
     nextjob = await db.jobs_get_next_queued_job()
     if nextjob:
@@ -59,7 +60,7 @@ async def start_next_job():
         config = json.loads(data["config"])
 
         experiment_name = data["name"]
-        await shared.run_job(job_id=nextjob['id'], job_config=job_config, experiment_name=experiment_name)
+        await shared.run_job(job_id=nextjob['id'], job_config=job_config, experiment_name=experiment_name, job_details=nextjob)
         return nextjob
     else:
         return {"message": "No jobs in queue"}
