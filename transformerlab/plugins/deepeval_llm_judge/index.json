@@ -19,7 +19,7 @@
             "enum": [
                 "Bias",
                 "Toxicity",
-                "FaithFulness",
+                "Faithfulness",
                 "Hallucination",
                 "Answer Relevancy",
                 "Contextual Precision",
@@ -27,6 +27,21 @@
                 "Contextual Relevancy",
                 "Custom (GEval)"
             ]
+        },
+        "judge_model": {
+            "title": "LLM-as-Judge Model (Model to be used as Judge. Select `local` to use the local model running)",
+            "type": "string",
+            "enum": [
+                "Claude 3.5 Haiku",
+                "Claude 3.5 Sonnet",
+                "OpenAI GPT 4o",
+                "OpenAI GPT 4o Mini",
+                "Local"
+            ]
+        },
+        "commercial_api_key": {
+            "title": "OpenAI/Anthropic API Key (If one of these selected as judge model)",
+            "type": "string"
         },
         "dataset_path": {
             "title": "Dataset Path",

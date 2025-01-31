@@ -40,7 +40,7 @@ async def experiment_add_evaluation(experimentId: int, plugin: Any = Body()):
     name = plugin["name"]
     plugin_name = plugin["plugin"]
     script_parameters = plugin["script_parameters"]
-
+    print("NAME", name)
     slug = shared.slugify(name)
 
     # If name is greater than 100 characters, truncate it
@@ -53,8 +53,6 @@ async def experiment_add_evaluation(experimentId: int, plugin: Any = Body()):
         "plugin": plugin_name,
         "script_parameters": script_parameters
     }
-
-    print("EVALUATION BEING ADDED", evaluation)
 
     evaluations.append(evaluation)
 
