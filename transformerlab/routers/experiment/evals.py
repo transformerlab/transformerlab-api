@@ -43,11 +43,18 @@ async def experiment_add_evaluation(experimentId: int, plugin: Any = Body()):
 
     slug = shared.slugify(name)
 
+    # If name is greater than 100 characters, truncate it
+    if len(slug) > 100:
+        slug = slug[:100]
+        print("Evals name is too long, truncating to 100 characters")
+
     evaluation = {
         "name": slug,
         "plugin": plugin_name,
         "script_parameters": script_parameters
     }
+
+    print("EVALUATION BEING ADDED", evaluation)
 
     evaluations.append(evaluation)
 
