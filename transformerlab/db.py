@@ -711,7 +711,7 @@ async def experiment_update_config(id, key, value):
 
     await db.execute(
         f"UPDATE experiment SET config = " +
-        "json_set(config,'$.{key}', json(?))  WHERE id = ?",
+        f"json_set(config,'$.{key}', json(?))  WHERE id = ?",
         (value, id),
     )
     await db.commit()
