@@ -279,7 +279,6 @@ install_dependencies() {
 
   #install uv
   pip install uv
-  cp ~/mountedSpace/transformerlab/transformerlab-api/requirements-uv.txt ~/.transformerlab/src/
   
   echo "HAS_GPU=$HAS_GPU"
 
