@@ -827,6 +827,34 @@
         }
     },
     {
+        "uniqueID": "mlx-community/Mistral-Small-24B-Instruct-2501-4bit",
+        "name": "Mistral Small 24B Instruct 2501 (MLX 4-bit)",
+        "description": "Mistral Small 3 ( 2501 ) sets a new benchmark in the \"small\" Large Language Models category below 70B, boasting 24B parameters and achieving state-of-the-art capabilities comparable to larger models!",
+        "parameters": "24B",
+        "added": "2025-01-31",
+        "context": "32768",
+        "architecture": "MistralForCausalLM",
+        "formats": [
+            "MLX"
+        ],
+        "huggingface_repo": "mlx-community/Mistral-Small-24B-Instruct-2501-4bit",
+        "transformers_version": "4.49.0.dev0",
+        "gated": false,
+        "license": "apache-2.0",
+        "logo": "https://docs.mistral.ai/img/logo.svg",
+        "size_of_model_in_mb": 0,
+        "author": {
+            "name": "mlx-community",
+            "url": "https://huggingface.co/mlx-community/Mistral-Small-24B-Instruct-2501-4bit",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/mlx-community/Mistral-Small-24B-Instruct-2501-4bit",
+            "downloadUrl": "https://huggingface.co/mlx-community/Mistral-Small-24B-Instruct-2501-4bit",
+            "paperUrl": "?"
+        }
+    },
+    {
         "uniqueID": "huggyllama/llama-7b",
         "name": "LLama 7B",
         "archived": true,
@@ -908,6 +936,34 @@
         "resources": {
             "canonicalUrl": "https://huggingface.co/llava-hf/llava-1.5-7b-hf",
             "downloadUrl": "https://huggingface.co/llava-hf/llava-1.5-7b-hf",
+            "paperUrl": "?"
+        }
+    },
+    {
+        "uniqueID": "mistralai/Mistral-Small-24B-Instruct-2501",
+        "name": "Mistral Small 24B Instruct 2501",
+        "description": "Mistral Small 3 ( 2501 ) sets a new benchmark in the \"small\" Large Language Models category below 70B, boasting 24B parameters and achieving state-of-the-art capabilities comparable to larger models!",
+        "parameters": "24B",
+        "added": "2025-01-31",
+        "context": "32768",
+        "architecture": "MistralForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "mistralai/Mistral-Small-24B-Instruct-2501",
+        "transformers_version": "4.49.0.dev0",
+        "gated": "auto",
+        "license": "apache-2.0",
+        "logo": "https://docs.mistral.ai/img/logo.svg",
+        "size_of_model_in_mb": 0,
+        "author": {
+            "name": "mistralai",
+            "url": "https://huggingface.co/mistralai/Mistral-Small-24B-Instruct-2501",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/mistralai/Mistral-Small-24B-Instruct-2501",
+            "downloadUrl": "https://huggingface.co/mistralai/Mistral-Small-24B-Instruct-2501",
             "paperUrl": "?"
         }
     },
@@ -2289,6 +2345,33 @@
         "resources": {
             "canonicalUrl": "https://huggingface.co/mlx-community/Qwen2.5-14B-Instruct-1M-8bit",
             "downloadUrl": "https://huggingface.co/mlx-community/Qwen2.5-14B-Instruct-1M-8bit",
+            "paperUrl": "?"
+        }
+    },
+    {
+        "uniqueID": "allenai/Llama-3.1-Tulu-3-8B",
+        "name": "Llama 3.1 Tulu 3 8B",
+        "description": "T\u00fclu3 is a leading instruction following model family, offering fully open-source data, code, and recipes designed to serve as a comprehensive guide for modern post-training techniques. T\u00fclu3 is designed for state-of-the-art performance on a diversity of tasks in addition to chat, such as MATH, GSM8K, and IFEval.",
+        "parameters": "8B",
+        "context": "131072",
+        "architecture": "LlamaForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "allenai/Llama-3.1-Tulu-3-8B",
+        "transformers_version": "4.43.4",
+        "gated": false,
+        "license": "llama3.1",
+        "logo": "https://pbs.twimg.com/profile_images/1819065604370051072/UrIOp6zI_400x400.png",
+        "size_of_model_in_mb": 0,
+        "author": {
+            "name": "allenai",
+            "url": "https://huggingface.co/allenai/Llama-3.1-Tulu-3-8B",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/allenai/Llama-3.1-Tulu-3-8B",
+            "downloadUrl": "https://huggingface.co/allenai/Llama-3.1-Tulu-3-8B",
             "paperUrl": "?"
         }
     },
