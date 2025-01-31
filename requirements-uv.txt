@@ -66,7 +66,6 @@ filelock==3.17.0
     #   huggingface-hub
     #   torch
     #   transformers
-    #   triton
 frozenlist==1.5.0
     # via
     #   aiohttp
@@ -179,6 +178,8 @@ nvidia-cusparse-cu12==12.3.1.170
     # via
     #   nvidia-cusolver-cu12
     #   torch
+nvidia-cusparselt-cu12==0.6.2
+    # via torch
 nvidia-ml-py3==7.352.0
     # via -r requirements.in
 nvidia-nccl-cu12==2.21.5
@@ -317,16 +318,16 @@ tiktoken==0.8.0
     #   fschat
 tokenizers==0.21.0
     # via transformers
-torch==2.5.1
+torch==2.6.0
     # via
     #   -r requirements.in
     #   accelerate
     #   peft
     #   torchaudio
     #   torchvision
-torchaudio==2.5.1
+torchaudio==2.6.0
     # via -r requirements.in
-torchvision==0.20.1
+torchvision==0.21.0
     # via -r requirements.in
 tqdm==4.67.1
     # via
@@ -340,7 +341,7 @@ transformers==4.47.1
     # via
     #   -r requirements.in
     #   peft
-triton==3.1.0
+triton==3.2.0
     # via torch
 typing-extensions==4.12.2
     # via
