@@ -279,6 +279,7 @@ install_dependencies() {
 
   #install uv
   pip install uv
+  cp ~/mountedSpace/transformerlab/transformerlab-api/requirements-uv.txt ~/.transformerlab/src/
   
   echo "HAS_GPU=$HAS_GPU"
 
@@ -292,9 +293,9 @@ install_dependencies() {
 
       # Install Flash Attention separately - it doesn't play well in requirements file
       # Using instructions from https://github.com/Dao-AILab/flash-attention
-      pip install packaging
-      pip install ninja
-      pip install -U flash-attn==2.6.3 --no-build-isolation
+      uv pip install packaging
+      uv pip install ninja
+      uv pip install -U flash-attn==2.7.3 --no-build-isolation
       ###
   else
       echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."
