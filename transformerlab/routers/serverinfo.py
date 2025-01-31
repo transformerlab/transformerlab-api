@@ -174,6 +174,11 @@ GLOBAL_LOG_PATH = dirs.GLOBAL_LOG_PATH
 async def watch_file(filename: str, start_from_beginning=False, force_polling=False) -> AsyncGenerator[str, None]:
     print(f"👀 Watching file: {filename}")
 
+    # create the file if it doesn't already exist:
+    if not os.path.exists(filename):
+        with open(filename, "w") as f:
+            f.write("")
+
     last_position = 0
     if start_from_beginning:
         last_position = 0
