@@ -30,6 +30,11 @@ async def job_create(type: str = 'UNDEFINED', status: str = 'CREATED', data: str
     return jobid
 
 
+async def job_create_task(script: str, job_data: str = '{}', experiment_id: str = '-1'):
+    jobid = await db.job_create(type='UNDEFINED', status='CREATED', job_data=job_data, experiment_id=experiment_id)
+    return jobid
+
+
 @router.get("/update/{job_id}")
 async def job_update(job_id: str, status: str):
     await db.job_update_status(job_id, status)
