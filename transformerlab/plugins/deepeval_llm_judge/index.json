@@ -39,10 +39,6 @@
                 "Local"
             ]
         },
-        "commercial_api_key": {
-            "title": "OpenAI/Anthropic API Key (If one of these selected as judge model)",
-            "type": "string"
-        },
         "dataset_path": {
             "title": "Dataset Path",
             "type": "string"

@@ -32,7 +32,6 @@ parser.add_argument("--geval_name", default='', type=str)
 parser.add_argument("--geval_context", default='', type=str)
 parser.add_argument("--context_geval", default=None, type=str)
 parser.add_argument("--judge_model", default=None, type=str)
-parser.add_argument("--commercial_api_key", default=None, type=str)
 
 args, other = parser.parse_known_args()
 
@@ -63,20 +62,15 @@ class CustomCommercialModel(DeepEvalBaseLLM):
         self.model_type = model_type
         self.model_name = self.set_model_name(model_name)
         if model_type == "claude":
-            if os.environ.get("ANTHROPIC_API_KEY") is None and args.commercial_api_key is not None:
-                os.environ["ANTHROPIC_API_KEY"] = args.commercial_api_key
-            elif os.environ.get("ANTHROPIC_API_KEY") is None and args.commercial_api_key is None:
-                print("Please set the Commerical API Key field")
+            if os.environ.get("ANTHROPIC_API_KEY") is None:
+                print("Please set the Anthropic API Key from Settings.")
                 sys.exit(1)
             self.model = Anthropic()
 
         elif model_type == "openai":
-            if os.environ.get("OPENAI_API_KEY") is None and args.commercial_api_key is not None:
-                os.environ["OPENAI_API_KEY"] = args.commercial_api_key
-            if os.environ.get("OPENAI_API_KEY") is None and args.commercial_api_key is None:
-                print("Please set the Commerical API Key field")
+            if os.environ.get("OPENAI_API_KEY") is None:
+                print("Please set the OpenAI API Key from Settings.")
                 sys.exit(1)
-
             self.model = OpenAI()
 
     def load_model(self):
