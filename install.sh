@@ -277,6 +277,9 @@ install_dependencies() {
       fi
   fi
 
+  #install uv
+  pip install uv
+  
   echo "HAS_GPU=$HAS_GPU"
 
   if [ "$HAS_GPU" = true ] ; then
@@ -285,20 +288,20 @@ install_dependencies() {
 
       echo "Installing requirements:"
       # Install the python requirements
-      pip install --upgrade -r "$TLAB_CODE_DIR"/requirements.txt
+      uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-uv.txt
 
       # Install Flash Attention separately - it doesn't play well in requirements file
       # Using instructions from https://github.com/Dao-AILab/flash-attention
-      pip install packaging
-      pip install ninja
-      pip install -U flash-attn==2.7.3 --no-build-isolation
+      uv pip install packaging
+      uv pip install ninja
+      uv pip install -U flash-attn==2.7.3 --no-build-isolation
       ###
   else
       echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
       echo "Installing Tranformer Lab requirements without GPU support"
 
-      pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-no-gpu.txt
+      uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
   fi
 
   # Check if the uvicorn command works:
