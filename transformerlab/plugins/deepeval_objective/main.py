@@ -21,6 +21,7 @@ nltk.download('punkt_tab')
 
 parser = argparse.ArgumentParser(
     description='Run DeepEval metrics for LLM-as-judge evaluation.')
+parser.add_argument('--run_name', default='evaluation', type=str)
 parser.add_argument('--model_name', default='gpt-j-6b', type=str,
                     help='Model to use for evaluation.')
 parser.add_argument('--experiment_name', default='', type=str)
@@ -36,6 +37,7 @@ parser.add_argument("--job_id", default=None, type=str)
 args, other = parser.parse_known_args()
 
 args.metrics = args.metrics.split(',')
+original_metric_names = args.metrics
 args.metrics = [metric.lower().replace(' ', '_') for metric in args.metrics]
 
 # Set experiment name if None
@@ -273,9 +275,12 @@ def run_evaluation():
         job.update_progress(60)
         # Save the metrics to a csv file
         metrics_df = pd.DataFrame(metrics)
-        output_path = f"{args.output_path}/{args.experiment_run_name}.csv" if args.output_path else f"{args.experiment_run_name}.csv"
+        output_path = f"{args.output_path}/{args.run_name}.csv" if args.output_path else f"{args.run_name}.csv"
         metrics_df.to_csv(output_path, index=False)
-        # print("Average Score: ", metrics_df['score'].mean())
+
+        for idx, metric in enumerate(args.metrics):
+            print(
+                f"Average {original_metric_names[idx]} score: {metrics_df[metrics_df['metric_name'] == metric]['score'].mean()}")
         print(f"Metrics saved to {output_path}")
         print("Evaluation completed.")
         job.update_progress(100)
