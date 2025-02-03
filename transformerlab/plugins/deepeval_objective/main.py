@@ -275,14 +275,14 @@ def run_evaluation():
         metrics_df = pd.DataFrame(metrics)
         output_path = f"{args.output_path}/{args.experiment_run_name}.csv" if args.output_path else f"{args.experiment_run_name}.csv"
         metrics_df.to_csv(output_path, index=False)
-        print("Average Score: ", metrics_df['score'].mean())
+        # print("Average Score: ", metrics_df['score'].mean())
         print(f"Metrics saved to {output_path}")
         print("Evaluation completed.")
         job.update_progress(100)
         score_list = []
         for metric in args.metrics:
-            score_list.append({"type": metric, "score": metrics_df[metrics_df['metric_name']
-                                                                   == metric]['score'].mean()})
+            score_list.append({"type": metric, "score": round(metrics_df[metrics_df['metric_name']
+                                                                         == metric]['score'].mean(), 4)})
         job.set_job_completion_status(
             "success", "Evaluation completed successfully.", score=score_list)
     except Exception as e:
