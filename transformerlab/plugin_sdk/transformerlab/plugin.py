@@ -121,7 +121,6 @@ class Job:
 
         if score is not None:
             score = json.dumps(score)
-            print("SCORE DUMP", score)
             self.db.execute(
                 "UPDATE job SET job_data = json_insert(job_data, '$.completion_status', ?, '$.completion_details', ?, '$.score', ?) "
                 "WHERE id = ?",
