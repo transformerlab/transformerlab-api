@@ -235,7 +235,14 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         eval_name = job_config["evaluator"]
         await db.job_update_status(job_id, "RUNNING")
         print("Running evaluation script")
-        await run_evaluation_script(experiment_id, plugin_name, eval_name)
+        plugin_location = dirs.plugin_dir_by_name(plugin_name)
+        evals_output_file = os.path.join(
+            plugin_location, f"output_{job_id}.txt")
+        # Create output file if it doesn't exist
+        if not os.path.exists(evals_output_file):
+            with open(evals_output_file, 'w') as f:
+                f.write("")
+        await run_evaluation_script(experiment_id, plugin_name, eval_name, job_id)
         await db.job_update_status(job_id, "COMPLETE")
         return
 
