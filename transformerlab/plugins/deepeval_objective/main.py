@@ -279,12 +279,12 @@ def run_evaluation():
         print(f"Metrics saved to {output_path}")
         print("Evaluation completed.")
         job.update_progress(100)
-        score_dict = {}
+        score_list = []
         for metric in args.metrics:
-            score_dict[metric] = metrics_df[metrics_df['metric_name']
-                                            == metric]['score'].mean()
+            score_list.append({"type": metric, "score": metrics_df[metrics_df['metric_name']
+                                                                   == metric]['score'].mean()})
         job.set_job_completion_status(
-            "success", "Evaluation completed successfully.", score=score_dict)
+            "success", "Evaluation completed successfully.", score=score_list)
     except Exception as e:
         print("Error occurred while running the evaluation.")
         job.set_job_completion_status("failed", str(e))
