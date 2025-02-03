@@ -146,10 +146,10 @@ async def update_training_template(template_id: str, name: str,
     return {"status": "success"}
 
 
-@router.get("/job/{job_id}/stream_output")
+@router.get("/{job_id}/stream_output")
 async def stream_job_output(job_id: str):
     job = await db.job_get(job_id)
-    job_data = json.loads(job["job_data"])
+    job_data = job["job_data"]
 
     plugin_name = job_data["plugin"]
     plugin_dir = dirs.plugin_dir_by_name(plugin_name)
