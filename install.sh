@@ -8,6 +8,7 @@ TLAB_CODE_DIR="${TLAB_DIR}/src"
 MINICONDA_ROOT=${TLAB_DIR}/miniconda3
 CONDA_BIN=${MINICONDA_ROOT}/bin/conda
 ENV_DIR=${TLAB_DIR}/envs/${ENV_NAME}
+RUN_DIR=$(pwd)
 
 ##############################
 # Helper Functions
@@ -288,6 +289,9 @@ install_dependencies() {
 
       echo "Installing requirements:"
       # Install the python requirements
+      if ! ls "$TLAB_CODE_DIR" | grep requirements-uv.txt; then
+        cp "$RUN_DIR"/requirements-uv.txt "$TLAB_CODE_DIR"/requirements-uv.txt
+      fi
       uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-uv.txt
 
       # Install Flash Attention separately - it doesn't play well in requirements file
@@ -301,6 +305,9 @@ install_dependencies() {
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
       echo "Installing Tranformer Lab requirements without GPU support"
 
+      if ! ls "$TLAB_CODE_DIR" | grep requirements-uv.txt; then
+        cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
+      fi
       uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
   fi
 
