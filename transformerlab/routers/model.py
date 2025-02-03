@@ -253,7 +253,7 @@ async def login_to_huggingface():
     token = await db.config_get("HuggingfaceUserAccessToken")
 
     saved_token_in_hf_cache = get_token()
-    print(f"Saved token in HF cache: {saved_token_in_hf_cache}")
+    # print(f"Saved token in HF cache: {saved_token_in_hf_cache}")
     if saved_token_in_hf_cache:
         try:
             login(token=saved_token_in_hf_cache)
