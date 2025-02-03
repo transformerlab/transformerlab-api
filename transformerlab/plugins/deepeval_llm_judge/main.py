@@ -13,6 +13,10 @@ from deepeval.metrics import GEval
 from deepeval.models.base_model import DeepEvalBaseLLM
 from deepeval.test_case import LLMTestCase, LLMTestCaseParams
 from langchain_openai import ChatOpenAI
+from pydantic import BaseModel
+from anthropic import Anthropic
+from openai import OpenAI
+import instructor
 
 parser = argparse.ArgumentParser(
     description='Run DeepEval metrics for LLM-as-judge evaluation.')
@@ -27,7 +31,7 @@ parser.add_argument("--threshold", default=0.5, type=float)
 parser.add_argument("--geval_name", default='', type=str)
 parser.add_argument("--geval_context", default='', type=str)
 parser.add_argument("--context_geval", default=None, type=str)
-
+parser.add_argument("--judge_model", default=None, type=str)
 
 args, other = parser.parse_known_args()
 
@@ -53,7 +57,61 @@ def get_metric_class(metric_name: str):
         sys.exit(1)
 
 
-# Generating custom TRLAB model
+class CustomCommercialModel(DeepEvalBaseLLM):
+    def __init__(self, model_type="claude", model_name="Claude 3.5 Sonnet"):
+        self.model_type = model_type
+        self.model_name = self.set_model_name(model_name)
+        if model_type == "claude":
+            if os.environ.get("ANTHROPIC_API_KEY") is None:
+                print("Please set the Anthropic API Key from Settings.")
+                sys.exit(1)
+            self.model = Anthropic()
+
+        elif model_type == "openai":
+            if os.environ.get("OPENAI_API_KEY") is None:
+                print("Please set the OpenAI API Key from Settings.")
+                sys.exit(1)
+            self.model = OpenAI()
+
+    def load_model(self):
+        return self.model
+
+    def set_model_name(self, model_name):
+        dic = {
+            "Claude 3.5 Sonnet": "claude-3.5-sonnet-latest",
+            "Claude 3.5 Haiku": "claude-3.5-haiku-latest",
+            "OpenAI GPT 4o": "gpt-4o",
+            "OpenAI GPT 4o Mini": "gpt-4o-mini",
+        }
+        return dic[model_name]
+
+    def generate(self, prompt: str, schema: BaseModel) -> BaseModel:
+        client = self.load_model()
+        if self.model_type == "claude":
+            instructor_client = instructor.from_anthropic(client)
+        else:
+            instructor_client = instructor.from_openai(client)
+
+        resp = instructor_client.messages.create(
+            model=self.model_name,
+            max_tokens=1024,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+            response_model=schema,
+        )
+        return resp
+
+    async def a_generate(self, prompt: str, schema: BaseModel) -> BaseModel:
+        return self.generate(prompt, schema)
+
+    def get_model_name(self):
+        return self.model_name
+
+
 class TRLAB_MODEL(DeepEvalBaseLLM):
     def __init__(
         self,
@@ -77,27 +135,34 @@ class TRLAB_MODEL(DeepEvalBaseLLM):
         return args.model_name
 
 
+def check_local_server():
+    response = requests.get('http://localhost:8338/server/worker_healthz')
+    if response.status_code != 200 or not isinstance(response.json(), list) or len(response.json()) == 0:
+        print("Local Model Server is not running. Please start it before running the evaluation.")
+        sys.exit(1)
+
+
 try:
-    # Replace these with real values
-    custom_model = ChatOpenAI(
-        api_key="dummy",
-        base_url="http://localhost:8338/v1",
-        model=args.model_name,
-    )
-    trlab_model = TRLAB_MODEL(model=custom_model)
+    if 'local' not in args.judge_model.lower():
+        if 'openai' in args.judge_model.lower():
+            trlab_model = CustomCommercialModel("openai", args.judge_model)
+        else:
+            trlab_model = CustomCommercialModel("claude", args.judge_model)
+    else:
+        check_local_server()
+        custom_model = ChatOpenAI(
+            api_key="dummy",
+            base_url="http://localhost:8338/v1",
+            model=args.model_name,
+        )
+        trlab_model = TRLAB_MODEL(model=custom_model)
+
+
 except Exception as e:
     print(f"An error occurred while loading the model: {e}")
     sys.exit(1)
 
 print("Model loaded successfully")
-
-
-def check_local_server():
-    response = requests.get('http://localhost:8338/server/worker_healthz')
-    print(response.json())
-    if response.status_code != 200 or not isinstance(response.json(), list) or len(response.json()) == 0:
-        print("Local Model Server is not running. Please start it before running the evaluation.")
-        sys.exit(1)
 
 
 two_input_metrics = ["AnswerRelevancyMetric", "BiasMetric", "ToxicityMetric"]
@@ -126,7 +191,7 @@ def run_evaluation():
         print(f"No dataset found at {args.dataset_path}")
         sys.exit(1)
 
-    check_local_server()
+    # check_local_server()
     try:
         df = pd.read_csv(args.dataset_path)
         print("Dataset loaded successfully")
@@ -213,7 +278,7 @@ def run_evaluation():
             sys.exit(1)
 
     print(f"Test cases loaded successfully: {len(test_cases)}")
-    dataset = EvaluationDataset(test_cases)
+    dataset = EvaluationDataset(test_cases[1:])
 
     try:
         output = evaluate(dataset, [metric])

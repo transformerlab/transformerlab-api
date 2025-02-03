@@ -1,12 +1,16 @@
 import asyncio
 import json
+import os
 from fastapi import APIRouter, Body
+from fastapi.responses import StreamingResponse
 
 import transformerlab.db as db
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
 from typing import Annotated
 from json import JSONDecodeError
+
+from transformerlab.routers.serverinfo import watch_file
 
 
 router = APIRouter(prefix="/jobs", tags=["train"])
@@ -45,6 +49,7 @@ async def job_update(job_id: str, status: str):
 async def start_next_job():
     num_running_jobs = await db.job_count_running()
     if num_running_jobs > 0:
+        print("A job is already running")
         return {"message": "A job is already running"}
     nextjob = await db.jobs_get_next_queued_job()
     if nextjob:
@@ -59,7 +64,7 @@ async def start_next_job():
         config = json.loads(data["config"])
 
         experiment_name = data["name"]
-        await shared.run_job(job_id=nextjob['id'], job_config=job_config, experiment_name=experiment_name)
+        await shared.run_job(job_id=nextjob['id'], job_config=job_config, experiment_name=experiment_name, job_details=nextjob)
         return nextjob
     else:
         return {"message": "No jobs in queue"}
@@ -139,3 +144,30 @@ async def update_training_template(template_id: str, name: str,
     except Exception as e:
         return {"status": "error", "message": str(e)}
     return {"status": "success"}
+
+
+@router.get("/{job_id}/stream_output")
+async def stream_job_output(job_id: str):
+    job = await db.job_get(job_id)
+    job_data = job["job_data"]
+
+    plugin_name = job_data["plugin"]
+    plugin_dir = dirs.plugin_dir_by_name(plugin_name)
+
+    output_file_name = os.path.join(plugin_dir, f"output_{job_id}.txt")
+
+    if not os.path.exists(output_file_name):
+        with open(output_file_name, "w") as f:
+            f.write("")
+
+    return StreamingResponse(
+        # we force polling because i can't get this to work otherwise -- changes aren't detected
+        watch_file(output_file_name, start_from_beginning=True,
+                   force_polling=True),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*"
+        }
+    )

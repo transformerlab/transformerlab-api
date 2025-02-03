@@ -54,8 +54,6 @@ async def experiment_add_evaluation(experimentId: int, plugin: Any = Body()):
         "script_parameters": script_parameters
     }
 
-    print("EVALUATION BEING ADDED", evaluation)
-
     evaluations.append(evaluation)
 
     await db.experiment_update_config(experimentId, "evaluations", json.dumps(evaluations))
@@ -116,7 +114,7 @@ async def get_evaluation_plugin_file_contents(experimentId: int, plugin_name: st
 
 
 @router.get("/run_evaluation_script")
-async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: str):
+async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: str, job_id: str):
     experiment_details = await db.experiment_get(id=experimentId)
 
     if experiment_details is None:
@@ -154,8 +152,9 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
 
     if this_evaluation is None:
         return {"message": f"Error: evaluation {eval_name} does not exist in experiment"}
-
     template_config = this_evaluation["script_parameters"]
+    # print("GET OUTPUT JOB DATA", await get_job_output_file_name("2", plugin_name, eval_name, template_config))
+    job_output_file = await get_job_output_file_name(job_id, plugin_name)
 
     input_contents = {"experiment": experiment_details,
                       "config": template_config}
@@ -172,16 +171,24 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
         extra_args.append("--" + key)
         extra_args.append(template_config[key])
 
-    print(template_config)
+    # print(template_config)
 
     extra_args.extend(["--experiment_name", experiment_name, "--eval_name", eval_name, "--input_file", input_file,
-                       "--model_name", model_name, "--model_architecture", model_type, "--model_adapter", model_adapter])
+                       "--model_name", model_name, "--model_architecture", model_type, "--model_adapter", model_adapter, "--job_id", str(job_id)])
 
     subprocess_command = [sys.executable, dirs.PLUGIN_HARNESS] + extra_args
 
     print(f">Running {subprocess_command}")
 
     output_file = await dirs.eval_output_file(experiment_name, eval_name)
+
+    with open(job_output_file, "w") as f:
+        process = await asyncio.create_subprocess_exec(
+            *subprocess_command,
+            stdout=f,
+            stderr=subprocess.PIPE
+        )
+        await process.communicate()
 
     with open(output_file, "w") as f:
         process = await asyncio.create_subprocess_exec(
@@ -190,6 +197,44 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
             stderr=subprocess.PIPE
         )
         await process.communicate()
+
+
+async def get_job_output_file_name(job_id: str, plugin_name: str):
+    try:
+        # First get the template Id from this job:
+        # job = await db.job_get(job_id)
+
+        # job_data = job["job_data"]
+        # if "template_id" not in job_data:
+        #     raise ValueError('Template ID not found in job data')
+
+        # template_id = job_data["template_id"]
+        # # Then get the template:
+        # template = await db.get_training_template(template_id)
+        # # Then get the plugin name from the template:
+
+        # template_config = json.loads(template["config"])
+        # print("PLUGIN NAME", plugin_name)
+        # print("EVAL NAME", eval_name)
+        # if "plugin_name" not in template_config:
+        #     raise ValueError('Plugin name not found in template config')
+
+        # get the output.txt from the plugin which is stored in
+        # plugin_name = template_config["plugin_name"]
+        plugin_dir = dirs.plugin_dir_by_name(plugin_name)
+
+        # job output is stored in separate files with a job number in the name...
+        if os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
+            output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
+
+        # but it used to be all stored in a single file called output.txt, so check that as well
+        elif os.path.exists(os.path.join(plugin_dir, "output.txt")):
+            output_file = os.path.join(plugin_dir, "output.txt")
+        else:
+            raise ValueError(f"No output file found for job {job_id}")
+        return output_file
+    except Exception as e:
+        raise e
 
 
 @router.get("/get_output")

@@ -1,0 +1,49 @@
+{
+    "name": "DeepEval Objective Metrics",
+    "uniqueId": "deepeval_objective",
+    "description": "Evaluating outputs of LLMs using objective metrics",
+    "plugin-format": "python",
+    "type": "evaluator",
+    "version": "0.1.1",
+    "git": "https://github.com/confident-ai/deepeval",
+    "url": "https://github.com/confident-ai/deepeval",
+    "files": [
+        "main.py",
+        "setup.sh"
+    ],
+    "setup-script": "setup.sh",
+    "parameters": {
+        "experiment_run_name": {
+            "title": "Experiment Name",
+            "type": "string"
+        },
+        "metrics": {
+            "title": "Evaluation Metric",
+            "type": "string",
+            "enum": [
+                "Rouge",
+                "BLEU",
+                "Exact Match",
+                "Quasi Exact Match",
+                "Quasi Contains",
+                "BERT Score"
+            ]
+        },
+        "dataset_path": {
+            "title": "Dataset Path (with file name)",
+            "type": "string"
+        },
+        "output_path": {
+            "title": "Output Path",
+            "type": "string"
+        }
+    },
+    "parameters-ui": {
+        "task": {
+            "ui:help": "Select an evaluation metric from the drop-down list"
+        },
+        "dataset_path": {
+            "ui:help": "Enter the local path to the dataset file. Ensure that this is a csv file with columns: 'input', 'output', 'expected_output'. The context column is optional if using metrics which don't require it."
+        }
+    }
+}

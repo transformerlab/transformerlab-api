@@ -225,6 +225,11 @@ print(example)
 # TODO: For now create adapter in the plugin directory but this should probably go somewhere else
 # adaptor_output_dir = plugin_dir
 adaptor_output_dir = config["adaptor_output_dir"]
+if adaptor_output_dir == "" or adaptor_output_dir == None:
+    print("No adaptor output directory specified.")
+    adaptor_output_dir = os.path.join(
+        os.environ["_TFL_WORKSPACE_DIR"], "adaptors", args.model_name, args.adaptor_name)
+    print("Using default adaptor output directory:", adaptor_output_dir)
 if not os.path.exists(adaptor_output_dir):
     os.makedirs(adaptor_output_dir)
 

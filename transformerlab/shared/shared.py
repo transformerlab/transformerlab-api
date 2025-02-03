@@ -9,6 +9,7 @@ import re
 import time
 import unicodedata
 from pathlib import Path
+from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.shared import dirs
 
 
@@ -208,10 +209,42 @@ async def async_run_python_daemon_and_update_status(python_script: list[str], jo
     return process
 
 
-async def run_job(job_id: str, job_config, experiment_name: str = "default"):
+async def run_job(job_id: str, job_config, experiment_name: str = "default", job_details: dict = None):
     # This runs a specified job number defined
     # by template_id
     print("Running job: " + str(job_id))
+
+    print("Job Config: " + str(job_config))
+    print("Job Details: " + str(job_details))
+    master_job_type = job_details['type']
+    print(master_job_type)
+
+    if master_job_type == "TASK":
+        """we define a TASK job as a job where we just ask
+        the worker to run the related python script, passing in the parameters
+        that are defined in job_config"""
+        plugin = job_config["plugin"]
+        # update task to be marked as COMPLETE:
+        await db.job_update_status(job_id, "COMPLETE")
+        # implement rest later
+        return
+    elif master_job_type == "EVAL":
+        experiment = await db.experiment_get_by_name(experiment_name)
+        experiment_id = experiment["id"]
+        plugin_name = job_config["plugin"]
+        eval_name = job_config["evaluator"]
+        await db.job_update_status(job_id, "RUNNING")
+        print("Running evaluation script")
+        plugin_location = dirs.plugin_dir_by_name(plugin_name)
+        evals_output_file = os.path.join(
+            plugin_location, f"output_{job_id}.txt")
+        # Create output file if it doesn't exist
+        if not os.path.exists(evals_output_file):
+            with open(evals_output_file, 'w') as f:
+                f.write("")
+        await run_evaluation_script(experiment_id, plugin_name, eval_name, job_id)
+        await db.job_update_status(job_id, "COMPLETE")
+        return
 
     # A job is a specific run of a job_template.
     # So first we pull up the specified job_template id

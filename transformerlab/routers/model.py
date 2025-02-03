@@ -118,7 +118,8 @@ async def model_gallery_update_sizes():
             download_size = -1
             print(e)
         try:
-            total_size = huggingfacemodel.get_huggingface_download_size(model['uniqueID'], [])
+            total_size = huggingfacemodel.get_huggingface_download_size(
+                model['uniqueID'], [])
         except Exception:
             total_size = -1
         print(model['uniqueID'])
@@ -252,7 +253,7 @@ async def login_to_huggingface():
     token = await db.config_get("HuggingfaceUserAccessToken")
 
     saved_token_in_hf_cache = get_token()
-    print(f"Saved token in HF cache: {saved_token_in_hf_cache}")
+    # print(f"Saved token in HF cache: {saved_token_in_hf_cache}")
     if saved_token_in_hf_cache:
         try:
             login(token=saved_token_in_hf_cache)
@@ -273,6 +274,56 @@ async def login_to_huggingface():
         return {"message": "OK"}
     except:
         return {"message": "Login failed"}
+
+
+@router.get(path="/model/set_openai_api_key")
+async def set_openai_api_key():
+    token = await db.config_get("OPENAI_API_KEY")
+    if os.getenv("OPENAI_API_KEY") is None:
+        if token is not None:
+            os.environ["OPENAI_API_KEY"] = token
+            return {"message": "OK"}
+    else:
+        if token is not None and token == os.getenv("OPENAI_API_KEY"):
+            return {"message": "OK"}
+        else:
+            print("Overriding OPENAI_API_KEY environment variable with value: ", token)
+            os.environ["OPENAI_API_KEY"] = token
+            return {"message": "OK"}
+
+
+@router.get(path="/model/check_openai_api_key")
+async def check_openai_api_key():
+    # Check if the OPENAI_API_KEY is set
+    if os.getenv("OPENAI_API_KEY") is None:
+        return {"message": "OPENAI_API_KEY not set"}
+    else:
+        return {"message": "OK"}
+
+
+@router.get(path="/model/check_anthropic_api_key")
+async def check_anthropic_api_key():
+    # Check if the ANTHROPIC_API_KEY is set
+    if os.getenv("ANTHROPIC_API_KEY") is None:
+        return {"message": "ANTHROPIC_API_KEY not set"}
+    else:
+        return {"message": "OK"}
+
+
+@router.get(path="/model/set_anthropic_api_key")
+async def set_anthropic_api_key():
+    token = await db.config_get("ANTHROPIC_API_KEY")
+    if os.getenv("ANTHROPIC_API_KEY") is None:
+        if token is not None:
+            os.environ["ANTHROPIC_API_KEY"] = token
+            return {"message": "OK"}
+    else:
+        if token is not None and token == os.getenv("ANTHROPIC_API_KEY"):
+            return {"message": "OK"}
+        else:
+            print("Overriding ANTHROPIC_API_KEY environment variable with value: ", token)
+            os.environ["ANTHROPIC_API_KEY"] = token
+            return {"message": "OK"}
 
 
 @router.get(path="/model/download_size")
@@ -366,7 +417,8 @@ async def download_model_by_huggingface_id(model: str, job_id: int | None = None
     # If None then that means either the model doesn't exist
     # Or we don't have proper Hugging Face authentication setup
     try:
-        model_details = huggingfacemodel.get_model_details_from_huggingface(model)
+        model_details = huggingfacemodel.get_model_details_from_huggingface(
+            model)
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
         return {"status": "error", "message": error_msg}
@@ -414,7 +466,7 @@ async def model_local_list():
 async def model_count_downloaded():
     # Currently used to determine if user has any downloaded models
     count = await db.model_local_count()
-    return  {"status": "success", "data": count}
+    return {"status": "success", "data": count}
 
 
 @router.get("/model/create")

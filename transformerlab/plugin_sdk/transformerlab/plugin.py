@@ -107,22 +107,31 @@ class Job:
             (tensorboard_dir, self.id),
         )
 
-    def set_job_completion_status(self, completion_status: str, completion_details: str):
+    def set_job_completion_status(self, completion_status: str, completion_details: str, score: dict = None):
         """
         A job could be in the "complete" state but still have failed, so this
         function is used to set the job completion status. i.e. how the task
         that the job is executing has completed.
         and if the job failed, the details of the failure.
+        Score should be a json of the format {"metric_name": value, ...}
         """
         if not (completion_status == "success" or completion_status == "failed"):
             raise ValueError(
                 "completion_status must be either 'success' or 'failed'")
 
-        self.db.execute(
-            "UPDATE job SET job_data = json_insert(job_data, '$.completion_status', ?, '$.completion_details', ?) "
-            "WHERE id = ?",
-            (completion_status, completion_details, self.id),
-        )
+        if score is not None:
+            score = json.dumps(score)
+            self.db.execute(
+                "UPDATE job SET job_data = json_insert(job_data, '$.completion_status', ?, '$.completion_details', ?, '$.score', ?) "
+                "WHERE id = ?",
+                (completion_status, completion_details, score, self.id),
+            )
+        else:
+            self.db.execute(
+                "UPDATE job SET job_data = json_insert(job_data, '$.completion_status', ?, '$.completion_details', ?) "
+                "WHERE id = ?",
+                (completion_status, completion_details, self.id),
+            )
 
 
 def generate_model_json(model_id: str, architecture: str,

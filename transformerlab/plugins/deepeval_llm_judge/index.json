@@ -19,13 +19,24 @@
             "enum": [
                 "Bias",
                 "Toxicity",
-                "FaithFulness",
+                "Faithfulness",
                 "Hallucination",
                 "Answer Relevancy",
                 "Contextual Precision",
                 "Contextual Recall",
                 "Contextual Relevancy",
                 "Custom (GEval)"
+            ]
+        },
+        "judge_model": {
+            "title": "LLM-as-Judge Model (Model to be used as Judge. Select `local` to use the local model running)",
+            "type": "string",
+            "enum": [
+                "Claude 3.5 Haiku",
+                "Claude 3.5 Sonnet",
+                "OpenAI GPT 4o",
+                "OpenAI GPT 4o Mini",
+                "Local"
             ]
         },
         "dataset_path": {

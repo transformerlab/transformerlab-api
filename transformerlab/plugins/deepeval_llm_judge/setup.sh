@@ -1,1 +1,1 @@
-pip install deepeval langchain-openai
+pip install deepeval langchain-openai instructor anthropic
