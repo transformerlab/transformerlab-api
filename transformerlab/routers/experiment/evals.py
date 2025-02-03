@@ -152,7 +152,6 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
 
     if this_evaluation is None:
         return {"message": f"Error: evaluation {eval_name} does not exist in experiment"}
-
     template_config = this_evaluation["script_parameters"]
     # print("GET OUTPUT JOB DATA", await get_job_output_file_name("2", plugin_name, eval_name, template_config))
     job_output_file = await get_job_output_file_name(job_id, plugin_name)
@@ -175,7 +174,7 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
     # print(template_config)
 
     extra_args.extend(["--experiment_name", experiment_name, "--eval_name", eval_name, "--input_file", input_file,
-                       "--model_name", model_name, "--model_architecture", model_type, "--model_adapter", model_adapter])
+                       "--model_name", model_name, "--model_architecture", model_type, "--model_adapter", model_adapter, "--job_id", str(job_id)])
 
     subprocess_command = [sys.executable, dirs.PLUGIN_HARNESS] + extra_args
 

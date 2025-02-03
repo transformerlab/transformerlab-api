@@ -14,6 +14,8 @@ import sys
 import traceback
 from datetime import datetime
 import nltk
+import transformerlab.plugin
+
 nltk.download('punkt_tab')
 
 
@@ -29,6 +31,7 @@ parser.add_argument("--dataset_path", default=None, type=str,)
 parser.add_argument("--output_path", default=None, type=str,)
 parser.add_argument("--experiment_run_name", default=None, type=str,)
 parser.add_argument("--threshold", default=0.5, type=float)
+parser.add_argument("--job_id", default=None, type=str)
 
 args, other = parser.parse_known_args()
 
@@ -36,9 +39,16 @@ args.metrics = args.metrics.split(',')
 args.metrics = [metric.lower().replace(' ', '_') for metric in args.metrics]
 
 # Set experiment name if None
-if not args.experiment_name or args.experiment_name == '':
+if args.experiment_name is None or args.experiment_name == '':
     # Set experiment name to current timestamp
     args.experiment_name = f'experiment_eval_{datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}'
+
+if args.job_id:
+    job = transformerlab.plugin.Job(args.job_id)
+    job.update_progress(0)
+else:
+    print("Job ID not provided.")
+    sys.exit(1)
 
 
 class RougeMetric(BaseMetric):
@@ -233,6 +243,8 @@ def run_evaluation():
             )
             test_cases.append(test_case)
 
+        job.update_progress(20)
+
         # Calculate metrics for each test case
         metrics = []
         for metric_name in args.metrics:
@@ -258,6 +270,7 @@ def run_evaluation():
                         "actual_output": test_case.actual_output,
                         "expected_output": test_case.expected_output
                     })
+        job.update_progress(60)
         # Save the metrics to a csv file
         metrics_df = pd.DataFrame(metrics)
         output_path = f"{args.output_path}/{args.experiment_run_name}.csv" if args.output_path else f"{args.experiment_run_name}.csv"
@@ -265,8 +278,10 @@ def run_evaluation():
         print("Average Score: ", metrics_df['score'].mean())
         print(f"Metrics saved to {output_path}")
         print("Evaluation completed.")
+        job.update_progress(100)
     except Exception as e:
         print("Error occurred while running the evaluation.")
+        job.set_job_completion_status("failed", str(e))
         print(e)
         traceback.print_exc()
 
