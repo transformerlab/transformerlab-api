@@ -100,9 +100,6 @@ async def edit_evaluation_task(experimentId: int, plugin: Any = Body()):
         eval_name = plugin["evalName"]
         updated_json = plugin["script_parameters"]
 
-        print("DATA RECEIVED:", updated_json)
-        print("EVAL NAME:", eval_name)
-        print("experiment Id:", experimentId)
         plugin_name = updated_json["plugin_name"]
         template_name = updated_json["template_name"]
 
@@ -122,14 +119,10 @@ async def edit_evaluation_task(experimentId: int, plugin: Any = Body()):
         updated_json.pop("plugin_name", None)
         updated_json.pop("template_name", None)
 
-        print("UPDATED JSON:", updated_json)
-
         for evaluation in evaluations:
             if evaluation["name"] == eval_name and evaluation["plugin"] == plugin_name:
                 evaluation["script_parameters"] = updated_json
                 evaluation["name"] = template_name
-
-        print("EVALUATIONS:", evaluations)
 
         await db.experiment_update_config(experimentId, "evaluations", json.dumps(evaluations))
 
