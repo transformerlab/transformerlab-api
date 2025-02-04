@@ -1707,6 +1707,15 @@
         "xwinograd_ru",
         "xwinograd_zh"
       ]
+    },
+    "limit": {
+      "title": "Number of samples (Enter a floating point between 0 and 1. Set as 1 to get all samples)",
+      "type": [
+        "number"
+      ],
+      "minimum": 0.0,
+      "default": 1.0,
+      "maximum": 1.0
     }
   }
 }

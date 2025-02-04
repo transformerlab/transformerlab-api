@@ -191,12 +191,16 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
         await process.communicate()
 
     with open(output_file, "w") as f:
-        process = await asyncio.create_subprocess_exec(
-            *subprocess_command,
-            stdout=f,
-            stderr=subprocess.PIPE
-        )
-        await process.communicate()
+        # Copy all contents from job_output_file to output_file
+        with open(job_output_file, "r") as job_output:
+            for line in job_output:
+                f.write(line)
+        # process = await asyncio.create_subprocess_exec(
+        #     *subprocess_command,
+        #     stdout=f,
+        #     stderr=subprocess.PIPE
+        # )
+        # await process.communicate()
 
 
 async def get_job_output_file_name(job_id: str, plugin_name: str):
