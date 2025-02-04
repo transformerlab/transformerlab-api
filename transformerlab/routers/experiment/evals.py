@@ -87,6 +87,58 @@ async def experiment_delete_eval(experimentId: int, eval_name: str):
 # @TODO delete the following function and use the plugin file function
 
 
+@router.post("/edit")
+async def edit_evaluation_task(experimentId: int, plugin: Any = Body()):
+    """Get the contents of the evaluation """
+    try:
+        experiment = await db.experiment_get(experimentId)
+
+        # if the experiment does not exist, return an error:
+        if experiment is None:
+            return {"message": f"Experiment {experimentId} does not exist"}
+
+        eval_name = plugin["evalName"]
+        updated_json = plugin["script_parameters"]
+
+        print("DATA RECEIVED:", updated_json)
+        print("EVAL NAME:", eval_name)
+        print("experiment Id:", experimentId)
+        plugin_name = updated_json["plugin_name"]
+        template_name = updated_json["template_name"]
+
+        experiment_config = json.loads(experiment["config"])
+
+        # updated_json = json.loads(updated_json)
+
+        if "evaluations" not in experiment_config:
+            return {"message": f"Experiment {experimentId} has no evaluations"}
+
+        evaluations = json.loads(experiment_config["evaluations"])
+
+        # Remove fields model_name, model_architecture and plugin_name from the updated_json
+        # as they are not needed in the evaluations list
+        updated_json.pop("model_name", None)
+        updated_json.pop("model_architecture", None)
+        updated_json.pop("plugin_name", None)
+        updated_json.pop("template_name", None)
+
+        print("UPDATED JSON:", updated_json)
+
+        for evaluation in evaluations:
+            if evaluation["name"] == eval_name and evaluation["plugin"] == plugin_name:
+                evaluation["script_parameters"] = updated_json
+                evaluation["name"] = template_name
+
+        print("EVALUATIONS:", evaluations)
+
+        await db.experiment_update_config(experimentId, "evaluations", json.dumps(evaluations))
+
+        return {"message": "OK"}
+    except Exception as e:
+        print("Error in edit_evaluation_task", e)
+        raise e
+
+
 @router.get("/get_evaluation_plugin_file_contents")
 async def get_evaluation_plugin_file_contents(experimentId: int, plugin_name: str):
     # first get the experiment name:
@@ -205,26 +257,6 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
 
 async def get_job_output_file_name(job_id: str, plugin_name: str):
     try:
-        # First get the template Id from this job:
-        # job = await db.job_get(job_id)
-
-        # job_data = job["job_data"]
-        # if "template_id" not in job_data:
-        #     raise ValueError('Template ID not found in job data')
-
-        # template_id = job_data["template_id"]
-        # # Then get the template:
-        # template = await db.get_training_template(template_id)
-        # # Then get the plugin name from the template:
-
-        # template_config = json.loads(template["config"])
-        # print("PLUGIN NAME", plugin_name)
-        # print("EVAL NAME", eval_name)
-        # if "plugin_name" not in template_config:
-        #     raise ValueError('Plugin name not found in template config')
-
-        # get the output.txt from the plugin which is stored in
-        # plugin_name = template_config["plugin_name"]
         plugin_dir = dirs.plugin_dir_by_name(plugin_name)
 
         # job output is stored in separate files with a job number in the name...
