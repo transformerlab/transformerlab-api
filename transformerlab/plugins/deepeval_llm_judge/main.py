@@ -17,9 +17,11 @@ from pydantic import BaseModel
 from anthropic import Anthropic
 from openai import OpenAI
 import instructor
+import transformerlab.plugin
 
 parser = argparse.ArgumentParser(
     description='Run DeepEval metrics for LLM-as-judge evaluation.')
+parser.add_argument("--run_name", default='evaluation', type=str)
 parser.add_argument('--model_name', default='gpt-j-6b', type=str,
                     help='Model to use for evaluation.')
 parser.add_argument('--experiment_name', default='', type=str)
@@ -32,13 +34,22 @@ parser.add_argument("--geval_name", default='', type=str)
 parser.add_argument("--geval_context", default='', type=str)
 parser.add_argument("--context_geval", default=None, type=str)
 parser.add_argument("--judge_model", default=None, type=str)
+parser.add_argument("--job_id", default=None, type=str)
 
 args, other = parser.parse_known_args()
 
+original_metrics = [args.task if args.task != "Custom (GEval)" else "GEval"]
 if args.task != "Custom (GEval)":
     args.task = args.task.strip().replace(" ", "") + "Metric"
 else:
     args.task = "GEval"
+
+if args.job_id:
+    job = transformerlab.plugin.Job(args.job_id)
+    job.update_progress(0)
+else:
+    print("Job ID not provided.")
+    sys.exit(1)
 
 
 def get_metric_class(metric_name: str):
@@ -64,12 +75,16 @@ class CustomCommercialModel(DeepEvalBaseLLM):
         if model_type == "claude":
             if os.environ.get("ANTHROPIC_API_KEY") is None:
                 print("Please set the Anthropic API Key from Settings.")
+                job.set_job_completion_status(
+                    "failed", "Please set the Anthropic API Key from Settings.")
                 sys.exit(1)
             self.model = Anthropic()
 
         elif model_type == "openai":
             if os.environ.get("OPENAI_API_KEY") is None:
                 print("Please set the OpenAI API Key from Settings.")
+                job.set_job_completion_status(
+                    "failed", "Please set the OpenAI API Key from Settings.")
                 sys.exit(1)
             self.model = OpenAI()
 
@@ -138,7 +153,8 @@ class TRLAB_MODEL(DeepEvalBaseLLM):
 def check_local_server():
     response = requests.get('http://localhost:8338/server/worker_healthz')
     if response.status_code != 200 or not isinstance(response.json(), list) or len(response.json()) == 0:
-        print("Local Model Server is not running. Please start it before running the evaluation.")
+        print(
+            "Local Model Server is not running. Please start it before running the evaluation.")
         sys.exit(1)
 
 
@@ -157,15 +173,16 @@ try:
         )
         trlab_model = TRLAB_MODEL(model=custom_model)
 
-
 except Exception as e:
     print(f"An error occurred while loading the model: {e}")
+    job.set_job_completion_status(
+        "failed", "An error occurred while loading the model")
     sys.exit(1)
 
 print("Model loaded successfully")
 
-
-two_input_metrics = ["AnswerRelevancyMetric", "BiasMetric", "ToxicityMetric"]
+two_input_metrics = ["AnswerRelevancyMetric",
+                     "BiasMetric", "ToxicityMetric"]
 three_input_metrics = ["FaithfulnessMetric", "ContextualPrecisionMetric",
                        "ContextualRecallMetric", "ContextualRelevancyMetric", "HallucinationMetric"]
 
@@ -179,6 +196,8 @@ try:
             three_input_metrics.append("GEval")
 except Exception as e:
     print(f"An error occurred while checking the metric: {e}")
+    job.set_job_completion_status(
+        "failed", "An error occurred while checking the metric")
     sys.exit(1)
 
 
@@ -186,17 +205,24 @@ def run_evaluation():
     # Load the csv_file
     if args.dataset_path is None:
         print("No dataset found. Please upload the dataset correctly")
+        job.set_job_completion_status(
+            "failed", "No dataset found. Please upload the dataset correctly")
         sys.exit(1)
     if not os.path.exists(args.dataset_path):
         print(f"No dataset found at {args.dataset_path}")
+        job.set_job_completion_status(
+            "failed", f"No dataset found at {args.dataset_path}")
         sys.exit(1)
 
     # check_local_server()
     try:
         df = pd.read_csv(args.dataset_path)
         print("Dataset loaded successfully")
+        job.update_progress(1)
     except Exception as e:
         print(f"An error occurred while reading the dataset: {e}")
+        job.set_job_completion_status(
+            "failed", "An error occurred while reading the dataset")
         sys.exit(1)
 
     required_columns = ['input', 'output', 'expected_output']
@@ -204,6 +230,8 @@ def run_evaluation():
     if not all(col in df.columns for col in required_columns):
         print(
             f"The dataset should have the columns `input`, `output` and `expected_output` mandatory. Please re-upload the dataset with the correct columns.")
+        job.set_job_completion_status(
+            "failed", "The dataset should have the columns `input`, `output` and `expected_output` mandatory. Please re-upload the dataset with the correct columns.")
         sys.exit(1)
 
     if args.task in two_input_metrics:
@@ -211,6 +239,8 @@ def run_evaluation():
         if not df['input'].notnull().all() or not df['output'].notnull().all() or not df['expected_output'].notnull().all():
             print(
                 f"The dataset should have all non-null values in the columns `input`, `output` and `expected_output` columns for the metric: {args.task}")
+            job.set_job_completion_status(
+                "failed", f"The dataset should have all non-null values in the columns `input`, `output` and `expected_output` columns for the metric: {args.task}")
             sys.exit(1)
     elif args.task in three_input_metrics:
         # Check if there is a column called `context` in the dataset
@@ -224,6 +254,8 @@ def run_evaluation():
         if not df['input'].notnull().all() or not df['output'].notnull().all() or not df['expected_output'].notnull().all() or not df['context'].notnull().all():
             print(
                 f"The dataset should have all non-null values in the columns `input`, `output`, `expected_output` and `context` columns for the metric: {args.task}")
+            job.set_job_completion_status(
+                "failed", f"The dataset should have all non-null values in the columns `input`, `output`, `expected_output` and `context` columns for the metric: {args.task}")
             sys.exit(1)
 
     if args.task not in custom_metric:
@@ -231,18 +263,19 @@ def run_evaluation():
         metric = metric_class(
             model=trlab_model, threshold=args.threshold, include_reason=True)
         print("Metric loaded successfully")
+        job.update_progress(2)
         test_cases = []
         if args.task in two_input_metrics:
             for _, row in df.iterrows():
                 try:
-                    # print("ROW", row)
                     test_cases.append(LLMTestCase(
                         input=row['input'], actual_output=row['output'], expected_output=row['context']))
-                    # print("TEST CASES", test_cases)
                 except Exception as e:
                     print(
                         f"An error occurred while creating the test case: {e}")
-                    # sys.exit(1)
+                    job.set_job_completion_status(
+                        "failed", "An error occurred while creating the test case")
+                    sys.exit(1)
         elif args.task in three_input_metrics:
             if args.task != "HallucinationMetric":
                 for _, row in df.iterrows():
@@ -258,7 +291,8 @@ def run_evaluation():
             evaluation_params = [LLMTestCaseParams.INPUT,
                                  LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT]
             if args.context_geval:
-                evaluation_params.append(LLMTestCaseParams.RETRIEVAL_CONTEXT)
+                evaluation_params.append(
+                    LLMTestCaseParams.RETRIEVAL_CONTEXT)
             metric = GEval(name=args.geval_name,
                            criteria=args.geval_context,
                            evaluation_params=[
@@ -275,21 +309,35 @@ def run_evaluation():
                         input=row['input'], actual_output=row['output'], expected_output=row['context']))
         except Exception as e:
             print(f"An error occurred while creating the test case: {e}")
+            job.set_job_completion_status(
+                "failed", "An error occurred while creating the test case")
             sys.exit(1)
 
     print(f"Test cases loaded successfully: {len(test_cases)}")
+    job.update_progress(3)
     dataset = EvaluationDataset(test_cases[1:])
 
     try:
         output = evaluate(dataset, [metric])
+        job.update_progress(99)
+        scores_list = [{"type": original_metrics[0]}]
+        score = 0
+        for test_cases in output.test_results:
+            score += test_cases.metrics_data[0].score
+        average_score = score / len(output.test_results)
+        scores_list[0]['score'] = average_score
+        job.update_progress(100)
+        print("Evaluation completed successfully")
+        job.set_job_completion_status(
+            "success", "Evaluation completed successfully", score=scores_list)
+
     except ValueError as e:
         # Print the whole traceback
         traceback.print_exc()
         print(f"An error occurred while running the evaluation: {e}")
+        job.set_job_completion_status(
+            "failed", "An error occurred while running the evaluation")
         sys.exit(1)
-
-    print(output)
-    print("Evaluation completed successfully")
 
 
 run_evaluation()

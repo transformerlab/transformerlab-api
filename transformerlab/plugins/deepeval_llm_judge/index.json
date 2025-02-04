@@ -4,7 +4,7 @@
     "description": "Using LLMs as Judges for evaluating outputs of other LLMs",
     "plugin-format": "python",
     "type": "evaluator",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "git": "https://github.com/confident-ai/deepeval",
     "url": "https://github.com/confident-ai/deepeval",
     "files": [
@@ -13,6 +13,11 @@
     ],
     "setup-script": "setup.sh",
     "parameters": {
+        "run_name": {
+            "title": "Run Name (Set a Run Name for your evaluation)",
+            "type": "string",
+            "default": "anonymous-eagle"
+        },
         "task": {
             "title": "Evaluation Metric",
             "type": "string",
