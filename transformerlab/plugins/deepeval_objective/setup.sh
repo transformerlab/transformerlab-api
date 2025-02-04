@@ -1,1 +1,1 @@
-pip install deepeval bert-score
+pip install deepeval bert-score datasets

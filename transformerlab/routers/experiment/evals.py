@@ -1,19 +1,19 @@
 import asyncio
-from fastapi.responses import FileResponse
+import json
+import os
+import subprocess
+import sys
+import time
 import urllib
-from transformerlab.routers.experiment import rag, documents, plugins, conversations, export
-from transformerlab.shared import dirs
-from transformerlab.shared import shared
+from pathlib import Path
+from typing import Annotated, Any
+
 import transformerlab.db as db
 from fastapi import APIRouter, Body
-from typing import Annotated, Any
-import time
-import sys
-import subprocess
-from pathlib import Path
-import os
-import json
-
+from fastapi.responses import FileResponse
+from transformerlab.routers.experiment import (conversations, documents,
+                                               export, plugins, rag)
+from transformerlab.shared import dirs, shared
 
 router = APIRouter(prefix="/evals", tags=["evals"])
 

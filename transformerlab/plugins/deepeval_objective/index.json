@@ -4,7 +4,7 @@
     "description": "Evaluating outputs of LLMs using objective metrics",
     "plugin-format": "python",
     "type": "evaluator",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "git": "https://github.com/confident-ai/deepeval",
     "url": "https://github.com/confident-ai/deepeval",
     "files": [
@@ -13,11 +13,6 @@
     ],
     "setup-script": "setup.sh",
     "parameters": {
-        "run_name": {
-            "title": "Run Name (Assign a name to your eval)",
-            "type": "string",
-            "default": "anonymous-llama"
-        },
         "metrics": {
             "title": "Evaluation Metric",
             "type": "string",
@@ -29,10 +24,6 @@
                 "Quasi Contains",
                 "BERT Score"
             ]
-        },
-        "dataset_path": {
-            "title": "Dataset Path (with file name)",
-            "type": "string"
         },
         "output_path": {
             "title": "Output Path",

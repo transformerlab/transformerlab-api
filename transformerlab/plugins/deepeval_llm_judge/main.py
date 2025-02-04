@@ -4,31 +4,31 @@ import os
 import sys
 import traceback
 
-
+import instructor
 import pandas as pd
 import requests
+import transformerlab.plugin
+from anthropic import Anthropic
+from datasets import load_dataset
 from deepeval import evaluate
 from deepeval.dataset import EvaluationDataset
 from deepeval.metrics import GEval
 from deepeval.models.base_model import DeepEvalBaseLLM
 from deepeval.test_case import LLMTestCase, LLMTestCaseParams
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel
-from anthropic import Anthropic
 from openai import OpenAI
-import instructor
-import transformerlab.plugin
+from pydantic import BaseModel
 
 parser = argparse.ArgumentParser(
     description='Run DeepEval metrics for LLM-as-judge evaluation.')
-parser.add_argument("--run_name", default='evaluation', type=str)
+parser.add_argument('--run_name', default='test', type=str)
 parser.add_argument('--model_name', default='gpt-j-6b', type=str,
                     help='Model to use for evaluation.')
 parser.add_argument('--experiment_name', default='', type=str)
 parser.add_argument('--eval_name', default='', type=str)
 parser.add_argument('--task', default='', type=str)
 parser.add_argument("--model_adapter", default=None, type=str,)
-parser.add_argument("--dataset_path", default=None, type=str,)
+parser.add_argument("--dataset_name", default=None, type=str,)
 parser.add_argument("--threshold", default=0.5, type=float)
 parser.add_argument("--geval_name", default='', type=str)
 parser.add_argument("--geval_context", default='', type=str)
@@ -50,6 +50,28 @@ if args.job_id:
 else:
     print("Job ID not provided.")
     sys.exit(1)
+
+
+def get_tflab_dataset():
+    try:
+        dataset_target = transformerlab.plugin.get_dataset_path(
+            args.dataset_name)
+    except Exception as e:
+        job.set_job_completion_status("failed", "Failure to get dataset")
+        raise e
+    dataset = {}
+    dataset_types = ["train"]
+    for dataset_type in dataset_types:
+        try:
+            dataset[dataset_type] = load_dataset(
+                dataset_target, split=dataset_type, trust_remote_code=True)
+
+        except Exception as e:
+            job.set_job_completion_status("failed", "Failure to load dataset")
+            raise e
+    # Convert the dataset to a pandas dataframe
+    df = dataset['train'].to_pandas()
+    return df
 
 
 def get_metric_class(metric_name: str):
@@ -203,20 +225,16 @@ except Exception as e:
 
 def run_evaluation():
     # Load the csv_file
-    if args.dataset_path is None:
-        print("No dataset found. Please upload the dataset correctly")
+    if args.dataset_name is None:
+        print("No dataset found. Please mention the dataset correctly")
         job.set_job_completion_status(
             "failed", "No dataset found. Please upload the dataset correctly")
-        sys.exit(1)
-    if not os.path.exists(args.dataset_path):
-        print(f"No dataset found at {args.dataset_path}")
-        job.set_job_completion_status(
-            "failed", f"No dataset found at {args.dataset_path}")
         sys.exit(1)
 
     # check_local_server()
     try:
-        df = pd.read_csv(args.dataset_path)
+        # df = pd.read_csv(args.dataset_path)
+        df = get_tflab_dataset()
         print("Dataset loaded successfully")
         job.update_progress(1)
     except Exception as e:
