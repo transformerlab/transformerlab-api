@@ -13,6 +13,11 @@
   ],
   "setup-script": "setup.sh",
   "parameters": {
+    "run_name": {
+      "title": "Run Name (Assign a name to your eval)",
+      "type": "string",
+      "default": "anonymous-vicuna"
+    },
     "task": {
       "title": "Task",
       "type": "string",
