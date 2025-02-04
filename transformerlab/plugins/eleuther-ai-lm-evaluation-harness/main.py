@@ -9,6 +9,8 @@ import torch
 
 parser = argparse.ArgumentParser(
     description='Run Eleuther AI LM Evaluation Harness.')
+parser.add_argument("--run_name", default='evaluation', type=str)
+
 parser.add_argument('--job_id', default=None, type=str)
 parser.add_argument('--model_name', default='gpt-j-6b', type=str,
                     help='Model to use for evaluation.')
@@ -72,6 +74,15 @@ if not args.model_name or args.model_name == '':
         "failed", "No model provided. Please re-run after setting a Foundation model.")
     sys.exit(1)
 
+
+def extract_metrics(line):
+    match = re.search(r'\|\s*([\w_]+)\s*\|\s*↑\s*\|\s*([\d.]+)\s*\|', line)
+    if match:
+        metric, value = match.groups()
+        return metric, float(value)  # Convert value to float
+    return None, None
+
+
 # Call the evaluation harness using HTTP if the platform is not CUDA
 if not torch.cuda.is_available():
     # print("CUDA is not available. Running eval using the MLX Plugin.")
@@ -105,6 +116,7 @@ if float(args.limit) != 1.0:
     command.extend(['--limit', str(args.limit)])
 print('Running command: $ ' + ' '.join(command))
 print("--Beginning to run evaluations (please wait)...")
+scores_list = []
 try:
     with subprocess.Popen(command, cwd=plugin_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True) as process:
         # process = subprocess.Popen(
@@ -119,6 +131,10 @@ try:
             match = re.search(pattern, line)
             if match:
                 job.update_progress(int(match.group(1)))
+            metric, value = extract_metrics(line)
+            if metric and value:
+                scores_list.append(
+                    {"type": f"{metric}", "score": value})
 
             if job.should_stop:
                 print("Stopping job because of user interruption.")
@@ -126,10 +142,13 @@ try:
                 process.terminate()
 
     job.set_job_completion_status(
-        "success", "Evaluation task completed successfully.")
+        "success", "Evaluation task completed successfully.", score=scores_list)
+    print('--Evaluation task complete')
+
 except Exception as e:
     print(f"An error occurred while running the subprocess: {e}")
-print('--Evaluation task complete')
+    job.set_job_completion_status(
+        "failed", f"An error occurred while running the subprocess.: {e}")
 
 # subprocess.Popen(
 #     command,

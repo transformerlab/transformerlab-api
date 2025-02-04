@@ -9,6 +9,7 @@ import transformerlab.plugin
 
 parser = argparse.ArgumentParser(
     description='Run Eleuther AI LM Evaluation Harness.')
+parser.add_argument("--run_name", default='evaluation', type=str)
 parser.add_argument('--job_id', default=None, type=str)
 parser.add_argument('--model_name', default='gpt-j-6b', type=str,
                     help='Model to use for evaluation.')
@@ -61,6 +62,15 @@ if not args.model_name or args.model_name == '':
 
 job.update_progress(0.5)
 
+
+def extract_metrics(line):
+    match = re.search(r'\|\s*([\w_]+)\s*\|\s*↑\s*\|\s*([\d.]+)\s*\|', line)
+    if match:
+        metric, value = match.groups()
+        return metric, float(value)  # Convert value to float
+    return None, None
+
+
 try:
     # Call the evaluation harness using HTTP if the platform is not CUDA
     if not torch.cuda.is_available():
@@ -79,7 +89,7 @@ try:
         # Add limit if provided
         if float(args.limit) != 1.0:
             command.extend(['--limit', args.limit])
-
+        scores_list = []
         print('Running command: $ ' + ' '.join(command))
         print("--Beginning to run evaluations (please wait)...")
         try:
@@ -97,13 +107,18 @@ try:
                     if match:
                         job.update_progress(int(match.group(1)))
 
+                    metric, value = extract_metrics(line)
+                    if metric and value:
+                        scores_list.append(
+                            {"type": f"{metric}", "score": value})
+
                     if job.should_stop:
                         print("Stopping job because of user interruption.")
                         job.update_status("STOPPED")
                         process.terminate()
 
             job.set_job_completion_status(
-                "success", "Evaluation task completed successfully.")
+                "success", "Evaluation task completed successfully.", score=scores_list)
         except Exception as e:
             print(f"An error occurred while running the subprocess: {e}")
         print('--Evaluation task complete')
