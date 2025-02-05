@@ -86,7 +86,7 @@ class MLXWorker(BaseModelWorker):
 
         try:
             self.context_len = get_context_length(config)
-        except:
+        except Exception:
             self.context_len = 2048
 
         print("Context length: ", self.context_len)
