@@ -27,11 +27,11 @@ if WORKSPACE_DIR is None:
     print(f"Using default workspace directory: {WORKSPACE_DIR}")
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--model_name', type=str, required=True)
-parser.add_argument('--model_filename', type=str, required=False)
-parser.add_argument('--allow_patterns', type=str, required=False)
-parser.add_argument('--job_id', type=str, required=True)
-parser.add_argument('--total_size_of_model_in_mb', type=float, required=True)
+parser.add_argument("--model_name", type=str, required=True)
+parser.add_argument("--model_filename", type=str, required=False)
+parser.add_argument("--allow_patterns", type=str, required=False)
+parser.add_argument("--job_id", type=str, required=True)
+parser.add_argument("--total_size_of_model_in_mb", type=float, required=True)
 
 args, other = parser.parse_known_args()
 model = args.model_name
@@ -41,22 +41,14 @@ job_id = args.job_id
 # Models can have custom allow_patterns filters
 # Start with a default set of allow_patterns
 # but if we are able to read a list from the passed parameter use that instead
-allow_patterns = [
-    "*.json",
-    "*.safetensors",
-    "*.py",
-    "tokenizer.model",
-    "*.tiktoken",
-    "*.npz",
-    "*.bin"
-]
+allow_patterns = ["*.json", "*.safetensors", "*.py", "tokenizer.model", "*.tiktoken", "*.npz", "*.bin"]
 if args.allow_patterns:
     allow_patterns_json = args.allow_patterns
     try:
         converted_json = json.loads(allow_patterns_json)
         if isinstance(converted_json, list):
             allow_patterns = converted_json
-    except:
+    except Exception:
         pass
 
 print(f"Downloading model {model} with job_id {job_id}")
@@ -119,17 +111,20 @@ print("starting script with progressbar updater")
 def download_blocking(model_is_downloaded):
     global error_msg, returncode
     print("Downloading model")
-    db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3",
-                         isolation_level=None)
+    db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
 
     # NOTE: For now storing size in two fields.
     # Will remove total_size_of_model_in_mb in the future.
-    job_data = json.dumps({"downloaded": 0, "model": model,
-                          "total_size_in_mb": total_size_of_model_in_mb,
-                          "total_size_of_model_in_mb": total_size_of_model_in_mb})
+    job_data = json.dumps(
+        {
+            "downloaded": 0,
+            "model": model,
+            "total_size_in_mb": total_size_of_model_in_mb,
+            "total_size_of_model_in_mb": total_size_of_model_in_mb,
+        }
+    )
     print(job_data)
-    db.execute(
-        "UPDATE job SET progress=?, job_data=json(?) WHERE id=?", (0, job_data, job_id))
+    db.execute("UPDATE job SET progress=?, job_data=json(?) WHERE id=?", (0, job_data, job_id))
     db.close()
     if model_filename is not None:
         # Filename mode means we download just one file from the repo, not the whole repo
@@ -140,30 +135,35 @@ def download_blocking(model_is_downloaded):
         print("downloading model to workspace/models using filename mode")
         location = f"{WORKSPACE_DIR}/models/{model_filename}"
         os.makedirs(location, exist_ok=True)
-        hf_hub_download(repo_id=model, filename=model_filename,
-                        resume_download=True, local_dir=location, local_dir_use_symlinks=True)
+        hf_hub_download(
+            repo_id=model,
+            filename=model_filename,
+            resume_download=True,
+            local_dir=location,
+            local_dir_use_symlinks=True,
+        )
         # create a file in that same directory called info.json:
-        info = [{
-            "model_id": model_filename,
-            "model_filename": model_filename,
-            "name": model_filename,
-            "stored_in_filesystem": True,
-            "json_data": {
-                "uniqueId": f"gguf/{model_filename}",
+        info = [
+            {
+                "model_id": model_filename,
+                "model_filename": model_filename,
                 "name": model_filename,
-                "description": "A GGUF model downloaded from the HuggingFace Hub",
-                "architecture": "GGUF",
-                "huggingface_repo": model,
-                "logo": "https://user-images.githubusercontent.com/1991296/230134379-7181e485-c521-4d23-a0d6-f7b3b61ba524.png"
+                "stored_in_filesystem": True,
+                "json_data": {
+                    "uniqueId": f"gguf/{model_filename}",
+                    "name": model_filename,
+                    "description": "A GGUF model downloaded from the HuggingFace Hub",
+                    "architecture": "GGUF",
+                    "huggingface_repo": model,
+                    "logo": "https://user-images.githubusercontent.com/1991296/230134379-7181e485-c521-4d23-a0d6-f7b3b61ba524.png",
+                },
             }
-        }]
+        ]
         with open(f"{location}/info.json", "w") as f:
             f.write(json.dumps(info, indent=2))
     else:
         try:
-            snapshot_download(
-                repo_id=model, resume_download=True,
-                allow_patterns=allow_patterns)
+            snapshot_download(repo_id=model, resume_download=True, allow_patterns=allow_patterns)
 
         except GatedRepoError:
             returncode = 77
@@ -183,32 +183,29 @@ def check_disk_size(model_is_downloaded: Event):
     # Recursively checks the size of the huggingface cache
     # which is stored at ~/.cache/huggingface/hub
 
-    starting_size_of_huggingface_cache_in_mb = get_dir_size(
-        cache_dir) / 1024 / 1024
-    starting_size_of_model_dir_in_mb = get_dir_size(
-        str(WORKSPACE_DIR) + "/models") / 1024 / 1024
-    starting_size_of_cache = starting_size_of_huggingface_cache_in_mb + \
-        starting_size_of_model_dir_in_mb
+    starting_size_of_huggingface_cache_in_mb = get_dir_size(cache_dir) / 1024 / 1024
+    starting_size_of_model_dir_in_mb = get_dir_size(str(WORKSPACE_DIR) + "/models") / 1024 / 1024
+    starting_size_of_cache = starting_size_of_huggingface_cache_in_mb + starting_size_of_model_dir_in_mb
 
     counter = 0
 
     while True:
         hf_size = get_dir_size(path=cache_dir) / 1024 / 1024
-        model_dir_size = get_dir_size(
-            str(WORKSPACE_DIR) + "/models") / 1024 / 1024
+        model_dir_size = get_dir_size(str(WORKSPACE_DIR) + "/models") / 1024 / 1024
         cache_size_growth = (hf_size + model_dir_size) - starting_size_of_cache
         adjusted_total_size = total_size_of_model_in_mb if total_size_of_model_in_mb > 0 else 7000
         progress = cache_size_growth / adjusted_total_size * 100
         print(f"\nModel Download Progress: {progress:.2f}%\n")
         # Write to jobs table in database, updating the
         # progress column:
-        job_data = json.dumps({"downloaded": cache_size_growth})
+        # job_data = json.dumps({"downloaded": cache_size_growth})
 
-        db = sqlite3.connect(
-            f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
+        db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
         try:
             db.execute(
-                "UPDATE job SET job_data=json_set(job_data, '$.downloaded', ?),  progress=? WHERE id=?", (cache_size_growth, progress, job_id))
+                "UPDATE job SET job_data=json_set(job_data, '$.downloaded', ?),  progress=? WHERE id=?",
+                (cache_size_growth, progress, job_id),
+            )
         except sqlite3.OperationalError:
             # Bit of a hack: We were having DB lock errors and this update isn't crucial
             # So for now just skip if something goes wrong.
@@ -217,14 +214,13 @@ def check_disk_size(model_is_downloaded: Event):
 
         print(f"flag:  {model_is_downloaded.is_set()}")
 
-        if (model_is_downloaded.is_set()):
+        if model_is_downloaded.is_set():
             print("Model is downloaded, exiting check_disk_size thread")
             break
 
         counter += 1
         if counter > 5000:  # around 3 hours
-            print(
-                "Model is not yet downloaded, but check disk size thread is exiting after running for 3 hours.")
+            print("Model is not yet downloaded, but check disk size thread is exiting after running for 3 hours.")
             break
 
         sleep(2)
@@ -235,8 +231,7 @@ def main():
     print(f"flag:  {model_is_downloaded.is_set()}")
 
     p1 = Thread(target=check_disk_size, args=(model_is_downloaded,))
-    p2 = Thread(target=download_blocking, args=(
-        model_is_downloaded,))
+    p2 = Thread(target=download_blocking, args=(model_is_downloaded,))
     p1.start()
     p2.start()
     p1.join()
@@ -246,18 +241,19 @@ def main():
         print(f"Error downloading model: {error_msg}")
 
         # save to job database
-        db = sqlite3.connect(
-            f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
+        db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
         job_data = json.dumps({"error_msg": str(error_msg)})
         status = "FAILED"
         if returncode == 77:
             status = "UNAUTHORIZED"
         db.execute(
             "UPDATE job SET status=?, job_data=json(?)\
-                WHERE id=?", (status, job_data, job_id))
+                WHERE id=?",
+            (status, job_data, job_id),
+        )
         db.close()
         exit(returncode)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

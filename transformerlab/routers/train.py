@@ -64,7 +64,6 @@ async def delete_training_template(template_id: str):
 
 @router.post("/template/import")
 async def import_recipe(name: str, recipe_yaml: str = Body(...)):
-
     # Check if a template with this name exists already
     template_check = await db.get_training_template_by_name(name)
     if template_check is not None:
@@ -107,14 +106,14 @@ async def import_recipe(name: str, recipe_yaml: str = Body(...)):
     model_downloaded = False
     local_models = await model_helper.list_installed_models()
     for model in local_models:
-        if model['model_id'] == model_path:
+        if model["model_id"] == model_path:
             model_downloaded = True
 
     # Repeat for dataset
     dataset_downloaded = False
     local_datasets = await db.get_datasets()
     for dataset in local_datasets:
-        if dataset['dataset_id'] == datasets:
+        if dataset["dataset_id"] == datasets:
             dataset_downloaded = True
 
     # generate a repsonse to tell if model and dataset need to be downloaded
@@ -137,7 +136,6 @@ async def import_recipe(name: str, recipe_yaml: str = Body(...)):
 
 @router.get("/template/{template_id}/export", response_class=PlainTextResponse)
 async def export_recipe(template_id: str):
-
     # Read in training template from DB and parse config JSON
     training_template = await db.get_training_template(template_id)
     if not training_template:
@@ -146,8 +144,8 @@ async def export_recipe(template_id: str):
     template_config_json = training_template.get("config", {})
     try:
         template_config = json.loads(template_config_json)
-    except:
-        print("Error reading template config:")
+    except Exception as e:
+        print(f"Error reading template config: {e}")
         print(template_config_json)
         template_config = {}
 
@@ -157,30 +155,23 @@ async def export_recipe(template_id: str):
     metadata = {
         "author": "",
         "name": training_template.get("name", ""),
-        "name": training_template.get("version", "1.0"),
-        "description": training_template.get("description", "")
+        "version": training_template.get("version", "1.0"),
+        "description": training_template.get("description", ""),
     }
 
-    model = {
-        "name": template_config.get("model_name", ""),
-        "path": template_config.get("model_name", "")
-    }
+    model = {"name": template_config.get("model_name", ""), "path": template_config.get("model_name", "")}
 
-    datasets = {
-        "name": training_template.get("datasets", ""),
-        "path": training_template.get("datasets", "")
-    }
+    datasets = {"name": training_template.get("datasets", ""), "path": training_template.get("datasets", "")}
 
     # TODO: Read in the type from the DB!
     training = {
         "type": "LoRA",
         "plugin": template_config.get("plugin_name", ""),
         "formatting_template": template_config.get("formatting_template", ""),
-        "config_json": template_config_json
+        "config_json": template_config_json,
     }
 
-    test = {
-    }
+    test = {}
 
     recipe["schemaVersion"] = "0.1"
     recipe["metadata"] = metadata
@@ -263,7 +254,7 @@ async def get_output_file_name(job_id: str):
 
         job_data = job["job_data"]
         if "template_id" not in job_data:
-            raise ValueError('Template ID not found in job data')
+            raise ValueError("Template ID not found in job data")
 
         template_id = job_data["template_id"]
         # Then get the template:
@@ -272,7 +263,7 @@ async def get_output_file_name(job_id: str):
 
         template_config = json.loads(template["config"])
         if "plugin_name" not in template_config:
-            raise ValueError('Plugin name not found in template config')
+            raise ValueError("Plugin name not found in template config")
 
         # get the output.txt from the plugin which is stored in
         plugin_name = template_config["plugin_name"]
@@ -303,15 +294,14 @@ async def get_training_job_output(job_id: str):
         return output
     except ValueError as e:
         # Handle specific error
-        return (f"ValueError: {e}")
+        return f"ValueError: {e}"
     except Exception as e:
         # Handle general error
-        return (f"Error: {e}")
+        return f"Error: {e}"
 
 
 @router.get("/job/{job_id}/stream_output")
 async def watch_log(job_id: str):
-
     try:
         output_file_name = await get_output_file_name(job_id)
     except ValueError as e:
@@ -322,19 +312,15 @@ async def watch_log(job_id: str):
             print("Retrying to get output file in 4 seconds...")
             output_file_name = await get_output_file_name(job_id)
         else:
-            return (f"ValueError: {e}")
+            return f"ValueError: {e}"
 
     return StreamingResponse(
         # we force polling because i can't get this to work otherwise -- changes aren't detected
-        watch_file(output_file_name, start_from_beginning=True,
-                   force_polling=True),
+        watch_file(output_file_name, start_from_beginning=True, force_polling=True),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "Access-Control-Allow-Origin": "*"
-        }
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
     )
+
 
 tensorboard_process = None
 
@@ -364,13 +350,10 @@ async def spawn_tensorboard(job_id: str):
 
     print("Starting tensorboard")
 
-    os.makedirs(
-        f"{dirs.WORKSPACE_DIR}/tensorboards/job{job_id}", exist_ok=True)
+    os.makedirs(f"{dirs.WORKSPACE_DIR}/tensorboards/job{job_id}", exist_ok=True)
 
     # hardcoded for now, later on we should get the information from the job id in SQLITE
     # and use the config of the job to determine the logdir
     logdir = f"{dirs.WORKSPACE_DIR}/tensorboards/job{job_id}"
 
-    tensorboard_process = subprocess.Popen(
-        ["tensorboard", "--logdir", logdir, "--host", "0.0.0.0"]
-    )
+    tensorboard_process = subprocess.Popen(["tensorboard", "--logdir", logdir, "--host", "0.0.0.0"])

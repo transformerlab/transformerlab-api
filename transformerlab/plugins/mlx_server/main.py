@@ -55,7 +55,6 @@ class MLXWorker(BaseModelWorker):
         model_names: List[str],
         limit_worker_concurrency: int,
         no_register: bool,
-        llm_engine: "MLX",
         conv_template: str,
     ):
         super().__init__(
@@ -68,8 +67,7 @@ class MLXWorker(BaseModelWorker):
             conv_template,
         )
 
-        logger.info(f"Loading the model {self.model_names} on worker" +
-                    f"{worker_id}, worker type: MLX worker...")
+        logger.info(f"Loading the model {self.model_names} on worker" + f"{worker_id}, worker type: MLX worker...")
 
         self.model_name = model_path
         self.mlx_model, self.mlx_tokenizer = load(model_path)
@@ -121,18 +119,14 @@ class MLXWorker(BaseModelWorker):
         top_logprobs = []
         if top_k is not None:
             # Get indices of top_k tokens
-            top_indices = mx.argpartition(-current_logprobs,
-                                          kth=top_k - 1)[:top_k]
+            top_indices = mx.argpartition(-current_logprobs, kth=top_k - 1)[:top_k]
             top_probs = current_logprobs[top_indices]
 
             # Create detailed token information for each top token
             for idx, logprob in zip(top_indices.tolist(), top_probs.tolist()):
                 token = tokenizer.decode([idx])
                 token_bytes = token.encode("utf-8")
-                top_logprobs.append(
-                    {"token": token, "logprob": logprob,
-                        "bytes": list(token_bytes)}
-                )
+                top_logprobs.append({"token": token, "logprob": logprob, "bytes": list(token_bytes)})
 
         return {**token_info, "top_logprobs": top_logprobs}
 
@@ -162,18 +156,14 @@ class MLXWorker(BaseModelWorker):
         top_logprobs = []
         if top_k is not None:
             # Get indices of top_k tokens
-            top_indices = mx.argpartition(-current_logprobs,
-                                          kth=top_k - 1)[:top_k]
+            top_indices = mx.argpartition(-current_logprobs, kth=top_k - 1)[:top_k]
             top_probs = current_logprobs[top_indices]
 
             # Create detailed token information for each top token
             for idx, logprob in zip(top_indices.tolist(), top_probs.tolist()):
                 token = tokenizer.decode([idx])
                 token_bytes = token.encode("utf-8")
-                top_logprobs.append(
-                    {"token": token, "logprob": logprob,
-                        "bytes": list(token_bytes)}
-                )
+                top_logprobs.append({"token": token, "logprob": logprob, "bytes": list(token_bytes)})
 
         return {**token_info, "top_logprobs": top_logprobs}
 
@@ -181,20 +171,20 @@ class MLXWorker(BaseModelWorker):
         self.call_ct += 1
 
         context = params.pop("prompt")
-        request_id = params.pop("request_id")
+        # request_id = params.pop("request_id")
         temperature = float(params.get("temperature", 1.0))
         top_p = float(params.get("top_p", 1.0))
         top_k = int(params.get("top_k", 10))
-        presence_penalty = float(params.get("presence_penalty", 0.0))
-        frequency_penalty = float(params.get("frequency_penalty", 0.0))
+        # presence_penalty = float(params.get("presence_penalty", 0.0))
+        # frequency_penalty = float(params.get("frequency_penalty", 0.0))
         max_new_tokens = params.get("max_new_tokens", 256)
         stop_str = params.get("stop", None)
         stop_token_ids = params.get("stop_token_ids", None) or []
         if self.tokenizer.eos_token_id is not None:
             stop_token_ids.append(self.tokenizer.eos_token_id)
-        echo = params.get("echo", True)
-        use_beam_search = params.get("use_beam_search", False)
-        best_of = params.get("best_of", None)
+        # echo = params.get("echo", True)
+        # use_beam_search = params.get("use_beam_search", False)
+        # best_of = params.get("best_of", None)
         include_logprobs = params.get("logprobs", None)
 
         print("logprobs: ", include_logprobs)
@@ -219,7 +209,7 @@ class MLXWorker(BaseModelWorker):
             top_p = 1.0
 
         tokens = []
-        skip = 0
+        # skip = 0
 
         context_mlx = mx.array(self.tokenizer.encode(context))
 
@@ -230,8 +220,9 @@ class MLXWorker(BaseModelWorker):
         # but they aren't getting set in UI
         sampler = make_sampler(temperature, top_p=top_p)
 
-        iterator = await run_in_threadpool(generate_step, context_mlx, self.mlx_model, 
-                                           max_tokens=max_new_tokens, sampler=sampler)
+        iterator = await run_in_threadpool(
+            generate_step, context_mlx, self.mlx_model, max_tokens=max_new_tokens, sampler=sampler
+        )
 
         cummulative_logprobs = []
 
@@ -256,9 +247,8 @@ class MLXWorker(BaseModelWorker):
             response.token = token
             response.logprobs = logprobs
 
-            if (include_logprobs):
-                logprobs = self._process_logprobs(
-                    self.tokenizer, response, top_k)
+            if include_logprobs:
+                logprobs = self._process_logprobs(self.tokenizer, response, top_k)
                 # print("logprobs: ", logprobs)
                 cummulative_logprobs.append(logprobs)
             else:
@@ -267,7 +257,7 @@ class MLXWorker(BaseModelWorker):
             tokens.append(token)
             tokens_decoded = self.tokenizer.decode(tokens)
             # last_token_decoded = self.mlx_tokenizer.decode([token])
-            skip = len(tokens_decoded)
+            # skip = len(tokens_decoded)
 
             # Check if the generated text contains any of the stop strings:
             partial_stop = False
@@ -295,17 +285,16 @@ class MLXWorker(BaseModelWorker):
                     "total_tokens": len(context) + len(tokens),
                 },
                 "logprobs": logprobs,
-                "finish_reason": None   # hard code for now
+                "finish_reason": None,  # hard code for now
             }
             # print(ret)
             yield (json.dumps(ret) + "\0").encode()
         ret = {
             "text": self.tokenizer.decode(tokens),
             "error_code": 0,
-            "usage": {
-            },
+            "usage": {},
             "logprobs": cummulative_logprobs,
-            "finish_reason": finish_reason
+            "finish_reason": finish_reason,
         }
         yield (json.dumps(obj={**ret, **{"finish_reason": None}}) + "\0").encode()
         yield (json.dumps(ret) + "\0").encode()
@@ -400,6 +389,7 @@ async def api_get_embeddings(request: Request):
     release_worker_semaphore()
     return JSONResponse(content=embedding)
 
+
 worker = None
 
 
@@ -425,9 +415,9 @@ def get_hugggingface_config(model_path):
         d = {}
 
     # rename all keys that start with an underscore, because they break convertion to object
-    d = {k[1:] if k.startswith('_') else k: v for k, v in d.items()}
+    d = {k[1:] if k.startswith("_") else k: v for k, v in d.items()}
     # convert the dictionary to a namedtuple because later logic expects it that way
-    config = namedtuple('config', d.keys())(**d)
+    config = namedtuple("config", d.keys())(**d)
     return config
 
 
@@ -446,27 +436,20 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", type=str, default="localhost")
     parser.add_argument("--port", type=int, default=21002)
-    parser.add_argument("--worker-address", type=str,
-                        default="http://localhost:21002")
-    parser.add_argument(
-        "--controller-address", type=str, default="http://localhost:21001"
-    )
-    parser.add_argument("--model-path", type=str,
-                        default="microsoft/phi-2")
+    parser.add_argument("--worker-address", type=str, default="http://localhost:21002")
+    parser.add_argument("--controller-address", type=str, default="http://localhost:21001")
+    parser.add_argument("--model-path", type=str, default="microsoft/phi-2")
     parser.add_argument(
         "--model-names",
         type=lambda s: s.split(","),
         help="Optional display comma separated names",
     )
-    parser.add_argument(
-        "--conv-template", type=str, default=None, help="Conversation prompt template."
-    )
+    parser.add_argument("--conv-template", type=str, default=None, help="Conversation prompt template.")
     parser.add_argument(
         "--trust_remote_code",
         action="store_false",
         default=True,
-        help="Trust remote code (e.g., from HuggingFace) when"
-        "downloading the model and tokenizer.",
+        help="Trust remote code (e.g., from HuggingFace) whendownloading the model and tokenizer.",
     )
 
     args, unknown = parser.parse_known_args()

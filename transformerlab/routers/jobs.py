@@ -16,7 +16,7 @@ router = APIRouter(prefix="/jobs", tags=["train"])
 
 
 @router.get("/list")
-async def jobs_get_all(type: str = '', status: str = ''):
+async def jobs_get_all(type: str = "", status: str = ""):
     jobs = await db.jobs_get_all(type=type, status=status)
     return jobs
 
@@ -28,13 +28,13 @@ async def job_delete(job_id: str):
 
 
 @router.get("/create")
-async def job_create(type: str = 'UNDEFINED', status: str = 'CREATED', data: str = '{}', experiment_id: str = '-1'):
+async def job_create(type: str = "UNDEFINED", status: str = "CREATED", data: str = "{}", experiment_id: str = "-1"):
     jobid = await db.job_create(type=type, status=status, job_data=data, experiment_id=experiment_id)
     return jobid
 
 
-async def job_create_task(script: str, job_data: str = '{}', experiment_id: str = '-1'):
-    jobid = await db.job_create(type='UNDEFINED', status='CREATED', job_data=job_data, experiment_id=experiment_id)
+async def job_create_task(script: str, job_data: str = "{}", experiment_id: str = "-1"):
+    jobid = await db.job_create(type="UNDEFINED", status="CREATED", job_data=job_data, experiment_id=experiment_id)
     return jobid
 
 
@@ -53,17 +53,19 @@ async def start_next_job():
     nextjob = await db.jobs_get_next_queued_job()
     if nextjob:
         print(nextjob)
-        print("Starting job: " + str(nextjob['id']))
-        print(nextjob['job_data'])
-        job_config = json.loads(nextjob['job_data'])
+        print("Starting job: " + str(nextjob["id"]))
+        print(nextjob["job_data"])
+        job_config = json.loads(nextjob["job_data"])
         experiment_id = nextjob["experiment_id"]
         data = await db.experiment_get(experiment_id)
         if data is None:
             return {"message": f"Experiment {id} does not exist"}
-        config = json.loads(data["config"])
+        # config = json.loads(data["config"])
 
         experiment_name = data["name"]
-        await shared.run_job(job_id=nextjob['id'], job_config=job_config, experiment_name=experiment_name, job_details=nextjob)
+        await shared.run_job(
+            job_id=nextjob["id"], job_config=job_config, experiment_name=experiment_name, job_details=nextjob
+        )
         return nextjob
     else:
         return {"message": "No jobs in queue"}
@@ -95,7 +97,7 @@ async def get_training_job_output(job_id: str):
 
     job_data = json.loads(job["job_data"])
     if "template_id" not in job_data:
-        return {"error": 'true'}
+        return {"error": "true"}
 
     template_id = job_data["template_id"]
     # Then get the template:
@@ -104,15 +106,15 @@ async def get_training_job_output(job_id: str):
 
     template_config = json.loads(template["config"])
     if "plugin_name" not in template_config:
-        return {"error": 'true'}
+        return {"error": "true"}
 
     plugin_name = template_config["plugin_name"]
 
     # Now we need the current experiment id from the job:
-    experiment_id = job["experiment_id"]
+    # experiment_id = job["experiment_id"]
     # Then get the experiment name:
-    experiment = await db.experiment_get(experiment_id)
-    experiment_name = experiment["name"]
+    # experiment = await db.experiment_get(experiment_id)
+    # experiment_name = experiment["name"]
 
     # Now we can get the output.txt from the plugin which is stored in
     # /workspace/experiments/{experiment_name}/plugins/{plugin_name}/output.txt
@@ -120,6 +122,7 @@ async def get_training_job_output(job_id: str):
     with open(output_file, "r") as f:
         output = f.read()
     return output
+
 
 # Templates
 
@@ -130,10 +133,9 @@ async def get_training_template(template_id: str):
 
 
 @router.put("/template/update")
-async def update_training_template(template_id: str, name: str,
-                                   description: str,
-                                   type: str,
-                                   config: Annotated[str, Body(embed=True)]):
+async def update_training_template(
+    template_id: str, name: str, description: str, type: str, config: Annotated[str, Body(embed=True)]
+):
     try:
         configObject = json.loads(config)
         datasets = configObject["dataset_name"]
@@ -161,12 +163,7 @@ async def stream_job_output(job_id: str):
 
     return StreamingResponse(
         # we force polling because i can't get this to work otherwise -- changes aren't detected
-        watch_file(output_file_name, start_from_beginning=True,
-                   force_polling=True),
+        watch_file(output_file_name, start_from_beginning=True, force_polling=True),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "Access-Control-Allow-Origin": "*"
-        }
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
     )
