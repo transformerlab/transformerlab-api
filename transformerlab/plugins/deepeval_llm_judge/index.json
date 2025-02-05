@@ -4,7 +4,7 @@
     "description": "Using LLMs as Judges for evaluating outputs of other LLMs",
     "plugin-format": "python",
     "type": "evaluator",
-    "version": "0.1.6",
+    "version": "0.1.7",
     "git": "https://github.com/confident-ai/deepeval",
     "url": "https://github.com/confident-ai/deepeval",
     "files": [
@@ -41,6 +41,15 @@
                 "Local"
             ]
         },
+        "limit": {
+            "title": "Fraction of samples (Enter a floating point between 0 and 1. Set as 1 to get all samples)",
+            "type": [
+              "number"
+            ],
+            "minimum": 0.0,
+            "default": 1.0,
+            "maximum": 1.0
+          },
         "geval_name": {
             "title": "Criteria Name (Only for GEval)",
             "type": "string"
