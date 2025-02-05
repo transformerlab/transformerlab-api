@@ -5,7 +5,6 @@ import json
 
 
 async def list_models(uninstalled_only: bool = True):
-
     ollama_model_library = ollama_models_library_dir()
     if ollama_model_library is None:
         return []
@@ -19,7 +18,7 @@ async def list_models(uninstalled_only: bool = True):
                 ollama_model = OllamaModel(entry.name)
 
                 model_installed = await ollama_model.is_installed()
-                if (not uninstalled_only or not model_installed):
+                if not uninstalled_only or not model_installed:
                     models.append(ollama_model)
 
     return models
@@ -30,7 +29,7 @@ class OllamaModel(basemodel.BaseModel):
     Wrapper for models imported from Ollama.
     These models are kept in the ollama cache (usually ~/.ollama)
     """
-        
+
     def __init__(self, ollama_id):
         super().__init__(ollama_id)
 
@@ -49,7 +48,6 @@ class OllamaModel(basemodel.BaseModel):
 
         # NOTE: This can change self.status if there's an error
         self.json_data["model_filename"] = self.get_model_path()
-
 
     # This returns just the filename of the blob containing the actual model
     # If anything goes wrong along the way this returns None
@@ -80,11 +78,9 @@ class OllamaModel(basemodel.BaseModel):
         if schemaVersion == 2:
             layers = filedata.get("layers", [])
             for layer in layers:
-
                 # Each layer has a mediaType field describing what the file contains
                 # and a digest field with the name of the file
                 if layer.get("mediaType", None) == "application/vnd.ollama.image.model":
-
                     # Check if the specified file exists or not!
                     digestvalue = layer.get("digest", None)
                     models_dir = ollama_models_dir()
@@ -93,7 +89,7 @@ class OllamaModel(basemodel.BaseModel):
                     # ollama lists the file with a ":" that needs to be converted to a "-"
                     modelfile = digestvalue.replace(":", "-")
                     model_path = os.path.join(blobs_dir, modelfile)
-                    try :
+                    try:
                         with open(model_path, "r") as f:
                             return model_path
                     except FileNotFoundError:
@@ -107,7 +103,6 @@ class OllamaModel(basemodel.BaseModel):
         self.status = f"unsupported ollama schemaVersion {schemaVersion}"
         return None
 
-
     def get_model_path(self):
         model_filename = self.json_data.get("model_filename", "")
         if model_filename:
@@ -118,16 +113,17 @@ class OllamaModel(basemodel.BaseModel):
                 return blobfile
             else:
                 return None
-    
+
 
 #########################
 #  DIRECTORY STRUCTURE  #
 #########################
 
+
 def ollama_models_dir():
     try:
-        ollama_dir = os.environ['OLLAMA_MODELS']
-    except:
+        ollama_dir = os.environ["OLLAMA_MODELS"]
+    except KeyError:
         ollama_dir = os.path.join(os.path.expanduser("~"), ".ollama", "models")
 
     # Check that the directory actually exists
