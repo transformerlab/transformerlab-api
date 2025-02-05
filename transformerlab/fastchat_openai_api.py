@@ -7,28 +7,18 @@ from fastapi import APIRouter
 from fastapi.responses import FileResponse
 
 import os
-import argparse
 import asyncio
-import atexit
 import json
 import logging
-import signal
-import subprocess
-from contextlib import asynccontextmanager
 import time
 from typing import Any, Dict, Generator, List, Optional, Union
 
-import fastapi
 import httpx
 import shortuuid
 import tiktoken
 
 # Using torch to test for CUDA and MPS support.
-import torch
-import uvicorn
-from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.security.http import HTTPAuthorizationCredentials, HTTPBearer
 from fastchat.constants import (
@@ -50,9 +40,6 @@ from fastchat.protocol.openai_api_protocol import (
     ChatMessage,
     CompletionRequest,
     CompletionResponse,
-    CompletionResponseChoice,
-    CompletionResponseStreamChoice,
-    CompletionStreamResponse,
     DeltaMessage,
     EmbeddingsRequest,
     EmbeddingsResponse,

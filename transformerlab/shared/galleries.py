@@ -78,7 +78,7 @@ def update_cache_from_remote(gallery_filename: str):
         local_cache_filename = gallery_cache_file_path(gallery_filename)
         urllib.request.urlretrieve(remote_gallery, local_cache_filename)
         print (f"☁️  Updated gallery from remote: {remote_gallery}")
-    except Exception as e:
+    except Exception:
         print(f"❌ Failed to update gallery from remote: {remote_gallery}")
 
 

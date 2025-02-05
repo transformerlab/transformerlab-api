@@ -2,7 +2,6 @@ import json
 import os
 from typing import Annotated
 from fastapi import APIRouter, Body
-from pathlib import Path
 
 from transformerlab.shared import dirs
 from transformerlab.shared.shared import slugify

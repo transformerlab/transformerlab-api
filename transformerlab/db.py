@@ -474,7 +474,7 @@ async def job_update_job_data_insert_key_value(job_id, key, value):
     value = json.dumps(value)
 
     await db.execute(
-        f"UPDATE job SET job_data = " +
+        "UPDATE job SET job_data = " +
         f"json_set(job_data,'$.{key}', json(?))  WHERE id = ?",
         (value, job_id),
     )
@@ -710,7 +710,7 @@ async def experiment_update_config(id, key, value):
     value = json.dumps(value)
 
     await db.execute(
-        f"UPDATE experiment SET config = " +
+        "UPDATE experiment SET config = " +
         f"json_set(config,'$.{key}', json(?))  WHERE id = ?",
         (value, id),
     )

@@ -1,4 +1,3 @@
-from asyncio import create_subprocess_exec
 import asyncio
 import json
 import os
@@ -8,7 +7,6 @@ import threading
 import re
 import time
 import unicodedata
-from pathlib import Path
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.shared import dirs
 

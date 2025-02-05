@@ -3,16 +3,12 @@ import json
 import os
 import subprocess
 import sys
-import time
 import urllib
-from pathlib import Path
-from typing import Annotated, Any
+from typing import Any
 
 import transformerlab.db as db
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
-from transformerlab.routers.experiment import (conversations, documents,
-                                               export, plugins, rag)
 from transformerlab.shared import dirs, shared
 
 router = APIRouter(prefix="/evals", tags=["evals"])

@@ -1,19 +1,12 @@
-import sys
-import io
 import contextlib
-import logging
 import os
-import re
 import shutil
-import unicodedata
 import json
 import aiofiles
-import asyncio
 from datasets import load_dataset, load_dataset_builder
 from fastapi import APIRouter, HTTPException, UploadFile, Query
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from typing import List, Dict, Union, Any
+from typing import Dict, Any
 
 import transformerlab.db as db
 from transformerlab.shared import dirs

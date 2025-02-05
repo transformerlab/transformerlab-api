@@ -6,7 +6,6 @@ import platform
 import sys
 import subprocess
 from fastapi.responses import StreamingResponse
-from fastapi.responses import StreamingResponse
 from typing import AsyncGenerator
 
 # Could also use https://github.com/gpuopenanalytics/pynvml but this is simpler
@@ -72,7 +71,7 @@ if torch.cuda.is_available():
 
 elif torch.backends.mps.is_available():
     system_info["device"] = "mps"
-    print(f"🏄 PyTorch is using MPS for Apple Metal acceleration")
+    print("🏄 PyTorch is using MPS for Apple Metal acceleration")
 
 router = APIRouter(prefix="/server", tags=["serverinfo"])
 
@@ -122,7 +121,7 @@ async def get_computer_information():
 
             # info["temp"] = nvmlDeviceGetTemperature(handle)
             g.append(info)
-    except Exception as e:  # Catch all exceptions and print them
+    except Exception:  # Catch all exceptions and print them
         # print(f"Error retrieving GPU information: {e}")
 
         g.append(
