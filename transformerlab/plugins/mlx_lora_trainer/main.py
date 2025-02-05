@@ -65,7 +65,6 @@ options:
 import json
 import yaml
 import re
-from string import Template
 import subprocess
 import sys
 import time
@@ -335,7 +334,7 @@ print("Finished training.")
 if not fuse_model:
     print(f"Adaptor training complete and saved at {adaptor_output_dir}.")
     job.set_job_completion_status(
-        "success", f"Adapter saved successfully.")
+        "success", "Adapter saved successfully.")
 
 else:
     print("Now fusing the adaptor with the model.")

@@ -1,6 +1,5 @@
 import json
 import re
-from string import Template
 import subprocess
 import time
 from datasets import load_dataset
@@ -71,7 +70,7 @@ for dataset_type in dataset_types:
         dataset[dataset_type] = load_dataset(
             dataset_target, split=dataset_type, trust_remote_code=True)
 
-    except ValueError as e:
+    except ValueError:
         # This is to catch this error-> ValueError: Unknown split "test". Should be one of ['train']
         # Generally that means there is a single file in the dataset and we're trying to make a test dataset
         # So we're going to ignore that! (Unless we're trying to load the train dataset...check that)

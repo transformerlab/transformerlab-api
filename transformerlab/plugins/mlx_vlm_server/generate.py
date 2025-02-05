@@ -3,13 +3,9 @@
 
 import argparse
 import codecs
-from pathlib import Path
 
 import mlx.core as mx
-import requests
-from PIL import Image
 from transformers import AutoProcessor
-from fastapi.concurrency import run_in_threadpool
 
 from llava import LlavaModel
 

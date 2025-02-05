@@ -1,15 +1,8 @@
 from deepeval.metrics import BaseMetric
 from deepeval.scorer import Scorer
-from pydantic import BaseModel
-from langchain_openai import ChatOpenAI
-from deepeval.test_case import LLMTestCase, LLMTestCaseParams
-from deepeval.models.base_model import DeepEvalBaseLLM
-from deepeval.metrics import GEval
-from deepeval.dataset import EvaluationDataset
-import requests
+from deepeval.test_case import LLMTestCase
 import pandas as pd
 import argparse
-import os
 import sys
 import traceback
 from datetime import datetime

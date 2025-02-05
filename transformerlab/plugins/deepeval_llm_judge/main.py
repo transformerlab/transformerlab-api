@@ -5,7 +5,6 @@ import sys
 import traceback
 
 import instructor
-import pandas as pd
 import requests
 import transformerlab.plugin
 from anthropic import Anthropic
@@ -247,7 +246,7 @@ def run_evaluation():
     # Check if df has the specified columns
     if not all(col in df.columns for col in required_columns):
         print(
-            f"The dataset should have the columns `input`, `output` and `expected_output` mandatory. Please re-upload the dataset with the correct columns.")
+            "The dataset should have the columns `input`, `output` and `expected_output` mandatory. Please re-upload the dataset with the correct columns.")
         job.set_job_completion_status(
             "failed", "The dataset should have the columns `input`, `output` and `expected_output` mandatory. Please re-upload the dataset with the correct columns.")
         sys.exit(1)

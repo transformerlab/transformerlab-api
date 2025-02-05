@@ -32,10 +32,10 @@ from fastchat.serve.model_worker import (
     logger,
     worker_id,
 )
-from fastchat.utils import get_context_length, is_partial_stop
+from fastchat.utils import get_context_length
 
 import mlx.core as mx
-from mlx_lm import load, generate
+from mlx_lm import load
 from mlx_lm.utils import generate_step
 from mlx_lm.sample_utils import make_sampler
 

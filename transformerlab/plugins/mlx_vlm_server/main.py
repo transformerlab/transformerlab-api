@@ -11,12 +11,11 @@ import atexit
 from collections import namedtuple
 import json
 import os
-from typing import List, Optional
+from typing import List
 import uuid
 import requests
 from io import BytesIO
 import base64
-import tempfile
 
 from huggingface_hub import snapshot_download
 
@@ -30,10 +29,8 @@ from fastchat.serve.model_worker import (
     logger,
     worker_id,
 )
-from fastchat.utils import get_context_length, is_partial_stop
-from fastchat.conversation import Conversation, SeparatorStyle
+from fastchat.utils import get_context_length
 
-import mlx.core as mx
 from generate import load_model, prepare_inputs, generate_text
 from PIL import Image
 import cProfile

@@ -4,7 +4,6 @@
 import json
 from random import randrange
 import sqlite3
-from string import Template
 from datasets import load_dataset
 from trl import SFTTrainer, SFTConfig
 from peft import LoraConfig, prepare_model_for_kbit_training, get_peft_model
@@ -108,7 +107,7 @@ try:
     )
     model.config.pretraining_tp = 1
 except Exception as e:
-    job.set_job_completion_status("failed", f"Failed to load model")
+    job.set_job_completion_status("failed", "Failed to load model")
     raise e
 
 try:
@@ -116,7 +115,7 @@ try:
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
 except Exception as e:
-    job.set_job_completion_status("failed", f"Failure to load tokenizer")
+    job.set_job_completion_status("failed", "Failure to load tokenizer")
     raise e
 
 # LoRA config based on QLoRA paper
@@ -206,7 +205,7 @@ try:
     # train
     trainer.train()
 except Exception as e:
-    job.set_job_completion_status("failed", f"Failure during training")
+    job.set_job_completion_status("failed", "Failure during training")
     raise e
 
 
@@ -214,7 +213,7 @@ try:
     # save model
     trainer.save_model(output_dir=config["adaptor_output_dir"])
 except Exception as e:
-    job.set_job_completion_status("failed", f"Failure to save model")
+    job.set_job_completion_status("failed", "Failure to save model")
     raise e
 
-job.set_job_completion_status("success", f"Adaptor trained successfully")
+job.set_job_completion_status("success", "Adaptor trained successfully")

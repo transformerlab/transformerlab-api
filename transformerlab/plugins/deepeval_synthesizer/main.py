@@ -5,7 +5,6 @@ import sys
 import traceback
 from typing import List
 
-import pandas as pd
 import requests
 from deepeval.models import DeepEvalBaseEmbeddingModel
 from deepeval.models.base_model import DeepEvalBaseLLM

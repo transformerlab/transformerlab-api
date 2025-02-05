@@ -4,7 +4,6 @@ import sys
 import os
 import transformerlab.plugin
 import re
-import requests
 import torch
 
 parser = argparse.ArgumentParser(

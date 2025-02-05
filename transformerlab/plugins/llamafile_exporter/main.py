@@ -3,7 +3,6 @@ import argparse
 import subprocess
 import shutil
 
-from huggingface_hub import snapshot_download
 
 
 # Get all arguments provided to this script using argparse

@@ -8,15 +8,12 @@ from llama_index.core.callbacks import (
     CBEventType
 )
 from llama_index.core import VectorStoreIndex
-from llama_index.core import VectorStoreIndex
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core import Settings
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, StorageContext, load_index_from_storage, Settings
+from llama_index.core import SimpleDirectoryReader, StorageContext, load_index_from_storage
 import os
-from llama_index.core import SimpleDirectoryReader
 import time
 
-import transformerlab.plugin
 
 
 # Redirect all output to a buffer that we control:

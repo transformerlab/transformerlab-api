@@ -3,7 +3,6 @@ import os
 import subprocess
 import argparse
 
-from mlx_lm import convert
 
 # Get all arguments provided to this script using argparse
 parser = argparse.ArgumentParser(description='Convert a model to MLX format.')

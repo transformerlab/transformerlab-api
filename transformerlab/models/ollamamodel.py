@@ -59,7 +59,7 @@ class OllamaModel(basemodel.BaseModel):
         ollamaid = self.json_data.get("source_id_or_path", self.id)
 
         if not library_dir:
-            self.status = f"failed to find ollama library"
+            self.status = "failed to find ollama library"
             return None
 
         # Read in the manifest file
@@ -69,7 +69,7 @@ class OllamaModel(basemodel.BaseModel):
                 filedata = json.load(f)
 
         except FileNotFoundError:
-            print(f"ollama manifest file not found")
+            print("ollama manifest file not found")
             return None
 
         # The format of v2 schema is that there is a list called "layers"
@@ -101,7 +101,7 @@ class OllamaModel(basemodel.BaseModel):
                         return None
 
             # If we get here it means schemaVersion is 2 but there was no listed model
-            self.status = f"no valid ollama.image.model attribute"
+            self.status = "no valid ollama.image.model attribute"
 
         # schemaVersion is not 2. We only support 2.
         self.status = f"unsupported ollama schemaVersion {schemaVersion}"
