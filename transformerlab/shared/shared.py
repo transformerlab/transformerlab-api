@@ -39,7 +39,7 @@ def popen_and_call(onExit, input='', output_file=None, *popenArgs, **popenKWArgs
     """
 
     def runInThread(onExit, popenArgs, popenKWArgs):
-        if (output_file != None):
+        if (output_file is not None):
             log = open(output_file, 'a')
             # get the current date and time as a string:
             current_time = time.strftime("%Y-%m-%d %H:%M:%S")

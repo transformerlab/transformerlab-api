@@ -95,7 +95,7 @@ class ModelWorker(BaseModelWorker):
             debug=debug,
         )
         self.device = device
-        if self.tokenizer.pad_token == None:
+        if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
         self.context_len = get_context_length(self.model.config)
         self.generate_stream_func = get_generate_stream_function(
