@@ -32,7 +32,7 @@ attrs==25.1.0
     # via aiohttp
 brotli==1.1.0
     # via py7zr
-certifi==2024.12.14
+certifi==2024.7.4
     # via
     #   httpcore
     #   httpx
@@ -96,7 +96,7 @@ huggingface-hub==0.28.0
     #   peft
     #   tokenizers
     #   transformers
-idna==3.10
+idna==3.7
     # via
     #   anyio
     #   httpx
@@ -265,7 +265,7 @@ regex==2024.11.6
     #   nltk
     #   tiktoken
     #   transformers
-requests==2.32.3
+requests==2.32.2
     # via
     #   datasets
     #   evaluate
@@ -354,7 +354,7 @@ typing-extensions==4.12.2
     #   torch
 tzdata==2025.1
     # via pandas
-urllib3==2.3.0
+urllib3==1.26.19
     # via requests
 uvicorn==0.34.0
     # via fschat
