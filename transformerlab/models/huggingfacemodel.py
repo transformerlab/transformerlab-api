@@ -15,20 +15,19 @@ async def list_models(uninstalled_only: bool = True):
 
     # Get a list of repos cached in the hugging face hub
     hf_cache_info = huggingface_hub.scan_cache_dir()
-    repos=hf_cache_info.repos
+    repos = hf_cache_info.repos
 
     # Cycle through the hugging face repos and add them to the list
     # if they are valid models
     models = []
     for repo in repos:
-
         # Filter out anything that isn't a model
-        if (repo.repo_type != "model"):
+        if repo.repo_type != "model":
             continue
 
         # Filter out anything that hasn't actually been downloaded
         # Minor hack: Check repo size and if it's under 10K it's probably just config
-        if (repo.size_on_disk < 10000):
+        if repo.size_on_disk < 10000:
             continue
 
         model = HuggingFaceModel(repo.repo_id)
@@ -37,7 +36,6 @@ async def list_models(uninstalled_only: bool = True):
         formats = model.json_data.get("formats", [])
         gguf_only = (len(formats) == 1) and (formats[0] == "GGUF")
         if not gguf_only:
-
             # Regular (i.e. not GGUF only) model
             # Check if it's installed already if we are filtering on that
             installed = await model.is_installed()
@@ -55,14 +53,13 @@ async def list_models(uninstalled_only: bool = True):
 
 
 class HuggingFaceModel(basemodel.BaseModel):
-        
     def __init__(self, hugging_face_id):
         super().__init__(hugging_face_id)
 
         # HuggingFace models just need the repo_id to load
         self.json_data["source"] = "huggingface"
         self.json_data["source_id_or_path"] = hugging_face_id
-        self.json_data["model_filename"] = None # TODO: What about GGUF?
+        self.json_data["model_filename"] = None  # TODO: What about GGUF?
 
         # We need to access the huggingface_hub to figure out more model details
         # We'll get details and merge them with our json_data
@@ -84,8 +81,8 @@ class HuggingFaceModel(basemodel.BaseModel):
             self.status = "Model not found"
             gated = True
             private = True
- 
-        except huggingface_hub.utils.EntryNotFoundError:
+
+        except huggingface_hub.utils.EntryNotFoundError as e:
             # This model is missing key configuration information
             self.status = "Missing configuration file"
             print(f"WARNING: {hugging_face_id} missing configuration")
@@ -97,14 +94,13 @@ class HuggingFaceModel(basemodel.BaseModel):
             print(f"{type(e).__name__}: {e}")
 
         # Use the huggingface details to extend json_data
-        if (model_details):
+        if model_details:
             self.json_data.update(model_details)
         else:
             self.json_data["uniqueID"] = hugging_face_id
             self.json_data["name"] = hugging_face_id
             self.json_data["private"] = private
             self.json_data["gated"] = gated
-
 
     def _detect_model_formats(self):
         """
@@ -115,7 +111,7 @@ class HuggingFaceModel(basemodel.BaseModel):
         source_id_or_path = self.json_data.get("source_id_or_path", self.id)
         try:
             repo_files = huggingface_hub.list_repo_files(source_id_or_path)
-        except:
+        except Exception:
             return []
 
         detected_formats = []
@@ -166,19 +162,19 @@ def get_model_details_from_huggingface(hugging_face_id: str):
         # Oh except we list GGUF and MLX as architectures, but HuggingFace sometimes doesn't
         # It is usually stored in library, or sometimes in tags
         library_name = getattr(hf_model_info, "library_name", "")
-        if (library_name):
-            if (library_name.lower() == "mlx"):
+        if library_name:
+            if library_name.lower() == "mlx":
                 architecture = "MLX"
-            if (library_name.lower() == "gguf"):
+            if library_name.lower() == "gguf":
                 architecture = "GGUF"
 
         # And sometimes it is stored in the tags for the repo
         model_tags = getattr(hf_model_info, "tags", [])
-        if ("mlx" in model_tags):
+        if "mlx" in model_tags:
             architecture = "MLX"
 
         # calculate model size
-        model_size = get_huggingface_download_size(hugging_face_id)/(1024*1024)
+        model_size = get_huggingface_download_size(hugging_face_id) / (1024 * 1024)
 
         # TODO: Context length definition seems to vary by architecture. May need conditional logic here.
         context_size = filedata.get("max_position_embeddings", "")
@@ -200,7 +196,7 @@ def get_model_details_from_huggingface(hugging_face_id: str):
             "tags": model_tags,
             "transformers_version": filedata.get("transformers_version", ""),
             "quantization": filedata.get("quantization", ""),
-            "license": model_card_data.get("license", "")
+            "license": model_card_data.get("license", ""),
         }
         return config
 
