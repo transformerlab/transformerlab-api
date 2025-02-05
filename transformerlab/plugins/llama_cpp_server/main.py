@@ -73,7 +73,7 @@ class LlamaCppServer(BaseModelWorker):
         model_names: List[str],
         limit_worker_concurrency: int,
         no_register: bool,
-        llm_engine: "llama-cpp-python",
+        llm_engine: str,
         conv_template: str,
         n_gpu_layers: int = 0,
     ):
