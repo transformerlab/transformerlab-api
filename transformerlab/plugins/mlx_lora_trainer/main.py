@@ -86,7 +86,7 @@ WORKSPACE_DIR = transformerlab.plugin.WORKSPACE_DIR
 
 # Get all parameters provided to this script from Transformer Lab
 parser = argparse.ArgumentParser()
-parser.add_argument('--input_file', type=str)
+parser.add_argument("--input_file", type=str)
 args, unknown = parser.parse_known_args()
 
 print("Arguments:")
@@ -97,6 +97,8 @@ input_config = None
 with open(args.input_file) as json_file:
     input_config = json.load(json_file)
 config = input_config["config"]
+if "fuse_model" not in config:
+    config["fuse_model"] = True
 print("Input:")
 print(json.dumps(input_config, indent=4))
 
@@ -115,33 +117,31 @@ job = transformerlab.plugin.Job(config["job_id"])
 # LoRA parameters have to be passed in a config file
 config_file = None
 if lora_rank or lora_alpha:
-    config_file = os.path.join(plugin_dir, 'config.yaml')
-    with open(config_file, 'w') as file:
-
+    config_file = os.path.join(plugin_dir, "config.yaml")
+    with open(config_file, "w") as file:
         # It looks like the MLX code doesn't actually read the alpha parameter!
         # Instead it uses another parameter called scale to imply alpha
         # scale = alpha / rank
-        lora_scale = int(lora_alpha)/int(lora_rank)
+        lora_scale = int(lora_alpha) / int(lora_rank)
 
         lora_config = {}
         lora_config["lora_parameters"] = {}
-        lora_config["lora_parameters"]['alpha'] = lora_alpha
-        lora_config["lora_parameters"]['rank'] = lora_rank
-        lora_config["lora_parameters"]['scale'] = lora_scale
-        lora_config["lora_parameters"]['dropout'] = 0
+        lora_config["lora_parameters"]["alpha"] = lora_alpha
+        lora_config["lora_parameters"]["rank"] = lora_rank
+        lora_config["lora_parameters"]["scale"] = lora_scale
+        lora_config["lora_parameters"]["dropout"] = 0
         yaml.dump(lora_config, file)
         print("LoRA config:")
         print(lora_config)
 
 # we need to adapter parameter so set a default
-adaptor_name = config.get('adaptor_name', "default")
-fuse_model = config.get('fuse_model', None)
+adaptor_name = config.get("adaptor_name", "default")
+fuse_model = config.get("fuse_model", None)
 
 
 # Get the dataset
 try:
-    dataset_target = transformerlab.plugin.get_dataset_path(
-        config["dataset_name"])
+    dataset_target = transformerlab.plugin.get_dataset_path(config["dataset_name"])
 except Exception as e:
     print(e)
     job.set_job_completion_status("failed", "Could not find dataset.")
@@ -158,35 +158,24 @@ available_splits = get_dataset_split_names(dataset_target)
 # Verify that we have required "train" split
 if "train" not in available_splits:
     print(f"Error: Missing required train slice in dataset {dataset_target}.")
-    job.set_job_completion_status(
-        "failed", "This training algorithm requires a split called 'train' in the dataset.")
+    job.set_job_completion_status("failed", "This training algorithm requires a split called 'train' in the dataset.")
     exit(1)
 
 # And then either use provided "valid" split or create one
 # FUN: Some datasets call it "valid", others call it "validation"
 if "validation" in available_splits:
-    dataset_splits = {
-        "train": "train",
-        "valid": "validation"
-    }
+    dataset_splits = {"train": "train", "valid": "validation"}
 
 elif "valid" in available_splits:
-    dataset_splits = {
-        "train": "train",
-        "valid": "valid"
-    }
+    dataset_splits = {"train": "train", "valid": "valid"}
 
 else:
     print(f"No validation slice found in dataset {dataset_target}:")
     print("Using a default 80/10/10 split for training, test and valid.")
-    dataset_splits = {
-        "train": "train[:80%]",
-        "valid": "train[-10%:]"
-    }
+    dataset_splits = {"train": "train[:80%]", "valid": "train[-10%:]"}
 
 dataset = {}
-formatting_template = jinja_environment.from_string(
-    config["formatting_template"])
+formatting_template = jinja_environment.from_string(config["formatting_template"])
 
 # Directory for storing temporary working files
 # TODO: This should probably be stored per job.
@@ -196,13 +185,10 @@ if not os.path.exists(data_directory):
 
 # Go over each dataset split and render a new file based on the template
 for split_name in dataset_splits:
-
     # Load dataset
-    dataset[split_name] = load_dataset(
-        dataset_target, split=dataset_splits[split_name], trust_remote_code=True)
+    dataset[split_name] = load_dataset(dataset_target, split=dataset_splits[split_name], trust_remote_code=True)
 
-    print(
-        f"Loaded {split_name} dataset with {len(dataset[split_name])} examples.")
+    print(f"Loaded {split_name} dataset with {len(dataset[split_name])} examples.")
 
     # output training files in templated format in to data directory
     with open(f"{data_directory}/{split_name}.jsonl", "w") as f:
@@ -226,24 +212,37 @@ print(example)
 adaptor_output_dir = config["adaptor_output_dir"]
 if adaptor_output_dir == "" or adaptor_output_dir is None:
     print("No adaptor output directory specified.")
-    adaptor_output_dir = os.path.join(
-        os.environ["_TFL_WORKSPACE_DIR"], "adaptors", args.model_name, args.adaptor_name)
+    adaptor_output_dir = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "adaptors", args.model_name, args.adaptor_name)
     print("Using default adaptor output directory:", adaptor_output_dir)
 if not os.path.exists(adaptor_output_dir):
     os.makedirs(adaptor_output_dir)
 
-popen_command = [sys.executable, "-um", "mlx_lm.lora",
-                 "--model", config["model_name"],
-                 "--iters", iters,
-                 "--train",
-                 "--adapter-path", adaptor_output_dir,
-                 "--num-layers", lora_layers,
-                 "--batch-size", batch_size,
-                 "--learning-rate", learning_rate,
-                 "--data", os.path.join(plugin_dir, "data"),
-                 "--steps-per-report", config['steps_per_report'],
-                 "--steps-per-eval", steps_per_eval,
-                 "--save-every", config["save_every"]]
+popen_command = [
+    sys.executable,
+    "-um",
+    "mlx_lm.lora",
+    "--model",
+    config["model_name"],
+    "--iters",
+    iters,
+    "--train",
+    "--adapter-path",
+    adaptor_output_dir,
+    "--num-layers",
+    lora_layers,
+    "--batch-size",
+    batch_size,
+    "--learning-rate",
+    learning_rate,
+    "--data",
+    os.path.join(plugin_dir, "data"),
+    "--steps-per-report",
+    config["steps_per_report"],
+    "--steps-per-eval",
+    steps_per_eval,
+    "--save-every",
+    config["save_every"],
+]
 
 # If a config file has been created then include it
 if config_file:
@@ -269,7 +268,8 @@ print("Writing logs to:", output_dir)
 job.set_tensorboard_output_dir(output_dir)
 
 with subprocess.Popen(
-        popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True) as process:
+    popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True
+) as process:
     for line in process.stdout:
         # Each output line from lora.py looks like
         # "Iter 190: ....."
@@ -305,8 +305,7 @@ with subprocess.Popen(
                 # `w`.
                 writer.add_scalar("loss", loss, int(first_number))
                 writer.add_scalar("it_per_sec", it_per_sec, int(first_number))
-                writer.add_scalar("tokens_per_sec",
-                                  tokens_per_sec, int(first_number))
+                writer.add_scalar("tokens_per_sec", tokens_per_sec, int(first_number))
 
             # 2. Validation updates which look like:
             # "Iter 190: Val loss 1.009, Val took 1.696s"
@@ -316,8 +315,7 @@ with subprocess.Popen(
                 if match:
                     validation_loss = float(match.group(1))
                     print("Validation Loss: ", validation_loss)
-                    writer.add_scalar("validation-loss",
-                                      validation_loss, int(first_number))
+                    writer.add_scalar("validation-loss", validation_loss, int(first_number))
 
         print(line, end="", flush=True)
 
@@ -333,31 +331,36 @@ print("Finished training.")
 # TIME TO FUSE THE MODEL WITH THE BASE MODEL
 if not fuse_model:
     print(f"Adaptor training complete and saved at {adaptor_output_dir}.")
-    job.set_job_completion_status(
-        "success", "Adapter saved successfully.")
+    job.set_job_completion_status("success", "Adapter saved successfully.")
 
 else:
     print("Now fusing the adaptor with the model.")
 
-    model_name = config['model_name']
+    model_name = config["model_name"]
     if "/" in model_name:
         model_name = model_name.split("/")[-1]
     fused_model_name = f"{model_name}_{adaptor_name}"
-    fused_model_location = os.path.join(
-        WORKSPACE_DIR, "models", fused_model_name)
+    fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
 
     # Make the directory to save the fused model
     if not os.path.exists(fused_model_location):
         os.makedirs(fused_model_location)
 
     fuse_popen_command = [
-        sys.executable, "-m", "mlx_lm.fuse",
-        "--model", config["model_name"],
-        "--adapter-path", adaptor_output_dir,
-        "--save-path", fused_model_location]
+        sys.executable,
+        "-m",
+        "mlx_lm.fuse",
+        "--model",
+        config["model_name"],
+        "--adapter-path",
+        adaptor_output_dir,
+        "--save-path",
+        fused_model_location,
+    ]
 
     with subprocess.Popen(
-            fuse_popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True) as process:
+        fuse_popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True
+    ) as process:
         for line in process.stdout:
             print(line, end="", flush=True)
 
@@ -365,15 +368,13 @@ else:
 
         # If model create was successful, create an info.json file so this can be read by the system
         print("Return code: ", return_code)
-        if (return_code == 0):
+        if return_code == 0:
             json_data = {
                 "description": f"An MLX model trained and generated by TransformerLab based on {config['model_name']}"
             }
-            transformerlab.plugin.generate_model_json(
-                fused_model_name, "MLX", json_data=json_data)
+            transformerlab.plugin.generate_model_json(fused_model_name, "MLX", json_data=json_data)
             print("Finished fusing the adaptor with the model.")
-            job.set_job_completion_status(
-                "success", "Model fused successfully.")
+            job.set_job_completion_status("success", "Model fused successfully.")
 
         else:
             print("Fusing model with adaptor failed: ", return_code)
