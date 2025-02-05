@@ -412,15 +412,6 @@ async def api_tokenize(request: Request):
     return {"tokens": tokens, "token_ids": token_ids}
 
 
-@app.post("/worker_get_embeddings")
-async def api_get_embeddings(request: Request):
-    params = await request.json()
-    await acquire_worker_semaphore()
-    embedding = worker.get_embeddings(params)
-    release_worker_semaphore()
-    return JSONResponse(content=embedding)
-
-
 def get_hugggingface_config(model_path):
     try:
         local_file = snapshot_download(model_path, local_files_only=True)
@@ -429,7 +420,7 @@ def get_hugggingface_config(model_path):
         with open(config_json) as f:
             contents = f.read()
         d = json.loads(contents)
-    except:
+    except Exception:
         # failed to open config.json so create an empty config
         d = {}
 
