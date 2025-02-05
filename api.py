@@ -1,6 +1,7 @@
 """
 The Entrypoint File for Transformer Lab's API Server.
 """
+
 import os
 import argparse
 import asyncio
@@ -15,7 +16,6 @@ import fastapi
 import httpx
 
 # Using torch to test for CUDA and MPS support.
-import torch
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -29,7 +29,19 @@ from fastchat.protocol.openai_api_protocol import (
 )
 
 import transformerlab.db as db
-from transformerlab.routers import data, model, serverinfo, train, plugins, evals, config, jobs, prompts, tools, batched_prompts
+from transformerlab.routers import (
+    data,
+    model,
+    serverinfo,
+    train,
+    plugins,
+    evals,
+    config,
+    jobs,
+    prompts,
+    tools,
+    batched_prompts,
+)
 from transformerlab import fastchat_openai_api
 from transformerlab.routers.experiment import experiment
 from transformerlab.shared import dirs
@@ -55,7 +67,7 @@ async def lifespan(app: FastAPI):
     galleries.update_gallery_cache()
     spawn_fastchat_controller_subprocess()
     await db.init()
-    if ("--reload" in sys.argv):
+    if "--reload" in sys.argv:
         await install_all_plugins()
     asyncio.create_task(run_over_and_over())
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
@@ -115,9 +127,7 @@ app.add_middleware(
 
 
 def create_error_response(code: int, message: str) -> JSONResponse:
-    return JSONResponse(
-        ErrorResponse(message=message, code=code).dict(), status_code=400
-    )
+    return JSONResponse(ErrorResponse(message=message, code=code).dict(), status_code=400)
 
 
 @app.exception_handler(RequestValidationError)
@@ -149,7 +159,7 @@ worker_process = None
 
 def spawn_fastchat_controller_subprocess():
     global controller_process
-    logfile = open('controller.log', 'w')
+    logfile = open("controller.log", "w")
     port = "21001"
     controller_process = subprocess.Popen(
         [sys.executable, "-m", "fastchat.serve.controller", "--port", port], stdout=logfile, stderr=logfile
@@ -161,7 +171,7 @@ async def install_all_plugins():
     all_plugins = await plugins.list_plugins()
     print("Re-copying all plugin files from source to workspace")
     for plugin in all_plugins:
-        plugin_id = plugin['uniqueId']
+        plugin_id = plugin["uniqueId"]
         print(f"Refreshing workspace plugin: {plugin_id}")
         await plugins.copy_plugin_files_to_workspace(plugin_id)
 
@@ -184,36 +194,45 @@ def set_worker_process_id(process):
 
 
 @app.get("/server/worker_start", tags=["serverinfo"])
-async def server_worker_start(model_name: str, adaptor: str = '', model_filename: str | None = None, eight_bit: bool = False, cpu_offload: bool = False, inference_engine: str = "default", experiment_id: str = None, inference_params: str = "" ):
+async def server_worker_start(
+    model_name: str,
+    adaptor: str = "",
+    model_filename: str | None = None,
+    eight_bit: bool = False,
+    cpu_offload: bool = False,
+    inference_engine: str = "default",
+    experiment_id: str = None,
+    inference_params: str = "",
+):
     global worker_process
-    
-    #the first priority for inference params should be the inference params passed in, then the inference parameters in the experiment
-    #first we check to see if any inference params were passed in
-    if inference_params!="":
+
+    # the first priority for inference params should be the inference params passed in, then the inference parameters in the experiment
+    # first we check to see if any inference params were passed in
+    if inference_params != "":
         try:
             inference_params = json.loads(inference_params)
-        except:
-            return {"status": "error", "message":"malformed inference params passed"}
-    #then we check to see if we are an experiment
-    elif (experiment_id is not None):
+        except json.JSONDecodeError:
+            return {"status": "error", "message": "malformed inference params passed"}
+    # then we check to see if we are an experiment
+    elif experiment_id is not None:
         try:
             experiment = await db.experiment_get(experiment_id)
-            experiment_config = experiment['config']
+            experiment_config = experiment["config"]
             experiment_config = json.loads(experiment_config)
-            inference_params = experiment_config['inferenceParams']
+            inference_params = experiment_config["inferenceParams"]
             inference_params = json.loads(inference_params)
-        except:
-            return {"status": "error", "message":"malformed inference params passed"}
-    #if neither are true, then we have an issue
+        except json.JSONDecodeError:
+            return {"status": "error", "message": "malformed inference params passed"}
+    # if neither are true, then we have an issue
     else:
-        return {"status": "error", "message":"malformed inference params passed"}
+        return {"status": "error", "message": "malformed inference params passed"}
 
     engine = inference_engine
-    if("inferenceEngine" in inference_params and engine=="default"):
-        engine = inference_params.get('inferenceEngine')
+    if "inferenceEngine" in inference_params and engine == "default":
+        engine = inference_params.get("inferenceEngine")
 
-    if(engine == "default"):
-        return {"status": "error", "message":"no inference engine specified"}
+    if engine == "default":
+        return {"status": "error", "message": "no inference engine specified"}
 
     inference_engine = engine
 
@@ -221,10 +240,10 @@ async def server_worker_start(model_name: str, adaptor: str = '', model_filename
     plugin_location = dirs.plugin_dir_by_name(plugin_name)
 
     model = model_name
-    if (model_filename is not None and model_filename != ''):
+    if model_filename is not None and model_filename != "":
         model = model_filename
 
-    if (adaptor != ''):
+    if adaptor != "":
         adaptor = f"{dirs.WORKSPACE_DIR}/adaptors/{model}/{adaptor}"
 
     params = [
@@ -236,56 +255,60 @@ async def server_worker_start(model_name: str, adaptor: str = '', model_filename
         "--adaptor-path",
         adaptor,
         "--parameters",
-        json.dumps(inference_params)
+        json.dumps(inference_params),
     ]
 
-    job_id = await db.job_create(type="LOAD_MODEL", status="STARTED", job_data='{}', experiment_id=experiment_id)
+    job_id = await db.job_create(type="LOAD_MODEL", status="STARTED", job_data="{}", experiment_id=experiment_id)
 
     print("Loading plugin loader instead of default worker")
 
-    with open(dirs.GLOBAL_LOG_PATH, 'a') as global_log:
-        global_log.write(
-            f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
+    with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
+        global_log.write(f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
 
-    worker_process = await shared.async_run_python_daemon_and_update_status(python_script=params,
-                                                                                        job_id=job_id,
-                                                                                        begin_string="Application startup complete.",
-                                                                                        set_process_id_function=set_worker_process_id)
+    worker_process = await shared.async_run_python_daemon_and_update_status(
+        python_script=params,
+        job_id=job_id,
+        begin_string="Application startup complete.",
+        set_process_id_function=set_worker_process_id,
+    )
     exitcode = worker_process.returncode
-    if (exitcode == 99):
-        with open(dirs.GLOBAL_LOG_PATH, 'a') as global_log:
+    if exitcode == 99:
+        with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
             global_log.write(
-                f"GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources.\n")
-        return {"status": "error", "message": "GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources."}
-    if (exitcode != None and exitcode != 0):
-        with open(dirs.GLOBAL_LOG_PATH, 'a') as global_log:
-            global_log.write(
-                f"Error loading model: {model_name} with exit code {exitcode}\n")
+                "GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources.\n"
+            )
+        return {
+            "status": "error",
+            "message": "GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources.",
+        }
+    if exitcode is not None and exitcode != 0:
+        with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
+            global_log.write(f"Error loading model: {model_name} with exit code {exitcode}\n")
         error_msg = await db.job_get_error_msg(job_id)
         if not error_msg:
             error_msg = f"Exit code {exitcode}"
             await db.job_update_status(job_id, "FAILED", error_msg)
         return {"status": "error", "message": error_msg}
-    with open(dirs.GLOBAL_LOG_PATH, 'a') as global_log:
-        global_log.write(
-            f"Model loaded successfully: {model_name}\n")
+    with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
+        global_log.write(f"Model loaded successfully: {model_name}\n")
     return {"status": "success", "job_id": job_id}
+
 
 @app.get("/server/worker_stop", tags=["serverinfo"])
 async def server_worker_stop():
     global worker_process
     print(f"Stopping worker process: {worker_process}")
-    if (worker_process is not None):
+    if worker_process is not None:
         worker_process.terminate()
         worker_process = None
     # check if there is a file called worker.pid, if so kill the related process:
-    if (os.path.isfile('worker.pid')):
-        with open('worker.pid', 'r') as f:
+    if os.path.isfile("worker.pid"):
+        with open("worker.pid", "r") as f:
             pid = f.readline()
             print(f"Killing worker process with PID: {pid}")
             os.kill(int(pid), signal.SIGTERM)
         # delete the worker.pid file:
-        os.remove('worker.pid')
+        os.remove("worker.pid")
     return {"message": "OK"}
 
 
@@ -304,15 +327,15 @@ async def server_worker_health(request: Request):
     # by react to see if the object changed. If we returned the whole
     # model object, you would see some changes in the object that are
     # not relevant to the user -- triggering renders in React
-    for model in models.data:
-        result.append({"id": model.id})
+    for model_data in models.data:
+        result.append({"id": model_data.id})
 
     return result
 
 
 def cleanup_at_exit():
-    if (os.path.isfile('transformer_lab.log')):
-        with open('transformer_lab.log', 'w') as f:
+    if os.path.isfile("transformer_lab.log"):
+        with open("transformer_lab.log", "w") as f:
             f.truncate(0)
     if controller_process is not None:
         print("🔴 Quitting spawned controller.")
@@ -322,12 +345,11 @@ def cleanup_at_exit():
         try:
             worker_process.kill()
         except ProcessLookupError:
-            print(
-                f"Process {worker_process.pid} doesn't exist so nothing to kill")
-    if (os.path.isfile('worker.pid')):
-        with open('worker.pid', 'r') as f:
+            print(f"Process {worker_process.pid} doesn't exist so nothing to kill")
+    if os.path.isfile("worker.pid"):
+        with open("worker.pid", "r") as f:
             pid = f.readline()
-            os.remove('worker.pid')
+            os.remove("worker.pid")
             os.kill(int(pid), signal.SIGTERM)
 
 
@@ -335,26 +357,14 @@ atexit.register(cleanup_at_exit)
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        description="FastChat ChatGPT-Compatible RESTful API server."
-    )
-    parser.add_argument("--host", type=str,
-                        default="0.0.0.0", help="host name")
+    parser = argparse.ArgumentParser(description="FastChat ChatGPT-Compatible RESTful API server.")
+    parser.add_argument("--host", type=str, default="0.0.0.0", help="host name")
     parser.add_argument("--port", type=int, default=8338, help="port number")
-    parser.add_argument(
-        "--allow-credentials", action="store_true", help="allow credentials"
-    )
-    parser.add_argument(
-        "--allowed-origins", type=json.loads, default=["*"], help="allowed origins"
-    )
-    parser.add_argument(
-        "--allowed-methods", type=json.loads, default=["*"], help="allowed methods"
-    )
-    parser.add_argument(
-        "--allowed-headers", type=json.loads, default=["*"], help="allowed headers"
-    )
-    parser.add_argument("auto_reinstall_plugins", type=bool,
-                        default=False, help="auto reinstall plugins")
+    parser.add_argument("--allow-credentials", action="store_true", help="allow credentials")
+    parser.add_argument("--allowed-origins", type=json.loads, default=["*"], help="allowed origins")
+    parser.add_argument("--allowed-methods", type=json.loads, default=["*"], help="allowed methods")
+    parser.add_argument("--allowed-headers", type=json.loads, default=["*"], help="allowed headers")
+    parser.add_argument("auto_reinstall_plugins", type=bool, default=False, help="auto reinstall plugins")
 
     return parser.parse_args()
 
@@ -364,7 +374,7 @@ def print_launch_message():
     with open(os.path.join(os.path.dirname(__file__), "transformerlab/launch_header_text.txt"), "r") as f:
         text = f.read()
         shared.print_in_rainbow(text)
-    print('http://www.transformerlab.ai\nhttps://github.com/transformerlab/transformerlab-api\n')
+    print("http://www.transformerlab.ai\nhttps://github.com/transformerlab/transformerlab-api\n")
 
 
 def run():

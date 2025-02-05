@@ -8,14 +8,12 @@ CUDA_VISIBLE_DEVICES=0 llamafactory-cli train examples/train_lora/llama3_lora_re
 
 """
 import os
-import sys
 import subprocess
 import time
 
 import json
 import yaml
 import re
-import sqlite3
 import argparse
 
 import transformerlab.plugin
@@ -244,7 +242,7 @@ with subprocess.Popen(
 
     return_code = process.wait()
 
-    if return_code!=0 and not "TypeError: DPOTrainer.create_model_card() got an unexpected keyword argument 'license'" in error_output:
+    if return_code!=0 and "TypeError: DPOTrainer.create_model_card() got an unexpected keyword argument 'license'" not in error_output:
         job.set_job_completion_status("failed", "failed during training")
         raise RuntimeError(f"Training failed: {error_output}")
 
@@ -301,7 +299,7 @@ with subprocess.Popen(
             "local_model": True,
             "json_data": {
                 "uniqueID": f"TransformerLab/{fused_model_name}",
-                "name": f"dpo_orpo_simpo_trainer_llama_factory",
+                "name": "dpo_orpo_simpo_trainer_llama_factory",
                 "description": f"Model generated using Llama Factory in TransformerLab based on {config['model_name']}",
                 "architecture": config["model_architecture"],
                 "huggingface_repo": ""

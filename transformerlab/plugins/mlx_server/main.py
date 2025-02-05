@@ -32,10 +32,10 @@ from fastchat.serve.model_worker import (
     logger,
     worker_id,
 )
-from fastchat.utils import get_context_length, is_partial_stop
+from fastchat.utils import get_context_length
 
 import mlx.core as mx
-from mlx_lm import load, generate
+from mlx_lm import load
 from mlx_lm.utils import generate_step
 from mlx_lm.sample_utils import make_sampler
 
@@ -86,7 +86,7 @@ class MLXWorker(BaseModelWorker):
 
         try:
             self.context_len = get_context_length(config)
-        except:
+        except Exception:
             self.context_len = 2048
 
         print("Context length: ", self.context_len)
@@ -412,15 +412,6 @@ async def api_tokenize(request: Request):
     return {"tokens": tokens, "token_ids": token_ids}
 
 
-@app.post("/worker_get_embeddings")
-async def api_get_embeddings(request: Request):
-    params = await request.json()
-    await acquire_worker_semaphore()
-    embedding = worker.get_embeddings(params)
-    release_worker_semaphore()
-    return JSONResponse(content=embedding)
-
-
 def get_hugggingface_config(model_path):
     try:
         local_file = snapshot_download(model_path, local_files_only=True)
@@ -429,7 +420,7 @@ def get_hugggingface_config(model_path):
         with open(config_json) as f:
             contents = f.read()
         d = json.loads(contents)
-    except:
+    except Exception:
         # failed to open config.json so create an empty config
         d = {}
 

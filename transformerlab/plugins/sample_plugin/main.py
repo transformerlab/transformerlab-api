@@ -1,9 +1,6 @@
 # This is a sample plugin that just displays the parameters that are provided to it
 # It is used to test the plugin system
-import os
-import sqlite3
 import argparse
-import sys
 import json
 
 # Connect to the LLM Lab database (you can use this to update job status in the jobs table)

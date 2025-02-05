@@ -8,7 +8,6 @@ CUDA_VISIBLE_DEVICES=0 llamafactory-cli train examples/train_lora/llama3_lora_re
 
 """
 import os
-import sys
 import subprocess
 import time
 
@@ -280,7 +279,7 @@ with subprocess.Popen(
             "local_model": True,
             "json_data": {
                 "uniqueID": f"TransformerLab/{fused_model_name}",
-                "name": f"MLX",
+                "name": "MLX",
                 "description": f"Model generated using Llama Factory in TransformerLab based on {config['model_name']}",
                 "architecture": config["model_architecture"],
                 "huggingface_repo": ""

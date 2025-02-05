@@ -20,19 +20,15 @@ async def init():
 
     db = await aiosqlite.connect(DATABASE_FILE_NAME)
 
-    await db.execute(
-        "CREATE TABLE IF NOT EXISTS model(id INTEGER PRIMARY KEY, model_id UNIQUE, name, json_data JSON)"
-    )
+    await db.execute("CREATE TABLE IF NOT EXISTS model(id INTEGER PRIMARY KEY, model_id UNIQUE, name, json_data JSON)")
     await db.execute(
         "CREATE TABLE IF NOT EXISTS dataset(id INTEGER PRIMARY KEY, dataset_id UNIQUE, location, description, size)"
     )
 
     try:
-        await db.execute(
-            """ALTER TABLE dataset ADD COLUMN json_data JSON DEFAULT '{}'"""
-        )
+        await db.execute("""ALTER TABLE dataset ADD COLUMN json_data JSON DEFAULT '{}'""")
     except sqlite3.OperationalError as e:
-        if 'duplicate column name' in str(e):
+        if "duplicate column name" in str(e):
             pass
 
     await db.execute(
@@ -72,9 +68,7 @@ async def init():
                         updated_at DATETIME NOT NULL DEFAULT current_timestamp)
                         """
     )
-    await db.execute(
-        "CREATE INDEX IF NOT EXISTS idx_name ON experiment (name)"
-    )
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_name ON experiment (name)")
 
     await db.execute(
         """CREATE TABLE IF NOT EXISTS
@@ -90,25 +84,14 @@ async def init():
                 key UNIQUE,
                 value TEXT)"""
     )
-    await db.execute(
-        "CREATE INDEX IF NOT EXISTS idx_key ON config (key)"
-    )
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_key ON config (key)")
 
     print("✅ Database initialized")
 
     print("✅ SEED DATA")
-    await db.execute(
-        "INSERT OR IGNORE INTO experiment(name, config) VALUES (?, ?)", (
-            "alpha", "{}")
-    )
-    await db.execute(
-        "INSERT OR IGNORE INTO experiment(name, config) VALUES (?, ?)", (
-            "beta", "{}")
-    )
-    await db.execute(
-        "INSERT OR IGNORE INTO experiment(name, config) VALUES (?, ?)", (
-            "gamma", "{}")
-    )
+    await db.execute("INSERT OR IGNORE INTO experiment(name, config) VALUES (?, ?)", ("alpha", "{}"))
+    await db.execute("INSERT OR IGNORE INTO experiment(name, config) VALUES (?, ?)", ("beta", "{}"))
+    await db.execute("INSERT OR IGNORE INTO experiment(name, config) VALUES (?, ?)", ("gamma", "{}"))
     await db.commit()
 
     # On startup, look for any jobs that are in the RUNNING state and set them to CANCELLED instead:
@@ -119,7 +102,6 @@ async def init():
 
 
 async def close():
-
     await db.close()
 
 
@@ -129,9 +111,7 @@ async def close():
 
 
 async def get_dataset(dataset_id):
-    cursor = await db.execute(
-        "SELECT * FROM dataset WHERE dataset_id = ?", (dataset_id,)
-    )
+    cursor = await db.execute("SELECT * FROM dataset WHERE dataset_id = ?", (dataset_id,))
     row = await cursor.fetchone()
 
     # Make sure the dataset exists before formatting repsonse
@@ -142,8 +122,8 @@ async def get_dataset(dataset_id):
     desc = cursor.description
     column_names = [col[0] for col in desc]
     row = dict(itertools.zip_longest(column_names, row))
-    if 'json_data' in row and row['json_data']:
-        row['json_data'] = json.loads(row['json_data'])
+    if "json_data" in row and row["json_data"]:
+        row["json_data"] = json.loads(row["json_data"])
 
     await cursor.close()
     return row
@@ -185,7 +165,6 @@ async def create_local_dataset(dataset_id):
 
 
 async def delete_dataset(dataset_id):
-
     await db.execute("DELETE FROM dataset WHERE dataset_id = ?", (dataset_id,))
     await db.commit()
 
@@ -194,8 +173,8 @@ async def delete_dataset(dataset_id):
 # MODELS MODEL
 ###############
 
-async def model_local_list():
 
+async def model_local_list():
     cursor = await db.execute("SELECT rowid, * FROM model")
     rows = await cursor.fetchall()
 
@@ -213,7 +192,6 @@ async def model_local_list():
 
 
 async def model_local_count():
-
     cursor = await db.execute("SELECT COUNT(*) FROM model")
     row = await cursor.fetchone()
     await cursor.close()
@@ -222,19 +200,16 @@ async def model_local_count():
 
 
 async def model_local_create(model_id, name, json_data):
-
     json_data = json.dumps(obj=json_data)
 
     await db.execute(
-        "INSERT OR REPLACE INTO model(model_id, name, json_data) VALUES (?, ?,?)", (
-            model_id, name, json_data)
+        "INSERT OR REPLACE INTO model(model_id, name, json_data) VALUES (?, ?,?)", (model_id, name, json_data)
     )
 
     await db.commit()
 
 
 async def model_local_get(model_id):
-
     cursor = await db.execute("SELECT rowid, * FROM model WHERE model_id = ?", (model_id,))
     row = await cursor.fetchone()
 
@@ -255,20 +230,19 @@ async def model_local_get(model_id):
 
 
 async def model_local_delete(model_id):
-
     await db.execute("DELETE FROM model WHERE model_id = ?", (model_id,))
     await db.commit()
+
 
 ###############
 # GENERIC JOBS MODEL
 ###############
 
 # Allowed job types:
-ALLOWED_JOB_TYPES = ["TRAIN", "EXPORT_MODEL",
-                     "DOWNLOAD_MODEL", "LOAD_MODEL", "TASK", "EVAL", "UNDEFINED"]
+ALLOWED_JOB_TYPES = ["TRAIN", "EXPORT_MODEL", "DOWNLOAD_MODEL", "LOAD_MODEL", "TASK", "EVAL", "UNDEFINED"]
 
 
-async def job_create(type, status, job_data='{}', experiment_id=""):
+async def job_create(type, status, job_data="{}", experiment_id=""):
     # check if type is allowed
     if type not in ALLOWED_JOB_TYPES:
         raise ValueError(f"Job type {type} is not allowed")
@@ -280,15 +254,14 @@ async def job_create(type, status, job_data='{}', experiment_id=""):
     return row[0]
 
 
-async def jobs_get_all(type='', status=''):
-
+async def jobs_get_all(type="", status=""):
     base_query = "SELECT * FROM job"
-    if type != '':
+    if type != "":
         base_query += " WHERE type = ?"
     else:
         base_query += " WHERE ? != 'x'"
 
-    if status != '':
+    if status != "":
         base_query += " AND status = ?"
     else:
         base_query += " AND ? != 'x'"
@@ -313,13 +286,14 @@ async def jobs_get_all(type='', status=''):
 
 
 async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
-
     cursor = await db.execute(
         "SELECT * FROM job \
         WHERE experiment_id = ? \
         AND type = ? \
         AND status != 'DELETED' \
-        ORDER BY created_at DESC", (experiment_id, job_type))
+        ORDER BY created_at DESC",
+        (experiment_id, job_type),
+    )
     rows = await cursor.fetchall()
 
     # Add column names to output
@@ -337,7 +311,6 @@ async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
 
 
 async def job_get_status(job_id):
-
     cursor = await db.execute("SELECT status FROM job WHERE id = ?", (job_id,))
     row = await cursor.fetchone()
     await cursor.close()
@@ -345,7 +318,6 @@ async def job_get_status(job_id):
 
 
 async def job_get_error_msg(job_id):
-
     cursor = await db.execute("SELECT job_data FROM job WHERE id = ?", (job_id,))
     row = await cursor.fetchone()
     await cursor.close()
@@ -354,7 +326,6 @@ async def job_get_error_msg(job_id):
 
 
 async def job_get(job_id):
-
     cursor = await db.execute("SELECT * FROM job WHERE id = ?", (job_id,))
     row = await cursor.fetchone()
 
@@ -368,12 +339,11 @@ async def job_get(job_id):
     row = dict(itertools.zip_longest(column_names, row))
     await cursor.close()
 
-    row['job_data'] = json.loads(row['job_data'])
+    row["job_data"] = json.loads(row["job_data"])
     return row
 
 
 async def job_count_running():
-
     cursor = await db.execute("SELECT COUNT(*) FROM job WHERE status = 'RUNNING'")
     row = await cursor.fetchone()
     await cursor.close()
@@ -381,10 +351,7 @@ async def job_count_running():
 
 
 async def jobs_get_next_queued_job():
-
-    cursor = await db.execute(
-        "SELECT * FROM job WHERE status = 'QUEUED' ORDER BY created_at ASC LIMIT 1"
-    )
+    cursor = await db.execute("SELECT * FROM job WHERE status = 'QUEUED' ORDER BY created_at ASC LIMIT 1")
     row = await cursor.fetchone()
 
     # if no results, return None
@@ -401,7 +368,6 @@ async def jobs_get_next_queued_job():
 
 
 async def job_update_status(job_id, status, error_msg=None):
-
     await db.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
     await db.commit()
     if error_msg:
@@ -412,9 +378,9 @@ async def job_update_status(job_id, status, error_msg=None):
 
 
 async def job_update(job_id, type, status):
-
     await db.execute(
-        "UPDATE job SET type = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (type, status, job_id))
+        "UPDATE job SET type = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (type, status, job_id)
+    )
     await db.commit()
     return
 
@@ -427,8 +393,7 @@ def job_update_sync(job_id, status):
     global DATABASE_FILE_NAME
     db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
 
-    db_sync.execute(
-        "UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
+    db_sync.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
     db_sync.commit()
     db_sync.close()
     return
@@ -442,7 +407,9 @@ def job_mark_as_complete_if_running(job_id):
     db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
 
     db_sync.execute(
-        "UPDATE job SET status = 'COMPLETE', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'RUNNING'", (job_id,))
+        "UPDATE job SET status = 'COMPLETE', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'RUNNING'",
+        (job_id,),
+    )
     db_sync.commit()
     db_sync.close()
     return
@@ -474,8 +441,7 @@ async def job_update_job_data_insert_key_value(job_id, key, value):
     value = json.dumps(value)
 
     await db.execute(
-        f"UPDATE job SET job_data = " +
-        f"json_set(job_data,'$.{key}', json(?))  WHERE id = ?",
+        "UPDATE job SET job_data = " + f"json_set(job_data,'$.{key}', json(?))  WHERE id = ?",
         (value, job_id),
     )
     await db.commit()
@@ -487,16 +453,16 @@ async def job_stop(job_id):
     await job_update_job_data_insert_key_value(job_id, "stop", True)
     return
 
+
 ###############
 # TRAINING and TRAINING JOBS MODELS
 ###############
 
 
 async def get_training_template(id):
-
     cursor = await db.execute("SELECT * FROM training_template WHERE id = ?", (id,))
     row = await cursor.fetchone()
-    if (row == None):
+    if row is None:
         return None
     # convert to json:
     desc = cursor.description
@@ -509,10 +475,9 @@ async def get_training_template(id):
 
 
 async def get_training_template_by_name(name):
-
     cursor = await db.execute("SELECT * FROM training_template WHERE name = ?", (name,))
     row = await cursor.fetchone()
-    if (row == None):
+    if row is None:
         return None
     # convert to json:
     desc = cursor.description
@@ -525,7 +490,6 @@ async def get_training_template_by_name(name):
 
 
 async def get_training_templates():
-
     cursor = await db.execute("SELECT * FROM training_template ORDER BY created_at DESC")
     rows = await cursor.fetchall()
     await cursor.close()
@@ -533,7 +497,6 @@ async def get_training_templates():
 
 
 async def create_training_template(name, description, type, datasets, config):
-
     await db.execute(
         "INSERT INTO training_template(name, description, type, datasets, config) VALUES (?, ?, ?, ?, ?)",
         (name, description, type, datasets, config),
@@ -552,7 +515,6 @@ async def update_training_template(id, name, description, type, datasets, config
 
 
 async def delete_training_template(id):
-
     await db.execute("DELETE FROM training_template WHERE id = ?", (id,))
     await db.commit()
     return
@@ -560,7 +522,6 @@ async def delete_training_template(id):
 
 # Because this joins on training template it only returns training jobs
 async def training_jobs_get_all():
-
     # Join on the nested JSON value "template_id"
     # #in the job_data column
     cursor = await db.execute(
@@ -604,11 +565,11 @@ async def training_jobs_get_all():
 
 
 async def job_get_for_template_id(template_id):
-
     cursor = await db.execute("SELECT * FROM job WHERE template_id = ?", (template_id,))
     rows = await cursor.fetchall()
     await cursor.close()
     return rows
+
 
 ####################
 # EXPEORT JOBS MODEL
@@ -633,8 +594,8 @@ async def export_job_create(experiment_id, job_data_json):
 # EXPERIMENTS MODEL
 ###################
 
-async def experiment_get_all():
 
+async def experiment_get_all():
     cursor = await db.execute("SELECT * FROM experiment order by created_at desc")
     rows = await cursor.fetchall()
     # Do the following to convert the return into a JSON object with keys
@@ -646,18 +607,14 @@ async def experiment_get_all():
 
 
 async def experiment_create(name, config):
-
     # use python insert and commit command
-    row = await db.execute_insert(
-        "INSERT INTO experiment(name, config) VALUES (?, ?)", (name, config)
-    )
+    row = await db.execute_insert("INSERT INTO experiment(name, config) VALUES (?, ?)", (name, config))
     await db.commit()
     return row[0]
 
 
 async def experiment_get(id):
-
-    if (id == None or id == "undefined"):
+    if id is None or id == "undefined":
         return None
     cursor = await db.execute("SELECT * FROM experiment WHERE id = ?", (id,))
     row = await cursor.fetchone()
@@ -675,7 +632,6 @@ async def experiment_get(id):
 
 
 async def experiment_get_by_name(name):
-
     cursor = await db.execute("SELECT * FROM experiment WHERE name = ?", (name,))
     row = await cursor.fetchone()
 
@@ -692,26 +648,22 @@ async def experiment_get_by_name(name):
 
 
 async def experiment_delete(id):
-
     await db.execute("DELETE FROM experiment WHERE id = ?", (id,))
     await db.commit()
     return
 
 
 async def experiment_update(id, config):
-
     await db.execute("UPDATE experiment SET config = ? WHERE id = ?", (config, id))
     await db.commit()
     return
 
 
 async def experiment_update_config(id, key, value):
-
     value = json.dumps(value)
 
     await db.execute(
-        f"UPDATE experiment SET config = " +
-        f"json_set(config,'$.{key}', json(?))  WHERE id = ?",
+        "UPDATE experiment SET config = " + f"json_set(config,'$.{key}', json(?))  WHERE id = ?",
         (value, id),
     )
     await db.commit()
@@ -719,7 +671,6 @@ async def experiment_update_config(id, key, value):
 
 
 async def experiment_save_prompt_template(id, template):
-
     # The following looks the JSON blob called "config" and adds a key called "prompt_template" if it doesn't exist
     # it then sets the value of that key to the value of the template parameter
     # This is the pattern to follow for updating fields in the config JSON blob
@@ -735,8 +686,8 @@ async def experiment_save_prompt_template(id, template):
 # PLUGINS MODEL
 ###############
 
-async def get_plugins():
 
+async def get_plugins():
     cursor = await db.execute("SELECT id, * FROM plugins")
     rows = await cursor.fetchall()
     desc = cursor.description
@@ -747,7 +698,6 @@ async def get_plugins():
 
 
 async def get_plugins_of_type(type: str):
-
     cursor = await db.execute("SELECT id, * FROM plugins WHERE type = ?", (type,))
     rows = await cursor.fetchall()
     desc = cursor.description
@@ -758,7 +708,6 @@ async def get_plugins_of_type(type: str):
 
 
 async def get_plugin(slug: str):
-
     cursor = await db.execute("SELECT id, * FROM plugins WHERE name = ?", (slug,))
     row = await cursor.fetchone()
     desc = cursor.description
@@ -769,7 +718,6 @@ async def get_plugin(slug: str):
 
 
 async def save_plugin(name: str, type: str):
-
     await db.execute("INSERT OR REPLACE INTO plugins (name, type) VALUES (?, ?)", (name, type))
     await db.commit()
     return
@@ -779,8 +727,8 @@ async def save_plugin(name: str, type: str):
 # Config MODEL
 ###############
 
-async def config_get(key: str):
 
+async def config_get(key: str):
     cursor = await db.execute("SELECT value FROM config WHERE key = ?", (key,))
     row = await cursor.fetchone()
     await cursor.close()
@@ -791,7 +739,6 @@ async def config_get(key: str):
 
 
 async def config_set(key: str, value: str):
-
     await db.execute("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)", (key, value))
     await db.commit()
     return

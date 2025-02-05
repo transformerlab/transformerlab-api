@@ -32,7 +32,7 @@ from fastchat.serve.model_worker import (
     logger,
     worker_id,
 )
-from fastchat.utils import get_context_length, is_partial_stop
+from fastchat.utils import is_partial_stop
 
 import llama_cpp
 from transformers.tokenization_utils_base import BatchEncoding
@@ -73,7 +73,7 @@ class LlamaCppServer(BaseModelWorker):
         model_names: List[str],
         limit_worker_concurrency: int,
         no_register: bool,
-        llm_engine: "llama-cpp-python",
+        llm_engine: str,
         conv_template: str,
         n_gpu_layers: int = 0,
     ):

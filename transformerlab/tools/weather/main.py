@@ -108,7 +108,7 @@ def get_weather(location: str):
     else:
         return f"Failed getting details for location: {location}. (HTTP {response.status_code})"
 
-    if not data or not ("latitude" in data) or not ("longitude" in data):
+    if not data or "latitude" not in data or "longitude" not in data:
         print("Unable to read location data for location: {location}")
         print(data)
         return f"Invalid data returned for location: {location}"

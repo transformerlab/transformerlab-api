@@ -1,33 +1,28 @@
 from deepeval.metrics import BaseMetric
 from deepeval.scorer import Scorer
-from pydantic import BaseModel
-from langchain_openai import ChatOpenAI
-from deepeval.test_case import LLMTestCase, LLMTestCaseParams
-from deepeval.models.base_model import DeepEvalBaseLLM
-from deepeval.metrics import GEval
-from deepeval.dataset import EvaluationDataset
-import requests
+from deepeval.test_case import LLMTestCase
 import pandas as pd
 import argparse
-import os
 import sys
 import traceback
 from datetime import datetime
 import nltk
 import transformerlab.plugin
+from datasets import load_dataset
 
 nltk.download('punkt_tab')
 
 
 parser = argparse.ArgumentParser(
     description='Run DeepEval metrics for LLM-as-judge evaluation.')
+parser.add_argument('--run_name', default='evaluation', type=str)
 parser.add_argument('--model_name', default='gpt-j-6b', type=str,
                     help='Model to use for evaluation.')
 parser.add_argument('--experiment_name', default='', type=str)
 parser.add_argument('--eval_name', default='', type=str)
 parser.add_argument('--metrics', default='', type=str)
 parser.add_argument("--model_adapter", default=None, type=str,)
-parser.add_argument("--dataset_path", default=None, type=str,)
+parser.add_argument("--dataset_name", default=None, type=str,)
 parser.add_argument("--output_path", default=None, type=str,)
 parser.add_argument("--experiment_run_name", default=None, type=str,)
 parser.add_argument("--threshold", default=0.5, type=float)
@@ -36,6 +31,7 @@ parser.add_argument("--job_id", default=None, type=str)
 args, other = parser.parse_known_args()
 
 args.metrics = args.metrics.split(',')
+original_metric_names = args.metrics
 args.metrics = [metric.lower().replace(' ', '_') for metric in args.metrics]
 
 # Set experiment name if None
@@ -49,6 +45,28 @@ if args.job_id:
 else:
     print("Job ID not provided.")
     sys.exit(1)
+
+
+def get_tflab_dataset():
+    try:
+        dataset_target = transformerlab.plugin.get_dataset_path(
+            args.dataset_name)
+    except Exception as e:
+        job.set_job_completion_status("failed", "Failure to get dataset")
+        raise e
+    dataset = {}
+    dataset_types = ["train"]
+    for dataset_type in dataset_types:
+        try:
+            dataset[dataset_type] = load_dataset(
+                dataset_target, split=dataset_type, trust_remote_code=True)
+
+        except Exception as e:
+            job.set_job_completion_status("failed", "Failure to load dataset")
+            raise e
+    # Convert the dataset to a pandas dataframe
+    df = dataset['train'].to_pandas()
+    return df
 
 
 class RougeMetric(BaseMetric):
@@ -227,7 +245,8 @@ metric_classes = {
 def run_evaluation():
     try:
         # Load the csv file
-        df = pd.read_csv(args.dataset_path)
+        # df = pd.read_csv(args.dataset_path)
+        df = get_tflab_dataset()
         # Check if `input`, `output` and `expected_output` columns exist
         assert "input" in df.columns, "Input column not found in the dataset. Please make sure the column name is `input`"
         assert "output" in df.columns, "Output column not found in the dataset. Please make sure the column name is `output`"
@@ -273,16 +292,19 @@ def run_evaluation():
         job.update_progress(60)
         # Save the metrics to a csv file
         metrics_df = pd.DataFrame(metrics)
-        output_path = f"{args.output_path}/{args.experiment_run_name}.csv" if args.output_path else f"{args.experiment_run_name}.csv"
+        output_path = f"{args.output_path}/{args.run_name}.csv" if args.output_path else f"{args.run_name}.csv"
         metrics_df.to_csv(output_path, index=False)
-        print("Average Score: ", metrics_df['score'].mean())
+
+        for idx, metric in enumerate(args.metrics):
+            print(
+                f"Average {original_metric_names[idx]} score: {metrics_df[metrics_df['metric_name'] == metric]['score'].mean()}")
         print(f"Metrics saved to {output_path}")
         print("Evaluation completed.")
         job.update_progress(100)
         score_list = []
         for metric in args.metrics:
-            score_list.append({"type": metric, "score": metrics_df[metrics_df['metric_name']
-                                                                   == metric]['score'].mean()})
+            score_list.append({"type": metric, "score": round(metrics_df[metrics_df['metric_name']
+                                                                         == metric]['score'].mean(), 4)})
         job.set_job_completion_status(
             "success", "Evaluation completed successfully.", score=score_list)
     except Exception as e:

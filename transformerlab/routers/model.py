@@ -1,4 +1,3 @@
-from collections import namedtuple
 import json
 import shutil
 import datetime
@@ -6,7 +5,6 @@ import dateutil.relativedelta
 from typing import Annotated
 import transformerlab.db as db
 from fastapi import APIRouter, Body
-from fastapi.responses import FileResponse
 from fastchat.model.model_adapter import get_conversation_template
 from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi
 from huggingface_hub import ModelCard, ModelCardData
@@ -638,7 +636,7 @@ async def import_error(message: str):
     """
     Separate function just to factor out printing and returning the same error.
     """
-    print(f"Import error:", message)
+    print("Import error:", message)
     return {"status": "error", "message": message}
 
 
@@ -657,7 +655,7 @@ async def model_import(model: basemodel.BaseModel):
     if await model.is_installed():
         return import_error(f"{model.id} is already installed.")
     if architecture == "unknown" or architecture == "":
-        return import_error(f"Unable to determine model architecture.")
+        return import_error("Unable to determine model architecture.")
     if not model_helper.model_architecture_is_supported(architecture):
         return import_error(f"Architecture {architecture} not supported.")
 

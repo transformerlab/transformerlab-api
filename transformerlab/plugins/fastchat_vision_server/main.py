@@ -1,15 +1,11 @@
 """
 A model worker that executes the model.
 """
+
 import sys
 import os
-import subprocess
 import argparse
-from transformers import (
-    AutoTokenizer,
-    AutoModelForPreTraining,
-    AutoProcessor
-)
+from transformers import AutoTokenizer, AutoModelForPreTraining, AutoProcessor
 import uvicorn
 import atexit
 from transformers import set_seed
@@ -20,26 +16,19 @@ from PIL import Image
 from io import BytesIO
 import uuid
 from typing import List, Optional, Dict
-from fastapi import FastAPI, Request, BackgroundTasks
+from fastapi import Request, BackgroundTasks
 
 import json
 import gc
 import base64
-import argparse
 from fastchat.constants import ErrorCode, SERVER_ERROR_MSG
-from fastchat.model.model_adapter import (
-    add_model_args,
-    get_generate_stream_function,
-)
 from fastchat.modules.awq import AWQConfig
 from fastchat.modules.exllama import ExllamaConfig
 from fastchat.modules.xfastertransformer import XftConfig
 from fastchat.modules.gptq import GptqConfig
 from fastchat.serve.base_model_worker import BaseModelWorker, app
 from fastchat.utils import (
-    build_logger,
     get_context_length,
-    str_to_torch_dtype,
 )
 from transformers.generation.logits_process import (
     LogitsProcessorList,
@@ -60,8 +49,7 @@ def prepare_logits_processor(
     if temperature >= 1e-5 and temperature != 1.0:
         processor_list.append(TemperatureLogitsWarper(temperature))
     if repetition_penalty > 1.0:
-        processor_list.append(
-            RepetitionPenaltyLogitsProcessor(repetition_penalty))
+        processor_list.append(RepetitionPenaltyLogitsProcessor(repetition_penalty))
     if 1e-8 <= top_p < 1.0:
         processor_list.append(TopPLogitsWarper(top_p))
     if top_k > 0:
@@ -71,7 +59,11 @@ def prepare_logits_processor(
 
 def load_model(model_path, from_pretrained_kwargs: dict = {}):
     model = AutoModelForPreTraining.from_pretrained(
-        model_path, trust_remote_code=True, device_map="auto", torch_dtype=from_pretrained_kwargs.get("torch_dtype", None))
+        model_path,
+        trust_remote_code=True,
+        device_map="auto",
+        torch_dtype=from_pretrained_kwargs.get("torch_dtype", None),
+    )
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     tokenizer.add_tokens(
         [
@@ -127,8 +119,8 @@ def generate_stream(
         image_link = image_link[0]  # only supports single images
     image = None
     if image_link and image_link != []:
-        if image_link.startswith('data:image'):
-            base64_str_index = image_link.find('base64,') + 7
+        if image_link.startswith("data:image"):
+            base64_str_index = image_link.find("base64,") + 7
             image_data = base64.b64decode(image_link[base64_str_index:])
             image = Image.open(BytesIO(image_data))
         else:
@@ -141,9 +133,7 @@ def generate_stream(
     if tokenizer.eos_token_id not in stop_token_ids:
         stop_token_ids.append(tokenizer.eos_token_id)
 
-    logits_processor = prepare_logits_processor(
-        temperature, repetition_penalty, top_p, top_k
-    )
+    logits_processor = prepare_logits_processor(temperature, repetition_penalty, top_p, top_k)
     input_ids = tokenizer(prompt).input_ids
 
     if model.config.is_encoder_decoder:
@@ -159,9 +149,7 @@ def generate_stream(
         # FIXME: Support logprobs for encoder-decoder models.
         if logprobs is not None:
             raise NotImplementedError
-        encoder_output = model.encoder(
-            input_ids=torch.as_tensor([input_ids], device=device)
-        )[0]
+        encoder_output = model.encoder(input_ids=torch.as_tensor([input_ids], device=device))[0]
         start_ids = torch.as_tensor(
             [[model.generation_config.decoder_start_token_id]],
             dtype=torch.int64,
@@ -186,9 +174,17 @@ def generate_stream(
                 logits = model.lm_head(out[0])
             else:
                 # Processor must return attention_mask and pixel_values
-                if inputs is not None and inputs.get("pixel_values", None) != None and inputs.get("attention_mask", None) != None:
-                    out = model(input_ids=start_ids, pixel_values=inputs["pixel_values"].to(
-                        device), attention_mask=inputs["attention_mask"].to(device), use_cache=True)
+                if (
+                    inputs is not None
+                    and inputs.get("pixel_values", None) is not None
+                    and inputs.get("attention_mask", None) is not None
+                ):
+                    out = model(
+                        input_ids=start_ids,
+                        pixel_values=inputs["pixel_values"].to(device),
+                        attention_mask=inputs["attention_mask"].to(device),
+                        use_cache=True,
+                    )
                 else:
                     out = model(input_ids=start_ids, use_cache=True)
                 logits = out.logits
@@ -199,9 +195,7 @@ def generate_stream(
                 shift_input_ids = start_ids[..., 1:].contiguous()
                 shift_logits = logits[..., :-1, :].contiguous()
                 shift_logits = torch.log_softmax(shift_logits, dim=-1).tolist()
-                for label_id, logit in zip(
-                    shift_input_ids[0].tolist(), shift_logits[0]
-                ):
+                for label_id, logit in zip(shift_input_ids[0].tolist(), shift_logits[0]):
                     token_logprobs.append(logit[label_id])
         else:  # decoding
             if model.config.is_encoder_decoder:
@@ -232,12 +226,10 @@ def generate_stream(
 
         if logits_processor:
             if repetition_penalty > 1.0:
-                tmp_output_ids = torch.as_tensor(
-                    [output_ids], device=logits.device)
+                tmp_output_ids = torch.as_tensor([output_ids], device=logits.device)
             else:
                 tmp_output_ids = None
-            last_token_logits = logits_processor(
-                tmp_output_ids, logits[:, -1, :])[0]
+            last_token_logits = logits_processor(tmp_output_ids, logits[:, -1, :])[0]
         else:
             last_token_logits = logits[0, -1, :]
 
@@ -256,9 +248,7 @@ def generate_stream(
         output_ids.append(token)
         if logprobs is not None:
             # Cannot use last_token_logits because logprobs is based on raw logits.
-            token_logprobs.append(
-                torch.log_softmax(logits[0, -1, :], dim=-1)[token].tolist()
-            )
+            token_logprobs.append(torch.log_softmax(logits[0, -1, :], dim=-1)[token].tolist())
 
         if token in stop_token_ids:
             stopped = True
@@ -285,16 +275,10 @@ def generate_stream(
                 ret_logprobs = {
                     "text_offset": [],
                     "tokens": [
-                        tokenizer.decode(token)
-                        for token in (
-                            output_ids if echo else output_ids[input_echo_len:]
-                        )
+                        tokenizer.decode(token) for token in (output_ids if echo else output_ids[input_echo_len:])
                     ],
-                    "token_logprobs": token_logprobs
-                    if echo
-                    else token_logprobs[input_echo_len:],
-                    "top_logprobs": [{}]
-                    * len(token_logprobs if echo else token_logprobs[input_echo_len:]),
+                    "token_logprobs": token_logprobs if echo else token_logprobs[input_echo_len:],
+                    "top_logprobs": [{}] * len(token_logprobs if echo else token_logprobs[input_echo_len:]),
                 }
                 # Compute text_offset
                 curr_pos = 0
@@ -329,8 +313,7 @@ def generate_stream(
                             stopped = True
                             break
                         else:
-                            partially_stopped = is_partial_stop(
-                                output, each_stop)
+                            partially_stopped = is_partial_stop(output, each_stop)
                             if partially_stopped:
                                 break
                 else:
@@ -418,8 +401,7 @@ class ModelWorker(BaseModelWorker):
             conv_template=conv_template,
         )
 
-        print(
-            f"Loading the model {self.model_names} on worker {worker_id} ...")
+        print(f"Loading the model {self.model_names} on worker {worker_id} ...")
         kwargs = {}
         if device == "cpu":
             kwargs["torch_dtype"] = torch.float32
@@ -427,10 +409,7 @@ class ModelWorker(BaseModelWorker):
             kwargs["torch_dtype"] = torch.float16
         elif device == "xpu":
             kwargs["torch_dtype"] = torch.bfloat16
-        loaded_model = load_model(
-            model_path,
-            kwargs
-        )
+        loaded_model = load_model(model_path, kwargs)
         self.processor = None
         if len(loaded_model) == 3:
             self.model, self.tokenizer, self.processor = loaded_model
@@ -525,9 +504,7 @@ class ModelWorker(BaseModelWorker):
 
     def __encode_base64(self, embeddings: torch.Tensor) -> List[str]:
         embeddings = embeddings.cpu()
-        return [
-            base64.b64encode(e.numpy().tobytes()).decode("utf-8") for e in embeddings
-        ]
+        return [base64.b64encode(e.numpy().tobytes()).decode("utf-8") for e in embeddings]
 
     @torch.inference_mode()
     def get_embeddings(self, params):
@@ -554,22 +531,15 @@ class ModelWorker(BaseModelWorker):
                     max_length=self.context_len,
                 )
             else:
-                encoding = tokenizer.batch_encode_plus(
-                    params["input"], padding=True, return_tensors="pt"
-                )
+                encoding = tokenizer.batch_encode_plus(params["input"], padding=True, return_tensors="pt")
             input_ids = encoding["input_ids"].to(self.device)
             attention_mask = input_ids != tokenizer.pad_token_id
 
             base64_encode = params.get("encoding_format", None)
 
             if self.embed_in_truncate:
-                embedding, token_num = self.__process_embed_chunk(
-                    input_ids, attention_mask, **model_type_dict
-                )
-                if (
-                    not hasattr(self.model, "use_cls_pooling")
-                    or not self.model.use_cls_pooling
-                ):
+                embedding, token_num = self.__process_embed_chunk(input_ids, attention_mask, **model_type_dict)
+                if not hasattr(self.model, "use_cls_pooling") or not self.model.use_cls_pooling:
                     embedding = embedding / token_num
                 normalized_embeddings = F.normalize(embedding, p=2, dim=1)
                 ret["token_num"] = token_num
@@ -577,15 +547,11 @@ class ModelWorker(BaseModelWorker):
                 all_embeddings = []
                 all_token_num = 0
                 for i in range(0, input_ids.size(1), self.context_len):
-                    chunk_input_ids = input_ids[:, i: i + self.context_len]
-                    chunk_attention_mask = attention_mask[:,
-                                                          i: i + self.context_len]
+                    chunk_input_ids = input_ids[:, i : i + self.context_len]
+                    chunk_attention_mask = attention_mask[:, i : i + self.context_len]
 
                     # add cls token and mask to get cls embedding
-                    if (
-                        hasattr(self.model, "use_cls_pooling")
-                        and self.model.use_cls_pooling
-                    ):
+                    if hasattr(self.model, "use_cls_pooling") and self.model.use_cls_pooling:
                         cls_tokens = (
                             torch.zeros(
                                 (chunk_input_ids.size(0), 1),
@@ -594,33 +560,25 @@ class ModelWorker(BaseModelWorker):
                             )
                             + tokenizer.cls_token_id
                         )
-                        chunk_input_ids = torch.cat(
-                            [cls_tokens, chunk_input_ids], dim=-1
-                        )
+                        chunk_input_ids = torch.cat([cls_tokens, chunk_input_ids], dim=-1)
                         mask = torch.ones(
                             (chunk_attention_mask.size(0), 1),
                             dtype=chunk_attention_mask.dtype,
                             device=chunk_attention_mask.device,
                         )
-                        chunk_attention_mask = torch.cat(
-                            [mask, chunk_attention_mask], dim=-1
-                        )
+                        chunk_attention_mask = torch.cat([mask, chunk_attention_mask], dim=-1)
 
                     chunk_embeddings, token_num = self.__process_embed_chunk(
                         chunk_input_ids, chunk_attention_mask, **model_type_dict
                     )
-                    if (
-                        hasattr(self.model, "use_cls_pooling")
-                        and self.model.use_cls_pooling
-                    ):
+                    if hasattr(self.model, "use_cls_pooling") and self.model.use_cls_pooling:
                         all_embeddings.append(chunk_embeddings * token_num)
                     else:
                         all_embeddings.append(chunk_embeddings)
                     all_token_num += token_num
 
                 all_embeddings_tensor = torch.stack(all_embeddings)
-                embedding = torch.sum(
-                    all_embeddings_tensor, dim=0) / all_token_num
+                embedding = torch.sum(all_embeddings_tensor, dim=0) / all_token_num
                 normalized_embeddings = F.normalize(embedding, p=2, dim=1)
 
                 ret["token_num"] = all_token_num
@@ -713,6 +671,8 @@ async def api_get_conv(request: Request):
 @app.post("/model_details")
 async def api_model_details(request: Request):
     return {"context_length": worker.context_len}
+
+
 worker = None
 
 
@@ -731,19 +691,16 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", type=str, default="localhost")
     parser.add_argument("--port", type=int, default=21002)
-    parser.add_argument("--worker-address", type=str,
-                        default="http://localhost:21002")
-    parser.add_argument(
-        "--controller-address", type=str, default="http://localhost:21001"
-    )
-    parser.add_argument('--model-path', type=str)
-    parser.add_argument('--adaptor-path', type=str)
+    parser.add_argument("--worker-address", type=str, default="http://localhost:21002")
+    parser.add_argument("--controller-address", type=str, default="http://localhost:21001")
+    parser.add_argument("--model-path", type=str)
+    parser.add_argument("--adaptor-path", type=str)
     parser.add_argument(
         "--model-names",
         type=lambda s: s.split(","),
         help="Optional display comma separated names",
     )
-    parser.add_argument('--parameters', type=str, default="{}")
+    parser.add_argument("--parameters", type=str, default="{}")
 
     args, unknown = parser.parse_known_args()
 
@@ -758,7 +715,7 @@ def main():
     parameters = args.parameters
     parameters = json.loads(parameters)
 
-    if (parameters.get("eight_bit") == 'on'):
+    if parameters.get("eight_bit") == "on":
         eight_bit = True
     else:
         eight_bit = False
@@ -777,7 +734,7 @@ def main():
             device = "cpu"
             num_gpus = 0
 
-    llmlab_root_dir = os.getenv('LLM_LAB_ROOT_PATH')
+    llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
 
     # controller_addr: str,
     # worker_addr: str,
@@ -812,7 +769,7 @@ def main():
         if "torch.cuda.OutOfMemoryError" in line.decode("utf-8"):
             print("CUDA Out of memory error", file=sys.stderr)
             sys.exit(99)  # 99 is our code for CUDA OOM
-        print(line.decode('utf-8'), file=sys.stderr)
+        print(line.decode("utf-8"), file=sys.stderr)
 
     print("FastChat Worker exited", file=sys.stderr)
     sys.exit(1)

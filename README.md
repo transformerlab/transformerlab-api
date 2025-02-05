@@ -14,6 +14,8 @@
   </p>
 </div>
 
+[![Pytest](https://github.com/transformerlab/transformerlab-api/actions/workflows/pytest.yml/badge.svg)](https://github.com/transformerlab/transformerlab-api/actions/workflows/pytest.yml)
+
 # API for Transformer Lab
 
 This is the API for the [Transformer Lab App](https://github.com/transformerlab/transformerlab-app) which is the main repo for this project. Please go the Transformer Lab App repository to learn more and access documentation.

@@ -8,14 +8,12 @@ CUDA_VISIBLE_DEVICES=0 llamafactory-cli train examples/lora_single_gpu/llama3_lo
 
 """
 import os
-import sys
 import subprocess
 import time
 
 import json
 import yaml
 import re
-import sqlite3
 import argparse
 
 import transformerlab.plugin
@@ -95,14 +93,14 @@ try:
     dataset_target = transformerlab.plugin.get_dataset_path(
         config["dataset_name"])
 except Exception as e:
-    job.set_job_completion_status("failed", f"Failure to load dataset")
+    job.set_job_completion_status("failed", "Failure to load dataset")
     raise e 
 
 try:
     dataset = load_dataset(
         dataset_target, split='train', trust_remote_code=True)
 except Exception as e:
-    job.set_job_completion_status("failed", f"Failure to load dataset")
+    job.set_job_completion_status("failed", "Failure to load dataset")
     raise e
 
 print(
@@ -166,7 +164,7 @@ try:
     os.system(
         f"cp {plugin_dir}/LLaMA-Factory/examples/train_lora/llama3_lora_sft.yaml {yaml_config_path}")
 except Exception as e:
-    job.set_job_completion_status("failed", f"failed to copy template file")
+    job.set_job_completion_status("failed", "failed to copy template file")
     raise e
 # Now replace specific values in the file using the PyYAML library:
 
@@ -178,7 +176,7 @@ with open(yaml_config_path, 'r') as file:
 try:
     create_data_directory_in_llama_factory_format()
 except Exception as e:
-    job.set_job_completion_status("failed", f"failed to create data directory")
+    job.set_job_completion_status("failed", "failed to create data directory")
     raise e
 
 print("Template configuration:")
@@ -247,7 +245,7 @@ with subprocess.Popen(
     
     return_code = process.wait()
 
-    if return_code!=0 and not "TypeError: DPOTrainer.create_model_card() got an unexpected keyword argument 'license'" in error_output:
+    if return_code!=0 and "TypeError: DPOTrainer.create_model_card() got an unexpected keyword argument 'license'" not in error_output:
         job.set_job_completion_status("failed", "failed during training")
         raise RuntimeError(f"Training failed: {error_output}")
 
@@ -307,7 +305,7 @@ with subprocess.Popen(
             "local_model": True,
             "json_data": {
                 "uniqueID": f"TransformerLab/{fused_model_name}",
-                "name": f"sft_llama_factory",
+                "name": "sft_llama_factory",
                 "description": f"Model generated using Llama Factory in TransformerLab based on {config['model_name']}",
                 "architecture": config["model_architecture"],
                 "huggingface_repo": ""

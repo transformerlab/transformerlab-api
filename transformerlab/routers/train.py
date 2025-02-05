@@ -5,7 +5,7 @@ import os
 import subprocess
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Body
+from fastapi import APIRouter, Body
 from fastapi.responses import PlainTextResponse, StreamingResponse
 
 import transformerlab.db as db

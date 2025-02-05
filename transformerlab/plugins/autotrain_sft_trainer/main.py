@@ -1,6 +1,5 @@
 import json
 import re
-from string import Template
 import subprocess
 import time
 from datasets import load_dataset
@@ -21,7 +20,7 @@ TLAB_CODE_DIR = WORKSPACE_DIR
 
 # Get all parameters provided to this script from Transformer Lab
 parser = argparse.ArgumentParser()
-parser.add_argument('--input_file', type=str)
+parser.add_argument("--input_file", type=str)
 args, unknown = parser.parse_known_args()
 
 input_config = None
@@ -41,23 +40,21 @@ batch_size = config.get("batch_size", 4)
 num_train_epochs = config.get("num_train_epochs", 4)
 
 # Generate a model name using the original model and the passed adaptor
-adaptor_name = config.get('adaptor_name', "default")
+adaptor_name = config.get("adaptor_name", "default")
 input_model_no_author = config["model_name"].split("/")[-1]
 
-project_name = f"{input_model_no_author}-{adaptor_name}".replace(".","")
+project_name = f"{input_model_no_author}-{adaptor_name}".replace(".", "")
 
 # Get the dataset
 try:
-    dataset_target = transformerlab.plugin.get_dataset_path(
-        config["dataset_name"])
+    dataset_target = transformerlab.plugin.get_dataset_path(config["dataset_name"])
 except Exception as e:
     job.set_job_completion_status("failed", "Failure to get dataset")
     raise e
 
 dataset_types = ["train", "test"]
 dataset = {}
-formatting_template = jinja_environment.from_string(
-    config["formatting_template"])
+formatting_template = jinja_environment.from_string(config["formatting_template"])
 
 # Directory for storing temporary working files
 data_directory = os.path.join(plugin_dir, "data")
@@ -65,26 +62,23 @@ if not os.path.exists(data_directory):
     os.makedirs(data_directory)
 
 for dataset_type in dataset_types:
-
     # Load dataset
     try:
-        dataset[dataset_type] = load_dataset(
-            dataset_target, split=dataset_type, trust_remote_code=True)
+        dataset[dataset_type] = load_dataset(dataset_target, split=dataset_type, trust_remote_code=True)
 
-    except ValueError as e:
+    except ValueError:
         # This is to catch this error-> ValueError: Unknown split "test". Should be one of ['train']
         # Generally that means there is a single file in the dataset and we're trying to make a test dataset
         # So we're going to ignore that! (Unless we're trying to load the train dataset...check that)
-        if (dataset_target == "train"):
+        if dataset_target == "train":
             job.set_job_completion_status("failed", "Failure to load dataset")
             raise
 
-        print(f"Continuing without any data for \"{dataset_type}\" slice.")
+        print(f'Continuing without any data for "{dataset_type}" slice.')
         # print(">", str(e))
         continue
 
-    print(
-        f"Loaded {dataset_type} dataset with {len(dataset[dataset_type])} examples.")
+    print(f"Loaded {dataset_type} dataset with {len(dataset[dataset_type])} examples.")
 
     # output training files in templated format in to data directory
     with open(f"{data_directory}/{dataset_type}.jsonl", "w") as f:
@@ -100,26 +94,34 @@ for dataset_type in dataset_types:
             f.write(json.dumps(o) + "\n")
 
 # copy file test.jsonl to valid.jsonl. Our test set is the same as our validation set.
-os.system(
-    f"cp {data_directory}/test.jsonl {data_directory}/valid.jsonl")
+os.system(f"cp {data_directory}/test.jsonl {data_directory}/valid.jsonl")
 
 print("Example formatted training example:")
 example = formatting_template.render(dataset["train"][1])
 print(example)
 
-popen_command = ["autotrain", "llm",
-                 "--train",
-                 "--model", config["model_name"],
-                 "--data-path", data_directory,
-                 "--lr", learning_rate,
-                 "--batch-size", batch_size,
-                 "--epochs", num_train_epochs,
-                 "--trainer", "sft",
-                 "--peft",
-                 "--merge-adapter",
-                 "--auto_find_batch_size",  # automatically find optimal batch size
-                 "--project-name", project_name 
-                 ]
+popen_command = [
+    "autotrain",
+    "llm",
+    "--train",
+    "--model",
+    config["model_name"],
+    "--data-path",
+    data_directory,
+    "--lr",
+    learning_rate,
+    "--batch-size",
+    batch_size,
+    "--epochs",
+    num_train_epochs,
+    "--trainer",
+    "sft",
+    "--peft",
+    "--merge-adapter",
+    "--auto_find_batch_size",  # automatically find optimal batch size
+    "--project-name",
+    project_name,
+]
 
 print("Running command:")
 print(popen_command)
@@ -139,8 +141,8 @@ job.set_tensorboard_output_dir(output_dir)
 
 try:
     with subprocess.Popen(
-        popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True) as process:
-
+        popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True
+    ) as process:
         iteration = 0
         it_per_sec = 0
         percent_complete = 0
@@ -195,20 +197,17 @@ except Exception as e:
 # Autotrain outputs its data in a directory named <project_name>
 # We don't need to keep the arrow-formatted data Autotrain uses, so we delete it
 try:
-    os.system(
-        f"rm -rf {project_name}/autotrain_data")
-except:
-    print("failed to delete unneccesary data")
-    #No exception raised here or stats set, as this data just gets ignored later
+    os.system(f"rm -rf {project_name}/autotrain_data")
+except Exception as e:
+    print(f"Failed to delete unnecessary data: {e}")
+    # No exception raised here or stats set, as this data just gets ignored later
 
 # Move the model to the TransformerLab directory
 try:
-    os.system(
-        f"mv {project_name} {config['adaptor_output_dir']}/")
+    os.system(f"mv {project_name} {config['adaptor_output_dir']}/")
 except Exception as e:
     job.set_job_completion_status("failed", "Failure to move model to transformerlab directory")
     raise e
-
 
 
 print("Finished training.")

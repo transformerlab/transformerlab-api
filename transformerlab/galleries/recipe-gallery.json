@@ -3,23 +3,47 @@
         "schemaVersion": "0.1",
         "metadata": {
             "author": "",
-            "version": "0.1",
-            "name": "WikiSQL-MLX",
-            "description": "Trains a model to answer SQL queries. Adapted from https://github.com/ml-explore/mlx-examples/"
+            "name": "Dialogue Summarizing",
+            "version": "1.0",
+            "description": "Trains TinyLlama to summarize conversations."
         },
         "model": {
-            "name": "meta-llama/Llama-3.2-1B",
-            "path": "meta-llama/Llama-3.2-1B"
+            "name": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+            "path": "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
         },
         "datasets": {
-            "name": "mlx-community/wikisql",
-            "path": "mlx-community/wikisql"
+            "name": "samsum",
+            "path": "samsum"
         },
         "training": {
             "type": "LoRA",
-            "plugin": "mlx_lora_trainer",
-            "formatting_template": "Given the following description of an SQL table and its columns, provide the corresponding SQL to answer the question. {{text}}",
-            "config_json": "{\"template_name\":\"WikiSQL\",\"plugin_name\":\"mlx_lora_trainer\",\"model_name\":\"meta-llama/Llama-3.2-1B\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"Given the following description of an SQL table and its columns, provide the corresponding SQL to answer the question.\\n{{text}}\",\"dataset_name\":\"mlx-community/wikisql\",\"lora_layers\":\"8\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"8\",\"lora_alpha\":\"160\",\"iters\":\"200\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"50\",\"save_every\":\"50\",\"adaptor_name\":\"ml-qa\"}"
+            "plugin": "llama_trainer",
+            "formatting_template": "Instruction: Summarize the Following\nPrompt: {{dialogue}}\nGeneration: {{summary}}",
+            "config_json": "{\"template_name\": \"Dialogue Summarizer\", \"plugin_name\": \"llama_trainer\", \"model_name\": \"TinyLlama/TinyLlama-1.1B-Chat-v1.0\", \"model_architecture\": \"LlamaForCausalLM\", \"formatting_template\": \"Instruction: Summarize the Following\\nPrompt: {{dialogue}}\\nGeneration: {{summary}}\", \"dataset_name\": \"samsum\", \"maximum_sequence_length\": \"2048\", \"batch_size\": \"4\", \"learning_rate\": \"0.00005\", \"num_train_epochs\": \"1\", \"max_steps\": \"-1\", \"lora_r\": \"32\", \"lora_alpha\": \"64\", \"lora_dropout\": \"0.05\", \"adaptor_name\": \"Summarizer\"}"
+        },
+        "test": {}
+    },
+    {
+        "schemaVersion": "0.1",
+        "metadata": {
+            "author": "",
+            "version": "1.0",
+            "name": "MachineLearningQnA",
+            "description": "Trains a Qwen 2.5 model to answer machine learning questions"
+        },
+        "model": {
+            "name": "Qwen/Qwen2.5-1.5B-Instruct",
+            "path": "Qwen/Qwen2.5-1.5B-Instruct"
+        },
+        "datasets": {
+            "name": "win-wang/Machine_Learning_QA_Collection",
+            "path": "win-wang/Machine_Learning_QA_Collection"
+        },
+        "training": {
+            "type": "LoRA",
+            "plugin": "llama_trainer",
+            "formatting_template": "{{text}}",
+            "config_json": "{\"template_name\":\"MachineLearningQA\",\"plugin_name\":\"llama_trainer\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"formatting_template\":\"{{text}}\\n\",\"dataset_name\":\"win-wang/Machine_Learning_QA_Collection\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"1\",\"learning_rate\":\"0.00005\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"16\",\"lora_alpha\":\"64\",\"lora_dropout\":\"0.1\",\"adaptor_name\":\"ML-QA\"}"
         },
         "test": {}
     },
@@ -44,6 +68,30 @@
             "plugin": "mlx_lora_trainer",
             "formatting_template": "{{text}}",
             "config_json": "{\"template_name\":\"MachineLearningQnA\",\"plugin_name\":\"mlx_lora_trainer\",\"model_name\":\"google/gemma-2-2b-it\",\"model_architecture\":\"Gemma2ForCausalLM\",\"formatting_template\":\"{{text}}\", \"dataset_name\":\"win-wang/Machine_Learning_QA_Collection\",\"lora_layers\":\"8\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"8\",\"lora_alpha\":\"160\",\"iters\":\"200\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"50\",\"save_every\":\"50\",\"adaptor_name\":\"ml-qa\"}"
+        },
+        "test": {}
+    },
+    {
+        "schemaVersion": "0.1",
+        "metadata": {
+            "author": "",
+            "version": "0.1",
+            "name": "WikiSQL-MLX",
+            "description": "Trains a model to answer SQL queries. Adapted from https://github.com/ml-explore/mlx-examples/"
+        },
+        "model": {
+            "name": "meta-llama/Llama-3.2-1B",
+            "path": "meta-llama/Llama-3.2-1B"
+        },
+        "datasets": {
+            "name": "mlx-community/wikisql",
+            "path": "mlx-community/wikisql"
+        },
+        "training": {
+            "type": "LoRA",
+            "plugin": "mlx_lora_trainer",
+            "formatting_template": "Given the following description of an SQL table and its columns, provide the corresponding SQL to answer the question. {{text}}",
+            "config_json": "{\"template_name\":\"WikiSQL\",\"plugin_name\":\"mlx_lora_trainer\",\"model_name\":\"meta-llama/Llama-3.2-1B\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"Given the following description of an SQL table and its columns, provide the corresponding SQL to answer the question.\\n{{text}}\",\"dataset_name\":\"mlx-community/wikisql\",\"lora_layers\":\"8\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"8\",\"lora_alpha\":\"160\",\"iters\":\"200\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"50\",\"save_every\":\"50\",\"adaptor_name\":\"ml-qa\"}"
         },
         "test": {}
     },
@@ -115,31 +163,7 @@
             "type": "LoRA",
             "plugin": "llama_trainer",
             "formatting_template": "Instruction: {{instruction}}\nResponse: {{response}}",
-            "config_json": "{\"template_name\": \"Pirate Speech\", \"plugin_name\": \"llama_trainer\", \"model_name\": \"TinyLlama/TinyLlama-1.1B-Chat-v1.0\", \"model_architecture\": \"LlamaForCausalLM\", \"formatting_template\": \"Instruction: {{instruction}}\\nResponse: {{response}}\", \"dataset_name\": \"Peyton3995/dolly-15k-mistral-pirate\", \"maximum_sequence_length\": \"2048\", \"learning_rate\": \"0.004\", \"num_train_epochs\": \"1\", \"max_steps\": \"-1\", \"lora_r\": \"32\", \"lora_alpha\": \"64\", \"lora_dropout\": \"0.05\", \"adaptor_name\": \"Pirate_Speech\"}"
-        },
-        "test": {}
-    },
-    {
-        "schemaVersion": "0.1",
-        "metadata": {
-            "author": "",
-            "name": "Dialogue Summarizing",
-            "version": "1.0",
-            "description": "Trains TinyLlama to summarize conversations."
-        },
-        "model": {
-            "name": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-            "path": "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
-        },
-        "datasets": {
-            "name": "samsum",
-            "path": "samsum"
-        },
-        "training": {
-            "type": "LoRA",
-            "plugin": "llama_trainer",
-            "formatting_template": "Instruction: Summarize the Following\nPrompt: {{dialogue}}\nGeneration: {{summary}}",
-            "config_json": "{\"template_name\": \"Dialogue Summarizer\", \"plugin_name\": \"llama_trainer\", \"model_name\": \"TinyLlama/TinyLlama-1.1B-Chat-v1.0\", \"model_architecture\": \"LlamaForCausalLM\", \"formatting_template\": \"Instruction: Summarize the Following\\nPrompt: {{dialogue}}\\nGeneration: {{summary}}\", \"dataset_name\": \"samsum\", \"maximum_sequence_length\": \"2048\", \"learning_rate\": \"0.00005\", \"num_train_epochs\": \"1\", \"max_steps\": \"-1\", \"lora_r\": \"32\", \"lora_alpha\": \"64\", \"lora_dropout\": \"0.05\", \"adaptor_name\": \"Summarizer\"}"
+            "config_json": "{\"template_name\": \"Pirate Speech\", \"plugin_name\": \"llama_trainer\", \"model_name\": \"TinyLlama/TinyLlama-1.1B-Chat-v1.0\", \"model_architecture\": \"LlamaForCausalLM\", \"formatting_template\": \"Instruction: {{instruction}}\\nResponse: {{response}}\", \"dataset_name\": \"Peyton3995/dolly-15k-mistral-pirate\", \"maximum_sequence_length\": \"2048\", \"batch_size\": \"4\", \"learning_rate\": \"0.004\", \"num_train_epochs\": \"1\", \"max_steps\": \"-1\", \"lora_r\": \"32\", \"lora_alpha\": \"64\", \"lora_dropout\": \"0.05\", \"adaptor_name\": \"Pirate_Speech\"}"
         },
         "test": {}
     },
@@ -148,22 +172,22 @@
         "metadata": {
             "author": "",
             "version": "1.0",
-            "name": "MachineLearningQnA",
-            "description": "Trains a Qwen 2.5 model to answer machine learning questions"
+            "name": "Instruct Tuning",
+            "description": "Trains a SmolLM base model to be conversational, and use a specific instruct format(XML tags)"
         },
         "model": {
-            "name": "Qwen/Qwen2.5-1.5B-Instruct",
-            "path": "Qwen/Qwen2.5-1.5B-Instruct"
+            "name": "HuggingFaceTB/SmolLM2-135M",
+            "path": "HuggingFaceTB/SmolLM2-135M"
         },
         "datasets": {
-            "name": "win-wang/Machine_Learning_QA_Collection",
-            "path": "win-wang/Machine_Learning_QA_Collection"
+            "name": "nickrosh/Evol-Instruct-Code-80k-v1",
+            "path": "nickrosh/Evol-Instruct-Code-80k-v1"
         },
         "training": {
             "type": "LoRA",
             "plugin": "llama_trainer",
-            "formatting_template": "{{text}}",
-            "config_json": "{\"template_name\":\"MachineLearningQA\",\"plugin_name\":\"llama_trainer\",\"model_name\":\"Qwen/Qwen2.5-1.5B-Instruct\",\"model_architecture\":\"Qwen2ForCausalLM\",\"formatting_template\":\"{{text}}\\n\",\"dataset_name\":\"win-wang/Machine_Learning_QA_Collection\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"1\",\"learning_rate\":\"0.00005\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"16\",\"lora_alpha\":\"64\",\"lora_dropout\":\"0.1\",\"adaptor_name\":\"ML-QA\"}"
+            "formatting_template": "<User>\n{{instruction}}\n</User>\n<Assistant>\n{{output}}\n</Assistant>\n",
+            "config_json": "{\"template_name\":\"InstructTuning\",\"plugin_name\":\"llama_trainer\",\"model_name\":\"HuggingFaceTB/SmolLM2-135M\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"<User>\\n{{instruction}}\\n</User>\\n<Assistant>\\n{{output}}\\n</Assistant>\\n\",\"dataset_name\":\"nickrosh/Evol-Instruct-Code-80k-v1\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"4\",\"learning_rate\":\"0.00003\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"4\",\"lora_alpha\":\"16\",\"lora_dropout\":\"0.05\",\"adaptor_name\":\"instruct\"}"
         },
         "test": {}
     }

@@ -65,7 +65,6 @@ options:
 import json
 import yaml
 import re
-from string import Template
 import subprocess
 import sys
 import time
@@ -225,7 +224,7 @@ print(example)
 # TODO: For now create adapter in the plugin directory but this should probably go somewhere else
 # adaptor_output_dir = plugin_dir
 adaptor_output_dir = config["adaptor_output_dir"]
-if adaptor_output_dir == "" or adaptor_output_dir == None:
+if adaptor_output_dir == "" or adaptor_output_dir is None:
     print("No adaptor output directory specified.")
     adaptor_output_dir = os.path.join(
         os.environ["_TFL_WORKSPACE_DIR"], "adaptors", args.model_name, args.adaptor_name)
@@ -335,7 +334,7 @@ print("Finished training.")
 if not fuse_model:
     print(f"Adaptor training complete and saved at {adaptor_output_dir}.")
     job.set_job_completion_status(
-        "success", f"Adapter saved successfully.")
+        "success", "Adapter saved successfully.")
 
 else:
     print("Now fusing the adaptor with the model.")
