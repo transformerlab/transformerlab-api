@@ -48,7 +48,7 @@ class MLXWorker(BaseModelWorker):
         model_names: List[str],
         limit_worker_concurrency: int,
         no_register: bool,
-        llm_engine: "MLX",
+        llm_engine: str,
         conv_template: str,
     ):
         super().__init__(
@@ -72,7 +72,7 @@ class MLXWorker(BaseModelWorker):
 
         try:
             self.context_len = get_context_length(config)
-        except:
+        except Exception:
             self.context_len = 2048
         print("Context length: ", self.context_len)
 
@@ -240,7 +240,7 @@ def get_hugggingface_config(model_path):
         with open(config_json) as f:
             contents = f.read()
         d = json.loads(contents)
-    except:
+    except Exception:
         # failed to open config.json so create an empty config
         d = {}
 
