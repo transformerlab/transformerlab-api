@@ -2,5 +2,5 @@
 # git clone https://github.com/EleutherAI/lm-evaluation-harness
 # cd lm-evaluation-harness
 # pip install -e .
-pip install lm-eval==0.4.7
-pip install "lm-eval[api]"
+uv pip install lm-eval==0.4.7
+uv pip install "lm-eval[api]"
