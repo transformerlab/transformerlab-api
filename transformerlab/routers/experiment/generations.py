@@ -54,27 +54,32 @@ async def experiment_add_generation(experimentId: int, plugin: Any = Body()):
 
 
 @router.get("/delete")
-async def experiment_delete_generation(experimentId: int, eval_name: str):
+async def experiment_delete_generation(experimentId: int, generation_name: str):
     """Delete an evaluation from an experiment. This will delete the directory in the experiment
     and remove the global plugin from the specific experiment."""
-    experiment = await db.experiment_get(experimentId)
+    try:
+        print("Deleting generation", experimentId, generation_name)
+        experiment = await db.experiment_get(experimentId)
 
-    if experiment is None:
-        return {"message": f"Experiment {experimentId} does not exist"}
+        if experiment is None:
+            return {"message": f"Experiment {experimentId} does not exist"}
 
-    experiment_config = json.loads(experiment["config"])
+        experiment_config = json.loads(experiment["config"])
 
-    if "generations" not in experiment_config:
-        return {"message": f"Experiment {experimentId} has no generations"}
+        if "generations" not in experiment_config:
+            return {"message": f"Experiment {experimentId} has no generations"}
 
-    evaluations = json.loads(experiment_config["evaluations"])
+        generations = json.loads(experiment_config["generations"])
 
-    # remove the evaluation from the list:
-    evaluations = [e for e in evaluations if e["name"] != eval_name]
+        # remove the evaluation from the list:
+        generations = [e for e in generations if e["name"] != generation_name]
 
-    await db.experiment_update_config(experimentId, "evaluations", json.dumps(evaluations))
+        await db.experiment_update_config(experimentId, "generations", json.dumps(generations))
 
-    return {"message": f"Generation {eval_name} deleted from experiment {experimentId}"}
+        return {"message": f"Generation {generations} deleted from experiment {experimentId}"}
+    except Exception as e:
+        print("Error in delete_generation_task", e)
+        raise e
 
 
 # @TODO delete the following function and use the plugin file function
