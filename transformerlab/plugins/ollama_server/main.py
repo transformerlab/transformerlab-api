@@ -8,6 +8,8 @@ import argparse
 import asyncio
 import json
 import uuid
+from typing import List
+import atexit
 import uvicorn
 
 import ollama
