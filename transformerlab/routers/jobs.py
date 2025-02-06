@@ -1,6 +1,6 @@
 import json
 import os
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Response
 from fastapi.responses import StreamingResponse
 
 import transformerlab.db as db
@@ -167,3 +167,33 @@ async def stream_job_output(job_id: str):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
     )
+
+
+@router.get("/{job_id}/stream_additional_details")
+async def stream_job_additional_details(job_id: str):
+    print("JOB ID", job_id)
+    job = await db.job_get(job_id)
+    job_data = job["job_data"]
+    # Get experiment name
+    experiment_id = job["experiment_id"]
+    experiment = await db.experiment_get(experiment_id)
+    experiment_name = experiment["name"]
+    # Get eval name
+    eval_name = job_data["evaluator"]
+
+    csv_file_path = os.path.join(
+        os.environ["_TFL_WORKSPACE_DIR"],
+        "experiments",
+        experiment_name,
+        "evals",
+        eval_name,
+        f"detailed_output_{job_id}.csv",
+    )
+
+    if not os.path.exists(csv_file_path):
+        return Response("No additional details found for this evaluation", media_type="text/csv")
+
+    with open(csv_file_path, "r") as file:
+        csv_content = file.read()
+
+    return Response(csv_content, media_type="text/csv")
