@@ -169,7 +169,7 @@ async def stream_job_output(job_id: str):
     )
 
 
-@router.get("/{job_id}/stream_additional_details")
+@router.get("/{job_id}/get_additional_details")
 async def stream_job_additional_details(job_id: str):
     print("JOB ID", job_id)
     job = await db.job_get(job_id)
