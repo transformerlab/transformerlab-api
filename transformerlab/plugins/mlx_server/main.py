@@ -465,7 +465,6 @@ def main():
         args.model_names,
         1024,
         False,
-        "MLX",
         args.conv_template,
     )
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")

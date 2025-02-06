@@ -61,9 +61,7 @@ class MLXWorker(BaseModelWorker):
             conv_template,
         )
 
-        logger.info(
-            f"Loading the model {self.model_names} on worker {worker_id}, worker type: MLX worker..."
-        )
+        logger.info(f"Loading the model {self.model_names} on worker {worker_id}, worker type: MLX worker...")
 
         self.model_name = model_path
         # second argument is the tokenizer config
@@ -79,9 +77,10 @@ class MLXWorker(BaseModelWorker):
         if not no_register:
             self.init_heart_beat()
 
-    async def generate_stream(self,
-                              params: dict,
-                              ):
+    async def generate_stream(
+        self,
+        params: dict,
+    ):
         processor, model = load_model(self.model_name)
         image_link = params.get("images", None)
         # Image link is sent as an array (to support sending multiple images in the future)
@@ -90,8 +89,8 @@ class MLXWorker(BaseModelWorker):
         image = None
         # Using PIL because thats one of the libraries that tokenizer uses. The accepted image formats are PIL.Image.Image, numpy.ndarray, torch.Tensor, tf.Tensor or jax.ndarray
         if image_link and image_link != []:
-            if image_link.startswith('data:image'):
-                base64_str_index = image_link.find('base64,') + 7
+            if image_link.startswith("data:image"):
+                base64_str_index = image_link.find("base64,") + 7
                 image_data = base64.b64decode(image_link[base64_str_index:])
                 image = Image.open(BytesIO(image_data))
             else:
@@ -100,12 +99,11 @@ class MLXWorker(BaseModelWorker):
         # Extract messages from the prompt
         prompt = params["prompt"]
 
-        input_ids, pixel_values = prepare_inputs(
-            processor, image, prompt
-        )
+        input_ids, pixel_values = prepare_inputs(processor, image, prompt)
         # generate_text is an async generator
-        iterator = generate_text(input_ids, pixel_values, model,
-                                 processor, params["max_new_tokens"], params["temperature"])
+        iterator = generate_text(
+            input_ids, pixel_values, model, processor, params["max_new_tokens"], params["temperature"]
+        )
         # reply = generate_text(input_ids, pixel_values,model, processor, params["temperature"])
         max_tokens = params["max_new_tokens"]
         tokens = []
@@ -124,19 +122,16 @@ class MLXWorker(BaseModelWorker):
                     "completion_tokens": len(tokens),
                     "total_tokens": len(prompt) + len(tokens),
                 },
-                "cumulative_logprob": [
-                ],
-                "finish_reason": None
+                "cumulative_logprob": [],
+                "finish_reason": None,
             }
             yield (json.dumps(ret) + "\0").encode()
         ret = {
             "text": processor.tokenizer.decode(tokens),
             "error_code": 0,
-            "usage": {
-            },
-            "cumulative_logprob": [
-            ],
-            "finish_reason": finish_reason
+            "usage": {},
+            "cumulative_logprob": [],
+            "finish_reason": finish_reason,
         }
         yield (json.dumps(ret) + "\0").encode()
 
@@ -147,13 +142,11 @@ class MLXWorker(BaseModelWorker):
 
 
 def profile_generate_text(input_ids, pixel_values, model, processor, max_tokens, temperature):
-
     pr = cProfile.Profile()
     pr.enable()
-    list(generate_text(input_ids, pixel_values,
-         model, processor, max_tokens, temperature))
+    list(generate_text(input_ids, pixel_values, model, processor, max_tokens, temperature))
     pr.disable()
-    pr.print_stats(sort='time')
+    pr.print_stats(sort="time")
 
 
 def release_worker_semaphore():
@@ -220,6 +213,7 @@ async def api_get_conv(request: Request):
 async def api_model_details(request: Request):
     return {"context_length": worker.context_len}
 
+
 worker = None
 
 
@@ -245,9 +239,9 @@ def get_hugggingface_config(model_path):
         d = {}
 
     # rename all keys that start with an underscore, because they break convertion to object
-    d = {k[1:] if k.startswith('_') else k: v for k, v in d.items()}
+    d = {k[1:] if k.startswith("_") else k: v for k, v in d.items()}
     # convert the dictionary to a namedtuple because later logic expects it that way
-    config = namedtuple('config', d.keys())(**d)
+    config = namedtuple("config", d.keys())(**d)
     return config
 
 
@@ -266,27 +260,20 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", type=str, default="localhost")
     parser.add_argument("--port", type=int, default=21002)
-    parser.add_argument("--worker-address", type=str,
-                        default="http://localhost:21002")
-    parser.add_argument(
-        "--controller-address", type=str, default="http://localhost:21001"
-    )
-    parser.add_argument("--model-path", type=str,
-                        default="microsoft/phi-2")
+    parser.add_argument("--worker-address", type=str, default="http://localhost:21002")
+    parser.add_argument("--controller-address", type=str, default="http://localhost:21001")
+    parser.add_argument("--model-path", type=str, default="microsoft/phi-2")
     parser.add_argument(
         "--model-names",
         type=lambda s: s.split(","),
         help="Optional display comma separated names",
     )
-    parser.add_argument(
-        "--conv-template", type=str, default=None, help="Conversation prompt template."
-    )
+    parser.add_argument("--conv-template", type=str, default=None, help="Conversation prompt template.")
     parser.add_argument(
         "--trust_remote_code",
         action="store_false",
         default=True,
-        help="Trust remote code (e.g., from HuggingFace) when"
-        "downloading the model and tokenizer.",
+        help="Trust remote code (e.g., from HuggingFace) whendownloading the model and tokenizer.",
     )
 
     args, unknown = parser.parse_known_args()
@@ -302,7 +289,6 @@ def main():
         args.model_names,
         1024,
         False,
-        "MLX",
         args.conv_template,
     )
     print("Starting server")
