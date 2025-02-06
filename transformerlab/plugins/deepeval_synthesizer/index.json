@@ -19,9 +19,9 @@
             "title": "Generation Type",
             "type": "string",
             "enum": [
-                "docs (generate using reference documents)",
-                "context (generate using raw reference text)",
-                "scratch (generate from scratch based on scenario)"
+                "docs",
+                "context",
+                "scratch"
             ]
         },
         "generation_model": {

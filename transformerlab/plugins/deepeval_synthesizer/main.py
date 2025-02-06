@@ -76,9 +76,6 @@ def check_local_server():
         sys.exit(1)
 
 
-check_local_server()
-
-
 class CustomEmbeddingModel(DeepEvalBaseEmbeddingModel):
     def __init__(self, model_name: str = "Snowflake/arctic-embed-m"):
         self.model_name = model_name
@@ -417,14 +414,19 @@ def run_generation():
         print("Data generated successfully")
         print("Preview of the generated data:")
         print(df.head())
-        output_file = os.path.join(
+        output_dir = os.path.join(
             os.environ.get("_TFL_WORKSPACE_DIR"),
             "experiments",
             args.experiment_name,
             "datasets",
             args.generation_type,
+        )
+        output_file = os.path.join(
+            output_dir,
             f"{args.run_name}.json",
         )
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
         print(f"Saving data json to {output_file}")
         df.to_json(output_file, orient="records", lines=False)
         job.update_progress(90)
