@@ -1,10 +1,11 @@
 {
+    
     "name": "Data Synthesizer",
     "uniqueId": "deepeval_synthesizer",
     "description": "Use LLMs to create synthetic data for your usecases",
     "plugin-format": "python",
     "type": "generator",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "git": "https://github.com/confident-ai/deepeval",
     "url": "https://github.com/confident-ai/deepeval",
     "files": [
@@ -21,6 +22,17 @@
                 "docs (generate using reference documents)",
                 "context (generate using raw reference text)",
                 "scratch (generate from scratch based on scenario)"
+            ]
+        },
+        "generation_model": {
+            "title": "Generation Model (Model to be used for Generation. Select `local` to use the local model running)",
+            "type": "string",
+            "enum": [
+                "Claude 3.5 Haiku",
+                "Claude 3.5 Sonnet",
+                "OpenAI GPT 4o",
+                "OpenAI GPT 4o Mini",
+                "Local"
             ]
         },
         "num_goldens": {
