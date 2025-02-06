@@ -239,7 +239,7 @@ async def model_local_delete(model_id):
 ###############
 
 # Allowed job types:
-ALLOWED_JOB_TYPES = ["TRAIN", "EXPORT_MODEL", "DOWNLOAD_MODEL", "LOAD_MODEL", "TASK", "EVAL", "UNDEFINED"]
+ALLOWED_JOB_TYPES = ["TRAIN", "EXPORT_MODEL", "DOWNLOAD_MODEL", "LOAD_MODEL", "TASK", "EVAL", "UNDEFINED", "GENERATE"]
 
 
 async def job_create(type, status, job_data="{}", experiment_id=""):

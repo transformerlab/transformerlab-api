@@ -9,23 +9,18 @@ from fastapi import APIRouter, Body
 import transformerlab.db as db
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
-from transformerlab.routers.experiment import rag, documents, plugins, conversations, export, evals
+from transformerlab.routers.experiment import rag, documents, plugins, conversations, export, evals, generations
 
 
 router = APIRouter(prefix="/experiment")
 
-router.include_router(
-    router=rag.router, prefix="/{experimentId}", tags=["rag"])
-router.include_router(
-    router=documents.router, prefix="/{experimentId}", tags=["documents"])
-router.include_router(
-    router=plugins.router, prefix="/{id}", tags=["plugins"])
-router.include_router(
-    router=conversations.router, prefix="/{experimentId}", tags=["conversations"])
-router.include_router(
-    router=export.router, prefix="/{id}", tags=["export"])
-router.include_router(
-    router=evals.router, prefix="/{experimentId}", tags=["evals"])
+router.include_router(router=rag.router, prefix="/{experimentId}", tags=["rag"])
+router.include_router(router=documents.router, prefix="/{experimentId}", tags=["documents"])
+router.include_router(router=plugins.router, prefix="/{id}", tags=["plugins"])
+router.include_router(router=conversations.router, prefix="/{experimentId}", tags=["conversations"])
+router.include_router(router=export.router, prefix="/{id}", tags=["export"])
+router.include_router(router=evals.router, prefix="/{experimentId}", tags=["evals"])
+router.include_router(router=generations.router, prefix="/{experimentId}", tags=["generations"])
 
 
 EXPERIMENTS_DIR: str = dirs.EXPERIMENTS_DIR
@@ -126,7 +121,7 @@ async def experiment_save_file_contents(id: str | int, filename: str, file_conte
     # remove file extension from file:
     [filename, file_ext] = os.path.splitext(filename)
 
-    if (file_ext != '.py') and (file_ext != '.ipynb') and (file_ext != '.md'):
+    if (file_ext != ".py") and (file_ext != ".ipynb") and (file_ext != ".md"):
         return {"message": f"File extension {file_ext} not supported"}
 
     # clean the file name:
@@ -159,7 +154,7 @@ async def experiment_get_file_contents(id: str | int, filename: str):
     # remove file extension from file:
     [filename, file_ext] = os.path.splitext(filename)
 
-    allowed_extensions = ['.py', '.ipynb', '.md', '.txt']
+    allowed_extensions = [".py", ".ipynb", ".md", ".txt"]
 
     if file_ext not in allowed_extensions:
         return {"message": f"File extension {file_ext} for {filename} not supported"}
@@ -169,8 +164,7 @@ async def experiment_get_file_contents(id: str | int, filename: str):
 
     # The following prevents path traversal attacks:
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
-    final_path = Path(experiment_dir).joinpath(
-        filename + file_ext).resolve().relative_to(experiment_dir)
+    final_path = Path(experiment_dir).joinpath(filename + file_ext).resolve().relative_to(experiment_dir)
 
     final_path = experiment_dir + "/" + str(final_path)
     print("Listing Contents of File: " + final_path)

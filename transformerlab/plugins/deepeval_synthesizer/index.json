@@ -3,14 +3,15 @@
     "uniqueId": "deepeval_synthesizer",
     "description": "Use LLMs to create synthetic data for your usecases",
     "plugin-format": "python",
-    "type": "evaluator",
-    "version": "0.1.0",
+    "type": "generator",
+    "version": "0.1.1",
     "git": "https://github.com/confident-ai/deepeval",
     "url": "https://github.com/confident-ai/deepeval",
     "files": [
         "main.py",
         "setup.sh"
     ],
+    "dataset": false,
     "setup-script": "setup.sh",
     "parameters": {
         "generation_type": {
@@ -28,10 +29,6 @@
             "minimum": 1,
             "maximum": 1000,
             "default": 10
-        },
-        "dataset_name": {
-            "title": "Dataset File Name  (to store the generated data)",
-            "type": "string"
         },
         "docs": {
             "title": "Reference Documents (for 'docs' generation only). Provide comma separated list of document paths",

@@ -48,12 +48,12 @@ else:
     print(f"Using default workspace directory: {WORKSPACE_DIR}")
 
 # TFL_SOURCE_CODE_DIR
-api_py_dir = os.path.dirname(os.path.dirname(
-    os.path.dirname(os.path.abspath(__file__))))
-if (api_py_dir != os.path.join(HOME_DIR, "src")):
+api_py_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if api_py_dir != os.path.join(HOME_DIR, "src"):
+    print(f"We are working from {api_py_dir} which is not {os.path.join(HOME_DIR, 'src')}")
     print(
-        f"We are working from {api_py_dir} which is not {os.path.join(HOME_DIR, 'src')}")
-    print("That means you are probably developing in a different location so we will set source dir to the current directory")
+        "That means you are probably developing in a different location so we will set source dir to the current directory"
+    )
     TFL_SOURCE_CODE_DIR = api_py_dir
 else:
     print(f"Source code directory is set to: {os.path.join(HOME_DIR, 'src')}")
@@ -71,8 +71,7 @@ LOGS_DIR = os.path.join(HOME_DIR, "logs")
 os.makedirs(name=LOGS_DIR, exist_ok=True)
 
 # ROOT_DIR (deprecate later)
-ROOT_DIR = os.path.dirname(os.path.dirname(
-    os.path.dirname(os.path.abspath(__file__))))
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def experiment_dir_by_name(experiment_name: str) -> str:
@@ -80,18 +79,18 @@ def experiment_dir_by_name(experiment_name: str) -> str:
 
 
 async def experiment_dir_by_id(experiment_id: str) -> str:
-    if (experiment_id is not None and experiment_id != "undefined"):
+    if experiment_id is not None and experiment_id != "undefined":
         experiment = await db.experiment_get(experiment_id)
     else:
         print("Error: experiment_id is None or undefined")
         return os.path.join(EXPERIMENTS_DIR, "error")
 
-    experiment_name = experiment['name']
+    experiment_name = experiment["name"]
     return os.path.join(EXPERIMENTS_DIR, experiment_name)
 
+
 # PLUGIN_PRELOADED_GALLERY
-PLUGIN_PRELOADED_GALLERY = os.path.join(
-    TFL_SOURCE_CODE_DIR, "transformerlab", "plugins")
+PLUGIN_PRELOADED_GALLERY = os.path.join(TFL_SOURCE_CODE_DIR, "transformerlab", "plugins")
 
 # PLUGIN_DIR
 PLUGIN_DIR = os.path.join(WORKSPACE_DIR, "plugins")
@@ -101,8 +100,7 @@ def plugin_dir_by_name(plugin_name: str) -> str:
     return os.path.join(PLUGIN_DIR, plugin_name)
 
 
-PLUGIN_SDK_DIR = os.path.join(
-    TFL_SOURCE_CODE_DIR, "transformerlab", "plugin_sdk")
+PLUGIN_SDK_DIR = os.path.join(TFL_SOURCE_CODE_DIR, "transformerlab", "plugin_sdk")
 PLUGIN_HARNESS = os.path.join(PLUGIN_SDK_DIR, "plugin_harness.py")
 
 # MODELS_DIR
@@ -145,5 +143,12 @@ os.makedirs(name=GALLERIES_CACHE_DIR, exist_ok=True)
 async def eval_output_file(experiment_name: str, eval_name: str) -> str:
     experiment_dir = experiment_dir_by_name(experiment_name)
     p = os.path.join(experiment_dir, "evals", eval_name)
+    os.makedirs(p, exist_ok=True)
+    return os.path.join(p, "output.txt")
+
+
+async def generation_output_file(experiment_name: str, generation_name: str) -> str:
+    experiment_dir = experiment_dir_by_name(experiment_name)
+    p = os.path.join(experiment_dir, "generations", generation_name)
     os.makedirs(p, exist_ok=True)
     return os.path.join(p, "output.txt")
