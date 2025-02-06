@@ -193,7 +193,17 @@ async def stream_job_additional_details(job_id: str):
     if not os.path.exists(csv_file_path):
         return Response("No additional details found for this evaluation", media_type="text/csv")
 
-    with open(csv_file_path, "r") as file:
-        csv_content = file.read()
+    # convert csv to JSON, but do not assume that \n marks the end of a row as cells can
+    # contain fields that start and end with " and contain \n. Use a CSV parser instead.
+    import csv
 
-    return Response(csv_content, media_type="text/csv")
+    with open(csv_file_path, "r") as csvfile:
+        contents = csv.reader(csvfile, delimiter=",", quotechar='"')
+        # convert the csv to a JSON object
+        csv_content = {"header": [], "body": []}
+        for i, row in enumerate(contents):
+            if i == 0:
+                csv_content["header"] = row
+            else:
+                csv_content["body"].append(row)
+    return csv_content
