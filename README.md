@@ -1,9 +1,11 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <a href="https://github.com/transformerlab/transformerlab-app">
-    <img src="https://transformerlab.ai/img/flask.svg" alt="Logo" width="80" height="80">
-  </a>
+  <a href="https://transformerlab.ai"><picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/transformerlab/transformerlab-app/refs/heads/main/assets/Transformer-Lab_Logo_Reverse.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/transformerlab/transformerlab-app/refs/heads/main/assets/Transformer-Lab_Logo.svg">
+    <img alt="transformer lab logo" src="https://raw.githubusercontent.com/transformerlab/transformerlab-app/refs/heads/main/assets/Transformer-Lab_Logo.svg" style="max-width: 650px">
+  </picture></a>
 
   <h1 align="center" style="color: rgb(68, 73, 80); letter-spacing: -1px">Transformer Lab API</h1>
 
