@@ -253,6 +253,26 @@ metric_classes = {
 }
 
 
+def print_fancy_df(df):
+    separator = "🟡" + "━" * 60 + "🟡"
+
+    print(separator)
+    print("📊  **Evaluation Results**  📊")
+    print(separator)
+
+    for _, row in df.iterrows():
+        print(f"🔹 **Input:** {row['input']}")
+        print(f"  ↳ 📝 **Output:** {row['actual_output']}")
+        print(f"  ✅ **Expected:** {row['expected_output']}")
+        if "context" in row:
+            print(f"  🏷 **Context:** {row['context']}")
+        elif "retrieval_context" in row:
+            print(f"  🏷 **Retrieval Context:** {row['retrieval_context']}")
+        print(f"  📊 **Score:** {row['score']:.2f} 🔥")
+        print(f"  📐 **Metric:** {row['metric_name']} 📏")
+        print(separator)
+
+
 def run_evaluation():
     try:
         # Load the csv file
@@ -321,6 +341,8 @@ def run_evaluation():
         metrics_df = pd.DataFrame(metrics)
         output_path = f"{args.output_path}/{args.run_name}.csv" if args.output_path else f"{args.run_name}.csv"
         metrics_df.to_csv(output_path, index=False)
+        job.update_progress(80)
+        print_fancy_df(metrics_df)
 
         for idx, metric in enumerate(args.metrics):
             print(
