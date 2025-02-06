@@ -46,11 +46,27 @@ The Data Synthesizer plugin uses Large Language Models (LLMs) to create syntheti
 
 - **Type:** string
 - **Description:** Paste all your reference context here for 'context' generation only.
+- **Example:** ""
 
 ### Scenario
 
 - **Type:** string
 - **Description:** Describe the scenario for which you want to generate data for 'scratch' generation only.
+
+### Task
+
+- **Type:** string
+- **Description:** Describe the task for which you want to generate data for 'scratch' generation only.
+
+### Input Format
+
+- **Type:** string
+- **Description:** Describe the format of the input data which will be sent to the model for 'scratch' generation only.
+
+### Expected Output Format
+
+- **Type:** string
+- **Description:** Describe the format of the output data which will be received from the model for 'scratch' generation only.
 
 ## Usage
 
@@ -61,3 +77,6 @@ The Data Synthesizer plugin uses Large Language Models (LLMs) to create syntheti
 5. **Specify the Embedding Model:** If using 'docs' generation, provide the name or path of the embedding model in the `embedding_model` parameter.
 6. **Provide Context:** If using 'context' generation, paste your reference context in the `context` parameter.
 7. **Describe the Scenario:** If using 'scratch' generation, describe the scenario in the `scenario` parameter.
+8. **Describe the Task:** If using 'scratch' generation, describe the task in the `task` parameter.
+9. **Specify the Input Format:** If using 'scratch' generation, describe the input format in the `input_format` parameter.
+10. **Specify the Expected Output Format:** If using 'scratch' generation, describe the expected output format in the `expected_output_format` parameter.
