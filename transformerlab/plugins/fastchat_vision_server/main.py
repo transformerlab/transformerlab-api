@@ -2,9 +2,11 @@
 A model worker that executes the model.
 """
 
+import asyncio
 import sys
 import os
 import argparse
+from fastapi.responses import JSONResponse, StreamingResponse
 from transformers import AutoTokenizer, AutoModelForPreTraining, AutoProcessor
 import uvicorn
 import atexit
@@ -287,7 +289,7 @@ def generate_stream(
                     curr_pos += len(text)
 
             # TODO: For the issue of incomplete sentences interrupting output, apply a patch and others can also modify it to a more elegant way
-            if judge_sent_end and stopped and not is_sentence_complete(output):
+            if judge_sent_end and stopped and not is_sentence_complete(output):  # noqa: F821
                 if len(tokens) > 1:
                     token = tokens[1]
                     output_ids[-1] = token
@@ -304,7 +306,7 @@ def generate_stream(
                         output = output[:pos]
                         stopped = True
                     else:
-                        partially_stopped = is_partial_stop(output, stop_str)
+                        partially_stopped = is_partial_stop(output, stop_str)  # noqa: F821
                 elif isinstance(stop_str, Iterable):
                     for each_stop in stop_str:
                         pos = output.rfind(each_stop, rfind_start)
@@ -313,7 +315,7 @@ def generate_stream(
                             stopped = True
                             break
                         else:
-                            partially_stopped = is_partial_stop(output, each_stop)
+                            partially_stopped = is_partial_stop(output, each_stop)  # noqa: F821
                             if partially_stopped:
                                 break
                 else:
@@ -416,7 +418,7 @@ class ModelWorker(BaseModelWorker):
         else:
             self.model, self.tokenizer = loaded_model
         self.device = device
-        if self.tokenizer.pad_token == None:
+        if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
         self.context_len = get_context_length(self.model.config)
         self.generate_stream_func = generate_stream
@@ -706,19 +708,19 @@ def main():
 
     print("Starting Standard FastChat Worker", file=sys.stderr)
 
-    model = args.model_path
-    adaptor = args.adaptor_path
+    # model = args.model_path
+    # adaptor = args.adaptor_path
 
-    if adaptor != "":
-        model = adaptor
+    # if adaptor != "":
+    #     model = adaptor
 
     parameters = args.parameters
     parameters = json.loads(parameters)
 
-    if parameters.get("eight_bit") == "on":
-        eight_bit = True
-    else:
-        eight_bit = False
+    # if parameters.get("eight_bit") == "on":
+    #     eight_bit = True
+    # else:
+    #     eight_bit = False
 
     # Used only if memory on multiple cards is needed. Do not include if this is not not set.
     num_gpus = parameters.get("num_gpus", None)

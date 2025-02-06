@@ -20,13 +20,13 @@ jinja_environment = Environment()
 use_flash_attention = False
 
 # Connect to the LLM Lab database
-llmlab_root_dir = os.getenv('LLM_LAB_ROOT_PATH')
+llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
 WORKSPACE_DIR: str | None = os.getenv("_TFL_WORKSPACE_DIR")
 db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
 
 # Get all parameters provided to this script from Transformer Lab
 parser = argparse.ArgumentParser()
-parser.add_argument('--input_file', type=str)
+parser.add_argument("--input_file", type=str)
 args, unknown = parser.parse_known_args()
 
 print("Arguments:")
@@ -53,8 +53,7 @@ job.update_progress(0)
 # Need to check the DB to figure out which because it changes how we load the dataset
 # TODO: Refactor this to somehow simplify across training plugins
 dataset_id = config["dataset_name"]
-cursor = db.execute(
-    "SELECT location FROM dataset WHERE dataset_id = ?", (dataset_id,))
+cursor = db.execute("SELECT location FROM dataset WHERE dataset_id = ?", (dataset_id,))
 row = cursor.fetchone()
 cursor.close()
 
@@ -69,7 +68,7 @@ if row is None:
 dataset_location = row[0]
 
 # Load dataset - if it's local then pass it the path to the dataset directory
-if (dataset_location == "local"):
+if dataset_location == "local":
     dataset_target = os.path.join(WORKSPACE_DIR, "datasets", dataset_id)
 
 # Otherwise assume it is a Huggingface ID
@@ -80,7 +79,7 @@ dataset = load_dataset(dataset_target, split="train", trust_remote_code=True)
 
 print(f"dataset size: {len(dataset)}")
 print(dataset[randrange(len(dataset))])
-print("formatting_template: " + config['formatting_template'])
+print("formatting_template: " + config["formatting_template"])
 
 template = jinja_environment.from_string(config["formatting_template"])
 
@@ -120,9 +119,9 @@ except Exception as e:
 
 # LoRA config based on QLoRA paper
 peft_config = LoraConfig(
-    lora_alpha=int(config['lora_alpha']),
-    lora_dropout=float(config['lora_dropout']),
-    r=int(config['lora_r']),
+    lora_alpha=int(config["lora_alpha"]),
+    lora_dropout=float(config["lora_dropout"]),
+    r=int(config["lora_r"]),
     bias="none",
     task_type="CAUSAL_LM",
 )
@@ -148,14 +147,14 @@ print(max_seq_length)
 
 args = SFTConfig(
     output_dir=output_dir,
-    num_train_epochs=int(config['num_train_epochs']),
-    per_device_train_batch_size=int(config.get("batch_size",4)),
+    num_train_epochs=int(config["num_train_epochs"]),
+    per_device_train_batch_size=int(config.get("batch_size", 4)),
     gradient_accumulation_steps=2,
     gradient_checkpointing=True,
     optim="paged_adamw_32bit",
     logging_steps=10,
     save_strategy="epoch",
-    learning_rate=float(config['learning_rate']),
+    learning_rate=float(config["learning_rate"]),
     bf16=True,
     tf32=True,
     max_grad_norm=0.3,
@@ -166,7 +165,6 @@ args = SFTConfig(
     packing=True,
     report_to=["tensorboard"],
 )
-
 
 
 class ProgressTableUpdateCallback(TrainerCallback):
@@ -181,7 +179,7 @@ class ProgressTableUpdateCallback(TrainerCallback):
             # augmented by the epoch number
             progress = state.global_step / state.max_steps
             progress = int(progress * 100)
-            db_job_id = JOB_ID
+            # db_job_id = JOB_ID
             # Write to jobs table in database, updating the
             # progress column:
             job.update_progress(progress)
@@ -199,7 +197,7 @@ trainer = SFTTrainer(
     tokenizer=tokenizer,
     formatting_func=format_instruction,
     args=args,
-    callbacks=[ProgressTableUpdateCallback]
+    callbacks=[ProgressTableUpdateCallback],
 )
 try:
     # train

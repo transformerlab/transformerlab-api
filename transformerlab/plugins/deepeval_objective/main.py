@@ -6,7 +6,6 @@ import argparse
 import sys
 import os
 import traceback
-from datetime import datetime
 import nltk
 import transformerlab.plugin
 from datasets import load_dataset

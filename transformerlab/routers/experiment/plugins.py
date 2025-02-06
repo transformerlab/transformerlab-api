@@ -1,4 +1,3 @@
-
 import json
 import os
 from pathlib import Path
@@ -7,6 +6,7 @@ from distutils.dir_util import remove_tree
 from typing import Annotated
 
 from fastapi import APIRouter, Body
+import httpx
 
 import transformerlab.db as db
 
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/plugins", tags=["plugins"])
 
 @router.get("/list")
 async def experiment_list_scripts(id: int, type: str = None, filter: str = None):
-    """ List all the scripts in the experiment """
+    """List all the scripts in the experiment"""
     # first get the experiment name:
     data = await db.experiment_get(id)
 
@@ -38,7 +38,7 @@ async def experiment_list_scripts(id: int, type: str = None, filter: str = None)
     filter_key = None
     filter_value = None
     if filter is not None:
-        [filter_key, filter_value] = filter.split(':')
+        [filter_key, filter_value] = filter.split(":")
 
     # print(f"Filtering by {filter_key} with value {filter_value}")
 
@@ -55,8 +55,7 @@ async def experiment_list_scripts(id: int, type: str = None, filter: str = None)
         if os.path.isdir(os.path.join(scripts_dir, filename)):
             # check the type of each index.json in each script dir
             try:
-                plugin_info = json.load(
-                    open(f"{scripts_dir}/{filename}/index.json", "r"))
+                plugin_info = json.load(open(f"{scripts_dir}/{filename}/index.json", "r"))
             except FileNotFoundError:
                 continue
             except json.decoder.JSONDecodeError:
@@ -65,7 +64,7 @@ async def experiment_list_scripts(id: int, type: str = None, filter: str = None)
 
             plugin_type = None
             if "type" in plugin_info:
-                plugin_type = plugin_info['type']
+                plugin_type = plugin_info["type"]
 
             plugin_info["installed"] = True
 
@@ -99,7 +98,7 @@ async def experiment_list_scripts(id: int, type: str = None, filter: str = None)
                             if filter_value is None or filter_value == plugin_info[filter_key]:
                                 scripts_full_json.append(plugin_info)
                     else:
-                        print('item does not have key ' + filter_key)
+                        print("item does not have key " + filter_key)
 
     return scripts_full_json
 
@@ -121,28 +120,26 @@ async def delete_plugin_from_experiment(id: int, plugin_name: str):
 async def plugin_download(plugin_slug: str):
     """Download a plugin and install to a local list of available plugins"""
     # Get plugin from plugin gallery:
-    plugin = await db.get_plugin(plugin_slug)
+    # plugin = await db.get_plugin(plugin_slug)
     # Right now this plugin object doesn't contain the URL to the plugin, so we need to get that from the plugin gallery:
     # Fix this later by storing the information locally in the database
-    gallery_file = os.path.join(
-        dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "plugin-gallery.json")
-    plugin_gallery_json = open(
-        gallery_file, "r")
+    gallery_file = os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "plugin-gallery.json")
+    plugin_gallery_json = open(gallery_file, "r")
     plugin_gallery = json.load(plugin_gallery_json)
 
     # We hardcode this to the first object -- fix later
-    url = plugin_gallery[0]['url']
-    plugin_type = plugin_gallery[0]['type']
+    url = plugin_gallery[0]["url"]
+    plugin_type = plugin_gallery[0]["type"]
 
     client = httpx.AsyncClient()
 
     # Download index.json from the URL above:
     # Hack: this won't work because we can't download a file from our own server
-    print('Getting the plugin index.json file at ' + url + "index.json")
+    print("Getting the plugin index.json file at " + url + "index.json")
     # index_json = urlopen(url + "index.json").read()
     response = await client.get(url + "index.json")
     index_json = response.text
-    print('Downloaded...')
+    print("Downloaded...")
 
     # Convert index.json to a dict:
     index = json.loads(index_json)
@@ -157,8 +154,7 @@ async def plugin_download(plugin_slug: str):
         file_contents = response.text
         # Save each file to workspace/plugins/<plugin_slug>/<file>
         p = dirs.plugin_dir_by_name(plugin_slug)
-        os.makedirs(
-            p, mode=0o755, exist_ok=True)
+        os.makedirs(p, mode=0o755, exist_ok=True)
         with open(f"{p}/{file}", "w") as f:
             f.write(file_contents)
 
@@ -175,8 +171,7 @@ async def plugin_download(plugin_slug: str):
 # *****************************************************************************
 
 
-allowed_extensions: list[str] = [
-    '.py', '.pyj2', '.ipynb', '.md', '.txt', '.sh', '.json']
+allowed_extensions: list[str] = [".py", ".pyj2", ".ipynb", ".md", ".txt", ".sh", ".json"]
 
 
 @router.post("/{pluginId}/save_file_contents")
@@ -188,7 +183,7 @@ async def plugin_save_file_contents(id: str, pluginId: str, filename: str, file_
     if data is None:
         return {"message": f"Experiment {id} does not exist"}
 
-    experiment_name = data["name"]
+    # experiment_name = data["name"]
 
     # remove file extension from file:
     [filename, file_ext] = os.path.splitext(filename)
@@ -223,7 +218,7 @@ async def plugin_get_file_contents(id: str, pluginId: str, filename: str):
     if data is None:
         return {"message": f"Experiment {id} does not exist"}
 
-    experiment_name = data["name"]
+    # experiment_name = data["name"]
 
     # remove file extension from file:
     [filename, file_ext] = os.path.splitext(filename)
@@ -233,8 +228,7 @@ async def plugin_get_file_contents(id: str, pluginId: str, filename: str):
 
     # The following prevents path traversal attacks:
     plugin_dir = dirs.plugin_dir_by_name((pluginId))
-    final_path = Path(plugin_dir).joinpath(
-        filename + file_ext).resolve().relative_to(plugin_dir)
+    final_path = Path(plugin_dir).joinpath(filename + file_ext).resolve().relative_to(plugin_dir)
 
     final_path = plugin_dir + "/" + str(final_path)
 
@@ -257,7 +251,7 @@ async def plugin_list_files(id: str, pluginId: str):
     if data is None:
         return {"message": f"Experiment {id} does not exist"}
 
-    experiment_name = data["name"]
+    # experiment_name = data["name"]
     scripts_dir = dirs.plugin_dir_by_name(pluginId)
 
     # check if directory exists:
@@ -283,13 +277,16 @@ async def plugin_create_new_file(id: str, pluginId: str, filename: str):
     if data is None:
         return {"message": f"Experiment {id} does not exist"}
 
-    experiment_name = data["name"]
+    # experiment_name = data["name"]
 
     # remove file extension from file:
     [filename, file_ext] = os.path.splitext(filename)
 
     if file_ext not in allowed_extensions:
-        return {"error": "true", "message": f"File extension {file_ext} for {filename} not supported. Please use one of the following extensions: {allowed_extensions}"}
+        return {
+            "error": "true",
+            "message": f"File extension {file_ext} for {filename} not supported. Please use one of the following extensions: {allowed_extensions}",
+        }
 
     # clean the file name:
     filename = shared.slugify(filename)
@@ -299,11 +296,10 @@ async def plugin_create_new_file(id: str, pluginId: str, filename: str):
 
     # make directory if it does not exist:
     if not os.path.exists(f"{script_path}"):
-        os.makedirs(
-            f"{script_path}")
+        os.makedirs(f"{script_path}")
 
     # now save the file contents, overwriting if it already exists:
-    with open(f"{script_path}/{filename}{file_ext}", "w+") as f:
+    with open(f"{script_path}/{filename}{file_ext}", "w+") as _:
         # f.write("")
         pass
 
@@ -319,13 +315,16 @@ async def plugin_delete_file(id: str, pluginId: str, filename: str):
     if data is None:
         return {"message": f"Experiment {id} does not exist"}
 
-    experiment_name = data["name"]
+    # experiment_name = data["name"]
 
     # remove file extension from file:
     [filename, file_ext] = os.path.splitext(filename)
 
     if file_ext not in allowed_extensions:
-        return {"error": "true", "message": f"File extension {file_ext} for {filename} not supported. Please use one of the following extensions: {allowed_extensions}"}
+        return {
+            "error": "true",
+            "message": f"File extension {file_ext} for {filename} not supported. Please use one of the following extensions: {allowed_extensions}",
+        }
 
     # clean the file name:
     filename = shared.slugify(filename)
@@ -352,7 +351,7 @@ async def plugin_new_plugin_directory(id: str, pluginId: str):
     if data is None:
         return {"message": f"Experiment {id} does not exist"}
 
-    experiment_name = data["name"]
+    # experiment_name = data["name"]
 
     # clean the file name:
     pluginId = shared.slugify(value=pluginId)

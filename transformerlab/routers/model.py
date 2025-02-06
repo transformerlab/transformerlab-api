@@ -42,7 +42,7 @@ def get_model_details_from_gallery(model_id: str):
     result = None
 
     for model in gallery:
-        if model['uniqueID'] == model_id or model['huggingface_repo'] == model_id:
+        if model["uniqueID"] == model_id or model["huggingface_repo"] == model_id:
             result = model
             break
 
@@ -60,7 +60,7 @@ async def model_gallery_list_all():
 
     # Get a list of local models to determine what has been downloaded already
     local_models = await model_helper.list_installed_models()
-    local_model_names = set(model['model_id'] for model in local_models)
+    local_model_names = set(model["model_id"] for model in local_models)
 
     # Set a date one month in the past to identify "new" models
     one_month_ago = datetime.date.today() + dateutil.relativedelta.relativedelta(months=-1)
@@ -69,7 +69,7 @@ async def model_gallery_list_all():
     # Iterate through models and add any values needed in result
     for model in gallery:
         # Mark which models have been downloaded already by checking for uniqueID
-        model['downloaded'] = True if model['uniqueID'] in local_model_names else False
+        model["downloaded"] = True if model["uniqueID"] in local_model_names else False
 
         # Application filters on archived flag. If none set then set to false
         if "archived" not in model:
@@ -81,8 +81,7 @@ async def model_gallery_list_all():
 
         # Application uses the new flag to decide whether to display a badge
         # TODO: Probably shouldn't be doing > string comparison for dates
-        model['new'] = True if (
-            model['added'] > new_model_cutoff_date) else False
+        model["new"] = True if (model["added"] > new_model_cutoff_date) else False
 
     return gallery
 
@@ -98,7 +97,6 @@ async def model_gallery_update_sizes():
 
     # Iterate through models and calculate updated model size
     for model in gallery:
-
         gallery_size = model.get("size_of_model_in_mb", "unknown")
         try:
             default_allow_patterns = [
@@ -108,43 +106,45 @@ async def model_gallery_update_sizes():
                 "tokenizer.model",
                 "*.tiktoken",
                 "*.npz",
-                "*.bin"
+                "*.bin",
             ]
             download_size = huggingfacemodel.get_huggingface_download_size(
-                model['uniqueID'], model.get("allow_patterns", default_allow_patterns))
+                model["uniqueID"], model.get("allow_patterns", default_allow_patterns)
+            )
         except Exception as e:
             download_size = -1
             print(e)
         try:
-            total_size = huggingfacemodel.get_huggingface_download_size(
-                model['uniqueID'], [])
+            total_size = huggingfacemodel.get_huggingface_download_size(model["uniqueID"], [])
         except Exception:
             total_size = -1
-        print(model['uniqueID'])
+        print(model["uniqueID"])
         print("Gallery size:", gallery_size)
-        print("Calculated size:", download_size/(1024*1024))
-        print("Total size:", total_size/(1024*1024))
+        print("Calculated size:", download_size / (1024 * 1024))
+        print("Total size:", total_size / (1024 * 1024))
         print("--")
 
         if download_size > 0:
-            model["size_of_model_in_mb"] = download_size/(1024*1024)
+            model["size_of_model_in_mb"] = download_size / (1024 * 1024)
 
     return gallery
 
 
 @router.get("/model/gallery/{model_id}")
 async def model_gallery(model_id: str):
-
     # convert "~~~"" in string to "/":
     model_id = model_id.replace("~~~", "/")
 
     return get_model_details_from_gallery(model_id)
 
+
 # Should this be a POST request?
 
 
 @router.get("/model/upload_to_huggingface", summary="Given a model ID, upload it to Hugging Face.")
-async def upload_model_to_huggingface(model_id: str, model_name: str = "transformerlab-model", organization_name: str = "", model_card_data: str = "{}"):
+async def upload_model_to_huggingface(
+    model_id: str, model_name: str = "transformerlab-model", organization_name: str = "", model_card_data: str = "{}"
+):
     """
     Given a model ID, upload it to Hugging Face.
     """
@@ -153,10 +153,13 @@ async def upload_model_to_huggingface(model_id: str, model_name: str = "transfor
     try:
         # Using HF API to check user info and use it for the model creation
         user_info = api.whoami()
-        username = user_info['name']
-        orgs = user_info['orgs']
+        username = user_info["name"]
+        orgs = user_info["orgs"]
         if organization_name not in orgs and organization_name != "":
-            return {"status": "error", "message": f"User {username} is not a member of organization {organization_name}"}
+            return {
+                "status": "error",
+                "message": f"User {username} is not a member of organization {organization_name}",
+            }
         elif organization_name in orgs and organization_name != "":
             username = organization_name
     except Exception as e:
@@ -173,15 +176,14 @@ async def upload_model_to_huggingface(model_id: str, model_name: str = "transfor
             return {"status": "error", "message": f"Error creating Hugging Face repo: {e}"}
 
     # Upload regardless in case they want to make changes/add to to an existing repo.
-    upload_folder(folder_path=model_directory,
-                  repo_id=repo_id)
+    upload_folder(folder_path=model_directory, repo_id=repo_id)
     # If they added basic model card data, add it to the model card.
     if model_card_data != "{}":
         model_card_data = json.loads(model_card_data)
         card_data = ModelCardData(**model_card_data)
         content = f"""
         ---
-        { card_data.to_yaml() }
+        {card_data.to_yaml()}
         ---
 
         # My Model Card
@@ -196,7 +198,6 @@ async def upload_model_to_huggingface(model_id: str, model_name: str = "transfor
 
 @router.get("/model/local/{model_id}")
 async def model_details_from_source(model_id: str):
-
     # convert "~~~"" in string to "/":
     model_id = model_id.replace("~~~", "/")
 
@@ -212,15 +213,13 @@ async def model_details_from_source(model_id: str):
 
 @router.get("/model/details/{model_id}")
 async def model_details_from_filesystem(model_id: str):
-
     # convert "~~~"" in string to "/":
     model_id = model_id.replace("~~~", "/")
 
     # TODO: Refactor this code with models/list function
     # see if the model exists locally
     model_path = get_model_dir(model_id)
-    if (os.path.isdir(model_path)):
-
+    if os.path.isdir(model_path):
         # Look for model information in info.json
         info_file = os.path.join(model_path, "info.json")
         try:
@@ -235,7 +234,7 @@ async def model_details_from_filesystem(model_id: str):
 
                 # Some models are a single file (possibly of many in a directory, e.g. GGUF)
                 # For models that have model_filename set we should link directly to that specific file
-                if ("json_data" in filedata and filedata["json_data"]):
+                if "json_data" in filedata and filedata["json_data"]:
                     return filedata["json_data"]
 
         except FileNotFoundError:
@@ -248,6 +247,7 @@ async def model_details_from_filesystem(model_id: str):
 @router.get(path="/model/login_to_huggingface")
 async def login_to_huggingface():
     from huggingface_hub import get_token, login
+
     token = await db.config_get("HuggingfaceUserAccessToken")
 
     saved_token_in_hf_cache = get_token()
@@ -256,7 +256,7 @@ async def login_to_huggingface():
         try:
             login(token=saved_token_in_hf_cache)
             return {"message": "OK"}
-        except:
+        except Exception:
             pass
 
     if token is None:
@@ -270,7 +270,7 @@ async def login_to_huggingface():
     try:
         login(token=token)
         return {"message": "OK"}
-    except:
+    except Exception:
         return {"message": "Login failed"}
 
 
@@ -327,8 +327,7 @@ async def set_anthropic_api_key():
 @router.get(path="/model/download_size")
 def get_model_download_size(model_id: str, allow_patterns: list = []):
     try:
-        download_size_in_bytes = huggingfacemodel.get_huggingface_download_size(
-            model_id, allow_patterns)
+        download_size_in_bytes = huggingfacemodel.get_huggingface_download_size(model_id, allow_patterns)
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
         return {"status": "error", "message": error_msg}
@@ -350,8 +349,7 @@ async def download_huggingface_model(hugging_face_id: str, model_details: str = 
     - message: error message if status is "error"
     """
     if job_id is None:
-        job_id = await db.job_create(type="DOWNLOAD_MODEL", status="STARTED",
-                                     job_data='{}')
+        job_id = await db.job_create(type="DOWNLOAD_MODEL", status="STARTED", job_data="{}")
     else:
         await db.job_update(job_id=job_id, type="DOWNLOAD_MODEL", status="STARTED")
 
@@ -362,11 +360,15 @@ async def download_huggingface_model(hugging_face_id: str, model_details: str = 
     hugging_face_filename = model_details.get("huggingface_filename", None)
     allow_patterns = model_details.get("allow_patterns", None)
 
-    args = [f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
-            "--model_name", hugging_face_id,
-            "--job_id", str(job_id),
-            "--total_size_of_model_in_mb", model_size
-            ]
+    args = [
+        f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
+        "--model_name",
+        hugging_face_id,
+        "--job_id",
+        str(job_id),
+        "--total_size_of_model_in_mb",
+        model_size,
+    ]
 
     if hugging_face_filename is not None:
         args += ["--model_filename", hugging_face_filename]
@@ -376,17 +378,19 @@ async def download_huggingface_model(hugging_face_id: str, model_details: str = 
         args += ["--allow_patterns", allow_patterns_json]
 
     try:
-        process = await shared.async_run_python_script_and_update_status(python_script=args, job_id=job_id, begin_string="Fetching")
+        process = await shared.async_run_python_script_and_update_status(
+            python_script=args, job_id=job_id, begin_string="Fetching"
+        )
         exitcode = process.returncode
 
-        if (exitcode == 77):
+        if exitcode == 77:
             # This means we got a GatedRepoError
             # The user needs to agree to terms on HuggingFace to download
             error_msg = await db.job_get_error_msg(job_id)
             await db.job_update_status(job_id, "UNAUTHORIZED", error_msg)
             return {"status": "unauthorized", "message": error_msg}
 
-        elif (exitcode != 0):
+        elif exitcode != 0:
             error_msg = await db.job_get_error_msg(job_id)
             if not error_msg:
                 error_msg = f"Exit code {exitcode}"
@@ -415,8 +419,7 @@ async def download_model_by_huggingface_id(model: str, job_id: int | None = None
     # If None then that means either the model doesn't exist
     # Or we don't have proper Hugging Face authentication setup
     try:
-        model_details = huggingfacemodel.get_model_details_from_huggingface(
-            model)
+        model_details = huggingfacemodel.get_model_details_from_huggingface(model)
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
         return {"status": "error", "message": error_msg}
@@ -443,7 +446,7 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
         return {"status": "error", "message": "Model not found in gallery"}
 
     # Need to use huggingface repo to download - not always the same as uniqueID
-    huggingface_id = gallery_entry.get('huggingface_repo', gallery_id)
+    huggingface_id = gallery_entry.get("huggingface_repo", gallery_id)
     return await download_huggingface_model(huggingface_id, gallery_entry, job_id)
 
 
@@ -478,9 +481,9 @@ async def model_local_delete(model_id: str):
     # If this is a locally generated model then actually delete from filesystem
     # Check for the model stored in a directory based on the model name (i.e. the part after teh slash)
     root_models_dir = dirs.MODELS_DIR
-    model_dir = model_id.rsplit('/', 1)[-1]
+    model_dir = model_id.rsplit("/", 1)[-1]
     info_file = os.path.join(root_models_dir, model_dir, "info.json")
-    if (os.path.isfile(info_file)):
+    if os.path.isfile(info_file):
         model_path = os.path.join(root_models_dir, model_dir)
         print(f"Deleteing {model_path}")
         shutil.rmtree(model_path)
@@ -488,7 +491,8 @@ async def model_local_delete(model_id: str):
     else:
         # If this is a hugging face model then delete from the database but leave in the cache
         print(
-            f"Deleting model {model_id}. Note that this will not free up space because it remains in the HuggingFace cache.")
+            f"Deleting model {model_id}. Note that this will not free up space because it remains in the HuggingFace cache."
+        )
         print("If you want to delete the model from the HuggingFace cache, you must delete it from:")
         print("~/.cache/huggingface/hub/")
 
@@ -498,11 +502,13 @@ async def model_local_delete(model_id: str):
 
 
 @router.post("/model/pefts")
-async def model_gets_pefts(model_id: Annotated[str, Body()],):
+async def model_gets_pefts(
+    model_id: Annotated[str, Body()],
+):
     workspace_dir = dirs.WORKSPACE_DIR
     adaptors_dir = f"{workspace_dir}/adaptors/{model_id}"
     adaptors = []
-    if (os.path.exists(adaptors_dir)):
+    if os.path.exists(adaptors_dir):
         adaptors = os.listdir(adaptors_dir)
     return adaptors
 
@@ -528,7 +534,7 @@ async def get_local_hfconfig(model_id: str):
         with open(config_json) as f:
             contents = f.read()
         d = json.loads(contents)
-    except:
+    except Exception:
         # failed to open config.json so create an empty config
         d = {}
 
@@ -541,7 +547,6 @@ async def get_model_from_db(model_id: str):
 
 @router.get("/model/list_local_uninstalled")
 async def models_list_local_uninstalled(path: str = ""):
-
     # first search and get a list of BaseModel objects
     found_models = []
     if path is not None and path != "":
@@ -562,7 +567,7 @@ async def models_list_local_uninstalled(path: str = ""):
         # Figure out if this model is supported in TransformerLab
         architecture = found_model.json_data.get("architecture", "unknown")
         supported = model_helper.model_architecture_is_supported(architecture)
-        if (found_model.status != "OK"):
+        if found_model.status != "OK":
             status = f"❌ {found_model.status}"
             supported = False
         elif architecture == "unknown" or architecture == "":
@@ -580,7 +585,7 @@ async def models_list_local_uninstalled(path: str = ""):
             "source": found_model.json_data.get("source", "unknown"),
             "installed": False,
             "status": status,
-            "supported": supported
+            "supported": supported,
         }
         response_models.append(new_model)
 
@@ -618,7 +623,7 @@ async def model_import_local_source(model_source: str, model_id: str):
 @router.get("/model/import_from_local_path")
 async def model_import_local_path(model_path: str):
     """
-    Given model_path pointing to a local directory of a file, 
+    Given model_path pointing to a local directory of a file,
     try to import a model into TransformerLab.
     """
 

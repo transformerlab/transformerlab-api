@@ -51,8 +51,7 @@ class LlamaCppTokenizer:
         # convert variable "text" to bytes:
         text = text.encode("utf-8")
         tokens = self.model.tokenize(text)
-        batchEncoding = BatchEncoding(
-            data={"input_ids": [tokens], "eos_token_id": None})
+        batchEncoding = BatchEncoding(data={"input_ids": [tokens], "eos_token_id": None})
         return batchEncoding
 
     def decode(self, tokens):
@@ -60,7 +59,7 @@ class LlamaCppTokenizer:
 
     def num_tokens(self, prompt):
         tokens = self.model.tokenize(prompt)
-        return (len(tokens))
+        return len(tokens)
 
 
 class LlamaCppServer(BaseModelWorker):
@@ -87,16 +86,13 @@ class LlamaCppServer(BaseModelWorker):
             conv_template,
         )
 
-        logger.info(
-            f"Loading the model {self.model_names} on worker {worker_id}, worker type: llama-cpp-python..."
-        )
+        logger.info(f"Loading the model {self.model_names} on worker {worker_id}, worker type: llama-cpp-python...")
 
         self.model_name = model_path
         print("Loading model: ", self.model_name)
         # setting _n_ctx to 0 pins it to the trained context length
 
-        self.model = llama_cpp.Llama(
-            self.model_name, n_ctx=0, n_gpu_layers=n_gpu_layers)
+        self.model = llama_cpp.Llama(self.model_name, n_ctx=0, n_gpu_layers=n_gpu_layers)
         self.tokenizer = LlamaCppTokenizer(model=self.model)
 
         # self.context_len = get_context_length(
@@ -113,20 +109,20 @@ class LlamaCppServer(BaseModelWorker):
         self.call_ct += 1
 
         context = params.pop("prompt")
-        request_id = params.pop("request_id")
+        # request_id = params.pop("request_id")
         temperature = float(params.get("temperature", 1.0))
         top_p = float(params.get("top_p", 1.0))
-        top_k = params.get("top_k", -1.0)
-        presence_penalty = float(params.get("presence_penalty", 0.0))
-        frequency_penalty = float(params.get("frequency_penalty", 0.0))
+        # top_k = params.get("top_k", -1.0)
+        # presence_penalty = float(params.get("presence_penalty", 0.0))
+        # frequency_penalty = float(params.get("frequency_penalty", 0.0))
         max_new_tokens = params.get("max_new_tokens", 256)
         stop_str = params.get("stop", None)
         stop_token_ids = params.get("stop_token_ids", None) or []
         if self.tokenizer.eos_token_id is not None:
             stop_token_ids.append(self.tokenizer.eos_token_id)
-        echo = params.get("echo", True)
-        use_beam_search = params.get("use_beam_search", False)
-        best_of = params.get("best_of", None)
+        # echo = params.get("echo", True)
+        # use_beam_search = params.get("use_beam_search", False)
+        # best_of = params.get("best_of", None)
 
         # Handle stop_str
         stop = set()
@@ -151,7 +147,7 @@ class LlamaCppServer(BaseModelWorker):
             top_p = 1.0
 
         tokens = []
-        skip = 0
+        # skip = 0
 
         context_tokens = self.model.tokenize(context.encode("utf-8"))
 
@@ -174,8 +170,7 @@ class LlamaCppServer(BaseModelWorker):
 
             # tokens_decoded returns bytes, we need a string
             tokens_decoded_str = tokens_decoded.decode("utf-8")
-            partial_stop = any(is_partial_stop(tokens_decoded_str, i)
-                               for i in stop)
+            partial_stop = any(is_partial_stop(tokens_decoded_str, i) for i in stop)
 
             if partial_stop:
                 finish_reason = "stop"
@@ -189,20 +184,17 @@ class LlamaCppServer(BaseModelWorker):
                     "completion_tokens": len(tokens),
                     "total_tokens": len(context) + len(tokens),
                 },
-                "cumulative_logprob": [
-                ],
-                "finish_reason": None   # hard code for now
+                "cumulative_logprob": [],
+                "finish_reason": None,  # hard code for now
             }
             # print(ret)
             yield (json.dumps(ret) + "\0").encode()
         ret = {
             "text": self.model.detokenize(tokens).decode("utf-8"),
             "error_code": 0,
-            "usage": {
-            },
-            "cumulative_logprob": [
-            ],
-            "finish_reason": finish_reason
+            "usage": {},
+            "cumulative_logprob": [],
+            "finish_reason": finish_reason,
         }
         yield (json.dumps(obj={**ret, **{"finish_reason": None}}) + "\0").encode()
         yield (json.dumps(ret) + "\0").encode()
@@ -214,18 +206,24 @@ class LlamaCppServer(BaseModelWorker):
         top_p = float(params.get("top_p", 1.0))
 
         print("Generating with params: ", params)
-        thread = asyncio.to_thread(self.model.create_completion,
-                                   prompt, suffix=None, max_tokens=max_tokens, temperature=temperature, top_p=top_p, echo=False)
+        thread = asyncio.to_thread(
+            self.model.create_completion,
+            prompt,
+            suffix=None,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            echo=False,
+        )
         response = await thread
         print(response)
 
         ret = {
-            "text": response['choices'][0]['text'],
+            "text": response["choices"][0]["text"],
             "error_code": 0,
-            "usage": response['usage'],
-            "cumulative_logprob": [
-            ],
-            "finish_reason": response['choices'][0]['finish_reason']
+            "usage": response["usage"],
+            "cumulative_logprob": [],
+            "finish_reason": response["choices"][0]["finish_reason"],
         }
         return ret
 
@@ -294,6 +292,7 @@ async def api_get_conv(request: Request):
 async def api_model_details(request: Request):
     return {"context_length": worker.context_len}
 
+
 worker = None
 
 
@@ -312,27 +311,20 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", type=str, default="localhost")
     parser.add_argument("--port", type=int, default=21002)
-    parser.add_argument("--worker-address", type=str,
-                        default="http://localhost:21002")
-    parser.add_argument(
-        "--controller-address", type=str, default="http://localhost:21001"
-    )
-    parser.add_argument("--model-path", type=str,
-                        default="microsoft/phi-2")
+    parser.add_argument("--worker-address", type=str, default="http://localhost:21002")
+    parser.add_argument("--controller-address", type=str, default="http://localhost:21001")
+    parser.add_argument("--model-path", type=str, default="microsoft/phi-2")
     parser.add_argument(
         "--model-names",
         type=lambda s: s.split(","),
         help="Optional display comma separated names",
     )
-    parser.add_argument(
-        "--conv-template", type=str, default=None, help="Conversation prompt template."
-    )
+    parser.add_argument("--conv-template", type=str, default=None, help="Conversation prompt template.")
     parser.add_argument(
         "--trust_remote_code",
         action="store_false",
         default=True,
-        help="Trust remote code (e.g., from HuggingFace) when"
-        "downloading the model and tokenizer.",
+        help="Trust remote code (e.g., from HuggingFace) whendownloading the model and tokenizer.",
     )
     parser.add_argument("--parameters", type=str, default=None)
 
@@ -341,9 +333,9 @@ def main():
     # parameters is a JSON string, so we parse it:
     parameters = json.loads(args.parameters)
 
-    n_gpu_layers = parameters.get("n_gpu_layers", 'auto')
+    n_gpu_layers = parameters.get("n_gpu_layers", "auto")
 
-    if (n_gpu_layers == 'auto'):
+    if n_gpu_layers == "auto":
         if torch.cuda.is_available():
             n_gpu_layers = -1
             print("GPU detected, setting n_gpu_layers to ", n_gpu_layers)
@@ -371,7 +363,7 @@ def main():
         False,
         "llama-cpp-python",
         args.conv_template,
-        n_gpu_layers
+        n_gpu_layers,
     )
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 

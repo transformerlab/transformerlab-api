@@ -25,13 +25,7 @@ class VisionConfig:
 
     @classmethod
     def from_dict(cls, params):
-        return cls(
-            **{
-                k: v
-                for k, v in params.items()
-                if k in inspect.signature(cls).parameters
-            }
-        )
+        return cls(**{k: v for k, v in params.items() if k in inspect.signature(cls).parameters})
 
 
 class Attention(nn.Module):
@@ -50,8 +44,7 @@ class Attention(nn.Module):
 
         if (dims % num_heads) != 0:
             raise ValueError(
-                "The input feature dimensions should be divisible by the "
-                f"number of heads ({dims} % {num_heads}) != 0"
+                f"The input feature dimensions should be divisible by the number of heads ({dims} % {num_heads}) != 0"
             )
 
         query_input_dims = query_input_dims or dims
@@ -105,14 +98,10 @@ class EncoderLayer(nn.Module):
     def __init__(self, config: VisionConfig):
         super().__init__()
         self.embed_dim = config.hidden_size
-        self.self_attn = Attention(
-            config.hidden_size, config.num_attention_heads, bias=True
-        )
-        self.layer_norm1 = nn.LayerNorm(
-            self.embed_dim, eps=config.layer_norm_eps)
+        self.self_attn = Attention(config.hidden_size, config.num_attention_heads, bias=True)
+        self.layer_norm1 = nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
         self.mlp = MLP(config)
-        self.layer_norm2 = nn.LayerNorm(
-            self.embed_dim, eps=config.layer_norm_eps)
+        self.layer_norm2 = nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
 
     def __call__(self, x: mx.array, mask: Optional[mx.array] = None) -> mx.array:
         y = self.layer_norm1(x)
@@ -126,8 +115,7 @@ class EncoderLayer(nn.Module):
 class Encoder(nn.Module):
     def __init__(self, config: VisionConfig):
         super().__init__()
-        self.layers = [EncoderLayer(config)
-                       for _ in range(config.num_hidden_layers)]
+        self.layers = [EncoderLayer(config) for _ in range(config.num_hidden_layers)]
 
 
 class VisionEmbeddings(nn.Module):
@@ -150,18 +138,14 @@ class VisionEmbeddings(nn.Module):
 
         self.num_patches = (self.image_size // self.patch_size) ** 2
         self.num_positions = self.num_patches + 1
-        self.position_embedding = nn.Embedding(
-            self.num_positions, self.embed_dim)
+        self.position_embedding = nn.Embedding(self.num_positions, self.embed_dim)
 
     def __call__(self, x: mx.array) -> mx.array:
         batch_size = x.shape[0]
         patch_embeddings = self.patch_embedding(x)
-        patch_embeddings = mx.flatten(
-            patch_embeddings, start_axis=1, end_axis=2)
+        patch_embeddings = mx.flatten(patch_embeddings, start_axis=1, end_axis=2)
         embed_dim = patch_embeddings.shape[-1]
-        cls_embeddings = mx.broadcast_to(
-            self.class_embedding, (batch_size, 1, embed_dim)
-        )
+        cls_embeddings = mx.broadcast_to(self.class_embedding, (batch_size, 1, embed_dim))
         embeddings = mx.concatenate((cls_embeddings, patch_embeddings), axis=1)
         embeddings += self.position_embedding.weight
         return embeddings
@@ -185,8 +169,8 @@ class ClipVisionModel(nn.Module):
 
         encoder_states = (x,) if output_hidden_states else None
 
-        for l in self.encoder.layers:
-            x = l(x, mask=None)
+        for layer in self.encoder.layers:
+            x = layer(x, mask=None)
             if output_hidden_states:
                 encoder_states = encoder_states + (x,)
 
@@ -204,9 +188,7 @@ class VisionModel(nn.Module):
 
         self.vision_model = ClipVisionModel(config)
 
-    def __call__(
-        self, x: mx.array, output_hidden_states: Optional[bool] = None
-    ) -> mx.array:
+    def __call__(self, x: mx.array, output_hidden_states: Optional[bool] = None) -> mx.array:
         return self.vision_model(x, output_hidden_states)
 
     @staticmethod

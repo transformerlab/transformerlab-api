@@ -16,11 +16,10 @@ from anyio.streams.text import TextReceiveStream
 
 import transformerlab.db as db
 
-from transformerlab.shared.dirs import (
-    GLOBAL_LOG_PATH)
+from transformerlab.shared.dirs import GLOBAL_LOG_PATH
 
 
-def popen_and_call(onExit, input='', output_file=None, *popenArgs, **popenKWArgs):
+def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs):
     """
     Runs a subprocess.Popen, and then calls the function onExit when the
     subprocess completes.
@@ -39,26 +38,24 @@ def popen_and_call(onExit, input='', output_file=None, *popenArgs, **popenKWArgs
     """
 
     def runInThread(onExit, popenArgs, popenKWArgs):
-        if (output_file is not None):
-            log = open(output_file, 'a')
+        if output_file is not None:
+            log = open(output_file, "a")
             # get the current date and time as a string:
             current_time = time.strftime("%Y-%m-%d %H:%M:%S")
             print("Printing to file: " + output_file)
-            log.write(f'\n\n-- RUN {current_time}--\n')
+            log.write(f"\n\n-- RUN {current_time}--\n")
             log.flush()
         else:
             print("No output file specified, printing to stdout")
             log = subprocess.PIPE
 
-        proc = subprocess.Popen(
-            *popenArgs, **popenKWArgs, stdin=subprocess.PIPE, stdout=log, stderr=log)
+        proc = subprocess.Popen(*popenArgs, **popenKWArgs, stdin=subprocess.PIPE, stdout=log, stderr=log)
         proc.communicate(input=input.encode("utf-8"))
         proc.wait()
         onExit()
         return
 
-    thread = threading.Thread(
-        target=runInThread, args=(onExit, popenArgs, popenKWArgs))
+    thread = threading.Thread(target=runInThread, args=(onExit, popenArgs, popenKWArgs))
     thread.start()
 
     return thread  # returns immediately after the thread starts
@@ -76,11 +73,7 @@ def slugify(value, allow_unicode=False):
     if allow_unicode:
         value = unicodedata.normalize("NFKC", value)
     else:
-        value = (
-            unicodedata.normalize("NFKD", value)
-            .encode("ascii", "ignore")
-            .decode("ascii")
-        )
+        value = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
     value = re.sub(r"[^\w\s-]", "", value.lower())
     return re.sub(r"[-\s]+", "-", value).strip("-_")
 
@@ -97,7 +90,7 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
 
     print(f"Job {job_id} Running async python script: " + str(python_script))
 
-    command = [sys.executable, '-u', *python_script]
+    command = [sys.executable, "-u", *python_script]
 
     process = await open_process(command=command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
 
@@ -115,8 +108,7 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
         print(f"Job {job_id} completed successfully")
         await db.job_update_status(job_id=job_id, status="COMPLETE")
     else:
-        print(
-            f"ERROR: Job {job_id} failed with exit code {process.returncode}.")
+        print(f"ERROR: Job {job_id} failed with exit code {process.returncode}.")
         await db.job_update_status(job_id=job_id, status="FAILED")
 
     return process
@@ -129,7 +121,7 @@ async def read_process_output(process, job_id):
         print("Worker Process completed successfully")
     else:
         print(f"ERROR: Worker Process ended with exit code {returncode}.")
-    with open(GLOBAL_LOG_PATH, 'a') as log:
+    with open(GLOBAL_LOG_PATH, "a") as log:
         log.write(f"Inference Server Terminated with {returncode}.\n")
         log.flush()
     # so we should delete the pid file:
@@ -138,7 +130,9 @@ async def read_process_output(process, job_id):
         os.remove(pid_file)
 
 
-async def async_run_python_daemon_and_update_status(python_script: list[str], job_id: str, begin_string: str, set_process_id_function=None):
+async def async_run_python_daemon_and_update_status(
+    python_script: list[str], job_id: str, begin_string: str, set_process_id_function=None
+):
     """Use this function for daemon processes, for example setting up a model for inference.
     This function is helpful when the start of the daemon process takes a while. So you can
     wait for "begin_string" to be mentioned in stderr in order to let the caller know that
@@ -155,13 +149,15 @@ async def async_run_python_daemon_and_update_status(python_script: list[str], jo
     print(command)
 
     # open a file to write the output to:
-    log = open(GLOBAL_LOG_PATH, 'a')
+    log = open(GLOBAL_LOG_PATH, "a")
 
-    process = await asyncio.create_subprocess_exec(*command, stdin=None, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
+    process = await asyncio.create_subprocess_exec(
+        *command, stdin=None, stderr=subprocess.STDOUT, stdout=subprocess.PIPE
+    )
 
     pid = process.pid
     pid_file = os.path.join(dirs.TEMP_DIR, f"worker_job_{job_id}.pid")
-    with open(pid_file, 'w') as f:
+    with open(pid_file, "w") as f:
         f.write(str(pid))
 
     line = await process.stdout.readline()
@@ -214,14 +210,14 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
     print("Job Config: " + str(job_config))
     print("Job Details: " + str(job_details))
-    master_job_type = job_details['type']
+    master_job_type = job_details["type"]
     print(master_job_type)
 
     if master_job_type == "TASK":
         """we define a TASK job as a job where we just ask
         the worker to run the related python script, passing in the parameters
         that are defined in job_config"""
-        plugin = job_config["plugin"]
+        # plugin = job_config["plugin"]
         # update task to be marked as COMPLETE:
         await db.job_update_status(job_id, "COMPLETE")
         # implement rest later
@@ -234,11 +230,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         await db.job_update_status(job_id, "RUNNING")
         print("Running evaluation script")
         plugin_location = dirs.plugin_dir_by_name(plugin_name)
-        evals_output_file = os.path.join(
-            plugin_location, f"output_{job_id}.txt")
+        evals_output_file = os.path.join(plugin_location, f"output_{job_id}.txt")
         # Create output file if it doesn't exist
         if not os.path.exists(evals_output_file):
-            with open(evals_output_file, 'w') as f:
+            with open(evals_output_file, "w") as f:
                 f.write("")
         await run_evaluation_script(experiment_id, plugin_name, eval_name, job_id)
         await db.job_update_status(job_id, "COMPLETE")
@@ -249,13 +244,13 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     template_id = job_config["template_id"]
 
     # Get the template
-    template: dict[_KT, _VT] = await db.get_training_template(template_id)
+    template = await db.get_training_template(template_id)
 
     print("Template: " + str(template))
-    job_type = str(template['type'])
+    job_type = str(template["type"])
 
     # Get the plugin script name:
-    template_config = json.loads(template['config'])
+    template_config = json.loads(template["config"])
     plugin_name = str(template_config["plugin_name"])
 
     # Get the job details from the database:
@@ -272,27 +267,23 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     output_file = os.path.join(plugin_location, f"output_{job_id}.txt")
 
     def on_train_complete():
-        print('Training Job: The process has finished')
+        print("Training Job: The process has finished")
         db.job_mark_as_complete_if_running(job_id)
         end_time = time.strftime("%Y-%m-%d %H:%M:%S")
-        asyncio.run(db.job_update_job_data_insert_key_value(
-            job_id, "end_time", end_time))
+        asyncio.run(db.job_update_job_data_insert_key_value(job_id, "end_time", end_time))
 
     def on_job_complete():
         db.job_update_sync(job_id, "COMPLETE")
         end_time = time.strftime("%Y-%m-%d %H:%M:%S")
-        asyncio.run(db.job_update_job_data_insert_key_value(
-            job_id, "end_time", end_time))
+        asyncio.run(db.job_update_job_data_insert_key_value(job_id, "end_time", end_time))
 
     if job_type == "LoRA":
         model_name = template_config["model_name"]
-        template_config = json.loads(template['config'])
+        template_config = json.loads(template["config"])
         adaptor_name = template_config["adaptor_name"]
         template_config["job_id"] = job_id
-        template_config["adaptor_output_dir"] = os.path.join(
-            dirs.WORKSPACE_DIR, "adaptors", model_name, adaptor_name)
-        template_config["output_dir"] = os.path.join(
-            dirs.WORKSPACE_DIR, "tensorboards", f"job{job_id}")
+        template_config["adaptor_output_dir"] = os.path.join(dirs.WORKSPACE_DIR, "adaptors", model_name, adaptor_name)
+        template_config["output_dir"] = os.path.join(dirs.WORKSPACE_DIR, "tensorboards", f"job{job_id}")
 
         # Create a file in the temp directory to store the inputs:
         tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
@@ -302,19 +293,17 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
         # and should be done in the API itself
         if "config" in experiment_details:
-            experiment_details["config"] = json.loads(
-                experiment_details["config"])
+            experiment_details["config"] = json.loads(experiment_details["config"])
             if "inferenceParams" in experiment_details["config"]:
                 experiment_details["config"]["inferenceParams"] = json.loads(
-                    experiment_details["config"]["inferenceParams"])
-        input_contents = {"experiment": experiment_details,
-                          "config": template_config}
-        with open(input_file, 'w') as outfile:
+                    experiment_details["config"]["inferenceParams"]
+                )
+        input_contents = {"experiment": experiment_details, "config": template_config}
+        with open(input_file, "w") as outfile:
             json.dump(input_contents, outfile, indent=4)
 
         start_time = time.strftime("%Y-%m-%d %H:%M:%S")
-        await db.job_update_job_data_insert_key_value(
-            job_id, "start_time", start_time)
+        await db.job_update_job_data_insert_key_value(job_id, "start_time", start_time)
 
         # This calls the training plugin harness, which calls the actual training plugin
         training_popen_command = [
@@ -325,12 +314,11 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             "--input_file",
             input_file,
             "--experiment_name",
-            experiment_name
+            experiment_name,
         ]
         print("RUNNING: popen command:")
         print(training_popen_command)
-        popen_and_call(on_train_complete,
-                       experiment_details_as_string, output_file, training_popen_command)
+        popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
     else:
         print("I don't know what to do with this job type: " + job_type)
         on_job_complete()
@@ -339,16 +327,23 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     return
 
 
-rainbow = ['\033[38;5;196m', '\033[38;5;202m', '\033[38;5;226m',
-           '\033[38;5;082m', '\033[38;5;021m', '\033[38;5;093m', '\033[38;5;163m']
-reset = '\033[0m'
+rainbow = [
+    "\033[38;5;196m",
+    "\033[38;5;202m",
+    "\033[38;5;226m",
+    "\033[38;5;082m",
+    "\033[38;5;021m",
+    "\033[38;5;093m",
+    "\033[38;5;163m",
+]
+reset = "\033[0m"
 
 
 def print_in_rainbow(text):
     for i, line in enumerate(text.split("\n")):
-        chunks = [line[i:i + 6] for i in range(0, len(line), 6)]
+        chunks = [line[i : i + 6] for i in range(0, len(line), 6)]
         for j, chunk in enumerate(chunks):
             print(rainbow[j % len(rainbow)], end="")
             print(chunk, end="")
             print(reset, end="")
-        print('', flush=True)
+        print("", flush=True)

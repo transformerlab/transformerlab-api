@@ -16,10 +16,10 @@ router = APIRouter(prefix="/evals", tags=["evals"])
 
 @router.post("/add")
 async def experiment_add_evaluation(experimentId: int, plugin: Any = Body()):
-    """ Add an evaluation to an experiment. This will create a new directory in the experiment
+    """Add an evaluation to an experiment. This will create a new directory in the experiment
     and add global plugin to the specific experiment. By copying the plugin to the experiment
     directory, we can modify the plugin code for the specific experiment without affecting
-    other experiments that use the same plugin. """
+    other experiments that use the same plugin."""
 
     experiment = await db.experiment_get(experimentId)
 
@@ -44,11 +44,7 @@ async def experiment_add_evaluation(experimentId: int, plugin: Any = Body()):
         slug = slug[:100]
         print("Evals name is too long, truncating to 100 characters")
 
-    evaluation = {
-        "name": slug,
-        "plugin": plugin_name,
-        "script_parameters": script_parameters
-    }
+    evaluation = {"name": slug, "plugin": plugin_name, "script_parameters": script_parameters}
 
     evaluations.append(evaluation)
 
@@ -59,8 +55,8 @@ async def experiment_add_evaluation(experimentId: int, plugin: Any = Body()):
 
 @router.get("/delete")
 async def experiment_delete_eval(experimentId: int, eval_name: str):
-    """ Delete an evaluation from an experiment. This will delete the directory in the experiment
-    and remove the global plugin from the specific experiment. """
+    """Delete an evaluation from an experiment. This will delete the directory in the experiment
+    and remove the global plugin from the specific experiment."""
     experiment = await db.experiment_get(experimentId)
 
     if experiment is None:
@@ -80,12 +76,13 @@ async def experiment_delete_eval(experimentId: int, eval_name: str):
 
     return {"message": f"Evaluation {eval_name} deleted from experiment {experimentId}"}
 
+
 # @TODO delete the following function and use the plugin file function
 
 
 @router.post("/edit")
 async def edit_evaluation_task(experimentId: int, plugin: Any = Body()):
-    """Get the contents of the evaluation """
+    """Get the contents of the evaluation"""
     try:
         experiment = await db.experiment_get(experimentId)
 
@@ -137,7 +134,7 @@ async def get_evaluation_plugin_file_contents(experimentId: int, plugin_name: st
     if data is None:
         return {"message": f"Experiment {experimentId} does not exist"}
 
-    experiment_name = data["name"]
+    # experiment_name = data["name"]
 
     # print(f"{EXPERIMENTS_DIR}/{experiment_name}/evals/{eval_name}/main.py")
 
@@ -175,14 +172,13 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
     # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
     # and should be done in the API itself
     if "config" in experiment_details:
-        experiment_details["config"] = json.loads(
-            experiment_details["config"])
+        experiment_details["config"] = json.loads(experiment_details["config"])
         if "inferenceParams" in experiment_details["config"]:
             experiment_details["config"]["inferenceParams"] = json.loads(
-                experiment_details["config"]["inferenceParams"])
+                experiment_details["config"]["inferenceParams"]
+            )
         if "evaluations" in experiment_details["config"]:
-            experiment_details["config"]["evaluations"] = json.loads(
-                experiment_details["config"]["evaluations"])
+            experiment_details["config"]["evaluations"] = json.loads(experiment_details["config"]["evaluations"])
 
     all_evaluations = experiment_details["config"]["evaluations"]
     this_evaluation = None
@@ -197,9 +193,8 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
     # print("GET OUTPUT JOB DATA", await get_job_output_file_name("2", plugin_name, eval_name, template_config))
     job_output_file = await get_job_output_file_name(job_id, plugin_name)
 
-    input_contents = {"experiment": experiment_details,
-                      "config": template_config}
-    with open(input_file, 'w') as outfile:
+    input_contents = {"experiment": experiment_details, "config": template_config}
+    with open(input_file, "w") as outfile:
         json.dump(input_contents, outfile, indent=4)
 
     # For now, even though we have the file above, we are also going to pass all params
@@ -214,8 +209,24 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
 
     # print(template_config)
 
-    extra_args.extend(["--experiment_name", experiment_name, "--eval_name", eval_name, "--input_file", input_file,
-                       "--model_name", model_name, "--model_architecture", model_type, "--model_adapter", model_adapter, "--job_id", str(job_id)])
+    extra_args.extend(
+        [
+            "--experiment_name",
+            experiment_name,
+            "--eval_name",
+            eval_name,
+            "--input_file",
+            input_file,
+            "--model_name",
+            model_name,
+            "--model_architecture",
+            model_type,
+            "--model_adapter",
+            model_adapter,
+            "--job_id",
+            str(job_id),
+        ]
+    )
 
     subprocess_command = [sys.executable, dirs.PLUGIN_HARNESS] + extra_args
 
@@ -224,11 +235,7 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
     output_file = await dirs.eval_output_file(experiment_name, eval_name)
 
     with open(job_output_file, "w") as f:
-        process = await asyncio.create_subprocess_exec(
-            *subprocess_command,
-            stdout=f,
-            stderr=subprocess.PIPE
-        )
+        process = await asyncio.create_subprocess_exec(*subprocess_command, stdout=f, stderr=subprocess.PIPE)
         await process.communicate()
 
     with open(output_file, "w") as f:

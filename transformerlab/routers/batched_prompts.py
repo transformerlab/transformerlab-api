@@ -22,9 +22,8 @@ async def list_prompts():
                     p = json.load(f)
                     name = file.split(".")[0]
                     batched_prompts.append({"name": name, "prompts": p})
-                except:
-                    print(
-                        f"Error loading batched prompt file: {file}, skipping")
+                except Exception as e:
+                    print(f"Error loading batched prompt file: {file}: {e}, skipping")
 
     return batched_prompts
 
