@@ -1,4 +1,3 @@
-
 import os
 import json
 import sqlite3
@@ -30,8 +29,7 @@ def get_dataset_path(dataset_id: str):
     Returns the ID or filesystem path to pass to load_dataset() for a given ID.
     """
     db = get_db_connection()
-    cursor = db.execute(
-        "SELECT location FROM dataset WHERE dataset_id = ?", (dataset_id,))
+    cursor = db.execute("SELECT location FROM dataset WHERE dataset_id = ?", (dataset_id,))
     row = cursor.fetchone()
     cursor.close()
 
@@ -43,7 +41,7 @@ def get_dataset_path(dataset_id: str):
     # (and if it's something else we're going to treat "huggingface" as default)
     # if it's local then pass it the path to the dataset directory
     dataset_location = row[0]
-    if (dataset_location == "local"):
+    if dataset_location == "local":
         return os.path.join(WORKSPACE_DIR, "datasets", dataset_id)
 
     # Otherwise assume it is a Huggingface ID
@@ -68,15 +66,13 @@ class Job:
         progress: int representing percent complete
         """
         self.db.execute(
-            "UPDATE job SET progress = ?, updated_at = CURRENT_TIMESTAMP "
-            "WHERE id = ?",
+            "UPDATE job SET progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
             (progress, self.id),
         )
 
         # While we are updating the progress, check if we should stop by
         # checking if should_stop == True in the job_data:
-        cursor = self.db.execute(
-            "SELECT job_data FROM job WHERE id = ?", (self.id,))
+        cursor = self.db.execute("SELECT job_data FROM job WHERE id = ?", (self.id,))
         row = cursor.fetchone()
         cursor.close()
 
@@ -92,8 +88,7 @@ class Job:
         status: str representing the status of the job
         """
         self.db.execute(
-            "UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP "
-            "WHERE id = ?",
+            "UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
             (status, self.id),
         )
 
@@ -102,12 +97,13 @@ class Job:
         Sets the directory that tensorboard output is stored.
         """
         self.db.execute(
-            "UPDATE job SET job_data = json_insert(job_data, '$.tensorboard_output_dir', ?) "
-            "WHERE id = ?",
+            "UPDATE job SET job_data = json_insert(job_data, '$.tensorboard_output_dir', ?) WHERE id = ?",
             (tensorboard_dir, self.id),
         )
 
-    def set_job_completion_status(self, completion_status: str, completion_details: str, score: dict = None):
+    def set_job_completion_status(
+        self, completion_status: str, completion_details: str, score: dict = None, additional_output_path: str = None
+    ):
         """
         A job could be in the "complete" state but still have failed, so this
         function is used to set the job completion status. i.e. how the task
@@ -116,27 +112,43 @@ class Job:
         Score should be a json of the format {"metric_name": value, ...}
         """
         if not (completion_status == "success" or completion_status == "failed"):
-            raise ValueError(
-                "completion_status must be either 'success' or 'failed'")
-
+            raise ValueError("completion_status must be either 'success' or 'failed'")
         if score is not None:
             score = json.dumps(score)
-            self.db.execute(
-                "UPDATE job SET job_data = json_insert(job_data, '$.completion_status', ?, '$.completion_details', ?, '$.score', ?) "
-                "WHERE id = ?",
-                (completion_status, completion_details, score, self.id),
-            )
+            if additional_output_path is not None or additional_output_path.strip() != "":
+                self.db.execute(
+                    "UPDATE job SET job_data = json_insert(job_data, '$.completion_status', ?, '$.completion_details', ?, '$.score', ?, '$.additional_output_path', ?) "
+                    "WHERE id = ?",
+                    (completion_status, completion_details, score, additional_output_path, self.id),
+                )
+            else:
+                self.db.execute(
+                    "UPDATE job SET job_data = json_insert(job_data, '$.completion_status', ?, '$.completion_details', ?, '$.score', ?) "
+                    "WHERE id = ?",
+                    (completion_status, completion_details, score, self.id),
+                )
         else:
-            self.db.execute(
-                "UPDATE job SET job_data = json_insert(job_data, '$.completion_status', ?, '$.completion_details', ?) "
-                "WHERE id = ?",
-                (completion_status, completion_details, self.id),
-            )
+            if additional_output_path is not None:
+                self.db.execute(
+                    "UPDATE job SET job_data = json_insert(job_data, '$.completion_status', ?, '$.completion_details', ?, '$.additional_output_path', ?) "
+                    "WHERE id = ?",
+                    (completion_status, completion_details, additional_output_path, self.id),
+                )
+            else:
+                self.db.execute(
+                    "UPDATE job SET job_data = json_insert(job_data, '$.completion_status', ?, '$.completion_details', ?) "
+                    "WHERE id = ?",
+                    (completion_status, completion_details, self.id),
+                )
 
 
-def generate_model_json(model_id: str, architecture: str,
-                        model_filename: str = "", output_directory: str | None = None,
-                        json_data: dict = {}):
+def generate_model_json(
+    model_id: str,
+    architecture: str,
+    model_filename: str = "",
+    output_directory: str | None = None,
+    json_data: dict = {},
+):
     """
     The generates the json file needed for a model to be read in the models directory.
 
@@ -160,8 +172,8 @@ def generate_model_json(model_id: str, architecture: str,
             "description": "Generated by TransformerLab.",
             "source": "transformerlab",
             "architecture": architecture,
-            "huggingface_repo": ""
-        }
+            "huggingface_repo": "",
+        },
     }
 
     # Add and update any fields passed in json_data object

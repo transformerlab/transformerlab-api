@@ -356,7 +356,9 @@ def run_evaluation():
             score_list.append(
                 {"type": metric, "score": round(metrics_df[metrics_df["metric_name"] == metric]["score"].mean(), 4)}
             )
-        job.set_job_completion_status("success", "Evaluation completed successfully.", score=score_list)
+        job.set_job_completion_status(
+            "success", "Evaluation completed successfully.", score=score_list, additional_output_path=output_path
+        )
     except Exception as e:
         print("Error occurred while running the evaluation.")
         job.set_job_completion_status("failed", str(e))
