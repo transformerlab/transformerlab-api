@@ -1,5 +1,7 @@
 import json
 import os
+import csv
+import pandas as pd
 from fastapi import APIRouter, Body, Response
 from fastapi.responses import StreamingResponse
 
@@ -171,7 +173,6 @@ async def stream_job_output(job_id: str):
 
 @router.get("/{job_id}/get_additional_details")
 async def stream_job_additional_details(job_id: str):
-    print("JOB ID", job_id)
     job = await db.job_get(job_id)
     job_data = job["job_data"]
     # Get experiment name
@@ -207,3 +208,31 @@ async def stream_job_additional_details(job_id: str):
             else:
                 csv_content["body"].append(row)
     return csv_content
+
+
+@router.get("/{job_id}/get_generated_dataset")
+async def get_generated_dataset(job_id: str):
+    job = await db.job_get(job_id)
+    # Get experiment name
+    experiment_id = job["experiment_id"]
+    experiment = await db.experiment_get(experiment_id)
+    experiment_name = experiment["name"]
+    job_data = job["job_data"]
+    # print("EXPERIMENT INFO", experiment)
+
+    # Check if the job has additional output path
+    if "additional_output_path" in job_data.keys() and job_data["additional_output_path"]:
+        json_file_path = job_data["additional_output_path"]
+    else:
+        return Response("No dataset found for this evaluation", media_type="text/csv")
+
+    if not os.path.exists(json_file_path):
+        return Response("No dataset found for this evaluation", media_type="text/csv")
+    else:
+        json_content = json.loads(open(json_file_path, "r").read())
+
+        df = pd.DataFrame(json_content)
+
+        content = {"header": df.columns.tolist(), "body": df.values.tolist()}
+
+        return content

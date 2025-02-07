@@ -12,35 +12,29 @@ from anthropic import Anthropic
 from deepeval.models import DeepEvalBaseEmbeddingModel
 from deepeval.models.base_model import DeepEvalBaseLLM
 from deepeval.synthesizer import Evolution, Synthesizer
-from deepeval.synthesizer.config import (ContextConstructionConfig,
-                                         EvolutionConfig, StylingConfig)
+from deepeval.synthesizer.config import ContextConstructionConfig, EvolutionConfig, StylingConfig
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import ChatOpenAI
 from openai import OpenAI
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 
-parser = argparse.ArgumentParser(
-    description="Run Synthesizer for generating data.")
+parser = argparse.ArgumentParser(description="Run Synthesizer for generating data.")
 parser.add_argument(
     "--run_name",
     default="test",
     type=str,
 )
-parser.add_argument("--model_name", default="gpt-j-6b",
-                    type=str, help="Model to use for evaluation.")
-parser.add_argument("--embedding_model",
-                    default="Snowflake/arctic-embed-m", type=str)
+parser.add_argument("--model_name", default="gpt-j-6b", type=str, help="Model to use for evaluation.")
+parser.add_argument("--embedding_model", default="Snowflake/arctic-embed-m", type=str)
 parser.add_argument("--dataset_name", default="test", type=str)
 parser.add_argument(
     "--model_adapter",
     default=None,
     type=str,
 )
-parser.add_argument("--generation_model",
-                    default="claude-3.5-sonnet", type=str)
-parser.add_argument("--generation_type", default="scratch",
-                    type=str, help="Type of generation: scratch, context, docs")
+parser.add_argument("--generation_model", default="claude-3.5-sonnet", type=str)
+parser.add_argument("--generation_type", default="scratch", type=str, help="Type of generation: scratch, context, docs")
 parser.add_argument("--num_goldens", default=5, type=int)
 parser.add_argument("--evolution_config", default=None, type=str)
 parser.add_argument("--docs", default=None, type=str)
@@ -136,16 +130,14 @@ class CustomCommercialModel(DeepEvalBaseLLM):
         if model_type == "claude":
             if os.environ.get("ANTHROPIC_API_KEY") is None:
                 print("Please set the Anthropic API Key from Settings.")
-                job.set_job_completion_status(
-                    "failed", "Please set the Anthropic API Key from Settings.")
+                job.set_job_completion_status("failed", "Please set the Anthropic API Key from Settings.")
                 sys.exit(1)
             self.model = Anthropic()
 
         elif model_type == "openai":
             if os.environ.get("OPENAI_API_KEY") is None:
                 print("Please set the OpenAI API Key from Settings.")
-                job.set_job_completion_status(
-                    "failed", "Please set the OpenAI API Key from Settings.")
+                job.set_job_completion_status("failed", "Please set the OpenAI API Key from Settings.")
                 sys.exit(1)
             self.model = OpenAI()
 
@@ -191,11 +183,9 @@ class CustomCommercialModel(DeepEvalBaseLLM):
 try:
     if "local" not in args.generation_model.lower():
         if "openai" in args.generation_model.lower():
-            trlab_model = CustomCommercialModel(
-                "openai", args.generation_model)
+            trlab_model = CustomCommercialModel("openai", args.generation_model)
         else:
-            trlab_model = CustomCommercialModel(
-                "claude", args.generation_model)
+            trlab_model = CustomCommercialModel("claude", args.generation_model)
     else:
         check_local_server()
         custom_model = ChatOpenAI(
@@ -207,8 +197,7 @@ try:
 
 except Exception as e:
     print(f"An error occurred while loading the model: {e}")
-    job.set_job_completion_status(
-        "failed", "An error occurred while loading the model")
+    job.set_job_completion_status("failed", "An error occurred while loading the model")
     sys.exit(1)
 
 print("Model loaded successfully")
@@ -217,17 +206,14 @@ job.update_progress(0.5)
 if args.generation_type == "docs":
     if not args.embedding_model or len(args.embedding_model.strip()) <= 1:
         args.embedding_model = "Snowflake/arctic-embed-m"
-        print(
-            f"Embedding model not provided. Using default model: {args.embedding_model}")
+        print(f"Embedding model not provided. Using default model: {args.embedding_model}")
     try:
-        embedder = CustomEmbeddingModel(
-            model_name=args.embedding_model.strip())
+        embedder = CustomEmbeddingModel(model_name=args.embedding_model.strip())
         print(f"Embedder loaded successfully: {args.embedding_model.strip()}")
         job.update_progress(0.75)
     except Exception as e:
         print(f"An error occurred while loading the embedding model: {e}")
-        job.set_job_completion_status(
-            "failed", "An error occurred while loading the embedding model")
+        job.set_job_completion_status("failed", "An error occurred while loading the embedding model")
         sys.exit(1)
 
 
@@ -249,8 +235,7 @@ def scratch_generation(styling_config: dict, evolution_config: dict = None):
         job.set_job_completion_status(
             "failed", "Evolution config dictionary must have the keys `REASONING`, `CONCRETIZING`, `CONSTRAINED`"
         )
-        raise ValueError(
-            "Evolution config dictionary must have the keys `REASONING`, `CONCRETIZING`, `CONSTRAINED`")
+        raise ValueError("Evolution config dictionary must have the keys `REASONING`, `CONCRETIZING`, `CONSTRAINED`")
     print("Generating data from scratch...")
     job.update_progress(1)
     try:
@@ -258,8 +243,7 @@ def scratch_generation(styling_config: dict, evolution_config: dict = None):
 
         if not evolution_config:
             evolution_config = EvolutionConfig(
-                evolutions={Evolution.REASONING: 1 / 3,
-                            Evolution.CONCRETIZING: 1 / 3, Evolution.CONSTRAINED: 1 / 3},
+                evolutions={Evolution.REASONING: 1 / 3, Evolution.CONCRETIZING: 1 / 3, Evolution.CONSTRAINED: 1 / 3},
                 num_evolutions=3,
             )
         else:
@@ -272,8 +256,7 @@ def scratch_generation(styling_config: dict, evolution_config: dict = None):
                 num_evolutions=3,
             )
 
-        synthesizer = Synthesizer(
-            styling_config=styling_config, model=trlab_model, evolution_config=evolution_config)
+        synthesizer = Synthesizer(styling_config=styling_config, model=trlab_model, evolution_config=evolution_config)
         job.update_progress(1.5)
         print("Synthesizer initialized successfully")
 
@@ -284,8 +267,7 @@ def scratch_generation(styling_config: dict, evolution_config: dict = None):
 
     except Exception as e:
         print(f"An error occurred while generating data from scratch: {e}")
-        job.set_job_completion_status(
-            "failed", f"An error occurred while generating data from scratch: {e}")
+        job.set_job_completion_status("failed", f"An error occurred while generating data from scratch: {e}")
         traceback.print_exc()
         sys.exit(1)
 
@@ -293,12 +275,10 @@ def scratch_generation(styling_config: dict, evolution_config: dict = None):
 def context_generation(context: str):
     print("Splitting context into sentences...")
     # Break the context into sentences
-    splitter = RecursiveCharacterTextSplitter(
-        separators=["\n\n", "\n", ". ", " ", ""], chunk_size=256, chunk_overlap=0)
+    splitter = RecursiveCharacterTextSplitter(separators=["\n\n", "\n", ". ", " ", ""], chunk_size=256, chunk_overlap=0)
     sentences = splitter.split_text(context)
     sentences = [[sentence] for sentence in sentences]
-    print(
-        f"Number of sentences in the context: {type(sentences)}: {sentences}")
+    print(f"Number of sentences in the context: {type(sentences)}: {sentences}")
     job.update_progress(1)
     # Generate goldens from contexts
     print("Generating data from contexts...")
@@ -306,8 +286,7 @@ def context_generation(context: str):
         synthesizer = Synthesizer(model=trlab_model)
         print("Synthesizer initialized successfully")
         job.update_progress(1.5)
-        synthesizer.generate_goldens_from_contexts(
-            contexts=sentences, include_expected_output=True)
+        synthesizer.generate_goldens_from_contexts(contexts=sentences, include_expected_output=True)
         job.update_progress(80)
         # Convert the generated data to a pandas dataframe
         df = synthesizer.to_pandas()
@@ -315,8 +294,7 @@ def context_generation(context: str):
 
     except Exception as e:
         print(f"An error occurred while generating data from context: {e}")
-        job.set_job_completion_status(
-            "failed", f"An error occurred while generating data from context: {e}")
+        job.set_job_completion_status("failed", f"An error occurred while generating data from context: {e}")
         traceback.print_exc()
         sys.exit(1)
 
@@ -356,28 +334,27 @@ def generate_tflab_dataset(output_file_path: str):
         response = requests.get(api_url + "data/new", params=params)
         if response.status_code != 200:
             print(f"Error creating a new dataset: {response.json()}")
-            job.set_job_completion_status(
-                "failed", f"Error creating a new dataset: {response.json()}")
+            job.set_job_completion_status("failed", f"Error creating a new dataset: {response.json()}")
             sys.exit(1)
         job.update_progress(95)
         with open(output_file_path, "rb") as json_file:
             files = {"files": json_file}
-            response = requests.post(
-                api_url + "data/fileupload", params=params, files=files)
+            response = requests.post(api_url + "data/fileupload", params=params, files=files)
         if response.status_code != 200:
             print(f"Error uploading the dataset: {response.json()}")
-            job.set_job_completion_status(
-                "failed", f"Error uploading the dataset: {response.json()}")
+            job.set_job_completion_status("failed", f"Error uploading the dataset: {response.json()}")
             sys.exit(1)
         else:
             print("Dataset uploaded successfully")
             job.update_progress(100)
             job.set_job_completion_status(
-                "success", f"Data generated successfully as dataset {args.run_name}")
+                "success",
+                f"Data generated successfully as dataset {args.run_name}",
+                additional_output_path=output_file_path,
+            )
     except Exception as e:
         print(f"An error occurred while generating data: {e}")
-        job.set_job_completion_status(
-            "failed", f"An error occurred while generating data: {e}")
+        job.set_job_completion_status("failed", f"An error occurred while generating data: {e}")
         sys.exit(1)
 
 
@@ -409,16 +386,14 @@ def run_generation():
         elif args.generation_type == "context":
             if not args.context or len(args.context.strip()) <= 1:
                 print("Context must be provided if generating using context type.")
-                job.set_job_completion_status(
-                    "failed", "Context must be provided if generating using context type.")
+                job.set_job_completion_status("failed", "Context must be provided if generating using context type.")
                 sys.exit(1)
             df = context_generation(args.context)
 
         elif args.generation_type == "docs":
             if not args.docs:
                 print("Docs must be provided if generating using docs type.")
-                job.set_job_completion_status(
-                    "failed", "Docs must be provided if generating using docs type.")
+                job.set_job_completion_status("failed", "Docs must be provided if generating using docs type.")
                 sys.exit(1)
             docs = args.docs.split(",")
             # Check if the path provided in docs has the files present
@@ -428,8 +403,7 @@ def run_generation():
                     docs.remove(doc)
             if len(docs) == 0:
                 print("No valid documents found. Exiting...")
-                job.set_job_completion_status(
-                    "failed", "No valid documents found.")
+                job.set_job_completion_status("failed", "No valid documents found.")
                 sys.exit(1)
             print(f"Generating data from {len(docs)} documents: {docs}")
 
@@ -450,11 +424,10 @@ def run_generation():
             "experiments",
             args.experiment_name,
             "datasets",
-            args.generation_type,
         )
         output_file = os.path.join(
             output_dir,
-            f"{args.run_name}.json",
+            f"{args.run_name}_{args.job_id}.json",
         )
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
@@ -465,8 +438,7 @@ def run_generation():
         generate_tflab_dataset(output_file)
 
     except Exception as e:
-        job.set_job_completion_status(
-            "failed", f"An error occurred while generating data: {e}")
+        job.set_job_completion_status("failed", f"An error occurred while generating data: {e}")
         print(f"An error occurred while generating data: {e}")
         traceback.print_exc()
         sys.exit(1)
