@@ -173,6 +173,9 @@ class OllamaServer(BaseModelWorker):
         if temperature <= 1e-5:
             top_p = 1.0
 
+        # TODO: Add the parameters here
+        generation_params = None 
+
         tokens = []
 
         # context_tokens = self.model.tokenize(context.encode("utf-8"))
@@ -186,9 +189,10 @@ class OllamaServer(BaseModelWorker):
         # TODO: Update to use the real context
         # TODO: Also pass in all of the parameters
         iterator = await run_in_threadpool(self.model.chat, 
-                                           model=self-model,
+                                           model=self.model_name,
                                            messages=[{'role': 'user', 'content': 'Why is the sky blue?'}],
-                                           stream=True,)
+                                           stream=True,
+                                           options=generation_params)
 
         for i in range(max_new_tokens):
             #token = await run_in_threadpool(next, iterator)
