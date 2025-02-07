@@ -104,6 +104,10 @@ class OllamaServer(BaseModelWorker):
         # But we need a tokenizer to work with fastchat
         self.tokenizer = OllamaTokenizer(model=self.model)
 
+        # Fastchat needs to know context length to check for context overflow
+        # TODO: No idea how to get/set this but the ollama default is 4096?
+        self.context_len = 4096
+
         # For debugging: Output a bunch of model info
         response: ollama.ProcessResponse = ollama.ps()
         for model in response.models:
