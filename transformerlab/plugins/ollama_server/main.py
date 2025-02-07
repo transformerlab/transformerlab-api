@@ -337,7 +337,7 @@ def main():
     )
     parser.add_argument("--parameters", type=str, default=None)
 
-    args = parser.parse_known_args()
+    args, _ = parser.parse_known_args()
 
     # parameters is a JSON string, so we parse it:
     parameters = json.loads(args.parameters)
