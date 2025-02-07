@@ -334,9 +334,6 @@ async def server_worker_health(request: Request):
 
 
 def cleanup_at_exit():
-    if os.path.isfile("transformer_lab.log"):
-        with open("transformer_lab.log", "w") as f:
-            f.truncate(0)
     if controller_process is not None:
         print("🔴 Quitting spawned controller.")
         controller_process.kill()
