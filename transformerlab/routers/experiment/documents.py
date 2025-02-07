@@ -1,4 +1,5 @@
 import os
+import shutil
 from fastapi.responses import FileResponse
 from fastapi import APIRouter, HTTPException, UploadFile
 import datetime
@@ -68,7 +69,10 @@ async def document_new(dataset_id: str):
 async def delete_document(experimentId: str, document_name: str):
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     path = os.path.join(experiment_dir, "documents", document_name)
-    if os.path.exists(path):
+    # first check if it is a directory:
+    if os.path.isdir(path):
+        shutil.rmtree(path)
+    elif os.path.exists(path):
         os.remove(path)
     return {"status": "success"}
 
