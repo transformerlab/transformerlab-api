@@ -1,7 +1,7 @@
 {
     
-    "name": "Generate Data from Context",
-    "uniqueId": "synthesizer_context",
+    "name": "Generate Data from Raw Text",
+    "uniqueId": "synthesizer_raw_text",
     "description": "Use LLMs to create synthetic data for your usecases from reference context. Paste all your reference context to generate a dataset.",
     "plugin-format": "python",
     "type": "generator",
