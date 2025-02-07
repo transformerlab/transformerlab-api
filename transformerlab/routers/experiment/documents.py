@@ -80,7 +80,7 @@ async def delete_document(experimentId: str, document_name: str):
 
 
 @router.post("/upload", summary="Upload the contents of a document.")
-async def document_upload(experimentId: str, files: list[UploadFile]):
+async def document_upload(experimentId: str, folder: str, files: list[UploadFile]):
     fileNames = []
     for file in files:
         print("uploading filename is: " + str(file.filename))
@@ -100,14 +100,14 @@ async def document_upload(experimentId: str, files: list[UploadFile]):
             raise HTTPException(status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
 
         experiment_dir = await dirs.experiment_dir_by_id(experimentId)
-
-        if not os.path.exists(os.path.join(experiment_dir, "documents")):
-            os.makedirs(os.path.join(experiment_dir, "documents"))
+        documents_dir = os.path.join(experiment_dir, "documents")
+        if folder and folder != "" and os.path.exists(os.path.join(documents_dir, folder)):
+            documents_dir = os.path.join(documents_dir, folder)
 
         # Save the file to the dataset directory
         try:
             content = await file.read()
-            newfilename = os.path.join(experiment_dir, "documents", str(file.filename))
+            newfilename = os.path.join(documents_dir, str(file.filename))
             async with aiofiles.open(newfilename, "wb") as out_file:
                 await out_file.write(content)
 
