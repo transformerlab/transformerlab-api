@@ -8,6 +8,8 @@ from transformerlab.shared import dirs
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
+allowed_file_types = [".txt", ".jsonl", ".pdf"]
+
 
 # Get info on dataset from huggingface
 @router.get("/{document_name}/info", summary="Fetch the details of a particular document.")
@@ -20,8 +22,7 @@ async def document_info():
 async def document_view(experimentId: str, document_name: str):
     try:
         experiment_dir = await dirs.experiment_dir_by_id(experimentId)
-        file_location = os.path.join(
-            experiment_dir, "documents", document_name)
+        file_location = os.path.join(experiment_dir, "documents", document_name)
         print(f"Returning document from {file_location}")
         # with open(file_location, "r") as f:
         #     file_contents = f.read()
@@ -35,19 +36,16 @@ async def document_list(experimentId: str):
     documents = []
     # List the files that are in the experiment/<experiment_name>/documents directory:
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
-    documents_dir = os.path.join(experiment_dir,  "documents")
+    documents_dir = os.path.join(experiment_dir, "documents")
     if os.path.exists(documents_dir):
         for filename in os.listdir(documents_dir):
-            if filename.endswith(".txt") or filename.endswith(".jsonl") or filename.endswith(".pdf"):
+            if any(filename.endswith(ext) for ext in allowed_file_types):
                 name = filename
                 size = os.path.getsize(os.path.join(documents_dir, filename))
                 date = os.path.getmtime(os.path.join(documents_dir, filename))
-                date = datetime.datetime.fromtimestamp(
-                    date).strftime('%Y-%m-%d %H:%M:%S')
+                date = datetime.datetime.fromtimestamp(date).strftime("%Y-%m-%d %H:%M:%S")
                 type = os.path.splitext(filename)[1]
-                documents.append(
-                    {"name": name, "size": size, "date": date, "type": type}
-                )
+                documents.append({"name": name, "size": size, "date": date, "type": type})
 
     return documents  # convert list to JSON object
 
@@ -81,13 +79,11 @@ async def document_upload(experimentId: str, files: list[UploadFile]):
         print("file content type is: " + str(file.content_type))
 
         if file.content_type not in ["text/plain", "application/json", "application/pdf", "application/octet-stream"]:
-            raise HTTPException(
-                status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
+            raise HTTPException(status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
 
         file_ext = os.path.splitext(file.filename)[1]
-        if file_ext not in [".txt", ".jsonl", ".pdf"]:
-            raise HTTPException(
-                status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
+        if file_ext not in allowed_file_types:
+            raise HTTPException(status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
 
         experiment_dir = await dirs.experiment_dir_by_id(experimentId)
 
@@ -97,15 +93,13 @@ async def document_upload(experimentId: str, files: list[UploadFile]):
         # Save the file to the dataset directory
         try:
             content = await file.read()
-            newfilename = os.path.join(
-                experiment_dir, "documents", str(file.filename))
+            newfilename = os.path.join(experiment_dir, "documents", str(file.filename))
             async with aiofiles.open(newfilename, "wb") as out_file:
                 await out_file.write(content)
 
             # reindex the vector store on every file upload
             await rag.reindex(experimentId)
         except Exception:
-            raise HTTPException(
-                status_code=403, detail="There was a problem uploading the file")
+            raise HTTPException(status_code=403, detail="There was a problem uploading the file")
 
     return {"status": "success", "filename": fileNames}
