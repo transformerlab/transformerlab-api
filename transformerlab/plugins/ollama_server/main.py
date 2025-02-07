@@ -55,7 +55,7 @@ class OllamaTokenizer:
     def decode(self, tokens):
         # TODO: FIX!
         #return self.model.detokenize(tokens)
-        return ""
+        return [''.join(tokens)]
 
     def num_tokens(self, prompt):
         # TODO: FIX!
@@ -176,7 +176,7 @@ class OllamaServer(BaseModelWorker):
         # TODO: Add the parameters here
         generation_params = None 
 
-        tokens = []
+        decoded_tokens = []
 
         # context_tokens = self.model.tokenize(context.encode("utf-8"))
 
@@ -223,7 +223,7 @@ class OllamaServer(BaseModelWorker):
             print(response['message']['content'], end='', flush=True)
             print(response, end='', flush=True)
             tokens_decoded_str = response['message']['content'];
-            tokens.append(tokens_decoded_str)
+            decoded_tokens.append(tokens_decoded_str)
             
             # TODO: Partial stop check
             #partial_stop = any(is_partial_stop(tokens_decoded_str, i)
@@ -238,8 +238,8 @@ class OllamaServer(BaseModelWorker):
                 "error_code": 0,
                 "usage": {
                     "prompt_tokens": len(context),
-                    "completion_tokens": len(tokens),
-                    "total_tokens": len(context) + len(tokens),
+                    "completion_tokens": len(decoded_tokens),
+                    "total_tokens": len(context) + len(decoded_tokens),
                 },
                 "cumulative_logprob": [
                 ],
@@ -247,9 +247,10 @@ class OllamaServer(BaseModelWorker):
             }
             # print(ret)
             yield (json.dumps(ret) + "\0").encode()
+        
+        # TODO: Oh no I don't know what this was for but it breaks stuff
         ret = {
-            #"text": self.model.detokenize(tokens).decode("utf-8"),
-            "text": tokens,
+            "text": ''.join(decoded_tokens),
             "error_code": 0,
             "usage": {
             },
