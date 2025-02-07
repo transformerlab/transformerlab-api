@@ -3,6 +3,30 @@
         "schemaVersion": "0.1",
         "metadata": {
             "author": "",
+            "version": "1.0",
+            "name": "Python Completion",
+            "description": "Trains a SmolLM Base model to act as a python completion model"
+        },
+        "model": {
+            "name": "HuggingFaceTB/SmolLM2-135M",
+            "path": "HuggingFaceTB/SmolLM2-135M"
+        },
+        "datasets": {
+            "name": "flytech/python-codes-25k",
+            "path": "flytech/python-codes-25k"
+        },
+        "training": {
+            "type": "LoRA",
+            "plugin": "llama_trainer",
+            "formatting_template": "{{output}}",
+            "config_json": "{\"template_name\":\"ScaryHyena\",\"plugin_name\":\"llama_trainer\",\"model_name\":\"HuggingFaceTB/SmolLM2-135M\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"{{output}}\\n\",\"dataset_name\":\"flytech/python-codes-25k\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"4\",\"learning_rate\":\"0.0005\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"64\",\"lora_alpha\":\"128\",\"lora_dropout\":\"0.05\",\"adaptor_name\":\"python\"}"
+        },
+        "test": {}
+    },
+    {
+        "schemaVersion": "0.1",
+        "metadata": {
+            "author": "",
             "name": "Dialogue Summarizing",
             "version": "1.0",
             "description": "Trains TinyLlama to summarize conversations."
