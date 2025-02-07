@@ -213,14 +213,16 @@ class OllamaServer(BaseModelWorker):
             response = await run_in_threadpool(next, iterator)
             print(response['message']['content'], end='', flush=True)
             print(response, end='', flush=True)
-            tokens_decoded_str - response['message']['content'];
+            tokens_decoded_str = response['message']['content'];
             tokens.append(tokens_decoded_str)
-            partial_stop = any(is_partial_stop(tokens_decoded_str, i)
-                               for i in stop)
-
-            if partial_stop:
-                finish_reason = "stop"
-                break
+            
+            # TODO: Partial stop check
+            #partial_stop = any(is_partial_stop(tokens_decoded_str, i)
+            #                   for i in stop)
+            #
+            #if partial_stop:
+            #    finish_reason = "stop"
+            #    break
 
             ret = {
                 "text": tokens_decoded_str,
