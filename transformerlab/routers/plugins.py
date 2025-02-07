@@ -4,6 +4,8 @@ import json
 import os
 import platform
 
+import aiofiles
+
 from transformerlab.shared import dirs
 
 
@@ -19,8 +21,7 @@ async def plugin_gallery():
 
     local_workspace_gallery_directory = dirs.PLUGIN_PRELOADED_GALLERY
     # today the remote gallery is a local file, we will move it remote later
-    remote_gallery_file = os.path.join(
-        dirs.TFL_SOURCE_CODE_DIR, "transformerlab/galleries/plugin-gallery.json")
+    remote_gallery_file = os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab/galleries/plugin-gallery.json")
 
     # first get the remote gallery from the remote gallery file:
     with open(remote_gallery_file) as f:
@@ -31,8 +32,7 @@ async def plugin_gallery():
     if os.path.exists(local_workspace_gallery_directory):
         for plugin in os.listdir(local_workspace_gallery_directory):
             if os.path.isdir(os.path.join(local_workspace_gallery_directory, plugin)):
-                info = json.load(
-                    open(os.path.join(local_workspace_gallery_directory, plugin, "index.json")))
+                info = json.load(open(os.path.join(local_workspace_gallery_directory, plugin, "index.json")))
 
                 # These are fields we expect:
                 # details = {
@@ -110,8 +110,13 @@ async def install_plugin(plugin_id: str):
         # Run shell script
         print("Running Plugin Install script...")
         setup_script_name = plugin_index["setup-script"]
-        proc = await asyncio.create_subprocess_exec('/bin/bash', f"{setup_script_name}", cwd=new_directory)
-        await proc.wait()
+        global_log_file_name = dirs.GLOBAL_LOG_PATH
+        async with aiofiles.open(global_log_file_name, "a") as log_file:
+            proc = await asyncio.create_subprocess_exec(
+                "/bin/bash", f"{setup_script_name}", cwd=new_directory, stdout=log_file, stderr=log_file
+            )
+            await proc.wait()
+            await log_file.write(f"## Plugin Install script for {plugin_id} completed.\n")
         print("Plugin Install script completed.")
     else:
         print("No install script found")
@@ -128,8 +133,7 @@ async def list_plugins() -> list[object]:
     if os.path.exists(local_workspace_gallery_directory):
         for plugin in os.listdir(local_workspace_gallery_directory):
             if os.path.isdir(os.path.join(local_workspace_gallery_directory, plugin)):
-                info = json.load(
-                    open(os.path.join(local_workspace_gallery_directory, plugin, "index.json")))
+                info = json.load(open(os.path.join(local_workspace_gallery_directory, plugin, "index.json")))
                 workspace_gallery.append(info)
 
     return workspace_gallery
@@ -140,11 +144,10 @@ async def missing_platform_plugins() -> list[str]:
     cpu = platform.machine()
 
     installed_plugins = await list_plugins()
-    installed_plugins_names = [plugin["uniqueId"]
-                               for plugin in installed_plugins]
+    installed_plugins_names = [plugin["uniqueId"] for plugin in installed_plugins]
     missing_plugins = []
 
-    if (system == "Darwin" and cpu == "arm64"):
+    if system == "Darwin" and cpu == "arm64":
         # This is an OSX Machine with Apple Silicon
         mlx_plugins = ["mlx_server", "mlx_exporter", "mlx_lora_trainer"]
 
@@ -152,7 +155,7 @@ async def missing_platform_plugins() -> list[str]:
             if plugin not in installed_plugins_names:
                 missing_plugins.append(plugin)
 
-    if (system == "Darwin" and cpu == "x86_64"):
+    if system == "Darwin" and cpu == "x86_64":
         # This is an OSX Machine with x86_64
         osx_plugins = ["llama_cpp_server", "gguf_exporter"]
 
@@ -160,11 +163,10 @@ async def missing_platform_plugins() -> list[str]:
             if plugin not in installed_plugins_names:
                 missing_plugins.append(plugin)
 
-    if (system == "Linux"):
+    if system == "Linux":
         # This is an Linux Machine, hopefully with a GPU but we could
         # test for that further
-        linux_plugins = ["fastchat_server", "llama_trainer",
-                         "eleuther-ai-lm-evaluation-harness"]
+        linux_plugins = ["fastchat_server", "llama_trainer", "eleuther-ai-lm-evaluation-harness"]
 
         for plugin in linux_plugins:
             if plugin not in installed_plugins_names:
@@ -173,7 +175,10 @@ async def missing_platform_plugins() -> list[str]:
     return missing_plugins
 
 
-@router.get("/list_missing_plugins_for_current_platform", summary="Returns a list of plugins that are recommended for the current platform.")
+@router.get(
+    "/list_missing_plugins_for_current_platform",
+    summary="Returns a list of plugins that are recommended for the current platform.",
+)
 async def list_missing_plugins_for_current_platform():
     missing_plugins = await missing_platform_plugins()
     return missing_plugins
@@ -187,6 +192,7 @@ async def install_missing_plugins_for_current_platform():
         print(f"Installing missing plugin: {plugin}")
         await install_plugin(plugin)
     return missing_plugins
+
 
 # on startup, copy all plugins from the transformerlab/plugins directory to the workspace/plugins directory
 # print("Copying plugins from transformerlab/plugins to workspace/plugins")
