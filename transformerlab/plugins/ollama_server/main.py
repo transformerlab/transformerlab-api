@@ -25,9 +25,43 @@ from fastchat.serve.model_worker import (
 )
 from fastchat.utils import is_partial_stop
 
+from transformers.tokenization_utils_base import BatchEncoding
+
 
 app = FastAPI()
 worker = None
+
+
+class OllamaTokenizer:
+    """
+    TODO: This is a total hack tokenizer just to get things to proceed.
+    It doesn't do tokenization!
+    """
+    def __init__(self, model):
+        self.model = model
+        self.eos_token_id = None
+
+    def __call__(self, text):
+        # convert variable "text" to bytes:
+        text = text.encode("utf-8")
+
+        # TODO: FIX!
+        #tokens = self.model.tokenize(text)
+        tokens = []
+        batchEncoding = BatchEncoding(
+            data={"input_ids": [tokens], "eos_token_id": None})
+        return batchEncoding
+
+    def decode(self, tokens):
+        # TODO: FIX!
+        #return self.model.detokenize(tokens)
+        return ""
+
+    def num_tokens(self, prompt):
+        # TODO: FIX!
+        #tokens = self.model.tokenize(prompt)
+        #return (len(tokens))
+        return len(prompt)//4
 
 
 class OllamaServer(BaseModelWorker):
@@ -65,22 +99,21 @@ class OllamaServer(BaseModelWorker):
         load_model = self.model.generate(
             model=self.model_name,
         )
-        print(load_model)
 
-        #for chunk in stream:
-            #print(chunk['message']['content'], end='', flush=True)
+        # HACK: We don't really have access to the tokenization in ollama
+        # But we need a tokenizer to work with fastchat
+        self.tokenizer = OllamaTokenizer(model=self.model)
 
-
-        # TODO: GO THROUGH THIS AND FIGURE OUT
-        # setting _n_ctx to 0 pins it to the trained context length
-        #self.model = llama_cpp.Llama(
-        #    self.model_name, n_ctx=0, n_gpu_layers=n_gpu_layers)
-        #self.tokenizer = LlamaCppTokenizer(model=self.model)
-
-        # self.context_len = get_context_length(
-        #     llm_engine.engine.model_config.hf_config)
-        # hard code for now -- not sure how to get in llamacpp
-        # self.context_len = self.model._n_ctx
+        # For debugging: Output a bunch of model info
+        response: ollama.ProcessResponse = ollama.ps()
+        for model in response.models:
+            print('Model: ', model.model)
+            print('  Digest: ', model.digest)
+            print('  Expires at: ', model.expires_at)
+            print('  Size: ', model.size)
+            print('  Size vram: ', model.size_vram)
+            print('  Details: ', model.details)
+            print('\n')
 
         self.init_heart_beat()
 
