@@ -356,7 +356,6 @@ def main():
         model_path,
         args.model_names,
         1024,
-        False,
         args.conv_template,
     )
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
