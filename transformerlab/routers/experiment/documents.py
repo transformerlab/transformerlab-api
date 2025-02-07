@@ -49,14 +49,16 @@ async def document_list(experimentId: str, folder: str = None):
                 date = os.path.getmtime(os.path.join(documents_dir, filename))
                 date = datetime.datetime.fromtimestamp(date).strftime("%Y-%m-%d %H:%M:%S")
                 type = "folder"
-                documents.append({"name": name, "size": size, "date": date, "type": type})
+                path = os.path.join(documents_dir, filename)
+                documents.append({"name": name, "size": size, "date": date, "type": type, "path": path})
             elif any(filename.endswith(ext) for ext in allowed_file_types):
                 name = filename
                 size = os.path.getsize(os.path.join(documents_dir, filename))
                 date = os.path.getmtime(os.path.join(documents_dir, filename))
                 date = datetime.datetime.fromtimestamp(date).strftime("%Y-%m-%d %H:%M:%S")
                 type = os.path.splitext(filename)[1]
-                documents.append({"name": name, "size": size, "date": date, "type": type})
+                path = os.path.join(documents_dir, filename)
+                documents.append({"name": name, "size": size, "date": date, "type": type, "path": path})
 
     return documents  # convert list to JSON object
 
