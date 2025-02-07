@@ -176,7 +176,7 @@ scripts/aws/aws.conf
 */.deepeval-cache.json
 */.deepeval_telemetry.txt
 .deepeval-cache.json
-transformerlab/.deepeval_telemetry.txt
+.deepeval_telemetry.txt
 
 # Vector DB Code
 .vector_db

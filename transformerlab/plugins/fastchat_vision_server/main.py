@@ -4,7 +4,6 @@ A model worker that executes the model.
 
 import asyncio
 import sys
-import os
 import argparse
 from fastapi.responses import JSONResponse, StreamingResponse
 from transformers import AutoTokenizer, AutoModelForPreTraining, AutoProcessor
@@ -17,7 +16,7 @@ import requests
 from PIL import Image
 from io import BytesIO
 import uuid
-from typing import List, Optional, Dict
+from typing import Iterable, List, Optional, Dict
 from fastapi import Request, BackgroundTasks
 
 import json
@@ -203,7 +202,7 @@ def generate_stream(
             if model.config.is_encoder_decoder:
                 out = model.decoder(
                     input_ids=torch.as_tensor(
-                        [[token] if not sent_interrupt else output_ids],
+                        [[token] if not sent_interrupt else output_ids],  # noqa: F821
                         device=device,
                     ),
                     encoder_hidden_states=encoder_output,
@@ -216,7 +215,7 @@ def generate_stream(
             else:
                 out = model(
                     input_ids=torch.as_tensor(
-                        [[token] if not sent_interrupt else output_ids],
+                        [[token] if not sent_interrupt else output_ids],  # noqa: F821
                         device=device,
                     ),
                     use_cache=True,
@@ -289,7 +288,7 @@ def generate_stream(
                     curr_pos += len(text)
 
             # TODO: For the issue of incomplete sentences interrupting output, apply a patch and others can also modify it to a more elegant way
-            if judge_sent_end and stopped and not is_sentence_complete(output):  # noqa: F821
+            if judge_sent_end and stopped and not is_sentence_complete(output):  # type: ignore # noqa: F821
                 if len(tokens) > 1:
                     token = tokens[1]
                     output_ids[-1] = token
@@ -736,7 +735,7 @@ def main():
             device = "cpu"
             num_gpus = 0
 
-    llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
+    # llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
 
     # controller_addr: str,
     # worker_addr: str,
@@ -762,19 +761,19 @@ def main():
     )
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 
-    with open(f"{llmlab_root_dir}/worker.pid", "w") as f:
-        f.write(str(proc.pid))
+    # with open(f"{llmlab_root_dir}/worker.pid", "w") as f:
+    #     f.write(str(proc.pid))
 
-    # read output:
-    for line in proc.stderr:
-        # if line contains "Ready to serve" then we can break
-        if "torch.cuda.OutOfMemoryError" in line.decode("utf-8"):
-            print("CUDA Out of memory error", file=sys.stderr)
-            sys.exit(99)  # 99 is our code for CUDA OOM
-        print(line.decode("utf-8"), file=sys.stderr)
+    # # read output:
+    # for line in proc.stderr:
+    #     # if line contains "Ready to serve" then we can break
+    #     if "torch.cuda.OutOfMemoryError" in line.decode("utf-8"):
+    #         print("CUDA Out of memory error", file=sys.stderr)
+    #         sys.exit(99)  # 99 is our code for CUDA OOM
+    #     print(line.decode("utf-8"), file=sys.stderr)
 
-    print("FastChat Worker exited", file=sys.stderr)
-    sys.exit(1)
+    # print("FastChat Worker exited", file=sys.stderr)
+    # sys.exit(1)
 
 
 if __name__ == "__main__":
