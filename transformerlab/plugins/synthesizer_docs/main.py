@@ -82,7 +82,13 @@ class CustomEmbeddingModel(DeepEvalBaseEmbeddingModel):
 
     def load_model(self):
         print(f"Loading Embedding Model... : {self.model_name.strip()}")
-        return SentenceTransformer(self.model_name.strip())
+        try:
+            model = SentenceTransformer(self.model_name.strip(), trust_remote_code=True)
+            return model
+        except Exception as e:
+            print(f"An error occurred while loading the model: {e}")
+            job.set_job_completion_status("failed", "An error occurred while loading the model")
+            sys.exit(1)
 
     def embed_text(self, text: str) -> List[float]:
         return self.model.encode(text, convert_to_numpy=True).tolist()
