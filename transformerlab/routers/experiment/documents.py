@@ -39,7 +39,15 @@ async def document_list(experimentId: str):
     documents_dir = os.path.join(experiment_dir, "documents")
     if os.path.exists(documents_dir):
         for filename in os.listdir(documents_dir):
-            if any(filename.endswith(ext) for ext in allowed_file_types):
+            # check if the filename is a directory:
+            if os.path.isdir(os.path.join(documents_dir, filename)):
+                name = filename
+                size = 0
+                date = os.path.getmtime(os.path.join(documents_dir, filename))
+                date = datetime.datetime.fromtimestamp(date).strftime("%Y-%m-%d %H:%M:%S")
+                type = "folder"
+                documents.append({"name": name, "size": size, "date": date, "type": type})
+            elif any(filename.endswith(ext) for ext in allowed_file_types):
                 name = filename
                 size = os.path.getsize(os.path.join(documents_dir, filename))
                 date = os.path.getmtime(os.path.join(documents_dir, filename))
@@ -103,3 +111,13 @@ async def document_upload(experimentId: str, files: list[UploadFile]):
             raise HTTPException(status_code=403, detail="There was a problem uploading the file")
 
     return {"status": "success", "filename": fileNames}
+
+
+@router.post("/create_folder", summary="Create a new folder.")
+async def create_folder(experimentId: str, name: str):
+    experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+    path = os.path.join(experiment_dir, "documents", name)
+    print(f"Creating folder {path}")
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return {"status": "success"}
