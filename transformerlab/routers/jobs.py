@@ -196,8 +196,6 @@ async def stream_job_additional_details(job_id: str):
 
     # convert csv to JSON, but do not assume that \n marks the end of a row as cells can
     # contain fields that start and end with " and contain \n. Use a CSV parser instead.
-    import csv
-
     with open(csv_file_path, "r") as csvfile:
         contents = csv.reader(csvfile, delimiter=",", quotechar='"')
         # convert the csv to a JSON object
@@ -214,11 +212,7 @@ async def stream_job_additional_details(job_id: str):
 async def get_generated_dataset(job_id: str):
     job = await db.job_get(job_id)
     # Get experiment name
-    experiment_id = job["experiment_id"]
-    experiment = await db.experiment_get(experiment_id)
-    experiment_name = experiment["name"]
     job_data = job["job_data"]
-    # print("EXPERIMENT INFO", experiment)
 
     # Check if the job has additional output path
     if "additional_output_path" in job_data.keys() and job_data["additional_output_path"]:
