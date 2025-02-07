@@ -12,8 +12,7 @@ from anthropic import Anthropic
 from deepeval.models import DeepEvalBaseEmbeddingModel
 from deepeval.models.base_model import DeepEvalBaseLLM
 from deepeval.synthesizer import Evolution, Synthesizer
-from deepeval.synthesizer.config import ContextConstructionConfig, EvolutionConfig, StylingConfig
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from deepeval.synthesizer.config import EvolutionConfig, StylingConfig
 from langchain_openai import ChatOpenAI
 from openai import OpenAI
 from pydantic import BaseModel
