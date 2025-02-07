@@ -105,10 +105,10 @@ async def edit_evaluation_generation(experimentId: int, plugin: Any = Body()):
 
         # updated_json = json.loads(updated_json)
 
-        if "evaluations" not in experiment_config:
-            return {"message": f"Experiment {experimentId} has no evaluations"}
+        if "generations" not in experiment_config:
+            return {"message": f"Experiment {experimentId} has no generations"}
 
-        evaluations = json.loads(experiment_config["evaluations"])
+        evaluations = json.loads(experiment_config["generations"])
 
         # Remove fields model_name, model_architecture and plugin_name from the updated_json
         # as they are not needed in the evaluations list
@@ -122,7 +122,7 @@ async def edit_evaluation_generation(experimentId: int, plugin: Any = Body()):
                 evaluation["script_parameters"] = updated_json
                 evaluation["name"] = template_name
 
-        await db.experiment_update_config(experimentId, "evaluations", json.dumps(evaluations))
+        await db.experiment_update_config(experimentId, "generations", json.dumps(evaluations))
 
         return {"message": "OK"}
     except Exception as e:
