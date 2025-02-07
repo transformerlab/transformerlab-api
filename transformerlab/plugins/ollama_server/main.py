@@ -61,7 +61,7 @@ class OllamaServer(BaseModelWorker):
         print("Loading model: ", self.model_name)
 
         # You can load a model in ollama by not passing a prompt to generate
-        self.model = ollama.AyncClient()
+        self.model = ollama.AsyncClient()
         load_model = self.model.generate(
             model=self.model_name,
         )
