@@ -245,6 +245,7 @@ def generation_from_docs(docs: list):
     except Exception as e:
         print(f"An error occurred while generating data from docs: {e}")
         traceback.print_exc()
+        job.set_job_completion_status("failed", f"An error occurred while generating data from docs: {e}")
         sys.exit(1)
 
 
