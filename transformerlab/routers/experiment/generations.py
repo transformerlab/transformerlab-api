@@ -44,7 +44,8 @@ async def experiment_add_generation(experimentId: int, plugin: Any = Body()):
         slug = slug[:100]
         print("Generation name is too long, truncating to 100 characters")
 
-    generation = {"name": slug, "plugin": plugin_name, "script_parameters": script_parameters}
+    generation = {"name": slug, "plugin": plugin_name,
+                  "script_parameters": script_parameters}
 
     generations.append(generation)
 
@@ -108,21 +109,21 @@ async def edit_evaluation_generation(experimentId: int, plugin: Any = Body()):
         if "generations" not in experiment_config:
             return {"message": f"Experiment {experimentId} has no generations"}
 
-        evaluations = json.loads(experiment_config["generations"])
+        generations = json.loads(experiment_config["generations"])
 
         # Remove fields model_name, model_architecture and plugin_name from the updated_json
-        # as they are not needed in the evaluations list
+        # as they are not needed in the generations list
         updated_json.pop("model_name", None)
         updated_json.pop("model_architecture", None)
         updated_json.pop("plugin_name", None)
         updated_json.pop("template_name", None)
 
-        for evaluation in evaluations:
-            if evaluation["name"] == eval_name and evaluation["plugin"] == plugin_name:
-                evaluation["script_parameters"] = updated_json
-                evaluation["name"] = template_name
+        for generation in generations:
+            if generation["name"] == eval_name and generation["plugin"] == plugin_name:
+                generation["script_parameters"] = updated_json
+                generation["name"] = template_name
 
-        await db.experiment_update_config(experimentId, "generations", json.dumps(evaluations))
+        await db.experiment_update_config(experimentId, "generations", json.dumps(generations))
 
         return {"message": "OK"}
     except Exception as e:
@@ -183,7 +184,8 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
                 experiment_details["config"]["inferenceParams"]
             )
         if "generations" in experiment_details["config"]:
-            experiment_details["config"]["generations"] = json.loads(experiment_details["config"]["generations"])
+            experiment_details["config"]["generations"] = json.loads(
+                experiment_details["config"]["generations"])
 
     all_generations = experiment_details["config"]["generations"]
     this_generation = None
@@ -198,7 +200,8 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
     # print("GET OUTPUT JOB DATA", await get_job_output_file_name("2", plugin_name, eval_name, template_config))
     job_output_file = await get_job_output_file_name(job_id, plugin_name)
 
-    input_contents = {"experiment": experiment_details, "config": template_config}
+    input_contents = {"experiment": experiment_details,
+                      "config": template_config}
     with open(input_file, "w") as outfile:
         json.dump(input_contents, outfile, indent=4)
 
