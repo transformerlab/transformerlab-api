@@ -33,11 +33,13 @@ async def document_view(experimentId: str, document_name: str):
 
 
 @router.get("/list", summary="List available documents.")
-async def document_list(experimentId: str):
+async def document_list(experimentId: str, folder: str = None):
     documents = []
     # List the files that are in the experiment/<experiment_name>/documents directory:
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
+    if folder and folder != "" and os.path.exists(os.path.join(documents_dir, folder)):
+        documents_dir = os.path.join(documents_dir, folder)
     if os.path.exists(documents_dir):
         for filename in os.listdir(documents_dir):
             # check if the filename is a directory:
