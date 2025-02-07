@@ -210,7 +210,16 @@ class OllamaServer(BaseModelWorker):
 
             #for chunk in stream:
             #print(chunk['message']['content'], end='', flush=True)
-            response = await run_in_threadpool(next, iterator)
+
+            # Try to get next token. 
+            # If the generator hits a stop the interator finishes and throws:
+            # RuntimeError: coroutine raised StopIteration
+            try:
+                response = await run_in_threadpool(next, iterator)
+            except:
+                finish_reason = "stop"
+                break
+
             print(response['message']['content'], end='', flush=True)
             print(response, end='', flush=True)
             tokens_decoded_str = response['message']['content'];
