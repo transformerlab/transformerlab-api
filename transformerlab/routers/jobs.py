@@ -50,7 +50,6 @@ async def job_update(job_id: str, status: str):
 async def start_next_job():
     num_running_jobs = await db.job_count_running()
     if num_running_jobs > 0:
-        print("A job is already running")
         return {"message": "A job is already running"}
     nextjob = await db.jobs_get_next_queued_job()
     if nextjob:
