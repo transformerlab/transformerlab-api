@@ -39,8 +39,6 @@ from transformers.tokenization_utils_base import BatchEncoding
 
 app = FastAPI()
 
-WORKSPACE_DIR: str | None = os.getenv("_TFL_WORKSPACE_DIR")
-
 
 class LlamaCppTokenizer:
     def __init__(self, model):
@@ -99,6 +97,7 @@ class LlamaCppServer(BaseModelWorker):
         #     llm_engine.engine.model_config.hf_config)
         # hard code for now -- not sure how to get in llamacpp
         self.context_len = self.model._n_ctx
+
 
         if not no_register:
             self.init_heart_beat()
