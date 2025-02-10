@@ -196,6 +196,11 @@ install_conda() {
     # Change the directory to the Transformer Lab directory
     mkdir -p "$TLAB_DIR"
     cd "$TLAB_DIR"
+    # first check if the MINICONDAROOT exists, and if so, delete it:
+    if [ -d "$MINICONDA_ROOT" ]; then
+      echo "Deleting existing Miniconda installation at $MINICONDA_ROOT"
+      rm -rf "$MINICONDA_ROOT"
+    fi
     curl -o miniconda_installer.sh "$MINICONDA_URL" && bash miniconda_installer.sh -b -p "$MINICONDA_ROOT" && rm miniconda_installer.sh
     # Install conda to bash and zsh. We keep these commented out
     # to avoid adding our conda to the user's shell as the default.
