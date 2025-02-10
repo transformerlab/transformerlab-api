@@ -45,15 +45,14 @@ install the rest of the application requirements.
 
 If you prefer to install the API without using the install script you can follow the steps on this page:
 
-[https://transformerlab.ai/docs/advanced-install](https://transformerlab.ai/docs/advanced-install)
+[https://transformerlab.ai/docs/install/advanced-install](https://transformerlab.ai/docs/install/advanced-install)
 
 # Run
 
 Once conda and dependencies are installed, run the following:
 
 ```bash
-conda activate transformerlab
-uvicorn api:app --port 8338 --host 0.0.0.0
+./run.sh
 ```
 
 # Developers:
@@ -78,14 +77,4 @@ pip-compile \
 
 # Windows Notes
 
-We have not tested running the API on Windows extensively, but it should work.
-
-On WSL, you might need to install CUDA manually by following:
-
-https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=WSL-Ubuntu&target_version=2.0&target_type=deb_local)
-
-then running the following before you launch:
-
-```bash
-export LD_LIBRARY_PATH=/usr/lib/wsl/lib
-```
+https://transformerlab.ai/docs/install/install-on-windows
