@@ -252,7 +252,7 @@ def generate_tflab_dataset(output_file_path: str):
     try:
         api_url = "http://localhost:8338/"
         # Create a new dataset
-        params = {"dataset_id": args.run_name}
+        params = {"dataset_id": args.run_name, "generated": True}
         response = requests.get(api_url + "data/new", params=params)
         if response.status_code != 200:
             print(f"Error creating a new dataset: {response.json()}")
