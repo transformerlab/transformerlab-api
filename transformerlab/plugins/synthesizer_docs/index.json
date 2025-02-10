@@ -12,7 +12,7 @@
         "main.py",
         "setup.sh"
     ],
-    "dataset": false,
+    "_dataset": false,
     "setup-script": "setup.sh",
     "parameters": {
         "generation_model": {
@@ -26,7 +26,7 @@
                 "Local"
             ]
         },
-        "docs": {
+        "tflabcustomui_docs": {
             "title": "Reference Documents",
             "type": "string"
         },

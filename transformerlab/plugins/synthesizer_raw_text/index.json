@@ -12,7 +12,7 @@
         "main.py",
         "setup.sh"
     ],
-    "dataset": false,
+    "_dataset": false,
     "setup-script": "setup.sh",
     "parameters": {
         "generation_model": {
@@ -33,7 +33,7 @@
             "maximum": 1000,
             "default": 10
         },
-        "context": {
+        "tflabcustomui_context": {
             "title": "Reference Text. Paste all your reference context here",
             "type": "string"
         }

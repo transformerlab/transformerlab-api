@@ -11,8 +11,8 @@
         "main.py",
         "setup.sh"
     ],
-    "dataset": true,
-    "dataset_display_message": "Please upload a dataset file with columns: 'input', 'output', 'expected_output'. The context column is optional if using metrics which don't require it.",
+    "_dataset": true,
+    "_dataset_display_message": "Please upload a dataset file with columns: 'input', 'output', 'expected_output'. The context column is optional if using metrics which don't require it.",
     "setup-script": "setup.sh",
     "parameters": {
         "metrics": {
