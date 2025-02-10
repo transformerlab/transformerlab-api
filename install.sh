@@ -141,7 +141,7 @@ download_transformer_lab() {
 
   # First check that curl is installed:
   if ! command -v curl &> /dev/null; then
-    abort "❌ curl is not installed. Please install curl and try again."
+    abort "❌ curl is not installed on the remote host. Please install curl and try again."
   else
     ohai "✅ curl is installed."
   fi
