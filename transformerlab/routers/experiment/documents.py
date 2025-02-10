@@ -6,6 +6,7 @@ import datetime
 import aiofiles
 from transformerlab.routers.experiment import rag
 from transformerlab.shared import dirs
+from transformerlab.shared.shared import slugify
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -123,6 +124,7 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
 
 @router.post("/create_folder", summary="Create a new folder.")
 async def create_folder(experimentId: str, name: str):
+    name = slugify(name)
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     path = os.path.join(experiment_dir, "documents", name)
     print(f"Creating folder {path}")
