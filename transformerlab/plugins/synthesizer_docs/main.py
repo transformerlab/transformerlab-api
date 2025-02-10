@@ -287,11 +287,20 @@ def run_generation():
             job.set_job_completion_status("failed", "Docs must be provided if generating using docs type.")
             sys.exit(1)
         docs = args.docs.split(",")
+        # Check if any doc in the list is a directory. If it is, fetch all file paths in the directory
+        for doc in docs:
+            if os.path.isdir(doc):
+                docs.remove(doc)
+                print(f"Directory found: {doc}. Fetching all files in the directory...")
+                for root, dirs, files in os.walk(doc):
+                    for file in files:
+                        docs.append(os.path.join(root, file))
         # Check if the path provided in docs has the files present
         for doc in docs:
             if not os.path.exists(doc):
                 print(f"File {doc} not found. Skipping...")
                 docs.remove(doc)
+
         if len(docs) == 0:
             print("No valid documents found. Exiting...")
             job.set_job_completion_status("failed", "No valid documents found.")
