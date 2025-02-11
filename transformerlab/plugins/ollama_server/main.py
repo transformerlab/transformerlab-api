@@ -165,7 +165,7 @@ class OllamaServer(BaseModelWorker):
         print("Stop patterns: ", stop)
         """
 
-        print(self.get_conv_template())
+        # print(self.get_conv_template())
 
         # Make sure top_p is above some minimum
         # And set to 1.0 if temperature is effectively 0
@@ -181,7 +181,6 @@ class OllamaServer(BaseModelWorker):
         # context_tokens = self.model.tokenize(context.encode("utf-8"))
 
         finish_reason = "length"
-        print("max length: " + str(max_new_tokens))
 
         # TODO: This is the biggest thing to fix
         # iterator = await run_in_threadpool(self.model.generate, context_tokens)
@@ -190,7 +189,7 @@ class OllamaServer(BaseModelWorker):
         # TODO: Also pass in all of the parameters
         iterator = await run_in_threadpool(self.model.chat, 
                                            model=self.model_name,
-                                           messages=[{'role': 'user', 'content': 'Why is the sky blue?'}],
+                                           messages=[{'role': 'user', 'content': context}],
                                            stream=True,
                                            options=generation_params)
 
