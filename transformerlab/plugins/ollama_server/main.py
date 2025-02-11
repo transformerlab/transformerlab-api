@@ -132,6 +132,7 @@ class OllamaServer(BaseModelWorker):
         load_model = self.model.generate(
             model=self.model_name,
         )
+        print(load_model)
 
         # HACK: We don't really have access to the tokenization in ollama
         # But we need a tokenizer to work with fastchat
@@ -160,24 +161,25 @@ class OllamaServer(BaseModelWorker):
         self.call_ct += 1
 
         context = params.pop("prompt")
-        request_id = params.pop("request_id")
+        params.pop("request_id")    # not used
+
+        # Generation parameters
+        max_new_tokens = params.get("max_new_tokens", 256)
         temperature = float(params.get("temperature", 1.0))
         top_p = float(params.get("top_p", 1.0))
-        top_k = params.get("top_k", -1.0)
-        presence_penalty = float(params.get("presence_penalty", 0.0))
-        frequency_penalty = float(params.get("frequency_penalty", 0.0))
-        max_new_tokens = params.get("max_new_tokens", 256)
-        stop_str = params.get("stop", None)
-        stop_token_ids = params.get("stop_token_ids", None) or []
 
-        # TODO: Tokenizer setup
+        # TODO: These parameters are ignored currently
+        #top_k = params.get("top_k", -1.0)
+        #presence_penalty = float(params.get("presence_penalty", 0.0))
+        #frequency_penalty = float(params.get("frequency_penalty", 0.0))
+
+        # TODO: We don't handle reading in stop strings
+        #stop_str = params.get("stop", None)
+        #stop_token_ids = params.get("stop_token_ids", None) or []
+
+        # TODO: Tokenizer setup might be needed after we add tokenizer
         #if self.tokenizer.eos_token_id is not None:
         #    stop_token_ids.append(self.tokenizer.eos_token_id)
-
-        # TODO: More parameters we aren't going to use. DELETE
-        echo = params.get("echo", True)
-        use_beam_search = params.get("use_beam_search", False)
-        best_of = params.get("best_of", None)
 
         # TODO: Do I need it?
         # Handle stop_str
@@ -198,8 +200,6 @@ class OllamaServer(BaseModelWorker):
         print("Stop patterns: ", stop)
         """
 
-        # print(self.get_conv_template())
-
         # Make sure top_p is above some minimum
         # And set to 1.0 if temperature is effectively 0
         top_p = max(top_p, 1e-5)
@@ -215,11 +215,8 @@ class OllamaServer(BaseModelWorker):
 
         finish_reason = "length"
 
-        # TODO: This is the biggest thing to fix
-        # iterator = await run_in_threadpool(self.model.generate, context_tokens)
-
-        # TODO: Update to use the real context
-        # TODO: Also pass in all of the parameters
+        # TODO: Should this use generate?
+        # TODO: Pass in all of the parameters
         iterator = await run_in_threadpool(self.model.chat, 
                                            model=self.model_name,
                                            messages=[{'role': 'user', 'content': context}],
@@ -227,22 +224,6 @@ class OllamaServer(BaseModelWorker):
                                            options=generation_params)
 
         for i in range(max_new_tokens):
-            #token = await run_in_threadpool(next, iterator)
-            #t = self.model.detokenize([token])
-            # convert bytes to string:
-            #t = t.decode("utf-8")
-            #if token == self.model.token_eos():
-            #    finish_reason = "stop"
-            #    break
-            #tokens.append(token)
-            #tokens_decoded = self.model.detokenize(tokens)
-
-            # tokens_decoded returns bytes, we need a string
-            #tokens_decoded_str = tokens_decoded.decode("utf-8")
-
-            #for chunk in stream:
-            #print(chunk['message']['content'], end='', flush=True)
-
             # Try to get next token. 
             # If the generator hits a stop the interator finishes and throws:
             # RuntimeError: coroutine raised StopIteration
@@ -278,7 +259,6 @@ class OllamaServer(BaseModelWorker):
             }
             yield (json.dumps(ret) + "\0").encode()
         
-        # TODO: Why is it adding the entire string at the end?
         ret = {
             "text": ''.join(decoded_tokens),
             "error_code": 0,
@@ -294,9 +274,11 @@ class OllamaServer(BaseModelWorker):
 
     async def generate(self, params):
         prompt = params.pop("prompt")
-        max_tokens = params.get("max_new_tokens", 256)
-        temperature = float(params.get("temperature", 1.0))
-        top_p = float(params.get("top_p", 1.0))
+
+        # TODO: Get options and pass to generate
+        #max_tokens = params.get("max_new_tokens", 256)
+        #temperature = float(params.get("temperature", 1.0))
+        #top_p = float(params.get("top_p", 1.0))
         params = None
 
         print("Generating with params: ", params)
