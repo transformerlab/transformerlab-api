@@ -170,6 +170,20 @@ async def stream_job_output(job_id: str):
     )
 
 
+@router.get("/{job_id}/stream_detailed_json_report")
+async def stream_detailed_json_report(job_id: str, file_name: str):
+    if not os.path.exists(file_name):
+        print(f"File not found: {file_name}")
+        return "File not found", 404
+
+    return StreamingResponse(
+        # we force polling because i can't get this to work otherwise -- changes aren't detected
+        watch_file(file_name, start_from_beginning=True, force_polling=False),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+    )
+
+
 @router.get("/{job_id}/get_additional_details")
 async def stream_job_additional_details(job_id: str):
     job = await db.job_get(job_id)
