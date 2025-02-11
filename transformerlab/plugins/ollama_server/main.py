@@ -45,20 +45,21 @@ class OllamaTokenizer:
         # convert variable "text" to bytes:
         text = text.encode("utf-8")
 
-        # TODO: FIX!
-        #tokens = self.model.tokenize(text)
+        # TODO: Ollama has recently added tokenizer as an experimental feature
+        # The current code is a fake tokenizer which is ignored by the plugin
         tokens = []
+        #tokens = self.model.tokenize(text)
         batchEncoding = BatchEncoding(
             data={"input_ids": [tokens], "eos_token_id": None})
         return batchEncoding
 
     def decode(self, tokens):
-        # TODO: FIX!
+        # TODO: This is fake code that does not detokenize. See above.
         #return self.model.detokenize(tokens)
         return [''.join(tokens)]
 
     def num_tokens(self, prompt):
-        # TODO: FIX!
+        # TODO: Also fake. This generates a totally fake approximate number.
         #tokens = self.model.tokenize(prompt)
         #return (len(tokens))
         return len(prompt)//4
@@ -225,8 +226,11 @@ class OllamaServer(BaseModelWorker):
                 finish_reason = response.get('done_reason', "")
                 break
 
-            tokens_decoded_str = response['message']['content'];
-            decoded_tokens.append(tokens_decoded_str)
+            # Normally we'd add a response token to a list of tokens and detokenize
+            # But ollama is detokenizing for us
+            decoded_token = response['message']['content']
+            decoded_tokens.append(decoded_token)
+            tokens_decoded_str = ''.join(decoded_tokens)
 
             ret = {
                 "text": tokens_decoded_str,
