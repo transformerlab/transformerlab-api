@@ -24,7 +24,7 @@ parser.add_argument("--run_name", default="test", type=str)
 parser.add_argument("--model_name", default="gpt-j-6b", type=str, help="Model to use for evaluation.")
 parser.add_argument("--experiment_name", default="", type=str)
 parser.add_argument("--eval_name", default="", type=str)
-parser.add_argument("--task", default="", type=str)
+parser.add_argument("--tasks", default="", type=str)
 parser.add_argument(
     "--model_adapter",
     default=None,
@@ -45,19 +45,19 @@ parser.add_argument("--limit", default=None, type=float)
 
 args, other = parser.parse_known_args()
 
-args.task = args.task.split(",")
+args.tasks = args.tasks.split(",")
 original_metrics = []
-for task in args.task:
+for task in args.tasks:
     if task != "Custom (GEval)":
         original_metrics.append(task)
     else:
         original_metrics.append("GEval")
-# original_metrics = [args.task if args.task != "Custom (GEval)" else "GEval"]
-args.task = [task.strip().replace(" ", "") + "Metric" if task != "Custom (GEval)" else "GEval" for task in args.task]
-# if args.task != "Custom (GEval)":
-#     args.task = args.task.strip().replace(" ", "") + "Metric"
+# original_metrics = [args.tasks if args.tasks != "Custom (GEval)" else "GEval"]
+args.tasks = [task.strip().replace(" ", "") + "Metric" if task != "Custom (GEval)" else "GEval" for task in args.tasks]
+# if args.tasks != "Custom (GEval)":
+#     args.tasks = args.tasks.strip().replace(" ", "") + "Metric"
 # else:
-#     args.task = "GEval"
+#     args.tasks = "GEval"
 
 if args.job_id:
     job = transformerlab.plugin.Job(args.job_id)
@@ -228,7 +228,7 @@ three_input_metrics = [
 custom_metric = ["GEval"]
 
 try:
-    if "GEval" in args.task and not args.context_geval:
+    if "GEval" in args.tasks and not args.context_geval:
         two_input_metrics.append("GEval")
     else:
         three_input_metrics.append("GEval")
@@ -268,7 +268,7 @@ def run_evaluation():
         )
         sys.exit(1)
 
-    if all(elem in two_input_metrics for elem in args.task):
+    if all(elem in two_input_metrics for elem in args.tasks):
         # Make sure the df has all non-null values in the columns `input` and `output`
         if (
             not df["input"].notnull().all()
@@ -276,17 +276,17 @@ def run_evaluation():
             or not df["expected_output"].notnull().all()
         ):
             print(
-                f"The dataset should have all non-null values in the columns `input`, `output` and `expected_output` columns for the metrics: {args.task}"
+                f"The dataset should have all non-null values in the columns `input`, `output` and `expected_output` columns for the metrics: {args.tasks}"
             )
             job.set_job_completion_status(
                 "failed",
-                f"The dataset should have all non-null values in the columns `input`, `output` and `expected_output` columns for the metrics: {args.task}",
+                f"The dataset should have all non-null values in the columns `input`, `output` and `expected_output` columns for the metrics: {args.tasks}",
             )
             sys.exit(1)
     else:
         # Check if there is a column called `context` in the dataset
         if "context" not in df.columns:
-            print(f"The dataset should have a column `context` for the metrics: {args.task}")
+            print(f"The dataset should have a column `context` for the metrics: {args.tasks}")
             print("Using the expected_output column as the context")
             df["context"] = df["expected_output"]
 
@@ -298,16 +298,16 @@ def run_evaluation():
             or not df["context"].notnull().all()
         ):
             print(
-                f"The dataset should have all non-null values in the columns `input`, `output`, `expected_output` and `context` columns for the metrics: {args.task}"
+                f"The dataset should have all non-null values in the columns `input`, `output`, `expected_output` and `context` columns for the metrics: {args.tasks}"
             )
             job.set_job_completion_status(
                 "failed",
-                f"The dataset should have all non-null values in the columns `input`, `output`, `expected_output` and `context` columns for the metrics: {args.task}",
+                f"The dataset should have all non-null values in the columns `input`, `output`, `expected_output` and `context` columns for the metrics: {args.tasks}",
             )
             sys.exit(1)
     metrics_arr = []
     try:
-        for met in args.task:
+        for met in args.tasks:
             if met not in custom_metric:
                 metric_class = get_metric_class(met)
                 metric = metric_class(model=trlab_model, threshold=args.threshold, include_reason=True)
@@ -337,7 +337,7 @@ def run_evaluation():
     test_cases = []
 
     try:
-        if all(elem in two_input_metrics for elem in args.task):
+        if all(elem in two_input_metrics for elem in args.tasks):
             for _, row in df.iterrows():
                 try:
                     test_cases.append(
@@ -349,8 +349,8 @@ def run_evaluation():
                     print(f"An error occurred while creating the test case: {e}")
                     job.set_job_completion_status("failed", "An error occurred while creating the test case")
                     sys.exit(1)
-        elif any(elem in three_input_metrics for elem in args.task):
-            if "HallucinationMetric" not in args.task:
+        elif any(elem in three_input_metrics for elem in args.tasks):
+            if "HallucinationMetric" not in args.tasks:
                 for _, row in df.iterrows():
                     test_cases.append(
                         LLMTestCase(

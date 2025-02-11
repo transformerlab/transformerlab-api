@@ -14,7 +14,7 @@ parser.add_argument("--model_name", default="gpt-j-6b", type=str, help="Model to
 parser.add_argument("--model_type", default="hf-causal", type=str, help="Type of model to use for evaluation.")
 parser.add_argument("--experiment_name", default="", type=str)
 parser.add_argument("--eval_name", default="", type=str)
-parser.add_argument("--task", default="", type=str)
+parser.add_argument("--tasks", default="", type=str)
 parser.add_argument(
     "--model_adapter",
     default=None,
@@ -51,7 +51,7 @@ if float(args.limit) > 1:
 root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
 plugin_dir = os.path.realpath(os.path.dirname(__file__))
 
-task = args.task
+task = args.tasks
 
 if not args.model_name or args.model_name == "":
     print("No model provided. Please re-run after setting a Foundation model.")

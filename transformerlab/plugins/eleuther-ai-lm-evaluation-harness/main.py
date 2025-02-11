@@ -14,7 +14,7 @@ parser.add_argument("--model_name", default="gpt-j-6b", type=str, help="Model to
 parser.add_argument("--model_type", default="hf-causal", type=str, help="Type of model to use for evaluation.")
 parser.add_argument("--experiment_name", default="", type=str)
 parser.add_argument("--eval_name", default="", type=str)
-parser.add_argument("--task", default="", type=str)
+parser.add_argument("--tasks", default="", type=str)
 parser.add_argument("--model_adapter", default=None, type=str)
 parser.add_argument("--limit", default=None, type=float)
 
@@ -82,7 +82,7 @@ def get_output_file_name(output_file_path):
 
 
 model_args = "pretrained=" + args.model_name
-task = args.task
+task = args.tasks
 
 # Exiting if model name is not provided
 if not args.model_name or args.model_name == "":

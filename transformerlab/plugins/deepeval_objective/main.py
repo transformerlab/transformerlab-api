@@ -18,7 +18,7 @@ try:
     parser.add_argument("--model_name", default="gpt-j-6b", type=str, help="Model to use for evaluation.")
     parser.add_argument("--experiment_name", default="", type=str)
     parser.add_argument("--eval_name", default="", type=str)
-    parser.add_argument("--metrics", default="", type=str)
+    parser.add_argument("--tasks", default="", type=str)
     parser.add_argument(
         "--model_adapter",
         default=None,
@@ -35,9 +35,9 @@ try:
 
     args, other = parser.parse_known_args()
 
-    args.metrics = args.metrics.split(",")
-    original_metric_names = args.metrics
-    args.metrics = [metric.lower().replace(" ", "_") for metric in args.metrics]
+    args.tasks = args.tasks.split(",")
+    original_metric_names = args.tasks
+    args.tasks = [metric.lower().replace(" ", "_") for metric in args.tasks]
 except Exception as e:
     print("Error occurred while parsing the arguments.")
     print(e)
@@ -309,7 +309,7 @@ def run_evaluation():
 
         # Calculate metrics for each test case
         metrics = []
-        for metric_name in args.metrics:
+        for metric_name in args.tasks:
             metric = metric_classes[metric_name]()
             for test_case in test_cases:
                 score = metric.measure(test_case)
@@ -344,7 +344,7 @@ def run_evaluation():
         job.update_progress(80)
         print_fancy_df(metrics_df)
 
-        for idx, metric in enumerate(args.metrics):
+        for idx, metric in enumerate(args.tasks):
             print(
                 f"Average {original_metric_names[idx]} score: {metrics_df[metrics_df['metric_name'] == metric]['score'].mean()}"
             )
@@ -352,7 +352,7 @@ def run_evaluation():
         print("Evaluation completed.")
         job.update_progress(100)
         score_list = []
-        for metric in args.metrics:
+        for metric in args.tasks:
             score_list.append(
                 {"type": metric, "score": round(metrics_df[metrics_df["metric_name"] == metric]["score"].mean(), 4)}
             )
