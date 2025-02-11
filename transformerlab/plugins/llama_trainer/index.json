@@ -38,7 +38,7 @@
                 "constant",
                 "linear",
                 "cosine",
-                "constant_with_warmup",
+                "constant_with_warmup"
             ],
             "default": "constant"
         },

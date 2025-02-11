@@ -32,7 +32,10 @@ async def plugin_gallery():
     if os.path.exists(local_workspace_gallery_directory):
         for plugin in os.listdir(local_workspace_gallery_directory):
             if os.path.isdir(os.path.join(local_workspace_gallery_directory, plugin)):
-                info = json.load(open(os.path.join(local_workspace_gallery_directory, plugin, "index.json")))
+                try:
+                    info = json.load(open(os.path.join(local_workspace_gallery_directory, plugin, "index.json")))
+                except Exception as e:
+                    print(f"Error loading {plugin} index.json: {e}")
 
                 # These are fields we expect:
                 # details = {
