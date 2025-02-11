@@ -4,7 +4,7 @@
     "description": "Using LLMs as Judges for evaluating outputs of other LLMs",
     "plugin-format": "python",
     "type": "evaluator",
-    "version": "0.1.7",
+    "version": "0.1.8",
     "git": "https://github.com/confident-ai/deepeval",
     "url": "https://github.com/confident-ai/deepeval",
     "files": [
@@ -55,11 +55,11 @@
             "title": "Criteria Name (Only for GEval)",
             "type": "string"
         },
-        "geval_context": {
+        "geval_criteria": {
             "title": "Criteria Description (Only for GEval)",
             "type": "string"
         },
-        "context_required": {
+        "context_geval": {
             "title": "Should `context` field be considered in dataset? (Only for GEval)",
             "type": "boolean",
             "default": false,
@@ -83,7 +83,7 @@
         "geval_context": {
             "ui:help": "Enter the description of the criteria. To be used only for GEval"
         },
-        "context_required": {
+        "context_geval": {
             "ui:help": "Select if the `context` field should be considered in the dataset. To be used only for GEval"
         }
     }
