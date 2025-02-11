@@ -217,21 +217,20 @@ class OllamaServer(BaseModelWorker):
             try:
                 response = await run_in_threadpool(next, iterator)
             except:
+                print("Ollama server encountered StopIteration")
                 finish_reason = "stop"
                 break
+
+
 
             print(response['message']['content'], end='', flush=True)
             print(response, end='', flush=True)
             tokens_decoded_str = response['message']['content'];
             decoded_tokens.append(tokens_decoded_str)
             
-            # TODO: Partial stop check
-            #partial_stop = any(is_partial_stop(tokens_decoded_str, i)
-            #                   for i in stop)
-            #
-            #if partial_stop:
-            #    finish_reason = "stop"
-            #    break
+            # Check if ollama returned a stop
+            if response.get('done'):
+                finish_reason = response.get('done_reason', "")
 
             ret = {
                 "text": tokens_decoded_str,
