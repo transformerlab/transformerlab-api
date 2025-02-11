@@ -9,6 +9,8 @@ The generate function probably needs work.
 
 import argparse
 import asyncio
+import os
+import subprocess
 import json
 import uuid
 from typing import List
@@ -93,13 +95,41 @@ class OllamaServer(BaseModelWorker):
             f"Loading the model {self.model_names} on worker {worker_id}, worker type: ollama-python..."
         )
 
-        # TODO: Use the real model
-        self.model_name = model_path
-        self.model_name = "llama3.2"
-        print("Loading model: ", self.model_name)
-
-        # You can load a model in ollama by not passing a prompt to generate
+        # Start the ollama client.
+        # This will check if ollama is installed and running and if not return an error.
+        # TODO: We should maybe first call ollama serve to start ollama for the user?
         self.model = ollama.Client()
+
+        # How to load a model in ollama:
+        # Our GGUF models are stored in the transformerlab workspace models directory.
+        # Ollama models must be stored in their proprietary way in ~/.ollama
+        # Ollama will load the model there for you from anywhere on your computer iff
+        # you have a correctly formatted Modelfile, which is very simple.
+        # So...we need to make a Modelfile in the directory with OUR GGUF model.
+        # TODO: Don't reimport if model already exists in ollama. It's slow!
+        model_path = model_path
+
+        # Split model_path into the directory and filename
+        model_dir, model_filename = os.path.split(model_path)
+
+        # Our convention is that GGUF models have the same name as their filename
+        self.model_name = model_filename
+
+        # Output a modelfile
+        modelfile = os.path.join(model_dir, "Modelfile")
+        with open(modelfile, "w") as file:
+            file.write(f"FROM {model_path}")
+
+        # Then we need to call ollama and tell it to create the model
+        subprocess.run([
+            "ollama",
+            "create",
+            self.model_name,
+            "-f",
+            modelfile
+        ])
+
+        # You load a model into memory in ollama by not passing a prompt to model.generate
         load_model = self.model.generate(
             model=self.model_name,
         )
