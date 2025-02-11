@@ -28,7 +28,6 @@ from fastchat.serve.model_worker import (
     logger,
     worker_id,
 )
-from fastchat.utils import is_partial_stop
 
 from transformers.tokenization_utils_base import BatchEncoding
 
