@@ -221,16 +221,13 @@ class OllamaServer(BaseModelWorker):
                 finish_reason = "stop"
                 break
 
-
-
-            print(response['message']['content'], end='', flush=True)
-            print(response, end='', flush=True)
-            tokens_decoded_str = response['message']['content'];
-            decoded_tokens.append(tokens_decoded_str)
-            
             # Check if ollama returned a stop
             if response.get('done'):
                 finish_reason = response.get('done_reason', "")
+                break
+
+            tokens_decoded_str = response['message']['content'];
+            decoded_tokens.append(tokens_decoded_str)
 
             ret = {
                 "text": tokens_decoded_str,
@@ -244,10 +241,9 @@ class OllamaServer(BaseModelWorker):
                 ],
                 "finish_reason": None   # hard code for now
             }
-            # print(ret)
             yield (json.dumps(ret) + "\0").encode()
         
-        # TODO: Oh no I don't know what this was for but it breaks stuff
+        # TODO: Why is it adding the entire string at the end?
         ret = {
             "text": ''.join(decoded_tokens),
             "error_code": 0,
