@@ -3,6 +3,7 @@ import importlib
 import os
 import sys
 import traceback
+import pandas as pd
 
 import instructor
 import requests
@@ -77,6 +78,13 @@ def get_tflab_dataset():
     # Convert the dataset to a pandas dataframe
     df = dataset["train"].to_pandas()
     return df
+
+
+def get_output_file_path():
+    experiment_dir = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "experiments", args.experiment_name)
+    p = os.path.join(experiment_dir, "evals", args.eval_name)
+    os.makedirs(p, exist_ok=True)
+    return os.path.join(p, f"detailed_output_{args.job_id}.csv")
 
 
 def get_metric_class(metric_name: str):
@@ -376,20 +384,40 @@ def run_evaluation():
         test_cases = test_cases[:num_samples]
     print(f"Test cases loaded successfully: {len(test_cases)}")
     job.update_progress(3)
-    dataset = EvaluationDataset(test_cases[1:])
+    dataset = EvaluationDataset(test_cases)
 
     try:
         output = evaluate(dataset, [metric])
         job.update_progress(99)
-        scores_list = [{"type": original_metrics[0]}]
-        score = 0
-        for test_cases in output.test_results:
-            score += test_cases.metrics_data[0].score
-        average_score = score / len(output.test_results)
-        scores_list[0]["score"] = average_score
+        scores_list = []
+        additional_report = []
+        for test_case in output.test_results:
+            for metric in test_case.metrics_data:
+                temp_report = {}
+                temp_report["input"] = test_case.input
+                temp_report["actual_output"] = test_case.actual_output
+                temp_report["expected_output"] = test_case.expected_output
+                temp_report["metric_name"] = metric.name
+                temp_report["score"] = metric.score
+                temp_report["reason"] = metric.reason
+                additional_report.append(temp_report)
+
+        metrics_df = pd.DataFrame(additional_report)
+        output_path = get_output_file_path()
+        metrics_df.to_csv(output_path, index=False)
+        for metric in metrics_df["metric_name"].unique():
+            scores_list.append(
+                {"type": metric, "score": round(metrics_df[metrics_df["metric_name"] == metric]["score"].mean(), 4)}
+            )
+
+        print(f"Metrics saved to {output_path}")
+        print("Evaluation completed.")
+
         job.update_progress(100)
         print("Evaluation completed successfully")
-        job.set_job_completion_status("success", "Evaluation completed successfully", score=scores_list)
+        job.set_job_completion_status(
+            "success", "Evaluation completed successfully", score=scores_list, additional_output_path=output_path
+        )
 
     except Exception as e:
         # Print the whole traceback
