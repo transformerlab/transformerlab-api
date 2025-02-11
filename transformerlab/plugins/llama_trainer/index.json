@@ -4,7 +4,7 @@
     "description": "A training script adapted from https://www.philschmid.de/instruction-tune-llama-2 for training Llama2 using PeFT",
     "plugin-format": "python",
     "type": "trainer",
-    "version": "1.0.11",
+    "version": "1.0.12",
     "model_architectures": [
         "LlamaForCausalLM",
         "Qwen2ForCausalLM"
@@ -30,6 +30,17 @@
             "default": 4,
             "minimum": 1,
             "maximum": 64
+        },
+        "learning_rate_schedule": {
+            "title": "Learning Rate Schedule",
+            "type": "string",
+            "enum": [
+                "constant",
+                "linear",
+                "cosine",
+                "constant_with_warmup",
+            ],
+            "default": "constant"
         },
         "learning_rate": {
             "title": "Learning Rate",
