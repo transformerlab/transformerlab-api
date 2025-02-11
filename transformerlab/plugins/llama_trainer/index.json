@@ -37,7 +37,8 @@
             "enum": [
                 "constant",
                 "linear",
-                "cosine"
+                "cosine",
+                "constant_with_warmup",
             ],
             "default": "constant"
         },
