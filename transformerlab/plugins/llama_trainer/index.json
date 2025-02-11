@@ -31,6 +31,16 @@
             "minimum": 1,
             "maximum": 64
         },
+        "learning_rate_schedule": {
+            "title": "Learning Rate Schedule",
+            "type": "string",
+            "enum": [
+                "constant",
+                "linear",
+                "cosine"
+            ],
+            "default": "constant"
+        },
         "learning_rate": {
             "title": "Learning Rate",
             "type": "number",
