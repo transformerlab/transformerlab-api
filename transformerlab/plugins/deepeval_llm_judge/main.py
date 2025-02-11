@@ -391,7 +391,7 @@ def run_evaluation():
         print("Evaluation completed successfully")
         job.set_job_completion_status("success", "Evaluation completed successfully", score=scores_list)
 
-    except ValueError as e:
+    except Exception as e:
         # Print the whole traceback
         traceback.print_exc()
         print(f"An error occurred while running the evaluation: {e}")

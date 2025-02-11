@@ -111,35 +111,38 @@ class Job:
         and if the job failed, the details of the failure.
         Score should be a json of the format {"metric_name": value, ...}
         """
-        if not (completion_status == "success" or completion_status == "failed"):
-            raise ValueError("completion_status must be either 'success' or 'failed'")
-        if score is not None:
-            score = json.dumps(score)
-            if additional_output_path is not None or additional_output_path.strip() != "":
-                self.db.execute(
-                    "UPDATE job SET job_data = json_insert(job_data, '$.completion_status', ?, '$.completion_details', ?, '$.score', ?, '$.additional_output_path', ?) "
-                    "WHERE id = ?",
-                    (completion_status, completion_details, score, additional_output_path, self.id),
-                )
+        try:
+            if not (completion_status == "success" or completion_status == "failed"):
+                raise ValueError("completion_status must be either 'success' or 'failed'")
+            if score is not None:
+                score = json.dumps(score)
+                if additional_output_path is not None and additional_output_path.strip() != "":
+                    self.db.execute(
+                        "UPDATE job SET job_data = json_insert(job_data, '$.completion_status', ?, '$.completion_details', ?, '$.score', ?, '$.additional_output_path', ?) "
+                        "WHERE id = ?",
+                        (completion_status, completion_details, score, additional_output_path, self.id),
+                    )
+                else:
+                    self.db.execute(
+                        "UPDATE job SET job_data = json_insert(job_data, '$.completion_status', ?, '$.completion_details', ?, '$.score', ?) "
+                        "WHERE id = ?",
+                        (completion_status, completion_details, score, self.id),
+                    )
             else:
-                self.db.execute(
-                    "UPDATE job SET job_data = json_insert(job_data, '$.completion_status', ?, '$.completion_details', ?, '$.score', ?) "
-                    "WHERE id = ?",
-                    (completion_status, completion_details, score, self.id),
-                )
-        else:
-            if additional_output_path is not None:
-                self.db.execute(
-                    "UPDATE job SET job_data = json_insert(job_data, '$.completion_status', ?, '$.completion_details', ?, '$.additional_output_path', ?) "
-                    "WHERE id = ?",
-                    (completion_status, completion_details, additional_output_path, self.id),
-                )
-            else:
-                self.db.execute(
-                    "UPDATE job SET job_data = json_insert(job_data, '$.completion_status', ?, '$.completion_details', ?) "
-                    "WHERE id = ?",
-                    (completion_status, completion_details, self.id),
-                )
+                if additional_output_path is not None:
+                    self.db.execute(
+                        "UPDATE job SET job_data = json_insert(job_data, '$.completion_status', ?, '$.completion_details', ?, '$.additional_output_path', ?) "
+                        "WHERE id = ?",
+                        (completion_status, completion_details, additional_output_path, self.id),
+                    )
+                else:
+                    self.db.execute(
+                        "UPDATE job SET job_data = json_insert(job_data, '$.completion_status', ?, '$.completion_details', ?) "
+                        "WHERE id = ?",
+                        (completion_status, completion_details, self.id),
+                    )
+        except Exception as e:
+            print(f"Error setting job completion status: {e}")
 
 
 def generate_model_json(
