@@ -42,13 +42,14 @@
             ]
         },
         "limit": {
-            "title": "Fraction of samples (Enter a floating point between 0 and 1. Set as 1 to get all samples)",
+            "title": "Fraction of samples",
             "type": [
               "number"
             ],
             "minimum": 0.0,
             "default": 1.0,
-            "maximum": 1.0
+            "maximum": 1.0,
+            "multipleOf": 0.1
           },
         "geval_name": {
             "title": "Criteria Name (Only for GEval)",
@@ -65,9 +66,25 @@
             "required": true
         }
     },
-    "parameters-ui": {
+    "parameters_ui": {
         "task": {
             "ui:help": "Select an evaluation metric from the drop-down list"
+        },
+        "judge_model": {
+            "ui:help": "Select the LLM model to be used as Judge"
+        },
+        "limit": {
+            "ui:help": "Enter a fraction of samples to evaluate from your data. Set as 1 to get all samples",
+            "ui:widget": "RangeWidget"
+        },
+        "geval_name": {
+            "ui:help": "Enter the name of the criteria. To be used only for GEval"
+        },
+        "geval_context": {
+            "ui:help": "Enter the description of the criteria. To be used only for GEval"
+        },
+        "context_required": {
+            "ui:help": "Select if the `context` field should be considered in the dataset. To be used only for GEval"
         }
     }
 }

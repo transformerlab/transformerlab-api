@@ -36,13 +36,12 @@
             "default": "Snowflake/arctic-embed-m"
         }
     },
-    "parameters-ui": {
-        "docs": {
-            "ui:widget": "textarea",
-            "ui:help": "Provide the paths of the reference documents separated by comma"
-        },
+    "parameters_ui": {
         "embedding_model": {
             "ui:help": "Provide the name of the embedding model from Huggingface or its local path"
+        },
+        "generation_model": {
+            "ui:help": "Select the model to be used for generation from the drop-down list"
         }
     }
 }

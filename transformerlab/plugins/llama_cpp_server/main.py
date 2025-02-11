@@ -16,7 +16,6 @@ import argparse
 import asyncio
 import atexit
 import json
-import os
 from typing import List
 import uuid
 
@@ -97,7 +96,6 @@ class LlamaCppServer(BaseModelWorker):
         #     llm_engine.engine.model_config.hf_config)
         # hard code for now -- not sure how to get in llamacpp
         self.context_len = self.model._n_ctx
-
 
         if not no_register:
             self.init_heart_beat()

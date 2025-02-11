@@ -4,7 +4,7 @@
     "description": "Evaluating outputs of LLMs using objective metrics",
     "plugin-format": "python",
     "type": "evaluator",
-    "version": "0.1.9",
+    "version": "0.2.0",
     "git": "https://github.com/confident-ai/deepeval",
     "url": "https://github.com/confident-ai/deepeval",
     "files": [
@@ -28,18 +28,23 @@
             ]
         },
         "limit": {
-            "title": "Fraction of samples (Enter a floating point between 0 and 1. Set as 1 to get all samples)",
+            "title": "Fraction of samples to evaluate",
             "type": [
               "number"
             ],
             "minimum": 0.0,
             "default": 1.0,
-            "maximum": 1.0
+            "maximum": 1.0,
+            "multipleOf": 0.1
           }
     },
-    "parameters-ui": {
+    "parameters_ui": {
         "metrics": {
             "ui:help": "Select an evaluation metric from the drop-down list"
+        },
+        "limit": {
+            "ui:help": "Enter a fraction of samples to evaluate from your data. Set as 1 to get all samples",
+            "ui:widget": "RangeWidget"
         }
     }
 }

@@ -2320,7 +2320,19 @@
       ],
       "minimum": 0.0,
       "default": 1.0,
-      "maximum": 1.0
+      "maximum": 1.0,
+      "multipleOf": 0.05
+    }
+  },
+  "parameters_ui":
+  {
+    "task": {
+      "ui:help": "Select the task you want to run from the EleutherAI Harness"
+    },
+    "limit": {
+      "ui:help": "Select the fraction of samples you want to run from the EleutherAI Harness task",
+      "ui:widget": "RangeWidget"
+
     }
   }
 }
