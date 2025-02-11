@@ -2,6 +2,9 @@
 Ollama model worker
 
 Requires that ollama is installed on your server.
+
+Right now only generate_stream function has gone through much testing.
+The generate function probably needs work.
 """
 
 import argparse
@@ -261,30 +264,29 @@ class OllamaServer(BaseModelWorker):
 
 
     async def generate(self, params):
-        # TODO: THIS DEFINITELY DOESN'T WORK
-
         prompt = params.pop("prompt")
         max_tokens = params.get("max_new_tokens", 256)
         temperature = float(params.get("temperature", 1.0))
         top_p = float(params.get("top_p", 1.0))
+        params = None
 
         print("Generating with params: ", params)
         thread = asyncio.to_thread(self.model.generate, 
-                                           model=self-model,
-                                           messages=[{'role': 'user', 'content': 'Why is the sky blue?'}],
-                                           stream=True,)
-                                   
-        #                           prompt, suffix=None, max_tokens=max_tokens, temperature=temperature, top_p=top_p, echo=False)
+                                           model=self.model_name,
+                                           prompt=prompt,
+                                           stream=False,
+                                           options=params)
+
         response = await thread
-        print(response)
 
         ret = {
-            "text": response['choices'][0]['text'],
+            "text": response['repsonse'],
             "error_code": 0,
-            "usage": response['usage'],
+            "usage": {
+            },
             "cumulative_logprob": [
             ],
-            "finish_reason": response['choices'][0]['finish_reason']
+            "finish_reason": response['done_reason']
         }
         return ret
 
