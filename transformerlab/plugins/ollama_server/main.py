@@ -15,6 +15,7 @@ import json
 import uuid
 from typing import List
 import atexit
+import traceback
 import uvicorn
 
 import ollama
@@ -229,8 +230,9 @@ class OllamaServer(BaseModelWorker):
             # RuntimeError: coroutine raised StopIteration
             try:
                 response = await run_in_threadpool(next, iterator)
-            except:
-                print("Ollama server encountered StopIteration")
+            except RuntimeError as e:
+                print(e)
+                print(traceback.format_exc())
                 finish_reason = "stop"
                 break
 
@@ -403,8 +405,9 @@ def main():
 
     args, _ = parser.parse_known_args()
 
+    # No parameters right now. Uncomment when we add some.
     # parameters is a JSON string, so we parse it:
-    parameters = json.loads(args.parameters)
+    # parameters = json.loads(args.parameters)
 
     # model_path can be a hugging face ID or a local file in Transformer Lab
     # But GGUF is always stored as a local path because
