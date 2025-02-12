@@ -13,7 +13,9 @@ import os
 import subprocess
 import json
 import uuid
+from hashlib import sha256
 from typing import List
+from pathlib import Path
 import atexit
 import traceback
 import uvicorn
@@ -98,17 +100,21 @@ class OllamaServer(BaseModelWorker):
         # Start the ollama client.
         # This will check if ollama is installed and running and if not return an error.
         # TODO: We should maybe first call ollama serve to start ollama for the user?
+        # i.e. instead of throwing an error and making them do it?
         self.model = ollama.Client()
 
-        # How to load a model in ollama:
+        # Load model into Ollama
+        # 
+        # EXPLANATION:
         # Our GGUF models are stored in the transformerlab workspace models directory.
-        # Ollama models must be stored in their proprietary way in ~/.ollama
-        # Ollama will load the model there for you from anywhere on your computer iff
-        # you have a correctly formatted Modelfile, which is very simple.
-        # So...we need to make a Modelfile in the directory with OUR GGUF model.
-        # TODO: Don't reimport if model already exists in ollama. It's slow!
-        model_path = model_path
+        # Ollama lets you import models if you have a correctly formatted Modelfile.
+        # But, Ollama wants models stored in their proprietary way in ~/.ollama.
+        # If you try to import a GGUF model outside of Ollama, it will copy the 
+        # entire file into their .ollama cache and waste your disk space.
+        # However, if there is already a file (or link) with the correct name (SHA blob)
+        # in the right place (under ~/.ollama/models/blobs) then it won't copy!
 
+        # STEP 1: Make an Ollama Modelfile that points to the GGUF you want to run
         # Split model_path into the directory and filename
         model_dir, model_filename = os.path.split(model_path)
 
@@ -120,7 +126,47 @@ class OllamaServer(BaseModelWorker):
         with open(modelfile, "w") as file:
             file.write(f"FROM {model_path}")
 
-        # Then we need to call ollama and tell it to create the model
+        # STEP 2: Create a link to our GGUF file in the Ollama cache
+        # to prevent it from copying the GGUF file.
+
+        # 2a. Figure out the SHA filename ollama expects.
+        # Copied this from ollama SDK
+        sha256sum = sha256()
+        with open(model_path, 'rb') as r:
+            while True:
+                chunk = r.read(32 * 1024)
+                if not chunk:
+                    break
+                sha256sum.update(chunk)
+
+        # Figure out where model blobs are stored in Ollama
+        # First, check the OLLAMA_MODELS environment variable
+        OLLAMA_MODELS_DIR = os.getenv("OLLAMA_MODELS", "")
+        if OLLAMA_MODELS_DIR:
+            print("model dir set:", OLLAMA_MODELS_DIR) 
+        else:
+            # IF the environment variable isn't set then assume the default
+            OLLAMA_MODELS_DIR = os.path.join(Path.home(), ".ollama", "models")
+        OLLAMA_MODEL_BLOBS_CACHE = os.path.join(OLLAMA_MODELS_DIR, "blobs")
+        print("Ollama model blobs at", OLLAMA_MODEL_BLOBS_CACHE) 
+
+        # TODO: Check the directory exists.  If it doesn't it a problem! Do this first!
+
+        # 2b. Create a link with the SHA name to the actual GGUF file
+        sha_filename = os.path.join(
+            OLLAMA_MODEL_BLOBS_CACHE,
+            f'sha256:{sha256sum.hexdigest()}'
+        )
+
+        # Create the directory if it doesn't exist
+        os.makedirs(OLLAMA_MODEL_BLOBS_CACHE, exist_ok=True)
+
+        # Create a symbolic link if it doesn't already exist
+        if not os.path.exists(sha_filename):
+            print("Creating link to model in Ollama:", sha_filename)
+            os.symlink(model_path, sha_filename)
+
+        # STEP 3: Call ollama and tell it to create the model in its register
         subprocess.run([
             "ollama",
             "create",
@@ -129,6 +175,7 @@ class OllamaServer(BaseModelWorker):
             modelfile
         ])
 
+        # STEP 4: Start the model!
         # You load a model into memory in ollama by not passing a prompt to model.generate
         load_model = self.model.generate(
             model=self.model_name,
