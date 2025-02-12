@@ -129,8 +129,27 @@ async def get_dataset(dataset_id):
     return row
 
 
-async def get_datasets():
+async def get_datasets(generated: bool = True):
     cursor = await db.execute("SELECT rowid, * FROM dataset")
+    rows = await cursor.fetchall()
+
+    # print("All ROWS: ", rows)
+    if not generated:
+        # Filter out generated datasets
+        rows = [row for row in rows if not json.loads(row[6]).get("generated", False)]
+
+    # convert to json:
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
+    await cursor.close()
+
+    return data
+
+
+async def get_generated_datasets():
+    # Get all datasets that have the value `generated` as True in the json_data column
+    cursor = await db.execute("SELECT rowid, * FROM dataset WHERE json_extract(json_data, '$.generated') = true")
     rows = await cursor.fetchall()
 
     # convert to json:
@@ -153,14 +172,23 @@ async def create_huggingface_dataset(dataset_id, description, size, json_data):
     await db.commit()
 
 
-async def create_local_dataset(dataset_id):
-    await db.execute(
-        """
-        INSERT INTO dataset (dataset_id, location, description, size, json_data)
-        VALUES (?, ?, ?, ?, json(?))
-        """,
-        (dataset_id, "local", "", -1, "{}"),
-    )
+async def create_local_dataset(dataset_id, json_data=None):
+    if json_data is None:
+        await db.execute(
+            """
+            INSERT INTO dataset (dataset_id, location, description, size, json_data)
+            VALUES (?, ?, ?, ?, json(?))
+            """,
+            (dataset_id, "local", "", -1, "{}"),
+        )
+    else:
+        await db.execute(
+            """
+            INSERT INTO dataset (dataset_id, location, description, size, json_data)
+            VALUES (?, ?, ?, ?, json(?))
+            """,
+            (dataset_id, "local", "", -1, json.dumps(json_data)),
+        )
     await db.commit()
 
 

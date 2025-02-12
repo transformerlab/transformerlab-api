@@ -31,7 +31,8 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 1000,
-            "default": 10
+            "default": 10,
+            "multipleOf": 10
         },
         "scenario": {
             "title": "Scenario. Describe the scenario for which you want to generate data",
@@ -50,9 +51,10 @@
             "type": "string"
         }
     },
-    "parameters-ui": {
+    "parameters_ui": {
         "num_goldens": {
-            "ui:help": "Number of samples to generate"
+            "ui:help": "Number of samples to generate",
+            "ui:widget": "RangeWidget"
         },
         "scenario": {
             "ui:widget": "textarea",

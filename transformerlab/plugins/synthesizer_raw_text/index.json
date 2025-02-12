@@ -12,11 +12,11 @@
         "main.py",
         "setup.sh"
     ],
-    "dataset": false,
+    "_dataset": false,
     "setup-script": "setup.sh",
     "parameters": {
         "generation_model": {
-            "title": "Generation Model (Model to be used for Generation. Select `local` to use the local model running)",
+            "title": "Generation Model",
             "type": "string",
             "enum": [
                 "Claude 3.5 Haiku",
@@ -31,20 +31,21 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 1000,
-            "default": 10
+            "default": 10,
+            "multipleOf": 10
         },
-        "context": {
+        "tflabcustomui_context": {
             "title": "Reference Text. Paste all your reference context here",
             "type": "string"
         }
     },
-    "parameters-ui": {
+    "parameters_ui": {
         "num_goldens": {
-            "ui:help": "Number of samples to generate"
+            "ui:help": "Number of samples to generate",
+            "ui:widget": "RangeWidget"
         },
-        "context": {
-            "ui:widget": "textarea",
-            "ui:help": "Paste all your reference context here"
+        "generation_model": {
+            "ui:help": "Select the model to be used for generation from the drop-down list. (Select `local` to use the local model running)"
         }
     }
 }

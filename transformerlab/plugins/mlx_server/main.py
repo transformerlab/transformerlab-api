@@ -56,6 +56,7 @@ class MLXWorker(BaseModelWorker):
         limit_worker_concurrency: int,
         no_register: bool,
         conv_template: str,
+        adaptor_path: str = None,
     ):
         super().__init__(
             controller_addr,
@@ -70,7 +71,7 @@ class MLXWorker(BaseModelWorker):
         logger.info(f"Loading the model {self.model_names} on worker" + f"{worker_id}, worker type: MLX worker...")
 
         self.model_name = model_path
-        self.mlx_model, self.mlx_tokenizer = load(model_path)
+        self.mlx_model, self.mlx_tokenizer = load(model_path, adapter_path=adaptor_path)
 
         self.tokenizer = self.mlx_tokenizer._tokenizer
 
@@ -439,6 +440,7 @@ def main():
     parser.add_argument("--worker-address", type=str, default="http://localhost:21002")
     parser.add_argument("--controller-address", type=str, default="http://localhost:21001")
     parser.add_argument("--model-path", type=str, default="microsoft/phi-2")
+    parser.add_argument("--adaptor-path", type=str, default=None)
     parser.add_argument(
         "--model-names",
         type=lambda s: s.split(","),
@@ -456,6 +458,8 @@ def main():
 
     if args.model_path:
         args.model = args.model_path
+    if args.adaptor_path is None or args.adaptor_path.strip() == "":
+        args.adaptor_path = None
 
     worker = MLXWorker(
         args.controller_address,
@@ -466,6 +470,7 @@ def main():
         1024,
         False,
         args.conv_template,
+        args.adaptor_path,
     )
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 

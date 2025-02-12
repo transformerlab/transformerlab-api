@@ -14,6 +14,7 @@ from datasets.data_files import EmptyDatasetError
 from transformerlab.shared.shared import slugify
 
 from jinja2 import Environment
+
 jinja_environment = Environment()
 
 
@@ -24,6 +25,8 @@ GLOBAL_LOG_PATH = dirs.GLOBAL_LOG_PATH
 def log(msg):
     with open(GLOBAL_LOG_PATH, "a") as f:
         f.write(msg + "\n")
+
+
 # logging.basicConfig(filename=GLOBAL_LOG_PATH, level=logging.INFO,
 #                     format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -43,22 +46,28 @@ class ErrorResponse(BaseModel):
     message: str
 
 
-@router.get("/gallery", summary="Display the datasets available in the dataset gallery.", responses={200: {"model": SuccessResponse, "description": "Successful response. Data is a list of column names followed by data, which can be of any datatype."},
-                                                                                                     400: {"model": ErrorResponse},
-                                                                                                     })
+@router.get(
+    "/gallery",
+    summary="Display the datasets available in the dataset gallery.",
+    responses={
+        200: {
+            "model": SuccessResponse,
+            "description": "Successful response. Data is a list of column names followed by data, which can be of any datatype.",
+        },
+        400: {"model": ErrorResponse},
+    },
+)
 async def dataset_gallery() -> Any:
-
-    file_location = os.path.join(
-        dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "data-gallery.json")
+    file_location = os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "data-gallery.json")
     with open(file_location) as f:
         gallery = json.load(f)
     local_datasets = await db.get_datasets()
 
-    local_dataset_names = set(str(dataset['dataset_id'])
-                              for dataset in local_datasets)
+    local_dataset_names = set(str(dataset["dataset_id"]) for dataset in local_datasets)
     for dataset in gallery:
-        dataset['downloaded'] = True if dataset['huggingfacerepo'] in local_dataset_names else False
+        dataset["downloaded"] = True if dataset["huggingfacerepo"] in local_dataset_names else False
     return {"status": "success", "data": gallery}
+
 
 # Get info on dataset from huggingface
 
@@ -79,12 +88,10 @@ async def dataset_info(dataset_id: str):
         r["features"] = dataset[split].features
     else:
         dataset_config = d.get("json_data", {}).get("dataset_config", None)
-        if (dataset_config is not None):
-            ds_builder = load_dataset_builder(
-                dataset_id, dataset_config, trust_remote_code=True)
+        if dataset_config is not None:
+            ds_builder = load_dataset_builder(dataset_id, dataset_config, trust_remote_code=True)
         else:
-            ds_builder = load_dataset_builder(
-                dataset_id, trust_remote_code=True)
+            ds_builder = load_dataset_builder(dataset_id, trust_remote_code=True)
         r = {
             "description": ds_builder.info.description,
             "features": ds_builder.info.features,
@@ -100,39 +107,44 @@ async def dataset_info(dataset_id: str):
     return r
 
 
-@router.get("/preview", summary="Preview the contents of a dataset.", responses={200: {"model": SuccessResponse, "description": "Successful response. Data is a list of column names followed by data, which can be of any datatype."},
-                                                                                 400: {"model": ErrorResponse},
-                                                                                 }
-            )
-async def dataset_preview(dataset_id: str = Query(description="The ID of the dataset to preview. This can be a HuggingFace dataset ID or a local dataset ID."),
-                          offset: int = Query(
-                              0, description='The starting index from where to fetch the data.', ge=0),
-                          split: str = Query(
-                              None, description='The split to preview. This can be train, test, or validation.'),
-                          limit: int = Query(
-                              10, description="The maximum number of data items to fetch.", ge=1, le=1000),
-                          streaming: bool = False) -> Any:
+@router.get(
+    "/preview",
+    summary="Preview the contents of a dataset.",
+    responses={
+        200: {
+            "model": SuccessResponse,
+            "description": "Successful response. Data is a list of column names followed by data, which can be of any datatype.",
+        },
+        400: {"model": ErrorResponse},
+    },
+)
+async def dataset_preview(
+    dataset_id: str = Query(
+        description="The ID of the dataset to preview. This can be a HuggingFace dataset ID or a local dataset ID."
+    ),
+    offset: int = Query(0, description="The starting index from where to fetch the data.", ge=0),
+    split: str = Query(None, description="The split to preview. This can be train, test, or validation."),
+    limit: int = Query(10, description="The maximum number of data items to fetch.", ge=1, le=1000),
+    streaming: bool = False,
+) -> Any:
     d = await db.get_dataset(dataset_id)
     dataset_len = 0
     result = {}
 
     try:
         if d["location"] == "local":
-            dataset = load_dataset(path=dirs.dataset_dir_by_id(
-                dataset_id), streaming=streaming)
+            dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id), streaming=streaming)
         else:
             dataset_config = d.get("json_data", {}).get("dataset_config", None)
             if dataset_config is not None:
-                dataset = load_dataset(
-                    dataset_id, dataset_config, trust_remote_code=True, streaming=streaming)
+                dataset = load_dataset(dataset_id, dataset_config, trust_remote_code=True, streaming=streaming)
             else:
-                dataset = load_dataset(
-                    dataset_id, trust_remote_code=True, streaming=streaming)
+                dataset = load_dataset(dataset_id, trust_remote_code=True, streaming=streaming)
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
         return {"status": "error", "message": error_msg}
 
-    if (split is None or split == ""):
+    if split is None or split == "":
         splits = list(dataset.keys())
         if len(splits) == 0:
             return {"status": "error", "message": "No splits available in the dataset."}
@@ -141,29 +153,38 @@ async def dataset_preview(dataset_id: str = Query(description="The ID of the dat
     if streaming:
         dataset_len = -1
         dataset = dataset[split].skip(offset)
-        result['rows'] = list(dataset.take(limit))
-        result['splits'] = None
+        result["rows"] = list(dataset.take(limit))
+        result["splits"] = None
     else:
         if d["location"] != "local" and split not in dataset.keys():
             return {"status": "error", "message": f"Split '{split}' does not exist in the dataset."}
         dataset_len = len(dataset[split])
-        result['columns'] = dataset[split][offset:min(
-            offset + limit, dataset_len)]
-        result['splits'] = list(dataset.keys())
+        result["columns"] = dataset[split][offset : min(offset + limit, dataset_len)]
+        result["splits"] = list(dataset.keys())
 
-    result['len'] = dataset_len
+    result["len"] = dataset_len
     return {"status": "success", "data": result}
 
 
-@router.get("/preview_with_template", summary="Preview the contents of a dataset after applying a jinja template to it.", responses={200: {"model": SuccessResponse, "description": "Successful response. Data is a list of column names followed by data, which can be of any datatype."},
-                                                                                                                                     400: {"model": ErrorResponse},
-                                                                                                                                     }
-            )
-async def dataset_preview_with_template(dataset_id: str = Query(description="The ID of the dataset to preview. This can be a HuggingFace dataset ID or a local dataset ID."),
-                                        template: str = '',
-                                        offset: int = Query(
-        0, description='The starting index from where to fetch the data.', ge=0),
-        limit: int = Query(10, description="The maximum number of data items to fetch.", ge=1, le=1000)) -> Any:
+@router.get(
+    "/preview_with_template",
+    summary="Preview the contents of a dataset after applying a jinja template to it.",
+    responses={
+        200: {
+            "model": SuccessResponse,
+            "description": "Successful response. Data is a list of column names followed by data, which can be of any datatype.",
+        },
+        400: {"model": ErrorResponse},
+    },
+)
+async def dataset_preview_with_template(
+    dataset_id: str = Query(
+        description="The ID of the dataset to preview. This can be a HuggingFace dataset ID or a local dataset ID."
+    ),
+    template: str = "",
+    offset: int = Query(0, description="The starting index from where to fetch the data.", ge=0),
+    limit: int = Query(10, description="The maximum number of data items to fetch.", ge=1, le=1000),
+) -> Any:
     d = await db.get_dataset(dataset_id)
     dataset_len = 0
     result = {}
@@ -173,41 +194,41 @@ async def dataset_preview_with_template(dataset_id: str = Query(description="The
             dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
         except Exception as e:
             error_msg = f"{type(e).__name__}: {e}"
-            return {"status": "error", "message":  error_msg}
+            return {"status": "error", "message": error_msg}
         dataset_len = len(dataset["train"])
-        result['columns'] = dataset["train"][offset:min(
-            offset+limit, dataset_len)]
+        result["columns"] = dataset["train"][offset : min(offset + limit, dataset_len)]
     else:
         dataset_config = d.get("json_data", {}).get("dataset_config", None)
-        if (dataset_config is not None):
-            dataset = load_dataset(
-                dataset_id, dataset_config, trust_remote_code=True)
+        if dataset_config is not None:
+            dataset = load_dataset(dataset_id, dataset_config, trust_remote_code=True)
         else:
             dataset = load_dataset(dataset_id, trust_remote_code=True)
         dataset_len = len(dataset["train"])
-        result['columns'] = dataset["train"][offset:min(
-            offset+limit, dataset_len)]
-    result['len'] = dataset_len
+        result["columns"] = dataset["train"][offset : min(offset + limit, dataset_len)]
+    result["len"] = dataset_len
 
     jinja_template = jinja_environment.from_string(template)
 
-    column_names = list(result['columns'].keys())
+    column_names = list(result["columns"].keys())
 
     rows = []
     # now iterate over all columns and rows, do not use offset or len because we've already
     # sliced the dataset
-    for i in range(0, len(result['columns'][column_names[0]])):
+    for i in range(0, len(result["columns"][column_names[0]])):
         row = {}
-        row['__index__'] = i + offset
-        for key in result['columns'].keys():
-            row[key] = result['columns'][key][i]
+        row["__index__"] = i + offset
+        for key in result["columns"].keys():
+            row[key] = result["columns"][key][i]
 
         # Apply the template to a new key in row called __formatted__
-        row['__formatted__'] = jinja_template.render(row)
+        row["__formatted__"] = jinja_template.render(row)
         # row['__template__'] = template
         rows.append(row)
 
-    return {"status": "success", "data": {"columns": column_names, "rows": rows, "len": dataset_len, "offset": offset, "limit": limit}}
+    return {
+        "status": "success",
+        "data": {"columns": column_names, "rows": rows, "len": dataset_len, "offset": offset, "limit": limit},
+    }
 
 
 @router.get("/download", summary="Download a dataset from the HuggingFace Hub to the LLMLab server.")
@@ -221,8 +242,7 @@ async def dataset_download(dataset_id: str):
     # Try to get the dataset info from the gallery
     gallery = []
     json_data = {}
-    file_location = os.path.join(
-        dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "data-gallery.json")
+    file_location = os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "data-gallery.json")
     with open(file_location) as f:
         gallery = json.load(f)
     for dataset in gallery:
@@ -231,12 +251,10 @@ async def dataset_download(dataset_id: str):
 
     try:
         dataset_config = json_data.get("dataset_config", None)
-        if (dataset_config is not None):
-            ds_builder = load_dataset_builder(
-                dataset_id, dataset_config, trust_remote_code=True)
+        if dataset_config is not None:
+            ds_builder = load_dataset_builder(dataset_id, dataset_config, trust_remote_code=True)
         else:
-            ds_builder = load_dataset_builder(
-                dataset_id, trust_remote_code=True)
+            ds_builder = load_dataset_builder(dataset_id, trust_remote_code=True)
         log(f"Dataset builder loaded for dataset_id: {dataset_id}")
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
@@ -246,9 +264,7 @@ async def dataset_download(dataset_id: str):
     dataset_size = ds_builder.info.download_size
     if not dataset_size:
         dataset_size = -1
-    await db.create_huggingface_dataset(
-        dataset_id, ds_builder.info.description, dataset_size, json_data
-    )
+    await db.create_huggingface_dataset(dataset_id, ds_builder.info.description, dataset_size, json_data)
     log(f"Dataset created in database for dataset_id: {dataset_id}")
 
     # Download the dataset
@@ -259,8 +275,7 @@ async def dataset_download(dataset_id: str):
         with contextlib.redirect_stdout(flushLogFile), contextlib.redirect_stderr(flushLogFile):
             try:
                 dataset = load_dataset(dataset_id, trust_remote_code=True)
-                print(
-                    f"Dataset downloaded for dataset_id: {dataset_id}")
+                print(f"Dataset downloaded for dataset_id: {dataset_id}")
                 return dataset
             except Exception as e:
                 error_msg = f"{type(e).__name__}: {e}"
@@ -276,22 +291,34 @@ async def dataset_download(dataset_id: str):
 
 
 @router.get("/list", summary="List available datasets.")
-async def dataset_list():
-    list = await db.get_datasets()
+async def dataset_list(generated: bool = True):
+    list = await db.get_datasets(generated=generated)
     return list  # convert list to JSON object
 
 
+@router.get("/generated_datasets_list", summary="List available generated datasets.")
+async def generated_datasets_list():
+    list = await db.get_generated_datasets()
+    return list
+
+
 @router.get("/new", summary="Create a new dataset.")
-async def dataset_new(dataset_id: str):
+async def dataset_new(dataset_id: str, generated: bool = False):
     dataset_id = slugify(dataset_id)
 
     # Check to make sure we don't have a dataset with this name
     row = await db.get_dataset(dataset_id)
+    if generated:
+        json_data = {"generated": True}
+    else:
+        json_data = None
     if row is not None:
         return {"status": "error", "message": f"A dataset with the name {dataset_id} already exists"}
-
-    # Create a new dataset in the database
-    await db.create_local_dataset(dataset_id)
+    if json_data is None:
+        # Create a new dataset in the database
+        await db.create_local_dataset(dataset_id)
+    else:
+        await db.create_local_dataset(dataset_id, json_data=json_data)
 
     # Now make a directory that maps to the above dataset_id
     # Check if the directory already exists
@@ -331,13 +358,11 @@ async def create_upload_file(dataset_id: str, files: list[UploadFile]):
         # Save the file to the dataset directory
         try:
             content = await file.read()
-            newfilename = os.path.join(
-                dirs.dataset_dir_by_id(dataset_id), str(file.filename))
+            newfilename = os.path.join(dirs.dataset_dir_by_id(dataset_id), str(file.filename))
             async with aiofiles.open(newfilename, "wb") as out_file:
                 await out_file.write(content)
         except Exception:
-            raise HTTPException(
-                status_code=403, detail="There was a problem uploading the file")
+            raise HTTPException(status_code=403, detail="There was a problem uploading the file")
 
     return {"status": "success"}
 
