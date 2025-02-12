@@ -42,6 +42,10 @@ parser.add_argument("--task", default=None, type=str)
 parser.add_argument("--scenario", default=None, type=str)
 parser.add_argument("--experiment_name", default="test", type=str)
 parser.add_argument("--job_id", default=None, type=str)
+parser.add_argument("--chunk_size", default=256, type=int)
+parser.add_argument("--max_contexts_per_document", default=10, type=int)
+parser.add_argument("--max_context_length", default=3, type=int)
+parser.add_argument("--max_goldens_per_context", default=2, type=int)
 
 
 args, other = parser.parse_known_args()
@@ -225,7 +229,9 @@ def generation_from_docs(docs: list):
         context_config = ContextConstructionConfig(
             embedder=CustomEmbeddingModel(args.embedding_model),
             critic_model=trlab_model,
-            chunk_size=256,
+            chunk_size=args.chunk_size,
+            max_contexts_per_document=args.max_contexts_per_document,
+            max_context_length=args.max_context_length,
         )
         job.update_progress(1)
 
@@ -236,6 +242,7 @@ def generation_from_docs(docs: list):
             document_paths=docs,
             context_construction_config=context_config,
             include_expected_output=True,
+            max_goldens_per_context=args.max_goldens_per_context,
         )
         job.update_progress(80)
         df = synthesizer.to_pandas()

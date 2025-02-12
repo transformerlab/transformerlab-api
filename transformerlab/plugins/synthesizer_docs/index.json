@@ -5,7 +5,7 @@
     "description": "Use LLMs to create synthetic data for your usecases from reference documents.",
     "plugin-format": "python",
     "type": "generator",
-    "version": "0.1.4",
+    "version": "0.1.6",
     "git": "https://github.com/confident-ai/deepeval",
     "url": "https://github.com/confident-ai/deepeval",
     "files": [
@@ -34,6 +34,34 @@
             "title": "Embedding Model. Provide the name of the embedding model from Huggingface or its local path",
             "type": "string",
             "default": "Snowflake/arctic-embed-m"
+        },
+        "chunk_size": {
+            "title": "Chunk Size",
+            "type": "integer",
+            "default": 256,
+            "minimum": 1,
+            "maximum": 2048
+        },
+        "max_contexts_per_document": {
+            "title": "Max Contexts Per Document",
+            "type": "integer",
+            "default": 10,
+            "minimum": 1,
+            "maximum": 1000
+        },
+        "max_context_length": {
+            "title": "Max Context Length",
+            "type": "integer",
+            "default": 3,
+            "minimum": 1,
+            "maximum": 2048
+        },
+        "max_goldens_per_context": {
+            "title": "Max Goldens Per Context",
+            "type": "integer",
+            "default": 2,
+            "minimum": 1,
+            "maximum": 1000
         }
     },
     "parameters_ui": {
@@ -42,6 +70,18 @@
         },
         "generation_model": {
             "ui:help": "Select the model to be used for generation from the drop-down list"
+        },
+        "chunk_size": {
+            "ui:help": "Specify the chunk size to be used while parsing your documents."
+        },
+        "max_contexts_per_document": {
+            "ui:help": "Specify the maximum number of contexts to be generated per document. This number will be multiplied with the `Max Number of Goldens per Context` field to obtain the maximum number of data points."
+        },
+        "max_context_length": {
+            "ui:help": "Specify the max number of text chunks to be generated per context."
+        },
+        "max_goldens_per_context": {
+            "ui:help": "Specify the maximum number of data points to be generated per context."
         }
     }
 }
