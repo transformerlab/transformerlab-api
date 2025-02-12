@@ -173,11 +173,11 @@
             "author": "",
             "version": "1.0",
             "name": "Pirate Speech",
-            "description": "Trains TinyLlama to speak like a pirate"
+            "description": "Trains SmolLM to speak like a Pirate"
         },
         "model": {
-            "name": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-            "path": "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+            "name": "HuggingFaceTB/SmolLM-135M-Instruct",
+            "path": "HuggingFaceTB/SmolLM-135M-Instruct"
         },
         "datasets": {
             "name": "Peyton3995/dolly-15k-mistral-pirate",
@@ -186,8 +186,8 @@
         "training": {
             "type": "LoRA",
             "plugin": "llama_trainer",
-            "formatting_template": "Instruction: {{instruction}}\nResponse: {{response}}",
-            "config_json": "{\"template_name\": \"Pirate Speech\", \"plugin_name\": \"llama_trainer\", \"model_name\": \"TinyLlama/TinyLlama-1.1B-Chat-v1.0\", \"model_architecture\": \"LlamaForCausalLM\", \"formatting_template\": \"Instruction: {{instruction}}\\nResponse: {{response}}\", \"dataset_name\": \"Peyton3995/dolly-15k-mistral-pirate\", \"maximum_sequence_length\": \"2048\", \"batch_size\": \"4\", \"learning_rate\": \"0.004\", \"num_train_epochs\": \"1\", \"max_steps\": \"-1\", \"lora_r\": \"32\", \"lora_alpha\": \"64\", \"lora_dropout\": \"0.05\", \"adaptor_name\": \"Pirate_Speech\"}"
+            "formatting_template": "<instruction>\n{{instruction}}\n</instruction>\n<response>\n{{response}}\n</response>",
+            "config_json": "{\"template_name\":\"Pirate Speech\",\"plugin_name\":\"llama_trainer\",\"model_name\":\"HuggingFaceTB/SmolLM-135M-Instruct\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"<instruction>\\n{{instruction}}\\n</instruction>\\n<response>\\n{{response}}\\n</response>\",\"dataset_name\":\"Peyton3995/dolly-15k-mistral-pirate\",\"maximum_sequence_length\":\"2048\",\"batch_size\":\"4\",\"learning_rate_schedule\":\"cosine\",\"learning_rate\":\"0.01\",\"num_train_epochs\":\"1\",\"max_steps\":\"-1\",\"lora_r\":\"64\",\"lora_alpha\":\"128\",\"lora_dropout\":\"0.05\",\"adaptor_name\":\"Pirate_Speech\"}"
         },
         "test": {}
     },
