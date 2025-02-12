@@ -2,7 +2,7 @@ services:
   transformerlab-api:
     image: transformerlab-api:latest
     build:
-      dockerfile: ./Dockerfile
+      dockerfile: ./Dockerfile.cuda
       context: .
       args:
         TFL_HOME_DIR: /transformerlab
