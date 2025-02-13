@@ -41,7 +41,7 @@ worker = None
 
 class OllamaTokenizer:
     """
-    TODO: This is a total hack tokenizer just to get things to proceed.
+    This is a total hack tokenizer just to get things to proceed.
     It doesn't do tokenization!
     """
     def __init__(self, model):
@@ -61,12 +61,12 @@ class OllamaTokenizer:
         return batchEncoding
 
     def decode(self, tokens):
-        # TODO: This is fake code that does not detokenize. See above.
+        # This is fake code that does not detokenize. See above.
         #return self.model.detokenize(tokens)
         return [''.join(tokens)]
 
     def num_tokens(self, prompt):
-        # TODO: Also fake. This generates a totally fake approximate number.
+        # Also fake. This generates a totally fake approximate number.
         #tokens = self.model.tokenize(prompt)
         #return (len(tokens))
         return len(prompt)//4
@@ -217,11 +217,11 @@ class OllamaServer(BaseModelWorker):
         max_new_tokens = params.get("max_new_tokens", 256)
         temperature = float(params.get("temperature", 1.0))
         top_p = float(params.get("top_p", 1.0))
-
-        # TODO: These parameters are ignored currently
-        #top_k = params.get("top_k", -1.0)
-        #presence_penalty = float(params.get("presence_penalty", 0.0))
         #frequency_penalty = float(params.get("frequency_penalty", 0.0))
+
+        # These parameters don't seem to be in the UI
+        # top_k = params.get("top_k", -1.0)
+        # presence_penalty = float(params.get("presence_penalty", 0.0))
 
         # TODO: We don't handle reading in stop strings
         #stop_str = params.get("stop", None)
