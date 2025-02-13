@@ -217,7 +217,7 @@ class OllamaServer(BaseModelWorker):
         max_new_tokens = params.get("max_new_tokens", 256)
         temperature = float(params.get("temperature", 1.0))
         top_p = float(params.get("top_p", 1.0))
-        #frequency_penalty = float(params.get("frequency_penalty", 0.0))
+        frequency_penalty = float(params.get("frequency_penalty", 0.0))
 
         # These parameters don't seem to be in the UI
         # top_k = params.get("top_k", -1.0)
@@ -256,8 +256,13 @@ class OllamaServer(BaseModelWorker):
         if temperature <= 1e-5:
             top_p = 1.0
 
-        # TODO: Add the parameters here
-        generation_params = None 
+        # Bundle together generation parameters
+        # TODO: Add num_gpu and figure out num_ctx?
+        generation_params = {
+            "top_p": top_p,
+            "temperature": temperature,
+            "frequency_penalty": frequency_penalty
+        }
 
         decoded_tokens = []
 
@@ -266,7 +271,6 @@ class OllamaServer(BaseModelWorker):
         finish_reason = "length"
 
         # TODO: Should this use generate?
-        # TODO: Pass in all of the parameters
         iterator = await run_in_threadpool(self.model.chat, 
                                            model=self.model_name,
                                            messages=[{'role': 'user', 'content': context}],
@@ -326,11 +330,18 @@ class OllamaServer(BaseModelWorker):
     async def generate(self, params):
         prompt = params.pop("prompt")
 
-        # TODO: Get options and pass to generate
+        # TODO: Figure out what to do with max_tokens
         #max_tokens = params.get("max_new_tokens", 256)
-        #temperature = float(params.get("temperature", 1.0))
-        #top_p = float(params.get("top_p", 1.0))
-        params = None
+
+        # Setup parameters
+        temperature = float(params.get("temperature", 1.0))
+        top_p = float(params.get("top_p", 1.0))
+        frequency_penalty = float(params.get("frequency_penalty", 0.0))
+        params = {
+            "top_p": top_p,
+            "temperature": temperature,
+            "frequency_penalty": frequency_penalty
+        }
 
         print("Generating with params: ", params)
         thread = asyncio.to_thread(self.model.generate, 
