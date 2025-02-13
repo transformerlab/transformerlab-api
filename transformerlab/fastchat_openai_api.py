@@ -30,7 +30,8 @@ from fastchat.conversation import Conversation, SeparatorStyle
 from fastchat.protocol.api_protocol import (
     APITokenCheckRequest,
     APITokenCheckResponse,
-    APITokenCheckResponseItem, BaseModel
+    APITokenCheckResponseItem,
+    BaseModel,
 )
 from fastchat.protocol.openai_api_protocol import (
     ChatCompletionResponse,
@@ -48,7 +49,6 @@ from fastchat.protocol.openai_api_protocol import (
     ModelList,
     ModelPermission,
     UsageInfo,
-
 )
 
 
@@ -143,9 +143,7 @@ async def check_api_key(
 
 
 def create_error_response(code: int, message: str) -> JSONResponse:
-    return JSONResponse(
-        ErrorResponse(message=message, code=code).dict(), status_code=400
-    )
+    return JSONResponse(ErrorResponse(message=message, code=code).dict(), status_code=400)
 
 
 async def check_model(request) -> Optional[JSONResponse]:
@@ -167,7 +165,7 @@ async def check_model(request) -> Optional[JSONResponse]:
 
 
 def log_prompt(prompt):
-    """ Log the prompt to the global prompt.log file """
+    """Log the prompt to the global prompt.log file"""
     MAX_LOG_SIZE_BEFORE_ROTATE = 1000000  # 1MB in bytes
     if os.path.exists(os.path.join(dirs.LOGS_DIR, "prompt.log")):
         if os.path.getsize(os.path.join(dirs.LOGS_DIR, "prompt.log")) > MAX_LOG_SIZE_BEFORE_ROTATE:
@@ -256,10 +254,7 @@ def check_requests(request) -> Optional[JSONResponse]:
             ErrorCode.PARAM_OUT_OF_RANGE,
             f"{request.top_p} is greater than the maximum of 1 - 'temperature'",
         )
-    if request.stop is not None and (
-        not isinstance(request.stop, str) and not isinstance(
-            request.stop, list)
-    ):
+    if request.stop is not None and (not isinstance(request.stop, str) and not isinstance(request.stop, list)):
         return create_error_response(
             ErrorCode.PARAM_OUT_OF_RANGE,
             f"{request.stop} is not valid under any of the given schemas - 'stop'",
@@ -357,9 +352,7 @@ async def get_gen_params(
     if images is not None and len(images) > 0:
         gen_params["images"] = images
     if not stop:
-        gen_params.update(
-            {"stop": conv.stop_str, "stop_token_ids": conv.stop_token_ids}
-        )
+        gen_params.update({"stop": conv.stop_str, "stop_token_ids": conv.stop_token_ids})
     else:
         gen_params.update({"stop": stop})
     return gen_params
@@ -378,9 +371,7 @@ async def get_worker_address(model_name: str, client: httpx.AsyncClient) -> str:
 
     model_name = model_name.split("/")[-1]
 
-    ret = await client.post(
-        controller_address + "/get_worker_address", json={"model": model_name}
-    )
+    ret = await client.post(controller_address + "/get_worker_address", json={"model": model_name})
     worker_addr = ret.json()["address"]
     # No available worker
     if worker_addr == "":
@@ -417,8 +408,7 @@ async def show_available_models():
     # TODO: return real model permission details
     model_cards = []
     for m in models:
-        model_cards.append(
-            ModelCard(id=m, root=m, permission=[ModelPermission()]))
+        model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
     return ModelList(data=model_cards)
 
 
@@ -443,16 +433,12 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
         stop=request.stop,
         logprobs=request.logprobs,
     )
-    error_check_ret = await check_length(
-        request, gen_params["prompt"], gen_params["max_new_tokens"]
-    )
+    error_check_ret = await check_length(request, gen_params["prompt"], gen_params["max_new_tokens"])
     if error_check_ret is not None:
         return error_check_ret
     log_prompt(gen_params)
     if request.stream:
-        generator = chat_completion_stream_generator(
-            request.model, gen_params, request.n
-        )
+        generator = chat_completion_stream_generator(request.model, gen_params, request.n)
         return StreamingResponse(generator, media_type="text/event-stream")
     choices = []
     chat_completions = []
@@ -477,8 +463,7 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
         if "usage" in content:
             task_usage = UsageInfo.parse_obj(content["usage"])
             for usage_key, usage_value in task_usage.dict().items():
-                setattr(usage, usage_key, getattr(
-                    usage, usage_key) + usage_value)
+                setattr(usage, usage_key, getattr(usage, usage_key) + usage_value)
 
     return ChatCompletionResponse(model=request.model, choices=choices, usage=usage)
 
@@ -499,15 +484,12 @@ async def chat_completion_stream_generator(
             delta=DeltaMessage(role="assistant"),
             finish_reason=None,
         )
-        chunk = ChatCompletionStreamResponse(
-            id=id, choices=[choice_data], model=model_name
-        )
+        chunk = ChatCompletionStreamResponse(id=id, choices=[choice_data], model=model_name)
         # Convert the chunk to a dictionary
         chunk_dict = chunk.model_dump()
 
         # Convert the dictionary to a JSON string
-        sorted_json = json.dumps(
-            chunk_dict, sort_keys=True, ensure_ascii=False)
+        sorted_json = json.dumps(chunk_dict, sort_keys=True, ensure_ascii=False)
 
         # Use the JSON string in your response
         yield f"data: {sorted_json}\n\n"
@@ -519,15 +501,13 @@ async def chat_completion_stream_generator(
                 content_dict = content.model_dump()
 
                 # Convert the dictionary to a JSON string
-                sorted_json = json.dumps(
-                    content_dict, sort_keys=True, ensure_ascii=False
-                )
+                sorted_json = json.dumps(content_dict, sort_keys=True, ensure_ascii=False)
 
                 yield f"data: {sorted_json}\n\n"
                 yield "data: [DONE]\n\n"
                 return
             decoded_unicode = content["text"].replace("\ufffd", "")
-            delta_text = decoded_unicode[len(previous_text):]
+            delta_text = decoded_unicode[len(previous_text) :]
             previous_text = decoded_unicode
 
             if len(delta_text) == 0:
@@ -537,9 +517,7 @@ async def chat_completion_stream_generator(
                 delta=DeltaMessage(content=delta_text),
                 finish_reason=content.get("finish_reason", None),
             )
-            chunk = ChatCompletionStreamResponse(
-                id=id, choices=[choice_data], model=model_name
-            )
+            chunk = ChatCompletionStreamResponse(id=id, choices=[choice_data], model=model_name)
             if delta_text is None:
                 if content.get("finish_reason", None) is not None:
                     finish_stream_events.append(chunk)
@@ -624,8 +602,7 @@ async def create_completion(request: CompletionRequest):
             logprobs = content.get("logprobs", None)
             logprob_formatted = None
             if logprobs is not None:
-                logprob_formatted = convert_group_of_logprobs_to_openai_format(
-                    logprobs)
+                logprob_formatted = convert_group_of_logprobs_to_openai_format(logprobs)
 
             choices.append(
                 {
@@ -638,13 +615,9 @@ async def create_completion(request: CompletionRequest):
 
             task_usage = UsageInfo.parse_obj(content["usage"])
             for usage_key, usage_value in task_usage.dict().items():
-                setattr(usage, usage_key, getattr(
-                    usage, usage_key) + usage_value)
+                setattr(usage, usage_key, getattr(usage, usage_key) + usage_value)
 
-        return CompletionResponse(
-            model=request.model, choices=choices, usage=UsageInfo.parse_obj(
-                usage)
-        )
+        return CompletionResponse(model=request.model, choices=choices, usage=UsageInfo.parse_obj(usage))
 
 
 def convert_to_openai_format(token_data):
@@ -667,20 +640,24 @@ def convert_to_openai_format(token_data):
         'top_logprobs': List[Dict[str, float]]
     }
     """
+    if type(token_data) is not dict:
+        print("Token Data is not a dictionary, returning None")
+        return None
+
     # Initialize OpenAI format
     openai_format = {
-        'text_offset': [0],  # Assuming this is the first token
-        'token_logprobs': [token_data['logprob']],
-        'tokens': [token_data['token']],
-        'top_logprobs': []
+        "text_offset": [0],  # Assuming this is the first token
+        "token_logprobs": [token_data["logprob"]],
+        "tokens": [token_data["token"]],
+        "top_logprobs": [],
     }
 
     # Convert top_logprobs array to OpenAI's dictionary format
     top_logprobs_dict = {}
-    for item in token_data['top_logprobs']:
-        top_logprobs_dict[item['token']] = item['logprob']
+    for item in token_data["top_logprobs"]:
+        top_logprobs_dict[item["token"]] = item["logprob"]
 
-    openai_format['top_logprobs'].append(top_logprobs_dict)
+    openai_format["top_logprobs"].append(top_logprobs_dict)
 
     return openai_format
 
@@ -709,31 +686,26 @@ def convert_group_of_logprobs_to_openai_format(logprobs: List[Dict[str, Any]]) -
     }
     """
     # Initialize OpenAI format
-    openai_format = {
-        'text_offset': [],
-        'token_logprobs': [],
-        'tokens': [],
-        'top_logprobs': []
-    }
+    openai_format = {"text_offset": [], "token_logprobs": [], "tokens": [], "top_logprobs": []}
 
     offset_counter = 0
 
     for token_data in logprobs:
         # Append token logprobs
-        openai_format['token_logprobs'].append(token_data['logprob'])
+        openai_format["token_logprobs"].append(token_data["logprob"])
 
         # Append token
-        openai_format['tokens'].append(token_data['token'])
+        openai_format["tokens"].append(token_data["token"])
 
         # Convert top_logprobs array to OpenAI's dictionary format
         top_logprobs_dict = {}
-        for item in token_data['top_logprobs']:
-            top_logprobs_dict[item['token']] = item['logprob']
+        for item in token_data["top_logprobs"]:
+            top_logprobs_dict[item["token"]] = item["logprob"]
 
-        openai_format['top_logprobs'].append(top_logprobs_dict)
+        openai_format["top_logprobs"].append(top_logprobs_dict)
 
-        openai_format['text_offset'].append(offset_counter)
-        offset_counter += len(token_data['token'])
+        openai_format["text_offset"].append(offset_counter)
+        offset_counter += len(token_data["token"])
 
     return openai_format
 
@@ -765,16 +737,14 @@ async def generate_completion_stream_generator(request: CompletionRequest, n: in
                     content_dict = content.model_dump()
 
                     # Convert the dictionary to a JSON string
-                    sorted_json = json.dumps(
-                        content_dict, sort_keys=True, ensure_ascii=False
-                    )
+                    sorted_json = json.dumps(content_dict, sort_keys=True, ensure_ascii=False)
 
                     # Use the JSON string in your response
                     yield f"data: {sorted_json}\n\n"
                     yield "data: [DONE]\n\n"
                     return
                 decoded_unicode = content["text"].replace("\ufffd", "")
-                delta_text = decoded_unicode[len(previous_text):]
+                delta_text = decoded_unicode[len(previous_text) :]
                 previous_text = decoded_unicode
 
                 logprob_formatted = {
@@ -785,9 +755,12 @@ async def generate_completion_stream_generator(request: CompletionRequest, n: in
                 }
 
                 logprobs = content.get("logprobs", None)
-                if logprobs is not None:
+                if logprobs is not None and isinstance(logprobs, dict):
                     logprob_formatted = convert_to_openai_format(logprobs)
-                    logprob_formatted['text_offset'] = [i]
+                    if logprob_formatted is not None:
+                        logprob_formatted["text_offset"] = [i]
+                else:
+                    print("Skipping conversion of logprobs as it is not a dictionary")
 
                 # print(logprob_formatted)
 
@@ -805,7 +778,7 @@ async def generate_completion_stream_generator(request: CompletionRequest, n: in
                     "model": model_name,
                 }
                 if len(delta_text) == 0:
-                    print('delta_text', delta_text)
+                    print("delta_text", delta_text)
                     if content.get("finish_reason", None) is not None:
                         finish_stream_events.append(chunk)
                     continue
@@ -813,8 +786,7 @@ async def generate_completion_stream_generator(request: CompletionRequest, n: in
                 chunk_dict = chunk
 
                 # Convert the dictionary to a JSON string
-                sorted_json = json.dumps(
-                    chunk_dict, sort_keys=True, ensure_ascii=False)
+                sorted_json = json.dumps(chunk_dict, sort_keys=True, ensure_ascii=False)
 
                 # Use the JSON string in your response
                 yield f"data: {sorted_json}\n\n"
@@ -823,7 +795,7 @@ async def generate_completion_stream_generator(request: CompletionRequest, n: in
         # Convert the finish_chunk to a dictionary
         finish_chunk_dict = finish_chunk
 
-        print('finish_chunk_dict', finish_chunk_dict)
+        print("finish_chunk_dict", finish_chunk_dict)
 
         # Convert the dictionary to a JSON string
         sorted_json = json.dumps(finish_chunk_dict, ensure_ascii=False)
@@ -858,7 +830,7 @@ async def generate_completion_stream(payload: Dict[str, Any]):
                         # the response gets really long, more than 63892 bytes, and the stream gets cut off.
                         # This is a workaround to prevent the stream from breaking. But we should fix
                         # the underlying issue in the worker.
-                        print('Caught Exception in OpenAI API: ', e)
+                        print("Caught Exception in OpenAI API: ", e)
                         continue
                     yield data
 
@@ -897,8 +869,7 @@ async def create_embeddings(request: EmbeddingsRequest, model_name: str = None):
     token_num = 0
     batch_size = WORKER_API_EMBEDDING_BATCH_SIZE
     batches = [
-        request.input[i: min(i + batch_size, len(request.input))]
-        for i in range(0, len(request.input), batch_size)
+        request.input[i : min(i + batch_size, len(request.input))] for i in range(0, len(request.input), batch_size)
     ]
     for num_batch, batch in enumerate(batches):
         payload = {
@@ -977,11 +948,7 @@ async def count_tokens(request: APITokenCheckRequest):
             if token_num + item.max_tokens > context_len:
                 can_fit = False
 
-            checkedList.append(
-                APITokenCheckResponseItem(
-                    fits=can_fit, contextLength=context_len, tokenCount=token_num
-                )
-            )
+            checkedList.append(APITokenCheckResponseItem(fits=can_fit, contextLength=context_len, tokenCount=token_num))
 
     return APITokenCheckResponse(prompts=checkedList)
 
@@ -1014,16 +981,12 @@ async def create_chat_completion(request: APIChatCompletionRequest):
     if request.repetition_penalty is not None:
         gen_params["repetition_penalty"] = request.repetition_penalty
 
-    error_check_ret = await check_length(
-        request, gen_params["prompt"], gen_params["max_new_tokens"]
-    )
+    error_check_ret = await check_length(request, gen_params["prompt"], gen_params["max_new_tokens"])
     if error_check_ret is not None:
         return error_check_ret
 
     if request.stream:
-        generator = chat_completion_stream_generator(
-            request.model, gen_params, request.n
-        )
+        generator = chat_completion_stream_generator(request.model, gen_params, request.n)
         return StreamingResponse(generator, media_type="text/event-stream")
 
     choices = []
@@ -1095,12 +1058,17 @@ async def count_chat_tokens(request: ChatCompletionRequest):
         )
         token_num = response.json()["count"]
 
-    return {"tokenCount": token_num + max_tokens, "contextLength": context_len, "tokensInHistory": token_num,  "tokensInCompletion": max_tokens}
+    return {
+        "tokenCount": token_num + max_tokens,
+        "contextLength": context_len,
+        "tokensInHistory": token_num,
+        "tokensInCompletion": max_tokens,
+    }
 
 
 @router.post("/tokenize", tags=["chat"])
 async def tokenize(request: Request):
-    """ Tokenize a string and return the tokenized output as a set of input_ids and strings -- this only works
+    """Tokenize a string and return the tokenized output as a set of input_ids and strings -- this only works
     if the worker implements the tokenize endpoint."""
     data = await request.json()
     model = data["model"]
