@@ -187,7 +187,9 @@ class OllamaServer(BaseModelWorker):
         self.tokenizer = OllamaTokenizer(model=self.model)
 
         # Fastchat needs to know context length to check for context overflow
-        # TODO: No idea how to get/set this but the ollama default is 4096?
+        # TODO: No idea how to get this but the ollama default is 4096
+        # Apparently you can set via model file:
+        # https://github.com/transformerlab/transformerlab-app/issues/227
         self.context_len = 4096
 
         # For debugging: Output a bunch of model info
