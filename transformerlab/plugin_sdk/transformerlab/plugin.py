@@ -56,8 +56,26 @@ class Job:
 
     def __init__(self, job_id):
         self.id = job_id
-        self.db = get_db_connection()
-        self.should_stop = False
+        dbfile = os.path.join(WORKSPACE_DIR, "llmlab.sqlite3")
+        self.db = sqlite3.connect(dbfile, isolation_level=None, check_same_thread=False)
+
+    def should_stop(self):
+        """
+        Returns True if the job should stop.
+        """
+        job_data = self.db.execute("SELECT job_data FROM job WHERE id = ?", (self.id,)).fetchone()
+        if job_data is not None:
+            job_data = json.loads(job_data[0])
+            return job_data.get("stop", False)
+
+    def update_job_data_key_value(self, key: str, value: str):
+        """
+        Update a specific key value pair in the job_data json object without affecting other key value pairs
+        """
+        self.db.execute(
+            "UPDATE job SET job_data = json_set(job_data, '$." + key + "', ?) WHERE id = ?",
+            (value, self.id),
+        )
 
     def update_progress(self, progress: int):
         """
@@ -69,17 +87,6 @@ class Job:
             "UPDATE job SET progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
             (progress, self.id),
         )
-
-        # While we are updating the progress, check if we should stop by
-        # checking if should_stop == True in the job_data:
-        cursor = self.db.execute("SELECT job_data FROM job WHERE id = ?", (self.id,))
-        row = cursor.fetchone()
-        cursor.close()
-
-        if row is not None:
-            job_data = json.loads(row[0])
-            if job_data.get("stop", False):
-                self.should_stop = True
 
     def update_status(self, status: str):
         """

@@ -9,7 +9,13 @@ import time
 import unicodedata
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
+from transformerlab.routers.model import delete_model_from_cache
 from transformerlab.shared import dirs
+
+os.environ["_TFL_WORKSPACE_DIR"] = dirs.WORKSPACE_DIR
+os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
+
+from transformerlab.plugin_sdk.transformerlab.plugin import Job
 
 
 from anyio import open_process
@@ -79,6 +85,20 @@ def slugify(value, allow_unicode=False):
     return re.sub(r"[-\s]+", "-", value).strip("-_")
 
 
+async def monitor_job_stop(job_id, process):
+    """
+    Periodically check if job.should_stop() is True.
+    If so, terminate the process.
+    """
+    job = Job(job_id)
+    while True:
+        await asyncio.sleep(1)  # check every second (adjust as needed)
+        if job.should_stop():
+            print("Job requested stop. Terminating process and its threads.")
+            process.kill()
+            break
+
+
 async def async_run_python_script_and_update_status(python_script: list[str], job_id: str, begin_string: str):
     """
     Use this script for one time, long running scripts that have a definite end. For example
@@ -95,6 +115,11 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
 
     process = await open_process(command=command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
 
+    model_id = python_script[2]
+
+    # Start the background monitoring task
+    monitor_task = asyncio.create_task(monitor_job_stop(job_id, process))
+
     # read stderr and print:
     if process.stdout:
         async for text in TextReceiveStream(process.stdout):
@@ -105,9 +130,19 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
 
     await process.wait()
 
+    # Cancel the monitor task if it is still running.
+    monitor_task.cancel()
+
     if process.returncode == 0:
         print(f"Job {job_id} completed successfully")
         await db.job_update_status(job_id=job_id, status="COMPLETE")
+    elif process.returncode == -9:
+        print(f"Job {job_id} cancelled by user.")
+        await db.job_update_status(job_id=job_id, status="CANCELLED")
+
+        # We need to delete the partilally downloaded model
+        if model_id is not None:
+            delete_model_from_cache(model_id)
     else:
         print(f"ERROR: Job {job_id} failed with exit code {process.returncode}.")
         await db.job_update_status(job_id=job_id, status="FAILED")
