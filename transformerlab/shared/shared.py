@@ -11,6 +11,10 @@ from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
 from transformerlab.shared import dirs
 
+os.environ["_TFL_WORKSPACE_DIR"] = dirs.WORKSPACE_DIR
+os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
+
+from transformerlab.plugin_sdk.transformerlab.plugin import Job
 
 from anyio import open_process
 from anyio.streams.text import TextReceiveStream
@@ -79,6 +83,21 @@ def slugify(value, allow_unicode=False):
     return re.sub(r"[-\s]+", "-", value).strip("-_")
 
 
+async def monitor_job_stop(job_id, process):
+    """
+    Periodically check if job.should_stop() is True.
+    If so, terminate the process.
+    """
+    job = Job(job_id)
+    while True:
+        await asyncio.sleep(1)  # check every second (adjust as needed)
+        if job.should_stop():
+            print("Job requested stop. Terminating process and its threads.")
+            job.update_status("STOPPED")
+            process.kill()
+            break
+
+
 async def async_run_python_script_and_update_status(python_script: list[str], job_id: str, begin_string: str):
     """
     Use this script for one time, long running scripts that have a definite end. For example
@@ -93,7 +112,12 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
 
     command = [sys.executable, "-u", *python_script]
 
-    process = await open_process(command=command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
+    process = await open_process(
+        command=command, cwd=str(dirs.TFL_SOURCE_CODE_DIR), stderr=subprocess.STDOUT, stdout=subprocess.PIPE
+    )
+
+    # Start the background monitoring task
+    monitor_task = asyncio.create_task(monitor_job_stop(job_id, process))
 
     # read stderr and print:
     if process.stdout:
@@ -104,6 +128,9 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
                 await db.job_update_status(job_id=job_id, status="RUNNING")
 
     await process.wait()
+
+    # Cancel the monitor task if it is still running.
+    monitor_task.cancel()
 
     if process.returncode == 0:
         print(f"Job {job_id} completed successfully")
