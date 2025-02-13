@@ -31,6 +31,7 @@ from fastchat.serve.model_worker import (
     logger,
     worker_id,
 )
+from fastchat.utils import is_partial_stop
 
 from transformers.tokenization_utils_base import BatchEncoding
 
@@ -215,6 +216,7 @@ class OllamaServer(BaseModelWorker):
 
         # Generation parameters
         max_new_tokens = params.get("max_new_tokens", 256)
+        stop_str = params.get("stop", None)
         temperature = float(params.get("temperature", 1.0))
         top_p = float(params.get("top_p", 1.0))
         frequency_penalty = float(params.get("frequency_penalty", 0.0))
@@ -223,32 +225,25 @@ class OllamaServer(BaseModelWorker):
         # top_k = params.get("top_k", -1.0)
         # presence_penalty = float(params.get("presence_penalty", 0.0))
 
-        # TODO: We don't handle reading in stop strings
-        #stop_str = params.get("stop", None)
-        #stop_token_ids = params.get("stop_token_ids", None) or []
-
-        # TODO: Tokenizer setup might be needed after we add tokenizer
-        #if self.tokenizer.eos_token_id is not None:
-        #    stop_token_ids.append(self.tokenizer.eos_token_id)
-
-        # TODO: Do I need it?
-        # Handle stop_str
-        """
+        # Create a set out of our stop_str parameter
         stop = set()
         if isinstance(stop_str, str) and stop_str != "":
             stop.add(stop_str)
         elif isinstance(stop_str, list) and stop_str != []:
             stop.update(stop_str)
 
-        for tid in stop_token_ids:
-            if tid is not None:
-                print("Stop token: ", tid)
-                s = self.tokenizer.decode(tid)
-                if s != "":
-                    stop.add(s)
+        # If we add tokenizer we can add this in later
+        # Add stop tokens to set of stop strings
+        # stop_token_ids = params.get("stop_token_ids", None) or []
+        # if self.tokenizer.eos_token_id is not None:
+        #    stop_token_ids.append(self.tokenizer.eos_token_id)
+        # for tid in stop_token_ids:
+        #    if tid is not None:
+        #        s = self.tokenizer.decode(tid)
+        #        if s != "":
+        #            stop.add(s)
 
         print("Stop patterns: ", stop)
-        """
 
         # Make sure top_p is above some minimum
         # And set to 1.0 if temperature is effectively 0
@@ -258,6 +253,7 @@ class OllamaServer(BaseModelWorker):
 
         # Bundle together generation parameters
         # TODO: Add num_gpu and figure out num_ctx?
+        # TODO: Add stop set so we don't have to manually check
         generation_params = {
             "top_p": top_p,
             "temperature": temperature,
@@ -299,6 +295,13 @@ class OllamaServer(BaseModelWorker):
             decoded_token = response['message']['content']
             decoded_tokens.append(decoded_token)
             tokens_decoded_str = ''.join(decoded_tokens)
+
+            # Check for stop string
+            # Note that ollama can do this if we just pass stop to it correctly
+            partial_stop = any(is_partial_stop(tokens_decoded_str, i) for i in stop)
+            if partial_stop:
+                finish_reason = "stop"
+                break
 
             ret = {
                 "text": tokens_decoded_str,
