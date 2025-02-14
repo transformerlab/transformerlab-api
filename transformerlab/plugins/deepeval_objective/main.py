@@ -7,8 +7,6 @@ import sys
 import os
 import traceback
 import nltk
-import matplotlib.pyplot as plt
-import seaborn as sns
 import transformerlab.plugin
 from datasets import load_dataset
 
