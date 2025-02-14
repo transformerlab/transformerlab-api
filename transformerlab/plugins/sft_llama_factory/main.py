@@ -227,7 +227,7 @@ with subprocess.Popen(
                 f"Percentage: {percentage}, Current: {current}, Total: {total}, Minutes: {minutes}, Seconds: {seconds}, It/s: {it_s}"
             )
             job.update_progress(percentage)
-            if job.should_stop:
+            if job.shoudl_stop():
                 print("Stopping job because of user interruption.")
                 job.update_status("STOPPED")
                 process.terminate()

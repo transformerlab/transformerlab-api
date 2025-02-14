@@ -136,7 +136,7 @@ try:
                     if metric and value:
                         scores_list.append({"type": f"{metric}", "score": value})
 
-                    if job.should_stop:
+                    if job.shoudl_stop():
                         print("Stopping job because of user interruption.")
                         job.update_status("STOPPED")
                         process.terminate()

@@ -159,7 +159,7 @@ args = SFTConfig(
     tf32=True,
     max_grad_norm=0.3,
     warmup_ratio=0.03,
-    lr_scheduler_type=config.get("learning_rate_schedule","constant"),
+    lr_scheduler_type=config.get("learning_rate_schedule", "constant"),
     max_seq_length=max_seq_length,
     disable_tqdm=False,  # disable tqdm since with packing values are in correct
     packing=True,
@@ -183,7 +183,7 @@ class ProgressTableUpdateCallback(TrainerCallback):
             # Write to jobs table in database, updating the
             # progress column:
             job.update_progress(progress)
-            if job.should_stop:
+            if job.shoudl_stop():
                 control.should_training_stop = True
                 return control
 
