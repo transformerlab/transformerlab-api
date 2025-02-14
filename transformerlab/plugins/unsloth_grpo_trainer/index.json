@@ -119,6 +119,13 @@
             "maximum": 1.0,
             "default": 0.999
         },
+        "adam_epsilon": {
+            "title": "Adam Epsilon",
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "default": 0.00000001
+        },
         "adaptor_name": {
             "title": "Adaptor Name",
             "type": "string",

@@ -210,6 +210,7 @@ print(max_seq_length)
 weight_decay = float(config.get("weight_decay",0.0))
 adam_beta1 = float(config.get("adam_beta1",0.9))
 adam_beta2 = float(config.get("adam_beta2",0.999))
+adam_epsilon = float(config.get("adam_epsilon",1e-8))
 
 args = GRPOConfig(
     output_dir=output_dir,
@@ -227,6 +228,9 @@ args = GRPOConfig(
     warmup_ratio=0.03,
     max_completion_length = max_completion_length,
     lr_scheduler_type=learning_rate_schedule,
+    adam_beta1 = adam_beta1,
+    adam_beta2 = adam_beta2,
+    adam_epsilon= adam_epsilon,
     disable_tqdm=False,  # disable tqdm since with packing values are in correct
     report_to=["tensorboard"],
 )
