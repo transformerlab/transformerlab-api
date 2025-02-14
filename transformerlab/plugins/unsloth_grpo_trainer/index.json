@@ -97,7 +97,28 @@
             "minimum": 0.0,
             "maximum": 1.0,
             "default": 0.3
-        }
+        },
+        "weight_decay": {
+            "title": "Weight Decay",
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "default": 0.0
+        },
+        "adam_beta1": {
+            "title": "Adam Beta 1",
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "default": 0.9
+        },
+        "adam_beta2": {
+            "title": "Adam Beta 2",
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "default": 0.999
+        },
         "adaptor_name": {
             "title": "Adaptor Name",
             "type": "string",

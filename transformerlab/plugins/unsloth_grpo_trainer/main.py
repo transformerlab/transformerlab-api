@@ -207,6 +207,9 @@ db.commit()
 
 print(max_seq_length)
 
+weight_decay = float(config.get("weight_decay",0.0))
+adam_beta1 = float(config.get("adam_beta1",0.9))
+adam_beta2 = float(config.get("adam_beta2",0.999))
 
 args = GRPOConfig(
     output_dir=output_dir,
