@@ -183,7 +183,7 @@ class ProgressTableUpdateCallback(TrainerCallback):
             # Write to jobs table in database, updating the
             # progress column:
             job.update_progress(progress)
-            if job.shoudl_stop():
+            if job.should_stop():
                 control.should_training_stop = True
                 return control
 

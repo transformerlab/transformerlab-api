@@ -210,7 +210,7 @@ with subprocess.Popen(
     for line in process.stdout:
         error_output += line
 
-        if job.shoudl_stop():
+        if job.should_stop():
             print("Stopping job because of user interruption.")
             job.update_status("STOPPED")
             job.set_job_completion_status("failed", "user stopped the job")
