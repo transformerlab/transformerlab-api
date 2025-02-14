@@ -7,6 +7,8 @@ import sys
 import os
 import traceback
 import nltk
+import matplotlib.pyplot as plt
+import seaborn as sns
 import transformerlab.plugin
 from datasets import load_dataset
 
@@ -82,6 +84,26 @@ def get_output_file_path():
     p = os.path.join(experiment_dir, "evals", args.eval_name)
     os.makedirs(p, exist_ok=True)
     return os.path.join(p, f"detailed_output_{args.job_id}.csv")
+
+
+def plot_metrics(metrics_df):
+    output_file_name = get_output_file_path()
+    output_file_name = output_file_name.replace(".csv", ".png")
+
+    sns.set_style("whitegrid")
+    plt.figure(figsize=(10, 6))
+    ax = sns.boxplot(data=metrics_df, x="metric_name", y="score")
+
+    # Set labels and title
+    ax.set_xlabel("Metric", fontsize=12)
+    ax.set_ylabel("Score", fontsize=12)
+    ax.set_title("Score Distribution per Metric", fontsize=14)
+
+    # Rotate x-axis labels for better visibility
+    plt.xticks(rotation=45)
+    plt.savefig(output_file_name, dpi=300, bbox_inches="tight")
+
+    return output_file_name
 
 
 class RougeMetric(BaseMetric):
@@ -342,6 +364,9 @@ def run_evaluation():
         output_path = get_output_file_path()
         metrics_df.to_csv(output_path, index=False)
         job.update_progress(80)
+        print("Saving output figures...")
+        figure_path = plot_metrics(metrics_df)
+        print("Printing evaluation results...")
         print_fancy_df(metrics_df)
 
         for idx, metric in enumerate(args.tasks):
@@ -357,7 +382,11 @@ def run_evaluation():
                 {"type": metric, "score": round(metrics_df[metrics_df["metric_name"] == metric]["score"].mean(), 4)}
             )
         job.set_job_completion_status(
-            "success", "Evaluation completed successfully.", score=score_list, additional_output_path=output_path
+            "success",
+            "Evaluation completed successfully.",
+            score=score_list,
+            additional_output_path=output_path,
+            figure_path=figure_path,
         )
     except Exception as e:
         print("Error occurred while running the evaluation.")

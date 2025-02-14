@@ -1,1 +1,1 @@
-pip install deepeval bert-score datasets
+pip install deepeval bert-score datasets seaborn
