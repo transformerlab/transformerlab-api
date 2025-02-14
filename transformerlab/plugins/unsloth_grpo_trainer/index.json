@@ -20,7 +20,14 @@
         "maximum_sequence_length": {
             "title": "Maximum Sequence Length",
             "type": "integer",
-            "default": 2048,
+            "default": 1024,
+            "minimum": 1,
+            "maximum": 4096
+        },
+        "maximum_completion_length": {
+            "title": "Maximum Sequence Length",
+            "type": "integer",
+            "default": 512,
             "minimum": 1,
             "maximum": 4096
         },
@@ -84,6 +91,13 @@
             "maximum": 0.9,
             "default": 0.05
         },
+        "max_grad_norm": {
+            "title": "Max Grad Norm",
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "default": 0.3
+        }
         "adaptor_name": {
             "title": "Adaptor Name",
             "type": "string",

@@ -42,27 +42,30 @@ print("Input:")
 print(input_config)
 
 model_id = config["model_name"]
-max_seq_length = int(config.get("maximum_sequence_length", 1024))  # max sequence length for model and packing of the dataset
+dataset_id = config["dataset_name"]
+max_seq_length = int(config.get("maximum_sequence_length", 1024))
+max_completion_length = int(config.get("maximum_completion_length", 512))
 lora_rank = int(config.get("lora_r", 16))
 lora_alpha = int(config.get("lora_alpha",32))
+learning_rate = float(config.get("learning_rate",0.005))
+learning_rate_schedule = config.get("learning_rate_schedule","constant")
+max_grad_norm = float(config.get("max_grad_norm",0.3))
+batch_size = int(config.get("batch_size", 4))
+num_epochs = int(config["num_train_epochs"])
 
 question_formatting_template = config.get("formatting_template","")
+answer_formatting_template = config.get("answer_formatting_template","")
 
+output_dir: str = config["output_dir"]
 JOB_ID = config["job_id"]
 
-job = transformerlab.plugin.Job(config["job_id"])
+job = transformerlab.plugin.Job(JOB_ID)
 job.update_progress(0)
 
-# Get the dataset
-# Datasets can be a huggingface ID or the name of a locally uploaded dataset
-# Need to check the DB to figure out which because it changes how we load the dataset
-# TODO: Refactor this to somehow simplify across training plugins
-dataset_id = config["dataset_name"]
 cursor = db.execute("SELECT location FROM dataset WHERE dataset_id = ?", (dataset_id,))
 row = cursor.fetchone()
 cursor.close()
 
-# if no rows exist then the dataset hasn't been installed!
 if row is None:
     print(f"No dataset named {dataset_id} installed.")
     job.set_job_completion_status("failed", f"No dataset named {dataset_id} installed.")
@@ -95,7 +98,7 @@ Respond in the following format:
 </answer>
 """
 question_template = jinja_environment.from_string(question_formatting_template)
-#answer_template = jinja_environment.from_string(question_formatting_template)
+answer_template = jinja_environment.from_string(answer_formatting_template)
 
 dataset = dataset.map(lambda x: {
     'prompt': [
@@ -193,7 +196,6 @@ model = FastLanguageModel.get_peft_model(
 )
 
 # This is where the tensorboard output is stored
-output_dir: str = config["output_dir"]
 print(f"Storing Tensorboard Output to: {output_dir}")
 
 # In the json job_data column for this job, store the tensorboard output dir
@@ -205,21 +207,23 @@ db.commit()
 
 print(max_seq_length)
 
+
 args = GRPOConfig(
     output_dir=output_dir,
-    num_train_epochs=int(config["num_train_epochs"]),
-    per_device_train_batch_size=int(config.get("batch_size", 4)),
+    num_train_epochs=num_epochs,
+    per_device_train_batch_size=batch_size,
     gradient_accumulation_steps=2,
     gradient_checkpointing=True,
     optim="paged_adamw_32bit",
     logging_steps=10,
     save_strategy="epoch",
-    learning_rate=float(config["learning_rate"]),
+    learning_rate=learning_rate,
     bf16=True,
     tf32=True,
-    max_grad_norm=0.3,
+    max_grad_norm=max_grad_norm,
     warmup_ratio=0.03,
-    lr_scheduler_type=config.get("learning_rate_schedule","constant"),
+    max_completion_length = max_completion_length,
+    lr_scheduler_type=learning_rate_schedule,
     disable_tqdm=False,  # disable tqdm since with packing values are in correct
     report_to=["tensorboard"],
 )
@@ -230,16 +234,8 @@ class ProgressTableUpdateCallback(TrainerCallback):
 
     def on_step_end(self, args, state, control, **kwargs):
         if state.is_local_process_zero:
-            # print(state.epoch)
-            # print(state.global_step)
-            # print(state.max_steps)
-            # I think the following works but it may need to be
-            # augmented by the epoch number
             progress = state.global_step / state.max_steps
             progress = int(progress * 100)
-            # db_job_id = JOB_ID
-            # Write to jobs table in database, updating the
-            # progress column:
             job.update_progress(progress)
             if job.should_stop:
                 control.should_training_stop = True
@@ -262,8 +258,8 @@ trainer = GRPOTrainer(
     args=args,
     callbacks=[ProgressTableUpdateCallback],
 )
+
 try:
-    # train
     trainer.train()
 except Exception as e:
     job.set_job_completion_status("failed", "Failure during training")
