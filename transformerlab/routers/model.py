@@ -1,6 +1,7 @@
 import json
 import shutil
 import datetime
+from pathlib import Path
 import dateutil.relativedelta
 from typing import Annotated
 import transformerlab.db as db
@@ -47,6 +48,45 @@ def get_model_details_from_gallery(model_id: str):
             break
 
     return result
+
+
+def delete_model_from_cache(model_id: str, cache_dir: str = None) -> None:
+    """
+    Delete a model from the Hugging Face cache based on its model ID.
+
+    The model ID should be in the format:
+        "mlx-community/Qwen2.5-7B-Instruct-4bit"
+
+    This function converts the model ID to the cache folder name:
+        "models--mlx-community--Qwen2.5-7B-Instruct-4bit"
+
+    If cache_dir is not provided, it defaults to:
+        - $HF_HOME/hub (if HF_HOME environment variable is set), or
+        - ~/.cache/huggingface/hub
+
+    Args:
+        model_id (str): The model ID to delete from the cache.
+        cache_dir (str, optional): The Hugging Face cache directory. Defaults to None.
+    """
+    # Determine the cache directory
+    if cache_dir is None:
+        hf_home = os.getenv("HF_HOME")
+        if hf_home:
+            cache_dir = os.path.join(hf_home, "hub")
+        else:
+            cache_dir = os.path.join(str(Path.home()), ".cache", "huggingface", "hub")
+
+    # Convert the model_id into the cache folder name
+    # e.g. "mlx-community/Qwen2.5-7B-Instruct-4bit" -> "models--mlx-community--Qwen2.5-7B-Instruct-4bit"
+    folder_name = f"models--{model_id.replace('/', '--')}"
+    model_cache_path = os.path.join(cache_dir, folder_name)
+
+    # Delete the folder if it exists
+    if os.path.exists(model_cache_path) and os.path.isdir(model_cache_path):
+        shutil.rmtree(model_cache_path)
+        print(f"Deleted model cache folder: {model_cache_path}")
+    else:
+        print(f"Model cache folder not found: {model_cache_path}")
 
 
 @router.get("/healthz")  # TODO: why isn't this /model/helathz?
@@ -477,7 +517,7 @@ async def model_local_create(id: str, name: str, json_data={}):
 
 
 @router.get("/model/delete")
-async def model_local_delete(model_id: str):
+async def model_local_delete(model_id: str, delete_from_disk: bool = False):
     # If this is a locally generated model then actually delete from filesystem
     # Check for the model stored in a directory based on the model name (i.e. the part after teh slash)
     root_models_dir = dirs.MODELS_DIR
@@ -489,12 +529,15 @@ async def model_local_delete(model_id: str):
         shutil.rmtree(model_path)
 
     else:
-        # If this is a hugging face model then delete from the database but leave in the cache
-        print(
-            f"Deleting model {model_id}. Note that this will not free up space because it remains in the HuggingFace cache."
-        )
-        print("If you want to delete the model from the HuggingFace cache, you must delete it from:")
-        print("~/.cache/huggingface/hub/")
+        if delete_from_disk:
+            delete_model_from_cache(model_id)
+        else:
+            # If this is a hugging face model then delete from the database but leave in the cache
+            print(
+                f"Deleting model {model_id}. Note that this will not free up space because it remains in the HuggingFace cache."
+            )
+            print("If you want to delete the model from the HuggingFace cache, you must delete it from:")
+            print("~/.cache/huggingface/hub/")
 
     # Delete from the database
     await db.model_local_delete(model_id=model_id)
