@@ -107,7 +107,7 @@ class Job:
         completion_details: str,
         score: dict = None,
         additional_output_path: str = None,
-        figure_path: str = None,
+        plot_data_path: str = None,
     ):
         """
         A job could be in the "complete" state but still have failed, so this
@@ -125,7 +125,7 @@ class Job:
                 additional_output_path if additional_output_path and additional_output_path.strip() != "" else None
             )
 
-            valid_figure_path = figure_path if figure_path and figure_path.strip() != "" else None
+            valid_plot_data_path = plot_data_path if plot_data_path and plot_data_path.strip() != "" else None
 
             # Build the SQL query and parameters dynamically.
             sql = "UPDATE job SET job_data = json_insert(job_data, '$.completion_status', ?, '$.completion_details', ?"
@@ -140,9 +140,9 @@ class Job:
                 sql += ", '$.additional_output_path', ?"
                 params.append(valid_output_path)
 
-            if valid_figure_path is not None:
-                sql += ", '$.figure_path', ?"
-                params.append(valid_figure_path)
+            if valid_plot_data_path is not None:
+                sql += ", '$.plot_data_path', ?"
+                params.append(valid_plot_data_path)
 
             sql += ") WHERE id = ?"
             params.append(self.id)

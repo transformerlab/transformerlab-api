@@ -86,24 +86,14 @@ def get_output_file_path():
     return os.path.join(p, f"detailed_output_{args.job_id}.csv")
 
 
-def plot_metrics(metrics_df):
-    output_file_name = get_output_file_path()
-    output_file_name = output_file_name.replace(".csv", ".png")
+def get_plotting_data(metrics_df):
+    file_path = get_output_file_path()
+    file_path = file_path.replace(".csv", "_plotting.json")
+    metrics_data = metrics_df[["test_case_id", "metric_name", "score"]].copy()
+    metrics_data["metric_name"] = metrics_data["metric_name"].apply(lambda x: x.replace("_", " ").title())
+    metrics_data.to_json(file_path, orient="records", lines=False)
 
-    sns.set_style("whitegrid")
-    plt.figure(figsize=(10, 6))
-    ax = sns.boxplot(data=metrics_df, x="metric_name", y="score")
-
-    # Set labels and title
-    ax.set_xlabel("Metric", fontsize=12)
-    ax.set_ylabel("Score", fontsize=12)
-    ax.set_title("Score Distribution per Metric", fontsize=14)
-
-    # Rotate x-axis labels for better visibility
-    plt.xticks(rotation=45)
-    plt.savefig(output_file_name, dpi=300, bbox_inches="tight")
-
-    return output_file_name
+    return file_path
 
 
 class RougeMetric(BaseMetric):
@@ -333,11 +323,12 @@ def run_evaluation():
         metrics = []
         for metric_name in args.tasks:
             metric = metric_classes[metric_name]()
-            for test_case in test_cases:
+            for idx, test_case in enumerate(test_cases):
                 score = metric.measure(test_case)
                 if metric_name == "bert_score":
                     metrics.append(
                         {
+                            "test_case_id": f"test_case_{idx}",
                             "metric_name": metric_name,
                             "score": score["bert-f1"],
                             "bert_precision": score["bert-precision"],
@@ -351,6 +342,7 @@ def run_evaluation():
                 else:
                     metrics.append(
                         {
+                            "test_case_id": f"test_case_{idx}",
                             "metric_name": metric_name,
                             "score": score,
                             "input": test_case.input,
@@ -364,9 +356,7 @@ def run_evaluation():
         output_path = get_output_file_path()
         metrics_df.to_csv(output_path, index=False)
         job.update_progress(80)
-        print("Saving output figures...")
-        figure_path = plot_metrics(metrics_df)
-        print("Printing evaluation results...")
+        plot_data_path = get_plotting_data(metrics_df)
         print_fancy_df(metrics_df)
 
         for idx, metric in enumerate(args.tasks):
@@ -374,6 +364,7 @@ def run_evaluation():
                 f"Average {original_metric_names[idx]} score: {metrics_df[metrics_df['metric_name'] == metric]['score'].mean()}"
             )
         print(f"Metrics saved to {output_path}")
+        print(f"Plotting data saved to {plot_data_path}")
         print("Evaluation completed.")
         job.update_progress(100)
         score_list = []
@@ -386,7 +377,7 @@ def run_evaluation():
             "Evaluation completed successfully.",
             score=score_list,
             additional_output_path=output_path,
-            figure_path=figure_path,
+            plot_data_path=plot_data_path,
         )
     except Exception as e:
         print("Error occurred while running the evaluation.")

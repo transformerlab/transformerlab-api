@@ -215,6 +215,19 @@ async def stream_job_additional_details(job_id: str, task: str = "view"):
     return csv_content
 
 
+@router.get("/{job_id}/get_figure_json")
+async def get_figure_path(job_id: str):
+    job = await db.job_get(job_id)
+    job_data = job["job_data"]
+    file_path = job_data.get("plot_data_path", None)
+
+    if file_path is None or not os.path.exists(file_path):
+        return Response("No plot data found for this evaluation", media_type="text/csv")
+
+    content = json.loads(open(file_path, "r").read())
+    return content
+
+
 @router.get("/{job_id}/get_generated_dataset")
 async def get_generated_dataset(job_id: str):
     job = await db.job_get(job_id)

@@ -5,10 +5,8 @@ import sys
 import traceback
 
 import instructor
-import matplotlib.pyplot as plt
 import pandas as pd
 import requests
-import seaborn as sns
 from anthropic import Anthropic
 from datasets import load_dataset
 from deepeval import evaluate
@@ -97,24 +95,14 @@ def get_output_file_path():
     return os.path.join(p, f"detailed_output_{args.job_id}.csv")
 
 
-def plot_metrics(metrics_df):
-    output_file_name = get_output_file_path()
-    output_file_name = output_file_name.replace(".csv", ".png")
+def get_plotting_data(metrics_df):
+    file_path = get_output_file_path()
+    file_path = file_path.replace(".csv", "_plotting.json")
+    metrics_data = metrics_df[["test_case_id", "metric_name", "score"]].copy()
+    metrics_data["metric_name"] = metrics_data["metric_name"].apply(lambda x: x.replace("_", " ").title())
+    metrics_data.to_json(file_path, orient="records", lines=False)
 
-    sns.set_style("whitegrid")
-    plt.figure(figsize=(10, 6))
-    ax = sns.boxplot(data=metrics_df, x="metric_name", y="score")
-
-    # Set labels and title
-    ax.set_xlabel("Metric", fontsize=12)
-    ax.set_ylabel("Score", fontsize=12)
-    ax.set_title("Score Distribution per Metric", fontsize=14)
-
-    # Rotate x-axis labels for better visibility
-    plt.xticks(rotation=45)
-    plt.savefig(output_file_name, dpi=300, bbox_inches="tight")
-
-    return output_file_name
+    return file_path
 
 
 def get_metric_class(metric_name: str):
@@ -413,6 +401,7 @@ def run_evaluation():
         for test_case in output.test_results:
             for metric in test_case.metrics_data:
                 temp_report = {}
+                temp_report["test_case_id"] = test_case.name
                 temp_report["input"] = test_case.input
                 temp_report["actual_output"] = test_case.actual_output
                 temp_report["expected_output"] = test_case.expected_output
@@ -425,19 +414,23 @@ def run_evaluation():
         metrics_df = pd.DataFrame(additional_report)
         output_path = get_output_file_path()
         metrics_df.to_csv(output_path, index=False)
-        figure_path = plot_metrics(metrics_df)
+        plot_data_path = get_plotting_data(metrics_df)
         for metric in metrics_df["metric_name"].unique():
             scores_list.append(
                 {"type": metric, "score": round(metrics_df[metrics_df["metric_name"] == metric]["score"].mean(), 4)}
             )
 
         print(f"Detailed Report saved to {output_path}")
-        print(f"Metrics plot saved to {figure_path}")
+        print(f"Metrics plot data saved to {plot_data_path}")
 
         job.update_progress(100)
         print("Evaluation completed successfully")
         job.set_job_completion_status(
-            "success", "Evaluation completed successfully", score=scores_list, additional_output_path=output_path
+            "success",
+            "Evaluation completed successfully",
+            score=scores_list,
+            additional_output_path=output_path,
+            plot_data_path=plot_data_path,
         )
 
     except Exception as e:
