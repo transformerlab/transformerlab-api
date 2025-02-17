@@ -286,7 +286,7 @@ def run_generation():
         print(f"Saving data json to {output_file}")
         df.to_json(output_file, orient="records", lines=False)
         job.update_progress(90)
-        print("Mounting the dataset to the TransformerLab workspace...")
+        print("Mounting the dataset to the Transformer Lab workspace...")
         generate_tflab_dataset(output_file)
 
     except Exception as e:

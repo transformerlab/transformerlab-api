@@ -301,7 +301,7 @@ with subprocess.Popen(
                 "json_data": {
                     "uniqueID": f"TransformerLab/{fused_model_name}",
                     "name": "sft_llama_factory",
-                    "description": f"Model generated using Llama Factory in TransformerLab based on {config['model_name']}",
+                    "description": f"Model generated using Llama Factory in Transformer Lab based on {config['model_name']}",
                     "architecture": config["model_architecture"],
                     "huggingface_repo": "",
                 },

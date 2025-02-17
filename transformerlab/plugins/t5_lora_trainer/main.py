@@ -42,7 +42,7 @@ from transformers import (
 )
 
 # Connect to the LLM Lab database
-llmlab_root_dir = os.getenv('LLM_LAB_ROOT_PATH')
+llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
 WORKSPACE_DIR: str | None = os.getenv("_TFL_WORKSPACE_DIR")
 db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
 
@@ -66,14 +66,10 @@ class ModelArguments:
 
 @dataclass
 class DataArguments:
-    data_path: str = field(
-        default=None, metadata={"help": "Path to the training data."}
-    )
+    data_path: str = field(default=None, metadata={"help": "Path to the training data."})
     lazy_preprocess: bool = False
     num_data: int = -1
-    preprocessed_path: str = field(
-        default=None, metadata={"help": "Path to the preprocessed training data."}
-    )
+    preprocessed_path: str = field(default=None, metadata={"help": "Path to the preprocessed training data."})
 
 
 @dataclass
@@ -82,9 +78,7 @@ class TrainingArguments(transformers.TrainingArguments):
     optim: str = field(default="adamw_torch")
     model_max_length: int = field(
         default=2048,
-        metadata={
-            "help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."
-        },
+        metadata={"help": "Maximum sequence length. Sequences will be right padded (and possibly truncated)."},
     )
 
 
@@ -132,9 +126,7 @@ class Trainer:
         print(f"Train dataset size: {len(self.train_dataset)}")
         print(f"Test dataset size: {len(self.test_dataset)}")
 
-        self.dataset = DatasetDict(
-            {"train": self.train_dataset, "test": self.test_dataset}
-        )
+        self.dataset = DatasetDict({"train": self.train_dataset, "test": self.test_dataset})
         print(f"Train dataset size: {len(self.dataset['train'])}")
         print(f"Test dataset size: {len(self.dataset['test'])}")
 
@@ -149,9 +141,7 @@ class Trainer:
 
         # The maximum total input sequence length after tokenization.
         # Sequences longer than this will be truncated, sequences shorter will be padded.
-        tokenized_inputs = concatenate_datasets(
-            [self.train_dataset, self.test_dataset]
-        ).map(
+        tokenized_inputs = concatenate_datasets([self.train_dataset, self.test_dataset]).map(
             lambda x: self.tokenizer(x["dialogue"], truncation=True),
             batched=True,
             remove_columns=["dialogue", "summary"],
@@ -163,9 +153,7 @@ class Trainer:
 
         # The maximum total sequence length for target text after tokenization.
         # Sequences longer than this will be truncated, sequences shorter will be padded."
-        tokenized_targets = concatenate_datasets(
-            [self.train_dataset, self.test_dataset]
-        ).map(
+        tokenized_targets = concatenate_datasets([self.train_dataset, self.test_dataset]).map(
             lambda x: self.tokenizer(x["summary"], truncation=True),
             batched=True,
             remove_columns=["dialogue", "summary"],
@@ -180,9 +168,7 @@ class Trainer:
         # add prefix to the input for t5
         inputs = ["summarize: " + item for item in sample["dialogue"]]
         # tokenize inputs
-        model_inputs = self.tokenizer(
-            inputs, max_length=self.max_source_length, padding=padding, truncation=True
-        )
+        model_inputs = self.tokenizer(inputs, max_length=self.max_source_length, padding=padding, truncation=True)
 
         # Tokenize targets with the `text_target` keyword argument
         labels = self.tokenizer(
@@ -196,10 +182,7 @@ class Trainer:
         # labels by -100 when we want to ignore padding in the loss.
         if padding == "max_length":
             labels["input_ids"] = [
-                [
-                    (id if id != self.tokenizer.pad_token_id else -100)
-                    for id in input_ids
-                ]
+                [(id if id != self.tokenizer.pad_token_id else -100) for id in input_ids]
                 for input_ids in labels["input_ids"]
             ]
 
@@ -214,20 +197,15 @@ class Trainer:
             batched=True,
             remove_columns=["dialogue", "summary", "id"],
         )
-        print(
-            f"Keys of tokenized dataset: {list(self.tokenized_dataset['train'].features)}"
-        )
+        print(f"Keys of tokenized dataset: {list(self.tokenized_dataset['train'].features)}")
 
         # save datasets to disk for later easy loading
-        self.tokenized_dataset["train"].save_to_disk(
-            "workspace/temp/data/train")
+        self.tokenized_dataset["train"].save_to_disk("workspace/temp/data/train")
         self.tokenized_dataset["test"].save_to_disk("workspace/temp/data/eval")
 
     def load_model(self):
         # load model from the hub
-        self.model = AutoModelForSeq2SeqLM.from_pretrained(
-            self.model_id, load_in_8bit=True, device_map="auto"
-        )
+        self.model = AutoModelForSeq2SeqLM.from_pretrained(self.model_id, load_in_8bit=True, device_map="auto")
 
     def train_lora(
         self,
@@ -240,7 +218,7 @@ class Trainer:
         logging_steps,
         job_id,
         output_dir,
-        adaptor_output_dir
+        adaptor_output_dir,
     ):
         self.peft_model_id = peft_model_id
 
@@ -294,7 +272,7 @@ class Trainer:
         )
 
         class ProgressTableUpdateCallback(TrainerCallback):
-            "A callback that prints updates progress percent in the TransformerLab DB"
+            "A callback that prints updates progress percent in the Transformer Lab DB"
 
             def on_step_end(self, args, state, control, **kwargs):
                 if state.is_local_process_zero:
@@ -321,7 +299,7 @@ class Trainer:
             args=training_args,
             data_collator=data_collator,
             train_dataset=self.tokenized_dataset["train"],
-            callbacks=[ProgressTableUpdateCallback]
+            callbacks=[ProgressTableUpdateCallback],
         )
         # silence the warnings. Please re-enable for inference!
         self.model.config.use_cache = False
@@ -329,10 +307,8 @@ class Trainer:
         # train model
         self.trainer.train()
 
-        self.trainer.model.save_pretrained(
-            adaptor_output_dir)
-        self.tokenizer.save_pretrained(
-            adaptor_output_dir)
+        self.trainer.model.save_pretrained(adaptor_output_dir)
+        self.tokenizer.save_pretrained(adaptor_output_dir)
 
     def load_peft(self):
         # Load peft config for pre-trained checkpoint etc.
@@ -345,8 +321,7 @@ class Trainer:
         AutoTokenizer.from_pretrained(config.base_model_name_or_path)
 
         # Load the Lora model
-        model = PeftModel.from_pretrained(
-            model, self.peft_model_id, device_map={"": 0})
+        model = PeftModel.from_pretrained(model, self.peft_model_id, device_map={"": 0})
         model.eval()
 
         print("Peft model loaded")
@@ -356,18 +331,12 @@ class Trainer:
         dataset = load_dataset(self.dataset_id, trust_remote_code=True)
         sample = dataset["test"][randrange(len(dataset["test"]))]
 
-        input_ids = self.tokenizer(
-            sample["dialogue"], return_tensors="pt", truncation=True
-        ).input_ids.cuda()
+        input_ids = self.tokenizer(sample["dialogue"], return_tensors="pt", truncation=True).input_ids.cuda()
         # with torch.inference_mode():
-        outputs = self.model.generate(
-            input_ids=input_ids, max_new_tokens=10, do_sample=True, top_p=0.9
-        )
-        print(f"input sentence: {sample['dialogue']}\n{'---'* 20}")
+        outputs = self.model.generate(input_ids=input_ids, max_new_tokens=10, do_sample=True, top_p=0.9)
+        print(f"input sentence: {sample['dialogue']}\n{'---' * 20}")
 
-        print(
-            f"summary:\n{self.tokenizer.batch_decode(outputs.detach().cpu().numpy(), skip_special_tokens=True)[0]}"
-        )
+        print(f"summary:\n{self.tokenizer.batch_decode(outputs.detach().cpu().numpy(), skip_special_tokens=True)[0]}")
 
         # Metric
         metric = evaluate.load(evaluation_id)
@@ -380,23 +349,17 @@ class Trainer:
                 top_p=0.9,
                 max_new_tokens=max_target_length,
             )
-            prediction = self.tokenizer.decode(
-                outputs[0].detach().cpu().numpy(), skip_special_tokens=True
-            )
+            prediction = self.tokenizer.decode(outputs[0].detach().cpu().numpy(), skip_special_tokens=True)
             # decode eval sample
             # Replace -100 in the labels as we can't decode them.
-            labels = np.where(
-                sample["labels"] != -
-                100, sample["labels"], self.tokenizer.pad_token_id
-            )
+            labels = np.where(sample["labels"] != -100, sample["labels"], self.tokenizer.pad_token_id)
             labels = self.tokenizer.decode(labels, skip_special_tokens=True)
 
             # Some simple post-processing
             return prediction, labels
 
         # load test dataset from disk
-        test_dataset = load_from_disk(
-            "workspace/temp/data/eval/").with_format("torch")
+        test_dataset = load_from_disk("workspace/temp/data/eval/").with_format("torch")
 
         # run predictions
         # this can take ~45 minutes
@@ -407,15 +370,13 @@ class Trainer:
             references.append(r)
 
         # compute metric
-        rogue = metric.compute(
-            predictions=predictions, references=references, use_stemmer=True
-        )
+        rogue = metric.compute(predictions=predictions, references=references, use_stemmer=True)
 
         # print results
-        print(f"Rogue1: {rogue['rouge1']* 100:2f}%")
-        print(f"rouge2: {rogue['rouge2']* 100:2f}%")
-        print(f"rougeL: {rogue['rougeL']* 100:2f}%")
-        print(f"rougeLsum: {rogue['rougeLsum']* 100:2f}%")
+        print(f"Rogue1: {rogue['rouge1'] * 100:2f}%")
+        print(f"rouge2: {rogue['rouge2'] * 100:2f}%")
+        print(f"rougeL: {rogue['rougeL'] * 100:2f}%")
+        print(f"rougeLsum: {rogue['rougeLsum'] * 100:2f}%")
         return
 
     def unload_model(self):
@@ -429,7 +390,19 @@ class Trainer:
         return
 
     def train(
-        self, peft_model_id, model_name_or_path, data_path, lora_r, lora_alpha, lora_dropout, learning_rate, num_train_epochs, logging_steps, job_id, output_dir, adaptor_output_dir
+        self,
+        peft_model_id,
+        model_name_or_path,
+        data_path,
+        lora_r,
+        lora_alpha,
+        lora_dropout,
+        learning_rate,
+        num_train_epochs,
+        logging_steps,
+        job_id,
+        output_dir,
+        adaptor_output_dir,
     ):
         self.set_model(model_name_or_path)
 
@@ -439,8 +412,18 @@ class Trainer:
 
         self.load_model()
 
-        self.train_lora(peft_model_id=peft_model_id, lora_r=lora_r, lora_alpha=lora_alpha, lora_dropout=lora_dropout,
-                        learning_rate=learning_rate, num_train_epochs=num_train_epochs, logging_steps=logging_steps, job_id=job_id, output_dir=output_dir, adaptor_output_dir=adaptor_output_dir)
+        self.train_lora(
+            peft_model_id=peft_model_id,
+            lora_r=lora_r,
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
+            learning_rate=learning_rate,
+            num_train_epochs=num_train_epochs,
+            logging_steps=logging_steps,
+            job_id=job_id,
+            output_dir=output_dir,
+            adaptor_output_dir=adaptor_output_dir,
+        )
 
         # # t.load_peft()
         # # t.evaluate('rouge')
@@ -458,7 +441,7 @@ def main():
     global JOB_ID
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input_file', type=str)
+    parser.add_argument("--input_file", type=str)
 
     args, unknown = parser.parse_known_args()
     print("args:")
@@ -476,18 +459,18 @@ def main():
 
     t = Trainer()
     t.train(
-        peft_model_id=config['adaptor_name'],
-        model_name_or_path=config['model_name'],
-        data_path=config['dataset_name'],
-        lora_r=int(config['lora_r']),
-        lora_alpha=int(config['lora_alpha']),
-        lora_dropout=float(config['lora_dropout']),
-        learning_rate=float(config['learning_rate']),
-        num_train_epochs=int(config['num_train_epochs']),
+        peft_model_id=config["adaptor_name"],
+        model_name_or_path=config["model_name"],
+        data_path=config["dataset_name"],
+        lora_r=int(config["lora_r"]),
+        lora_alpha=int(config["lora_alpha"]),
+        lora_dropout=float(config["lora_dropout"]),
+        learning_rate=float(config["learning_rate"]),
+        num_train_epochs=int(config["num_train_epochs"]),
         logging_steps=100,
         job_id=JOB_ID,
         output_dir=config["output_dir"],
-        adaptor_output_dir=config["adaptor_output_dir"]
+        adaptor_output_dir=config["adaptor_output_dir"],
     )
 
 

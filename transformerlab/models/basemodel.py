@@ -5,7 +5,7 @@ import transformerlab.db as db
 
 class BaseModel:
     """
-    A basic representation of a Model in TransformerLab.
+    A basic representation of a Model in Transformer Lab.
 
     To add a new model source, create a subclass.
     The key function to override in your subclass is get_model_path.
@@ -16,7 +16,7 @@ class BaseModel:
     id:             Unique Transformer Lab model identifier
     name:           Printable name for the model (how it appears in the app)
     status:         A text string that is either "OK" or contains and error message
-    json_data:      an unstructured data blob that can contain any data relevant 
+    json_data:      an unstructured data blob that can contain any data relevant
                     to the model or its model_source.
 
     JSON FIELDS:
@@ -36,7 +36,6 @@ class BaseModel:
 
     """
 
-    
     def __init__(self, id):
         """
         The constructor takes an ID that is unique to the model source.
@@ -44,7 +43,7 @@ class BaseModel:
 
         That is, model sources (hard drive folders, application caches, web sites, etc.)
         will have subclasses of this BaseModel and may use the same id, but their unique_id
-        must be unique to TransformerLab in order to import into the Transfoerm Lab store.
+        must be unique to Transformer Lab in order to import into the Transfoerm Lab store.
         """
 
         self.id = id
@@ -56,7 +55,6 @@ class BaseModel:
         self.json_data = {
             "uniqueID": self.id,
             "model_filename": "",
-
             "name": self.id,
             "description": "",
             "architecture": "unknown",
@@ -64,44 +62,38 @@ class BaseModel:
             "source": None,
             "source_id_or_path": id,
             "huggingface_repo": "",
-
             "parameters": "",
             "context": "",
             "license": "",
             "logo": "",
-
             # The following are from huggingface_hu.hf_api.ModelInfo
-            "private": False, 
-            "gated": False, # Literal["auto", "manual", False]
+            "private": False,
+            "gated": False,  # Literal["auto", "manual", False]
             "model_type": "",
-            "library_name": "", 
-            "transformers_version": ""
+            "library_name": "",
+            "transformers_version": "",
         }
-
 
     def __str__(self):
         # For debug output
         return str(self.__class__) + ": " + str(self.__dict__)
 
-
     async def is_installed(self):
-        '''
+        """
         Returns true if this model is saved in Transformer Lab's Local Store.
-        '''
+        """
         db_model = await db.model_local_get(self.id)
         return db_model is not None
-
 
     async def install(self):
         await db.model_local_create(model_id=self.id, name=self.name, json_data=self.json_data)
 
-
     def get_model_path(self):
-        '''
+        """
         Returns ID of model in source OR absolute path to file or directory that contains model.
-        Most subclasses will probably want to override this so TransformerLab knows where to
+        Most subclasses will probably want to override this so Transformer Lab knows where to
         find the model.
-        '''
+        """
         source_id_or_path = self.json_data.get("source_id_or_path", self.id)
         model_filename = self.json_data.get("model_filename", "")
         if model_filename:
@@ -119,10 +111,10 @@ def get_model_file_format(filename: str):
     Returns None if the file doesn't match any of the known types.
     """
     formats = {
-        ".safetensors" : "Safetensors",
-        ".bin" : "PyTorch",
-        ".pt" : "PyTorch",
-        ".pth" : "PyTorch",
+        ".safetensors": "Safetensors",
+        ".bin": "PyTorch",
+        ".pt": "PyTorch",
+        ".pth": "PyTorch",
         ".pkl": "Pickle",
         ".gguf": "GGUF",
         ".ggml": "GGUF",
@@ -130,7 +122,7 @@ def get_model_file_format(filename: str):
         ".npz": "NPZ",
         ".llamafile": "Llamafile",
         ".onnx": "ONNX",
-        ".ckpt": "TensorFlow CHeckpoint"
+        ".ckpt": "TensorFlow CHeckpoint",
     }
     _, file_ext = os.path.splitext(filename)
 

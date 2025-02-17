@@ -6,7 +6,8 @@ The DeepEval Evaluations (LLM-as-Judge) plugin is designed to evaluate the outpu
 
 ## Dataset Requirements
 
-A local dataset uploaded to the dataset in TransformerLab is required. The dataset file must be in CSV format and should compulsorily have the following columns:
+A local dataset uploaded to the dataset in Transformer Lab is required. The dataset file must be in CSV format and should compulsorily have the following columns:
+
 - `input`
 - `output`
 - `expected_output`
@@ -14,6 +15,7 @@ A local dataset uploaded to the dataset in TransformerLab is required. The datas
 ## Parameters
 
 ### task
+
 - **Title:** Evaluation Metric
 - **Type:** string
 - **Description:** Select the evaluation metric you want to use. The available options are:
@@ -28,6 +30,7 @@ A local dataset uploaded to the dataset in TransformerLab is required. The datas
   - **Custom (GEval):** Allows you to create custom evaluation metrics using GEval.
 
 ### judge_model
+
 - **Title:** LLM-as-Judge Model
 - **Type:** string
 - **Description:** Choose the model to be used as the judge. The available options are:
@@ -38,16 +41,19 @@ A local dataset uploaded to the dataset in TransformerLab is required. The datas
   - Local (to use the local model running)
 
 ### geval_name
+
 - **Title:** Criteria Name (Only for GEval)
 - **Type:** string
 - **Description:** Specify the name of the criteria to be used for GEval (General Evaluation).
 
 ### geval_context
+
 - **Title:** Criteria Description (Only for GEval)
 - **Type:** string
 - **Description:** Provide a description of the criteria to be used for GEval.
 
 ### context_required
+
 - **Title:** Should `context` field be considered in dataset? (Only for GEval)
 - **Type:** boolean
 - **Default:** false
@@ -65,6 +71,7 @@ A local dataset uploaded to the dataset in TransformerLab is required. The datas
 ### Creating Custom Metrics with GEval
 
 GEval allows you to create custom evaluation metrics tailored to your specific needs. To use GEval:
+
 - Set the `task` parameter to "Custom (GEval)".
 - Provide a name for your custom criteria in the `geval_name` parameter.
 - Describe your custom criteria in the `geval_context` parameter.

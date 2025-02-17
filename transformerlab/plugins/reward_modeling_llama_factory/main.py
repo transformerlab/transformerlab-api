@@ -7,6 +7,7 @@ Standard command:
 CUDA_VISIBLE_DEVICES=0 llamafactory-cli train examples/train_lora/llama3_lora_reward.yaml
 
 """
+
 import os
 import subprocess
 import time
@@ -39,8 +40,8 @@ db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
 
 # Get all parameters provided to this script from Transformer Lab
 parser = argparse.ArgumentParser()
-parser.add_argument('--input_file', type=str)
-parser.add_argument('--experiment_name', default='', type=str)
+parser.add_argument("--input_file", type=str)
+parser.add_argument("--experiment_name", default="", type=str)
 args, unknown = parser.parse_known_args()
 
 print("Arguments:")
@@ -54,8 +55,8 @@ config = input_config["config"]
 print("Input:")
 print(json.dumps(input_config, indent=4))
 
-model_name = config['model_name']
-adaptor_output_dir = config['adaptor_output_dir']
+model_name = config["model_name"]
+adaptor_output_dir = config["adaptor_output_dir"]
 
 lora_layers = config.get("lora_layers", 1)
 learning_rate = config["learning_rate"]
@@ -64,7 +65,7 @@ steps_per_eval = config.get("steps_per_eval", 200)
 iters = config.get("iters", -1)
 
 # we need to adapter parameter so set a default
-adaptor_name = config.get('adaptor_name', "default")
+adaptor_name = config.get("adaptor_name", "default")
 
 
 # Directory for storing temporary working files
@@ -83,11 +84,7 @@ def create_data_directory_in_llama_factory_format():
             "file_name": "train.json",
             "ranking": True,
             "formatting": "sharegpt",
-            "columns": {
-                "messages": "conversations",
-                "chosen": "chosen",
-                "rejected": "rejected"
-            }
+            "columns": {"messages": "conversations", "chosen": "chosen", "rejected": "rejected"},
         }
     }
 
@@ -100,8 +97,7 @@ def create_data_directory_in_llama_factory_format():
 ########################################
 
 try:
-    dataset_target = transformerlab.plugin.get_dataset_path(
-        config["dataset_name"])
+    dataset_target = transformerlab.plugin.get_dataset_path(config["dataset_name"])
 except Exception as e:
     print(e)
     exit()
@@ -113,7 +109,7 @@ dataset = load_dataset(dataset_target, trust_remote_code=True)
 # This will exhaust memory if the data is large
 with open(f"{data_directory}/train2.json", "w") as f:
     all_data = []
-    for row in dataset['train']:
+    for row in dataset["train"]:
         all_data.append(row)
     json.dump(all_data, f, indent=2)
 
@@ -135,12 +131,11 @@ db.execute(
 db.commit()
 
 # First copy a template file to the data directory
-os.system(
-    f"cp {plugin_dir}/LLaMA-Factory/examples/train_lora/llama3_lora_reward.yaml {yaml_config_path}")
+os.system(f"cp {plugin_dir}/LLaMA-Factory/examples/train_lora/llama3_lora_reward.yaml {yaml_config_path}")
 # Now replace specific values in the file using the PyYAML library:
 
 yml = {}
-with open(yaml_config_path, 'r') as file:
+with open(yaml_config_path, "r") as file:
     yml = yaml.safe_load(file)
 
 
@@ -154,14 +149,14 @@ yml["logging_dir"] = output_dir
 yml["learning_rate"] = float(config.get("learning_rate", 0.001))
 yml["num_train_epochs"] = float(config.get("num_train_epochs", 1))
 yml["max_steps"] = float(config.get("max_steps", -1))
-yml['dataset_dir'] = data_directory
-yml['dataset'] = 'training_data'
-yml['template'] = 'llama3'
+yml["dataset_dir"] = data_directory
+yml["dataset"] = "training_data"
+yml["template"] = "llama3"
 # Without resize_vocab the training fails for many models including Mistral
-yml['resize_vocab'] = True
+yml["resize_vocab"] = True
 print("--------")
 
-with open(yaml_config_path, 'w') as file:
+with open(yaml_config_path, "w") as file:
     # Now write out the new file
     yaml.dump(yml, file)
     print("New configuration:")
@@ -174,7 +169,7 @@ with open(yaml_config_path, 'w') as file:
 ########################################
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-popen_command = ['llamafactory-cli', 'train', yaml_config_path]
+popen_command = ["llamafactory-cli", "train", yaml_config_path]
 
 print("Running command:")
 print(popen_command)
@@ -189,12 +184,16 @@ db.commit()
 print("Training beginning:")
 
 with subprocess.Popen(
-        popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True, cwd=os.path.join(plugin_dir, 'LLaMA-Factory')) as process:
-
+    popen_command,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+    bufsize=1,
+    universal_newlines=True,
+    cwd=os.path.join(plugin_dir, "LLaMA-Factory"),
+) as process:
     training_step_has_started = False
 
     for line in process.stdout:
-
         if "***** Running training *****" in line:
             training_step_has_started = True
 
@@ -203,7 +202,7 @@ with subprocess.Popen(
 
         # Each output line from lora.py looks like
         # "  2%|▏         | 8/366 [00:15<11:28,  1.92s/it]"
-        pattern = r'(\d+)%\|.*\| (\d+)\/(\d+) \[(\d+):(\d+)<(\d+):(\d+),(\s*)(\d+\.\d+)(.+)]'
+        pattern = r"(\d+)%\|.*\| (\d+)\/(\d+) \[(\d+):(\d+)<(\d+):(\d+),(\s*)(\d+\.\d+)(.+)]"
         match = re.search(pattern, line)
         if match:
             percentage = match.group(1)
@@ -214,7 +213,8 @@ with subprocess.Popen(
             it_s = match.group(8)
 
             print(
-                f"Percentage: {percentage}, Current: {current}, Total: {total}, Minutes: {minutes}, Seconds: {seconds}, It/s: {it_s}")
+                f"Percentage: {percentage}, Current: {current}, Total: {total}, Minutes: {minutes}, Seconds: {seconds}, It/s: {it_s}"
+            )
             db.execute(
                 "UPDATE job SET progress = ? WHERE id = ?",
                 (percentage, config["job_id"]),
@@ -229,7 +229,7 @@ print("Finished training.")
 
 print("Now fusing the adaptor with the model.")
 
-model_name = config['model_name']
+model_name = config["model_name"]
 if "/" in model_name:
     model_name = model_name.split("/")[-1]
 fused_model_name = f"{model_name}_{adaptor_name}"
@@ -241,29 +241,29 @@ if not os.path.exists(fused_model_location):
 
 yaml_config_path = f"{data_directory}/merge_llama3_lora_sft.yaml"
 # First copy a template file to the data directory
-os.system(
-    f"cp {plugin_dir}/LLaMA-Factory/examples/merge_lora/llama3_lora_sft.yaml {yaml_config_path}")
+os.system(f"cp {plugin_dir}/LLaMA-Factory/examples/merge_lora/llama3_lora_sft.yaml {yaml_config_path}")
 yml = {}
-with open(yaml_config_path, 'r') as file:
+with open(yaml_config_path, "r") as file:
     yml = yaml.safe_load(file)
 
-yml["model_name_or_path"] = config['model_name']
+yml["model_name_or_path"] = config["model_name"]
 yml["adapter_name_or_path"] = adaptor_output_dir
 yml["export_dir"] = fused_model_location
 yml["resize_vocab"] = True
 
-with open(yaml_config_path, 'w') as file:
+with open(yaml_config_path, "w") as file:
     yaml.dump(yml, file)
     print("New configuration:")
     print(yml)
 
-popen_command = ['llamafactory-cli', 'export', yaml_config_path]
+popen_command = ["llamafactory-cli", "export", yaml_config_path]
 
 
-fuse_popen_command = ['llamafactory-cli', 'export', yaml_config_path]
+fuse_popen_command = ["llamafactory-cli", "export", yaml_config_path]
 
 with subprocess.Popen(
-        fuse_popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True) as process:
+    fuse_popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True
+) as process:
     for line in process.stdout:
         print(line, end="", flush=True)
 
@@ -271,20 +271,22 @@ with subprocess.Popen(
 
     # If model create was successful, create an info.json file so this can be read by the system
     print("Return code: ", return_code)
-    if (return_code == 0):
-        model_description = [{
-            "model_id": f"TransformerLab-mlx/{fused_model_name}",
-            "model_filename": "",
-            "name": fused_model_name,
-            "local_model": True,
-            "json_data": {
-                "uniqueID": f"TransformerLab/{fused_model_name}",
-                "name": "MLX",
-                "description": f"Model generated using Llama Factory in TransformerLab based on {config['model_name']}",
-                "architecture": config["model_architecture"],
-                "huggingface_repo": ""
+    if return_code == 0:
+        model_description = [
+            {
+                "model_id": f"TransformerLab-mlx/{fused_model_name}",
+                "model_filename": "",
+                "name": fused_model_name,
+                "local_model": True,
+                "json_data": {
+                    "uniqueID": f"TransformerLab/{fused_model_name}",
+                    "name": "MLX",
+                    "description": f"Model generated using Llama Factory in Transformer Lab based on {config['model_name']}",
+                    "architecture": config["model_architecture"],
+                    "huggingface_repo": "",
+                },
             }
-        }]
+        ]
         model_description_file = open(f"{fused_model_location}/info.json", "w")
         json.dump(model_description, model_description_file)
         model_description_file.close()
