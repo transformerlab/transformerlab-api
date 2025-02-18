@@ -3,7 +3,7 @@ import os
 import csv
 import pandas as pd
 from fastapi import APIRouter, Body, Response
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 
 import transformerlab.db as db
 from transformerlab.shared import shared
@@ -185,31 +185,25 @@ async def stream_detailed_json_report(job_id: str, file_name: str):
 
 
 @router.get("/{job_id}/get_additional_details")
-async def stream_job_additional_details(job_id: str):
+async def stream_job_additional_details(job_id: str, task: str = "view"):
     job = await db.job_get(job_id)
     job_data = job["job_data"]
-    # Get experiment name
-    experiment_id = job["experiment_id"]
-    experiment = await db.experiment_get(experiment_id)
-    experiment_name = experiment["name"]
-    # Get eval name
-    eval_name = job_data["evaluator"]
+    file_path = job_data["additional_output_path"]
+    if file_path.endswith(".csv"):
+        file_format = "text/csv"
+        filename = f"report_{job_id}.csv"
+    elif file_path.endswith(".json"):
+        file_format = "application/json"
+        filename = f"report_{job_id}.json"
+    if task == "download":
+        return FileResponse(file_path, filename=filename, media_type=file_format)
 
-    csv_file_path = os.path.join(
-        os.environ["_TFL_WORKSPACE_DIR"],
-        "experiments",
-        experiment_name,
-        "evals",
-        eval_name,
-        f"detailed_output_{job_id}.csv",
-    )
-
-    if not os.path.exists(csv_file_path):
+    if not os.path.exists(file_path):
         return Response("No additional details found for this evaluation", media_type="text/csv")
 
     # convert csv to JSON, but do not assume that \n marks the end of a row as cells can
     # contain fields that start and end with " and contain \n. Use a CSV parser instead.
-    with open(csv_file_path, "r") as csvfile:
+    with open(file_path, "r") as csvfile:
         contents = csv.reader(csvfile, delimiter=",", quotechar='"')
         # convert the csv to a JSON object
         csv_content = {"header": [], "body": []}
@@ -219,6 +213,19 @@ async def stream_job_additional_details(job_id: str):
             else:
                 csv_content["body"].append(row)
     return csv_content
+
+
+@router.get("/{job_id}/get_figure_json")
+async def get_figure_path(job_id: str):
+    job = await db.job_get(job_id)
+    job_data = job["job_data"]
+    file_path = job_data.get("plot_data_path", None)
+
+    if file_path is None or not os.path.exists(file_path):
+        return Response("No plot data found for this evaluation", media_type="text/csv")
+
+    content = json.loads(open(file_path, "r").read())
+    return content
 
 
 @router.get("/{job_id}/get_generated_dataset")

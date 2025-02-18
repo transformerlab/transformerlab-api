@@ -4,7 +4,7 @@
     "description": "Evaluating outputs of LLMs using objective metrics",
     "plugin-format": "python",
     "type": "evaluator",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "git": "https://github.com/confident-ai/deepeval",
     "url": "https://github.com/confident-ai/deepeval",
     "files": [
@@ -15,7 +15,7 @@
     "_dataset_display_message": "Please upload a dataset file with columns: 'input', 'output', 'expected_output'. The context column is optional if using metrics which don't require it.",
     "setup-script": "setup.sh",
     "parameters": {
-        "tflabcustomui_tasks": {
+        "tasks": {
             "title": "Evaluation Metric",
             "type": "string",
             "enum": [
@@ -45,6 +45,9 @@
         "limit": {
             "ui:help": "Enter a fraction of samples to evaluate from your data. Set as 1 to get all samples",
             "ui:widget": "RangeWidget"
+        },
+        "tasks": {
+            "ui:widget": "AutoCompleteWidget"
         }
     }
 }

@@ -31,6 +31,7 @@ from fastchat.serve.model_worker import (
     logger,
     worker_id,
 )
+from fastchat.utils import is_partial_stop
 
 from transformers.tokenization_utils_base import BatchEncoding
 
@@ -41,7 +42,7 @@ worker = None
 
 class OllamaTokenizer:
     """
-    TODO: This is a total hack tokenizer just to get things to proceed.
+    This is a total hack tokenizer just to get things to proceed.
     It doesn't do tokenization!
     """
     def __init__(self, model):
@@ -61,12 +62,12 @@ class OllamaTokenizer:
         return batchEncoding
 
     def decode(self, tokens):
-        # TODO: This is fake code that does not detokenize. See above.
+        # This is fake code that does not detokenize. See above.
         #return self.model.detokenize(tokens)
         return [''.join(tokens)]
 
     def num_tokens(self, prompt):
-        # TODO: Also fake. This generates a totally fake approximate number.
+        # Also fake. This generates a totally fake approximate number.
         #tokens = self.model.tokenize(prompt)
         #return (len(tokens))
         return len(prompt)//4
@@ -187,7 +188,9 @@ class OllamaServer(BaseModelWorker):
         self.tokenizer = OllamaTokenizer(model=self.model)
 
         # Fastchat needs to know context length to check for context overflow
-        # TODO: No idea how to get/set this but the ollama default is 4096?
+        # TODO: No idea how to get this but the ollama default is 4096
+        # Apparently you can set via model file:
+        # https://github.com/transformerlab/transformerlab-app/issues/227
         self.context_len = 4096
 
         # For debugging: Output a bunch of model info
@@ -213,40 +216,34 @@ class OllamaServer(BaseModelWorker):
 
         # Generation parameters
         max_new_tokens = params.get("max_new_tokens", 256)
+        stop_str = params.get("stop", None)
         temperature = float(params.get("temperature", 1.0))
         top_p = float(params.get("top_p", 1.0))
+        frequency_penalty = float(params.get("frequency_penalty", 0.0))
 
-        # TODO: These parameters are ignored currently
-        #top_k = params.get("top_k", -1.0)
-        #presence_penalty = float(params.get("presence_penalty", 0.0))
-        #frequency_penalty = float(params.get("frequency_penalty", 0.0))
+        # These parameters don't seem to be in the UI
+        # top_k = params.get("top_k", -1.0)
+        # presence_penalty = float(params.get("presence_penalty", 0.0))
 
-        # TODO: We don't handle reading in stop strings
-        #stop_str = params.get("stop", None)
-        #stop_token_ids = params.get("stop_token_ids", None) or []
-
-        # TODO: Tokenizer setup might be needed after we add tokenizer
-        #if self.tokenizer.eos_token_id is not None:
-        #    stop_token_ids.append(self.tokenizer.eos_token_id)
-
-        # TODO: Do I need it?
-        # Handle stop_str
-        """
+        # Create a set out of our stop_str parameter
         stop = set()
         if isinstance(stop_str, str) and stop_str != "":
             stop.add(stop_str)
         elif isinstance(stop_str, list) and stop_str != []:
             stop.update(stop_str)
 
-        for tid in stop_token_ids:
-            if tid is not None:
-                print("Stop token: ", tid)
-                s = self.tokenizer.decode(tid)
-                if s != "":
-                    stop.add(s)
+        # If we add tokenizer we can add this in later
+        # Add stop tokens to set of stop strings
+        # stop_token_ids = params.get("stop_token_ids", None) or []
+        # if self.tokenizer.eos_token_id is not None:
+        #    stop_token_ids.append(self.tokenizer.eos_token_id)
+        # for tid in stop_token_ids:
+        #    if tid is not None:
+        #        s = self.tokenizer.decode(tid)
+        #        if s != "":
+        #            stop.add(s)
 
         print("Stop patterns: ", stop)
-        """
 
         # Make sure top_p is above some minimum
         # And set to 1.0 if temperature is effectively 0
@@ -254,8 +251,14 @@ class OllamaServer(BaseModelWorker):
         if temperature <= 1e-5:
             top_p = 1.0
 
-        # TODO: Add the parameters here
-        generation_params = None 
+        # Bundle together generation parameters
+        # TODO: Add num_gpu and figure out num_ctx?
+        # TODO: Add stop set so we don't have to manually check
+        generation_params = {
+            "top_p": top_p,
+            "temperature": temperature,
+            "frequency_penalty": frequency_penalty
+        }
 
         decoded_tokens = []
 
@@ -264,7 +267,6 @@ class OllamaServer(BaseModelWorker):
         finish_reason = "length"
 
         # TODO: Should this use generate?
-        # TODO: Pass in all of the parameters
         iterator = await run_in_threadpool(self.model.chat, 
                                            model=self.model_name,
                                            messages=[{'role': 'user', 'content': context}],
@@ -293,6 +295,13 @@ class OllamaServer(BaseModelWorker):
             decoded_token = response['message']['content']
             decoded_tokens.append(decoded_token)
             tokens_decoded_str = ''.join(decoded_tokens)
+
+            # Check for stop string
+            # Note that ollama can do this if we just pass stop to it correctly
+            partial_stop = any(is_partial_stop(tokens_decoded_str, i) for i in stop)
+            if partial_stop:
+                finish_reason = "stop"
+                break
 
             ret = {
                 "text": tokens_decoded_str,
@@ -324,11 +333,18 @@ class OllamaServer(BaseModelWorker):
     async def generate(self, params):
         prompt = params.pop("prompt")
 
-        # TODO: Get options and pass to generate
+        # TODO: Figure out what to do with max_tokens
         #max_tokens = params.get("max_new_tokens", 256)
-        #temperature = float(params.get("temperature", 1.0))
-        #top_p = float(params.get("top_p", 1.0))
-        params = None
+
+        # Setup parameters
+        temperature = float(params.get("temperature", 1.0))
+        top_p = float(params.get("top_p", 1.0))
+        frequency_penalty = float(params.get("frequency_penalty", 0.0))
+        params = {
+            "top_p": top_p,
+            "temperature": temperature,
+            "frequency_penalty": frequency_penalty
+        }
 
         print("Generating with params: ", params)
         thread = asyncio.to_thread(self.model.generate, 

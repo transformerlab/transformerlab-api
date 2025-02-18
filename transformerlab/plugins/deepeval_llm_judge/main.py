@@ -3,11 +3,10 @@ import importlib
 import os
 import sys
 import traceback
-import pandas as pd
 
 import instructor
+import pandas as pd
 import requests
-import transformerlab.plugin
 from anthropic import Anthropic
 from datasets import load_dataset
 from deepeval import evaluate
@@ -18,6 +17,8 @@ from deepeval.test_case import LLMTestCase, LLMTestCaseParams
 from langchain_openai import ChatOpenAI
 from openai import OpenAI
 from pydantic import BaseModel
+
+import transformerlab.plugin
 
 parser = argparse.ArgumentParser(description="Run DeepEval metrics for LLM-as-judge evaluation.")
 parser.add_argument("--run_name", default="test", type=str)
@@ -92,6 +93,16 @@ def get_output_file_path():
     p = os.path.join(experiment_dir, "evals", args.eval_name)
     os.makedirs(p, exist_ok=True)
     return os.path.join(p, f"detailed_output_{args.job_id}.csv")
+
+
+def get_plotting_data(metrics_df):
+    file_path = get_output_file_path()
+    file_path = file_path.replace(".csv", "_plotting.json")
+    metrics_data = metrics_df[["test_case_id", "metric_name", "score"]].copy()
+    metrics_data["metric_name"] = metrics_data["metric_name"].apply(lambda x: x.replace("_", " ").title())
+    metrics_data.to_json(file_path, orient="records", lines=False)
+
+    return file_path
 
 
 def get_metric_class(metric_name: str):
@@ -390,6 +401,7 @@ def run_evaluation():
         for test_case in output.test_results:
             for metric in test_case.metrics_data:
                 temp_report = {}
+                temp_report["test_case_id"] = test_case.name
                 temp_report["input"] = test_case.input
                 temp_report["actual_output"] = test_case.actual_output
                 temp_report["expected_output"] = test_case.expected_output
@@ -402,17 +414,23 @@ def run_evaluation():
         metrics_df = pd.DataFrame(additional_report)
         output_path = get_output_file_path()
         metrics_df.to_csv(output_path, index=False)
+        plot_data_path = get_plotting_data(metrics_df)
         for metric in metrics_df["metric_name"].unique():
             scores_list.append(
                 {"type": metric, "score": round(metrics_df[metrics_df["metric_name"] == metric]["score"].mean(), 4)}
             )
 
-        print(f"Metrics saved to {output_path}")
+        print(f"Detailed Report saved to {output_path}")
+        print(f"Metrics plot data saved to {plot_data_path}")
 
         job.update_progress(100)
         print("Evaluation completed successfully")
         job.set_job_completion_status(
-            "success", "Evaluation completed successfully", score=scores_list, additional_output_path=output_path
+            "success",
+            "Evaluation completed successfully",
+            score=scores_list,
+            additional_output_path=output_path,
+            plot_data_path=plot_data_path,
         )
 
     except Exception as e:

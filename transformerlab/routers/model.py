@@ -564,7 +564,7 @@ async def models_list_local_uninstalled(path: str = ""):
     # Then iterate through models and return appropriate details
     response_models = []
     for found_model in found_models:
-        # Figure out if this model is supported in TransformerLab
+        # Figure out if this model is supported in Transformer Lab
         architecture = found_model.json_data.get("architecture", "unknown")
         supported = model_helper.model_architecture_is_supported(architecture)
         if found_model.status != "OK":
@@ -624,7 +624,7 @@ async def model_import_local_source(model_source: str, model_id: str):
 async def model_import_local_path(model_path: str):
     """
     Given model_path pointing to a local directory of a file,
-    try to import a model into TransformerLab.
+    try to import a model into Transformer Lab.
     """
 
     if os.path.isdir(model_path):

@@ -36,6 +36,7 @@ parser.add_argument("--generation_model", default="claude-3.5-sonnet", type=str)
 parser.add_argument("--generation_type", default="scratch", type=str, help="Type of generation: scratch, context, docs")
 parser.add_argument("--num_goldens", default=5, type=int)
 parser.add_argument("--evolution_config", default=None, type=str)
+parser.add_argument("--generate_expected_output", default="Yes", type=str)
 parser.add_argument("--docs", default=None, type=str)
 parser.add_argument("--context", default=None, type=str)
 parser.add_argument("--input_format", default=None, type=str)
@@ -172,6 +173,19 @@ class CustomCommercialModel(DeepEvalBaseLLM):
         )
         return resp
 
+    def generate_without_instructor(self, prompt: str):
+        client = self.load_model()
+        response = client.chat.completions.create(
+            model=self.model_name,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+        )
+        return response.choices[0].message.content
+
     async def a_generate(self, prompt: str, schema: BaseModel) -> BaseModel:
         return self.generate(prompt, schema)
 
@@ -290,6 +304,22 @@ def generate_tflab_dataset(output_file_path: str):
         sys.exit(1)
 
 
+def generate_expected_outputs(input_values, styling_config):
+    """Generate expected config by providing prompts to the LLM"""
+    expected_outputs = []
+    for i, input_val in enumerate(input_values):
+        prompt = f"""Given a task, scenario and expected input as well as output formats, generate the output for a given input.
+                \n\nTask: {styling_config["task"]}
+                \n\nScenario: {styling_config["scenario"]}
+                \n\nExpected Output Format: {styling_config["scenario"]}
+                \n\nExpected Input Format: {styling_config["input_format"]}
+                \n\n Generate the output for the following input: {input_val}.
+                \n Output: """
+        expected_output = trlab_model.generate_without_instructor(prompt)
+        expected_outputs.append(expected_output)
+    return expected_outputs
+
+
 def run_generation():
     try:
         # Check if the styling config and evolution config are provided
@@ -311,7 +341,10 @@ def run_generation():
             evolution_config = None
 
         df = scratch_generation(styling_config, evolution_config)
-
+        if args.generate_expected_output.lower() == "yes":
+            input_values = df["input"].tolist()
+            expected_outputs = generate_expected_outputs(input_values, styling_config)
+            df["expected_output"] = expected_outputs
         # Rename the column `actual_output` to `output` for consistency
         df.rename(columns={"actual_output": "output"}, inplace=True)
         print("Data generated successfully")
@@ -332,7 +365,7 @@ def run_generation():
         print(f"Saving data json to {output_file}")
         df.to_json(output_file, orient="records", lines=False)
         job.update_progress(90)
-        print("Mounting the dataset to the TransformerLab workspace...")
+        print("Mounting the dataset to the Transformer Lab workspace...")
         generate_tflab_dataset(output_file)
 
     except Exception as e:

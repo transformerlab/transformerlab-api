@@ -84,6 +84,16 @@ def get_output_file_path():
     return os.path.join(p, f"detailed_output_{args.job_id}.csv")
 
 
+def get_plotting_data(metrics_df):
+    file_path = get_output_file_path()
+    file_path = file_path.replace(".csv", "_plotting.json")
+    metrics_data = metrics_df[["test_case_id", "metric_name", "score"]].copy()
+    metrics_data["metric_name"] = metrics_data["metric_name"].apply(lambda x: x.replace("_", " ").title())
+    metrics_data.to_json(file_path, orient="records", lines=False)
+
+    return file_path
+
+
 class RougeMetric(BaseMetric):
     def __init__(self, threshold: float = 0.5, score_type: str = "rouge1"):
         self.threshold = threshold
@@ -311,11 +321,12 @@ def run_evaluation():
         metrics = []
         for metric_name in args.tasks:
             metric = metric_classes[metric_name]()
-            for test_case in test_cases:
+            for idx, test_case in enumerate(test_cases):
                 score = metric.measure(test_case)
                 if metric_name == "bert_score":
                     metrics.append(
                         {
+                            "test_case_id": f"test_case_{idx}",
                             "metric_name": metric_name,
                             "score": score["bert-f1"],
                             "bert_precision": score["bert-precision"],
@@ -329,6 +340,7 @@ def run_evaluation():
                 else:
                     metrics.append(
                         {
+                            "test_case_id": f"test_case_{idx}",
                             "metric_name": metric_name,
                             "score": score,
                             "input": test_case.input,
@@ -342,6 +354,7 @@ def run_evaluation():
         output_path = get_output_file_path()
         metrics_df.to_csv(output_path, index=False)
         job.update_progress(80)
+        plot_data_path = get_plotting_data(metrics_df)
         print_fancy_df(metrics_df)
 
         for idx, metric in enumerate(args.tasks):
@@ -349,6 +362,7 @@ def run_evaluation():
                 f"Average {original_metric_names[idx]} score: {metrics_df[metrics_df['metric_name'] == metric]['score'].mean()}"
             )
         print(f"Metrics saved to {output_path}")
+        print(f"Plotting data saved to {plot_data_path}")
         print("Evaluation completed.")
         job.update_progress(100)
         score_list = []
@@ -357,7 +371,11 @@ def run_evaluation():
                 {"type": metric, "score": round(metrics_df[metrics_df["metric_name"] == metric]["score"].mean(), 4)}
             )
         job.set_job_completion_status(
-            "success", "Evaluation completed successfully.", score=score_list, additional_output_path=output_path
+            "success",
+            "Evaluation completed successfully.",
+            score=score_list,
+            additional_output_path=output_path,
+            plot_data_path=plot_data_path,
         )
     except Exception as e:
         print("Error occurred while running the evaluation.")

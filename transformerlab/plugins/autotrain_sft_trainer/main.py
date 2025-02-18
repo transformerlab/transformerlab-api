@@ -202,7 +202,7 @@ except Exception as e:
     print(f"Failed to delete unnecessary data: {e}")
     # No exception raised here or stats set, as this data just gets ignored later
 
-# Move the model to the TransformerLab directory
+# Move the model to the Transformer Lab directory
 try:
     os.system(f"mv {project_name} {config['adaptor_output_dir']}/")
 except Exception as e:
