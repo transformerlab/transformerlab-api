@@ -61,6 +61,11 @@ question_formatting_template = config.get("input_template","")
 answer_formatting_template = config.get("output_template","")
 system_prompt = config.get("instruction_template","")
 
+start_thinking_string = config.get("start_thinking_string","<reasoning>")
+end_thinking_string = config.get("end_thinking_string","</reasoning>")
+start_answer_string = config.get("start_answer_string","<answer>")
+end_answer_string = config.get("end_answer_string","</answer>")
+
 output_dir: str = config["output_dir"]
 JOB_ID = config["job_id"]
 
@@ -101,52 +106,34 @@ dataset = dataset.map(lambda x: {
         {'role': 'system', 'content': system_prompt},
         {'role': 'user', 'content': format_instruction(question_template, x)}
     ],
+    #most gsm8k datasets have the answer after 4 hashes, so I have this split here
     'answer' : format_instruction(answer_template, x).split("#### ")[-1] 
 })
 
-def extract_xml_answer(text: str) -> str:
-    answer = text.split("<answer>")[-1]
-    answer = answer.split("</answer>")[0]
+def extract_answer(text: str) -> str:
+    answer = text.split(f"{start_answer_string}")[-1]
+    answer = answer.split(f"{end_answer_string}")[0]
     return answer.strip()
 
 # Reward functions
 def correctness_reward_func(prompts, completions, answer, **kwargs) -> list[float]:
     responses = [completion[0]['content'] for completion in completions]
     q = prompts[0][-1]['content']
-    extracted_responses = [extract_xml_answer(r) for r in responses]
+    extracted_responses = [extract_answer(r) for r in responses]
     return [2.0 if r == a else 0.0 for r, a in zip(extracted_responses, answer)]
-
-def int_reward_func(completions, **kwargs) -> list[float]:
-    responses = [completion[0]['content'] for completion in completions]
-    extracted_responses = [extract_xml_answer(r) for r in responses]
-    return [0.5 if r.isdigit() else 0.0 for r in extracted_responses]
-
-def strict_format_reward_func(completions, **kwargs) -> list[float]:
-    """Reward function that checks if the completion has a specific format."""
-    pattern = r"^<reasoning>\n.*?\n</reasoning>\n<answer>\n.*?\n</answer>\n$"
-    responses = [completion[0]["content"] for completion in completions]
-    matches = [re.match(pattern, r) for r in responses]
-    return [0.5 if match else 0.0 for match in matches]
-
-def soft_format_reward_func(completions, **kwargs) -> list[float]:
-    """Reward function that checks if the completion has a specific format."""
-    pattern = r"<reasoning>.*?</reasoning>\s*<answer>.*?</answer>"
-    responses = [completion[0]["content"] for completion in completions]
-    matches = [re.match(pattern, r) for r in responses]
-    return [0.5 if match else 0.0 for match in matches]
 
 def count_xml(text) -> float:
     count = 0.0
-    if text.count("<reasoning>\n") == 1:
+    if text.count(f"{start_thinking_string}\n") == 1:
         count += 0.125
-    if text.count("\n</reasoning>\n") == 1:
+    if text.count(f"\n{end_thinking_string}\n") == 1:
         count += 0.125
-    if text.count("\n<answer>\n") == 1:
+    if text.count(f"\n{start_answer_string}\n") == 1:
         count += 0.125
-        count -= len(text.split("\n</answer>\n")[-1])*0.001
-    if text.count("\n</answer>") == 1:
+        count -= len(text.split(f"\n{end_answer_string}\n")[-1])*0.001
+    if text.count(f"\n{end_answer_string}") == 1:
         count += 0.125
-        count -= (len(text.split("\n</answer>")[-1]) - 1)*0.001
+        count -= (len(text.split(f"\n{end_answer_string}")[-1]) - 1)*0.001
     return count
 
 def xmlcount_reward_func(completions, **kwargs) -> list[float]:
@@ -249,9 +236,6 @@ trainer = GRPOTrainer(
     tokenizer=tokenizer,
     reward_funcs = [
         xmlcount_reward_func,
-        soft_format_reward_func,
-        strict_format_reward_func,
-        int_reward_func,
         correctness_reward_func,
     ],
     args=args,
