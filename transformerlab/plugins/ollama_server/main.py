@@ -380,6 +380,17 @@ class OllamaServer(BaseModelWorker):
         }
         return ret
 
+    def stop_server(self):
+        """
+        Called by cleanup_at_exit.
+        """
+        # You can unload a model by not passing a prompt to generate
+        # and setting keep_alive to 0
+        self.model.generate(
+            model=self.model_name,
+            keep_alive=0
+        )
+
 
 def release_worker_semaphore():
     worker.semaphore.release()
@@ -451,6 +462,7 @@ async def api_model_details(request: Request):
 def cleanup_at_exit():
     global worker
     print("Cleaning up...")
+    worker.stop_server()
     del worker
 
 
