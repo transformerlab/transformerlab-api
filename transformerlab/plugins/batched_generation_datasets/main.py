@@ -13,19 +13,20 @@ from deepeval.models.base_model import DeepEvalBaseLLM
 from langchain_openai import ChatOpenAI
 from openai import OpenAI
 from pydantic import BaseModel
-from tqdm import tqdm
 from langchain.schema import SystemMessage, HumanMessage
 
 from requests_batching import process_dataset
 
 
-parser = argparse.ArgumentParser(description="Run Synthesizer for generating data.")
+parser = argparse.ArgumentParser(
+    description="Run Synthesizer for generating data.")
 parser.add_argument(
     "--run_name",
     default="test",
     type=str,
 )
-parser.add_argument("--model_name", default="gpt-j-6b", type=str, help="Model to use for evaluation.")
+parser.add_argument("--model_name", default="gpt-j-6b",
+                    type=str, help="Model to use for evaluation.")
 parser.add_argument("--dataset_name", default="test", type=str)
 parser.add_argument(
     "--model_adapter",
@@ -67,22 +68,26 @@ def fetch_dataset():
         sys.exit(1)
     try:
         params = {"dataset_id": args.dataset_name, "split": args.dataset_split}
-        response = requests.get("http://localhost:8338/data/get", params=params)
+        response = requests.get(
+            "http://localhost:8338/data/get", params=params)
         if response.status_code != 200:
             print(f"Error fetching the dataset: {response.json()}")
-            job.set_job_completion_status("failed", f"Error fetching the dataset: {response.json()}")
+            job.set_job_completion_status(
+                "failed", f"Error fetching the dataset: {response.json()}")
             sys.exit(1)
         else:
             df = pd.DataFrame(response.json()["data"]["columns"])
             file_location = response.json()["data"]["file_location"]
             if file_location is None or not os.path.exists(file_location):
                 file_location = os.path.join(
-                    os.environ.get("_TFL_WORKSPACE_DIR"), "datasets", args.dataset_name + "_with_outputs"
+                    os.environ.get(
+                        "_TFL_WORKSPACE_DIR"), "datasets", args.dataset_name + "_with_outputs"
                 )
             return df, file_location
     except Exception as e:
         print(f"An error occurred while fetching the dataset: {e}")
-        job.set_job_completion_status("failed", f"An error occurred while fetching the dataset: {e}")
+        job.set_job_completion_status(
+            "failed", f"An error occurred while fetching the dataset: {e}")
         sys.exit(1)
 
 
@@ -137,14 +142,16 @@ class CustomCommercialModel(DeepEvalBaseLLM):
         if model_type == "claude":
             if os.environ.get("ANTHROPIC_API_KEY") is None:
                 print("Please set the Anthropic API Key from Settings.")
-                job.set_job_completion_status("failed", "Please set the Anthropic API Key from Settings.")
+                job.set_job_completion_status(
+                    "failed", "Please set the Anthropic API Key from Settings.")
                 sys.exit(1)
             self.model = Anthropic()
 
         elif model_type == "openai":
             if os.environ.get("OPENAI_API_KEY") is None:
                 print("Please set the OpenAI API Key from Settings.")
-                job.set_job_completion_status("failed", "Please set the OpenAI API Key from Settings.")
+                job.set_job_completion_status(
+                    "failed", "Please set the OpenAI API Key from Settings.")
                 sys.exit(1)
             self.model = OpenAI()
 
@@ -198,7 +205,8 @@ class CustomCommercialModel(DeepEvalBaseLLM):
             else "https://api.anthropic.com/v1/chat/completions"
         )
         api_key = (
-            os.environ.get("OPENAI_API_KEY") if self.model_type == "openai" else os.environ.get("ANTHROPIC_API_KEY")
+            os.environ.get("OPENAI_API_KEY") if self.model_type == "openai" else os.environ.get(
+                "ANTHROPIC_API_KEY")
         )
         updated_df = await process_dataset(
             df,
@@ -219,9 +227,11 @@ class CustomCommercialModel(DeepEvalBaseLLM):
 try:
     if "local" not in args.generation_model.lower():
         if "openai" in args.generation_model.lower():
-            trlab_model = CustomCommercialModel("openai", args.generation_model)
+            trlab_model = CustomCommercialModel(
+                "openai", args.generation_model)
         else:
-            trlab_model = CustomCommercialModel("claude", args.generation_model)
+            trlab_model = CustomCommercialModel(
+                "claude", args.generation_model)
     else:
         check_local_server()
         custom_model = ChatOpenAI(
@@ -233,7 +243,8 @@ try:
 
 except Exception as e:
     print(f"An error occurred while loading the model: {e}")
-    job.set_job_completion_status("failed", "An error occurred while loading the model")
+    job.set_job_completion_status(
+        "failed", "An error occurred while loading the model")
     sys.exit(1)
 
 print("Model loaded successfully")
@@ -262,7 +273,8 @@ async def run_batched_generation():
         print("Batched generation completed successfully")
         job.update_progress(99)
         # List all files in the directory file_location ending with .json
-        json_files = [f for f in os.listdir(file_location) if f.endswith(".json")]
+        json_files = [f for f in os.listdir(
+            file_location) if f.endswith(".json")]
         # Iterate over the list of json files
         for json_file in json_files:
             # Get the full path of the file
@@ -270,7 +282,8 @@ async def run_batched_generation():
             # Delete the file
             os.remove(file_path)
         print("Replacing the old dataset with the new one having outputs...")
-        file_name = os.path.join(file_location, args.dataset_name + "_" + args.job_id + "_with_outputs.json")
+        file_name = os.path.join(
+            file_location, args.dataset_name + "_" + args.job_id + "_with_outputs.json")
 
         df.to_json(file_name, orient="records", lines=False)
         job.update_progress(100)
@@ -281,7 +294,8 @@ async def run_batched_generation():
         print("Updated the dataset successfully")
     except Exception as e:
         print(f"An error occurred while running batched generation: {e}")
-        job.set_job_completion_status("failed", f"An error occurred while running batched generation: {e}")
+        job.set_job_completion_status(
+            "failed", f"An error occurred while running batched generation: {e}")
         sys.exit(1)
 
 
