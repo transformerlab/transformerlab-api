@@ -165,7 +165,7 @@ async def check_model(request) -> Optional[JSONResponse]:
             models = models_ret.json()["models"]
             if request.adaptor is not None and request.adaptor != "" and request.adaptor in models:
                 try:
-                    model_name = request.model.split("/")[-1]
+                    model_name = request.adaptor.split("/")[-1]
                     _worker_addr = await get_worker_address(model_name, client)
                     ret = {"model_name": model_name}
                 except ValueError:
