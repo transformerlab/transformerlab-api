@@ -32,11 +32,11 @@
             "title": "System Prompt",
             "type": "string"
         },
-        "input_col": {
+        "input_column": {
             "title": "Input Column",
             "type": "string"
         },
-        "output_col": {
+        "output_column": {
             "title": "Output Column",
             "type": "string"
         },

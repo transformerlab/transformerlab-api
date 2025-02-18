@@ -13,14 +13,18 @@ from langchain_openai import ChatOpenAI
 from openai import OpenAI
 from pydantic import BaseModel
 from tqdm import tqdm
+from langchain.schema import SystemMessage, HumanMessage
 
-parser = argparse.ArgumentParser(description="Run Synthesizer for generating data.")
+
+parser = argparse.ArgumentParser(
+    description="Run Synthesizer for generating data.")
 parser.add_argument(
     "--run_name",
     default="test",
     type=str,
 )
-parser.add_argument("--model_name", default="gpt-j-6b", type=str, help="Model to use for evaluation.")
+parser.add_argument("--model_name", default="gpt-j-6b",
+                    type=str, help="Model to use for evaluation.")
 parser.add_argument("--dataset_name", default="test", type=str)
 parser.add_argument(
     "--model_adapter",
@@ -29,8 +33,8 @@ parser.add_argument(
 )
 parser.add_argument("--dataset_split", default="train", type=str)
 parser.add_argument("--generation_model", default="Local", type=str)
-parser.add_argument("--input_col", default=None, type=str)
-parser.add_argument("--output_col", default=None, type=str)
+parser.add_argument("--input_column", default=None, type=str)
+parser.add_argument("--output_column", default=None, type=str)
 parser.add_argument("--experiment_name", default="test", type=str)
 parser.add_argument("--job_id", default=None, type=str)
 parser.add_argument("--system_prompt", default=None, type=str)
@@ -62,22 +66,26 @@ def fetch_dataset():
         sys.exit(1)
     try:
         params = {"dataset_id": args.dataset_name, "split": args.dataset_split}
-        response = requests.get("http://localhost:8338/data/get", params=params)
+        response = requests.get(
+            "http://localhost:8338/data/get", params=params)
         if response.status_code != 200:
             print(f"Error fetching the dataset: {response.json()}")
-            job.set_job_completion_status("failed", f"Error fetching the dataset: {response.json()}")
+            job.set_job_completion_status(
+                "failed", f"Error fetching the dataset: {response.json()}")
             sys.exit(1)
         else:
             df = pd.DataFrame(response.json()["data"]["columns"])
             file_location = response.json()["data"]["file_location"]
             if file_location is None or not os.path.exists(file_location):
                 file_location = os.path.join(
-                    os.environ.get("_TFL_WORKSPACE_DIR"), "datasets", args.dataset_name + "_with_outputs"
+                    os.environ.get(
+                        "_TFL_WORKSPACE_DIR"), "datasets", args.dataset_name + "_with_outputs"
                 )
             return df, file_location
     except Exception as e:
         print(f"An error occurred while fetching the dataset: {e}")
-        job.set_job_completion_status("failed", f"An error occurred while fetching the dataset: {e}")
+        job.set_job_completion_status(
+            "failed", f"An error occurred while fetching the dataset: {e}")
         sys.exit(1)
 
 
@@ -92,6 +100,17 @@ class TRLAB_MODEL(DeepEvalBaseLLM):
     def generate(self, prompt: str) -> str:
         chat_model = self.load_model()
         return chat_model.invoke(prompt).content
+
+    def generate_without_instructor(self, messages: List[dict]) -> BaseModel:
+        chat_model = self.load_model()
+        modified_messages = []
+        for message in messages:
+            if message["role"] == "system":
+                modified_messages.append(SystemMessage(**message))
+            else:
+                modified_messages.append(HumanMessage(**message
+                                                      ))
+        return chat_model.invoke(modified_messages).content
 
     async def a_generate(self, prompt: str) -> str:
         chat_model = self.load_model()
@@ -109,14 +128,16 @@ class CustomCommercialModel(DeepEvalBaseLLM):
         if model_type == "claude":
             if os.environ.get("ANTHROPIC_API_KEY") is None:
                 print("Please set the Anthropic API Key from Settings.")
-                job.set_job_completion_status("failed", "Please set the Anthropic API Key from Settings.")
+                job.set_job_completion_status(
+                    "failed", "Please set the Anthropic API Key from Settings.")
                 sys.exit(1)
             self.model = Anthropic()
 
         elif model_type == "openai":
             if os.environ.get("OPENAI_API_KEY") is None:
                 print("Please set the OpenAI API Key from Settings.")
-                job.set_job_completion_status("failed", "Please set the OpenAI API Key from Settings.")
+                job.set_job_completion_status(
+                    "failed", "Please set the OpenAI API Key from Settings.")
                 sys.exit(1)
             self.model = OpenAI()
 
@@ -170,9 +191,11 @@ class CustomCommercialModel(DeepEvalBaseLLM):
 try:
     if "local" not in args.generation_model.lower():
         if "openai" in args.generation_model.lower():
-            trlab_model = CustomCommercialModel("openai", args.generation_model)
+            trlab_model = CustomCommercialModel(
+                "openai", args.generation_model)
         else:
-            trlab_model = CustomCommercialModel("claude", args.generation_model)
+            trlab_model = CustomCommercialModel(
+                "claude", args.generation_model)
     else:
         check_local_server()
         custom_model = ChatOpenAI(
@@ -184,65 +207,52 @@ try:
 
 except Exception as e:
     print(f"An error occurred while loading the model: {e}")
-    job.set_job_completion_status("failed", "An error occurred while loading the model")
+    job.set_job_completion_status(
+        "failed", "An error occurred while loading the model")
     sys.exit(1)
 
 print("Model loaded successfully")
 job.update_progress(0.5)
 
 
-def update_tflab_dataset(output_file_path: str):
-    try:
-        api_url = "http://localhost:8338/"
-        # Create a new dataset
-        params = {"dataset_id": args.dataset_name, "generated": True}
-        # response = requests.get(api_url + "data/new", params=params)
-        # if response.status_code != 200:
-        #     print(f"Error creating a new dataset: {response.json()}")
-        #     job.set_job_completion_status(
-        #         "failed", f"Error creating a new dataset: {response.json()}")
-        #     sys.exit(1)
-        job.update_progress(95)
-        with open(output_file_path, "rb") as json_file:
-            files = {"files": json_file}
-            response = requests.post(api_url + "data/fileupload", params=params, files=files)
-        if response.status_code != 200:
-            print(f"Error uploading the dataset: {response.json()}")
-            job.set_job_completion_status("failed", f"Error uploading the dataset: {response.json()}")
-            sys.exit(1)
-        else:
-            print("Dataset uploaded successfully")
-            job.update_progress(100)
-            job.set_job_completion_status(
-                "success",
-                f"Data generated successfully as dataset {args.run_name}",
-                additional_output_path=output_file_path,
-            )
-    except Exception as e:
-        print(f"An error occurred while generating data: {e}")
-        job.set_job_completion_status("failed", f"An error occurred while generating data: {e}")
-        sys.exit(1)
-
-
 def run_batched_generation():
     try:
         check_local_server()
         df, file_location = fetch_dataset()
+        responses = []
         for index, row in tqdm(df.iterrows()):
             messages = []
             if args.system_prompt:
-                messages.append({"role": "system", "content": args.system_prompt})
-            messages.append({"role": "user", "content": row[args.input_column]})
-            response = trlab_model.generate_without_instructor(messages=messages)
-            df.loc[index, args.output_column] = response
+                messages.append(
+                    {"role": "system", "content": args.system_prompt})
+            messages.append(
+                {"role": "user", "content": row[args.input_column]})
+            response = trlab_model.generate_without_instructor(
+                messages=messages)
+            print("RESPONSE", response)
+            responses.append(response)
+
+        df[args.output_column] = responses
         # List all files in the directory file_location ending with .json
-        file_name = f"{args.dataset_name}_{args.job_id}"
+        json_files = [
+            f for f in os.listdir(file_location) if f.endswith(".json")]
+        # Iterate over the list of json files
+        for json_file in json_files:
+            # Get the full path of the file
+            file_path = os.path.join(file_location, json_file)
+            # Delete the file
+            os.remove(file_path)
+        print("Replacing the old dataset with the new one having outputs...")
+        file_name = os.path.join(
+            file_location, args.dataset_name + "_" + args.job_id + "_with_outputs.json")
+
         df.to_json(file_name, orient="records", lines=False)
-        update_tflab_dataset(file_name)
+
         print("Updated the dataset successfully")
     except Exception as e:
         print(f"An error occurred while running batched generation: {e}")
-        job.set_job_completion_status("failed", f"An error occurred while running batched generation: {e}")
+        job.set_job_completion_status(
+            "failed", f"An error occurred while running batched generation: {e}")
         sys.exit(1)
 
 
