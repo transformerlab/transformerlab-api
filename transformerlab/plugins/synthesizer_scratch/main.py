@@ -32,7 +32,7 @@ parser.add_argument(
     default=None,
     type=str,
 )
-parser.add_argument("--generation_model", default="claude-3.5-sonnet", type=str)
+parser.add_argument("--generation_model", default="claude-3-5-sonnet", type=str)
 parser.add_argument("--generation_type", default="scratch", type=str, help="Type of generation: scratch, context, docs")
 parser.add_argument("--num_goldens", default=5, type=int)
 parser.add_argument("--evolution_config", default=None, type=str)
@@ -146,8 +146,8 @@ class CustomCommercialModel(DeepEvalBaseLLM):
 
     def set_model_name(self, model_name):
         dic = {
-            "Claude 3.5 Sonnet": "claude-3.5-sonnet-latest",
-            "Claude 3.5 Haiku": "claude-3.5-haiku-latest",
+            "Claude 3.5 Sonnet": "claude-3-5-sonnet-latest",
+            "Claude 3.5 Haiku": "claude-3-5-haiku-latest",
             "OpenAI GPT 4o": "gpt-4o",
             "OpenAI GPT 4o Mini": "gpt-4o-mini",
         }

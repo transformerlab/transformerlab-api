@@ -144,8 +144,8 @@ class CustomCommercialModel(DeepEvalBaseLLM):
 
     def set_model_name(self, model_name):
         dic = {
-            "Claude 3.5 Sonnet": "claude-3.5-sonnet-latest",
-            "Claude 3.5 Haiku": "claude-3.5-haiku-latest",
+            "Claude 3.5 Sonnet": "claude-3-5-sonnet-latest",
+            "Claude 3.5 Haiku": "claude-3-5-haiku-latest",
             "OpenAI GPT 4o": "gpt-4o",
             "OpenAI GPT 4o Mini": "gpt-4o-mini",
         }
