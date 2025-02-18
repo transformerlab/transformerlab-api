@@ -54,6 +54,7 @@ from fastchat.protocol.openai_api_protocol import (
 
 class APIChatCompletionRequest(BaseModel):
     model: str
+    adaptor: Optional[str] = ""
     messages: Union[str, List[Dict[str, str]], List[List[Dict[str, str]]]]
     temperature: Optional[float] = 0.7
     top_p: Optional[float] = 1.0
@@ -71,6 +72,7 @@ class APIChatCompletionRequest(BaseModel):
 
 class ChatCompletionRequest(BaseModel):
     model: str
+    adaptor: Optional[str] = ""
     messages: Union[
         str,
         List[Dict[str, str]],
@@ -87,6 +89,10 @@ class ChatCompletionRequest(BaseModel):
     frequency_penalty: Optional[float] = 0.0
     user: Optional[str] = None
     logprobs: Optional[bool] = False
+
+
+class ModifiedCompletionRequest(CompletionRequest):
+    adaptor: Optional[str] = ""
 
 
 try:
@@ -157,10 +163,22 @@ async def check_model(request) -> Optional[JSONResponse]:
         except ValueError:
             models_ret = await client.post(controller_address + "/list_models")
             models = models_ret.json()["models"]
-            ret = create_error_response(
-                ErrorCode.INVALID_MODEL,
-                f"Expected model: {'&&'.join(models)}. Your model: {request.model}",
-            )
+            if request.adaptor is not None and request.adaptor != "" and request.adaptor in models:
+                try:
+                    model_name = request.model.split("/")[-1]
+                    _worker_addr = await get_worker_address(model_name, client)
+                    ret = {"model_name": model_name}
+                except ValueError:
+                    ret = create_error_response(
+                        ErrorCode.INVALID_MODEL,
+                        f"Model {request.model} or Adaptor {request.adaptor} not found. Available models: {'&&'.join(models)}",
+                    )
+
+            else:
+                ret = create_error_response(
+                    ErrorCode.INVALID_MODEL,
+                    f"Expected model: {'&&'.join(models)}. Your model: {request.model}",
+                )
     return ret
 
 
@@ -417,7 +435,11 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
     """Creates a completion for the chat message"""
     error_check_ret = await check_model(request)
     if error_check_ret is not None:
-        return error_check_ret
+        if isinstance(error_check_ret, JSONResponse):
+            return error_check_ret
+        elif isinstance(error_check_ret, dict) and "model_name" in error_check_ret.keys():
+            request.model = error_check_ret["model_name"]
+
     error_check_ret = check_requests(request)
     if error_check_ret is not None:
         return error_check_ret
@@ -544,10 +566,14 @@ async def chat_completion_stream_generator(
 
 
 @router.post("/v1/completions", dependencies=[Depends(check_api_key)], tags=["chat"])
-async def create_completion(request: CompletionRequest):
+async def create_completion(request: ModifiedCompletionRequest):
     error_check_ret = await check_model(request)
     if error_check_ret is not None:
-        return error_check_ret
+        if isinstance(error_check_ret, JSONResponse):
+            return error_check_ret
+        elif isinstance(error_check_ret, dict) and "model_name" in error_check_ret.keys():
+            request.model = error_check_ret["model_name"]
+
     error_check_ret = check_requests(request)
     if error_check_ret is not None:
         return error_check_ret
@@ -710,7 +736,7 @@ def convert_group_of_logprobs_to_openai_format(logprobs: List[Dict[str, Any]]) -
     return openai_format
 
 
-async def generate_completion_stream_generator(request: CompletionRequest, n: int):
+async def generate_completion_stream_generator(request: ModifiedCompletionRequest, n: int):
     model_name = request.model
     id = f"cmpl-{shortuuid.random()}"
     finish_stream_events = []
@@ -861,7 +887,10 @@ async def create_embeddings(request: EmbeddingsRequest, model_name: str = None):
         request.model = model_name
     error_check_ret = await check_model(request)
     if error_check_ret is not None:
-        return error_check_ret
+        if isinstance(error_check_ret, JSONResponse):
+            return error_check_ret
+        elif isinstance(error_check_ret, dict) and "model_name" in error_check_ret.keys():
+            request.model = error_check_ret["model_name"]
 
     request.input = process_input(request.model, request.input)
 
@@ -961,7 +990,10 @@ async def create_chat_completion(request: APIChatCompletionRequest):
     """Creates a completion for the chat message"""
     error_check_ret = await check_model(request)
     if error_check_ret is not None:
-        return error_check_ret
+        if isinstance(error_check_ret, JSONResponse):
+            return error_check_ret
+        elif isinstance(error_check_ret, dict) and "model_name" in error_check_ret.keys():
+            request.model = error_check_ret["model_name"]
     error_check_ret = check_requests(request)
     if error_check_ret is not None:
         return error_check_ret
@@ -1020,7 +1052,10 @@ async def create_chat_completion(request: APIChatCompletionRequest):
 async def count_chat_tokens(request: ChatCompletionRequest):
     error_check_ret = await check_model(request)
     if error_check_ret is not None:
-        return error_check_ret
+        if isinstance(error_check_ret, JSONResponse):
+            return error_check_ret
+        elif isinstance(error_check_ret, dict) and "model_name" in error_check_ret.keys():
+            request.model = error_check_ret["model_name"]
     error_check_ret = check_requests(request)
     if error_check_ret is not None:
         return error_check_ret
