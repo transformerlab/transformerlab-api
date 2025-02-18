@@ -1,0 +1,68 @@
+{
+    
+    "name": "Batched Output Generation for Synthetic Dataset",
+    "uniqueId": "batched_generation_datasets",
+    "description": "Use a local or commercial LLM to generated outputs for the dataset generated.",
+    "plugin-format": "python",
+    "type": "generator",
+    "version": "0.1.0",
+    "git": "",
+    "url": "",
+    "files": [
+        "main.py",
+        "setup.sh"
+    ],
+    "_dataset": true,
+    "_dataset_display_message": "Choose your generated dataset",
+    "setup-script": "setup.sh",
+    "parameters": {
+        "generation_model": {
+            "title": "Generation Model (Model to be used for Generation. Select `local` to use the local model running)",
+            "type": "string",
+            "enum": [
+                "Local",
+                "Claude 3.5 Haiku",
+                "Claude 3.5 Sonnet",
+                "OpenAI GPT 4o",
+                "OpenAI GPT 4o Mini"
+
+            ],
+            "default": "Local"
+        },
+        "system_prompt": {
+            "title": "System Prompt",
+            "type": "string"
+        },
+        "input_col": {
+            "title": "Input Column",
+            "type": "string"
+        },
+        "output_col": {
+            "title": "Output Column",
+            "type": "string"
+        },
+        "batch_size": {
+            "title": "Batch Size",
+            "type": "integer",
+            "default": 128
+        }
+        
+    },
+    "parameters_ui": {
+        "generation_model": {
+            "ui:help": "Select the model to be used for generation from the drop-down list"
+        },
+        "input_col": {
+            "ui:help": "Select the column from the dataset to be used as input for generation"
+        },
+        "output_col": {
+            "ui:help": "Select the column from the dataset to be used as output for generation"
+        },
+        "batch_size": {
+            "ui:help": "Select the batch size for sending the data to the model for generation"
+        },
+        "system_prompt": {
+            "ui:help": "Enter the system prompt to be used for generation",
+        }
+    }
+}

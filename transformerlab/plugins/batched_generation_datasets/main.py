@@ -1,0 +1,251 @@
+import argparse
+import os
+import sys
+from typing import List
+
+import instructor
+import pandas as pd
+import requests
+import transformerlab.plugin
+from anthropic import Anthropic
+from deepeval.models.base_model import DeepEvalBaseLLM
+from langchain_openai import ChatOpenAI
+from openai import OpenAI
+from pydantic import BaseModel
+from tqdm import tqdm
+
+parser = argparse.ArgumentParser(description="Run Synthesizer for generating data.")
+parser.add_argument(
+    "--run_name",
+    default="test",
+    type=str,
+)
+parser.add_argument("--model_name", default="gpt-j-6b", type=str, help="Model to use for evaluation.")
+parser.add_argument("--dataset_name", default="test", type=str)
+parser.add_argument(
+    "--model_adapter",
+    default=None,
+    type=str,
+)
+parser.add_argument("--dataset_split", default="train", type=str)
+parser.add_argument("--generation_model", default="Local", type=str)
+parser.add_argument("--input_col", default=None, type=str)
+parser.add_argument("--output_col", default=None, type=str)
+parser.add_argument("--experiment_name", default="test", type=str)
+parser.add_argument("--job_id", default=None, type=str)
+parser.add_argument("--system_prompt", default=None, type=str)
+
+
+args, other = parser.parse_known_args()
+
+if args.job_id:
+    job = transformerlab.plugin.Job(args.job_id)
+    job.update_progress(0)
+else:
+    print("Job ID not provided.")
+    sys.exit(1)
+
+job.update_progress(0)
+
+
+def check_local_server():
+    response = requests.get("http://localhost:8338/server/worker_healthz")
+    print(response.json())
+    if response.status_code != 200 or not isinstance(response.json(), list) or len(response.json()) == 0:
+        print("Local Model Server is not running. Please start it before running the evaluation.")
+        sys.exit(1)
+
+
+def fetch_dataset():
+    if args.dataset_name is None or len(args.dataset_name.strip()) <= 1:
+        print("Dataset not provided.")
+        sys.exit(1)
+    try:
+        params = {"dataset_id": args.dataset_name, "split": args.dataset_split}
+        response = requests.get("http://localhost:8338/data/get", params=params)
+        if response.status_code != 200:
+            print(f"Error fetching the dataset: {response.json()}")
+            job.set_job_completion_status("failed", f"Error fetching the dataset: {response.json()}")
+            sys.exit(1)
+        else:
+            df = pd.DataFrame(response.json()["data"]["columns"])
+            file_location = response.json()["data"]["file_location"]
+            if file_location is None or not os.path.exists(file_location):
+                file_location = os.path.join(
+                    os.environ.get("_TFL_WORKSPACE_DIR"), "datasets", args.dataset_name + "_with_outputs"
+                )
+            return df, file_location
+    except Exception as e:
+        print(f"An error occurred while fetching the dataset: {e}")
+        job.set_job_completion_status("failed", f"An error occurred while fetching the dataset: {e}")
+        sys.exit(1)
+
+
+# Generating custom TRLAB model
+class TRLAB_MODEL(DeepEvalBaseLLM):
+    def __init__(self, model):
+        self.model = model
+
+    def load_model(self):
+        return self.model
+
+    def generate(self, prompt: str) -> str:
+        chat_model = self.load_model()
+        return chat_model.invoke(prompt).content
+
+    async def a_generate(self, prompt: str) -> str:
+        chat_model = self.load_model()
+        res = await chat_model.ainvoke(prompt)
+        return res.content
+
+    def get_model_name(self):
+        return args.model_name
+
+
+class CustomCommercialModel(DeepEvalBaseLLM):
+    def __init__(self, model_type="claude", model_name="Claude 3.5 Sonnet"):
+        self.model_type = model_type
+        self.model_name = self.set_model_name(model_name)
+        if model_type == "claude":
+            if os.environ.get("ANTHROPIC_API_KEY") is None:
+                print("Please set the Anthropic API Key from Settings.")
+                job.set_job_completion_status("failed", "Please set the Anthropic API Key from Settings.")
+                sys.exit(1)
+            self.model = Anthropic()
+
+        elif model_type == "openai":
+            if os.environ.get("OPENAI_API_KEY") is None:
+                print("Please set the OpenAI API Key from Settings.")
+                job.set_job_completion_status("failed", "Please set the OpenAI API Key from Settings.")
+                sys.exit(1)
+            self.model = OpenAI()
+
+    def load_model(self):
+        return self.model
+
+    def set_model_name(self, model_name):
+        dic = {
+            "Claude 3.5 Sonnet": "claude-3-5-sonnet-latest",
+            "Claude 3.5 Haiku": "claude-3-5-haiku-latest",
+            "OpenAI GPT 4o": "gpt-4o",
+            "OpenAI GPT 4o Mini": "gpt-4o-mini",
+        }
+        return dic[model_name]
+
+    def generate(self, prompt: str, schema: BaseModel) -> BaseModel:
+        client = self.load_model()
+        if self.model_type == "claude":
+            instructor_client = instructor.from_anthropic(client)
+        else:
+            instructor_client = instructor.from_openai(client)
+
+        resp = instructor_client.messages.create(
+            model=self.model_name,
+            max_tokens=1024,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+            response_model=schema,
+        )
+        return resp
+
+    def generate_without_instructor(self, messages: List[dict]) -> BaseModel:
+        client = self.load_model()
+        response = client.chat.completions.create(
+            model=self.model_name,
+            messages=messages,
+        )
+        return response.choices[0].message.content
+
+    async def a_generate(self, prompt: str, schema: BaseModel) -> BaseModel:
+        return self.generate(prompt, schema)
+
+    def get_model_name(self):
+        return self.model_name
+
+
+try:
+    if "local" not in args.generation_model.lower():
+        if "openai" in args.generation_model.lower():
+            trlab_model = CustomCommercialModel("openai", args.generation_model)
+        else:
+            trlab_model = CustomCommercialModel("claude", args.generation_model)
+    else:
+        check_local_server()
+        custom_model = ChatOpenAI(
+            api_key="dummy",
+            base_url="http://localhost:8338/v1",
+            model=args.model_name,
+        )
+        trlab_model = TRLAB_MODEL(model=custom_model)
+
+except Exception as e:
+    print(f"An error occurred while loading the model: {e}")
+    job.set_job_completion_status("failed", "An error occurred while loading the model")
+    sys.exit(1)
+
+print("Model loaded successfully")
+job.update_progress(0.5)
+
+
+def update_tflab_dataset(output_file_path: str):
+    try:
+        api_url = "http://localhost:8338/"
+        # Create a new dataset
+        params = {"dataset_id": args.dataset_name, "generated": True}
+        # response = requests.get(api_url + "data/new", params=params)
+        # if response.status_code != 200:
+        #     print(f"Error creating a new dataset: {response.json()}")
+        #     job.set_job_completion_status(
+        #         "failed", f"Error creating a new dataset: {response.json()}")
+        #     sys.exit(1)
+        job.update_progress(95)
+        with open(output_file_path, "rb") as json_file:
+            files = {"files": json_file}
+            response = requests.post(api_url + "data/fileupload", params=params, files=files)
+        if response.status_code != 200:
+            print(f"Error uploading the dataset: {response.json()}")
+            job.set_job_completion_status("failed", f"Error uploading the dataset: {response.json()}")
+            sys.exit(1)
+        else:
+            print("Dataset uploaded successfully")
+            job.update_progress(100)
+            job.set_job_completion_status(
+                "success",
+                f"Data generated successfully as dataset {args.run_name}",
+                additional_output_path=output_file_path,
+            )
+    except Exception as e:
+        print(f"An error occurred while generating data: {e}")
+        job.set_job_completion_status("failed", f"An error occurred while generating data: {e}")
+        sys.exit(1)
+
+
+def run_batched_generation():
+    try:
+        check_local_server()
+        df, file_location = fetch_dataset()
+        for index, row in tqdm(df.iterrows()):
+            messages = []
+            if args.system_prompt:
+                messages.append({"role": "system", "content": args.system_prompt})
+            messages.append({"role": "user", "content": row[args.input_column]})
+            response = trlab_model.generate_without_instructor(messages=messages)
+            df.loc[index, args.output_column] = response
+        # List all files in the directory file_location ending with .json
+        file_name = f"{args.dataset_name}_{args.job_id}"
+        df.to_json(file_name, orient="records", lines=False)
+        update_tflab_dataset(file_name)
+        print("Updated the dataset successfully")
+    except Exception as e:
+        print(f"An error occurred while running batched generation: {e}")
+        job.set_job_completion_status("failed", f"An error occurred while running batched generation: {e}")
+        sys.exit(1)
+
+
+print("Running batched generation...")
+run_batched_generation()
+# run_generation()
