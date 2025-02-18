@@ -1,3 +1,8 @@
+"""
+This package defines OllamaModel which represents a model that is stored
+in the Ollama cache and can be imported into Transformer Lab.
+"""
+
 from transformerlab.models import basemodel
 
 import os

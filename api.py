@@ -99,7 +99,7 @@ tags_metadata = [
     },
     {
         "name": "serverinfo",
-        "description": "Actions for interacting with the TransformerLab server.",
+        "description": "Actions for interacting with the Transformer Lab server.",
     },
 ]
 

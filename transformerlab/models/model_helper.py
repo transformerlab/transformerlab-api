@@ -12,6 +12,8 @@ import traceback
 
 def model_architecture_is_supported(model_architecture: str):
     # Return true if the passed string is a supported model architecture
+    # This is a hack and shouldn't be here. We use this to decide if we can import.
+    # Just tell the user what the model architecture is and let them import.
     supported_architectures = [
         "GGUF",
         "MLX",

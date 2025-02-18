@@ -6,7 +6,8 @@ The DeepEval Objective Metrics plugin is designed to evaluate the outputs of Lar
 
 ## Dataset Requirements
 
-A local dataset uploaded to the dataset in TransformerLab is required. The dataset file must be in CSV format and should compulsorily have the following columns:
+A local dataset uploaded to the dataset in Transformer Lab is required. The dataset file must be in CSV format and should compulsorily have the following columns:
+
 - `input`
 - `output`
 - `expected_output`
@@ -14,6 +15,7 @@ A local dataset uploaded to the dataset in TransformerLab is required. The datas
 ## Parameters
 
 ### Evaluation Metric
+
 - **Type:** string
 - **Description:** Select the evaluation metric you want to use. The available options are:
   - **Rouge:** Measures the overlap of n-grams between the generated output and the expected output.
@@ -24,9 +26,9 @@ A local dataset uploaded to the dataset in TransformerLab is required. The datas
   - **BERT Score:** Uses BERT embeddings to evaluate the similarity between the generated output and the expected output.
 
 ### Output Path
+
 - **Type:** string
 - **Description:** Provide the local path where the evaluation results should be saved.
-
 
 ## Usage
 
