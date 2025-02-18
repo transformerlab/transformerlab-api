@@ -355,7 +355,7 @@ def run_evaluation():
         metrics_df.to_csv(output_path, index=False)
         job.update_progress(80)
         plot_data_path = get_plotting_data(metrics_df)
-        print_fancy_df(metrics_df)
+        # print_fancy_df(metrics_df)
 
         for idx, metric in enumerate(args.tasks):
             print(
