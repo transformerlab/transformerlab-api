@@ -10,7 +10,7 @@ from transformerlab.shared.shared import slugify
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
-allowed_file_types = [".txt", ".jsonl", ".pdf"]
+allowed_file_types = [".txt", ".jsonl", ".pdf", ".csv", ".epub", ".ipynb", ".md", ".ppt"]
 
 
 # Get info on dataset from huggingface
