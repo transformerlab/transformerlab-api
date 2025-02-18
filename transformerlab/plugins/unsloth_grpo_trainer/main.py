@@ -1,15 +1,12 @@
 import json
-from random import randrange
 import sqlite3
 from datasets import load_dataset
 from trl import GRPOConfig, GRPOTrainer 
-from peft import LoraConfig, prepare_model_for_kbit_training, get_peft_model
 import argparse
-from unsloth import FastLanguageModel, PatchFastRL, is_bfloat16_supported
+from unsloth import FastLanguageModel, PatchFastRL
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, TrainerCallback
+from transformers import BitsAndBytesConfig, TrainerCallback
 import os
-import re
 import transformerlab.plugin
 
 from jinja2 import Environment
@@ -118,7 +115,6 @@ def extract_answer(text: str) -> str:
 # Reward functions
 def correctness_reward_func(prompts, completions, answer, **kwargs) -> list[float]:
     responses = [completion[0]['content'] for completion in completions]
-    q = prompts[0][-1]['content']
     extracted_responses = [extract_answer(r) for r in responses]
     return [2.0 if r == a else 0.0 for r, a in zip(extracted_responses, answer)]
 
