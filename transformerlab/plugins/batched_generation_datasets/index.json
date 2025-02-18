@@ -1,5 +1,4 @@
 {
-    
     "name": "Batched Output Generation for Synthetic Dataset",
     "uniqueId": "batched_generation_datasets",
     "description": "Use a local or commercial LLM to generated outputs for the dataset generated.",
@@ -13,7 +12,7 @@
         "setup.sh"
     ],
     "_dataset": true,
-    "_dataset_display_message": "Choose your generated dataset",
+    "_dataset_display_message": "Please upload a dataset file with columns: 'input', 'output', 'expected_output'. The context column is optional if using metrics which don't require it.",
     "setup-script": "setup.sh",
     "parameters": {
         "generation_model": {
@@ -62,7 +61,7 @@
             "ui:help": "Select the batch size for sending the data to the model for generation"
         },
         "system_prompt": {
-            "ui:help": "Enter the system prompt to be used for generation",
+            "ui:help": "Enter the system prompt to be used for generation"
         }
     }
 }
