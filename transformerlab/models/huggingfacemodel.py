@@ -1,3 +1,8 @@
+"""
+This package defines HuggingFaceModel and functions for interacting with models
+in the Hugging Face hub local cache. 
+"""
+
 import os
 import json
 import fnmatch

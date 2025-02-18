@@ -1,3 +1,8 @@
+"""
+This package defines LocalFilesystemModel and LocalFilesystemGGUFModel
+which represent models that are stored in the workspace/models directory.
+"""
+
 import os
 import json
 
