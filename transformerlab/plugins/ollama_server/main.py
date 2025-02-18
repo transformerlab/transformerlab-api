@@ -45,6 +45,7 @@ class OllamaTokenizer:
     This is a total hack tokenizer just to get things to proceed.
     It doesn't do tokenization!
     """
+
     def __init__(self, model):
         self.model = model
         self.eos_token_id = None
@@ -56,20 +57,20 @@ class OllamaTokenizer:
         # TODO: Ollama has recently added tokenizer as an experimental feature
         # The current code is a fake tokenizer which is ignored by the plugin
         tokens = []
-        #tokens = self.model.tokenize(text)
+        # tokens = self.model.tokenize(text)
         batchEncoding = BatchEncoding(
             data={"input_ids": [tokens], "eos_token_id": None})
         return batchEncoding
 
     def decode(self, tokens):
         # This is fake code that does not detokenize. See above.
-        #return self.model.detokenize(tokens)
+        # return self.model.detokenize(tokens)
         return [''.join(tokens)]
 
     def num_tokens(self, prompt):
         # Also fake. This generates a totally fake approximate number.
-        #tokens = self.model.tokenize(prompt)
-        #return (len(tokens))
+        # tokens = self.model.tokenize(prompt)
+        # return (len(tokens))
         return len(prompt)//4
 
 
@@ -98,6 +99,18 @@ class OllamaServer(BaseModelWorker):
             f"Loading the model {self.model_names} on worker {worker_id}, worker type: ollama-python..."
         )
 
+        # We need to find the ollama cache or else this isn't going to work
+        # First, check the OLLAMA_MODELS environment variable
+        # If that isn't set then use the default location:
+        # ~/.ollama/models
+        OLLAMA_MODELS_DIR = os.getenv(
+            "OLLAMA_MODELS", os.path.join(Path.home(), ".ollama", "models"))
+        if os.path.isdir(OLLAMA_MODELS_DIR):
+            print("Ollama models directory:", OLLAMA_MODELS_DIR)
+        else:
+            raise FileNotFoundError(
+                f"Ollama models directory not found at: {OLLAMA_MODELS_DIR}")
+
         # Start the ollama client.
         # This will check if ollama is installed and running and if not return an error.
         # TODO: We should maybe first call ollama serve to start ollama for the user?
@@ -105,12 +118,12 @@ class OllamaServer(BaseModelWorker):
         self.model = ollama.Client()
 
         # Load model into Ollama
-        # 
+        #
         # EXPLANATION:
         # Our GGUF models are stored in the transformerlab workspace models directory.
         # Ollama lets you import models if you have a correctly formatted Modelfile.
         # But, Ollama wants models stored in their proprietary way in ~/.ollama.
-        # If you try to import a GGUF model outside of Ollama, it will copy the 
+        # If you try to import a GGUF model outside of Ollama, it will copy the
         # entire file into their .ollama cache and waste your disk space.
         # However, if there is already a file (or link) with the correct name (SHA blob)
         # in the right place (under ~/.ollama/models/blobs) then it won't copy!
@@ -140,20 +153,8 @@ class OllamaServer(BaseModelWorker):
                     break
                 sha256sum.update(chunk)
 
-        # Figure out where model blobs are stored in Ollama
-        # First, check the OLLAMA_MODELS environment variable
-        OLLAMA_MODELS_DIR = os.getenv("OLLAMA_MODELS", "")
-        if OLLAMA_MODELS_DIR:
-            print("model dir set:", OLLAMA_MODELS_DIR) 
-        else:
-            # IF the environment variable isn't set then assume the default
-            OLLAMA_MODELS_DIR = os.path.join(Path.home(), ".ollama", "models")
-        OLLAMA_MODEL_BLOBS_CACHE = os.path.join(OLLAMA_MODELS_DIR, "blobs")
-        print("Ollama model blobs at", OLLAMA_MODEL_BLOBS_CACHE) 
-
-        # TODO: Check the directory exists.  If it doesn't it a problem! Do this first!
-
         # 2b. Create a link with the SHA name to the actual GGUF file
+        OLLAMA_MODEL_BLOBS_CACHE = os.path.join(OLLAMA_MODELS_DIR, "blobs")
         sha_filename = os.path.join(
             OLLAMA_MODEL_BLOBS_CACHE,
             f'sha256:{sha256sum.hexdigest()}'
@@ -168,6 +169,8 @@ class OllamaServer(BaseModelWorker):
             os.symlink(model_path, sha_filename)
 
         # STEP 3: Call ollama and tell it to create the model in its register
+        # TODO: I think you can do this via the SDK which would be better
+        # for catching errors
         subprocess.run([
             "ollama",
             "create",
@@ -188,10 +191,21 @@ class OllamaServer(BaseModelWorker):
         self.tokenizer = OllamaTokenizer(model=self.model)
 
         # Fastchat needs to know context length to check for context overflow
-        # TODO: No idea how to get this but the ollama default is 4096
-        # Apparently you can set via model file:
-        # https://github.com/transformerlab/transformerlab-app/issues/227
+        # You can try pulling this from modelinfo from ollama.show
+        # As a backup, we will assume ollama default of 4096
         self.context_len = 4096
+        show_response: ollama.ShowResponse = ollama.show(
+            model=self.model_name
+        )
+        modelinfo = show_response.modelinfo
+        print(modelinfo)
+        model_architecture = modelinfo.get("general.architecture", None)
+        if model_architecture:
+            context_key = f"{model_architecture}.context_length"
+            if context_key in modelinfo:
+                self.context_len = modelinfo[context_key]
+
+        print("Setting context length to", self.context_len)
 
         # For debugging: Output a bunch of model info
         response: ollama.ProcessResponse = ollama.ps()
@@ -205,7 +219,6 @@ class OllamaServer(BaseModelWorker):
             print('\n')
 
         self.init_heart_beat()
-
 
     async def generate_stream(self, params):
 
@@ -267,14 +280,15 @@ class OllamaServer(BaseModelWorker):
         finish_reason = "length"
 
         # TODO: Should this use generate?
-        iterator = await run_in_threadpool(self.model.chat, 
+        iterator = await run_in_threadpool(self.model.chat,
                                            model=self.model_name,
-                                           messages=[{'role': 'user', 'content': context}],
+                                           messages=[
+                                               {'role': 'user', 'content': context}],
                                            stream=True,
                                            options=generation_params)
 
         for i in range(max_new_tokens):
-            # Try to get next token. 
+            # Try to get next token.
             # If the generator hits a stop the interator finishes and throws:
             # RuntimeError: coroutine raised StopIteration
             try:
@@ -298,7 +312,8 @@ class OllamaServer(BaseModelWorker):
 
             # Check for stop string
             # Note that ollama can do this if we just pass stop to it correctly
-            partial_stop = any(is_partial_stop(tokens_decoded_str, i) for i in stop)
+            partial_stop = any(is_partial_stop(
+                tokens_decoded_str, i) for i in stop)
             if partial_stop:
                 finish_reason = "stop"
                 break
@@ -316,7 +331,7 @@ class OllamaServer(BaseModelWorker):
                 "finish_reason": None   # hard code for now
             }
             yield (json.dumps(ret) + "\0").encode()
-        
+
         ret = {
             "text": ''.join(decoded_tokens),
             "error_code": 0,
@@ -329,12 +344,11 @@ class OllamaServer(BaseModelWorker):
         yield (json.dumps(obj={**ret, **{"finish_reason": None}}) + "\0").encode()
         yield (json.dumps(ret) + "\0").encode()
 
-
     async def generate(self, params):
         prompt = params.pop("prompt")
 
         # TODO: Figure out what to do with max_tokens
-        #max_tokens = params.get("max_new_tokens", 256)
+        # max_tokens = params.get("max_new_tokens", 256)
 
         # Setup parameters
         temperature = float(params.get("temperature", 1.0))
@@ -347,11 +361,11 @@ class OllamaServer(BaseModelWorker):
         }
 
         print("Generating with params: ", params)
-        thread = asyncio.to_thread(self.model.generate, 
-                                           model=self.model_name,
-                                           prompt=prompt,
-                                           stream=False,
-                                           options=params)
+        thread = asyncio.to_thread(self.model.generate,
+                                   model=self.model_name,
+                                   prompt=prompt,
+                                   stream=False,
+                                   options=params)
 
         response = await thread
 
@@ -365,6 +379,17 @@ class OllamaServer(BaseModelWorker):
             "finish_reason": response['done_reason']
         }
         return ret
+
+    def stop_server(self):
+        """
+        Called by cleanup_at_exit.
+        """
+        # You can unload a model by not passing a prompt to generate
+        # and setting keep_alive to 0
+        self.model.generate(
+            model=self.model_name,
+            keep_alive=0
+        )
 
 
 def release_worker_semaphore():
@@ -409,7 +434,7 @@ async def api_generate(request: Request):
 
     # TODO: WHat is this? Inherited from other servers
     # # await engine.abort(request_id)
-    #print("Trying to abort but not implemented")
+    # print("Trying to abort but not implemented")
     return JSONResponse(output)
 
 
@@ -437,6 +462,7 @@ async def api_model_details(request: Request):
 def cleanup_at_exit():
     global worker
     print("Cleaning up...")
+    worker.stop_server()
     del worker
 
 
