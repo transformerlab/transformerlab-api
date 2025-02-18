@@ -109,7 +109,7 @@ class OllamaServer(BaseModelWorker):
             print("Ollama models directory:", OLLAMA_MODELS_DIR)
         else:
             raise FileNotFoundError(
-                f"Ollama models directory does not exist: {OLLAMA_MODELS_DIR}")
+                f"Ollama models directory not found at: {OLLAMA_MODELS_DIR}")
 
         # Start the ollama client.
         # This will check if ollama is installed and running and if not return an error.
@@ -169,6 +169,8 @@ class OllamaServer(BaseModelWorker):
             os.symlink(model_path, sha_filename)
 
         # STEP 3: Call ollama and tell it to create the model in its register
+        # TODO: I think you can do this via the SDK which would be better
+        # for catching errors
         subprocess.run([
             "ollama",
             "create",
@@ -189,10 +191,21 @@ class OllamaServer(BaseModelWorker):
         self.tokenizer = OllamaTokenizer(model=self.model)
 
         # Fastchat needs to know context length to check for context overflow
-        # TODO: No idea how to get this but the ollama default is 4096
-        # Apparently you can set via model file:
-        # https://github.com/transformerlab/transformerlab-app/issues/227
+        # You can try pulling this from modelinfo from ollama.show
+        # As a backup, we will assume ollama default of 4096
         self.context_len = 4096
+        show_response: ollama.ShowResponse = ollama.show(
+            model=self.model_name
+        )
+        modelinfo = show_response.modelinfo
+        print(modelinfo)
+        model_architecture = modelinfo.get("general.architecture", None)
+        if model_architecture:
+            context_key = f"{model_architecture}.context_length"
+            if context_key in modelinfo:
+                self.context_len = modelinfo[context_key]
+
+        print("Setting context length to", self.context_len)
 
         # For debugging: Output a bunch of model info
         response: ollama.ProcessResponse = ollama.ps()
