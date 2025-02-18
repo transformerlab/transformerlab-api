@@ -52,9 +52,14 @@ learning_rate_schedule = config.get("learning_rate_schedule","constant")
 max_grad_norm = float(config.get("max_grad_norm",0.3))
 batch_size = int(config.get("batch_size", 4))
 num_epochs = int(config["num_train_epochs"])
+weight_decay = float(config.get("weight_decay",0.0))
+adam_beta1 = float(config.get("adam_beta1",0.9))
+adam_beta2 = float(config.get("adam_beta2",0.999))
+adam_epsilon = float(config.get("adam_epsilon",1e-8))
 
-question_formatting_template = config.get("formatting_template","")
-answer_formatting_template = config.get("answer_formatting_template","")
+question_formatting_template = config.get("input_template","")
+answer_formatting_template = config.get("output_template","")
+system_prompt = config.get("instruction_template","")
 
 output_dir: str = config["output_dir"]
 JOB_ID = config["job_id"]
@@ -88,15 +93,6 @@ dataset = load_dataset(dataset_target, split="train", trust_remote_code=True)
 def format_instruction(template, mapping):
     return template.render(mapping)
 
-system_prompt = """
-Respond in the following format:
-<reasoning>
-...
-</reasoning>
-<answer>
-...
-</answer>
-"""
 question_template = jinja_environment.from_string(question_formatting_template)
 answer_template = jinja_environment.from_string(answer_formatting_template)
 
@@ -105,7 +101,7 @@ dataset = dataset.map(lambda x: {
         {'role': 'system', 'content': system_prompt},
         {'role': 'user', 'content': format_instruction(question_template, x)}
     ],
-    'answer' : x["groud_truth_solution"].split("#### ")[-1] 
+    'answer' : format_instruction(answer_template, x).split("#### ")[-1] 
 })
 
 def extract_xml_answer(text: str) -> str:
@@ -207,10 +203,6 @@ db.commit()
 
 print(max_seq_length)
 
-weight_decay = float(config.get("weight_decay",0.0))
-adam_beta1 = float(config.get("adam_beta1",0.9))
-adam_beta2 = float(config.get("adam_beta2",0.999))
-adam_epsilon = float(config.get("adam_epsilon",1e-8))
 
 args = GRPOConfig(
     output_dir=output_dir,

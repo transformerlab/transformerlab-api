@@ -16,7 +16,32 @@
         "setup.sh"
     ],
     "setup-script": "setup.sh",
+    "training_template_format": "alpaca",
     "parameters": {
+        "start_thinking_string": {
+            "title": "Start Thinking String",
+            "type": "string",
+            "default": "<reasoning>",
+            "required": true
+        },
+        "end_thinking_string": {
+            "title": "End Thinking String",
+            "type": "string",
+            "default": "</reasoning>",
+            "required": true
+        },
+        "start_answer_string": {
+            "title": "Start Answer String",
+            "type": "string",
+            "default": "<answer>",
+            "required": true
+        },
+        "end_answer_string": {
+            "title": "End Answer String",
+            "type": "string",
+            "default": "</answer>",
+            "required": true
+        },
         "maximum_sequence_length": {
             "title": "Maximum Sequence Length",
             "type": "integer",
