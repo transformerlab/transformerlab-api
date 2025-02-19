@@ -1,6 +1,6 @@
-# Terraform & Azure Resource Deployment with Existing Resource Import
+# Terraform Resource Deployment on Azure for Transformerlab-api server
 
-This folder provides a modular, production-grade Terraform setup for deploying Azure resources. It includes a helper script (`run.sh`) that automatically:
+This folder provides a modular Terraform setup for provisioning Azure resources and deploying he transformerlab-api server. It includes a helper script (`run.sh`) that automatically:
 
 - Checks if the resources defined in your configuration already exist.
 - Imports any existing resources into Terraform's state.
@@ -39,7 +39,7 @@ Before you begin, make sure you have the following installed:
     cd transformerlab-api/scripts/azure/terraform
     ```
 
-3. **Configure Resource Names and Machine Types**
+3. **Configure Resource Names and Machine Types (Optional)**
     The deployment uses a `terraform.tfvars` file to define resource names, locations, VM sizes, etc.
 
     - Edit `terraform.tfvars` (if needed) to set custom values.
@@ -54,6 +54,8 @@ Before you begin, make sure you have the following installed:
     # # The Azure region where resources will be deployed.
     # location = "eastus2"                        # e.g., "eastus", "westus2", etc.
     ```
+
+    **Note :** *The Terraform configuration will automatically provision default resources if this file is not edited, the intention of this file is to re-use anything you already have deployed on Azure for the deployment.*
 
 ---
 
@@ -71,7 +73,7 @@ Before you begin, make sure you have the following installed:
 The script should take care of provisioning the resources and starting a VM with transformerlab api running inside. The script will also output the public IP of the VM on the command line to be used in the `Connect to Remote Engine` screen.
 
 ```bash
-Apply complete! Resources: 1 added, 0 changed, 0 destroyed.
+Apply complete! Resources: 10 added, 0 changed, 0 destroyed.
 
 Outputs:
 
