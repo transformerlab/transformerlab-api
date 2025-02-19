@@ -8,6 +8,7 @@ import instructor
 import pandas as pd
 import requests
 import transformerlab.plugin
+from datasets import load_dataset
 from anthropic import Anthropic
 from deepeval.models.base_model import DeepEvalBaseLLM
 from langchain_openai import ChatOpenAI
@@ -63,29 +64,24 @@ def check_local_server():
         sys.exit(1)
 
 
-def fetch_dataset():
-    if args.dataset_name is None or len(args.dataset_name.strip()) <= 1:
-        print("Dataset not provided.")
-        sys.exit(1)
+def get_tflab_dataset():
     try:
-        params = {"dataset_id": args.dataset_name, "split": args.dataset_split}
-        response = requests.get("http://localhost:8338/data/get", params=params)
-        if response.status_code != 200:
-            print(f"Error fetching the dataset: {response.json()}")
-            job.set_job_completion_status("failed", f"Error fetching the dataset: {response.json()}")
-            sys.exit(1)
-        else:
-            df = pd.DataFrame(response.json()["data"]["columns"])
-            file_location = response.json()["data"]["file_location"]
-            if file_location is None or not os.path.exists(file_location):
-                file_location = os.path.join(
-                    os.environ.get("_TFL_WORKSPACE_DIR"), "datasets", args.dataset_name + "_with_outputs"
-                )
-            return df, file_location
+        dataset_target = transformerlab.plugin.get_dataset_path(args.dataset_name)
     except Exception as e:
-        print(f"An error occurred while fetching the dataset: {e}")
-        job.set_job_completion_status("failed", f"An error occurred while fetching the dataset: {e}")
-        sys.exit(1)
+        job.set_job_completion_status("failed", "Failure to get dataset")
+        raise e
+    dataset = {}
+    dataset_types = ["train"]
+    for dataset_type in dataset_types:
+        try:
+            dataset[dataset_type] = load_dataset(dataset_target, split=dataset_type, trust_remote_code=True)
+
+        except Exception as e:
+            job.set_job_completion_status("failed", "Failure to load dataset")
+            raise e
+    # Convert the dataset to a pandas dataframe
+    df = dataset["train"].to_pandas()
+    return df, dataset_target
 
 
 # Generating custom TRLAB model
@@ -251,7 +247,7 @@ job.update_progress(0.5)
 async def run_batched_generation():
     try:
         check_local_server()
-        df, file_location = fetch_dataset()
+        df, file_location = get_tflab_dataset()
         print("Dataset fetched successfully")
         sys_prompt_col = None
         if args.system_prompt:
