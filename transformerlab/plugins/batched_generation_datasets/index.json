@@ -1,5 +1,5 @@
 {
-    "name": "Batched Output Generation for Synthetic Dataset",
+    "name": "Batched Output Generation from Datasets",
     "uniqueId": "batched_generation_datasets",
     "description": "Use a local or commercial LLM to generated outputs for the dataset generated.",
     "plugin-format": "python",

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Batched Output Generation for Synthetic Dataset plugin is designed to generate outputs for a synthetic dataset using either a local or a commercial LLM. This plugin processes your data in batches and allows you to customize how generation is performed.
+The Batched Output Generation from Datasets plugin is designed to generate outputs for a synthetic dataset using either a local or a commercial LLM. This plugin processes your data in batches and allows you to customize how generation is performed for your data based on the selected model and parameters.
 
 ## Parameters
 
