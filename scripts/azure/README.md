@@ -151,7 +151,7 @@ __
 
 ## Directory Structure
 
-The directory structure for this repository is as follows:
+The directory structure for this deployment is as follows:
 
 ```bash
 terraform/
