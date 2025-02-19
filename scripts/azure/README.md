@@ -28,13 +28,15 @@ Before you begin, make sure you have the following installed:
 ## Setup
 
 1. **Azure Authentication**  
-   Log in to your Azure account using the Azure CLI:
-   ```bash
-   az login
-   ```
+   
+    Log in to your Azure account using the Azure CLI:
+    ```bash
+    az login
+    ```
     **Note :** *You should have the necessary permissions to create necessary resources on Azure - Owner permission is Ideal*
 
 2. **Clone the Repository**
+    
     If you haven't already, clone this repository:
     ```bash
     git clone https://github.com/transformerlab/transformerlab-api.git
@@ -42,6 +44,7 @@ Before you begin, make sure you have the following installed:
     ```
 
 3. **Configure Resource Names and Machine Types (Optional)**
+    
     The deployment uses a `terraform.tfvars` file to define resource names, locations, VM sizes, etc.
 
     - Edit `terraform.tfvars` (if needed) to set custom values.
@@ -64,6 +67,7 @@ Before you begin, make sure you have the following installed:
 ## Running the Deployment
 
 1. **Run the Import/Creation Script**
+
     The provided `run.sh` script will check if each resource exists in Azure and if it is already imported into Terraform’s state. If a resource is found in Azure but not in the state, it will be imported automatically. If it does not exist, Terraform will create it on `terraform apply`.
 
     Make the script executable and run it:
@@ -89,6 +93,7 @@ vm_public_ip = "xxx.xxx.xxx.xxx"
 ## Post Deployment
 
 1. **SSH into the VM**
+
     After deployment, you can SSH into the Linux VM using the generated private key. The key is saved (by default) in your home directory (e.g.,`~/.ssh/az_vm_prvt_key.pem`).
 
     Example SSH command:
@@ -100,6 +105,7 @@ vm_public_ip = "xxx.xxx.xxx.xxx"
     Replace `<VM_PUBLIC_IP>` with the public IP address output from Terraform.
 
 2. **Viewing Transformer Lab Service Logs**
+
     The VM uses a systemd service named transformerlab.service to run the API. To check the service status or view logs for any errors:
 
     - Check the Service Status:
