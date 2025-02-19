@@ -7,7 +7,7 @@ This folder provides a modular Terraform setup for provisioning Azure resources 
 - Skips resources that are already managed by Terraform.
 - Creates missing resources upon running `terraform apply`.
 
-This script creates the following resources on Azure (if they doesn't already exist):
+This script creates the following resources on Azure (if they don't exist):
 
 - Resource Group
 - Virtual Network
