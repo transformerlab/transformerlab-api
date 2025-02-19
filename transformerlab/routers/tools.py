@@ -26,7 +26,8 @@ def load_tools():
     available_tools = {}
 
     # TODO: Pull dir from dirs.py
-    tools_dir = os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "tools")
+    tools_dir = os.path.join(dirs.TFL_SOURCE_CODE_DIR,
+                             "transformerlab", "tools")
     sys.path.append(tools_dir)
 
     # Scan the tools dir to subdirectories
