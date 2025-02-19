@@ -7,7 +7,18 @@ This folder provides a modular Terraform setup for provisioning Azure resources 
 - Skips resources that are already managed by Terraform.
 - Creates missing resources upon running `terraform apply`.
 
-It also includes a cloud-init script to provision a Linux virtual machine that runs the Transformer Lab API service on Azure VM.
+This script creates the following resources on Azure (if they doesn't already exist):
+
+- Resource Group
+- Virtual Network
+- Subnet
+- Public IP
+- Network Interface
+- Network Security Group
+- Network Interface and Security Group Association
+- Virtual Machine
+
+It also includes a cloud-init script to provision a Linux virtual machine that runs the Transformer Lab API service on a provisioned Azure VM.
 
 ---
 
@@ -95,6 +106,16 @@ vm_public_ip = "xxx.xxx.xxx.xxx"
 ---
 
 ## Post Deployment
+
+**Connect to Remote Server**
+
+Open the Transformer Lab desktop application and click on `Connect to Remote Server` and enter the Public IP that was created. 
+
+**Note :** *It might take few minutes for the server to install dependencies and start, recommended wait time is 5-10 minutes.*
+
+__
+
+## Troubleshooting
 
 1. **SSH into the VM**
 
