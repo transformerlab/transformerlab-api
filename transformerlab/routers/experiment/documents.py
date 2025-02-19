@@ -10,7 +10,8 @@ from transformerlab.shared.shared import slugify
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
-allowed_file_types = [".txt", ".jsonl", ".pdf", ".csv", ".epub", ".ipynb", ".md", ".ppt"]
+allowed_file_types = [".txt", ".jsonl", ".pdf",
+                      ".csv", ".epub", ".ipynb", ".md", ".ppt"]
 
 
 # Get info on dataset from huggingface
@@ -24,7 +25,8 @@ async def document_info():
 async def document_view(experimentId: str, document_name: str):
     try:
         experiment_dir = await dirs.experiment_dir_by_id(experimentId)
-        file_location = os.path.join(experiment_dir, "documents", document_name)
+        file_location = os.path.join(
+            experiment_dir, "documents", document_name)
         print(f"Returning document from {file_location}")
         # with open(file_location, "r") as f:
         #     file_contents = f.read()
@@ -48,18 +50,22 @@ async def document_list(experimentId: str, folder: str = None):
                 name = filename
                 size = 0
                 date = os.path.getmtime(os.path.join(documents_dir, filename))
-                date = datetime.datetime.fromtimestamp(date).strftime("%Y-%m-%d %H:%M:%S")
+                date = datetime.datetime.fromtimestamp(
+                    date).strftime("%Y-%m-%d %H:%M:%S")
                 type = "folder"
                 path = os.path.join(documents_dir, filename)
-                documents.append({"name": name, "size": size, "date": date, "type": type, "path": path})
+                documents.append({"name": name, "size": size,
+                                 "date": date, "type": type, "path": path})
             elif any(filename.endswith(ext) for ext in allowed_file_types):
                 name = filename
                 size = os.path.getsize(os.path.join(documents_dir, filename))
                 date = os.path.getmtime(os.path.join(documents_dir, filename))
-                date = datetime.datetime.fromtimestamp(date).strftime("%Y-%m-%d %H:%M:%S")
+                date = datetime.datetime.fromtimestamp(
+                    date).strftime("%Y-%m-%d %H:%M:%S")
                 type = os.path.splitext(filename)[1]
                 path = os.path.join(documents_dir, filename)
-                documents.append({"name": name, "size": size, "date": date, "type": type, "path": path})
+                documents.append({"name": name, "size": size,
+                                 "date": date, "type": type, "path": path})
 
     return documents  # convert list to JSON object
 
@@ -96,11 +102,13 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
         print("file content type is: " + str(file.content_type))
 
         if file.content_type not in ["text/plain", "application/json", "application/pdf", "application/octet-stream"]:
-            raise HTTPException(status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
+            raise HTTPException(
+                status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
 
         file_ext = os.path.splitext(file.filename)[1]
         if file_ext not in allowed_file_types:
-            raise HTTPException(status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
+            raise HTTPException(
+                status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
 
         experiment_dir = await dirs.experiment_dir_by_id(experimentId)
         documents_dir = os.path.join(experiment_dir, "documents")
@@ -117,7 +125,8 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
             # reindex the vector store on every file upload
             await rag.reindex(experimentId)
         except Exception:
-            raise HTTPException(status_code=403, detail="There was a problem uploading the file")
+            raise HTTPException(
+                status_code=403, detail="There was a problem uploading the file")
 
     return {"status": "success", "filename": fileNames}
 
