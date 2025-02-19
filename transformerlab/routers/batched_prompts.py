@@ -1,12 +1,28 @@
 import json
 import os
-from typing import Annotated, Union
+from typing import Annotated, Optional, Union
+
 from fastapi import APIRouter, Body
+from pydantic import BaseModel
 
 from transformerlab.shared import dirs
+from transformerlab.shared.batched_requests import process_dataset
 from transformerlab.shared.shared import slugify
 
 router = APIRouter(prefix="/batched_prompts", tags=["batched_prompts"])
+
+
+# Pydantic model for batch_predict request
+class BatchPredictRequest(BaseModel):
+    model: str
+    adaptor: Optional[str] = None
+    api_key: Optional[str] = "dummy"
+    temperature: float = 0.01
+    max_tokens: int = 1024
+    top_p: float = 1.0
+    batch_size: int = 128
+    inference_url: str = "http://localhost:8338/v1/chat/completions"
+    messages: list[list[dict]]
 
 
 @router.get("/list")
@@ -57,3 +73,31 @@ async def delete_prompt(prompt_id: str):
         return {"status": "success", "message": f"Prompt {prompt_id} deleted"}
     else:
         return {"status": "error", "message": f"Prompt {prompt_id} not found"}
+
+
+@router.post("/batch_predict")
+async def batch_predict(request: BatchPredictRequest):
+    """Predict on a batch of prompts"""
+
+    prompts = request.messages
+    model = request.model
+    adaptor = request.adaptor
+    api_key = request.api_key
+    temperature = request.temperature
+    max_tokens = request.max_tokens
+    top_p = request.top_p
+    inference_url = request.inference_url
+
+    results = await process_dataset(
+        prompts,
+        batch_size=128,
+        model=model,
+        adaptor=adaptor,
+        api_key=api_key,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        top_p=top_p,
+        inference_url=inference_url,
+    )
+
+    return results
