@@ -44,17 +44,32 @@
             "title": "Batch Size",
             "type": "integer",
             "default": 128
+        },
+        "temperature": {
+            "title": "Temperature",
+            "type": "number",
+            "default": 0.01,
+            "minimum": 0.0,
+            "maximum": 2.0,
+            "multipleOf": 0.01
+        },
+        "max_tokens": {
+            "title": "Max Tokens",
+            "type": "integer",
+            "default": 1024,
+            "minimum": 1,
+            "maximum": 2048,
+            "multipleOf": 1
         }
-        
     },
     "parameters_ui": {
         "generation_model": {
             "ui:help": "Select the model to be used for generation from the drop-down list"
         },
-        "input_col": {
+        "input_column": {
             "ui:help": "Select the column from the dataset to be used as input for generation"
         },
-        "output_col": {
+        "output_column": {
             "ui:help": "Select the column from the dataset to be used as output for generation"
         },
         "batch_size": {
@@ -62,6 +77,14 @@
         },
         "system_prompt": {
             "ui:help": "Enter the system prompt to be used for generation"
+        },
+        "temperature": {
+            "ui:help": "Select the temperature for generation",
+            "ui:widget": "RangeWidget"
+        },
+        "max_tokens": {
+            "ui:help": "Select the maximum tokens for generation",
+            "ui:widget": "RangeWidget"
         }
     }
 }

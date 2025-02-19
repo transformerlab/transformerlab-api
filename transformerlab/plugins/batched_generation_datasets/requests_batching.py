@@ -22,9 +22,6 @@ async def predict(
     api_key="dummy",
     max_tokens=1024,
     temperature=0.01,
-    do_sample=False,
-    num_beams=1,
-    no_repeat_ngram_size=25,
 ):
     if sys_prompt is not None:
         messages = [
@@ -66,17 +63,37 @@ async def process_batch(
     model=None,
     inference_url="http://localhost:8338/v1/chat/completions",
     api_key="dummy",
+    temperature=0.01,
+    max_tokens=1024,
 ):
     prompts = batch[prompt_col].values
     if sys_prompt_col is not None:
         sys_prompts = batch[sys_prompt_col].values
         tasks = [
-            predict(session, prompt, sys_prompt=sys_prompt, model=model, inference_url=inference_url, api_key=api_key)
+            predict(
+                session,
+                prompt,
+                sys_prompt=sys_prompt,
+                model=model,
+                inference_url=inference_url,
+                api_key=api_key,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
             for prompt, sys_prompt in zip(prompts, sys_prompts)
         ]
     else:
         tasks = [
-            predict(session, prompt, model=model, inference_url=inference_url, api_key=api_key) for prompt in prompts
+            predict(
+                session,
+                prompt,
+                model=model,
+                inference_url=inference_url,
+                api_key=api_key,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            for prompt in prompts
         ]
     results = await asyncio.gather(*tasks)
 
@@ -94,6 +111,8 @@ async def process_dataset(
     model=None,
     inference_url="http://localhost:8338/v1/chat/completions",
     api_key="dummy",
+    temperature=0.01,
+    max_tokens=1024,
 ):
     # min_idx = 0
     if max_idx is None:
@@ -115,6 +134,8 @@ async def process_dataset(
                 model=model,
                 inference_url=inference_url,
                 api_key=api_key,
+                temperature=temperature,
+                max_tokens=max_tokens,
             )
 
             for idx, result in enumerate(results):

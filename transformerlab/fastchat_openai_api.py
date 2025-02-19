@@ -270,7 +270,7 @@ def check_requests(request) -> Optional[JSONResponse]:
     if request.top_p is not None and request.top_p > 1:
         return create_error_response(
             ErrorCode.PARAM_OUT_OF_RANGE,
-            f"{request.top_p} is greater than the maximum of 1 - 'temperature'",
+            f"{request.top_p} is greater than the maximum of 1 - 'top_p'",
         )
     if request.stop is not None and (not isinstance(request.stop, str) and not isinstance(request.stop, list)):
         return create_error_response(
