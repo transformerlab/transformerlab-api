@@ -2318,7 +2318,7 @@
       "type": [
         "number"
       ],
-      "minimum": 0.1,
+      "minimum": 0.0,
       "default": 1.0,
       "maximum": 1.0,
       "multipleOf": 0.05

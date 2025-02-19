@@ -48,7 +48,7 @@
         "temperature": {
             "title": "Temperature",
             "type": "number",
-            "default": 0.01,
+            "default": 0.7,
             "minimum": 0.0,
             "maximum": 2.0,
             "multipleOf": 0.01
