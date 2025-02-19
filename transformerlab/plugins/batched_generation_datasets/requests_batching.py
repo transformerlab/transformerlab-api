@@ -22,6 +22,7 @@ async def predict(
     api_key="dummy",
     max_tokens=1024,
     temperature=0.01,
+    top_p=1.0,
 ):
     if sys_prompt is not None:
         messages = [
@@ -37,6 +38,7 @@ async def predict(
             "messages": messages,
             "max_tokens": max_tokens,
             "temperature": temperature,
+            "top_p": top_p,
         }
     )
 
@@ -65,6 +67,7 @@ async def process_batch(
     api_key="dummy",
     temperature=0.01,
     max_tokens=1024,
+    top_p=1.0,
 ):
     prompts = batch[prompt_col].values
     if sys_prompt_col is not None:
@@ -79,6 +82,7 @@ async def process_batch(
                 api_key=api_key,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                top_p=top_p,
             )
             for prompt, sys_prompt in zip(prompts, sys_prompts)
         ]
@@ -92,6 +96,7 @@ async def process_batch(
                 api_key=api_key,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                top_p=top_p,
             )
             for prompt in prompts
         ]
@@ -113,6 +118,7 @@ async def process_dataset(
     api_key="dummy",
     temperature=0.01,
     max_tokens=1024,
+    top_p=1.0,
 ):
     # min_idx = 0
     if max_idx is None:
@@ -136,6 +142,7 @@ async def process_dataset(
                 api_key=api_key,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                top_p=top_p,
             )
 
             for idx, result in enumerate(results):

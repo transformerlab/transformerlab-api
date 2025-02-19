@@ -41,6 +41,7 @@ parser.add_argument("--system_prompt", default=None, type=str)
 parser.add_argument("--batch_size", default=128, type=int)
 parser.add_argument("--temperature", default=0.01, type=float)
 parser.add_argument("--max_tokens", default=1024, type=int)
+parser.add_argument("--top_p", default=1.0, type=float)
 
 
 args, other = parser.parse_known_args()
@@ -126,6 +127,7 @@ class TRLAB_MODEL(DeepEvalBaseLLM):
             output_col=args.output_column,
             temperature=float(args.temperature),
             max_tokens=int(args.max_tokens),
+            top_p=float(args.top_p),
         )
         return updated_df
 
@@ -214,6 +216,7 @@ class CustomCommercialModel(DeepEvalBaseLLM):
             output_col=args.output_column,
             temperature=float(args.temperature),
             max_tokens=int(args.max_tokens),
+            top_p=float(args.top_p),
         )
         return updated_df
 

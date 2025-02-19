@@ -53,6 +53,14 @@
             "maximum": 2.0,
             "multipleOf": 0.01
         },
+        "top_p": {
+            "title": "Top P",
+            "type": "number",
+            "default": 1.0,
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "multipleOf": 0.1
+        },
         "max_tokens": {
             "title": "Max Tokens",
             "type": "integer",
