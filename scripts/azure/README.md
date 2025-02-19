@@ -31,6 +31,8 @@ Before you begin, make sure you have the following installed:
    Log in to your Azure account using the Azure CLI:
    ```bash
    az login
+   ```
+    **Note :** *You should have the necessary permissions to create necessary resources on Azure - Owner permission is Ideal*
 
 2. **Clone the Repository**
     If you haven't already, clone this repository:
