@@ -15,6 +15,10 @@ It also includes a cloud-init script to provision a Linux virtual machine that r
 
 Before you begin, make sure you have the following installed:
 
+- **For Windows Users :**
+    - Install WSL for Windows
+    - Open `cmd` and run the command `wsl` to start a Linux (Ubuntu) terminal to proceed...
+
 - **Terraform**  
   [Install Terraform](https://learn.hashicorp.com/tutorials/terraform/install-cli) (v1.0+ recommended)
 
