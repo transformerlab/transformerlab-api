@@ -159,9 +159,11 @@ async def export_recipe(template_id: str):
         "description": training_template.get("description", ""),
     }
 
-    model = {"name": template_config.get("model_name", ""), "path": template_config.get("model_name", "")}
+    model = {"name": template_config.get(
+        "model_name", ""), "path": template_config.get("model_name", "")}
 
-    datasets = {"name": training_template.get("datasets", ""), "path": training_template.get("datasets", "")}
+    datasets = {"name": training_template.get(
+        "datasets", ""), "path": training_template.get("datasets", "")}
 
     # TODO: Read in the type from the DB!
     training = {
@@ -316,9 +318,11 @@ async def watch_log(job_id: str):
 
     return StreamingResponse(
         # we force polling because i can't get this to work otherwise -- changes aren't detected
-        watch_file(output_file_name, start_from_beginning=True, force_polling=True),
+        watch_file(output_file_name, start_from_beginning=True,
+                   force_polling=True),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive",
+                 "Access-Control-Allow-Origin": "*"},
     )
 
 
@@ -350,10 +354,12 @@ async def spawn_tensorboard(job_id: str):
 
     print("Starting tensorboard")
 
-    os.makedirs(f"{dirs.WORKSPACE_DIR}/tensorboards/job{job_id}", exist_ok=True)
+    os.makedirs(
+        f"{dirs.WORKSPACE_DIR}/tensorboards/job{job_id}", exist_ok=True)
 
     # hardcoded for now, later on we should get the information from the job id in SQLITE
     # and use the config of the job to determine the logdir
     logdir = f"{dirs.WORKSPACE_DIR}/tensorboards/job{job_id}"
 
-    tensorboard_process = subprocess.Popen(["tensorboard", "--logdir", logdir, "--host", "0.0.0.0"])
+    tensorboard_process = subprocess.Popen(
+        ["tensorboard", "--logdir", logdir, "--host", "0.0.0.0"])
