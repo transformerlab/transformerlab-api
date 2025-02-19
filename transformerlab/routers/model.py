@@ -81,7 +81,8 @@ async def model_gallery_list_all():
 
         # Application uses the new flag to decide whether to display a badge
         # TODO: Probably shouldn't be doing > string comparison for dates
-        model["new"] = True if (model["added"] > new_model_cutoff_date) else False
+        model["new"] = True if (
+            model["added"] > new_model_cutoff_date) else False
 
     return gallery
 
@@ -109,13 +110,15 @@ async def model_gallery_update_sizes():
                 "*.bin",
             ]
             download_size = huggingfacemodel.get_huggingface_download_size(
-                model["uniqueID"], model.get("allow_patterns", default_allow_patterns)
+                model["uniqueID"], model.get(
+                    "allow_patterns", default_allow_patterns)
             )
         except Exception as e:
             download_size = -1
             print(e)
         try:
-            total_size = huggingfacemodel.get_huggingface_download_size(model["uniqueID"], [])
+            total_size = huggingfacemodel.get_huggingface_download_size(
+                model["uniqueID"], [])
         except Exception:
             total_size = -1
         print(model["uniqueID"])
@@ -327,7 +330,8 @@ async def set_anthropic_api_key():
 @router.get(path="/model/download_size")
 def get_model_download_size(model_id: str, allow_patterns: list = []):
     try:
-        download_size_in_bytes = huggingfacemodel.get_huggingface_download_size(model_id, allow_patterns)
+        download_size_in_bytes = huggingfacemodel.get_huggingface_download_size(
+            model_id, allow_patterns)
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
         return {"status": "error", "message": error_msg}
@@ -419,7 +423,8 @@ async def download_model_by_huggingface_id(model: str, job_id: int | None = None
     # If None then that means either the model doesn't exist
     # Or we don't have proper Hugging Face authentication setup
     try:
-        model_details = huggingfacemodel.get_model_details_from_huggingface(model)
+        model_details = huggingfacemodel.get_model_details_from_huggingface(
+            model)
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
         return {"status": "error", "message": error_msg}
