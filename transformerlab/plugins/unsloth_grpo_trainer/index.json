@@ -21,22 +21,22 @@
         "start_thinking_string": {
             "title": "Start Thinking String",
             "type": "string",
-            "default": "<reasoning>",
+            "default": "<reasoning>"
         },
         "end_thinking_string": {
             "title": "End Thinking String",
             "type": "string",
-            "default": "</reasoning>",
+            "default": "</reasoning>"
         },
         "start_answer_string": {
             "title": "Start Answer String",
             "type": "string",
-            "default": "<answer>",
+            "default": "<answer>"
         },
         "end_answer_string": {
             "title": "End Answer String",
             "type": "string",
-            "default": "</answer>",
+            "default": "</answer>"
         },
         "maximum_sequence_length": {
             "title": "Maximum Sequence Length",
