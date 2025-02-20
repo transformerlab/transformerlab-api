@@ -144,7 +144,8 @@ def ollama_models_library_dir():
     if not models_dir:
         return None
 
-    library_dir = os.path.join(models_dir, "manifests", "registry.ollama.ai", "library")
+    library_dir = os.path.join(
+        models_dir, "manifests", "registry.ollama.ai", "library")
 
     if not os.path.isdir(library_dir):
         return None
