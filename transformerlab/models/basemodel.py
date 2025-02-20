@@ -79,13 +79,6 @@ class BaseModel:
         # For debug output
         return str(self.__class__) + ": " + str(self.__dict__)
 
-    async def is_installed(self):
-        """
-        Returns true if this model is saved in Transformer Lab's Local Store.
-        """
-        db_model = await db.model_local_get(self.id)
-        return db_model is not None
-
     async def install(self):
         await db.model_local_create(model_id=self.id, name=self.name, json_data=self.json_data)
 
