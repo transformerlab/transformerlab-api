@@ -1,4 +1,11 @@
-# model_helper - common functions for using models from various sources
+"""
+model_helper.py
+
+Common functions for using models from various sources.
+
+Most parts of the API will just use this helper and probably
+don't have to act directly with the source and model classes.
+"""
 
 from transformerlab.models import ollamamodel
 from transformerlab.models import huggingfacemodel
@@ -8,10 +15,6 @@ import traceback
 
 
 local_model_store = localmodel.LocalModelStore()
-
-###
-# SHARED MODEL FUNCTIONS
-###
 
 
 async def list_installed_models():
@@ -29,11 +32,7 @@ async def is_model_installed(model_id: str):
     is downloaded to the DB or Transfomrmer Lab workspace.
     """
     global local_model_store
-    local_models = local_model_store.list_models()
-    for model in local_models:
-        if model["model_id"] == model_id:
-            model_downloaded = True
-    return model_downloaded
+    return await local_model_store.has_model(model_id)
 
 
 ###

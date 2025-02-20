@@ -608,7 +608,12 @@ async def models_search_for_local_uninstalled():
     models = []
     for source in modelsources:
         source_models = await model_helper.list_models_from_source(source, uninstalled_only=True)
-        models += source_models
+
+        # Only add uninstalled models
+        for source_model in source_models:
+            installed = await model_helper.is_model_installed(source_model.id)
+            if not installed:
+                models.append(source_model)
 
     return models
 
@@ -667,7 +672,7 @@ async def model_import(model: basemodel.BaseModel):
     architecture = model.json_data.get("architecture", "unknown")
     if model.status != "OK":
         return import_error(model.status)
-    if await model.is_installed():
+    if await model_helper.is_model_installed(model.id):
         return import_error(f"{model.id} is already installed.")
     if architecture == "unknown" or architecture == "":
         return import_error("Unable to determine model architecture.")
