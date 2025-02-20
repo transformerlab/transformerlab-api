@@ -10,9 +10,13 @@ from transformerlab.models import huggingfacemodel
 
 import traceback
 
+# Singleton of installed models list
+# which can get called multiple times in an API call
+installed_models_cache = None
 
 ###
 # SHARED MODEL FUNCTIONS
+###
 
 
 async def list_installed_models():
@@ -20,6 +24,9 @@ async def list_installed_models():
     This function checks both the DB and the workspace models directory
     and returns a list of models in the format that models are stored in the DB.
     """
+    global installed_models_cache
+    if installed_models_cache is not None:
+        return installed_models_cache
 
     # start with the list of downloaded models which is stored in the db
     models = await db.model_local_list()
@@ -64,7 +71,21 @@ async def list_installed_models():
                     # do nothing: just ignore this directory
                     pass
 
+    installed_models_cache = models
     return models
+
+
+async def is_model_installed(model_id: str):
+    """
+    Return true is a model with the unique ID model_id
+    is downloaded to the DB or Transfomrmer Lab workspace.
+    """
+    model_downloaded = False
+    local_models = await list_installed_models()
+    for model in local_models:
+        if model["model_id"] == model_id:
+            model_downloaded = True
+    return model_downloaded
 
 
 ###
