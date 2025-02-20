@@ -571,16 +571,20 @@ async def models_list_local_uninstalled(path: str = ""):
     for found_model in found_models:
         # Figure out if this model is supported in Transformer Lab
         architecture = found_model.json_data.get("architecture", "unknown")
-        supported = model_helper.model_architecture_is_supported(architecture)
+        supported = True
+
         if found_model.status != "OK":
             status = f"❌ {found_model.status}"
             supported = False
         elif architecture == "unknown" or architecture == "":
             status = "❌ Unknown architecture"
+            supported = False
         elif not supported:
             status = f"❌ {architecture}"
+            supported = False
         else:
             status = f"✅ {architecture}"
+            supported = True
 
         new_model = {
             "id": found_model.id,
@@ -666,8 +670,6 @@ async def model_import(model: basemodel.BaseModel):
         return import_error(f"{model.id} is already installed.")
     if architecture == "unknown" or architecture == "":
         return import_error("Unable to determine model architecture.")
-    if not model_helper.model_architecture_is_supported(architecture):
-        return import_error(f"Architecture {architecture} not supported.")
 
     await model.install()
 
