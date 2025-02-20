@@ -14,16 +14,11 @@ from transformerlab.shared import dirs
 
 
 class LocalModelStore(modelstore.ModelStore):
-    """
-    Inherits:
-    async def list_models()
-    async def has_model(model_id):
-    """
 
     def __init__(self):
         super().__init__()
 
-    async def _refresh_model_list(self):
+    async def list_models(self):
         """
         Check both the database and workspace for models.
         """

@@ -6,7 +6,6 @@ in the Hugging Face hub local cache.
 import os
 import json
 import fnmatch
-import time
 
 from transformerlab.models import basemodel
 
@@ -37,11 +36,11 @@ async def list_models():
             continue
 
         model = HuggingFaceModel(repo.repo_id)
-        json_data = await model.get_json_data()
 
         # Check if this model is only GGUF files, in which case handle those separately
-        # TODO: FIX THIS IT'S VERY EXPENSIVE TO GET THE JSON FOR EVERY MODEL
-        formats = json_data.get("formats", [])
+        # TODO: Need to handle GGUF Repos separately. But DO NOT read in the full JSON
+        # for this repo or it will be too slow.
+        formats = []
         gguf_only = (len(formats) == 1) and (formats[0] == "GGUF")
         if not gguf_only:
             # Regular (i.e. not GGUF only) model
@@ -52,6 +51,7 @@ async def list_models():
         if "GGUF" in formats:
             # TODO: This requires making a new Model class or using LocalGGUFModel
             # Not trivial given how we currently download GGUF in to workspace/models
+            print("Skipping GGUF repo", repo.repo_id)
             pass
 
     return models
@@ -59,14 +59,10 @@ async def list_models():
 
 class HuggingFaceModel(basemodel.BaseModel):
     def __init__(self, hugging_face_id):
-        starttime = time.time() * 1000
         super().__init__(hugging_face_id)
 
         self.source = "huggingface"
         self.source_id_or_path = hugging_face_id
-
-        endtime = time.time() * 1000
-        print(f"End HuggingFaceModel {self.id}: {starttime-endtime}")
 
     async def get_json_data(self):
         json_data = await super().get_json_data()
