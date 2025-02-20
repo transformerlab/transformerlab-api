@@ -8,7 +8,6 @@ LocalModelStore: for listing and getting local models
 import os
 import json
 
-from transformerlab.models import basemodel
 from transformerlab.models import modelstore
 import transformerlab.db as db
 from transformerlab.shared import dirs
