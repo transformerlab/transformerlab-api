@@ -7,12 +7,10 @@ import transformerlab.db as db
 from transformerlab.shared import dirs
 from transformerlab.models import ollamamodel
 from transformerlab.models import huggingfacemodel
+from transformerlab.models import localmodelstore
 
 import traceback
 
-# Singleton of installed models list
-# which can get called multiple times in an API call
-installed_models_cache = None
 
 ###
 # SHARED MODEL FUNCTIONS
@@ -24,55 +22,8 @@ async def list_installed_models():
     This function checks both the DB and the workspace models directory
     and returns a list of models in the format that models are stored in the DB.
     """
-    global installed_models_cache
-    if installed_models_cache is not None:
-        return installed_models_cache
-
-    # start with the list of downloaded models which is stored in the db
-    models = await db.model_local_list()
-
-    # now generate a list of local models by reading the filesystem
-    models_dir = dirs.MODELS_DIR
-
-    # now iterate through all the subdirectories in the models directory
-    with os.scandir(models_dir) as dirlist:
-        for entry in dirlist:
-            if entry.is_dir():
-
-                # Look for model information in info.json
-                info_file = os.path.join(models_dir, entry, "info.json")
-                try:
-                    with open(info_file, "r") as f:
-                        filedata = json.load(f)
-                        f.close()
-
-                        # NOTE: In some places info.json may be a list and in others not
-                        # Once info.json format is finalized we can remove this
-                        if isinstance(filedata, list):
-                            filedata = filedata[0]
-
-                        # tells the app this model was loaded from workspace directory
-                        filedata["stored_in_filesystem"] = True
-
-                        # Set local_path to the filesystem location
-                        # this will tell Hugging Face to not try downloading
-                        filedata["local_path"] = os.path.join(
-                            models_dir, entry)
-
-                        # Some models are a single file (possibly of many in a directory, e.g. GGUF)
-                        # For models that have model_filename set we should link directly to that specific file
-                        if ("model_filename" in filedata and filedata["model_filename"]):
-                            filedata["local_path"] = os.path.join(
-                                filedata["local_path"], filedata["model_filename"])
-
-                        models.append(filedata)
-
-                except FileNotFoundError:
-                    # do nothing: just ignore this directory
-                    pass
-
-    installed_models_cache = models
-    return models
+    local_model_store = localmodelstore.LocalModelStore()
+    return await local_model_store.list_models()
 
 
 async def is_model_installed(model_id: str):
