@@ -6,6 +6,7 @@ in the Hugging Face hub local cache.
 import os
 import json
 import fnmatch
+import time
 
 from transformerlab.models import basemodel
 
@@ -13,7 +14,7 @@ import huggingface_hub
 from huggingface_hub.hf_api import RepoFile
 
 
-async def list_models(uninstalled_only: bool = True):
+async def list_models():
     """
     NOTE: This is only listing locally cached Hugging Face models.
     """
@@ -42,10 +43,7 @@ async def list_models(uninstalled_only: bool = True):
         gguf_only = (len(formats) == 1) and (formats[0] == "GGUF")
         if not gguf_only:
             # Regular (i.e. not GGUF only) model
-            # Check if it's installed already if we are filtering on that
-            installed = await model.is_installed()
-            if not uninstalled_only or not installed:
-                models.append(model)
+            models.append(model)
 
         # If this repo is tagged GGUF then it might contain multiple
         # GGUF files each of which is a potential model to import
@@ -59,6 +57,7 @@ async def list_models(uninstalled_only: bool = True):
 
 class HuggingFaceModel(basemodel.BaseModel):
     def __init__(self, hugging_face_id):
+        starttime = time.time() * 1000
         super().__init__(hugging_face_id)
 
         # HuggingFace models just need the repo_id to load
@@ -106,6 +105,9 @@ class HuggingFaceModel(basemodel.BaseModel):
             self.json_data["name"] = hugging_face_id
             self.json_data["private"] = private
             self.json_data["gated"] = gated
+
+        endtime = time.time() * 1000
+        print(f"End HuggingFaceModel {self.id}: {starttime-endtime}")
 
     def _detect_model_formats(self):
         """

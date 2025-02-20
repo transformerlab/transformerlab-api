@@ -12,7 +12,7 @@ import json
 from transformerlab.models import basemodel
 
 
-async def list_models(path: str, uninstalled_only: bool = True):
+async def list_models(path: str):
     """
     This function recursively calls itself to generate a list of models under path.
     First try to determine if this directory is itself a model (and then check
@@ -29,11 +29,7 @@ async def list_models(path: str, uninstalled_only: bool = True):
     if os.path.isfile(config_file):
         # TODO Verify that this is something we can support
         model = FilesystemModel(path)
-
-        # Save ourselves some time if we're only looking for uninstalled models
-        installed = await model.is_installed()
-        if not uninstalled_only or not installed:
-            return [model]
+        return [model]
 
     # Otherwise scan this directory for single-file models
     # And then scan subdirectories recursively
@@ -41,16 +37,14 @@ async def list_models(path: str, uninstalled_only: bool = True):
     with os.scandir(path) as dirlist:
         for entry in dirlist:
             if entry.is_dir():
-                models.extend(await list_models(entry.path, uninstalled_only))
+                models.extend(await list_models(entry.path))
 
             # Use file extension to decide if this is a GGUF model
             if entry.is_file():
                 _, fileext = os.path.splitext(entry.path)
                 if fileext.lower() == ".gguf" or fileext.lower() == ".ggml":
                     model = FilesystemGGUFModel(entry.path)
-                    installed = await model.is_installed()
-                    if not uninstalled_only or not installed:
-                        models.append(model)
+                    models.append(model)
 
         dirlist.close()
 

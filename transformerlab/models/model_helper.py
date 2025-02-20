@@ -1,4 +1,11 @@
-# model_helper - common functions for using models from various sources
+"""
+model_helper.py
+
+Common functions for using models from various sources.
+
+Most parts of the API will just use this helper and probably
+don't have to act directly with the source and model classes.
+"""
 
 from transformerlab.models import ollamamodel
 from transformerlab.models import huggingfacemodel
@@ -8,10 +15,6 @@ import traceback
 
 
 local_model_store = localmodel.LocalModelStore()
-
-###
-# SHARED MODEL FUNCTIONS
-###
 
 
 async def list_installed_models():
@@ -29,11 +32,7 @@ async def is_model_installed(model_id: str):
     is downloaded to the DB or Transfomrmer Lab workspace.
     """
     global local_model_store
-    local_models = local_model_store.list_models()
-    for model in local_models:
-        if model["model_id"] == model_id:
-            model_downloaded = True
-    return model_downloaded
+    return await local_model_store.has_model(model_id)
 
 
 ###
@@ -75,7 +74,7 @@ def get_model_by_source_id(model_source: str, model_source_id: str):
     return None
 
 
-async def list_models_from_source(model_source: str, uninstalled_only: bool = True):
+async def list_models_from_source(model_source: str):
     """
     Get a list of models available at model_source.
     model_source needs to be one of the strings returned by list_model_sources.
@@ -83,9 +82,9 @@ async def list_models_from_source(model_source: str, uninstalled_only: bool = Tr
     try:
         match model_source:
             case "ollama":
-                return await ollamamodel.list_models(uninstalled_only)
+                return await ollamamodel.list_models()
             case "huggingface":
-                return await huggingfacemodel.list_models(uninstalled_only)
+                return await huggingfacemodel.list_models()
     except Exception:
         print(f"Caught exception listing models from {model_source}:")
         traceback.print_exc()

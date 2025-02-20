@@ -8,7 +8,8 @@ class BaseModel:
     A basic representation of a Model in Transformer Lab.
 
     To add a new model source, create a subclass.
-    The key function to override in your subclass is get_model_path.
+    The key function to override in your subclass is get_model_path,
+    and possibly install if there is custom install actions.
     Then in your subclass' constructor call super and then set any additional
     fields you want to store in the model's JSON.
 
