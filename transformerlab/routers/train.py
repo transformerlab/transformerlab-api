@@ -103,11 +103,7 @@ async def import_recipe(name: str, recipe_yaml: str = Body(...)):
 
     # Check if the model and dataset are installed
     # For model: get a list of local models to determine what has been downloaded already
-    model_downloaded = False
-    local_models = await model_helper.list_installed_models()
-    for model in local_models:
-        if model["model_id"] == model_path:
-            model_downloaded = True
+    model_downloaded = model_helper.is_model_installed(model_path)
 
     # Repeat for dataset
     dataset_downloaded = False
