@@ -11,6 +11,11 @@ from transformerlab.shared import dirs
 
 
 class LocalModelStore(modelstore.ModelStore):
+    """
+    Remember the main functions to call are:
+    async def list_models()
+    async def has_model(model_id):
+    """
 
     def __init__(self):
         super().__init__()
