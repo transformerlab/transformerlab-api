@@ -407,6 +407,7 @@ async def download_huggingface_model(hugging_face_id: str, model_details: str = 
     except asyncio.CancelledError:
         error_msg = "Download cancelled"
         await db.job_update_status(job_id, "CANCELLED", error_msg)
+        shared.delete_model_from_hf_cache(hugging_face_id)
         return {"status": "error", "message": error_msg}
 
     if hugging_face_filename is None:
