@@ -12,7 +12,7 @@ class ModelStore:
         # For debug output
         return str(self.__class__) + ": " + str(self.__dict__)
 
-    async def fetch_model_list(self):
+    async def _refresh_model_list(self):
         """
         This is the key function to override.
         Generate a list of BaseModel objects that will be cached.
@@ -24,7 +24,7 @@ class ModelStore:
         Dont' override this.  Override fetch_model_list instead.
         """
         if self.model_list is None:
-            self.model_list = await self.fetch_model_list()
+            self.model_list = await self._refresh_model_list()
         return self.model_list
 
     async def has_model(self, model_id):
