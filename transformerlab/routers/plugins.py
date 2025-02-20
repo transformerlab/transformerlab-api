@@ -21,8 +21,7 @@ async def plugin_gallery():
 
     local_workspace_gallery_directory = dirs.PLUGIN_PRELOADED_GALLERY
     # today the remote gallery is a local file, we will move it remote later
-    remote_gallery_file = os.path.join(
-        dirs.TFL_SOURCE_CODE_DIR, "transformerlab/galleries/plugin-gallery.json")
+    remote_gallery_file = os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab/galleries/plugin-gallery.json")
 
     # first get the remote gallery from the remote gallery file:
     with open(remote_gallery_file) as f:
@@ -34,8 +33,7 @@ async def plugin_gallery():
         for plugin in os.listdir(local_workspace_gallery_directory):
             if os.path.isdir(os.path.join(local_workspace_gallery_directory, plugin)):
                 try:
-                    info = json.load(
-                        open(os.path.join(local_workspace_gallery_directory, plugin, "index.json")))
+                    info = json.load(open(os.path.join(local_workspace_gallery_directory, plugin, "index.json")))
                 except Exception as e:
                     print(f"Error loading {plugin} index.json: {e}")
 
@@ -138,10 +136,10 @@ async def list_plugins() -> list[object]:
     if os.path.exists(local_workspace_gallery_directory):
         for plugin in os.listdir(local_workspace_gallery_directory):
             if os.path.isdir(os.path.join(local_workspace_gallery_directory, plugin)):
-                index_file = os.path.join(
-                    local_workspace_gallery_directory, plugin, "index.json")
+                index_file = os.path.join(local_workspace_gallery_directory, plugin, "index.json")
                 if os.path.isfile(index_file):
-                    info = json.load(index_file)
+                    with open(index_file, "r") as f:
+                        info = json.load(f)
                     workspace_gallery.append(info)
 
     return workspace_gallery
@@ -152,8 +150,7 @@ async def missing_platform_plugins() -> list[str]:
     cpu = platform.machine()
 
     installed_plugins = await list_plugins()
-    installed_plugins_names = [plugin["uniqueId"]
-                               for plugin in installed_plugins]
+    installed_plugins_names = [plugin["uniqueId"] for plugin in installed_plugins]
     missing_plugins = []
 
     if system == "Darwin" and cpu == "arm64":
@@ -175,8 +172,7 @@ async def missing_platform_plugins() -> list[str]:
     if system == "Linux":
         # This is an Linux Machine, hopefully with a GPU but we could
         # test for that further
-        linux_plugins = ["fastchat_server", "llama_trainer",
-                         "eleuther-ai-lm-evaluation-harness"]
+        linux_plugins = ["fastchat_server", "llama_trainer", "eleuther-ai-lm-evaluation-harness"]
 
         for plugin in linux_plugins:
             if plugin not in installed_plugins_names:
