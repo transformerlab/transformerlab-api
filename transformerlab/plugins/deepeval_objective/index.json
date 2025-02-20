@@ -47,6 +47,7 @@
             "ui:widget": "RangeWidget"
         },
         "tasks": {
+            "ui:help": "Select an evaluation metric from the drop-down list",
             "ui:widget": "AutoCompleteWidget"
         }
     }

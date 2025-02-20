@@ -5,7 +5,7 @@
     "description": "Use LLMs to create synthetic data for your usecases from scratch using just a concept of a dataset.",
     "plugin-format": "python",
     "type": "generator",
-    "version": "0.1.6",
+    "version": "0.1.7",
     "git": "https://github.com/confident-ai/deepeval",
     "url": "https://github.com/confident-ai/deepeval",
     "files": [
@@ -81,10 +81,18 @@
             "ui:help": "Describe the format of the output data which will be received from the model"
         },
         "generation_model" : {
-            "ui:help": "Select the model to be used for generation"
+            "ui:help": "Select the model to be used for generation",
+            "ui:widget": "AutoCompleteWidget",
+            "ui:options": {
+                "multiple": false
+            }
         },
         "generate_expected_output": {
-            "ui:help": "Select Yes if you want to generate data for the expected_output as well"
+            "ui:help": "Select Yes if you want to generate data for the expected_output as well",
+            "ui:widget": "AutoCompleteWidget",
+            "ui:options": {
+                "multiple": false
+            }
         }
     }
 }
