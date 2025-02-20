@@ -38,7 +38,13 @@ class OllamaModel(basemodel.BaseModel):
     def __init__(self, ollama_id):
         super().__init__(ollama_id)
 
-        self.id = f"ollama:{ollama_id}"
+        # A convention in Transformer Lab is that GGUF models are named
+        # modelname.gguf. Most models in ollama will not have the gguf part.
+        file_name, file_extension = os.path.splitext(ollama_id)
+        if file_extension == ".gguf":
+            self.id = f"{ollama_id}"
+        else:
+            self.id = f"{ollama_id}.gguf"
         self.name = f"{ollama_id} (ollama)"
 
         # inherit json_data from the parent and only update specific fields
