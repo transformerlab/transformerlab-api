@@ -72,7 +72,11 @@
     },
     "parameters_ui": {
         "generation_model": {
-            "ui:help": "Select the model to be used for generation from the drop-down list"
+            "ui:help": "Select the model to be used for generation from the drop-down list",
+            "ui:widget": "AutoCompleteWidget",
+            "ui:options": {
+                "multiple": false
+            }
         },
         "input_column": {
             "ui:help": "Select the column from the dataset to be used as input for generation"
