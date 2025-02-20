@@ -6,6 +6,8 @@ Sort of like an abstract class or interface.
 
 
 class ModelStore:
+
+    # Store as a class variable so it can be shared across instances
     model_list = None
 
     def __str__(self):

@@ -32,29 +32,23 @@ class OllamaModel(basemodel.BaseModel):
     """
 
     def __init__(self, ollama_id):
-        super().__init__(ollama_id)
 
         # A convention in Transformer Lab is that GGUF models are named
         # modelname.gguf. Most models in ollama will not have the gguf part.
         file_name, file_extension = os.path.splitext(ollama_id)
         if file_extension == ".gguf":
-            self.id = f"{ollama_id}"
+            self.id = ollama_id
         else:
             self.id = f"{ollama_id}.gguf"
-        self.name = f"{ollama_id} (ollama)"
 
-        # inherit json_data from the parent and only update specific fields
-        self.json_data["uniqueID"] = self.id
-        self.json_data["name"] = self.name
+        super().__init__(ollama_id)
 
-        # Assume all models from ollama are GGUF
-        self.json_data["architecture"] = "GGUF"
-        self.json_data["formats"] = ["GGUF"]
-        self.json_data["source"] = "ollama"
-        self.json_data["source_id_or_path"] = ollama_id
+        self.name = self.id
 
-        # NOTE: This can change self.status if there's an error
-        self.json_data["model_filename"] = self.get_model_path()
+        # The actual modelfile is in the ollama cache
+        self.source = "ollama"
+        self.source_id_or_path = ollama_id
+        self.modelfile = self._get_model_blob_filename()
 
     def _get_model_blob_filename(self):
         """
@@ -64,14 +58,14 @@ class OllamaModel(basemodel.BaseModel):
 
         # Get the path to the manifest file
         library_dir = ollama_models_library_dir()
-        ollamaid = self.json_data.get("source_id_or_path", self.id)
 
         if not library_dir:
             self.status = "failed to find ollama library"
             return None
 
         # Read in the manifest file
-        manifestfile = os.path.join(library_dir, ollamaid, "latest")
+        manifestfile = os.path.join(
+            library_dir, self.source_id_or_path, "latest")
         try:
             with open(manifestfile, "r") as f:
                 filedata = json.load(f)
@@ -113,16 +107,16 @@ class OllamaModel(basemodel.BaseModel):
         self.status = f"unsupported ollama schemaVersion {schemaVersion}"
         return None
 
-    def get_model_path(self):
-        model_filename = self.json_data.get("model_filename", "")
-        if model_filename:
-            return model_filename
-        else:
-            blobfile = self._get_model_blob_filename()
-            if blobfile:
-                return blobfile
-            else:
-                return None
+    async def get_json_data(self):
+        # inherit json_data from the parent and only update specific fields
+        json_data = await super().get_json_data()
+
+        # Assume all models from ollama are GGUF
+        json_data["architecture"] = "GGUF"
+        json_data["formats"] = ["GGUF"]
+        json_data["source_id_or_path"] = self.modelfile
+
+        return json_data
 
 
 #########################
