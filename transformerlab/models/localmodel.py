@@ -1,12 +1,80 @@
 """
-This package defines LocalFilesystemModel and LocalFilesystemGGUFModel
-which represent models that are stored in the workspace/models directory.
+Local models are anything in the workspace/models directory.
+
+This package defines:
+LocalModelStore: for listing and getting local models
+LocalFilesystemModel and LocalFilesystemGGUFModel classes
 """
 
 import os
 import json
 
 from transformerlab.models import basemodel
+from transformerlab.models import modelstore
+import transformerlab.db as db
+from transformerlab.shared import dirs
+
+
+class LocalModelStore(modelstore.ModelStore):
+    """
+    Remember the main functions to call are:
+    async def list_models()
+    async def has_model(model_id):
+    """
+
+    def __init__(self):
+        super().__init__()
+
+    async def fetch_model_list(self):
+        """
+        Check both the database and workspace for models.
+        """
+
+        # start with the list of downloaded models which is stored in the db
+        models = await db.model_local_list()
+
+        # now generate a list of local models by reading the filesystem
+        models_dir = dirs.MODELS_DIR
+
+        # now iterate through all the subdirectories in the models directory
+        with os.scandir(models_dir) as dirlist:
+            for entry in dirlist:
+                if entry.is_dir():
+
+                    # Look for model information in info.json
+                    info_file = os.path.join(models_dir, entry, "info.json")
+                    try:
+                        with open(info_file, "r") as f:
+                            filedata = json.load(f)
+                            f.close()
+
+                            # NOTE: In some places info.json may be a list and in others not
+                            # Once info.json format is finalized we can remove this
+                            if isinstance(filedata, list):
+                                filedata = filedata[0]
+
+                            # tells the app this model was loaded from workspace directory
+                            filedata["stored_in_filesystem"] = True
+
+                            # Set local_path to the filesystem location
+                            # this will tell Hugging Face to not try downloading
+                            filedata["local_path"] = os.path.join(
+                                models_dir, entry)
+
+                            # Some models are a single file (possibly of many in a directory, e.g. GGUF)
+                            # For models that have model_filename set we should link directly to that specific file
+                            if ("model_filename" in filedata and filedata["model_filename"]):
+                                filedata["local_path"] = os.path.join(
+                                    filedata["local_path"], filedata["model_filename"])
+
+                            models.append(filedata)
+
+                    except FileNotFoundError:
+                        # do nothing: just ignore this directory
+                        pass
+
+        return models
+
 
 async def list_models(path: str, uninstalled_only: bool = True):
     """
@@ -31,7 +99,7 @@ async def list_models(path: str, uninstalled_only: bool = True):
         if not uninstalled_only or not installed:
             return [model]
 
-    # Otherwise scan this directory for single-file models 
+    # Otherwise scan this directory for single-file models
     # And then scan subdirectories recursively
     models = []
     with os.scandir(path) as dirlist:
@@ -47,7 +115,6 @@ async def list_models(path: str, uninstalled_only: bool = True):
                     installed = await model.is_installed()
                     if not uninstalled_only or not installed:
                         models.append(model)
-
 
         dirlist.close()
 
@@ -76,8 +143,10 @@ class LocalFilesystemModel(basemodel.BaseModel):
 
                 architecture_list = filedata.get("architectures", [])
                 self.json_data["architecture"] = architecture_list[0] if architecture_list else ""
-                self.json_data["context_size"] = filedata.get("max_position_embeddings", "")
-                self.json_data["quantization"] = filedata.get("quantization", {})
+                self.json_data["context_size"] = filedata.get(
+                    "max_position_embeddings", "")
+                self.json_data["quantization"] = filedata.get(
+                    "quantization", {})
 
                 # TODO: Check formats to make sure this is a valid model?
 

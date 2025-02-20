@@ -2,12 +2,12 @@
 
 from transformerlab.models import ollamamodel
 from transformerlab.models import huggingfacemodel
-from transformerlab.models import localmodelstore
+from transformerlab.models import localmodel
 
 import traceback
 
 
-local_model_store = localmodelstore.LocalModelStore()
+local_model_store = localmodel.LocalModelStore()
 
 ###
 # SHARED MODEL FUNCTIONS
