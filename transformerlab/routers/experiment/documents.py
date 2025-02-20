@@ -104,20 +104,28 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
 
         experiment_dir = await dirs.experiment_dir_by_id(experimentId)
         documents_dir = os.path.join(experiment_dir, "documents")
-        if folder and folder != "" and os.path.exists(os.path.join(documents_dir, folder)):
-            documents_dir = os.path.join(documents_dir, folder)
+        if folder and folder != "":
+            if os.path.exists(os.path.join(documents_dir, folder)):
+                documents_dir = os.path.join(documents_dir, folder)
+            else:
+                print(f"Creating directory as it doesn't exist: {os.path.join(documents_dir, folder)}")
+                os.makedirs(os.path.join(documents_dir, folder))
+                documents_dir = os.path.join(documents_dir, folder)
 
         # Save the file to the dataset directory
         try:
             content = await file.read()
             if not os.path.exists(documents_dir):
+                print("Creating directory")
                 os.makedirs(documents_dir)
+
             newfilename = os.path.join(documents_dir, str(file.filename))
             async with aiofiles.open(newfilename, "wb") as out_file:
                 await out_file.write(content)
 
             # reindex the vector store on every file upload
-            await rag.reindex(experimentId)
+            if folder == "rag":
+                await rag.reindex(experimentId)
         except Exception:
             raise HTTPException(status_code=403, detail="There was a problem uploading the file")
 
