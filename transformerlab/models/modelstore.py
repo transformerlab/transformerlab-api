@@ -23,9 +23,9 @@ class ModelStore:
         """
         Dont' override this.  Override fetch_model_list instead.
         """
-        if model_list is None:
-            model_list = await self.fetch.model_list()
-        return model_list
+        if self.model_list is None:
+            self.model_list = await self.fetch.model_list()
+        return self.model_list
 
     async def has_model(self, model_id):
         """
