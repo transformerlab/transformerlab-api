@@ -607,7 +607,7 @@ async def models_search_for_local_uninstalled():
     modelsources = model_helper.list_model_sources()
     models = []
     for source in modelsources:
-        source_models = await model_helper.list_models_from_source(source, uninstalled_only=True)
+        source_models = await model_helper.list_models_from_source(source)
 
         # Only add uninstalled models
         for source_model in source_models:

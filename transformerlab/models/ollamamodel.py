@@ -9,7 +9,7 @@ import os
 import json
 
 
-async def list_models(uninstalled_only: bool = True):
+async def list_models():
     ollama_model_library = ollama_models_library_dir()
     if ollama_model_library is None:
         return []
@@ -17,14 +17,10 @@ async def list_models(uninstalled_only: bool = True):
     models = []
     with os.scandir(ollama_model_library) as dirlist:
         # Scan the ollama cache repos for cached models
-        # If uninstalled_only is True then skip any models TLab has already
         for entry in dirlist:
             if entry.is_dir():
                 ollama_model = OllamaModel(entry.name)
-
-                model_installed = await ollama_model.is_installed()
-                if not uninstalled_only or not model_installed:
-                    models.append(ollama_model)
+                models.append(ollama_model)
 
     return models
 
@@ -60,9 +56,12 @@ class OllamaModel(basemodel.BaseModel):
         # NOTE: This can change self.status if there's an error
         self.json_data["model_filename"] = self.get_model_path()
 
-    # This returns just the filename of the blob containing the actual model
-    # If anything goes wrong along the way this returns None
     def _get_model_blob_filename(self):
+        """
+        This returns just the filename of the blob containing the actual model
+        If anything goes wrong along the way this returns None
+        """
+
         # Get the path to the manifest file
         library_dir = ollama_models_library_dir()
         ollamaid = self.json_data.get("source_id_or_path", self.id)
