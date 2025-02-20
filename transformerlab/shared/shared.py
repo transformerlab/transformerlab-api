@@ -7,8 +7,6 @@ import threading
 import re
 import time
 import unicodedata
-from pathlib import Path
-import shutil
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
 from transformerlab.shared import dirs
@@ -106,8 +104,9 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
                 await db.job_update_status(job_id=job_id, status="RUNNING")
 
             # Check the job_data column for the stop flag:
-            job_data = await db.job_get_job_data(job_id)
-            if job_data.get("stop", False):
+            job_row = await db.job_get(job_id)
+            job_data = job_row.get("job_data", None)
+            if job_data and job_data.get("stop", False):
                 print(f"Job {job_id}: 'stop' flag detected. Cancelling job.")
                 raise asyncio.CancelledError()
 
@@ -381,42 +380,3 @@ def print_in_rainbow(text):
             print(chunk, end="")
             print(reset, end="")
         print("", flush=True)
-
-
-def delete_model_from_hf_cache(model_id: str, cache_dir: str = None) -> None:
-    """
-    Delete a model from the Hugging Face cache based on its model ID.
-
-    The model ID should be in the format:
-        "mlx-community/Qwen2.5-7B-Instruct-4bit"
-
-    This function converts the model ID to the cache folder name:
-        "models--mlx-community--Qwen2.5-7B-Instruct-4bit"
-
-    If cache_dir is not provided, it defaults to:
-        - $HF_HOME/hub (if HF_HOME environment variable is set), or
-        - ~/.cache/huggingface/hub
-
-    Args:
-        model_id (str): The model ID to delete from the cache.
-        cache_dir (str, optional): The Hugging Face cache directory. Defaults to None.
-    """
-    # Determine the cache directory
-    if cache_dir is None:
-        hf_home = os.getenv("HF_HOME")
-        if hf_home:
-            cache_dir = os.path.join(hf_home, "hub")
-        else:
-            cache_dir = os.path.join(str(Path.home()), ".cache", "huggingface", "hub")
-
-    # Convert the model_id into the cache folder name
-    # e.g. "mlx-community/Qwen2.5-7B-Instruct-4bit" -> "models--mlx-community--Qwen2.5-7B-Instruct-4bit"
-    folder_name = f"models--{model_id.replace('/', '--')}"
-    model_cache_path = os.path.join(cache_dir, folder_name)
-
-    # Delete the folder if it exists
-    if os.path.exists(model_cache_path) and os.path.isdir(model_cache_path):
-        shutil.rmtree(model_cache_path)
-        print(f"Deleted model cache folder: {model_cache_path}")
-    else:
-        print(f"Model cache folder not found: {model_cache_path}")

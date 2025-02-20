@@ -465,22 +465,6 @@ async def job_cancel_in_progress_jobs():
     return
 
 
-async def job_get_job_data(job_id):
-    cursor = await db.execute("SELECT job_data FROM job WHERE id = ?", (job_id,))
-    row = await cursor.fetchone()
-    await cursor.close()
-
-    if row is None:
-        raise ValueError(f"No job found with id: {job_id}")
-
-    job_data = row[0]
-
-    if isinstance(job_data, str):
-        return json.loads(job_data)
-    else:
-        return job_data
-
-
 async def job_update_job_data_insert_key_value(job_id, key, value):
     value = json.dumps(value)
 
