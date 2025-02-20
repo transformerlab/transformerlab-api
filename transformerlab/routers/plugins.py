@@ -138,9 +138,11 @@ async def list_plugins() -> list[object]:
     if os.path.exists(local_workspace_gallery_directory):
         for plugin in os.listdir(local_workspace_gallery_directory):
             if os.path.isdir(os.path.join(local_workspace_gallery_directory, plugin)):
-                info = json.load(
-                    open(os.path.join(local_workspace_gallery_directory, plugin, "index.json")))
-                workspace_gallery.append(info)
+                index_file = os.path.join(
+                    local_workspace_gallery_directory, plugin, "index.json")
+                if os.path.isfile(index_file):
+                    info = json.load(index_file)
+                    workspace_gallery.append(info)
 
     return workspace_gallery
 

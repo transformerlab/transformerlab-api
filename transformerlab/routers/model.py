@@ -19,6 +19,7 @@ from transformerlab.models import model_helper
 from transformerlab.models import basemodel
 from transformerlab.models import localmodel
 from transformerlab.models import huggingfacemodel
+from transformerlab.models import filesystemmodel
 
 router = APIRouter(tags=["model"])
 
@@ -558,7 +559,7 @@ async def models_list_local_uninstalled(path: str = ""):
         if os.path.isfile(path):
             found_models = []
         elif os.path.isdir(path):
-            found_models = await localmodel.list_models(path)
+            found_models = await filesystemmodel.list_models(path)
         else:
             return {"status": "error", "message": "Invalid path"}
 
@@ -571,16 +572,20 @@ async def models_list_local_uninstalled(path: str = ""):
     for found_model in found_models:
         # Figure out if this model is supported in Transformer Lab
         architecture = found_model.json_data.get("architecture", "unknown")
-        supported = model_helper.model_architecture_is_supported(architecture)
+        supported = True
+
         if found_model.status != "OK":
             status = f"❌ {found_model.status}"
             supported = False
         elif architecture == "unknown" or architecture == "":
             status = "❌ Unknown architecture"
+            supported = False
         elif not supported:
             status = f"❌ {architecture}"
+            supported = False
         else:
             status = f"✅ {architecture}"
+            supported = True
 
         new_model = {
             "id": found_model.id,
@@ -666,8 +671,6 @@ async def model_import(model: basemodel.BaseModel):
         return import_error(f"{model.id} is already installed.")
     if architecture == "unknown" or architecture == "":
         return import_error("Unable to determine model architecture.")
-    if not model_helper.model_architecture_is_supported(architecture):
-        return import_error(f"Architecture {architecture} not supported.")
 
     await model.install()
 
