@@ -60,22 +60,25 @@ class FilesystemModel(basemodel.BaseModel):
         super().__init__(model_id)
 
         # model_path is the key piece of data for local models
-        self.json_data["source"] = "local"
-        self.json_data["source_id_or_path"] = model_path
-        self.json_data["model_filename"] = model_path
+        self.source = "local"
+        self.source_id_or_path = model_path
+        self.model_filename = model_path
+
+    async def get_json_data(self):
+        json_data = await super().get_json_data()
 
         # Get model details from configuration file
-        config_file = os.path.join(model_path, "config.json")
+        config_file = os.path.join(self.model_path, "config.json")
         try:
             with open(config_file, "r") as f:
                 filedata = json.load(f)
                 f.close()
 
                 architecture_list = filedata.get("architectures", [])
-                self.json_data["architecture"] = architecture_list[0] if architecture_list else ""
-                self.json_data["context_size"] = filedata.get(
+                json_data["architecture"] = architecture_list[0] if architecture_list else ""
+                json_data["context_size"] = filedata.get(
                     "max_position_embeddings", "")
-                self.json_data["quantization"] = filedata.get(
+                json_data["quantization"] = filedata.get(
                     "quantization", {})
 
                 # TODO: Check formats to make sure this is a valid model?
@@ -87,7 +90,9 @@ class FilesystemModel(basemodel.BaseModel):
         except json.JSONDecodeError:
             # Invalid JSON means invlalid model
             self.status = "{self.id} has invalid JSON for configuration"
-            print(f"ERROR: Invalid config.json in {model_path}")
+            print(f"ERROR: Invalid config.json in {self.model_path}")
+
+        return json_data
 
 
 class FilesystemGGUFModel(basemodel.BaseModel):
@@ -98,18 +103,23 @@ class FilesystemGGUFModel(basemodel.BaseModel):
 
         super().__init__(model_id)
 
+        self.model_filename = model_path
+        self.source_id_or_path = model_path
+        self.source = "local"
+
+    async def get_json_data(self):
+        json_data = await super().get_json_data()
+
         # Get model details from configuration file
-        if os.path.isfile(model_path):
+        if os.path.isfile(self.source_id_or_path):
             architecture = "GGUF"
             formats = ["GGUF"]
         else:
-            self.status = f"Invalid GGUF model: {model_path}"
+            self.status = f"Invalid GGUF model: {self.source_id_or_path}"
             architecture = "unknown"
             formats = []
 
-        # TODO: This is a HACK! Need to not have two sources for these fields
-        self.json_data["architecture"] = architecture
-        self.json_data["formats"] = formats
-        self.json_data["source"] = "local"
-        self.json_data["source_id_or_path"] = model_path
-        self.json_data["model_filename"] = model_path
+        json_data["architecture"] = architecture
+        json_data["formats"] = formats
+
+        return json_data
