@@ -19,6 +19,7 @@ from transformerlab.models import model_helper
 from transformerlab.models import basemodel
 from transformerlab.models import localmodel
 from transformerlab.models import huggingfacemodel
+from transformerlab.models import filesystemmodel
 
 router = APIRouter(tags=["model"])
 
@@ -558,7 +559,7 @@ async def models_list_local_uninstalled(path: str = ""):
         if os.path.isfile(path):
             found_models = []
         elif os.path.isdir(path):
-            found_models = await localmodel.list_models(path)
+            found_models = await filesystemmodel.list_models(path)
         else:
             return {"status": "error", "message": "Invalid path"}
 
