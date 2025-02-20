@@ -292,8 +292,17 @@ async def dataset_download(dataset_id: str):
 
 @router.get("/list", summary="List available datasets.")
 async def dataset_list(generated: bool = True):
-    list = await db.get_datasets(generated=generated)
-    return list  # convert list to JSON object
+    dataset_list = await db.get_datasets()
+    if generated:
+        return dataset_list
+
+    final_list = []
+    for entry in dataset_list:
+        json_data = json.loads(entry.get("json_data", {}))
+        if not generated and not json_data.get("generated", False):
+            final_list.append(entry)
+
+    return final_list
 
 
 @router.get("/generated_datasets_list", summary="List available generated datasets.")

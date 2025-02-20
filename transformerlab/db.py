@@ -129,14 +129,9 @@ async def get_dataset(dataset_id):
     return row
 
 
-async def get_datasets(generated: bool = True):
+async def get_datasets():
     cursor = await db.execute("SELECT rowid, * FROM dataset")
     rows = await cursor.fetchall()
-
-    # print("All ROWS: ", rows)
-    if not generated:
-        # Filter out generated datasets
-        rows = [row for row in rows if not json.loads(row[6]).get("generated", False)]
 
     # convert to json:
     desc = cursor.description
