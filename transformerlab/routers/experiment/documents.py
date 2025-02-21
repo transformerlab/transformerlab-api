@@ -21,10 +21,13 @@ async def document_info():
 
 
 @router.get("/open/{document_name}", summary="View the contents of a document.")
-async def document_view(experimentId: str, document_name: str):
+async def document_view(experimentId: str, document_name: str, folder: str = None):
     try:
         experiment_dir = await dirs.experiment_dir_by_id(experimentId)
-        file_location = os.path.join(experiment_dir, "documents", document_name)
+        if folder and folder != "":
+            file_location = os.path.join(experiment_dir, "documents", folder, document_name)
+        else:
+            file_location = os.path.join(experiment_dir, "documents", document_name)
         print(f"Returning document from {file_location}")
         # with open(file_location, "r") as f:
         #     file_contents = f.read()
