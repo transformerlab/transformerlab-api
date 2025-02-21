@@ -42,8 +42,11 @@ async def document_list(experimentId: str, folder: str = None):
     # List the files that are in the experiment/<experiment_name>/documents directory:
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
-    if folder and folder != "" and os.path.exists(os.path.join(documents_dir, folder)):
-        documents_dir = os.path.join(documents_dir, folder)
+    if folder and folder != "":
+        if os.path.exists(os.path.join(documents_dir, folder)):
+            documents_dir = os.path.join(documents_dir, folder)
+        else:
+            return {"status": "error", "message": f'Folder "{folder}" not found'}
     if os.path.exists(documents_dir):
         for filename in os.listdir(documents_dir):
             # check if the filename is a directory:
