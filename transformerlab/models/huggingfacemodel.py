@@ -9,6 +9,7 @@ import fnmatch
 import time
 import shutil
 
+
 from pathlib import Path
 from transformerlab.models import basemodel
 
@@ -41,7 +42,9 @@ async def list_models():
         model = HuggingFaceModel(repo.repo_id)
 
         # Check if this model is only GGUF files, in which case handle those separately
-        formats = model.json_data.get("formats", [])
+        # TODO: Need to handle GGUF Repos separately. But DO NOT read in the full JSON
+        # for this repo or it will be too slow.
+        formats = []
         gguf_only = (len(formats) == 1) and (formats[0] == "GGUF")
         if not gguf_only:
             # Regular (i.e. not GGUF only) model
@@ -52,6 +55,7 @@ async def list_models():
         if "GGUF" in formats:
             # TODO: This requires making a new Model class or using LocalGGUFModel
             # Not trivial given how we currently download GGUF in to workspace/models
+            print("Skipping GGUF repo", repo.repo_id)
             pass
 
     return models
@@ -59,13 +63,13 @@ async def list_models():
 
 class HuggingFaceModel(basemodel.BaseModel):
     def __init__(self, hugging_face_id):
-        starttime = time.time() * 1000
         super().__init__(hugging_face_id)
 
-        # HuggingFace models just need the repo_id to load
-        self.json_data["source"] = "huggingface"
-        self.json_data["source_id_or_path"] = hugging_face_id
-        self.json_data["model_filename"] = None  # TODO: What about GGUF?
+        self.source = "huggingface"
+        self.source_id_or_path = hugging_face_id
+
+    async def get_json_data(self):
+        json_data = await super().get_json_data()
 
         # We need to access the huggingface_hub to figure out more model details
         # We'll get details and merge them with our json_data
@@ -74,8 +78,8 @@ class HuggingFaceModel(basemodel.BaseModel):
         private = False
         gated = False
         try:
-            model_details = get_model_details_from_huggingface(hugging_face_id)
-            self.json_data["formats"] = self._detect_model_formats()
+            model_details = await get_model_details_from_huggingface(self.id)
+            json_data["formats"] = self._detect_model_formats()
 
         except huggingface_hub.utils.GatedRepoError:
             # Model exists but this user is not on the authorized list
@@ -91,7 +95,7 @@ class HuggingFaceModel(basemodel.BaseModel):
         except huggingface_hub.utils.EntryNotFoundError as e:
             # This model is missing key configuration information
             self.status = "Missing configuration file"
-            print(f"WARNING: {hugging_face_id} missing configuration")
+            print(f"WARNING: {self.id} missing configuration")
             print(f"{type(e).__name__}: {e}")
 
         except Exception as e:
@@ -101,15 +105,15 @@ class HuggingFaceModel(basemodel.BaseModel):
 
         # Use the huggingface details to extend json_data
         if model_details:
-            self.json_data.update(model_details)
+            json_data.update(model_details)
         else:
-            self.json_data["uniqueID"] = hugging_face_id
-            self.json_data["name"] = hugging_face_id
-            self.json_data["private"] = private
-            self.json_data["gated"] = gated
+            json_data["uniqueID"] = self.id
+            json_data["name"] = self.id
+            json_data["private"] = private
+            json_data["gated"] = gated
 
-        endtime = time.time() * 1000
-        print(f"End HuggingFaceModel {self.id}: {starttime - endtime}")
+        return json_data
+
 
     def _detect_model_formats(self):
         """
@@ -117,9 +121,8 @@ class HuggingFaceModel(basemodel.BaseModel):
         of the model.
         """
         # Get a list of files in this model and iterate over them
-        source_id_or_path = self.json_data.get("source_id_or_path", self.id)
         try:
-            repo_files = huggingface_hub.list_repo_files(source_id_or_path)
+            repo_files = huggingface_hub.list_repo_files(self.id)
         except Exception:
             return []
 
@@ -134,7 +137,7 @@ class HuggingFaceModel(basemodel.BaseModel):
         return detected_formats
 
 
-def get_model_details_from_huggingface(hugging_face_id: str):
+async def get_model_details_from_huggingface(hugging_face_id: str):
     """
     Gets model config details from huggingface_hub
     and return in the format of BaseModel's json_data.
@@ -190,7 +193,7 @@ def get_model_details_from_huggingface(hugging_face_id: str):
 
         # TODO: Figure out description, paramters, model size
         newmodel = basemodel.BaseModel(hugging_face_id)
-        config = newmodel.json_data
+        config = await newmodel.get_json_data()
         config = {
             "uniqueID": hugging_face_id,
             "name": filedata.get("name", hugging_face_id),

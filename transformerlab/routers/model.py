@@ -427,7 +427,7 @@ async def download_model_by_huggingface_id(model: str, job_id: int | None = None
     # If None then that means either the model doesn't exist
     # Or we don't have proper Hugging Face authentication setup
     try:
-        model_details = huggingfacemodel.get_model_details_from_huggingface(model)
+        model_details = await huggingfacemodel.get_model_details_from_huggingface(model)
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
         return {"status": "error", "message": error_msg}
@@ -573,28 +573,19 @@ async def models_list_local_uninstalled(path: str = ""):
     response_models = []
     for found_model in found_models:
         # Figure out if this model is supported in Transformer Lab
-        architecture = found_model.json_data.get("architecture", "unknown")
         supported = True
-
         if found_model.status != "OK":
             status = f"❌ {found_model.status}"
             supported = False
-        elif architecture == "unknown" or architecture == "":
-            status = "❌ Unknown architecture"
-            supported = False
-        elif not supported:
-            status = f"❌ {architecture}"
-            supported = False
         else:
-            status = f"✅ {architecture}"
+            status = "✅"
             supported = True
 
         new_model = {
             "id": found_model.id,
             "name": found_model.name,
-            "path": found_model.json_data.get("source_id_or_path", found_model.id),
-            "architecture": architecture,
-            "source": found_model.json_data.get("source", "unknown"),
+            "path": found_model.source_id_or_path,
+            "source": found_model.source,
             "installed": False,
             "status": status,
             "supported": supported,
@@ -670,8 +661,11 @@ async def model_import(model: basemodel.BaseModel):
 
     print(f"Importing {model.id}...")
 
+    # Get full model details
+    json_data = await model.get_json_data()
+
     # Only add a row for uninstalled and supported repos
-    architecture = model.json_data.get("architecture", "unknown")
+    architecture = json_data.get("architecture", "unknown")
     if model.status != "OK":
         return import_error(model.status)
     if await model_helper.is_model_installed(model.id):
