@@ -103,16 +103,32 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
                 print(f"Job {job_id} now in progress!")
                 await db.job_update_status(job_id=job_id, status="RUNNING")
 
-    await process.wait()
+            # Check the job_data column for the stop flag:
+            job_row = await db.job_get(job_id)
+            job_data = job_row.get("job_data", None)
+            if job_data and job_data.get("stop", False):
+                print(f"Job {job_id}: 'stop' flag detected. Cancelling job.")
+                raise asyncio.CancelledError()
 
-    if process.returncode == 0:
-        print(f"Job {job_id} completed successfully")
-        await db.job_update_status(job_id=job_id, status="COMPLETE")
-    else:
-        print(f"ERROR: Job {job_id} failed with exit code {process.returncode}.")
-        await db.job_update_status(job_id=job_id, status="FAILED")
+    try:
+        await process.wait()
 
-    return process
+        if process.returncode == 0:
+            print(f"Job {job_id} completed successfully")
+            await db.job_update_status(job_id=job_id, status="COMPLETE")
+        else:
+            print(f"ERROR: Job {job_id} failed with exit code {process.returncode}.")
+            await db.job_update_status(job_id=job_id, status="FAILED")
+
+        return process
+
+    except asyncio.CancelledError:
+        process.kill()
+        await process.wait()
+
+        print(f"Job {job_id} cancelled.")
+
+        raise asyncio.CancelledError()
 
 
 async def read_process_output(process, job_id):

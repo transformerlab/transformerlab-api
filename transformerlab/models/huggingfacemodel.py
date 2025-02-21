@@ -1,12 +1,16 @@
 """
 This package defines HuggingFaceModel and functions for interacting with models
-in the Hugging Face hub local cache. 
+in the Hugging Face hub local cache.
 """
 
 import os
 import json
 import fnmatch
+import time
+import shutil
 
+
+from pathlib import Path
 from transformerlab.models import basemodel
 
 import huggingface_hub
@@ -110,6 +114,7 @@ class HuggingFaceModel(basemodel.BaseModel):
 
         return json_data
 
+
     def _detect_model_formats(self):
         """
         Scans the files in the HuggingFace repo to try to determine the format
@@ -143,8 +148,7 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
 
     # Use the Hugging Face Hub API to download the config.json file for this model
     # This may throw an exception if the model doesn't exist or we don't have access rights
-    huggingface_hub.hf_hub_download(
-        repo_id=hugging_face_id, filename="config.json")
+    huggingface_hub.hf_hub_download(repo_id=hugging_face_id, filename="config.json")
 
     # Also get model info for metadata and license details
     # Similar to hf_hub_download this can throw exceptions
@@ -182,8 +186,7 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
             architecture = "MLX"
 
         # calculate model size
-        model_size = get_huggingface_download_size(
-            hugging_face_id) / (1024 * 1024)
+        model_size = get_huggingface_download_size(hugging_face_id) / (1024 * 1024)
 
         # TODO: Context length definition seems to vary by architecture. May need conditional logic here.
         context_size = filedata.get("max_position_embeddings", "")
@@ -243,3 +246,42 @@ def get_huggingface_download_size(model_id: str, allow_patterns: list = []):
                         break
 
     return download_size
+
+
+def delete_model_from_hf_cache(model_id: str, cache_dir: str = None) -> None:
+    """
+    Delete a model from the Hugging Face cache based on its model ID.
+
+    The model ID should be in the format:
+        "mlx-community/Qwen2.5-7B-Instruct-4bit"
+
+    This function converts the model ID to the cache folder name:
+        "models--mlx-community--Qwen2.5-7B-Instruct-4bit"
+
+    If cache_dir is not provided, it defaults to:
+        - $HF_HOME/hub (if HF_HOME environment variable is set), or
+        - ~/.cache/huggingface/hub
+
+    Args:
+        model_id (str): The model ID to delete from the cache.
+        cache_dir (str, optional): The Hugging Face cache directory. Defaults to None.
+    """
+    # Determine the cache directory
+    if cache_dir is None:
+        hf_home = os.getenv("HF_HOME")
+        if hf_home:
+            cache_dir = os.path.join(hf_home, "hub")
+        else:
+            cache_dir = os.path.join(str(Path.home()), ".cache", "huggingface", "hub")
+
+    # Convert the model_id into the cache folder name
+    # e.g. "mlx-community/Qwen2.5-7B-Instruct-4bit" -> "models--mlx-community--Qwen2.5-7B-Instruct-4bit"
+    folder_name = f"models--{model_id.replace('/', '--')}"
+    model_cache_path = os.path.join(cache_dir, folder_name)
+
+    # Delete the folder if it exists
+    if os.path.exists(model_cache_path) and os.path.isdir(model_cache_path):
+        shutil.rmtree(model_cache_path)
+        print(f"Deleted model cache folder: {model_cache_path}")
+    else:
+        print(f"Model cache folder not found: {model_cache_path}")
