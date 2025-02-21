@@ -22,4 +22,10 @@ class ModelStore:
         for model in model_list:
             if model["model_id"] == model_id:
                 return True
+            # Sort of hack: If create a GGUF file in Transformer Lab it
+            # will have "TransformerLab/" at the front but some checks
+            # (for example coming from Ollama) won't have that and we don't
+            # want to create unnecessary duplicates. So....
+            if model["model_id"] == f"TransformerLab/{model_id}":
+                return True
         return False
