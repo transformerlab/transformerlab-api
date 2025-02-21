@@ -135,7 +135,7 @@ except Exception as e:
 yaml_config_path = f"{data_directory}/llama3_lora_dpo.yaml"
 
 today = time.strftime("%Y%m%d-%H%M%S")
-output_dir = os.path.join(config["output_dir"], today)
+output_dir = os.path.join(config["output_dir"], f"job_{config['job_id']}_{today}")
 print(f"Storing Tensorboard Output to: {output_dir}")
 
 

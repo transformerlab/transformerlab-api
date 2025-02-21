@@ -346,10 +346,22 @@ async def spawn_tensorboard(job_id: str):
 
     print("Starting tensorboard")
 
-    os.makedirs(f"{dirs.WORKSPACE_DIR}/tensorboards/job{job_id}", exist_ok=True)
+    job = await db.job_get(job_id)
+    # First get the experiment name from the job
+    experiment_id = job["experiment_id"]
+    data = await db.experiment_get(experiment_id)
+    if data is None:
+        return {"message": f"Experiment {experiment_id} does not exist"}
 
-    # hardcoded for now, later on we should get the information from the job id in SQLITE
-    # and use the config of the job to determine the logdir
-    logdir = f"{dirs.WORKSPACE_DIR}/tensorboards/job{job_id}"
+    experiment_dir = dirs.experiment_dir_by_name(data["name"])
+
+    job_data = job["job_data"]
+
+    if "template_name" not in job_data.keys():
+        raise ValueError("Template Name not found in job data")
+
+    os.makedirs(f"{experiment_dir}/tensorboards/{job_data['template_name']}", exist_ok=True)
+
+    logdir = f"{experiment_dir}/tensorboards/{job_data['template_name']}"
 
     tensorboard_process = subprocess.Popen(["tensorboard", "--logdir", logdir, "--host", "0.0.0.0"])

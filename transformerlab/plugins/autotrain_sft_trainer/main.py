@@ -132,7 +132,7 @@ print("Training beginning:")
 # todays date with seconds:
 today = time.strftime("%Y%m%d-%H%M%S")
 
-output_dir = os.path.join(config["output_dir"], today)
+output_dir = os.path.join(config["output_dir"], f"job_{config['job_id']}_{today}")
 writer = SummaryWriter(output_dir)
 print("Writing logs to:", output_dir)
 

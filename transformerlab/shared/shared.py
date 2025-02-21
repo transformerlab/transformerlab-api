@@ -293,6 +293,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     experiment_details = await db.experiment_get(experiment_id)
     experiment_details_as_string = json.dumps(experiment_details)
     experiment_name = experiment_details["name"]
+    experiment_dir = dirs.experiment_dir_by_name(experiment_name)
 
     # The script is in workspace/experiments/plugins/<plugin_name>/main.py so we need to
     # form that string:
@@ -316,7 +317,11 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         adaptor_name = template_config["adaptor_name"]
         template_config["job_id"] = job_id
         template_config["adaptor_output_dir"] = os.path.join(dirs.WORKSPACE_DIR, "adaptors", model_name, adaptor_name)
-        template_config["output_dir"] = os.path.join(dirs.WORKSPACE_DIR, "tensorboards", f"job{job_id}")
+        template_config["output_dir"] = os.path.join(
+            experiment_dir,
+            "tensorboards",
+            template_config["template_name"],
+        )
 
         # Create a file in the temp directory to store the inputs:
         tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
