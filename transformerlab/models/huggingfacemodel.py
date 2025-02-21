@@ -270,6 +270,7 @@ def delete_model_from_hf_cache(model_id: str, cache_dir: str = None) -> None:
             shutil.rmtree(repo.repo_path)
             print(f"Deleted model cache folder: {repo.repo_path}")
             found = True
+            break
 
     if not found:
         print(f"Model cache folder not found for: {model_id}")
