@@ -1,8 +1,7 @@
 """
 File System models are stored on the local file system.
 
-This package defines:
-FileSystemModelStore: for listing and getting local models
+This package defines both
 FilesystemModel and FilesystemGGUFModel classes
 """
 
