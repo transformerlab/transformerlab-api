@@ -1,8 +1,8 @@
 """
-Local models are anything in the workspace/models directory.
+LocalModelStore manages models in both the database and 
+.transformerlab/workspace/models directory.
 
-This package defines:
-LocalModelStore: for listing and getting local models
+There are functions in model_helper to make it easier to work with.
 """
 
 import os

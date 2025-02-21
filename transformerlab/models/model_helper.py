@@ -1,10 +1,10 @@
 """
 model_helper.py
 
-Common functions for using models from various sources.
+Common functions for working with models from various sources.
 
 Most parts of the API will just use this helper and probably
-don't have to act directly with the source and model classes.
+don't have to interact directly with the source and model classes.
 """
 
 from transformerlab.models import ollamamodel
@@ -31,10 +31,9 @@ async def is_model_installed(model_id: str):
 
 
 ###
-# MODEL SOURCE WRAPPER FUNCTIONS
+# EXTERNAL MODEL SOURCE WRAPPER FUNCTIONS
 #
-# These could probably be rearchitected to use a plugin style model.
-# But for now we will wrap the various model sources for convenience.
+# These functions get used primarily when importing models.
 ###
 
 
