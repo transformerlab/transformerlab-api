@@ -362,8 +362,6 @@ async def spawn_tensorboard(job_id: str):
 
     os.makedirs(f"{experiment_dir}/tensorboards/{job_data['template_name']}", exist_ok=True)
 
-    # hardcoded for now, later on we should get the information from the job id in SQLITE
-    # and use the config of the job to determine the logdir
     logdir = f"{experiment_dir}/tensorboards/{job_data['template_name']}"
 
     tensorboard_process = subprocess.Popen(["tensorboard", "--logdir", logdir, "--host", "0.0.0.0"])
