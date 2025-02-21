@@ -68,6 +68,7 @@ import re
 import subprocess
 import sys
 import time
+import wandb
 from datasets import load_dataset, get_dataset_split_names
 import argparse
 import os
@@ -137,11 +138,40 @@ if lora_rank or lora_alpha:
 # we need to adapter parameter so set a default
 adaptor_name = config.get("adaptor_name", "default")
 fuse_model = config.get("fuse_model", None)
+WANDB_LOGGING = config.get("log_to_wandb", True)
 
+if WANDB_LOGGING:
+    # Test if WANDB API Key is available
+    def test_wandb_login():
+        import netrc
+        from pathlib import Path
+
+        netrc_path = Path.home() / (".netrc" if os.name != "nt" else "_netrc")
+        if netrc_path.exists():
+            auth = netrc.netrc(netrc_path).authenticators("api.wandb.ai")
+            if auth:
+                return True
+            else:
+                return False
+        else:
+            return False
+
+    if not test_wandb_login():
+        print("WANDB API Key not found. WANDB logging will be disabled. Please set the WANDB API Key in Settings.")
+        WANDB_LOGGING = False
+
+
+if WANDB_LOGGING:
+    print("Setting up WANDB project")
+    wandb_run = wandb.init(
+        name=f"job_{config['job_id']}_{config['template_name']}", project="MLX Runs", config=config)
+    # Setting the WANDB config
+    wandb.config = config
 
 # Get the dataset
 try:
-    dataset_target = transformerlab.plugin.get_dataset_path(config["dataset_name"])
+    dataset_target = transformerlab.plugin.get_dataset_path(
+        config["dataset_name"])
 except Exception as e:
     print(e)
     job.set_job_completion_status("failed", "Could not find dataset.")
@@ -158,7 +188,8 @@ available_splits = get_dataset_split_names(dataset_target)
 # Verify that we have required "train" split
 if "train" not in available_splits:
     print(f"Error: Missing required train slice in dataset {dataset_target}.")
-    job.set_job_completion_status("failed", "This training algorithm requires a split called 'train' in the dataset.")
+    job.set_job_completion_status(
+        "failed", "This training algorithm requires a split called 'train' in the dataset.")
     exit(1)
 
 # And then either use provided "valid" split or create one
@@ -175,7 +206,8 @@ else:
     dataset_splits = {"train": "train[:80%]", "valid": "train[-10%:]"}
 
 dataset = {}
-formatting_template = jinja_environment.from_string(config["formatting_template"])
+formatting_template = jinja_environment.from_string(
+    config["formatting_template"])
 
 # Directory for storing temporary working files
 # TODO: This should probably be stored per job.
@@ -186,9 +218,11 @@ if not os.path.exists(data_directory):
 # Go over each dataset split and render a new file based on the template
 for split_name in dataset_splits:
     # Load dataset
-    dataset[split_name] = load_dataset(dataset_target, split=dataset_splits[split_name], trust_remote_code=True)
+    dataset[split_name] = load_dataset(
+        dataset_target, split=dataset_splits[split_name], trust_remote_code=True)
 
-    print(f"Loaded {split_name} dataset with {len(dataset[split_name])} examples.")
+    print(
+        f"Loaded {split_name} dataset with {len(dataset[split_name])} examples.")
 
     # output training files in templated format in to data directory
     with open(f"{data_directory}/{split_name}.jsonl", "w") as f:
@@ -212,7 +246,8 @@ print(example)
 adaptor_output_dir = config["adaptor_output_dir"]
 if adaptor_output_dir == "" or adaptor_output_dir is None:
     print("No adaptor output directory specified.")
-    adaptor_output_dir = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "adaptors", args.model_name, args.adaptor_name)
+    adaptor_output_dir = os.path.join(
+        os.environ["_TFL_WORKSPACE_DIR"], "adaptors", args.model_name, args.adaptor_name)
     print("Using default adaptor output directory:", adaptor_output_dir)
 if not os.path.exists(adaptor_output_dir):
     os.makedirs(adaptor_output_dir)
@@ -259,7 +294,8 @@ print("Adaptor will be saved in:", adaptor_output_dir)
 # todays date with seconds:
 today = time.strftime("%Y%m%d-%H%M%S")
 
-output_dir = os.path.join(config["output_dir"], f"job_{config['job_id']}_{today}")
+output_dir = os.path.join(
+    config["output_dir"], f"job_{config['job_id']}_{today}")
 # w = tf.summary.create_file_writer(os.path.join(config["output_dir"], "logs"))
 writer = SummaryWriter(output_dir)
 print("Writing logs to:", output_dir)
@@ -305,7 +341,17 @@ with subprocess.Popen(
                 # `w`.
                 writer.add_scalar("loss", loss, int(first_number))
                 writer.add_scalar("it_per_sec", it_per_sec, int(first_number))
-                writer.add_scalar("tokens_per_sec", tokens_per_sec, int(first_number))
+                writer.add_scalar("tokens_per_sec",
+                                  tokens_per_sec, int(first_number))
+
+                # Log the loss to WANDB
+                if WANDB_LOGGING:
+                    wb_log = {
+                        "train/loss": loss,
+                        "train/it_per_sec": it_per_sec,
+                        "train/tokens_per_sec": tokens_per_sec,
+                    }
+                    wandb.log(wb_log, step=int(first_number))
 
             # 2. Validation updates which look like:
             # "Iter 190: Val loss 1.009, Val took 1.696s"
@@ -315,7 +361,11 @@ with subprocess.Popen(
                 if match:
                     validation_loss = float(match.group(1))
                     print("Validation Loss: ", validation_loss)
-                    writer.add_scalar("validation-loss", validation_loss, int(first_number))
+                    writer.add_scalar("validation-loss",
+                                      validation_loss, int(first_number))
+                    if WANDB_LOGGING:
+                        wandb.log({"valid/loss": validation_loss},
+                                  step=int(first_number))
 
         print(line, end="", flush=True)
 
@@ -323,9 +373,12 @@ with subprocess.Popen(
 # Terminate if not
 if process.returncode and process.returncode != 0:
     print("An error occured before training completed.")
+    if WANDB_LOGGING:
+        wandb_run.finish()
     job.set_job_completion_status("failed", "Failed during training.")
     exit(process.returncode)
-
+if WANDB_LOGGING:
+    wandb_run.finish()
 print("Finished training.")
 
 # TIME TO FUSE THE MODEL WITH THE BASE MODEL
@@ -340,7 +393,8 @@ else:
     if "/" in model_name:
         model_name = model_name.split("/")[-1]
     fused_model_name = f"{model_name}_{adaptor_name}"
-    fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
+    fused_model_location = os.path.join(
+        WORKSPACE_DIR, "models", fused_model_name)
 
     # Make the directory to save the fused model
     if not os.path.exists(fused_model_location):
@@ -372,9 +426,11 @@ else:
             json_data = {
                 "description": f"An MLX model trained and generated by Transformer Lab based on {config['model_name']}"
             }
-            transformerlab.plugin.generate_model_json(fused_model_name, "MLX", json_data=json_data)
+            transformerlab.plugin.generate_model_json(
+                fused_model_name, "MLX", json_data=json_data)
             print("Finished fusing the adaptor with the model.")
-            job.set_job_completion_status("success", "Model fused successfully.")
+            job.set_job_completion_status(
+                "success", "Model fused successfully.")
 
         else:
             print("Fusing model with adaptor failed: ", return_code)
