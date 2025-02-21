@@ -278,8 +278,9 @@ async def login_to_huggingface():
         return {"message": "Login failed"}
 
 
-@router.get(path="/login_to_wandb")
+@router.get(path="/model/login_to_wandb")
 async def login_to_wandb():
+    # TODO: Move all of these logins and their tests to another router outside 'model' to maintain clarity
     import wandb
 
     token = await db.config_get("WANDB_API_KEY")
@@ -293,7 +294,7 @@ async def login_to_wandb():
         return {"message": "Login failed"}
 
 
-@router.get(path="/test_wandb_login")
+@router.get(path="/model/test_wandb_login")
 def test_wandb_login():
     import netrc
 
@@ -301,7 +302,6 @@ def test_wandb_login():
     if netrc_path.exists():
         auth = netrc.netrc(netrc_path).authenticators("api.wandb.ai")
         if auth:
-            print(f"W&B API key entry found: {auth}")
             return {"message": "OK"}
         else:
             print("No W&B API key entry found in the netrc file.")
