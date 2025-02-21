@@ -11,6 +11,8 @@ from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi
 from huggingface_hub import ModelCard, ModelCardData
 from huggingface_hub.utils import HfHubHTTPError
 import os
+from pathlib import Path
+
 
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
@@ -83,8 +85,7 @@ async def model_gallery_list_all():
 
         # Application uses the new flag to decide whether to display a badge
         # TODO: Probably shouldn't be doing > string comparison for dates
-        model["new"] = True if (
-            model["added"] > new_model_cutoff_date) else False
+        model["new"] = True if (model["added"] > new_model_cutoff_date) else False
 
     return gallery
 
@@ -112,15 +113,13 @@ async def model_gallery_update_sizes():
                 "*.bin",
             ]
             download_size = huggingfacemodel.get_huggingface_download_size(
-                model["uniqueID"], model.get(
-                    "allow_patterns", default_allow_patterns)
+                model["uniqueID"], model.get("allow_patterns", default_allow_patterns)
             )
         except Exception as e:
             download_size = -1
             print(e)
         try:
-            total_size = huggingfacemodel.get_huggingface_download_size(
-                model["uniqueID"], [])
+            total_size = huggingfacemodel.get_huggingface_download_size(model["uniqueID"], [])
         except Exception:
             total_size = -1
         print(model["uniqueID"])
@@ -279,6 +278,39 @@ async def login_to_huggingface():
         return {"message": "Login failed"}
 
 
+@router.get(path="/login_to_wandb")
+async def login_to_wandb():
+    import wandb
+
+    token = await db.config_get("WANDB_API_KEY")
+
+    if token is None:
+        return {"message": "WANDB_API not set"}
+    try:
+        wandb.login(key=token, force=True, relogin=True, verify=True)
+        return {"message": "OK"}
+    except Exception:
+        return {"message": "Login failed"}
+
+
+@router.get(path="/test_wandb_login")
+def test_wandb_login():
+    import netrc
+
+    netrc_path = Path.home() / (".netrc" if os.name != "nt" else "_netrc")
+    if netrc_path.exists():
+        auth = netrc.netrc(netrc_path).authenticators("api.wandb.ai")
+        if auth:
+            print(f"W&B API key entry found: {auth}")
+            return {"message": "OK"}
+        else:
+            print("No W&B API key entry found in the netrc file.")
+            return {"message": "No W&B API key entry found in the netrc file."}
+    else:
+        print(f"Netrc file not found at {netrc_path}.")
+        return {"message": "Netrc file not found at {netrc_path}."}
+
+
 @router.get(path="/model/set_openai_api_key")
 async def set_openai_api_key():
     token = await db.config_get("OPENAI_API_KEY")
@@ -332,8 +364,7 @@ async def set_anthropic_api_key():
 @router.get(path="/model/download_size")
 def get_model_download_size(model_id: str, allow_patterns: list = []):
     try:
-        download_size_in_bytes = huggingfacemodel.get_huggingface_download_size(
-            model_id, allow_patterns)
+        download_size_in_bytes = huggingfacemodel.get_huggingface_download_size(model_id, allow_patterns)
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
         return {"status": "error", "message": error_msg}
@@ -677,10 +708,7 @@ async def model_import(model: basemodel.BaseModel):
     if architecture == "unknown" or architecture == "":
         return import_error("Unable to determine model architecture.")
 
-    try:
-        await model.install()
-    except Exception as e:
-        return import_error(e)
+    await model.install()
 
     print(f"{model.id} imported successfully.")
 
