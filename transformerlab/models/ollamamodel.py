@@ -126,6 +126,8 @@ class OllamaModel(basemodel.BaseModel):
 
         # Make sure our source file exists
         if not input_model_path:
+            raise ValueError(f"No modelfile set for ollama model {self.id}")
+        elif not os.path.exists(output_path):
             raise FileNotFoundError(errno.ENOENT, os.strerror(
                 errno.ENOENT), input_model_path)
 
