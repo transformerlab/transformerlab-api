@@ -649,7 +649,7 @@ async def model_import_local_path(model_path: str):
     return await model_import(model)
 
 
-async def import_error(message: str):
+def import_error(message: str):
     """
     Separate function just to factor out printing and returning the same error.
     """
