@@ -13,8 +13,9 @@ from transformerlab.shared import dirs
 
 
 async def list_models():
-    ollama_model_library = ollama_models_library_dir()
-    if ollama_model_library is None:
+    try:
+        ollama_model_library = ollama_models_library_dir()
+    except Exception:
         return []
 
     models = []
@@ -189,12 +190,14 @@ def ollama_models_library_dir():
     models_dir = ollama_models_dir()
 
     if not models_dir:
-        return None
+        raise FileNotFoundError(errno.ENOENT, os.strerror(
+            errno.ENOENT), "Ollama models directory")
 
     library_dir = os.path.join(
         models_dir, "manifests", "registry.ollama.ai", "library")
 
     if not os.path.isdir(library_dir):
-        return None
+        raise NotADirectoryError(errno.ENOENT, os.strerror(
+            errno.ENOENT), library_dir)
 
     return library_dir
