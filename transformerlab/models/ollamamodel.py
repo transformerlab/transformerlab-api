@@ -49,7 +49,8 @@ class OllamaModel(basemodel.BaseModel):
         # The actual modelfile is in the ollama cache
         self.source = "ollama"
         self.source_id_or_path = ollama_id
-        self.modelfile = self._get_model_blob_filename()
+        self.model_filename = self._get_model_blob_filename()
+        print(self.model_filename)
 
     def _get_model_blob_filename(self):
         """
@@ -115,12 +116,12 @@ class OllamaModel(basemodel.BaseModel):
         # Assume all models from ollama are GGUF
         json_data["architecture"] = "GGUF"
         json_data["formats"] = ["GGUF"]
-        json_data["source_id_or_path"] = self.modelfile
+        json_data["source_id_or_path"] = self.model_filename
 
         return json_data
 
     async def install(self):
-        input_model_path = self.modelfile
+        input_model_path = self.model_filename
         output_model_id = self.id
         output_filename = self.id
 
