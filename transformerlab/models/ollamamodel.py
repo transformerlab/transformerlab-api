@@ -7,6 +7,9 @@ from transformerlab.models import basemodel
 
 import os
 import json
+import errno
+
+from transformerlab.shared import dirs
 
 
 async def list_models():
@@ -37,13 +40,11 @@ class OllamaModel(basemodel.BaseModel):
         # modelname.gguf. Most models in ollama will not have the gguf part.
         file_name, file_extension = os.path.splitext(ollama_id)
         if file_extension == ".gguf":
-            self.id = ollama_id
+            import_id = ollama_id
         else:
-            self.id = f"{ollama_id}.gguf"
+            import_id = f"{ollama_id}.gguf"
 
-        super().__init__(ollama_id)
-
-        self.name = self.id
+        super().__init__(import_id)
 
         # The actual modelfile is in the ollama cache
         self.source = "ollama"
@@ -117,6 +118,50 @@ class OllamaModel(basemodel.BaseModel):
         json_data["source_id_or_path"] = self.modelfile
 
         return json_data
+
+    async def install(self):
+        input_model_path = self.modelfile
+        output_model_id = self.id
+        output_filename = self.id
+
+        # Make sure our source file exists
+        if not input_model_path:
+            raise FileNotFoundError(errno.ENOENT, os.strerror(
+                errno.ENOENT), input_model_path)
+
+        # Create a directory for the model. Make sure it doesn't exist already.
+        output_path = os.path.join(dirs.MODELS_DIR, output_model_id)
+        if os.path.exists(output_path):
+            raise FileExistsError(
+                errno.EEXIST, "Directory already exists", output_path)
+        os.makedirs(output_path)
+
+        # Create a link in the directory that points to the source blob
+        link_name = os.path.join(output_path, output_filename)
+        os.symlink(input_model_path, link_name)
+
+        # Create an info.json file so this can be read by the system
+        # TODO: Add parameters to json_data
+        model_description = [
+            {
+                "model_id": output_model_id,
+                "model_filename": output_filename,
+                "name": f"{self.name} (Ollama)",
+                "local_model": True,
+                "json_data": {
+                    "uniqueID": output_model_id,
+                    "name": f"{self.name} (Ollama)",
+                    "model_filename": output_filename,
+                    "description": f"Link to Ollama model {self.source_id_or_path}",
+                    "source": "transformerlab",
+                    "architecture": "GGUF",
+                    "huggingface_repo": ""
+                },
+            }
+        ]
+        model_info_file = os.path.join(output_path, "info.json")
+        with open(model_info_file, "w") as f:
+            json.dump(model_description, f)
 
 
 #########################
