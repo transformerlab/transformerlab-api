@@ -60,9 +60,9 @@ class OllamaModel(basemodel.BaseModel):
         """
 
         # Get the path to the manifest file
-        library_dir = ollama_models_library_dir()
-
-        if not library_dir:
+        try:
+            library_dir = ollama_models_library_dir()
+        except Exception:
             self.status = "failed to find ollama library"
             return None
 
