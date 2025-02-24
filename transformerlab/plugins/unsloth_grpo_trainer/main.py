@@ -231,6 +231,8 @@ if WANDB_LOGGING:
         os.environ["WANDB_PROJECT"] = "TFL_Training"
 
 today = time.strftime("%Y%m%d-%H%M%S")
+run_suffix = config.get("template_name", today)
+
 
 args = GRPOConfig(
     output_dir=output_dir,
@@ -252,7 +254,7 @@ args = GRPOConfig(
     adam_beta2=adam_beta2,
     adam_epsilon=adam_epsilon,
     disable_tqdm=False,  # disable tqdm since with packing values are in correct
-    run_name=f"job_{JOB_ID}_{today}",
+    run_name=f"job_{JOB_ID}_{run_suffix}",
     report_to=report_to,
 )
 

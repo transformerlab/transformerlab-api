@@ -176,6 +176,7 @@ if WANDB_LOGGING:
         os.environ["WANDB_PROJECT"] = "TFL_Training"
 
 today = time.strftime("%Y%m%d-%H%M%S")
+run_suffix = config.get("template_name", today)
 
 args = SFTConfig(
     output_dir=output_dir,
@@ -195,7 +196,7 @@ args = SFTConfig(
     max_seq_length=max_seq_length,
     disable_tqdm=False,  # disable tqdm since with packing values are in correct
     packing=True,
-    run_name=f"job_{JOB_ID}_{today}",
+    run_name=f"job_{JOB_ID}_{run_suffix}",
     report_to=report_to,
 )
 
