@@ -65,9 +65,9 @@ Dependencies are managed with uv (installed separately). Add new requirements to
 # default GPU enabled requirements
 uv pip compile requirements.in -o requirements-uv.txt
 
-# requirements for systmes without GPU support
+# requirements for systems without GPU support
 uv pip compile requirements.in -o requirements-no-gpu-uv.txt --extra-index-url=https://download.pytorch.org/whl/cpu
-sed -i 's/\+cpu//g' requirements-no-gpu-uv.txt
+sed -i 's/\+cpu//g' requirements-no-gpu-uv.txt #replaces all +cpu in the requirements as uv pip compile adds it to all the pytorch libraries, and that breaks the install
 ```
 
 # Windows Notes
