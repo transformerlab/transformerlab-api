@@ -59,20 +59,15 @@ Once conda and dependencies are installed, run the following:
 
 ## Updating Requirements
 
-Dependencies are managed with pip-tools (installed separately). Add new requirements to `requirements.in` and regenerate their corresponding `requirements.txt` files by running the following two commands:
+Dependencies are managed with uv (installed separately). Add new requirements to `requirements.in` and regenerate their corresponding `requirements-uv.txt` files by running the following two commands:
 
 ```bash
 # default GPU enabled requirements
-pip-compile \
-    --extra-index-url=https://download.pytorch.org/whl/cu121 \
-    --output-file=requirements.txt \
-    requirements-gpu.in requirements.in
+uv pip compile requirements.in -o requirements-uv.txt
 
 # requirements for systmes without GPU support
-pip-compile \
-    --extra-index-url=https://download.pytorch.org/whl/cpu \
-    --output-file=requirements-no-gpu.txt \
-    requirements.in
+uv pip compile requirements.in -o requirements-no-gpu-uv.txt --extra-index-url=https://download.pytorch.org/whl/cpu
+sed -i 's/\+cpu//g' requirements-no-gpu-uv.txt
 ```
 
 # Windows Notes
