@@ -65,6 +65,10 @@ class OllamaModel(basemodel.BaseModel):
         super().__init__(ollama_id)
 
         self.source = "ollama"
+        if variant == "latest":
+            self.name = model_name
+        else:
+            self.name = f"{model_name} {variant}"
 
         # Make sure the source ID explicitly contains the variant name
         # It's OK if the display name doesn't have a variant but we need it
@@ -157,9 +161,9 @@ class OllamaModel(basemodel.BaseModel):
         # Most models in ollama will not have the gguf part.
         file_name, file_extension = os.path.splitext(output_model_name)
         if file_extension == ".gguf":
-            output_model_id = self.id
+            output_model_id = output_model_name
         else:
-            output_model_id = f"{self.id}.gguf"
+            output_model_id = f"{output_model_name}.gguf"
 
         # Model filename and model name should be the same
         output_filename = output_model_id
