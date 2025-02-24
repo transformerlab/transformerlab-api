@@ -1,2 +1,2 @@
 bitsandbytes
-wandb
+wandb==0.19.7
