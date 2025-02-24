@@ -362,6 +362,8 @@ urllib3==2.3.0
     # via requests
 uvicorn==0.34.0
     # via fschat
+wandb==0.19.7
+    # for wandb (MANUALLY ADDED)
 watchfiles==1.0.4
     # via -r requirements.in
 wavedrom==2.0.3.post3
