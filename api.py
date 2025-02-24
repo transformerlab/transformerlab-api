@@ -176,6 +176,11 @@ async def install_all_plugins():
         await plugins.copy_plugin_files_to_workspace(plugin_id)
 
 
+@app.get("/")
+async def home():
+    return {"msg": "Welcome to Transformer Lab!"}
+
+
 @app.get("/server/controller_start", tags=["serverinfo"])
 async def server_controler_start():
     spawn_fastchat_controller_subprocess()
