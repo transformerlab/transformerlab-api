@@ -36,7 +36,6 @@ class OllamaModel(basemodel.BaseModel):
     """
 
     def __init__(self, ollama_id):
-
         # A convention in Transformer Lab is that GGUF models are named
         # modelname.gguf. Most models in ollama will not have the gguf part.
         file_name, file_extension = os.path.splitext(ollama_id)
@@ -67,8 +66,7 @@ class OllamaModel(basemodel.BaseModel):
             return None
 
         # Read in the manifest file
-        manifestfile = os.path.join(
-            library_dir, self.source_id_or_path, "latest")
+        manifestfile = os.path.join(library_dir, self.source_id_or_path, "latest")
         try:
             with open(manifestfile, "r") as f:
                 filedata = json.load(f)
@@ -130,14 +128,12 @@ class OllamaModel(basemodel.BaseModel):
         if not input_model_path:
             raise ValueError(f"No modelfile set for ollama model {self.id}")
         elif not os.path.exists(input_model_path):
-            raise FileNotFoundError(errno.ENOENT, os.strerror(
-                errno.ENOENT), input_model_path)
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), input_model_path)
 
         # Create a directory for the model. Make sure it doesn't exist already.
         output_path = os.path.join(dirs.MODELS_DIR, output_model_id)
         if os.path.exists(output_path):
-            raise FileExistsError(
-                errno.EEXIST, "Directory already exists", output_path)
+            raise FileExistsError(errno.EEXIST, "Directory already exists", output_path)
         os.makedirs(output_path)
 
         # Create a link in the directory that points to the source blob
@@ -159,7 +155,7 @@ class OllamaModel(basemodel.BaseModel):
                     "description": f"Link to Ollama model {self.source_id_or_path}",
                     "source": "transformerlab",
                     "architecture": "GGUF",
-                    "huggingface_repo": ""
+                    "huggingface_repo": "",
                 },
             }
         ]
@@ -190,14 +186,11 @@ def ollama_models_library_dir():
     models_dir = ollama_models_dir()
 
     if not models_dir:
-        raise FileNotFoundError(errno.ENOENT, os.strerror(
-            errno.ENOENT), "Ollama models directory")
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), "Ollama models directory")
 
-    library_dir = os.path.join(
-        models_dir, "manifests", "registry.ollama.ai", "library")
+    library_dir = os.path.join(models_dir, "manifests", "registry.ollama.ai", "library")
 
     if not os.path.isdir(library_dir):
-        raise NotADirectoryError(errno.ENOENT, os.strerror(
-            errno.ENOENT), library_dir)
+        raise NotADirectoryError(errno.ENOENT, os.strerror(errno.ENOENT), library_dir)
 
     return library_dir

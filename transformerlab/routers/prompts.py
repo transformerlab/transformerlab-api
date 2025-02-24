@@ -13,8 +13,7 @@ router = APIRouter(prefix="/prompts", tags=["prompts"])
 async def list_prompts():
     """List the prompt templates available in the prompt gallery"""
 
-    remote_gallery_file = os.path.join(
-        dirs.TFL_SOURCE_CODE_DIR, "transformerlab/galleries/prompt-gallery.json")
+    remote_gallery_file = os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab/galleries/prompt-gallery.json")
 
     with open(remote_gallery_file, "r") as f:
         prompt_gallery = json.load(f)
@@ -29,8 +28,7 @@ async def list_prompts():
                     prompt["source"] = "local"
                     prompt_templates.append(prompt)
                 except Exception as e:
-                    print(
-                        f"Error loading prompt template from file: {file}: {e}, skipping")
+                    print(f"Error loading prompt template from file: {file}: {e}, skipping")
 
     return prompt_gallery + prompt_templates
 

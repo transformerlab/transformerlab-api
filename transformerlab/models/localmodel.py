@@ -1,5 +1,5 @@
 """
-LocalModelStore manages models in both the database and 
+LocalModelStore manages models in both the database and
 .transformerlab/workspace/models directory.
 
 There are functions in model_helper to make it easier to work with.
@@ -14,7 +14,6 @@ from transformerlab.shared import dirs
 
 
 class LocalModelStore(modelstore.ModelStore):
-
     def __init__(self):
         super().__init__()
 
@@ -33,7 +32,6 @@ class LocalModelStore(modelstore.ModelStore):
         with os.scandir(models_dir) as dirlist:
             for entry in dirlist:
                 if entry.is_dir():
-
                     # Look for model information in info.json
                     info_file = os.path.join(models_dir, entry, "info.json")
                     try:
@@ -51,14 +49,14 @@ class LocalModelStore(modelstore.ModelStore):
 
                             # Set local_path to the filesystem location
                             # this will tell Hugging Face to not try downloading
-                            filedata["local_path"] = os.path.join(
-                                models_dir, entry)
+                            filedata["local_path"] = os.path.join(models_dir, entry)
 
                             # Some models are a single file (possibly of many in a directory, e.g. GGUF)
                             # For models that have model_filename set we should link directly to that specific file
-                            if ("model_filename" in filedata and filedata["model_filename"]):
+                            if "model_filename" in filedata and filedata["model_filename"]:
                                 filedata["local_path"] = os.path.join(
-                                    filedata["local_path"], filedata["model_filename"])
+                                    filedata["local_path"], filedata["model_filename"]
+                                )
 
                             models.append(filedata)
 
