@@ -74,7 +74,7 @@ class OllamaModel(basemodel.BaseModel):
                 filedata = json.load(f)
 
         except FileNotFoundError:
-            print("ollama manifest file not found")
+            print("ollama manifest file not found:", manifestfile)
             return None
 
         # The format of v2 schema is that there is a list called "layers"
