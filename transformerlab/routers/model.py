@@ -654,7 +654,7 @@ def import_error(message: str):
     Separate function just to factor out printing and returning the same error.
     """
     print("Import error:", message)
-    return {"status": "error", "message": message}
+    return {"status": "error", "message": str(message)}
 
 
 async def model_import(model: basemodel.BaseModel):
