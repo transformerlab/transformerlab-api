@@ -62,7 +62,10 @@ class OllamaModel(basemodel.BaseModel):
             model_name = ollama_id
             variant = "latest"
 
-        super().__init__(ollama_id)
+        # For consistency, we will always keep the variant in the name
+        import_id = f"{model_name}:{variant}"
+
+        super().__init__(import_id)
 
         self.source = "ollama"
         if variant == "latest":
@@ -71,9 +74,7 @@ class OllamaModel(basemodel.BaseModel):
             self.name = f"{model_name} {variant}"
 
         # Make sure the source ID explicitly contains the variant name
-        # It's OK if the display name doesn't have a variant but we need it
-        # to find the actual file
-        self.source_id_or_path = f"{model_name}:{variant}"
+        self.source_id_or_path = import_id
 
         # The actual modelfile is in the ollama cache
         self.model_filename = self._get_model_blob_filename()
@@ -152,18 +153,14 @@ class OllamaModel(basemodel.BaseModel):
         input_model_path = self.model_filename
 
         # Translate from ollama ID into Tranformer Lab model IDs.
-        # 1. Ollama models probably have a colon in the name
-        # Let's just turn that into a dash
-        output_model_name = self.id.replace(":", "-")
-
-        # 2. Transformer Lab GGUF models need to be named <modelname>.gguf
+        # Transformer Lab GGUF models need to be named <modelname>.gguf
         # This is a FastChat thing where filename and modelname MUST match.
         # Most models in ollama will not have the gguf part.
-        file_name, file_extension = os.path.splitext(output_model_name)
+        file_name, file_extension = os.path.splitext(self.id)
         if file_extension == ".gguf":
-            output_model_id = output_model_name
+            output_model_id = self.id
         else:
-            output_model_id = f"{output_model_name}.gguf"
+            output_model_id = f"{self.id}.gguf"
 
         # Model filename and model name should be the same
         output_filename = output_model_id
