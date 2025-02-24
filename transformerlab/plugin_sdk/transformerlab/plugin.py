@@ -49,6 +49,20 @@ def get_dataset_path(dataset_id: str):
         return dataset_id
 
 
+def get_db_config_value(key: str):
+    """
+    Returns the value of a config key from the database.
+    """
+    db = get_db_connection()
+    cursor = db.execute("SELECT value FROM config WHERE key = ?", (key,))
+    row = cursor.fetchone()
+    cursor.close()
+
+    if row is None:
+        return None
+    return row[0]
+
+
 class Job:
     """
     Used to update status and info of long-running jobs.
