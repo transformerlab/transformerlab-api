@@ -140,32 +140,16 @@ adaptor_name = config.get("adaptor_name", "default")
 fuse_model = config.get("fuse_model", None)
 WANDB_LOGGING = config.get("log_to_wandb", None)
 
+# Check if WANDB logging is enabled
 if WANDB_LOGGING:
-    # Test if WANDB API Key is available
-    def test_wandb_login():
-        import netrc
-        from pathlib import Path
+    WANDB_LOGGING, _ = transformerlab.plugin.test_wandb_login()
 
-        netrc_path = Path.home() / (".netrc" if os.name != "nt" else "_netrc")
-        if netrc_path.exists():
-            auth = netrc.netrc(netrc_path).authenticators("api.wandb.ai")
-            if auth:
-                return True
-            else:
-                return False
-        else:
-            return False
-
-    if not test_wandb_login():
+    if not WANDB_LOGGING:
         print("WANDB API Key not found. WANDB logging will be disabled. Please set the WANDB API Key in Settings.")
-        WANDB_LOGGING = False
-
 
 if WANDB_LOGGING:
     print("Setting up WANDB project")
-    wandb_run = wandb.init(
-        name=f"job_{config['job_id']}_{config['template_name']}", project="TFL Training Runs", config=config
-    )
+    wandb_run = wandb.init(name=f"job_{config['job_id']}_{config['template_name']}", config=config)
     # Setting the WANDB config
     wandb.config = config
 

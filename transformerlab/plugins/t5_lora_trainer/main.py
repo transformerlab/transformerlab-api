@@ -41,6 +41,7 @@ from transformers import (
     Seq2SeqTrainingArguments,
     TrainerCallback,
 )
+import transformerlab.plugin
 
 # Connect to the LLM Lab database
 llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
@@ -261,32 +262,11 @@ class Trainer:
         db.commit()
 
         if wandb_logging:
-            # Test if WANDB API Key is available
-            def test_wandb_login():
-                import netrc
-                from pathlib import Path
-
-                netrc_path = Path.home() / (".netrc" if os.name != "nt" else "_netrc")
-                if netrc_path.exists():
-                    auth = netrc.netrc(netrc_path).authenticators("api.wandb.ai")
-                    if auth:
-                        return True
-                    else:
-                        return False
-                else:
-                    return False
-
-            if not test_wandb_login():
+            wandb_logging, report_to = transformerlab.shared.test_wandb_login()
+            if not wandb_logging:
                 print(
                     "WANDB API Key not found. WANDB logging will be disabled. Please set the WANDB API Key in Settings."
                 )
-                wandb_logging = False
-                os.environ["WANDB_DISABLED"] = "true"
-                report_to = ["tensorboard"]
-            else:
-                os.environ["WANDB_DISABLED"] = "false"
-                report_to = ["tensorboard", "wandb"]
-                os.environ["WANDB_PROJECT"] = "TFL Training Runs"
 
         today = time.strftime("%Y%m%d-%H%M%S")
         # Define training args

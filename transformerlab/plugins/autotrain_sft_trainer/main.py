@@ -49,24 +49,10 @@ project_name = f"{input_model_no_author}-{adaptor_name}".replace(".", "")
 
 # Check if WANDB logging is enabled
 if WANDB_LOGGING:
-    # Test if WANDB API Key is available
-    def test_wandb_login():
-        import netrc
-        from pathlib import Path
+    WANDB_LOGGING, _ = transformerlab.plugin.test_wandb_login()
 
-        netrc_path = Path.home() / (".netrc" if os.name != "nt" else "_netrc")
-        if netrc_path.exists():
-            auth = netrc.netrc(netrc_path).authenticators("api.wandb.ai")
-            if auth:
-                return True
-            else:
-                return False
-        else:
-            return False
-
-    if not test_wandb_login():
+    if not WANDB_LOGGING:
         print("WANDB API Key not found. WANDB logging will be disabled. Please set the WANDB API Key in Settings.")
-        WANDB_LOGGING = False
 
 
 # Get the dataset

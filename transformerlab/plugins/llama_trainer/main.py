@@ -150,30 +150,9 @@ max_seq_length = int(config["maximum_sequence_length"])  # max sequence length f
 print(max_seq_length)
 
 if WANDB_LOGGING:
-    # Test if WANDB API Key is available
-    def test_wandb_login():
-        import netrc
-        from pathlib import Path
-
-        netrc_path = Path.home() / (".netrc" if os.name != "nt" else "_netrc")
-        if netrc_path.exists():
-            auth = netrc.netrc(netrc_path).authenticators("api.wandb.ai")
-            if auth:
-                return True
-            else:
-                return False
-        else:
-            return False
-
-    if not test_wandb_login():
+    WANDB_LOGGING, report_to = transformerlab.plugin.test_wandb_login()
+    if not WANDB_LOGGING:
         print("WANDB API Key not found. WANDB logging will be disabled. Please set the WANDB API Key in Settings.")
-        WANDB_LOGGING = False
-        os.environ["WANDB_DISABLED"] = "true"
-        report_to = ["tensorboard"]
-    else:
-        os.environ["WANDB_DISABLED"] = "false"
-        report_to = ["tensorboard", "wandb"]
-        os.environ["WANDB_PROJECT"] = "TFL Training Runs"
 
 today = time.strftime("%Y%m%d-%H%M%S")
 run_suffix = config.get("template_name", today)
