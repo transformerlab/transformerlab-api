@@ -287,26 +287,31 @@ def generate_tflab_dataset(output_file_path: str):
         sys.exit(1)
 
 
+def get_docs_list(docs: str) -> List[str]:
+    docs_list = docs.split(",")
+    documents_dir = os.path.join(os.environ.get("_TFL_WORKSPACE_DIR"), "experiments", args.experiment_name, "documents")
+    for i, doc in enumerate(docs_list):
+        file_name = doc
+        doc_path = os.path.join(documents_dir, doc)
+        if os.path.isdir(doc_path):
+            docs_list.remove(file_name)
+            print(f"Directory found: {doc_path}. Fetching all files in the directory...")
+            # Get only first-level files from the given folder. TODO: Change this to handle multilevel folders (using os.walk) when we implement that in the future
+            for file in os.listdir(doc_path):
+                if not os.path.isdir(os.path.join(doc_path, file)):
+                    docs_list.append(os.path.join(doc_path, file))
+        else:
+            docs_list[i] = os.path.join(documents_dir, doc)
+    return docs_list
+
+
 def run_generation():
     try:
         if not args.docs:
             print("Docs must be provided if generating using docs type.")
             job.set_job_completion_status("failed", "Docs must be provided if generating using docs type.")
             sys.exit(1)
-        docs = args.docs.split(",")
-        # Check if any doc in the list is a directory. If it is, fetch all file paths in the directory
-        for doc in docs:
-            if os.path.isdir(doc):
-                docs.remove(doc)
-                print(f"Directory found: {doc}. Fetching all files in the directory...")
-                for root, dirs, files in os.walk(doc):
-                    for file in files:
-                        docs.append(os.path.join(root, file))
-        # Check if the path provided in docs has the files present
-        for doc in docs:
-            if not os.path.exists(doc):
-                print(f"File {doc} not found. Skipping...")
-                docs.remove(doc)
+        docs = get_docs_list(args.docs)
 
         if len(docs) == 0:
             print("No valid documents found. Exiting...")

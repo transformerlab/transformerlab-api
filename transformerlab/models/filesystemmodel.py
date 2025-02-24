@@ -16,7 +16,7 @@ async def list_models(path: str):
     This function recursively calls itself to generate a list of models under path.
     First try to determine if this directory is itself a model (and then check
     to see if we can support it). Then search subdirectories for models.
-    NOTE: If you pass this a directory with a large tree under it, this can take 
+    NOTE: If you pass this a directory with a large tree under it, this can take
     a long time to run!
     """
     if not os.path.isdir(path):
@@ -52,7 +52,6 @@ async def list_models(path: str):
 
 class FilesystemModel(basemodel.BaseModel):
     def __init__(self, model_path):
-
         # The ID for this model will be the directory name without path
         model_id = os.path.basename(model_path)
 
@@ -75,10 +74,8 @@ class FilesystemModel(basemodel.BaseModel):
 
                 architecture_list = filedata.get("architectures", [])
                 json_data["architecture"] = architecture_list[0] if architecture_list else ""
-                json_data["context_size"] = filedata.get(
-                    "max_position_embeddings", "")
-                json_data["quantization"] = filedata.get(
-                    "quantization", {})
+                json_data["context_size"] = filedata.get("max_position_embeddings", "")
+                json_data["quantization"] = filedata.get("quantization", {})
 
                 # TODO: Check formats to make sure this is a valid model?
 
@@ -96,7 +93,6 @@ class FilesystemModel(basemodel.BaseModel):
 
 class FilesystemGGUFModel(basemodel.BaseModel):
     def __init__(self, model_path):
-
         # The ID for this model will be the filename without path
         model_id = os.path.basename(model_path)
 

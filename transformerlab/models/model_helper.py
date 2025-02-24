@@ -39,13 +39,10 @@ async def is_model_installed(model_id: str):
 
 def list_model_sources():
     """
-    Supported strings that can be passsed as model_source 
+    Supported strings that can be passsed as model_source
     to the functons that follow.
     """
-    return [
-        "huggingface",
-        "ollama"
-    ]
+    return ["huggingface", "ollama"]
 
 
 def get_model_by_source_id(model_source: str, model_source_id: str):
@@ -62,8 +59,7 @@ def get_model_by_source_id(model_source: str, model_source_id: str):
             case "huggingface":
                 return huggingfacemodel.HuggingFaceModel(model_source_id)
     except Exception:
-        print(
-            f"Caught exception getting model {model_source_id} from {model_source}:")
+        print(f"Caught exception getting model {model_source_id} from {model_source}:")
         traceback.print_exc()
     return None
 

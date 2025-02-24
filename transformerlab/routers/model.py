@@ -645,12 +645,12 @@ async def model_import_local_path(model_path: str):
     return await model_import(model)
 
 
-async def import_error(message: str):
+def import_error(message: str):
     """
     Separate function just to factor out printing and returning the same error.
     """
     print("Import error:", message)
-    return {"status": "error", "message": message}
+    return {"status": "error", "message": str(message)}
 
 
 async def model_import(model: basemodel.BaseModel):
@@ -673,7 +673,10 @@ async def model_import(model: basemodel.BaseModel):
     if architecture == "unknown" or architecture == "":
         return import_error("Unable to determine model architecture.")
 
-    await model.install()
+    try:
+        await model.install()
+    except Exception as e:
+        return import_error(e)
 
     print(f"{model.id} imported successfully.")
 

@@ -257,6 +257,7 @@ def delete_model_from_hf_cache(model_id: str, cache_dir: str = None) -> None:
         model_id (str): The model ID (e.g. "mlx-community/Qwen2.5-7B-Instruct-4bit").
         cache_dir (str, optional): Custom cache directory.
     """
+
     # Scan the cache using the provided cache_dir if available.
     hf_cache_info = scan_cache_dir(cache_dir=cache_dir) if cache_dir else scan_cache_dir()
 
@@ -272,3 +273,4 @@ def delete_model_from_hf_cache(model_id: str, cache_dir: str = None) -> None:
 
     if not found:
         print(f"Model cache folder not found for: {model_id}")
+

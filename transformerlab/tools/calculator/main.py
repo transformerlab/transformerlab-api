@@ -4,6 +4,7 @@ Basic calculator functions
 Sample math functions for demo purposes.
 """
 
+
 def add(x: float, y: float) -> float:
     """
     Get the sum of two numbers.
@@ -14,7 +15,7 @@ def add(x: float, y: float) -> float:
     Returns:
         The sum of x and y as a number of type float.
     """
-    return float(x)+float(y)
+    return float(x) + float(y)
 
 
 def subtract(x: float, y: float) -> float:
@@ -27,7 +28,7 @@ def subtract(x: float, y: float) -> float:
     Returns:
         The difference of x minus y as a floating point number.
     """
-    return float(x)-float(y)
+    return float(x) - float(y)
 
 
 def multiply(x: float, y: float) -> float:
@@ -40,7 +41,7 @@ def multiply(x: float, y: float) -> float:
     Returns:
         The product of x times y as a number of type float.
     """
-    return float(x)*float(y)
+    return float(x) * float(y)
 
 
 def divide(x: float, y: float) -> float:
@@ -56,4 +57,4 @@ def divide(x: float, y: float) -> float:
     """
     if y == 0:
         return "undefined"
-    return float(x)/float(y)
+    return float(x) / float(y)

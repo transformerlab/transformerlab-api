@@ -7,7 +7,7 @@ class BaseModel:
     """
     A basic representation of a Model in Transformer Lab.
 
-    The base object contains minimal information about the model 
+    The base object contains minimal information about the model
     so you can display a list of available models at low cost.
     If you want full model details in the format returned by the API
     (which maps to the structure of the database and model gallery)

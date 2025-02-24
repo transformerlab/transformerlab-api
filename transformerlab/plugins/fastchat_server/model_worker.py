@@ -4,6 +4,7 @@ Copied on Sept 6, 2024. We use the standard model worker from Fastchat but then
 Add a few of our own endpoints
 A model worker that executes the model.
 """
+
 import argparse
 import base64
 import gc
@@ -77,8 +78,7 @@ class ModelWorker(BaseModelWorker):
             conv_template=conv_template,
         )
 
-        logger.info(
-            f"Loading the model {self.model_names} on worker {worker_id} ...")
+        logger.info(f"Loading the model {self.model_names} on worker {worker_id} ...")
         self.model, self.tokenizer = load_model(
             model_path,
             revision=revision,
@@ -98,8 +98,7 @@ class ModelWorker(BaseModelWorker):
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
         self.context_len = get_context_length(self.model.config)
-        self.generate_stream_func = get_generate_stream_function(
-            self.model, model_path)
+        self.generate_stream_func = get_generate_stream_function(self.model, model_path)
         self.stream_interval = stream_interval
         self.embed_in_truncate = embed_in_truncate
         self.seed = seed
@@ -183,9 +182,7 @@ class ModelWorker(BaseModelWorker):
 
     def __encode_base64(self, embeddings: torch.Tensor) -> List[str]:
         embeddings = embeddings.cpu()
-        return [
-            base64.b64encode(e.numpy().tobytes()).decode("utf-8") for e in embeddings
-        ]
+        return [base64.b64encode(e.numpy().tobytes()).decode("utf-8") for e in embeddings]
 
     @torch.inference_mode()
     def get_embeddings(self, params):
@@ -212,22 +209,15 @@ class ModelWorker(BaseModelWorker):
                     max_length=self.context_len,
                 )
             else:
-                encoding = tokenizer.batch_encode_plus(
-                    params["input"], padding=True, return_tensors="pt"
-                )
+                encoding = tokenizer.batch_encode_plus(params["input"], padding=True, return_tensors="pt")
             input_ids = encoding["input_ids"].to(self.device)
             attention_mask = input_ids != tokenizer.pad_token_id
 
             base64_encode = params.get("encoding_format", None)
 
             if self.embed_in_truncate:
-                embedding, token_num = self.__process_embed_chunk(
-                    input_ids, attention_mask, **model_type_dict
-                )
-                if (
-                    not hasattr(self.model, "use_cls_pooling")
-                    or not self.model.use_cls_pooling
-                ):
+                embedding, token_num = self.__process_embed_chunk(input_ids, attention_mask, **model_type_dict)
+                if not hasattr(self.model, "use_cls_pooling") or not self.model.use_cls_pooling:
                     embedding = embedding / token_num
                 normalized_embeddings = F.normalize(embedding, p=2, dim=1)
                 ret["token_num"] = token_num
@@ -235,15 +225,11 @@ class ModelWorker(BaseModelWorker):
                 all_embeddings = []
                 all_token_num = 0
                 for i in range(0, input_ids.size(1), self.context_len):
-                    chunk_input_ids = input_ids[:, i: i + self.context_len]
-                    chunk_attention_mask = attention_mask[:,
-                                                          i: i + self.context_len]
+                    chunk_input_ids = input_ids[:, i : i + self.context_len]
+                    chunk_attention_mask = attention_mask[:, i : i + self.context_len]
 
                     # add cls token and mask to get cls embedding
-                    if (
-                        hasattr(self.model, "use_cls_pooling")
-                        and self.model.use_cls_pooling
-                    ):
+                    if hasattr(self.model, "use_cls_pooling") and self.model.use_cls_pooling:
                         cls_tokens = (
                             torch.zeros(
                                 (chunk_input_ids.size(0), 1),
@@ -252,33 +238,25 @@ class ModelWorker(BaseModelWorker):
                             )
                             + tokenizer.cls_token_id
                         )
-                        chunk_input_ids = torch.cat(
-                            [cls_tokens, chunk_input_ids], dim=-1
-                        )
+                        chunk_input_ids = torch.cat([cls_tokens, chunk_input_ids], dim=-1)
                         mask = torch.ones(
                             (chunk_attention_mask.size(0), 1),
                             dtype=chunk_attention_mask.dtype,
                             device=chunk_attention_mask.device,
                         )
-                        chunk_attention_mask = torch.cat(
-                            [mask, chunk_attention_mask], dim=-1
-                        )
+                        chunk_attention_mask = torch.cat([mask, chunk_attention_mask], dim=-1)
 
                     chunk_embeddings, token_num = self.__process_embed_chunk(
                         chunk_input_ids, chunk_attention_mask, **model_type_dict
                     )
-                    if (
-                        hasattr(self.model, "use_cls_pooling")
-                        and self.model.use_cls_pooling
-                    ):
+                    if hasattr(self.model, "use_cls_pooling") and self.model.use_cls_pooling:
                         all_embeddings.append(chunk_embeddings * token_num)
                     else:
                         all_embeddings.append(chunk_embeddings)
                     all_token_num += token_num
 
                 all_embeddings_tensor = torch.stack(all_embeddings)
-                embedding = torch.sum(
-                    all_embeddings_tensor, dim=0) / all_token_num
+                embedding = torch.sum(all_embeddings_tensor, dim=0) / all_token_num
                 normalized_embeddings = F.normalize(embedding, p=2, dim=1)
 
                 ret["token_num"] = all_token_num
@@ -312,20 +290,15 @@ def create_model_worker():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", type=str, default="localhost")
     parser.add_argument("--port", type=int, default=21002)
-    parser.add_argument("--worker-address", type=str,
-                        default="http://localhost:21002")
-    parser.add_argument(
-        "--controller-address", type=str, default="http://localhost:21001"
-    )
+    parser.add_argument("--worker-address", type=str, default="http://localhost:21002")
+    parser.add_argument("--controller-address", type=str, default="http://localhost:21001")
     add_model_args(parser)
     parser.add_argument(
         "--model-names",
         type=lambda s: s.split(","),
         help="Optional display comma separated names",
     )
-    parser.add_argument(
-        "--conv-template", type=str, default=None, help="Conversation prompt template."
-    )
+    parser.add_argument("--conv-template", type=str, default=None, help="Conversation prompt template.")
     parser.add_argument("--embed-in-truncate", action="store_true")
     parser.add_argument(
         "--limit-worker-concurrency",
@@ -341,9 +314,7 @@ def create_model_worker():
         default=None,
         help="Overwrite the random seed for each generation.",
     )
-    parser.add_argument(
-        "--debug", type=bool, default=False, help="Print debugging messages"
-    )
+    parser.add_argument("--debug", type=bool, default=False, help="Print debugging messages")
     parser.add_argument(
         "--ssl",
         action="store_true",
@@ -356,9 +327,7 @@ def create_model_worker():
 
     if args.gpus:
         if len(args.gpus.split(",")) < args.num_gpus:
-            raise ValueError(
-                f"Larger --num-gpus ({args.num_gpus}) than --gpus {args.gpus}!"
-            )
+            raise ValueError(f"Larger --num-gpus ({args.num_gpus}) than --gpus {args.gpus}!")
         os.environ["CUDA_VISIBLE_DEVICES"] = args.gpus
 
     gptq_config = GptqConfig(
@@ -426,6 +395,7 @@ async def api_tokenize(request: Request):
     token_ids = worker.tokenizer(text).input_ids
     tokens = worker.tokenizer.convert_ids_to_tokens(token_ids)
     return {"tokens": tokens, "token_ids": token_ids}
+
 
 if __name__ == "__main__":
     args, worker = create_model_worker()
