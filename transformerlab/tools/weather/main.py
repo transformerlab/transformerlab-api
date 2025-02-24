@@ -3,8 +3,10 @@ Weather functions
 
 Sample functions to demonstrate function calling capabilities.
 """
+
 import requests
 import urllib.parse
+
 
 # From here: https://open-meteo.com/en/docs
 def interpret_WMO_current_weather_code(wmo_code: int):
@@ -72,15 +74,32 @@ def interpret_WMO_current_weather_code(wmo_code: int):
 def convert_degrees_to_compass_dir(degrees: int | None):
     if not degrees:
         return ""
-    val=int((degrees/22.5)+.5)
-    direction_names=["N","NNE","NE","ENE","E","ESE", "SE", "SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"]
+    val = int((degrees / 22.5) + 0.5)
+    direction_names = [
+        "N",
+        "NNE",
+        "NE",
+        "ENE",
+        "E",
+        "ESE",
+        "SE",
+        "SSE",
+        "S",
+        "SSW",
+        "SW",
+        "WSW",
+        "W",
+        "WNW",
+        "NW",
+        "NNW",
+    ]
     return direction_names[(val % 16)]
 
 
 def get_weather(location: str):
     """
     Get the current weather at a specified location.
-    
+
     Args:
         location: The location to get the temperature for without a country name.
     Returns:
@@ -94,7 +113,7 @@ def get_weather(location: str):
     # Docs: https://open-meteo.com/en/docs/geocoding-api
     # The open-meteo geocoding API doesn't like if you include country names.
     # SO we're going to strip this info, which may cause the result to come from the wrong city.
-    location = location.split(',')[0]
+    location = location.split(",")[0]
 
     url = f"https://geocoding-api.open-meteo.com/v1/search?name={urllib.parse.quote(location)}&count=1&language=en&format=json"
     response = requests.get(url)
@@ -154,7 +173,7 @@ def get_weather(location: str):
     units = data["current_units"]
     wind_direction = convert_degrees_to_compass_dir(int(values.get("wind_direction_10m", None)))
 
-    return  f"""Description: {description}
+    return f"""Description: {description}
 Temperature: {values.get("temperature_2m", "")}{units.get("temperature_2m", "")}
 Feels Like: {values.get("apparent_temperature", "")}{units.get("apparent_temperature", "")}
 Wind Speed: {values.get("wind_speed_10m", "")}{units.get("wind_speed_10m", "")} {wind_direction}

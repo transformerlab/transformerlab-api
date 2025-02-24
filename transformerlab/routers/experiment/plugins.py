@@ -55,8 +55,7 @@ async def experiment_list_scripts(id: int, type: str = None, filter: str = None)
         if os.path.isdir(os.path.join(scripts_dir, filename)):
             # check the type of each index.json in each script dir
             try:
-                plugin_info = json.load(
-                    open(f"{scripts_dir}/{filename}/index.json", "r"))
+                plugin_info = json.load(open(f"{scripts_dir}/{filename}/index.json", "r"))
             except FileNotFoundError:
                 continue
             except json.decoder.JSONDecodeError:
@@ -124,8 +123,7 @@ async def plugin_download(plugin_slug: str):
     # plugin = await db.get_plugin(plugin_slug)
     # Right now this plugin object doesn't contain the URL to the plugin, so we need to get that from the plugin gallery:
     # Fix this later by storing the information locally in the database
-    gallery_file = os.path.join(
-        dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "plugin-gallery.json")
+    gallery_file = os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "plugin-gallery.json")
     plugin_gallery_json = open(gallery_file, "r")
     plugin_gallery = json.load(plugin_gallery_json)
 
@@ -173,8 +171,7 @@ async def plugin_download(plugin_slug: str):
 # *****************************************************************************
 
 
-allowed_extensions: list[str] = [".py", ".pyj2",
-                                 ".ipynb", ".md", ".txt", ".sh", ".json"]
+allowed_extensions: list[str] = [".py", ".pyj2", ".ipynb", ".md", ".txt", ".sh", ".json"]
 
 
 @router.post("/{pluginId}/save_file_contents")
@@ -231,8 +228,7 @@ async def plugin_get_file_contents(id: str, pluginId: str, filename: str):
 
     # The following prevents path traversal attacks:
     plugin_dir = dirs.plugin_dir_by_name((pluginId))
-    final_path = Path(plugin_dir).joinpath(
-        filename + file_ext).resolve().relative_to(plugin_dir)
+    final_path = Path(plugin_dir).joinpath(filename + file_ext).resolve().relative_to(plugin_dir)
 
     final_path = plugin_dir + "/" + str(final_path)
 

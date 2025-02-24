@@ -31,10 +31,13 @@ print(f"🔥 PyTorch version: {pyTorch_version}")
 flash_attn_version = ""
 try:
     from flash_attn import __version__ as flash_attn_version
+
     print(f"⚡️ Flash Attention is installed, version {flash_attn_version}")
 except ImportError:
     flash_attn_version = "n/a"
-    print("🟡 Flash Attention is not installed. If you are running on GPU, install to accelerate inference and training. https://github.com/Dao-AILab/flash-attention")
+    print(
+        "🟡 Flash Attention is not installed. If you are running on GPU, install to accelerate inference and training. https://github.com/Dao-AILab/flash-attention"
+    )
 
 
 # Read in static system info
@@ -44,9 +47,7 @@ system_info = {
     "platform": platform.platform(),
     "python_version": platform.python_version(),
     "os": platform.system(),
-    "os_alias": platform.system_alias(
-        platform.system(), platform.release(), platform.version()
-    ),
+    "os_alias": platform.system_alias(platform.system(), platform.release(), platform.version()),
     "gpu": [],
     "gpu_memory": "",
     "device": "cpu",
@@ -106,7 +107,7 @@ async def get_computer_information():
             # print('device name: ', device_name)
 
             # check if device_name is a byte string, if so convert to string:
-            if (isinstance(device_name, bytes)):
+            if isinstance(device_name, bytes):
                 device_name = device_name.decode()
 
             info["name"] = device_name
@@ -142,8 +143,7 @@ async def get_computer_information():
 @router.get("/python_libraries")
 async def get_python_library_versions():
     # get the list of installed python packages
-    packages = subprocess.check_output(
-        sys.executable + " -m pip list --format=json", shell=True)
+    packages = subprocess.check_output(sys.executable + " -m pip list --format=json", shell=True)
 
     packages = packages.decode("utf-8")
     packages = json.loads(packages)
@@ -153,9 +153,7 @@ async def get_python_library_versions():
 @router.get("/pytorch_collect_env")
 async def get_pytorch_collect_env():
     # run python -m torch.utils.collect_env and return the output
-    output = subprocess.check_output(
-        sys.executable + " -m torch.utils.collect_env", shell=True
-    )
+    output = subprocess.check_output(sys.executable + " -m torch.utils.collect_env", shell=True)
     return output.decode("utf-8")
 
 
@@ -208,9 +206,5 @@ async def watch_log():
     return StreamingResponse(
         watch_file(GLOBAL_LOG_PATH),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "Access-Control-Allow-Origin": "*"
-        }
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
     )

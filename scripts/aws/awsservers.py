@@ -1,15 +1,18 @@
 import sys
 import json
 
+
 def list_servers():
-    servers = json.load(sys.stdin)['Reservations'][0]['Instances']
+    servers = json.load(sys.stdin)["Reservations"][0]["Instances"]
 
     print("Server                 Type                 Status        Public IP         Server Name")
-    print("---------------------+--------------------+-------------+-----------------+------------------------------------------")
+    print(
+        "---------------------+--------------------+-------------+-----------------+------------------------------------------"
+    )
     for server in servers:
         id = server["InstanceId"]
-        instance_type = server['InstanceType']
-        status = server.get("State",{}).get("Name", "")
+        instance_type = server["InstanceType"]
+        status = server.get("State", {}).get("Name", "")
         ip_address = ""
         dns_name = ""
 
@@ -21,8 +24,7 @@ def list_servers():
 
 
 # Take first parameter and use it to call a function
-if __name__ == '__main__':
-
+if __name__ == "__main__":
     # args: [0] = current file, [1] = function name, [2:] = function args : (*unpacked)
     args = sys.argv
     globals()[args[1]](*args[2:])

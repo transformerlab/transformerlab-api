@@ -6,7 +6,6 @@ Sort of like an abstract class or interface.
 
 
 class ModelStore:
-
     def __str__(self):
         # For debug output
         return str(self.__class__) + ": " + str(self.__dict__)

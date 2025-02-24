@@ -24,13 +24,7 @@ class TextConfig:
 
     @classmethod
     def from_dict(cls, params):
-        return cls(
-            **{
-                k: v
-                for k, v in params.items()
-                if k in inspect.signature(cls).parameters
-            }
-        )
+        return cls(**{k: v for k, v in params.items() if k in inspect.signature(cls).parameters})
 
     def __post_init__(self):
         if self.num_key_value_heads is None:
@@ -39,12 +33,10 @@ class TextConfig:
         if self.rope_scaling:
             required_keys = {"factor", "type"}
             if not all(key in self.rope_scaling for key in required_keys):
-                raise ValueError(
-                    f"rope_scaling must contain keys {required_keys}")
+                raise ValueError(f"rope_scaling must contain keys {required_keys}")
 
             if self.rope_scaling["type"] != "linear":
-                raise ValueError(
-                    "rope_scaling 'type' currently only supports 'linear'")
+                raise ValueError("rope_scaling 'type' currently only supports 'linear'")
 
 
 class Attention(nn.Module):
@@ -67,8 +59,7 @@ class Attention(nn.Module):
 
         rope_scale = (
             1 / config.rope_scaling["factor"]
-            if config.rope_scaling is not None
-            and config.rope_scaling["type"] == "linear"
+            if config.rope_scaling is not None and config.rope_scaling["type"] == "linear"
             else 1
         )
         self.rope = nn.RoPE(
@@ -91,8 +82,7 @@ class Attention(nn.Module):
         # Prepare the queries, keys and values for the attention computation
         queries = queries.reshape(B, L, self.n_heads, -1).transpose(0, 2, 1, 3)
         keys = keys.reshape(B, L, self.n_kv_heads, -1).transpose(0, 2, 1, 3)
-        values = values.reshape(
-            B, L, self.n_kv_heads, -1).transpose(0, 2, 1, 3)
+        values = values.reshape(B, L, self.n_kv_heads, -1).transpose(0, 2, 1, 3)
 
         if cache is not None:
             key_cache, value_cache = cache
@@ -104,9 +94,7 @@ class Attention(nn.Module):
             queries = self.rope(queries)
             keys = self.rope(keys)
 
-        output = mx.fast.scaled_dot_product_attention(
-            queries, keys, values, scale=self.scale, mask=mask
-        )
+        output = mx.fast.scaled_dot_product_attention(queries, keys, values, scale=self.scale, mask=mask)
         output = output.transpose(0, 2, 1, 3).reshape(B, L, -1)
         return self.o_proj(output), (keys, values)
 
@@ -129,11 +117,8 @@ class TransformerBlock(nn.Module):
         self.hidden_size = config.hidden_size
         self.self_attn = Attention(config)
         self.mlp = MLP(config.hidden_size, config.intermediate_size)
-        self.input_layernorm = nn.RMSNorm(
-            config.hidden_size, eps=config.rms_norm_eps)
-        self.post_attention_layernorm = nn.RMSNorm(
-            config.hidden_size, eps=config.rms_norm_eps
-        )
+        self.input_layernorm = nn.RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
+        self.post_attention_layernorm = nn.RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.config = config
 
     def __call__(
@@ -157,9 +142,7 @@ class Llama(nn.Module):
         self.num_hidden_layers = config.num_hidden_layers
         assert self.vocab_size > 0
         self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size)
-        self.layers = [
-            TransformerBlock(config=config) for _ in range(config.num_hidden_layers)
-        ]
+        self.layers = [TransformerBlock(config=config) for _ in range(config.num_hidden_layers)]
         self.norm = nn.RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
     def __call__(
@@ -176,8 +159,7 @@ class Llama(nn.Module):
 
         mask = None
         if h.shape[1] > 1:
-            mask = nn.MultiHeadAttention.create_additive_causal_mask(
-                h.shape[1])
+            mask = nn.MultiHeadAttention.create_additive_causal_mask(h.shape[1])
             mask = mask.astype(h.dtype)
 
         if cache is None:
@@ -194,12 +176,9 @@ class LanguageModel(nn.Module):
         super().__init__()
         self.model_type = config.model_type
         if self.model_type != "llama":
-            raise ValueError(
-                f"Model type {self.model_type} not supported. Currently only 'llama' is supported"
-            )
+            raise ValueError(f"Model type {self.model_type} not supported. Currently only 'llama' is supported")
         self.model = Llama(config)
-        self.lm_head = nn.Linear(
-            config.hidden_size, config.vocab_size, bias=False)
+        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
     def __call__(
         self,
@@ -213,6 +192,4 @@ class LanguageModel(nn.Module):
     @staticmethod
     def sanitize(weights):
         # Remove unused precomputed rotary freqs
-        return {
-            k: v for k, v in weights.items() if "self_attn.rotary_emb.inv_freq" not in k
-        }
+        return {k: v for k, v in weights.items() if "self_attn.rotary_emb.inv_freq" not in k}
