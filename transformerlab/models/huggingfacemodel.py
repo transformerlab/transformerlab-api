@@ -8,8 +8,6 @@ import json
 import fnmatch
 import shutil
 
-
-from pathlib import Path
 from transformerlab.models import basemodel
 
 import huggingface_hub
