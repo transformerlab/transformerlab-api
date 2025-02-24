@@ -173,7 +173,7 @@ if WANDB_LOGGING:
     else:
         os.environ["WANDB_DISABLED"] = "false"
         report_to = ["tensorboard", "wandb"]
-        os.environ["WANDB_PROJECT"] = "TFL_Training"
+        os.environ["WANDB_PROJECT"] = "TFL Training Runs"
 
 today = time.strftime("%Y%m%d-%H%M%S")
 run_suffix = config.get("template_name", today)

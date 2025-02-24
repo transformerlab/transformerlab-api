@@ -163,7 +163,9 @@ if WANDB_LOGGING:
 
 if WANDB_LOGGING:
     print("Setting up WANDB project")
-    wandb_run = wandb.init(name=f"job_{config['job_id']}_{config['template_name']}", project="MLX Runs", config=config)
+    wandb_run = wandb.init(
+        name=f"job_{config['job_id']}_{config['template_name']}", project="TFL Training Runs", config=config
+    )
     # Setting the WANDB config
     wandb.config = config
 

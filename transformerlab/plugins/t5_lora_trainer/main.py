@@ -286,7 +286,7 @@ class Trainer:
             else:
                 os.environ["WANDB_DISABLED"] = "false"
                 report_to = ["tensorboard", "wandb"]
-                os.environ["WANDB_PROJECT"] = "TFL_Training"
+                os.environ["WANDB_PROJECT"] = "TFL Training Runs"
 
         today = time.strftime("%Y%m%d-%H%M%S")
         # Define training args
