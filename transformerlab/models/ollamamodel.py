@@ -24,9 +24,18 @@ async def list_models():
     with os.scandir(ollama_model_library) as dirlist:
         # Scan the ollama cache repos for cached models
         for entry in dirlist:
+
+            # Each model directory contains subdirectories with variants
             if entry.is_dir():
-                ollama_model = OllamaModel(entry.name)
-                models.append(ollama_model)
+                for subentry in os.scandir(entry.path):
+                    if subentry.is_file():
+
+                        # Users will be familiar with Ollama model name format:
+                        # <model_name>:<variant>
+                        ollama_id = f"{entry.name}:{subentry.name}"
+                        print(f"Found: {ollama_id}")
+                        ollama_model = OllamaModel(ollama_id)
+                        models.append(ollama_model)
 
     return models
 
@@ -35,22 +44,34 @@ class OllamaModel(basemodel.BaseModel):
     """
     Wrapper for models imported from Ollama.
     These models are kept in the ollama cache (usually ~/.ollama)
+
+    The passed ID will be in standard ollama model name format:
+        <model_name>:<variant>
+    Similar to how ollama works, if no ":" is included then the assumption
+    will be that the model is using the default "latest" 
+    (i.e. <model_name>:latest)
     """
 
     def __init__(self, ollama_id):
-        # A convention in Transformer Lab is that GGUF models are named
-        # modelname.gguf. Most models in ollama will not have the gguf part.
-        file_name, file_extension = os.path.splitext(ollama_id)
-        if file_extension == ".gguf":
-            import_id = ollama_id
-        else:
-            import_id = f"{ollama_id}.gguf"
 
-        super().__init__(import_id)
+        # Split the pass ID into the model name and variant
+        # which are separated by a colon
+        if ":" in ollama_id:
+            model_name, variant = ollama_id.split(":", 1)
+        else:
+            model_name = ollama_id
+            variant = "latest"
+
+        super().__init__(ollama_id)
+
+        self.source = "ollama"
+
+        # Make sure the source ID explicitly contains the variant name
+        # It's OK if the display name doesn't have a variant but we need it
+        # to find the actual file
+        self.source_id_or_path = f"{model_name}:{variant}"
 
         # The actual modelfile is in the ollama cache
-        self.source = "ollama"
-        self.source_id_or_path = ollama_id
         self.model_filename = self._get_model_blob_filename()
 
     def _get_model_blob_filename(self):
@@ -67,7 +88,10 @@ class OllamaModel(basemodel.BaseModel):
             return None
 
         # Read in the manifest file
-        manifestfile = os.path.join(library_dir, self.source_id_or_path, "latest")
+        # It is stored in a file with the variant name
+        # in a directory named after the model
+        model_name, variant = self.source_id_or_path.split(":", 1)
+        manifestfile = os.path.join(library_dir, model_name, variant)
         try:
             with open(manifestfile, "r") as f:
                 filedata = json.load(f)
@@ -122,8 +146,23 @@ class OllamaModel(basemodel.BaseModel):
 
     async def install(self):
         input_model_path = self.model_filename
-        output_model_id = self.id
-        output_filename = self.id
+
+        # Translate from ollama ID into Tranformer Lab model IDs.
+        # 1. Ollama models probably have a colon in the name
+        # Let's just turn that into a dash
+        output_model_name = self.id.replace(":", "-")
+
+        # 2. Transformer Lab GGUF models need to be named <modelname>.gguf
+        # This is a FastChat thing where filename and modelname MUST match.
+        # Most models in ollama will not have the gguf part.
+        file_name, file_extension = os.path.splitext(output_model_name)
+        if file_extension == ".gguf":
+            output_model_id = self.id
+        else:
+            output_model_id = f"{self.id}.gguf"
+
+        # Model filename and model name should be the same
+        output_filename = output_model_id
 
         # Make sure our source file exists
         if not input_model_path:
