@@ -8,10 +8,10 @@ import torch
 
 # Get all arguments provided to this script using argparse
 parser = argparse.ArgumentParser()
-parser.add_argument('--model-path', type=str)
-parser.add_argument('--adaptor-path', type=str)
-parser.add_argument('--parameters', type=str, default="{}")
-parser.add_argument('--plugin_dir', type=str)
+parser.add_argument("--model-path", type=str)
+parser.add_argument("--adaptor-path", type=str)
+parser.add_argument("--parameters", type=str, default="{}")
+parser.add_argument("--plugin_dir", type=str)
 
 args, unknown = parser.parse_known_args()
 
@@ -26,7 +26,7 @@ if adaptor != "":
 parameters = args.parameters
 parameters = json.loads(parameters)
 
-if (parameters.get("eight_bit") == 'on'):
+if parameters.get("eight_bit") == "on":
     eight_bit = True
 else:
     eight_bit = False
@@ -46,15 +46,13 @@ if device is None or device == "":
         num_gpus = 0
 
 
-llmlab_root_dir = os.getenv('LLM_LAB_ROOT_PATH')
+llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
 PLUGIN_DIR = args.plugin_dir
 
-popen_args = [sys.executable,
-              f"{PLUGIN_DIR}/model_worker.py",
-              '--model-path', model, "--device", device]
-if (num_gpus):
+popen_args = [sys.executable, f"{PLUGIN_DIR}/model_worker.py", "--model-path", model, "--device", device]
+if num_gpus:
     popen_args.extend(["--num-gpus", num_gpus])
-if (eight_bit):
+if eight_bit:
     popen_args.append("--load-8bit")
 
 
@@ -72,7 +70,7 @@ for line in proc.stderr:
     if "torch.cuda.OutOfMemoryError" in line.decode("utf-8"):
         print("CUDA Out of memory error", file=sys.stderr)
         sys.exit(99)  # 99 is our code for CUDA OOM
-    print(line.decode('utf-8'), file=sys.stderr)
+    print(line.decode("utf-8"), file=sys.stderr)
 
 print("FastChat Worker exited", file=sys.stderr)
 sys.exit(1)

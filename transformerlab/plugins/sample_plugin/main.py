@@ -11,7 +11,7 @@ import json
 def main():
     # Get all arguments provided to this script using argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input_file', type=str)
+    parser.add_argument("--input_file", type=str)
     args, unknown = parser.parse_known_args()
 
     with open(args.input_file) as json_file:

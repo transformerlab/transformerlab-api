@@ -44,8 +44,7 @@ async def experiment_add_generation(experimentId: int, plugin: Any = Body()):
         slug = slug[:100]
         print("Generation name is too long, truncating to 100 characters")
 
-    generation = {"name": slug, "plugin": plugin_name,
-                  "script_parameters": script_parameters}
+    generation = {"name": slug, "plugin": plugin_name, "script_parameters": script_parameters}
 
     generations.append(generation)
 
@@ -184,8 +183,7 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
                 experiment_details["config"]["inferenceParams"]
             )
         if "generations" in experiment_details["config"]:
-            experiment_details["config"]["generations"] = json.loads(
-                experiment_details["config"]["generations"])
+            experiment_details["config"]["generations"] = json.loads(experiment_details["config"]["generations"])
 
     all_generations = experiment_details["config"]["generations"]
     this_generation = None
@@ -200,8 +198,7 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
     # print("GET OUTPUT JOB DATA", await get_job_output_file_name("2", plugin_name, eval_name, template_config))
     job_output_file = await get_job_output_file_name(job_id, plugin_name)
 
-    input_contents = {"experiment": experiment_details,
-                      "config": template_config}
+    input_contents = {"experiment": experiment_details, "config": template_config}
     with open(input_file, "w") as outfile:
         json.dump(input_contents, outfile, indent=4)
 

@@ -26,15 +26,13 @@ def load_tools():
     available_tools = {}
 
     # TODO: Pull dir from dirs.py
-    tools_dir = os.path.join(dirs.TFL_SOURCE_CODE_DIR,
-                             "transformerlab", "tools")
+    tools_dir = os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "tools")
     sys.path.append(tools_dir)
 
     # Scan the tools dir to subdirectories
     with os.scandir(tools_dir) as dirlist:
         for entry in dirlist:
             if entry.is_dir():
-
                 # Try importing main.py from the subdirectory
                 package_name = entry.name
                 import_name = f"{package_name}.main"
@@ -64,10 +62,7 @@ async def list_tools() -> list[object]:
 
     tool_descriptions = []
     for name, func in available_tools.items():
-        tool = {
-            "name": name,
-            "description": f"{name}:\n{func.__doc__}\n\n"
-        }
+        tool = {"name": name, "description": f"{name}:\n{func.__doc__}\n\n"}
         tool_descriptions.append(tool)
 
     return tool_descriptions
@@ -102,10 +97,7 @@ async def call_tool(tool_id: str, params: str):
 
     # First make sure we have a tool with this name
     if tool_id not in available_tools:
-        return {
-            "status": "error",
-            "message": f"No tool with ID {tool_id} found."
-        }
+        return {"status": "error", "message": f"No tool with ID {tool_id} found."}
 
     # Try to parse out parameters
     try:
@@ -115,10 +107,7 @@ async def call_tool(tool_id: str, params: str):
         print(err_string)
         print("Passed JSON parameter string:")
         print(params)
-        return {
-            "status": "error",
-            "message": err_string
-        }
+        return {"status": "error", "message": err_string}
 
     try:
         tool_function = available_tools.get(tool_id)
@@ -126,15 +115,9 @@ async def call_tool(tool_id: str, params: str):
 
         print("Successfully called", tool_id)
         print(result)
-        return {
-            "status": "success",
-            "data": result
-        }
+        return {"status": "success", "data": result}
 
     except Exception as e:
         err_string = f"{type(e).__name__}: {e}"
         print(err_string)
-        return {
-            "status": "error",
-            "message": err_string
-        }
+        return {"status": "error", "message": err_string}

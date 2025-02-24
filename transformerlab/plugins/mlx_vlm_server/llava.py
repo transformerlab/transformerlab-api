@@ -27,25 +27,15 @@ class LlaVAConfig:
 
     @classmethod
     def from_dict(cls, params):
-        return cls(
-            **{
-                k: v
-                for k, v in params.items()
-                if k in inspect.signature(cls).parameters
-            }
-        )
+        return cls(**{k: v for k, v in params.items() if k in inspect.signature(cls).parameters})
 
 
 class LlavaMultiModalProjector(nn.Module):
     def __init__(self, config: LlaVAConfig):
         super().__init__()
-        self.linear_1 = nn.Linear(
-            config.vision_config.hidden_size, config.text_config.hidden_size, bias=True
-        )
+        self.linear_1 = nn.Linear(config.vision_config.hidden_size, config.text_config.hidden_size, bias=True)
         self.gelu = nn.GELU()
-        self.linear_2 = nn.Linear(
-            config.text_config.hidden_size, config.text_config.hidden_size, bias=True
-        )
+        self.linear_2 = nn.Linear(config.text_config.hidden_size, config.text_config.hidden_size, bias=True)
 
     def __call__(self, x: mx.array) -> mx.array:
         x = self.linear_1(x)
@@ -74,9 +64,7 @@ class LlavaModel(nn.Module):
         inputs_embeds = self.language_model.model.embed_tokens(input_ids)
 
         # Get the ouptut hidden states from the vision model
-        *_, hidden_states = self.vision_tower(
-            pixel_values.transpose(0, 2, 3, 1), output_hidden_states=True
-        )
+        *_, hidden_states = self.vision_tower(pixel_values.transpose(0, 2, 3, 1), output_hidden_states=True)
 
         # Select the hidden states from the desired layer
         selected_image_feature = hidden_states[self.vision_feature_layer]
@@ -86,29 +74,21 @@ class LlavaModel(nn.Module):
         elif self.vision_feature_select_strategy == "full":
             selected_image_feature = selected_image_feature
         else:
-            raise ValueError(
-                "Unexpected feature selection strategy: "
-                f"{self.vision_feature_select_strategy}"
-            )
+            raise ValueError(f"Unexpected feature selection strategy: {self.vision_feature_select_strategy}")
 
         # Pass image features through the multi-modal projector
         image_features = self.multi_modal_projector(selected_image_feature)
 
         # Insert special image tokens in the input_ids
-        final_inputs_embeds = self._merge_input_ids_with_image_features(
-            image_features, inputs_embeds, input_ids
-        )
+        final_inputs_embeds = self._merge_input_ids_with_image_features(image_features, inputs_embeds, input_ids)
         return final_inputs_embeds
 
-    def _merge_input_ids_with_image_features(
-        self, image_features, inputs_embeds, input_ids
-    ):
+    def _merge_input_ids_with_image_features(self, image_features, inputs_embeds, input_ids):
         image_token_index = self.config.image_token_index
         num_images, num_image_patches, embed_dim = image_features.shape
 
         # Positions of <image> tokens in input_ids, assuming batch size is 1
-        image_positions = np.where(
-            input_ids[0] == image_token_index)[0].tolist()
+        image_positions = np.where(input_ids[0] == image_token_index)[0].tolist()
         if len(image_positions) != num_images:
             raise ValueError(
                 f"The number of image tokens ({len(image_positions)}) does not "
@@ -123,8 +103,7 @@ class LlavaModel(nn.Module):
             start_idx = position + 1
 
         image_embeddings = mx.split(image_features, image_features.shape[0])
-        final_embeddings = [v for p in zip(
-            text_segments, image_embeddings) for v in p]
+        final_embeddings = [v for p in zip(text_segments, image_embeddings) for v in p]
         final_embeddings += [inputs_embeds[:, start_idx:]]
 
         # Create a final embedding of shape
@@ -133,9 +112,7 @@ class LlavaModel(nn.Module):
 
     def __call__(self, input_ids: mx.array, pixel_values: mx.array, cache=None):
         input_embddings = self.get_input_embeddings(input_ids, pixel_values)
-        logits, cache = self.language_model(
-            input_ids, cache=cache, inputs_embeds=input_embddings
-        )
+        logits, cache = self.language_model(input_ids, cache=cache, inputs_embeds=input_embddings)
         return logits, cache
 
     @staticmethod
@@ -160,10 +137,8 @@ class LlavaModel(nn.Module):
 
         model_config = LlaVAConfig.from_dict(model_config)
 
-        model_config.vision_config = VisionConfig.from_dict(
-            model_config.vision_config)
-        model_config.text_config = TextConfig.from_dict(
-            model_config.text_config)
+        model_config.vision_config = VisionConfig.from_dict(model_config.vision_config)
+        model_config.text_config = TextConfig.from_dict(model_config.text_config)
 
         model = LlavaModel(model_config)
         weight_files = glob.glob(str(path / "*.safetensors"))

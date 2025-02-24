@@ -44,8 +44,7 @@ async def experiment_add_evaluation(experimentId: int, plugin: Any = Body()):
         slug = slug[:100]
         print("Evals name is too long, truncating to 100 characters")
 
-    evaluation = {"name": slug, "plugin": plugin_name,
-                  "script_parameters": script_parameters}
+    evaluation = {"name": slug, "plugin": plugin_name, "script_parameters": script_parameters}
 
     evaluations.append(evaluation)
 
@@ -179,8 +178,7 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
                 experiment_details["config"]["inferenceParams"]
             )
         if "evaluations" in experiment_details["config"]:
-            experiment_details["config"]["evaluations"] = json.loads(
-                experiment_details["config"]["evaluations"])
+            experiment_details["config"]["evaluations"] = json.loads(experiment_details["config"]["evaluations"])
 
     all_evaluations = experiment_details["config"]["evaluations"]
     this_evaluation = None
@@ -195,8 +193,7 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
     # print("GET OUTPUT JOB DATA", await get_job_output_file_name("2", plugin_name, eval_name, template_config))
     job_output_file = await get_job_output_file_name(job_id, plugin_name)
 
-    input_contents = {"experiment": experiment_details,
-                      "config": template_config}
+    input_contents = {"experiment": experiment_details, "config": template_config}
     with open(input_file, "w") as outfile:
         json.dump(input_contents, outfile, indent=4)
 
