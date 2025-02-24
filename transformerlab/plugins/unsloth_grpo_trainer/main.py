@@ -1,15 +1,17 @@
-import json
-import sqlite3
-from datasets import load_dataset
-from trl import GRPOConfig, GRPOTrainer
 import argparse
-from unsloth import FastLanguageModel, PatchFastRL
-import torch
-from transformers import BitsAndBytesConfig, TrainerCallback
+import json
 import os
-import transformerlab.plugin
+import sqlite3
+import time
 
+import torch
+from datasets import load_dataset
 from jinja2 import Environment
+from transformers import BitsAndBytesConfig, TrainerCallback
+from trl import GRPOConfig, GRPOTrainer
+from unsloth import FastLanguageModel, PatchFastRL
+
+import transformerlab.plugin
 
 jinja_environment = Environment()
 
@@ -62,6 +64,8 @@ start_thinking_string = config.get("start_thinking_string", "<reasoning>")
 end_thinking_string = config.get("end_thinking_string", "</reasoning>")
 start_answer_string = config.get("start_answer_string", "<answer>")
 end_answer_string = config.get("end_answer_string", "</answer>")
+
+WANDB_LOGGING = config.get("log_to_wandb", None)
 
 output_dir: str = config["output_dir"]
 JOB_ID = config["job_id"]
@@ -200,6 +204,33 @@ db.commit()
 
 print(max_seq_length)
 
+if WANDB_LOGGING:
+    # Test if WANDB API Key is available
+    def test_wandb_login():
+        import netrc
+        from pathlib import Path
+
+        netrc_path = Path.home() / (".netrc" if os.name != "nt" else "_netrc")
+        if netrc_path.exists():
+            auth = netrc.netrc(netrc_path).authenticators("api.wandb.ai")
+            if auth:
+                return True
+            else:
+                return False
+        else:
+            return False
+
+    if not test_wandb_login():
+        print("WANDB API Key not found. WANDB logging will be disabled. Please set the WANDB API Key in Settings.")
+        WANDB_LOGGING = False
+        os.environ["WANDB_DISABLED"] = "true"
+        report_to = ["tensorboard"]
+    else:
+        os.environ["WANDB_DISABLED"] = "false"
+        report_to = ["tensorboard", "wandb"]
+        today = time.strftime("%Y%m%d-%H%M%S")
+        os.environ["WANDB_PROJECT"] = "TFL_Training"
+
 
 args = GRPOConfig(
     output_dir=output_dir,
@@ -221,7 +252,8 @@ args = GRPOConfig(
     adam_beta2=adam_beta2,
     adam_epsilon=adam_epsilon,
     disable_tqdm=False,  # disable tqdm since with packing values are in correct
-    report_to=["tensorboard"],
+    run_name=f"job_{JOB_ID}_{today}",
+    report_to=report_to,
 )
 
 

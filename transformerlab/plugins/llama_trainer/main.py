@@ -47,6 +47,8 @@ model_id = config["model_name"]
 
 JOB_ID = config["job_id"]
 
+WANDB_LOGGING = config.get("log_to_wandb", None)
+
 job = transformerlab.plugin.Job(config["job_id"])
 job.update_progress(0)
 
@@ -146,8 +148,33 @@ db.commit()
 
 max_seq_length = int(config["maximum_sequence_length"])  # max sequence length for model and packing of the dataset
 print(max_seq_length)
-today = time.strftime("%Y%m%d-%H%M%S")
-os.environ["WANDB_PROJECT"] = "TFL_Training"
+
+if WANDB_LOGGING:
+    # Test if WANDB API Key is available
+    def test_wandb_login():
+        import netrc
+        from pathlib import Path
+
+        netrc_path = Path.home() / (".netrc" if os.name != "nt" else "_netrc")
+        if netrc_path.exists():
+            auth = netrc.netrc(netrc_path).authenticators("api.wandb.ai")
+            if auth:
+                return True
+            else:
+                return False
+        else:
+            return False
+
+    if not test_wandb_login():
+        print("WANDB API Key not found. WANDB logging will be disabled. Please set the WANDB API Key in Settings.")
+        WANDB_LOGGING = False
+        os.environ["WANDB_DISABLED"] = "true"
+        report_to = ["tensorboard"]
+    else:
+        os.environ["WANDB_DISABLED"] = "false"
+        report_to = ["tensorboard", "wandb"]
+        today = time.strftime("%Y%m%d-%H%M%S")
+        os.environ["WANDB_PROJECT"] = "TFL_Training"
 
 args = SFTConfig(
     output_dir=output_dir,
@@ -168,7 +195,7 @@ args = SFTConfig(
     disable_tqdm=False,  # disable tqdm since with packing values are in correct
     packing=True,
     run_name=f"job_{JOB_ID}_{today}",
-    report_to=["tensorboard", "wandb"],
+    report_to=report_to,
 )
 
 

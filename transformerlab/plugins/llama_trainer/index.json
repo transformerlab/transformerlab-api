@@ -88,6 +88,12 @@
             "title": "Adaptor Name",
             "type": "string",
             "required": true
+        },
+        "log_to_wandb": {
+            "title": "Log to Weights and Biases",
+            "type": "boolean",
+            "default": true,
+            "required": true
         }
     },
     "parameters_ui": {
@@ -104,6 +110,9 @@
         "lora_alpha": {
             "ui:widget": "range",
             "ui:help": "LoRA scaling factor. Make it a multiple of LoRA R."
-        }
+        },
+        "log_to_wandb": {
+            "ui:help": "Log training to Weights and Biases. You must have a Weights and Biases account and API key to use this feature. You need to set the API Key in settings to use this feature."
+          }
     }
 }
