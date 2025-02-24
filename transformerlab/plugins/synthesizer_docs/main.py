@@ -135,17 +135,23 @@ class CustomCommercialModel(DeepEvalBaseLLM):
         self.model_type = model_type
         self.model_name = self.set_model_name(model_name)
         if model_type == "claude":
-            if os.environ.get("ANTHROPIC_API_KEY") is None:
+            anthropic_api_key = transformerlab.plugin.get_db_config_value("ANTHROPIC_API_KEY")
+            if not anthropic_api_key or anthropic_api_key.strip() == "":
                 print("Please set the Anthropic API Key from Settings.")
                 job.set_job_completion_status("failed", "Please set the Anthropic API Key from Settings.")
                 sys.exit(1)
+            else:
+                os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
             self.model = Anthropic()
 
         elif model_type == "openai":
-            if os.environ.get("OPENAI_API_KEY") is None:
+            openai_api_key = transformerlab.plugin.get_db_config_value("OPENAI_API_KEY")
+            if not openai_api_key or openai_api_key.strip() == "":
                 print("Please set the OpenAI API Key from Settings.")
                 job.set_job_completion_status("failed", "Please set the OpenAI API Key from Settings.")
                 sys.exit(1)
+            else:
+                os.environ["OPENAI_API_KEY"] = openai_api_key
             self.model = OpenAI()
 
     def load_model(self):
