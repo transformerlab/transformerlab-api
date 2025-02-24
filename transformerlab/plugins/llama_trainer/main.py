@@ -1,19 +1,21 @@
 # The following is adapted from
 # https://www.philschmid.de/instruction-tune-llama-2
 
-import json
-from random import randrange
-import sqlite3
-from datasets import load_dataset
-from trl import SFTTrainer, SFTConfig
-from peft import LoraConfig, prepare_model_for_kbit_training, get_peft_model
 import argparse
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, TrainerCallback
+import json
 import os
-import transformerlab.plugin
+import sqlite3
+import time
+from random import randrange
 
+import torch
+from datasets import load_dataset
 from jinja2 import Environment
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, TrainerCallback
+from trl import SFTConfig, SFTTrainer
+
+import transformerlab.plugin
 
 jinja_environment = Environment()
 
@@ -144,6 +146,8 @@ db.commit()
 
 max_seq_length = int(config["maximum_sequence_length"])  # max sequence length for model and packing of the dataset
 print(max_seq_length)
+today = time.strftime("%Y%m%d-%H%M%S")
+os.environ["WANDB_PROJECT"] = "TFL_Training"
 
 args = SFTConfig(
     output_dir=output_dir,
@@ -163,7 +167,8 @@ args = SFTConfig(
     max_seq_length=max_seq_length,
     disable_tqdm=False,  # disable tqdm since with packing values are in correct
     packing=True,
-    report_to=["tensorboard"],
+    run_name=f"job_{JOB_ID}_{today}",
+    report_to=["tensorboard", "wandb"],
 )
 
 
