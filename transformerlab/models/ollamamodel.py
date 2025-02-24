@@ -15,7 +15,9 @@ from transformerlab.shared import dirs
 async def list_models():
     try:
         ollama_model_library = ollama_models_library_dir()
-    except Exception:
+    except Exception as e:
+        print("Failed to locate Ollama models library:")
+        print(str(e))
         return []
 
     models = []
