@@ -72,7 +72,8 @@
             "ui:help": "Select the model to be used for generation from the drop-down list",
             "ui:widget": "AutoCompleteWidget",
             "ui:options": {
-                "multiple": false
+                "multiple": false,
+                "disabledFilter": "generation_model"
             }
         },
         "chunk_size": {
