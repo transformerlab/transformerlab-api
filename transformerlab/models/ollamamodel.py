@@ -50,7 +50,6 @@ class OllamaModel(basemodel.BaseModel):
         self.source = "ollama"
         self.source_id_or_path = ollama_id
         self.model_filename = self._get_model_blob_filename()
-        print(self.model_filename)
 
     def _get_model_blob_filename(self):
         """
