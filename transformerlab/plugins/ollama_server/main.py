@@ -150,7 +150,7 @@ class OllamaServer(BaseModelWorker):
 
         # 2b. Create a link with the SHA name to the actual GGUF file
         OLLAMA_MODEL_BLOBS_CACHE = os.path.join(OLLAMA_MODELS_DIR, "blobs")
-        sha_filename = os.path.join(OLLAMA_MODEL_BLOBS_CACHE, f"sha256:{sha256sum.hexdigest()}")
+        sha_filename = os.path.join(OLLAMA_MODEL_BLOBS_CACHE, f"sha256-{sha256sum.hexdigest()}")
 
         # Create the directory if it doesn't exist
         os.makedirs(OLLAMA_MODEL_BLOBS_CACHE, exist_ok=True)
@@ -427,8 +427,9 @@ async def api_model_details(request: Request):
 def cleanup_at_exit():
     global worker
     print("Cleaning up...")
-    worker.stop_server()
-    del worker
+    if worker:
+        worker.stop_server()
+        del worker
 
 
 atexit.register(cleanup_at_exit)
