@@ -228,9 +228,9 @@ if WANDB_LOGGING:
     else:
         os.environ["WANDB_DISABLED"] = "false"
         report_to = ["tensorboard", "wandb"]
-        today = time.strftime("%Y%m%d-%H%M%S")
         os.environ["WANDB_PROJECT"] = "TFL_Training"
 
+today = time.strftime("%Y%m%d-%H%M%S")
 
 args = GRPOConfig(
     output_dir=output_dir,

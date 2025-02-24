@@ -4,7 +4,7 @@
     "description": "A training script adapted from https://www.philschmid.de/fine-tune-flan-t5-peft . Works with T5 models using transformers.Se2SecTrainer.",
     "plugin-format": "python",
     "type": "trainer",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "model_architectures": [
         "T5ForConditionalGeneration"
     ],
@@ -69,6 +69,12 @@
             "minimum": 0.05,
             "maximum": 0.9,
             "default": 0.05
+        },
+        "log_to_wandb": {
+            "title": "Log to Weights and Biases",
+            "type": "boolean",
+            "default": false,
+            "required": true
         }
     }
 }
