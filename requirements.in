@@ -25,3 +25,4 @@ transformers==4.48.0
 peft
 watchfiles
 wandb==0.19.7
+werkzeug

@@ -359,7 +359,9 @@ wavedrom==2.0.3.post3
 wcwidth==0.2.13
     # via prompt-toolkit
 werkzeug==3.1.3
-    # via tensorboard
+    # via
+    #   -r requirements.in
+    #   tensorboard
 xxhash==3.5.0
     # via
     #   datasets
