@@ -266,6 +266,8 @@ async def get_output_file_name(job_id: str):
         plugin_name = template_config["plugin_name"]
         plugin_dir = dirs.plugin_dir_by_name(plugin_name)
 
+        job_id = secure_filename(job_id)
+
         # job output is stored in separate files with a job number in the name...
         if os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
             output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
