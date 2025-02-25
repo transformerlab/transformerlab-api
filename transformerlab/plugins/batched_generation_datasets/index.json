@@ -4,7 +4,7 @@
     "description": "Use a local or commercial LLM to generated outputs for the dataset generated.",
     "plugin-format": "python",
     "type": "generator",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "git": "",
     "url": "",
     "files": [
@@ -18,14 +18,6 @@
         "generation_model": {
             "title": "Generation Model (Model to be used for Generation. Select `local` to use the local model running)",
             "type": "string",
-            "enum": [
-                "Local",
-                "Claude 3.5 Haiku",
-                "Claude 3.5 Sonnet",
-                "OpenAI GPT 4o",
-                "OpenAI GPT 4o Mini"
-
-            ],
             "default": "Local"
         },
         "system_prompt": {
@@ -73,7 +65,7 @@
     "parameters_ui": {
         "generation_model": {
             "ui:help": "Select the model to be used for generation from the drop-down list",
-            "ui:widget": "AutoCompleteWidget",
+            "ui:widget": "ModelProviderWidget",
             "ui:options": {
                 "multiple": false
             }

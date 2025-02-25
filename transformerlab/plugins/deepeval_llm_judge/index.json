@@ -4,7 +4,7 @@
     "description": "Using LLMs as Judges for evaluating outputs of other LLMs",
     "plugin-format": "python",
     "type": "evaluator",
-    "version": "0.2.4",
+    "version": "0.2.5",
     "git": "https://github.com/confident-ai/deepeval",
     "url": "https://github.com/confident-ai/deepeval",
     "files": [
@@ -32,14 +32,7 @@
         },
         "judge_model": {
             "title": "LLM-as-Judge Model (Model to be used as Judge. Select `local` to use the local model running)",
-            "type": "string",
-            "enum": [
-                "Claude 3.5 Haiku",
-                "Claude 3.5 Sonnet",
-                "OpenAI GPT 4o",
-                "OpenAI GPT 4o Mini",
-                "Local"
-            ]
+            "type": "string"
         },
         "limit": {
             "title": "Fraction of samples",
@@ -73,7 +66,7 @@
         },
         "judge_model": {
             "ui:help": "Select the LLM model to be used as Judge",
-            "ui:widget": "AutoCompleteWidget",
+            "ui:widget": "ModelProviderWidget",
             "ui:options": {
                 "multiple": false
             }
