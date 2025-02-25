@@ -1,8 +1,9 @@
 import json
 import os
 import csv
+import yaml
 import pandas as pd
-from fastapi import APIRouter, Body, Response
+from fastapi import APIRouter, Body, Response, UploadFile
 from fastapi.responses import StreamingResponse, FileResponse
 
 import transformerlab.db as db
@@ -57,11 +58,38 @@ async def workflow_add_node(workflow_id: str, node: str):
     await db.workflow_update_config(workflow_id, json.dumps(config)) 
     return {"message": "OK"}
 
+
+@router.get("/export_to_yaml/{workflow_id}")
+async def workflow_export_to_yaml(workflow_id: str):
+    workflow = await db.workflows_get_by_id(workflow_id)
+
+    del workflow["current_job_id"]
+    del workflow["current_task"]
+    del workflow["experiment_id"]
+    del workflow["created_at"]
+    del workflow["updated_at"]
+    del workflow["status"]
+    del workflow["id"]
+
+    workflow["config"] = json.loads(workflow["config"])
+
+    filename = f"{workflow['name']}.yaml"
+    with open(filename,"w") as yaml_file:
+        yaml.dump(workflow, yaml_file)
+    return FileResponse(filename,filename=filename)
+
+
+@router.post("/import_from_yaml")
+async def workflow_import_from_yaml(file: UploadFile, experiment_id="1"):
+    with open(file.filename, "r") as fileStream:
+        workflow = yaml.load(fileStream, Loader=yaml.BaseLoader)
+    await db.workflow_create(workflow["name"], json.dumps(workflow["config"]), experiment_id)
+    return {"message": "OK"}
+
 @router.get("/start/{workflow_id}")
 async def start_workflow(workflow_id):
     await db.workflow_update_status(workflow_id, "RUNNING")
     return {"message": "OK"}
-
 
 @router.get("/start_next_step")
 async def start_next_step_in_workflow():
