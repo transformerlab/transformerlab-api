@@ -341,15 +341,15 @@ async def set_anthropic_api_key():
 
 @router.get(path="/model/set_custom_api_key")
 async def set_custom_api_key():
-    token_str = await db.config_get("CUSTOM_API_KEY")
+    token_str = await db.config_get("CUSTOM_MODEL_API_KEY")
     if not token_str or token_str == "":
-        return {"message": "CUSTOM_API_KEY not configured in database"}
+        return {"message": "CUSTOM_MODEL_API_KEY not configured in database"}
 
-    current_token = os.getenv("CUSTOM_API_KEY")
+    current_token = os.getenv("CUSTOM_MODEL_API_KEY")
     if current_token == token_str:
         return {"message": "OK"}
 
-    os.environ["CUSTOM_API_KEY"] = token_str
+    os.environ["CUSTOM_MODEL_API_KEY"] = token_str
     return {"message": "OK"}
 
 
