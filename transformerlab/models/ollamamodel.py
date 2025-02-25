@@ -15,16 +15,26 @@ from transformerlab.shared import dirs
 async def list_models():
     try:
         ollama_model_library = ollama_models_library_dir()
-    except Exception:
+    except Exception as e:
+        print("Failed to locate Ollama models library:")
+        print(str(e))
         return []
 
     models = []
     with os.scandir(ollama_model_library) as dirlist:
         # Scan the ollama cache repos for cached models
         for entry in dirlist:
+
+            # Each model directory contains subdirectories with variants
             if entry.is_dir():
-                ollama_model = OllamaModel(entry.name)
-                models.append(ollama_model)
+                for subentry in os.scandir(entry.path):
+                    if subentry.is_file():
+
+                        # Users will be familiar with Ollama model name format:
+                        # <model_name>:<variant>
+                        ollama_id = f"{entry.name}:{subentry.name}"
+                        ollama_model = OllamaModel(ollama_id)
+                        models.append(ollama_model)
 
     return models
 
@@ -33,24 +43,51 @@ class OllamaModel(basemodel.BaseModel):
     """
     Wrapper for models imported from Ollama.
     These models are kept in the ollama cache (usually ~/.ollama)
+
+    The passed ID will be in standard ollama model name format:
+        <model_name>:<variant>
+    Similar to how ollama works, if no ":" is included then the assumption
+    will be that the model is using the default "latest" 
+    (i.e. <model_name>:latest)
     """
 
     def __init__(self, ollama_id):
-        # A convention in Transformer Lab is that GGUF models are named
-        # modelname.gguf. Most models in ollama will not have the gguf part.
-        file_name, file_extension = os.path.splitext(ollama_id)
-        if file_extension == ".gguf":
-            import_id = ollama_id
+
+        # Split the pass ID into the model name and variant
+        # which are separated by a colon
+        # If no variant is specified, then ollama assumes "latest"
+        if ":" in ollama_id:
+            model_name, variant = ollama_id.split(":", 1)
         else:
-            import_id = f"{ollama_id}.gguf"
+            model_name = ollama_id
+            variant = "latest"
+
+        # Translate from ollama ID into Tranformer Lab model IDs.
+        # 1. Transformer Lab GGUF models need to be named <modelname>.gguf
+        # This is a FastChat thing where filename and modelname MUST match.
+        # Most models in ollama will not have the gguf part.
+        # 2. It is important to NOT include the variant if it is ":latest"
+        # This is because we don't want every GGUF model from Transformer lab
+        # in the format <model>.gguf showing up AGAIN as being importable
+        # with a new name "<model>:latest.gguf".
+        if variant == "latest":
+            import_id = f"{model_name}.gguf"
+        else:
+            import_id = f"{model_name}:{variant}.gguf"
 
         super().__init__(import_id)
 
-        # The actual modelfile is in the ollama cache
         self.source = "ollama"
-        self.source_id_or_path = ollama_id
+        if variant == "latest":
+            self.name = model_name
+        else:
+            self.name = f"{model_name} {variant}"
+
+        # Make sure the source ID explicitly contains the variant name
+        self.source_id_or_path = f"{model_name}:{variant}"
+
+        # The actual modelfile is in the ollama cache
         self.model_filename = self._get_model_blob_filename()
-        print(self.model_filename)
 
     def _get_model_blob_filename(self):
         """
@@ -66,7 +103,10 @@ class OllamaModel(basemodel.BaseModel):
             return None
 
         # Read in the manifest file
-        manifestfile = os.path.join(library_dir, self.source_id_or_path, "latest")
+        # It is stored in a file with the variant name
+        # in a directory named after the model
+        model_name, variant = self.source_id_or_path.split(":", 1)
+        manifestfile = os.path.join(library_dir, model_name, variant)
         try:
             with open(manifestfile, "r") as f:
                 filedata = json.load(f)
@@ -121,8 +161,14 @@ class OllamaModel(basemodel.BaseModel):
 
     async def install(self):
         input_model_path = self.model_filename
+
+        # self.id contains an ID we can use in Transformer Lab in the format:
+        # <modelname>.gguf 
+        # (with a variant included in modelname only if not :latest)
         output_model_id = self.id
-        output_filename = self.id
+
+        # Model filename and model name should be the same
+        output_filename = output_model_id
 
         # Make sure our source file exists
         if not input_model_path:
@@ -141,7 +187,6 @@ class OllamaModel(basemodel.BaseModel):
         os.symlink(input_model_path, link_name)
 
         # Create an info.json file so this can be read by the system
-        # TODO: Add parameters to json_data
         model_description = [
             {
                 "model_id": output_model_id,
