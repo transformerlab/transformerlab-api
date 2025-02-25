@@ -127,8 +127,19 @@ class OllamaServer(BaseModelWorker):
         # Split model_path into the directory and filename
         model_dir, model_filename = os.path.split(model_path)
 
-        # Our convention is that GGUF models have the same name as their filename
-        self.model_name = model_filename
+        # This is the name that the model will be known by in ollama
+        # We will use the same name as in Transformer Lab but with .gguf on the end. 
+        #
+        # Explanation:
+        # We can call models whatever we want in Ollama, but they will be visible 
+        # to the user. So keeping in mind that we also support importing Ollama models
+        # we really don't want to create unnecessary duplicate models with the same 
+        # name but with .gguf on the end.
+        file_name, file_extension = os.path.splitext(model_filename)
+        if file_extension == ".gguf":
+            self.ollama_model_name = file_name  # i.e. without .gguf
+        else:
+            self.ollama_model_name = model_filename
 
         # Output a modelfile
         modelfile = os.path.join(model_dir, "Modelfile")
@@ -150,7 +161,7 @@ class OllamaServer(BaseModelWorker):
 
         # 2b. Create a link with the SHA name to the actual GGUF file
         OLLAMA_MODEL_BLOBS_CACHE = os.path.join(OLLAMA_MODELS_DIR, "blobs")
-        sha_filename = os.path.join(OLLAMA_MODEL_BLOBS_CACHE, f"sha256:{sha256sum.hexdigest()}")
+        sha_filename = os.path.join(OLLAMA_MODEL_BLOBS_CACHE, f"sha256-{sha256sum.hexdigest()}")
 
         # Create the directory if it doesn't exist
         os.makedirs(OLLAMA_MODEL_BLOBS_CACHE, exist_ok=True)
@@ -163,12 +174,12 @@ class OllamaServer(BaseModelWorker):
         # STEP 3: Call ollama and tell it to create the model in its register
         # TODO: I think you can do this via the SDK which would be better
         # for catching errors
-        subprocess.run(["ollama", "create", self.model_name, "-f", modelfile])
+        subprocess.run(["ollama", "create", self.ollama_model_name, "-f", modelfile])
 
         # STEP 4: Start the model!
         # You load a model into memory in ollama by not passing a prompt to model.generate
         load_model = self.model.generate(
-            model=self.model_name,
+            model=self.ollama_model_name,
         )
         print(load_model)
 
@@ -180,7 +191,7 @@ class OllamaServer(BaseModelWorker):
         # You can try pulling this from modelinfo from ollama.show
         # As a backup, we will assume ollama default of 4096
         self.context_len = 4096
-        show_response: ollama.ShowResponse = ollama.show(model=self.model_name)
+        show_response: ollama.ShowResponse = ollama.show(model=self.ollama_model_name)
         modelinfo = show_response.modelinfo
         print(modelinfo)
         model_architecture = modelinfo.get("general.architecture", None)
@@ -261,7 +272,7 @@ class OllamaServer(BaseModelWorker):
         # TODO: Should this use generate?
         iterator = await run_in_threadpool(
             self.model.chat,
-            model=self.model_name,
+            model=self.ollama_model_name,
             messages=[{"role": "user", "content": context}],
             stream=True,
             options=generation_params,
@@ -334,7 +345,7 @@ class OllamaServer(BaseModelWorker):
 
         print("Generating with params: ", params)
         thread = asyncio.to_thread(
-            self.model.generate, model=self.model_name, prompt=prompt, stream=False, options=params
+            self.model.generate, model=self.ollama_model_name, prompt=prompt, stream=False, options=params
         )
 
         response = await thread
@@ -354,7 +365,7 @@ class OllamaServer(BaseModelWorker):
         """
         # You can unload a model by not passing a prompt to generate
         # and setting keep_alive to 0
-        self.model.generate(model=self.model_name, keep_alive=0)
+        self.model.generate(model=self.ollama_model_name, keep_alive=0)
 
 
 def release_worker_semaphore():
@@ -427,8 +438,9 @@ async def api_model_details(request: Request):
 def cleanup_at_exit():
     global worker
     print("Cleaning up...")
-    worker.stop_server()
-    del worker
+    if worker:
+        worker.stop_server()
+        del worker
 
 
 atexit.register(cleanup_at_exit)

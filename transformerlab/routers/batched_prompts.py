@@ -9,6 +9,8 @@ from transformerlab.shared import dirs
 from transformerlab.shared.batched_requests import process_dataset
 from transformerlab.shared.shared import slugify
 
+from werkzeug.utils import secure_filename
+
 router = APIRouter(prefix="/batch", tags=["batched_prompts"])
 
 
@@ -50,6 +52,7 @@ async def list_prompts():
 async def new_prompt(name: Annotated[str, Body()], prompts: Annotated[Union[list[list[dict]], list[str]], Body()]):
     """Create a new batched prompt"""
 
+    name = secure_filename(name)
     slug = slugify(name)
     prompts_dir = dirs.BATCHED_PROMPTS_DIR
     prompt_file = os.path.join(prompts_dir, f"{slug}.json")
@@ -64,6 +67,8 @@ async def new_prompt(name: Annotated[str, Body()], prompts: Annotated[Union[list
 @router.get("/delete/{prompt_id}")
 async def delete_prompt(prompt_id: str):
     """Delete a batched prompt"""
+
+    prompt_id = secure_filename(prompt_id)
 
     prompts_dir = dirs.BATCHED_PROMPTS_DIR
     prompt_file = os.path.join(prompts_dir, f"{prompt_id}.json")
