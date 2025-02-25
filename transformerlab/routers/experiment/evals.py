@@ -3,13 +3,14 @@ import json
 import os
 import subprocess
 import sys
-import urllib
 from typing import Any
 
 import transformerlab.db as db
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
 from transformerlab.shared import dirs, shared
+
+from werkzeug.utils import secure_filename
 
 router = APIRouter(prefix="/evals", tags=["evals"])
 
@@ -272,15 +273,13 @@ async def get_job_output_file_name(job_id: str, plugin_name: str):
 @router.get("/get_output")
 async def get_output(experimentId: int, eval_name: str):
     """Get the output of an evaluation"""
+    eval_name = secure_filename(eval_name)  # sanitize the input
     data = await db.experiment_get(experimentId)
     # if the experiment does not exist, return an error:
     if data is None:
         return {"message": f"Experiment {experimentId} does not exist"}
 
     experiment_name = data["name"]
-
-    # sanitize the input:
-    eval_name = urllib.parse.unquote(eval_name)
 
     eval_output_file = await dirs.eval_output_file(experiment_name, eval_name)
     if not os.path.exists(eval_output_file):
