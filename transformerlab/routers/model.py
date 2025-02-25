@@ -345,11 +345,6 @@ async def set_custom_api_key():
     if not token_str or token_str == "":
         return {"message": "CUSTOM_API_KEY not configured in database"}
 
-    try:
-        token_data = json.loads(token_str)
-    except Exception as e:
-        return {"message": f"Error decoding CUSTOM_API_KEY: {e}"}
-
     current_token = os.getenv("CUSTOM_API_KEY")
     if current_token == token_str:
         return {"message": "OK"}
