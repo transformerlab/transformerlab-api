@@ -314,17 +314,43 @@ def test_wandb_login():
 @router.get(path="/model/set_openai_api_key")
 async def set_openai_api_key():
     token = await db.config_get("OPENAI_API_KEY")
-    if os.getenv("OPENAI_API_KEY") is None:
-        if token is not None:
-            os.environ["OPENAI_API_KEY"] = token
-            return {"message": "OK"}
-    else:
-        if token is not None and token == os.getenv("OPENAI_API_KEY"):
-            return {"message": "OK"}
-        else:
-            print("Overriding OPENAI_API_KEY environment variable with value: ", token)
-            os.environ["OPENAI_API_KEY"] = token
-            return {"message": "OK"}
+    if not token or token == "":
+        return {"message": "OPENAI_API_KEY not configured in database"}
+
+    current_key = os.getenv("OPENAI_API_KEY")
+    if current_key == token:
+        return {"message": "OK"}
+
+    os.environ["OPENAI_API_KEY"] = token
+    return {"message": "OK"}
+
+
+@router.get(path="/model/set_anthropic_api_key")
+async def set_anthropic_api_key():
+    token = await db.config_get("ANTHROPIC_API_KEY")
+    if not token or token == "":
+        return {"message": "ANTHROPIC_API_KEY not configured in database"}
+
+    current_key = os.getenv("ANTHROPIC_API_KEY")
+    if current_key == token:
+        return {"message": "OK"}
+
+    os.environ["ANTHROPIC_API_KEY"] = token
+    return {"message": "OK"}
+
+
+@router.get(path="/model/set_custom_api_key")
+async def set_custom_api_key():
+    token_str = await db.config_get("CUSTOM_MODEL_API_KEY")
+    if not token_str or token_str == "":
+        return {"message": "CUSTOM_MODEL_API_KEY not configured in database"}
+
+    current_token = os.getenv("CUSTOM_MODEL_API_KEY")
+    if current_token == token_str:
+        return {"message": "OK"}
+
+    os.environ["CUSTOM_MODEL_API_KEY"] = token_str
+    return {"message": "OK"}
 
 
 @router.get(path="/model/check_openai_api_key")
@@ -345,20 +371,13 @@ async def check_anthropic_api_key():
         return {"message": "OK"}
 
 
-@router.get(path="/model/set_anthropic_api_key")
-async def set_anthropic_api_key():
-    token = await db.config_get("ANTHROPIC_API_KEY")
-    if os.getenv("ANTHROPIC_API_KEY") is None:
-        if token is not None:
-            os.environ["ANTHROPIC_API_KEY"] = token
-            return {"message": "OK"}
+@router.get(path="/model/check_custom_api_key")
+async def check_custom_api_key():
+    # Check if the CUSTOM_MODEL_API_KEY is set in the environment
+    if os.getenv("CUSTOM_MODEL_API_KEY") is None:
+        return {"message": "CUSTOM_MODEL_API_KEY not set"}
     else:
-        if token is not None and token == os.getenv("ANTHROPIC_API_KEY"):
-            return {"message": "OK"}
-        else:
-            print("Overriding ANTHROPIC_API_KEY environment variable with value: ", token)
-            os.environ["ANTHROPIC_API_KEY"] = token
-            return {"message": "OK"}
+        return {"message": "OK"}
 
 
 @router.get(path="/model/download_size")
