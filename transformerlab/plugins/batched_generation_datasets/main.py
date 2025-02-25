@@ -216,7 +216,7 @@ class CustomCommercialModel(DeepEvalBaseLLM):
         updated_df = await process_dataset(
             df,
             batch_size=args.batch_size,
-            model=self.model,
+            model=self.model_name,
             inference_url=INFERENCE_URL,
             api_key=api_key,
             sys_prompt_col=sys_prompt_col,
@@ -260,7 +260,6 @@ job.update_progress(0.5)
 
 async def run_batched_generation():
     try:
-        check_local_server()
         df, file_location = get_tflab_dataset()
         print("Dataset fetched successfully")
         sys_prompt_col = None
