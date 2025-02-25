@@ -12,7 +12,7 @@
         "setup.sh"
     ],
     "_dataset": true,
-    "_dataset_display_message": "Please upload a dataset file with columns: 'input', 'output', 'expected_output'. The context column is optional if using metrics which don't require it.",
+    "_dataset_display_message": "Please make sure the name of the input and output columns match the ones in your dataset",
     "setup-script": "setup.sh",
     "parameters": {
         "tasks": {
@@ -25,11 +25,11 @@
                         "type": "string",
                         "title": "Evaluation Name"
                     },
-                    "regex": {
+                    "expression": {
                         "type": "string",
                         "title": "Regular Expression"
                     },
-                    "output_type": {
+                    "return_type": {
                         "type": "string",
                         "title": "Output Type",
                         "enum": ["boolean", "number"]
@@ -46,7 +46,17 @@
             "default": 1.0,
             "maximum": 1.0,
             "multipleOf": 0.1
-          }
+          },
+        "input_col": {
+            "type": "string",
+            "title": "Input Column",
+            "default": "input"
+        },
+        "output_col": {
+            "type": "string",
+            "title": "Output Column",
+            "default": "output"
+        }
     },
     "parameters_ui": {
         "limit": {
