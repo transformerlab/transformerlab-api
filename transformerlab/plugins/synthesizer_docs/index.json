@@ -17,14 +17,7 @@
     "parameters": {
         "generation_model": {
             "title": "Generation Model (Model to be used for Generation. Select `local` to use the local model running)",
-            "type": "string",
-            "enum": [
-                "Claude 3.5 Haiku",
-                "Claude 3.5 Sonnet",
-                "OpenAI GPT 4o",
-                "OpenAI GPT 4o Mini",
-                "Local"
-            ]
+            "type": "string"
         },
         "tflabcustomui_docs": {
             "title": "Reference Documents",
@@ -70,11 +63,9 @@
         },
         "generation_model": {
             "ui:help": "Select the model to be used for generation from the drop-down list",
-            "ui:widget": "AutoCompleteWidget",
+            "ui:widget": "ModelProviderWidget",
             "ui:options": {
-                "multiple": false,
-                "disabledFilter": "check_config",
-                "disabledEnvValues": "[['openai', 'OPENAI_API_KEY'], ['claude', 'ANTHROPIC_API_KEY']]"
+                "multiple": false
             }
         },
         "chunk_size": {
