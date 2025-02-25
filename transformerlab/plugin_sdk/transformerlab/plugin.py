@@ -63,6 +63,26 @@ def get_db_config_value(key: str):
     return row[0]
 
 
+def test_wandb_login(project_name: str = "TFL_Training"):
+    import netrc
+    from pathlib import Path
+
+    netrc_path = Path.home() / (".netrc" if os.name != "nt" else "_netrc")
+    if netrc_path.exists():
+        auth = netrc.netrc(netrc_path).authenticators("api.wandb.ai")
+        if auth:
+            os.environ["WANDB_PROJECT"] = project_name
+            os.environ["WANDB_DISABLED"] = "false"
+            report_to = ["tensorboard", "wandb"]
+            return True, report_to
+        else:
+            os.environ["WANDB_DISABLED"] = "true"
+            return False, ["tensorboard"]
+    else:
+        os.environ["WANDB_DISABLED"] = "true"
+        return False, ["tensorboard"]
+
+
 class Job:
     """
     Used to update status and info of long-running jobs.
