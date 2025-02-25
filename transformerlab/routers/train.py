@@ -300,6 +300,7 @@ async def get_training_job_output(job_id: str):
 @router.get("/job/{job_id}/stream_output")
 async def watch_log(job_id: str):
     try:
+        job_id = secure_filename(job_id)
         output_file_name = await get_output_file_name(job_id)
     except ValueError as e:
         # if the value error starts with "No output file found for job" then wait 4 seconds and try again
