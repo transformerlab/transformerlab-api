@@ -24,16 +24,38 @@ async def workflows_get_all():
 
 
 @router.get("/delete/{workflow_id}")
-async def job_delete(workflow_id: str):
+async def workflow_delete(workflow_id: str):
     await db.workflow_delete_by_id(workflow_id)
     return {"message": "OK"}
 
 
+@router.get("/delete_all")
+async def workflow_delete():
+    await db.workflow_delete_all()
+    return {"message": "OK"}
+
 @router.get("/create")
-async def workflow_create(name: str, config: str = "{}", experiment_id="1"):
+async def workflow_create(name: str, config: str = '{"nodes":[]}', experiment_id="1"):
     workflow_id = await db.workflow_create(name, config, experiment_id) 
     return workflow_id
 
+
+@router.get("/create_empty")
+async def workflow_create(name: str, experiment_id="1"):
+    workflow_id = await db.workflow_create(name, '{"nodes":[]}', experiment_id) 
+    return workflow_id
+
+
+@router.get("/add_node")
+async def workflow_add_node(workflow_id: str, node: str):
+    new_node_json = json.loads(node)
+    workflow = await db.workflows_get_by_id(workflow_id) 
+    config = json.loads(workflow["config"])
+
+    config["nodes"].append(new_node_json)
+
+    await db.workflow_update_config(workflow_id, json.dumps(config)) 
+    return {"message": "OK"}
 
 @router.get("/start/{workflow_id}")
 async def start_workflow(workflow_id):
@@ -67,9 +89,12 @@ async def start_next_step_in_workflow():
         if current_job["status"] != "COMPLETE":
             return {"message": "the current job is running"}
 
-    workflow_current_task = workflow_config["nodes"]["out"]
+    if workflow_current_task!= -1:
+        workflow_current_task = int(workflow_config["nodes"][workflow_current_task]["out"])
+    else:
+        workflow_current_task = 0
 
-    if workflow_current_task == len(workflow_config["nodes"]):
+    if workflow_current_task >= len(workflow_config["nodes"]):
         await db.workflow_update_status(workflow_id, "COMPLETE")
         return {"message": "Workflow Complete!"}
 

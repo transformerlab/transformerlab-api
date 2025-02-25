@@ -727,12 +727,22 @@ async def experiment_save_prompt_template(id, template):
 async def workflows_get_all():
     cursor = await db.execute("SELECT * FROM workflows ORDER BY created_at desc")
     rows = await cursor.fetchall()
-    # Do the following to convert the return into a JSON object with keys
     desc = cursor.description
     column_names = [col[0] for col in desc]
     data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
     await cursor.close()
     return data
+
+async def workflows_get_by_id(workflow_id):
+    cursor = await db.execute("SELECT * FROM workflows WHERE id = ? ORDER BY created_at desc LIMIT 1", (workflow_id,))
+    row = await cursor.fetchone()
+    if row is None:
+        return None
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    row = dict(itertools.zip_longest(column_names, row))
+    await cursor.close()
+    return row
 
 async def workflow_delete_by_id(workflow_id):
     print("Deleting workflow: " + workflow_id)
@@ -757,7 +767,6 @@ async def workflow_get_running():
     row = await cursor.fetchone()
     if row is None:
         return None
-    # convert to json:
     desc = cursor.description
     column_names = [col[0] for col in desc]
     row = dict(itertools.zip_longest(column_names, row))
@@ -781,8 +790,16 @@ async def workflow_create(name, config, experiment_id):
         "INSERT INTO workflows(name, config, status, current_task, current_job_id, experiment_id) VALUES (?, json(?), ?, ?, ?, ?)",
         (name, config, "CREATED", -1, -1, experiment_id),
     )
-    await db.commit()  # is this necessary?
+    await db.commit()
     return row[0]
+
+async def workflow_update_config(workflow_id, config):
+    await db.execute("UPDATE workflows SET config = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (config, workflow_id))
+    await db.commit()
+
+async def workflow_delete_all():
+    await db.execute("DELETE FROM workflows")
+    await db.commit()
 
 ###############
 # PLUGINS MODEL
