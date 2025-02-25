@@ -73,7 +73,8 @@
             "ui:widget": "AutoCompleteWidget",
             "ui:options": {
                 "multiple": false,
-                "disabledFilter": "generation_model"
+                "disabledFilter": "check_config",
+                "disabledEnvValues": "[['openai', 'OPENAI_API_KEY'], ['claude', 'ANTHROPIC_API_KEY']]"
             }
         },
         "chunk_size": {
