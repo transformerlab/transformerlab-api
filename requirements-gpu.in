@@ -1,1 +1,2 @@
 bitsandbytes
+wandb==0.19.7

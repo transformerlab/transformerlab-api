@@ -5,6 +5,7 @@ import time
 from datasets import load_dataset
 import argparse
 import os
+import wandb
 from tensorboardX import SummaryWriter
 
 import transformerlab.plugin
@@ -38,12 +39,21 @@ job.update_progress(0)
 learning_rate = config["learning_rate"]
 batch_size = config.get("batch_size", 4)
 num_train_epochs = config.get("num_train_epochs", 4)
+WANDB_LOGGING = config.get("log_to_wandb", None)
 
 # Generate a model name using the original model and the passed adaptor
 adaptor_name = config.get("adaptor_name", "default")
 input_model_no_author = config["model_name"].split("/")[-1]
 
 project_name = f"{input_model_no_author}-{adaptor_name}".replace(".", "")
+
+# Check if WANDB logging is enabled
+if WANDB_LOGGING:
+    WANDB_LOGGING, _ = transformerlab.plugin.test_wandb_login()
+
+    if not WANDB_LOGGING:
+        print("WANDB API Key not found. WANDB logging will be disabled. Please set the WANDB API Key in Settings.")
+
 
 # Get the dataset
 try:
@@ -136,6 +146,14 @@ output_dir = os.path.join(config["output_dir"], f"job_{config['job_id']}_{today}
 writer = SummaryWriter(output_dir)
 print("Writing logs to:", output_dir)
 
+if WANDB_LOGGING:
+    print("Setting up WANDB project")
+    wandb_run = wandb.init(
+        name=f"job_{config['job_id']}_{config['template_name']}", project="TFL Training Runs", config=config
+    )
+    # Setting the WANDB config
+    wandb.config = config
+
 # Store the tensorboard output dir in the job
 job.set_tensorboard_output_dir(output_dir)
 
@@ -187,9 +205,21 @@ try:
                 writer.add_scalar("learning_rate", learning_rate, iteration)
                 writer.add_scalar("epoch", epoch, iteration)
 
+                # Log the loss to WANDB
+                if WANDB_LOGGING:
+                    wb_log = {
+                        "train/loss": loss,
+                        "train/it_per_sec": it_per_sec,
+                        "train/learning_rate": learning_rate,
+                        "train/epoch": epoch,
+                    }
+                    wandb.log(wb_log, step=iteration)
+
             print(line, end="", flush=True)
 
 except Exception as e:
+    if WANDB_LOGGING:
+        wandb_run.finish()
     job.set_job_completion_status("failed", "Failure during training")
     raise e
 
@@ -199,16 +229,23 @@ except Exception as e:
 try:
     os.system(f"rm -rf {project_name}/autotrain_data")
 except Exception as e:
+    if WANDB_LOGGING:
+        wandb_run.finish()
     print(f"Failed to delete unnecessary data: {e}")
     # No exception raised here or stats set, as this data just gets ignored later
 
 # Move the model to the Transformer Lab directory
 try:
     os.system(f"mv {project_name} {config['adaptor_output_dir']}/")
+
 except Exception as e:
+    if WANDB_LOGGING:
+        wandb_run.finish()
     job.set_job_completion_status("failed", "Failure to move model to transformerlab directory")
     raise e
 
+if WANDB_LOGGING:
+    wandb_run.finish()
 
 print("Finished training.")
 job.set_job_completion_status("success", "Adaptor trained successfully")

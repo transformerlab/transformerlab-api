@@ -4,7 +4,7 @@
     "description": "SFT training using Huggingface autotrain",
     "plugin-format": "python",
     "type": "trainer",
-    "version": "0.1.7",
+    "version": "0.1.8",
     "model_architectures": [
         "LlamaForCausalLM",
         "MistralForCausalLM",
@@ -47,6 +47,12 @@
             "type": "string",
             "default": "adaptor",
             "required": true
+        },
+        "log_to_wandb": {
+            "title": "Log to Weights and Biases",
+            "type": "boolean",
+            "default": false,
+            "required": true
         }
     },
     "parameters_ui": {
@@ -55,6 +61,9 @@
         },
         "learning_rate": {
             "ui:help": "Learning rate default is 2e-4."
+        },
+        "log_to_wandb": {
+             "ui:help": "Log training to Weights and Biases. You must have a Weights and Biases account and API key to use this feature. You need to set the API Key in settings to use this feature."
         }
     }
 }
