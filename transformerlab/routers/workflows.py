@@ -67,15 +67,15 @@ async def start_next_step_in_workflow():
         if current_job["status"] != "COMPLETE":
             return {"message": "the current job is running"}
 
-    workflow_current_task += 1
+    workflow_current_task = workflow_config["nodes"]["out"]
 
-    if workflow_current_task == len(workflow_config["tasks"]):
+    if workflow_current_task == len(workflow_config["nodes"]):
         await db.workflow_update_status(workflow_id, "COMPLETE")
         return {"message": "Workflow Complete!"}
 
-    next_job_type = workflow_config["tasks"][workflow_current_task]["type"]
+    next_job_type = workflow_config["nodes"][workflow_current_task]["type"]
     next_job_status = "QUEUED" 
-    next_job_data = workflow_config["tasks"][workflow_current_task]["data"]
+    next_job_data = workflow_config["nodes"][workflow_current_task]["data"]
 
     next_job_id = await db.job_create(next_job_type, next_job_status, json.dumps(next_job_data), workflow_experiment_id)
     await db.workflow_update_with_new_job(workflow_id, workflow_current_task, next_job_id)
