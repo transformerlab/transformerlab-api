@@ -355,11 +355,6 @@ async def set_custom_api_key():
         return {"message": "OK"}
 
     os.environ["CUSTOM_API_KEY"] = token_str
-    os.environ["_TFL_CUSTOM_MODEL_API_KEY"] = token_data.get("apiKey", "")
-    os.environ["_TFL_CUSTOM_MODEL_BASE_URL"] = token_data.get("baseUrl", "")
-    os.environ["_TFL_CUSTOM_MODEL_API_NAME"] = token_data.get("apiName", "")
-    os.environ["_TFL_CUSTOM_MODEL_NAME"] = token_data.get("modelName", "")
-
     return {"message": "OK"}
 
 

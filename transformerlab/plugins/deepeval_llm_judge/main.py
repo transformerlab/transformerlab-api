@@ -1,5 +1,6 @@
 import argparse
 import importlib
+import json
 import os
 import sys
 import traceback
@@ -121,35 +122,74 @@ def get_metric_class(metric_name: str):
         sys.exit(1)
 
 
-class CustomCommercialModel(DeepEvalBaseLLM):
-    def __init__(self, model_type="claude", model_name="Claude 3.5 Sonnet"):
-        self.model_type = model_type
-        self.model_name = self.set_model_name(model_name)
-        if model_type == "claude":
-            if os.environ.get("ANTHROPIC_API_KEY") is None:
-                print("Please set the Anthropic API Key from Settings.")
-                job.set_job_completion_status("failed", "Please set the Anthropic API Key from Settings.")
-                sys.exit(1)
-            self.model = Anthropic()
+def check_local_server():
+    response = requests.get("http://localhost:8338/server/worker_healthz")
+    if response.status_code != 200 or not isinstance(response.json(), list) or len(response.json()) == 0:
+        print("Local Model Server is not running. Please start it before running the evaluation.")
+        sys.exit(1)
 
-        elif model_type == "openai":
-            if os.environ.get("OPENAI_API_KEY") is None:
-                print("Please set the OpenAI API Key from Settings.")
-                job.set_job_completion_status("failed", "Please set the OpenAI API Key from Settings.")
-                sys.exit(1)
-            self.model = OpenAI()
+
+class TRLAB_MODEL(DeepEvalBaseLLM):
+    def __init__(self, model):
+        self.model = model
 
     def load_model(self):
         return self.model
 
-    def set_model_name(self, model_name):
-        dic = {
-            "Claude 3.5 Sonnet": "claude-3-5-sonnet-latest",
-            "Claude 3.5 Haiku": "claude-3-5-haiku-latest",
-            "OpenAI GPT 4o": "gpt-4o",
-            "OpenAI GPT 4o Mini": "gpt-4o-mini",
-        }
-        return dic[model_name]
+    def generate(self, prompt: str) -> str:
+        chat_model = self.load_model()
+        return chat_model.invoke(prompt).content
+
+    async def a_generate(self, prompt: str) -> str:
+        chat_model = self.load_model()
+        res = await chat_model.ainvoke(prompt)
+        return res.content
+
+    def get_model_name(self):
+        return args.model_name
+
+
+class CustomCommercialModel(DeepEvalBaseLLM):
+    def __init__(self, model_type="claude", model_name="claude-3-7-sonnet-latest"):
+        self.model_type = model_type
+        self.model_name = model_name
+        if model_type == "claude":
+            anthropic_api_key = transformerlab.plugin.get_db_config_value("ANTHROPIC_API_KEY")
+            if not anthropic_api_key or anthropic_api_key.strip() == "":
+                print("Please set the Anthropic API Key from Settings.")
+                job.set_job_completion_status("failed", "Please set the Anthropic API Key from Settings.")
+                sys.exit(1)
+            else:
+                os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
+            self.model = Anthropic()
+
+        elif model_type == "openai":
+            openai_api_key = transformerlab.plugin.get_db_config_value("OPENAI_API_KEY")
+            if not openai_api_key or openai_api_key.strip() == "":
+                print("Please set the OpenAI API Key from Settings.")
+                job.set_job_completion_status("failed", "Please set the OpenAI API Key from Settings.")
+                sys.exit(1)
+            else:
+                os.environ["OPENAI_API_KEY"] = openai_api_key
+            self.model = OpenAI()
+
+        elif model_type == "custom":
+            custom_api_details = transformerlab.plugin.get_db_config_value("CUSTOM_API_DETAILS")
+            if not custom_api_details or custom_api_details.strip() == "":
+                print("Please set the Custom API Details from Settings.")
+                job.set_job_completion_status("failed", "Please set the Custom API Details from Settings.")
+                sys.exit(1)
+            else:
+                custom_api_details = json.loads(custom_api_details)
+                self.model = OpenAI(
+                    api_key=custom_api_details["apiKey"],
+                    base_url=custom_api_details["baseURL"],
+                )
+                # args.model_name = custom_api_details["modelName"]
+                self.model_name = custom_api_details["modelName"]
+
+    def load_model(self):
+        return self.model
 
     def generate(self, prompt: str, schema: BaseModel) -> BaseModel:
         client = self.load_model()
@@ -178,39 +218,14 @@ class CustomCommercialModel(DeepEvalBaseLLM):
         return self.model_name
 
 
-class TRLAB_MODEL(DeepEvalBaseLLM):
-    def __init__(self, model):
-        self.model = model
-
-    def load_model(self):
-        return self.model
-
-    def generate(self, prompt: str) -> str:
-        chat_model = self.load_model()
-        return chat_model.invoke(prompt).content
-
-    async def a_generate(self, prompt: str) -> str:
-        chat_model = self.load_model()
-        res = await chat_model.ainvoke(prompt)
-        return res.content
-
-    def get_model_name(self):
-        return args.model_name
-
-
-def check_local_server():
-    response = requests.get("http://localhost:8338/server/worker_healthz")
-    if response.status_code != 200 or not isinstance(response.json(), list) or len(response.json()) == 0:
-        print("Local Model Server is not running. Please start it before running the evaluation.")
-        sys.exit(1)
-
-
 try:
-    if "local" not in args.judge_model.lower():
-        if "openai" in args.judge_model.lower():
-            trlab_model = CustomCommercialModel("openai", args.judge_model)
-        else:
-            trlab_model = CustomCommercialModel("claude", args.judge_model)
+    if "local" not in args.generation_model.lower():
+        if "openai" in args.generation_model.lower() or "gpt" in args.generation_model.lower():
+            trlab_model = CustomCommercialModel("openai", args.generation_model)
+        elif "claude" in args.generation_model.lower() or "anthropic" in args.generation_model.lower():
+            trlab_model = CustomCommercialModel("claude", args.generation_model)
+        elif "custom" in args.generation_model.lower():
+            trlab_model = CustomCommercialModel("custom", "")
     else:
         check_local_server()
         custom_model = ChatOpenAI(

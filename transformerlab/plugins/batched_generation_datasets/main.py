@@ -1,23 +1,23 @@
 import argparse
+import asyncio
+import json
 import os
 import sys
 from typing import List
-import asyncio
 
 import instructor
 import pandas as pd
 import requests
-import transformerlab.plugin
-from datasets import load_dataset
 from anthropic import Anthropic
+from datasets import load_dataset
 from deepeval.models.base_model import DeepEvalBaseLLM
+from langchain.schema import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from openai import OpenAI
 from pydantic import BaseModel
-from langchain.schema import SystemMessage, HumanMessage
-
 from requests_batching import process_dataset
 
+import transformerlab.plugin
 
 parser = argparse.ArgumentParser(description="Run Synthesizer for generating data.")
 parser.add_argument(
@@ -134,32 +134,44 @@ class TRLAB_MODEL(DeepEvalBaseLLM):
 class CustomCommercialModel(DeepEvalBaseLLM):
     def __init__(self, model_type="claude", model_name="Claude 3.5 Sonnet"):
         self.model_type = model_type
-        self.model_name = self.set_model_name(model_name)
+        self.model_name = model_name
         if model_type == "claude":
-            if os.environ.get("ANTHROPIC_API_KEY") is None:
+            anthropic_api_key = transformerlab.plugin.get_db_config_value("ANTHROPIC_API_KEY")
+            if not anthropic_api_key or anthropic_api_key.strip() == "":
                 print("Please set the Anthropic API Key from Settings.")
                 job.set_job_completion_status("failed", "Please set the Anthropic API Key from Settings.")
                 sys.exit(1)
+            else:
+                os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
             self.model = Anthropic()
 
         elif model_type == "openai":
-            if os.environ.get("OPENAI_API_KEY") is None:
+            openai_api_key = transformerlab.plugin.get_db_config_value("OPENAI_API_KEY")
+            if not openai_api_key or openai_api_key.strip() == "":
                 print("Please set the OpenAI API Key from Settings.")
                 job.set_job_completion_status("failed", "Please set the OpenAI API Key from Settings.")
                 sys.exit(1)
+            else:
+                os.environ["OPENAI_API_KEY"] = openai_api_key
             self.model = OpenAI()
+
+        elif model_type == "custom":
+            custom_api_details = transformerlab.plugin.get_db_config_value("CUSTOM_API_DETAILS")
+            if not custom_api_details or custom_api_details.strip() == "":
+                print("Please set the Custom API Details from Settings.")
+                job.set_job_completion_status("failed", "Please set the Custom API Details from Settings.")
+                sys.exit(1)
+            else:
+                custom_api_details = json.loads(custom_api_details)
+                self.model = OpenAI(
+                    api_key=custom_api_details["apiKey"],
+                    base_url=custom_api_details["baseURL"],
+                )
+                # args.model_name = custom_api_details["modelName"]
+                self.model_name = custom_api_details["modelName"]
 
     def load_model(self):
         return self.model
-
-    def set_model_name(self, model_name):
-        dic = {
-            "Claude 3.5 Sonnet": "claude-3-5-sonnet-latest",
-            "Claude 3.5 Haiku": "claude-3-5-haiku-latest",
-            "OpenAI GPT 4o": "gpt-4o",
-            "OpenAI GPT 4o Mini": "gpt-4o-mini",
-        }
-        return dic[model_name]
 
     def generate(self, prompt: str, schema: BaseModel) -> BaseModel:
         client = self.load_model()
@@ -222,10 +234,12 @@ class CustomCommercialModel(DeepEvalBaseLLM):
 
 try:
     if "local" not in args.generation_model.lower():
-        if "openai" in args.generation_model.lower():
+        if "openai" in args.generation_model.lower() or "gpt" in args.generation_model.lower():
             trlab_model = CustomCommercialModel("openai", args.generation_model)
-        else:
+        elif "claude" in args.generation_model.lower() or "anthropic" in args.generation_model.lower():
             trlab_model = CustomCommercialModel("claude", args.generation_model)
+        elif "custom" in args.generation_model.lower():
+            trlab_model = CustomCommercialModel("custom", "")
     else:
         check_local_server()
         custom_model = ChatOpenAI(

@@ -5,7 +5,7 @@
     "description": "Use LLMs to create synthetic data for your usecases from reference context. Paste all your reference context to generate a dataset.",
     "plugin-format": "python",
     "type": "generator",
-    "version": "0.1.6",
+    "version": "0.1.7",
     "git": "https://github.com/confident-ai/deepeval",
     "url": "https://github.com/confident-ai/deepeval",
     "files": [
@@ -17,14 +17,7 @@
     "parameters": {
         "generation_model": {
             "title": "Generation Model",
-            "type": "string",
-            "enum": [
-                "Claude 3.5 Haiku",
-                "Claude 3.5 Sonnet",
-                "OpenAI GPT 4o",
-                "OpenAI GPT 4o Mini",
-                "Local"
-            ]
+            "type": "string"
         },
         "num_goldens": {
             "title": "Number of Samples to generate",
@@ -46,7 +39,7 @@
         },
         "generation_model": {
             "ui:help": "Select the model to be used for generation from the drop-down list. (Select `local` to use the local model running)",
-            "ui:widget": "AutoCompleteWidget",
+            "ui:widget": "ModelProviderWidget",
             "ui:options": {
                 "multiple": false
             }
