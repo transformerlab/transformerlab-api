@@ -68,6 +68,22 @@ async def init():
                         updated_at DATETIME NOT NULL DEFAULT current_timestamp)
                         """
     )
+
+    await db.execute(
+        """CREATE TABLE IF NOT EXISTS
+                    workflows
+                        (id INTEGER PRIMARY KEY,
+                        name,
+                        config JSON,
+                        status,
+                        current_task INTEGER,
+                        current_job_id INTEGER,
+                        experiment_id,
+                        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME NOT NULL DEFAULT current_timestamp)
+                        """
+    )
+
     await db.execute("CREATE INDEX IF NOT EXISTS idx_name ON experiment (name)")
 
     await db.execute(
@@ -704,6 +720,69 @@ async def experiment_save_prompt_template(id, template):
     await db.commit()
     return
 
+#################
+# WORKFLOWS MODEL
+#################
+
+async def workflows_get_all():
+    cursor = await db.execute("SELECT * FROM workflows ORDER BY created_at desc")
+    rows = await cursor.fetchall()
+    # Do the following to convert the return into a JSON object with keys
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
+    await cursor.close()
+    return data
+
+async def workflow_delete_by_id(workflow_id):
+    print("Deleting workflow: " + workflow_id)
+    await db.execute("UPDATE workflows SET status = 'DELETED' WHERE id = ?", (workflow_id,))
+    await db.commit()
+    return
+
+async def workflow_delete_by_name(workflow_name):
+    print("Deleting workflow: " + workflow_name)
+    await db.execute("UPDATE workflows SET status = 'DELETED' WHERE name = ?", (workflow_name,))
+    await db.commit()
+    return
+
+async def workflow_count_running():
+    cursor = await db.execute("SELECT COUNT(*) FROM workflows WHERE status = 'RUNNING'")
+    row = await cursor.fetchone()
+    await cursor.close()
+    return row[0]
+
+async def workflow_get_running():
+    cursor = await db.execute("SELECT * FROM workflows WHERE status = 'RUNNING' LIMIT 1")
+    row = await cursor.fetchone()
+    if row is None:
+        return None
+    # convert to json:
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    row = dict(itertools.zip_longest(column_names, row))
+    await cursor.close()
+    return row
+
+async def workflow_update_status(workflow_id, status):
+    await db.execute("UPDATE workflows SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, workflow_id))
+    await db.commit()
+    return
+
+async def workflow_update_with_new_job(workflow_id, current_task, current_job_id):
+    await db.execute("UPDATE workflows SET current_task = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (current_task, workflow_id))
+    await db.execute("UPDATE workflows SET current_job_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (current_job_id, workflow_id))
+    await db.commit()
+    return
+
+async def workflow_create(name, config, experiment_id):
+    # check if type is allowed
+    row = await db.execute_insert(
+        "INSERT INTO workflows(name, config, status, current_task, current_job_id, experiment_id) VALUES (?, json(?), ?, ?, ?, ?)",
+        (name, config, "CREATED", -1, -1, experiment_id),
+    )
+    await db.commit()  # is this necessary?
+    return row[0]
 
 ###############
 # PLUGINS MODEL
