@@ -1,19 +1,9 @@
 import json
-import os
-import csv
 import yaml
-import pandas as pd
-from fastapi import APIRouter, Body, Response, UploadFile
-from fastapi.responses import StreamingResponse, FileResponse
+from fastapi import APIRouter, UploadFile
+from fastapi.responses import FileResponse
 
 import transformerlab.db as db
-from transformerlab.shared import shared
-from transformerlab.shared import dirs
-from typing import Annotated
-from json import JSONDecodeError
-
-from transformerlab.routers.serverinfo import watch_file
-
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
@@ -31,7 +21,7 @@ async def workflow_delete(workflow_id: str):
 
 
 @router.get("/delete_all")
-async def workflow_delete():
+async def workflow_delete_all():
     await db.workflow_delete_all()
     return {"message": "OK"}
 
@@ -42,7 +32,7 @@ async def workflow_create(name: str, config: str = '{"nodes":[]}', experiment_id
 
 
 @router.get("/create_empty")
-async def workflow_create(name: str, experiment_id="1"):
+async def workflow_create_empty(name: str, experiment_id="1"):
     workflow_id = await db.workflow_create(name, '{"nodes":[]}', experiment_id) 
     return workflow_id
 
