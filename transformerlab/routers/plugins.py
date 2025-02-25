@@ -8,6 +8,7 @@ import aiofiles
 
 from transformerlab.shared import dirs
 
+from werkzeug.utils import secure_filename
 
 from fastapi import APIRouter
 
@@ -71,6 +72,8 @@ async def plugin_gallery():
 
 
 async def copy_plugin_files_to_workspace(plugin_id: str):
+    plugin_id = secure_filename(plugin_id)
+
     plugin_path = os.path.join(dirs.PLUGIN_PRELOADED_GALLERY, plugin_id)
     # create the directory if it doesn't exist
     new_directory = os.path.join(dirs.PLUGIN_DIR, plugin_id)
@@ -88,6 +91,8 @@ async def install_plugin(plugin_id: str):
     """Install a plugin from the gallery"""
     # For now we assume all gallery plugins are stored at transformerlab/plugins and installed ones go to
     # workspace/plugins
+
+    plugin_id = secure_filename(plugin_id)
 
     plugin_path = os.path.join(dirs.PLUGIN_PRELOADED_GALLERY, plugin_id)
 
