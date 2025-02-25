@@ -1,15 +1,17 @@
-import json
-import sqlite3
-from datasets import load_dataset
-from trl import GRPOConfig, GRPOTrainer
 import argparse
-from unsloth import FastLanguageModel, PatchFastRL
-import torch
-from transformers import BitsAndBytesConfig, TrainerCallback
+import json
 import os
-import transformerlab.plugin
+import sqlite3
+import time
 
+import torch
+from datasets import load_dataset
 from jinja2 import Environment
+from transformers import BitsAndBytesConfig, TrainerCallback
+from trl import GRPOConfig, GRPOTrainer
+from unsloth import FastLanguageModel, PatchFastRL
+
+import transformerlab.plugin
 
 jinja_environment = Environment()
 
@@ -62,6 +64,8 @@ start_thinking_string = config.get("start_thinking_string", "<reasoning>")
 end_thinking_string = config.get("end_thinking_string", "</reasoning>")
 start_answer_string = config.get("start_answer_string", "<answer>")
 end_answer_string = config.get("end_answer_string", "</answer>")
+
+WANDB_LOGGING = config.get("log_to_wandb", None)
 
 output_dir: str = config["output_dir"]
 JOB_ID = config["job_id"]
@@ -200,6 +204,14 @@ db.commit()
 
 print(max_seq_length)
 
+if WANDB_LOGGING:
+    WANDB_LOGGING, report_to = transformerlab.plugin.test_wandb_login()
+    if not WANDB_LOGGING:
+        print("WANDB API Key not found. WANDB logging will be disabled. Please set the WANDB API Key in Settings.")
+
+today = time.strftime("%Y%m%d-%H%M%S")
+run_suffix = config.get("template_name", today)
+
 
 args = GRPOConfig(
     output_dir=output_dir,
@@ -221,7 +233,8 @@ args = GRPOConfig(
     adam_beta2=adam_beta2,
     adam_epsilon=adam_epsilon,
     disable_tqdm=False,  # disable tqdm since with packing values are in correct
-    report_to=["tensorboard"],
+    run_name=f"job_{JOB_ID}_{run_suffix}",
+    report_to=report_to,
 )
 
 

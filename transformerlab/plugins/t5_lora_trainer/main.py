@@ -14,6 +14,7 @@ import argparse
 import json
 import os
 import sqlite3
+import time
 
 from dataclasses import dataclass, field
 from random import randrange
@@ -40,6 +41,7 @@ from transformers import (
     Seq2SeqTrainingArguments,
     TrainerCallback,
 )
+import transformerlab.plugin
 
 # Connect to the LLM Lab database
 llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
@@ -219,6 +221,7 @@ class Trainer:
         job_id,
         output_dir,
         adaptor_output_dir,
+        wandb_logging=None,
     ):
         self.peft_model_id = peft_model_id
 
@@ -258,6 +261,14 @@ class Trainer:
         )
         db.commit()
 
+        if wandb_logging:
+            wandb_logging, report_to = transformerlab.shared.test_wandb_login()
+            if not wandb_logging:
+                print(
+                    "WANDB API Key not found. WANDB logging will be disabled. Please set the WANDB API Key in Settings."
+                )
+
+        today = time.strftime("%Y%m%d-%H%M%S")
         # Define training args
         training_args = Seq2SeqTrainingArguments(
             output_dir=output_dir,
@@ -268,7 +279,8 @@ class Trainer:
             logging_strategy="steps",
             logging_steps=logging_steps,
             save_strategy="no",
-            report_to=["tensorboard"],
+            run_name=f"job_{JOB_ID}_{today}",
+            report_to=report_to,
         )
 
         class ProgressTableUpdateCallback(TrainerCallback):
@@ -403,6 +415,7 @@ class Trainer:
         job_id,
         output_dir,
         adaptor_output_dir,
+        wandb_logging=None,
     ):
         self.set_model(model_name_or_path)
 
@@ -423,6 +436,7 @@ class Trainer:
             job_id=job_id,
             output_dir=output_dir,
             adaptor_output_dir=adaptor_output_dir,
+            wandb_logging=wandb_logging,
         )
 
         # # t.load_peft()
@@ -457,6 +471,8 @@ def main():
 
     JOB_ID = config["job_id"]
 
+    WANDB_LOGGING = config.get("log_to_wandb", None)
+
     t = Trainer()
     t.train(
         peft_model_id=config["adaptor_name"],
@@ -471,6 +487,7 @@ def main():
         job_id=JOB_ID,
         output_dir=config["output_dir"],
         adaptor_output_dir=config["adaptor_output_dir"],
+        wandb_logging=WANDB_LOGGING,
     )
 
 

@@ -11,6 +11,8 @@ from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi
 from huggingface_hub import ModelCard, ModelCardData
 from huggingface_hub.utils import HfHubHTTPError
 import os
+from pathlib import Path
+
 
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
@@ -274,6 +276,39 @@ async def login_to_huggingface():
         return {"message": "OK"}
     except Exception:
         return {"message": "Login failed"}
+
+
+@router.get(path="/model/login_to_wandb")
+async def login_to_wandb():
+    # TODO: Move all of these logins and their tests to another router outside 'model' to maintain clarity
+    import wandb
+
+    token = await db.config_get("WANDB_API_KEY")
+
+    if token is None:
+        return {"message": "WANDB_API not set"}
+    try:
+        wandb.login(key=token, force=True, relogin=True, verify=True)
+        return {"message": "OK"}
+    except Exception:
+        return {"message": "Login failed"}
+
+
+@router.get(path="/model/test_wandb_login")
+def test_wandb_login():
+    import netrc
+
+    netrc_path = Path.home() / (".netrc" if os.name != "nt" else "_netrc")
+    if netrc_path.exists():
+        auth = netrc.netrc(netrc_path).authenticators("api.wandb.ai")
+        if auth:
+            return {"message": "OK"}
+        else:
+            print("No W&B API key entry found in the netrc file.")
+            return {"message": "No W&B API key entry found in the netrc file."}
+    else:
+        print(f"Netrc file not found at {netrc_path}.")
+        return {"message": "Netrc file not found at {netrc_path}."}
 
 
 @router.get(path="/model/set_openai_api_key")
@@ -673,10 +708,7 @@ async def model_import(model: basemodel.BaseModel):
     if architecture == "unknown" or architecture == "":
         return import_error("Unable to determine model architecture.")
 
-    try:
-        await model.install()
-    except Exception as e:
-        return import_error(e)
+    await model.install()
 
     print(f"{model.id} imported successfully.")
 
