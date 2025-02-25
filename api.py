@@ -38,6 +38,7 @@ from transformerlab.routers import (
     evals,
     config,
     jobs,
+    workflows,
     prompts,
     tools,
     batched_prompts,
@@ -82,6 +83,7 @@ async def run_over_and_over():
     while True:
         await asyncio.sleep(3)
         await jobs.start_next_job()
+        await workflows.start_next_step_in_workflow() 
 
 
 description = "Transformerlab API helps you do awesome stuff. 🚀"
@@ -146,6 +148,7 @@ app.include_router(experiment.router)
 app.include_router(plugins.router)
 app.include_router(evals.router)
 app.include_router(jobs.router)
+app.include_router(workflows.router)
 app.include_router(config.router)
 app.include_router(prompts.router)
 app.include_router(tools.router)
