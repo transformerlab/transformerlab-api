@@ -14,6 +14,7 @@ from transformerlab.shared import dirs
 from transformerlab.shared import galleries
 from transformerlab.models import model_helper
 
+from werkzeug.utils import secure_filename
 
 # @TODO hook this up to an endpoint so we can cancel a finetune
 
@@ -360,8 +361,11 @@ async def spawn_tensorboard(job_id: str):
     if "template_name" not in job_data.keys():
         raise ValueError("Template Name not found in job data")
 
-    os.makedirs(f"{experiment_dir}/tensorboards/{job_data['template_name']}", exist_ok=True)
+    template_name = job_data["template_name"]
+    template_name = secure_filename(template_name)
 
-    logdir = f"{experiment_dir}/tensorboards/{job_data['template_name']}"
+    os.makedirs(f"{experiment_dir}/tensorboards/{template_name}", exist_ok=True)
+
+    logdir = f"{experiment_dir}/tensorboards/{template_name}"
 
     tensorboard_process = subprocess.Popen(["tensorboard", "--logdir", logdir, "--host", "0.0.0.0"])
