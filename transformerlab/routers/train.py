@@ -14,6 +14,7 @@ from transformerlab.shared import dirs
 from transformerlab.shared import galleries
 from transformerlab.models import model_helper
 
+from werkzeug.utils import secure_filename
 
 # @TODO hook this up to an endpoint so we can cancel a finetune
 
@@ -265,6 +266,8 @@ async def get_output_file_name(job_id: str):
         plugin_name = template_config["plugin_name"]
         plugin_dir = dirs.plugin_dir_by_name(plugin_name)
 
+        job_id = secure_filename(job_id)
+
         # job output is stored in separate files with a job number in the name...
         if os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
             output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
@@ -299,6 +302,7 @@ async def get_training_job_output(job_id: str):
 @router.get("/job/{job_id}/stream_output")
 async def watch_log(job_id: str):
     try:
+        job_id = secure_filename(job_id)
         output_file_name = await get_output_file_name(job_id)
     except ValueError as e:
         # if the value error starts with "No output file found for job" then wait 4 seconds and try again
@@ -360,8 +364,11 @@ async def spawn_tensorboard(job_id: str):
     if "template_name" not in job_data.keys():
         raise ValueError("Template Name not found in job data")
 
-    os.makedirs(f"{experiment_dir}/tensorboards/{job_data['template_name']}", exist_ok=True)
+    template_name = job_data["template_name"]
+    template_name = secure_filename(template_name)
 
-    logdir = f"{experiment_dir}/tensorboards/{job_data['template_name']}"
+    os.makedirs(f"{experiment_dir}/tensorboards/{template_name}", exist_ok=True)
+
+    logdir = f"{experiment_dir}/tensorboards/{template_name}"
 
     tensorboard_process = subprocess.Popen(["tensorboard", "--logdir", logdir, "--host", "0.0.0.0"])
