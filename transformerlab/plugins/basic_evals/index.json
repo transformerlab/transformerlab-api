@@ -15,9 +15,35 @@
     "_dataset_display_message": "Please make sure the name of the input and output columns match the ones in your dataset",
     "setup-script": "setup.sh",
     "parameters": {
+        "predefined_tasks": {
+            "type": "string",
+            "title": "Pre-defined Evaluation Metrics",
+            "enum": ["Is Valid JSON", 
+                     "Word Count", 
+                     "Contains bulleted lists", 
+                     "Contains headings", 
+                     "Contains URLs", 
+                     "Contains code blocks", 
+                     "Contains tables", 
+                     "Contains images", 
+                     "Contains numbered lists", 
+                     "Contains bold text", 
+                     "Contains italic text", 
+                     "Contains underline text", 
+                     "Contains strikethrough text", 
+                     "Contains blockquotes", 
+                     "Contains inline code", 
+                     "Contains emojis", 
+                     "Contains email addresses", 
+                     "Contains phone numbers", 
+                     "Contains dates", 
+                     "Contains times", 
+                     "Contains numbers"]
+                
+        },
         "tasks": {
             "type": "array",
-            "title": "Evaluation Metrics",
+            "title": "Add Custom Evaluation Metrics",
             "items": {
                 "type": "object",
                 "properties": {
@@ -32,7 +58,7 @@
                     "return_type": {
                         "type": "string",
                         "title": "Output Type",
-                        "enum": ["boolean", "number"]
+                        "enum": ["boolean", "number", "contains", "isequal"]
                     }
                 }
             }
@@ -63,9 +89,22 @@
             "ui:help": "Enter a fraction of samples to evaluate from your data. Set as 1 to get all samples",
             "ui:widget": "RangeWidget"
         },
-        "tasks": {
+        "predefined_tasks": {
             "ui:help": "Select an evaluation metric from the drop-down list",
+            "ui:widget": "AutoCompleteWidget",
+            "ui:options": {
+                "multiple": true
+            }
+        },
+        "tasks": {
+            "ui:help": "Set your own evaluation metric using regular expressions or set a specific string to match",
             "ui:widget": "EvaluationWidget"
+        },
+        "input_col": {
+            "ui:help": "Enter the name of the input column in your dataset"
+        },
+        "output_col": {
+            "ui:help": "Enter the name of the output column in your dataset"
         }
     }
 }
