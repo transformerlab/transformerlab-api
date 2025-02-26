@@ -38,8 +38,6 @@ else:
     print("Job ID not provided.")
     sys.exit(1)
 
-job.update_progress(0)
-
 today = time.strftime("%Y%m%d-%H%M%S")
 tensorboard_dir = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "experiments", args.experiment_name, "tensorboards")
 # Find directory to put in based on eval name
