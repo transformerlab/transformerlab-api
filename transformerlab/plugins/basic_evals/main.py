@@ -231,7 +231,7 @@ def execute_custom_function_regexp(output_text: str, expression: str, return_typ
         try:
             json.loads(output_text.strip())
             return True
-        except Exception as e:
+        except Exception:
             return False
     elif return_type.lower() == "isequals":
         # Check if the output is equal to the expression
