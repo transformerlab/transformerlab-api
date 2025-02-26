@@ -251,10 +251,10 @@ def run_evaluation():
         df = get_tflab_dataset()
         # Check if `input`, `output` and `expected_output` columns exist
         assert args.input_col in df.columns, (
-            "Input column not found in the dataset. Please make sure the column name is `input`"
+            f"Input column not found in the dataset. Please make sure the column name is {args.input_col}"
         )
         assert args.output_col in df.columns, (
-            "Output column not found in the dataset. Please make sure the column name is `output`"
+            f"Output column not found in the dataset. Please make sure the column name is {args.output_col}"
         )
 
         if args.limit and float(args.limit) != 1.0:
