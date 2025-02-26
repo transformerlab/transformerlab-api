@@ -114,11 +114,31 @@ async def start_next_step_in_workflow():
 
     if workflow_current_task >= len(workflow_config["nodes"]):
         await db.workflow_update_status(workflow_id, "COMPLETE")
+        await db.workflow_update_with_new_job(workflow_id, -1, -1)
         return {"message": "Workflow Complete!"}
 
     next_job_type = workflow_config["nodes"][workflow_current_task]["type"]
     next_job_status = "QUEUED" 
-    next_job_data = workflow_config["nodes"][workflow_current_task]["data"]
+
+    if "template" in workflow_config["nodes"][workflow_current_task].keys():
+        template_name = workflow_config["nodes"][workflow_current_task]["template"] 
+        if next_job_type == "TRAIN":
+            next_job_data = await db.get_training_template_by_name(template_name)
+            next_job_data["config"] = json.loads(next_job_data["config"])
+            next_job_data["template_id"] = 1
+            next_job_data["template_name"] = template_name
+        elif next_job_type == "EVAL":
+            experiment_evaluations = json.loads(json.loads((await db.experiment_get(workflow_experiment_id))["config"])["evaluations"])
+            evaulation_to_run = None
+            for evaluation in experiment_evaluations:
+                if evaluation["name"] == template_name:
+                    evaluation_to_run = evaluation
+            if evaluation_to_run==None:
+                await db.workflow_update_status(workflow_id, "FAILED")
+            next_job_data = {"plugin": evaluation_to_run["plugin"], "evaluator":template_name}
+
+    else:
+        next_job_data = workflow_config["nodes"][workflow_current_task]["data"]
 
     next_job_id = await db.job_create(next_job_type, next_job_status, json.dumps(next_job_data), workflow_experiment_id)
     await db.workflow_update_with_new_job(workflow_id, workflow_current_task, next_job_id)
