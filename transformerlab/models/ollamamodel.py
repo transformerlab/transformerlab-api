@@ -192,6 +192,7 @@ class OllamaModel(basemodel.BaseModel):
                 "model_id": output_model_id,
                 "model_filename": output_filename,
                 "name": f"{self.name} (Ollama)",
+                "source": "ollama",
                 "json_data": {
                     "uniqueID": output_model_id,
                     "name": f"{self.name} (Ollama)",
