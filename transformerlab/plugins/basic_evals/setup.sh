@@ -1,1 +1,1 @@
-pip install pandas
+uv pip install pandas tensorboardX
