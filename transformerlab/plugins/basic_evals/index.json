@@ -91,10 +91,7 @@
         },
         "predefined_tasks": {
             "ui:help": "Select an evaluation metric from the drop-down list",
-            "ui:widget": "AutoCompleteWidget",
-            "ui:options": {
-                "multiple": true
-            }
+            "ui:widget": "AutoCompleteWidget"
         },
         "tasks": {
             "ui:help": "Set your own evaluation metric using regular expressions or set a specific string to match",
