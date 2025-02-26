@@ -198,7 +198,7 @@ class OllamaModel(basemodel.BaseModel):
                     "name": f"{self.name} (Ollama)",
                     "model_filename": output_filename,
                     "description": f"Link to Ollama model {self.source_id_or_path}",
-                    "source": "transformerlab",
+                    "source": "ollama",
                     "architecture": "GGUF",
                     "huggingface_repo": "",
                 },
