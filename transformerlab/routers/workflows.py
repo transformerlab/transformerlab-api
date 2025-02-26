@@ -61,7 +61,7 @@ async def workflow_delete_node(workflow_id: str, node_id: int):
             removed = 1
         else:
             newNodes.append(node)
-            newNodes[-1]["out"] = int(newNodes[-1]["out"])-removed
+            newNodes[-1]["out"] = str(int(newNodes[-1]["out"])-removed)
         nodeID +=1
     config["nodes"] = newNodes
 
