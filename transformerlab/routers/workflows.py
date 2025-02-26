@@ -48,6 +48,25 @@ async def workflow_add_node(workflow_id: str, node: str):
     await db.workflow_update_config(workflow_id, json.dumps(config)) 
     return {"message": "OK"}
 
+@router.get("/delete_node")
+async def workflow_delete_node(workflow_id: str, node_id: int):
+    workflow = await db.workflows_get_by_id(workflow_id) 
+    config = json.loads(workflow["config"])
+
+    removed = 0
+    newNodes = []
+    nodeID = 0
+    for node in config["nodes"]:
+        if nodeID == node_id:
+            removed = 1
+        else:
+            newNodes.append(node)
+            newNodes[-1]["out"] = int(newNodes[-1]["out"])-removed
+        nodeID +=1
+    config["nodes"] = newNodes
+
+    await db.workflow_update_config(workflow_id, json.dumps(config)) 
+    return {"message": "OK"}
 
 @router.get("/export_to_yaml/{workflow_id}")
 async def workflow_export_to_yaml(workflow_id: str):
