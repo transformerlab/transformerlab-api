@@ -61,12 +61,14 @@ try:
     job.add_to_job_data("start_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 except Exception as e:
     print(f"An error occurred while adding job data: {e}")
+    job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     job.set_job_completion_status("failed", "An error occurred while adding job data.")
     sys.exit(1)
 
 
 if float(args.limit) < 0:
     print("Limit must be a positive number.")
+    job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     job.set_job_completion_status("failed", "Limit must be a positive number.")
     sys.exit(1)
 
@@ -75,6 +77,7 @@ if float(args.limit) == 1:
 
 if float(args.limit) > 1:
     print("Limit should be between 0 and 1.")
+    job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     job.set_job_completion_status("failed", "Limit should be between 0 and 1.")
     sys.exit(1)
 
@@ -172,6 +175,7 @@ try:
             output_file_name = get_output_file_name(output_file_path)
             print(f"Saving output at {output_file_name}")
 
+            job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             job.set_job_completion_status(
                 "success",
                 "Evaluation task completed successfully.",
@@ -180,11 +184,13 @@ try:
             )
         except Exception as e:
             print(f"An error occurred while running the subprocess: {e}")
+            job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             job.set_job_completion_status("failed", "An error occurred while running the subprocess.")
         print("--Evaluation task complete")
 
     else:
         print("CUDA is available. Please use the `eleuther-ai-lm-evaluation-harness-plugin`.")
+        job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         job.set_job_completion_status(
             "failed", "CUDA is available. Please use the `eleuther-ai-lm-evaluation-harness-plugin`."
         )
@@ -192,5 +198,6 @@ try:
 
 except Exception as e:
     print(f"An error occurred while running the evaluation harness: {e}")
+    job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     job.set_job_completion_status("failed", "An error occurred while running the evaluation harness.")
     sys.exit(1)

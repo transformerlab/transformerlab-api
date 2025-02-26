@@ -60,6 +60,7 @@ try:
     job.add_to_job_data("start_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 except Exception as e:
     print(f"An error occurred while adding job data: {e}")
+    job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     job.set_job_completion_status("failed", "An error occurred while adding job data.")
     sys.exit(1)
 
@@ -192,7 +193,7 @@ try:
     output_file_path = get_output_file_path()
     output_file_name = get_output_file_name(output_file_path)
     print(f"Saving output at {output_file_name}")
-
+    job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     job.set_job_completion_status(
         "success", "Evaluation task completed successfully.", score=scores_list, additional_output_path=output_file_name
     )
@@ -200,6 +201,7 @@ try:
 
 except Exception as e:
     print(f"An error occurred while running the subprocess: {e}")
+    job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     job.set_job_completion_status("failed", f"An error occurred while running the subprocess.: {e}")
 
 # subprocess.Popen(
