@@ -44,11 +44,11 @@ tensorboard_dir = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "experiments", 
 # Find directory to put in based on eval name
 combined_tensorboard_dir = None
 for dir in os.listdir(tensorboard_dir):
-    if args.eval_name == dir or args.eval_name == dir.lower():
+    if args.run_name == dir or args.run_name == dir.lower():
         combined_tensorboard_dir = os.path.join(tensorboard_dir, dir)
 if combined_tensorboard_dir is None:
-    combined_tensorboard_dir = os.path.join(tensorboard_dir, args.eval_name)
-output_dir = os.path.join(tensorboard_dir, f"evaljob_{args.job_id}_{today}")
+    combined_tensorboard_dir = os.path.join(tensorboard_dir, args.run_name)
+output_dir = os.path.join(combined_tensorboard_dir, f"evaljob_{args.job_id}_{today}")
 os.makedirs(output_dir, exist_ok=True)
 writer = SummaryWriter(output_dir)
 job.set_tensorboard_output_dir(output_dir)
