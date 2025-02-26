@@ -1,14 +1,18 @@
 import argparse
+import os
+import re
 import subprocess
 import sys
-import os
-import transformerlab.plugin
-import re
+import time
+from datetime import datetime
+
 import torch
+from tensorboardX import SummaryWriter
+
+import transformerlab.plugin
 
 parser = argparse.ArgumentParser(description="Run Eleuther AI LM Evaluation Harness.")
 parser.add_argument("--run_name", default="evaluation", type=str)
-
 parser.add_argument("--job_id", default=None, type=str)
 parser.add_argument("--model_name", default="gpt-j-6b", type=str, help="Model to use for evaluation.")
 parser.add_argument("--model_type", default="hf-causal", type=str, help="Type of model to use for evaluation.")
@@ -23,6 +27,7 @@ args, other = parser.parse_known_args()
 
 args.limit = float(args.limit)
 
+
 # print("Calling Eleuther AI LM Evaluation Harness with args:")
 # print(args)
 if args.job_id:
@@ -30,6 +35,32 @@ if args.job_id:
     job.update_progress(0)
 else:
     print("Job ID not provided.")
+    sys.exit(1)
+
+
+today = time.strftime("%Y%m%d-%H%M%S")
+tensorboard_dir = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "experiments", args.experiment_name, "tensorboards")
+# Find directory to put in based on eval name
+combined_tensorboard_dir = None
+for dir in os.listdir(tensorboard_dir):
+    if args.run_name == dir or args.run_name == dir.lower():
+        combined_tensorboard_dir = os.path.join(tensorboard_dir, dir)
+if combined_tensorboard_dir is None:
+    combined_tensorboard_dir = os.path.join(tensorboard_dir, args.run_name)
+output_dir = os.path.join(combined_tensorboard_dir, f"evaljob_{args.job_id}_{today}")
+os.makedirs(output_dir, exist_ok=True)
+writer = SummaryWriter(output_dir)
+job.set_tensorboard_output_dir(output_dir)
+print("Writing tensorboard logs to", output_dir)
+
+try:
+    job.add_to_job_data("config", str(args))
+    job.add_to_job_data("template_name", args.run_name)
+    job.add_to_job_data("model_name", args.model_name)
+    job.add_to_job_data("start_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+except Exception as e:
+    print(f"An error occurred while adding job data: {e}")
+    job.set_job_completion_status("failed", "An error occurred while adding job data.")
     sys.exit(1)
 
 if float(args.limit) < 0:
@@ -139,15 +170,19 @@ try:
         #     stdout=subprocess.PIPE,
         #     stderr=subprocess.STDOUT
         # )
+        metric_iterations = 0
         for line in process.stdout:
             print(line.strip())
+
             pattern = r"^Running.*?(\d+)%\|"
             match = re.search(pattern, line)
             if match:
                 job.update_progress(int(match.group(1)))
             metric, value = extract_metrics(line)
             if metric and value:
+                metric_iterations += 1
                 scores_list.append({"type": f"{metric}", "score": value})
+                writer.add_scalar(f"eval/{metric}", value, metric_iterations)
 
             if job.should_stop:
                 print("Stopping job because of user interruption.")

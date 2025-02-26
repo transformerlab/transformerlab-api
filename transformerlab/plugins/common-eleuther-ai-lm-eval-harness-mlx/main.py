@@ -9,6 +9,7 @@ from datetime import datetime
 import torch
 from tensorboardX import SummaryWriter
 
+
 import transformerlab.plugin
 
 parser = argparse.ArgumentParser(description="Run Eleuther AI LM Evaluation Harness.")
@@ -57,7 +58,7 @@ print("Writing tensorboard logs to", output_dir)
 
 print("ARGS", args)
 try:
-    job.add_to_job_data("config", args)
+    job.add_to_job_data("config", str(args))
     job.add_to_job_data("template_name", args.run_name)
     job.add_to_job_data("model_name", args.model_name)
     job.add_to_job_data("start_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -155,6 +156,7 @@ try:
                 bufsize=1,
                 universal_newlines=True,
             ) as process:
+                metric_iterations = 0
                 for line in process.stdout:
                     print(line.strip())
                     pattern = r"^Running.*?(\d+)%\|"
@@ -164,12 +166,10 @@ try:
 
                     metric, value = extract_metrics(line)
                     if metric and value:
+                        metric_iterations += 1
                         scores_list.append({"type": f"{metric}", "score": value})
 
-                        writer.add_scalar(f"eval/{metric}", value, 1)
-                    # writer.add_scalar("it_per_sec", it_per_sec, iteration)
-                    # writer.add_scalar("learning_rate", learning_rate, iteration)
-                    # writer.add_scalar("epoch", epoch, iteration)
+                        writer.add_scalar(f"eval/{metric}", value, metric_iterations)
 
                     if job.should_stop:
                         print("Stopping job because of user interruption.")
