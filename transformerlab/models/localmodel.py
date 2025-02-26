@@ -65,3 +65,86 @@ class LocalModelStore(modelstore.ModelStore):
                         pass
 
         return models
+
+    async def list_model_journeys(self):
+        """
+        List all model journeys in the workspace.
+        """
+        model_list = await self.list_models()
+        model_journey = {
+            "models": [],
+        }
+        training_jobs = await db.jobs_get_all(type="TRAIN", status="COMPLETED")
+        eval_jobs = await db.jobs_get_all(type="EVAL", status="COMPLETED")
+        for model in model_list:
+            model_id = model["model_id"]
+            for job in training_jobs:
+                if job["model_id"] == model_id:
+                    pass
+        return model_journey
+
+
+# sample output of list_model_journey:
+"""
+{
+  models: [
+    {
+      type: 'base_model',
+      id: 'meta/llama3.1-8B-instruct',
+      name: 'meta/llama3.1-8B-instruct',
+      children: [
+        {
+          type: 'fine_tuning_job',
+          jobId: 1,
+          metadata: { dataset: 'Dataset A' },
+          child: {
+            type: 'fine_tuned_model',
+            modelId: 'ft_model_1',
+            name: 'Fine Tuned Model 1',
+            children: [
+              {
+                type: 'eval_job',
+                jobId: 2,
+                metadata: { metric: 'accuracy', value: 95.5 }
+              },
+              {
+                type: 'eval_job',
+                jobId: 3,
+                metadata: { metric: 'accuracy', value: 96.7 }
+              },
+              {
+                type: 'fine_tuning_job',
+                jobId: 6,
+                metadata: { dataset: 'Dataset B' },
+                child: {
+                  type: 'fine_tuned_model',
+                  modelId: 'ft_model_3',
+                  name: 'Fine Tuned Model 3',
+                  children: []
+                }
+              }
+            ]
+          }
+        },
+        {
+          type: 'fine_tuning_job',
+          jobId: 4,
+          metadata: { dataset: 'Dataset C' },
+          child: {
+            type: 'fine_tuned_model',
+            modelId: 'ft_model_2',
+            name: 'Fine Tuned Model 2',
+            children: [
+              {
+                type: 'eval_job',
+                jobId: 5,
+                metadata: { metric: 'accuracy', value: 97.0 }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+  }
+"""
