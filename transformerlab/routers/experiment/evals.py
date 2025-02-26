@@ -8,7 +8,7 @@ from typing import Any
 import transformerlab.db as db
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
-from transformerlab.shared import dirs, shared
+from transformerlab.shared import dirs
 
 from werkzeug.utils import secure_filename
 
