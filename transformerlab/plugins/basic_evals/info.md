@@ -2,68 +2,93 @@
 
 ## Overview
 
-The Basic Evaluation Metrics plugin is designed to evaluate the outputs of Language Models (LLMs) using objective metrics. It allows you to define custom evaluation criteria using regular expressions and supports both boolean and numerical evaluation outputs.
+This plugin helps you evaluate Language Model (LLM) outputs using predefined metrics and custom evaluation criteria. You can use ready-made metrics or create your own using regular expressions.
 
-## Parameters
+## Features
 
-### tasks
+### Pre-defined Metrics
 
-- **Title:** Evaluation Metrics
-- **Type:** array of objects
-- **Description:** Define multiple evaluation tasks, each containing:
-  - **name:** Name of the evaluation metric
-  - **expression:** Regular expression pattern to match
-  - **return_type:** Output type ("boolean" or "number")
+Choose from a variety of built-in evaluation metrics:
 
-### limit
+- Content Structure (headings, lists, tables)
+- Text Formatting (bold, italic, underline)
+- Special Elements (code blocks, URLs, images)
+- Data Validation (JSON, numbers, dates)
+- Text Analysis (word count, emojis)
 
-- **Title:** Fraction of samples to evaluate
-- **Type:** number
-- **Default:** 1.0
-- **Range:** 0.0 to 1.0 (increments of 0.1)
-- **Description:** Controls what fraction of the dataset to evaluate
+### Custom Evaluation
 
-### input_col
+Create your own metrics with:
 
-- **Title:** Input Column
-- **Type:** string
-- **Default:** "input"
-- **Description:** Specifies the column name containing the input data
+- Custom names for each metric
+- Regular expressions for pattern matching
+- Multiple return types:
+  - boolean: Yes/No answers
+  - number: Count occurrences
+  - contains: Check if text contains a pattern
+  - isequal: Exact match comparison
 
-### output_col
+## Getting Started
 
-- **Title:** Output Column
-- **Type:** string
-- **Default:** "output"
-- **Description:** Specifies the column name containing the output data to evaluate
+### 1. Prepare Your Dataset
 
-## Usage
+- Ensure your dataset has input and output columns
+- Default column names are "input" and "output"
+- You can customize column names if needed
 
-1. **Prepare Your Dataset:**
-   - Ensure your dataset has clearly defined input and output columns
-   - Verify that column names match the configured `input_col` and `output_col` parameters
-   - Make sure your data is in a compatible format (CSV, JSON, etc.)
+### 2. Choose Evaluation Methods
 
-2. **Configure Evaluation Tasks:**
-   - Define evaluation metrics using the `tasks` parameter:
+#### Using Pre-defined Metrics
+Simply select from the dropdown list of available metrics like:
 
-     ```json
-     {
-       "name": "Contains Number",
-       "expression": "\\d+",
-       "return_type": "boolean"
-     }
-     ```
+```json
+[
+  "Is Valid JSON",
+  "Word Count",
+  "Contains URLs",
+  "Contains code blocks"
+]
+```
 
-   - Create multiple tasks to evaluate different aspects of the output
-   - Choose appropriate return types:
-     - `boolean`: For yes/no evaluations
-     - `number`: For scoring or counting matches
+#### Creating Custom Metrics
+Define your own evaluation tasks:
 
-3. **Set Evaluation Parameters:**
-   - Adjust the `limit` parameter to control the fraction of data to evaluate
-   - Configure input and output column names to match your dataset
+```json
+{
+  "name": "Contains Numbers",
+  "expression": "\\d+",
+  "return_type": "boolean"
+}
+```
 
-4. **Run the Evaluation:**
-   - Monitor the progress as the plugin processes your dataset
-   - Results will be stored in the detailed report for further analysis
+### 3. Configure Evaluation Settings
+
+- **Data Sample Size**: Choose how much of your dataset to evaluate (0.1 to 1.0)
+- **Column Names**: Specify input and output column names if different from defaults
+
+### Example Usage
+
+Here's a complete evaluation setup example:
+
+```json
+{
+  "predefined_tasks": ["Word Count", "Contains URLs"],
+  "tasks": [
+    {
+      "name": "Has Date",
+      "expression": "\\d{2}/\\d{2}/\\d{4}",
+      "return_type": "boolean"
+    }
+  ],
+  "limit": 0.5,
+  "input_col": "prompt",
+  "output_col": "response"
+}
+```
+
+This configuration will:
+
+- Use two predefined metrics
+- Add a custom date detection metric
+- Evaluate 50% of the dataset
+- Use "prompt" and "response" as column names
