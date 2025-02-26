@@ -1,37 +1,31 @@
-# DeepEval Objective Metrics
-
-## Overview
-
-The DeepEval Objective Metrics plugin is designed to evaluate the outputs of Large Language Models (LLMs) using objective metrics. This plugin provides a set of predefined metrics to assess various aspects of generated content.
-
-## Dataset Requirements
-
-A local dataset uploaded to the dataset in Transformer Lab is required. The dataset file must be in CSV format and should compulsorily have the following columns:
-
-- `input`
-- `output`
-- `expected_output`
-
-## Parameters
-
-### Evaluation Metric
-
-- **Type:** string
-- **Description:** Select the evaluation metric you want to use. The available options are:
-  - **Rouge:** Measures the overlap of n-grams between the generated output and the expected output.
-  - **BLEU:** Evaluates the precision of n-grams in the generated output compared to the expected output.
-  - **Exact Match:** Checks if the generated output exactly matches the expected output.
-  - **Quasi Exact Match:** Allows for minor variations while checking for an exact match.
-  - **Quasi Contains:** Checks if the generated output contains the expected output with minor variations.
-  - **BERT Score:** Uses BERT embeddings to evaluate the similarity between the generated output and the expected output.
-
-### Output Path
-
-- **Type:** string
-- **Description:** Provide the local path where the evaluation results should be saved.
-
 ## Usage
 
-1. **Select the Evaluation Metric:** Choose the metric that best fits your evaluation needs from the `metrics` parameter.
-2. **Provide the Output Path:** Enter the path where you want to save the evaluation results in the `output_path` parameter.
-3. **Specify the Dataset:** Enter the dataset to be used for evaluation in the `dataset` parameter.
+1. **Prepare Your Dataset:**
+   - Ensure your dataset has clearly defined input and output columns
+   - Verify that column names match the configured `input_col` and `output_col` parameters
+   - Make sure your data is in a compatible format (CSV, JSON, etc.)
+
+2. **Configure Evaluation Tasks:**
+   - Define evaluation metrics using the `tasks` parameter:
+
+     ```json
+     {
+       "name": "Contains Number",
+       "expression": "\\d+",
+       "return_type": "boolean"
+     }
+     ```
+
+   - Create multiple tasks to evaluate different aspects of the output
+   - Choose appropriate return types:
+     - `boolean`: For yes/no evaluations
+     - `number`: For scoring or counting matches
+
+3. **Set Evaluation Parameters:**
+   - Adjust the `limit` parameter to control the fraction of data to evaluate
+   - Configure input and output column names to match your dataset
+
+4. **Run the Evaluation:**
+   - Execute the evaluation process
+   - Monitor the progress as the plugin processes your dataset
+   - Results will be stored and a detailed report will be generated.

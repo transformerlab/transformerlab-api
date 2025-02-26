@@ -1,1 +1,1 @@
-pip install deepeval bert-score datasets seaborn
+pip install pandas

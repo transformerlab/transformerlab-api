@@ -102,7 +102,7 @@ def get_output_file_path():
 def execute_custom_function_regexp(output_text: str, expression: str, return_type: str):
     if return_type.lower() == "number":
         # Occurrence: Count all matches with the global-like flag
-        matches = re.findall(expression, output_text)
+        matches = re.findall(expression, output_text.strip())
         return len(matches) if matches is not None else 0
     else:
         # Existence: Check if at least one match exists
