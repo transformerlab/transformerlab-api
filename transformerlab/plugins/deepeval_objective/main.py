@@ -65,7 +65,6 @@ try:
     job.add_to_job_data("config", str(args))
     job.add_to_job_data("template_name", args.run_name)
     job.add_to_job_data("model_name", args.model_name)
-    job.add_to_job_data("generation_model", args.generation_model)
     job.add_to_job_data("start_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 except Exception as e:
     print(f"An error occurred while adding job data: {e}")
