@@ -76,7 +76,7 @@ async def init():
                         name,
                         config JSON,
                         status,
-                        current_task INTEGER,
+                        current_task,
                         current_job_id INTEGER,
                         experiment_id,
                         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

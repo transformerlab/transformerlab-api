@@ -1,5 +1,6 @@
 import json
 import yaml
+import uuid
 from fastapi import APIRouter, UploadFile
 from fastapi.responses import FileResponse
 
@@ -36,6 +37,17 @@ async def workflow_create_empty(name: str, experiment_id="1"):
     workflow_id = await db.workflow_create(name, '{"nodes":[]}', experiment_id) 
     return workflow_id
 
+@router.get("/edit_node_metadata/{workflow_id}")
+async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: str):
+    workflow = await db.workflows_get_by_id(workflow_id) 
+    config = json.loads(workflow["config"])
+
+    for node in config["nodes"]:
+        if node["id"] == node_id:
+            node["metadata"] = json.loads(metadata)
+
+    await db.workflow_update_config(workflow_id, json.dumps(config)) 
+    return {"message": "OK"}
 
 @router.get("/add_node")
 async def workflow_add_node(workflow_id: str, node: str):
@@ -43,26 +55,23 @@ async def workflow_add_node(workflow_id: str, node: str):
     workflow = await db.workflows_get_by_id(workflow_id) 
     config = json.loads(workflow["config"])
 
+    new_node_json["id"] = uuid.uuid4() 
+    new_node_json["metadata"] = {}
+
     config["nodes"].append(new_node_json)
 
     await db.workflow_update_config(workflow_id, json.dumps(config)) 
     return {"message": "OK"}
 
 @router.get("/delete_node")
-async def workflow_delete_node(workflow_id: str, node_id: int):
+async def workflow_delete_node(workflow_id: str, node_id: str):
     workflow = await db.workflows_get_by_id(workflow_id) 
     config = json.loads(workflow["config"])
 
-    removed = 0
     newNodes = []
-    nodeID = 0
     for node in config["nodes"]:
-        if nodeID == node_id:
-            removed = 1
-        else:
+        if node["id"] != node_id:
             newNodes.append(node)
-            newNodes[-1]["out"] = str(int(newNodes[-1]["out"])-removed)
-        nodeID +=1
     config["nodes"] = newNodes
 
     await db.workflow_update_config(workflow_id, json.dumps(config)) 
@@ -109,7 +118,7 @@ async def start_next_step_in_workflow():
 
     workflow_id = currently_running_workflow["id"]
     workflow_config = json.loads(currently_running_workflow["config"])
-    workflow_current_task = int(currently_running_workflow["current_task"])
+    workflow_current_task = currently_running_workflow["current_task"]
     workflow_current_job_id = int(currently_running_workflow["current_job_id"])
     workflow_experiment_id = currently_running_workflow["experiment_id"]
 
@@ -126,21 +135,27 @@ async def start_next_step_in_workflow():
         if current_job["status"] != "COMPLETE":
             return {"message": "the current job is running"}
 
-    if workflow_current_task!= -1:
-        workflow_current_task = int(workflow_config["nodes"][workflow_current_task]["out"])
+    if workflow_current_task!= "":
+        for node in workflow_config["nodes"]:
+            if node["id"]==workflow_current_task:
+                workflow_current_task = node["out"]
     else:
-        workflow_current_task = 0
+        workflow_current_task = workflow_config["nodes"][0]["id"]
 
-    if workflow_current_task >= len(workflow_config["nodes"]):
+    if workflow_current_task == "END":
         await db.workflow_update_status(workflow_id, "COMPLETE")
-        await db.workflow_update_with_new_job(workflow_id, -1, -1)
+        await db.workflow_update_with_new_job(workflow_id, "", -1)
         return {"message": "Workflow Complete!"}
 
-    next_job_type = workflow_config["nodes"][workflow_current_task]["type"]
+    next_node = {} 
+    for node in workflow_config["nodes"]:
+        if node["id"]==workflow_current_task:
+            next_node = node
+    next_job_type =node["type"]
     next_job_status = "QUEUED" 
 
-    if "template" in workflow_config["nodes"][workflow_current_task].keys():
-        template_name = workflow_config["nodes"][workflow_current_task]["template"] 
+    if "template" in next_node.keys():
+        template_name = next_node["template"] 
         if next_job_type == "TRAIN":
             next_job_data = await db.get_training_template_by_name(template_name)
             next_job_data["config"] = json.loads(next_job_data["config"])
@@ -157,7 +172,7 @@ async def start_next_step_in_workflow():
             next_job_data = {"plugin": evaluation_to_run["plugin"], "evaluator":template_name}
 
     else:
-        next_job_data = workflow_config["nodes"][workflow_current_task]["data"]
+        next_job_data = next_node["data"]
 
     next_job_id = await db.job_create(next_job_type, next_job_status, json.dumps(next_job_data), workflow_experiment_id)
     await db.workflow_update_with_new_job(workflow_id, workflow_current_task, next_job_id)
