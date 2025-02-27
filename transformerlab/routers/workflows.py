@@ -1,7 +1,7 @@
 import json
 import yaml
 import uuid
-from fastapi import APIRouter, UploadFile
+from fastapi import APIRouter, UploadFile, Body
 from fastapi.responses import FileResponse
 
 import transformerlab.db as db
@@ -67,6 +67,25 @@ async def workflow_add_node(workflow_id: str, node: str):
 
     await db.workflow_update_config(workflow_id, json.dumps(config)) 
     return {"message": "OK"}
+
+@router.post("/update_node")
+async def workflow_update_node(workflow_id: str, node_id: str, new_node: dict = Body()):
+    workflow = await db.workflows_get_by_id(workflow_id) 
+    config = json.loads(workflow["config"])
+
+    newNodes = []
+
+    for node in config["nodes"]:
+        if node["id"] == node_id:
+            newNodes.append(new_node)
+        else:
+            newNodes.append(node)
+
+    config["nodes"] = newNodes
+
+    await db.workflow_update_config(workflow_id, json.dumps(config)) 
+    return {"message": "OK"}
+
 
 @router.get("/delete_node")
 async def workflow_delete_node(workflow_id: str, node_id: str):
