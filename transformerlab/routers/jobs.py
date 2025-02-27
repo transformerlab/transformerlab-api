@@ -11,8 +11,9 @@ from transformerlab.shared import dirs
 from typing import Annotated
 from json import JSONDecodeError
 
-from transformerlab.routers.serverinfo import watch_file
+from werkzeug.utils import secure_filename
 
+from transformerlab.routers.serverinfo import watch_file
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
@@ -152,6 +153,8 @@ async def update_training_template(
 async def stream_job_output(job_id: str):
     job = await db.job_get(job_id)
     job_data = job["job_data"]
+
+    job_id = secure_filename(job_id)
 
     plugin_name = job_data["plugin"]
     plugin_dir = dirs.plugin_dir_by_name(plugin_name)
