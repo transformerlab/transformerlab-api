@@ -55,8 +55,13 @@ async def workflow_add_node(workflow_id: str, node: str):
     workflow = await db.workflows_get_by_id(workflow_id) 
     config = json.loads(workflow["config"])
 
-    new_node_json["id"] = uuid.uuid4() 
+    new_node_json["id"] = str(uuid.uuid4())
+    new_node_json["out"] = "END"
     new_node_json["metadata"] = {}
+
+    for node in config["nodes"]:
+        if node["out"] == "END":
+            node["out"] = new_node_json["id"]
 
     config["nodes"].append(new_node_json)
 
@@ -140,6 +145,7 @@ async def start_next_step_in_workflow():
             if node["id"]==workflow_current_task:
                 workflow_current_task = node["out"]
     else:
+        print(workflow_config["nodes"])
         workflow_current_task = workflow_config["nodes"][0]["id"]
 
     if workflow_current_task == "END":
@@ -151,7 +157,9 @@ async def start_next_step_in_workflow():
     for node in workflow_config["nodes"]:
         if node["id"]==workflow_current_task:
             next_node = node
-    next_job_type =node["type"]
+    print(next_node)
+    print(workflow_current_task)
+    next_job_type =next_node["type"]
     next_job_status = "QUEUED" 
 
     if "template" in next_node.keys():
