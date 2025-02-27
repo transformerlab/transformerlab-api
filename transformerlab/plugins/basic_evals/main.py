@@ -302,16 +302,25 @@ def run_evaluation():
         # Calculate metrics for each test case
         for task in args.tasks:
             metric = task["name"]
-            for idx, row in df_limited.iterrows():
-                metrics.append(
-                    {
-                        "test_case_id": f"test_case_{idx}",
-                        "metric_name": metric,
-                        "score": int(row[f"eval_{metric}"]),
-                        "input": row[args.input_col],
-                        "output": row[args.output_col],
-                    }
-                )
+            if task["return_type"] == "number":
+                score_colour_sensitivity = 0
+            else:
+                score_colour_sensitivity = 1
+            try:
+                for idx, row in df_limited.iterrows():
+                    metrics.append(
+                        {
+                            "test_case_id": f"test_case_{idx}",
+                            "metric_name": metric,
+                            "score": [int(row[f"eval_{metric}"]), score_colour_sensitivity],
+                            "input": row[args.input_col],
+                            "output": row[args.output_col],
+                        }
+                    )
+            except Exception as e:
+                print(f"Error occurred while calculating metrics for {metric}.")
+                print(e)
+
         job.update_progress(60)
         # Save the metrics to a csv file
         metrics_df = pd.DataFrame(metrics)
@@ -325,11 +334,22 @@ def run_evaluation():
         score_list = []
         for task in args.tasks:
             metric = task["name"]
-            writer.add_scalar(f"eval/{metric}", metrics_df[metrics_df["metric_name"] == metric]["score"].mean(), 1)
-            score_list.append(
-                {"type": metric, "score": round(metrics_df[metrics_df["metric_name"] == metric]["score"].mean(), 2)}
+            writer.add_scalar(
+                f"eval/{metric}",
+                metrics_df[metrics_df["metric_name"] == metric]["score"].apply(lambda x: x[0]).mean(),
+                1,
             )
-            print(f"Average {metric} score: {metrics_df[metrics_df['metric_name'] == metric]['score'].mean()}")
+            score_list.append(
+                {
+                    "type": metric,
+                    "score": round(
+                        metrics_df[metrics_df["metric_name"] == metric]["score"].apply(lambda x: x[0]).mean(), 2
+                    ),
+                }
+            )
+            print(
+                f"Average {metric} score: {metrics_df[metrics_df['metric_name'] == metric]['score'].apply(lambda x: x[0]).mean()}"
+            )
 
         job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         job.set_job_completion_status(

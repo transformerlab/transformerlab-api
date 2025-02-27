@@ -44,6 +44,7 @@ else:
     print("Job ID not provided.")
     sys.exit(1)
 
+
 today = time.strftime("%Y%m%d-%H%M%S")
 tensorboard_dir = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "experiments", args.experiment_name, "tensorboards")
 # Find directory to put in based on eval name
@@ -59,6 +60,14 @@ writer = SummaryWriter(output_dir)
 job.set_tensorboard_output_dir(output_dir)
 print("Writing tensorboard logs to", output_dir)
 
+score_colour_sensitivity = {
+    "Rouge": 1,
+    "BLEU": 1,
+    "Exact Match": 1,
+    "Quasi Exact Match": 1,
+    "Quasi Contains": 1,
+    "BERT Score": 1,
+}
 
 print("ARGS", args)
 try:
@@ -358,7 +367,7 @@ def run_evaluation():
                         {
                             "test_case_id": f"test_case_{idx}",
                             "metric_name": metric_name,
-                            "score": score["bert-f1"],
+                            "score": [score["bert-f1"], 1],
                             "bert_precision": score["bert-precision"],
                             "bert_recall": score["bert-recall"],
                             "bert_f1": score["bert-f1"],
@@ -368,6 +377,14 @@ def run_evaluation():
                         }
                     )
                 else:
+                    score_arr = None
+                    for key, value in score_colour_sensitivity.items():
+                        if key.lower() == metric_name.lower():
+                            score_arr = [score, value]
+                            break
+                    if score_arr is None:
+                        score_arr = [score, value]
+
                     metrics.append(
                         {
                             "test_case_id": f"test_case_{idx}",

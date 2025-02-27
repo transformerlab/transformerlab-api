@@ -40,11 +40,12 @@ parser.add_argument(
     default=None,
     type=str,
 )
+
 parser.add_argument("--threshold", default=0.5, type=float)
 parser.add_argument("--geval_name", default="", type=str)
 parser.add_argument("--geval_criteria", default="", type=str)
 parser.add_argument("--context_geval", default=None, type=str)
-parser.add_argument("--judge_model", default=None, type=str)
+parser.add_argument("--generation_model", default=None, type=str)
 parser.add_argument("--job_id", default=None, type=str)
 parser.add_argument("--limit", default=None, type=float)
 
@@ -73,6 +74,17 @@ writer = SummaryWriter(output_dir)
 job.set_tensorboard_output_dir(output_dir)
 print("Writing tensorboard logs to", output_dir)
 
+score_colour_sensitivity = {
+    "Bias": -1,
+    "Toxicity": -1,
+    "Faithfulness": 1,
+    "Hallucination": -1,
+    "Answer Relevancy": 1,
+    "Contextual Precision": 1,
+    "Contextual Recall": 1,
+    "Contextual Relevancy": 1,
+    "GEval": 1,
+}
 
 print("ARGS", args)
 try:
@@ -463,13 +475,20 @@ def run_evaluation():
         additional_report = []
         for test_case in output.test_results:
             for metric in test_case.metrics_data:
+                score = None
+                for key, value in score_colour_sensitivity.items():
+                    if key == metric.name:
+                        score = [metric.score, value]
+                        break
+                if score is None:
+                    score = [metric.score, 1]
                 temp_report = {}
                 temp_report["test_case_id"] = test_case.name
                 temp_report["input"] = test_case.input
                 temp_report["actual_output"] = test_case.actual_output
                 temp_report["expected_output"] = test_case.expected_output
                 temp_report["metric_name"] = metric.name
-                temp_report["score"] = metric.score
+                temp_report["score"] = score
                 temp_report["reason"] = metric.reason
 
                 additional_report.append(temp_report)

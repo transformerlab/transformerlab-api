@@ -30,7 +30,7 @@
                 "Custom (GEval)"
             ]
         },
-        "judge_model": {
+        "generation_model": {
             "title": "LLM-as-Judge Model (Model to be used as Judge. Select `local` to use the local model running)",
             "type": "string"
         },
