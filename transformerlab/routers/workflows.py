@@ -106,6 +106,8 @@ async def workflow_delete_node(workflow_id: str, node_id: str):
         else:
             removedNode = node
 
+    if removedNode["TYPE"] == "START":
+        return {"message": "Cannot delete start node"}
     for node in newNodes:
         if node_id in node["out"]:
             node["out"].remove(node_id)
@@ -196,7 +198,9 @@ async def start_next_step_in_workflow():
     next_job_type =next_node["type"]
     next_job_status = "QUEUED" 
 
-    if "template" in next_node.keys():
+    if next_job_type == "DOWNLOAD_MODEL":
+
+    elif "template" in next_node.keys():
         template_name = next_node["template"] 
         if next_job_type == "TRAIN":
             next_job_data = await db.get_training_template_by_name(template_name)
