@@ -1,17 +1,22 @@
 import argparse
-import subprocess
-import sys
 import os
 import re
+import subprocess
+import sys
+import time
+from datetime import datetime
 
 import torch
+from tensorboardX import SummaryWriter
+
+
 import transformerlab.plugin
 
 parser = argparse.ArgumentParser(description="Run Eleuther AI LM Evaluation Harness.")
 parser.add_argument("--run_name", default="evaluation", type=str)
 parser.add_argument("--job_id", default=None, type=str)
 parser.add_argument("--model_name", default="gpt-j-6b", type=str, help="Model to use for evaluation.")
-parser.add_argument("--model_type", default="hf-causal", type=str, help="Type of model to use for evaluation.")
+parser.add_argument("--model_type", default="MLX", type=str, help="Type of model to use for evaluation.")
 parser.add_argument("--experiment_name", default="", type=str)
 parser.add_argument("--eval_name", default="", type=str)
 parser.add_argument("--tasks", default="", type=str)
@@ -33,7 +38,32 @@ else:
     print("Job ID not provided.")
     sys.exit(1)
 
-job.update_progress(0)
+today = time.strftime("%Y%m%d-%H%M%S")
+tensorboard_dir = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "experiments", args.experiment_name, "tensorboards")
+# Find directory to put in based on eval name
+combined_tensorboard_dir = None
+for dir in os.listdir(tensorboard_dir):
+    if args.run_name == dir or args.run_name == dir.lower():
+        combined_tensorboard_dir = os.path.join(tensorboard_dir, dir)
+if combined_tensorboard_dir is None:
+    combined_tensorboard_dir = os.path.join(tensorboard_dir, args.run_name)
+output_dir = os.path.join(combined_tensorboard_dir, f"evaljob_{args.job_id}_{today}")
+os.makedirs(output_dir, exist_ok=True)
+writer = SummaryWriter(output_dir)
+job.set_tensorboard_output_dir(output_dir)
+print("Writing tensorboard logs to", output_dir)
+
+
+print("ARGS", args)
+try:
+    job.add_to_job_data("config", str(args))
+    job.add_to_job_data("template_name", args.run_name)
+    job.add_to_job_data("model_name", args.model_name)
+    job.add_to_job_data("start_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+except Exception as e:
+    print(f"An error occurred while adding job data: {e}")
+    job.set_job_completion_status("failed", "An error occurred while adding job data.")
+    sys.exit(1)
 
 if float(args.limit) < 0:
     print("Limit must be a positive number.")
@@ -58,6 +88,11 @@ if not args.model_name or args.model_name == "":
     sys.exit(1)
 
 job.update_progress(0.5)
+
+
+# output_dir = os.path.join(, f"job_{args.job_id}_{today}")
+# writer = SummaryWriter(output_dir)
+# print("Writing tensorboard logs to", output_dir)
 
 
 def extract_metrics(line):
@@ -119,12 +154,7 @@ try:
                 bufsize=1,
                 universal_newlines=True,
             ) as process:
-                # process = subprocess.Popen(
-                #     command,
-                #     cwd=plugin_dir,
-                #     stdout=subprocess.PIPE,
-                #     stderr=subprocess.STDOUT
-                # )
+                metric_iterations = 0
                 for line in process.stdout:
                     print(line.strip())
                     pattern = r"^Running.*?(\d+)%\|"
@@ -134,7 +164,10 @@ try:
 
                     metric, value = extract_metrics(line)
                     if metric and value:
+                        metric_iterations += 1
                         scores_list.append({"type": f"{metric}", "score": value})
+
+                        writer.add_scalar(f"eval/{metric}", value, metric_iterations)
 
                     if job.should_stop:
                         print("Stopping job because of user interruption.")
@@ -144,20 +177,24 @@ try:
             output_file_path = get_output_file_path()
             output_file_name = get_output_file_name(output_file_path)
             print(f"Saving output at {output_file_name}")
-
+            job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             job.set_job_completion_status(
                 "success",
                 "Evaluation task completed successfully.",
                 score=scores_list,
                 additional_output_path=output_file_name,
             )
+
         except Exception as e:
             print(f"An error occurred while running the subprocess: {e}")
+            job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             job.set_job_completion_status("failed", "An error occurred while running the subprocess.")
+            sys.exit(1)
         print("--Evaluation task complete")
 
     else:
         print("CUDA is available. Please use the `eleuther-ai-lm-evaluation-harness-plugin`.")
+        job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         job.set_job_completion_status(
             "failed", "CUDA is available. Please use the `eleuther-ai-lm-evaluation-harness-plugin`."
         )
@@ -165,5 +202,6 @@ try:
 
 except Exception as e:
     print(f"An error occurred while running the evaluation harness: {e}")
+    job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     job.set_job_completion_status("failed", "An error occurred while running the evaluation harness.")
     sys.exit(1)

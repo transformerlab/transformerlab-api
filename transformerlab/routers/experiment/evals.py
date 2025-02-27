@@ -8,7 +8,7 @@ from typing import Any
 import transformerlab.db as db
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
-from transformerlab.shared import dirs, shared
+from transformerlab.shared import dirs
 
 from werkzeug.utils import secure_filename
 
@@ -38,14 +38,14 @@ async def experiment_add_evaluation(experimentId: int, plugin: Any = Body()):
     plugin_name = plugin["plugin"]
     script_parameters = plugin["script_parameters"]
 
-    slug = shared.slugify(name)
+    # slug = shared.slugify(name)
 
     # If name is greater than 100 characters, truncate it
-    if len(slug) > 100:
-        slug = slug[:100]
-        print("Evals name is too long, truncating to 100 characters")
+    # if len(slug) > 100:
+    #     slug = slug[:100]
+    #     print("Evals name is too long, truncating to 100 characters")
 
-    evaluation = {"name": slug, "plugin": plugin_name, "script_parameters": script_parameters}
+    evaluation = {"name": name, "plugin": plugin_name, "script_parameters": script_parameters}
 
     evaluations.append(evaluation)
 
@@ -108,10 +108,10 @@ async def edit_evaluation_task(experimentId: int, plugin: Any = Body()):
 
         # Remove fields model_name, model_architecture and plugin_name from the updated_json
         # as they are not needed in the evaluations list
-        updated_json.pop("model_name", None)
-        updated_json.pop("model_architecture", None)
-        updated_json.pop("plugin_name", None)
-        updated_json.pop("template_name", None)
+        # updated_json.pop("model_name", None)
+        # updated_json.pop("model_architecture", None)
+        # updated_json.pop("plugin_name", None)
+        # updated_json.pop("template_name", None)
 
         for evaluation in evaluations:
             if evaluation["name"] == eval_name and evaluation["plugin"] == plugin_name:
