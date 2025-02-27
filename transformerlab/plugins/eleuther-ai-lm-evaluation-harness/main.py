@@ -1,13 +1,16 @@
 import argparse
+import os
+import re
 import subprocess
 import sys
-import os
 import time
-from tensorboardX import SummaryWriter
 from datetime import datetime
-import transformerlab.plugin
-import re
+
+import pandas as pd
 import torch
+from tensorboardX import SummaryWriter
+
+import transformerlab.plugin
 
 parser = argparse.ArgumentParser(description="Run Eleuther AI LM Evaluation Harness.")
 parser.add_argument("--run_name", default="evaluation", type=str)
@@ -121,12 +124,17 @@ if not args.model_name or args.model_name == "":
     sys.exit(1)
 
 
-def extract_metrics(line):
-    match = re.search(r"\|\s*([\w_]+)\s*\|\s*↑\s*\|\s*([\d.]+)\s*\|", line)
-    if match:
-        metric, value = match.groups()
-        return metric, float(value)  # Convert value to float
-    return None, None
+def get_detailed_file_names(output_file_path, prefix="samples_", suffix=".jsonl"):
+    try:
+        matching_files = []
+        for root, dirs, files in os.walk(output_file_path):
+            for file in files:
+                if file.startswith(prefix) and file.endswith(suffix):
+                    matching_files.append(os.path.join(root, file))
+        return matching_files
+    except Exception as e:
+        print(f"An error occurred while getting the output file name: {e}")
+        return None
 
 
 # Call the evaluation harness using HTTP if the platform is not CUDA
@@ -143,7 +151,7 @@ if not torch.cuda.is_available():
         adapter_path = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "adaptors", args.model_name, args.model_adapter)
         model_args += f",peft={adapter_path}"
 
-    command = ["lm-eval", "--model", "hf", "--model_args", model_args, "--tasks", task]
+    command = ["lm-eval", "--model", "hf", "--model_args", model_args, "--tasks", task, "--log_samples"]
 
 else:
     if args.model_adapter:
@@ -169,18 +177,12 @@ try:
         #     stdout=subprocess.PIPE,
         #     stderr=subprocess.STDOUT
         # )
-        metric_iterations = 0
         for line in process.stdout:
             print(line.strip())
             pattern = r"^Running.*?(\d+)%\|"
             match = re.search(pattern, line)
             if match:
                 job.update_progress(int(match.group(1)))
-            metric, value = extract_metrics(line)
-            if metric and value:
-                metric_iterations += 1
-                scores_list.append({"type": f"{metric}", "score": value})
-                writer.add_scalar(f"eval/{metric}", value, metric_iterations)
 
             if job.should_stop:
                 print("Stopping job because of user interruption.")
@@ -189,11 +191,41 @@ try:
 
     output_file_path = get_output_file_path()
     output_file_name = get_output_file_name(output_file_path)
-    print(f"Saving output at {output_file_name}")
+    detailed_report_files = get_detailed_file_names(output_file_path)
 
     job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    job.add_to_job_data("detailed_output_files", str(detailed_report_files))
+    scores_list = []
+    metrics_list = []
+
+    # Updating score in a standard way for Eleuther AI LM Evaluation Harness
+    task_list = task.split(",")
+    for task_name in task.split(","):
+        for file in detailed_report_files:
+            if task_name in file:
+                df = pd.read_json(file, lines=True)
+                writer.add_scalar(f"eval/{task_name}", df["acc"].mean(), 1)
+                scores_list.append({"type": task_name, "score": df["acc"].mean()})
+                for index, row in df.iterrows():
+                    metrics_list.append(
+                        {
+                            "test_case_id": f"test_case_{row['doc_id']}",
+                            "metric_name": task_name,
+                            "score": row["acc"],
+                            "input": row["doc"],
+                            "expected_output": row["target"],
+                        }
+                    )
+    metrics_df = pd.DataFrame(metrics_list)
+    additional_output_path = os.path.join(output_file_path, f"detailed_output_{args.job_id}.csv")
+    metrics_df.to_csv(additional_output_path, index=False)
+    print(f"Saving output at {additional_output_path}")
+
     job.set_job_completion_status(
-        "success", "Evaluation task completed successfully.", score=scores_list, additional_output_path=output_file_name
+        "success",
+        "Evaluation task completed successfully.",
+        score=scores_list,
+        additional_output_path=additional_output_path,
     )
     print("--Evaluation task complete")
 
