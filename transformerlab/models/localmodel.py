@@ -66,85 +66,132 @@ class LocalModelStore(modelstore.ModelStore):
 
         return models
 
-    async def list_model_journeys(self):
+    async def compute_output_model(input_model, adaptor_name):
+        """
+        Compute the output model name by taking the last part of the input model
+        (in case it is a full path) and appending an underscore and the adaptor name.
+
+        For example:
+            input_model: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+            adaptor_name: "ml-qa"
+            returns: "TinyLlama-1.1B-Chat-v1.0_ml-qa"
+        """
+        base_model = input_model.split("/")[-1]
+        return f"{base_model}_{adaptor_name}"
+
+    async def build_provenance(self, jobs):
+        """
+        Build a mapping from the computed output model name (as produced by a training job)
+        to the job details. Each job is assumed to have a 'job_data' field (already converted
+        from JSON) containing:
+          - 'model_name': the input model used for training.
+          - 'dataset': the dataset used.
+          - 'config': a JSON string containing additional training parameters (including 'adaptor_name').
+          - 'start_time' and 'end_time'.
+
+        The computed output model is based on the input model and the adaptor name.
+        """
+        provenance = {}
+        for job in jobs:
+            # Each job is a dict containing a key "job_data"
+            job_data = job["job_data"]
+            input_model = job_data.get("model_name")
+            dataset = job_data.get("dataset")
+            start_time = job_data.get("start_time")
+            end_time = job_data.get("end_time")
+
+            # The configuration is stored as a JSON string inside job_data["config"]
+            config_str = job_data.get("config")
+            try:
+                config = json.loads(config_str)
+            except Exception as e:
+                print(f"Error parsing config for job id {job.get('id', 'unknown')}: {e}", file=sys.stderr)
+                config = {}
+
+            adaptor_name = config.get("adaptor_name")
+            if not adaptor_name:
+                # If no adaptor is specified, we cannot compute an output model.
+                continue
+
+            output_model = await self.compute_output_model(input_model, adaptor_name)
+
+            provenance[output_model] = {
+                "job_id": job.get("id"),
+                "input_model": input_model,
+                "output_model": output_model,
+                "dataset": dataset,
+                "parameters": config,
+                "start_time": start_time,
+                "end_time": end_time,
+            }
+        return provenance
+
+    async def trace_provenance(latest_model, provenance_mapping):
+        """
+        Trace back the chain of training jobs from the final model.
+
+        Starting with the provided latest model name, the function walks backwards through the
+        provenance mapping by using the input model of each job (normalized to its base name).
+        It stops when the input model is the same as the current model (indicating a base model).
+        The result is a chain (list) of job details in the order from the earliest training step
+        to the final training job.
+        """
+        chain = []
+        current_model = latest_model
+        while current_model in provenance_mapping:
+            job_details = provenance_mapping[current_model]
+            chain.insert(0, job_details)
+            # Normalize the parent model by taking the last part if it is a path.
+            parent_model = job_details["input_model"].split("/")[-1]
+            if parent_model == current_model:
+                break
+            current_model = parent_model
+        return chain
+
+    async def get_evals_by_model(self):
+        """
+        Retrieve all completed EVAL jobs and group them by the model_name specified in the job_data.
+        For each eval, remove keys we want to ignore (i.e., additional_output_path,
+        completion_status, and completion_details) and attach the job_id.
+        """
+        eval_jobs = await db.jobs_get_all(type="EVAL", status="COMPLETED")
+        evals_by_model = {}
+        for job in eval_jobs:
+            eval_data = job["job_data"]
+            # Remove keys that are not required
+            eval_data.pop("additional_output_path", None)
+            eval_data.pop("completion_status", None)
+            eval_data.pop("completion_details", None)
+            # Attach the JOB ID
+            eval_data["job_id"] = job.get("id")
+            model_name = eval_data.get("model_name")
+            if model_name:
+                evals_by_model.setdefault(model_name, []).append(eval_data)
+        return evals_by_model
+
+    async def list_model_provenance(self, model_id):
         """
         List all model journeys in the workspace.
         """
-        model_list = await self.list_models()
-        model_journey = {
-            "models": [],
-        }
-        training_jobs = await db.jobs_get_all(type="TRAIN", status="COMPLETED")
-        eval_jobs = await db.jobs_get_all(type="EVAL", status="COMPLETED")
-        for model in model_list:
-            model_id = model["model_id"]
-            for job in training_jobs:
-                if job["model_id"] == model_id:
-                    pass
-        return model_journey
 
+        # Fetch all completed TRAIN jobs using the provided function
+        jobs = await db.jobs_get_all(type="TRAIN", status="COMPLETED")
 
-# sample output of list_model_journey:
-"""
-{
-  models: [
-    {
-      type: 'base_model',
-      id: 'meta/llama3.1-8B-instruct',
-      name: 'meta/llama3.1-8B-instruct',
-      children: [
-        {
-          type: 'fine_tuning_job',
-          jobId: 1,
-          metadata: { dataset: 'Dataset A' },
-          child: {
-            type: 'fine_tuned_model',
-            modelId: 'ft_model_1',
-            name: 'Fine Tuned Model 1',
-            children: [
-              {
-                type: 'eval_job',
-                jobId: 2,
-                metadata: { metric: 'accuracy', value: 95.5 }
-              },
-              {
-                type: 'eval_job',
-                jobId: 3,
-                metadata: { metric: 'accuracy', value: 96.7 }
-              },
-              {
-                type: 'fine_tuning_job',
-                jobId: 6,
-                metadata: { dataset: 'Dataset B' },
-                child: {
-                  type: 'fine_tuned_model',
-                  modelId: 'ft_model_3',
-                  name: 'Fine Tuned Model 3',
-                  children: []
-                }
-              }
-            ]
-          }
-        },
-        {
-          type: 'fine_tuning_job',
-          jobId: 4,
-          metadata: { dataset: 'Dataset C' },
-          child: {
-            type: 'fine_tuned_model',
-            modelId: 'ft_model_2',
-            name: 'Fine Tuned Model 2',
-            children: [
-              {
-                type: 'eval_job',
-                jobId: 5,
-                metadata: { metric: 'accuracy', value: 97.0 }
-              }
-            ]
-          }
-        }
-      ]
-    }
-  ]
-  }
-"""
+        # Build a mapping from computed output model name to job details
+        provenance_mapping = await self.build_provenance(jobs)
+
+        # Trace the provenance chain leading to the given final model name
+        chain = await self.trace_provenance(model_id, provenance_mapping)
+
+        # Retrieve eval jobs grouped by model_name using the dedicated function
+        evals_by_model = await self.get_evals_by_model()
+
+        # For every training job in the provenance chain, attach evals for the corresponding model
+        for item in chain:
+            train_model_name = item.get("train_model_name")
+            item["evals"] = evals_by_model.get(train_model_name, [])
+
+        # Create the final provenance dictionary output
+        output = {"final_model": model_id, "provenance_chain": chain}
+
+        return output
