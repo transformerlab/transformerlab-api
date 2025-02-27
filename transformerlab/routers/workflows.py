@@ -79,7 +79,7 @@ async def workflow_delete_node(workflow_id: str, node_id: str):
             newNodes.append(node)
         else:
             if node["out"] == "":
-                for node2 in config["nodes"]:
+                for node2 in newNodes:
                     if node2["out"] == node_id:
                         node2["out"] = ""
 
