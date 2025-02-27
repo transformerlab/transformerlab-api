@@ -725,7 +725,7 @@ async def experiment_save_prompt_template(id, template):
 #################
 
 async def workflows_get_all():
-    cursor = await db.execute("SELECT * FROM workflows ORDER BY created_at desc")
+    cursor = await db.execute("SELECT * FROM workflows WHERE status != 'DELETED' ORDER BY created_at desc")
     rows = await cursor.fetchall()
     desc = cursor.description
     column_names = [col[0] for col in desc]
