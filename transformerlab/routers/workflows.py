@@ -43,7 +43,7 @@ async def workflow_create_empty(name: str, experiment_id="1"):
     workflow_id = await db.workflow_create(name, json.dumps(config), experiment_id) 
     return workflow_id
 
-@router.get("/edit_node_metadata/{workflow_id}")
+@router.get("/edit_node_metadata")
 async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: str):
     workflow = await db.workflows_get_by_id(workflow_id) 
     config = json.loads(workflow["config"])
