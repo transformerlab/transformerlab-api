@@ -3,6 +3,7 @@ import yaml
 import uuid
 from fastapi import APIRouter, UploadFile, Body
 from fastapi.responses import FileResponse
+#import model
 
 import transformerlab.db as db
 
@@ -106,7 +107,7 @@ async def workflow_delete_node(workflow_id: str, node_id: str):
         else:
             removedNode = node
 
-    if removedNode["TYPE"] == "START":
+    if removedNode["type"] == "START":
         return {"message": "Cannot delete start node"}
     for node in newNodes:
         if node_id in node["out"]:
@@ -199,7 +200,8 @@ async def start_next_step_in_workflow():
     next_job_status = "QUEUED" 
 
     #if next_job_type == "DOWNLOAD_MODEL":
-
+    #    model.download_huggingface_model(next_node[""])
+        
     if "template" in next_node.keys():
         template_name = next_node["template"] 
         if next_job_type == "TRAIN":
