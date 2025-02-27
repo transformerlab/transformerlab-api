@@ -28,13 +28,19 @@ async def workflow_delete_all():
 
 @router.get("/create")
 async def workflow_create(name: str, config: str = '{"nodes":[]}', experiment_id="1"):
-    workflow_id = await db.workflow_create(name, config, experiment_id) 
+    config = json.loads(config)
+    if len(config["nodes"]>0):
+        config["nodes"] = [{"type":"START", "id":str(uuid.uuid4()), "name":"START", "out":[config["nodes"][0]["id"]]}] + config["nodes"]
+    else:
+        config["nodes"] = [{"type":"START", "id":str(uuid.uuid4()), "name":"START", "out":[]}]
+    workflow_id = await db.workflow_create(name, json.dumps(config), experiment_id) 
     return workflow_id
 
 
 @router.get("/create_empty")
 async def workflow_create_empty(name: str, experiment_id="1"):
-    workflow_id = await db.workflow_create(name, '{"nodes":[]}', experiment_id) 
+    config = {"nodes":[{"type":"START", "id":str(uuid.uuid4()), "name":"START", "out":[]}]}
+    workflow_id = await db.workflow_create(name, json.dumps(config), experiment_id) 
     return workflow_id
 
 @router.get("/edit_node_metadata/{workflow_id}")
@@ -56,12 +62,12 @@ async def workflow_add_node(workflow_id: str, node: str):
     config = json.loads(workflow["config"])
 
     new_node_json["id"] = str(uuid.uuid4())
-    new_node_json["out"] = ""
+    new_node_json["out"] = []
     new_node_json["metadata"] = {}
 
     for node in config["nodes"]:
-        if node["out"] == "":
-            node["out"] = new_node_json["id"]
+        if node["out"] == []:
+            node["out"].append(new_node_json["id"])
 
     config["nodes"].append(new_node_json)
 
@@ -93,14 +99,17 @@ async def workflow_delete_node(workflow_id: str, node_id: str):
     config = json.loads(workflow["config"])
 
     newNodes = []
+    removedNode = {}
     for node in config["nodes"]:
         if node["id"] != node_id:
             newNodes.append(node)
         else:
-            if node["out"] == "":
-                for node2 in newNodes:
-                    if node2["out"] == node_id:
-                        node2["out"] = ""
+            removedNode = node
+
+    for node in newNodes:
+        if node_id in node["out"]:
+            node["out"].remove(node_id)
+            node["out"] += removedNode["out"]
 
     config["nodes"] = newNodes
 
@@ -180,7 +189,7 @@ async def start_next_step_in_workflow():
 
     next_node = {} 
     for node in workflow_config["nodes"]:
-        if node["id"]==workflow_current_task:
+        if node["id"] in workflow_current_task:
             next_node = node
     print(next_node)
     print(workflow_current_task)
