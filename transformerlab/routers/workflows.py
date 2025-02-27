@@ -56,11 +56,11 @@ async def workflow_add_node(workflow_id: str, node: str):
     config = json.loads(workflow["config"])
 
     new_node_json["id"] = str(uuid.uuid4())
-    new_node_json["out"] = "END"
+    new_node_json["out"] = ""
     new_node_json["metadata"] = {}
 
     for node in config["nodes"]:
-        if node["out"] == "END":
+        if node["out"] == "":
             node["out"] = new_node_json["id"]
 
     config["nodes"].append(new_node_json)
@@ -77,6 +77,12 @@ async def workflow_delete_node(workflow_id: str, node_id: str):
     for node in config["nodes"]:
         if node["id"] != node_id:
             newNodes.append(node)
+        else:
+            if node["out"] == "":
+                for node2 in config["nodes"]:
+                    if node2["out"] == node_id:
+                        node2["out"] = ""
+
     config["nodes"] = newNodes
 
     await db.workflow_update_config(workflow_id, json.dumps(config)) 
@@ -148,7 +154,7 @@ async def start_next_step_in_workflow():
         print(workflow_config["nodes"])
         workflow_current_task = workflow_config["nodes"][0]["id"]
 
-    if workflow_current_task == "END":
+    if workflow_current_task == "":
         await db.workflow_update_status(workflow_id, "COMPLETE")
         await db.workflow_update_with_new_job(workflow_id, "", -1)
         return {"message": "Workflow Complete!"}
