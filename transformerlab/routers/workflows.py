@@ -3,9 +3,9 @@ import yaml
 import uuid
 from fastapi import APIRouter, UploadFile, Body
 from fastapi.responses import FileResponse
-#import model
 
 import transformerlab.db as db
+import transformerlab.routers.model as model
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
@@ -185,7 +185,7 @@ async def start_next_step_in_workflow():
         print(workflow_config["nodes"])
         workflow_current_task = workflow_config["nodes"][0]["id"]
 
-    if workflow_current_task == "":
+    if workflow_current_task == []:
         await db.workflow_update_status(workflow_id, "COMPLETE")
         await db.workflow_update_with_new_job(workflow_id, "", -1)
         return {"message": "Workflow Complete!"}
@@ -197,12 +197,23 @@ async def start_next_step_in_workflow():
     print(next_node)
     print(workflow_current_task)
     next_job_type =next_node["type"]
+    if next_job_type=="START":
+        workflow_current_task = next_node["out"][0]
+        for node in workflow_config["nodes"]:
+            if node["id"] in workflow_current_task:
+                next_node = node
+        next_job_type =next_node["type"]
     next_job_status = "QUEUED" 
 
-    #if next_job_type == "DOWNLOAD_MODEL":
-    #    model.download_huggingface_model(next_node[""])
-        
-    if "template" in next_node.keys():
+    if next_job_type == "DOWNLOAD_MODEL":
+        output =await  model.download_huggingface_model(next_node["model"])
+        await db.workflow_update_with_new_job(workflow_id, workflow_current_task, output["job_id"])
+        if output["status"] != "success":
+            await db.workflow_update_status(workflow_id, "FAILED")
+        else:
+            return {"message":"model downloaded"}
+
+    elif "template" in next_node.keys():
         template_name = next_node["template"] 
         if next_job_type == "TRAIN":
             next_job_data = await db.get_training_template_by_name(template_name)
