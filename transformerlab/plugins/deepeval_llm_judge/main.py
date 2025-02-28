@@ -44,7 +44,7 @@ parser.add_argument("--threshold", default=0.5, type=float)
 parser.add_argument("--geval_name", default="", type=str)
 parser.add_argument("--geval_criteria", default="", type=str)
 parser.add_argument("--context_geval", default=None, type=str)
-parser.add_argument("--judge_model", default=None, type=str)
+parser.add_argument("--generation_model", default=None, type=str)
 parser.add_argument("--job_id", default=None, type=str)
 parser.add_argument("--limit", default=None, type=float)
 
