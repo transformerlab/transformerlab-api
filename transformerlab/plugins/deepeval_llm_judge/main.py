@@ -484,11 +484,11 @@ def run_evaluation():
                     score = [metric.score, 1]
                 temp_report = {}
                 temp_report["test_case_id"] = test_case.name
+                temp_report["metric_name"] = metric.name
+                temp_report["score"] = score
                 temp_report["input"] = test_case.input
                 temp_report["actual_output"] = test_case.actual_output
                 temp_report["expected_output"] = test_case.expected_output
-                temp_report["metric_name"] = metric.name
-                temp_report["score"] = score
                 temp_report["reason"] = metric.reason
 
                 additional_report.append(temp_report)
@@ -500,11 +500,16 @@ def run_evaluation():
         for metric in metrics_df["metric_name"].unique():
             writer.add_scalar(
                 f"eval/{metric}",
-                metrics_df[metrics_df["metric_name"] == metric]["score"].mean(),
+                metrics_df[metrics_df["metric_name"] == metric]["score"].apply(lambda x: x[0]).mean(),
                 1,
             )
             scores_list.append(
-                {"type": metric, "score": round(metrics_df[metrics_df["metric_name"] == metric]["score"].mean(), 4)}
+                {
+                    "type": metric,
+                    "score": round(
+                        metrics_df[metrics_df["metric_name"] == metric]["score"].apply(lambda x: x[0]).mean(), 4
+                    ),
+                }
             )
 
         print(f"Detailed Report saved to {output_path}")

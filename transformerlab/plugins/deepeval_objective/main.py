@@ -406,7 +406,7 @@ def run_evaluation():
 
         for idx, metric in enumerate(args.tasks):
             print(
-                f"Average {original_metric_names[idx]} score: {metrics_df[metrics_df['metric_name'] == metric]['score'].mean()}"
+                f"Average {original_metric_names[idx]} score: {metrics_df[metrics_df['metric_name'] == metric]['score'].apply(lambda x: x[0]).mean()}"
             )
         print(f"Metrics saved to {output_path}")
         print(f"Plotting data saved to {plot_data_path}")
@@ -414,9 +414,18 @@ def run_evaluation():
         job.update_progress(100)
         score_list = []
         for metric in args.tasks:
-            writer.add_scalar(f"eval/{metric}", metrics_df[metrics_df["metric_name"] == metric]["score"].mean(), 1)
+            writer.add_scalar(
+                f"eval/{metric}",
+                metrics_df[metrics_df["metric_name"] == metric]["score"].apply(lambda x: x[0]).mean(),
+                1,
+            )
             score_list.append(
-                {"type": metric, "score": round(metrics_df[metrics_df["metric_name"] == metric]["score"].mean(), 4)}
+                {
+                    "type": metric,
+                    "score": round(
+                        metrics_df[metrics_df["metric_name"] == metric]["score"].apply(lambda x: x[0]).mean(), 4
+                    ),
+                }
             )
         job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         job.set_job_completion_status(
