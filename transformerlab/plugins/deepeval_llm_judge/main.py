@@ -465,11 +465,11 @@ def run_evaluation():
             for metric in test_case.metrics_data:
                 temp_report = {}
                 temp_report["test_case_id"] = test_case.name
+                temp_report["metric_name"] = metric.name
+                temp_report["score"] = metric.score
                 temp_report["input"] = test_case.input
                 temp_report["actual_output"] = test_case.actual_output
                 temp_report["expected_output"] = test_case.expected_output
-                temp_report["metric_name"] = metric.name
-                temp_report["score"] = metric.score
                 temp_report["reason"] = metric.reason
 
                 additional_report.append(temp_report)
