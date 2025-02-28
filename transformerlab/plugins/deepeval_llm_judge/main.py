@@ -75,15 +75,15 @@ job.set_tensorboard_output_dir(output_dir)
 print("Writing tensorboard logs to", output_dir)
 
 score_colour_sensitivity = {
-    "Bias": -1,
-    "Toxicity": -1,
-    "Faithfulness": 1,
-    "Hallucination": -1,
-    "Answer Relevancy": 1,
-    "Contextual Precision": 1,
-    "Contextual Recall": 1,
-    "Contextual Relevancy": 1,
-    "GEval": 1,
+    "Bias": "lower",
+    "Toxicity": "lower",
+    "Faithfulness": "higher",
+    "Hallucination": "lower",
+    "Answer Relevancy": "higher",
+    "Contextual Precision": "higher",
+    "Contextual Recall": "higher",
+    "Contextual Relevancy": "higher",
+    "GEval": "higher",
 }
 
 print("ARGS", args)
@@ -475,13 +475,19 @@ def run_evaluation():
         additional_report = []
         for test_case in output.test_results:
             for metric in test_case.metrics_data:
+                # score will be an array of score and normalized_score (indicating higher is better). -1 indicates no colour
                 score = None
                 for key, value in score_colour_sensitivity.items():
                     if key == metric.name:
-                        score = [metric.score, value]
+                        if value == "lower":
+                            score = [metric.score, 1 - metric.score]
+                        elif value == "higher":
+                            score = [metric.score, metric.score]
+                        else:
+                            score = [metric.score, -1]
                         break
                 if score is None:
-                    score = [metric.score, 1]
+                    score = [metric.score, metric.score]
                 temp_report = {}
                 temp_report["test_case_id"] = test_case.name
                 temp_report["metric_name"] = metric.name

@@ -302,17 +302,19 @@ def run_evaluation():
         # Calculate metrics for each test case
         for task in args.tasks:
             metric = task["name"]
-            if task["return_type"] == "number":
-                score_colour_sensitivity = 0
-            else:
-                score_colour_sensitivity = 1
+
             try:
                 for idx, row in df_limited.iterrows():
+                    if task["return_type"] == "number":
+                        score_arr = [float(row[f"eval_{metric}"]), -1]
+                    else:
+                        score_arr = [float(row[f"eval_{metric}"]), float(row[f"eval_{metric}"])]
+
                     metrics.append(
                         {
                             "test_case_id": f"test_case_{idx}",
                             "metric_name": metric,
-                            "score": [int(row[f"eval_{metric}"]), score_colour_sensitivity],
+                            "score": score_arr,
                             "input": row[args.input_col],
                             "output": row[args.output_col],
                         }

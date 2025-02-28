@@ -60,14 +60,6 @@ writer = SummaryWriter(output_dir)
 job.set_tensorboard_output_dir(output_dir)
 print("Writing tensorboard logs to", output_dir)
 
-score_colour_sensitivity = {
-    "Rouge": 1,
-    "BLEU": 1,
-    "Exact Match": 1,
-    "Quasi Exact Match": 1,
-    "Quasi Contains": 1,
-    "BERT Score": 1,
-}
 
 print("ARGS", args)
 try:
@@ -367,7 +359,7 @@ def run_evaluation():
                         {
                             "test_case_id": f"test_case_{idx}",
                             "metric_name": metric_name,
-                            "score": [score["bert-f1"], 1],
+                            "score": score,
                             "bert_precision": score["bert-precision"],
                             "bert_recall": score["bert-recall"],
                             "bert_f1": score["bert-f1"],
@@ -377,14 +369,6 @@ def run_evaluation():
                         }
                     )
                 else:
-                    score_arr = None
-                    for key, value in score_colour_sensitivity.items():
-                        if key.lower() == metric_name.lower():
-                            score_arr = [score, value]
-                            break
-                    if score_arr is None:
-                        score_arr = [score, value]
-
                     metrics.append(
                         {
                             "test_case_id": f"test_case_{idx}",
@@ -406,7 +390,7 @@ def run_evaluation():
 
         for idx, metric in enumerate(args.tasks):
             print(
-                f"Average {original_metric_names[idx]} score: {metrics_df[metrics_df['metric_name'] == metric]['score'].apply(lambda x: x[0]).mean()}"
+                f"Average {original_metric_names[idx]} score: {metrics_df[metrics_df['metric_name'] == metric]['score'].mean()}"
             )
         print(f"Metrics saved to {output_path}")
         print(f"Plotting data saved to {plot_data_path}")
@@ -416,15 +400,13 @@ def run_evaluation():
         for metric in args.tasks:
             writer.add_scalar(
                 f"eval/{metric}",
-                metrics_df[metrics_df["metric_name"] == metric]["score"].apply(lambda x: x[0]).mean(),
+                metrics_df[metrics_df["metric_name"] == metric]["score"].mean(),
                 1,
             )
             score_list.append(
                 {
                     "type": metric,
-                    "score": round(
-                        metrics_df[metrics_df["metric_name"] == metric]["score"].apply(lambda x: x[0]).mean(), 4
-                    ),
+                    "score": round(metrics_df[metrics_df["metric_name"] == metric]["score"].mean(), 4),
                 }
             )
         job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
