@@ -160,7 +160,7 @@ async def start_next_step_in_workflow():
 
     workflow_id = currently_running_workflow["id"]
     workflow_config = json.loads(currently_running_workflow["config"])
-    workflow_current_task = currently_running_workflow["current_task"]
+    workflow_current_task = json.loads(currently_running_workflow["current_task"])
     workflow_current_job_id = int(currently_running_workflow["current_job_id"])
     workflow_experiment_id = currently_running_workflow["experiment_id"]
 
@@ -169,33 +169,32 @@ async def start_next_step_in_workflow():
     
         if current_job["status"] == "FAILED":
             await db.workflow_update_status(workflow_id, "FAILED")
+            return {"message": "the current job failed"}
 
         if current_job["status"] == "CANCELLED" or current_job["status"] == "DELETED":
-            await db.workflow_update_with_new_job(workflow_id, -1, -1)
+            await db.workflow_update_with_new_job(workflow_id, "[]", -1)
             await db.workflow_update_status(workflow_id, "CANCELLED")
+            return {"message": "the current job was cancelled"}
 
         if current_job["status"] != "COMPLETE":
             return {"message": "the current job is running"}
 
-    if workflow_current_task!= "":
+    if workflow_current_task!= []:
         for node in workflow_config["nodes"]:
-            if node["id"]==workflow_current_task:
+            if node["id"] in workflow_current_task:
                 workflow_current_task = node["out"]
     else:
-        print(workflow_config["nodes"])
         workflow_current_task = workflow_config["nodes"][0]["id"]
 
     if workflow_current_task == []:
         await db.workflow_update_status(workflow_id, "COMPLETE")
-        await db.workflow_update_with_new_job(workflow_id, "", -1)
+        await db.workflow_update_with_new_job(workflow_id, "[]", -1)
         return {"message": "Workflow Complete!"}
 
     next_node = {} 
     for node in workflow_config["nodes"]:
         if node["id"] in workflow_current_task:
             next_node = node
-    print(next_node)
-    print(workflow_current_task)
     next_job_type =next_node["type"]
     if next_job_type=="START":
         workflow_current_task = next_node["out"][0]
@@ -207,10 +206,11 @@ async def start_next_step_in_workflow():
 
     if next_job_type == "DOWNLOAD_MODEL":
         output =await  model.download_huggingface_model(next_node["model"])
-        await db.workflow_update_with_new_job(workflow_id, workflow_current_task, output["job_id"])
         if output["status"] != "success":
             await db.workflow_update_status(workflow_id, "FAILED")
+            return {"message":"failed to download model"}
         else:
+            await db.workflow_update_with_new_job(workflow_id, json.dumps(workflow_current_task), output["job_id"])
             return {"message":"model downloaded"}
 
     elif "template" in next_node.keys():
@@ -234,7 +234,7 @@ async def start_next_step_in_workflow():
         next_job_data = next_node["data"]
 
     next_job_id = await db.job_create(next_job_type, next_job_status, json.dumps(next_job_data), workflow_experiment_id)
-    await db.workflow_update_with_new_job(workflow_id, workflow_current_task, next_job_id)
+    await db.workflow_update_with_new_job(workflow_id, json.dumps(workflow_current_task), next_job_id)
 
     return {"message": "Next job created"}
 
