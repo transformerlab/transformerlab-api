@@ -64,7 +64,7 @@
             "ui:help": "Select an evaluation metric from the drop-down list",
             "ui:widget": "AutoCompleteWidget"
         },
-        "judge_model": {
+        "generation_model": {
             "ui:help": "Select the LLM model to be used as Judge",
             "ui:widget": "ModelProviderWidget",
             "ui:options": {
