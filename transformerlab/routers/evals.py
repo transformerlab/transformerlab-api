@@ -1,7 +1,9 @@
 import json
 import os
 import transformerlab.db as db
+import pandas as pd
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 from transformerlab.shared import dirs
 
 
@@ -11,6 +13,7 @@ router = APIRouter(prefix="/evals", tags=["evals"])
 @router.get("/list")
 async def eval_local_list():
     """Get the list of local evals"""
+    print("COMING TO THIS ONE NOW")
     eval_plugins = await db.get_plugins_of_type("EVALUATION")
 
     result = []
@@ -32,3 +35,52 @@ async def eval_local_list():
         result.append({"name": name, "info": info})
 
     return result
+
+
+@router.get("/compare_evals")
+async def compare_eval(job_list: str = ""):
+    """Compare the output of evaluations from a list of job_ids.
+
+    Expects job_list to be an array of job_ids.
+    """
+    try:
+        additional_output_paths = {}
+        job_list = job_list.split(",")
+
+        for job_id in job_list:
+            job = await db.job_get(job_id)
+            evaluator_name = job.get("evaluator_name", "")
+            job_data = job.get("job_data", {})
+
+            if "additional_output_path" in job_data:
+                additional_output_paths[job_id] = {}
+                additional_output_paths[job_id]["file_path"] = job_data["additional_output_path"]
+
+                if job_data["additional_output_path"].endswith(".csv"):
+                    df = pd.read_csv(job_data["additional_output_path"])
+                    df["job_id"] = job_id
+                    df["evaluator_name"] = evaluator_name
+                    additional_output_paths[job_id]["data"] = df
+
+                else:
+                    additional_output_paths[job_id]["data"] = None
+
+        # Combine additional outputs into a single dataframe for comparison
+        combined = pd.DataFrame()
+        for job_id, output in additional_output_paths.items():
+            if output["data"] is not None:
+                # if any columns are present in the combined dataframe but not in the current dataframe, add them
+                missing_columns = set(combined.columns) - set(output["data"].columns)
+                for col in missing_columns:
+                    output["data"][col] = None
+                # if any columns are present in the current dataframe but not in the combined dataframe, add them
+                missing_columns = set(output["data"].columns) - set(combined.columns)
+                for col in missing_columns:
+                    combined[col] = None
+                combined = pd.concat([combined, output["data"]], ignore_index=True)
+
+        return JSONResponse(content=combined.to_json(orient="records"), media_type="application/json")
+
+    except Exception as e:
+        print(e)
+        return {"error": str(e)}
