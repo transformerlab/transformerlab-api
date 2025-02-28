@@ -66,7 +66,7 @@ class LocalModelStore(modelstore.ModelStore):
 
         return models
 
-    async def compute_output_model(input_model, adaptor_name):
+    async def compute_output_model(self, input_model, adaptor_name):
         """
         Compute the output model name by taking the last part of the input model
         (in case it is a full path) and appending an underscore and the adaptor name.
@@ -95,7 +95,7 @@ class LocalModelStore(modelstore.ModelStore):
         for job in jobs:
             # Each job is a dict containing a key "job_data"
             job_data = job["job_data"]
-            input_model = job_data.get("model_name")
+            input_model = job_data.get("model_name").split("/")[-1]
             dataset = job_data.get("dataset")
             start_time = job_data.get("start_time")
             end_time = job_data.get("end_time")
@@ -126,7 +126,7 @@ class LocalModelStore(modelstore.ModelStore):
             }
         return provenance
 
-    async def trace_provenance(latest_model, provenance_mapping):
+    async def trace_provenance(self, latest_model, provenance_mapping):
         """
         Trace back the chain of training jobs from the final model.
 
@@ -137,7 +137,9 @@ class LocalModelStore(modelstore.ModelStore):
         to the final training job.
         """
         chain = []
-        current_model = latest_model
+        current_model = latest_model.split("/")[-1]
+        print(f"Tracing provenance chain for model {current_model}")
+
         while current_model in provenance_mapping:
             job_details = provenance_mapping[current_model]
             chain.insert(0, job_details)
@@ -173,18 +175,26 @@ class LocalModelStore(modelstore.ModelStore):
         """
         List all model journeys in the workspace.
         """
+        print(f"Listing model provenance for model {model_id}")
 
         # Fetch all completed TRAIN jobs using the provided function
-        jobs = await db.jobs_get_all(type="TRAIN", status="COMPLETED")
+        jobs = await db.jobs_get_all(type="TRAIN", status="COMPLETE")
+
+        print(f"Found {len(jobs)} completed training jobs")
 
         # Build a mapping from computed output model name to job details
         provenance_mapping = await self.build_provenance(jobs)
 
+        print(f"Built provenance mapping with {len(provenance_mapping)} entries: {provenance_mapping}")
+
         # Trace the provenance chain leading to the given final model name
         chain = await self.trace_provenance(model_id, provenance_mapping)
 
+        print(f"Traced provenance chain with {len(chain)} entries")
         # Retrieve eval jobs grouped by model_name using the dedicated function
         evals_by_model = await self.get_evals_by_model()
+
+        print(f"Retrieved evals by model with {len(evals_by_model)} entries")
 
         # For every training job in the provenance chain, attach evals for the corresponding model
         for item in chain:
