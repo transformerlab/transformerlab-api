@@ -4,6 +4,8 @@ import os
 from pathlib import Path
 import transformerlab.db as db
 
+from werkzeug.utils import secure_filename
+
 
 """
 TFL_HOME_DIR is the directory that is the parent of the src and workspace directories.
@@ -149,6 +151,7 @@ async def eval_output_file(experiment_name: str, eval_name: str) -> str:
 
 async def generation_output_file(experiment_name: str, generation_name: str) -> str:
     experiment_dir = experiment_dir_by_name(experiment_name)
+    generation_name = secure_filename(generation_name)
     p = os.path.join(experiment_dir, "generations", generation_name)
     os.makedirs(p, exist_ok=True)
     return os.path.join(p, "output.txt")

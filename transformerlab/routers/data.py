@@ -13,6 +13,8 @@ from transformerlab.shared import dirs
 from datasets.data_files import EmptyDatasetError
 from transformerlab.shared.shared import slugify
 
+from werkzeug.utils import secure_filename
+
 from jinja2 import Environment
 
 jinja_environment = Environment()
@@ -339,6 +341,8 @@ async def dataset_new(dataset_id: str, generated: bool = False):
 @router.get("/delete", summary="Delete a dataset.")
 async def dataset_delete(dataset_id: str):
     await db.delete_dataset(dataset_id)
+
+    dataset_id = secure_filename(dataset_id)
 
     # delete directory and contents. ignore_errors because we don't care if the directory doesn't exist
     shutil.rmtree(dirs.dataset_dir_by_id(dataset_id), ignore_errors=True)
