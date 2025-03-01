@@ -10,8 +10,6 @@ import transformerlab.db as db
 
 from transformerlab.shared import dirs
 
-from werkzeug.utils import secure_filename
-
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
@@ -68,8 +66,6 @@ async def save_conversation(
     # first get the experiment name:
     data = await db.experiment_get(experimentId)
 
-    conversation_id = secure_filename(conversation_id)
-
     # if the experiment does not exist, return an error:
     if data is None:
         return {"message": f"Experiment {experimentId} does not exist"}
@@ -99,8 +95,6 @@ async def save_conversation(
 async def delete_conversation(experimentId: int, conversation_id: str):
     # first get the experiment name:
     data = await db.experiment_get(experimentId)
-
-    conversation_id = secure_filename(conversation_id)
 
     # if the experiment does not exist, return an error:
     if data is None:
