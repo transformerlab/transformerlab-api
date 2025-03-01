@@ -14,8 +14,10 @@ from datasets.data_files import EmptyDatasetError
 from transformerlab.shared.shared import slugify
 
 from jinja2 import Environment
+from jinja2.sandbox import SandboxedEnvironment
 
 jinja_environment = Environment()
+sandboxed_jinja2_evironment = SandboxedEnvironment()
 
 
 # Configure logging
@@ -207,7 +209,7 @@ async def dataset_preview_with_template(
         result["columns"] = dataset["train"][offset : min(offset + limit, dataset_len)]
     result["len"] = dataset_len
 
-    jinja_template = jinja_environment.from_string(template)
+    jinja_template = sandboxed_jinja2_evironment.from_string(template)
 
     column_names = list(result["columns"].keys())
 
