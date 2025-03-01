@@ -105,7 +105,7 @@ class LocalModelStore(modelstore.ModelStore):
             try:
                 config = json.loads(config_str)
             except Exception as e:
-                print(f"Error parsing config for job id {job.get('id', 'unknown')}: {e}", file=sys.stderr)
+                print(f"Error parsing config for job id {job.get('id', 'unknown')}: {e}")
                 config = {}
 
             adaptor_name = config.get("adaptor_name")
