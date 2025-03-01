@@ -24,6 +24,8 @@ from transformerlab.models import localmodel
 from transformerlab.models import huggingfacemodel
 from transformerlab.models import filesystemmodel
 
+from werkzeug.utils import secure_filename
+
 router = APIRouter(tags=["model"])
 
 
@@ -568,6 +570,7 @@ async def model_gets_pefts(
     model_id: Annotated[str, Body()],
 ):
     workspace_dir = dirs.WORKSPACE_DIR
+    model_id = secure_filename(model_id)
     adaptors_dir = f"{workspace_dir}/adaptors/{model_id}"
     adaptors = []
     if os.path.exists(adaptors_dir):
