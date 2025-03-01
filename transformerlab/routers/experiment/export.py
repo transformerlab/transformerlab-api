@@ -9,6 +9,7 @@ import transformerlab.db as db
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
 
+from werkzeug.utils import secure_filename
 
 router = APIRouter(prefix="/export", tags=["export"])
 
@@ -58,6 +59,8 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
 
     # Figure out plugin and model output directories
     script_directory = dirs.plugin_dir_by_name(plugin_name)
+
+    output_model_id = secure_filename(output_model_id)
 
     output_path = os.path.join(dirs.MODELS_DIR, output_model_id)
     os.makedirs(output_path)
