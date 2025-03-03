@@ -17,6 +17,17 @@
     ],
     "setup-script": "setup.sh",
     "parameters": {
+        "train_device": {
+            "title": "Training Device",
+            "type": "string",
+            "required": true,
+            "enum": [
+                "cuda",
+                "cpu",
+                "tpu"
+            ],
+            "default": "cuda"
+        },
         "maximum_sequence_length": {
             "title": "Maximum Sequence Length",
             "type": "integer",
@@ -99,6 +110,14 @@
     "parameters_ui": {
         "maximum_sequence_length": {
             "ui:help": "Maximum sequence length for the model. Longer sequences will be truncated. Keep lower to save memory."
+        },
+        "train_device": {
+            "ui:help": "The device to train the model on. Use 'cuda' for Multi GPU Training, 'cpu' for CPU, and 'tpu' for TPU.",
+            "ui:widget": "AutoCompleteWidget",
+            "ui:options": {
+                "multiple": false
+            }
+
         },
         "batch_size": {
             "ui:help": "The number of sequences processed simultaneously during training. Higher values lower number of iterations but require more memory."

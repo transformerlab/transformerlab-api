@@ -20,6 +20,22 @@ args, unknown = parser.parse_known_args()
 print("Arguments:")
 print(args)
 
+input_config = None
+# open the input file that provides configs
+with open(args.input_file) as json_file:
+    input_config = json.load(json_file)
+config = input_config["config"]
+
+accelerate_config = {
+    "cuda": "multi_gpu",
+    "cpu": "cpu",
+    "tpu": "tpu",
+}
+
+train_device = accelerate_config.get(config.get("train_device", "cuda"), "multi_gpu")
+print(f"Training setup for accelerate launch: {train_device}")
+
+
 # Check if we should launch with accelerate
 if not args.launched_with_accelerate:
     print("Launching training with accelerate for multi-GPU...")
@@ -60,7 +76,7 @@ if not args.launched_with_accelerate:
     
     cmd = [
         "accelerate", "launch",
-        "--multi_gpu",
+        f"--{train_device}",
         __file__,
         "--input_file", args.input_file,
         "--launched_with_accelerate"
@@ -83,7 +99,6 @@ from accelerate import Accelerator # noqa
 
 # Get source code dir and print for debugging
 tfl_source_dir = os.environ.get("_TFL_SOURCE_CODE_DIR")
-print(f"TFL_SOURCE_CODE_DIR: {tfl_source_dir}")
 
 # Ensure transformerlab can be imported
 try:
@@ -138,7 +153,6 @@ llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
 WORKSPACE_DIR: str | None = os.getenv("_TFL_WORKSPACE_DIR")
 db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
 
-# Rest of your code remains the same...
 input_config = None
 # open the input file that provides configs
 with open(args.input_file) as json_file:
