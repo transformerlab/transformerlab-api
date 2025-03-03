@@ -254,6 +254,9 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
 
 async def get_job_output_file_name(job_id: str, plugin_name: str):
     try:
+        job_id = secure_filename(job_id)
+        plugin_name = secure_filename(plugin_name)
+
         plugin_dir = dirs.plugin_dir_by_name(plugin_name)
 
         # job output is stored in separate files with a job number in the name...

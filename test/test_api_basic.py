@@ -1,4 +1,8 @@
+import os
 from fastapi.testclient import TestClient
+
+os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
+
 from api import app
 
 client = TestClient(app)
