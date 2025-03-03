@@ -204,6 +204,9 @@ db.commit()
 
 print(max_seq_length)
 
+report_to = ['tensorboard']
+
+
 if WANDB_LOGGING:
     WANDB_LOGGING, report_to = transformerlab.plugin.test_wandb_login()
     if not WANDB_LOGGING:
