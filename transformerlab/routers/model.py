@@ -457,8 +457,10 @@ async def download_huggingface_model(hugging_face_id: str, model_details: str = 
 
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
-        await db.job_update_status(job_id, "FAILED", error_msg)
-        return {"status": "error", "message": error_msg}
+        # Log the detailed error message
+        print(error_msg)  # Replace with appropriate logging mechanism
+        await db.job_update_status(job_id, "FAILED", "An internal error has occurred.")
+        return {"status": "error", "message": "An internal error has occurred."}
 
     except asyncio.CancelledError:
         error_msg = "Download cancelled"
@@ -486,7 +488,9 @@ async def download_model_by_huggingface_id(model: str, job_id: int | None = None
         model_details = await huggingfacemodel.get_model_details_from_huggingface(model)
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
-        return {"status": "error", "message": error_msg}
+        # Log the detailed error message
+        print(error_msg)  # Replace with appropriate logging mechanism
+        return {"status": "error", "message": "An internal error has occurred."}
 
     if model_details is None:
         error_msg = f"Error reading config for model with ID {model}"
