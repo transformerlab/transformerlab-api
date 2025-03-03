@@ -161,6 +161,8 @@ async def get_generation_plugin_file_contents(experimentId: int, plugin_name: st
 @router.get("/run_generation_script")
 async def run_generation_script(experimentId: int, plugin_name: str, generation_name: str, job_id: str):
     plugin_name = secure_filename(plugin_name)
+    generation_name = secure_filename(generation_name)
+
     experiment_details = await db.experiment_get(id=experimentId)
 
     if experiment_details is None:
@@ -260,6 +262,8 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
 
 
 async def get_job_output_file_name(job_id: str, plugin_name: str):
+    job_id = secure_filename(str(job_id))
+    plugin_name = secure_filename(plugin_name)
     try:
         plugin_dir = dirs.plugin_dir_by_name(plugin_name)
 
