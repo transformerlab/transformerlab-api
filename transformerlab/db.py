@@ -720,9 +720,11 @@ async def experiment_save_prompt_template(id, template):
     await db.commit()
     return
 
+
 #################
 # WORKFLOWS MODEL
 #################
+
 
 async def workflows_get_all():
     cursor = await db.execute("SELECT * FROM workflows ORDER BY created_at desc")
@@ -732,6 +734,7 @@ async def workflows_get_all():
     data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
     await cursor.close()
     return data
+
 
 async def workflows_get_by_id(workflow_id):
     cursor = await db.execute("SELECT * FROM workflows WHERE id = ? ORDER BY created_at desc LIMIT 1", (workflow_id,))
@@ -744,11 +747,13 @@ async def workflows_get_by_id(workflow_id):
     await cursor.close()
     return row
 
+
 async def workflow_delete_by_id(workflow_id):
     print("Deleting workflow: " + workflow_id)
     await db.execute("UPDATE workflows SET status = 'DELETED' WHERE id = ?", (workflow_id,))
     await db.commit()
     return
+
 
 async def workflow_delete_by_name(workflow_name):
     print("Deleting workflow: " + workflow_name)
@@ -756,11 +761,13 @@ async def workflow_delete_by_name(workflow_name):
     await db.commit()
     return
 
+
 async def workflow_count_running():
     cursor = await db.execute("SELECT COUNT(*) FROM workflows WHERE status = 'RUNNING'")
     row = await cursor.fetchone()
     await cursor.close()
     return row[0]
+
 
 async def workflow_get_running():
     cursor = await db.execute("SELECT * FROM workflows WHERE status = 'RUNNING' LIMIT 1")
@@ -773,16 +780,27 @@ async def workflow_get_running():
     await cursor.close()
     return row
 
+
 async def workflow_update_status(workflow_id, status):
-    await db.execute("UPDATE workflows SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, workflow_id))
+    await db.execute(
+        "UPDATE workflows SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, workflow_id)
+    )
     await db.commit()
     return
 
+
 async def workflow_update_with_new_job(workflow_id, current_task, current_job_id):
-    await db.execute("UPDATE workflows SET current_task = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (current_task, workflow_id))
-    await db.execute("UPDATE workflows SET current_job_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (current_job_id, workflow_id))
+    await db.execute(
+        "UPDATE workflows SET current_task = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (current_task, workflow_id),
+    )
+    await db.execute(
+        "UPDATE workflows SET current_job_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (current_job_id, workflow_id),
+    )
     await db.commit()
     return
+
 
 async def workflow_create(name, config, experiment_id):
     # check if type is allowed
@@ -793,13 +811,18 @@ async def workflow_create(name, config, experiment_id):
     await db.commit()
     return row[0]
 
+
 async def workflow_update_config(workflow_id, config):
-    await db.execute("UPDATE workflows SET config = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (config, workflow_id))
+    await db.execute(
+        "UPDATE workflows SET config = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (config, workflow_id)
+    )
     await db.commit()
+
 
 async def workflow_delete_all():
     await db.execute("DELETE FROM workflows")
     await db.commit()
+
 
 ###############
 # PLUGINS MODEL

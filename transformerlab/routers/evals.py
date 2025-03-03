@@ -13,7 +13,6 @@ router = APIRouter(prefix="/evals", tags=["evals"])
 @router.get("/list")
 async def eval_local_list():
     """Get the list of local evals"""
-    print("COMING TO THIS ONE NOW")
     eval_plugins = await db.get_plugins_of_type("EVALUATION")
 
     result = []
@@ -49,8 +48,9 @@ async def compare_eval(job_list: str = ""):
 
         for job_id in job_list:
             job = await db.job_get(job_id)
-            evaluator_name = job.get("evaluator_name", "")
             job_data = job.get("job_data", {})
+            evaluator_name = job_data.get("evaluator", "")
+            plugin_name = job_data.get("plugin", "")
 
             if "additional_output_path" in job_data:
                 additional_output_paths[job_id] = {}
@@ -60,6 +60,7 @@ async def compare_eval(job_list: str = ""):
                     df = pd.read_csv(job_data["additional_output_path"])
                     df["job_id"] = job_id
                     df["evaluator_name"] = evaluator_name
+                    df["plugin_name"] = plugin_name
                     additional_output_paths[job_id]["data"] = df
 
                 else:
@@ -69,15 +70,22 @@ async def compare_eval(job_list: str = ""):
         combined = pd.DataFrame()
         for job_id, output in additional_output_paths.items():
             if output["data"] is not None:
-                # if any columns are present in the combined dataframe but not in the current dataframe, add them
-                missing_columns = set(combined.columns) - set(output["data"].columns)
-                for col in missing_columns:
-                    output["data"][col] = None
-                # if any columns are present in the current dataframe but not in the combined dataframe, add them
-                missing_columns = set(output["data"].columns) - set(combined.columns)
-                for col in missing_columns:
-                    combined[col] = None
-                combined = pd.concat([combined, output["data"]], ignore_index=True)
+                df = output["data"].copy()
+
+                # Handle column alignment before concatenation
+                if not combined.empty:
+                    # Add missing columns to the current dataframe
+                    for col in combined.columns:
+                        if col not in df.columns:
+                            df[col] = None
+
+                    # Add missing columns to the combined dataframe
+                    for col in df.columns:
+                        if col not in combined.columns:
+                            combined[col] = None
+
+                # Concatenate without triggering the warning
+                combined = pd.concat([combined, df], ignore_index=True)
 
         return JSONResponse(content=combined.to_json(orient="records"), media_type="application/json")
 

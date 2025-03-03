@@ -12,7 +12,7 @@ from huggingface_hub import ModelCard, ModelCardData
 from huggingface_hub.utils import HfHubHTTPError
 import os
 from pathlib import Path
-
+import logging
 
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
@@ -23,6 +23,10 @@ from transformerlab.models import basemodel
 from transformerlab.models import localmodel
 from transformerlab.models import huggingfacemodel
 from transformerlab.models import filesystemmodel
+
+from werkzeug.utils import secure_filename
+
+logging.basicConfig(level=logging.ERROR)
 
 router = APIRouter(tags=["model"])
 
@@ -167,7 +171,8 @@ async def upload_model_to_huggingface(
         elif organization_name in orgs and organization_name != "":
             username = organization_name
     except Exception as e:
-        return {"status": "error", "message": f"Error getting Hugging Face user info: {e}"}
+        logging.error(f"Error getting Hugging Face user info: {e}")
+        return {"status": "error", "message": "An internal error has occurred while getting Hugging Face user info."}
     repo_id = f"{username}/{model_name}"
     try:  # Checking if repo already exists.
         api.repo_info(repo_id)
@@ -455,8 +460,10 @@ async def download_huggingface_model(hugging_face_id: str, model_details: str = 
 
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
-        await db.job_update_status(job_id, "FAILED", error_msg)
-        return {"status": "error", "message": error_msg}
+        # Log the detailed error message
+        print(error_msg)  # Replace with appropriate logging mechanism
+        await db.job_update_status(job_id, "FAILED", "An internal error has occurred.")
+        return {"status": "error", "message": "An internal error has occurred."}
 
     except asyncio.CancelledError:
         error_msg = "Download cancelled"
@@ -484,7 +491,9 @@ async def download_model_by_huggingface_id(model: str, job_id: int | None = None
         model_details = await huggingfacemodel.get_model_details_from_huggingface(model)
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
-        return {"status": "error", "message": error_msg}
+        # Log the detailed error message
+        print(error_msg)  # Replace with appropriate logging mechanism
+        return {"status": "error", "message": "An internal error has occurred."}
 
     if model_details is None:
         error_msg = f"Error reading config for model with ID {model}"
@@ -568,6 +577,7 @@ async def model_gets_pefts(
     model_id: Annotated[str, Body()],
 ):
     workspace_dir = dirs.WORKSPACE_DIR
+    model_id = secure_filename(model_id)
     adaptors_dir = f"{workspace_dir}/adaptors/{model_id}"
     adaptors = []
     if os.path.exists(adaptors_dir):

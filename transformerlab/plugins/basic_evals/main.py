@@ -242,6 +242,16 @@ def get_output_file_path():
     return os.path.join(p, f"detailed_output_{args.job_id}.csv")
 
 
+def get_plotting_data(metrics_df):
+    file_path = get_output_file_path()
+    file_path = file_path.replace(".csv", "_plotting.json")
+    metrics_data = metrics_df[["test_case_id", "metric_name", "score"]].copy()
+    metrics_data["metric_name"] = metrics_data["metric_name"].apply(lambda x: x.replace("_", " ").title())
+    metrics_data.to_json(file_path, orient="records", lines=False)
+
+    return file_path
+
+
 def execute_custom_function_regexp(output_text: str, expression: str, return_type: str):
     if return_type.lower() == "number":
         # Occurrence: Count all matches with the global-like flag
@@ -318,8 +328,10 @@ def run_evaluation():
         output_path = get_output_file_path()
         metrics_df.to_csv(output_path, index=False)
         job.update_progress(80)
+        plot_data_path = get_plotting_data(metrics_df)
 
         print(f"Metrics saved to {output_path}")
+        print(f"Plotting data saved to {plot_data_path}")
         print("Evaluation completed.")
         job.update_progress(100)
         score_list = []
@@ -337,6 +349,7 @@ def run_evaluation():
             "Evaluation completed successfully.",
             score=score_list,
             additional_output_path=output_path,
+            plot_data_path=plot_data_path,
         )
     except Exception as e:
         print("Error occurred while running the evaluation.")

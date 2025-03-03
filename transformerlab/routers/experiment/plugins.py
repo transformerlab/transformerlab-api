@@ -13,6 +13,8 @@ import transformerlab.db as db
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
 
+from werkzeug.utils import secure_filename
+
 from transformerlab.routers.plugins import install_plugin, plugin_gallery
 
 
@@ -117,7 +119,7 @@ async def delete_plugin_from_experiment(id: int, plugin_name: str):
 
 
 @router.get("/download", summary="Download a dataset to the LLMLab server.")
-async def plugin_download(plugin_slug: str):
+async def plugin_download(id: int, plugin_slug: str):
     """Download a plugin and install to a local list of available plugins"""
     # Get plugin from plugin gallery:
     # plugin = await db.get_plugin(plugin_slug)
@@ -178,6 +180,8 @@ allowed_extensions: list[str] = [".py", ".pyj2", ".ipynb", ".md", ".txt", ".sh",
 async def plugin_save_file_contents(id: str, pluginId: str, filename: str, file_contents: Annotated[str, Body()]):
     global allowed_extensions
 
+    filename = secure_filename(filename)
+
     data = await db.experiment_get(id)
     # if the experiment does not exist, return an error:
     if data is None:
@@ -212,6 +216,8 @@ async def plugin_save_file_contents(id: str, pluginId: str, filename: str, file_
 @router.get("/{pluginId}/file_contents")
 async def plugin_get_file_contents(id: str, pluginId: str, filename: str):
     global allowed_extensions
+
+    filename = secure_filename(filename)
 
     data = await db.experiment_get(id)
     # if the experiment does not exist, return an error:
@@ -272,6 +278,8 @@ async def plugin_list_files(id: str, pluginId: str):
 async def plugin_create_new_file(id: str, pluginId: str, filename: str):
     global allowed_extensions
 
+    filename = secure_filename(filename)
+
     data = await db.experiment_get(id)
     # if the experiment does not exist, return an error:
     if data is None:
@@ -309,6 +317,8 @@ async def plugin_create_new_file(id: str, pluginId: str, filename: str):
 @router.get(path="/{pluginId}/delete_file")
 async def plugin_delete_file(id: str, pluginId: str, filename: str):
     global allowed_extensions
+
+    filename = secure_filename(filename)
 
     data = await db.experiment_get(id)
     # if the experiment does not exist, return an error:

@@ -8,22 +8,28 @@ from transformerlab.routers.experiment import rag
 from transformerlab.shared import dirs
 from transformerlab.shared.shared import slugify
 
+from werkzeug.utils import secure_filename
+
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 allowed_file_types = [".txt", ".jsonl", ".pdf", ".csv", ".epub", ".ipynb", ".md", ".ppt"]
 
 
-# Get info on dataset from huggingface
-@router.get("/{document_name}/info", summary="Fetch the details of a particular document.")
-async def document_info():
-    r = {"message": "This endpoint is not yet implemented"}
-    return r
+# # Get info on dataset from huggingface
+# @router.get("/{document_name}/info", summary="Fetch the details of a particular document.")
+# async def document_info():
+#     r = {"message": "This endpoint is not yet implemented"}
+#     return r
 
 
 @router.get("/open/{document_name}", summary="View the contents of a document.")
 async def document_view(experimentId: str, document_name: str, folder: str = None):
     try:
         experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+
+        document_name = secure_filename(document_name)
+        folder = secure_filename(folder)
+
         if folder and folder != "":
             file_location = os.path.join(experiment_dir, "documents", folder, document_name)
         else:
@@ -71,7 +77,7 @@ async def document_list(experimentId: str, folder: str = None):
 
 
 @router.get("/new", summary="Create a new document.")
-async def document_new(dataset_id: str):
+async def document_new(experimentId: str, dataset_id: str):
     print("Not yet implemented")
     return {"status": "success", "dataset_id": dataset_id}
 
@@ -79,6 +85,9 @@ async def document_new(dataset_id: str):
 @router.get("/delete/{document_name}", summary="Delete a document.")
 async def delete_document(experimentId: str, document_name: str):
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+
+    document_name = secure_filename(document_name)
+
     path = os.path.join(experiment_dir, "documents", document_name)
     # first check if it is a directory:
     if os.path.isdir(path):

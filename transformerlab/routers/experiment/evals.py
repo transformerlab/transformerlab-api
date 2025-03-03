@@ -162,6 +162,11 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
 
     experiment_name = experiment_details["name"]
     model_name = config["foundation"]
+
+    if config["foundation_filename"] is None or config["foundation_filename"].strip() == "":
+        model_file_path = ""
+    else:
+        model_file_path = config["foundation_filename"]
     model_type = config["foundation_model_architecture"]
     model_adapter = config["adaptor"]
 
@@ -220,6 +225,8 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
             input_file,
             "--model_name",
             model_name,
+            "--model_path",
+            model_file_path,
             "--model_architecture",
             model_type,
             "--model_adapter",
@@ -254,6 +261,9 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
 
 async def get_job_output_file_name(job_id: str, plugin_name: str):
     try:
+        job_id = secure_filename(str(job_id))
+        plugin_name = secure_filename(plugin_name)
+
         plugin_dir = dirs.plugin_dir_by_name(plugin_name)
 
         # job output is stored in separate files with a job number in the name...
