@@ -11,6 +11,7 @@ from transformerlab.shared import shared
 from transformerlab.shared import dirs
 from transformerlab.routers.experiment import rag, documents, plugins, conversations, export, evals, generations
 
+from werkzeug.utils import secure_filename
 
 router = APIRouter(prefix="/experiment")
 
@@ -109,6 +110,9 @@ async def experiments_save_prompt_template(id: str | int, template: Annotated[st
 @router.post("/{id}/save_file_contents", tags=["experiment"])
 async def experiment_save_file_contents(id: str | int, filename: str, file_contents: Annotated[str, Body()]):
     id = await convert_experiment_name_to_id_if_needed(id)
+
+    filename = secure_filename(filename)
+
     # first get the experiment name:
     data = await db.experiment_get(id)
 
@@ -141,6 +145,8 @@ async def experiment_save_file_contents(id: str | int, filename: str, file_conte
 @router.get("/{id}/file_contents", tags=["experiment"])
 async def experiment_get_file_contents(id: str | int, filename: str):
     id = await convert_experiment_name_to_id_if_needed(id)
+
+    filename = secure_filename(filename)
 
     # first get the experiment name:
     data = await db.experiment_get(id)
