@@ -261,7 +261,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         plugin_name = job_config["plugin"]
         generation_name = job_config["generator"]
         await db.job_update_status(job_id, "RUNNING")
-        print("Running evaluation script")
+        print("Running generation script")
         plugin_location = dirs.plugin_dir_by_name(plugin_name)
         gen_output_file = os.path.join(plugin_location, f"output_{job_id}.txt")
         # Create output file if it doesn't exist

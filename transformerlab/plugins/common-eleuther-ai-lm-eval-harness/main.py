@@ -16,6 +16,7 @@ parser = argparse.ArgumentParser(description="Run Eleuther AI LM Evaluation Harn
 parser.add_argument("--run_name", default="evaluation", type=str)
 parser.add_argument("--job_id", default=None, type=str)
 parser.add_argument("--model_name", default="gpt-j-6b", type=str, help="Model to use for evaluation.")
+parser.add_argument("--model_path", default="", type=str, help="Path to the model to use for evaluation.")
 parser.add_argument("--model_type", default="hf-causal", type=str, help="Type of model to use for evaluation.")
 parser.add_argument("--experiment_name", default="", type=str)
 parser.add_argument("--eval_name", default="", type=str)
@@ -53,6 +54,10 @@ os.makedirs(output_dir, exist_ok=True)
 writer = SummaryWriter(output_dir)
 job.set_tensorboard_output_dir(output_dir)
 print("Writing tensorboard logs to", output_dir)
+
+if args.model_path.strip() != "":
+    args.model_name = args.model_path
+    print(f"Model path provided. Using model path as model name: {args.model_name}")
 
 try:
     job.add_to_job_data("config", str(args))
@@ -116,6 +121,15 @@ def get_detailed_file_names(output_file_path, prefix="samples_", suffix=".jsonl"
     except Exception as e:
         print(f"An error occurred while getting the output file name: {e}")
         return None
+
+
+def get_plotting_data(metrics_df, output_file_name):
+    file_path = output_file_name.replace(".csv", "_plotting.json")
+    metrics_data = metrics_df[["test_case_id", "metric_name", "score"]].copy()
+    metrics_data["metric_name"] = metrics_data["metric_name"].apply(lambda x: x.replace("_", " ").title())
+    metrics_data.to_json(file_path, orient="records", lines=False)
+
+    return file_path
 
 
 model_args = "pretrained=" + args.model_name
@@ -219,6 +233,7 @@ try:
                     )
     metrics_df = pd.DataFrame(metrics_list)
     additional_output_path = os.path.join(output_file_path, f"detailed_output_{args.job_id}.csv")
+    plot_data_path = get_plotting_data(metrics_df, additional_output_path)
     print(f"Saving output at {additional_output_path}")
 
     metrics_df.to_csv(additional_output_path, index=False)
@@ -227,6 +242,7 @@ try:
         "Evaluation task completed successfully.",
         score=scores_list,
         additional_output_path=additional_output_path,
+        plot_data_path=plot_data_path,
     )
     print("--Evaluation task complete")
 

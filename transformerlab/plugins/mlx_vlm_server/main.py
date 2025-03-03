@@ -94,8 +94,12 @@ class MLXWorker(BaseModelWorker):
                 image_data = base64.b64decode(image_link[base64_str_index:])
                 image = Image.open(BytesIO(image_data))
             else:
-                response = requests.get(image_link)
-                image = Image.open(BytesIO(response.content))
+                authorized_domains = ["example.com", "trusted.com"]
+                if any(image_link.startswith(f"https://{domain}") for domain in authorized_domains):
+                    response = requests.get(image_link)
+                    image = Image.open(BytesIO(response.content))
+                else:
+                    raise ValueError("Unauthorized image link domain")
         # Extract messages from the prompt
         prompt = params["prompt"]
 
