@@ -14,7 +14,6 @@ import os
 from pathlib import Path
 import logging
 
-logging.basicConfig(level=logging.ERROR)
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
 from transformerlab.shared import galleries
@@ -26,6 +25,8 @@ from transformerlab.models import huggingfacemodel
 from transformerlab.models import filesystemmodel
 
 from werkzeug.utils import secure_filename
+
+logging.basicConfig(level=logging.ERROR)
 
 router = APIRouter(tags=["model"])
 
