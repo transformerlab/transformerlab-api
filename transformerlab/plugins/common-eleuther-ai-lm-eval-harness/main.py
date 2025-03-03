@@ -118,6 +118,15 @@ def get_detailed_file_names(output_file_path, prefix="samples_", suffix=".jsonl"
         return None
 
 
+def get_plotting_data(metrics_df, output_file_name):
+    file_path = output_file_name.replace(".csv", "_plotting.json")
+    metrics_data = metrics_df[["test_case_id", "metric_name", "score"]].copy()
+    metrics_data["metric_name"] = metrics_data["metric_name"].apply(lambda x: x.replace("_", " ").title())
+    metrics_data.to_json(file_path, orient="records", lines=False)
+
+    return file_path
+
+
 model_args = "pretrained=" + args.model_name
 task = args.tasks
 
@@ -219,6 +228,7 @@ try:
                     )
     metrics_df = pd.DataFrame(metrics_list)
     additional_output_path = os.path.join(output_file_path, f"detailed_output_{args.job_id}.csv")
+    plot_data_path = get_plotting_data(metrics_df, additional_output_path)
     print(f"Saving output at {additional_output_path}")
 
     metrics_df.to_csv(additional_output_path, index=False)
@@ -227,6 +237,7 @@ try:
         "Evaluation task completed successfully.",
         score=scores_list,
         additional_output_path=additional_output_path,
+        plot_data_path=plot_data_path,
     )
     print("--Evaluation task complete")
 

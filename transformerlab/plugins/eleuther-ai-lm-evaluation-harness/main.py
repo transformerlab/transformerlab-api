@@ -137,6 +137,15 @@ def get_detailed_file_names(output_file_path, prefix="samples_", suffix=".jsonl"
         return None
 
 
+def get_plotting_data(metrics_df, output_file_name):
+    file_path = output_file_name.replace(".csv", "_plotting.json")
+    metrics_data = metrics_df[["test_case_id", "metric_name", "score"]].copy()
+    metrics_data["metric_name"] = metrics_data["metric_name"].apply(lambda x: x.replace("_", " ").title())
+    metrics_data.to_json(file_path, orient="records", lines=False)
+
+    return file_path
+
+
 # Call the evaluation harness using HTTP if the platform is not CUDA
 if not torch.cuda.is_available():
     # print("CUDA is not available. Running eval using the MLX Plugin.")
@@ -219,6 +228,7 @@ try:
     metrics_df = pd.DataFrame(metrics_list)
     additional_output_path = os.path.join(output_file_path, f"detailed_output_{args.job_id}.csv")
     metrics_df.to_csv(additional_output_path, index=False)
+    plot_data_path = get_plotting_data(metrics_df, additional_output_path)
     print(f"Saving output at {additional_output_path}")
 
     job.set_job_completion_status(
@@ -226,6 +236,7 @@ try:
         "Evaluation task completed successfully.",
         score=scores_list,
         additional_output_path=additional_output_path,
+        plot_data_path=plot_data_path,
     )
     print("--Evaluation task complete")
 
