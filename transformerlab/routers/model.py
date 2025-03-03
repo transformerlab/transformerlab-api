@@ -12,7 +12,7 @@ from huggingface_hub import ModelCard, ModelCardData
 from huggingface_hub.utils import HfHubHTTPError
 import os
 from pathlib import Path
-
+import logging
 
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
@@ -387,8 +387,8 @@ def get_model_download_size(model_id: str, allow_patterns: list = []):
     try:
         download_size_in_bytes = huggingfacemodel.get_huggingface_download_size(model_id, allow_patterns)
     except Exception as e:
-        error_msg = f"{type(e).__name__}: {e}"
-        return {"status": "error", "message": error_msg}
+        logging.error(f"Error in get_model_download_size: {type(e).__name__}: {e}")
+        return {"status": "error", "message": "An internal error has occurred!"}
 
     return {"status": "success", "data": download_size_in_bytes}
 
@@ -485,8 +485,8 @@ async def download_model_by_huggingface_id(model: str, job_id: int | None = None
     try:
         model_details = await huggingfacemodel.get_model_details_from_huggingface(model)
     except Exception as e:
-        error_msg = f"{type(e).__name__}: {e}"
-        return {"status": "error", "message": error_msg}
+        logging.error(f"Error in download_model_by_huggingface_id: {type(e).__name__}: {e}")
+        return {"status": "error", "message": "An internal error has occurred!"}
 
     if model_details is None:
         error_msg = f"Error reading config for model with ID {model}"
