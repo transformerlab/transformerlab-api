@@ -28,6 +28,11 @@
             ],
             "default": "cuda"
         },
+        "gpu_ids": {
+            "title": "GPU IDs to Train",
+            "type": "string",
+            "default": "auto"
+        },
         "maximum_sequence_length": {
             "title": "Maximum Sequence Length",
             "type": "integer",
@@ -118,6 +123,9 @@
                 "multiple": false
             }
 
+        },
+        "gpu_ids": {
+            "ui:help": "Comma separated list of GPU IDs to use for training. Set to 'auto' for all GPUs. Example: 0,1,2,3 for 4 GPUs."
         },
         "batch_size": {
             "ui:help": "The number of sequences processed simultaneously during training. Higher values lower number of iterations but require more memory."

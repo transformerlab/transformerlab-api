@@ -35,6 +35,21 @@ accelerate_config = {
 train_device = accelerate_config.get(config.get("train_device", "cuda"), "multi_gpu")
 print(f"Training setup for accelerate launch: {train_device}")
 
+if train_device == "multi_gpu":
+    gpu_ids = config.get("gpu_ids", None)
+    if gpu_ids and gpu_ids != "auto":
+        gpu_ids = str(gpu_ids)
+
+    # Set GPU IDS to None if "auto" is specified
+    if gpu_ids == "auto":
+        gpu_ids = None
+
+else:
+    gpu_ids = None
+
+
+    
+
 
 # Check if we should launch with accelerate
 if not args.launched_with_accelerate:
@@ -81,6 +96,9 @@ if not args.launched_with_accelerate:
         "--input_file", args.input_file,
         "--launched_with_accelerate"
     ]
+    if gpu_ids:
+        cmd.extend(["--gpu_ids", gpu_ids])
+        
     print(f"Running command: {' '.join(cmd)}")
     
     # Pass the modified environment to the subprocess
