@@ -15,11 +15,11 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 allowed_file_types = [".txt", ".jsonl", ".pdf", ".csv", ".epub", ".ipynb", ".md", ".ppt"]
 
 
-# Get info on dataset from huggingface
-@router.get("/{document_name}/info", summary="Fetch the details of a particular document.")
-async def document_info():
-    r = {"message": "This endpoint is not yet implemented"}
-    return r
+# # Get info on dataset from huggingface
+# @router.get("/{document_name}/info", summary="Fetch the details of a particular document.")
+# async def document_info():
+#     r = {"message": "This endpoint is not yet implemented"}
+#     return r
 
 
 @router.get("/open/{document_name}", summary="View the contents of a document.")
@@ -77,7 +77,7 @@ async def document_list(experimentId: str, folder: str = None):
 
 
 @router.get("/new", summary="Create a new document.")
-async def document_new(dataset_id: str):
+async def document_new(experimentId: str, dataset_id: str):
     print("Not yet implemented")
     return {"status": "success", "dataset_id": dataset_id}
 

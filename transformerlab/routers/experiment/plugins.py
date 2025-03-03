@@ -119,7 +119,7 @@ async def delete_plugin_from_experiment(id: int, plugin_name: str):
 
 
 @router.get("/download", summary="Download a dataset to the LLMLab server.")
-async def plugin_download(plugin_slug: str):
+async def plugin_download(id: int, plugin_slug: str):
     """Download a plugin and install to a local list of available plugins"""
     # Get plugin from plugin gallery:
     # plugin = await db.get_plugin(plugin_slug)
