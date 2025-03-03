@@ -261,9 +261,8 @@ async def dataset_download(dataset_id: str):
             ds_builder = load_dataset_builder(dataset_id, trust_remote_code=True)
         log(f"Dataset builder loaded for dataset_id: {dataset_id}")
     except Exception as e:
-        error_msg = f"{type(e).__name__}: {e}"
-        log(error_msg)
-        return {"status": "error", "message": error_msg}
+        log(f"Exception occurred: {type(e).__name__}: {e}")
+        return {"status": "error", "message": "An internal error has occurred!"}
 
     dataset_size = ds_builder.info.download_size
     if not dataset_size:
@@ -289,7 +288,8 @@ async def dataset_download(dataset_id: str):
     try:
         dataset = await load_dataset_thread(dataset_id)
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        log(f"Exception occurred while downloading dataset: {type(e).__name__}: {e}")
+        return {"status": "error", "message": "An internal error has occurred!"}
 
     return {"status": "success"}
 
