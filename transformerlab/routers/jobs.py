@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import csv
 import pandas as pd
@@ -143,9 +144,11 @@ async def update_training_template(
         datasets = configObject["dataset_name"]
         await db.update_training_template(template_id, name, description, type, datasets, config)
     except JSONDecodeError as e:
-        return {"status": "error", "message": str(e)}
+        logging.error(f"JSON decode error: {str(e)}")
+        return {"status": "error", "message": "An internal error has occurred!"}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        logging.error(f"Unexpected error: {str(e)}")
+        return {"status": "error", "message": "An internal error has occurred!"}
     return {"status": "success"}
 
 
