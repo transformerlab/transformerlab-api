@@ -128,12 +128,12 @@ class OllamaServer(BaseModelWorker):
         model_dir, model_filename = os.path.split(model_path)
 
         # This is the name that the model will be known by in ollama
-        # We will use the same name as in Transformer Lab but with .gguf on the end. 
+        # We will use the same name as in Transformer Lab but with .gguf on the end.
         #
         # Explanation:
-        # We can call models whatever we want in Ollama, but they will be visible 
+        # We can call models whatever we want in Ollama, but they will be visible
         # to the user. So keeping in mind that we also support importing Ollama models
-        # we really don't want to create unnecessary duplicate models with the same 
+        # we really don't want to create unnecessary duplicate models with the same
         # name but with .gguf on the end.
         file_name, file_extension = os.path.splitext(model_filename)
         if file_extension == ".gguf":

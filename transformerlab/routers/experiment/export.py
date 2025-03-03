@@ -110,6 +110,7 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
         )
     except Exception as e:
         import logging
+
         logging.error(f"Failed to export model. Exception: {e}")
         await db.job_update_status(job_id=job_id, status="FAILED")
         return {"message": "Failed to export model due to an internal error."}
