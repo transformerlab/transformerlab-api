@@ -162,6 +162,11 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
 
     experiment_name = experiment_details["name"]
     model_name = config["foundation"]
+
+    if config["foundation_filename"] is None or config["foundation_filename"].strip() == "":
+        model_file_path = ""
+    else:
+        model_file_path = config["foundation_filename"]
     model_type = config["foundation_model_architecture"]
     model_adapter = config["adaptor"]
 
@@ -220,6 +225,8 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
             input_file,
             "--model_name",
             model_name,
+            "--model_path",
+            model_file_path,
             "--model_architecture",
             model_type,
             "--model_adapter",

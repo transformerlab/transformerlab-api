@@ -17,6 +17,7 @@ parser = argparse.ArgumentParser(description="Run Eleuther AI LM Evaluation Harn
 parser.add_argument("--run_name", default="evaluation", type=str)
 parser.add_argument("--job_id", default=None, type=str)
 parser.add_argument("--model_name", default="gpt-j-6b", type=str, help="Model to use for evaluation.")
+parser.add_argument("--model_path", default="", type=str, help="Path to the model to use for evaluation.")
 parser.add_argument("--model_type", default="MLX", type=str, help="Type of model to use for evaluation.")
 parser.add_argument("--experiment_name", default="", type=str)
 parser.add_argument("--eval_name", default="", type=str)
@@ -56,6 +57,10 @@ print("Writing tensorboard logs to", output_dir)
 
 
 print("ARGS", args)
+
+if args.model_path.strip() != "":
+    args.model_name = args.model_path
+    print(f"Model path provided. Using model path as model name: {args.model_name}")
 try:
     job.add_to_job_data("config", str(args))
     job.add_to_job_data("template_name", args.run_name)
