@@ -49,8 +49,9 @@ async def compare_eval(job_list: str = ""):
 
         for job_id in job_list:
             job = await db.job_get(job_id)
-            evaluator_name = job.get("evaluator_name", "")
             job_data = job.get("job_data", {})
+            evaluator_name = job_data.get("evaluator", "")
+            plugin_name = job_data.get("plugin", "")
 
             if "additional_output_path" in job_data:
                 additional_output_paths[job_id] = {}
@@ -60,6 +61,7 @@ async def compare_eval(job_list: str = ""):
                     df = pd.read_csv(job_data["additional_output_path"])
                     df["job_id"] = job_id
                     df["evaluator_name"] = evaluator_name
+                    df["plugin_name"] = plugin_name
                     additional_output_paths[job_id]["data"] = df
 
                 else:
