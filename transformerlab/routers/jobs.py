@@ -2,6 +2,7 @@ import json
 import os
 import csv
 import pandas as pd
+import logging
 from fastapi import APIRouter, Body, Response
 from fastapi.responses import StreamingResponse, FileResponse
 
@@ -143,9 +144,11 @@ async def update_training_template(
         datasets = configObject["dataset_name"]
         await db.update_training_template(template_id, name, description, type, datasets, config)
     except JSONDecodeError as e:
-        return {"status": "error", "message": str(e)}
+        logging.error(f"JSON decode error: {e}")
+        return {"status": "error", "message": "An error occurred while processing the request."}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        logging.error(f"Unexpected error: {e}")
+        return {"status": "error", "message": "An internal error has occurred."}
     return {"status": "success"}
 
 
