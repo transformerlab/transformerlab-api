@@ -11,6 +11,8 @@ from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
 from transformerlab.shared import dirs, shared
 
+from werkzeug.utils import secure_filename
+
 router = APIRouter(prefix="/generations", tags=["generations"])
 
 
@@ -158,6 +160,7 @@ async def get_generation_plugin_file_contents(experimentId: int, plugin_name: st
 
 @router.get("/run_generation_script")
 async def run_generation_script(experimentId: int, plugin_name: str, generation_name: str, job_id: str):
+    plugin_name = secure_filename(plugin_name)
     experiment_details = await db.experiment_get(id=experimentId)
 
     if experiment_details is None:
