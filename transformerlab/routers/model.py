@@ -12,8 +12,8 @@ from huggingface_hub import ModelCard, ModelCardData
 from huggingface_hub.utils import HfHubHTTPError
 import os
 from pathlib import Path
-
-
+import logging
+logging.basicConfig(level=logging.ERROR)
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
 from transformerlab.shared import galleries
@@ -169,7 +169,8 @@ async def upload_model_to_huggingface(
         elif organization_name in orgs and organization_name != "":
             username = organization_name
     except Exception as e:
-        return {"status": "error", "message": f"Error getting Hugging Face user info: {e}"}
+        logging.error(f"Error getting Hugging Face user info: {e}")
+        return {"status": "error", "message": "An internal error has occurred while getting Hugging Face user info."}
     repo_id = f"{username}/{model_name}"
     try:  # Checking if repo already exists.
         api.repo_info(repo_id)
