@@ -73,13 +73,13 @@ if not args.launched_with_accelerate:
     sys.exit(result.returncode)
 
 # Import dependencies after the subprocess check to ensure we're in the right environment
-import torch
-from datasets import load_dataset
-from jinja2 import Environment
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, TrainerCallback
-from trl import SFTConfig, SFTTrainer
-from accelerate import Accelerator
+import torch # noqa
+from datasets import load_dataset # noqa
+from jinja2 import Environment # noqa
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training # noqa
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, TrainerCallback # noqa
+from trl import SFTConfig, SFTTrainer # noqa
+from accelerate import Accelerator # noqa
 
 # Get source code dir and print for debugging
 tfl_source_dir = os.environ.get("_TFL_SOURCE_CODE_DIR")
