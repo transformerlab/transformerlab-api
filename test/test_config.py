@@ -3,6 +3,7 @@ import shutil
 import pytest
 from fastapi.testclient import TestClient
 
+os.environ["TFL_HOME_DIR"] = "./test/tmp/"
 os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
 
 from api import app
