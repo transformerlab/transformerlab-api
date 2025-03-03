@@ -170,7 +170,11 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
     config = json.loads(experiment_details["config"])
 
     experiment_name = experiment_details["name"]
-    model_name = config["foundation"]
+
+    if config["foundation_filename"] is None or config["foundation_filename"].strip() == "":
+        model_name = config["foundation"]
+    else:
+        model_name = config["foundation_filename"]
     model_type = config["foundation_model_architecture"]
     model_adapter = config["adaptor"]
 
