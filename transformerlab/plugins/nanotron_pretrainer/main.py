@@ -11,11 +11,7 @@ from tensorboardX import SummaryWriter
 import transformerlab.plugin
 
 parser = argparse.ArgumentParser(description="Nanotron Pre-training")
-
-# Only accept input file parameter
 parser.add_argument("--input_file", type=str, help="Path to JSON configuration file")
-
-args, other = parser.parse_known_args()
 
 args, unknown = parser.parse_known_args()
 
@@ -74,9 +70,6 @@ def generate_nanotron_config(config):
 
     # Format the run name with date and job ID
     job_id = config.get("job_id", str(0))
-    # run_name = config.get("run_name", "nanotron_run_%date_%jobid")
-    # run_name = run_name.replace("%date", datetime.now().strftime("%Y-%m-%d"))
-    # run_name = run_name.replace("%jobid", job_id)
     run_name = config.get("template_name", "nanotron_run") + "_" + job_id
     checkpoint_path = os.path.join(
         os.environ.get("_TFL_WORKSPACE_DIR", "."), "models", "pretrained", run_name, "checkpoints"
@@ -274,14 +267,9 @@ def run_nanotron():
 
     print(f"Running Nanotron with command: {' '.join(cmd)}")
 
-    # Use Popen instead of subprocess.run to capture output in real-time
     process = subprocess.Popen(
         cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1
     )
-
-    # Extract train_steps from config for progress calculation
-    # total_steps = int(config.get("train_steps", 10000))
-    # current_step = 0
 
     # Process output line by line
     for line in iter(process.stdout.readline, ""):
