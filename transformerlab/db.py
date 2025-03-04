@@ -4,11 +4,24 @@ import os
 import sqlite3
 
 import aiosqlite
+from sqlmodel import SQLModel
 from transformerlab.shared import dirs
+from sqlmodel import select
+from sqlmodel.ext.asyncio.session import AsyncSession
+from sqlalchemy.ext.asyncio import create_async_engine
+
+
+# Import your models
+from transformerlab.shared.models.models import Config, Plugin  # noqa: F401
 
 db = None
-
 DATABASE_FILE_NAME = f"{dirs.WORKSPACE_DIR}/llmlab.sqlite3"
+DATABASE_URL = f"sqlite+aiosqlite:///{DATABASE_FILE_NAME}"
+# engine = create_engine(DATABASE_URL, echo=True)
+async_engine = create_async_engine(
+    DATABASE_URL,
+    echo=True,
+)
 
 
 async def init():
@@ -86,22 +99,6 @@ async def init():
 
     await db.execute("CREATE INDEX IF NOT EXISTS idx_name ON experiment (name)")
 
-    await db.execute(
-        """CREATE TABLE IF NOT EXISTS
-            plugins
-                (id INTEGER PRIMARY KEY,
-                name UNIQUE,
-                type TEXT)"""
-    )
-    await db.execute(
-        """CREATE TABLE IF NOT EXISTS
-            config
-                (id INTEGER PRIMARY KEY,
-                key UNIQUE,
-                value TEXT)"""
-    )
-    await db.execute("CREATE INDEX IF NOT EXISTS idx_key ON config (key)")
-
     print("✅ Database initialized")
 
     print("✅ SEED DATA")
@@ -113,12 +110,22 @@ async def init():
     # On startup, look for any jobs that are in the RUNNING state and set them to CANCELLED instead:
     # This is to handle the case where the server is restarted while a job is running.
     await job_cancel_in_progress_jobs()
+    await init_sql_model()
 
     return
 
 
 async def close():
     await db.close()
+
+
+async def init_sql_model():
+    """
+    Initialize the database using SQLModel.
+    """
+    async with async_engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+    print("✅ SQLModel Database initialized")
 
 
 ###############
@@ -830,38 +837,32 @@ async def workflow_delete_all():
 
 
 async def get_plugins():
-    cursor = await db.execute("SELECT id, * FROM plugins")
-    rows = await cursor.fetchall()
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    await cursor.close()
-    return data
+    async with AsyncSession(async_engine) as session:
+        result = await session.exec(select(Plugin))
+        plugins = result.all()
+        return plugins
 
 
 async def get_plugins_of_type(type: str):
-    cursor = await db.execute("SELECT id, * FROM plugins WHERE type = ?", (type,))
-    rows = await cursor.fetchall()
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    await cursor.close()
-    return data
+    async with AsyncSession(async_engine) as session:
+        result = await session.exec(select(Plugin).where(Plugin.type == type))
+        plugins = result.all()
+        return plugins
 
 
 async def get_plugin(slug: str):
-    cursor = await db.execute("SELECT id, * FROM plugins WHERE name = ?", (slug,))
-    row = await cursor.fetchone()
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
-    await cursor.close()
-    return row
+    async with AsyncSession(async_engine) as session:
+        result = await session.exec(select(Plugin).where(Plugin.name == slug))
+        plugin = result.one_or_none()
+        return plugin
 
 
 async def save_plugin(name: str, type: str):
-    await db.execute("INSERT OR REPLACE INTO plugins (name, type) VALUES (?, ?)", (name, type))
-    await db.commit()
+    async with AsyncSession(async_engine) as session:
+        async with session.begin():
+            plugin = Plugin(name=name, type=type)
+            await session.merge(plugin)
+            await session.commit()
     return
 
 
@@ -871,16 +872,19 @@ async def save_plugin(name: str, type: str):
 
 
 async def config_get(key: str):
-    cursor = await db.execute("SELECT value FROM config WHERE key = ?", (key,))
-    row = await cursor.fetchone()
-    await cursor.close()
-    if row:
-        return row[0]
-    else:
-        return None
+    async with AsyncSession(async_engine) as session:
+        result = await session.exec(select(Config).where(Config.key == key))
+        config = result.one_or_none()
+        if config:
+            return config.value
+        else:
+            return None
 
 
 async def config_set(key: str, value: str):
-    await db.execute("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)", (key, value))
-    await db.commit()
+    async with AsyncSession(async_engine) as session:
+        async with session.begin():
+            config = Config(key=key, value=value)
+            await session.merge(config)
+            await session.commit()
     return

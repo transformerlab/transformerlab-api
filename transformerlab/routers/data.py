@@ -17,9 +17,12 @@ from werkzeug.utils import secure_filename
 
 from jinja2 import Environment
 from jinja2.sandbox import SandboxedEnvironment
+import logging
 
 jinja_environment = Environment()
 sandboxed_jinja2_evironment = SandboxedEnvironment()
+
+logging.basicConfig(level=logging.ERROR)
 
 
 # Configure logging
@@ -151,8 +154,8 @@ async def dataset_preview(
             else:
                 dataset = load_dataset(dataset_id, trust_remote_code=True, streaming=streaming)
     except Exception as e:
-        error_msg = f"{type(e).__name__}: {e}"
-        return {"status": "error", "message": error_msg}
+        logging.error(f"Exception occurred: {type(e).__name__}: {e}")
+        return {"status": "error", "message": "An internal error has occurred."}
 
     if split is None or split == "":
         splits = list(dataset.keys())
@@ -203,8 +206,8 @@ async def dataset_preview_with_template(
         try:
             dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
         except Exception as e:
-            error_msg = f"{type(e).__name__}: {e}"
-            return {"status": "error", "message": error_msg}
+            logging.error(f"Error loading dataset: {type(e).__name__}: {e}")
+            return {"status": "error", "message": "An internal error has occurred."}
         dataset_len = len(dataset["train"])
         result["columns"] = dataset["train"][offset : min(offset + limit, dataset_len)]
     else:

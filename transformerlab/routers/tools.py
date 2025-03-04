@@ -107,7 +107,7 @@ async def call_tool(tool_id: str, params: str):
         print(err_string)
         print("Passed JSON parameter string:")
         print(params)
-        return {"status": "error", "message": err_string}
+        return {"status": "error", "message": "Invalid parameters provided."}
 
     try:
         tool_function = available_tools.get(tool_id)
@@ -120,4 +120,4 @@ async def call_tool(tool_id: str, params: str):
     except Exception as e:
         err_string = f"{type(e).__name__}: {e}"
         print(err_string)
-        return {"status": "error", "message": err_string}
+        return {"status": "error", "message": "An internal error has occurred."}
