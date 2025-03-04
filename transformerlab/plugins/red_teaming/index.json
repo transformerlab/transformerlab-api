@@ -19,7 +19,7 @@
             "type": "string"
         },
         "tasks": {
-            "title": "Evaluation Metric",
+            "title": "Vulnerability Types",
             "type": "string",
             "enum": [
                 "Bias - GENDER",
