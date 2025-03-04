@@ -26,8 +26,8 @@ jobs:
     - name: Install dependencies
       run: |
         pip install uv
-        uv pip install pytest pytest-asyncio
-        if [ -f requirements-no-gpu.txt ]; then uv pip install -r requirements-no-gpu-uv.txt; fi
+        uv pip install --system pytest pytest-asyncio
+        if [ -f requirements-no-gpu.txt ]; then uv pip install --system -r requirements-no-gpu-uv.txt; fi
     - name: Test with pytest
       run: |
         pytest
