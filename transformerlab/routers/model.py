@@ -535,6 +535,15 @@ async def model_local_list():
     return await model_helper.list_installed_models()
 
 
+@router.get("/model/provenance/{model_id}")
+async def model_provenance(model_id: str):
+    # Get the provenance of a model along with the jobs that created it and evals that were done on each model
+
+    model_id = model_id.replace("~~~", "/")
+
+    return await model_helper.list_model_provenance(model_id)
+
+
 @router.get("/model/count_downloaded")
 async def model_count_downloaded():
     # Currently used to determine if user has any downloaded models
