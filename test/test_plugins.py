@@ -6,7 +6,6 @@ os.environ["TFL_HOME_DIR"] = "./test/tmp"
 os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
 
 from api import app
-from transformerlab.shared import dirs
 
 client = TestClient(app)
 
