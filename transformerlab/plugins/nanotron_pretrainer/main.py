@@ -235,7 +235,7 @@ def run_nanotron():
     job.update_progress(0)
 
     # Save the configuration to a YAML file
-    run_name = config.get("template_name", f"nanotron_run") + "_" + job_id
+    run_name = config.get("template_name", "nanotron_run") + "_" + job_id
     output_path = os.path.join(
         os.environ.get("_TFL_WORKSPACE_DIR", "."), "models", "pretrained", run_name, "nanotron_config_files"
     )
