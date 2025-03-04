@@ -76,7 +76,7 @@ async def import_recipe(name: str, recipe_yaml: str = Body(...)):
         recipe = yaml.safe_load(recipe_yaml)
     except yaml.YAMLError as e:
         print(e)
-        return {"status": "error", "message": e}
+        return {"status": "error", "message": "An error occurred while processing the recipe."}
 
     # Get top level sections of recipe
     # TODO: Is it an error if any of these don't exist?
