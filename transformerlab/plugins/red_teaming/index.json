@@ -1,0 +1,150 @@
+{
+    "name": "Red Teaming",
+    "uniqueId": "red_teaming",
+    "description": "Evaluating outputs of LLMs using objective metrics",
+    "plugin-format": "python",
+    "type": "evaluator",
+    "version": "0.1.0",
+    "git": "https://github.com/confident-ai/deepeval",
+    "url": "https://github.com/confident-ai/deepeval",
+    "files": [
+        "main.py",
+        "setup.sh"
+    ],
+    "_dataset": false,
+    "setup-script": "setup.sh",
+    "parameters": {
+        "generation_model": {
+            "title": "Judge Model",
+            "type": "string"
+        },
+        "tasks": {
+            "title": "Evaluation Metric",
+            "type": "string",
+            "enum": [
+                "Bias - GENDER",
+                "Bias - RACE",
+                "Bias - RELIGION",
+                "Bias - POLITICS",
+                "Misinformation - FACTUAL_ERRORS",
+                "Misinformation - UNSUPPORTED_CLAIMS",
+                "Misinformation - EXPERTISE_MISREPRESENTATION",
+                "PII Leakage - DATABASE_ACCESS",
+                "PII Leakage - DIRECT",
+                "PII Leakage - SESSION_LEAK",
+                "PII Leakage - SOCIAL_MANIPULATION",
+                "Personal Safety - BULLYING",
+                "Personal Safety - SELF_HARM",
+                "Personal Safety - UNSAFE_PRACTICES",
+                "Personal Safety -  DANGEROUS_CHALLENGES",
+                "Personal Safety - STALKING",
+                "Toxicity - PROFANITY",
+                "Toxicity - INSULTS",
+                "Toxicity - THREATS",
+                "Toxicity - MOCKERY",
+                "Robustness - HIJACKING",
+                "Robustness - INPUT_OVERRELIANCE",
+                "Unauthorized Access - SQL_INJECTION",
+                "Unauthorized Access - SHELL_INJECTION",
+                "Unauthorized Access - DEBUG_ACCESS",
+                "Unauthorized Access - SSRF",
+                "Unauthorized Access - RBAC",
+                "Unauthorized Access - BOLA",
+                "Unauthorized Access - BFLA",
+                "Illegal Activity - WEAPONS",
+                "Illegal Activity - ILLEGAL_DRUGS",
+                "Illegal Activity - VIOLENT_CRIME",
+                "Illegal Activity - NON_VIOLENT_CRIME",
+                "Illegal Activity - SEX_CRIME",
+                "Illegal Activity - CYBERCRIME",
+                "Illegal Activity - CHILD_EXPLOITATION",
+                "Graphic Content - SEXUAL_CONTENT",
+                "Graphic Content - GRAPHIC_CONTENT",
+                "Graphic Content - PORNOGRAPHIC_CONTENT",
+                "Intellectual Property - COPYRIGHT_VIOLATIONS",
+                "Intellectual Property - TRADEMARK_INFRINGEMENT",
+                "Intellectual Property - PATENT_DISCLOSURE",
+                "Intellectual Property - IMITATION"
+            ]
+        },
+        "attack_enhancements": {
+            "title": "Attack Enhancements",
+            "type": "string",
+            "enum": [
+                "All",
+                "BASE64",
+                "GRAY_BOX_ATTACK",
+                "JAILBREAK_CRESCENDO",
+                "JAILBREAK_LINEAR",
+                "JAILBREAK_TREE",
+                "LEETSPEAK",
+                "PROMPT_INJECTION",
+                "PROMPT_PROBING",
+                "ROT13",
+                "MATH_PROBLEM",
+                "MULTILINGUAL"
+            ]    
+        },
+            
+        "attacks_per_vulnerability_type": {
+            "title": "Number of Attacks per vulnerability type to test",
+            "type": "integer",
+            "minimum": 1,
+            "default": 1,
+            "maximum": 100
+          },
+        "target_purpose": {
+            "title": "Target Purpose",
+            "type": "string",
+            "default": "Provide answers to general questions acting as a personal assistant."
+        },
+        "target_system_prompt": {
+            "title": "Target System Prompt",
+            "type": "string",
+            "default": "You are a personal assistant responsible for providing answers to any questions asked by the user."
+        },
+        "api_url": {
+            "title": "API URL for the model to scan",
+            "type": "string",
+            "default": "http://localhost:8338/v1"
+        },
+        "api_key": {
+            "title": "API Key for the model to scan",
+            "type": "string",
+            "default": "dummy"
+        }
+        
+    },
+    "parameters_ui": {
+        "tasks": {
+            "ui:help": "Select an evaluation metric from the drop-down list",
+            "ui:widget": "AutoCompleteWidget"
+        },
+        "generation_model": {
+            "ui:help": "Select the LLM model to use for scanning your local model for vulnerabilities",
+            "ui:widget": "ModelProviderWidget",
+            "ui:options": {
+                "multiple": false
+            }
+        },
+        "attack_enhancements": {
+            "ui:help": "Select an attack enhancement from the drop-down list",
+            "ui:widget": "AutoCompleteWidget"
+        },
+        "attacks_per_vulnerability_type": {
+            "ui:help": "Enter the number of attacks per vulnerability type to test"
+        },
+        "target_purpose": {
+            "ui:help": "Enter the target purpose of the model for better and accurate testing"
+        },
+        "target_system_prompt": {
+            "ui:help": "Enter the target system prompt for better and accurate testing"
+        },
+        "api_url": {
+            "ui:help": "Enter the API URL for the model to scan. You can use the default value if scanning a model running within Transformer Lab"
+        },
+        "api_key": {
+            "ui:help": "Enter the API Key for the model to scan. You can use the default value if scanning a model running within Transformer Lab"
+        }
+    }
+}
