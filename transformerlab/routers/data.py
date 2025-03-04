@@ -200,8 +200,8 @@ async def dataset_preview_with_template(
         try:
             dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
         except Exception as e:
-            error_msg = f"{type(e).__name__}: {e}"
-            return {"status": "error", "message": error_msg}
+            logging.error(f"Error loading dataset: {type(e).__name__}: {e}")
+            return {"status": "error", "message": "An internal error has occurred."}
         dataset_len = len(dataset["train"])
         result["columns"] = dataset["train"][offset : min(offset + limit, dataset_len)]
     else:
