@@ -112,22 +112,6 @@ VULNERABILITY_REGISTRY = {
 }
 
 
-# def target_model_callback(prompt: str, api_url="http://localhost:8338/v1/chat/completions", api_key="dummy") -> str:
-#     # example API endpoint
-#     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
-#     messages = [{"role": "user", "content": prompt}]
-#     payload = json.dumps(
-#         {
-#             "model": args.model_name,
-#             "adaptor": args.model_adapter,
-#             "messages": messages,
-#         }
-#     )
-#     response = httpx.post(api_url, headers=headers, data=payload)
-#     response_json = response.json()
-#     return response_json["choices"][0]["message"]["content"]
-
-
 async def a_target_model_callback(prompt: str) -> str:
     api_url = args.api_url + "/chat/completions"
     api_key = args.api_key
