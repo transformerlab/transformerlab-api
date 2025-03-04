@@ -11,8 +11,7 @@ client = TestClient(app)
 
 
 @pytest.fixture(scope="module", autouse=True)
-def setup_module(tmp_path):
-    print(tmp_path)
+def setup_module():
     # Setup code to create necessary directories and files for testing
     # os.makedirs(dirs.PLUGIN_PRELOADED_GALLERY, exist_ok=True)
     # os.makedirs(dirs.PLUGIN_DIR, exist_ok=True)
