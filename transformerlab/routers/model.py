@@ -713,8 +713,8 @@ def import_error(message: str):
     """
     Separate function just to factor out printing and returning the same error.
     """
-    print("Import error:", message)
-    return {"status": "error", "message": str(message)}
+    logging.error("Import error: %s", message)
+    return {"status": "error", "message": "An internal error has occurred. Please try again later."}
 
 
 async def model_import(model: basemodel.BaseModel):
