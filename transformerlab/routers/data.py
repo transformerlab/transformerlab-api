@@ -79,7 +79,6 @@ async def dataset_gallery() -> Any:
 @router.get("/info", summary="Fetch the details of a particular dataset.")
 async def dataset_info(dataset_id: str):
     d = await db.get_dataset(dataset_id)
-    print("Json data: ", d["json_data"])
     if d is None:
         return {}
     r = {}
@@ -270,7 +269,6 @@ async def dataset_download(dataset_id: str, config_name: str = None):
             ds_builder = load_dataset_builder(dataset_id, dataset_config, trust_remote_code=True)
         elif config_name is not None:
             ds_builder = load_dataset_builder(path=dataset_id, name=config_name, trust_remote_code=True)
-            print("line 273 data.py ds_builder: ", ds_builder.info)
         else:
             ds_builder = load_dataset_builder(dataset_id, trust_remote_code=True)
         log(f"Dataset builder loaded for dataset_id: {dataset_id}")
@@ -295,8 +293,6 @@ async def dataset_download(dataset_id: str, config_name: str = None):
             "license": ds_builder.info.license,
             "version": str(ds_builder.info.version),
         }
-
-    print("line 301 data.py json_data: ", json_data)
 
     await db.create_huggingface_dataset(dataset_id, ds_builder.info.description, dataset_size, json_data)
     log(f"Dataset created in database for dataset_id: {dataset_id}")
