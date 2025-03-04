@@ -1,12 +1,11 @@
-import os
-import yaml
 import argparse
-import subprocess
 import json
-import requests
+import os
+import subprocess
 import sys
-from tensorboardX import SummaryWriter
 
+import yaml
+from tensorboardX import SummaryWriter
 
 import transformerlab.plugin
 
