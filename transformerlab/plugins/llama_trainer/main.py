@@ -149,6 +149,8 @@ db.commit()
 max_seq_length = int(config["maximum_sequence_length"])  # max sequence length for model and packing of the dataset
 print(max_seq_length)
 
+report_to = ["tensorboard"]
+
 if WANDB_LOGGING:
     WANDB_LOGGING, report_to = transformerlab.plugin.test_wandb_login()
     if not WANDB_LOGGING:
