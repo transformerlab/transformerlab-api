@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 
 # Import your models
-from transformerlab.shared.models.models import Config  # noqa: F401
+from transformerlab.shared.models.models import Config, Plugin  # noqa: F401
 
 db = None
 DATABASE_FILE_NAME = f"{dirs.WORKSPACE_DIR}/llmlab.sqlite3"
@@ -99,22 +99,6 @@ async def init():
 
     await db.execute("CREATE INDEX IF NOT EXISTS idx_name ON experiment (name)")
 
-    await db.execute(
-        """CREATE TABLE IF NOT EXISTS
-            plugins
-                (id INTEGER PRIMARY KEY,
-                name UNIQUE,
-                type TEXT)"""
-    )
-    # await db.execute(
-    #     """CREATE TABLE IF NOT EXISTS
-    #         config
-    #             (id INTEGER PRIMARY KEY,
-    #             key UNIQUE,
-    #             value TEXT)"""
-    # )
-    # await db.execute("CREATE INDEX IF NOT EXISTS idx_key ON config (key)")
-
     print("✅ Database initialized")
 
     print("✅ SEED DATA")
@@ -127,6 +111,7 @@ async def init():
     # This is to handle the case where the server is restarted while a job is running.
     await job_cancel_in_progress_jobs()
     await init_sql_model()
+
     return
 
 
