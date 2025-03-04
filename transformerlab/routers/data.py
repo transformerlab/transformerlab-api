@@ -285,7 +285,7 @@ async def dataset_download(dataset_id: str, config_name: str = None):
         json_data = {
             "name": ds_builder.info.dataset_name,
             "huggingfacerepo": dataset_id,
-            "config_name": ds_builder.info.config_name,
+            "config_name": config_name,
             "description": ds_builder.info.description,
             "dataset_size": dataset_size,
             "citation": ds_builder.info.citation,
