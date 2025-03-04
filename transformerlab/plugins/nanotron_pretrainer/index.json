@@ -9,7 +9,9 @@
         "LlamaForCausalLM",
         "GPTNeoXForCausalLM",
         "MistralForCausalLM",
-        "Qwen2ForCausalLM"
+        "Qwen2ForCausalLM",
+        "Phi3ForCausalLM"
+
     ],
     "git": "https://github.com/huggingface/nanotron",
     "url": "https://github.com/huggingface/nanotron",

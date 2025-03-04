@@ -5,6 +5,10 @@ import subprocess
 import json
 import requests
 import sys
+from tensorboardX import SummaryWriter
+
+
+import transformerlab.plugin
 
 parser = argparse.ArgumentParser(description="Nanotron Pre-training")
 
@@ -26,6 +30,9 @@ except Exception as e:
 
 # Extract configuration
 config = input_config["config"]
+
+print("INPUT CONFIG:")
+print(json.dumps(input_config, indent=4))
 
 print("Arguments:")
 print(args)
@@ -82,8 +89,10 @@ def generate_nanotron_config(config):
     # run_name = config.get("run_name", "nanotron_run_%date_%jobid")
     # run_name = run_name.replace("%date", datetime.now().strftime("%Y-%m-%d"))
     # run_name = run_name.replace("%jobid", job_id)
-    run_name = config.get("template_name", f"nanotron_run_{job_id}")
-    checkpoint_path = os.path.join(os.environ.get("_TFL_WORKSPACE_DIR", "."), "models", "run_name", "checkpoints")
+    run_name = config.get("template_name", "nanotron_run") + "_" + job_id
+    checkpoint_path = os.path.join(
+        os.environ.get("_TFL_WORKSPACE_DIR", "."), "models", "pretrained", run_name, "checkpoints"
+    )
 
     # Create the config dictionary
     nanotron_config = {
@@ -220,13 +229,31 @@ def run_nanotron():
     # Create the Nanotron configuration
     nanotron_config = generate_nanotron_config(config)
 
+    job_id = config["job_id"]
+
+    job = transformerlab.plugin.Job(job_id)
+    job.update_progress(0)
+
     # Save the configuration to a YAML file
-    output_dir = os.path.join(os.getcwd(), "nanotron_output")
+    run_name = config.get("template_name", f"nanotron_run") + "_" + job_id
+    output_path = os.path.join(
+        os.environ.get("_TFL_WORKSPACE_DIR", "."), "models", "pretrained", run_name, "nanotron_config_files"
+    )
+    output_dir = os.path.join(output_path)
     os.makedirs(output_dir, exist_ok=True)
 
-    config_path = os.path.join(output_dir, "nanotron_config.yaml")
+    config_path = os.path.join(output_dir, f"{run_name}.yaml")
     with open(config_path, "w") as f:
         yaml.dump(nanotron_config, f, default_flow_style=False)
+
+    # Setting things for tensorboard
+    # todays date with seconds:
+    output_dir = os.path.join(config["output_dir"], f"job_{config['job_id']}_{run_name}")
+    writer = SummaryWriter(output_dir)
+    print("Writing logs to:", output_dir)
+
+    # Store the tensorboard output dir in the job
+    job.set_tensorboard_output_dir(output_dir)
 
     print(f"Generated Nanotron configuration at: {config_path}")
 
@@ -244,28 +271,6 @@ def run_nanotron():
     run_train_path = os.path.join(
         os.environ["_TFL_WORKSPACE_DIR"], "plugins", "nanotron_pretrainer", "nanotron", "run_train.py"
     )
-    #     with open(run_train_path, "w") as f:
-    #         f.write("""
-    # import os
-    # import sys
-    # import subprocess
-
-    # def main():
-    #     # Get the config file path from command line arguments
-    #     config_file = sys.argv[sys.argv.index('--config-file')+1] if '--config-file' in sys.argv else None
-    #     if not config_file:
-    #         print("Error: Config file not specified")
-    #         sys.exit(1)
-
-    #     # Run Nanotron training
-    #     subprocess.run(["python", "-m", "nanotron.scripts.train", "--config", config_file])
-
-    # if __name__ == "__main__":
-    #     main()
-    # """)
-
-    #     # Set executable permission
-    #     os.chmod(run_train_path, 0o755)
 
     # Run training with torchrun
     env = os.environ.copy()
@@ -280,7 +285,78 @@ def run_nanotron():
     ]
 
     print(f"Running Nanotron with command: {' '.join(cmd)}")
-    subprocess.run(cmd, env=env)
+
+    # Use Popen instead of subprocess.run to capture output in real-time
+    process = subprocess.Popen(
+        cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1
+    )
+
+    # Extract train_steps from config for progress calculation
+    # total_steps = int(config.get("train_steps", 10000))
+    # current_step = 0
+
+    # Process output line by line
+    for line in iter(process.stdout.readline, ""):
+        print(line.rstrip())  # Echo the output
+
+        # Look for iteration information
+        if "[INFO|" in line and "iteration:" in line:
+            try:
+                # Extract iteration information using regex
+                import re
+
+                iteration_match = re.search(r"iteration: (\d+) / (\d+)", line)
+                if iteration_match:
+                    current_iter = int(iteration_match.group(1))
+                    total_iter = int(iteration_match.group(2))
+
+                    # Calculate progress as percentage
+                    progress_percentage = min(100, (current_iter / total_iter) * 100)
+
+                    # Update job progress
+                    job.update_progress(progress_percentage)
+
+                    # Extract other metrics for TensorBoard
+                    # Loss
+                    loss_match = re.search(r"lm_loss: ([\d.]+)", line)
+                    if loss_match:
+                        loss_value = float(loss_match.group(1))
+                        writer.add_scalar("train/loss", loss_value, current_iter)
+
+                    # Learning rate
+                    lr_match = re.search(r"lr: ([\d.e\-]+)", line)
+                    if lr_match:
+                        lr_value = float(lr_match.group(1))
+                        writer.add_scalar("train/learning_rate", lr_value, current_iter)
+
+                    # Tokens per second
+                    tps_match = re.search(r"tokens_per_sec: ([\d.]+)K", line)
+                    if tps_match:
+                        tps_value = float(tps_match.group(1)) * 1000  # Convert K to actual value
+                        writer.add_scalar("system/tokens_per_sec", tps_value, current_iter)
+
+                    # Gradient norm
+                    grad_norm_match = re.search(r"grad_norm: ([\d.]+)", line)
+                    if grad_norm_match:
+                        grad_norm_value = float(grad_norm_match.group(1))
+                        writer.add_scalar("train/gradient_norm", grad_norm_value, current_iter)
+
+                    # Hardware TFLOPS per GPU
+                    tflops_match = re.search(r"hardware_tflops_per_gpu: ([\d.]+)", line)
+                    if tflops_match:
+                        tflops_value = float(tflops_match.group(1))
+                        writer.add_scalar("system/tflops_per_gpu", tflops_value, current_iter)
+
+            except Exception as e:
+                print(f"Error parsing progress: {e}")
+
+    # Wait for process to complete
+    process.wait()
+
+    # Ensure we mark the job as 100% complete when done
+    job.update_progress(100)
+    job.set_job_completion_status("success", "Nanotron training completed")
+    print("Nanotron training completed")
 
 
 run_nanotron()
