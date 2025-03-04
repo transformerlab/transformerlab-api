@@ -188,12 +188,6 @@ def create_attack_enhancement_dict(enhancement_list):
     return enhancement_dict
 
 
-if not args.attack_enhancements or len(args.attack_enhancements) == 0 or "All" in args.attack_enhancements:
-    attack_enhancements_list = None
-else:
-    attack_enhancements_list = create_attack_enhancement_dict(args.attack_enhancements)
-
-
 print("ARGS", args)
 try:
     job.add_to_job_data("config", str(args))
