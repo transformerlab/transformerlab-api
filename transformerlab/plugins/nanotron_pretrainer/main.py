@@ -38,7 +38,7 @@ print("Arguments:")
 print(args)
 
 
-def get_gpu_count_from_url(url=None):
+def get_gpu_count_from_url():
     """
     Get the number of available GPUs from a URL or fallback to local detection
 
@@ -48,18 +48,6 @@ def get_gpu_count_from_url(url=None):
     Returns:
         int: Number of available GPUs, defaults to 1 if detection fails
     """
-    # If URL is provided, try to fetch GPU count from there
-    if url:
-        try:
-            response = requests.get(url, timeout=5)
-            if response.status_code == 200:
-                data = response.json()
-                # Assuming the response has a field for GPU count
-                return data.get("gpu_count", 1)
-        except Exception as e:
-            print(f"Failed to get GPU count from URL: {e}")
-
-    # Fallback: Try to detect locally using PyTorch
     try:
         import torch
 
@@ -68,7 +56,7 @@ def get_gpu_count_from_url(url=None):
     except Exception as e:
         print(f"Failed to get GPU count using PyTorch: {e}")
 
-    # Ultimate fallback: return 1
+    # Fallback: return 1
     print("Could not determine GPU count, defaulting to 1")
     return 1
 
@@ -265,7 +253,7 @@ def run_nanotron():
         os.environ["CUDA_VISIBLE_DEVICES"] = config["gpu_ids"]
     else:
         # Get GPU count from URL or local detection
-        num_gpus = get_gpu_count_from_url(config.get("gpu_info_url"))
+        num_gpus = get_gpu_count_from_url()
 
     # Create run_train.py script
     run_train_path = os.path.join(
