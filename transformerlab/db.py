@@ -837,38 +837,32 @@ async def workflow_delete_all():
 
 
 async def get_plugins():
-    cursor = await db.execute("SELECT id, * FROM plugins")
-    rows = await cursor.fetchall()
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    await cursor.close()
-    return data
+    async with AsyncSession(async_engine) as session:
+        result = await session.exec(select(Plugin))
+        plugins = result.all()
+        return plugins
 
 
 async def get_plugins_of_type(type: str):
-    cursor = await db.execute("SELECT id, * FROM plugins WHERE type = ?", (type,))
-    rows = await cursor.fetchall()
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    await cursor.close()
-    return data
+    async with AsyncSession(async_engine) as session:
+        result = await session.exec(select(Plugin).where(Plugin.type == type))
+        plugins = result.all()
+        return plugins
 
 
 async def get_plugin(slug: str):
-    cursor = await db.execute("SELECT id, * FROM plugins WHERE name = ?", (slug,))
-    row = await cursor.fetchone()
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
-    await cursor.close()
-    return row
+    async with AsyncSession(async_engine) as session:
+        result = await session.exec(select(Plugin).where(Plugin.name == slug))
+        plugin = result.one_or_none()
+        return plugin
 
 
 async def save_plugin(name: str, type: str):
-    await db.execute("INSERT OR REPLACE INTO plugins (name, type) VALUES (?, ?)", (name, type))
-    await db.commit()
+    async with AsyncSession(async_engine) as session:
+        async with session.begin():
+            plugin = Plugin(name=name, type=type)
+            await session.merge(plugin)
+            await session.commit()
     return
 
 
