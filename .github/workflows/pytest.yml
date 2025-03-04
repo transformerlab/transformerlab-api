@@ -25,9 +25,9 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        python -m pip install pytest pytest-asyncio
-        if [ -f requirements-no-gpu.txt ]; then pip install -r requirements-no-gpu.txt; fi
+        pip install uv
+        uv pip install pytest pytest-asyncio
+        if [ -f requirements-no-gpu.txt ]; then uv pip install -r requirements-no-gpu-uv.txt; fi
     - name: Test with pytest
       run: |
         pytest
