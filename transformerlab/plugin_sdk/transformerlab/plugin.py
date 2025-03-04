@@ -135,6 +135,18 @@ class Job:
             (tensorboard_dir, self.id),
         )
 
+    def add_to_job_data(self, key: str, value: str):
+        """
+        Adds a key-value pair to the job_data JSON object.
+        """
+        try:
+            self.db.execute(
+                "UPDATE job SET job_data = json_insert(job_data, '$." + key + "', ?) WHERE id = ?",
+                (value, self.id),
+            )
+        except Exception as e:
+            print(f"Error adding to job data: {e}")
+
     def set_job_completion_status(
         self,
         completion_status: str,

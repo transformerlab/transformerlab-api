@@ -4,7 +4,10 @@ import json
 import os
 import sys
 import traceback
+import time
+from datetime import datetime
 
+from tensorboardX import SummaryWriter
 import instructor
 import pandas as pd
 import requests
@@ -41,11 +44,48 @@ parser.add_argument("--threshold", default=0.5, type=float)
 parser.add_argument("--geval_name", default="", type=str)
 parser.add_argument("--geval_criteria", default="", type=str)
 parser.add_argument("--context_geval", default=None, type=str)
-parser.add_argument("--judge_model", default=None, type=str)
+parser.add_argument("--generation_model", default=None, type=str)
 parser.add_argument("--job_id", default=None, type=str)
 parser.add_argument("--limit", default=None, type=float)
 
 args, other = parser.parse_known_args()
+
+
+if args.job_id:
+    job = transformerlab.plugin.Job(args.job_id)
+    job.update_progress(0)
+else:
+    print("Job ID not provided.")
+    sys.exit(1)
+
+today = time.strftime("%Y%m%d-%H%M%S")
+tensorboard_dir = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "experiments", args.experiment_name, "tensorboards")
+# Find directory to put in based on eval name
+combined_tensorboard_dir = None
+for dir in os.listdir(tensorboard_dir):
+    if args.run_name == dir or args.run_name == dir.lower():
+        combined_tensorboard_dir = os.path.join(tensorboard_dir, dir)
+if combined_tensorboard_dir is None:
+    combined_tensorboard_dir = os.path.join(tensorboard_dir, args.run_name)
+output_dir = os.path.join(combined_tensorboard_dir, f"evaljob_{args.job_id}_{today}")
+os.makedirs(output_dir, exist_ok=True)
+writer = SummaryWriter(output_dir)
+job.set_tensorboard_output_dir(output_dir)
+print("Writing tensorboard logs to", output_dir)
+
+
+print("ARGS", args)
+try:
+    job.add_to_job_data("config", str(args))
+    job.add_to_job_data("template_name", args.run_name)
+    job.add_to_job_data("model_name", args.model_name)
+    job.add_to_job_data("generation_model", args.generation_model)
+    job.add_to_job_data("start_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+except Exception as e:
+    print(f"An error occurred while adding job data: {e}")
+    job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    job.set_job_completion_status("failed", "An error occurred while adding job data.")
+    sys.exit(1)
 
 args.tasks = args.tasks.split(",")
 original_metrics = []
@@ -61,18 +101,12 @@ args.tasks = [task.strip().replace(" ", "") + "Metric" if task != "Custom (GEval
 # else:
 #     args.tasks = "GEval"
 
-if args.job_id:
-    job = transformerlab.plugin.Job(args.job_id)
-    job.update_progress(0)
-else:
-    print("Job ID not provided.")
-    sys.exit(1)
-
 
 def get_tflab_dataset():
     try:
         dataset_target = transformerlab.plugin.get_dataset_path(args.dataset_name)
     except Exception as e:
+        job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         job.set_job_completion_status("failed", "Failure to get dataset")
         raise e
     dataset = {}
@@ -82,6 +116,7 @@ def get_tflab_dataset():
             dataset[dataset_type] = load_dataset(dataset_target, split=dataset_type, trust_remote_code=True)
 
         except Exception as e:
+            job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             job.set_job_completion_status("failed", "Failure to load dataset")
             raise e
     # Convert the dataset to a pandas dataframe
@@ -157,6 +192,7 @@ class CustomCommercialModel(DeepEvalBaseLLM):
             anthropic_api_key = transformerlab.plugin.get_db_config_value("ANTHROPIC_API_KEY")
             if not anthropic_api_key or anthropic_api_key.strip() == "":
                 print("Please set the Anthropic API Key from Settings.")
+                job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
                 job.set_job_completion_status("failed", "Please set the Anthropic API Key from Settings.")
                 sys.exit(1)
             else:
@@ -167,6 +203,7 @@ class CustomCommercialModel(DeepEvalBaseLLM):
             openai_api_key = transformerlab.plugin.get_db_config_value("OPENAI_API_KEY")
             if not openai_api_key or openai_api_key.strip() == "":
                 print("Please set the OpenAI API Key from Settings.")
+                job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
                 job.set_job_completion_status("failed", "Please set the OpenAI API Key from Settings.")
                 sys.exit(1)
             else:
@@ -177,6 +214,7 @@ class CustomCommercialModel(DeepEvalBaseLLM):
             custom_api_details = transformerlab.plugin.get_db_config_value("CUSTOM_API_DETAILS")
             if not custom_api_details or custom_api_details.strip() == "":
                 print("Please set the Custom API Details from Settings.")
+                job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
                 job.set_job_completion_status("failed", "Please set the Custom API Details from Settings.")
                 sys.exit(1)
             else:
@@ -237,6 +275,7 @@ try:
 
 except Exception as e:
     print(f"An error occurred while loading the model: {e}")
+    job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     job.set_job_completion_status("failed", "An error occurred while loading the model")
     sys.exit(1)
 
@@ -260,6 +299,7 @@ try:
         three_input_metrics.append("GEval")
 except Exception as e:
     print(f"An error occurred while checking the metric: {e}")
+    job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     job.set_job_completion_status("failed", "An error occurred while checking the metric")
     sys.exit(1)
 
@@ -268,6 +308,7 @@ def run_evaluation():
     # Load the csv_file
     if args.dataset_name is None:
         print("No dataset found. Please mention the dataset correctly")
+        job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         job.set_job_completion_status("failed", "No dataset found. Please upload the dataset correctly")
         sys.exit(1)
 
@@ -279,6 +320,7 @@ def run_evaluation():
         job.update_progress(1)
     except Exception as e:
         print(f"An error occurred while reading the dataset: {e}")
+        job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         job.set_job_completion_status("failed", "An error occurred while reading the dataset")
         sys.exit(1)
 
@@ -288,6 +330,7 @@ def run_evaluation():
         print(
             "The dataset should have the columns `input`, `output` and `expected_output` mandatory. Please re-upload the dataset with the correct columns."
         )
+        job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         job.set_job_completion_status(
             "failed",
             "The dataset should have the columns `input`, `output` and `expected_output` mandatory. Please re-upload the dataset with the correct columns.",
@@ -304,6 +347,7 @@ def run_evaluation():
             print(
                 f"The dataset should have all non-null values in the columns `input`, `output` and `expected_output` columns for the metrics: {args.tasks}"
             )
+            job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             job.set_job_completion_status(
                 "failed",
                 f"The dataset should have all non-null values in the columns `input`, `output` and `expected_output` columns for the metrics: {args.tasks}",
@@ -326,6 +370,7 @@ def run_evaluation():
             print(
                 f"The dataset should have all non-null values in the columns `input`, `output`, `expected_output` and `context` columns for the metrics: {args.tasks}"
             )
+            job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             job.set_job_completion_status(
                 "failed",
                 f"The dataset should have all non-null values in the columns `input`, `output`, `expected_output` and `context` columns for the metrics: {args.tasks}",
@@ -356,6 +401,7 @@ def run_evaluation():
             print("Metric loaded successfully")
     except Exception as e:
         print(f"An error occurred while loading the metric: {e}")
+        job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         job.set_job_completion_status("failed", "An error occurred while loading the metric")
         sys.exit(1)
 
@@ -373,6 +419,7 @@ def run_evaluation():
                     )
                 except Exception as e:
                     print(f"An error occurred while creating the test case: {e}")
+                    job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
                     job.set_job_completion_status("failed", "An error occurred while creating the test case")
                     sys.exit(1)
         elif any(elem in three_input_metrics for elem in args.tasks):
@@ -398,6 +445,7 @@ def run_evaluation():
                     )
     except Exception as e:
         print(f"An error occurred while creating the test case: {e}")
+        job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         job.set_job_completion_status("failed", "An error occurred while creating the test case")
         sys.exit(1)
 
@@ -417,11 +465,11 @@ def run_evaluation():
             for metric in test_case.metrics_data:
                 temp_report = {}
                 temp_report["test_case_id"] = test_case.name
+                temp_report["metric_name"] = metric.name
+                temp_report["score"] = metric.score
                 temp_report["input"] = test_case.input
                 temp_report["actual_output"] = test_case.actual_output
                 temp_report["expected_output"] = test_case.expected_output
-                temp_report["metric_name"] = metric.name
-                temp_report["score"] = metric.score
                 temp_report["reason"] = metric.reason
 
                 additional_report.append(temp_report)
@@ -431,6 +479,11 @@ def run_evaluation():
         metrics_df.to_csv(output_path, index=False)
         plot_data_path = get_plotting_data(metrics_df)
         for metric in metrics_df["metric_name"].unique():
+            writer.add_scalar(
+                f"eval/{metric}",
+                metrics_df[metrics_df["metric_name"] == metric]["score"].mean(),
+                1,
+            )
             scores_list.append(
                 {"type": metric, "score": round(metrics_df[metrics_df["metric_name"] == metric]["score"].mean(), 4)}
             )
@@ -440,6 +493,7 @@ def run_evaluation():
 
         job.update_progress(100)
         print("Evaluation completed successfully")
+        job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         job.set_job_completion_status(
             "success",
             "Evaluation completed successfully",
@@ -452,6 +506,7 @@ def run_evaluation():
         # Print the whole traceback
         traceback.print_exc()
         print(f"An error occurred while running the evaluation: {e}")
+        job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         job.set_job_completion_status("failed", "An error occurred while running the evaluation")
         sys.exit(1)
 

@@ -1,3 +1,4 @@
+import os
 from transformerlab.db import (
     get_dataset,
     get_datasets,
@@ -24,6 +25,11 @@ from transformerlab.db import (
     config_set,
 )
 import pytest
+
+
+os.environ["TFL_HOME_DIR"] = "./test/tmp/"
+os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
+
 import transformerlab.db as db
 
 pytest_plugins = ("pytest_asyncio",)

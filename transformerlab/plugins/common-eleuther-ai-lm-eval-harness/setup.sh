@@ -4,3 +4,4 @@
 # pip install -e .
 uv pip install lm-eval==0.4.7
 uv pip install "lm-eval[api]"
+uv pip install tensorboardX pandas

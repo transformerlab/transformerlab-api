@@ -4,7 +4,7 @@
     "description": "Using LLMs as Judges for evaluating outputs of other LLMs",
     "plugin-format": "python",
     "type": "evaluator",
-    "version": "0.2.5",
+    "version": "0.2.6",
     "git": "https://github.com/confident-ai/deepeval",
     "url": "https://github.com/confident-ai/deepeval",
     "files": [
@@ -30,7 +30,7 @@
                 "Custom (GEval)"
             ]
         },
-        "judge_model": {
+        "generation_model": {
             "title": "LLM-as-Judge Model (Model to be used as Judge. Select `local` to use the local model running)",
             "type": "string"
         },
@@ -64,7 +64,7 @@
             "ui:help": "Select an evaluation metric from the drop-down list",
             "ui:widget": "AutoCompleteWidget"
         },
-        "judge_model": {
+        "generation_model": {
             "ui:help": "Select the LLM model to be used as Judge",
             "ui:widget": "ModelProviderWidget",
             "ui:options": {

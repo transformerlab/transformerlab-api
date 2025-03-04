@@ -8,7 +8,7 @@ from typing import Any
 import transformerlab.db as db
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
-from transformerlab.shared import dirs, shared
+from transformerlab.shared import dirs
 
 from werkzeug.utils import secure_filename
 
@@ -38,14 +38,14 @@ async def experiment_add_evaluation(experimentId: int, plugin: Any = Body()):
     plugin_name = plugin["plugin"]
     script_parameters = plugin["script_parameters"]
 
-    slug = shared.slugify(name)
+    # slug = shared.slugify(name)
 
     # If name is greater than 100 characters, truncate it
-    if len(slug) > 100:
-        slug = slug[:100]
-        print("Evals name is too long, truncating to 100 characters")
+    # if len(slug) > 100:
+    #     slug = slug[:100]
+    #     print("Evals name is too long, truncating to 100 characters")
 
-    evaluation = {"name": slug, "plugin": plugin_name, "script_parameters": script_parameters}
+    evaluation = {"name": name, "plugin": plugin_name, "script_parameters": script_parameters}
 
     evaluations.append(evaluation)
 
@@ -108,10 +108,10 @@ async def edit_evaluation_task(experimentId: int, plugin: Any = Body()):
 
         # Remove fields model_name, model_architecture and plugin_name from the updated_json
         # as they are not needed in the evaluations list
-        updated_json.pop("model_name", None)
-        updated_json.pop("model_architecture", None)
-        updated_json.pop("plugin_name", None)
-        updated_json.pop("template_name", None)
+        # updated_json.pop("model_name", None)
+        # updated_json.pop("model_architecture", None)
+        # updated_json.pop("plugin_name", None)
+        # updated_json.pop("template_name", None)
 
         for evaluation in evaluations:
             if evaluation["name"] == eval_name and evaluation["plugin"] == plugin_name:
@@ -162,6 +162,11 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
 
     experiment_name = experiment_details["name"]
     model_name = config["foundation"]
+
+    if config["foundation_filename"] is None or config["foundation_filename"].strip() == "":
+        model_file_path = ""
+    else:
+        model_file_path = config["foundation_filename"]
     model_type = config["foundation_model_architecture"]
     model_adapter = config["adaptor"]
 
@@ -220,6 +225,8 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
             input_file,
             "--model_name",
             model_name,
+            "--model_path",
+            model_file_path,
             "--model_architecture",
             model_type,
             "--model_adapter",
@@ -254,6 +261,9 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
 
 async def get_job_output_file_name(job_id: str, plugin_name: str):
     try:
+        job_id = secure_filename(str(job_id))
+        plugin_name = secure_filename(plugin_name)
+
         plugin_dir = dirs.plugin_dir_by_name(plugin_name)
 
         # job output is stored in separate files with a job number in the name...

@@ -11,6 +11,8 @@ from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
 from transformerlab.shared import dirs, shared
 
+from werkzeug.utils import secure_filename
+
 router = APIRouter(prefix="/generations", tags=["generations"])
 
 
@@ -158,6 +160,9 @@ async def get_generation_plugin_file_contents(experimentId: int, plugin_name: st
 
 @router.get("/run_generation_script")
 async def run_generation_script(experimentId: int, plugin_name: str, generation_name: str, job_id: str):
+    plugin_name = secure_filename(plugin_name)
+    generation_name = secure_filename(generation_name)
+
     experiment_details = await db.experiment_get(id=experimentId)
 
     if experiment_details is None:
@@ -166,6 +171,11 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
 
     experiment_name = experiment_details["name"]
     model_name = config["foundation"]
+
+    if config["foundation_filename"] is None or config["foundation_filename"].strip() == "":
+        model_file_path = ""
+    else:
+        model_file_path = config["foundation_filename"]
     model_type = config["foundation_model_architecture"]
     model_adapter = config["adaptor"]
 
@@ -224,6 +234,8 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
             input_file,
             "--model_name",
             model_name,
+            "--model_path",
+            model_file_path,
             "--model_architecture",
             model_type,
             "--model_adapter",
@@ -257,6 +269,8 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
 
 
 async def get_job_output_file_name(job_id: str, plugin_name: str):
+    job_id = secure_filename(str(job_id))
+    plugin_name = secure_filename(plugin_name)
     try:
         plugin_dir = dirs.plugin_dir_by_name(plugin_name)
 
