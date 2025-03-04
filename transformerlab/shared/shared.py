@@ -10,6 +10,7 @@ import unicodedata
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
 from transformerlab.shared import dirs
+from werkzeug.utils import secure_filename
 
 
 from anyio import open_process
@@ -261,7 +262,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         plugin_name = job_config["plugin"]
         generation_name = job_config["generator"]
         await db.job_update_status(job_id, "RUNNING")
-        print("Running evaluation script")
+        print("Running generation script")
         plugin_location = dirs.plugin_dir_by_name(plugin_name)
         gen_output_file = os.path.join(plugin_location, f"output_{job_id}.txt")
         # Create output file if it doesn't exist
@@ -313,6 +314,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
     if job_type == "LoRA":
         model_name = template_config["model_name"]
+        model_name = secure_filename(model_name)
         template_config = json.loads(template["config"])
         adaptor_name = template_config["adaptor_name"]
         template_config["job_id"] = job_id
