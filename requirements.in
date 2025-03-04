@@ -26,3 +26,4 @@ peft
 watchfiles
 wandb==0.19.7
 werkzeug
+sqlmodel
