@@ -10,6 +10,7 @@ import unicodedata
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
 from transformerlab.shared import dirs
+from werkzeug.utils import secure_filename
 
 
 from anyio import open_process
@@ -313,6 +314,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
     if job_type == "LoRA":
         model_name = template_config["model_name"]
+        model_name = secure_filename(model_name)
         template_config = json.loads(template["config"])
         adaptor_name = template_config["adaptor_name"]
         template_config["job_id"] = job_id
