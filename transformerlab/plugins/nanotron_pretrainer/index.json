@@ -116,7 +116,7 @@
         "train_steps": {
             "title": "Total Training Steps",
             "type": "integer",
-            "default": 10000,
+            "default": 9500,
             "minimum": 10
         },
         "learning_rate": {
@@ -191,7 +191,10 @@
     "parameters_ui": {
         "train_device": {
             "ui:help": "The device to train the model on. Currently only CUDA is supported for distributed pre-training.",
-            "ui:widget": "AutoCompleteWidget"
+            "ui:widget": "AutoCompleteWidget",
+            "ui:options": {
+                "multiple": false
+            }
         },
         "seed": {
             "ui:help": "Random seed for reproducibility of results."
