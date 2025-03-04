@@ -182,7 +182,8 @@ async def upload_model_to_huggingface(
             # Should we add a toggle for them to allow private repos?
             create_repo(repo_id)
         else:
-            return {"status": "error", "message": f"Error creating Hugging Face repo: {e}"}
+            logging.error(f"Error creating Hugging Face repo: {e}")
+            return {"status": "error", "message": "An internal error has occurred while creating Hugging Face repo."}
 
     # Upload regardless in case they want to make changes/add to to an existing repo.
     upload_folder(folder_path=model_directory, repo_id=repo_id)
@@ -390,8 +391,8 @@ def get_model_download_size(model_id: str, allow_patterns: list = []):
     try:
         download_size_in_bytes = huggingfacemodel.get_huggingface_download_size(model_id, allow_patterns)
     except Exception as e:
-        error_msg = f"{type(e).__name__}: {e}"
-        return {"status": "error", "message": error_msg}
+        logging.error(f"Error in get_model_download_size: {type(e).__name__}: {e}")
+        return {"status": "error", "message": "An internal error has occurred."}
 
     return {"status": "success", "data": download_size_in_bytes}
 
