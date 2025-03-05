@@ -20,7 +20,7 @@ DATABASE_URL = f"sqlite+aiosqlite:///{DATABASE_FILE_NAME}"
 # engine = create_engine(DATABASE_URL, echo=True)
 async_engine = create_async_engine(
     DATABASE_URL,
-    echo=True,
+    echo=False,
 )
 
 
