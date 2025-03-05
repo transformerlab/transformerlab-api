@@ -55,9 +55,8 @@ async def start_next_job():
         return {"message": "A job is already running"}
     nextjob = await db.jobs_get_next_queued_job()
     if nextjob:
-        print(nextjob)
+        print(f"Starting Next Job in Queue: {nextjob}")
         print("Starting job: " + str(nextjob["id"]))
-        print(nextjob["job_data"])
         job_config = json.loads(nextjob["job_data"])
         experiment_id = nextjob["experiment_id"]
         data = await db.experiment_get(experiment_id)

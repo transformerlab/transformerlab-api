@@ -1,0 +1,1 @@
+uv pip install deepeval tensorboardX instructor

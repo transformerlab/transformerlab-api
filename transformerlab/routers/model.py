@@ -20,7 +20,6 @@ from transformerlab.shared import galleries
 
 from transformerlab.models import model_helper
 from transformerlab.models import basemodel
-from transformerlab.models import localmodel
 from transformerlab.models import huggingfacemodel
 from transformerlab.models import filesystemmodel
 
@@ -535,6 +534,15 @@ async def model_local_list():
     return await model_helper.list_installed_models()
 
 
+@router.get("/model/provenance/{model_id}")
+async def model_provenance(model_id: str):
+    # Get the provenance of a model along with the jobs that created it and evals that were done on each model
+
+    model_id = model_id.replace("~~~", "/")
+
+    return await model_helper.list_model_provenance(model_id)
+
+
 @router.get("/model/count_downloaded")
 async def model_count_downloaded():
     # Currently used to determine if user has any downloaded models
@@ -701,9 +709,9 @@ async def model_import_local_path(model_path: str):
     """
 
     if os.path.isdir(model_path):
-        model = localmodel.LocalFilesystemModel(model_path)
+        model = filesystemmodel.FilesystemModel(model_path)
     elif os.path.isfile(model_path):
-        model = localmodel.LocalFilesystemGGUFModel(model_path)
+        model = filesystemmodel.FilesystemGGUFModel(model_path)
     else:
         return {"status": "error", "message": f"Invalid model path {model_path}."}
 
