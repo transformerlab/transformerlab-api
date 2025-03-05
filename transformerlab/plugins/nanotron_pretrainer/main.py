@@ -3,7 +3,7 @@ import json
 import os
 import subprocess
 import sys
-
+import requests
 import yaml
 from tensorboardX import SummaryWriter
 
@@ -331,6 +331,48 @@ def run_nanotron():
 
     # Ensure we mark the job as 100% complete when done
     job.update_progress(100)
+
+    # torchrun --nproc_per_node=1 convert_nanotron_to_hf.py --checkpoint_path=nanotron-path --save_path=hf-path
+    job_id = config.get("job_id", str(0))
+    run_name = config.get("template_name", "nanotron_run") + "_" + str(job_id)
+    checkpoint_path = os.path.join(
+        os.environ.get("_TFL_WORKSPACE_DIR", "."), "models", "pretrained", run_name, "checkpoints"
+    )
+    with open(os.path.join(checkpoint_path,"latest.txt"), "r") as f:
+        latest_checkpoint = f.read().strip()
+    save_path = os.path.join(
+        os.environ.get("_TFL_WORKSPACE_DIR", "."), "models", run_name,
+    )
+    latest_checkpoint_path = os.path.join(checkpoint_path, latest_checkpoint)
+    print("Latest checkpoint path:", latest_checkpoint_path)
+    print("Save path:", save_path)
+    convert_script_path = os.path.join(
+        os.environ["_TFL_WORKSPACE_DIR"], "plugins", "nanotron_pretrainer", "convert_nanotron_to_hf.py"
+    )
+
+    cmd_convert = [
+        "torchrun",
+        f"--nproc_per_node=1",
+        convert_script_path,
+        "--checkpoint_path",
+        latest_checkpoint_path,
+        "--save_path",
+        save_path,
+        "--tokenizer_name",
+        config.get("tokenizer_name", "robot-test/dummy-tokenizer-wordlevel"),
+    ]
+    process_convert = subprocess.Popen(
+        cmd_convert, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1
+    )
+    for line in iter(process_convert.stdout.readline, ""):
+        print(line.rstrip())  # Echo the output
+    process_convert.wait()
+
+    # Import Model in Transformer Lab
+    response = requests.get("http://localhost:8338//model/import_from_local_path", params={"model_path": save_path})
+    if response.status_code != 200:
+        print(f"Failed to import model to Transformer Lab: {response.text}")
+
     job.set_job_completion_status("success", "Nanotron training completed")
     print("Nanotron training completed")
 

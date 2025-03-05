@@ -710,9 +710,9 @@ async def model_import_local_path(model_path: str):
     """
 
     if os.path.isdir(model_path):
-        model = localmodel.LocalFilesystemModel(model_path)
+        model = filesystemmodel.FilesystemModel(model_path)
     elif os.path.isfile(model_path):
-        model = localmodel.LocalFilesystemGGUFModel(model_path)
+        model = filesystemmodel.FilesystemGGUFModel(model_path)
     else:
         return {"status": "error", "message": f"Invalid model path {model_path}."}
 
