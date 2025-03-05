@@ -4,6 +4,7 @@
     "description": "A distributed pre-training framework for large language models using Nanotron",
     "plugin-format": "python",
     "type": "trainer",
+    "train_type": "pretraining",
     "version": "0.1.0",
     "model_architectures": [
         "MLX",
