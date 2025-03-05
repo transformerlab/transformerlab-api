@@ -121,7 +121,7 @@ def generate_nanotron_config(config):
             "benchmark_csv_path": None,
             "consumed_train_samples": None,
             "ignore_sanity_checks": True,
-            "project": config.get("project_name", "nanotron_project"),
+            "project": "TFL_Pretraining",
             "run": run_name,
             "seed": int(config.get("seed", 42)),
             "step": None,

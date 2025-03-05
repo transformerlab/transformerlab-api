@@ -44,16 +44,6 @@
             "type": "integer",
             "default": 42
         },
-        "project_name": {
-            "title": "Project Name",
-            "type": "string",
-            "default": "nanotron_project"
-        },
-        "run_name": {
-            "title": "Run Name",
-            "type": "string",
-            "default": "nanotron_run_%date_%jobid"
-        },
         "checkpoint_interval": {
             "title": "Checkpoint Interval (steps)",
             "type": "integer",
@@ -61,13 +51,14 @@
             "minimum": 100,
             "maximum": 10000
         },
+
         "dataset_split": {
             "title": "Dataset Split",
             "type": "string",
             "default": "train"
         },
         "text_column_name": {
-            "title": "Text Column Name",
+            "title": "Text Column Name (in Dataset)",
             "type": "string",
             "default": "text"
         },
@@ -102,18 +93,19 @@
             "default": 4,
             "minimum": 2
         },
-        "model_intermediate_size": {
-            "title": "Intermediate Size",
-            "type": "integer",
-            "default": 64,
-            "minimum": 16
-        },
         "model_num_key_value_heads": {
             "title": "Number of KV Heads (for GQA)",
             "type": "integer",
             "default": 4,
             "minimum": 2
         },
+        "model_intermediate_size": {
+            "title": "Intermediate Size",
+            "type": "integer",
+            "default": 64,
+            "minimum": 16
+        },
+
         "micro_batch_size": {
             "title": "Micro Batch Size",
             "type": "integer",
@@ -140,6 +132,12 @@
             "default": 2,
             "minimum": 0,
             "maximum": 10000
+        },
+        "annealing_start_step": {
+            "title": "Annealing Phase Start Step",
+            "type": "integer",
+            "default": 10,
+            "minimum": 1
         },
         "weight_decay": {
             "title": "Weight Decay",
@@ -178,22 +176,6 @@
                 "float64"
             ],
             "default": "bfloat16"
-        },
-        "log_to_wandb": {
-            "title": "Log to Weights and Biases",
-            "type": "boolean",
-            "default": true
-        },
-        "annealing_start_step": {
-            "title": "Annealing Phase Start Step",
-            "type": "integer",
-            "default": 10,
-            "minimum": 1
-        },
-        "adaptor_name": {
-            "title": "Adaptor Name",
-            "type": "string",
-            "default": "dummy"
         }
     },
     "parameters_ui": {
