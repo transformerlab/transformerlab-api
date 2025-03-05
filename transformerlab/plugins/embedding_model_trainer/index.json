@@ -6,19 +6,23 @@
     "type": "trainer",
     "version": "0.0.1",
     "model_architectures": [
-        "MLX",
-        "CohereForCausalLM",
-        "DeepseekV2ForCausalLM",
-        "GemmaForCausalLM",
-        "Gemma2ForCausalLM",
-        "GPTBigCodeForCausalLM",
-        "LlamaForCausalLM",
-        "MistralForCausalLM",
-        "MixtralForCausalLM",
-        "PhiForCausalLM",
-        "Phi3ForCausalLM",
-        "Qwen2ForCausalLM",
-        "SentenceTransformer"
+        "BertModel",
+        "SentenceTransformer",
+        "DistilBertModel",
+        "RobertaModel",
+        "NomicBertModel",
+        "AlbertModel",
+        "XLMRobertaModel",
+        "XLMModel",
+        "XLNetModel",
+        "LongformerModel",
+        "MobileBertModel",
+        "GteModel",
+        "DebertaModel",
+        "DebertaV2Model",
+        "ElectraModel",
+        "CamembertModel",
+        "T5EncoderModel"
       ],
     "git": "",
     "url": "",
@@ -27,7 +31,7 @@
       "setup.sh"
     ],
     "setup-script": "setup.sh",
-    "training_template_format": "none",
+    "training_template_format": "embedding",
     "parameters": {
       "num_train_epochs": {
         "title": "Number of Training Epochs",
@@ -77,7 +81,12 @@
         "title": "Log to Weights and Biases",
         "type": "boolean",
         "default": false
-      }
+      },
+      "adaptor_name": {
+        "title": "Adaptor Name",
+        "type": "string",
+        "default": "dummy"
+    }
     },
     "parameters_ui": {
       "num_train_epochs": {

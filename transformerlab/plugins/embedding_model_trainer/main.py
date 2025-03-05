@@ -46,7 +46,7 @@ num_train_epochs = int(config.get("num_train_epochs", 3))
 batch_size = int(config.get("batch_size", 16))
 learning_rate = float(config.get("learning_rate", 2e-5))
 warmup_ratio = float(config.get("warmup_ratio", 0.1))
-fp16 = bool(config.get("fp16", True))
+fp16 = bool(config.get("fp16", False))
 bf16 = bool(config.get("bf16", False))
 max_samples = int(config.get("max_samples", -1))
 
@@ -129,7 +129,7 @@ inner_train_loss = MultipleNegativesRankingLoss(model)
 # 2. Wrap it in a MatryoshkaLoss
 train_loss = MatryoshkaLoss(
     model=model,
-    inner_loss=inner_train_loss,
+    loss=inner_train_loss,
     matryoshka_dims=matryoshka_dims,  # from largest to smallest
 )
 
