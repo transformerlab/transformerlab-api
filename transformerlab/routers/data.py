@@ -276,6 +276,12 @@ async def dataset_download(dataset_id: str, config_name: str = None):
             ds_builder = load_dataset_builder(dataset_id, trust_remote_code=True)
         log(f"Dataset builder loaded for dataset_id: {dataset_id}")
 
+    except ValueError as e:
+        log(f"ValueError occurred: {type(e).__name__}: {e}")
+        if "Config name is missing" in str(e):
+            return {"status": "error", "message": "Please enter the folder_name of the dataset from huggingface"}
+        else:
+            return {"status": "error", "message": "An internal error has occurred!"}
     except Exception as e:
         log(f"Exception occurred: {type(e).__name__}: {e}")
         return {"status": "error", "message": "An internal error has occurred!"}
@@ -314,6 +320,11 @@ async def dataset_download(dataset_id: str, config_name: str = None):
                 print(f"Dataset downloaded for dataset_id: {dataset_id}")
                 return dataset
 
+            except ValueError as e:
+                error_msg = f"{type(e).__name__}: {e}"
+                print(error_msg)
+                raise ValueError(e)
+
             except Exception as e:
                 error_msg = f"{type(e).__name__}: {e}"
                 print(error_msg)
@@ -321,6 +332,14 @@ async def dataset_download(dataset_id: str, config_name: str = None):
 
     try:
         dataset = await load_dataset_thread(dataset_id, config_name)
+
+    except ValueError as e:
+        log(f"Exception occurred while downloading dataset: {type(e).__name__}: {e}")
+        if "Config name is missing" in str(e):
+            return {"status": "error", "message": "Please enter the folder_name of the dataset from huggingface"}
+        else:
+            return {"status": "error", "message": "An internal error has occurred!"}
+
     except Exception as e:
         log(f"Exception occurred while downloading dataset: {type(e).__name__}: {e}")
         return {"status": "error", "message": "An internal error has occurred!"}
