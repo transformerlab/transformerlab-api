@@ -3,6 +3,7 @@ import json
 import os
 import sqlite3
 import time
+import requests
 
 import torch
 from datasets import load_dataset
@@ -11,12 +12,14 @@ from sentence_transformers import (
     SentenceTransformerTrainer,
     SentenceTransformerTrainingArguments,
 )
-from sentence_transformers.losses import MatryoshkaLoss
 from sentence_transformers.evaluation import InformationRetrievalEvaluator, SequentialEvaluator
 from sentence_transformers.util import cos_sim
 from transformers import TrainerCallback
 
 import transformerlab.plugin
+from jinja2 import Environment
+
+jinja_environment = Environment()
 
 # --- Utility Functions ---
 
@@ -102,6 +105,10 @@ ALLOWED_LOSSES = {
 # Connect to the LLM Lab database
 llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
 WORKSPACE_DIR = os.getenv("_TFL_WORKSPACE_DIR")
+
+print(f"LLM Lab root directory: {llmlab_root_dir}")
+print(f"Workspace directory: {WORKSPACE_DIR}")
+
 db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
 db.row_factory = sqlite3.Row  # so we can access columns by name
 
@@ -122,13 +129,20 @@ print(json.dumps(config, indent=2))
 model_id = config.get("model_name", "BAAI/bge-base-en-v1.5")  # Default embedding model
 dataset_id = config.get("dataset_name", "sentence-transformers/all-nli")
 job_id = config["job_id"]
-output_dir = config.get("output_dir", "./output")
+
+# Set final model name from model_id, template_name, and job_id
+template_name = config.get("template_name", "Fine-tune-embed-" + time.strftime("%Y%m%d-%H%M%S"))
+final_model_name = f"{model_id}_{template_name}_{job_id}"
+
+# Define OUTPUT_DIR using final model name
+OUTPUT_DIR = os.path.join(WORKSPACE_DIR, "models", "embedding", final_model_name)
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 num_train_epochs = int(config.get("num_train_epochs", 3))
 batch_size = int(config.get("batch_size", 16))
 learning_rate = float(config.get("learning_rate", 2e-5))
 warmup_ratio = float(config.get("warmup_ratio", 0.1))
-fp16 = bool(config.get("fp16", True))
+fp16 = bool(config.get("fp16", False))
 bf16 = bool(config.get("bf16", False))
 max_samples = int(config.get("max_samples", -1))
 matryoshka_dims = config.get("matryoshka_dims", [768, 512, 256, 128, 64])
@@ -249,7 +263,7 @@ else:
     report_to = []
 
 training_args = SentenceTransformerTrainingArguments(
-    output_dir=output_dir,
+    output_dir=OUTPUT_DIR,
     num_train_epochs=num_train_epochs,
     per_device_train_batch_size=batch_size,
     fp16=fp16,
@@ -262,8 +276,8 @@ training_args = SentenceTransformerTrainingArguments(
     logging_steps=10,
     save_total_limit=2,
     report_to=report_to,
-    run_name=f"job_{job_id}_mrl_plugin",
-    metric_for_best_model=f"eval_dim_128_cosine_ndcg@10",
+    run_name=f"job_{job_id}_embedding_model_plugin",
+    metric_for_best_model="eval_dim_128_cosine_ndcg@10",
     greater_is_better=True,
 )
 
@@ -299,14 +313,28 @@ trainer = SentenceTransformerTrainer(
 
 try:
     trainer.train()
+    print("Training completed.")
 except Exception as e:
     job.set_job_completion_status("failed", f"Failure during training: {str(e)}")
     raise e
 
 try:
-    trainer.save_model(output_dir)
+    trainer.save_model(OUTPUT_DIR)
+    print(f"Model saved to {OUTPUT_DIR}")
 except Exception as e:
     job.set_job_completion_status("failed", f"Failure to save model: {str(e)}")
     raise e
 
-job.set_job_completion_status("success", "Embedding model (with Matryoshka) trained successfully")
+try:
+    # Load the model into Transformer Lab App
+    response = requests.get("http://localhost:8338/model/import_from_local_path", params={"model_path": OUTPUT_DIR})
+    if response.status_code != 200:
+        print(f"Failed to import model to Transformer Lab: {response.text}")
+    else:
+        print("Model imported to Transformer Lab successfully.")
+
+except Exception as e:
+    job.set_job_completion_status("failed", f"Failed to import model to Transformer Lab: {str(e)}")
+    raise e
+
+job.set_job_completion_status("success", f"Embedding model {final_model_name} trained successfully")

@@ -49,12 +49,14 @@
           "anchor | positive | negative_1 | negative_2 | ... | negative_n",
           "id | anchor | positive"
         ],
-        "default": "text"
+        "default": "anchor | positive"
       },
       "loss_function": {
         "title": "Loss Function",
         "type": "string",
         "enum": [
+          "MultipleNegativesRankingLoss",
+          "CosineSimilarityLoss",
           "BatchAllTripletLoss",
           "BatchHardSoftMarginTripletLoss",
           "BatchHardTripletLoss",
@@ -63,10 +65,9 @@
           "DenoisingAutoEncoderLoss",
           "ContrastiveTensionLossInBatchnegatives",
           "SoftmaxLoss",
-          "MultiplenegativesRankingLoss",
-          "CachedMultiplenegativesRankingLoss",
+          "CachedMultipleNegativesRankingLoss",
           "MultiplenegativesSymmetricRankingLoss",
-          "CachedMultiplenegativesSymmetricRankingLoss",
+          "CachedMultipleNegativesSymmetricRankingLoss",
           "MegaBatchMarginLoss",
           "GISTEmbedLoss",
           "CachedGISTEmbedLoss",
@@ -74,10 +75,9 @@
           "OnlineContrastiveLoss",
           "CoSENTLoss",
           "AnglELoss",
-          "CosineSimilarityLoss",
           "TripletLoss"
         ],
-        "default": "MultiplenegativesRankingLoss"
+        "default": "MultipleNegativesRankingLoss"
       },
       "loss_modifier_name": {
         "title": "Loss Modifier Name",
@@ -121,7 +121,7 @@
       "fp16": {
         "title": "Use FP16",
         "type": "boolean",
-        "default": true
+        "default": false
       },
       "bf16": {
         "title": "Use BF16",
@@ -147,13 +147,25 @@
     },
     "parameters_ui": {
       "dataset_type": {
-        "ui:help": "The type of dataset you are using for fine tuning the embedding model"
+        "ui:help": "The type of dataset you are using for fine tuning the embedding model",
+        "ui:widget": "AutoCompleteWidget",
+        "ui:options": {
+            "multiple": false
+        }
       },
       "loss_function": {
-        "ui:help": "The loss function to use for training. Refer to the url for more details: https://sbert.net/docs/sentence_transformer/loss_overview.html"
+        "ui:help": "The loss function to use for training. Refer to the url for more details: https://sbert.net/docs/sentence_transformer/loss_overview.html",
+        "ui:widget": "AutoCompleteWidget",
+        "ui:options": {
+            "multiple": false
+        }
       },
       "loss_modifier_name": {
-        "ui:help": "Instil useful properties into the trained embedding model using Loss Modifiers. Refer to the url for more details: https://sbert.net/docs/sentence_transformer/loss_overview.html"
+        "ui:help": "Instil useful properties into the trained embedding model using Loss Modifiers. Refer to the url for more details: https://sbert.net/docs/sentence_transformer/loss_overview.html",
+        "ui:widget": "AutoCompleteWidget",
+        "ui:options": {
+            "multiple": false
+        }
       },
       "num_train_epochs": {
         "ui:help": "Number of epochs for fine-tuning the embedding model."
