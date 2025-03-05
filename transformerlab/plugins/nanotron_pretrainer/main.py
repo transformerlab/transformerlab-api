@@ -352,7 +352,7 @@ def run_nanotron():
 
     cmd_convert = [
         "torchrun",
-        f"--nproc_per_node=1",
+        "--nproc_per_node=1",
         convert_script_path,
         "--checkpoint_path",
         latest_checkpoint_path,

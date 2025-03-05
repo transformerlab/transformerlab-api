@@ -20,7 +20,6 @@ from transformerlab.shared import galleries
 
 from transformerlab.models import model_helper
 from transformerlab.models import basemodel
-from transformerlab.models import localmodel
 from transformerlab.models import huggingfacemodel
 from transformerlab.models import filesystemmodel
 
