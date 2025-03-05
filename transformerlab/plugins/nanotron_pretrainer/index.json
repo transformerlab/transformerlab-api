@@ -6,11 +6,18 @@
     "type": "trainer",
     "version": "0.1.0",
     "model_architectures": [
+        "MLX",
+        "CohereForCausalLM",
+        "DeepseekV2ForCausalLM",
+        "GemmaForCausalLM",
+        "Gemma2ForCausalLM",
+        "GPTBigCodeForCausalLM",
         "LlamaForCausalLM",
-        "GPTNeoXForCausalLM",
         "MistralForCausalLM",
-        "Qwen2ForCausalLM",
-        "Phi3ForCausalLM"
+        "MixtralForCausalLM",
+        "PhiForCausalLM",
+        "Phi3ForCausalLM",
+        "Qwen2ForCausalLM"
 
     ],
     "git": "https://github.com/huggingface/nanotron",

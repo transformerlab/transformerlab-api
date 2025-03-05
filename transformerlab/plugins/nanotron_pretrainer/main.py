@@ -69,7 +69,7 @@ def generate_nanotron_config(config):
 
     # Format the run name with date and job ID
     job_id = config.get("job_id", str(0))
-    run_name = config.get("template_name", "nanotron_run") + "_" + job_id
+    run_name = config.get("template_name", "nanotron_run") + "_" + str(job_id)
     checkpoint_path = os.path.join(
         os.environ.get("_TFL_WORKSPACE_DIR", "."), "models", "pretrained", run_name, "checkpoints"
     )
@@ -215,7 +215,7 @@ def run_nanotron():
     job.update_progress(0)
 
     # Save the configuration to a YAML file
-    run_name = config.get("template_name", "nanotron_run") + "_" + job_id
+    run_name = config.get("template_name", "nanotron_run") + "_" + str(job_id)
     output_path = os.path.join(
         os.environ.get("_TFL_WORKSPACE_DIR", "."), "models", "pretrained", run_name, "nanotron_config_files"
     )
