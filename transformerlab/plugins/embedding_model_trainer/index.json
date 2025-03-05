@@ -6,24 +6,24 @@
     "type": "trainer",
     "version": "0.0.1",
     "model_architectures": [
-        "BertModel",
-        "SentenceTransformer",
-        "DistilBertModel",
-        "RobertaModel",
-        "NomicBertModel",
-        "AlbertModel",
-        "XLMRobertaModel",
-        "XLMModel",
-        "XLNetModel",
-        "LongformerModel",
-        "MobileBertModel",
-        "GteModel",
-        "DebertaModel",
-        "DebertaV2Model",
-        "ElectraModel",
-        "CamembertModel",
-        "T5EncoderModel"
-      ],
+      "BertModel",
+      "SentenceTransformer",
+      "DistilBertModel",
+      "RobertaModel",
+      "NomicBertModel",
+      "AlbertModel",
+      "XLMRobertaModel",
+      "XLMModel",
+      "XLNetModel",
+      "LongformerModel",
+      "MobileBertModel",
+      "GteModel",
+      "DebertaModel",
+      "DebertaV2Model",
+      "ElectraModel",
+      "CamembertModel",
+      "T5EncoderModel"
+    ],
     "git": "",
     "url": "",
     "files": [
@@ -33,6 +33,63 @@
     "setup-script": "setup.sh",
     "training_template_format": "embedding",
     "parameters": {
+      "dataset_type": {
+        "title": "Dataset Type",
+        "type": "string",
+        "enum": [
+          "anchor | positive",
+          "anchor | positive | negative",
+          "sentence_A | sentence_B | Score",
+          "single sentences",
+          "single sentences | class",
+          "anchor | anchor",
+          "damaged_sentence | original_sentence",
+          "sentence_A | sentence_B | class",
+          "anchor | positve/negative | class",
+          "anchor | positive | negative_1 | negative_2 | ... | negative_n",
+          "id | anchor | positive"
+        ],
+        "default": "text"
+      },
+      "loss_function": {
+        "title": "Loss Function",
+        "type": "string",
+        "enum": [
+          "BatchAllTripletLoss",
+          "BatchHardSoftMarginTripletLoss",
+          "BatchHardTripletLoss",
+          "BatchSemiHardTripletLoss",
+          "ContrastiveTensionLoss",
+          "DenoisingAutoEncoderLoss",
+          "ContrastiveTensionLossInBatchnegatives",
+          "SoftmaxLoss",
+          "MultiplenegativesRankingLoss",
+          "CachedMultiplenegativesRankingLoss",
+          "MultiplenegativesSymmetricRankingLoss",
+          "CachedMultiplenegativesSymmetricRankingLoss",
+          "MegaBatchMarginLoss",
+          "GISTEmbedLoss",
+          "CachedGISTEmbedLoss",
+          "ContrastiveLoss",
+          "OnlineContrastiveLoss",
+          "CoSENTLoss",
+          "AnglELoss",
+          "CosineSimilarityLoss",
+          "TripletLoss"
+        ],
+        "default": "MultiplenegativesRankingLoss"
+      },
+      "loss_modifier_name": {
+        "title": "Loss Modifier Name",
+        "type": "string",
+        "enum": [
+          "MatryoshkaLoss",
+          "Matryoshka2dLoss",
+          "AdaptiveLayerLoss",
+          "None"
+        ],
+        "default": "MatryoshkaLoss"
+      },
       "num_train_epochs": {
         "title": "Number of Training Epochs",
         "type": "integer",
@@ -50,16 +107,16 @@
       "learning_rate": {
         "title": "Learning Rate",
         "type": "number",
-        "default": 2e-5,
-        "minimum": 1e-6,
-        "maximum": 1e-1
+        "default": 0.00002,
+        "minimum": 0.000001,
+        "maximum": 0.1
       },
       "warmup_ratio": {
         "title": "Warmup Ratio",
         "type": "number",
         "default": 0.1,
-        "minimum": 0.0,
-        "maximum": 1.0
+        "minimum": 0,
+        "maximum": 1
       },
       "fp16": {
         "title": "Use FP16",
@@ -86,9 +143,18 @@
         "title": "Adaptor Name",
         "type": "string",
         "default": "dummy"
-    }
+      }
     },
     "parameters_ui": {
+      "dataset_type": {
+        "ui:help": "The type of dataset you are using for fine tuning the embedding model"
+      },
+      "loss_function": {
+        "ui:help": "The loss function to use for training. Refer to the url for more details: https://sbert.net/docs/sentence_transformer/loss_overview.html"
+      },
+      "loss_modifier_name": {
+        "ui:help": "Instil useful properties into the trained embedding model using Loss Modifiers. Refer to the url for more details: https://sbert.net/docs/sentence_transformer/loss_overview.html"
+      },
       "num_train_epochs": {
         "ui:help": "Number of epochs for fine-tuning the embedding model."
       },
@@ -115,4 +181,3 @@
       }
     }
   }
-  
