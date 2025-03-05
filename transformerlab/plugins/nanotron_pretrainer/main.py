@@ -82,6 +82,7 @@ def generate_nanotron_config(config):
             "checkpoints_path_is_shared_file_system": False,
             "resume_checkpoint_path": None,
             "save_initial_state": False,
+            "save_final_state": True,
         },
         "data_stages": [
             {
