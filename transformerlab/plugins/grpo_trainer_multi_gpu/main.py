@@ -5,8 +5,6 @@ import sqlite3
 import sys
 import subprocess
 import time
-from random import randrange
-
 
 # Get all parameters provided to this script from Transformer Lab
 parser = argparse.ArgumentParser()
