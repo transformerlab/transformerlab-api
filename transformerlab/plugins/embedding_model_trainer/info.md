@@ -9,7 +9,7 @@ The **Embedding Model Trainer** plugin is designed to train or fine-tune embeddi
 1. **Flexible Dataset Handling**
    - Supports both local (custom user data) and Hugging Face-hosted datasets.
    - Accepts multiple dataset formats (e.g., pairs, triplets, score-based, single sentence with class labels).
-   - Automatically normalizes dataset column names based on the user-specified dataset type (e.g., `"anchor | positive"`, `"sentence_A | sentence_B | score"`).
+   - Automatically normalizes dataset column names based on the user-specified dataset type (e.g., `anchor | positive`, `sentence_A | sentence_B | score`).
 
 2. **Configurable Loss Functions**
    - Offers a broad list of loss functions from which you can choose.
@@ -35,7 +35,7 @@ The **Embedding Model Trainer** plugin is designed to train or fine-tune embeddi
 | **Name**             | **Type**             | **Default**                   | **Description**                                                                                                                                             |
 |----------------------|----------------------|-------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **dataset_type**     | string               | `"Anchor \| Positive"`         | Select the type of dataset you are using. Options include formats such as `"Anchor \| Positive"`, `"Anchor \| Positive \| Negative"`, `"Sentence A \| Sentence B \| Score"`, etc. |
-| **loss_function**    | string               | `"MultipleNegativesRankingLoss"` | Select the loss function to use. Refer to [this guide](https://sbert.net/docs/sentence_transformer/loss_overview.html) for details.                             |
+| **loss_function**    | string               | `"MultipleNegativesRankingLoss"` | Select the loss function to use. Refer https://sbert.net/docs/sentence_transformer/loss_overview.html for details.                             |
 | **loss_modifier**    | string               | `"MatryoshkaLoss"`            | (Optional) Select a loss modifier to wrap the inner loss. Options include `"MatryoshkaLoss"`, `"AdaptiveLayerLoss"`, or `"Matryoshka2dLoss"`.                 |
 | **num_train_epochs** | integer              | 3                             | Number of epochs for fine-tuning the embedding model.                                                                                                       |
 | **batch_size**       | integer              | 16                            | Batch size per device (GPU/CPU). Larger values may speed up training but require more memory.                                                                   |
@@ -61,7 +61,26 @@ The **Embedding Model Trainer** plugin is designed to train or fine-tune embeddi
 
 3. **Configuring Parameters**
    - In the application’s plugin UI, select the appropriate **dataset_type** and **loss_function** from the provided dropdowns.
+        
+        - Allowed Loss Functions for Dataset Types:
+            - **`anchor | positive`**: `MultipleNegativesRankingLoss`, `CachedMultipleNegativesRankingLoss`, `MultipleNegativesSymmetricRankingLoss`, `CachedMultipleNegativesSymmetricRankingLoss`, `MegaBatchMarginLoss`, `GISTEmbedLoss`, `CachedGISTEmbedLoss`
+            - **`anchor | positive | negative`**: `MultipleNegativesRankingLoss`, `CachedMultipleNegativesRankingLoss`, `TripletLoss`, `CachedGISTEmbedLoss`, `GISTEmbedLoss`
+            - **`sentence_A | sentence_B | score`**: `CoSENTLoss`, `AnglELoss`, `CosineSimilarityLoss`
+            - **`single sentences`**: `ContrastiveTensionLoss`, `DenoisingAutoEncoderLoss`
+            - **`single sentences | class`**: `BatchAllTripletLoss`, `BatchHardSoftMarginTripletLoss`, `BatchHardTripletLoss`, `BatchSemiHardTripletLoss`
+            - **`anchor | anchor`**: `ContrastiveTensionLossInBatchNegatives`
+            - **`damaged_sentence | original_sentence`**: `DenoisingAutoEncoderLoss`
+            - **`sentence_A | sentence_B | class`**: `SoftmaxLoss`
+            - **`anchor | positve/negative | class (0/1)`**: `ContrastiveLoss`, `OnlineContrastiveLoss`
+            - **`anchor | positive | negative_1 | negative_2 | ... | negative_n`**: `MultipleNegativesRankingLoss`, `CachedMultipleNegativesRankingLoss`, `CachedGISTEmbedLoss`
+
    - Optionally, choose a **loss_modifier** if you want to wrap the inner loss function (note that if AdaptiveLayerLoss is chosen, the plugin will not pass `matryoshka_dims` to it).
+        - **`MatryoshkaLoss`**: Produce embeddings whose size can be truncated without notable losses in performance.
+        - **`AdaptiveLayerLoss`**: Model performs well even when you remove model layers for faster inference.
+        - **`Matryoshka2dLoss`**: Combines the above two to provide possible configurations to improve efficientcy and lower storage costs
+
+        *Note* : *The loss modifiers are attched with default configs. To modify them, kindly add the params directly in the loss modifier section of the plugin in main.py.* 
+
    - Adjust training parameters (number of epochs, batch size, learning rate, etc.) to suit your hardware and application requirements.
    - Enable **log_to_wandb** if you wish to track training metrics with Weights & Biases.
 

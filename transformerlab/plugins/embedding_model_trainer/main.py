@@ -129,10 +129,11 @@ job_id = config["job_id"]
 
 # Set final model name from model_id, template_name, and job_id
 template_name = config.get("template_name", "Fine-tune-embed-" + time.strftime("%Y%m%d-%H%M%S"))
+model_id = model_id.replace("/", "~~~")
 final_model_name = f"{model_id}_{template_name}_{job_id}"
 
 # Define OUTPUT_DIR using final model name
-OUTPUT_DIR = os.path.join(WORKSPACE_DIR, "models", "embedding", final_model_name)
+OUTPUT_DIR = os.path.join(WORKSPACE_DIR, "models", final_model_name)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 num_train_epochs = int(config.get("num_train_epochs", 3))
@@ -231,7 +232,8 @@ except Exception as e:
     job.set_job_completion_status("failed", "Could not load model")
     raise e
 
-# --- MATRYOSHKA REPRESENTATION LEARNING ---
+# --- LOSS MODIFIER SECTION ---
+
 # Dynamically load the user-selected inner loss function.
 inner_train_loss = get_loss_function(user_loss_function, model)
 
@@ -253,7 +255,7 @@ else:
 report_to = ["tensorboard"]
 if WANDB_LOGGING:
     import transformerlab.plugin
-    
+
     WANDB_LOGGING, report_to = transformerlab.plugin.test_wandb_login()
     if not WANDB_LOGGING:
         print("W&B API Key not found. Disabling W&B logging.")
