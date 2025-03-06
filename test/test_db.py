@@ -178,3 +178,18 @@ class TestConfig:
         await config_set("test_key", "test_value")
         value = await config_get("test_key")
         assert value == "test_value"
+        # now try to set the same key with a different value
+        await config_set("test_key", "test_value2")
+        value = await config_get("test_key")
+        assert value == "test_value2"
+        # now try to get a key that does not exist
+        value = await config_get("test_key2")
+        assert value is None
+        # now try to set a key with None value
+        await config_set("test_key3", None)
+        value = await config_get("test_key3")
+        assert value is None
+        # now try to set a key with empty string value
+        await config_set("test_key4", "")
+        value = await config_get("test_key4")
+        assert value == ""

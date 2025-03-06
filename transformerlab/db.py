@@ -5,20 +5,26 @@ import sqlite3
 
 import aiosqlite
 
-# from sqlmodel import SQLModel
+# from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+
+# Make sure SQLAlchemy is installed using pip install sqlalchemy[asyncio] as
+# described here https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html
+
 from transformerlab.shared import dirs
-# from sqlmodel import select
-# from sqlmodel.ext.asyncio.session import AsyncSession
-# from sqlalchemy.ext.asyncio import create_async_engine
+from transformerlab.shared.models import models  # noqa: F401
 
 db = None
 DATABASE_FILE_NAME = f"{dirs.WORKSPACE_DIR}/llmlab.sqlite3"
 DATABASE_URL = f"sqlite+aiosqlite:///{DATABASE_FILE_NAME}"
+
+# Create SQLAlchemy engines
 # engine = create_engine(DATABASE_URL, echo=True)
-# async_engine = create_async_engine(
-#     DATABASE_URL,
-#     echo=False,
-# )
+async_engine = create_async_engine(DATABASE_URL, echo=False)
+
+# Create a configured "Session" class
+async_session = sessionmaker(async_engine, expire_on_commit=False, class_=AsyncSession)
 
 
 async def init():
@@ -96,21 +102,24 @@ async def init():
 
     await db.execute("CREATE INDEX IF NOT EXISTS idx_name ON experiment (name)")
 
-    await db.execute(
-        """CREATE TABLE IF NOT EXISTS
-            plugins
-                (id INTEGER PRIMARY KEY,
-                name UNIQUE,
-                type TEXT)"""
-    )
-    await db.execute(
-        """CREATE TABLE IF NOT EXISTS
-            config
-                (id INTEGER PRIMARY KEY,
-                key UNIQUE,
-                value TEXT)"""
-    )
-    await db.execute("CREATE INDEX IF NOT EXISTS idx_key ON config (key)")
+    # await db.execute(
+    #     """CREATE TABLE IF NOT EXISTS
+    #         plugins
+    #             (id INTEGER PRIMARY KEY,
+    #             name UNIQUE,
+    #             type TEXT)"""
+    # )
+    # await db.execute(
+    #     """CREATE TABLE IF NOT EXISTS
+    #         config
+    #             (id INTEGER PRIMARY KEY,
+    #             key UNIQUE,
+    #             value TEXT)"""
+    # )
+    # await db.execute("CREATE INDEX IF NOT EXISTS idx_key ON config (key)")
+
+    async with async_engine.begin() as conn:
+        await conn.run_sync(models.Base.metadata.create_all)
 
     print("✅ Database initialized")
 
@@ -130,6 +139,9 @@ async def init():
 
 async def close():
     await db.close()
+    await async_engine.dispose()
+    print("✅ Database closed")
+    return
 
 
 # async def init_sql_model():
