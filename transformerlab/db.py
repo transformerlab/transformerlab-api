@@ -4,11 +4,21 @@ import os
 import sqlite3
 
 import aiosqlite
+
+# from sqlmodel import SQLModel
 from transformerlab.shared import dirs
+# from sqlmodel import select
+# from sqlmodel.ext.asyncio.session import AsyncSession
+# from sqlalchemy.ext.asyncio import create_async_engine
 
 db = None
-
 DATABASE_FILE_NAME = f"{dirs.WORKSPACE_DIR}/llmlab.sqlite3"
+DATABASE_URL = f"sqlite+aiosqlite:///{DATABASE_FILE_NAME}"
+# engine = create_engine(DATABASE_URL, echo=True)
+# async_engine = create_async_engine(
+#     DATABASE_URL,
+#     echo=False,
+# )
 
 
 async def init():
@@ -113,12 +123,22 @@ async def init():
     # On startup, look for any jobs that are in the RUNNING state and set them to CANCELLED instead:
     # This is to handle the case where the server is restarted while a job is running.
     await job_cancel_in_progress_jobs()
+    # await init_sql_model()
 
     return
 
 
 async def close():
     await db.close()
+
+
+# async def init_sql_model():
+#     """
+#     Initialize the database using SQLModel.
+#     """
+#     async with async_engine.begin() as conn:
+#         await conn.run_sync(SQLModel.metadata.create_all)
+#     print("✅ SQLModel Database initialized")
 
 
 ###############

@@ -1,10 +1,10 @@
 {
-    "name": "Unsloth GRPO trainer",
-    "uniqueId": "unsloth_grpo_trainer",
-    "description": "A GPRO trainer based on the unsloth grpo training notebooks",
+    "name": "Llama SFT Trainer -- Huggingface TRL (Multi GPU Support)",
+    "uniqueId": "llama_trainer_multi_gpu",
+    "description": "A training script adapted from https://www.philschmid.de/instruction-tune-llama-2 for training Llama2 using PeFT",
     "plugin-format": "python",
     "type": "trainer",
-    "version": "0.0.2",
+    "version": "0.1.0",
     "model_architectures": [
         "LlamaForCausalLM",
         "Qwen2ForCausalLM"
@@ -16,39 +16,27 @@
         "setup.sh"
     ],
     "setup-script": "setup.sh",
-    "training_template_format": "alpaca",
     "parameters": {
-        "start_thinking_string": {
-            "title": "Start Thinking String",
+        "train_device": {
+            "title": "Training Device",
             "type": "string",
-            "default": "<reasoning>"
+            "required": true,
+            "enum": [
+                "cuda",
+                "cpu",
+                "tpu"
+            ],
+            "default": "cuda"
         },
-        "end_thinking_string": {
-            "title": "End Thinking String",
+        "gpu_ids": {
+            "title": "GPU IDs to Train",
             "type": "string",
-            "default": "</reasoning>"
-        },
-        "start_answer_string": {
-            "title": "Start Answer String",
-            "type": "string",
-            "default": "<answer>"
-        },
-        "end_answer_string": {
-            "title": "End Answer String",
-            "type": "string",
-            "default": "</answer>"
+            "default": "auto"
         },
         "maximum_sequence_length": {
             "title": "Maximum Sequence Length",
             "type": "integer",
-            "default": 1024,
-            "minimum": 1,
-            "maximum": 4096
-        },
-        "maximum_completion_length": {
-            "title": "Maximum Completion Length",
-            "type": "integer",
-            "default": 512,
+            "default": 2048,
             "minimum": 1,
             "maximum": 4096
         },
@@ -112,41 +100,6 @@
             "maximum": 0.9,
             "default": 0.05
         },
-        "max_grad_norm": {
-            "title": "Max Grad Norm",
-            "type": "number",
-            "minimum": 0.0,
-            "maximum": 1.0,
-            "default": 0.3
-        },
-        "weight_decay": {
-            "title": "Weight Decay",
-            "type": "number",
-            "minimum": 0.0,
-            "maximum": 1.0,
-            "default": 0.0
-        },
-        "adam_beta1": {
-            "title": "Adam Beta 1",
-            "type": "number",
-            "minimum": 0.0,
-            "maximum": 1.0,
-            "default": 0.9
-        },
-        "adam_beta2": {
-            "title": "Adam Beta 2",
-            "type": "number",
-            "minimum": 0.0,
-            "maximum": 1.0,
-            "default": 0.999
-        },
-        "adam_epsilon": {
-            "title": "Adam Epsilon",
-            "type": "number",
-            "minimum": 0.0,
-            "maximum": 1.0,
-            "default": 0.00000001
-        },
         "adaptor_name": {
             "title": "Adaptor Name",
             "type": "string",
@@ -163,6 +116,17 @@
         "maximum_sequence_length": {
             "ui:help": "Maximum sequence length for the model. Longer sequences will be truncated. Keep lower to save memory."
         },
+        "train_device": {
+            "ui:help": "The device to train the model on. Use 'cuda' for Multi GPU Training, 'cpu' for CPU, and 'tpu' for TPU.",
+            "ui:widget": "AutoCompleteWidget",
+            "ui:options": {
+                "multiple": false
+            }
+
+        },
+        "gpu_ids": {
+            "ui:help": "Comma separated list of GPU IDs to use for training. Set to 'auto' for all GPUs. Example: 0,1,2,3 for 4 GPUs."
+        },
         "batch_size": {
             "ui:help": "The number of sequences processed simultaneously during training. Higher values lower number of iterations but require more memory."
         },
@@ -176,6 +140,6 @@
         },
         "log_to_wandb": {
             "ui:help": "Log training to Weights and Biases. You must have a Weights and Biases account and API key to use this feature. You need to set the API Key in settings to use this feature."
-          }
+        }
     }
 }

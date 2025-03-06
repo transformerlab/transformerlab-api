@@ -10,6 +10,7 @@ import unicodedata
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
 from transformerlab.shared import dirs
+from werkzeug.utils import secure_filename
 
 
 from anyio import open_process
@@ -313,10 +314,55 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
     if job_type == "LoRA":
         model_name = template_config["model_name"]
+        model_name = secure_filename(model_name)
         template_config = json.loads(template["config"])
         adaptor_name = template_config["adaptor_name"]
         template_config["job_id"] = job_id
         template_config["adaptor_output_dir"] = os.path.join(dirs.WORKSPACE_DIR, "adaptors", model_name, adaptor_name)
+        template_config["output_dir"] = os.path.join(
+            experiment_dir,
+            "tensorboards",
+            template_config["template_name"],
+        )
+
+        # Create a file in the temp directory to store the inputs:
+        tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
+        if not os.path.exists(tempdir):
+            os.makedirs(tempdir)
+        input_file = os.path.join(tempdir, f"plugin_input_{job_id}.json")
+        # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
+        # and should be done in the API itself
+        if "config" in experiment_details:
+            experiment_details["config"] = json.loads(experiment_details["config"])
+            if "inferenceParams" in experiment_details["config"]:
+                experiment_details["config"]["inferenceParams"] = json.loads(
+                    experiment_details["config"]["inferenceParams"]
+                )
+        input_contents = {"experiment": experiment_details, "config": template_config}
+        with open(input_file, "w") as outfile:
+            json.dump(input_contents, outfile, indent=4)
+
+        start_time = time.strftime("%Y-%m-%d %H:%M:%S")
+        await db.job_update_job_data_insert_key_value(job_id, "start_time", start_time)
+
+        # This calls the training plugin harness, which calls the actual training plugin
+        training_popen_command = [
+            sys.executable,
+            dirs.PLUGIN_HARNESS,
+            "--plugin_dir",
+            plugin_location,
+            "--input_file",
+            input_file,
+            "--experiment_name",
+            experiment_name,
+        ]
+        print("RUNNING: popen command:")
+        print(training_popen_command)
+        popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
+    
+    elif job_type == "pretraining":
+        template_config = json.loads(template["config"])
+        template_config["job_id"] = job_id
         template_config["output_dir"] = os.path.join(
             experiment_dir,
             "tensorboards",

@@ -1,7 +1,7 @@
 {
-    "name": "Unsloth GRPO trainer",
-    "uniqueId": "unsloth_grpo_trainer",
-    "description": "A GPRO trainer based on the unsloth grpo training notebooks",
+    "name": "GRPO trainer (Multi GPU)",
+    "uniqueId": "grpo_trainer_multi_gpu",
+    "description": "A GPRO trainer based using a Multi GPU setup trained using TRL and Accelerate",
     "plugin-format": "python",
     "type": "trainer",
     "version": "0.0.2",
@@ -18,6 +18,22 @@
     "setup-script": "setup.sh",
     "training_template_format": "alpaca",
     "parameters": {
+        "train_device": {
+            "title": "Training Device",
+            "type": "string",
+            "required": true,
+            "enum": [
+                "cuda",
+                "cpu",
+                "tpu"
+            ],
+            "default": "cuda"
+        },
+        "gpu_ids": {
+            "title": "GPU IDs to Train",
+            "type": "string",
+            "default": "auto"
+        },
         "start_thinking_string": {
             "title": "Start Thinking String",
             "type": "string",
@@ -89,29 +105,6 @@
             "type": "integer",
             "default": -1
         },
-        "lora_r": {
-            "title": "Lora R",
-            "type": "number",
-            "minimum": 4,
-            "maximum": 64,
-            "multipleOf": 4,
-            "default": 16
-        },
-        "lora_alpha": {
-            "title": "Lora Alpha",
-            "type": "number",
-            "minimum": 4,
-            "maximum": 128,
-            "multipleOf": 4,
-            "default": 32
-        },
-        "lora_dropout": {
-            "title": "Lora Dropout",
-            "type": "number",
-            "minimum": 0.05,
-            "maximum": 0.9,
-            "default": 0.05
-        },
         "max_grad_norm": {
             "title": "Max Grad Norm",
             "type": "number",
@@ -160,6 +153,17 @@
         }
     },
     "parameters_ui": {
+        "train_device": {
+            "ui:help": "The device to train the model on. Use 'cuda' for Multi GPU Training, 'cpu' for CPU, and 'tpu' for TPU.",
+            "ui:widget": "AutoCompleteWidget",
+            "ui:options": {
+                "multiple": false
+            }
+
+        },
+        "gpu_ids": {
+            "ui:help": "Comma separated list of GPU IDs to use for training. Set to 'auto' for all GPUs. Example: 0,1,2,3 for 4 GPUs."
+        },
         "maximum_sequence_length": {
             "ui:help": "Maximum sequence length for the model. Longer sequences will be truncated. Keep lower to save memory."
         },

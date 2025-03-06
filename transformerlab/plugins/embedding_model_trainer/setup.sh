@@ -10,3 +10,4 @@
 
 # (Optional) Add any other libraries you need, e.g. wandb, to track experiments
 # uv pip install wandb
+uv pip install sentence-transformers

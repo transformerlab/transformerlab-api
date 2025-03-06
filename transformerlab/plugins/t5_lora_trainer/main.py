@@ -260,6 +260,7 @@ class Trainer:
             (output_dir, JOB_ID),
         )
         db.commit()
+        report_to = ['tensorboard']
 
         if wandb_logging:
             wandb_logging, report_to = transformerlab.shared.test_wandb_login()
