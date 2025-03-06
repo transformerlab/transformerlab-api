@@ -41,6 +41,8 @@ else:
 
 today = time.strftime("%Y%m%d-%H%M%S")
 tensorboard_dir = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "experiments", args.experiment_name, "tensorboards")
+if not os.path.exists(tensorboard_dir):
+    os.makedirs(tensorboard_dir)
 # Find directory to put in based on eval name
 combined_tensorboard_dir = None
 for dir in os.listdir(tensorboard_dir):
