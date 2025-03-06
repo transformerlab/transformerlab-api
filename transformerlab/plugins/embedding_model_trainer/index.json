@@ -39,7 +39,7 @@
         "enum": [
           "anchor | positive",
           "anchor | positive | negative",
-          "sentence_A | sentence_B | Score",
+          "sentence_A | sentence_B | score",
           "single sentences",
           "single sentences | class",
           "anchor | anchor",

@@ -186,13 +186,16 @@ config_name = json_data.get("config_name", None)
 if not config_name:
     msg = f"Dataset {dataset_id} does not have a 'config_name' in its json_data."
     print(msg)
-    job.set_job_completion_status("failed", msg)
-    raise RuntimeError(msg)
+    # job.set_job_completion_status("failed", msg)
+    # raise RuntimeError(msg)
 
 try:
-    full_dataset = load_dataset(path=dataset_target, name=config_name, split="train", trust_remote_code=True)
+    if config_name is None:
+        full_dataset = load_dataset(path=dataset_target, split="train", trust_remote_code=True)
+    else:
+        full_dataset = load_dataset(path=dataset_target, name=config_name, split="train", trust_remote_code=True)
 except Exception as e:
-    job.set_job_completion_status("failed", f"Failed to load dataset: {str(e)}")
+    job.set_job_completion_status("failed", "Failed to load dataset")
     raise e
 
 if max_samples > 0 and max_samples < len(full_dataset):
@@ -227,7 +230,7 @@ print(f"Loading Sentence Transformer model {model_id}")
 try:
     model = SentenceTransformer(model_id, device=("cuda" if torch.cuda.is_available() else "cpu"))
 except Exception as e:
-    job.set_job_completion_status("failed", f"Could not load model: {str(e)}")
+    job.set_job_completion_status("failed", "Could not load model")
     raise e
 
 # --- MATRYOSHKA REPRESENTATION LEARNING ---
@@ -249,15 +252,13 @@ if loss_modifier_name != "None":
 else:
     train_loss = inner_train_loss
 
+report_to = ["tensorboard"]
 if WANDB_LOGGING:
     import transformerlab.plugin
-
-    wandb_logging_enabled, report_to = transformerlab.plugin.test_wandb_login()
-    if not wandb_logging_enabled:
+    
+    WANDB_LOGGING, report_to = transformerlab.plugin.test_wandb_login()
+    if not WANDB_LOGGING:
         print("W&B API Key not found. Disabling W&B logging.")
-        report_to = []
-else:
-    report_to = []
 
 training_args = SentenceTransformerTrainingArguments(
     output_dir=OUTPUT_DIR,
@@ -312,14 +313,14 @@ try:
     trainer.train()
     print("Training completed.")
 except Exception as e:
-    job.set_job_completion_status("failed", f"Failure during training: {str(e)}")
+    job.set_job_completion_status("failed", "Failure during training")
     raise e
 
 try:
     trainer.save_model(OUTPUT_DIR)
     print(f"Model saved to {OUTPUT_DIR}")
 except Exception as e:
-    job.set_job_completion_status("failed", f"Failure to save model: {str(e)}")
+    job.set_job_completion_status("failed", "Failure to save model")
     raise e
 
 try:
@@ -331,7 +332,7 @@ try:
         print("Model imported to Transformer Lab successfully.")
 
 except Exception as e:
-    job.set_job_completion_status("failed", f"Failed to import model to Transformer Lab: {str(e)}")
+    job.set_job_completion_status("failed", "Failed to import model to Transformer Lab")
     raise e
 
 job.set_job_completion_status("success", f"Embedding model {final_model_name} trained successfully")
