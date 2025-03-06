@@ -102,11 +102,8 @@ ALLOWED_LOSSES = {
 
 # --- Main Plugin Code ---
 
-# Connect to the LLM Lab database
-llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
 WORKSPACE_DIR = os.getenv("_TFL_WORKSPACE_DIR")
 
-print(f"LLM Lab root directory: {llmlab_root_dir}")
 print(f"Workspace directory: {WORKSPACE_DIR}")
 
 db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
