@@ -157,7 +157,7 @@ class CustomCommercialModel(DeepEvalBaseLLM):
             self.model = OpenAI()
 
         elif model_type == "custom":
-            custom_api_details = transformerlab.plugin.get_db_config_value("CUSTOM_API_DETAILS")
+            custom_api_details = transformerlab.plugin.get_db_config_value("CUSTOM_MODEL_API_KEY")
             if not custom_api_details or custom_api_details.strip() == "":
                 print("Please set the Custom API Details from Settings.")
                 job.set_job_completion_status("failed", "Please set the Custom API Details from Settings.")
@@ -165,11 +165,10 @@ class CustomCommercialModel(DeepEvalBaseLLM):
             else:
                 custom_api_details = json.loads(custom_api_details)
                 self.model = OpenAI(
-                    api_key=custom_api_details["apiKey"],
-                    base_url=custom_api_details["baseURL"],
+                    api_key=custom_api_details["customApiKey"],
+                    base_url=custom_api_details["customBaseURL"],
                 )
-                # args.model_name = custom_api_details["modelName"]
-                self.model_name = custom_api_details["modelName"]
+                self.model_name = custom_api_details["customModelName"]
 
     def load_model(self):
         return self.model

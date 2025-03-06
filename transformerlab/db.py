@@ -11,10 +11,6 @@ from transformerlab.shared import dirs
 # from sqlmodel.ext.asyncio.session import AsyncSession
 # from sqlalchemy.ext.asyncio import create_async_engine
 
-
-# Import your models
-from transformerlab.shared.models.models import Config, Plugin  # noqa: F401
-
 db = None
 DATABASE_FILE_NAME = f"{dirs.WORKSPACE_DIR}/llmlab.sqlite3"
 DATABASE_URL = f"sqlite+aiosqlite:///{DATABASE_FILE_NAME}"
@@ -99,6 +95,22 @@ async def init():
     )
 
     await db.execute("CREATE INDEX IF NOT EXISTS idx_name ON experiment (name)")
+
+    await db.execute(
+        """CREATE TABLE IF NOT EXISTS
+            plugins
+                (id INTEGER PRIMARY KEY,
+                name UNIQUE,
+                type TEXT)"""
+    )
+    await db.execute(
+        """CREATE TABLE IF NOT EXISTS
+            config
+                (id INTEGER PRIMARY KEY,
+                key UNIQUE,
+                value TEXT)"""
+    )
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_key ON config (key)")
 
     print("✅ Database initialized")
 

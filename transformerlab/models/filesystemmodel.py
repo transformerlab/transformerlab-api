@@ -61,6 +61,7 @@ class FilesystemModel(basemodel.BaseModel):
         self.source = "local"
         self.source_id_or_path = model_path
         self.model_filename = model_path
+        self.model_path = model_path
 
     async def get_json_data(self):
         json_data = await super().get_json_data()
