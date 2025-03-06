@@ -33,6 +33,12 @@
             "default": 0.9,
             "minimum": 0.0,
             "maximum": 1.0
+        },
+        "tensor-parallel-size": {
+            "title": "Number of GPUs",
+            "type": "integer",
+            "default": 1,
+            "minimum": 1
         }
     }
 }

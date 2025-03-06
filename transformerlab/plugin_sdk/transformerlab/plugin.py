@@ -63,6 +63,18 @@ def get_db_config_value(key: str):
     return row[0]
 
 
+def set_db_config_value(key: str, value: str):
+    """
+    Sets the value of a config key in the database.
+    """
+    db = get_db_connection()
+    cursor = db.execute("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)", (key, value))
+    cursor.close()
+
+
+
+
+
 def test_wandb_login(project_name: str = "TFL_Training"):
     import netrc
     from pathlib import Path

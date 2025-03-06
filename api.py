@@ -9,6 +9,7 @@ import atexit
 import json
 import signal
 import subprocess
+import requests
 from contextlib import asynccontextmanager
 import sys
 
@@ -266,6 +267,7 @@ async def server_worker_start(
         json.dumps(inference_params),
     ]
 
+
     job_id = await db.job_create(type="LOAD_MODEL", status="STARTED", job_data="{}", experiment_id=experiment_id)
 
     print("Loading plugin loader instead of default worker")
@@ -276,7 +278,7 @@ async def server_worker_start(
     worker_process = await shared.async_run_python_daemon_and_update_status(
         python_script=params,
         job_id=job_id,
-        begin_string="Application startup complete.",
+        begin_string="Application startup complete",
         set_process_id_function=set_worker_process_id,
     )
     exitcode = worker_process.returncode
@@ -320,14 +322,39 @@ async def server_worker_stop():
     return {"message": "OK"}
 
 
+
 @app.get("/server/worker_healthz", tags=["serverinfo"])
 async def server_worker_health(request: Request):
     models = []
     result = []
     try:
         models = await fastchat_openai_api.show_available_models()
+        # inference_server_url = await db.config_get("INFERENCE_SERVER_URL")
+
+        # if inference_server_url is None or '8338' in inference_server_url or inference_server_url.strip() == "":
+            
+        #     models = await fastchat_openai_api.show_available_models()
+        # else:
+        #     inference_server_url += "/models/v1"
+        #     models = requests.get(inference_server_url)
+        #     if models.status_code != 200:
+        #         raise HTTPException(status_code=503, detail="No worker")
+            
+        #     models = models.json()
+
+        # if inference_server_url is None or '8338' in inference_server_url:
+        #     inference_server_url = "http://localhost:8338"
+        # inference_server_url += "/models/v1"
+        # models = requests.get(inference_server_url).json()
+
+    except requests.exceptions.RequestException as exc:
+        print(f"HTTP Exception for {exc.request.url} - {exc}")
+        raise HTTPException(status_code=503, detail="No worker")
     except httpx.HTTPError as exc:
         print(f"HTTP Exception for {exc.request.url} - {exc}")
+        raise HTTPException(status_code=503, detail="No worker")
+    except Exception as e:
+        print(f"Error getting models from inference server: {e}")
         raise HTTPException(status_code=503, detail="No worker")
 
     # We create a new object with JUST the id of the models
