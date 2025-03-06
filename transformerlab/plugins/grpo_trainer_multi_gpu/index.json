@@ -1,7 +1,7 @@
 {
-    "name": "Unsloth GRPO trainer (Multi GPU)",
-    "uniqueId": "unsloth_grpo_trainer_multi_gpu",
-    "description": "A GPRO trainer based on the unsloth grpo training notebooks using a Multi GPU setup.",
+    "name": "GRPO trainer (Multi GPU)",
+    "uniqueId": "grpo_trainer_multi_gpu",
+    "description": "A GPRO trainer based using a Multi GPU setup trained using TRL and Accelerate",
     "plugin-format": "python",
     "type": "trainer",
     "version": "0.0.1",
@@ -62,7 +62,7 @@
             "maximum": 4096
         },
         "maximum_completion_length": {
-            "title": "Maximum Sequence Length",
+            "title": "Maximum Completion Length",
             "type": "integer",
             "default": 512,
             "minimum": 1,
@@ -104,29 +104,6 @@
             "title": "Max Steps (-1 means no limit)",
             "type": "integer",
             "default": -1
-        },
-        "lora_r": {
-            "title": "Lora R",
-            "type": "number",
-            "minimum": 4,
-            "maximum": 64,
-            "multipleOf": 4,
-            "default": 16
-        },
-        "lora_alpha": {
-            "title": "Lora Alpha",
-            "type": "number",
-            "minimum": 4,
-            "maximum": 128,
-            "multipleOf": 4,
-            "default": 32
-        },
-        "lora_dropout": {
-            "title": "Lora Dropout",
-            "type": "number",
-            "minimum": 0.05,
-            "maximum": 0.9,
-            "default": 0.05
         },
         "max_grad_norm": {
             "title": "Max Grad Norm",

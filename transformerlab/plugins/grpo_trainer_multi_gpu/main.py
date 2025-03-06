@@ -7,6 +7,7 @@ import subprocess
 import time
 from random import randrange
 
+
 # Get all parameters provided to this script from Transformer Lab
 parser = argparse.ArgumentParser()
 parser.add_argument("--input_file", type=str)
@@ -104,9 +105,11 @@ if not args.launched_with_accelerate:
 import torch    #noqa
 from datasets import load_dataset   #noqa
 from jinja2 import Environment  #noqa
-from transformers import BitsAndBytesConfig, TrainerCallback    #noqa
+from transformers import TrainerCallback, AutoModelForCausalLM, AutoTokenizer    #noqa
 from trl import GRPOConfig, GRPOTrainer   #noqa
-from unsloth import FastLanguageModel, PatchFastRL  #noqa
+from accelerate import Accelerator # noqa
+
+
 
 # Get source code dir and print for debugging
 tfl_source_dir = os.environ.get("_TFL_SOURCE_CODE_DIR")
@@ -160,7 +163,7 @@ jinja_environment = Environment()
 
 use_flash_attention = False
 
-PatchFastRL("GRPO", FastLanguageModel)
+# PatchFastRL("GRPO", FastLanguageModel)
 
 # Connect to the LLM Lab database
 llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
@@ -187,8 +190,6 @@ model_id = config["model_name"]
 dataset_id = config["dataset_name"]
 max_seq_length = int(config.get("maximum_sequence_length", 1024))
 max_completion_length = int(config.get("maximum_completion_length", 512))
-lora_rank = int(config.get("lora_r", 16))
-lora_alpha = int(config.get("lora_alpha", 32))
 learning_rate = float(config.get("learning_rate", 0.005))
 learning_rate_schedule = config.get("learning_rate_schedule", "constant")
 max_grad_norm = float(config.get("max_grad_norm", 0.3))
@@ -292,50 +293,27 @@ def xmlcount_reward_func(completions, **kwargs) -> list[float]:
     return [count_xml(c) for c in contents]
 
 
-# print(f"dataset size: {len(dataset)}")
-# print(dataset[randrange(len(dataset))])
-# print("formatting_template: " + config["formatting_template"])
-
-# print("formatted instruction: (example) ")
-# print(format_instruction(dataset[randrange(len(dataset))]))
-
-bnb_config = BitsAndBytesConfig(
-    load_in_4bit=True, bnb_4bit_use_double_quant=True, bnb_4bit_quant_type="nf4", bnb_4bit_compute_dtype=torch.bfloat16
-)
 
 # Load model and tokenizer
 try:
     device_map = None if accelerator.num_processes > 1 else "auto"
     print(f"Using device_map: {device_map}")
-    model, tokenizer = FastLanguageModel.from_pretrained(
-        model_name=model_id,
-        max_seq_length=max_seq_length,
-        max_lora_rank=lora_rank,
-        quantization_config=bnb_config,
-        use_cache=False,
-        use_flash_attention_2=use_flash_attention,
-        device_map=device_map,
+    
+    # Replace FastLanguageModel with standard Transformers model loading
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    tokenizer.padding_side = "right"  # Ensure proper padding direction
+    model = AutoModelForCausalLM.from_pretrained(
+    model_id,
+    torch_dtype=torch.bfloat16,
+    device_map=None
     )
-    model.config.pretraining_tp = 1
+    # model.config.pretraining_tp = 1
+    # model.config.use_cache = False  # Disable KV cache during training
+    # model.train()  # Ensure model is in training mode
 except Exception as e:
     job.set_job_completion_status("failed", "Failed to load model")
     raise e
 
-model = FastLanguageModel.get_peft_model(
-    model,
-    r=lora_rank,
-    target_modules=[
-        "q_proj",
-        "k_proj",
-        "v_proj",
-        "o_proj",
-        "gate_proj",
-        "up_proj",
-        "down_proj",
-    ],
-    lora_alpha=lora_alpha,
-    use_gradient_checkpointing="unsloth",
-)
 
 # This is where the tensorboard output is stored
 print(f"Storing Tensorboard Output to: {output_dir}")
@@ -368,7 +346,7 @@ args = GRPOConfig(
     gradient_accumulation_steps=2,
     gradient_checkpointing=True,
     optim="paged_adamw_32bit",
-    logging_steps=10,
+    logging_steps=1,
     save_strategy="epoch",
     learning_rate=learning_rate,
     bf16=True,
@@ -409,12 +387,12 @@ class ProgressTableUpdateCallback(TrainerCallback):
 trainer = GRPOTrainer(
     model=model,
     train_dataset=dataset,
-    tokenizer=tokenizer,
     reward_funcs=[
         xmlcount_reward_func,
         correctness_reward_func,
     ],
     args=args,
+    processing_class=tokenizer,
     callbacks=[ProgressTableUpdateCallback],
 )
 
