@@ -186,8 +186,6 @@ config_name = json_data.get("config_name", None)
 if not config_name:
     msg = f"Dataset {dataset_id} does not have a 'config_name' in its json_data."
     print(msg)
-    # job.set_job_completion_status("failed", msg)
-    # raise RuntimeError(msg)
 
 try:
     if config_name is None:
