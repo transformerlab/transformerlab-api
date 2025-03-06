@@ -46,7 +46,7 @@
             "maximum": 4096
         },
         "maximum_completion_length": {
-            "title": "Maximum Sequence Length",
+            "title": "Maximum Completion Length",
             "type": "integer",
             "default": 512,
             "minimum": 1,
