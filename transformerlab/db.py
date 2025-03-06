@@ -77,7 +77,7 @@ async def init():
                         config JSON,
                         status,
                         current_task,
-                        current_job_id INTEGER,
+                        current_job_id,
                         experiment_id,
                         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                         updated_at DATETIME NOT NULL DEFAULT current_timestamp)
@@ -788,7 +788,7 @@ async def workflow_create(name, config, experiment_id):
     # check if type is allowed
     row = await db.execute_insert(
         "INSERT INTO workflows(name, config, status, current_task, current_job_id, experiment_id) VALUES (?, json(?), ?, ?, ?, ?)",
-        (name, config, "CREATED", "[]", -1, experiment_id),
+        (name, config, "CREATED", "[]", "[]", experiment_id),
     )
     await db.commit()
     return row[0]

@@ -161,23 +161,28 @@ async def start_next_step_in_workflow():
     workflow_id = currently_running_workflow["id"]
     workflow_config = json.loads(currently_running_workflow["config"])
     workflow_current_task = json.loads(currently_running_workflow["current_task"])
-    workflow_current_job_id = int(currently_running_workflow["current_job_id"])
+    workflow_current_job_id = json.loads(currently_running_workflow["current_job_id"])
     workflow_experiment_id = currently_running_workflow["experiment_id"]
 
-    if workflow_current_job_id != -1:
-        current_job = await db.job_get(workflow_current_job_id)
+    current_jobs = []
+    current_job_statuses = []
+
+    if workflow_current_job_id != []:
+        for job_id in workflow_current_job_id:
+            current_job = await db.job_get(job_id)
+            current_jobs.append(current_job)
     
-        if current_job["status"] == "FAILED":
-            await db.workflow_update_status(workflow_id, "FAILED")
-            return {"message": "the current job failed"}
+            if current_job["status"] == "FAILED":
+                await db.workflow_update_status(workflow_id, "FAILED")
+                return {"message": "the current job failed"}
 
-        if current_job["status"] == "CANCELLED" or current_job["status"] == "DELETED":
-            await db.workflow_update_with_new_job(workflow_id, "[]", -1)
-            await db.workflow_update_status(workflow_id, "CANCELLED")
-            return {"message": "the current job was cancelled"}
+            if current_job["status"] == "CANCELLED" or current_job["status"] == "DELETED":
+                await db.workflow_update_with_new_job(workflow_id, "[]", -1)
+                await db.workflow_update_status(workflow_id, "CANCELLED")
+                return {"message": "the current job was cancelled"}
 
-        if current_job["status"] != "COMPLETE":
-            return {"message": "the current job is running"}
+            if current_job["status"] != "COMPLETE":
+                return {"message": "the current job is running"}
 
     if workflow_current_task!= []:
         for node in workflow_config["nodes"]:
