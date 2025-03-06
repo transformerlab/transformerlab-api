@@ -282,7 +282,7 @@ async def dataset_download(dataset_id: str, config_name: str = None):
             return {"status": "error", "message": "Please enter the folder_name of the dataset from huggingface"}
         else:
             return {"status": "error", "message": "An internal error has occurred!"}
-            
+
     except Exception as e:
         log(f"Exception occurred: {type(e).__name__}: {e}")
         return {"status": "error", "message": "An internal error has occurred!"}
