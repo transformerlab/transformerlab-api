@@ -48,6 +48,7 @@ async def document_list(experimentId: str, folder: str = None):
     # List the files that are in the experiment/<experiment_name>/documents directory:
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
+    folder = secure_filename(folder)
     if folder and folder != "":
         if os.path.exists(os.path.join(documents_dir, folder)):
             documents_dir = os.path.join(documents_dir, folder)
@@ -82,13 +83,17 @@ async def document_new(experimentId: str, dataset_id: str):
     return {"status": "success", "dataset_id": dataset_id}
 
 
-@router.get("/delete/{document_name}", summary="Delete a document.")
-async def delete_document(experimentId: str, document_name: str):
+@router.get("/delete", summary="Delete a document.")
+async def delete_document(experimentId: str, document_name: str, folder: str = None):
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
 
     document_name = secure_filename(document_name)
-
     path = os.path.join(experiment_dir, "documents", document_name)
+    if folder and folder != "" and not os.path.isdir(path):
+        folder = secure_filename(folder)
+        path = os.path.join(experiment_dir, "documents", folder, document_name)
+    else:
+        path = os.path.join(experiment_dir, "documents", document_name)
     # first check if it is a directory:
     if os.path.isdir(path):
         shutil.rmtree(path)
@@ -100,9 +105,13 @@ async def delete_document(experimentId: str, document_name: str):
 @router.post("/upload", summary="Upload the contents of a document.")
 async def document_upload(experimentId: str, folder: str, files: list[UploadFile]):
     fileNames = []
+    # Adding secure filename to the folder name as well
+    folder = secure_filename(folder)
     for file in files:
-        print("uploading filename is: " + str(file.filename))
-        fileNames.append(file.filename)
+        file_name = secure_filename(file.filename)
+        print("uploading filename is: " + str(file_name))
+        #
+        fileNames.append(file_name)
         # ensure the filename is exactly {dataset_id}_train.jsonl or {dataset_id}_eval.jsonl
         # if not re.match(rf"^{dataset_id}_(train|eval).jsonl$", str(file.filename)):
         #     raise HTTPException(
@@ -113,7 +122,7 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
         if file.content_type not in ["text/plain", "application/json", "application/pdf", "application/octet-stream"]:
             raise HTTPException(status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
 
-        file_ext = os.path.splitext(file.filename)[1]
+        file_ext = os.path.splitext(file_name)[1]
         if file_ext not in allowed_file_types:
             raise HTTPException(status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
 
@@ -134,7 +143,7 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
                 print("Creating directory")
                 os.makedirs(documents_dir)
 
-            newfilename = os.path.join(documents_dir, str(file.filename))
+            newfilename = os.path.join(documents_dir, str(file_name))
             async with aiofiles.open(newfilename, "wb") as out_file:
                 await out_file.write(content)
 
@@ -150,6 +159,8 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
 @router.post("/create_folder", summary="Create a new folder.")
 async def create_folder(experimentId: str, name: str):
     name = slugify(name)
+    # Secure folder name
+    name = secure_filename(name)
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     path = os.path.join(experiment_dir, "documents", name)
     print(f"Creating folder {path}")
