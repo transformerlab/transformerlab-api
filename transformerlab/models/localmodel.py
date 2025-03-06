@@ -95,35 +95,36 @@ class LocalModelStore(modelstore.ModelStore):
         for job in jobs:
             # Each job is a dict containing a key "job_data"
             job_data = job["job_data"]
-            input_model = job_data.get("model_name").split("/")[-1]
-            dataset = job_data.get("dataset")
-            start_time = job_data.get("start_time")
-            end_time = job_data.get("end_time")
+            if job_data.get("model_name", None) is not None:
+                input_model = job_data.get("model_name").split("/")[-1]
+                dataset = job_data.get("dataset")
+                start_time = job_data.get("start_time")
+                end_time = job_data.get("end_time")
 
-            # The configuration is stored as a JSON string inside job_data["config"]
-            config_str = job_data.get("config")
-            try:
-                config = json.loads(config_str)
-            except Exception as e:
-                print(f"Error parsing config for job id {job.get('id', 'unknown')}: {e}")
-                config = {}
+                # The configuration is stored as a JSON string inside job_data["config"]
+                config_str = job_data.get("config")
+                try:
+                    config = json.loads(config_str)
+                except Exception as e:
+                    print(f"Error parsing config for job id {job.get('id', 'unknown')}: {e}")
+                    config = {}
 
-            adaptor_name = config.get("adaptor_name")
-            if not adaptor_name:
-                # If no adaptor is specified, we cannot compute an output model.
-                continue
+                adaptor_name = config.get("adaptor_name")
+                if not adaptor_name:
+                    # If no adaptor is specified, we cannot compute an output model.
+                    continue
 
-            output_model = await self.compute_output_model(input_model, adaptor_name)
+                output_model = await self.compute_output_model(input_model, adaptor_name)
 
-            provenance[output_model] = {
-                "job_id": job.get("id"),
-                "input_model": input_model,
-                "output_model": output_model,
-                "dataset": dataset,
-                "parameters": config,
-                "start_time": start_time,
-                "end_time": end_time,
-            }
+                provenance[output_model] = {
+                    "job_id": job.get("id"),
+                    "input_model": input_model,
+                    "output_model": output_model,
+                    "dataset": dataset,
+                    "parameters": config,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                }
         return provenance
 
     async def trace_provenance(self, latest_model, provenance_mapping):
