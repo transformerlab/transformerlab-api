@@ -1,6 +1,6 @@
 services:
   transformerlab-api:
-    image: transformerlab/api:0.10.2-gpu
+    image: transformerlab/api:${VERSION}-cuda
     container_name: transformerlab-api
     ports:
       - "8338:8338"
@@ -8,6 +8,7 @@ services:
     volumes:
       - transformerlab_data:/root/.transformerlab/
       - ${HOME}/.cache:/root/.cache
+      - ${HOME}/.transformerlab/workspace:/root/.transformerlab/workspace
     deploy:
       resources:
         reservations:
