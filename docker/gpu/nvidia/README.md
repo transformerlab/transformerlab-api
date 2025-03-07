@@ -88,7 +88,7 @@ Before you begin, ensure that your system meets the following requirements:
   - Open PowerShell and run:
   ```powershell
     git clone https://github.com/transformerlab/transformerlab-api.git
-    cd transformerlab-api\docker\gpu\nvidia
+    cd transformerlab-api/docker/gpu/nvidia
   ```
 
 2. **Run the Deployment Script:**
