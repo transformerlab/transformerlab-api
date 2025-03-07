@@ -325,6 +325,7 @@ def create_model_worker():
     args = parser.parse_args()
     logger.info(f"args: {args}")
 
+
     if args.gpus:
         if len(args.gpus.split(",")) < args.num_gpus:
             raise ValueError(f"Larger --num-gpus ({args.num_gpus}) than --gpus {args.gpus}!")
