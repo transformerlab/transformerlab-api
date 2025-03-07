@@ -8,7 +8,9 @@ fi
 
 # Fetch latest version from GitHub
 REPO="transformerlab/transformerlab-api"
-RAW_VERSION=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" | grep -Po '"tag_name": "\K.*?(?=")')
+RAW_VERSION=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" \
+    | grep -o '"tag_name": *"[^"]*' \
+    | sed 's/"tag_name": *"//')
 
 if [ -z "$RAW_VERSION" ]; then
     echo "Failed to fetch the latest version."
