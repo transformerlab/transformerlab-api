@@ -56,7 +56,7 @@ Before you begin, ensure that your system meets the following requirements:
 
   ```bash
     git clone https://github.com/transformerlab/transformerlab-api.git
-    cd transformerlab-api/docker/gpu/nvidia
+    cd transformerlab-api/docker/cpu
   ```
 
 2. **Prepare the Deployment Script:**
@@ -144,14 +144,18 @@ Before you begin, ensure that your system meets the following requirements:
 - **Viewing Logs:**
   - To inspect logs for the running container, use:
   ```bash
-docker compose logs transformerlab-api
+    docker compose logs transformerlab-api
   ```
 
 - **Stopping the Deployment:**
   - To stop and remove the container, run:
   ```bash
-docker compose down
+    docker compose down
   ```
+  - To delete all volumes and data, run:
+  ```bash
+    docker compose down -v
+  ``` 
 
 - **Customizing Deployment:**
   - You can modify the `Dockerfile.cpu` with custom implmentation and build an image, make sure to update the `docker-compose.yml.tpl` with build context.

@@ -150,14 +150,18 @@ Before you begin, ensure that your system meets the following requirements:
 - **Viewing Logs:**
   - To inspect logs for the running container, use:
   ```bash
-docker compose logs transformerlab-api
+    docker compose logs transformerlab-api
   ```
 
 - **Stopping the Deployment:**
   - To stop and remove the container, run:
   ```bash
-docker compose down
+    docker compose down
   ```
+  - To delete all volumes and data, run:
+  ```bash
+    docker compose down -v
+  ``` 
 
 - **Customizing Deployment:**
   - You can modify the `Dockerfile.cuda` with custom implmentation and build an image, make sure to update the `docker-compose.yml.tpl` with build context.
