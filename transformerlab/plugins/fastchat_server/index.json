@@ -22,10 +22,11 @@
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
-    "num_gpus": {
-      "title": "Number of GPUs",
-      "type": "integer"
-    },
+  "gpu_ids": {
+          "title": "GPU IDs to use for Inference",
+          "type": "string",
+          "default": "0"
+      },
     "eight_bit": {
       "title": "Enable 8-bit compression",
       "type": "boolean",
@@ -33,9 +34,8 @@
     }
   },
   "parameters_ui": {
-    "num_gpus": {
-      "ui:emptyValue": "",
-      "ui:help": "Used to spread models over multiple GPUs. Leave empty to use default."
+    "gpu_ids": {
+      "ui:help": "Used to spread models over multiple GPUs. Specify a comma-separated list of GPU IDs to use for inference. For example: 0,1,2,3"
     }
   }
 }

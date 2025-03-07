@@ -31,8 +31,16 @@ if parameters.get("eight_bit") == "on":
 else:
     eight_bit = False
 
-# Used only if memory on multiple cards is needed. Do not include if this is not not set.
-num_gpus = parameters.get("num_gpus", None)
+gpu_ids = parameters.get("gpu_ids", "")
+if gpu_ids is not None and gpu_ids != "":
+    num_gpus = len(gpu_ids.split(","))
+    if num_gpus == 0:
+        num_gpus = torch.cuda.device_count()
+else:
+    num_gpus = torch.cuda.device_count()
+
+if gpu_ids is None:
+    gpu_ids = ""
 
 # Auto detect backend if device not specified
 device = parameters.get("device", None)
@@ -51,7 +59,8 @@ PLUGIN_DIR = args.plugin_dir
 
 popen_args = [sys.executable, f"{PLUGIN_DIR}/model_worker.py", "--model-path", model, "--device", device]
 if num_gpus:
-    popen_args.extend(["--num-gpus", num_gpus])
+    popen_args.extend(["--gpus", gpu_ids])
+    popen_args.extend(["--num-gpus", str(num_gpus)])
 if eight_bit:
     popen_args.append("--load-8bit")
 
