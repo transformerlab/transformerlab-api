@@ -2,7 +2,7 @@
 
 This repository contains everything you need to deploy the TransformerLab API using Docker with CUDA support. The provided files include:
 
-- **Dockerfile.cuda** – Builds a CUDA-enabled Docker image.
+- **Dockerfile.cuda** – Builds a CUDA-enabled Docker image (Optional - Only build an image if you want to customize it).
 - **docker-compose.yml.tpl** – Template for the Docker Compose configuration.
 - **deploy.sh** – Shell script for Linux/Mac deployment.
 - **deploy.ps1** – PowerShell script for Windows deployment.
