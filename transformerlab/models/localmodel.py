@@ -186,7 +186,7 @@ class LocalModelStore(modelstore.ModelStore):
         # Build a mapping from computed output model name to job details
         provenance_mapping = await self.build_provenance(jobs)
 
-        print(f"Built provenance mapping with {len(provenance_mapping)} entries: {provenance_mapping}")
+        print(f"Built provenance mapping with {len(provenance_mapping)} entries")
 
         # Trace the provenance chain leading to the given final model name
         chain = await self.trace_provenance(model_id, provenance_mapping)

@@ -4,6 +4,7 @@
     "description": "A plugin for training or fine-tuning embedding models using Sentence Transformers v3",
     "plugin-format": "python",
     "type": "trainer",
+    "train_type": "embedding",
     "version": "0.0.1",
     "model_architectures": [
       "BertModel",
@@ -138,11 +139,6 @@
         "title": "Log to Weights and Biases",
         "type": "boolean",
         "default": false
-      },
-      "adaptor_name": {
-        "title": "Adaptor Name",
-        "type": "string",
-        "default": "dummy"
       }
     },
     "parameters_ui": {
