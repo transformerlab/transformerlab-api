@@ -16,7 +16,7 @@ Below you will find detailed instructions for setting up and running the deploym
 - [Pre-requisites](#pre-requisites)
 - [Installation and Deployment](#installation-and-deployment)
   - [Linux/Mac](#linuxmac)
-- [Windows](#windows)
+  - [Windows](#windows)
 - [Troubleshooting](#troubleshooting)
 - [Additional Information](#additional-information)
 
