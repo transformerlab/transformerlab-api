@@ -2,7 +2,7 @@
 
 ## Overview
 
-The **Embedding Model Trainer** plugin is designed to train or fine-tune embedding models using [Sentence Transformers v3](https://www.sbert.net/). It supports a wide variety of dataset formats and loss functions, and it can optionally leverage advanced loss modifiers such as **MatryoshkaLoss**, **AdaptiveLayerLoss**, or **Matryoshka2dLoss**. With this approach, your model learns to generate embeddings that can be truncated to various sizes with minimal performance loss—ideal for scenarios like large-scale retrieval or on-device inference.
+The **Embedding Model Trainer** plugin is designed to train or fine-tune embedding models using `Sentence Transformers v3`. It supports a wide variety of dataset formats and loss functions, and it can optionally leverage advanced loss modifiers such as **MatryoshkaLoss**, **AdaptiveLayerLoss**, or **Matryoshka2dLoss**. With this approach, your model learns to generate embeddings that can be truncated to various sizes with minimal performance loss—ideal for scenarios like large-scale retrieval or on-device inference.
 
 ## Key Features
 
@@ -79,7 +79,7 @@ The **Embedding Model Trainer** plugin is designed to train or fine-tune embeddi
         - **`AdaptiveLayerLoss`**: Model performs well even when you remove model layers for faster inference.
         - **`Matryoshka2dLoss`**: Combines the above two to provide possible configurations to improve efficientcy and lower storage costs
 
-        *Note* : *The loss modifiers are attched with default configs. To modify them, kindly add the params directly in the loss modifier section of the plugin in main.py.* 
+        *Note* : *The loss modifiers are attached with default configs. To modify them, kindly add the params directly in the loss modifier section of the plugin in main.py.* 
 
    - Adjust training parameters (number of epochs, batch size, learning rate, etc.) to suit your hardware and application requirements.
    - Enable **log_to_wandb** if you wish to track training metrics with Weights & Biases.

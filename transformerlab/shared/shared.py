@@ -413,6 +413,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             template_config["template_name"],
         )
 
+        if not os.path.exists(output_file):
+            with open(output_file, "w") as f:
+                f.write("")
+
         # Create a file in the temp directory to store the inputs:
         tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
         if not os.path.exists(tempdir):

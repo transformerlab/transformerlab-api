@@ -129,8 +129,8 @@ job_id = config["job_id"]
 
 # Set final model name from model_id, template_name, and job_id
 template_name = config.get("template_name", "Fine-tune-embed-" + time.strftime("%Y%m%d-%H%M%S"))
-model_id = model_id.replace("/", "~~~")
-final_model_name = f"{model_id}_{template_name}_{job_id}"
+model_id_output = model_id.replace("/", "~~~")
+final_model_name = f"{model_id_output}_{template_name}_{job_id}"
 
 # Define OUTPUT_DIR using final model name
 OUTPUT_DIR = os.path.join(WORKSPACE_DIR, "models", final_model_name)
@@ -227,8 +227,11 @@ if all(col in normalized_dataset.column_names for col in ["id", "anchor", "posit
 
 print(f"Loading Sentence Transformer model {model_id}")
 try:
-    model = SentenceTransformer(model_id, device=("cuda" if torch.cuda.is_available() else "cpu"))
+    model = SentenceTransformer(
+        model_id, device=("cuda" if torch.cuda.is_available() else "cpu"), local_files_only=os.path.exists(model_id)
+    )
 except Exception as e:
+    print(f"Failed to load model {model_id}: {e}")
     job.set_job_completion_status("failed", "Could not load model")
     raise e
 
