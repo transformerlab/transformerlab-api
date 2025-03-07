@@ -670,20 +670,34 @@ def convert_to_openai_format(token_data):
         print("Token Data is not a dictionary, returning None")
         return None
 
+    if 'token_logprobs' in token_data:
+        token_logprobs = token_data['token_logprobs']
+    else:
+        token_logprobs = [token_data['logprob']]
+    
+    if 'tokens' in token_data:
+        tokens = token_data['tokens']
+    else:
+        tokens = [token_data['token']]
+        
+
     # Initialize OpenAI format
     openai_format = {
         "text_offset": [0],  # Assuming this is the first token
-        "token_logprobs": [token_data["logprob"]],
-        "tokens": [token_data["token"]],
+        "token_logprobs": token_logprobs,
+        "tokens": tokens,
         "top_logprobs": [],
     }
 
-    # Convert top_logprobs array to OpenAI's dictionary format
-    top_logprobs_dict = {}
-    for item in token_data["top_logprobs"]:
-        top_logprobs_dict[item["token"]] = item["logprob"]
+    if 'top_logprobs' not in token_data:
+        # Convert top_logprobs array to OpenAI's dictionary format
+        top_logprobs_dict = {}
+        for item in token_data["top_logprobs"]:
+            top_logprobs_dict[item["token"]] = item["logprob"]
 
-    openai_format["top_logprobs"].append(top_logprobs_dict)
+        openai_format["top_logprobs"].append(top_logprobs_dict)
+    else:
+        openai_format["top_logprobs"] = token_data['top_logprobs']
 
     return openai_format
 
@@ -804,7 +818,7 @@ async def generate_completion_stream_generator(request: ModifiedCompletionReques
                     "model": model_name,
                 }
                 if len(delta_text) == 0:
-                    print("delta_text", delta_text)
+                    # print("delta_text", delta_text)
                     if content.get("finish_reason", None) is not None:
                         finish_stream_events.append(chunk)
                     continue
@@ -821,7 +835,7 @@ async def generate_completion_stream_generator(request: ModifiedCompletionReques
         # Convert the finish_chunk to a dictionary
         finish_chunk_dict = finish_chunk
 
-        print("finish_chunk_dict", finish_chunk_dict)
+        # print("finish_chunk_dict", finish_chunk_dict)
 
         # Convert the dictionary to a JSON string
         sorted_json = json.dumps(finish_chunk_dict, ensure_ascii=False)
