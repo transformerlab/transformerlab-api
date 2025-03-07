@@ -219,13 +219,17 @@ async def check_length(request, prompt, max_tokens):
         )
         context_len = response.json()["context_length"]
 
+
         response = await client.post(
             worker_addr + "/count_token",
             headers=headers,
             json={"model": request.model, "prompt": prompt},
             timeout=WORKER_API_TIMEOUT,
         )
-        token_num = response.json()["count"]
+        token_num = response.json()
+        if isinstance(token_num, dict):
+            token_num = token_num["count"]
+            
 
     if token_num + max_tokens > context_len:
         return create_error_response(
@@ -971,7 +975,9 @@ async def count_tokens(request: APITokenCheckRequest):
                 json={"prompt": item.prompt, "model": item.model},
                 timeout=WORKER_API_TIMEOUT,
             )
-            token_num = response.json()["count"]
+            token_num = response.json()
+            if isinstance(token_num, dict):
+                token_num = token_num["count"]
 
             can_fit = True
             if token_num + item.max_tokens > context_len:
@@ -1091,7 +1097,9 @@ async def count_chat_tokens(request: ChatCompletionRequest):
             json={"model": request.model, "prompt": prompt},
             timeout=WORKER_API_TIMEOUT,
         )
-        token_num = response.json()["count"]
+        token_num = response.json()
+        if isinstance(token_num, dict):
+            token_num = token_num["count"]
 
     return {
         "tokenCount": token_num + max_tokens,
