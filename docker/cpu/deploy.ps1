@@ -9,7 +9,7 @@ $repo = "transformerlab/transformerlab-api"
 $url = "https://api.github.com/repos/$repo/releases/latest"
 
 # Get latest version from GitHub
-$response = curl -s $url | ConvertFrom-Json
+$response = Invoke-RestMethod -Uri $url -Method Get
 if (-not $response.tag_name) {
     Write-Output "Failed to fetch the latest version."
     exit 1
