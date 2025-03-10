@@ -657,6 +657,13 @@ def convert_to_openai_format(token_data):
         'bytes': List[int],
         'top_logprobs': List[Dict]
     }
+    In some cases the token_data is returned correctly as a dictionary, in other cases it is returned as a list of dictionaries.
+    {
+        'token_logprobs': List[float],
+        'test_offset': List[int],
+        'tokens': List[str],
+        'top_logprobs': List[Dict]
+    }
 
     Output format:
     {
@@ -670,16 +677,15 @@ def convert_to_openai_format(token_data):
         print("Token Data is not a dictionary, returning None")
         return None
 
-    if 'token_logprobs' in token_data:
-        token_logprobs = token_data['token_logprobs']
+    if "token_logprobs" in token_data:
+        token_logprobs = token_data["token_logprobs"]
     else:
-        token_logprobs = [token_data['logprob']]
-    
-    if 'tokens' in token_data:
-        tokens = token_data['tokens']
+        token_logprobs = [token_data["logprob"]]
+
+    if "tokens" in token_data:
+        tokens = token_data["tokens"]
     else:
-        tokens = [token_data['token']]
-        
+        tokens = [token_data["token"]]
 
     # Initialize OpenAI format
     openai_format = {
@@ -689,7 +695,7 @@ def convert_to_openai_format(token_data):
         "top_logprobs": [],
     }
 
-    if 'top_logprobs' not in token_data:
+    if "top_logprobs" not in token_data:
         # Convert top_logprobs array to OpenAI's dictionary format
         top_logprobs_dict = {}
         for item in token_data["top_logprobs"]:
@@ -697,7 +703,7 @@ def convert_to_openai_format(token_data):
 
         openai_format["top_logprobs"].append(top_logprobs_dict)
     else:
-        openai_format["top_logprobs"] = token_data['top_logprobs']
+        openai_format["top_logprobs"] = token_data["top_logprobs"]
 
     return openai_format
 
