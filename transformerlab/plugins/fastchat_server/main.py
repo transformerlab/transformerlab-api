@@ -38,7 +38,10 @@ else:
 gpu_ids = parameters.get("gpu_ids", "")
 if gpu_ids is not None and gpu_ids != "":
     gpu_ids_formatted = gpu_ids.split(",")
-    num_gpus = len(gpu_ids.split(","))
+    if len(gpu_ids_formatted) > 1:
+        num_gpus = len(gpu_ids_formatted)
+        # To remove any spacing issues which may arise
+        gpu_ids = ",".join([gpu_id.strip() for gpu_id in gpu_ids_formatted])
     # If gpu_ids is not formatted correctly then use all GPUs by default
     if num_gpus == 0 or not isnum(gpu_ids_formatted[0]):
         num_gpus = torch.cuda.device_count()
