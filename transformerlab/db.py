@@ -787,7 +787,7 @@ async def workflow_update_with_new_job(workflow_id, current_task, current_job_id
 async def workflow_create(name, config, experiment_id):
     # check if type is allowed
     row = await db.execute_insert(
-        "INSERT INTO workflows(name, config, status, current_task, current_job_id, experiment_id) VALUES (?, json(?), ?, ?, ?, ?)",
+        "INSERT INTO workflows(name, config, status, current_task, current_job_id, experiment_id) VALUES (?, json(?), ?, json(?), json(?), ?)",
         (name, config, "CREATED", "[]", "[]", experiment_id),
     )
     await db.commit()

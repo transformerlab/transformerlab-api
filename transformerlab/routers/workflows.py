@@ -93,6 +93,21 @@ async def workflow_update_node(workflow_id: str, node_id: str, new_node: dict = 
     await db.workflow_update_config(workflow_id, json.dumps(config)) 
     return {"message": "OK"}
 
+@router.post("/add_edge")
+async def workflow_add_edge(workflow_id: str, start_node_id: str, end_node_id: str):
+    workflow = await db.workflows_get_by_id(workflow_id) 
+    config = json.loads(workflow["config"])
+
+    newNodes = []
+
+    for node in config["nodes"]:
+        if node["id"] == node_id:
+            newNodes["out"].append(end_node_id)
+
+    config["nodes"] = newNodes
+
+    await db.workflow_update_config(workflow_id, json.dumps(config)) 
+    return {"message": "OK"}
 
 @router.get("/delete_node")
 async def workflow_delete_node(workflow_id: str, node_id: str):
@@ -215,7 +230,7 @@ async def start_next_step_in_workflow():
             await db.workflow_update_status(workflow_id, "FAILED")
             return {"message":"failed to download model"}
         else:
-            await db.workflow_update_with_new_job(workflow_id, json.dumps(workflow_current_task), output["job_id"])
+            await db.workflow_update_with_new_job(workflow_id, json.dumps(workflow_current_task), json.dumps([output["job_id"]]))
             return {"message":"model downloaded"}
 
     elif "template" in next_node.keys():
@@ -239,7 +254,7 @@ async def start_next_step_in_workflow():
         next_job_data = next_node["data"]
 
     next_job_id = await db.job_create(next_job_type, next_job_status, json.dumps(next_job_data), workflow_experiment_id)
-    await db.workflow_update_with_new_job(workflow_id, json.dumps(workflow_current_task), next_job_id)
+    await db.workflow_update_with_new_job(workflow_id, json.dumps(workflow_current_task), json.dumps([next_job_id]))
 
     return {"message": "Next job created"}
 
