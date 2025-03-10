@@ -317,9 +317,9 @@ with subprocess.Popen(
                 # The code snippet `with w.as_default(): tf.summary.scalar` is using TensorFlow's
                 # `tf.summary.scalar` function to log scalar values to a TensorBoard summary writer
                 # `w`.
-                writer.add_scalar("loss", loss, int(first_number))
-                writer.add_scalar("it_per_sec", it_per_sec, int(first_number))
-                writer.add_scalar("tokens_per_sec", tokens_per_sec, int(first_number))
+                writer.add_scalar("train/loss", loss, int(first_number))
+                writer.add_scalar("train/it_per_sec", it_per_sec, int(first_number))
+                writer.add_scalar("train/tokens_per_sec", tokens_per_sec, int(first_number))
 
                 # Log the loss to WANDB
                 if WANDB_LOGGING:
@@ -338,7 +338,7 @@ with subprocess.Popen(
                 if match:
                     validation_loss = float(match.group(1))
                     print("Validation Loss: ", validation_loss)
-                    writer.add_scalar("validation-loss", validation_loss, int(first_number))
+                    writer.add_scalar("valid/loss", validation_loss, int(first_number))
                     if WANDB_LOGGING:
                         wandb.log({"valid/loss": validation_loss}, step=int(first_number))
 

@@ -22,8 +22,6 @@ from pynvml import (
     nvmlShutdown,
 )
 
-from werkzeug.utils import secure_filename
-
 from transformerlab.shared import dirs
 
 pyTorch_version = torch.__version__
@@ -172,8 +170,6 @@ GLOBAL_LOG_PATH = dirs.GLOBAL_LOG_PATH
 
 async def watch_file(filename: str, start_from_beginning=False, force_polling=False) -> AsyncGenerator[str, None]:
     print(f"👀 Watching file: {filename}")
-
-    filename = secure_filename(filename)
 
     # create the file if it doesn't already exist:
     if not os.path.exists(filename):

@@ -200,10 +200,10 @@ try:
                     process.terminate()
 
                 # Output to tensorboard
-                writer.add_scalar("loss", loss, iteration)
-                writer.add_scalar("it_per_sec", it_per_sec, iteration)
-                writer.add_scalar("learning_rate", learning_rate, iteration)
-                writer.add_scalar("epoch", epoch, iteration)
+                writer.add_scalar("train/loss", loss, iteration)
+                writer.add_scalar("train/it_per_sec", it_per_sec, iteration)
+                writer.add_scalar("train/learning_rate", learning_rate, iteration)
+                writer.add_scalar("train/epoch", epoch, iteration)
 
                 # Log the loss to WANDB
                 if WANDB_LOGGING:

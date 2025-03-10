@@ -1,27 +1,23 @@
 services:
   transformerlab-api:
-    image: transformerlab-api:latest
-    build:
-      dockerfile: ./Dockerfile.cuda
-      context: .
-      args:
-        TFL_HOME_DIR: /transformerlab
+    image: transformerlab/api:0.10.2-gpu
     container_name: transformerlab-api
-    volumes:
-      - ./workspace:/transformerlab/workspace
-
     ports:
       - "8338:8338"
     ipc: host
-    tty: true
-#    shm_size: '16gb'
-    stdin_open: true
-#    command: bash
+    volumes:
+      - transformerlab_data:/root/.transformerlab/
+      - ${HOME}/.cache:/root/.cache
     deploy:
       resources:
         reservations:
           devices:
-          - driver: nvidia
-            count: "all"
-            capabilities: [gpu]
+            - driver: nvidia
+              count: "all"
+              capabilities: [gpu]
     restart: unless-stopped
+    tty: true
+    stdin_open: true
+
+volumes:
+  transformerlab_data:

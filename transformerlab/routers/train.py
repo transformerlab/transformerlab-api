@@ -7,7 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body
 from fastapi.responses import PlainTextResponse, StreamingResponse
-
+import logging
 import transformerlab.db as db
 from transformerlab.routers.serverinfo import watch_file
 from transformerlab.shared import dirs
@@ -76,7 +76,7 @@ async def import_recipe(name: str, recipe_yaml: str = Body(...)):
         recipe = yaml.safe_load(recipe_yaml)
     except yaml.YAMLError as e:
         print(e)
-        return {"status": "error", "message": e}
+        return {"status": "error", "message": "An error occurred while processing the recipe."}
 
     # Get top level sections of recipe
     # TODO: Is it an error if any of these don't exist?
@@ -293,10 +293,12 @@ async def get_training_job_output(job_id: str):
         return output
     except ValueError as e:
         # Handle specific error
-        return f"ValueError: {e}"
+        logging.error(f"ValueError: {e}")
+        return "An internal error has occurred!"
     except Exception as e:
         # Handle general error
-        return f"Error: {e}"
+        logging.error(f"Error: {e}")
+        return "An internal error has occurred!"
 
 
 @router.get("/job/{job_id}/stream_output")
@@ -312,7 +314,8 @@ async def watch_log(job_id: str):
             print("Retrying to get output file in 4 seconds...")
             output_file_name = await get_output_file_name(job_id)
         else:
-            return f"ValueError: {e}"
+            logging.error(f"ValueError: {e}")
+            return "An internal error has occurred!"
 
     return StreamingResponse(
         # we force polling because i can't get this to work otherwise -- changes aren't detected

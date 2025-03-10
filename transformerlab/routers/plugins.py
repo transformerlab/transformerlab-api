@@ -129,6 +129,8 @@ async def install_plugin(plugin_id: str):
     else:
         print("No install script found")
 
+    return {"status": "success", "message": f"Plugin {plugin_id} installed successfully."}
+
 
 @router.get("/list", summary="List the plugins that are currently installed.")
 async def list_plugins() -> list[object]:

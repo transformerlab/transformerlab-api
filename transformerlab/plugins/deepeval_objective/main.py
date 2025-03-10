@@ -6,48 +6,36 @@ import argparse
 import sys
 import os
 import traceback
+import time
+from datetime import datetime
+from tensorboardX import SummaryWriter
 import nltk
 import transformerlab.plugin
 from datasets import load_dataset
 
 nltk.download("punkt_tab")
 
-try:
-    parser = argparse.ArgumentParser(description="Run DeepEval metrics for LLM-as-judge evaluation.")
-    parser.add_argument("--run_name", default="evaluation", type=str)
-    parser.add_argument("--model_name", default="gpt-j-6b", type=str, help="Model to use for evaluation.")
-    parser.add_argument("--experiment_name", default="", type=str)
-    parser.add_argument("--eval_name", default="", type=str)
-    parser.add_argument("--tasks", default="", type=str)
-    parser.add_argument(
-        "--model_adapter",
-        default=None,
-        type=str,
-    )
-    parser.add_argument(
-        "--dataset_name",
-        default=None,
-        type=str,
-    )
-    parser.add_argument("--threshold", default=0.5, type=float)
-    parser.add_argument("--job_id", default=None, type=str)
-    parser.add_argument("--limit", default=None, type=float)
+parser = argparse.ArgumentParser(description="Run DeepEval metrics for LLM-as-judge evaluation.")
+parser.add_argument("--run_name", default="evaluation", type=str)
+parser.add_argument("--model_name", default="gpt-j-6b", type=str, help="Model to use for evaluation.")
+parser.add_argument("--experiment_name", default="", type=str)
+parser.add_argument("--eval_name", default="", type=str)
+parser.add_argument("--tasks", default="", type=str)
+parser.add_argument(
+    "--model_adapter",
+    default=None,
+    type=str,
+)
+parser.add_argument(
+    "--dataset_name",
+    default=None,
+    type=str,
+)
+parser.add_argument("--threshold", default=0.5, type=float)
+parser.add_argument("--job_id", default=None, type=str)
+parser.add_argument("--limit", default=None, type=float)
 
-    args, other = parser.parse_known_args()
-
-    args.tasks = args.tasks.split(",")
-    original_metric_names = args.tasks
-    args.tasks = [metric.lower().replace(" ", "_") for metric in args.tasks]
-except Exception as e:
-    print("Error occurred while parsing the arguments.")
-    print(e)
-    sys.exit(1)
-
-# # Set experiment name if None
-# if args.experiment_name is None or args.experiment_name == "":
-#     # Set experiment name to current timestamp
-
-#     args.experiment_name = f"experiment_eval_{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}"
+args, other = parser.parse_known_args()
 
 if args.job_id:
     job = transformerlab.plugin.Job(args.job_id)
@@ -56,11 +44,54 @@ else:
     print("Job ID not provided.")
     sys.exit(1)
 
+today = time.strftime("%Y%m%d-%H%M%S")
+tensorboard_dir = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "experiments", args.experiment_name, "tensorboards")
+if not os.path.exists(tensorboard_dir):
+    os.makedirs(tensorboard_dir)
+# Find directory to put in based on eval name
+combined_tensorboard_dir = None
+for dir in os.listdir(tensorboard_dir):
+    if args.run_name == dir or args.run_name == dir.lower():
+        combined_tensorboard_dir = os.path.join(tensorboard_dir, dir)
+if combined_tensorboard_dir is None:
+    combined_tensorboard_dir = os.path.join(tensorboard_dir, args.run_name)
+output_dir = os.path.join(combined_tensorboard_dir, f"evaljob_{args.job_id}_{today}")
+os.makedirs(output_dir, exist_ok=True)
+writer = SummaryWriter(output_dir)
+job.set_tensorboard_output_dir(output_dir)
+print("Writing tensorboard logs to", output_dir)
+
+
+print("ARGS", args)
+try:
+    job.add_to_job_data("config", str(args))
+    job.add_to_job_data("template_name", args.run_name)
+    job.add_to_job_data("model_name", args.model_name)
+    job.add_to_job_data("start_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+except Exception as e:
+    print(f"An error occurred while adding job data: {e}")
+    job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    job.set_job_completion_status("failed", "An error occurred while adding job data.")
+    sys.exit(1)
+
+
+args.tasks = args.tasks.split(",")
+original_metric_names = args.tasks
+args.tasks = [metric.lower().replace(" ", "_") for metric in args.tasks]
+
+
+# # Set experiment name if None
+# if args.experiment_name is None or args.experiment_name == "":
+#     # Set experiment name to current timestamp
+
+#     args.experiment_name = f"experiment_eval_{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}"
+
 
 def get_tflab_dataset():
     try:
         dataset_target = transformerlab.plugin.get_dataset_path(args.dataset_name)
     except Exception as e:
+        job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         job.set_job_completion_status("failed", "Failure to get dataset")
         raise e
     dataset = {}
@@ -70,6 +101,7 @@ def get_tflab_dataset():
             dataset[dataset_type] = load_dataset(dataset_target, split=dataset_type, trust_remote_code=True)
 
         except Exception as e:
+            job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             job.set_job_completion_status("failed", "Failure to load dataset")
             raise e
     # Convert the dataset to a pandas dataframe
@@ -367,9 +399,11 @@ def run_evaluation():
         job.update_progress(100)
         score_list = []
         for metric in args.tasks:
+            writer.add_scalar(f"eval/{metric}", metrics_df[metrics_df["metric_name"] == metric]["score"].mean(), 1)
             score_list.append(
                 {"type": metric, "score": round(metrics_df[metrics_df["metric_name"] == metric]["score"].mean(), 4)}
             )
+        job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         job.set_job_completion_status(
             "success",
             "Evaluation completed successfully.",
@@ -379,6 +413,7 @@ def run_evaluation():
         )
     except Exception as e:
         print("Error occurred while running the evaluation.")
+        job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         job.set_job_completion_status("failed", str(e))
         print(e)
         traceback.print_exc()
@@ -388,6 +423,7 @@ try:
     run_evaluation()
 except Exception as e:
     print("Error occurred while running the evaluation.")
+    job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     job.set_job_completion_status("failed", str(e))
     print(e)
     traceback.print_exc()

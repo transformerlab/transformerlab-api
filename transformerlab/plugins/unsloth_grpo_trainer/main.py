@@ -3,6 +3,7 @@ import json
 import os
 import sqlite3
 import time
+import re
 
 import torch
 from datasets import load_dataset
@@ -143,18 +144,39 @@ def count_xml(text) -> float:
         count -= (len(text.split(f"\n{end_answer_string}")[-1]) - 1) * 0.001
     return count
 
+def extract_xml_answer(text: str) -> str:
+    answer = text.split(f"{start_answer_string}")[-1]
+    answer = answer.split(f"{end_answer_string}")[0]
+    return answer.strip()
+
 
 def xmlcount_reward_func(completions, **kwargs) -> list[float]:
     contents = [completion[0]["content"] for completion in completions]
     return [count_xml(c) for c in contents]
 
 
-# print(f"dataset size: {len(dataset)}")
-# print(dataset[randrange(len(dataset))])
-# print("formatting_template: " + config["formatting_template"])
+def int_reward_func(completions, **kwargs) -> list[float]:
+    """Reward function that checks if the answer is a number"""
+    responses = [completion[0]['content'] for completion in completions]
+    extracted_responses = [extract_xml_answer(r) for r in responses]
+    return [0.5 if r.isdigit() else 0.0 for r in extracted_responses]
 
-# print("formatted instruction: (example) ")
-# print(format_instruction(dataset[randrange(len(dataset))]))
+
+def strict_format_reward_func(completions, **kwargs) -> list[float]:
+    """Reward function that checks strictly if the completion has a specific format."""
+    pattern = fr"^{start_thinking_string}\n.*?\n{end_thinking_string}\n{start_answer_string}\n.*?\n{end_answer_string}\n$"
+    responses = [completion[0]["content"] for completion in completions]
+    matches = [re.match(pattern, r) for r in responses] 
+    return [0.5 if match else 0.0 for match in matches]
+
+
+def soft_format_reward_func(completions, **kwargs) -> list[float]:
+    """Reward function that checks if the completion has a specific format."""
+    pattern = fr"{start_thinking_string}.*?{end_thinking_string}\s*{start_answer_string}.*?{end_answer_string}"
+    responses = [completion[0]["content"] for completion in completions]
+    matches = [re.match(pattern, r) for r in responses] 
+    return [0.5 if match else 0.0 for match in matches]
+
 
 bnb_config = BitsAndBytesConfig(
     load_in_4bit=True, bnb_4bit_use_double_quant=True, bnb_4bit_quant_type="nf4", bnb_4bit_compute_dtype=torch.bfloat16
@@ -203,6 +225,9 @@ db.execute(
 db.commit()
 
 print(max_seq_length)
+
+report_to = ['tensorboard']
+
 
 if WANDB_LOGGING:
     WANDB_LOGGING, report_to = transformerlab.plugin.test_wandb_login()
@@ -260,6 +285,9 @@ trainer = GRPOTrainer(
     reward_funcs=[
         xmlcount_reward_func,
         correctness_reward_func,
+        int_reward_func,
+        strict_format_reward_func,
+        soft_format_reward_func,
     ],
     args=args,
     callbacks=[ProgressTableUpdateCallback],

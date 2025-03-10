@@ -24,12 +24,10 @@ async def list_models():
     with os.scandir(ollama_model_library) as dirlist:
         # Scan the ollama cache repos for cached models
         for entry in dirlist:
-
             # Each model directory contains subdirectories with variants
             if entry.is_dir():
                 for subentry in os.scandir(entry.path):
                     if subentry.is_file():
-
                         # Users will be familiar with Ollama model name format:
                         # <model_name>:<variant>
                         ollama_id = f"{entry.name}:{subentry.name}"
@@ -47,12 +45,11 @@ class OllamaModel(basemodel.BaseModel):
     The passed ID will be in standard ollama model name format:
         <model_name>:<variant>
     Similar to how ollama works, if no ":" is included then the assumption
-    will be that the model is using the default "latest" 
+    will be that the model is using the default "latest"
     (i.e. <model_name>:latest)
     """
 
     def __init__(self, ollama_id):
-
         # Split the pass ID into the model name and variant
         # which are separated by a colon
         # If no variant is specified, then ollama assumes "latest"
@@ -163,7 +160,7 @@ class OllamaModel(basemodel.BaseModel):
         input_model_path = self.model_filename
 
         # self.id contains an ID we can use in Transformer Lab in the format:
-        # <modelname>.gguf 
+        # <modelname>.gguf
         # (with a variant included in modelname only if not :latest)
         output_model_id = self.id
 
@@ -192,13 +189,13 @@ class OllamaModel(basemodel.BaseModel):
                 "model_id": output_model_id,
                 "model_filename": output_filename,
                 "name": f"{self.name} (Ollama)",
-                "local_model": True,
+                "source": "ollama",
                 "json_data": {
                     "uniqueID": output_model_id,
                     "name": f"{self.name} (Ollama)",
                     "model_filename": output_filename,
                     "description": f"Link to Ollama model {self.source_id_or_path}",
-                    "source": "transformerlab",
+                    "source": "ollama",
                     "architecture": "GGUF",
                     "huggingface_repo": "",
                 },
