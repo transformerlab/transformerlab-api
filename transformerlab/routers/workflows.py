@@ -101,7 +101,7 @@ async def workflow_add_edge(workflow_id: str, start_node_id: str, end_node_id: s
     newNodes = []
 
     for node in config["nodes"]:
-        if node["id"] == node_id:
+        if node["id"] == start_node_id:
             newNodes["out"].append(end_node_id)
 
     config["nodes"] = newNodes
@@ -180,7 +180,6 @@ async def start_next_step_in_workflow():
     workflow_experiment_id = currently_running_workflow["experiment_id"]
 
     current_jobs = []
-    current_job_statuses = []
 
     if workflow_current_job_id != []:
         for job_id in workflow_current_job_id:
@@ -242,11 +241,11 @@ async def start_next_step_in_workflow():
             next_job_data["template_name"] = template_name
         elif next_job_type == "EVAL":
             experiment_evaluations = json.loads(json.loads((await db.experiment_get(workflow_experiment_id))["config"])["evaluations"])
-            evaulation_to_run = None
+            evaluation_to_run = None
             for evaluation in experiment_evaluations:
                 if evaluation["name"] == template_name:
                     evaluation_to_run = evaluation
-            if evaluation_to_run==None:
+            if evaluation_to_run is None:
                 await db.workflow_update_status(workflow_id, "FAILED")
             next_job_data = {"plugin": evaluation_to_run["plugin"], "evaluator":template_name}
 
