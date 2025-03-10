@@ -6,6 +6,10 @@ import sys
 
 import torch
 
+
+def isnum(s):
+    return s.strip().isdigit()
+
 # Get all arguments provided to this script using argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--model-path", type=str)
@@ -33,9 +37,12 @@ else:
 
 gpu_ids = parameters.get("gpu_ids", "")
 if gpu_ids is not None and gpu_ids != "":
+    gpu_ids_formatted = gpu_ids.split(",")
     num_gpus = len(gpu_ids.split(","))
-    if num_gpus == 0:
+    # If gpu_ids is not formatted correctly then use all GPUs by default
+    if num_gpus == 0 or not isnum(gpu_ids_formatted[0]):
         num_gpus = torch.cuda.device_count()
+        gpu_ids = ""
 else:
     num_gpus = torch.cuda.device_count()
 

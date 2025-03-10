@@ -24,9 +24,9 @@
   "setup-script": "setup.sh",
   "parameters": {
   "gpu_ids": {
-          "title": "GPU IDs to use for Inference",
+          "title": "GPU IDs to use for Inference. Leaving blank will use all available GPUs",
           "type": "string",
-          "default": "0"
+          "default": ""
       },
     "eight_bit": {
       "title": "Enable 8-bit compression",
