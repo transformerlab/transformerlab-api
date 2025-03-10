@@ -92,8 +92,8 @@ async def init():
                         name,
                         config JSON,
                         status,
-                        current_task INTEGER,
-                        current_job_id INTEGER,
+                        current_task,
+                        current_job_id,
                         experiment_id,
                         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                         updated_at DATETIME NOT NULL DEFAULT current_timestamp)
@@ -759,7 +759,7 @@ async def experiment_save_prompt_template(id, template):
 
 
 async def workflows_get_all():
-    cursor = await db.execute("SELECT * FROM workflows ORDER BY created_at desc")
+    cursor = await db.execute("SELECT * FROM workflows WHERE status != 'DELETED' ORDER BY created_at desc")
     rows = await cursor.fetchall()
     desc = cursor.description
     column_names = [col[0] for col in desc]
@@ -837,8 +837,8 @@ async def workflow_update_with_new_job(workflow_id, current_task, current_job_id
 async def workflow_create(name, config, experiment_id):
     # check if type is allowed
     row = await db.execute_insert(
-        "INSERT INTO workflows(name, config, status, current_task, current_job_id, experiment_id) VALUES (?, json(?), ?, ?, ?, ?)",
-        (name, config, "CREATED", -1, -1, experiment_id),
+        "INSERT INTO workflows(name, config, status, current_task, current_job_id, experiment_id) VALUES (?, json(?), ?, json(?), json(?), ?)",
+        (name, config, "CREATED", "[]", "[]", experiment_id),
     )
     await db.commit()
     return row[0]
