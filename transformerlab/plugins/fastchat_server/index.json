@@ -36,7 +36,7 @@
   },
   "parameters_ui": {
     "gpu_ids": {
-      "ui:help": "Used to spread models over multiple GPUs. Specify a comma-separated list of GPU IDs to use for inference. For example: 0,1,2,3"
+      "ui:help": "Specify a comma-separated list of GPU IDs to use for inference. The IDs for each GPU can be found in the Computer tab. For example: 0,1,2,3"
     }
   }
 }
