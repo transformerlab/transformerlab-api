@@ -7,10 +7,8 @@
   "version": "0.1.2",
   "git": "https://github.com/EleutherAI/lm-evaluation-harness",
   "url": "https://github.com/EleutherAI/lm-evaluation-harness",
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "supported_hardware_architectures": ["cuda", "mlx"],
+  "files": ["main.py", "setup.sh"],
   "dataset": false,
   "setup-script": "setup.sh",
   "parameters": {
@@ -295,17 +293,14 @@
     },
     "limit": {
       "title": "Number of samples (Enter a floating point between 0 and 1. Set as 1 to get all samples)",
-      "type": [
-        "number"
-      ],
+      "type": ["number"],
       "minimum": 0.0,
       "default": 1.0,
       "maximum": 1.0,
       "multipleOf": 0.05
     }
   },
-  "parameters_ui":
-  {
+  "parameters_ui": {
     "tasks": {
       "ui:help": "Select the task you want to run from the EleutherAI Harness",
       "ui:widget": "AutoCompleteWidget"
@@ -313,7 +308,6 @@
     "limit": {
       "ui:help": "Select the fraction of samples you want to run from the EleutherAI Harness task",
       "ui:widget": "RangeWidget"
-
     }
   }
 }

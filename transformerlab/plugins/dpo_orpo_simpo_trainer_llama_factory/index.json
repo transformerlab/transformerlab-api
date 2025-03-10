@@ -14,6 +14,7 @@
     "Qwen2ForCausalLM",
     "Phi3ForCausalLM"
   ],
+  "supported_hardware_architectures": ["cuda"],
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "training_template_format": "none",
@@ -23,11 +24,7 @@
     "pref_loss": {
       "title": "Task",
       "type": "string",
-      "enum": [
-        "dpo",
-        "orpo",
-        "simpo"
-      ],
+      "enum": ["dpo", "orpo", "simpo"],
       "required": true
     },
     "learning_rate": {

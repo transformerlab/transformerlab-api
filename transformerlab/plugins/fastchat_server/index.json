@@ -19,6 +19,7 @@
     "Qwen2ForCausalLM",
     "T5ForConditionalGeneration"
   ],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx"],
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
