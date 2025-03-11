@@ -150,14 +150,13 @@ class TFLPlugin:
 
                     def on_step_end(self, args, state, control, **callback_kwargs):
                         if state.is_local_process_zero:
-                            if state.max_steps > 0:
-                                progress = state.global_step / state.max_steps
-                                progress = int(progress * 100)
-                                self.tfl.progress_update(progress)
+                            progress = state.global_step / state.max_steps
+                            progress = int(progress * 100)
+                            self.tfl.progress_update(progress)
 
-                                # Check if job should be stopped
-                                if self.tfl.job.should_stop:
-                                    control.should_training_stop = True
+                            # Check if job should be stopped
+                            if self.tfl.job.should_stop:
+                                control.should_training_stop = True
 
                         return control
 
@@ -193,9 +192,7 @@ class TFLPlugin:
         #         raise ImportError("Could not create PyTorch Lightning callback. Please install pytorch_lightning package.")
 
         else:
-            raise ValueError(
-                f"Unsupported framework: {framework}. Supported frameworks: huggingface, pytorch_lightning, keras"
-            )
+            raise ValueError(f"Unsupported framework: {framework}. Supported frameworks: huggingface")
 
 
 # Create a singleton instance
