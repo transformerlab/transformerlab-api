@@ -201,12 +201,29 @@ adam_epsilon = float(config.get("adam_epsilon", 1e-8))
 
 question_formatting_template = config.get("input_template", "")
 answer_formatting_template = config.get("output_template", "")
-system_prompt = config.get("instruction_template", "")
+instruction_template = config.get("instruction_template", "")
+
 
 start_thinking_string = config.get("start_thinking_string", "<reasoning>")
 end_thinking_string = config.get("end_thinking_string", "</reasoning>")
 start_answer_string = config.get("start_answer_string", "<answer>")
 end_answer_string = config.get("end_answer_string", "</answer>")
+
+
+# Determine if the instruction template is missing the necessary strings
+if start_thinking_string not in instruction_template or start_answer_string not in instruction_template:
+    system_prompt = f"""
+    Respond in the following format:
+        {start_thinking_string}
+        ...
+        {end_thinking_string}
+        {start_answer_string}
+        ...
+        {end_answer_string}
+    """
+else:
+    system_prompt = instruction_template
+
 
 WANDB_LOGGING = config.get("log_to_wandb", None)
 
@@ -242,6 +259,8 @@ dataset = load_dataset(dataset_target, split="train", trust_remote_code=True)
 
 def format_instruction(template, mapping):
     return template.render(mapping)
+
+
 
 
 question_template = jinja_environment.from_string(question_formatting_template)
