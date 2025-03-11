@@ -55,6 +55,23 @@
             "default": 2,
             "minimum": 1,
             "maximum": 1000
+        },
+        "generate_dataset_for_embedding_model": {
+            "title": "Generate Dataset for Embedding Model",
+            "type": "boolean",
+            "default": false
+        },
+        "embedding_dataset_type":{
+            "title": "Embedding Dataset Type",
+            "type": "string",
+            "default": "anchor | positive | negative",
+            "enum": [
+                "anchor | positive",
+                "anchor | positive | negative",
+                "sentence_A | sentence_B | score",
+                "anchor | positive | negative_1 | negative_2 | ... | negative_n",
+                "id | anchor | positive"
+              ]
         }
     },
     "parameters_ui": {
@@ -79,6 +96,16 @@
         },
         "max_goldens_per_context": {
             "ui:help": "Specify the maximum number of data points to be generated per context."
+        },
+        "generate_dataset_for_embedding_model": {
+            "ui:help": "Select this option to generate a dataset for fine-tuning embedding models."
+        },
+        "embedding_dataset_type": {
+            "ui:help": "Select the type of dataset you want to generate for the embedding model.",
+            "ui:widget": "ModelProviderWidget",
+            "ui:options": {
+                "multiple": false
+            }
         }
     }
 }

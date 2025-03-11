@@ -3,6 +3,7 @@ import json
 import os
 import sys
 import traceback
+import pandas as pd
 from typing import List
 
 import instructor
@@ -16,6 +17,8 @@ from langchain_openai import ChatOpenAI
 from openai import OpenAI
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
+from sentence_transformers.util import mine_hard_negatives, paraphrase_mining
+from datasets import Dataset
 
 import transformerlab.plugin
 
@@ -48,6 +51,8 @@ parser.add_argument("--chunk_size", default=256, type=int)
 parser.add_argument("--max_contexts_per_document", default=10, type=int)
 parser.add_argument("--max_context_length", default=3, type=int)
 parser.add_argument("--max_goldens_per_context", default=2, type=int)
+parser.add_argument("--generate_dataset_for_embedding_model", default=False, type=bool)
+parser.add_argument("--embedding_dataset_type", default="anchor | positive | negative", type=str)
 
 
 args, other = parser.parse_known_args()
@@ -246,7 +251,7 @@ def generation_from_docs(docs: list):
             critic_model=trlab_model,
             chunk_size=args.chunk_size,
             max_contexts_per_document=args.max_contexts_per_document,
-            max_context_length=args.max_context_length,
+            max_context_length=args.max_context_length if not args.generate_dataset_for_embedding_model else 1,
         )
         job.update_progress(1)
 
@@ -270,32 +275,27 @@ def generation_from_docs(docs: list):
         sys.exit(1)
 
 
-def generate_tflab_dataset(output_file_path: str):
+def generate_tflab_dataset(output_file_path: str, dataset_id: str = args.run_name):
     try:
         api_url = "http://localhost:8338/"
         # Create a new dataset
-        params = {"dataset_id": args.run_name, "generated": True}
+        params = {"dataset_id": dataset_id, "generated": True}
         response = requests.get(api_url + "data/new", params=params)
         if response.status_code != 200:
             print(f"Error creating a new dataset: {response.json()}")
             job.set_job_completion_status("failed", f"Error creating a new dataset: {response.json()}")
             sys.exit(1)
-        job.update_progress(95)
         with open(output_file_path, "rb") as json_file:
             files = {"files": json_file}
             response = requests.post(api_url + "data/fileupload", params=params, files=files)
+
         if response.status_code != 200:
             print(f"Error uploading the dataset: {response.json()}")
             job.set_job_completion_status("failed", f"Error uploading the dataset: {response.json()}")
             sys.exit(1)
-        else:
-            print("Dataset uploaded successfully")
-            job.update_progress(100)
-            job.set_job_completion_status(
-                "success",
-                f"Data generated successfully as dataset {args.run_name}",
-                additional_output_path=output_file_path,
-            )
+
+        print("Dataset uploaded successfully")
+
     except Exception as e:
         print(f"An error occurred while generating data: {e}")
         job.set_job_completion_status("failed", f"An error occurred while generating data: {e}")
@@ -318,6 +318,86 @@ def get_docs_list(docs: str) -> List[str]:
         else:
             docs_list[i] = os.path.join(documents_dir, doc)
     return docs_list
+
+
+def run_embedding_dataset_generation(df, cross_encoder=None):
+    """
+    Processes an input DataFrame according to the specified embedding dataset type.
+
+    Parameters:
+        df (pd.DataFrame): Input DataFrame with columns like 'input' and 'context'.
+        cross_encoder: (Optional) A CrossEncoder model for hard negative mining.
+
+    Returns:
+        pd.DataFrame: Depending on the dataset type, returns:
+            - For "anchor | positive": a DataFrame with 'anchor' and 'positive' columns.
+            - For "id | anchor | positive": a DataFrame with an 'id' column (starting from 1), 'anchor', and 'positive'.
+            - For "anchor | positive | negative" or "anchor | positive | negative_1 | negative_2 | ... | negative_n":
+              a DataFrame with negatives added via hard negative mining.
+            - For "sentence_A | sentence_B | score": a DataFrame with paraphrase mining results.
+    """
+    dataset_type = args.embedding_dataset_type.strip()
+
+    print(f"Generating Embedding dataset for dataset type: {dataset_type}")
+
+    # Preprocess: create a DataFrame with 'anchor' from 'input' and 'positive' from 'context'
+    processed_df = pd.DataFrame()
+    processed_df["anchor"] = df["input"]
+    # Remove leading "[" and trailing "]" from the 'context' column
+    processed_df["positive"] = df["context"].str.strip("[]")
+
+    if dataset_type == "sentence_A | sentence_B | score":
+        # Use paraphrase mining on the positive sentences only.
+        sentences = processed_df["positive"].tolist()
+        paraphrase_results = paraphrase_mining(args.embedding_model, sentences, show_progress_bar=True)
+        results = []
+        for score, id1, id2 in paraphrase_results:
+            results.append({"sentence_A": sentences[id1], "sentence_B": sentences[id2], "score": score})
+        return pd.DataFrame(results)
+
+    elif dataset_type == "anchor | positive":
+        # No negatives; simply return the processed DataFrame.
+        return processed_df
+
+    elif dataset_type == "id | anchor | positive":
+        # Add an 'id' column with incrementing numbers starting from 1.
+        processed_df.insert(0, "id", range(1, len(processed_df) + 1))
+        return processed_df
+
+    elif dataset_type == "anchor | positive | negative":
+        # For one negative per (anchor, positive) pair.
+        as_triplets = True
+    elif dataset_type == "anchor | positive | negative_1 | negative_2 | ... | negative_n":
+        # For multiple negatives per (anchor, positive) pair.
+        as_triplets = False
+    else:
+        raise ValueError(f"Unknown dataset type: {dataset_type}")
+
+    # For negative dataset types, perform hard negative mining.
+    # Convert the processed_df to a HuggingFace Dataset.
+    dataset = Dataset.from_pandas(processed_df)
+
+    mined_dataset = mine_hard_negatives(
+        dataset=dataset,
+        model=args.embedding_model,
+        anchor_column_name="anchor",
+        positive_column_name="positive",
+        cross_encoder=cross_encoder,
+        range_min=10,
+        range_max=50,
+        max_score=0.8,
+        margin=0.1,
+        num_negatives=3,
+        sampling_strategy="top",
+        as_triplets=as_triplets,
+        batch_size=32,
+        faiss_batch_size=16384,
+        use_faiss=True,
+        use_multi_process=False,
+        verbose=True,
+    )
+
+    return mined_dataset.to_pandas()
 
 
 def run_generation():
@@ -355,9 +435,28 @@ def run_generation():
             os.makedirs(output_dir)
         print(f"Saving data json to {output_file}")
         df.to_json(output_file, orient="records", lines=False)
+
+        if args.generate_dataset_for_embedding_model:
+            job.update_progress(85)
+            embed_df = run_embedding_dataset_generation(df)
+            embed_output_file = os.path.join(
+                output_dir,
+                f"{args.run_name}_{args.job_id}_embedding.json",
+            )
+            print(f"Saving embedding data json to {embed_output_file}")
+            embed_df.to_json(embed_output_file, orient="records", lines=False)
+            print("Mounting the embedding dataset to the Transformer Lab workspace...")
+            generate_tflab_dataset(embed_output_file, f"{args.run_name}_embedding")
+
         job.update_progress(90)
         print("Mounting the dataset to the Transformer Lab workspace...")
         generate_tflab_dataset(output_file)
+        job.update_progress(100)
+        job.set_job_completion_status(
+            "success",
+            f"Data generated successfully as dataset {args.run_name}",
+            additional_output_path=output_file,
+        )
 
     except Exception as e:
         job.set_job_completion_status("failed", f"An error occurred while generating data: {e}")
