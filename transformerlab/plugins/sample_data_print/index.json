@@ -1,0 +1,34 @@
+{
+    "name": "Sample Data Print",
+    "uniqueId": "sample-data-print",
+    "description": "An evaluator plugin that loads a dataset from Transformer Lab and prints its contents along with sample parameter values.",
+    "plugin-format": "python",
+    "type": "evaluator",
+    "version": "0.1.0",
+    "git": "",
+    "url": "",
+    "files": ["main.py", "setup.sh"],
+    "_dataset": true,
+    "_dataset_display_message": "Please upload a dataset file with a single column 'data' that the plugin will print.",
+    "setup-script": "setup.sh",
+    "parameters": {
+      "sample_text": {
+        "title": "Sample Text",
+        "type": "string",
+        "default": "Hello, Transformer Lab!"
+      },
+      "additional_info": {
+        "title": "Additional Information",
+        "type": "string",
+        "default": "This is a sample parameter for demonstration."
+      }
+    },
+    "parameters_ui": {
+      "sample_text": {
+        "ui:help": "Enter any sample text that will be printed by the plugin."
+      },
+      "additional_info": {
+        "ui:help": "Provide additional info additional information if needed."
+      }
+    }
+  }
