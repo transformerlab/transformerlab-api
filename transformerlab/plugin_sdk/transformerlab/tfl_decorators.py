@@ -1,9 +1,7 @@
 import argparse
 import functools
 import traceback
-import inspect
-import sys
-from typing import List, Optional, Union, Callable, Dict, Any, Type
+from typing import List, Any
 from datasets import load_dataset
 
 from transformerlab.plugin import Job, get_dataset_path
