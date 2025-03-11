@@ -68,11 +68,18 @@ import re
 import subprocess
 import sys
 import time
-import wandb
 from datasets import load_dataset, get_dataset_split_names
 import argparse
 import os
 from tensorboardX import SummaryWriter
+
+try:
+    import wandb
+
+    LOG_WANDB = True
+except Exception:
+    print("Failed to import wandb. WANDB logging will be disabled.")
+    LOG_WANDB = False
 
 import transformerlab.plugin
 from jinja2 import Environment
@@ -141,11 +148,15 @@ fuse_model = config.get("fuse_model", None)
 WANDB_LOGGING = config.get("log_to_wandb", None)
 
 # Check if WANDB logging is enabled
-if WANDB_LOGGING:
+if WANDB_LOGGING and LOG_WANDB:
     WANDB_LOGGING, _ = transformerlab.plugin.test_wandb_login()
 
     if not WANDB_LOGGING:
         print("WANDB API Key not found. WANDB logging will be disabled. Please set the WANDB API Key in Settings.")
+
+# DISABLE WANDB LOGGING if import error with wandb
+if not LOG_WANDB:
+    WANDB_LOGGING = False
 
 if WANDB_LOGGING:
     print("Setting up WANDB project")
