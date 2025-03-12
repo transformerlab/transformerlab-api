@@ -147,6 +147,30 @@ __
     
     This command will stream live logs, allowing you to monitor the service in real time.
 
+3. **Destroying the created resources**
+
+    Terraform commands can be used to destroy the resources (Available as commented lines inside `run.sh`)
+
+    - Destroy only the VM:
+
+        ```bash
+        export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+        terraform destroy --target azurerm_virtual_machine.vm -auto-approve
+        ```
+
+    - Destroy all resources
+
+        ```bash
+        terraform destroy -auto-approve
+        ```
+
+    - Cleanup the SSH private key
+        
+        ```bash
+        sshkeygen -R $(terraform output -raw public_ip)
+        rm -f ~/.ssh/az_vm_prvt_key.pem
+        ```
+
 ---
 
 ## Directory Structure

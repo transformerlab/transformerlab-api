@@ -166,7 +166,7 @@ chmod 600 ~/.ssh/az_vm_prvt_key.pem
 #ssh -i ~/.ssh/az_vm_prvt_key.pem azureuser@$(terraform output -raw public_ip)
 
 ## Destroy the VM
-#export ARM_SUBSCRIPTION_ID="ede17ebd-ffa0-489e-b71c-18dd65807ef7"
+#export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
 #terraform destroy --target azurerm_virtual_machine.vm -auto-approve
 
 ## Destroy all resources
