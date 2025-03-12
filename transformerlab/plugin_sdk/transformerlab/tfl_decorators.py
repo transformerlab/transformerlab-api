@@ -1,3 +1,4 @@
+import os
 import argparse
 import functools
 import traceback
@@ -79,42 +80,6 @@ class TFLPlugin:
 
         return decorator
 
-    def load_dataset(self, dataset_types: List[str] = ["train"]):
-        """Decorator for loading datasets with error handling"""
-
-        def decorator(func):
-            @functools.wraps(func)
-            def wrapper(*args, **kwargs):
-                # Ensure args are parsed
-                self._ensure_args_parsed()
-
-                if not hasattr(self, "dataset_name") or not self.dataset_name:
-                    self.job.set_job_completion_status("failed", "Dataset name not provided")
-                    raise ValueError("Dataset name not provided")
-
-                try:
-                    # Get the dataset path/ID
-                    dataset_target = get_dataset_path(self.dataset_name)
-
-                    # Load each dataset split
-                    datasets = {}
-                    for dataset_type in dataset_types:
-                        datasets[dataset_type] = load_dataset(
-                            dataset_target, split=dataset_type, trust_remote_code=True
-                        )
-
-                    # Call the wrapped function with the datasets
-                    return func(datasets, *args, **kwargs)
-
-                except Exception as e:
-                    error_msg = f"Error loading dataset: {str(e)}\n{traceback.format_exc()}"
-                    print(error_msg)
-                    self.job.set_job_completion_status("failed", error_msg)
-                    raise
-
-            return wrapper
-
-        return decorator
 
     def progress_update(self, progress: int):
         """Update job progress"""
@@ -123,6 +88,34 @@ class TFLPlugin:
     def add_job_data(self, key: str, value: Any):
         """Add data to job"""
         self.job.add_to_job_data(key, value)
+
+    def load_dataset(self, dataset_types: List[str] = ["train"]):
+        """Decorator for loading datasets with error handling"""
+
+        self._ensure_args_parsed()
+
+        if not hasattr(self, "dataset_name") or not self.dataset_name:
+            self.job.set_job_completion_status("failed", "Dataset name not provided")
+            raise ValueError("Dataset name not provided")
+
+        try:
+            # Get the dataset path/ID
+            dataset_target = get_dataset_path(self.dataset_name)
+
+            # Load each dataset split
+            datasets = {}
+            for dataset_type in dataset_types:
+                datasets[dataset_type] = load_dataset(
+                    dataset_target, split=dataset_type, trust_remote_code=True
+                )
+
+            return datasets
+
+        except Exception as e:
+            error_msg = f"Error loading dataset: {str(e)}\n{traceback.format_exc()}"
+            print(error_msg)
+            self.job.set_job_completion_status("failed", "Failed to load dataset")
+            raise
 
 
 class TrainerTFLPlugin(TFLPlugin):
@@ -221,49 +214,54 @@ class TrainerTFLPlugin(TFLPlugin):
             self.job.set_job_completion_status("failed", error_msg)
             raise
 
-    def setup_wandb(self, project_name: str = "TFL_Training"):
-        """Decorator for setting up Weights & Biases logging"""
 
-        def decorator(func):
-            @functools.wraps(func)
-            def wrapper(*args, **kwargs):
-                self._ensure_args_parsed()
+    def setup_train_logging(self, wandb_project_name: str = "TFL_Training"):
+        """Setup Weights and Biases and TensorBoard logging
+        
+        Args:
+            wandb_project_name: Name of the W&B project
+            
+        Returns:
+            List of reporting targets (e.g. ["tensorboard", "wandb"])
+        """
+        self._ensure_args_parsed()
+        if not hasattr(self, "template_name") or not self.template_name:
+            self.template_name = "default"
+        # Add tensorboard_output_dir
+        self.tensorboard_output_dir = os.path.join(self.output_dir, f"job_{self.job_id}_{self.template_name}")
+        print("Writing tensorboard logs to:", self.output_dir)
+        
+        # Store the tensorboard output dir in the job
+        self.add_job_data("tensorboard_output_dir", self.output_dir)
 
-                # Check config or direct attribute for wandb logging preference
-                log_to_wandb = False
-                if hasattr(self, "_config") and self._config:
-                    log_to_wandb = self._config.get("log_to_wandb", False)
-                elif hasattr(self, "log_to_wandb"):
-                    log_to_wandb = self.log_to_wandb
+        # Check config or direct attribute for wandb logging preference
+        log_to_wandb = False
+        if hasattr(self, "_config") and self._config:
+            log_to_wandb = self._config.get("log_to_wandb", False)
+        elif hasattr(self, "log_to_wandb"):
+            log_to_wandb = self.log_to_wandb
 
-                report_to = ["tensorboard"]
+        report_to = ["tensorboard"]
 
-                if log_to_wandb:
-                    try:
-                        wandb_success, report_to = test_wandb_login(project_name)
+        if log_to_wandb:
+            try:
+                wandb_success, report_to = test_wandb_login(project_name)
 
-                        if wandb_success:
-                            print(f"W&B logging enabled (project: {project_name})")
-                            self.add_job_data("wandb_logging", True)
-                        else:
-                            print("W&B API key not found. W&B logging disabled.")
-                            self.add_job_data("wandb_logging", False)
-
-                        # Pass report_to as kwarg to the function
-                        kwargs["report_to"] = report_to
-
-                    except Exception as e:
-                        print(f"Error setting up W&B: {str(e)}. Continuing without W&B.")
-                        self.add_job_data("wandb_logging", False)
-                        kwargs["report_to"] = ["tensorboard"]
+                if wandb_success:
+                    print(f"W&B logging enabled (project: {project_name})")
+                    report_to.append("wandb")
                 else:
-                    kwargs["report_to"] = ["tensorboard"]
+                    print("W&B API key not found. W&B logging disabled.")
+                    self.add_job_data("wandb_logging", False)
 
-                return func(*args, **kwargs)
+            except Exception as e:
+                print(f"Error setting up W&B: {str(e)}. Continuing without W&B.")
+                self.add_job_data("wandb_logging", False)
+                report_to = ["tensorboard"]
+        
+        return report_to
 
-            return wrapper
 
-        return decorator
 
 
 # Create a singleton instance

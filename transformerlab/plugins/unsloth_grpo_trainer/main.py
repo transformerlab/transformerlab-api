@@ -38,13 +38,16 @@ def count_xml(text, start_thinking_string, end_thinking_string, start_answer_str
     return count
 
 @tfl_trainer.job_wrapper(progress_start=0, progress_end=100)
-@tfl_trainer.load_dataset(dataset_types=["train"])
-@tfl_trainer.setup_wandb(project_name="TFL_Training")
 def train_model(datasets, report_to=['tensorboard']):
     """Main training function using TrainerTFLPlugin"""
     
-    # Get dataset from loaded datasets
+    # Get configuration from tfl_trainer
+    datasets = tfl_trainer.load_dataset()
     dataset = datasets["train"]
+
+
+    # Setup logging on WANDB and Tensorboard
+    report_to = tfl_trainer.setup_train_logging()
     
     # Get configuration values
     model_id = tfl_trainer.model_name

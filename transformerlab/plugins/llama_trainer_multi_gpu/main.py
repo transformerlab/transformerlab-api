@@ -31,12 +31,16 @@ def setup_accelerate_environment():
     return env
 
 @tfl_trainer.job_wrapper(progress_start=0, progress_end=100)
-@tfl_trainer.load_dataset(dataset_types=["train"])
-@tfl_trainer.setup_wandb(project_name="TFL_Training")
-def train_model(datasets, report_to=['tensorboard']):
+def train_model():
     """Main training function using TrainerTFLPlugin"""
     # Get configuration from tfl_trainer
-    dataset = datasets["train"] 
+     # Configuration is loaded automatically when tfl_trainer methods are called
+    datasets = tfl_trainer.load_dataset()
+    dataset = datasets["train"]
+
+    # Setup logging on WANDB and Tensorboard
+    report_to = tfl_trainer.setup_train_logging()
+
     # Set up accelerate configuration
     accelerate_config = {
         "cuda": "multi_gpu",

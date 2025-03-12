@@ -170,6 +170,9 @@ def generate_nanotron_config():
 @tfl_trainer.job_wrapper(progress_start=0, progress_end=100)
 def train_model():
     """Main training function using TrainerTFLPlugin"""
+
+    # Setup logging
+    tfl_trainer.setup_train_logging(wandb_project_name="TFL_Pretraining")
     
     # Create the Nanotron configuration
     nanotron_config = generate_nanotron_config()
@@ -189,12 +192,7 @@ def train_model():
         yaml.dump(nanotron_config, f, default_flow_style=False)
     
     # Setting up tensorboard
-    output_dir = os.path.join(tfl_trainer.output_dir, f"job_{tfl_trainer.job_id}_{run_name}")
-    writer = SummaryWriter(output_dir)
-    print("Writing logs to:", output_dir)
-    
-    # Store the tensorboard output dir in the job
-    tfl_trainer.add_job_data("tensorboard_output_dir", output_dir)
+    writer = SummaryWriter(tfl_trainer.tensorboard_output_dir)
     
     print(f"Generated Nanotron configuration at: {config_path}")
     
