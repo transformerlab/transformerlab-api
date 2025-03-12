@@ -1,10 +1,8 @@
 import os
 import subprocess
-import sys
 import requests
 import yaml
 import re
-import time
 from tensorboardX import SummaryWriter
 import torch
 
