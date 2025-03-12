@@ -320,6 +320,14 @@ def get_docs_list(docs: str) -> List[str]:
     return docs_list
 
 
+def clean_context(s):
+    """
+    Converts the input to string and removes only the leading '[' and trailing ']' if present.
+    The quotes within the string are preserved.
+    """
+    return s[0] if isinstance(s, list) else list(s)[0]
+
+
 def run_embedding_dataset_generation(df, cross_encoder=None):
     """
     Processes an input DataFrame according to the specified embedding dataset type.
@@ -343,8 +351,9 @@ def run_embedding_dataset_generation(df, cross_encoder=None):
     # Preprocess: create a DataFrame with 'anchor' from 'input' and 'positive' from 'context'
     processed_df = pd.DataFrame()
     processed_df["anchor"] = df["input"]
+
     # Remove leading "[" and trailing "]" from the 'context' column
-    processed_df["positive"] = df["context"].str.strip("[]")
+    processed_df["positive"] = df["context"].apply(clean_context)
 
     if dataset_type == "sentence_A | sentence_B | score":
         # Use paraphrase mining on the positive sentences only.
@@ -377,9 +386,13 @@ def run_embedding_dataset_generation(df, cross_encoder=None):
     # Convert the processed_df to a HuggingFace Dataset.
     dataset = Dataset.from_pandas(processed_df)
 
+    model = SentenceTransformer(
+        args.embedding_model, trust_remote_code=True, local_files_only=os.path.exists(args.embedding_model)
+    )
+
     mined_dataset = mine_hard_negatives(
         dataset=dataset,
-        model=args.embedding_model,
+        model=model,
         anchor_column_name="anchor",
         positive_column_name="positive",
         cross_encoder=cross_encoder,
@@ -391,9 +404,6 @@ def run_embedding_dataset_generation(df, cross_encoder=None):
         sampling_strategy="top",
         as_triplets=as_triplets,
         batch_size=32,
-        faiss_batch_size=16384,
-        use_faiss=True,
-        use_multi_process=False,
         verbose=True,
     )
 
@@ -459,7 +469,7 @@ def run_generation():
         )
 
     except Exception as e:
-        job.set_job_completion_status("failed", f"An error occurred while generating data: {e}")
+        job.set_job_completion_status("failed", "An error occurred while generating data")
         print(f"An error occurred while generating data: {e}")
         traceback.print_exc()
         sys.exit(1)
