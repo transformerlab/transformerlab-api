@@ -8,9 +8,7 @@ from trl import SFTTrainer, SFTConfig
 
 from transformerlab.tfl_decorators import tfl_trainer
 
-# Add any plugin-specific arguments
-tfl_trainer.add_argument("--use_flash_attention", action="store_true", help="Use Flash Attention 2.0")
-
+use_flash_attention = False
 # Initialize Jinja environment
 jinja_environment = Environment()
 
@@ -18,7 +16,7 @@ jinja_environment = Environment()
 @tfl_trainer.job_wrapper(progress_start=0, progress_end=100)
 @tfl_trainer.setup_wandb(project_name="TFL_Training")
 @tfl_trainer.load_dataset(dataset_types=["train"])
-def main(datasets, report_to=None):
+def main(datasets, report_to=['tensorboard']):
     # Configuration is loaded automatically when tfl_trainer methods are called
 
     dataset = datasets["train"]
@@ -46,7 +44,6 @@ def main(datasets, report_to=None):
 
     # Load model
     model_id = tfl_trainer.model_name
-    use_flash_attention = getattr(tfl_trainer, "use_flash_attention", False)
 
     try:
         model = AutoModelForCausalLM.from_pretrained(
@@ -126,7 +123,7 @@ def main(datasets, report_to=None):
         disable_tqdm=False,
         packing=True,
         run_name=f"job_{tfl_trainer.job_id}_{run_suffix}",
-        report_to=report_to or ["tensorboard"],
+        report_to=report_to,
     )
 
     # Create progress callback

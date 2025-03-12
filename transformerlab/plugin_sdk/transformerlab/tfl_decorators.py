@@ -13,7 +13,7 @@ class TFLPlugin:
     def __init__(self):
         self._job = None
         self._parser = argparse.ArgumentParser(description="TransformerLab Plugin")
-        self._parser.add_argument("--job_id", type=str, required=True, help="Job identifier")
+        self._parser.add_argument("--job_id", type=str, help="Job identifier")
         self._parser.add_argument("--dataset_name", type=str, help="Dataset to use")
         self._parser.add_argument("--model_name", type=str, help="Model to use")
 
@@ -60,13 +60,13 @@ class TFLPlugin:
 
                     # Update final progress and success status
                     self.job.update_progress(progress_end)
-                    self.job.set_job_completion_status("success", f"{func.__name__} completed successfully")
+                    self.job.set_job_completion_status("success", f"Job completed successfully")
 
                     return result
 
                 except Exception as e:
                     # Capture the full error
-                    error_msg = f"Error in {func.__name__}: {str(e)}\n{traceback.format_exc()}"
+                    error_msg = f"Error in Job: {str(e)}\n{traceback.format_exc()}"
                     print(error_msg)
 
                     # Update job with failure status
@@ -212,7 +212,7 @@ class TrainerTFLPlugin(TFLPlugin):
 
             # Transfer config values to instance attributes for easy access
             for key, value in self._config.items():
-                if not hasattr(self, key):
+                if not hasattr(self, key) or getattr(self, key) is None:
                     setattr(self, key, value)
 
         except Exception as e:
