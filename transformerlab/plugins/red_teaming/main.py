@@ -51,7 +51,6 @@ from tensorboardX import SummaryWriter
 import transformerlab.plugin
 
 nltk.download("punkt_tab")
-
 parser = argparse.ArgumentParser(description="Run DeepEval metrics for LLM-as-judge evaluation.")
 parser.add_argument("--run_name", default="evaluation", type=str)
 parser.add_argument("--model_name", default="gpt-j-6b", type=str, help="Model to use for evaluation.")
@@ -82,6 +81,8 @@ else:
 
 today = time.strftime("%Y%m%d-%H%M%S")
 tensorboard_dir = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "experiments", args.experiment_name, "tensorboards")
+if not os.path.exists(tensorboard_dir):
+    os.makedirs(tensorboard_dir)
 # Find directory to put in based on eval name
 combined_tensorboard_dir = None
 for dir in os.listdir(tensorboard_dir):
@@ -321,7 +322,6 @@ except Exception as e:
     job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     job.set_job_completion_status("failed", "An error occurred while loading the generation model")
     sys.exit(1)
-
 
 # args.tasks = args.tasks.split(",")
 # original_metric_names = args.tasks

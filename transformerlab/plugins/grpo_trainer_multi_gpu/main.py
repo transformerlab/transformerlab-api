@@ -2,23 +2,167 @@ import argparse
 import json
 import os
 import sqlite3
+import sys
+import subprocess
 import time
 import re
 
-import torch
-from datasets import load_dataset
-from jinja2 import Environment
-from transformers import BitsAndBytesConfig, TrainerCallback
-from trl import GRPOConfig, GRPOTrainer
-from unsloth import FastLanguageModel, PatchFastRL
+# Get all parameters provided to this script from Transformer Lab
+parser = argparse.ArgumentParser()
+parser.add_argument("--input_file", type=str)
+parser.add_argument("--launched_with_accelerate", action="store_true", 
+                   help="Flag to prevent recursive subprocess launching")
+args, unknown = parser.parse_known_args()
 
-import transformerlab.plugin
+print("Arguments:")
+print(args)
+
+input_config = None
+# open the input file that provides configs
+with open(args.input_file) as json_file:
+    input_config = json.load(json_file)
+config = input_config["config"]
+
+accelerate_config = {
+    "cuda": "multi_gpu",
+    "cpu": "cpu",
+    "tpu": "tpu",
+}
+
+train_device = accelerate_config.get(config.get("train_device", "cuda"), "multi_gpu")
+print(f"Training setup for accelerate launch: {train_device}")
+
+if train_device == "multi_gpu":
+    gpu_ids = config.get("gpu_ids", None)
+    if gpu_ids and gpu_ids != "auto":
+        gpu_ids = str(gpu_ids)
+
+    # Set GPU IDS to None if "auto" is specified
+    if gpu_ids == "auto":
+        gpu_ids = None
+
+else:
+    gpu_ids = None
+
+
+# Check if we should launch with accelerate
+if not args.launched_with_accelerate:
+    print("Launching training with accelerate for multi-GPU...")
+    
+    # Fix import issues by ensuring the parent directory is in PYTHONPATH
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    api_dir = os.path.abspath(os.path.join(current_dir, "../../.."))
+    
+    # Create environment for subprocess with modified PYTHONPATH
+    env = os.environ.copy()
+    
+    # Add the specific SDK path to PYTHONPATH
+    tfl_source_dir = os.environ.get("_TFL_SOURCE_CODE_DIR")
+    python_path = env.get("PYTHONPATH", "")
+    
+    # Create a list of paths to include
+    paths_to_include = [api_dir]
+    
+    # If _TFL_SOURCE_CODE_DIR is available, construct the path to the plugin sdk
+    if tfl_source_dir:
+        tflab_sdk_path = os.path.join(tfl_source_dir, "transformerlab", "plugin_sdk")
+        paths_to_include.append(tflab_sdk_path)
+        print(f"Adding SDK path: {tflab_sdk_path}")
+        
+        # Also add the parent directory of the plugin_sdk
+        plugin_parent = os.path.join(tfl_source_dir, "transformerlab")
+        paths_to_include.append(plugin_parent)
+        print(f"Adding plugin parent path: {plugin_parent}")
+    
+    # Add the existing PYTHONPATH if it exists
+    if python_path:
+        paths_to_include.append(python_path)
+    
+    # Join all paths with colons
+    env["PYTHONPATH"] = ":".join(paths_to_include)
+    
+    print(f"Setting PYTHONPATH to: {env['PYTHONPATH']}")
+    
+    cmd = [
+        "accelerate", "launch",
+        f"--{train_device}",
+        __file__,
+        "--input_file", args.input_file,
+        "--launched_with_accelerate"
+    ]
+    if gpu_ids:
+        cmd.extend(["--gpu_ids", gpu_ids])
+        
+    print(f"Running command: {' '.join(cmd)}")
+    
+    # Pass the modified environment to the subprocess
+    result = subprocess.run(cmd, env=env)
+    print(f"Subprocess completed with return code: {result.returncode}")
+    sys.exit(result.returncode)
+
+# Import dependencies after the subprocess check to ensure we're in the right environment
+import torch    #noqa
+from datasets import load_dataset   #noqa
+from jinja2 import Environment  #noqa
+from transformers import TrainerCallback, AutoModelForCausalLM, AutoTokenizer    #noqa
+from trl import GRPOConfig, GRPOTrainer   #noqa
+from accelerate import Accelerator # noqa
+
+
+
+# Get source code dir and print for debugging
+tfl_source_dir = os.environ.get("_TFL_SOURCE_CODE_DIR")
+
+# Ensure transformerlab can be imported
+try:
+    import transformerlab.plugin
+    print("Successfully imported transformerlab.plugin")
+except ImportError as e:
+    print(f"Error importing transformerlab.plugin: {e}")
+    # Add appropriate paths if needed
+    print("Current sys.path:", sys.path)
+    
+    # Try multiple approaches to find the module
+    if tfl_source_dir:
+        tflab_sdk_path = os.path.join(tfl_source_dir, "transformerlab", "plugin_sdk")
+        if os.path.exists(tflab_sdk_path):
+            print(f"Adding {tflab_sdk_path} to sys.path")
+            sys.path.append(tflab_sdk_path)
+    
+    # Also try the parent directory approach
+    transformerlab_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
+    print(f"Adding {transformerlab_path} to sys.path")
+    sys.path.append(transformerlab_path)
+    
+    # If _TFL_SOURCE_CODE_DIR exists, try adding transformerlab directory
+    if tfl_source_dir:
+        plugin_parent = os.path.join(tfl_source_dir, "transformerlab")
+        if os.path.exists(plugin_parent):
+            print(f"Adding {plugin_parent} to sys.path")
+            sys.path.append(plugin_parent)
+    
+    # Try importing again
+    try:
+        import transformerlab.plugin
+        print("Successfully imported transformerlab.plugin after path adjustment")
+    except ImportError as e:
+        print(f"Still unable to import transformerlab.plugin: {e}")
+        # Print directory structure to debug
+        print("Listing potential transformerlab directories:")
+        if tfl_source_dir:
+            os.system(f"find {tfl_source_dir} -name plugin.py -type f")
+        sys.exit(1)
+
+# Initialize Accelerator only after the subprocess check and imports
+accelerator = Accelerator()
+print(f"Running with accelerate on {accelerator.num_processes} processes")
+
 
 jinja_environment = Environment()
 
 use_flash_attention = False
 
-PatchFastRL("GRPO", FastLanguageModel)
+# PatchFastRL("GRPO", FastLanguageModel)
 
 # Connect to the LLM Lab database
 llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
@@ -45,8 +189,6 @@ model_id = config["model_name"]
 dataset_id = config["dataset_name"]
 max_seq_length = int(config.get("maximum_sequence_length", 1024))
 max_completion_length = int(config.get("maximum_completion_length", 512))
-lora_rank = int(config.get("lora_r", 16))
-lora_alpha = int(config.get("lora_alpha", 32))
 learning_rate = float(config.get("learning_rate", 0.005))
 learning_rate_schedule = config.get("learning_rate_schedule", "constant")
 max_grad_norm = float(config.get("max_grad_norm", 0.3))
@@ -59,12 +201,29 @@ adam_epsilon = float(config.get("adam_epsilon", 1e-8))
 
 question_formatting_template = config.get("input_template", "")
 answer_formatting_template = config.get("output_template", "")
-system_prompt = config.get("instruction_template", "")
+instruction_template = config.get("instruction_template", "")
+
 
 start_thinking_string = config.get("start_thinking_string", "<reasoning>")
 end_thinking_string = config.get("end_thinking_string", "</reasoning>")
 start_answer_string = config.get("start_answer_string", "<answer>")
 end_answer_string = config.get("end_answer_string", "</answer>")
+
+
+# Determine if the instruction template is missing the necessary strings
+if start_thinking_string not in instruction_template or start_answer_string not in instruction_template:
+    system_prompt = f"""
+    Respond in the following format:
+        {start_thinking_string}
+        ...
+        {end_thinking_string}
+        {start_answer_string}
+        ...
+        {end_answer_string}
+    """
+else:
+    system_prompt = instruction_template
+
 
 WANDB_LOGGING = config.get("log_to_wandb", None)
 
@@ -100,6 +259,8 @@ dataset = load_dataset(dataset_target, split="train", trust_remote_code=True)
 
 def format_instruction(template, mapping):
     return template.render(mapping)
+
+
 
 
 question_template = jinja_environment.from_string(question_formatting_template)
@@ -166,7 +327,7 @@ def strict_format_reward_func(completions, **kwargs) -> list[float]:
     """Reward function that checks strictly if the completion has a specific format."""
     pattern = fr"^{start_thinking_string}\n.*?\n{end_thinking_string}\n{start_answer_string}\n.*?\n{end_answer_string}\n$"
     responses = [completion[0]["content"] for completion in completions]
-    matches = [re.match(pattern, r) for r in responses] 
+    matches = [re.match(pattern, r) for r in responses]
     return [0.5 if match else 0.0 for match in matches]
 
 
@@ -178,41 +339,26 @@ def soft_format_reward_func(completions, **kwargs) -> list[float]:
     return [0.5 if match else 0.0 for match in matches]
 
 
-bnb_config = BitsAndBytesConfig(
-    load_in_4bit=True, bnb_4bit_use_double_quant=True, bnb_4bit_quant_type="nf4", bnb_4bit_compute_dtype=torch.bfloat16
-)
-
 # Load model and tokenizer
 try:
-    model, tokenizer = FastLanguageModel.from_pretrained(
-        model_name=model_id,
-        max_seq_length=max_seq_length,
-        max_lora_rank=lora_rank,
-        quantization_config=bnb_config,
-        use_cache=False,
-        use_flash_attention_2=use_flash_attention,
-        device_map="auto",
+    device_map = None if accelerator.num_processes > 1 else "auto"
+    print(f"Using device_map: {device_map}")
+    
+    # Replace FastLanguageModel with standard Transformers model loading
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    tokenizer.padding_side = "right"  # Ensure proper padding direction
+    model = AutoModelForCausalLM.from_pretrained(
+    model_id,
+    torch_dtype=torch.bfloat16,
+    device_map=None
     )
-    model.config.pretraining_tp = 1
+    # model.config.pretraining_tp = 1
+    # model.config.use_cache = False  # Disable KV cache during training
+    # model.train()  # Ensure model is in training mode
 except Exception as e:
     job.set_job_completion_status("failed", "Failed to load model")
     raise e
 
-model = FastLanguageModel.get_peft_model(
-    model,
-    r=lora_rank,
-    target_modules=[
-        "q_proj",
-        "k_proj",
-        "v_proj",
-        "o_proj",
-        "gate_proj",
-        "up_proj",
-        "down_proj",
-    ],
-    lora_alpha=lora_alpha,
-    use_gradient_checkpointing="unsloth",
-)
 
 # This is where the tensorboard output is stored
 print(f"Storing Tensorboard Output to: {output_dir}")
@@ -260,6 +406,11 @@ args = GRPOConfig(
     disable_tqdm=False,  # disable tqdm since with packing values are in correct
     run_name=f"job_{JOB_ID}_{run_suffix}",
     report_to=report_to,
+    # Multi-GPU training parameters
+    ddp_find_unused_parameters=False,
+    dataloader_pin_memory=True,
+    # Let Accelerate handle device placement
+    no_cuda=False,
 )
 
 
@@ -281,15 +432,15 @@ class ProgressTableUpdateCallback(TrainerCallback):
 trainer = GRPOTrainer(
     model=model,
     train_dataset=dataset,
-    tokenizer=tokenizer,
     reward_funcs=[
         xmlcount_reward_func,
         correctness_reward_func,
         int_reward_func,
         strict_format_reward_func,
-        soft_format_reward_func,
+        soft_format_reward_func
     ],
     args=args,
+    processing_class=tokenizer,
     callbacks=[ProgressTableUpdateCallback],
 )
 

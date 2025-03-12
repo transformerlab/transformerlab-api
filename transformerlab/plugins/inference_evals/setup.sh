@@ -1,0 +1,1 @@
+uv pip install deepeval langchain-openai instructor anthropic datasets tensorboardX
