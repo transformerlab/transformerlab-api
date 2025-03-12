@@ -60,7 +60,7 @@ class TFLPlugin:
 
                     # Update final progress and success status
                     self.job.update_progress(progress_end)
-                    self.job.set_job_completion_status("success", f"Job completed successfully")
+                    self.job.set_job_completion_status("success", "Job completed successfully")
 
                     return result
 

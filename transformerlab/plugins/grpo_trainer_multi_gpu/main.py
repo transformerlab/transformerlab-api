@@ -1,9 +1,7 @@
 import os
-import sys
 import time
 import re
 import subprocess
-from random import randrange
 
 from transformerlab.tfl_decorators import tfl_trainer
 
@@ -115,7 +113,6 @@ def train_model(datasets, report_to=['tensorboard']):
     
     # Get configuration values from tfl_trainer
     model_id = tfl_trainer.model_name
-    max_seq_length = int(tfl_trainer.maximum_sequence_length)
     max_completion_length = int(tfl_trainer.maximum_completion_length)
     learning_rate = float(tfl_trainer.learning_rate)
     learning_rate_schedule = tfl_trainer.learning_rate_schedule
@@ -132,7 +129,6 @@ def train_model(datasets, report_to=['tensorboard']):
     question_formatting_template = getattr(tfl_trainer, "input_template", "")
     answer_formatting_template = getattr(tfl_trainer, "output_template", "")
     instruction_template = getattr(tfl_trainer, "instruction_template", "")
-
     
     start_thinking_string = getattr(tfl_trainer, "start_thinking_string", "<reasoning>")
     end_thinking_string = getattr(tfl_trainer, "end_thinking_string", "</reasoning>")
@@ -214,7 +210,7 @@ def train_model(datasets, report_to=['tensorboard']):
         model = AutoModelForCausalLM.from_pretrained(
             model_id,
             torch_dtype=torch.bfloat16,
-            device_map=None
+            device_map=device_map
         )
     except Exception as e:
         return f"Failed to load model: {str(e)}"
@@ -231,6 +227,7 @@ def train_model(datasets, report_to=['tensorboard']):
     args = GRPOConfig(
         output_dir=output_dir,
         num_train_epochs=num_epochs,
+        weight_decay=weight_decay,
         per_device_train_batch_size=batch_size,
         gradient_accumulation_steps=2,
         gradient_checkpointing=True,

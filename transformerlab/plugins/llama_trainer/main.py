@@ -1,4 +1,3 @@
-import os
 import torch
 from jinja2 import Environment
 from random import randrange
