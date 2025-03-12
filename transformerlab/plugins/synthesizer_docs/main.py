@@ -358,7 +358,10 @@ def run_embedding_dataset_generation(df, cross_encoder=None):
     if dataset_type == "sentence_A | sentence_B | score":
         # Use paraphrase mining on the positive sentences only.
         sentences = processed_df["positive"].tolist()
-        paraphrase_results = paraphrase_mining(args.embedding_model, sentences, show_progress_bar=True)
+        model = SentenceTransformer(
+            args.embedding_model, trust_remote_code=True, local_files_only=os.path.exists(args.embedding_model)
+        )
+        paraphrase_results = paraphrase_mining(model, sentences, show_progress_bar=True)
         results = []
         for score, id1, id2 in paraphrase_results:
             results.append({"sentence_A": sentences[id1], "sentence_B": sentences[id2], "score": score})
