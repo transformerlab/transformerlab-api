@@ -245,10 +245,10 @@ class TrainerTFLPlugin(TFLPlugin):
 
         if log_to_wandb:
             try:
-                wandb_success, report_to = test_wandb_login(project_name)
+                wandb_success, report_to = test_wandb_login(wandb_project_name)
 
                 if wandb_success:
-                    print(f"W&B logging enabled (project: {project_name})")
+                    print(f"W&B logging enabled (project: {wandb_project_name})")
                     report_to.append("wandb")
                 else:
                     print("W&B API key not found. W&B logging disabled.")
