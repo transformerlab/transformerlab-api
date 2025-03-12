@@ -3,7 +3,7 @@ import argparse
 import functools
 import traceback
 from typing import List, Any
-from datasets import load_dataset
+from datasets import load_dataset, get_dataset_split_names
 
 from transformerlab.plugin import Job, get_dataset_path, test_wandb_login
 
@@ -103,11 +103,32 @@ class TFLPlugin:
         try:
             # Get the dataset path/ID
             dataset_target = get_dataset_path(self.dataset_name)
+            # Get the available splits
+            available_splits = get_dataset_split_names(dataset_target)
+
+            # Handle different validation split names
+            dataset_splits = {}
+            for dataset_type in dataset_types:
+                dataset_splits[dataset_type] = dataset_type
+
+            if "validation" in available_splits and "valid" in dataset_splits:
+                dataset_splits["valid"] = "validation"
+            elif "valid" in dataset_types and "valid" not in available_splits:
+                print("No validation slice found in dataset, using train split as 80-20 for training and validation")
+                dataset_splits["valid"] = "train[-10%:]"
+                dataset_splits["train"] = "train[:80%]"
 
             # Load each dataset split
             datasets = {}
-            for dataset_type in dataset_types:
-                datasets[dataset_type] = load_dataset(dataset_target, split=dataset_type, trust_remote_code=True)
+            for dataset_type in dataset_splits:
+                datasets[dataset_type] = load_dataset(
+                    dataset_target, split=dataset_splits[dataset_type], trust_remote_code=True
+                )
+
+            print(f"Loaded train dataset with {len(datasets['train'])} examples.")
+
+            if "valid" in dataset_types:
+                print(f"Loaded valid dataset with {len(datasets['valid'])} examples.")
 
             return datasets
 

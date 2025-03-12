@@ -59,22 +59,37 @@ def train_mlx_lora():
 
     # Setup wandb and tensorboard logging
     report_to = tfl_trainer.setup_train_logging("MLX_LoRA_Training")
+    use_wandb = "wandb" in report_to
+    if use_wandb:
+        try:
+            import wandb
+
+            # Initialize wandb with proper configuration
+            wandb_config = {
+                "model": tfl_trainer.model_name,
+                "lora_layers": lora_layers,
+                "learning_rate": learning_rate,
+                "batch_size": batch_size,
+                "steps_per_eval": steps_per_eval,
+                "iters": iters,
+                "adaptor_name": adaptor_name,
+            }
+            if lora_rank:
+                wandb_config["lora_rank"] = lora_rank
+            if lora_alpha:
+                wandb_config["lora_alpha"] = lora_alpha
+
+            wandb_run = wandb.init(project="MLX_LoRA_Training", config=wandb_config)
+            print("Weights & Biases logging enabled.")
+        except ImportError:
+            print("wandb package not found. Continuing without W&B logging.")
+            use_wandb = False
+        except Exception as e:
+            print(f"Error initializing wandb: {e}. Continuing without W&B logging.")
+            use_wandb = False
 
     # Load the dataset using tfl_trainer
-    datasets = tfl_trainer.load_dataset(["train", "validation", "valid"])
-
-    # Handle different validation split names
-    if "validation" in datasets:
-        dataset_splits = {"train": "train", "valid": "validation"}
-    elif "valid" in datasets:
-        dataset_splits = {"train": "train", "valid": "valid"}
-    else:
-        print("No validation slice found in dataset, using train split for validation")
-        dataset_splits = {"train": "train", "valid": "train"}
-        datasets["valid"] = datasets["train"]
-
-    print(f"Loaded train dataset with {len(datasets['train'])} examples.")
-    print(f"Loaded valid dataset with {len(datasets[dataset_splits['valid']])} examples.")
+    datasets = tfl_trainer.load_dataset(["train", "valid"])
 
     # Directory for storing temporary working files
     data_directory = f"{WORKSPACE_DIR}/plugins/mlx_lora_trainer/data"
@@ -84,9 +99,9 @@ def train_mlx_lora():
     # Go over each dataset split and render a new file based on the template
     formatting_template = jinja_environment.from_string(tfl_trainer.formatting_template)
 
-    for split_name in dataset_splits:
+    for split_name in datasets:
         # Get the dataset from our loaded datasets
-        dataset_split = datasets[dataset_splits[split_name]]
+        dataset_split = datasets[split_name]
 
         print(f"Processing {split_name} dataset with {len(dataset_split)} examples.")
 
@@ -184,9 +199,16 @@ def train_mlx_lora():
                     writer.add_scalar("train/loss", loss, iteration)
                     writer.add_scalar("train/it_per_sec", it_per_sec, iteration)
                     writer.add_scalar("train/tokens_per_sec", tokens_per_sec, iteration)
-
-                    # Add data to job for monitoring
-                    tfl_trainer.add_job_data("train_loss", loss)
+                    # Add wandb logging if enabled
+                    if use_wandb:
+                        wandb_run.log(
+                            {
+                                "train/loss": loss,
+                                "train/it_per_sec": it_per_sec,
+                                "train/tokens_per_sec": tokens_per_sec,
+                                "iteration": iteration,
+                            }
+                        )
 
                 # Parse validation metrics
                 else:
@@ -196,7 +218,7 @@ def train_mlx_lora():
                         validation_loss = float(match.group(1))
                         print("Validation Loss: ", validation_loss)
                         writer.add_scalar("valid/loss", validation_loss, iteration)
-                        tfl_trainer.add_job_data("valid_loss", validation_loss)
+                        wandb_run.log({"valid/loss": validation_loss, "iteration": iteration})
 
             print(line, end="", flush=True)
 
@@ -205,6 +227,9 @@ def train_mlx_lora():
         print("An error occured before training completed.")
         raise RuntimeError("Training failed.")
 
+    # At the end of the function before returning
+    if use_wandb:
+        wandb.finish()
     print("Finished training.")
 
     # Fuse the model with the base model if requested
@@ -256,5 +281,4 @@ def train_mlx_lora():
                 raise RuntimeError(f"Model fusion failed with return code {return_code}")
 
 
-if __name__ == "__main__":
-    train_mlx_lora()
+train_mlx_lora()
