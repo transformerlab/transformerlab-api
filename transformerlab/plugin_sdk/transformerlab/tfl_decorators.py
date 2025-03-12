@@ -71,7 +71,7 @@ class TFLPlugin:
                     print(error_msg)
 
                     # Update job with failure status
-                    self.job.set_job_completion_status("failed", error_msg)
+                    self.job.set_job_completion_status("failed", "Error occurred while executing job")
 
                     # Re-raise the exception
                     raise
@@ -211,7 +211,7 @@ class TrainerTFLPlugin(TFLPlugin):
         except Exception as e:
             error_msg = f"Error loading configuration: {str(e)}\n{traceback.format_exc()}"
             print(error_msg)
-            self.job.set_job_completion_status("failed", error_msg)
+            self.job.set_job_completion_status("failed", "Error loading configuration")
             raise
 
 
