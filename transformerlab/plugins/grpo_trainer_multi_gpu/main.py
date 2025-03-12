@@ -129,9 +129,10 @@ def train_model(datasets, report_to=['tensorboard']):
     output_dir = tfl_trainer.output_dir
     
     # Get the template strings
-    question_formatting_template = getattr(tfl_trainer, "formatting_template", "")
-    answer_formatting_template = getattr(tfl_trainer, "answer_formatting_template", "")
+    question_formatting_template = getattr(tfl_trainer, "input_template", "")
+    answer_formatting_template = getattr(tfl_trainer, "output_template", "")
     instruction_template = getattr(tfl_trainer, "instruction_template", "")
+
     
     start_thinking_string = getattr(tfl_trainer, "start_thinking_string", "<reasoning>")
     end_thinking_string = getattr(tfl_trainer, "end_thinking_string", "</reasoning>")
@@ -153,8 +154,7 @@ def train_model(datasets, report_to=['tensorboard']):
         system_prompt = instruction_template
     
     # Define format_instruction function
-    def format_instruction(template_str, mapping):
-        template = jinja_environment.from_string(template_str)
+    def format_instruction(template, mapping):
         return template.render(mapping)
     
     question_template = jinja_environment.from_string(question_formatting_template)
@@ -208,7 +208,6 @@ def train_model(datasets, report_to=['tensorboard']):
     # Load model and tokenizer
     try:
         device_map = None if accelerator.num_processes > 1 else "auto"
-        print(f"Using device_map: {device_map}")
         
         tokenizer = AutoTokenizer.from_pretrained(model_id)
         tokenizer.padding_side = "right"
@@ -290,4 +289,4 @@ def train_model(datasets, report_to=['tensorboard']):
     # Return success message
     return "Adaptor trained successfully"
 
-train_model
+train_model()
