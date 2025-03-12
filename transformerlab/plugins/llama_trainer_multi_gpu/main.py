@@ -196,7 +196,7 @@ def train_model(datasets, report_to=['tensorboard']):
     trainer.train()
     
     # Save model
-    trainer.save_model(output_dir=config["adaptor_output_dir"])
+    trainer.save_model(output_dir=tfl_trainer.adaptor_output_dir)
     
     # Return success message
     return "Adaptor trained successfully"
