@@ -1,6 +1,6 @@
 {
     "name": "Sample Data Print",
-    "uniqueId": "sample-data-print",
+    "uniqueId": "sample_data_print",
     "description": "An evaluator plugin that loads a dataset from Transformer Lab and prints its contents along with sample parameter values.",
     "plugin-format": "python",
     "type": "evaluator",

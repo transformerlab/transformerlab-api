@@ -91,6 +91,8 @@ def main(datasets, report_to=None):
     print(f"Storing Tensorboard Output to: {output_dir}")
     tfl_trainer.add_job_data("tensorboard_output_dir", output_dir)
 
+    print("TFL Data:", tfl_trainer.output_dir)
+
     # Setup training arguments - use direct attribute access
     max_seq_length = int(getattr(tfl_trainer, "maximum_sequence_length", 2048))
     num_train_epochs = int(getattr(tfl_trainer, "num_train_epochs", 3))
