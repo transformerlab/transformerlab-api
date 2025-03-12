@@ -18,7 +18,7 @@ jinja_environment = Environment()
 @tfl_trainer.job_wrapper(progress_start=0, progress_end=100)
 @tfl_trainer.setup_wandb(project_name="TFL_Training")
 @tfl_trainer.load_dataset(dataset_types=["train"])
-def main(datasets, report_to=["tensorboard"]):
+def main(datasets, report_to=None):
     # Configuration is loaded automatically when tfl_trainer methods are called
 
     dataset = datasets["train"]
@@ -46,11 +46,11 @@ def main(datasets, report_to=["tensorboard"]):
 
     # Load model
     model_id = tfl_trainer.model_name
-    use_flash_attention = tfl_trainer.use_flash_attention if hasattr(tfl_trainer, "use_flash_attention") else False
+    use_flash_attention = getattr(tfl_trainer, "use_flash_attention", False)
 
     try:
         model = AutoModelForCausalLM.from_pretrained(
-            tfl_trainer.model_name,
+            model_id,
             quantization_config=bnb_config,
             use_cache=False,
             use_flash_attention_2=use_flash_attention,
@@ -67,10 +67,10 @@ def main(datasets, report_to=["tensorboard"]):
         print(f"Model loading error: {str(e)}")
         raise
 
-    # Setup LoRA
-    lora_alpha = int(tfl_trainer._config.get("lora_alpha", 16))
-    lora_dropout = float(tfl_trainer._config.get("lora_dropout", 0.05))
-    lora_r = int(tfl_trainer._config.get("lora_r", 8))
+    # Setup LoRA - use direct attribute access with safe defaults
+    lora_alpha = int(getattr(tfl_trainer, "lora_alpha", 16))
+    lora_dropout = float(getattr(tfl_trainer, "lora_dropout", 0.05))
+    lora_r = int(getattr(tfl_trainer, "lora_r", 8))
 
     peft_config = LoraConfig(
         lora_alpha=lora_alpha,
@@ -84,25 +84,25 @@ def main(datasets, report_to=["tensorboard"]):
     model = prepare_model_for_kbit_training(model)
     model = get_peft_model(model, peft_config)
 
-    # Get output directories
-    output_dir = tfl_trainer._config.get("output_dir", "./output")
-    adaptor_output_dir = tfl_trainer._config.get("adaptor_output_dir", "./adaptor")
+    # Get output directories - use direct attribute access
+    output_dir = getattr(tfl_trainer, "output_dir", "./output")
+    adaptor_output_dir = getattr(tfl_trainer, "adaptor_output_dir", "./adaptor")
 
     print(f"Storing Tensorboard Output to: {output_dir}")
     tfl_trainer.add_job_data("tensorboard_output_dir", output_dir)
 
-    # Setup training arguments
-    max_seq_length = int(tfl_trainer._config.get("maximum_sequence_length", 2048))
-    num_train_epochs = int(tfl_trainer._config.get("num_train_epochs", 3))
-    batch_size = int(tfl_trainer._config.get("batch_size", 4))
-    learning_rate = float(tfl_trainer._config.get("learning_rate", 2e-4))
-    lr_scheduler = tfl_trainer._config.get("learning_rate_schedule", "constant")
+    # Setup training arguments - use direct attribute access
+    max_seq_length = int(getattr(tfl_trainer, "maximum_sequence_length", 2048))
+    num_train_epochs = int(getattr(tfl_trainer, "num_train_epochs", 3))
+    batch_size = int(getattr(tfl_trainer, "batch_size", 4))
+    learning_rate = float(getattr(tfl_trainer, "learning_rate", 2e-4))
+    lr_scheduler = getattr(tfl_trainer, "learning_rate_schedule", "constant")
 
     # Create unique run name
     import time
 
     today = time.strftime("%Y%m%d-%H%M%S")
-    run_suffix = tfl_trainer._config.get("template_name", today)
+    run_suffix = getattr(tfl_trainer, "template_name", today)
 
     # Setup training configuration
     training_args = SFTConfig(
