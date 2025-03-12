@@ -4,7 +4,7 @@ import traceback
 from typing import List, Any
 from datasets import load_dataset
 
-from transformerlab.plugin import Job, get_dataset_path
+from transformerlab.plugin import Job, get_dataset_path, test_wandb_login
 
 
 class TFLPlugin:
@@ -124,12 +124,38 @@ class TFLPlugin:
         """Add data to job"""
         self.job.add_to_job_data(key, value)
 
+
+class TrainerTFLPlugin(TFLPlugin):
+    """Enhanced decorator class for TransformerLab training plugins"""
+
+    def __init__(self):
+        super().__init__()
+        # Add training-specific default arguments
+        self._parser.add_argument("--input_file", type=str, help="Path to configuration file")
+
+        # Training state tracking
+        self._config_parsed = False
+
+    def _ensure_args_parsed(self):
+        """Parse arguments if not already done"""
+        if not self._args_parsed:
+            args, _ = self._parser.parse_known_args()
+            # Transfer all arguments to attributes of self
+            for key, value in vars(args).items():
+                setattr(self, key, value)
+            self._args_parsed = True
+
+        if self._args_parsed and not self._config_parsed:
+            if hasattr(self, "input_file") and self.input_file:
+                self.load_config()
+                self._config_parsed = True
+
     def create_progress_callback(self, framework="huggingface", **kwargs):
         """
         Create a progress callback for various ML frameworks.
 
         Args:
-            framework: The framework to create a callback for (e.g., "huggingface", "pytorch_lightning")
+            framework: The framework to create a callback for (e.g., "huggingface")
             **kwargs: Additional arguments specific to the callback
 
         Returns:
@@ -137,7 +163,7 @@ class TFLPlugin:
         """
         self._ensure_args_parsed()
 
-        if framework.lower() == "huggingface":
+        if framework.lower() == "huggingface" or framework.lower() == "hf":
             # Import here to avoid dependency issues if HF isn't installed
             try:
                 from transformers import TrainerCallback
@@ -150,13 +176,14 @@ class TFLPlugin:
 
                     def on_step_end(self, args, state, control, **callback_kwargs):
                         if state.is_local_process_zero:
-                            progress = state.global_step / state.max_steps
-                            progress = int(progress * 100)
-                            self.tfl.progress_update(progress)
+                            if state.max_steps > 0:
+                                progress = state.global_step / state.max_steps
+                                progress = int(progress * 100)
+                                self.tfl.progress_update(progress)
 
-                            # Check if job should be stopped
-                            if self.tfl.job.should_stop:
-                                control.should_training_stop = True
+                                # Check if job should be stopped
+                                if self.tfl.job.should_stop:
+                                    control.should_training_stop = True
 
                         return control
 
@@ -165,35 +192,80 @@ class TFLPlugin:
             except ImportError:
                 raise ImportError("Could not create HuggingFace callback. Please install transformers package.")
 
-        # elif framework.lower() == "pytorch_lightning":
-        #     try:
-        #         import pytorch_lightning as pl
-
-        #         class TFLLightningCallback(pl.Callback):
-        #             """Callback that updates progress in TransformerLab DB during PyTorch Lightning training"""
-
-        #             def __init__(self, tfl_instance):
-        #                 self.tfl = tfl_instance
-
-        #             def on_batch_end(self, trainer, pl_module):
-        #                 current = trainer.global_step
-        #                 total = trainer.estimated_stepping_batches
-        #                 if total > 0:
-        #                     progress = int((current / total) * 100)
-        #                     self.tfl.progress_update(progress)
-
-        #                     # Check if job should be stopped
-        #                     if self.tfl.job.should_stop:
-        #                         trainer.should_stop = True
-
-        #         return TFLLightningCallback(self)
-
-        #     except ImportError:
-        #         raise ImportError("Could not create PyTorch Lightning callback. Please install pytorch_lightning package.")
-
         else:
             raise ValueError(f"Unsupported framework: {framework}. Supported frameworks: huggingface")
+
+    def load_config(self):
+        """Decorator for loading configuration from input file"""
+
+        try:
+            import json
+
+            # Load configuration from file
+            with open(self.input_file) as json_file:
+                input_config = json.load(json_file)
+
+            if "config" in input_config:
+                self._config = input_config["config"]
+            else:
+                self._config = input_config
+
+            # Transfer config values to instance attributes for easy access
+            for key, value in self._config.items():
+                if not hasattr(self, key):
+                    setattr(self, key, value)
+
+        except Exception as e:
+            error_msg = f"Error loading configuration: {str(e)}\n{traceback.format_exc()}"
+            print(error_msg)
+            self.job.set_job_completion_status("failed", error_msg)
+            raise
+
+    def setup_wandb(self, project_name: str = "TFL_Training"):
+        """Decorator for setting up Weights & Biases logging"""
+
+        def decorator(func):
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):
+                self._ensure_args_parsed()
+
+                # Check config or direct attribute for wandb logging preference
+                log_to_wandb = False
+                if hasattr(self, "_config") and self._config:
+                    log_to_wandb = self._config.get("log_to_wandb", False)
+                elif hasattr(self, "log_to_wandb"):
+                    log_to_wandb = self.log_to_wandb
+
+                report_to = ["tensorboard"]
+
+                if log_to_wandb:
+                    try:
+                        wandb_success, report_to = test_wandb_login(project_name)
+
+                        if wandb_success:
+                            print(f"W&B logging enabled (project: {project_name})")
+                            self.add_job_data("wandb_logging", True)
+                        else:
+                            print("W&B API key not found. W&B logging disabled.")
+                            self.add_job_data("wandb_logging", False)
+
+                        # Pass report_to as kwarg to the function
+                        kwargs["report_to"] = report_to
+
+                    except Exception as e:
+                        print(f"Error setting up W&B: {str(e)}. Continuing without W&B.")
+                        self.add_job_data("wandb_logging", False)
+                        kwargs["report_to"] = ["tensorboard"]
+                else:
+                    kwargs["report_to"] = ["tensorboard"]
+
+                return func(*args, **kwargs)
+
+            return wrapper
+
+        return decorator
 
 
 # Create a singleton instance
 tfl = TFLPlugin()
+tfl_trainer = TrainerTFLPlugin()
