@@ -80,10 +80,12 @@ class TFLPlugin:
 
         return decorator
 
-
     def progress_update(self, progress: int):
         """Update job progress"""
         self.job.update_progress(progress)
+        if self.job.should_stop:
+            self.job.update_status("STOPPED")
+            raise KeyboardInterrupt("Job stopped by user")
 
     def add_job_data(self, key: str, value: Any):
         """Add data to job"""
@@ -105,9 +107,7 @@ class TFLPlugin:
             # Load each dataset split
             datasets = {}
             for dataset_type in dataset_types:
-                datasets[dataset_type] = load_dataset(
-                    dataset_target, split=dataset_type, trust_remote_code=True
-                )
+                datasets[dataset_type] = load_dataset(dataset_target, split=dataset_type, trust_remote_code=True)
 
             return datasets
 
@@ -214,13 +214,12 @@ class TrainerTFLPlugin(TFLPlugin):
             self.job.set_job_completion_status("failed", "Error loading configuration")
             raise
 
-
     def setup_train_logging(self, wandb_project_name: str = "TFL_Training"):
         """Setup Weights and Biases and TensorBoard logging
-        
+
         Args:
             wandb_project_name: Name of the W&B project
-            
+
         Returns:
             List of reporting targets (e.g. ["tensorboard", "wandb"])
         """
@@ -230,7 +229,7 @@ class TrainerTFLPlugin(TFLPlugin):
         # Add tensorboard_output_dir
         self.tensorboard_output_dir = os.path.join(self.output_dir, f"job_{self.job_id}_{self.template_name}")
         print("Writing tensorboard logs to:", self.output_dir)
-        
+
         # Store the tensorboard output dir in the job
         self.add_job_data("tensorboard_output_dir", self.output_dir)
 
@@ -258,10 +257,8 @@ class TrainerTFLPlugin(TFLPlugin):
                 print(f"Error setting up W&B: {str(e)}. Continuing without W&B.")
                 self.add_job_data("wandb_logging", False)
                 report_to = ["tensorboard"]
-        
+
         return report_to
-
-
 
 
 # Create a singleton instance
