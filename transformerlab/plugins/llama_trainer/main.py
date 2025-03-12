@@ -16,7 +16,7 @@ jinja_environment = Environment()
 @tfl_trainer.job_wrapper(progress_start=0, progress_end=100)
 @tfl_trainer.setup_wandb(project_name="TFL_Training")
 @tfl_trainer.load_dataset(dataset_types=["train"])
-def main(datasets, report_to=['tensorboard']):
+def train_model(datasets, report_to=['tensorboard']):
     # Configuration is loaded automatically when tfl_trainer methods are called
 
     dataset = datasets["train"]
@@ -159,5 +159,4 @@ def main(datasets, report_to=['tensorboard']):
     return {"status": "success", "message": "Adaptor trained successfully"}
 
 
-if __name__ == "__main__":
-    main()
+train_model()
