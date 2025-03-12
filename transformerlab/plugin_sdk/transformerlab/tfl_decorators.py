@@ -1,8 +1,11 @@
 import os
+import time
 import argparse
 import functools
 import traceback
 from typing import List, Any
+import json
+from tensorboardX import SummaryWriter
 from datasets import load_dataset, get_dataset_split_names
 
 from transformerlab.plugin import Job, get_dataset_path, test_wandb_login
@@ -52,6 +55,8 @@ class TFLPlugin:
                 # Ensure args are parsed and job is initialized
                 self._ensure_args_parsed()
 
+                self.add_job_data("start_time", time.strftime("%Y-%m-%d %H:%M:%S"))
+
                 # Update starting progress
                 self.job.update_progress(progress_start)
 
@@ -72,6 +77,7 @@ class TFLPlugin:
 
                     # Update job with failure status
                     self.job.set_job_completion_status("failed", "Error occurred while executing job")
+                    self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
 
                     # Re-raise the exception
                     raise
@@ -98,6 +104,7 @@ class TFLPlugin:
 
         if not hasattr(self, "dataset_name") or not self.dataset_name:
             self.job.set_job_completion_status("failed", "Dataset name not provided")
+            self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise ValueError("Dataset name not provided")
 
         try:
@@ -136,6 +143,7 @@ class TFLPlugin:
             error_msg = f"Error loading dataset: {str(e)}\n{traceback.format_exc()}"
             print(error_msg)
             self.job.set_job_completion_status("failed", "Failed to load dataset")
+            self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise
 
 
@@ -233,6 +241,7 @@ class TrainerTFLPlugin(TFLPlugin):
             error_msg = f"Error loading configuration: {str(e)}\n{traceback.format_exc()}"
             print(error_msg)
             self.job.set_job_completion_status("failed", "Error loading configuration")
+            self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise
 
     def setup_train_logging(self, wandb_project_name: str = "TFL_Training"):
@@ -282,6 +291,188 @@ class TrainerTFLPlugin(TFLPlugin):
         return report_to
 
 
-# Create a singleton instance
+class EvalsTFLPlugin(TFLPlugin):
+    """Enhanced decorator class for TransformerLab evaluation plugins"""
+
+    def __init__(self):
+        super().__init__()
+        # Add common evaluation-specific arguments
+        self._parser.add_argument("--run_name", default="evaluation", type=str, help="Name for the evaluation run")
+        self._parser.add_argument("--experiment_name", default="", type=str, help="Name of the experiment")
+        self._parser.add_argument("--eval_name", default="", type=str, help="Name of the evaluation")
+
+        # Dictionary to store parsed tasks
+        self._parsed_tasks = None
+        self._predefined_tasks = {}
+        self._unknown_args_dict = {}
+
+    def _ensure_args_parsed(self):
+        """Parse arguments if not already done"""
+        if not self._args_parsed:
+            args, unknown_args = self._parser.parse_known_args()
+
+            # Transfer all known arguments to attributes of self
+            for key, value in vars(args).items():
+                setattr(self, key, value)
+
+            self._parse_unknown_args(unknown_args)
+            self._args_parsed = True
+
+    def _parse_unknown_args(self, unknown_args):
+        """Parse unknown arguments which change with each eval"""
+        key = None
+        for arg in unknown_args:
+            if arg.startswith("--"):  # Argument key
+                key = arg.lstrip("-")
+                setattr(self, key, True)
+            elif key:  # Argument value
+                setattr(self, key, arg)
+                key = None
+
+    def setup_eval_logging(self):
+        """Setup TensorBoard logging for evaluations
+
+        Returns:
+            str: Path to the TensorBoard output directory
+        """
+        self._ensure_args_parsed()
+
+        today = time.strftime("%Y%m%d-%H%M%S")
+        workspace_dir = os.environ.get("_TFL_WORKSPACE_DIR", "./")
+
+        # Create tensorboard directory structure
+        tensorboard_dir = os.path.join(workspace_dir, "experiments", self.experiment_name, "tensorboards")
+        os.makedirs(tensorboard_dir, exist_ok=True)
+
+        # Find directory based on eval name
+        combined_dir = None
+        for dir_name in os.listdir(tensorboard_dir):
+            if self.run_name == dir_name or self.run_name == dir_name.lower():
+                combined_dir = os.path.join(tensorboard_dir, dir_name)
+                break
+
+        if combined_dir is None:
+            combined_dir = os.path.join(tensorboard_dir, self.run_name)
+
+        output_dir = os.path.join(combined_dir, f"evaljob_{self.job_id}_{today}")
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Store the writer and output directory as instance variables
+        self.tensorboard_output_dir = output_dir
+
+        # Create writer and store it
+        self.writer = SummaryWriter(output_dir)
+
+        # Store the output directory in the job
+        self.job.set_tensorboard_output_dir(output_dir)
+
+        print(f"Writing tensorboard logs to {output_dir}")
+        return output_dir
+
+    def log_metric(self, metric_name, value, step=1):
+        """Log a metric to TensorBoard
+
+        Args:
+            metric_name: Name of the metric
+            value: Value of the metric
+            step: Step number for TensorBoard
+        """
+        if hasattr(self, "writer"):
+            self.writer.add_scalar(f"eval/{metric_name}", value, step)
+        else:
+            print("Warning: TensorBoard writer not initialized. Call setup_eval_logging first.")
+
+    def get_output_file_path(self, suffix="", is_plotting=False):
+        """Get path for saving evaluation outputs
+
+        Args:
+            suffix: Optional suffix for the filename
+            is_plotting: Whether this is for plotting data (uses .json extension)
+
+        Returns:
+            str: Full path for output file
+        """
+        import os
+
+        self._ensure_args_parsed()
+
+        workspace_dir = os.environ.get("_TFL_WORKSPACE_DIR", "./")
+        experiment_dir = os.path.join(workspace_dir, "experiments", self.experiment_name)
+        eval_dir = os.path.join(experiment_dir, "evals", self.eval_name)
+
+        os.makedirs(eval_dir, exist_ok=True)
+
+        if is_plotting:
+            # For plotting data, we use a JSON file with a specific naming convention
+            plotting_suffix = suffix if suffix else "plotting"
+            if not plotting_suffix.endswith(".json"):
+                plotting_suffix += ".json"
+            return os.path.join(eval_dir, f"plot_data_{self.job_id}_{plotting_suffix}")
+        else:
+            # For regular outputs
+            if suffix:
+                if not any(suffix.endswith(ext) for ext in (".csv", ".json", ".txt")):
+                    suffix += ".csv"
+                return os.path.join(eval_dir, f"output_{self.job_id}_{suffix}")
+            else:
+                return os.path.join(eval_dir, f"output_{self.job_id}.csv")
+
+    def save_evaluation_results(self, metrics_df):
+        """Save evaluation results and generate plotting data
+
+        Args:
+            metrics_df: DataFrame containing evaluation metrics with
+                       required columns "test_case_id", "metric_name", "score"
+
+        Returns:
+            tuple: Paths to the saved files (output_path, plot_data_path)
+
+        Raises:
+            ValueError: If required columns are missing from the DataFrame
+        """
+        # Validate that required columns exist
+        required_columns = ["test_case_id", "metric_name", "score"]
+        missing_columns = [col for col in required_columns if col not in metrics_df.columns]
+
+        if missing_columns:
+            raise ValueError(f"Missing required columns in metrics DataFrame: {missing_columns}")
+
+        # Save full DataFrame to CSV
+        output_path = self.get_output_file_path()
+        metrics_df.to_csv(output_path, index=False)
+        print(f"Saved detailed evaluation results to {output_path}")
+
+        # Create and save plotting data
+        plot_data_path = self.get_output_file_path(is_plotting=True)
+
+        # Extract and format plotting data
+        plotting_data = metrics_df[["test_case_id", "metric_name", "score"]].copy()
+
+        # Format metric names for better display (replace underscores with spaces and capitalize)
+        plotting_data["metric_name"] = plotting_data["metric_name"].apply(lambda x: x.replace("_", " ").title())
+
+        # Save as JSON
+        plotting_data.to_json(plot_data_path, orient="records", lines=False)
+        print(f"Saved plotting data to {plot_data_path}")
+
+        self.job.add_to_job_data("additional_output_path", output_path)
+        self.job.add_to_job_data("plot_data_path", plot_data_path)
+
+        # Print average scores by metric
+        print("\n===== Evaluation Results =====")
+        metrics = metrics_df["metric_name"].unique()
+        score_list = []
+        for metric in metrics:
+            avg_score = metrics_df[metrics_df["metric_name"] == metric]["score"].mean()
+            print(f"Average {metric}: {avg_score:.4f}")
+            score_list.append({"type": metric, "score": avg_score})
+
+        self.job.add_to_job_data("score", json.dumps(score_list))
+
+        return output_path, plot_data_path
+
+
+# Create singleton instances
 tfl = TFLPlugin()
 tfl_trainer = TrainerTFLPlugin()
+# tfl_evals = EvalsTFLPlugin()
