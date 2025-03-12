@@ -24,6 +24,11 @@
             ],
             "default": "cuda"
         },
+        "gpu_ids": {
+            "title": "GPU IDs to Train",
+            "type": "string",
+            "default": "auto"
+          },
         "seed": {
             "title": "Random Seed",
             "type": "integer",
@@ -171,6 +176,9 @@
                 "multiple": false
             }
         },
+        "gpu_ids": {
+            "ui:help": "Comma separated list of GPU IDs to use for training. Set to 'auto' for all GPUs. Example: 0,1,2,3 for 4 GPUs."
+          },
         "seed": {
             "ui:help": "Random seed for reproducibility of results."
         },
