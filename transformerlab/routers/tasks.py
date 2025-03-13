@@ -30,7 +30,7 @@ async def convert_training_template_to_task(template_id: int, experiment_id: int
     template = await db.get_training_template(template_id)
     template_config = json.loads(template["config"])
     input_config = {"model_name":template_config["model_name"],"model_architecture":template_config["model_architecture"],"dataset_name":template_config["dataset_name"]} 
-    output_config = {"adaptor_name":template_config["adaptor_config"]}
+    output_config = {"adaptor_name":template_config["adaptor_name"]}
     await db.add_task(template["name"], "TRAIN", json.dumps(input_config), template["config"], template_config["plugin_name"], json.dumps(output_config), experiment_id)
     return {"message":"OK"}
 
@@ -54,9 +54,9 @@ async def convert_generate_to_task(generate_name: str, experiment_id: int):
 @router.get("/{experiment_id}/convert_all_to_tasks")
 async def convert_all_to_tasks(experiment_id):
     #train templates
-    train_templates = db.get_training_templates()
+    train_templates = await db.get_training_templates()
     for template in train_templates:
-        await convert_training_template_to_task(template["id"], experiment_id)
+        await convert_training_template_to_task(template[0], experiment_id)
     #evals
     experiment_evaluations = json.loads(json.loads((await db.experiment_get(experiment_id))["config"])["evaluations"])
     for eval in experiment_evaluations:
@@ -65,6 +65,7 @@ async def convert_all_to_tasks(experiment_id):
     experiment_generations = json.loads(json.loads((await db.experiment_get(experiment_id))["config"])["generations"])
     for generation in experiment_generations:
         await convert_generate_to_task(generation["name"], experiment_id)
+    return {"message":"OK"}
 
 
 
