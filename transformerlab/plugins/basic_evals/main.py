@@ -5,7 +5,6 @@ import pandas as pd
 
 from transformerlab.tfl_decorators import tfl_evals
 
-
 # Get Predefined tasks
 pre_defined = {
     "Is Valid JSON": {

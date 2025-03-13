@@ -8,7 +8,11 @@ from typing import List, Any
 import json
 from tensorboardX import SummaryWriter
 from datasets import load_dataset, get_dataset_split_names
+import requests
+import pandas as pd
 
+
+import transformerlab.plugin
 from transformerlab.plugin import Job, get_dataset_path, test_wandb_login
 
 
@@ -200,6 +204,199 @@ class TFLPlugin:
             self.job.set_job_completion_status("failed", "Failed to load dataset")
             self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise
+
+    def load_evaluation_model(self, field_name="generation_model", model_type=None, model_name=None):
+        """
+        Load an appropriate model for evaluation based on configuration
+
+        Args:
+            field_name: Field name for the generation model
+            model_type: Model type ('local', 'openai', 'claude', 'custom') or None to auto-detect
+            model_name: Model name to use (defaults to self.model_name)
+
+        Returns:
+            A model object wrapped for evaluation use
+        """
+        import os  # noqa
+        from langchain_openai import ChatOpenAI  # noqa
+
+        # Use provided values or class attributes
+        model_name = model_name or self.model_name
+        generation_model = getattr(self, field_name, "local")
+
+        # Auto-detect model type if not provided
+        if not model_type:
+            gen_model = generation_model.lower()
+            if "local" in gen_model:
+                model_type = "local"
+            elif "openai" in gen_model or "gpt" in gen_model:
+                model_type = "openai"
+            elif "claude" in gen_model or "anthropic" in gen_model:
+                model_type = "claude"
+            elif "custom" in gen_model:
+                model_type = "custom"
+            else:
+                model_type = "local"  # Default
+
+        # Load the appropriate model
+        if model_type == "local":
+            self.check_local_server()
+            custom_model = ChatOpenAI(
+                api_key="dummy",
+                base_url="http://localhost:8338/v1",
+                model=model_name,
+            )
+            return self._create_local_model_wrapper(custom_model)
+
+        elif model_type == "claude":
+            anthropic_api_key = transformerlab.plugin.get_db_config_value("ANTHROPIC_API_KEY")
+            if not anthropic_api_key or anthropic_api_key.strip() == "":
+                raise ValueError("Please set the Anthropic API Key from Settings.")
+
+            os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
+            return self._create_commercial_model_wrapper("claude", generation_model)
+
+        elif model_type == "openai":
+            openai_api_key = transformerlab.plugin.get_db_config_value("OPENAI_API_KEY")
+            if not openai_api_key or openai_api_key.strip() == "":
+                raise ValueError("Please set the OpenAI API Key from Settings.")
+
+            os.environ["OPENAI_API_KEY"] = openai_api_key
+            return self._create_commercial_model_wrapper("openai", generation_model)
+
+        elif model_type == "custom":
+            custom_api_details = transformerlab.plugin.get_db_config_value("CUSTOM_MODEL_API_KEY")
+            if not custom_api_details or custom_api_details.strip() == "":
+                raise ValueError("Please set the Custom API Details from Settings.")
+
+            return self._create_commercial_model_wrapper("custom", "")
+
+        else:
+            raise ValueError(f"Unsupported model type: {model_type}")
+
+    def check_local_server(self):
+        """Check if the local model server is running"""
+        response = requests.get("http://localhost:8338/server/worker_healthz")
+        if response.status_code != 200 or not isinstance(response.json(), list) or len(response.json()) == 0:
+            raise RuntimeError("Local Model Server is not running. Please start it before running the evaluation.")
+
+    def _create_local_model_wrapper(self, model):
+        """Create a wrapper for local models"""
+        # Import here to avoid circular imports
+        from deepeval.models.base_model import DeepEvalBaseLLM  # noqa
+        from langchain.schema import HumanMessage, SystemMessage  # noqa
+        from pydantic import BaseModel  # noqa
+
+        plugin_model_name = self.model_name
+
+        class TRLAB_MODEL(DeepEvalBaseLLM):
+            def __init__(self, model):
+                self.model = model
+                self.chat_completions_url = "http://localhost:8338/v1/chat/completions"
+                self.generation_model_name = plugin_model_name
+
+            def load_model(self):
+                return self.model
+
+            def generate(self, prompt: str) -> str:
+                chat_model = self.load_model()
+                return chat_model.invoke(prompt).content
+
+            async def a_generate(self, prompt: str) -> str:
+                chat_model = self.load_model()
+                res = await chat_model.ainvoke(prompt)
+                return res.content
+
+            def generate_without_instructor(self, messages: List[dict]) -> BaseModel:
+                chat_model = self.load_model()
+                modified_messages = []
+                for message in messages:
+                    if message["role"] == "system":
+                        modified_messages.append(SystemMessage(**message))
+                    else:
+                        modified_messages.append(HumanMessage(**message))
+                return chat_model.invoke(modified_messages).content
+
+            def get_model_name(self):
+                return self.model
+
+        return TRLAB_MODEL(model)
+
+    def _create_commercial_model_wrapper(self, model_type, model_name):
+        """Create a wrapper for commercial models"""
+        from deepeval.models.base_model import DeepEvalBaseLLM
+        from openai import OpenAI
+        from anthropic import Anthropic
+
+        class CustomCommercialModel(DeepEvalBaseLLM):
+            def __init__(self, model_type="claude", model_name="claude-3-7-sonnet-latest"):
+                self.model_type = model_type
+                self.generation_model_name = model_name
+
+                if model_type == "claude":
+                    self.chat_completions_url = "https://api.anthropic.com/v1/chat/completions"
+                    anthropic_api_key = transformerlab.plugin.get_db_config_value("ANTHROPIC_API_KEY")
+                    if not anthropic_api_key or anthropic_api_key.strip() == "":
+                        raise ValueError("Please set the Anthropic API Key from Settings.")
+                    else:
+                        os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
+                    self.model = Anthropic()
+
+                elif model_type == "openai":
+                    self.chat_completions_url = "https://api.openai.com/v1/chat/completions"
+                    openai_api_key = transformerlab.plugin.get_db_config_value("OPENAI_API_KEY")
+                    if not openai_api_key or openai_api_key.strip() == "":
+                        raise ValueError("Please set the OpenAI API Key from Settings.")
+                    else:
+                        os.environ["OPENAI_API_KEY"] = openai_api_key
+                    self.model = OpenAI()
+
+                elif model_type == "custom":
+                    custom_api_details = transformerlab.plugin.get_db_config_value("CUSTOM_MODEL_API_KEY")
+                    if not custom_api_details or custom_api_details.strip() == "":
+                        raise ValueError("Please set the Custom API Details from Settings.")
+                    else:
+                        custom_api_details = json.loads(custom_api_details)
+                        self.model = OpenAI(
+                            api_key=custom_api_details["customApiKey"],
+                            base_url=custom_api_details["customBaseURL"],
+                        )
+                        self.generation_model_name = custom_api_details["customModelName"]
+
+            def load_model(self):
+                return self.model
+
+            def generate(self, prompt: str, schema=None):
+                client = self.load_model()
+                if schema:
+                    import instructor
+
+                    if self.model_type == "claude":
+                        instructor_client = instructor.from_anthropic(client)
+                    else:
+                        instructor_client = instructor.from_openai(client)
+
+                    resp = instructor_client.messages.create(
+                        model=self.generation_model_name,
+                        max_tokens=1024,
+                        messages=[{"role": "user", "content": prompt}],
+                        response_model=schema,
+                    )
+                    return resp
+                else:
+                    response = client.chat.completions.create(
+                        model=self.generation_model_name,
+                        messages=[{"role": "user", "content": prompt}],
+                    )
+                    return response.choices[0].message.content
+
+            async def a_generate(self, prompt: str, schema=None):
+                return self.generate(prompt, schema)
+
+            def get_model_name(self):
+                return self.generation_model_name
+
+        return CustomCommercialModel(model_type, model_name)
 
 
 class TrainerTFLPlugin(TFLPlugin):

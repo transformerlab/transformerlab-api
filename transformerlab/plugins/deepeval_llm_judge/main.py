@@ -1,19 +1,10 @@
 import importlib
-import json
-import os
 
-import instructor
 import pandas as pd
-import requests
-from anthropic import Anthropic
 from deepeval import evaluate
 from deepeval.dataset import EvaluationDataset
 from deepeval.metrics import GEval
-from deepeval.models.base_model import DeepEvalBaseLLM
 from deepeval.test_case import LLMTestCase, LLMTestCaseParams
-from langchain_openai import ChatOpenAI
-from openai import OpenAI
-from pydantic import BaseModel
 
 from transformerlab.tfl_decorators import tfl_evals
 
@@ -42,100 +33,6 @@ def get_metric_class(metric_name: str):
     except AttributeError:
         print(f"Metric {metric_name} not found in deepeval.metrics")
         raise ValueError(f"Metric {metric_name} not found in deepeval.metrics")
-
-
-def check_local_server():
-    response = requests.get("http://localhost:8338/server/worker_healthz")
-    if response.status_code != 200 or not isinstance(response.json(), list) or len(response.json()) == 0:
-        print("Local Model Server is not running. Please start it before running the evaluation.")
-        raise RuntimeError("Local Model Server is not running. Please start it before running the evaluation.")
-
-
-class TRLAB_MODEL(DeepEvalBaseLLM):
-    def __init__(self, model):
-        self.model = model
-
-    def load_model(self):
-        return self.model
-
-    def generate(self, prompt: str) -> str:
-        chat_model = self.load_model()
-        return chat_model.invoke(prompt).content
-
-    async def a_generate(self, prompt: str) -> str:
-        chat_model = self.load_model()
-        res = await chat_model.ainvoke(prompt)
-        return res.content
-
-    def get_model_name(self):
-        return tfl_evals.model_name
-
-
-class CustomCommercialModel(DeepEvalBaseLLM):
-    def __init__(self, model_type="claude", model_name="claude-3-7-sonnet-latest"):
-        self.model_type = model_type
-        self.model_name = model_name
-        import transformerlab.plugin
-
-        if model_type == "claude":
-            anthropic_api_key = transformerlab.plugin.get_db_config_value("ANTHROPIC_API_KEY")
-            if not anthropic_api_key or anthropic_api_key.strip() == "":
-                print("Please set the Anthropic API Key from Settings.")
-                raise ValueError("Please set the Anthropic API Key from Settings.")
-            else:
-                os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
-            self.model = Anthropic()
-
-        elif model_type == "openai":
-            openai_api_key = transformerlab.plugin.get_db_config_value("OPENAI_API_KEY")
-            if not openai_api_key or openai_api_key.strip() == "":
-                print("Please set the OpenAI API Key from Settings.")
-                raise ValueError("Please set the OpenAI API Key from Settings.")
-            else:
-                os.environ["OPENAI_API_KEY"] = openai_api_key
-            self.model = OpenAI()
-
-        elif model_type == "custom":
-            custom_api_details = transformerlab.plugin.get_db_config_value("CUSTOM_MODEL_API_KEY")
-            if not custom_api_details or custom_api_details.strip() == "":
-                print("Please set the Custom API Details from Settings.")
-                raise ValueError("Please set the Custom API Details from Settings.")
-            else:
-                custom_api_details = json.loads(custom_api_details)
-                self.model = OpenAI(
-                    api_key=custom_api_details["customApiKey"],
-                    base_url=custom_api_details["customBaseURL"],
-                )
-                self.model_name = custom_api_details["customModelName"]
-
-    def load_model(self):
-        return self.model
-
-    def generate(self, prompt: str, schema: BaseModel) -> BaseModel:
-        client = self.load_model()
-        if self.model_type == "claude":
-            instructor_client = instructor.from_anthropic(client)
-        else:
-            instructor_client = instructor.from_openai(client)
-
-        resp = instructor_client.messages.create(
-            model=self.model_name,
-            max_tokens=1024,
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ],
-            response_model=schema,
-        )
-        return resp
-
-    async def a_generate(self, prompt: str, schema: BaseModel) -> BaseModel:
-        return self.generate(prompt, schema)
-
-    def get_model_name(self):
-        return self.model_name
 
 
 # Use the job_wrapper decorator to handle job status updates
@@ -168,23 +65,10 @@ def run_evaluation():
 
     # Load model for evaluation
     try:
-        if "local" not in tfl_evals.generation_model.lower():
-            if "openai" in tfl_evals.generation_model.lower() or "gpt" in tfl_evals.generation_model.lower():
-                trlab_model = CustomCommercialModel("openai", tfl_evals.generation_model)
-            elif "claude" in tfl_evals.generation_model.lower() or "anthropic" in tfl_evals.generation_model.lower():
-                trlab_model = CustomCommercialModel("claude", tfl_evals.generation_model)
-            elif "custom" in tfl_evals.generation_model.lower():
-                trlab_model = CustomCommercialModel("custom", "")
-        else:
-            check_local_server()
-            custom_model = ChatOpenAI(
-                api_key="dummy",
-                base_url="http://localhost:8338/v1",
-                model=tfl_evals.model_name,
-            )
-            trlab_model = TRLAB_MODEL(model=custom_model)
-
+        trlab_model = tfl_evals.load_evaluation_model(field_name="generation_model")
+        print()
         print("Model loaded successfully")
+
     except Exception as e:
         print(f"An error occurred while loading the model: {e}")
         raise

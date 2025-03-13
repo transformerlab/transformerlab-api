@@ -36,146 +36,163 @@ def check_local_server():
         raise RuntimeError("Local Model Server is not running. Please start it before running the evaluation.")
 
 
-# Generating custom TRLAB model
-class TRLAB_MODEL(DeepEvalBaseLLM):
-    def __init__(self, model):
-        self.model = model
+# # Generating custom TRLAB model
+# class TRLAB_MODEL(DeepEvalBaseLLM):
+#     def __init__(self, model):
+#         self.model = model
 
-    def load_model(self):
-        return self.model
+#     def load_model(self):
+#         return self.model
 
-    def generate(self, prompt: str) -> str:
-        chat_model = self.load_model()
-        return chat_model.invoke(prompt).content
+#     def generate(self, prompt: str) -> str:
+#         chat_model = self.load_model()
+#         return chat_model.invoke(prompt).content
 
-    def generate_without_instructor(self, messages: List[dict]) -> BaseModel:
-        chat_model = self.load_model()
-        modified_messages = []
-        for message in messages:
-            if message["role"] == "system":
-                modified_messages.append(SystemMessage(**message))
-            else:
-                modified_messages.append(HumanMessage(**message))
-        return chat_model.invoke(modified_messages).content
+#     def generate_without_instructor(self, messages: List[dict]) -> BaseModel:
+#         chat_model = self.load_model()
+#         modified_messages = []
+#         for message in messages:
+#             if message["role"] == "system":
+#                 modified_messages.append(SystemMessage(**message))
+#             else:
+#                 modified_messages.append(HumanMessage(**message))
+#         return chat_model.invoke(modified_messages).content
 
-    async def a_generate(self, prompt: str) -> str:
-        chat_model = self.load_model()
-        res = await chat_model.ainvoke(prompt)
-        return res.content
+#     async def a_generate(self, prompt: str) -> str:
+#         chat_model = self.load_model()
+#         res = await chat_model.ainvoke(prompt)
+#         return res.content
 
-    async def generate_batched(self, df: pd.DataFrame, sys_prompt_col=None) -> pd.DataFrame:
-        updated_df = await process_dataset(
-            df,
-            batch_size=tfl_evals.batch_size,
-            model=tfl_evals.model_name,
-            inference_url="http://localhost:8338/v1/chat/completions",
-            api_key="dummy",
-            sys_prompt_col=sys_prompt_col,
-            input_col=tfl_evals.input_column,
-            output_col=tfl_evals.output_column,
-            temperature=float(tfl_evals.temperature),
-            max_tokens=int(tfl_evals.max_tokens),
-            top_p=float(tfl_evals.top_p),
-        )
-        return updated_df
+#     async def generate_batched(self, df: pd.DataFrame, sys_prompt_col=None) -> pd.DataFrame:
+#         updated_df = await process_dataset(
+#             df,
+#             batch_size=tfl_evals.batch_size,
+#             model=tfl_evals.model_name,
+#             inference_url="http://localhost:8338/v1/chat/completions",
+#             api_key="dummy",
+#             sys_prompt_col=sys_prompt_col,
+#             input_col=tfl_evals.input_column,
+#             output_col=tfl_evals.output_column,
+#             temperature=float(tfl_evals.temperature),
+#             max_tokens=int(tfl_evals.max_tokens),
+#             top_p=float(tfl_evals.top_p),
+#         )
+#         return updated_df
 
-    def get_model_name(self):
-        return tfl_evals.model_name
+#     def get_model_name(self):
+#         return tfl_evals.model_name
 
 
-class CustomCommercialModel(DeepEvalBaseLLM):
-    def __init__(self, model_type="claude", model_name="Claude 3.5 Sonnet"):
-        self.model_type = model_type
-        self.model_name = model_name
+# class CustomCommercialModel(DeepEvalBaseLLM):
+#     def __init__(self, model_type="claude", model_name="Claude 3.5 Sonnet"):
+#         self.model_type = model_type
+#         self.model_name = model_name
 
-        if model_type == "claude":
-            anthropic_api_key = transformerlab.plugin.get_db_config_value("ANTHROPIC_API_KEY")
-            if not anthropic_api_key or anthropic_api_key.strip() == "":
-                raise ValueError("Please set the Anthropic API Key from Settings.")
-            else:
-                os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
-            self.model = Anthropic()
+#         if model_type == "claude":
+#             anthropic_api_key = transformerlab.plugin.get_db_config_value("ANTHROPIC_API_KEY")
+#             if not anthropic_api_key or anthropic_api_key.strip() == "":
+#                 raise ValueError("Please set the Anthropic API Key from Settings.")
+#             else:
+#                 os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
+#             self.model = Anthropic()
 
-        elif model_type == "openai":
-            openai_api_key = transformerlab.plugin.get_db_config_value("OPENAI_API_KEY")
-            if not openai_api_key or openai_api_key.strip() == "":
-                raise ValueError("Please set the OpenAI API Key from Settings.")
-            else:
-                os.environ["OPENAI_API_KEY"] = openai_api_key
-            self.model = OpenAI()
+#         elif model_type == "openai":
+#             openai_api_key = transformerlab.plugin.get_db_config_value("OPENAI_API_KEY")
+#             if not openai_api_key or openai_api_key.strip() == "":
+#                 raise ValueError("Please set the OpenAI API Key from Settings.")
+#             else:
+#                 os.environ["OPENAI_API_KEY"] = openai_api_key
+#             self.model = OpenAI()
 
-        elif model_type == "custom":
-            custom_api_details = transformerlab.plugin.get_db_config_value("CUSTOM_MODEL_API_KEY")
-            if not custom_api_details or custom_api_details.strip() == "":
-                raise ValueError("Please set the Custom API Details from Settings.")
-            else:
-                custom_api_details = json.loads(custom_api_details)
-                self.model = OpenAI(
-                    api_key=custom_api_details["customApiKey"],
-                    base_url=custom_api_details["customBaseURL"],
-                )
-                self.model_name = custom_api_details["customModelName"]
+#         elif model_type == "custom":
+#             custom_api_details = transformerlab.plugin.get_db_config_value("CUSTOM_MODEL_API_KEY")
+#             if not custom_api_details or custom_api_details.strip() == "":
+#                 raise ValueError("Please set the Custom API Details from Settings.")
+#             else:
+#                 custom_api_details = json.loads(custom_api_details)
+#                 self.model = OpenAI(
+#                     api_key=custom_api_details["customApiKey"],
+#                     base_url=custom_api_details["customBaseURL"],
+#                 )
+#                 self.model_name = custom_api_details["customModelName"]
 
-    def load_model(self):
-        return self.model
+#     def load_model(self):
+#         return self.model
 
-    def generate(self, prompt: str, schema: BaseModel) -> BaseModel:
-        client = self.load_model()
-        if self.model_type == "claude":
-            instructor_client = instructor.from_anthropic(client)
-        else:
-            instructor_client = instructor.from_openai(client)
+#     def generate(self, prompt: str, schema: BaseModel) -> BaseModel:
+#         client = self.load_model()
+#         if self.model_type == "claude":
+#             instructor_client = instructor.from_anthropic(client)
+#         else:
+#             instructor_client = instructor.from_openai(client)
 
-        resp = instructor_client.messages.create(
-            model=self.model_name,
-            max_tokens=1024,
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ],
-            response_model=schema,
-        )
-        return resp
+#         resp = instructor_client.messages.create(
+#             model=self.model_name,
+#             max_tokens=1024,
+#             messages=[
+#                 {
+#                     "role": "user",
+#                     "content": prompt,
+#                 }
+#             ],
+#             response_model=schema,
+#         )
+#         return resp
 
-    def generate_without_instructor(self, messages: List[dict]) -> BaseModel:
-        client = self.load_model()
-        response = client.chat.completions.create(
-            model=self.model_name,
-            messages=messages,
-        )
-        return response.choices[0].message.content
+#     def generate_without_instructor(self, messages: List[dict]) -> BaseModel:
+#         client = self.load_model()
+#         response = client.chat.completions.create(
+#             model=self.model_name,
+#             messages=messages,
+#         )
+#         return response.choices[0].message.content
 
-    async def a_generate(self, prompt: str, schema: BaseModel) -> BaseModel:
-        return self.generate(prompt, schema)
+#     async def a_generate(self, prompt: str, schema: BaseModel) -> BaseModel:
+#         return self.generate(prompt, schema)
 
-    async def generate_batched(self, df: pd.DataFrame, sys_prompt_col=None) -> pd.DataFrame:
-        INFERENCE_URL = (
-            "https://api.openai.com/v1/chat/completions"
-            if self.model_type == "openai"
-            else "https://api.anthropic.com/v1/chat/completions"
-        )
-        api_key = (
-            os.environ.get("OPENAI_API_KEY") if self.model_type == "openai" else os.environ.get("ANTHROPIC_API_KEY")
-        )
-        updated_df = await process_dataset(
-            df,
-            batch_size=tfl_evals.batch_size,
-            model=self.model_name,
-            inference_url=INFERENCE_URL,
-            api_key=api_key,
-            sys_prompt_col=sys_prompt_col,
-            input_col=tfl_evals.input_column,
-            output_col=tfl_evals.output_column,
-            temperature=float(tfl_evals.temperature),
-            max_tokens=int(tfl_evals.max_tokens),
-            top_p=float(tfl_evals.top_p),
-        )
-        return updated_df
+#     async def generate_batched(self, df: pd.DataFrame, sys_prompt_col=None) -> pd.DataFrame:
+#         INFERENCE_URL = (
+#             "https://api.openai.com/v1/chat/completions"
+#             if self.model_type == "openai"
+#             else "https://api.anthropic.com/v1/chat/completions"
+#         )
+#         api_key = (
+#             os.environ.get("OPENAI_API_KEY") if self.model_type == "openai" else os.environ.get("ANTHROPIC_API_KEY")
+#         )
+#         updated_df = await process_dataset(
+#             df,
+#             batch_size=tfl_evals.batch_size,
+#             model=self.model_name,
+#             inference_url=INFERENCE_URL,
+#             api_key=api_key,
+#             sys_prompt_col=sys_prompt_col,
+#             input_col=tfl_evals.input_column,
+#             output_col=tfl_evals.output_column,
+#             temperature=float(tfl_evals.temperature),
+#             max_tokens=int(tfl_evals.max_tokens),
+#             top_p=float(tfl_evals.top_p),
+#         )
+#         return updated_df
 
-    def get_model_name(self):
-        return self.model_name
+#     def get_model_name(self):
+#         return self.model_name
+
+
+async def generate_batched(trlab_model, df: pd.DataFrame, sys_prompt_col=None) -> pd.DataFrame:
+    updated_df = await process_dataset(
+        df,
+        batch_size=tfl_evals.batch_size,
+        model=trlab_model.generation_model_name,
+        inference_url=trlab_model.chat_completions_url,
+        api_key="dummy",
+        sys_prompt_col=sys_prompt_col,
+        input_col=tfl_evals.input_column,
+        output_col=tfl_evals.output_column,
+        temperature=float(tfl_evals.temperature),
+        max_tokens=int(tfl_evals.max_tokens),
+        top_p=float(tfl_evals.top_p),
+    )
+    return updated_df
 
 
 @tfl_evals.async_job_wrapper(progress_start=0, progress_end=100)
@@ -198,21 +215,7 @@ async def run_evaluation():
 
     # Load the appropriate model
     try:
-        if hasattr(tfl_evals, "generation_model") and "local" not in tfl_evals.generation_model.lower():
-            if "openai" in tfl_evals.generation_model.lower() or "gpt" in tfl_evals.generation_model.lower():
-                trlab_model = CustomCommercialModel("openai", tfl_evals.generation_model)
-            elif "claude" in tfl_evals.generation_model.lower() or "anthropic" in tfl_evals.generation_model.lower():
-                trlab_model = CustomCommercialModel("claude", tfl_evals.generation_model)
-            elif "custom" in tfl_evals.generation_model.lower():
-                trlab_model = CustomCommercialModel("custom", "")
-        else:
-            check_local_server()
-            custom_model = ChatOpenAI(
-                api_key="dummy",
-                base_url="http://localhost:8338/v1",
-                model=tfl_evals.model_name,
-            )
-            trlab_model = TRLAB_MODEL(model=custom_model)
+        trlab_model = tfl_evals.load_evaluation_model(field_name="generation_model")
 
         print("Model loaded successfully")
     except Exception as e:
@@ -235,7 +238,7 @@ async def run_evaluation():
     tfl_evals.progress_update(30)
 
     # Run batch generation
-    df = await trlab_model.generate_batched(df, sys_prompt_col=sys_prompt_col)
+    df = await generate_batched(trlab_model, df, sys_prompt_col=sys_prompt_col)
     print("Batched generation completed successfully")
 
     tfl_evals.progress_update(70)
