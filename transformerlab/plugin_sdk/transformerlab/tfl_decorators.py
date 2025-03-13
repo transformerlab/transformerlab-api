@@ -403,7 +403,6 @@ class EvalsTFLPlugin(TFLPlugin):
         os.makedirs(eval_dir, exist_ok=True)
 
         if dir_only:
-            print("EVAL DIR", eval_dir)
             return eval_dir
 
         if is_plotting:
