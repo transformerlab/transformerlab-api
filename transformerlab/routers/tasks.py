@@ -47,7 +47,7 @@ async def convert_eval_to_task(eval_name: str, experiment_id: int):
 async def convert_generate_to_task(generate_name: str, experiment_id: int):
     experiment_generations = json.loads(json.loads((await db.experiment_get(experiment_id))["config"])["generations"])
     for generation in experiment_generations:
-        if generation["name"] == eval_name:
+        if generation["name"] == generate_name:
             await db.add_task(generation["name"], "GENERATE", "{}", json.dumps(generation), generation["plugin"], "{}", experiment_id)
     return {"message":"OK"}
 
