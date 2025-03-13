@@ -101,7 +101,7 @@
             "ui:help": "Select this option to generate a dataset for fine-tuning embedding models."
         },
         "embedding_dataset_type": {
-            "ui:help": "Select the type of dataset you want to generate for the embedding model.",
+            "ui:help": "Select the type of dataset you want to generate for the embedding model. (Ignored if the `Generate Dataset for Embedding Model` option is not selected)",
             "ui:widget": "AutoCompleteWidget",
             "ui:options": {
                 "multiple": false
