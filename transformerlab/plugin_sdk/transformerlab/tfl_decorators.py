@@ -56,6 +56,8 @@ class TFLPlugin:
                 self._ensure_args_parsed()
 
                 self.add_job_data("start_time", time.strftime("%Y-%m-%d %H:%M:%S"))
+                self.add_job_data("model_name", self.model_name)
+                self.add_job_data("template_name", self.template_name)
 
                 # Update starting progress
                 self.job.update_progress(progress_start)
@@ -67,6 +69,7 @@ class TFLPlugin:
                     # Update final progress and success status
                     self.job.update_progress(progress_end)
                     self.job.set_job_completion_status("success", "Job completed successfully")
+                    self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
 
                     return result
 
@@ -470,7 +473,7 @@ class EvalsTFLPlugin(TFLPlugin):
             print(f"Average {metric}: {avg_score:.4f}")
             score_list.append({"type": metric, "score": avg_score})
 
-        self.job.add_to_job_data("score", json.dumps(score_list))
+        self.add_job_data("score", json.dumps(score_list))
 
         return output_path, plot_data_path
 

@@ -7,7 +7,7 @@
   "version": "0.1.2",
   "git": "https://github.com/EleutherAI/lm-evaluation-harness",
   "url": "https://github.com/EleutherAI/lm-evaluation-harness",
-  "supported_hardware_architectures": ["cuda", "mlx"],
+  "supported_hardware_architectures": ["cuda"],
   "files": ["main.py", "setup.sh"],
   "dataset": false,
   "setup-script": "setup.sh",

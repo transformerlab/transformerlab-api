@@ -1,5 +1,5 @@
 {
-  "name": "Eleuther AI LM Evaluation Harness",
+  "name": "EleutherAI LM Evaluation Harness",
   "uniqueId": "eleuther-ai-lm-evaluation-harness",
   "description": "A harness for evaluating language models.",
   "plugin-format": "python",

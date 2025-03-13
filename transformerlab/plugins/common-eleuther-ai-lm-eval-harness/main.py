@@ -1,7 +1,6 @@
 import os
 import re
 import subprocess
-import sys
 import pandas as pd
 import torch
 from datetime import datetime
@@ -153,9 +152,6 @@ def run_evaluation():
 
     # Save results using plugin's method
     output_path, plot_data_path = tfl_evals.save_evaluation_results(metrics_df)
-
-    # Record end time
-    tfl_evals.add_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
     print("--Evaluation task complete")
     return output_path, plot_data_path
