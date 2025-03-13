@@ -1,14 +1,9 @@
 import json
-import os
 from collections import defaultdict
 
 import httpx
-import instructor
 import nltk
 import pandas as pd
-import requests
-from anthropic import Anthropic
-from deepeval.models.base_model import DeepEvalBaseLLM
 from deepeval.red_teaming import AttackEnhancement, RedTeamer
 from deepeval.vulnerability import (
     Bias,
@@ -38,11 +33,7 @@ from deepeval.vulnerability.prompt_leakage import PromptLeakageType
 from deepeval.vulnerability.robustness import RobustnessType
 from deepeval.vulnerability.toxicity import ToxicityType
 from deepeval.vulnerability.unauthorized_access import UnauthorizedAccessType
-from langchain_openai import ChatOpenAI
-from openai import OpenAI
-from pydantic import BaseModel
 
-import transformerlab.plugin
 from transformerlab.tfl_decorators import tfl_evals
 
 nltk.download("punkt_tab")
