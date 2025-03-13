@@ -5,7 +5,6 @@ from fastapi import APIRouter, UploadFile, Body
 from fastapi.responses import FileResponse
 
 import transformerlab.db as db
-import transformerlab.routers.model as model  # Keep this for now, might be needed later
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
@@ -261,9 +260,8 @@ async def start_next_step_in_workflow():
         for task in tasks:
             if(task["name"] == task_name):
                 next_task = task
-                break;
-        #If no task found use first task of this type
-        if next_task == None and len(tasks) > 0:
+                break
+        if next_task is None and len(tasks) > 0:
                 next_task = tasks[0]
     else:
         next_task = None
@@ -271,8 +269,7 @@ async def start_next_step_in_workflow():
         for task in tasks:
             if(task["name"] == task_name):
                 next_task = task
-                break;
-
+                break
 
     if not next_task:
         await db.workflow_update_status(workflow_id, "FAILED")
