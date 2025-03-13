@@ -68,6 +68,9 @@ async def plugin_gallery():
         else:
             plugin["installed"] = False
 
+    # Sort the gallery alphabetically by plugin["name"]
+    gallery = sorted(gallery, key=lambda x: x["name"])
+
     return gallery
 
 
