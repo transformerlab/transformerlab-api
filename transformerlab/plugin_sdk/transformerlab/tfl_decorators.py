@@ -2,6 +2,7 @@ import os
 import time
 import argparse
 import functools
+import asyncio
 import traceback
 from typing import List, Any
 import json
@@ -84,6 +85,57 @@ class TFLPlugin:
 
                     # Re-raise the exception
                     raise
+
+            return wrapper
+
+        return decorator
+
+    def async_job_wrapper(self, progress_start: int = 0, progress_end: int = 100):
+        """Decorator for wrapping an async function with job status updates"""
+
+        def decorator(func):
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):
+                # Ensure args are parsed and job is initialized
+                try:
+                    self._ensure_args_parsed()
+                except Exception as e:
+                    print(f"Error parsing arguments: {str(e)}")
+                    raise
+
+                self.add_job_data("start_time", time.strftime("%Y-%m-%d %H:%M:%S"))
+                self.add_job_data("model_name", self.model_name)
+                self.add_job_data("template_name", self.template_name)
+
+                # Update starting progress
+                self.job.update_progress(progress_start)
+
+                async def run_async():
+                    try:
+                        # Call the wrapped async function
+                        result = await func(*args, **kwargs)
+
+                        # Update final progress and success status
+                        self.job.update_progress(progress_end)
+                        self.job.set_job_completion_status("success", "Job completed successfully")
+                        self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
+
+                        return result
+
+                    except Exception as e:
+                        # Capture the full error
+                        error_msg = f"Error in Async Job: {str(e)}\n{traceback.format_exc()}"
+                        print(error_msg)
+
+                        # Update job with failure status
+                        self.job.set_job_completion_status("failed", "Error occurred while executing job")
+                        self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
+
+                        # Re-raise the exception
+                        raise
+
+                # Use asyncio.run() inside the wrapper
+                return asyncio.run(run_async())
 
             return wrapper
 
@@ -301,6 +353,7 @@ class EvalsTFLPlugin(TFLPlugin):
         super().__init__()
         # Add common evaluation-specific arguments
         self._parser.add_argument("--run_name", default="evaluation", type=str, help="Name for the evaluation run")
+        self._parser.add_argument("--template_name", default="evaluation", type=str, help="Name for the evaluation run")
         self._parser.add_argument("--experiment_name", default="", type=str, help="Name of the experiment")
         self._parser.add_argument("--eval_name", default="", type=str, help="Name of the evaluation")
 
