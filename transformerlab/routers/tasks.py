@@ -1,11 +1,7 @@
 import json
-import yaml
-import uuid
-from fastapi import APIRouter, UploadFile, Body
-from fastapi.responses import FileResponse
+from fastapi import APIRouter
 
 import transformerlab.db as db
-import transformerlab.routers.model as model
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -16,7 +12,7 @@ async def tasks_get_all():
     return tasks
 
 @router.get("/list_by_type")
-async def tasks_get_all(type: str):
+async def tasks_get_by_type(type: str):
     tasks = await db.tasks_get_by_type(type)
     return tasks
 
