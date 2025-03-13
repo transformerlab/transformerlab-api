@@ -6,7 +6,7 @@ import pandas as pd
 import torch
 from datetime import datetime
 
-from transformerlab.plugin_sdk.transformerlab.tfl_decorators import tfl_evals
+from transformerlab.tfl_decorators import tfl_evals
 
 
 def get_detailed_file_names(output_file_path, prefix="samples_", suffix=".jsonl"):
