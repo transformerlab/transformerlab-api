@@ -2,22 +2,10 @@ import os
 import re
 import subprocess
 import pandas as pd
-from datetime import datetime
 import torch
 import traceback
 
 from transformerlab.tfl_decorators import tfl_evals
-
-# Initialize the EvalsTFLPlugin
-# tfl_evals = EvalsTFLPlugin()
-
-# # Add evaluation-specific arguments
-# tfl_evals.add_argument("--model_name", default="gpt-j-6b", type=str, help="Model to use for evaluation.")
-# tfl_evals.add_argument("--model_path", default="", type=str, help="Path to the model to use for evaluation.")
-# tfl_evals.add_argument("--model_type", default="MLX", type=str, help="Type of model to use for evaluation.")
-# tfl_evals.add_argument("--tasks", default="", type=str, help="Tasks to evaluate on")
-# tfl_evals.add_argument("--model_adapter", default=None, type=str, help="Model adapter to use")
-# tfl_evals.add_argument("--limit", default=None, type=float, help="Limit for dataset samples")
 
 
 def get_detailed_file_names(output_file_path, prefix="samples_", suffix=".jsonl"):
@@ -40,12 +28,6 @@ def run_evaluation():
     try:
         # Setup evaluation logging
         tfl_evals.setup_eval_logging()
-
-        # Record start time and configuration
-        tfl_evals.add_job_data("start_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        tfl_evals.add_job_data("template_name", tfl_evals.run_name)
-        tfl_evals.add_job_data("model_name", tfl_evals.model_name)
-        tfl_evals.add_job_data("config", str(vars(tfl_evals)))
 
         # Validate parameters
         if not tfl_evals.model_name or tfl_evals.model_name == "":
