@@ -71,7 +71,7 @@ def run_evaluation():
         command = ["lm-eval", "--model", "hf", "--model_args", model_args, "--tasks", tfl_evals.tasks, "--log_samples"]
     else:
         # Build model args for CUDA-based evaluation
-        model_args = f"model={model_name},trust_remote_code=True"
+        model_args = f"pretrained={model_name},trust_remote_code=True"
 
         if hasattr(tfl_evals, "model_adapter") and tfl_evals.model_adapter and tfl_evals.model_adapter.strip() != "":
             adapter_path = os.path.join(
