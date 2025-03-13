@@ -12,6 +12,7 @@ from deepeval.models import DeepEvalBaseEmbeddingModel
 from deepeval.models.base_model import DeepEvalBaseLLM
 from deepeval.synthesizer import Evolution, Synthesizer
 from deepeval.synthesizer.config import EvolutionConfig, StylingConfig
+from langchain.schema import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from openai import OpenAI
 from pydantic import BaseModel
@@ -120,6 +121,16 @@ class TRLAB_MODEL(DeepEvalBaseLLM):
         res = await chat_model.ainvoke(prompt)
         return res.content
 
+    def generate_without_instructor(self, messages: List[dict]) -> BaseModel:
+        chat_model = self.load_model()
+        modified_messages = []
+        for message in messages:
+            if message["role"] == "system":
+                modified_messages.append(SystemMessage(**message))
+            else:
+                modified_messages.append(HumanMessage(**message))
+        return chat_model.invoke(modified_messages).content
+
     def get_model_name(self):
         return args.model_name
 
@@ -184,6 +195,14 @@ class CustomCommercialModel(DeepEvalBaseLLM):
             response_model=schema,
         )
         return resp
+
+    def generate_without_instructor(self, messages: List[dict]) -> BaseModel:
+        client = self.load_model()
+        response = client.chat.completions.create(
+            model=self.model_name,
+            messages=messages,
+        )
+        return response.choices[0].message.content
 
     async def a_generate(self, prompt: str, schema: BaseModel) -> BaseModel:
         return self.generate(prompt, schema)
@@ -316,7 +335,8 @@ def generate_expected_outputs(input_values, styling_config):
                 \n\nExpected Input Format: {styling_config["input_format"]}
                 \n\n Generate the output for the following input: {input_val}.
                 \n Output: """
-        expected_output = trlab_model.generate_without_instructor(prompt)
+        messages = [{"role": "system", "content": prompt}]
+        expected_output = trlab_model.generate_without_instructor(messages)
         expected_outputs.append(expected_output)
     return expected_outputs
 

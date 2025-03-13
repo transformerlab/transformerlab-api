@@ -136,7 +136,7 @@ BATCHED_PROMPTS_DIR = os.path.join(WORKSPACE_DIR, "batched_prompts")
 os.makedirs(name=BATCHED_PROMPTS_DIR, exist_ok=True)
 
 # Galleries cache directory
-GALLERIES_SOURCE_PATH = "transformerlab/galleries/"
+GALLERIES_LOCAL_FALLBACK_DIR = os.path.join(TFL_SOURCE_CODE_DIR, "transformerlab/galleries/")
 GALLERIES_CACHE_DIR = os.path.join(WORKSPACE_DIR, "galleries")
 os.makedirs(name=GALLERIES_CACHE_DIR, exist_ok=True)
 
