@@ -173,12 +173,6 @@ def run_evaluation():
     # Setup evaluation logging
     tfl_evals.setup_eval_logging()
 
-    # Record start time
-    tfl_evals.add_job_data("start_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    tfl_evals.add_job_data("template_name", tfl_evals.run_name)
-    tfl_evals.add_job_data("model_name", tfl_evals.model_name)
-    tfl_evals.add_job_data("config", str(vars(tfl_evals)))
-
     # Parse tasks
     tasks = tfl_evals.tasks.split(",")
     tasks = [metric.lower().replace(" ", "_") for metric in tasks]
