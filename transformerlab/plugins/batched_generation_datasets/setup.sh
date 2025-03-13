@@ -1,1 +1,1 @@
-pip install deepeval langchain-openai instructor anthropic datasets
+uv pip install deepeval langchain-openai instructor anthropic datasets

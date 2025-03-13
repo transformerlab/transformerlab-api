@@ -4,11 +4,27 @@ import os
 import sqlite3
 
 import aiosqlite
+
+# from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+
+# Make sure SQLAlchemy is installed using pip install sqlalchemy[asyncio] as
+# described here https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html
+
 from transformerlab.shared import dirs
+from transformerlab.shared.models import models  # noqa: F401
 
 db = None
-
 DATABASE_FILE_NAME = f"{dirs.WORKSPACE_DIR}/llmlab.sqlite3"
+DATABASE_URL = f"sqlite+aiosqlite:///{DATABASE_FILE_NAME}"
+
+# Create SQLAlchemy engines
+# engine = create_engine(DATABASE_URL, echo=True)
+async_engine = create_async_engine(DATABASE_URL, echo=False)
+
+# Create a configured "Session" class
+async_session = sessionmaker(async_engine, expire_on_commit=False, class_=AsyncSession)
 
 
 async def init():
@@ -68,23 +84,42 @@ async def init():
                         updated_at DATETIME NOT NULL DEFAULT current_timestamp)
                         """
     )
-    await db.execute("CREATE INDEX IF NOT EXISTS idx_name ON experiment (name)")
 
     await db.execute(
         """CREATE TABLE IF NOT EXISTS
-            plugins
-                (id INTEGER PRIMARY KEY,
-                name UNIQUE,
-                type TEXT)"""
+                    workflows
+                        (id INTEGER PRIMARY KEY,
+                        name,
+                        config JSON,
+                        status,
+                        current_task,
+                        current_job_id,
+                        experiment_id,
+                        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME NOT NULL DEFAULT current_timestamp)
+                        """
     )
-    await db.execute(
-        """CREATE TABLE IF NOT EXISTS
-            config
-                (id INTEGER PRIMARY KEY,
-                key UNIQUE,
-                value TEXT)"""
-    )
-    await db.execute("CREATE INDEX IF NOT EXISTS idx_key ON config (key)")
+
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_name ON experiment (name)")
+
+    # await db.execute(
+    #     """CREATE TABLE IF NOT EXISTS
+    #         plugins
+    #             (id INTEGER PRIMARY KEY,
+    #             name UNIQUE,
+    #             type TEXT)"""
+    # )
+    # await db.execute(
+    #     """CREATE TABLE IF NOT EXISTS
+    #         config
+    #             (id INTEGER PRIMARY KEY,
+    #             key UNIQUE,
+    #             value TEXT)"""
+    # )
+    # await db.execute("CREATE INDEX IF NOT EXISTS idx_key ON config (key)")
+
+    async with async_engine.begin() as conn:
+        await conn.run_sync(models.Base.metadata.create_all)
 
     print("✅ Database initialized")
 
@@ -97,12 +132,25 @@ async def init():
     # On startup, look for any jobs that are in the RUNNING state and set them to CANCELLED instead:
     # This is to handle the case where the server is restarted while a job is running.
     await job_cancel_in_progress_jobs()
+    # await init_sql_model()
 
     return
 
 
 async def close():
     await db.close()
+    await async_engine.dispose()
+    print("✅ Database closed")
+    return
+
+
+# async def init_sql_model():
+#     """
+#     Initialize the database using SQLModel.
+#     """
+#     async with async_engine.begin() as conn:
+#         await conn.run_sync(SQLModel.metadata.create_all)
+#     print("✅ SQLModel Database initialized")
 
 
 ###############
@@ -129,14 +177,9 @@ async def get_dataset(dataset_id):
     return row
 
 
-async def get_datasets(generated: bool = True):
+async def get_datasets():
     cursor = await db.execute("SELECT rowid, * FROM dataset")
     rows = await cursor.fetchall()
-
-    # print("All ROWS: ", rows)
-    if not generated:
-        # Filter out generated datasets
-        rows = [row for row in rows if not json.loads(row[6]).get("generated", False)]
 
     # convert to json:
     desc = cursor.description
@@ -708,6 +751,109 @@ async def experiment_save_prompt_template(id, template):
     )
     await db.commit()
     return
+
+
+#################
+# WORKFLOWS MODEL
+#################
+
+
+async def workflows_get_all():
+    cursor = await db.execute("SELECT * FROM workflows WHERE status != 'DELETED' ORDER BY created_at desc")
+    rows = await cursor.fetchall()
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
+    await cursor.close()
+    return data
+
+
+async def workflows_get_by_id(workflow_id):
+    cursor = await db.execute("SELECT * FROM workflows WHERE id = ? ORDER BY created_at desc LIMIT 1", (workflow_id,))
+    row = await cursor.fetchone()
+    if row is None:
+        return None
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    row = dict(itertools.zip_longest(column_names, row))
+    await cursor.close()
+    return row
+
+
+async def workflow_delete_by_id(workflow_id):
+    print("Deleting workflow: " + workflow_id)
+    await db.execute("UPDATE workflows SET status = 'DELETED' WHERE id = ?", (workflow_id,))
+    await db.commit()
+    return
+
+
+async def workflow_delete_by_name(workflow_name):
+    print("Deleting workflow: " + workflow_name)
+    await db.execute("UPDATE workflows SET status = 'DELETED' WHERE name = ?", (workflow_name,))
+    await db.commit()
+    return
+
+
+async def workflow_count_running():
+    cursor = await db.execute("SELECT COUNT(*) FROM workflows WHERE status = 'RUNNING'")
+    row = await cursor.fetchone()
+    await cursor.close()
+    return row[0]
+
+
+async def workflow_get_running():
+    cursor = await db.execute("SELECT * FROM workflows WHERE status = 'RUNNING' LIMIT 1")
+    row = await cursor.fetchone()
+    if row is None:
+        return None
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    row = dict(itertools.zip_longest(column_names, row))
+    await cursor.close()
+    return row
+
+
+async def workflow_update_status(workflow_id, status):
+    await db.execute(
+        "UPDATE workflows SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, workflow_id)
+    )
+    await db.commit()
+    return
+
+
+async def workflow_update_with_new_job(workflow_id, current_task, current_job_id):
+    await db.execute(
+        "UPDATE workflows SET current_task = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (current_task, workflow_id),
+    )
+    await db.execute(
+        "UPDATE workflows SET current_job_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (current_job_id, workflow_id),
+    )
+    await db.commit()
+    return
+
+
+async def workflow_create(name, config, experiment_id):
+    # check if type is allowed
+    row = await db.execute_insert(
+        "INSERT INTO workflows(name, config, status, current_task, current_job_id, experiment_id) VALUES (?, json(?), ?, json(?), json(?), ?)",
+        (name, config, "CREATED", "[]", "[]", experiment_id),
+    )
+    await db.commit()
+    return row[0]
+
+
+async def workflow_update_config(workflow_id, config):
+    await db.execute(
+        "UPDATE workflows SET config = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (config, workflow_id)
+    )
+    await db.commit()
+
+
+async def workflow_delete_all():
+    await db.execute("DELETE FROM workflows")
+    await db.commit()
 
 
 ###############

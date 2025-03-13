@@ -3,13 +3,14 @@ import json
 import os
 import subprocess
 import sys
-import urllib
 from typing import Any
 
 import transformerlab.db as db
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
-from transformerlab.shared import dirs, shared
+from transformerlab.shared import dirs
+
+from werkzeug.utils import secure_filename
 
 router = APIRouter(prefix="/evals", tags=["evals"])
 
@@ -37,15 +38,14 @@ async def experiment_add_evaluation(experimentId: int, plugin: Any = Body()):
     plugin_name = plugin["plugin"]
     script_parameters = plugin["script_parameters"]
 
-    slug = shared.slugify(name)
+    # slug = shared.slugify(name)
 
     # If name is greater than 100 characters, truncate it
-    if len(slug) > 100:
-        slug = slug[:100]
-        print("Evals name is too long, truncating to 100 characters")
+    # if len(slug) > 100:
+    #     slug = slug[:100]
+    #     print("Evals name is too long, truncating to 100 characters")
 
-    evaluation = {"name": slug, "plugin": plugin_name,
-                  "script_parameters": script_parameters}
+    evaluation = {"name": name, "plugin": plugin_name, "script_parameters": script_parameters}
 
     evaluations.append(evaluation)
 
@@ -108,10 +108,10 @@ async def edit_evaluation_task(experimentId: int, plugin: Any = Body()):
 
         # Remove fields model_name, model_architecture and plugin_name from the updated_json
         # as they are not needed in the evaluations list
-        updated_json.pop("model_name", None)
-        updated_json.pop("model_architecture", None)
-        updated_json.pop("plugin_name", None)
-        updated_json.pop("template_name", None)
+        # updated_json.pop("model_name", None)
+        # updated_json.pop("model_architecture", None)
+        # updated_json.pop("plugin_name", None)
+        # updated_json.pop("template_name", None)
 
         for evaluation in evaluations:
             if evaluation["name"] == eval_name and evaluation["plugin"] == plugin_name:
@@ -162,6 +162,11 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
 
     experiment_name = experiment_details["name"]
     model_name = config["foundation"]
+
+    if config["foundation_filename"] is None or config["foundation_filename"].strip() == "":
+        model_file_path = ""
+    else:
+        model_file_path = config["foundation_filename"]
     model_type = config["foundation_model_architecture"]
     model_adapter = config["adaptor"]
 
@@ -179,8 +184,7 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
                 experiment_details["config"]["inferenceParams"]
             )
         if "evaluations" in experiment_details["config"]:
-            experiment_details["config"]["evaluations"] = json.loads(
-                experiment_details["config"]["evaluations"])
+            experiment_details["config"]["evaluations"] = json.loads(experiment_details["config"]["evaluations"])
 
     all_evaluations = experiment_details["config"]["evaluations"]
     this_evaluation = None
@@ -195,8 +199,7 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
     # print("GET OUTPUT JOB DATA", await get_job_output_file_name("2", plugin_name, eval_name, template_config))
     job_output_file = await get_job_output_file_name(job_id, plugin_name)
 
-    input_contents = {"experiment": experiment_details,
-                      "config": template_config}
+    input_contents = {"experiment": experiment_details, "config": template_config}
     with open(input_file, "w") as outfile:
         json.dump(input_contents, outfile, indent=4)
 
@@ -222,6 +225,8 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
             input_file,
             "--model_name",
             model_name,
+            "--model_path",
+            model_file_path,
             "--model_architecture",
             model_type,
             "--model_adapter",
@@ -256,6 +261,9 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
 
 async def get_job_output_file_name(job_id: str, plugin_name: str):
     try:
+        job_id = secure_filename(str(job_id))
+        plugin_name = secure_filename(plugin_name)
+
         plugin_dir = dirs.plugin_dir_by_name(plugin_name)
 
         # job output is stored in separate files with a job number in the name...
@@ -275,15 +283,13 @@ async def get_job_output_file_name(job_id: str, plugin_name: str):
 @router.get("/get_output")
 async def get_output(experimentId: int, eval_name: str):
     """Get the output of an evaluation"""
+    eval_name = secure_filename(eval_name)  # sanitize the input
     data = await db.experiment_get(experimentId)
     # if the experiment does not exist, return an error:
     if data is None:
         return {"message": f"Experiment {experimentId} does not exist"}
 
     experiment_name = data["name"]
-
-    # sanitize the input:
-    eval_name = urllib.parse.unquote(eval_name)
 
     eval_output_file = await dirs.eval_output_file(experiment_name, eval_name)
     if not os.path.exists(eval_output_file):

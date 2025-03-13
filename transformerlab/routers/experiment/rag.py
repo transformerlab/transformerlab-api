@@ -12,16 +12,18 @@ router = APIRouter(prefix="/rag", tags=["rag"])
 
 
 @router.get("/query")
-async def query(experimentId: str, query: str, settings: str = None):
+async def query(experimentId: str, query: str, settings: str = None, rag_folder: str = "rag"):
     """Query the RAG engine"""
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
+    documents_dir = os.path.join(documents_dir, rag_folder)
+    if not os.path.exists(documents_dir):
+        return "Error: The RAG folder does not exist in the documents directory"
     experiment_details = await db.experiment_get(id=experimentId)
     experiment_config = json.loads(experiment_details["config"])
     model = experiment_config.get("foundation")
 
-    print("Querying RAG with model " + model +
-          " and query " + query + " and settings " + settings)
+    print("Querying RAG with model " + model + " and query " + query + " and settings " + settings)
 
     plugin = experiment_config.get("rag_engine")
 
@@ -34,8 +36,7 @@ async def query(experimentId: str, query: str, settings: str = None):
         return f"Plugin {plugin} does not exist on the filesystem -- you must install or reinstall this plugin."
 
     # Call plug by passing plugin_path to plugin harness
-    print(f"Calling plugin {plugin_path}" +
-          " with model " + model + " and query " + query)
+    print(f"Calling plugin {plugin_path}" + " with model " + model + " and query " + query)
     process = await asyncio.create_subprocess_exec(
         sys.executable,
         dirs.PLUGIN_HARNESS,
@@ -73,10 +74,14 @@ async def query(experimentId: str, query: str, settings: str = None):
 
 
 @router.get("/reindex")
-async def reindex(experimentId: str):
+async def reindex(experimentId: str, rag_folder: str = "rag"):
     """Reindex the RAG engine"""
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
+    documents_dir = os.path.join(documents_dir, rag_folder)
+    if not os.path.exists(documents_dir):
+        return "Error: The RAG folder does not exist in the documents directory."
+
     experiment_details = await db.experiment_get(id=experimentId)
     experiment_config = json.loads(experiment_details["config"])
     model = experiment_config.get("foundation")
@@ -94,8 +99,7 @@ async def reindex(experimentId: str):
         return f"Plugin {plugin} does not exist on the filesystem -- you must install or reinstall this plugin."
 
     # Call plug by passing plugin_path to plugin harness
-    print(f"Calling plugin {plugin_path}" +
-          " with model " + model + " and reindex")
+    print(f"Calling plugin {plugin_path}" + " with model " + model + " and reindex")
     process = await asyncio.create_subprocess_exec(
         sys.executable,
         dirs.PLUGIN_HARNESS,

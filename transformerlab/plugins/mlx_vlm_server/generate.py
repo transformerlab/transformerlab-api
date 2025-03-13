@@ -11,9 +11,7 @@ from llava import LlavaModel
 
 
 def parse_arguments():
-    parser = argparse.ArgumentParser(
-        description="Generate text from an image using a model."
-    )
+    parser = argparse.ArgumentParser(description="Generate text from an image using a model.")
     parser.add_argument(
         "--model",
         type=str,
@@ -38,9 +36,7 @@ def parse_arguments():
         default=100,
         help="Maximum number of tokens to generate.",
     )
-    parser.add_argument(
-        "--temp", type=float, default=0.3, help="Temperature for sampling."
-    )
+    parser.add_argument("--temp", type=float, default=0.3, help="Temperature for sampling.")
     parser.add_argument(
         "--eos-token",
         type=str,

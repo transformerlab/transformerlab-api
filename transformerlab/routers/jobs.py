@@ -2,6 +2,7 @@ import json
 import os
 import csv
 import pandas as pd
+import logging
 from fastapi import APIRouter, Body, Response
 from fastapi.responses import StreamingResponse, FileResponse
 
@@ -11,8 +12,9 @@ from transformerlab.shared import dirs
 from typing import Annotated
 from json import JSONDecodeError
 
-from transformerlab.routers.serverinfo import watch_file
+from werkzeug.utils import secure_filename
 
+from transformerlab.routers.serverinfo import watch_file
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
@@ -53,9 +55,8 @@ async def start_next_job():
         return {"message": "A job is already running"}
     nextjob = await db.jobs_get_next_queued_job()
     if nextjob:
-        print(nextjob)
+        print(f"Starting Next Job in Queue: {nextjob}")
         print("Starting job: " + str(nextjob["id"]))
-        print(nextjob["job_data"])
         job_config = json.loads(nextjob["job_data"])
         experiment_id = nextjob["experiment_id"]
         data = await db.experiment_get(experiment_id)
@@ -142,9 +143,11 @@ async def update_training_template(
         datasets = configObject["dataset_name"]
         await db.update_training_template(template_id, name, description, type, datasets, config)
     except JSONDecodeError as e:
-        return {"status": "error", "message": str(e)}
+        logging.error(f"JSON decode error: {e}")
+        return {"status": "error", "message": "An error occurred while processing the request."}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        logging.error(f"Unexpected error: {e}")
+        return {"status": "error", "message": "An internal error has occurred."}
     return {"status": "success"}
 
 
@@ -152,6 +155,8 @@ async def update_training_template(
 async def stream_job_output(job_id: str):
     job = await db.job_get(job_id)
     job_data = job["job_data"]
+
+    job_id = secure_filename(job_id)
 
     plugin_name = job_data["plugin"]
     plugin_dir = dirs.plugin_dir_by_name(plugin_name)
@@ -164,11 +169,9 @@ async def stream_job_output(job_id: str):
 
     return StreamingResponse(
         # we force polling because i can't get this to work otherwise -- changes aren't detected
-        watch_file(output_file_name, start_from_beginning=True,
-                   force_polling=True),
+        watch_file(output_file_name, start_from_beginning=True, force_polling=True),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive",
-                 "Access-Control-Allow-Origin": "*"},
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
     )
 
 
@@ -182,8 +185,7 @@ async def stream_detailed_json_report(job_id: str, file_name: str):
         # we force polling because i can't get this to work otherwise -- changes aren't detected
         watch_file(file_name, start_from_beginning=True, force_polling=False),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive",
-                 "Access-Control-Allow-Origin": "*"},
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
     )
 
 

@@ -4,7 +4,7 @@
   "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.4.3",
+  "version": "0.4.6",
   "model_architectures": [
     "MLX",
     "CohereForCausalLM",
@@ -19,10 +19,8 @@
     "Phi3ForCausalLM",
     "Qwen2ForCausalLM"
   ],
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "supported_hardware_architectures": ["mlx"],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
     "lora_layers": {
@@ -96,6 +94,12 @@
       "type": "boolean",
       "default": true,
       "required": true
+    },
+    "log_to_wandb": {
+      "title": "Log to Weights and Biases",
+      "type": "boolean",
+      "default": true,
+      "required": true
     }
   },
   "parameters_ui": {
@@ -125,6 +129,9 @@
     },
     "fuse_model": {
       "ui:help": "Fuse adapter and model together. If unchecked, this will create a separate adapter which can be loaded from within the model in Foundation tab."
+    },
+    "log_to_wandb": {
+      "ui:help": "Log training to Weights and Biases. You must have a Weights and Biases account and API key to use this feature. You need to set the API Key in settings to use this feature."
     }
   }
 }

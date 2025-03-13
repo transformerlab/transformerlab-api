@@ -7,66 +7,88 @@ class BaseModel:
     """
     A basic representation of a Model in Transformer Lab.
 
-    To add a new model source, create a subclass.
-    The key function to override in your subclass is get_model_path.
-    Then in your subclass' constructor call super and then set any additional
+    The base object contains minimal information about the model
+    so you can display a list of available models at low cost.
+    If you want full model details in the format returned by the API
+    (which maps to the structure of the database and model gallery)
+    then you should call get_json_data().
+
+    -- Creating additional Model sources --
+
+    To add a new model source, you will typically create new classes
+    that inherit from ModelStore and BaseModel.
+
+    The key functions to override in your subclass are:
+    - get_model_path:
+    - get_json_data: to map model details to our standard json structure
+    - install: ONLY if there is custom install actions required to run the model
+
+    Then in your subclass' constructor call super, and then set any additional
     fields you want to store in the model's JSON.
 
     Properties:
     id:             Unique Transformer Lab model identifier
     name:           Printable name for the model (how it appears in the app)
     status:         A text string that is either "OK" or contains and error message
-    json_data:      an unstructured data blob that can contain any data relevant
-                    to the model or its model_source.
-
-    JSON FIELDS:
-    While the json_data blob is completely flexible, there are certain fields
-    that are expected to be present on functioning models including:
-
-    source:         Where the model is stored ("huggingface", "local", etc.)
-    source_id_or_path:
-                    The id of this model in it source (or path for local files)
-    model_filename: With source_id_or_path, a specific filename for this model.
-                    For example, GGUF repos have several files representing
-                    different versions of teh model.
-    architecture:   A string describing the model architecture used to determine
-                    support for the model and how to run
-    formats:        A array of strings describing the file format used to store model
-                    weights. This can be "safetensors", "bin", "gguf", "mlx".
 
     """
 
     def __init__(self, id):
         """
         The constructor takes an ID that is unique to the model source.
-        This may be different than the unique ID used in Transformer Lab (self.unique_id).
-
-        That is, model sources (hard drive folders, application caches, web sites, etc.)
-        will have subclasses of this BaseModel and may use the same id, but their unique_id
-        must be unique to Transformer Lab in order to import into the Transfoerm Lab store.
+        It is possible for multiple sources to have models with the same ID.
         """
 
         self.id = id
         self.name = id
         self.status = "OK"
+        self.source = "unknown"
+        self.source_id_or_path = self.id
+        self.model_filename = None
 
+    def __str__(self):
+        # For debug output
+        return str(self.__class__) + ": " + str(self.__dict__)
+
+    async def get_json_data(self):
+        """
+        Returns full model details in the format returned by the API.
+        This format maps to the structure of the database and matches the format used
+        by the model gallery.
+
+        Although this data is completely flexible, there are certain fields
+        that are expected to be present on functioning models including:
+
+        source:         Where the model is stored ("huggingface", "local", etc.)
+        source_id_or_path:
+                        The id of this model in it source (or path for local files)
+        model_filename: With source_id_or_path, a specific filename for this model.
+                        For example, GGUF repos have several files representing
+                        different versions of teh model.
+        architecture:   A string describing the model architecture used to determine
+                        support for the model and how to run
+        formats:        A array of strings describing the file format used to store model
+                        weights. This can be "safetensors", "bin", "gguf", "mlx".
+
+        """
         # While json_data is unstructured and flexible
         # These are the fields that the app generally expects to exist
-        self.json_data = {
+        return {
             "uniqueID": self.id,
-            "model_filename": "",
+            "model_filename": self.model_filename if self.model_filename else "",
             "name": self.id,
             "description": "",
             "architecture": "unknown",
             "formats": [],
-            "source": None,
-            "source_id_or_path": id,
+            "source": self.source,
+            "source_id_or_path": self.source_id_or_path,
             "huggingface_repo": "",
             "parameters": "",
             "context": "",
             "license": "",
             "logo": "",
             # The following are from huggingface_hu.hf_api.ModelInfo
+            # and used by our app
             "private": False,
             "gated": False,  # Literal["auto", "manual", False]
             "model_type": "",
@@ -74,32 +96,9 @@ class BaseModel:
             "transformers_version": "",
         }
 
-    def __str__(self):
-        # For debug output
-        return str(self.__class__) + ": " + str(self.__dict__)
-
-    async def is_installed(self):
-        """
-        Returns true if this model is saved in Transformer Lab's Local Store.
-        """
-        db_model = await db.model_local_get(self.id)
-        return db_model is not None
-
     async def install(self):
-        await db.model_local_create(model_id=self.id, name=self.name, json_data=self.json_data)
-
-    def get_model_path(self):
-        """
-        Returns ID of model in source OR absolute path to file or directory that contains model.
-        Most subclasses will probably want to override this so Transformer Lab knows where to
-        find the model.
-        """
-        source_id_or_path = self.json_data.get("source_id_or_path", self.id)
-        model_filename = self.json_data.get("model_filename", "")
-        if model_filename:
-            return os.path.join(source_id_or_path, model_filename)
-        else:
-            return source_id_or_path
+        json_data = await self.get_json_data()
+        await db.model_local_create(model_id=self.id, name=self.name, json_data=json_data)
 
 
 # MODEL UTILITY FUNCTIONS

@@ -9,11 +9,13 @@ from transformerlab.shared import dirs
 from transformerlab.shared.batched_requests import process_dataset
 from transformerlab.shared.shared import slugify
 
-router = APIRouter(prefix="/batched_prompts", tags=["batched_prompts"])
+from werkzeug.utils import secure_filename
+
+router = APIRouter(prefix="/batch", tags=["batched_prompts"])
 
 
 # Pydantic model for batch_predict request
-class BatchPredictRequest(BaseModel):
+class BatchChatCompletionRequest(BaseModel):
     model: str
     adaptor: Optional[str] = None
     api_key: Optional[str] = "dummy"
@@ -39,8 +41,7 @@ async def list_prompts():
                     name = file.split(".")[0]
                     batched_prompts.append({"name": name, "prompts": p})
                 except Exception as e:
-                    print(
-                        f"Error loading batched prompt file: {file}: {e}, skipping")
+                    print(f"Error loading batched prompt file: {file}: {e}, skipping")
 
     return batched_prompts
 
@@ -51,6 +52,7 @@ async def list_prompts():
 async def new_prompt(name: Annotated[str, Body()], prompts: Annotated[Union[list[list[dict]], list[str]], Body()]):
     """Create a new batched prompt"""
 
+    name = secure_filename(name)
     slug = slugify(name)
     prompts_dir = dirs.BATCHED_PROMPTS_DIR
     prompt_file = os.path.join(prompts_dir, f"{slug}.json")
@@ -66,6 +68,8 @@ async def new_prompt(name: Annotated[str, Body()], prompts: Annotated[Union[list
 async def delete_prompt(prompt_id: str):
     """Delete a batched prompt"""
 
+    prompt_id = secure_filename(prompt_id)
+
     prompts_dir = dirs.BATCHED_PROMPTS_DIR
     prompt_file = os.path.join(prompts_dir, f"{prompt_id}.json")
 
@@ -76,8 +80,8 @@ async def delete_prompt(prompt_id: str):
         return {"status": "error", "message": f"Prompt {prompt_id} not found"}
 
 
-@router.post("/batch_predict")
-async def batch_predict(request: BatchPredictRequest):
+@router.post("/chat/completions")
+async def batch_chat_completion(request: BatchChatCompletionRequest):
     """Predict on a batch of prompts"""
 
     prompts = request.messages
@@ -88,10 +92,11 @@ async def batch_predict(request: BatchPredictRequest):
     max_tokens = request.max_tokens
     top_p = request.top_p
     inference_url = request.inference_url
+    batch_size = request.batch_size
 
     results = await process_dataset(
         prompts,
-        batch_size=128,
+        batch_size=batch_size,
         model=model,
         adaptor=adaptor,
         api_key=api_key,

@@ -1,4 +1,5 @@
 import json
+import asyncio
 import shutil
 import datetime
 import dateutil.relativedelta
@@ -10,6 +11,8 @@ from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi
 from huggingface_hub import ModelCard, ModelCardData
 from huggingface_hub.utils import HfHubHTTPError
 import os
+from pathlib import Path
+import logging
 
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
@@ -17,8 +20,12 @@ from transformerlab.shared import galleries
 
 from transformerlab.models import model_helper
 from transformerlab.models import basemodel
-from transformerlab.models import localmodel
 from transformerlab.models import huggingfacemodel
+from transformerlab.models import filesystemmodel
+
+from werkzeug.utils import secure_filename
+
+logging.basicConfig(level=logging.ERROR)
 
 router = APIRouter(tags=["model"])
 
@@ -81,8 +88,7 @@ async def model_gallery_list_all():
 
         # Application uses the new flag to decide whether to display a badge
         # TODO: Probably shouldn't be doing > string comparison for dates
-        model["new"] = True if (
-            model["added"] > new_model_cutoff_date) else False
+        model["new"] = True if (model["added"] > new_model_cutoff_date) else False
 
     return gallery
 
@@ -110,15 +116,13 @@ async def model_gallery_update_sizes():
                 "*.bin",
             ]
             download_size = huggingfacemodel.get_huggingface_download_size(
-                model["uniqueID"], model.get(
-                    "allow_patterns", default_allow_patterns)
+                model["uniqueID"], model.get("allow_patterns", default_allow_patterns)
             )
         except Exception as e:
             download_size = -1
             print(e)
         try:
-            total_size = huggingfacemodel.get_huggingface_download_size(
-                model["uniqueID"], [])
+            total_size = huggingfacemodel.get_huggingface_download_size(model["uniqueID"], [])
         except Exception:
             total_size = -1
         print(model["uniqueID"])
@@ -166,7 +170,8 @@ async def upload_model_to_huggingface(
         elif organization_name in orgs and organization_name != "":
             username = organization_name
     except Exception as e:
-        return {"status": "error", "message": f"Error getting Hugging Face user info: {e}"}
+        logging.error(f"Error getting Hugging Face user info: {e}")
+        return {"status": "error", "message": "An internal error has occurred while getting Hugging Face user info."}
     repo_id = f"{username}/{model_name}"
     try:  # Checking if repo already exists.
         api.repo_info(repo_id)
@@ -176,7 +181,8 @@ async def upload_model_to_huggingface(
             # Should we add a toggle for them to allow private repos?
             create_repo(repo_id)
         else:
-            return {"status": "error", "message": f"Error creating Hugging Face repo: {e}"}
+            logging.error(f"Error creating Hugging Face repo: {e}")
+            return {"status": "error", "message": "An internal error has occurred while creating Hugging Face repo."}
 
     # Upload regardless in case they want to make changes/add to to an existing repo.
     upload_folder(folder_path=model_directory, repo_id=repo_id)
@@ -277,20 +283,79 @@ async def login_to_huggingface():
         return {"message": "Login failed"}
 
 
+@router.get(path="/model/login_to_wandb")
+async def login_to_wandb():
+    # TODO: Move all of these logins and their tests to another router outside 'model' to maintain clarity
+    import wandb
+
+    token = await db.config_get("WANDB_API_KEY")
+
+    if token is None:
+        return {"message": "WANDB_API not set"}
+    try:
+        wandb.login(key=token, force=True, relogin=True, verify=True)
+        return {"message": "OK"}
+    except Exception:
+        return {"message": "Login failed"}
+
+
+@router.get(path="/model/test_wandb_login")
+def test_wandb_login():
+    import netrc
+
+    netrc_path = Path.home() / (".netrc" if os.name != "nt" else "_netrc")
+    if netrc_path.exists():
+        auth = netrc.netrc(netrc_path).authenticators("api.wandb.ai")
+        if auth:
+            return {"message": "OK"}
+        else:
+            print("No W&B API key entry found in the netrc file.")
+            return {"message": "No W&B API key entry found in the netrc file."}
+    else:
+        print(f"Netrc file not found at {netrc_path}.")
+        return {"message": "Netrc file not found at {netrc_path}."}
+
+
 @router.get(path="/model/set_openai_api_key")
 async def set_openai_api_key():
     token = await db.config_get("OPENAI_API_KEY")
-    if os.getenv("OPENAI_API_KEY") is None:
-        if token is not None:
-            os.environ["OPENAI_API_KEY"] = token
-            return {"message": "OK"}
-    else:
-        if token is not None and token == os.getenv("OPENAI_API_KEY"):
-            return {"message": "OK"}
-        else:
-            print("Overriding OPENAI_API_KEY environment variable with value: ", token)
-            os.environ["OPENAI_API_KEY"] = token
-            return {"message": "OK"}
+    if not token or token == "":
+        return {"message": "OPENAI_API_KEY not configured in database"}
+
+    current_key = os.getenv("OPENAI_API_KEY")
+    if current_key == token:
+        return {"message": "OK"}
+
+    os.environ["OPENAI_API_KEY"] = token
+    return {"message": "OK"}
+
+
+@router.get(path="/model/set_anthropic_api_key")
+async def set_anthropic_api_key():
+    token = await db.config_get("ANTHROPIC_API_KEY")
+    if not token or token == "":
+        return {"message": "ANTHROPIC_API_KEY not configured in database"}
+
+    current_key = os.getenv("ANTHROPIC_API_KEY")
+    if current_key == token:
+        return {"message": "OK"}
+
+    os.environ["ANTHROPIC_API_KEY"] = token
+    return {"message": "OK"}
+
+
+@router.get(path="/model/set_custom_api_key")
+async def set_custom_api_key():
+    token_str = await db.config_get("CUSTOM_MODEL_API_KEY")
+    if not token_str or token_str == "":
+        return {"message": "CUSTOM_MODEL_API_KEY not configured in database"}
+
+    current_token = os.getenv("CUSTOM_MODEL_API_KEY")
+    if current_token == token_str:
+        return {"message": "OK"}
+
+    os.environ["CUSTOM_MODEL_API_KEY"] = token_str
+    return {"message": "OK"}
 
 
 @router.get(path="/model/check_openai_api_key")
@@ -311,30 +376,22 @@ async def check_anthropic_api_key():
         return {"message": "OK"}
 
 
-@router.get(path="/model/set_anthropic_api_key")
-async def set_anthropic_api_key():
-    token = await db.config_get("ANTHROPIC_API_KEY")
-    if os.getenv("ANTHROPIC_API_KEY") is None:
-        if token is not None:
-            os.environ["ANTHROPIC_API_KEY"] = token
-            return {"message": "OK"}
+@router.get(path="/model/check_custom_api_key")
+async def check_custom_api_key():
+    # Check if the CUSTOM_MODEL_API_KEY is set in the environment
+    if os.getenv("CUSTOM_MODEL_API_KEY") is None:
+        return {"message": "CUSTOM_MODEL_API_KEY not set"}
     else:
-        if token is not None and token == os.getenv("ANTHROPIC_API_KEY"):
-            return {"message": "OK"}
-        else:
-            print("Overriding ANTHROPIC_API_KEY environment variable with value: ", token)
-            os.environ["ANTHROPIC_API_KEY"] = token
-            return {"message": "OK"}
+        return {"message": "OK"}
 
 
 @router.get(path="/model/download_size")
 def get_model_download_size(model_id: str, allow_patterns: list = []):
     try:
-        download_size_in_bytes = huggingfacemodel.get_huggingface_download_size(
-            model_id, allow_patterns)
+        download_size_in_bytes = huggingfacemodel.get_huggingface_download_size(model_id, allow_patterns)
     except Exception as e:
-        error_msg = f"{type(e).__name__}: {e}"
-        return {"status": "error", "message": error_msg}
+        logging.error(f"Error in get_model_download_size: {type(e).__name__}: {e}")
+        return {"status": "error", "message": "An internal error has occurred."}
 
     return {"status": "success", "data": download_size_in_bytes}
 
@@ -403,7 +460,15 @@ async def download_huggingface_model(hugging_face_id: str, model_details: str = 
 
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
-        await db.job_update_status(job_id, "FAILED", error_msg)
+        # Log the detailed error message
+        print(error_msg)  # Replace with appropriate logging mechanism
+        await db.job_update_status(job_id, "FAILED", "An internal error has occurred.")
+        return {"status": "error", "message": "An internal error has occurred."}
+
+    except asyncio.CancelledError:
+        error_msg = "Download cancelled"
+        await db.job_update_status(job_id, "CANCELLED", error_msg)
+        huggingfacemodel.delete_model_from_hf_cache(hugging_face_id)
         return {"status": "error", "message": error_msg}
 
     if hugging_face_filename is None:
@@ -423,11 +488,12 @@ async def download_model_by_huggingface_id(model: str, job_id: int | None = None
     # If None then that means either the model doesn't exist
     # Or we don't have proper Hugging Face authentication setup
     try:
-        model_details = huggingfacemodel.get_model_details_from_huggingface(
-            model)
+        model_details = await huggingfacemodel.get_model_details_from_huggingface(model)
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
-        return {"status": "error", "message": error_msg}
+        # Log the detailed error message
+        print(error_msg)  # Replace with appropriate logging mechanism
+        return {"status": "error", "message": "An internal error has occurred."}
 
     if model_details is None:
         error_msg = f"Error reading config for model with ID {model}"
@@ -466,6 +532,15 @@ async def get_model_prompt_template(model: str):
 async def model_local_list():
     # the model list is a combination of downloaded hugging face models and locally generated models
     return await model_helper.list_installed_models()
+
+
+@router.get("/model/provenance/{model_id}")
+async def model_provenance(model_id: str):
+    # Get the provenance of a model along with the jobs that created it and evals that were done on each model
+
+    model_id = model_id.replace("~~~", "/")
+
+    return await model_helper.list_model_provenance(model_id)
 
 
 @router.get("/model/count_downloaded")
@@ -511,6 +586,7 @@ async def model_gets_pefts(
     model_id: Annotated[str, Body()],
 ):
     workspace_dir = dirs.WORKSPACE_DIR
+    model_id = secure_filename(model_id)
     adaptors_dir = f"{workspace_dir}/adaptors/{model_id}"
     adaptors = []
     if os.path.exists(adaptors_dir):
@@ -558,7 +634,7 @@ async def models_list_local_uninstalled(path: str = ""):
         if os.path.isfile(path):
             found_models = []
         elif os.path.isdir(path):
-            found_models = await localmodel.list_models(path)
+            found_models = await filesystemmodel.list_models(path)
         else:
             return {"status": "error", "message": "Invalid path"}
 
@@ -570,24 +646,19 @@ async def models_list_local_uninstalled(path: str = ""):
     response_models = []
     for found_model in found_models:
         # Figure out if this model is supported in Transformer Lab
-        architecture = found_model.json_data.get("architecture", "unknown")
-        supported = model_helper.model_architecture_is_supported(architecture)
+        supported = True
         if found_model.status != "OK":
             status = f"❌ {found_model.status}"
             supported = False
-        elif architecture == "unknown" or architecture == "":
-            status = "❌ Unknown architecture"
-        elif not supported:
-            status = f"❌ {architecture}"
         else:
-            status = f"✅ {architecture}"
+            status = "✅"
+            supported = True
 
         new_model = {
             "id": found_model.id,
             "name": found_model.name,
-            "path": found_model.json_data.get("source_id_or_path", found_model.id),
-            "architecture": architecture,
-            "source": found_model.json_data.get("source", "unknown"),
+            "path": found_model.source_id_or_path,
+            "source": found_model.source,
             "installed": False,
             "status": status,
             "supported": supported,
@@ -602,8 +673,13 @@ async def models_search_for_local_uninstalled():
     modelsources = model_helper.list_model_sources()
     models = []
     for source in modelsources:
-        source_models = await model_helper.list_models_from_source(source, uninstalled_only=True)
-        models += source_models
+        source_models = await model_helper.list_models_from_source(source)
+
+        # Only add uninstalled models
+        for source_model in source_models:
+            installed = await model_helper.is_model_installed(source_model.id)
+            if not installed:
+                models.append(source_model)
 
     return models
 
@@ -633,21 +709,21 @@ async def model_import_local_path(model_path: str):
     """
 
     if os.path.isdir(model_path):
-        model = localmodel.LocalFilesystemModel(model_path)
+        model = filesystemmodel.FilesystemModel(model_path)
     elif os.path.isfile(model_path):
-        model = localmodel.LocalFilesystemGGUFModel(model_path)
+        model = filesystemmodel.FilesystemGGUFModel(model_path)
     else:
         return {"status": "error", "message": f"Invalid model path {model_path}."}
 
     return await model_import(model)
 
 
-async def import_error(message: str):
+def import_error(message: str):
     """
     Separate function just to factor out printing and returning the same error.
     """
-    print("Import error:", message)
-    return {"status": "error", "message": message}
+    logging.error("Import error: %s", message)
+    return {"status": "error", "message": "An internal error has occurred. Please try again later."}
 
 
 async def model_import(model: basemodel.BaseModel):
@@ -658,16 +734,17 @@ async def model_import(model: basemodel.BaseModel):
 
     print(f"Importing {model.id}...")
 
+    # Get full model details
+    json_data = await model.get_json_data()
+
     # Only add a row for uninstalled and supported repos
-    architecture = model.json_data.get("architecture", "unknown")
+    architecture = json_data.get("architecture", "unknown")
     if model.status != "OK":
         return import_error(model.status)
-    if await model.is_installed():
+    if await model_helper.is_model_installed(model.id):
         return import_error(f"{model.id} is already installed.")
     if architecture == "unknown" or architecture == "":
         return import_error("Unable to determine model architecture.")
-    if not model_helper.model_architecture_is_supported(architecture):
-        return import_error(f"Architecture {architecture} not supported.")
 
     await model.install()
 

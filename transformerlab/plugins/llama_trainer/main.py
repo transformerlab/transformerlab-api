@@ -1,19 +1,21 @@
 # The following is adapted from
 # https://www.philschmid.de/instruction-tune-llama-2
 
-import json
-from random import randrange
-import sqlite3
-from datasets import load_dataset
-from trl import SFTTrainer, SFTConfig
-from peft import LoraConfig, prepare_model_for_kbit_training, get_peft_model
 import argparse
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig, TrainerCallback
+import json
 import os
-import transformerlab.plugin
+import sqlite3
+import time
+from random import randrange
 
+import torch
+from datasets import load_dataset
 from jinja2 import Environment
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, TrainerCallback
+from trl import SFTConfig, SFTTrainer
+
+import transformerlab.plugin
 
 jinja_environment = Environment()
 
@@ -44,6 +46,8 @@ model_id = config["model_name"]
 # model_id = "NousResearch/Llama-2-7b-hf"  # non-gated
 
 JOB_ID = config["job_id"]
+
+WANDB_LOGGING = config.get("log_to_wandb", None)
 
 job = transformerlab.plugin.Job(config["job_id"])
 job.update_progress(0)
@@ -145,6 +149,16 @@ db.commit()
 max_seq_length = int(config["maximum_sequence_length"])  # max sequence length for model and packing of the dataset
 print(max_seq_length)
 
+report_to = ["tensorboard"]
+
+if WANDB_LOGGING:
+    WANDB_LOGGING, report_to = transformerlab.plugin.test_wandb_login()
+    if not WANDB_LOGGING:
+        print("WANDB API Key not found. WANDB logging will be disabled. Please set the WANDB API Key in Settings.")
+
+today = time.strftime("%Y%m%d-%H%M%S")
+run_suffix = config.get("template_name", today)
+
 args = SFTConfig(
     output_dir=output_dir,
     num_train_epochs=int(config["num_train_epochs"]),
@@ -159,11 +173,12 @@ args = SFTConfig(
     tf32=True,
     max_grad_norm=0.3,
     warmup_ratio=0.03,
-    lr_scheduler_type=config.get("learning_rate_schedule","constant"),
+    lr_scheduler_type=config.get("learning_rate_schedule", "constant"),
     max_seq_length=max_seq_length,
     disable_tqdm=False,  # disable tqdm since with packing values are in correct
     packing=True,
-    report_to=["tensorboard"],
+    run_name=f"job_{JOB_ID}_{run_suffix}",
+    report_to=report_to,
 )
 
 

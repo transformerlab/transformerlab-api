@@ -6,13 +6,13 @@ import sys
 
 # Get all arguments provided to this script using argparse
 parser = argparse.ArgumentParser()
-parser.add_argument('--model-path', type=str)
-parser.add_argument('--parameters', type=str, default="{}")
+parser.add_argument("--model-path", type=str)
+parser.add_argument("--parameters", type=str, default="{}")
 args, unknown = parser.parse_known_args()
 
 model = args.model_path
 
-llmlab_root_dir = os.getenv('LLM_LAB_ROOT_PATH')
+llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
 
 parameters = args.parameters
 parameters = json.loads(parameters)
@@ -60,8 +60,7 @@ if "num_gpus" in parameters:
 # but we can also run it through FastChat's VLLM integration:
 # https://github.com/lm-sys/FastChat/blob/main/docs/vllm_integration.md
 
-popen_args = [sys.executable, '-m',
-              'fastchat.serve.vllm_worker', '--model-path', model]
+popen_args = [sys.executable, "-m", "fastchat.serve.vllm_worker", "--model-path", model]
 
 # Add all parameters to the command
 for key, value in parameters.items():
@@ -76,7 +75,7 @@ with open(f"{llmlab_root_dir}/worker.pid", "w") as f:
     f.write(str(proc.pid))
 
 # read output:
-for line in iter(proc.stderr.readline, b''):
+for line in iter(proc.stderr.readline, b""):
     print(line, file=sys.stderr)
 
 print("VLLM Server exited", file=sys.stderr)

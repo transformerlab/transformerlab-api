@@ -7,24 +7,32 @@ from transformerlab.models import basemodel
 
 import os
 import json
+import errno
+
+from transformerlab.shared import dirs
 
 
-async def list_models(uninstalled_only: bool = True):
-    ollama_model_library = ollama_models_library_dir()
-    if ollama_model_library is None:
+async def list_models():
+    try:
+        ollama_model_library = ollama_models_library_dir()
+    except Exception as e:
+        print("Failed to locate Ollama models library:")
+        print(str(e))
         return []
 
     models = []
     with os.scandir(ollama_model_library) as dirlist:
         # Scan the ollama cache repos for cached models
-        # If uninstalled_only is True then skip any models TLab has already
         for entry in dirlist:
+            # Each model directory contains subdirectories with variants
             if entry.is_dir():
-                ollama_model = OllamaModel(entry.name)
-
-                model_installed = await ollama_model.is_installed()
-                if not uninstalled_only or not model_installed:
-                    models.append(ollama_model)
+                for subentry in os.scandir(entry.path):
+                    if subentry.is_file():
+                        # Users will be familiar with Ollama model name format:
+                        # <model_name>:<variant>
+                        ollama_id = f"{entry.name}:{subentry.name}"
+                        ollama_model = OllamaModel(ollama_id)
+                        models.append(ollama_model)
 
     return models
 
@@ -33,46 +41,75 @@ class OllamaModel(basemodel.BaseModel):
     """
     Wrapper for models imported from Ollama.
     These models are kept in the ollama cache (usually ~/.ollama)
+
+    The passed ID will be in standard ollama model name format:
+        <model_name>:<variant>
+    Similar to how ollama works, if no ":" is included then the assumption
+    will be that the model is using the default "latest"
+    (i.e. <model_name>:latest)
     """
 
     def __init__(self, ollama_id):
-        super().__init__(ollama_id)
+        # Split the pass ID into the model name and variant
+        # which are separated by a colon
+        # If no variant is specified, then ollama assumes "latest"
+        if ":" in ollama_id:
+            model_name, variant = ollama_id.split(":", 1)
+        else:
+            model_name = ollama_id
+            variant = "latest"
 
-        self.id = f"ollama:{ollama_id}"
-        self.name = f"{ollama_id} (ollama)"
+        # Translate from ollama ID into Tranformer Lab model IDs.
+        # 1. Transformer Lab GGUF models need to be named <modelname>.gguf
+        # This is a FastChat thing where filename and modelname MUST match.
+        # Most models in ollama will not have the gguf part.
+        # 2. It is important to NOT include the variant if it is ":latest"
+        # This is because we don't want every GGUF model from Transformer lab
+        # in the format <model>.gguf showing up AGAIN as being importable
+        # with a new name "<model>:latest.gguf".
+        if variant == "latest":
+            import_id = f"{model_name}.gguf"
+        else:
+            import_id = f"{model_name}:{variant}.gguf"
 
-        # inherit json_data from the parent and only update specific fields
-        self.json_data["uniqueID"] = self.id
-        self.json_data["name"] = self.name
+        super().__init__(import_id)
 
-        # Assume all models from ollama are GGUF
-        self.json_data["architecture"] = "GGUF"
-        self.json_data["formats"] = ["GGUF"]
-        self.json_data["source"] = "ollama"
-        self.json_data["source_id_or_path"] = ollama_id
+        self.source = "ollama"
+        if variant == "latest":
+            self.name = model_name
+        else:
+            self.name = f"{model_name} {variant}"
 
-        # NOTE: This can change self.status if there's an error
-        self.json_data["model_filename"] = self.get_model_path()
+        # Make sure the source ID explicitly contains the variant name
+        self.source_id_or_path = f"{model_name}:{variant}"
 
-    # This returns just the filename of the blob containing the actual model
-    # If anything goes wrong along the way this returns None
+        # The actual modelfile is in the ollama cache
+        self.model_filename = self._get_model_blob_filename()
+
     def _get_model_blob_filename(self):
-        # Get the path to the manifest file
-        library_dir = ollama_models_library_dir()
-        ollamaid = self.json_data.get("source_id_or_path", self.id)
+        """
+        This returns just the filename of the blob containing the actual model
+        If anything goes wrong along the way this returns None
+        """
 
-        if not library_dir:
+        # Get the path to the manifest file
+        try:
+            library_dir = ollama_models_library_dir()
+        except Exception:
             self.status = "failed to find ollama library"
             return None
 
         # Read in the manifest file
-        manifestfile = os.path.join(library_dir, ollamaid, "latest")
+        # It is stored in a file with the variant name
+        # in a directory named after the model
+        model_name, variant = self.source_id_or_path.split(":", 1)
+        manifestfile = os.path.join(library_dir, model_name, variant)
         try:
             with open(manifestfile, "r") as f:
                 filedata = json.load(f)
 
         except FileNotFoundError:
-            print("ollama manifest file not found")
+            print("ollama manifest file not found:", manifestfile)
             return None
 
         # The format of v2 schema is that there is a list called "layers"
@@ -108,16 +145,65 @@ class OllamaModel(basemodel.BaseModel):
         self.status = f"unsupported ollama schemaVersion {schemaVersion}"
         return None
 
-    def get_model_path(self):
-        model_filename = self.json_data.get("model_filename", "")
-        if model_filename:
-            return model_filename
-        else:
-            blobfile = self._get_model_blob_filename()
-            if blobfile:
-                return blobfile
-            else:
-                return None
+    async def get_json_data(self):
+        # inherit json_data from the parent and only update specific fields
+        json_data = await super().get_json_data()
+
+        # Assume all models from ollama are GGUF
+        json_data["architecture"] = "GGUF"
+        json_data["formats"] = ["GGUF"]
+        json_data["source_id_or_path"] = self.model_filename
+
+        return json_data
+
+    async def install(self):
+        input_model_path = self.model_filename
+
+        # self.id contains an ID we can use in Transformer Lab in the format:
+        # <modelname>.gguf
+        # (with a variant included in modelname only if not :latest)
+        output_model_id = self.id
+
+        # Model filename and model name should be the same
+        output_filename = output_model_id
+
+        # Make sure our source file exists
+        if not input_model_path:
+            raise ValueError(f"No modelfile set for ollama model {self.id}")
+        elif not os.path.exists(input_model_path):
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), input_model_path)
+
+        # Create a directory for the model. Make sure it doesn't exist already.
+        output_path = os.path.join(dirs.MODELS_DIR, output_model_id)
+        if os.path.exists(output_path):
+            raise FileExistsError(errno.EEXIST, "Directory already exists", output_path)
+        os.makedirs(output_path)
+
+        # Create a link in the directory that points to the source blob
+        link_name = os.path.join(output_path, output_filename)
+        os.symlink(input_model_path, link_name)
+
+        # Create an info.json file so this can be read by the system
+        model_description = [
+            {
+                "model_id": output_model_id,
+                "model_filename": output_filename,
+                "name": f"{self.name} (Ollama)",
+                "source": "ollama",
+                "json_data": {
+                    "uniqueID": output_model_id,
+                    "name": f"{self.name} (Ollama)",
+                    "model_filename": output_filename,
+                    "description": f"Link to Ollama model {self.source_id_or_path}",
+                    "source": "ollama",
+                    "architecture": "GGUF",
+                    "huggingface_repo": "",
+                },
+            }
+        ]
+        model_info_file = os.path.join(output_path, "info.json")
+        with open(model_info_file, "w") as f:
+            json.dump(model_description, f)
 
 
 #########################
@@ -142,11 +228,11 @@ def ollama_models_library_dir():
     models_dir = ollama_models_dir()
 
     if not models_dir:
-        return None
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), "Ollama models directory")
 
     library_dir = os.path.join(models_dir, "manifests", "registry.ollama.ai", "library")
 
     if not os.path.isdir(library_dir):
-        return None
+        raise NotADirectoryError(errno.ENOENT, os.strerror(errno.ENOENT), library_dir)
 
     return library_dir
