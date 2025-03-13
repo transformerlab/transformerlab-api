@@ -1,5 +1,3 @@
-from datetime import datetime
-
 import nltk
 import pandas as pd
 from deepeval.metrics import BaseMetric
