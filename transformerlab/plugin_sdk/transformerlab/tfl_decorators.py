@@ -9,8 +9,6 @@ import json
 from tensorboardX import SummaryWriter
 from datasets import load_dataset, get_dataset_split_names
 import requests
-import pandas as pd
-
 
 import transformerlab.plugin
 from transformerlab.plugin import Job, get_dataset_path, test_wandb_login
