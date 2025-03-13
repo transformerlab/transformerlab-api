@@ -382,7 +382,7 @@ class EvalsTFLPlugin(TFLPlugin):
         else:
             print("Warning: TensorBoard writer not initialized. Call setup_eval_logging first.")
 
-    def get_output_file_path(self, suffix="", is_plotting=False):
+    def get_output_file_path(self, suffix="", is_plotting=False, dir_only=False):
         """Get path for saving evaluation outputs
 
         Args:
@@ -398,9 +398,13 @@ class EvalsTFLPlugin(TFLPlugin):
 
         workspace_dir = os.environ.get("_TFL_WORKSPACE_DIR", "./")
         experiment_dir = os.path.join(workspace_dir, "experiments", self.experiment_name)
-        eval_dir = os.path.join(experiment_dir, "evals", self.eval_name)
+        eval_dir = os.path.join(experiment_dir, "evals", self.eval_name, self.job_id)
 
         os.makedirs(eval_dir, exist_ok=True)
+
+        if dir_only:
+            print("EVAL DIR", eval_dir)
+            return eval_dir
 
         if is_plotting:
             # For plotting data, we use a JSON file with a specific naming convention
@@ -475,4 +479,4 @@ class EvalsTFLPlugin(TFLPlugin):
 # Create singleton instances
 tfl = TFLPlugin()
 tfl_trainer = TrainerTFLPlugin()
-# tfl_evals = EvalsTFLPlugin()
+tfl_evals = EvalsTFLPlugin()

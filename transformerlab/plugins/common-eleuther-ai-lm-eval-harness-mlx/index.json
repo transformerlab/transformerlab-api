@@ -292,7 +292,7 @@
       ]
     },
     "limit": {
-      "title": "Number of samples (Enter a floating point between 0 and 1. Set as 1 to get all samples)",
+      "title": "Fraction of Samples to use for evaluation",
       "type": ["number"],
       "minimum": 0.0,
       "default": 1.0,
@@ -306,7 +306,7 @@
       "ui:widget": "AutoCompleteWidget"
     },
     "limit": {
-      "ui:help": "Select the fraction of samples you want to run from the EleutherAI Harness task",
+      "ui:help": "Select the fraction of samples you want to run from the EleutherAI Harness task. Recommended to use 1.0 for full evaluation.",
       "ui:widget": "RangeWidget"
     }
   }
