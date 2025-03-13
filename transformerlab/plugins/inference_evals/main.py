@@ -17,9 +17,6 @@ import transformerlab.plugin
 
 from transformerlab.tfl_decorators import tfl_evals
 
-# Setup evaluation logging
-tfl_evals.setup_eval_logging()
-
 # Metrics mapping
 metrics_map = {
     "Time to First Token (TTFT)": "time_to_first_token",
@@ -184,6 +181,9 @@ class CustomCommercialModel(DeepEvalBaseLLM):
 @tfl_evals.async_job_wrapper(progress_start=0, progress_end=100)
 async def run_evaluation():
     """Run the inference evaluation"""
+
+    # Setup evaluation logging
+    tfl_evals.setup_eval_logging()
 
     # Type casting for avoiding errors
     tfl_evals.batch_size = int(tfl_evals.batch_size)
