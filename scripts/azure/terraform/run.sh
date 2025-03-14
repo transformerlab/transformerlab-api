@@ -9,15 +9,11 @@ set -e
 get_tfvar_value_string() {
   local var_name="$1"
   local default_value="$2"
-  local line
-  line=$(grep -E "^\s*${var_name}\s*=" terraform.tfvars | grep -v '^\s*#' | head -n1 || true)
-  if [[ -n "$line" ]]; then
-    # Extract value between quotes.
-    value=$(echo "$line" | sed -E 's/.*=\s*"(.*)".*/\1/')
-  else
-    value="$default_value"
-  fi
-  echo "$value"
+  local value
+  value=$(grep -E "^\s*${var_name}\s*=" terraform.tfvars | head -n1 | cut -d'=' -f2-)
+  # Trim leading/trailing whitespace and remove surrounding quotes if any.
+  value=$(echo "$value" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//')
+  echo "${value:-$default_value}"
 }
 
 # Extract the raw value (works for arrays and objects) from terraform.tfvars.
