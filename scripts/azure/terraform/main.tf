@@ -57,4 +57,5 @@ module "compute" {
   image_version        = var.image_version
   cloud_init_file      = "${path.module}/cloud-init/cloud-init.yaml"
   ssh_private_key_file = var.ssh_private_key_file
+  enable_gpu_driver    = var.enable_gpu_driver
 }

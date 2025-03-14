@@ -70,18 +70,18 @@
 
 # # Virtual Machine configuration:
 # vm_name   = "vm-custom"                      
-# vm_size   = "Standard_DS2_v2"                
+# vm_size   = "Standard_NC8as_T4_v3"                
 # admin_username = "adminuser"                 
-# enable_gpu_driver = false                    
+# enable_gpu_driver = true                    
 
 # # OS Disk configuration:
 # os_disk_storage_type = "Standard_LRS"         
-# os_disk_size_gb      = 128                   
+# os_disk_size_gb      = 200                   
 
 # # VM Image configuration:
-# image_publisher = "Canonical"                 
-# image_offer     = "UbuntuServer"              
-# image_sku       = "18.04-LTS"                 
+# image_publisher = "canonical"                 
+# image_offer     = "0001-com-ubuntu-server-jammy"              
+# image_sku       = "22_04-lts"                 
 # image_version   = "latest"                    
 
 # # Cloud-init configuration file that provisions the VM on boot.

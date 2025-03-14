@@ -123,7 +123,7 @@ variable "admin_username" {
 variable "os_disk_storage_type" {
   description = "OS Disk storage account type"
   type        = string
-  default     = "Premium_LRS"
+  default     = "Standard_LRS"
 }
 
 variable "os_disk_size_gb" {
@@ -147,7 +147,7 @@ variable "image_offer" {
 variable "image_sku" {
   description = "SKU of the VM image"
   type        = string
-  default     = "22_04-lts-gen2"
+  default     = "22_04-lts"
 }
 
 variable "image_version" {
