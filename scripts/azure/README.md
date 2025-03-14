@@ -106,7 +106,7 @@ Before you begin, make sure you have the following installed:
 The script should take care of provisioning the resources and starting a VM with transformerlab api running inside. The script will also output the public IP of the VM on the command line to be used in the `Connect to Remote Engine` screen.
 
 ```bash
-Apply complete! Resources: 10 added, 0 changed, 0 destroyed.
+Apply complete! Resources: 11 added, 0 changed, 0 destroyed.
 
 Outputs:
 
@@ -125,7 +125,7 @@ Open the Transformer Lab desktop application and click on `Connect to Remote Ser
 
 **Note :** *It might take few minutes for the server to install dependencies and start, recommended wait time is 5-10 minutes.*
 
-__
+---
 
 ## Troubleshooting
 
