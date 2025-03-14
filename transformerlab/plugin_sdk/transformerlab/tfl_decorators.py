@@ -45,7 +45,13 @@ class TFLPlugin:
         self._parser.add_argument(*args, **kwargs)
         return self
 
-    def job_wrapper(self, progress_start: int = 0, progress_end: int = 100, wandb_project_name: str = "TFL_Training"):
+    def job_wrapper(
+        self,
+        progress_start: int = 0,
+        progress_end: int = 100,
+        wandb_project_name: str = "TFL_Training",
+        manual_logging=False,
+    ):
         """Decorator for wrapping a function with job status updates"""
 
         def decorator(func):
@@ -64,7 +70,7 @@ class TFLPlugin:
                 try:
                     # Setup logging
                     if self.tfl_plugin_type == "trainer":
-                        self.setup_train_logging(wand_project_name=wandb_project_name)
+                        self.setup_train_logging(wandb_project_name=wandb_project_name, manual_logging=manual_logging)
                     # Call the wrapped function
                     result = func(*args, **kwargs)
 
@@ -72,6 +78,8 @@ class TFLPlugin:
                     self.job.update_progress(progress_end)
                     self.job.set_job_completion_status("success", "Job completed successfully")
                     self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
+                    if manual_logging and hasattr(self, "wandb_run"):
+                        self.wandb_run.finish()
 
                     return result
 
@@ -83,6 +91,8 @@ class TFLPlugin:
                     # Update job with failure status
                     self.job.set_job_completion_status("failed", "Error occurred while executing job")
                     self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
+                    if manual_logging and hasattr(self, "wandb_run"):
+                        self.wandb_run.finish()
 
                     # Re-raise the exception
                     raise
@@ -91,7 +101,13 @@ class TFLPlugin:
 
         return decorator
 
-    def async_job_wrapper(self, progress_start: int = 0, progress_end: int = 100):
+    def async_job_wrapper(
+        self,
+        progress_start: int = 0,
+        progress_end: int = 100,
+        wandb_project_name: str = "TFL_Training",
+        manual_logging=False,
+    ):
         """Decorator for wrapping an async function with job status updates"""
 
         def decorator(func):
@@ -113,6 +129,12 @@ class TFLPlugin:
 
                 async def run_async():
                     try:
+                        # Setup logging
+                        if self.tfl_plugin_type == "trainer":
+                            self.setup_train_logging(
+                                wandb_project_name=wandb_project_name, manual_logging=manual_logging
+                            )
+
                         # Call the wrapped async function
                         result = await func(*args, **kwargs)
 
@@ -120,6 +142,8 @@ class TFLPlugin:
                         self.job.update_progress(progress_end)
                         self.job.set_job_completion_status("success", "Job completed successfully")
                         self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
+                        if manual_logging and hasattr(self, "wandb_run"):
+                            self.wandb_run.finish()
 
                         return result
 
@@ -131,6 +155,8 @@ class TFLPlugin:
                         # Update job with failure status
                         self.job.set_job_completion_status("failed", "Error occurred while executing job")
                         self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
+                        if manual_logging and hasattr(self, "wandb_run"):
+                            self.wandb_run.finish()
 
                         # Re-raise the exception
                         raise
@@ -301,7 +327,7 @@ class TrainerTFLPlugin(TFLPlugin):
             self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise
 
-    def setup_train_logging(self, wandb_project_name: str = "TFL_Training"):
+    def setup_train_logging(self, wandb_project_name: str = "TFL_Training", manual_logging=False):
         """Setup Weights and Biases and TensorBoard logging
 
         Args:
@@ -310,12 +336,14 @@ class TrainerTFLPlugin(TFLPlugin):
         Returns:
             List of reporting targets (e.g. ["tensorboard", "wandb"])
         """
+        from tensorboardX import SummaryWriter
 
         self._ensure_args_parsed()
         if not hasattr(self, "template_name") or not self.template_name:
             self.template_name = "default"
         # Add tensorboard_output_dir
         self.tensorboard_output_dir = os.path.join(self.output_dir, f"job_{self.job_id}_{self.template_name}")
+        self.writer = SummaryWriter(self.tensorboard_output_dir)
         print("Writing tensorboard logs to:", self.output_dir)
 
         # Store the tensorboard output dir in the job
@@ -336,7 +364,13 @@ class TrainerTFLPlugin(TFLPlugin):
 
                 if wandb_success:
                     print(f"W&B logging enabled (project: {wandb_project_name})")
-                    report_to.append("wandb")
+                    try:
+                        import wandb
+
+                        report_to.append("wandb")
+                    except ImportError:
+                        raise ImportError("Could not import wandb. Skipping W&B logging.")
+
                 else:
                     print("W&B API key not found. W&B logging disabled.")
                     self.add_job_data("wandb_logging", False)
@@ -346,7 +380,19 @@ class TrainerTFLPlugin(TFLPlugin):
                 self.add_job_data("wandb_logging", False)
                 report_to = ["tensorboard"]
 
+        if "wandb" in report_to and manual_logging:
+            self.wandb_run = wandb.init(
+                project=wandb_project_name, config=self._config, name=f"{self.template_name}_{self.job_id}"
+            )
+
         self.report_to = report_to
+
+    def log_metric(self, metric_name: str, metric_value: float, step: int = None):
+        """Log a metric to all reporting targets"""
+        if "tensorboard" in self.report_to:
+            self.writer.add_scalar(metric_name, metric_value, step)
+        if "wandb" in self.report_to:
+            self.wandb_run.log({metric_name: metric_value}, step=step)
 
 
 # Create singleton instances
