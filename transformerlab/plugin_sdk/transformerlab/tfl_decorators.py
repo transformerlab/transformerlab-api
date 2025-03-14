@@ -767,7 +767,7 @@ class GenTFLPlugin(TFLPlugin):
                 setattr(self, key, arg)
                 key = None
 
-    def save_generated_dataset(self, df, additional_metadata=None):
+    def save_generated_dataset(self, df, additional_metadata=None, dataset_id=None):
         """Save generated data to file and create dataset in TransformerLab
 
         Args:
@@ -806,15 +806,18 @@ class GenTFLPlugin(TFLPlugin):
 
         # Upload to TransformerLab as a dataset
         try:
-            self.upload_to_transformerlab(output_file)
-            self.add_job_data("dataset_name", self.run_name)
+            self.upload_to_transformerlab(output_file, dataset_id)
+            if dataset_id:
+                self.add_job_data("dataset_id", dataset_id)
+            else:
+                self.add_job_data("dataset_name", self.run_name)
         except Exception as e:
             print(f"Error uploading to TransformerLab: {e}")
             self.add_job_data("upload_error", str(e))
 
         return output_file, self.run_name
 
-    def upload_to_transformerlab(self, output_file_path):
+    def upload_to_transformerlab(self, output_file_path, dataset_id=None):
         """Create a dataset in TransformerLab from the generated file
 
         Args:
@@ -827,7 +830,11 @@ class GenTFLPlugin(TFLPlugin):
             api_url = "http://localhost:8338/"
 
             # Create a new dataset
-            params = {"dataset_id": self.run_name, "generated": True}
+            if not dataset_id:
+                params = {"dataset_id": self.run_name, "generated": True}
+            else:
+                params = {"dataset_id": dataset_id, "generated": True}
+
             response = requests.get(api_url + "data/new", params=params)
             if response.status_code != 200:
                 raise RuntimeError(f"Error creating a new dataset: {response.json()}")
