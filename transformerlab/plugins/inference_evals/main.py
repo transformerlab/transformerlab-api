@@ -1,5 +1,4 @@
 import pandas as pd
-import requests
 from requests_batching import process_dataset
 
 from transformerlab.tfl_decorators import tfl_evals
