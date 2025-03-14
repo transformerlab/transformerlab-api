@@ -4,7 +4,7 @@
     "description": "Use a local or commercial LLM to generated outputs for the dataset generated.",
     "plugin-format": "python",
     "type": "generator",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "git": "",
     "url": "",
     "files": [
