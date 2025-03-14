@@ -36,9 +36,6 @@ async def generate_batched(trlab_model, df: pd.DataFrame, sys_prompt_col=None) -
 async def run_evaluation():
     """Run the inference evaluation"""
 
-    # Setup evaluation logging
-    tfl_evals.setup_eval_logging()
-
     # Type casting for avoiding errors
     tfl_evals.batch_size = int(tfl_evals.batch_size)
     tfl_evals.temperature = float(tfl_evals.temperature)

@@ -26,9 +26,6 @@ def get_detailed_file_names(output_file_path, prefix="samples_", suffix=".jsonl"
 def run_evaluation():
     """Run the MLX Evaluation Harness"""
     try:
-        # Setup evaluation logging
-        tfl_evals.setup_eval_logging()
-
         # Validate parameters
         if not tfl_evals.model_name or tfl_evals.model_name == "":
             raise ValueError("No model provided. Please re-run after setting a Foundation model.")

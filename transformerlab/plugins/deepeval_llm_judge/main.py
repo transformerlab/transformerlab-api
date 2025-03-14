@@ -39,8 +39,6 @@ def get_metric_class(metric_name: str):
 @tfl_evals.job_wrapper(progress_start=0, progress_end=100)
 def run_evaluation():
     """Run DeepEval LLM Judge metrics"""
-    # Setup evaluation logging
-    tfl_evals.setup_eval_logging()
 
     # Type Casting for threshold and limit
     tfl_evals.threshold = float(tfl_evals.threshold) if hasattr(tfl_evals, "threshold") and tfl_evals.threshold else 0.5

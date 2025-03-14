@@ -146,8 +146,6 @@ def execute_custom_function_regexp(output_text: str, expression: str, return_typ
 @tfl_evals.job_wrapper(progress_start=0, progress_end=100)
 def run_evaluation():
     """Run basic evaluations using regex and simple metrics"""
-    # Setup evaluation logging
-    tfl_evals.setup_eval_logging()
 
     # Type casting for limit
     tfl_evals.limit = float(tfl_evals.limit) if tfl_evals.limit else 1.0

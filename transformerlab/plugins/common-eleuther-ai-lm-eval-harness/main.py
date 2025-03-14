@@ -25,8 +25,6 @@ def get_detailed_file_names(output_file_path, prefix="samples_", suffix=".jsonl"
 @tfl_evals.job_wrapper(progress_start=0, progress_end=100)
 def run_evaluation():
     """Run the Eleuther AI LM Evaluation Harness"""
-    # Setup evaluation logging
-    tfl_evals.setup_eval_logging()
 
     # Validate parameters
     if not tfl_evals.model_name or tfl_evals.model_name == "":

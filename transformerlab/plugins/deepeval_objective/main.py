@@ -168,9 +168,6 @@ metric_classes = {
 # Use the job_wrapper decorator to handle job status updates
 @tfl_evals.job_wrapper(progress_start=0, progress_end=100)
 def run_evaluation():
-    # Setup evaluation logging
-    tfl_evals.setup_eval_logging()
-
     # Parse tasks
     tasks = tfl_evals.tasks.split(",")
     tasks = [metric.lower().replace(" ", "_") for metric in tasks]

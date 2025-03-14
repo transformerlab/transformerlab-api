@@ -132,8 +132,6 @@ def create_attack_enhancement_dict(enhancement_list):
 @tfl_evals.job_wrapper(progress_start=0, progress_end=100)
 def run_evaluation():
     """Run red teaming evaluation"""
-    # Setup evaluation logging
-    tfl_evals.setup_eval_logging()
 
     tfl_evals.progress_update(10)
 

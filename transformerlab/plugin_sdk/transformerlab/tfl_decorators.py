@@ -77,6 +77,9 @@ class TFLPlugin:
                     # Setup logging
                     if self.tfl_plugin_type == "trainer":
                         self.setup_train_logging(wandb_project_name=wandb_project_name, manual_logging=manual_logging)
+                    elif self.tfl_plugin_type == "evals":
+                        self.setup_eval_logging(wandb_project_name=wandb_project_name, manual_logging=manual_logging)
+
                     # Call the wrapped function
                     result = func(*args, **kwargs)
 
@@ -138,6 +141,10 @@ class TFLPlugin:
                         # Setup logging
                         if self.tfl_plugin_type == "trainer":
                             self.setup_train_logging(
+                                wandb_project_name=wandb_project_name, manual_logging=manual_logging
+                            )
+                        elif self.tfl_plugin_type == "evals":
+                            self.setup_eval_logging(
                                 wandb_project_name=wandb_project_name, manual_logging=manual_logging
                             )
 
@@ -618,6 +625,7 @@ class EvalsTFLPlugin(TFLPlugin):
         self._parser.add_argument("--template_name", default="evaluation", type=str, help="Name for the evaluation run")
         self._parser.add_argument("--experiment_name", default="", type=str, help="Name of the experiment")
         self._parser.add_argument("--eval_name", default="", type=str, help="Name of the evaluation")
+        self.tfl_plugin_type = "evals"
 
     def _ensure_args_parsed(self):
         """Parse arguments if not already done"""
@@ -642,12 +650,14 @@ class EvalsTFLPlugin(TFLPlugin):
                 setattr(self, key, arg)
                 key = None
 
-    def setup_eval_logging(self):
-        """Setup TensorBoard logging for evaluations
+    def setup_eval_logging(self, wandb_project_name: str = "TFL_Evaluations", manual_logging=False):
+        """Setup Weights and Biases and TensorBoard logging for evaluations
 
         Returns:
             str: Path to the TensorBoard output directory
         """
+        from tensorboardX import SummaryWriter
+
         self._ensure_args_parsed()
 
         today = time.strftime("%Y%m%d-%H%M%S")
@@ -677,10 +687,44 @@ class EvalsTFLPlugin(TFLPlugin):
         self.writer = SummaryWriter(output_dir)
 
         # Store the output directory in the job
-        self.job.set_tensorboard_output_dir(output_dir)
+        self.add_job_data("tensorboard_output_dir", self.tensorboard_output_dir)
 
-        print(f"Writing tensorboard logs to {output_dir}")
-        return output_dir
+        print(f"Writing tensorboard logs to {self.tensorboard_output_dir}")
+
+        # Check for wandb logging preference
+        log_to_wandb = getattr(self, "log_to_wandb", False)
+
+        report_to = ["tensorboard"]
+
+        if log_to_wandb:
+            try:
+                wandb_success, report_to = test_wandb_login(wandb_project_name)
+
+                if wandb_success:
+                    print(f"W&B logging enabled (project: {wandb_project_name})")
+                    try:
+                        import wandb
+
+                        report_to.append("wandb")
+
+                    except ImportError:
+                        raise ImportError("Could not import wandb. Skipping W&B logging.")
+
+                else:
+                    print("W&B API key not found. W&B logging disabled.")
+                    self.add_job_data("wandb_logging", False)
+
+            except Exception as e:
+                print(f"Error setting up W&B: {str(e)}. Continuing without W&B.")
+                self.add_job_data("wandb_logging", False)
+                report_to = ["tensorboard"]
+
+        if "wandb" in report_to and manual_logging:
+            self.wandb_run = wandb.init(
+                project=wandb_project_name, config=self._config, name=f"{self.template_name}_{self.job_id}"
+            )
+
+        self.report_to = report_to
 
     def log_metric(self, metric_name, value, step=1):
         """Log a metric to TensorBoard
@@ -690,10 +734,11 @@ class EvalsTFLPlugin(TFLPlugin):
             value: Value of the metric
             step: Step number for TensorBoard
         """
-        if hasattr(self, "writer"):
+        if "tensorboard" in self.report_to and hasattr(self, "writer"):
             self.writer.add_scalar(f"eval/{metric_name}", value, step)
-        else:
-            print("Warning: TensorBoard writer not initialized. Call setup_eval_logging first.")
+
+        if "wandb" in self.report_to and hasattr(self, "wandb_run"):
+            self.wandb_run.log({metric_name: value}, step=step)
 
     def get_output_file_path(self, suffix="", is_plotting=False, dir_only=False):
         """Get path for saving evaluation outputs
@@ -799,6 +844,8 @@ class GenTFLPlugin(TFLPlugin):
         self._parser.add_argument("--model_adapter", default=None, type=str, help="Model adapter to use")
         self._parser.add_argument("--generation_model", default="local", type=str, help="Model to use for generation")
         self._parser.add_argument("--generation_type", default="local", type=str, help="Model to use for generation")
+
+        self.tfl_plugin_type = "generation"
 
     def _ensure_args_parsed(self):
         """Parse arguments if not already done"""
