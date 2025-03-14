@@ -1,0 +1,60 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+packages:
+  - git
+  - tar
+  - curl
+  - wget
+
+bootcmd:
+  - mkdir -p /home/azureuser/.transformerlab
+
+write_files:
+  - path: /home/azureuser/start_transformerlab.sh
+    owner: root:root
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -e
+
+      export HOME=/home/azureuser
+      
+      echo "Downloading install.sh into /home/azureuser/.transformerlab..."
+      wget -O /home/azureuser/.transformerlab/install.sh https://raw.githubusercontent.com/transformerlab/transformerlab-api/refs/heads/main/install.sh
+      chmod +x /home/azureuser/.transformerlab/install.sh
+      
+      echo "Running install.sh..."
+      bash /home/azureuser/.transformerlab/install.sh
+      
+      echo "Changing directory to /home/azureuser/.transformerlab/src..."
+      cd /home/azureuser/.transformerlab/src
+      chmod +x run.sh
+      
+      echo "Running run.sh..."
+      bash run.sh
+      
+      echo "Chowning everything under /home/azureuser to azureuser..."
+      chown -R azureuser:azureuser /home/azureuser
+
+  - path: /etc/systemd/system/transformerlab.service
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Transformer Lab API Service
+      After=network.target
+
+      [Service]
+      Type=simple
+      ExecStart=/home/azureuser/start_transformerlab.sh
+      Restart=always
+      RestartSec=10
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - systemctl daemon-reload
+  - systemctl enable transformerlab.service
+  - systemctl start transformerlab.service
