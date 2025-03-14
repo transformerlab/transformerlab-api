@@ -10,7 +10,6 @@ import re
 import subprocess
 import sys
 import os
-from tensorboardX import SummaryWriter
 from jinja2 import Environment
 
 # Import tfl_trainer from the SDK
@@ -18,7 +17,7 @@ from transformerlab.tfl_decorators import tfl_trainer
 from transformerlab.plugin import WORKSPACE_DIR, generate_model_json
 
 
-@tfl_trainer.job_wrapper(progress_start=0, progress_end=100)
+@tfl_trainer.job_wrapper(progress_start=0, progress_end=100, wandb_project_name="TFL_Training", manual_logging=True)
 def train_mlx_lora():
     jinja_environment = Environment()
     plugin_dir = os.path.dirname(os.path.realpath(__file__))
@@ -56,37 +55,6 @@ def train_mlx_lora():
             yaml.dump(lora_config, file)
             print("LoRA config:")
             print(lora_config)
-
-    # Setup wandb and tensorboard logging
-    report_to = tfl_trainer.setup_train_logging("MLX_LoRA_Training")
-    use_wandb = "wandb" in report_to
-    if use_wandb:
-        try:
-            import wandb
-
-            # Initialize wandb with proper configuration
-            wandb_config = {
-                "model": tfl_trainer.model_name,
-                "lora_layers": lora_layers,
-                "learning_rate": learning_rate,
-                "batch_size": batch_size,
-                "steps_per_eval": steps_per_eval,
-                "iters": iters,
-                "adaptor_name": adaptor_name,
-            }
-            if lora_rank:
-                wandb_config["lora_rank"] = lora_rank
-            if lora_alpha:
-                wandb_config["lora_alpha"] = lora_alpha
-
-            wandb_run = wandb.init(project="MLX_LoRA_Training", config=wandb_config)
-            print("Weights & Biases logging enabled.")
-        except ImportError:
-            print("wandb package not found. Continuing without W&B logging.")
-            use_wandb = False
-        except Exception as e:
-            print(f"Error initializing wandb: {e}. Continuing without W&B logging.")
-            use_wandb = False
 
     # Load the dataset using tfl_trainer
     datasets = tfl_trainer.load_dataset(["train", "valid"])
@@ -168,7 +136,6 @@ def train_mlx_lora():
 
     # Setup tensorboard writer
     output_dir = tfl_trainer.tensorboard_output_dir
-    writer = SummaryWriter(output_dir)
     print("Writing logs to:", output_dir)
 
     # Run the MLX LoRA training process
@@ -196,19 +163,9 @@ def train_mlx_lora():
                     tokens_per_sec = float(match.group(4))
                     print("Training Loss: ", loss)
 
-                    writer.add_scalar("train/loss", loss, iteration)
-                    writer.add_scalar("train/it_per_sec", it_per_sec, iteration)
-                    writer.add_scalar("train/tokens_per_sec", tokens_per_sec, iteration)
-                    # Add wandb logging if enabled
-                    if use_wandb:
-                        wandb_run.log(
-                            {
-                                "train/loss": loss,
-                                "train/it_per_sec": it_per_sec,
-                                "train/tokens_per_sec": tokens_per_sec,
-                                "iteration": iteration,
-                            }
-                        )
+                    tfl_trainer.log_metric("train/loss", loss, iteration)
+                    tfl_trainer.log_metric("train/it_per_sec", it_per_sec, iteration)
+                    tfl_trainer.log_metric("train/tokens_per_sec", tokens_per_sec, iteration)
 
                 # Parse validation metrics
                 else:
@@ -217,8 +174,7 @@ def train_mlx_lora():
                     if match:
                         validation_loss = float(match.group(1))
                         print("Validation Loss: ", validation_loss)
-                        writer.add_scalar("valid/loss", validation_loss, iteration)
-                        wandb_run.log({"valid/loss": validation_loss, "iteration": iteration})
+                        tfl_trainer.log_metric("valid/loss", validation_loss, iteration)
 
             print(line, end="", flush=True)
 
@@ -227,9 +183,6 @@ def train_mlx_lora():
         print("An error occured before training completed.")
         raise RuntimeError("Training failed.")
 
-    # At the end of the function before returning
-    if use_wandb:
-        wandb.finish()
     print("Finished training.")
 
     # Fuse the model with the base model if requested

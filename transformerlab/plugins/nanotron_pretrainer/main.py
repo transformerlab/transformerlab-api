@@ -3,7 +3,6 @@ import subprocess
 import requests
 import yaml
 import re
-from tensorboardX import SummaryWriter
 import torch
 
 from transformerlab.tfl_decorators import tfl_trainer
@@ -16,17 +15,18 @@ def get_gpu_count():
             return torch.cuda.device_count()
     except Exception as e:
         print(f"Failed to get GPU count using PyTorch: {e}")
-    
+
     print("Could not determine GPU count, defaulting to 1")
     return 1
+
 
 def generate_nanotron_config():
     """
     Generate YAML configuration for Nanotron from input parameters
-    
+
     Args:
         config: Dictionary containing configuration parameters
-        
+
     Returns:
         dict: Complete Nanotron configuration
     """
@@ -123,7 +123,8 @@ def generate_nanotron_config():
             "learning_rate_scheduler": {
                 "learning_rate": float(getattr(tfl_trainer, "learning_rate", 5e-4)),
                 "lr_decay_starting_step": None,
-                "lr_decay_steps": int(getattr(tfl_trainer, "train_steps", 10000)) - int(getattr(tfl_trainer, "warmup_steps", 2)),
+                "lr_decay_steps": int(getattr(tfl_trainer, "train_steps", 10000))
+                - int(getattr(tfl_trainer, "warmup_steps", 2)),
                 "lr_decay_style": "cosine",
                 "lr_warmup_steps": int(getattr(tfl_trainer, "warmup_steps", 2)),
                 "lr_warmup_style": "linear",
@@ -167,35 +168,29 @@ def generate_nanotron_config():
 
     return nanotron_config
 
-@tfl_trainer.job_wrapper(progress_start=0, progress_end=100)
+
+@tfl_trainer.job_wrapper(progress_start=0, progress_end=100, wandb_project_name="TFL_Pretraining")
 def train_model():
     """Main training function using TrainerTFLPlugin"""
 
-    # Setup logging
-    tfl_trainer.setup_train_logging(wandb_project_name="TFL_Pretraining")
-    
     # Create the Nanotron configuration
     nanotron_config = generate_nanotron_config()
 
     # Set up output paths
     run_name = getattr(tfl_trainer, "template_name", "nanotron_run") + "_" + str(tfl_trainer.job_id)
-    
+
     # Create output directories
     output_path = os.path.join(
         os.environ.get("_TFL_WORKSPACE_DIR", "."), "models", "pretrained", run_name, "nanotron_config_files"
     )
     os.makedirs(output_path, exist_ok=True)
-    
     # Save the configuration to a YAML file
     config_path = os.path.join(output_path, f"{run_name}.yaml")
     with open(config_path, "w") as f:
         yaml.dump(nanotron_config, f, default_flow_style=False)
-    
-    # Setting up tensorboard
-    writer = SummaryWriter(tfl_trainer.tensorboard_output_dir)
-    
+
     print(f"Generated Nanotron configuration at: {config_path}")
-    
+
     # Get the number of GPUs to use
     if getattr(tfl_trainer, "gpu_ids") and tfl_trainer.gpu_ids.lower() != "auto":
         # Use specified GPU IDs
@@ -205,16 +200,15 @@ def train_model():
     else:
         # Get GPU count
         num_gpus = get_gpu_count()
-    
     # Create run_train.py script
     run_train_path = os.path.join(
         os.environ["_TFL_WORKSPACE_DIR"], "plugins", "nanotron_pretrainer", "nanotron", "run_train.py"
     )
-    
+
     # Run training with torchrun
     env = os.environ.copy()
     env["CUDA_DEVICE_MAX_CONNECTIONS"] = "1"
-    
+
     cmd = [
         "torchrun",
         f"--nproc_per_node={num_gpus}",
@@ -223,17 +217,16 @@ def train_model():
         config_path,
     ]
 
-    
     print(f"Running Nanotron with command: {' '.join(cmd)}")
-    
+
     process = subprocess.Popen(
         cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1
     )
-    
+
     # Process output line by line
     for line in iter(process.stdout.readline, ""):
         print(line.rstrip())  # Echo the output
-        
+
         # Look for iteration information
         if "[INFO|" in line and "iteration:" in line:
             try:
@@ -242,53 +235,51 @@ def train_model():
                 if iteration_match:
                     current_iter = int(iteration_match.group(1))
                     total_iter = int(iteration_match.group(2))
-                    
+
                     # Calculate progress as percentage
                     progress_percentage = min(100, (current_iter / total_iter) * 100)
-                    
+
                     # Update job progress
                     tfl_trainer.progress_update(progress_percentage)
-                    
                     # Extract other metrics for TensorBoard
                     # Loss
                     loss_match = re.search(r"lm_loss: ([\d.]+)", line)
                     if loss_match:
                         loss_value = float(loss_match.group(1))
-                        writer.add_scalar("train/loss", loss_value, current_iter)
-                    
+                        tfl_trainer.log_metric("train/loss", loss_value, current_iter)
+
                     # Learning rate
                     lr_match = re.search(r"lr: ([\d.e\-]+)", line)
                     if lr_match:
                         lr_value = float(lr_match.group(1))
-                        writer.add_scalar("train/learning_rate", lr_value, current_iter)
-                    
+                        tfl_trainer.log_metric("train/learning_rate", lr_value, current_iter)
+
                     # Tokens per second
                     tps_match = re.search(r"tokens_per_sec: ([\d.]+)K", line)
                     if tps_match:
                         tps_value = float(tps_match.group(1)) * 1000  # Convert K to actual value
-                        writer.add_scalar("system/tokens_per_sec", tps_value, current_iter)
-                    
+                        tfl_trainer.log_metric("system/tokens_per_sec", tps_value, current_iter)
+
                     # Gradient norm
                     grad_norm_match = re.search(r"grad_norm: ([\d.]+)", line)
                     if grad_norm_match:
                         grad_norm_value = float(grad_norm_match.group(1))
-                        writer.add_scalar("train/gradient_norm", grad_norm_value, current_iter)
-                    
+                        tfl_trainer.log_metric("train/gradient_norm", grad_norm_value, current_iter)
+
                     # Hardware TFLOPS per GPU
                     tflops_match = re.search(r"hardware_tflops_per_gpu: ([\d.]+)", line)
                     if tflops_match:
                         tflops_value = float(tflops_match.group(1))
-                        writer.add_scalar("system/tflops_per_gpu", tflops_value, current_iter)
-                    
+                        tfl_trainer.log_metric("system/tflops_per_gpu", tflops_value, current_iter)
+
             except Exception as e:
                 print(f"Error parsing progress: {e}")
-    
+
     # Wait for process to complete
     process.wait()
-    
+
     # Ensure we mark the job as 100% complete when done
     tfl_trainer.job.update_progress(100)
-    
     # Convert Nanotron checkpoint to HF format
     checkpoint_path = os.path.join(
         os.environ.get("_TFL_WORKSPACE_DIR", "."), "models", "pretrained", run_name, "checkpoints"
@@ -296,18 +287,20 @@ def train_model():
     try:
         with open(os.path.join(checkpoint_path, "latest.txt"), "r") as f:
             latest_checkpoint = f.read().strip()
-        
+
         save_path = os.path.join(
-            os.environ.get("_TFL_WORKSPACE_DIR", "."), "models", run_name,
+            os.environ.get("_TFL_WORKSPACE_DIR", "."),
+            "models",
+            run_name,
         )
         latest_checkpoint_path = os.path.join(checkpoint_path, latest_checkpoint)
         print("Latest checkpoint path:", latest_checkpoint_path)
         print("Save path:", save_path)
-        
+
         convert_script_path = os.path.join(
             os.environ["_TFL_WORKSPACE_DIR"], "plugins", "nanotron_pretrainer", "convert_nanotron_to_hf.py"
         )
-        
+
         cmd_convert = [
             "torchrun",
             "--nproc_per_node=1",
@@ -319,32 +312,28 @@ def train_model():
             "--tokenizer_name",
             getattr(tfl_trainer, "tokenizer_name", "robot-test/dummy-tokenizer-wordlevel"),
         ]
-        
+
         process_convert = subprocess.Popen(
             cmd_convert, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1
         )
-        
+
         for line in iter(process_convert.stdout.readline, ""):
             print(line.rstrip())  # Echo the output
-        
+
         process_convert.wait()
-        
+
         # Import Model in Transformer Lab
-        response = requests.get(
-            "http://localhost:8338/model/import_from_local_path", 
-            params={"model_path": save_path}
-        )
-        
+        response = requests.get("http://localhost:8338/model/import_from_local_path", params={"model_path": save_path})
+
         if response.status_code != 200:
             print(f"Failed to import model to Transformer Lab: {response.text}")
             return f"Training succeeded but model import failed: {response.text}"
-            
+
     except Exception as e:
         print(f"Error during model conversion: {e}")
         return f"Training succeeded but model conversion failed: {str(e)}"
-    
-    return "Nanotron training completed successfully"
 
+    return "Nanotron training completed successfully"
 
 
 train_model()
