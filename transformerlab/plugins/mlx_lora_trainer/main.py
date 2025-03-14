@@ -58,8 +58,7 @@ def train_mlx_lora():
             print(lora_config)
 
     # Setup wandb and tensorboard logging
-    report_to = tfl_trainer.setup_train_logging("MLX_LoRA_Training")
-    use_wandb = "wandb" in report_to
+    use_wandb = "wandb" in tfl_trainer.report_to
     if use_wandb:
         try:
             import wandb

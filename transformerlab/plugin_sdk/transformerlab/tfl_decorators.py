@@ -45,7 +45,7 @@ class TFLPlugin:
         self._parser.add_argument(*args, **kwargs)
         return self
 
-    def job_wrapper(self, progress_start: int = 0, progress_end: int = 100):
+    def job_wrapper(self, progress_start: int = 0, progress_end: int = 100, wandb_project_name: str = "TFL_Training"):
         """Decorator for wrapping a function with job status updates"""
 
         def decorator(func):
@@ -62,6 +62,9 @@ class TFLPlugin:
                 self.job.update_progress(progress_start)
 
                 try:
+                    # Setup logging
+                    if self.tfl_plugin_type == "trainer":
+                        self.setup_train_logging(wand_project_name=wandb_project_name)
                     # Call the wrapped function
                     result = func(*args, **kwargs)
 
@@ -205,6 +208,7 @@ class TrainerTFLPlugin(TFLPlugin):
 
     def __init__(self):
         super().__init__()
+        self.tfl_plugin_type = "trainer"
         # Add training-specific default arguments
         self._parser.add_argument("--input_file", type=str, help="Path to configuration file")
 
@@ -306,6 +310,7 @@ class TrainerTFLPlugin(TFLPlugin):
         Returns:
             List of reporting targets (e.g. ["tensorboard", "wandb"])
         """
+
         self._ensure_args_parsed()
         if not hasattr(self, "template_name") or not self.template_name:
             self.template_name = "default"
@@ -341,7 +346,7 @@ class TrainerTFLPlugin(TFLPlugin):
                 self.add_job_data("wandb_logging", False)
                 report_to = ["tensorboard"]
 
-        return report_to
+        self.report_to = report_to
 
 
 # Create singleton instances

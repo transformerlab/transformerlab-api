@@ -18,8 +18,6 @@ def train_model():
     datasets = tfl_trainer.load_dataset()
     dataset = datasets["train"]
 
-    report_to = tfl_trainer.setup_train_logging()
-
     print(f"Dataset loaded successfully with {len(dataset)} examples")
     print(dataset[randrange(len(dataset))])
 
@@ -84,11 +82,6 @@ def train_model():
     output_dir = getattr(tfl_trainer, "output_dir", "./output")
     adaptor_output_dir = getattr(tfl_trainer, "adaptor_output_dir", "./adaptor")
 
-    print(f"Storing Tensorboard Output to: {output_dir}")
-    tfl_trainer.add_job_data("tensorboard_output_dir", output_dir)
-
-    print("TFL Data:", tfl_trainer.output_dir)
-
     # Setup training arguments - use direct attribute access
     max_seq_length = int(getattr(tfl_trainer, "maximum_sequence_length", 2048))
     num_train_epochs = int(getattr(tfl_trainer, "num_train_epochs", 3))
@@ -122,7 +115,7 @@ def train_model():
         disable_tqdm=False,
         packing=True,
         run_name=f"job_{tfl_trainer.job_id}_{run_suffix}",
-        report_to=report_to,
+        report_to=tfl_trainer.report_to,
     )
 
     # Create progress callback
