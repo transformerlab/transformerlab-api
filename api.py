@@ -39,6 +39,7 @@ from transformerlab.routers import (
     config,
     jobs,
     workflows,
+    tasks,
     prompts,
     tools,
     batched_prompts,
@@ -149,6 +150,7 @@ app.include_router(plugins.router)
 app.include_router(evals.router)
 app.include_router(jobs.router)
 app.include_router(workflows.router)
+app.include_router(tasks.router)
 app.include_router(config.router)
 app.include_router(prompts.router)
 app.include_router(tools.router)
