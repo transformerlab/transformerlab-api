@@ -15,21 +15,13 @@ metrics_map = {
 }
 
 
-def check_local_server():
-    """Check if the local model server is running"""
-    response = requests.get("http://localhost:8338/server/worker_healthz")
-    if response.status_code != 200 or not isinstance(response.json(), list) or len(response.json()) == 0:
-        print("Local Model Server is not running. Please start it before running the evaluation.")
-        raise RuntimeError("Local Model Server is not running. Please start it before running the evaluation.")
-
-
 async def generate_batched(trlab_model, df: pd.DataFrame, sys_prompt_col=None) -> pd.DataFrame:
     updated_df = await process_dataset(
         df,
         batch_size=tfl_evals.batch_size,
         model=trlab_model.generation_model_name,
         inference_url=trlab_model.chat_completions_url,
-        api_key="dummy",
+        api_key=trlab_model.api_key,
         sys_prompt_col=sys_prompt_col,
         input_col=tfl_evals.input_column,
         output_col=tfl_evals.output_column,

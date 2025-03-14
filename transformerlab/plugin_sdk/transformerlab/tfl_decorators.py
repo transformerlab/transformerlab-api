@@ -102,15 +102,15 @@ class TFLPlugin:
             @functools.wraps(func)
             def wrapper(*args, **kwargs):
                 # Ensure args are parsed and job is initialized
-                try:
-                    self._ensure_args_parsed()
-                except Exception as e:
-                    print(f"Error parsing arguments: {str(e)}")
-                    raise
+                self._ensure_args_parsed()
 
                 self.add_job_data("start_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                 self.add_job_data("model_name", self.model_name)
-                self.add_job_data("template_name", self.template_name)
+
+                if hasattr(self, "template_name"):
+                    self.add_job_data("template_name", self.template_name)
+                elif hasattr(self, "run_name"):
+                    self.add_job_data("template_name", self.run_name)
 
                 # Update starting progress
                 self.job.update_progress(progress_start)
@@ -295,6 +295,7 @@ class TFLPlugin:
                 self.model = model
                 self.chat_completions_url = "http://localhost:8338/v1/chat/completions"
                 self.generation_model_name = plugin_model_name
+                self.api_key = "dummy"
 
             def load_model(self):
                 return self.model
@@ -337,6 +338,7 @@ class TFLPlugin:
                 if model_type == "claude":
                     self.chat_completions_url = "https://api.anthropic.com/v1/chat/completions"
                     anthropic_api_key = transformerlab.plugin.get_db_config_value("ANTHROPIC_API_KEY")
+                    self.api_key = anthropic_api_key
                     if not anthropic_api_key or anthropic_api_key.strip() == "":
                         raise ValueError("Please set the Anthropic API Key from Settings.")
                     else:
@@ -346,6 +348,7 @@ class TFLPlugin:
                 elif model_type == "openai":
                     self.chat_completions_url = "https://api.openai.com/v1/chat/completions"
                     openai_api_key = transformerlab.plugin.get_db_config_value("OPENAI_API_KEY")
+                    self.api_key = openai_api_key
                     if not openai_api_key or openai_api_key.strip() == "":
                         raise ValueError("Please set the OpenAI API Key from Settings.")
                     else:
@@ -353,7 +356,9 @@ class TFLPlugin:
                     self.model = OpenAI()
 
                 elif model_type == "custom":
+                    self.chat_completions_url = "https://api.openai.com/v1/chat/completions"
                     custom_api_details = transformerlab.plugin.get_db_config_value("CUSTOM_MODEL_API_KEY")
+
                     if not custom_api_details or custom_api_details.strip() == "":
                         raise ValueError("Please set the Custom API Details from Settings.")
                     else:
@@ -362,6 +367,7 @@ class TFLPlugin:
                             api_key=custom_api_details["customApiKey"],
                             base_url=custom_api_details["customBaseURL"],
                         )
+                        self.api_key = custom_api_details["customApiKey"]
                         self.generation_model_name = custom_api_details["customModelName"]
 
             def load_model(self):
@@ -846,6 +852,9 @@ class GenTFLPlugin(TFLPlugin):
 
             if response.status_code != 200:
                 raise RuntimeError(f"Error uploading the dataset: {response.json()}")
+
+            # Adding dataset so it can be previewed.
+            self.add_job_data("additional_output_path", output_file_path)
 
             print(f"Dataset '{self.run_name}' uploaded successfully to TransformerLab")
             return True
