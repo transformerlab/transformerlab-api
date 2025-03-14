@@ -60,7 +60,10 @@ class TFLPlugin:
 
                 self.add_job_data("start_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                 self.add_job_data("model_name", self.model_name)
-                self.add_job_data("template_name", self.template_name)
+                if hasattr(self, "template_name"):
+                    self.add_job_data("template_name", self.template_name)
+                elif hasattr(self, "run_name"):
+                    self.add_job_data("template_name", self.run_name)
 
                 # Update starting progress
                 self.job.update_progress(progress_start)
@@ -391,6 +394,14 @@ class TFLPlugin:
             async def a_generate(self, prompt: str, schema=None):
                 return self.generate(prompt, schema)
 
+            def generate_without_instructor(self, messages: List[dict]):
+                client = self.load_model()
+                response = client.chat.completions.create(
+                    model=self.model_name,
+                    messages=messages,
+                )
+                return response.choices[0].message.content
+
             def get_model_name(self):
                 return self.generation_model_name
 
@@ -551,11 +562,6 @@ class EvalsTFLPlugin(TFLPlugin):
         self._parser.add_argument("--template_name", default="evaluation", type=str, help="Name for the evaluation run")
         self._parser.add_argument("--experiment_name", default="", type=str, help="Name of the experiment")
         self._parser.add_argument("--eval_name", default="", type=str, help="Name of the evaluation")
-
-        # Dictionary to store parsed tasks
-        self._parsed_tasks = None
-        self._predefined_tasks = {}
-        self._unknown_args_dict = {}
 
     def _ensure_args_parsed(self):
         """Parse arguments if not already done"""
@@ -726,7 +732,206 @@ class EvalsTFLPlugin(TFLPlugin):
         return output_path, plot_data_path
 
 
+class GenTFLPlugin(TFLPlugin):
+    """Enhanced decorator class for TransformerLab generation plugins"""
+
+    def __init__(self):
+        super().__init__()
+        # Add common generation-specific arguments
+        self._parser.add_argument("--run_name", default="generated", type=str, help="Name for the generated dataset")
+        self._parser.add_argument("--experiment_name", default="default", type=str, help="Name of the experiment")
+        self._parser.add_argument("--model_adapter", default=None, type=str, help="Model adapter to use")
+        self._parser.add_argument("--generation_model", default="local", type=str, help="Model to use for generation")
+        self._parser.add_argument("--generation_type", default="local", type=str, help="Model to use for generation")
+
+    def _ensure_args_parsed(self):
+        """Parse arguments if not already done"""
+        if not self._args_parsed:
+            args, unknown_args = self._parser.parse_known_args()
+
+            # Transfer all known arguments to attributes of self
+            for key, value in vars(args).items():
+                setattr(self, key, value)
+
+            self._parse_unknown_args(unknown_args)
+            self._args_parsed = True
+
+    def _parse_unknown_args(self, unknown_args):
+        """Parse unknown arguments which change with each eval"""
+        key = None
+        for arg in unknown_args:
+            if arg.startswith("--"):  # Argument key
+                key = arg.lstrip("-")
+                setattr(self, key, True)
+            elif key:  # Argument value
+                setattr(self, key, arg)
+                key = None
+
+    def save_generated_dataset(self, df, additional_metadata=None):
+        """Save generated data to file and create dataset in TransformerLab
+
+        Args:
+            df: DataFrame containing generated data
+            additional_metadata: Optional dict with additional metadata to save
+
+        Returns:
+            tuple: Paths to the saved files (output_file, dataset_name)
+        """
+        self._ensure_args_parsed()
+
+        # Create output directory
+        output_dir = self.get_output_file_path(dir_only=True)
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Save to file
+        output_file = os.path.join(output_dir, f"{self.run_name}_{self.job_id}.json")
+        df.to_json(output_file, orient="records", lines=False)
+        print(f"Generated data saved to {output_file}")
+
+        # Store metadata
+        metadata = {
+            "generation_model": self.generation_model,
+            "generation_type": getattr(self, "generation_type", "scratch"),
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "sample_count": len(df),
+        }
+
+        if additional_metadata:
+            metadata.update(additional_metadata)
+
+        # Save metadata
+        metadata_file = os.path.join(output_dir, f"{self.run_name}_{self.job_id}_metadata.json")
+        with open(metadata_file, "w") as f:
+            json.dump(metadata, f, indent=2)
+
+        # Upload to TransformerLab as a dataset
+        try:
+            self.upload_to_transformerlab(output_file)
+            self.add_job_data("dataset_name", self.run_name)
+        except Exception as e:
+            print(f"Error uploading to TransformerLab: {e}")
+            self.add_job_data("upload_error", str(e))
+
+        return output_file, self.run_name
+
+    def upload_to_transformerlab(self, output_file_path):
+        """Create a dataset in TransformerLab from the generated file
+
+        Args:
+            output_file_path: Path to the generated file
+
+        Returns:
+            bool: Whether upload was successful
+        """
+        try:
+            api_url = "http://localhost:8338/"
+
+            # Create a new dataset
+            params = {"dataset_id": self.run_name, "generated": True}
+            response = requests.get(api_url + "data/new", params=params)
+            if response.status_code != 200:
+                raise RuntimeError(f"Error creating a new dataset: {response.json()}")
+
+            # Upload the file
+            with open(output_file_path, "rb") as json_file:
+                files = {"files": json_file}
+                response = requests.post(api_url + "data/fileupload", params=params, files=files)
+
+            if response.status_code != 200:
+                raise RuntimeError(f"Error uploading the dataset: {response.json()}")
+
+            print(f"Dataset '{self.run_name}' uploaded successfully to TransformerLab")
+            return True
+
+        except Exception as e:
+            print(f"Error uploading to TransformerLab: {e}")
+            raise
+
+    def get_output_file_path(self, suffix="", dir_only=False):
+        """Get path for saving generated outputs
+
+        Args:
+            suffix: Optional suffix for the filename
+            dir_only: Whether to return just the directory
+
+        Returns:
+            str: Full path for output file or directory
+        """
+        self._ensure_args_parsed()
+
+        workspace_dir = os.environ.get("_TFL_WORKSPACE_DIR", "./")
+        experiment_dir = os.path.join(workspace_dir, "experiments", self.experiment_name)
+        dataset_dir = os.path.join(experiment_dir, "datasets")
+
+        # Create a specific directory for this generation job
+        gen_dir = os.path.join(dataset_dir, f"{self.run_name}_{self.job_id}")
+        os.makedirs(gen_dir, exist_ok=True)
+
+        if dir_only:
+            return gen_dir
+
+        if suffix:
+            return os.path.join(gen_dir, f"{self.run_name}_{suffix}")
+        else:
+            return os.path.join(gen_dir, f"{self.run_name}.json")
+
+    def generate_expected_outputs(self, input_values, task=None, scenario=None, input_format=None, output_format=None):
+        """Generate expected outputs for given inputs using loaded model
+
+        Args:
+            input_values: List of input values
+            task: Optional task description
+            scenario: Optional scenario description
+            input_format: Optional input format description
+            output_format: Optional output format description
+
+        Returns:
+            list: Generated expected outputs
+        """
+        # Use provided values or class attributes if available
+        task = task or getattr(self, "task", "")
+        scenario = scenario or getattr(self, "scenario", "")
+        input_format = input_format or getattr(self, "input_format", "")
+        output_format = output_format or getattr(self, "expected_output_format", "")
+
+        # Load model if not already available as instance attribute
+        if not hasattr(self, "generation_model_instance"):
+            self.generation_model_instance = self.load_evaluation_model(field_name="generation_model")
+
+        model = self.generation_model_instance
+
+        # Generate outputs
+        expected_outputs = []
+        for i, input_val in enumerate(input_values):
+            prompt = f"""Given a task, scenario and expected input as well as output formats, generate the output for a given input.
+                    \n\nTask: {task}
+                    \n\nScenario: {scenario}
+                    \n\nExpected Output Format: {output_format}
+                    \n\nExpected Input Format: {input_format}
+                    \n\n Generate the output for the following input: {input_val}.
+                    \n Output: """
+
+            messages = [{"role": "system", "content": prompt}]
+
+            # Try to use generate_without_instructor if available
+            try:
+                expected_output = model.generate_without_instructor(messages)
+            except AttributeError:
+                # Fall back to normal generate
+                expected_output = model.generate(prompt)
+
+            expected_outputs.append(expected_output)
+
+            # Update progress for long generations
+            if i % 5 == 0 and len(input_values) > 10:
+                progress = int((i / len(input_values)) * 100)
+                self.progress_update(progress)
+
+        return expected_outputs
+
+
 # Create singleton instances
 tfl = TFLPlugin()
 tfl_trainer = TrainerTFLPlugin()
 tfl_evals = EvalsTFLPlugin()
+tfl_gen = GenTFLPlugin()
