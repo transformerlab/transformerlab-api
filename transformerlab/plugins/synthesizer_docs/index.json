@@ -89,7 +89,7 @@
             "ui:help": "Specify the chunk size to be used while parsing your documents."
         },
         "max_contexts_per_document": {
-            "ui:help": "Specify the maximum number of contexts to be generated per document. This number will be multiplied with the `Max Number of Goldens per Context` field to obtain the maximum number of data points. Must be > 100 if generating embedding model datasets for mining negatives"
+            "ui:help": "Specify the maximum number of contexts to be generated per document. This number will be multiplied with the `Max Number of Goldens per Context` field to obtain the maximum number of data points."
         },
         "max_context_length": {
             "ui:help": "Specify the max number of text chunks to be generated per context."
