@@ -74,6 +74,7 @@ security_rules=$(get_tfvar_value_raw "security_rules" "[ { name = \"Allow-SSH\",
 vm_name=$(get_tfvar_value_string "vm_name" "vm-transformerlab")
 vm_size=$(get_tfvar_value_string "vm_size" "Standard_D8s_v3")
 admin_username=$(get_tfvar_value_string "admin_username" "azureuser")
+gpu_driver=$(get_tfvar_value_string "enable_gpu_driver" "false")
 os_disk_storage_type=$(get_tfvar_value_string "os_disk_storage_type" "Premium_LRS")
 os_disk_size_gb=$(get_tfvar_value_string "os_disk_size_gb" "200")
 image_publisher=$(get_tfvar_value_string "image_publisher" "Canonical")
@@ -100,6 +101,7 @@ echo "NSG Name               : ${nsg_name}"
 echo "Security Rules         : ${security_rules}"
 echo "VM Name                : ${vm_name}"
 echo "VM Size                : ${vm_size}"
+echo "Enable GPU Driver      : ${gpu_driver}"
 echo "Admin Username         : ${admin_username}"
 echo "OS Disk Storage Type   : ${os_disk_storage_type}"
 echo "OS Disk Size (GB)      : ${os_disk_size_gb}"

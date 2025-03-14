@@ -58,6 +58,12 @@ variable "image_version" {
   type        = string
 }
 
+variable "enable_gpu_driver" {
+  description = "Set to true to enable the NVIDIA GPU driver extension for GPU VMs"
+  type        = bool
+  default     = false
+}
+
 variable "cloud_init_file" {
   description = "Path to the cloud-init file"
   type        = string

@@ -72,6 +72,7 @@
 # vm_name   = "vm-custom"                      # e.g., "vm-myproject"
 # vm_size   = "Standard_DS2_v2"                # e.g., "Standard_D8s_v3", "Standard_DS2_v2"
 # admin_username = "adminuser"                 # e.g., "azureuser" or any admin name you prefer
+# enable_gpu_driver = false                    # Set to true if NVidia GPU VM is used
 
 # # OS Disk configuration:
 # os_disk_storage_type = "Standard_LRS"         # e.g., "Premium_LRS", "StandardSSD_LRS"

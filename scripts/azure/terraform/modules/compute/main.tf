@@ -34,6 +34,22 @@ resource "azurerm_linux_virtual_machine" "vm" {
   custom_data = base64encode(file(var.cloud_init_file))
 }
 
+resource "azurerm_virtual_machine_extension" "gpu_driver" {
+  count                = var.enable_gpu_driver ? 1 : 0
+  name                 = "gpu-driver-extension"
+  virtual_machine_id   = azurerm_linux_virtual_machine.vm.id
+  publisher            = "Microsoft.HpcCompute"
+  type                 = "GpuDriver"
+  type_handler_version = "1.1"
+  auto_upgrade_minor_version = true
+
+  settings = <<SETTINGS
+  {
+    "installGpuDriver": true
+  }
+  SETTINGS
+}
+
 resource "local_file" "ssh_private_key_file" {
   content         = tls_private_key.vm_key.private_key_pem
   filename        = var.ssh_private_key_file
