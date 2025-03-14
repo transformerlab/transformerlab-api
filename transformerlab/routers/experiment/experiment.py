@@ -11,21 +11,17 @@ from transformerlab.shared import shared
 from transformerlab.shared import dirs
 from transformerlab.routers.experiment import rag, documents, plugins, conversations, export, evals, generations
 
+from werkzeug.utils import secure_filename
 
 router = APIRouter(prefix="/experiment")
 
-router.include_router(
-    router=rag.router, prefix="/{experimentId}", tags=["rag"])
-router.include_router(router=documents.router,
-                      prefix="/{experimentId}", tags=["documents"])
+router.include_router(router=rag.router, prefix="/{experimentId}", tags=["rag"])
+router.include_router(router=documents.router, prefix="/{experimentId}", tags=["documents"])
 router.include_router(router=plugins.router, prefix="/{id}", tags=["plugins"])
-router.include_router(router=conversations.router,
-                      prefix="/{experimentId}", tags=["conversations"])
+router.include_router(router=conversations.router, prefix="/{experimentId}", tags=["conversations"])
 router.include_router(router=export.router, prefix="/{id}", tags=["export"])
-router.include_router(router=evals.router,
-                      prefix="/{experimentId}", tags=["evals"])
-router.include_router(router=generations.router,
-                      prefix="/{experimentId}", tags=["generations"])
+router.include_router(router=evals.router, prefix="/{experimentId}", tags=["evals"])
+router.include_router(router=generations.router, prefix="/{experimentId}", tags=["generations"])
 
 
 EXPERIMENTS_DIR: str = dirs.EXPERIMENTS_DIR
@@ -114,6 +110,9 @@ async def experiments_save_prompt_template(id: str | int, template: Annotated[st
 @router.post("/{id}/save_file_contents", tags=["experiment"])
 async def experiment_save_file_contents(id: str | int, filename: str, file_contents: Annotated[str, Body()]):
     id = await convert_experiment_name_to_id_if_needed(id)
+
+    filename = secure_filename(filename)
+
     # first get the experiment name:
     data = await db.experiment_get(id)
 
@@ -147,6 +146,8 @@ async def experiment_save_file_contents(id: str | int, filename: str, file_conte
 async def experiment_get_file_contents(id: str | int, filename: str):
     id = await convert_experiment_name_to_id_if_needed(id)
 
+    filename = secure_filename(filename)
+
     # first get the experiment name:
     data = await db.experiment_get(id)
 
@@ -169,8 +170,7 @@ async def experiment_get_file_contents(id: str | int, filename: str):
 
     # The following prevents path traversal attacks:
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
-    final_path = Path(experiment_dir).joinpath(
-        filename + file_ext).resolve().relative_to(experiment_dir)
+    final_path = Path(experiment_dir).joinpath(filename + file_ext).resolve().relative_to(experiment_dir)
 
     final_path = experiment_dir + "/" + str(final_path)
     print("Listing Contents of File: " + final_path)

@@ -9,6 +9,7 @@ import transformerlab.db as db
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
 
+from werkzeug.utils import secure_filename
 
 router = APIRouter(prefix="/export", tags=["export"])
 
@@ -59,6 +60,8 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
     # Figure out plugin and model output directories
     script_directory = dirs.plugin_dir_by_name(plugin_name)
 
+    output_model_id = secure_filename(output_model_id)
+
     output_path = os.path.join(dirs.MODELS_DIR, output_model_id)
     os.makedirs(output_path)
 
@@ -106,10 +109,11 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
             python_script=subprocess_command, job_id=job_id, begin_string="Exporting"
         )
     except Exception as e:
-        fail_msg = f"Failed to export model. Exception: {e}"
+        import logging
+
+        logging.error(f"Failed to export model. Exception: {e}")
         await db.job_update_status(job_id=job_id, status="FAILED")
-        print(fail_msg)
-        return {"message": fail_msg}
+        return {"message": "Failed to export model due to an internal error."}
 
     if process.returncode != 0:
         fail_msg = f"Failed to export model. Return code: {process.returncode}"

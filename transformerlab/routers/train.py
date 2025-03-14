@@ -7,13 +7,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body
 from fastapi.responses import PlainTextResponse, StreamingResponse
-
+import logging
 import transformerlab.db as db
 from transformerlab.routers.serverinfo import watch_file
 from transformerlab.shared import dirs
 from transformerlab.shared import galleries
 from transformerlab.models import model_helper
 
+from werkzeug.utils import secure_filename
 
 # @TODO hook this up to an endpoint so we can cancel a finetune
 
@@ -75,7 +76,7 @@ async def import_recipe(name: str, recipe_yaml: str = Body(...)):
         recipe = yaml.safe_load(recipe_yaml)
     except yaml.YAMLError as e:
         print(e)
-        return {"status": "error", "message": e}
+        return {"status": "error", "message": "An error occurred while processing the recipe."}
 
     # Get top level sections of recipe
     # TODO: Is it an error if any of these don't exist?
@@ -103,11 +104,7 @@ async def import_recipe(name: str, recipe_yaml: str = Body(...)):
 
     # Check if the model and dataset are installed
     # For model: get a list of local models to determine what has been downloaded already
-    model_downloaded = False
-    local_models = await model_helper.list_installed_models()
-    for model in local_models:
-        if model["model_id"] == model_path:
-            model_downloaded = True
+    model_downloaded = await model_helper.is_model_installed(model_path)
 
     # Repeat for dataset
     dataset_downloaded = False
@@ -159,11 +156,9 @@ async def export_recipe(template_id: str):
         "description": training_template.get("description", ""),
     }
 
-    model = {"name": template_config.get(
-        "model_name", ""), "path": template_config.get("model_name", "")}
+    model = {"name": template_config.get("model_name", ""), "path": template_config.get("model_name", "")}
 
-    datasets = {"name": training_template.get(
-        "datasets", ""), "path": training_template.get("datasets", "")}
+    datasets = {"name": training_template.get("datasets", ""), "path": training_template.get("datasets", "")}
 
     # TODO: Read in the type from the DB!
     training = {
@@ -271,6 +266,8 @@ async def get_output_file_name(job_id: str):
         plugin_name = template_config["plugin_name"]
         plugin_dir = dirs.plugin_dir_by_name(plugin_name)
 
+        job_id = secure_filename(job_id)
+
         # job output is stored in separate files with a job number in the name...
         if os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
             output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
@@ -296,15 +293,18 @@ async def get_training_job_output(job_id: str):
         return output
     except ValueError as e:
         # Handle specific error
-        return f"ValueError: {e}"
+        logging.error(f"ValueError: {e}")
+        return "An internal error has occurred!"
     except Exception as e:
         # Handle general error
-        return f"Error: {e}"
+        logging.error(f"Error: {e}")
+        return "An internal error has occurred!"
 
 
 @router.get("/job/{job_id}/stream_output")
 async def watch_log(job_id: str):
     try:
+        job_id = secure_filename(job_id)
         output_file_name = await get_output_file_name(job_id)
     except ValueError as e:
         # if the value error starts with "No output file found for job" then wait 4 seconds and try again
@@ -314,15 +314,14 @@ async def watch_log(job_id: str):
             print("Retrying to get output file in 4 seconds...")
             output_file_name = await get_output_file_name(job_id)
         else:
-            return f"ValueError: {e}"
+            logging.error(f"ValueError: {e}")
+            return "An internal error has occurred!"
 
     return StreamingResponse(
         # we force polling because i can't get this to work otherwise -- changes aren't detected
-        watch_file(output_file_name, start_from_beginning=True,
-                   force_polling=True),
+        watch_file(output_file_name, start_from_beginning=True, force_polling=True),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive",
-                 "Access-Control-Allow-Origin": "*"},
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
     )
 
 
@@ -354,12 +353,25 @@ async def spawn_tensorboard(job_id: str):
 
     print("Starting tensorboard")
 
-    os.makedirs(
-        f"{dirs.WORKSPACE_DIR}/tensorboards/job{job_id}", exist_ok=True)
+    job = await db.job_get(job_id)
+    # First get the experiment name from the job
+    experiment_id = job["experiment_id"]
+    data = await db.experiment_get(experiment_id)
+    if data is None:
+        return {"message": f"Experiment {experiment_id} does not exist"}
 
-    # hardcoded for now, later on we should get the information from the job id in SQLITE
-    # and use the config of the job to determine the logdir
-    logdir = f"{dirs.WORKSPACE_DIR}/tensorboards/job{job_id}"
+    experiment_dir = dirs.experiment_dir_by_name(data["name"])
 
-    tensorboard_process = subprocess.Popen(
-        ["tensorboard", "--logdir", logdir, "--host", "0.0.0.0"])
+    job_data = job["job_data"]
+
+    if "template_name" not in job_data.keys():
+        raise ValueError("Template Name not found in job data")
+
+    template_name = job_data["template_name"]
+    template_name = secure_filename(template_name)
+
+    os.makedirs(f"{experiment_dir}/tensorboards/{template_name}", exist_ok=True)
+
+    logdir = f"{experiment_dir}/tensorboards/{template_name}"
+
+    tensorboard_process = subprocess.Popen(["tensorboard", "--logdir", logdir, "--host", "0.0.0.0"])

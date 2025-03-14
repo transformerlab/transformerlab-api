@@ -8,6 +8,7 @@ import aiofiles
 
 from transformerlab.shared import dirs
 
+from werkzeug.utils import secure_filename
 
 from fastapi import APIRouter
 
@@ -21,8 +22,7 @@ async def plugin_gallery():
 
     local_workspace_gallery_directory = dirs.PLUGIN_PRELOADED_GALLERY
     # today the remote gallery is a local file, we will move it remote later
-    remote_gallery_file = os.path.join(
-        dirs.TFL_SOURCE_CODE_DIR, "transformerlab/galleries/plugin-gallery.json")
+    remote_gallery_file = os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab/galleries/plugin-gallery.json")
 
     # first get the remote gallery from the remote gallery file:
     with open(remote_gallery_file) as f:
@@ -34,8 +34,7 @@ async def plugin_gallery():
         for plugin in os.listdir(local_workspace_gallery_directory):
             if os.path.isdir(os.path.join(local_workspace_gallery_directory, plugin)):
                 try:
-                    info = json.load(
-                        open(os.path.join(local_workspace_gallery_directory, plugin, "index.json")))
+                    info = json.load(open(os.path.join(local_workspace_gallery_directory, plugin, "index.json")))
                 except Exception as e:
                     print(f"Error loading {plugin} index.json: {e}")
 
@@ -69,10 +68,15 @@ async def plugin_gallery():
         else:
             plugin["installed"] = False
 
+    # Sort the gallery alphabetically by plugin["name"]
+    gallery = sorted(gallery, key=lambda x: x["name"])
+
     return gallery
 
 
 async def copy_plugin_files_to_workspace(plugin_id: str):
+    plugin_id = secure_filename(plugin_id)
+
     plugin_path = os.path.join(dirs.PLUGIN_PRELOADED_GALLERY, plugin_id)
     # create the directory if it doesn't exist
     new_directory = os.path.join(dirs.PLUGIN_DIR, plugin_id)
@@ -90,6 +94,8 @@ async def install_plugin(plugin_id: str):
     """Install a plugin from the gallery"""
     # For now we assume all gallery plugins are stored at transformerlab/plugins and installed ones go to
     # workspace/plugins
+
+    plugin_id = secure_filename(plugin_id)
 
     plugin_path = os.path.join(dirs.PLUGIN_PRELOADED_GALLERY, plugin_id)
 
@@ -126,6 +132,8 @@ async def install_plugin(plugin_id: str):
     else:
         print("No install script found")
 
+    return {"status": "success", "message": f"Plugin {plugin_id} installed successfully."}
+
 
 @router.get("/list", summary="List the plugins that are currently installed.")
 async def list_plugins() -> list[object]:
@@ -138,9 +146,11 @@ async def list_plugins() -> list[object]:
     if os.path.exists(local_workspace_gallery_directory):
         for plugin in os.listdir(local_workspace_gallery_directory):
             if os.path.isdir(os.path.join(local_workspace_gallery_directory, plugin)):
-                info = json.load(
-                    open(os.path.join(local_workspace_gallery_directory, plugin, "index.json")))
-                workspace_gallery.append(info)
+                index_file = os.path.join(local_workspace_gallery_directory, plugin, "index.json")
+                if os.path.isfile(index_file):
+                    with open(index_file, "r") as f:
+                        info = json.load(f)
+                    workspace_gallery.append(info)
 
     return workspace_gallery
 
@@ -150,8 +160,7 @@ async def missing_platform_plugins() -> list[str]:
     cpu = platform.machine()
 
     installed_plugins = await list_plugins()
-    installed_plugins_names = [plugin["uniqueId"]
-                               for plugin in installed_plugins]
+    installed_plugins_names = [plugin["uniqueId"] for plugin in installed_plugins]
     missing_plugins = []
 
     if system == "Darwin" and cpu == "arm64":
@@ -173,8 +182,7 @@ async def missing_platform_plugins() -> list[str]:
     if system == "Linux":
         # This is an Linux Machine, hopefully with a GPU but we could
         # test for that further
-        linux_plugins = ["fastchat_server", "llama_trainer",
-                         "eleuther-ai-lm-evaluation-harness"]
+        linux_plugins = ["fastchat_server", "llama_trainer", "eleuther-ai-lm-evaluation-harness"]
 
         for plugin in linux_plugins:
             if plugin not in installed_plugins_names:

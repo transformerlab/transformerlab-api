@@ -1,22 +1,23 @@
 import argparse
+import asyncio
+import json
 import os
 import sys
 from typing import List
-import asyncio
 
 import instructor
 import pandas as pd
 import requests
-import transformerlab.plugin
 from anthropic import Anthropic
+from datasets import load_dataset
 from deepeval.models.base_model import DeepEvalBaseLLM
+from langchain.schema import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from openai import OpenAI
 from pydantic import BaseModel
-from langchain.schema import SystemMessage, HumanMessage
-
 from requests_batching import process_dataset
 
+import transformerlab.plugin
 
 parser = argparse.ArgumentParser(description="Run Synthesizer for generating data.")
 parser.add_argument(
@@ -63,29 +64,24 @@ def check_local_server():
         sys.exit(1)
 
 
-def fetch_dataset():
-    if args.dataset_name is None or len(args.dataset_name.strip()) <= 1:
-        print("Dataset not provided.")
-        sys.exit(1)
+def get_tflab_dataset():
     try:
-        params = {"dataset_id": args.dataset_name, "split": args.dataset_split}
-        response = requests.get("http://localhost:8338/data/get", params=params)
-        if response.status_code != 200:
-            print(f"Error fetching the dataset: {response.json()}")
-            job.set_job_completion_status("failed", f"Error fetching the dataset: {response.json()}")
-            sys.exit(1)
-        else:
-            df = pd.DataFrame(response.json()["data"]["columns"])
-            file_location = response.json()["data"]["file_location"]
-            if file_location is None or not os.path.exists(file_location):
-                file_location = os.path.join(
-                    os.environ.get("_TFL_WORKSPACE_DIR"), "datasets", args.dataset_name + "_with_outputs"
-                )
-            return df, file_location
+        dataset_target = transformerlab.plugin.get_dataset_path(args.dataset_name)
     except Exception as e:
-        print(f"An error occurred while fetching the dataset: {e}")
-        job.set_job_completion_status("failed", f"An error occurred while fetching the dataset: {e}")
-        sys.exit(1)
+        job.set_job_completion_status("failed", "Failure to get dataset")
+        raise e
+    dataset = {}
+    dataset_types = ["train"]
+    for dataset_type in dataset_types:
+        try:
+            dataset[dataset_type] = load_dataset(dataset_target, split=dataset_type, trust_remote_code=True)
+
+        except Exception as e:
+            job.set_job_completion_status("failed", "Failure to load dataset")
+            raise e
+    # Convert the dataset to a pandas dataframe
+    df = dataset["train"].to_pandas()
+    return df, dataset_target
 
 
 # Generating custom TRLAB model
@@ -138,32 +134,43 @@ class TRLAB_MODEL(DeepEvalBaseLLM):
 class CustomCommercialModel(DeepEvalBaseLLM):
     def __init__(self, model_type="claude", model_name="Claude 3.5 Sonnet"):
         self.model_type = model_type
-        self.model_name = self.set_model_name(model_name)
+        self.model_name = model_name
         if model_type == "claude":
-            if os.environ.get("ANTHROPIC_API_KEY") is None:
+            anthropic_api_key = transformerlab.plugin.get_db_config_value("ANTHROPIC_API_KEY")
+            if not anthropic_api_key or anthropic_api_key.strip() == "":
                 print("Please set the Anthropic API Key from Settings.")
                 job.set_job_completion_status("failed", "Please set the Anthropic API Key from Settings.")
                 sys.exit(1)
+            else:
+                os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
             self.model = Anthropic()
 
         elif model_type == "openai":
-            if os.environ.get("OPENAI_API_KEY") is None:
+            openai_api_key = transformerlab.plugin.get_db_config_value("OPENAI_API_KEY")
+            if not openai_api_key or openai_api_key.strip() == "":
                 print("Please set the OpenAI API Key from Settings.")
                 job.set_job_completion_status("failed", "Please set the OpenAI API Key from Settings.")
                 sys.exit(1)
+            else:
+                os.environ["OPENAI_API_KEY"] = openai_api_key
             self.model = OpenAI()
+
+        elif model_type == "custom":
+            custom_api_details = transformerlab.plugin.get_db_config_value("CUSTOM_MODEL_API_KEY")
+            if not custom_api_details or custom_api_details.strip() == "":
+                print("Please set the Custom API Details from Settings.")
+                job.set_job_completion_status("failed", "Please set the Custom API Details from Settings.")
+                sys.exit(1)
+            else:
+                custom_api_details = json.loads(custom_api_details)
+                self.model = OpenAI(
+                    api_key=custom_api_details["customApiKey"],
+                    base_url=custom_api_details["customBaseURL"],
+                )
+                self.model_name = custom_api_details["customModelName"]
 
     def load_model(self):
         return self.model
-
-    def set_model_name(self, model_name):
-        dic = {
-            "Claude 3.5 Sonnet": "claude-3-5-sonnet-latest",
-            "Claude 3.5 Haiku": "claude-3-5-haiku-latest",
-            "OpenAI GPT 4o": "gpt-4o",
-            "OpenAI GPT 4o Mini": "gpt-4o-mini",
-        }
-        return dic[model_name]
 
     def generate(self, prompt: str, schema: BaseModel) -> BaseModel:
         client = self.load_model()
@@ -208,7 +215,7 @@ class CustomCommercialModel(DeepEvalBaseLLM):
         updated_df = await process_dataset(
             df,
             batch_size=args.batch_size,
-            model=self.model,
+            model=self.model_name,
             inference_url=INFERENCE_URL,
             api_key=api_key,
             sys_prompt_col=sys_prompt_col,
@@ -226,10 +233,12 @@ class CustomCommercialModel(DeepEvalBaseLLM):
 
 try:
     if "local" not in args.generation_model.lower():
-        if "openai" in args.generation_model.lower():
+        if "openai" in args.generation_model.lower() or "gpt" in args.generation_model.lower():
             trlab_model = CustomCommercialModel("openai", args.generation_model)
-        else:
+        elif "claude" in args.generation_model.lower() or "anthropic" in args.generation_model.lower():
             trlab_model = CustomCommercialModel("claude", args.generation_model)
+        elif "custom" in args.generation_model.lower():
+            trlab_model = CustomCommercialModel("custom", "")
     else:
         check_local_server()
         custom_model = ChatOpenAI(
@@ -250,8 +259,7 @@ job.update_progress(0.5)
 
 async def run_batched_generation():
     try:
-        check_local_server()
-        df, file_location = fetch_dataset()
+        df, file_location = get_tflab_dataset()
         print("Dataset fetched successfully")
         sys_prompt_col = None
         if args.system_prompt:

@@ -10,6 +10,7 @@ import unicodedata
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
 from transformerlab.shared import dirs
+from werkzeug.utils import secure_filename
 
 
 from anyio import open_process
@@ -103,16 +104,32 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
                 print(f"Job {job_id} now in progress!")
                 await db.job_update_status(job_id=job_id, status="RUNNING")
 
-    await process.wait()
+            # Check the job_data column for the stop flag:
+            job_row = await db.job_get(job_id)
+            job_data = job_row.get("job_data", None)
+            if job_data and job_data.get("stop", False):
+                print(f"Job {job_id}: 'stop' flag detected. Cancelling job.")
+                raise asyncio.CancelledError()
 
-    if process.returncode == 0:
-        print(f"Job {job_id} completed successfully")
-        await db.job_update_status(job_id=job_id, status="COMPLETE")
-    else:
-        print(f"ERROR: Job {job_id} failed with exit code {process.returncode}.")
-        await db.job_update_status(job_id=job_id, status="FAILED")
+    try:
+        await process.wait()
 
-    return process
+        if process.returncode == 0:
+            print(f"Job {job_id} completed successfully")
+            await db.job_update_status(job_id=job_id, status="COMPLETE")
+        else:
+            print(f"ERROR: Job {job_id} failed with exit code {process.returncode}.")
+            await db.job_update_status(job_id=job_id, status="FAILED")
+
+        return process
+
+    except asyncio.CancelledError:
+        process.kill()
+        await process.wait()
+
+        print(f"Job {job_id} cancelled.")
+
+        raise asyncio.CancelledError()
 
 
 async def read_process_output(process, job_id):
@@ -245,7 +262,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         plugin_name = job_config["plugin"]
         generation_name = job_config["generator"]
         await db.job_update_status(job_id, "RUNNING")
-        print("Running evaluation script")
+        print("Running generation script")
         plugin_location = dirs.plugin_dir_by_name(plugin_name)
         gen_output_file = os.path.join(plugin_location, f"output_{job_id}.txt")
         # Create output file if it doesn't exist
@@ -277,6 +294,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     experiment_details = await db.experiment_get(experiment_id)
     experiment_details_as_string = json.dumps(experiment_details)
     experiment_name = experiment_details["name"]
+    experiment_dir = dirs.experiment_dir_by_name(experiment_name)
 
     # The script is in workspace/experiments/plugins/<plugin_name>/main.py so we need to
     # form that string:
@@ -296,11 +314,16 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
     if job_type == "LoRA":
         model_name = template_config["model_name"]
+        model_name = secure_filename(model_name)
         template_config = json.loads(template["config"])
         adaptor_name = template_config["adaptor_name"]
         template_config["job_id"] = job_id
         template_config["adaptor_output_dir"] = os.path.join(dirs.WORKSPACE_DIR, "adaptors", model_name, adaptor_name)
-        template_config["output_dir"] = os.path.join(dirs.WORKSPACE_DIR, "tensorboards", f"job{job_id}")
+        template_config["output_dir"] = os.path.join(
+            experiment_dir,
+            "tensorboards",
+            template_config["template_name"],
+        )
 
         # Create a file in the temp directory to store the inputs:
         tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
@@ -336,6 +359,99 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         print("RUNNING: popen command:")
         print(training_popen_command)
         popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
+
+    elif job_type == "pretraining":
+        template_config = json.loads(template["config"])
+        template_config["job_id"] = job_id
+        template_config["output_dir"] = os.path.join(
+            experiment_dir,
+            "tensorboards",
+            template_config["template_name"],
+        )
+
+        # Create a file in the temp directory to store the inputs:
+        tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
+        if not os.path.exists(tempdir):
+            os.makedirs(tempdir)
+        input_file = os.path.join(tempdir, f"plugin_input_{job_id}.json")
+        # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
+        # and should be done in the API itself
+        if "config" in experiment_details:
+            experiment_details["config"] = json.loads(experiment_details["config"])
+            if "inferenceParams" in experiment_details["config"]:
+                experiment_details["config"]["inferenceParams"] = json.loads(
+                    experiment_details["config"]["inferenceParams"]
+                )
+        input_contents = {"experiment": experiment_details, "config": template_config}
+        with open(input_file, "w") as outfile:
+            json.dump(input_contents, outfile, indent=4)
+
+        start_time = time.strftime("%Y-%m-%d %H:%M:%S")
+        await db.job_update_job_data_insert_key_value(job_id, "start_time", start_time)
+
+        # This calls the training plugin harness, which calls the actual training plugin
+        training_popen_command = [
+            sys.executable,
+            dirs.PLUGIN_HARNESS,
+            "--plugin_dir",
+            plugin_location,
+            "--input_file",
+            input_file,
+            "--experiment_name",
+            experiment_name,
+        ]
+        print("RUNNING: popen command:")
+        print(training_popen_command)
+        popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
+
+    elif job_type == "embedding":
+        template_config = json.loads(template["config"])
+        template_config["job_id"] = job_id
+        template_config["output_dir"] = os.path.join(
+            experiment_dir,
+            "tensorboards",
+            template_config["template_name"],
+        )
+
+        if not os.path.exists(output_file):
+            with open(output_file, "w") as f:
+                f.write("")
+
+        # Create a file in the temp directory to store the inputs:
+        tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
+        if not os.path.exists(tempdir):
+            os.makedirs(tempdir)
+        input_file = os.path.join(tempdir, f"plugin_input_{job_id}.json")
+        # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
+        # and should be done in the API itself
+        if "config" in experiment_details:
+            experiment_details["config"] = json.loads(experiment_details["config"])
+            if "inferenceParams" in experiment_details["config"]:
+                experiment_details["config"]["inferenceParams"] = json.loads(
+                    experiment_details["config"]["inferenceParams"]
+                )
+        input_contents = {"experiment": experiment_details, "config": template_config}
+        with open(input_file, "w") as outfile:
+            json.dump(input_contents, outfile, indent=4)
+
+        start_time = time.strftime("%Y-%m-%d %H:%M:%S")
+        await db.job_update_job_data_insert_key_value(job_id, "start_time", start_time)
+
+        # This calls the training plugin harness, which calls the actual training plugin
+        training_popen_command = [
+            sys.executable,
+            dirs.PLUGIN_HARNESS,
+            "--plugin_dir",
+            plugin_location,
+            "--input_file",
+            input_file,
+            "--experiment_name",
+            experiment_name,
+        ]
+        print("RUNNING: popen command:")
+        print(training_popen_command)
+        popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
+
     else:
         print("I don't know what to do with this job type: " + job_type)
         on_job_complete()

@@ -32,17 +32,19 @@ attrs==25.1.0
     # via aiohttp
 brotli==1.1.0
     # via py7zr
-certifi==2024.12.14
+certifi==2024.7.4
     # via
     #   httpcore
     #   httpx
     #   requests
+    #   sentry-sdk
 charset-normalizer==3.4.1
     # via requests
 click==8.1.8
     # via
     #   nltk
     #   uvicorn
+    #   wandb
 datasets==3.2.0
     # via
     #   -r requirements.in
@@ -52,6 +54,8 @@ dill==0.3.8
     #   datasets
     #   evaluate
     #   multiprocess
+docker-pycreds==0.4.0
+    # via wandb
 einops==0.8.0
     # via -r requirements.in
 evaluate==0.4.3
@@ -78,6 +82,12 @@ fsspec==2024.9.0
     #   evaluate
     #   huggingface-hub
     #   torch
+gitdb==4.0.12
+    # via gitpython
+gitpython==3.1.44
+    # via wandb
+greenlet==3.1.1
+    # via sqlalchemy
 grpcio==1.70.0
     # via tensorboard
 h11==0.14.0
@@ -96,7 +106,7 @@ huggingface-hub==0.28.0
     #   peft
     #   tokenizers
     #   transformers
-idna==3.10
+idna==3.7
     # via
     #   anyio
     #   httpx
@@ -209,6 +219,8 @@ peft==0.14.0
     # via -r requirements.in
 pillow==11.1.0
     # via torchvision
+platformdirs==4.3.6
+    # via wandb
 prompt-toolkit==3.0.50
     # via fschat
 propcache==0.2.1
@@ -216,13 +228,16 @@ propcache==0.2.1
     #   aiohttp
     #   yarl
 protobuf==5.29.3
-    # via tensorboard
+    # via
+    #   tensorboard
+    #   wandb
 psutil==6.1.1
     # via
     #   -r requirements.in
     #   accelerate
     #   peft
     #   py7zr
+    #   wandb
 py7zr==0.22.0
     # via -r requirements.in
 pyarrow==19.0.0
@@ -236,6 +251,7 @@ pydantic==2.10.6
     #   -r requirements.in
     #   fastapi
     #   fschat
+    #   wandb
 pydantic-core==2.27.2
     # via pydantic
 pygments==2.19.1
@@ -257,6 +273,7 @@ pyyaml==6.0.2
     #   huggingface-hub
     #   peft
     #   transformers
+    #   wandb
     #   wavedrom
 pyzstd==0.16.2
     # via py7zr
@@ -265,7 +282,7 @@ regex==2024.11.6
     #   nltk
     #   tiktoken
     #   transformers
-requests==2.32.3
+requests==2.32.2
     # via
     #   datasets
     #   evaluate
@@ -273,6 +290,7 @@ requests==2.32.3
     #   huggingface-hub
     #   tiktoken
     #   transformers
+    #   wandb
 rich==13.9.4
     # via fschat
 rouge-score==0.1.2
@@ -286,20 +304,29 @@ scipy==1.15.1
     # via -r requirements.in
 sentencepiece==0.2.0
     # via -r requirements.in
+sentry-sdk==2.22.0
+    # via wandb
+setproctitle==1.3.5
+    # via wandb
 setuptools==75.8.0
     # via
     #   tensorboard
-    #   torch
+    #   wandb
 shortuuid==1.0.13
     # via fschat
 six==1.17.0
     # via
+    #   docker-pycreds
     #   python-dateutil
     #   rouge-score
     #   tensorboard
     #   wavedrom
+smmap==5.0.2
+    # via gitdb
 sniffio==1.3.1
     # via anyio
+sqlalchemy==2.0.38
+    # via -r requirements.in
 starlette==0.45.3
     # via fastapi
 svgwrite==1.4.3
@@ -337,7 +364,7 @@ tqdm==4.67.1
     #   nltk
     #   peft
     #   transformers
-transformers==4.47.1
+transformers==4.48.0
     # via
     #   -r requirements.in
     #   peft
@@ -351,13 +378,19 @@ typing-extensions==4.12.2
     #   huggingface-hub
     #   pydantic
     #   pydantic-core
+    #   sqlalchemy
     #   torch
+    #   wandb
 tzdata==2025.1
     # via pandas
-urllib3==2.3.0
-    # via requests
+urllib3==1.26.19
+    # via
+    #   requests
+    #   sentry-sdk
 uvicorn==0.34.0
     # via fschat
+wandb==0.19.8
+    # via -r requirements.in
 watchfiles==1.0.4
     # via -r requirements.in
 wavedrom==2.0.3.post3
@@ -365,7 +398,9 @@ wavedrom==2.0.3.post3
 wcwidth==0.2.13
     # via prompt-toolkit
 werkzeug==3.1.3
-    # via tensorboard
+    # via
+    #   -r requirements.in
+    #   tensorboard
 xxhash==3.5.0
     # via
     #   datasets

@@ -4,7 +4,7 @@
   "description": "An implementation of several Preference Optimization methods using Llama Factory.",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "model_architectures": [
     "LlamaForCausalLM",
     "MistralForCausalLM",
@@ -14,6 +14,7 @@
     "Qwen2ForCausalLM",
     "Phi3ForCausalLM"
   ],
+  "supported_hardware_architectures": ["cuda"],
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "training_template_format": "none",
@@ -23,11 +24,7 @@
     "pref_loss": {
       "title": "Task",
       "type": "string",
-      "enum": [
-        "dpo",
-        "orpo",
-        "simpo"
-      ],
+      "enum": ["dpo", "orpo", "simpo"],
       "required": true
     },
     "learning_rate": {

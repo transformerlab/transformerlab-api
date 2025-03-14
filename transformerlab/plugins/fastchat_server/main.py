@@ -6,12 +6,16 @@ import sys
 
 import torch
 
+
+def isnum(s):
+    return s.strip().isdigit()
+
 # Get all arguments provided to this script using argparse
 parser = argparse.ArgumentParser()
-parser.add_argument('--model-path', type=str)
-parser.add_argument('--adaptor-path', type=str)
-parser.add_argument('--parameters', type=str, default="{}")
-parser.add_argument('--plugin_dir', type=str)
+parser.add_argument("--model-path", type=str)
+parser.add_argument("--adaptor-path", type=str)
+parser.add_argument("--parameters", type=str, default="{}")
+parser.add_argument("--plugin_dir", type=str)
 
 args, unknown = parser.parse_known_args()
 
@@ -26,13 +30,27 @@ if adaptor != "":
 parameters = args.parameters
 parameters = json.loads(parameters)
 
-if (parameters.get("eight_bit") == 'on'):
+if parameters.get("eight_bit") == "on":
     eight_bit = True
 else:
     eight_bit = False
 
-# Used only if memory on multiple cards is needed. Do not include if this is not not set.
-num_gpus = parameters.get("num_gpus", None)
+gpu_ids = parameters.get("gpu_ids", "")
+if gpu_ids is not None and gpu_ids != "":
+    gpu_ids_formatted = gpu_ids.split(",")
+    if len(gpu_ids_formatted) > 1:
+        num_gpus = len(gpu_ids_formatted)
+        # To remove any spacing issues which may arise
+        gpu_ids = ",".join([gpu_id.strip() for gpu_id in gpu_ids_formatted])
+    # If gpu_ids is not formatted correctly then use all GPUs by default
+    if num_gpus == 0 or not isnum(gpu_ids_formatted[0]):
+        num_gpus = torch.cuda.device_count()
+        gpu_ids = ""
+else:
+    num_gpus = torch.cuda.device_count()
+
+if gpu_ids is None:
+    gpu_ids = ""
 
 # Auto detect backend if device not specified
 device = parameters.get("device", None)
@@ -46,15 +64,14 @@ if device is None or device == "":
         num_gpus = 0
 
 
-llmlab_root_dir = os.getenv('LLM_LAB_ROOT_PATH')
+llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
 PLUGIN_DIR = args.plugin_dir
 
-popen_args = [sys.executable,
-              f"{PLUGIN_DIR}/model_worker.py",
-              '--model-path', model, "--device", device]
-if (num_gpus):
-    popen_args.extend(["--num-gpus", num_gpus])
-if (eight_bit):
+popen_args = [sys.executable, f"{PLUGIN_DIR}/model_worker.py", "--model-path", model, "--device", device]
+if num_gpus:
+    popen_args.extend(["--gpus", gpu_ids])
+    popen_args.extend(["--num-gpus", str(num_gpus)])
+if eight_bit:
     popen_args.append("--load-8bit")
 
 
@@ -72,7 +89,7 @@ for line in proc.stderr:
     if "torch.cuda.OutOfMemoryError" in line.decode("utf-8"):
         print("CUDA Out of memory error", file=sys.stderr)
         sys.exit(99)  # 99 is our code for CUDA OOM
-    print(line.decode('utf-8'), file=sys.stderr)
+    print(line.decode("utf-8"), file=sys.stderr)
 
 print("FastChat Worker exited", file=sys.stderr)
 sys.exit(1)

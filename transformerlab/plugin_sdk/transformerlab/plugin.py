@@ -49,6 +49,40 @@ def get_dataset_path(dataset_id: str):
         return dataset_id
 
 
+def get_db_config_value(key: str):
+    """
+    Returns the value of a config key from the database.
+    """
+    db = get_db_connection()
+    cursor = db.execute("SELECT value FROM config WHERE key = ?", (key,))
+    row = cursor.fetchone()
+    cursor.close()
+
+    if row is None:
+        return None
+    return row[0]
+
+
+def test_wandb_login(project_name: str = "TFL_Training"):
+    import netrc
+    from pathlib import Path
+
+    netrc_path = Path.home() / (".netrc" if os.name != "nt" else "_netrc")
+    if netrc_path.exists():
+        auth = netrc.netrc(netrc_path).authenticators("api.wandb.ai")
+        if auth:
+            os.environ["WANDB_PROJECT"] = project_name
+            os.environ["WANDB_DISABLED"] = "false"
+            report_to = ["tensorboard", "wandb"]
+            return True, report_to
+        else:
+            os.environ["WANDB_DISABLED"] = "true"
+            return False, ["tensorboard"]
+    else:
+        os.environ["WANDB_DISABLED"] = "true"
+        return False, ["tensorboard"]
+
+
 class Job:
     """
     Used to update status and info of long-running jobs.
@@ -100,6 +134,18 @@ class Job:
             "UPDATE job SET job_data = json_insert(job_data, '$.tensorboard_output_dir', ?) WHERE id = ?",
             (tensorboard_dir, self.id),
         )
+
+    def add_to_job_data(self, key: str, value: str):
+        """
+        Adds a key-value pair to the job_data JSON object.
+        """
+        try:
+            self.db.execute(
+                "UPDATE job SET job_data = json_insert(job_data, '$." + key + "', ?) WHERE id = ?",
+                (value, self.id),
+            )
+        except Exception as e:
+            print(f"Error adding to job data: {e}")
 
     def set_job_completion_status(
         self,

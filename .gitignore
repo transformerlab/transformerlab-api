@@ -185,6 +185,7 @@ temp_test_run_data.json
 
 .DS_Store
 transformerlab/*/.DS_Store
+wandb/
 
 # Local .terraform directories
 **/.terraform/*

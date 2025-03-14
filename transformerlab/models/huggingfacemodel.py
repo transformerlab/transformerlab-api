@@ -1,19 +1,21 @@
 """
 This package defines HuggingFaceModel and functions for interacting with models
-in the Hugging Face hub local cache. 
+in the Hugging Face hub local cache.
 """
 
 import os
 import json
 import fnmatch
+import shutil
 
 from transformerlab.models import basemodel
 
 import huggingface_hub
 from huggingface_hub.hf_api import RepoFile
+from huggingface_hub import scan_cache_dir
 
 
-async def list_models(uninstalled_only: bool = True):
+async def list_models():
     """
     NOTE: This is only listing locally cached Hugging Face models.
     """
@@ -38,20 +40,20 @@ async def list_models(uninstalled_only: bool = True):
         model = HuggingFaceModel(repo.repo_id)
 
         # Check if this model is only GGUF files, in which case handle those separately
-        formats = model.json_data.get("formats", [])
+        # TODO: Need to handle GGUF Repos separately. But DO NOT read in the full JSON
+        # for this repo or it will be too slow.
+        formats = []
         gguf_only = (len(formats) == 1) and (formats[0] == "GGUF")
         if not gguf_only:
             # Regular (i.e. not GGUF only) model
-            # Check if it's installed already if we are filtering on that
-            installed = await model.is_installed()
-            if not uninstalled_only or not installed:
-                models.append(model)
+            models.append(model)
 
         # If this repo is tagged GGUF then it might contain multiple
         # GGUF files each of which is a potential model to import
         if "GGUF" in formats:
             # TODO: This requires making a new Model class or using LocalGGUFModel
             # Not trivial given how we currently download GGUF in to workspace/models
+            print("Skipping GGUF repo", repo.repo_id)
             pass
 
     return models
@@ -61,10 +63,11 @@ class HuggingFaceModel(basemodel.BaseModel):
     def __init__(self, hugging_face_id):
         super().__init__(hugging_face_id)
 
-        # HuggingFace models just need the repo_id to load
-        self.json_data["source"] = "huggingface"
-        self.json_data["source_id_or_path"] = hugging_face_id
-        self.json_data["model_filename"] = None  # TODO: What about GGUF?
+        self.source = "huggingface"
+        self.source_id_or_path = hugging_face_id
+
+    async def get_json_data(self):
+        json_data = await super().get_json_data()
 
         # We need to access the huggingface_hub to figure out more model details
         # We'll get details and merge them with our json_data
@@ -73,8 +76,8 @@ class HuggingFaceModel(basemodel.BaseModel):
         private = False
         gated = False
         try:
-            model_details = get_model_details_from_huggingface(hugging_face_id)
-            self.json_data["formats"] = self._detect_model_formats()
+            model_details = await get_model_details_from_huggingface(self.id)
+            json_data["formats"] = self._detect_model_formats()
 
         except huggingface_hub.utils.GatedRepoError:
             # Model exists but this user is not on the authorized list
@@ -90,7 +93,7 @@ class HuggingFaceModel(basemodel.BaseModel):
         except huggingface_hub.utils.EntryNotFoundError as e:
             # This model is missing key configuration information
             self.status = "Missing configuration file"
-            print(f"WARNING: {hugging_face_id} missing configuration")
+            print(f"WARNING: {self.id} missing configuration")
             print(f"{type(e).__name__}: {e}")
 
         except Exception as e:
@@ -100,12 +103,14 @@ class HuggingFaceModel(basemodel.BaseModel):
 
         # Use the huggingface details to extend json_data
         if model_details:
-            self.json_data.update(model_details)
+            json_data.update(model_details)
         else:
-            self.json_data["uniqueID"] = hugging_face_id
-            self.json_data["name"] = hugging_face_id
-            self.json_data["private"] = private
-            self.json_data["gated"] = gated
+            json_data["uniqueID"] = self.id
+            json_data["name"] = self.id
+            json_data["private"] = private
+            json_data["gated"] = gated
+
+        return json_data
 
     def _detect_model_formats(self):
         """
@@ -113,9 +118,8 @@ class HuggingFaceModel(basemodel.BaseModel):
         of the model.
         """
         # Get a list of files in this model and iterate over them
-        source_id_or_path = self.json_data.get("source_id_or_path", self.id)
         try:
-            repo_files = huggingface_hub.list_repo_files(source_id_or_path)
+            repo_files = huggingface_hub.list_repo_files(self.id)
         except Exception:
             return []
 
@@ -130,7 +134,7 @@ class HuggingFaceModel(basemodel.BaseModel):
         return detected_formats
 
 
-def get_model_details_from_huggingface(hugging_face_id: str):
+async def get_model_details_from_huggingface(hugging_face_id: str):
     """
     Gets model config details from huggingface_hub
     and return in the format of BaseModel's json_data.
@@ -141,8 +145,7 @@ def get_model_details_from_huggingface(hugging_face_id: str):
 
     # Use the Hugging Face Hub API to download the config.json file for this model
     # This may throw an exception if the model doesn't exist or we don't have access rights
-    huggingface_hub.hf_hub_download(
-        repo_id=hugging_face_id, filename="config.json")
+    huggingface_hub.hf_hub_download(repo_id=hugging_face_id, filename="config.json")
 
     # Also get model info for metadata and license details
     # Similar to hf_hub_download this can throw exceptions
@@ -180,15 +183,14 @@ def get_model_details_from_huggingface(hugging_face_id: str):
             architecture = "MLX"
 
         # calculate model size
-        model_size = get_huggingface_download_size(
-            hugging_face_id) / (1024 * 1024)
+        model_size = get_huggingface_download_size(hugging_face_id) / (1024 * 1024)
 
         # TODO: Context length definition seems to vary by architecture. May need conditional logic here.
         context_size = filedata.get("max_position_embeddings", "")
 
         # TODO: Figure out description, paramters, model size
         newmodel = basemodel.BaseModel(hugging_face_id)
-        config = newmodel.json_data
+        config = await newmodel.get_json_data()
         config = {
             "uniqueID": hugging_face_id,
             "name": filedata.get("name", hugging_face_id),
@@ -241,3 +243,33 @@ def get_huggingface_download_size(model_id: str, allow_patterns: list = []):
                         break
 
     return download_size
+
+
+def delete_model_from_hf_cache(model_id: str, cache_dir: str = None) -> None:
+    """
+    Delete a model from the Hugging Face cache by scanning the cache to locate
+    the model repository and then deleting its folder.
+
+    If cache_dir is provided, it will be used as the cache location; otherwise,
+    the default cache directory is used (which respects HF_HOME or HF_HUB_CACHE).
+
+    Args:
+        model_id (str): The model ID (e.g. "mlx-community/Qwen2.5-7B-Instruct-4bit").
+        cache_dir (str, optional): Custom cache directory.
+    """
+
+    # Scan the cache using the provided cache_dir if available.
+    hf_cache_info = scan_cache_dir(cache_dir=cache_dir) if cache_dir else scan_cache_dir()
+
+    found = False
+    # Iterate over all cached repositories.
+    for repo in hf_cache_info.repos:
+        # Only consider repos of type "model" and match the repo id.
+        if repo.repo_type == "model" and repo.repo_id == model_id:
+            shutil.rmtree(repo.repo_path)
+            print(f"Deleted model cache folder: {repo.repo_path}")
+            found = True
+            break
+
+    if not found:
+        print(f"Model cache folder not found for: {model_id}")

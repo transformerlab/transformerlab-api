@@ -13,6 +13,8 @@ import transformerlab.db as db
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
 
+from werkzeug.utils import secure_filename
+
 from transformerlab.routers.plugins import install_plugin, plugin_gallery
 
 
@@ -55,8 +57,7 @@ async def experiment_list_scripts(id: int, type: str = None, filter: str = None)
         if os.path.isdir(os.path.join(scripts_dir, filename)):
             # check the type of each index.json in each script dir
             try:
-                plugin_info = json.load(
-                    open(f"{scripts_dir}/{filename}/index.json", "r"))
+                plugin_info = json.load(open(f"{scripts_dir}/{filename}/index.json", "r"))
             except FileNotFoundError:
                 continue
             except json.decoder.JSONDecodeError:
@@ -118,14 +119,13 @@ async def delete_plugin_from_experiment(id: int, plugin_name: str):
 
 
 @router.get("/download", summary="Download a dataset to the LLMLab server.")
-async def plugin_download(plugin_slug: str):
+async def plugin_download(id: int, plugin_slug: str):
     """Download a plugin and install to a local list of available plugins"""
     # Get plugin from plugin gallery:
     # plugin = await db.get_plugin(plugin_slug)
     # Right now this plugin object doesn't contain the URL to the plugin, so we need to get that from the plugin gallery:
     # Fix this later by storing the information locally in the database
-    gallery_file = os.path.join(
-        dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "plugin-gallery.json")
+    gallery_file = os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "plugin-gallery.json")
     plugin_gallery_json = open(gallery_file, "r")
     plugin_gallery = json.load(plugin_gallery_json)
 
@@ -173,13 +173,14 @@ async def plugin_download(plugin_slug: str):
 # *****************************************************************************
 
 
-allowed_extensions: list[str] = [".py", ".pyj2",
-                                 ".ipynb", ".md", ".txt", ".sh", ".json"]
+allowed_extensions: list[str] = [".py", ".pyj2", ".ipynb", ".md", ".txt", ".sh", ".json"]
 
 
 @router.post("/{pluginId}/save_file_contents")
 async def plugin_save_file_contents(id: str, pluginId: str, filename: str, file_contents: Annotated[str, Body()]):
     global allowed_extensions
+
+    filename = secure_filename(filename)
 
     data = await db.experiment_get(id)
     # if the experiment does not exist, return an error:
@@ -216,6 +217,8 @@ async def plugin_save_file_contents(id: str, pluginId: str, filename: str, file_
 async def plugin_get_file_contents(id: str, pluginId: str, filename: str):
     global allowed_extensions
 
+    filename = secure_filename(filename)
+
     data = await db.experiment_get(id)
     # if the experiment does not exist, return an error:
     if data is None:
@@ -231,8 +234,7 @@ async def plugin_get_file_contents(id: str, pluginId: str, filename: str):
 
     # The following prevents path traversal attacks:
     plugin_dir = dirs.plugin_dir_by_name((pluginId))
-    final_path = Path(plugin_dir).joinpath(
-        filename + file_ext).resolve().relative_to(plugin_dir)
+    final_path = Path(plugin_dir).joinpath(filename + file_ext).resolve().relative_to(plugin_dir)
 
     final_path = plugin_dir + "/" + str(final_path)
 
@@ -276,6 +278,8 @@ async def plugin_list_files(id: str, pluginId: str):
 async def plugin_create_new_file(id: str, pluginId: str, filename: str):
     global allowed_extensions
 
+    filename = secure_filename(filename)
+
     data = await db.experiment_get(id)
     # if the experiment does not exist, return an error:
     if data is None:
@@ -313,6 +317,8 @@ async def plugin_create_new_file(id: str, pluginId: str, filename: str):
 @router.get(path="/{pluginId}/delete_file")
 async def plugin_delete_file(id: str, pluginId: str, filename: str):
     global allowed_extensions
+
+    filename = secure_filename(filename)
 
     data = await db.experiment_get(id)
     # if the experiment does not exist, return an error:

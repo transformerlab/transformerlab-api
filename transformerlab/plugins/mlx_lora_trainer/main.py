@@ -73,6 +73,14 @@ import argparse
 import os
 from tensorboardX import SummaryWriter
 
+try:
+    import wandb
+
+    LOG_WANDB = True
+except Exception:
+    print("Failed to import wandb. WANDB logging will be disabled.")
+    LOG_WANDB = False
+
 import transformerlab.plugin
 from jinja2 import Environment
 
@@ -137,7 +145,24 @@ if lora_rank or lora_alpha:
 # we need to adapter parameter so set a default
 adaptor_name = config.get("adaptor_name", "default")
 fuse_model = config.get("fuse_model", None)
+WANDB_LOGGING = config.get("log_to_wandb", None)
 
+# Check if WANDB logging is enabled
+if WANDB_LOGGING and LOG_WANDB:
+    WANDB_LOGGING, _ = transformerlab.plugin.test_wandb_login()
+
+    if not WANDB_LOGGING:
+        print("WANDB API Key not found. WANDB logging will be disabled. Please set the WANDB API Key in Settings.")
+
+# DISABLE WANDB LOGGING if import error with wandb
+if not LOG_WANDB:
+    WANDB_LOGGING = False
+
+if WANDB_LOGGING:
+    print("Setting up WANDB project")
+    wandb_run = wandb.init(name=f"job_{config['job_id']}_{config['template_name']}", config=config)
+    # Setting the WANDB config
+    wandb.config = config
 
 # Get the dataset
 try:
@@ -259,7 +284,7 @@ print("Adaptor will be saved in:", adaptor_output_dir)
 # todays date with seconds:
 today = time.strftime("%Y%m%d-%H%M%S")
 
-output_dir = os.path.join(config["output_dir"], today)
+output_dir = os.path.join(config["output_dir"], f"job_{config['job_id']}_{today}")
 # w = tf.summary.create_file_writer(os.path.join(config["output_dir"], "logs"))
 writer = SummaryWriter(output_dir)
 print("Writing logs to:", output_dir)
@@ -303,9 +328,18 @@ with subprocess.Popen(
                 # The code snippet `with w.as_default(): tf.summary.scalar` is using TensorFlow's
                 # `tf.summary.scalar` function to log scalar values to a TensorBoard summary writer
                 # `w`.
-                writer.add_scalar("loss", loss, int(first_number))
-                writer.add_scalar("it_per_sec", it_per_sec, int(first_number))
-                writer.add_scalar("tokens_per_sec", tokens_per_sec, int(first_number))
+                writer.add_scalar("train/loss", loss, int(first_number))
+                writer.add_scalar("train/it_per_sec", it_per_sec, int(first_number))
+                writer.add_scalar("train/tokens_per_sec", tokens_per_sec, int(first_number))
+
+                # Log the loss to WANDB
+                if WANDB_LOGGING:
+                    wb_log = {
+                        "train/loss": loss,
+                        "train/it_per_sec": it_per_sec,
+                        "train/tokens_per_sec": tokens_per_sec,
+                    }
+                    wandb.log(wb_log, step=int(first_number))
 
             # 2. Validation updates which look like:
             # "Iter 190: Val loss 1.009, Val took 1.696s"
@@ -315,7 +349,9 @@ with subprocess.Popen(
                 if match:
                     validation_loss = float(match.group(1))
                     print("Validation Loss: ", validation_loss)
-                    writer.add_scalar("validation-loss", validation_loss, int(first_number))
+                    writer.add_scalar("valid/loss", validation_loss, int(first_number))
+                    if WANDB_LOGGING:
+                        wandb.log({"valid/loss": validation_loss}, step=int(first_number))
 
         print(line, end="", flush=True)
 
@@ -323,9 +359,12 @@ with subprocess.Popen(
 # Terminate if not
 if process.returncode and process.returncode != 0:
     print("An error occured before training completed.")
+    if WANDB_LOGGING:
+        wandb_run.finish()
     job.set_job_completion_status("failed", "Failed during training.")
     exit(process.returncode)
-
+if WANDB_LOGGING:
+    wandb_run.finish()
 print("Finished training.")
 
 # TIME TO FUSE THE MODEL WITH THE BASE MODEL

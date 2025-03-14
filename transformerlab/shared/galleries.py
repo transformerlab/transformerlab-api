@@ -13,13 +13,9 @@ from transformerlab.shared import dirs
 # This is the list of galleries that are updated remotely
 MODEL_GALLERY_FILE = "model-gallery.json"
 RECIPE_GALLERY_FILE = "recipe-gallery.json"
-GALLERY_FILES = [
-    MODEL_GALLERY_FILE,
-    RECIPE_GALLERY_FILE
-]
+GALLERY_FILES = [MODEL_GALLERY_FILE, RECIPE_GALLERY_FILE]
 
-TLAB_REMOTE_URL = "https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/"
-REMOTE_GALLERY_DIR_URL = f"{TLAB_REMOTE_URL}{dirs.GALLERIES_SOURCE_PATH}"
+TLAB_REMOTE_GALLERIES_URL = "https://raw.githubusercontent.com/transformerlab/galleries/main/"
 
 
 def update_gallery_cache():
@@ -44,6 +40,7 @@ def get_recipes_gallery():
 # INTERNAL SUBROUTINES
 ######################
 
+
 def gallery_cache_file_path(filename: str):
     return os.path.join(dirs.GALLERIES_CACHE_DIR, filename)
 
@@ -59,7 +56,7 @@ def update_gallery_cache_file(filename: str):
     if not os.path.isfile(cached_gallery_file):
         print(f"✅ Initializing {filename} from local source.")
 
-        sourcefile = os.path.join(dirs.TFL_SOURCE_CODE_DIR, dirs.GALLERIES_SOURCE_PATH, filename)
+        sourcefile = os.path.join(dirs.GALLERIES_LOCAL_FALLBACK_DIR, filename)
         if os.path.isfile(sourcefile):
             shutil.copyfile(sourcefile, cached_gallery_file)
         else:
@@ -74,10 +71,10 @@ def update_cache_from_remote(gallery_filename: str):
     Fetches a gallery file from source and updates the cache
     """
     try:
-        remote_gallery = REMOTE_GALLERY_DIR_URL + gallery_filename
+        remote_gallery = TLAB_REMOTE_GALLERIES_URL + gallery_filename
         local_cache_filename = gallery_cache_file_path(gallery_filename)
         urllib.request.urlretrieve(remote_gallery, local_cache_filename)
-        print (f"☁️  Updated gallery from remote: {remote_gallery}")
+        print(f"☁️  Updated gallery from remote: {remote_gallery}")
     except Exception:
         print(f"❌ Failed to update gallery from remote: {remote_gallery}")
 
@@ -96,4 +93,3 @@ def get_gallery_file(filename: str):
         gallery = json.load(f)
 
     return gallery
-
