@@ -6,7 +6,6 @@ import asyncio
 import traceback
 from typing import List, Any
 import json
-from tensorboardX import SummaryWriter
 from datasets import load_dataset, get_dataset_split_names
 import requests
 
