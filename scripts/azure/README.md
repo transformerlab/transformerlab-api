@@ -59,8 +59,14 @@ Before you begin, make sure you have the following installed:
     ```
 
 3. **Configure Resource Names and Machine Types (Optional)**
+
+    Copy the terraform.tfvars.tpl file to create a new terraform.tfvars file:
+
+    ```bash
+    cp terraform.tfvars.tpl terraform.tfvars
+    ```
     
-    The deployment uses a `terraform.tfvars` file to define resource names, locations, VM sizes, etc.
+    The deployment uses a `terraform.tfvars` file to define resource names, locations, VM sizes, etc. It is equivalent to a `.env` file used in Python to set configs or variables.
 
     - Edit `terraform.tfvars` (if needed) to set custom values.
     - Ensure that the variables you set (for example, `resource_group_name`, `vm_name`, etc.) are not commented out (i.e., remove any `#` at the beginning of lines).
