@@ -1,29 +1,41 @@
 #!/bin/bash
-
 set -e
 
-# Get the current Azure subscription ID via the Azure CLI and export it
-subscription_id=$(az account show --query id -o tsv)
+# ------------------------------
+# Helper Functions
+# ------------------------------
 
-echo "Subscription ID: $subscription_id"
-
-export ARM_SUBSCRIPTION_ID=${subscription_id}
-
-# Function to extract a variable's value from terraform.tfvars (ignoring commented lines)
-get_tfvar_value() {
+# Extract a string value (expects a quoted value) from terraform.tfvars.
+get_tfvar_value_string() {
   local var_name="$1"
   local default_value="$2"
   local line
-  line=$(grep -E "^\s*${var_name}\s*=" terraform.tfvars | grep -v '^\s*#' || true)
+  line=$(grep -E "^\s*${var_name}\s*=" terraform.tfvars | grep -v '^\s*#' | head -n1 || true)
   if [[ -n "$line" ]]; then
-    value=$(echo "$line" | sed -E "s/.*=\s*\"([^\"]+)\".*/\1/")
+    # Extract value between quotes.
+    value=$(echo "$line" | sed -E 's/.*=\s*"(.*)".*/\1/')
   else
     value="$default_value"
   fi
   echo "$value"
 }
 
-# Function to check if a resource is already in the Terraform state.
+# Extract the raw value (works for arrays and objects) from terraform.tfvars.
+get_tfvar_value_raw() {
+  local var_name="$1"
+  local default_value="$2"
+  local line
+  line=$(grep -E "^\s*${var_name}\s*=" terraform.tfvars | grep -v '^\s*#' | head -n1 || true)
+  if [[ -n "$line" ]]; then
+    # Remove variable name and equal sign; preserve original formatting.
+    value=$(echo "$line" | sed -E "s/^\s*${var_name}\s*=\s*(.*)/\1/")
+  else
+    value="$default_value"
+  fi
+  echo "$value"
+}
+
+# Check if a resource is already in the Terraform state.
 is_imported() {
   local resource_name="$1"
   if terraform state list 2>/dev/null | grep -q "${resource_name}"; then
@@ -33,145 +45,184 @@ is_imported() {
   fi
 }
 
-# Get resource names from terraform.tfvars or use defaults
-rg_name=$(get_tfvar_value "resource_group_name" "rg-transformerlab")
-vnet_name=$(get_tfvar_value "vnet_name" "vnet-transformerlab")
-subnet_name=$(get_tfvar_value "subnet_name" "subnet-transformerlab")
-public_ip_name=$(get_tfvar_value "public_ip_name" "pip-transformerlab")
-nic_name=$(get_tfvar_value "network_interface_name" "nic-transformerlab")
-nsg_name=$(get_tfvar_value "nsg_name" "nsg-transformerlab")
-vm_name=$(get_tfvar_value "vm_name" "vm-transformerlab")
+# ------------------------------
+# Get Azure Subscription ID
+# ------------------------------
+subscription_id=$(az account show --query id -o tsv)
+echo "Subscription ID: ${subscription_id}"
+export ARM_SUBSCRIPTION_ID=${subscription_id}
 
-echo "Using resource group: ${rg_name}"
-echo "Using virtual network: ${vnet_name}"
-echo "Using subnet: ${subnet_name}"
-echo "Using public IP: ${public_ip_name}"
-echo "Using network interface: ${nic_name}"
-echo "Using NSG: ${nsg_name}"
-echo "Using virtual machine: ${vm_name}"
+# ------------------------------
+# Read All Configurations from terraform.tfvars
+# ------------------------------
+
+# Resource Group and Location
+rg_name=$(get_tfvar_value_string "resource_group_name" "rg-transformerlab")
+location=$(get_tfvar_value_string "location" "eastus")
+
+# Network Configuration
+vnet_name=$(get_tfvar_value_string "vnet_name" "vnet-transformerlab")
+vnet_address_space=$(get_tfvar_value_raw "vnet_address_space" '["10.0.0.0/16"]')
+subnet_name=$(get_tfvar_value_string "subnet_name" "subnet-transformerlab")
+subnet_address_prefixes=$(get_tfvar_value_raw "subnet_address_prefixes" '["10.0.1.0/24"]')
+public_ip_name=$(get_tfvar_value_string "public_ip_name" "pip-transformerlab")
+nic_name=$(get_tfvar_value_string "network_interface_name" "nic-transformerlab")
+nsg_name=$(get_tfvar_value_string "nsg_name" "nsg-transformerlab")
+security_rules=$(get_tfvar_value_raw "security_rules" "[ { name = \"Allow-SSH\", ... } ]")  # Summary of security rules
+
+# Compute / VM Configuration
+vm_name=$(get_tfvar_value_string "vm_name" "vm-transformerlab")
+vm_size=$(get_tfvar_value_string "vm_size" "Standard_D8s_v3")
+admin_username=$(get_tfvar_value_string "admin_username" "azureuser")
+os_disk_storage_type=$(get_tfvar_value_string "os_disk_storage_type" "Premium_LRS")
+os_disk_size_gb=$(get_tfvar_value_string "os_disk_size_gb" "200")
+image_publisher=$(get_tfvar_value_string "image_publisher" "Canonical")
+image_offer=$(get_tfvar_value_string "image_offer" "0001-com-ubuntu-server-jammy")
+image_sku=$(get_tfvar_value_string "image_sku" "22_04-lts-gen2")
+image_version=$(get_tfvar_value_string "image_version" "latest")
+cloud_init_file=$(get_tfvar_value_string "cloud_init_file" "./cloud-init/cloud-init.yaml")
+ssh_private_key_file=$(get_tfvar_value_string "ssh_private_key_file" "~/.ssh/az_vm_prvt_key.pem")
+
+# ------------------------------
+# Print Configuration Summary
+# ------------------------------
+echo "------------------------------------------"
+echo "Terraform Deployment Configuration Summary:"
+echo "Resource Group         : ${rg_name}"
+echo "Location               : ${location}"
+echo "Virtual Network Name   : ${vnet_name}"
+echo "VNet Address Space     : ${vnet_address_space}"
+echo "Subnet Name            : ${subnet_name}"
+echo "Subnet Prefixes        : ${subnet_address_prefixes}"
+echo "Public IP Name         : ${public_ip_name}"
+echo "Network Interface Name : ${nic_name}"
+echo "NSG Name               : ${nsg_name}"
+echo "Security Rules         : ${security_rules}"
+echo "VM Name                : ${vm_name}"
+echo "VM Size                : ${vm_size}"
+echo "Admin Username         : ${admin_username}"
+echo "OS Disk Storage Type   : ${os_disk_storage_type}"
+echo "OS Disk Size (GB)      : ${os_disk_size_gb}"
+echo "Image Publisher        : ${image_publisher}"
+echo "Image Offer            : ${image_offer}"
+echo "Image SKU              : ${image_sku}"
+echo "Image Version          : ${image_version}"
+echo "Cloud Init File        : ${cloud_init_file}"
+echo "SSH Private Key File   : ${ssh_private_key_file}"
+echo "------------------------------------------"
+
+# ------------------------------
+# Resource Import Procedures
+# ------------------------------
 
 # --- Resource Group ---
 if is_imported "azurerm_resource_group.rg"; then
   echo "Resource group '${rg_name}' is already imported. Skipping import."
 else
-    if [[ $(az group exists --name "$rg_name") == "true" ]]; then
+  if [[ $(az group exists --name "$rg_name") == "true" ]]; then
     echo "Resource group '${rg_name}' exists. Importing..."
-    terraform import azurerm_resource_group.rg /subscriptions/${subscription_id}/resourceGroups/${rg_name} || true
-    else
+    terraform import azurerm_resource_group.rg "/subscriptions/${subscription_id}/resourceGroups/${rg_name}" || true
+  else
     echo "Resource group '${rg_name}' does not exist. It will be created by Terraform."
-    fi
+  fi
 fi
 
 # --- Virtual Network ---
 if is_imported "azurerm_virtual_network.vnet"; then
   echo "Virtual network '${vnet_name}' is already imported. Skipping import."
 else
-    if az network vnet show --resource-group "$rg_name" --name "$vnet_name" >/dev/null 2>&1; then
+  if az network vnet show --resource-group "$rg_name" --name "$vnet_name" >/dev/null 2>&1; then
     echo "Virtual network '${vnet_name}' exists. Importing..."
-    terraform import azurerm_virtual_network.vnet /subscriptions/${subscription_id}/resourceGroups/${rg_name}/providers/Microsoft.Network/virtualNetworks/${vnet_name} || true
-    else
+    terraform import azurerm_virtual_network.vnet "/subscriptions/${subscription_id}/resourceGroups/${rg_name}/providers/Microsoft.Network/virtualNetworks/${vnet_name}" || true
+  else
     echo "Virtual network '${vnet_name}' does not exist. It will be created by Terraform."
-    fi
+  fi
 fi
 
 # --- Subnet ---
 if is_imported "azurerm_subnet.subnet"; then
   echo "Subnet '${subnet_name}' is already imported. Skipping import."
 else
-    if az network vnet subnet show --resource-group "$rg_name" --vnet-name "$vnet_name" --name "$subnet_name" >/dev/null 2>&1; then
+  if az network vnet subnet show --resource-group "$rg_name" --vnet-name "$vnet_name" --name "$subnet_name" >/dev/null 2>&1; then
     echo "Subnet '${subnet_name}' exists. Importing..."
-    terraform import azurerm_subnet.subnet /subscriptions/${subscription_id}/resourceGroups/${rg_name}/providers/Microsoft.Network/virtualNetworks/${vnet_name}/subnets/${subnet_name} || true
-    else
+    terraform import azurerm_subnet.subnet "/subscriptions/${subscription_id}/resourceGroups/${rg_name}/providers/Microsoft.Network/virtualNetworks/${vnet_name}/subnets/${subnet_name}" || true
+  else
     echo "Subnet '${subnet_name}' does not exist. It will be created by Terraform."
-    fi
+  fi
 fi
 
 # --- Public IP ---
 if is_imported "azurerm_public_ip.pip"; then
   echo "Public IP '${public_ip_name}' is already imported. Skipping import."
 else
-    if az network public-ip show --resource-group "$rg_name" --name "$public_ip_name" >/dev/null 2>&1; then
+  if az network public-ip show --resource-group "$rg_name" --name "$public_ip_name" >/dev/null 2>&1; then
     echo "Public IP '${public_ip_name}' exists. Importing..."
-    terraform import azurerm_public_ip.pip /subscriptions/${subscription_id}/resourceGroups/${rg_name}/providers/Microsoft.Network/publicIPAddresses/${public_ip_name} || true
-    else
+    terraform import azurerm_public_ip.pip "/subscriptions/${subscription_id}/resourceGroups/${rg_name}/providers/Microsoft.Network/publicIPAddresses/${public_ip_name}" || true
+  else
     echo "Public IP '${public_ip_name}' does not exist. It will be created by Terraform."
-    fi
+  fi
 fi
 
 # --- Network Interface ---
 if is_imported "azurerm_network_interface.nic"; then
   echo "Network interface '${nic_name}' is already imported. Skipping import."
 else
-    if az network nic show --resource-group "$rg_name" --name "$nic_name" >/dev/null 2>&1; then
+  if az network nic show --resource-group "$rg_name" --name "$nic_name" >/dev/null 2>&1; then
     echo "Network interface '${nic_name}' exists. Importing..."
-    terraform import azurerm_network_interface.nic /subscriptions/${subscription_id}/resourceGroups/${rg_name}/providers/Microsoft.Network/networkInterfaces/${nic_name} || true
-    else
+    terraform import azurerm_network_interface.nic "/subscriptions/${subscription_id}/resourceGroups/${rg_name}/providers/Microsoft.Network/networkInterfaces/${nic_name}" || true
+  else
     echo "Network interface '${nic_name}' does not exist. It will be created by Terraform."
-    fi
+  fi
 fi
 
 # --- Network Security Group ---
 if is_imported "azurerm_network_security_group.nsg"; then
   echo "NSG '${nsg_name}' is already imported. Skipping import."
 else
-    if az network nsg show --resource-group "$rg_name" --name "$nsg_name" >/dev/null 2>&1; then
+  if az network nsg show --resource-group "$rg_name" --name "$nsg_name" >/dev/null 2>&1; then
     echo "Network security group '${nsg_name}' exists. Importing..."
-    terraform import azurerm_network_security_group.nsg /subscriptions/${subscription_id}/resourceGroups/${rg_name}/providers/Microsoft.Network/networkSecurityGroups/${nsg_name} || true
-    else
+    terraform import azurerm_network_security_group.nsg "/subscriptions/${subscription_id}/resourceGroups/${rg_name}/providers/Microsoft.Network/networkSecurityGroups/${nsg_name}" || true
+  else
     echo "Network security group '${nsg_name}' does not exist. It will be created by Terraform."
-    fi
+  fi
 fi
 
-# --- NSG association existence ---
-# Note: There's no direct 'az' command to check the association. 
-# Instead, you need to check if both the NIC and NSG exist and assume the association is in place.
+# --- NSG Association ---
 if is_imported "azurerm_network_interface_security_group_association.nsg_assoc"; then
   echo "NSG association is already imported. Skipping import."
 else
-    if az network nic show --resource-group "$rg_name" --name "$nic_name" >/dev/null 2>&1 && \
-    az network nsg show --resource-group "$rg_name" --name "$nsg_name" >/dev/null 2>&1; then
-        echo "Network interface and NSG exist. Importing NSG association..."
-        terraform import azurerm_network_interface_security_group_association.nsg_assoc "/subscriptions/${subscription_id}/resourceGroups/${rg_name}/providers/Microsoft.Network/networkInterfaces/${nic_name}|/subscriptions/${subscription_id}/resourceGroups/${rg_name}/providers/Microsoft.Network/networkSecurityGroups/${nsg_name}" || true
-    else
-        echo "Network interface or NSG does not exist. NSG association will be created by Terraform."
-    fi
+  if az network nic show --resource-group "$rg_name" --name "$nic_name" >/dev/null 2>&1 && \
+     az network nsg show --resource-group "$rg_name" --name "$nsg_name" >/dev/null 2>&1; then
+    echo "Network interface and NSG exist. Importing NSG association..."
+    terraform import azurerm_network_interface_security_group_association.nsg_assoc "/subscriptions/${subscription_id}/resourceGroups/${rg_name}/providers/Microsoft.Network/networkInterfaces/${nic_name}|/subscriptions/${subscription_id}/resourceGroups/${rg_name}/providers/Microsoft.Network/networkSecurityGroups/${nsg_name}" || true
+  else
+    echo "Network interface or NSG does not exist. NSG association will be created by Terraform."
+  fi
 fi
 
 # --- Linux Virtual Machine ---
 if is_imported "azurerm_linux_virtual_machine.vm"; then
   echo "Virtual machine '${vm_name}' is already imported. Skipping import."
 else
-    if az vm show --resource-group "$rg_name" --name "$vm_name" >/dev/null 2>&1; then
+  if az vm show --resource-group "$rg_name" --name "$vm_name" >/dev/null 2>&1; then
     echo "Virtual machine '${vm_name}' exists. Importing..."
-    terraform import azurerm_linux_virtual_machine.vm /subscriptions/${subscription_id}/resourceGroups/${rg_name}/providers/Microsoft.Compute/virtualMachines/${vm_name} || true
-    else
+    terraform import azurerm_linux_virtual_machine.vm "/subscriptions/${subscription_id}/resourceGroups/${rg_name}/providers/Microsoft.Compute/virtualMachines/${vm_name}" || true
+  else
     echo "Virtual machine '${vm_name}' does not exist. It will be created by Terraform."
-    fi
+  fi
 fi
 
 echo "Resource checks and imports completed."
 
+# ------------------------------
+# Terraform Provisioning
+# ------------------------------
 
-# Provision all resources, VM and run startup script
+# Initialize, plan and apply with the tfvars file so that all user configurations are honored.
 terraform init -upgrade
-terraform plan -out out.plan
+terraform plan -var-file="terraform.tfvars" -out out.plan
 terraform apply "out.plan"
 
-# Save the SSH private key to a file
-terraform output -raw ssh_private_key > ~/.ssh/az_vm_prvt_key.pem
-chmod 600 ~/.ssh/az_vm_prvt_key.pem
-
-## Connect to the VM via SSH
-#ssh-keygen -R $(terraform output -raw public_ip)
-#ssh -i ~/.ssh/az_vm_prvt_key.pem azureuser@$(terraform output -raw public_ip)
-
-## Destroy the VM
-#export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-#terraform destroy --target azurerm_virtual_machine.vm -auto-approve
-
-## Destroy all resources
-#terraform destroy -auto-approve
-
-## Cleanup the SSH private key
-#sshkeygen -R $(terraform output -raw public_ip)
-#rm -f ~/.ssh/az_vm_prvt_key.pem
+# Save the SSH private key to a file (ensure the output variable 'ssh_private_key' exists in your Terraform configuration)
+terraform output -raw ssh_private_key > ${ssh_private_key_file}
+chmod 600 ${ssh_private_key_file}

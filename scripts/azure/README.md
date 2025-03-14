@@ -58,9 +58,9 @@ Before you begin, make sure you have the following installed:
     cd transformerlab-api/scripts/azure/terraform
     ```
 
-3. **Configure Resource Names and Machine Types (Optional)**
+3. **Configure Resource Names and Machine Types**
 
-    Copy the terraform.tfvars.tpl file to create a new terraform.tfvars file:
+    Copy the `terraform.tfvars.tpl` file to create a new terraform.tfvars file before editing it:
 
     ```bash
     cp terraform.tfvars.tpl terraform.tfvars
@@ -125,15 +125,15 @@ __
 
 1. **SSH into the VM**
 
-    After deployment, you can SSH into the Linux VM using the generated private key. The key is saved (by default) in your home directory (e.g.,`~/.ssh/az_vm_prvt_key.pem`).
+    After deployment, you can SSH into the Linux VM using the generated private key. The key is saved (by default) in your home directory (e.g.,`~/.ssh/az_vm_prvt_key.pem`). Use the admin username that you set for the VM (default = `azureuser`)
 
     Example SSH command:
 
     ```bash
     ssh-keygen -R <VM_PUBLIC_IP>
-    ssh -i ~/.ssh/az_vm_prvt_key.pem azureuser@<VM_PUBLIC_IP>
+    ssh -i ~/.ssh/az_vm_prvt_key.pem <admin_username>@<VM_PUBLIC_IP>
     ```
-    Replace `<VM_PUBLIC_IP>` with the public IP address output from Terraform.
+    Replace `<admin_username>` with the username set for VM and `<VM_PUBLIC_IP>` with the public IP address output from Terraform.
 
 2. **Viewing Transformer Lab Service Logs**
 
@@ -167,6 +167,7 @@ __
     - Destroy all resources
 
         ```bash
+        export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
         terraform destroy -auto-approve
         ```
 
@@ -188,7 +189,7 @@ terraform/
 ├── main.tf
 ├── variables.tf
 ├── outputs.tf
-├── terraform.tfvars      # User overrides for resource names and settings
+├── terraform.tfvars.tpl  # User overrides for resource names and settings - (copy to terrafform.tfvars before editing)
 ├── run.sh                # Helper script to check and import resources
 ├── cloud-init/
 │   └── cloud-init.yaml   # Cloud-init script for VM provisioning
