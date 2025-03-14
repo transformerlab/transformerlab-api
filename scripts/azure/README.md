@@ -81,6 +81,12 @@ Before you begin, make sure you have the following installed:
     # location = "eastus2"                        # e.g., "eastus", "westus2", etc.
     ```
 
+    - **NVidia GPU VMs on Azure:**
+
+        - Ensure the `enable_gpu_driver` variable is set to `true` and the line is uncommented to pre-install NVidia drivers. Works for all NC series (*T4s, A100s and H100s*) and NV series (*V100s*). 
+        - In case you missed it, you can also manually install the drivers in the VM using ssh. 
+
+
     **Note :** *The Terraform configuration will automatically provision default resources if this file is not edited, the intention of this file is to re-use anything you already have deployed on Azure for the deployment.*
 
 ---
@@ -153,7 +159,22 @@ __
     
     This command will stream live logs, allowing you to monitor the service in real time.
 
-3. **Destroying the created resources**
+3. **GPU not detected from VM**
+
+    - SSH into the VM and check if the `nvidia-smi` command shows the GPU details
+    - If the above command shows that the drivers aren't installed properly, reinstall the extension:
+        - Go to [Azure Portal](https://portal.azure.com/) 
+        - Click on `Virtual Machines`.
+        - Click on the name of the provisioned VM.
+        - Then navigate to Settings --> Extensions + applications 
+        - Click on `+ Add`
+        - Search `NVidia GPU Driver Extension` and click on `Next`
+        - Click on `Review + create`
+        - It should take about 5-7 minutes to reinstall the extension
+
+---
+
+## Destroying the created resources
 
     Terraform commands can be used to destroy the resources (Available as commented lines inside `run.sh`)
 
@@ -161,7 +182,7 @@ __
 
         ```bash
         export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-        terraform destroy --target azurerm_virtual_machine.vm -auto-approve
+        terraform destroy --target=module.compute.azurerm_linux_virtual_machine.vm -auto-approve
         ```
 
     - Destroy all resources
@@ -174,7 +195,7 @@ __
     - Cleanup the SSH private key
         
         ```bash
-        sshkeygen -R $(terraform output -raw public_ip)
+        ssh-keygen -R $(terraform output -raw vm_public_ip)
         rm -f ~/.ssh/az_vm_prvt_key.pem
         ```
 
