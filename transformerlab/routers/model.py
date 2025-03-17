@@ -600,9 +600,11 @@ async def model_delete_peft(model_id: str, peft: str):
     secure_model_id = secure_filename(model_id)
     adaptors_dir = f"{workspace_dir}/adaptors/{model_id}"
     peft_path = f"{adaptors_dir}/{peft}"
+    # Check if the peft exists
     if os.path.exists(adaptors_dir):
         peft_path = f"{adaptors_dir}/{peft}"
     else:
+        # Use secure filename assuming it is based on the new naming format
         peft_path = f"{workspace_dir}/adaptors/{secure_model_id}/{peft}"
 
     shutil.rmtree(peft_path)
