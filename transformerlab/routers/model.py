@@ -598,14 +598,13 @@ async def model_gets_pefts(
 async def model_delete_peft(model_id: str, peft: str):
     workspace_dir = dirs.WORKSPACE_DIR
     secure_model_id = secure_filename(model_id)
-    adaptors_dir = f"{workspace_dir}/adaptors/{model_id}"
-    peft_path = f"{adaptors_dir}/{peft}"
+    adaptors_dir = f"{workspace_dir}/adaptors/{secure_model_id}"
     # Check if the peft exists
     if os.path.exists(adaptors_dir):
         peft_path = f"{adaptors_dir}/{peft}"
     else:
-        # Use secure filename assuming it is based on the new naming format
-        peft_path = f"{workspace_dir}/adaptors/{secure_model_id}/{peft}"
+        # Assume the adapter is stored in the older naming convention format
+        peft_path = f"{workspace_dir}/adaptors/{model_id}/{peft}"
 
     shutil.rmtree(peft_path)
 
