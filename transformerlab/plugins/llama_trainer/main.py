@@ -5,25 +5,25 @@ from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from trl import SFTTrainer, SFTConfig
 
-from transformerlab.tfl_decorators import tfl_trainer
+from transformerlab.tlab_decorators import tlab_trainer
 
 use_flash_attention = False
 # Initialize Jinja environment
 jinja_environment = Environment()
 
 
-@tfl_trainer.job_wrapper(progress_start=0, progress_end=100)
+@tlab_trainer.job_wrapper(progress_start=0, progress_end=100)
 def train_model():
-    # Configuration is loaded automatically when tfl_trainer methods are called
-    datasets = tfl_trainer.load_dataset()
+    # Configuration is loaded automatically when tlab_trainer methods are called
+    datasets = tlab_trainer.load_dataset()
     dataset = datasets["train"]
 
     print(f"Dataset loaded successfully with {len(dataset)} examples")
     print(dataset[randrange(len(dataset))])
 
     # Setup template for formatting
-    print("Formatting template: " + tfl_trainer.formatting_template)
-    template = jinja_environment.from_string(tfl_trainer.formatting_template)
+    print("Formatting template: " + tlab_trainer.formatting_template)
+    template = jinja_environment.from_string(tlab_trainer.formatting_template)
 
     def format_instruction(mapping):
         return template.render(mapping)
@@ -40,7 +40,7 @@ def train_model():
     )
 
     # Load model
-    model_id = tfl_trainer.model_name
+    model_id = tlab_trainer.model_name
 
     try:
         model = AutoModelForCausalLM.from_pretrained(
@@ -62,9 +62,9 @@ def train_model():
         raise
 
     # Setup LoRA - use direct attribute access with safe defaults
-    lora_alpha = int(getattr(tfl_trainer, "lora_alpha", 16))
-    lora_dropout = float(getattr(tfl_trainer, "lora_dropout", 0.05))
-    lora_r = int(getattr(tfl_trainer, "lora_r", 8))
+    lora_alpha = int(getattr(tlab_trainer, "lora_alpha", 16))
+    lora_dropout = float(getattr(tlab_trainer, "lora_dropout", 0.05))
+    lora_r = int(getattr(tlab_trainer, "lora_r", 8))
 
     peft_config = LoraConfig(
         lora_alpha=lora_alpha,
@@ -79,21 +79,21 @@ def train_model():
     model = get_peft_model(model, peft_config)
 
     # Get output directories - use direct attribute access
-    output_dir = getattr(tfl_trainer, "output_dir", "./output")
-    adaptor_output_dir = getattr(tfl_trainer, "adaptor_output_dir", "./adaptor")
+    output_dir = getattr(tlab_trainer, "output_dir", "./output")
+    adaptor_output_dir = getattr(tlab_trainer, "adaptor_output_dir", "./adaptor")
 
     # Setup training arguments - use direct attribute access
-    max_seq_length = int(getattr(tfl_trainer, "maximum_sequence_length", 2048))
-    num_train_epochs = int(getattr(tfl_trainer, "num_train_epochs", 3))
-    batch_size = int(getattr(tfl_trainer, "batch_size", 4))
-    learning_rate = float(getattr(tfl_trainer, "learning_rate", 2e-4))
-    lr_scheduler = getattr(tfl_trainer, "learning_rate_schedule", "constant")
+    max_seq_length = int(getattr(tlab_trainer, "maximum_sequence_length", 2048))
+    num_train_epochs = int(getattr(tlab_trainer, "num_train_epochs", 3))
+    batch_size = int(getattr(tlab_trainer, "batch_size", 4))
+    learning_rate = float(getattr(tlab_trainer, "learning_rate", 2e-4))
+    lr_scheduler = getattr(tlab_trainer, "learning_rate_schedule", "constant")
 
     # Create unique run name
     import time
 
     today = time.strftime("%Y%m%d-%H%M%S")
-    run_suffix = getattr(tfl_trainer, "template_name", today)
+    run_suffix = getattr(tlab_trainer, "template_name", today)
 
     # Setup training configuration
     training_args = SFTConfig(
@@ -114,12 +114,12 @@ def train_model():
         max_seq_length=max_seq_length,
         disable_tqdm=False,
         packing=True,
-        run_name=f"job_{tfl_trainer.job_id}_{run_suffix}",
-        report_to=tfl_trainer.report_to,
+        run_name=f"job_{tlab_trainer.job_id}_{run_suffix}",
+        report_to=tlab_trainer.report_to,
     )
 
     # Create progress callback
-    progress_callback = tfl_trainer.create_progress_callback(framework="huggingface")
+    progress_callback = tlab_trainer.create_progress_callback(framework="huggingface")
 
     # Create trainer
     trainer = SFTTrainer(

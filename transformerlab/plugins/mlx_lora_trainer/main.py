@@ -12,29 +12,29 @@ import sys
 import os
 from jinja2 import Environment
 
-# Import tfl_trainer from the SDK
-from transformerlab.tfl_decorators import tfl_trainer
+# Import tlab_trainer from the SDK
+from transformerlab.tlab_decorators import tlab_trainer
 from transformerlab.plugin import WORKSPACE_DIR, generate_model_json
 
 
-@tfl_trainer.job_wrapper(progress_start=0, progress_end=100, wandb_project_name="TFL_Training", manual_logging=True)
+@tlab_trainer.job_wrapper(progress_start=0, progress_end=100, wandb_project_name="TLab_Training", manual_logging=True)
 def train_mlx_lora():
     jinja_environment = Environment()
     plugin_dir = os.path.dirname(os.path.realpath(__file__))
     print("Plugin dir:", plugin_dir)
 
     # Extract configuration parameters
-    lora_layers = getattr(tfl_trainer, "lora_layers", "16")
-    learning_rate = getattr(tfl_trainer, "learning_rate", "5e-5")
-    batch_size = str(getattr(tfl_trainer, "batch_size", "4"))
-    steps_per_eval = str(getattr(tfl_trainer, "steps_per_eval", "200"))
-    iters = getattr(tfl_trainer, "iters", "1000")
-    adaptor_name = getattr(tfl_trainer, "adaptor_name", "default")
-    fuse_model = getattr(tfl_trainer, "fuse_model", True)
+    lora_layers = getattr(tlab_trainer, "lora_layers", "16")
+    learning_rate = getattr(tlab_trainer, "learning_rate", "5e-5")
+    batch_size = str(getattr(tlab_trainer, "batch_size", "4"))
+    steps_per_eval = str(getattr(tlab_trainer, "steps_per_eval", "200"))
+    iters = getattr(tlab_trainer, "iters", "1000")
+    adaptor_name = getattr(tlab_trainer, "adaptor_name", "default")
+    fuse_model = getattr(tlab_trainer, "fuse_model", True)
 
     # Check if LoRA parameters are set
-    lora_rank = getattr(tfl_trainer, "lora_rank", None)
-    lora_alpha = getattr(tfl_trainer, "lora_alpha", None)
+    lora_rank = getattr(tlab_trainer, "lora_rank", None)
+    lora_alpha = getattr(tlab_trainer, "lora_alpha", None)
 
     # LoRA parameters have to be passed in a config file
     config_file = None
@@ -56,8 +56,8 @@ def train_mlx_lora():
             print("LoRA config:")
             print(lora_config)
 
-    # Load the dataset using tfl_trainer
-    datasets = tfl_trainer.load_dataset(["train", "valid"])
+    # Load the dataset using tlab_trainer
+    datasets = tlab_trainer.load_dataset(["train", "valid"])
 
     # Directory for storing temporary working files
     data_directory = f"{WORKSPACE_DIR}/plugins/mlx_lora_trainer/data"
@@ -65,7 +65,7 @@ def train_mlx_lora():
         os.makedirs(data_directory)
 
     # Go over each dataset split and render a new file based on the template
-    formatting_template = jinja_environment.from_string(tfl_trainer.formatting_template)
+    formatting_template = jinja_environment.from_string(tlab_trainer.formatting_template)
 
     for split_name in datasets:
         # Get the dataset from our loaded datasets
@@ -89,9 +89,9 @@ def train_mlx_lora():
     print(example)
 
     # Set output directory for the adaptor
-    adaptor_output_dir = getattr(tfl_trainer, "adaptor_output_dir", "")
+    adaptor_output_dir = getattr(tlab_trainer, "adaptor_output_dir", "")
     if adaptor_output_dir == "" or adaptor_output_dir is None:
-        adaptor_output_dir = os.path.join(WORKSPACE_DIR, "adaptors", tfl_trainer.model_name, adaptor_name)
+        adaptor_output_dir = os.path.join(WORKSPACE_DIR, "adaptors", tlab_trainer.model_name, adaptor_name)
         print("Using default adaptor output directory:", adaptor_output_dir)
     if not os.path.exists(adaptor_output_dir):
         os.makedirs(adaptor_output_dir)
@@ -102,7 +102,7 @@ def train_mlx_lora():
         "-um",
         "mlx_lm.lora",
         "--model",
-        tfl_trainer.model_name,
+        tlab_trainer.model_name,
         "--iters",
         iters,
         "--train",
@@ -117,11 +117,11 @@ def train_mlx_lora():
         "--data",
         data_directory,
         "--steps-per-report",
-        getattr(tfl_trainer, "steps_per_report", "10"),
+        getattr(tlab_trainer, "steps_per_report", "10"),
         "--steps-per-eval",
         steps_per_eval,
         "--save-every",
-        getattr(tfl_trainer, "save_every", "100"),
+        getattr(tlab_trainer, "save_every", "100"),
     ]
 
     # If a config file has been created then include it
@@ -135,7 +135,7 @@ def train_mlx_lora():
     print("Adaptor will be saved in:", adaptor_output_dir)
 
     # Setup tensorboard writer
-    output_dir = tfl_trainer.tensorboard_output_dir
+    output_dir = tlab_trainer.tensorboard_output_dir
     print("Writing logs to:", output_dir)
 
     # Run the MLX LoRA training process
@@ -150,7 +150,7 @@ def train_mlx_lora():
                 iteration = int(match.group(1))
                 percent_complete = float(iteration) / float(iters) * 100
                 print("Progress: ", f"{percent_complete:.2f}%")
-                tfl_trainer.progress_update(percent_complete)
+                tlab_trainer.progress_update(percent_complete)
 
                 # Parse training metrics
                 pattern = (
@@ -163,9 +163,9 @@ def train_mlx_lora():
                     tokens_per_sec = float(match.group(4))
                     print("Training Loss: ", loss)
 
-                    tfl_trainer.log_metric("train/loss", loss, iteration)
-                    tfl_trainer.log_metric("train/it_per_sec", it_per_sec, iteration)
-                    tfl_trainer.log_metric("train/tokens_per_sec", tokens_per_sec, iteration)
+                    tlab_trainer.log_metric("train/loss", loss, iteration)
+                    tlab_trainer.log_metric("train/it_per_sec", it_per_sec, iteration)
+                    tlab_trainer.log_metric("train/tokens_per_sec", tokens_per_sec, iteration)
 
                 # Parse validation metrics
                 else:
@@ -174,7 +174,7 @@ def train_mlx_lora():
                     if match:
                         validation_loss = float(match.group(1))
                         print("Validation Loss: ", validation_loss)
-                        tfl_trainer.log_metric("valid/loss", validation_loss, iteration)
+                        tlab_trainer.log_metric("valid/loss", validation_loss, iteration)
 
             print(line, end="", flush=True)
 
@@ -192,7 +192,7 @@ def train_mlx_lora():
     else:
         print("Now fusing the adaptor with the model.")
 
-        model_name = tfl_trainer.model_name
+        model_name = tlab_trainer.model_name
         if "/" in model_name:
             model_name = model_name.split("/")[-1]
         fused_model_name = f"{model_name}_{adaptor_name}"
@@ -207,7 +207,7 @@ def train_mlx_lora():
             "-m",
             "mlx_lm.fuse",
             "--model",
-            tfl_trainer.model_name,
+            tlab_trainer.model_name,
             "--adapter-path",
             adaptor_output_dir,
             "--save-path",
@@ -224,7 +224,7 @@ def train_mlx_lora():
 
             if return_code == 0:
                 json_data = {
-                    "description": f"An MLX model trained and generated by Transformer Lab based on {tfl_trainer.model_name}"
+                    "description": f"An MLX model trained and generated by Transformer Lab based on {tlab_trainer.model_name}"
                 }
                 generate_model_json(fused_model_name, "MLX", json_data=json_data)
                 print("Finished fusing the adaptor with the model.")

@@ -10,7 +10,7 @@ from datasets import load_dataset, get_dataset_split_names
 from transformerlab.plugin import Job, get_dataset_path, test_wandb_login
 
 
-class TFLPlugin:
+class TLabPlugin:
     """Decorator class for TransformerLab plugins with automatic argument handling"""
 
     def __init__(self):
@@ -49,7 +49,7 @@ class TFLPlugin:
         self,
         progress_start: int = 0,
         progress_end: int = 100,
-        wandb_project_name: str = "TFL_Training",
+        wandb_project_name: str = "TLab_Training",
         manual_logging=False,
     ):
         """Decorator for wrapping a function with job status updates"""
@@ -69,7 +69,7 @@ class TFLPlugin:
 
                 try:
                     # Setup logging
-                    if self.tfl_plugin_type == "trainer":
+                    if self.tlab_plugin_type == "trainer":
                         self.setup_train_logging(wandb_project_name=wandb_project_name, manual_logging=manual_logging)
                     # Call the wrapped function
                     result = func(*args, **kwargs)
@@ -105,7 +105,7 @@ class TFLPlugin:
         self,
         progress_start: int = 0,
         progress_end: int = 100,
-        wandb_project_name: str = "TFL_Training",
+        wandb_project_name: str = "TLab_Training",
         manual_logging=False,
     ):
         """Decorator for wrapping an async function with job status updates"""
@@ -130,7 +130,7 @@ class TFLPlugin:
                 async def run_async():
                     try:
                         # Setup logging
-                        if self.tfl_plugin_type == "trainer":
+                        if self.tlab_plugin_type == "trainer":
                             self.setup_train_logging(
                                 wandb_project_name=wandb_project_name, manual_logging=manual_logging
                             )
@@ -229,12 +229,12 @@ class TFLPlugin:
             raise
 
 
-class TrainerTFLPlugin(TFLPlugin):
+class TrainerTLabPlugin(TLabPlugin):
     """Enhanced decorator class for TransformerLab training plugins"""
 
     def __init__(self):
         super().__init__()
-        self.tfl_plugin_type = "trainer"
+        self.tlab_plugin_type = "trainer"
         # Add training-specific default arguments
         self._parser.add_argument("--input_file", type=str, help="Path to configuration file")
 
@@ -273,26 +273,26 @@ class TrainerTFLPlugin(TFLPlugin):
             try:
                 from transformers import TrainerCallback
 
-                class TFLProgressCallback(TrainerCallback):
+                class TLabProgressCallback(TrainerCallback):
                     """Callback that updates progress in TransformerLab DB during HuggingFace training"""
 
-                    def __init__(self, tfl_instance):
-                        self.tfl = tfl_instance
+                    def __init__(self, tlab_instance):
+                        self.tlab = tlab_instance
 
                     def on_step_end(self, args, state, control, **callback_kwargs):
                         if state.is_local_process_zero:
                             if state.max_steps > 0:
                                 progress = state.global_step / state.max_steps
                                 progress = int(progress * 100)
-                                self.tfl.progress_update(progress)
+                                self.tlab.progress_update(progress)
 
                                 # Check if job should be stopped
-                                if self.tfl.job.should_stop:
+                                if self.tlab.job.should_stop:
                                     control.should_training_stop = True
 
                         return control
 
-                return TFLProgressCallback(self)
+                return TLabProgressCallback(self)
 
             except ImportError:
                 raise ImportError("Could not create HuggingFace callback. Please install transformers package.")
@@ -327,7 +327,7 @@ class TrainerTFLPlugin(TFLPlugin):
             self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise
 
-    def setup_train_logging(self, wandb_project_name: str = "TFL_Training", manual_logging=False):
+    def setup_train_logging(self, wandb_project_name: str = "TLab_Training", manual_logging=False):
         """Setup Weights and Biases and TensorBoard logging
 
         Args:
@@ -396,5 +396,5 @@ class TrainerTFLPlugin(TFLPlugin):
 
 
 # Create singleton instances
-tfl = TFLPlugin()
-tfl_trainer = TrainerTFLPlugin()
+tlab = TLabPlugin()
+tlab_trainer = TrainerTLabPlugin()
