@@ -22,6 +22,7 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
     experiment_details = await db.experiment_get(id=experimentId)
     experiment_config = json.loads(experiment_details["config"])
     model = experiment_config.get("foundation")
+    embedding_model = experiment_config.get("embedding_model")
 
     print("Querying RAG with model " + model + " and query " + query + " and settings " + settings)
 
@@ -44,6 +45,8 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
         plugin_path,
         "--model_name",
         model,
+        "--embedding_model",
+        embedding_model,
         "--query",
         query,
         "--documents_dir",
@@ -85,8 +88,9 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
     experiment_details = await db.experiment_get(id=experimentId)
     experiment_config = json.loads(experiment_details["config"])
     model = experiment_config.get("foundation")
+    embedding_model = experiment_config.get("embedding_model")
 
-    print("Reindexing RAG with model " + model)
+    print("Reindexing RAG with embedding model " + embedding_model)
 
     plugin = experiment_config.get("rag_engine")
 
@@ -107,6 +111,8 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
         plugin_path,
         "--model_name",
         model,
+        "--embedding_model",
+        embedding_model,
         "--index",
         "True",
         "--documents_dir",

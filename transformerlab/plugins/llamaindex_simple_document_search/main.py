@@ -14,12 +14,12 @@ import time
 # Redirect all output to a buffer that we control:
 
 
-def index_documents(documents_dir, persistency_dir):
+def index_documents(documents_dir, persistency_dir, embedding_model="BAAI/bge-small-en-v1.5"):
     reader = SimpleDirectoryReader(input_dir=documents_dir, exclude_hidden=False)
     documents = reader.load_data()
     sys.stderr.write(f"Loaded {len(documents)} docs")
 
-    Settings.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
+    Settings.embed_model = HuggingFaceEmbedding(model_name=embedding_model, trust_remote_code=True)
 
     vector_index = VectorStoreIndex.from_documents(
         documents,
@@ -32,6 +32,7 @@ def index_documents(documents_dir, persistency_dir):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_name", type=str, required=True)
+    parser.add_argument("--embedding_model", default="BAAI/bge-small-en-v1.5", type=str, required=False)
     parser.add_argument("--documents_dir", default="", type=str, required=True)
     # parser.add_argument('--query', default='', type=str, required=True)
     parser.add_argument("--settings", default="", type=str, required=False)
@@ -47,7 +48,7 @@ def main():
 
     if args.index:
         start_time = time.time()
-        index_documents(documents_dir, persistency_dir)
+        index_documents(documents_dir, persistency_dir, args.embedding_model)
         elapsed_time = time.time() - start_time
 
         result = {"status": "success", "elapsed_time": elapsed_time}
@@ -57,10 +58,10 @@ def main():
     # SETTINGS
     number_of_search_results = 2
 
-    Settings.context_window = 4096
+    Settings.context_window = 2048
     Settings.num_output = 256
 
-    Settings.chunk_size = 512
+    Settings.chunk_size = 256
     Settings.chunk_overlap = 50
 
     response_mode = "compact"
@@ -108,14 +109,14 @@ def main():
         model=model_short_name,
         is_chat_model=True,
         timeout=40,
-        # context_window=32000,
+        context_window=Settings.context_window,
         tokenizer=model_short_name,
         temperature=temperature,
     )
 
     Settings.llm = llm
 
-    Settings.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
+    Settings.embed_model = HuggingFaceEmbedding(model_name=args.embedding_model, trust_remote_code=True)
     Settings.callback_manager = callback_manager
 
     storage_context = StorageContext.from_defaults(persist_dir=persistency_dir)
