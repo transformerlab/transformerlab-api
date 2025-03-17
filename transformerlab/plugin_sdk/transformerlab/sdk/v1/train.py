@@ -27,8 +27,6 @@ class TrainerTLabPlugin(TLabPlugin):
             self._args_parsed = True
 
         if self._args_parsed and not self._config_parsed:
-            print("PARAMS", self.params)
-            print("TYPE PARAMS", type(self.params))
             if getattr(self.params, "input_file") is not None:
                 self.load_config()
                 self._config_parsed = True

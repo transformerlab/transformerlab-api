@@ -3,7 +3,7 @@ import argparse
 import functools
 import asyncio
 import traceback
-from typing import List, Any, Dict
+from typing import List, Any
 from datasets import load_dataset, get_dataset_split_names
 
 from transformerlab.plugin import Job, get_dataset_path
