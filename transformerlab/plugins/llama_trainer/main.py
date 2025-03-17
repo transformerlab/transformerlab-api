@@ -1,18 +1,20 @@
+import time
+from random import randrange
+
 import torch
 from jinja2 import Environment
-from random import randrange
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
-from trl import SFTTrainer, SFTConfig
+from trl import SFTConfig, SFTTrainer
 
-from transformerlab.tlab_decorators import tlab_trainer
+from transformerlab.sdk.v1.train import tlab_trainer
 
 use_flash_attention = False
 # Initialize Jinja environment
 jinja_environment = Environment()
 
 
-@tlab_trainer.job_wrapper(progress_start=0, progress_end=100)
+@tlab_trainer.job_wrapper()
 def train_model():
     # Configuration is loaded automatically when tlab_trainer methods are called
     datasets = tlab_trainer.load_dataset()
@@ -22,8 +24,8 @@ def train_model():
     print(dataset[randrange(len(dataset))])
 
     # Setup template for formatting
-    print("Formatting template: " + tlab_trainer.formatting_template)
-    template = jinja_environment.from_string(tlab_trainer.formatting_template)
+    print("Formatting template: " + tlab_trainer.params.formatting_template)
+    template = jinja_environment.from_string(tlab_trainer.params.formatting_template)
 
     def format_instruction(mapping):
         return template.render(mapping)
@@ -40,7 +42,7 @@ def train_model():
     )
 
     # Load model
-    model_id = tlab_trainer.model_name
+    model_id = tlab_trainer.params.model_name
 
     try:
         model = AutoModelForCausalLM.from_pretrained(
@@ -62,9 +64,9 @@ def train_model():
         raise
 
     # Setup LoRA - use direct attribute access with safe defaults
-    lora_alpha = int(getattr(tlab_trainer, "lora_alpha", 16))
-    lora_dropout = float(getattr(tlab_trainer, "lora_dropout", 0.05))
-    lora_r = int(getattr(tlab_trainer, "lora_r", 8))
+    lora_alpha = tlab_trainer.params.get("lora_alpha", 16)
+    lora_dropout = tlab_trainer.params.get("lora_dropout", 0.05)
+    lora_r = tlab_trainer.params.get("lora_r", 8)
 
     peft_config = LoraConfig(
         lora_alpha=lora_alpha,
@@ -79,21 +81,18 @@ def train_model():
     model = get_peft_model(model, peft_config)
 
     # Get output directories - use direct attribute access
-    output_dir = getattr(tlab_trainer, "output_dir", "./output")
-    adaptor_output_dir = getattr(tlab_trainer, "adaptor_output_dir", "./adaptor")
+    output_dir = tlab_trainer.params.get("output_dir", "./output")
+    adaptor_output_dir = tlab_trainer.params.get("adaptor_output_dir", "./adaptor")
 
     # Setup training arguments - use direct attribute access
-    max_seq_length = int(getattr(tlab_trainer, "maximum_sequence_length", 2048))
-    num_train_epochs = int(getattr(tlab_trainer, "num_train_epochs", 3))
-    batch_size = int(getattr(tlab_trainer, "batch_size", 4))
-    learning_rate = float(getattr(tlab_trainer, "learning_rate", 2e-4))
-    lr_scheduler = getattr(tlab_trainer, "learning_rate_schedule", "constant")
-
-    # Create unique run name
-    import time
+    max_seq_length = tlab_trainer.params.get("maximum_sequence_length", 2048)
+    num_train_epochs = tlab_trainer.params.get("num_train_epochs", 3)
+    batch_size = tlab_trainer.params.get("batch_size", 4)
+    learning_rate = tlab_trainer.params.get("learning_rate", 2e-4)
+    lr_scheduler = tlab_trainer.params.get("learning_rate_schedule", "constant")
 
     today = time.strftime("%Y%m%d-%H%M%S")
-    run_suffix = getattr(tlab_trainer, "template_name", today)
+    run_suffix = tlab_trainer.params.get("template_name", today)
 
     # Setup training configuration
     training_args = SFTConfig(
@@ -114,7 +113,7 @@ def train_model():
         max_seq_length=max_seq_length,
         disable_tqdm=False,
         packing=True,
-        run_name=f"job_{tlab_trainer.job_id}_{run_suffix}",
+        run_name=f"job_{tlab_trainer.params.job_id}_{run_suffix}",
         report_to=tlab_trainer.report_to,
     )
 

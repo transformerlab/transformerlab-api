@@ -3,7 +3,7 @@ import time
 import re
 import subprocess
 
-from transformerlab.tlab_decorators import tlab_trainer
+from transformerlab.sdk.v1.train import tlab_trainer
 
 # Add custom arguments
 tlab_trainer.add_argument(
@@ -56,7 +56,7 @@ def count_xml(text, start_thinking_string, end_thinking_string, start_answer_str
     return count
 
 
-@tlab_trainer.job_wrapper(progress_start=0, progress_end=100)
+@tlab_trainer.job_wrapper()
 def train_model():
     """Main training function using TrainerTLabPlugin"""
     # Get the dataset from the datasets dict loaded by the decorator
@@ -70,20 +70,20 @@ def train_model():
         "tpu": "tpu",
     }
 
-    train_device = accelerate_config.get(tlab_trainer.train_device, "multi_gpu")
+    train_device = accelerate_config.get(tlab_trainer.params.train_device, "multi_gpu")
     print(f"Training setup for accelerate launch: {train_device}")
 
     # Configure GPU IDs
     gpu_ids = None
     if train_device == "multi_gpu":
-        gpu_ids = tlab_trainer.gpu_ids
+        gpu_ids = tlab_trainer.params.gpu_ids
         if gpu_ids and gpu_ids != "auto":
             gpu_ids = str(gpu_ids)
         if gpu_ids == "auto":
             gpu_ids = None
 
     # Check if we need to launch with accelerate
-    if not getattr(tlab_trainer, "launched_with_accelerate", False):
+    if not tlab_trainer.params.get("launched_with_accelerate", False):
         print("Launching training with accelerate for multi-GPU...")
         env = setup_accelerate_environment()
 
@@ -93,7 +93,7 @@ def train_model():
             f"--{train_device}",
             __file__,
             "--input_file",
-            tlab_trainer.input_file,
+            tlab_trainer.params.input_file,
             "--launched_with_accelerate",
         ]
         if gpu_ids:
@@ -117,28 +117,28 @@ def train_model():
     jinja_environment = Environment()
 
     # Get configuration values from tlab_trainer
-    model_id = tlab_trainer.model_name
-    max_completion_length = int(tlab_trainer.maximum_completion_length)
-    learning_rate = float(tlab_trainer.learning_rate)
-    learning_rate_schedule = tlab_trainer.learning_rate_schedule
-    max_grad_norm = float(tlab_trainer.max_grad_norm)
-    batch_size = int(tlab_trainer.batch_size)
-    num_epochs = int(tlab_trainer.num_train_epochs)
-    weight_decay = float(tlab_trainer.weight_decay)
-    adam_beta1 = float(tlab_trainer.adam_beta1)
-    adam_beta2 = float(tlab_trainer.adam_beta2)
-    adam_epsilon = float(tlab_trainer.adam_epsilon)
-    output_dir = tlab_trainer.output_dir
+    model_id = tlab_trainer.params.model_name
+    max_completion_length = int(tlab_trainer.params.maximum_completion_length)
+    learning_rate = float(tlab_trainer.params.learning_rate)
+    learning_rate_schedule = tlab_trainer.params.learning_rate_schedule
+    max_grad_norm = float(tlab_trainer.params.max_grad_norm)
+    batch_size = int(tlab_trainer.params.batch_size)
+    num_epochs = int(tlab_trainer.params.num_train_epochs)
+    weight_decay = float(tlab_trainer.params.weight_decay)
+    adam_beta1 = float(tlab_trainer.params.adam_beta1)
+    adam_beta2 = float(tlab_trainer.params.adam_beta2)
+    adam_epsilon = float(tlab_trainer.params.adam_epsilon)
+    output_dir = tlab_trainer.params.output_dir
 
     # Get the template strings
-    question_formatting_template = getattr(tlab_trainer, "input_template", "")
-    answer_formatting_template = getattr(tlab_trainer, "output_template", "")
-    instruction_template = getattr(tlab_trainer, "instruction_template", "")
+    question_formatting_template = tlab_trainer.params.get("input_template", "")
+    answer_formatting_template = tlab_trainer.params.get("output_template", "")
+    instruction_template = tlab_trainer.params.get("instruction_template", "")
 
-    start_thinking_string = getattr(tlab_trainer, "start_thinking_string", "<reasoning>")
-    end_thinking_string = getattr(tlab_trainer, "end_thinking_string", "</reasoning>")
-    start_answer_string = getattr(tlab_trainer, "start_answer_string", "<answer>")
-    end_answer_string = getattr(tlab_trainer, "end_answer_string", "</answer>")
+    start_thinking_string = tlab_trainer.params.get("start_thinking_string", "<reasoning>")
+    end_thinking_string = tlab_trainer.params.get("end_thinking_string", "</reasoning>")
+    start_answer_string = tlab_trainer.params.get("start_answer_string", "<answer>")
+    end_answer_string = tlab_trainer.params.get("end_answer_string", "</answer>")
 
     # Determine if the instruction template is missing the necessary strings
     if start_thinking_string not in instruction_template or start_answer_string not in instruction_template:
@@ -222,7 +222,7 @@ def train_model():
 
     # Training run name
     today = time.strftime("%Y%m%d-%H%M%S")
-    run_suffix = getattr(tlab_trainer, "template_name", today)
+    run_suffix = tlab_trainer.params.get("template_name", today)
 
     # GRPO training configuration
     args = GRPOConfig(
@@ -246,7 +246,7 @@ def train_model():
         adam_beta2=adam_beta2,
         adam_epsilon=adam_epsilon,
         disable_tqdm=False,
-        run_name=f"job_{tlab_trainer.job_id}_{run_suffix}",
+        run_name=f"job_{tlab_trainer.params.job_id}_{run_suffix}",
         report_to=tlab_trainer.report_to,
         ddp_find_unused_parameters=False,
         dataloader_pin_memory=True,
@@ -280,7 +280,7 @@ def train_model():
 
     # Save the model
     try:
-        trainer.save_model(output_dir=tlab_trainer.adaptor_output_dir)
+        trainer.save_model(output_dir=tlab_trainer.params.adaptor_output_dir)
     except Exception as e:
         return f"Failed to save model: {str(e)}"
 

@@ -3,7 +3,7 @@ import subprocess
 import time
 from random import randrange
 
-from transformerlab.tlab_decorators import tlab_trainer
+from transformerlab.sdk.v1.train import tlab_trainer
 
 # Add custom arguments
 tlab_trainer.add_argument(
@@ -33,7 +33,7 @@ def setup_accelerate_environment():
     return env
 
 
-@tlab_trainer.job_wrapper(progress_start=0, progress_end=100)
+@tlab_trainer.job_wrapper()
 def train_model():
     """Main training function using TrainerTLabPlugin"""
     # Get configuration from tlab_trainer
@@ -48,20 +48,20 @@ def train_model():
         "tpu": "tpu",
     }
 
-    train_device = accelerate_config.get(tlab_trainer.train_device, "multi_gpu")
+    train_device = accelerate_config.get(tlab_trainer.params.train_device, "multi_gpu")
     print(f"Training setup for accelerate launch: {train_device}")
 
     # Configure GPU IDs
     gpu_ids = None
     if train_device == "multi_gpu":
-        gpu_ids = tlab_trainer.gpu_ids
+        gpu_ids = tlab_trainer.params.gpu_ids
         if gpu_ids and gpu_ids != "auto":
             gpu_ids = str(gpu_ids)
         if gpu_ids == "auto":
             gpu_ids = None
 
     # Check if we need to launch with accelerate
-    if not getattr(tlab_trainer, "launched_with_accelerate", False):
+    if tlab_trainer.params.get("launched_with_accelerate", False):
         print("Launching training with accelerate for multi-GPU...")
         env = setup_accelerate_environment()
 
@@ -97,13 +97,13 @@ def train_model():
     use_flash_attention = False
 
     # Get model info
-    model_id = tlab_trainer.model_name
+    model_id = tlab_trainer.params.model_name
 
     print(f"dataset size: {len(dataset)}")
     print(dataset[randrange(len(dataset))])
-    print("formatting_template: " + tlab_trainer.formatting_template)
+    print("formatting_template: " + tlab_trainer.params.formatting_template)
 
-    template = jinja_environment.from_string(tlab_trainer.formatting_template)
+    template = jinja_environment.from_string(tlab_trainer.params.formatting_template)
 
     def format_instruction(mapping):
         return template.render(mapping)
@@ -137,9 +137,9 @@ def train_model():
 
     # LoRA config
     peft_config = LoraConfig(
-        lora_alpha=int(tlab_trainer.lora_alpha),
-        lora_dropout=float(tlab_trainer.lora_dropout),
-        r=int(tlab_trainer.lora_r),
+        lora_alpha=int(tlab_trainer.params.lora_alpha),
+        lora_dropout=float(tlab_trainer.params.lora_dropout),
+        r=int(tlab_trainer.params.lora_r),
         bias="none",
         task_type="CAUSAL_LM",
     )
@@ -149,32 +149,32 @@ def train_model():
     model = get_peft_model(model, peft_config)
 
     # Training configuration
-    output_dir = getattr(tlab_trainer, "output_dir", "./output")
+    output_dir = tlab_trainer.params.get("output_dir", "./output")
 
     # Setup WandB - decorator would handle this check
     today = time.strftime("%Y%m%d-%H%M%S")
-    run_suffix = getattr(tlab_trainer, "template_name", today)
-    max_seq_length = int(tlab_trainer.maximum_sequence_length)
+    run_suffix = tlab_trainer.params.get("template_name", today)
+    max_seq_length = int(tlab_trainer.params.maximum_sequence_length)
 
     args = SFTConfig(
         output_dir=output_dir,
-        num_train_epochs=int(tlab_trainer.num_train_epochs),
-        per_device_train_batch_size=int(tlab_trainer.batch_size),
+        num_train_epochs=int(tlab_trainer.params.num_train_epochs),
+        per_device_train_batch_size=int(tlab_trainer.params.batch_size),
         gradient_accumulation_steps=2,
         gradient_checkpointing=True,
         optim="paged_adamw_32bit",
         logging_steps=10,
         save_strategy="epoch",
-        learning_rate=float(tlab_trainer.learning_rate),
+        learning_rate=float(tlab_trainer.params.learning_rate),
         bf16=True,
         tf32=True,
         max_grad_norm=0.3,
         warmup_ratio=0.03,
-        lr_scheduler_type=tlab_trainer.learning_rate_schedule,
+        lr_scheduler_type=tlab_trainer.params.learning_rate_schedule,
         max_seq_length=max_seq_length,
         disable_tqdm=False,
         packing=True,
-        run_name=f"job_{tlab_trainer.job_id}_{run_suffix}",
+        run_name=f"job_{tlab_trainer.params.job_id}_{run_suffix}",
         report_to=tlab_trainer.report_to,
         ddp_find_unused_parameters=False,
         dataloader_pin_memory=True,
@@ -199,7 +199,7 @@ def train_model():
     trainer.train()
 
     # Save model
-    trainer.save_model(output_dir=tlab_trainer.adaptor_output_dir)
+    trainer.save_model(output_dir=tlab_trainer.params.adaptor_output_dir)
 
     # Return success message
     return "Adaptor trained successfully"
