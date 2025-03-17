@@ -93,7 +93,7 @@ def generate_nanotron_config():
         "logging": {"iteration_step_info_interval": 1, "log_level": "info", "log_level_replica": "info"},
         "model": {
             "ddp_bucket_cap_mb": 25,
-            "dtype": tlab_trainer.params.get("dtype", "bfloat16"),
+            "dtype": tlab_trainer.params.get("mixed_precision", "bfloat16"),
             "init_method": {"std": 0.025},
             "make_vocab_size_divisible_by": 1,
             "model_config": {
@@ -106,7 +106,7 @@ def generate_nanotron_config():
                 "is_llama_config": True,
                 "max_position_embeddings": int(tlab_trainer.params.get("maximum_sequence_length", 256)),
                 "num_attention_heads": int(tlab_trainer.params.get("model_num_attention_heads", 4)),
-                "num_hiddn_layers": int(tlab_trainer.params.get("model_num_layers", 2)),
+                "num_hidden_layers": int(tlab_trainer.params.get("model_num_layers", 2)),
                 "num_key_value_heads": int(tlab_trainer.params.get("model_num_key_value_heads", 4)),
                 "pad_token_id": None,
                 "pretraining_tp": 1,

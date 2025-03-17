@@ -64,9 +64,9 @@ def train_model():
         raise
 
     # Setup LoRA - use direct attribute access with safe defaults
-    lora_alpha = tlab_trainer.params.get("lora_alpha", 16)
-    lora_dropout = tlab_trainer.params.get("lora_dropout", 0.05)
-    lora_r = tlab_trainer.params.get("lora_r", 8)
+    lora_alpha = int(tlab_trainer.params.get("lora_alpha", 16))
+    lora_dropout = float(tlab_trainer.params.get("lora_dropout", 0.05))
+    lora_r = int(tlab_trainer.params.get("lora_r", 8))
 
     peft_config = LoraConfig(
         lora_alpha=lora_alpha,
@@ -85,10 +85,10 @@ def train_model():
     adaptor_output_dir = tlab_trainer.params.get("adaptor_output_dir", "./adaptor")
 
     # Setup training arguments - use direct attribute access
-    max_seq_length = tlab_trainer.params.get("maximum_sequence_length", 2048)
-    num_train_epochs = tlab_trainer.params.get("num_train_epochs", 3)
-    batch_size = tlab_trainer.params.get("batch_size", 4)
-    learning_rate = tlab_trainer.params.get("learning_rate", 2e-4)
+    max_seq_length = int(tlab_trainer.params.get("maximum_sequence_length", 2048))
+    num_train_epochs = int(tlab_trainer.params.get("num_train_epochs", 3))
+    batch_size = int(tlab_trainer.params.get("batch_size", 4))
+    learning_rate = float(tlab_trainer.params.get("learning_rate", 2e-4))
     lr_scheduler = tlab_trainer.params.get("learning_rate_schedule", "constant")
 
     today = time.strftime("%Y%m%d-%H%M%S")
