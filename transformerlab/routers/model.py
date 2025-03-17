@@ -597,6 +597,7 @@ async def model_gets_pefts(
 @router.get("/model/delete_peft")
 async def model_delete_peft(model_id: str, peft: str):
     workspace_dir = dirs.WORKSPACE_DIR
+    model_id = secure_filename(model_id)
     adaptors_dir = f"{workspace_dir}/adaptors/{model_id}"
     peft_path = f"{adaptors_dir}/{peft}"
     shutil.rmtree(peft_path)
