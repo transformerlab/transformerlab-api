@@ -61,7 +61,7 @@ def train_model():
             gpu_ids = None
 
     # Check if we need to launch with accelerate
-    if tlab_trainer.params.get("launched_with_accelerate", False):
+    if not tlab_trainer.params.get("launched_with_accelerate", False):
         print("Launching training with accelerate for multi-GPU...")
         env = setup_accelerate_environment()
 
@@ -71,7 +71,7 @@ def train_model():
             f"--{train_device}",
             __file__,
             "--input_file",
-            tlab_trainer.input_file,
+            tlab_trainer.params.input_file,
             "--launched_with_accelerate",
         ]
         if gpu_ids:
