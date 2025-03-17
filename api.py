@@ -11,6 +11,7 @@ import signal
 import subprocess
 from contextlib import asynccontextmanager
 import sys
+from werkzeug.utils import secure_filename
 
 import fastapi
 import httpx
@@ -252,7 +253,7 @@ async def server_worker_start(
         model = model_filename
 
     if adaptor != "":
-        adaptor = f"{dirs.WORKSPACE_DIR}/adaptors/{model}/{adaptor}"
+        adaptor = f"{dirs.WORKSPACE_DIR}/adaptors/{secure_filename(model)}/{adaptor}"
 
     params = [
         dirs.PLUGIN_HARNESS,
