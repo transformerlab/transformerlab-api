@@ -1,1 +1,1 @@
-uv pip install deepeval tensorboardX instructor
+uv pip install deepeval tensorboardX instructor anthropic openai instructor
