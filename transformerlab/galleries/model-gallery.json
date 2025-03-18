@@ -1666,11 +1666,12 @@
     },
     {
         "uniqueID": "mistralai/Mistral-Small-3.1-24B-Instruct-2503",
-        "name": "Mistral-Small-3.1-24B-Instruct-2503",
-        "description": "",
-        "parameters": "",
-        "context": "2048",
+        "name": "Mistral Small 3.1 24B Instruct 2503",
+        "description": "Building upon Mistral Small 3 (2501), Mistral Small 3.1 (2503) adds state-of-the-art vision understanding and enhances long context capabilities up to 128k tokens without compromising text performance.",
+        "parameters": "24B",
+        "context": "128000",
         "architecture": "Mistral3ForConditionalGeneration",
+        "added": "2025-03-18",
         "formats": [
             "Safetensors"
         ],
@@ -1678,8 +1679,8 @@
         "transformers_version": "4.50.0.dev0",
         "gated": false,
         "license": "apache-2.0",
-        "logo": "",
-        "size_of_model_in_mb": 0,
+        "logo": "https://docs.mistral.ai/img/logo.svg",
+        "size_of_model_in_mb": 91627,
         "author": {
             "name": "mistralai",
             "url": "https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503",
@@ -1693,11 +1694,12 @@
     },
     {
         "uniqueID": "mistralai/Mistral-Small-3.1-24B-Base-2503",
-        "name": "Mistral-Small-3.1-24B-Base-2503",
-        "description": "",
-        "parameters": "",
-        "context": "2048",
+        "name": "Mistral Small 3.1 24B Base 2503",
+        "description": "Building upon Mistral Small 3 (2501), Mistral Small 3.1 (2503) adds state-of-the-art vision understanding and enhances long context capabilities up to 128k tokens without compromising text performance.",
+        "parameters": "24B",
+        "context": "128000",
         "architecture": "Mistral3ForConditionalGeneration",
+        "added": "2025-03-18",
         "formats": [
             "Safetensors"
         ],
@@ -1705,8 +1707,8 @@
         "transformers_version": "4.50.0.dev0",
         "gated": false,
         "license": "apache-2.0",
-        "logo": "",
-        "size_of_model_in_mb": 0,
+        "logo": "https://docs.mistral.ai/img/logo.svg",
+        "size_of_model_in_mb": 91627,
         "author": {
             "name": "mistralai",
             "url": "https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Base-2503",
