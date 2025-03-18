@@ -21,6 +21,8 @@ async def tasks_delete_all():
     await db.tasks_delete_all()
     return {"message":"OK"}
 
+# These functions convert templates to tasks so that we can do a migration in dev without breaking main for users
+# Right now it can do trains, evals, and generates
 @router.get("/convert_training_template_to_task")
 async def convert_training_template_to_task(template_id: int, experiment_id: int):
     template = await db.get_training_template(template_id)
@@ -47,6 +49,7 @@ async def convert_generate_to_task(generate_name: str, experiment_id: int):
             await db.add_task(generation["name"], "GENERATE", "{}", json.dumps(generation), generation["plugin"], "{}", experiment_id)
     return {"message":"OK"}
 
+#this function is the "convert all" function so that its just 1 api call
 @router.get("/{experiment_id}/convert_all_to_tasks")
 async def convert_all_to_tasks(experiment_id):
     #train templates
@@ -71,18 +74,25 @@ async def queue_task(task_id: int, inputs: str = "{}", outputs:str = "{}"):
     job_type = task_to_queue["type"]
     job_status = "QUEUED"
     job_data = {}
+    #these are the input and output configs from the task
     input_config = json.loads(task_to_queue["input_config"])
     output_config = json.loads(task_to_queue["output_config"])
+
+    #these are the in runtime changes that will override the input and output config from the task
     inputs = json.loads(inputs)
     outputs = json.loads(outputs)
     if job_type == "TRAIN":
         job_data["config"] = json.loads(task_to_queue["config"])
         job_data["model_name"] = input_config["model_name"]
         job_data["dataset"] = input_config["dataset_name"]
+
+        #sets the inputs and outputs from the task
         for key in input_config.keys():
             job_data["config"][key] = input_config[key]
         for key in output_config.keys():
             job_data["config"][key] = output_config[key]
+
+        #overrides the inputs and outputs based on the runtime changes requested
         for key in inputs.keys():
             if key=="model_name":
                 job_data["model_name"] = inputs["model_name"]
@@ -91,6 +101,8 @@ async def queue_task(task_id: int, inputs: str = "{}", outputs:str = "{}"):
             job_data["config"][key] = inputs[key]
         for key in outputs.keys():
             job_data["config"][key] = outputs[key]
+
+
         job_data["template_id"] = task_to_queue["id"]
         job_data["template_name"] = task_to_queue["name"]
     elif job_type == "EVAL":
