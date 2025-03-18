@@ -6,7 +6,8 @@
     "type": "loader",
     "version": "1.0.2",
     "model_architectures": [
-      "LlavaForConditionalGeneration"
+      "LlavaForConditionalGeneration",
+      "Mistral3ForConditionalGeneration"
     ],
     "files": [
       "main.py",

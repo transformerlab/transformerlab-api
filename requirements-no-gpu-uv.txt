@@ -74,7 +74,7 @@ frozenlist==1.5.0
     # via
     #   aiohttp
     #   aiosignal
-fschat==0.2.36
+fschat @ git+https://github.com/transformerlab/FastChat@464498217bcfc22c013536995d2a10d4f2c2c5bd
     # via -r requirements.in
 fsspec==2024.2.0
     # via
@@ -204,6 +204,7 @@ psutil==6.1.1
     # via
     #   -r requirements.in
     #   accelerate
+    #   fschat
     #   peft
     #   py7zr
     #   wandb
@@ -222,9 +223,12 @@ pydantic==2.10.6
     #   -r requirements.in
     #   fastapi
     #   fschat
+    #   pydantic-settings
     #   wandb
 pydantic-core==2.27.2
     # via pydantic
+pydantic-settings==2.8.1
+    # via fschat
 pygments==2.19.1
     # via
     #   markdown2
@@ -233,6 +237,8 @@ pyppmd==1.1.1
     # via py7zr
 python-dateutil==2.9.0.post0
     # via pandas
+python-dotenv==1.0.1
+    # via pydantic-settings
 python-multipart==0.0.20
     # via -r requirements.in
 pytz==2024.2
@@ -337,7 +343,7 @@ tqdm==4.66.5
     #   nltk
     #   peft
     #   transformers
-transformers==4.48.0
+transformers @ git+https://github.com/huggingface/transformers@30580f035b3e3c449865fb1c0730f89820f98f34
     # via
     #   -r requirements.in
     #   peft
