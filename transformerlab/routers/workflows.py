@@ -26,6 +26,7 @@ async def workflow_delete_all():
     await db.workflow_delete_all()
     return {"message": "OK"}
 
+
 @router.get("/create")
 async def workflow_create(name: str, config: str = '{"nodes":[]}', experiment_id="1"):
     config = json.loads(config)
@@ -43,6 +44,7 @@ async def workflow_create_empty(name: str, experiment_id="1"):
     workflow_id = await db.workflow_create(name, json.dumps(config), experiment_id)
     return workflow_id
 
+
 @router.get("/{workflow_id}/{node_id}/edit_node_metadata")
 async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: str):
     workflow = await db.workflows_get_by_id(workflow_id)
@@ -54,6 +56,7 @@ async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: 
 
     await db.workflow_update_config(workflow_id, json.dumps(config))
     return {"message": "OK"}
+
 
 @router.get("/{workflow_id}/add_node")
 async def workflow_add_node(workflow_id: str, node: str):
@@ -74,6 +77,7 @@ async def workflow_add_node(workflow_id: str, node: str):
     await db.workflow_update_config(workflow_id, json.dumps(config))
     return {"message": "OK"}
 
+
 @router.post("/{workflow_id}/{node_id}/update_node")
 async def workflow_update_node(workflow_id: str, node_id: str, new_node: dict = Body()):
     workflow = await db.workflows_get_by_id(workflow_id)
@@ -91,6 +95,7 @@ async def workflow_update_node(workflow_id: str, node_id: str, new_node: dict = 
 
     await db.workflow_update_config(workflow_id, json.dumps(config))
     return {"message": "OK"}
+
 
 @router.post("/{workflow_id}/{start_node_id}/add_edge")
 async def workflow_add_edge(workflow_id: str, start_node_id: str, end_node_id: str):
@@ -136,6 +141,7 @@ async def workflow_delete_node(workflow_id: str, node_id: str):
     await db.workflow_update_config(workflow_id, json.dumps(config))
     return {"message": "OK"}
 
+
 @router.get("/{workflow_id}/export_to_yaml")
 async def workflow_export_to_yaml(workflow_id: str):
     workflow = await db.workflows_get_by_id(workflow_id)
@@ -151,9 +157,9 @@ async def workflow_export_to_yaml(workflow_id: str):
     workflow["config"] = json.loads(workflow["config"])
 
     filename = f"{workflow['name']}.yaml"
-    with open(filename,"w") as yaml_file:
+    with open(filename, "w") as yaml_file:
         yaml.dump(workflow, yaml_file)
-    return FileResponse(filename,filename=filename)
+    return FileResponse(filename, filename=filename)
 
 
 @router.post("/import_from_yaml")
@@ -163,10 +169,12 @@ async def workflow_import_from_yaml(file: UploadFile, experiment_id="1"):
     await db.workflow_create(workflow["name"], json.dumps(workflow["config"]), experiment_id)
     return {"message": "OK"}
 
+
 @router.get("/{workflow_id}/start")
 async def start_workflow(workflow_id):
     await db.workflow_update_status(workflow_id, "RUNNING")
     return {"message": "OK"}
+
 
 @router.get("/start_next_step")
 async def start_next_step_in_workflow():
@@ -220,7 +228,6 @@ async def start_next_step_in_workflow():
         await db.workflow_update_status(workflow_id, "COMPLETE")
         await db.workflow_update_with_new_job(workflow_id, "[]", -1)  # Reset current job.
         return {"message": "Workflow Complete!"}
-
 
     next_node = None
     for node in workflow_config["nodes"]:

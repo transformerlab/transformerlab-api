@@ -3,10 +3,10 @@ import time
 import re
 import subprocess
 
-from transformerlab.tfl_decorators import tfl_trainer
+from transformerlab.sdk.v1.train import tlab_trainer
 
 # Add custom arguments
-tfl_trainer.add_argument(
+tlab_trainer.add_argument(
     "--launched_with_accelerate", action="store_true", help="Flag to prevent recursive subprocess launching"
 )
 
@@ -16,14 +16,14 @@ def setup_accelerate_environment():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     api_dir = os.path.abspath(os.path.join(current_dir, "../../.."))
     env = os.environ.copy()
-    tfl_source_dir = os.environ.get("_TFL_SOURCE_CODE_DIR")
+    tlab_source_dir = os.environ.get("_TFL_SOURCE_CODE_DIR")
     python_path = env.get("PYTHONPATH", "")
     paths_to_include = [api_dir]
 
-    if tfl_source_dir:
-        tflab_sdk_path = os.path.join(tfl_source_dir, "transformerlab", "plugin_sdk")
-        paths_to_include.append(tflab_sdk_path)
-        plugin_parent = os.path.join(tfl_source_dir, "transformerlab")
+    if tlab_source_dir:
+        tlabab_sdk_path = os.path.join(tlab_source_dir, "transformerlab", "plugin_sdk")
+        paths_to_include.append(tlabab_sdk_path)
+        plugin_parent = os.path.join(tlab_source_dir, "transformerlab")
         paths_to_include.append(plugin_parent)
 
     if python_path:
@@ -56,11 +56,11 @@ def count_xml(text, start_thinking_string, end_thinking_string, start_answer_str
     return count
 
 
-@tfl_trainer.job_wrapper(progress_start=0, progress_end=100)
+@tlab_trainer.job_wrapper()
 def train_model():
-    """Main training function using TrainerTFLPlugin"""
+    """Main training function using TrainerTLabPlugin"""
     # Get the dataset from the datasets dict loaded by the decorator
-    datasets = tfl_trainer.load_dataset(dataset_types=["train"])
+    datasets = tlab_trainer.load_dataset(dataset_types=["train"])
     dataset = datasets["train"]
 
     # Set up accelerate configuration
@@ -70,20 +70,20 @@ def train_model():
         "tpu": "tpu",
     }
 
-    train_device = accelerate_config.get(tfl_trainer.train_device, "multi_gpu")
+    train_device = accelerate_config.get(tlab_trainer.params.train_device, "multi_gpu")
     print(f"Training setup for accelerate launch: {train_device}")
 
     # Configure GPU IDs
     gpu_ids = None
     if train_device == "multi_gpu":
-        gpu_ids = tfl_trainer.gpu_ids
+        gpu_ids = tlab_trainer.params.gpu_ids
         if gpu_ids and gpu_ids != "auto":
             gpu_ids = str(gpu_ids)
         if gpu_ids == "auto":
             gpu_ids = None
 
     # Check if we need to launch with accelerate
-    if not getattr(tfl_trainer, "launched_with_accelerate", False):
+    if not tlab_trainer.params.get("launched_with_accelerate", False):
         print("Launching training with accelerate for multi-GPU...")
         env = setup_accelerate_environment()
 
@@ -93,7 +93,7 @@ def train_model():
             f"--{train_device}",
             __file__,
             "--input_file",
-            tfl_trainer.input_file,
+            tlab_trainer.params.input_file,
             "--launched_with_accelerate",
         ]
         if gpu_ids:
@@ -116,29 +116,29 @@ def train_model():
 
     jinja_environment = Environment()
 
-    # Get configuration values from tfl_trainer
-    model_id = tfl_trainer.model_name
-    max_completion_length = int(tfl_trainer.maximum_completion_length)
-    learning_rate = float(tfl_trainer.learning_rate)
-    learning_rate_schedule = tfl_trainer.learning_rate_schedule
-    max_grad_norm = float(tfl_trainer.max_grad_norm)
-    batch_size = int(tfl_trainer.batch_size)
-    num_epochs = int(tfl_trainer.num_train_epochs)
-    weight_decay = float(tfl_trainer.weight_decay)
-    adam_beta1 = float(tfl_trainer.adam_beta1)
-    adam_beta2 = float(tfl_trainer.adam_beta2)
-    adam_epsilon = float(tfl_trainer.adam_epsilon)
-    output_dir = tfl_trainer.output_dir
+    # Get configuration values from tlab_trainer
+    model_id = tlab_trainer.params.model_name
+    max_completion_length = int(tlab_trainer.params.maximum_completion_length)
+    learning_rate = float(tlab_trainer.params.learning_rate)
+    learning_rate_schedule = tlab_trainer.params.learning_rate_schedule
+    max_grad_norm = float(tlab_trainer.params.max_grad_norm)
+    batch_size = int(tlab_trainer.params.batch_size)
+    num_epochs = int(tlab_trainer.params.num_train_epochs)
+    weight_decay = float(tlab_trainer.params.weight_decay)
+    adam_beta1 = float(tlab_trainer.params.adam_beta1)
+    adam_beta2 = float(tlab_trainer.params.adam_beta2)
+    adam_epsilon = float(tlab_trainer.params.adam_epsilon)
+    output_dir = tlab_trainer.params.output_dir
 
     # Get the template strings
-    question_formatting_template = getattr(tfl_trainer, "input_template", "")
-    answer_formatting_template = getattr(tfl_trainer, "output_template", "")
-    instruction_template = getattr(tfl_trainer, "instruction_template", "")
+    question_formatting_template = tlab_trainer.params.get("input_template", "")
+    answer_formatting_template = tlab_trainer.params.get("output_template", "")
+    instruction_template = tlab_trainer.params.get("instruction_template", "")
 
-    start_thinking_string = getattr(tfl_trainer, "start_thinking_string", "<reasoning>")
-    end_thinking_string = getattr(tfl_trainer, "end_thinking_string", "</reasoning>")
-    start_answer_string = getattr(tfl_trainer, "start_answer_string", "<answer>")
-    end_answer_string = getattr(tfl_trainer, "end_answer_string", "</answer>")
+    start_thinking_string = tlab_trainer.params.get("start_thinking_string", "<reasoning>")
+    end_thinking_string = tlab_trainer.params.get("end_thinking_string", "</reasoning>")
+    start_answer_string = tlab_trainer.params.get("start_answer_string", "<answer>")
+    end_answer_string = tlab_trainer.params.get("end_answer_string", "</answer>")
 
     # Determine if the instruction template is missing the necessary strings
     if start_thinking_string not in instruction_template or start_answer_string not in instruction_template:
@@ -222,7 +222,7 @@ def train_model():
 
     # Training run name
     today = time.strftime("%Y%m%d-%H%M%S")
-    run_suffix = getattr(tfl_trainer, "template_name", today)
+    run_suffix = tlab_trainer.params.get("template_name", today)
 
     # GRPO training configuration
     args = GRPOConfig(
@@ -246,15 +246,15 @@ def train_model():
         adam_beta2=adam_beta2,
         adam_epsilon=adam_epsilon,
         disable_tqdm=False,
-        run_name=f"job_{tfl_trainer.job_id}_{run_suffix}",
-        report_to=tfl_trainer.report_to,
+        run_name=f"job_{tlab_trainer.params.job_id}_{run_suffix}",
+        report_to=tlab_trainer.report_to,
         ddp_find_unused_parameters=False,
         dataloader_pin_memory=True,
         no_cuda=False,
     )
 
     # Create progress callback
-    progress_callback = tfl_trainer.create_progress_callback(framework="huggingface")
+    progress_callback = tlab_trainer.create_progress_callback(framework="huggingface")
 
     # Initialize GRPO trainer
     trainer = GRPOTrainer(
@@ -280,7 +280,7 @@ def train_model():
 
     # Save the model
     try:
-        trainer.save_model(output_dir=tfl_trainer.adaptor_output_dir)
+        trainer.save_model(output_dir=tlab_trainer.params.adaptor_output_dir)
     except Exception as e:
         return f"Failed to save model: {str(e)}"
 
