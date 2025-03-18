@@ -17,6 +17,7 @@
     "PhiForCausalLM",
     "Phi3ForCausalLM",
     "Qwen2ForCausalLM",
+    "Gemma3ForCausalLM",
     "T5ForConditionalGeneration"
   ],
   "supported_hardware_architectures": ["cpu", "cuda", "mlx"],
