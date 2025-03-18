@@ -163,6 +163,7 @@ numpy==2.2.2
     #   rouge-score
     #   scipy
     #   tensorboard
+    #   tensorboardx
     #   torchvision
     #   transformers
 nvidia-cublas-cu12==12.4.5.8
@@ -210,6 +211,7 @@ packaging==24.2
     #   huggingface-hub
     #   peft
     #   tensorboard
+    #   tensorboardx
     #   transformers
 pandas==2.2.3
     # via
@@ -230,6 +232,7 @@ propcache==0.2.1
 protobuf==5.29.3
     # via
     #   tensorboard
+    #   tensorboardx
     #   wandb
 psutil==6.1.1
     # via
@@ -337,6 +340,8 @@ tensorboard==2.18.0
     # via -r requirements.in
 tensorboard-data-server==0.7.2
     # via tensorboard
+tensorboardx==2.6.2.2
+    # via -r requirements.in
 texttable==1.7.0
     # via py7zr
 tiktoken==0.8.0
