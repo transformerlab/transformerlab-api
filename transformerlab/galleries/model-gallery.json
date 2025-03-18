@@ -1665,6 +1665,60 @@
         }
     },
     {
+        "uniqueID": "mistralai/Mistral-Small-3.1-24B-Instruct-2503",
+        "name": "Mistral-Small-3.1-24B-Instruct-2503",
+        "description": "",
+        "parameters": "",
+        "context": "2048",
+        "architecture": "Mistral3ForConditionalGeneration",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "mistralai/Mistral-Small-3.1-24B-Instruct-2503",
+        "transformers_version": "4.50.0.dev0",
+        "gated": false,
+        "license": "apache-2.0",
+        "logo": "",
+        "size_of_model_in_mb": 0,
+        "author": {
+            "name": "mistralai",
+            "url": "https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503",
+            "downloadUrl": "https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503",
+            "paperUrl": "?"
+        }
+    },
+    {
+        "uniqueID": "mistralai/Mistral-Small-3.1-24B-Base-2503",
+        "name": "Mistral-Small-3.1-24B-Base-2503",
+        "description": "",
+        "parameters": "",
+        "context": "2048",
+        "architecture": "Mistral3ForConditionalGeneration",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "mistralai/Mistral-Small-3.1-24B-Base-2503",
+        "transformers_version": "4.50.0.dev0",
+        "gated": false,
+        "license": "apache-2.0",
+        "logo": "",
+        "size_of_model_in_mb": 0,
+        "author": {
+            "name": "mistralai",
+            "url": "https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Base-2503",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Base-2503",
+            "downloadUrl": "https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Base-2503",
+            "paperUrl": "?"
+        }
+    },
+    {
         "uniqueID": "mistralai/Mistral-7B-v0.3",
         "name": "Mistral-7B-v0.3",
         "description": "The Mistral-7B-v0.3 Large Language Model (LLM) is a Mistral-7B-v0.2 with extended vocabulary. Mistral-7B-v0.3 has the following changes compared to Mistral-7B-v0.2: Extended vocabulary to 32768",
