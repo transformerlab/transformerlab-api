@@ -597,9 +597,17 @@ async def model_gets_pefts(
 @router.get("/model/delete_peft")
 async def model_delete_peft(model_id: str, peft: str):
     workspace_dir = dirs.WORKSPACE_DIR
-    adaptors_dir = f"{workspace_dir}/adaptors/{model_id}"
-    peft_path = f"{adaptors_dir}/{peft}"
+    secure_model_id = secure_filename(model_id)
+    adaptors_dir = f"{workspace_dir}/adaptors/{secure_model_id}"
+    # Check if the peft exists
+    if os.path.exists(adaptors_dir):
+        peft_path = f"{adaptors_dir}/{peft}"
+    else:
+        # Assume the adapter is stored in the older naming convention format
+        peft_path = f"{workspace_dir}/adaptors/{model_id}/{peft}"
+
     shutil.rmtree(peft_path)
+
     return {"message": "success"}
 
 
