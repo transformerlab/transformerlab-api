@@ -508,7 +508,10 @@ async def chat_completion_stream_generator(
         )
         chunk = ChatCompletionStreamResponse(id=id, choices=[choice_data], model=model_name)
         # Convert the chunk to a dictionary
-        chunk_dict = chunk.model_dump()
+        if not isinstance(chunk, dict):
+            chunk_dict = chunk.model_dump()
+        else:
+            chunk_dict = chunk
 
         # Convert the dictionary to a JSON string
         sorted_json = json.dumps(chunk_dict, sort_keys=True, ensure_ascii=False)
@@ -520,7 +523,11 @@ async def chat_completion_stream_generator(
         async for content in generate_completion_stream(gen_params):
             if content["error_code"] != 0:
                 # Convert the content to a dictionary
-                content_dict = content.model_dump()
+                print("Error occurred in generation", content)
+                if not isinstance(content, dict):
+                    content_dict = content.model_dump()
+                else:
+                    content_dict = content
 
                 # Convert the dictionary to a JSON string
                 sorted_json = json.dumps(content_dict, sort_keys=True, ensure_ascii=False)
