@@ -1,10 +1,11 @@
 import time
+import os
 from random import randrange
 
 import torch
 from jinja2 import Environment
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, AutoConfig
 from trl import SFTConfig, SFTTrainer
 
 
