@@ -4,7 +4,7 @@
     "description": "",
     "plugin-format": "python",
     "type": "rag",
-    "version": "0.0.5",
+    "version": "0.0.6",
     "model_architectures": [],
     "files": [
         "main.py",
@@ -58,6 +58,21 @@
             "title": "Chunk Overlap",
             "type": "integer",
             "default": 50
+        },
+        "use_reranker": {
+            "title": "Use Reranker",
+            "type": "boolean",
+            "default": true
+        },
+        "reranker_model": {
+            "title": "Reranker Model",
+            "type": "string",
+            "default": "cross-encoder/ms-marco-MiniLM-L-6-v2"
+        },
+        "reranker_top_n": {
+            "title": "Reranker Top N",
+            "type": "integer",
+            "default": 20
         }
     },
     "parameters_ui": {
@@ -76,6 +91,15 @@
         "temperature": {
             "ui:widget": "range",
             "ui:help": "Temperature for sampling in LLM. Lower values will result in more deterministic results, higher values will result in more random results. Default is 0.7."
+        },
+        "use_reranker": {
+            "ui:help": "Use a reranker to re-rank the search results. Default is True."
+        },
+        "reranker_model": {
+            "ui:help": "Reranker model to use. Default is cross-encoder/ms-marco-MiniLM-L-6-v2. Enter any reranker model from huggingface model hub"
+        },
+        "reranker_top_n": {
+            "ui:help": "Top N search results to rerank. Default is 20."
         }
     }
 }

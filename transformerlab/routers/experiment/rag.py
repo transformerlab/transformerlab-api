@@ -23,6 +23,9 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
     experiment_config = json.loads(experiment_details["config"])
     model = experiment_config.get("foundation")
     embedding_model = experiment_config.get("embedding_model")
+    if embedding_model is None:
+        print("No embedding model found in experiment config, using default")
+        embedding_model = "BAAI/bge-base-en-v1.5"
 
     print("Querying RAG with model " + model + " and query " + query + " and settings " + settings)
 
@@ -89,6 +92,9 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
     experiment_config = json.loads(experiment_details["config"])
     model = experiment_config.get("foundation")
     embedding_model = experiment_config.get("embedding_model")
+    if embedding_model is None:
+        print("No embedding model found in experiment config, using default")
+        embedding_model = "BAAI/bge-base-en-v1.5"
 
     print("Reindexing RAG with embedding model " + embedding_model)
 
