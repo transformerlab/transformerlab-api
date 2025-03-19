@@ -57,7 +57,7 @@ def main():
 
     # SETTINGS
     number_of_search_results = 2
-    use_reranker = True
+    use_reranker = False
     reranker_model = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     reranker_top_n = 20
 
