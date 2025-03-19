@@ -74,16 +74,16 @@ async def init():
                         """
     )
 
-    await db.execute(
-        """CREATE TABLE IF NOT EXISTS
-                     experiment
-                        (id INTEGER PRIMARY KEY,
-                        name UNIQUE,
-                        config JSON,
-                        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        updated_at DATETIME NOT NULL DEFAULT current_timestamp)
-                        """
-    )
+    # await db.execute(
+    #     """CREATE TABLE IF NOT EXISTS
+    #                  experiment
+    #                     (id INTEGER PRIMARY KEY,
+    #                     name UNIQUE,
+    #                     config JSON,
+    #                     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    #                     updated_at DATETIME NOT NULL DEFAULT current_timestamp)
+    #                     """
+    # )
 
     await db.execute(
         """CREATE TABLE IF NOT EXISTS
@@ -100,7 +100,7 @@ async def init():
                         """
     )
 
-    await db.execute("CREATE INDEX IF NOT EXISTS idx_name ON experiment (name)")
+    # await db.execute("CREATE INDEX IF NOT EXISTS idx_name ON experiment (name)")
 
     # await db.execute(
     #     """CREATE TABLE IF NOT EXISTS
