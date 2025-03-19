@@ -1,5 +1,5 @@
 from typing import Optional
-from sqlalchemy import String, JSON, DateTime, func
+from sqlalchemy import String, JSON, DateTime, func, Integer
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -52,3 +52,16 @@ class Model(Base):
     model_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
     json_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+
+
+class Dataset(Base):
+    """Dataset model."""
+
+    __tablename__ = "dataset"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    dataset_id: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    location: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    size: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    json_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True, server_default="{}")

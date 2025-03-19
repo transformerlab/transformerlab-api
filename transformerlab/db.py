@@ -37,15 +37,15 @@ async def init():
     db = await aiosqlite.connect(DATABASE_FILE_NAME)
 
     # await db.execute("CREATE TABLE IF NOT EXISTS model(id INTEGER PRIMARY KEY, model_id UNIQUE, name, json_data JSON)")
-    await db.execute(
-        "CREATE TABLE IF NOT EXISTS dataset(id INTEGER PRIMARY KEY, dataset_id UNIQUE, location, description, size)"
-    )
+    # await db.execute(
+    #     "CREATE TABLE IF NOT EXISTS dataset(id INTEGER PRIMARY KEY, dataset_id UNIQUE, location, description, size)"
+    # )
 
-    try:
-        await db.execute("""ALTER TABLE dataset ADD COLUMN json_data JSON DEFAULT '{}'""")
-    except sqlite3.OperationalError as e:
-        if "duplicate column name" in str(e):
-            pass
+    # try:
+    #     await db.execute("""ALTER TABLE dataset ADD COLUMN json_data JSON DEFAULT '{}'""")
+    # except sqlite3.OperationalError as e:
+    #     if "duplicate column name" in str(e):
+    #         pass
 
     await db.execute(
         """CREATE TABLE IF NOT EXISTS 
