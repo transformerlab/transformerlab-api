@@ -17,6 +17,8 @@ class Config(Base):
     value: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
 
+# I believe we are not using the following table anymore as the filesystem
+# is being used to track plugins
 class Plugin(Base):
     """Plugin definition model."""
 
