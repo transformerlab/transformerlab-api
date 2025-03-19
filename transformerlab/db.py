@@ -553,6 +553,22 @@ async def add_task(name, Type, input_config, config, plugin, output_config, expe
     await db.commit()
     return
 
+async def update_task(task_id, new_task):
+    await db.execute(
+        "UPDATE tasks SET input_config = ? WHERE id = ?",
+        (new_task["input_config"], task_id),
+    )
+    await db.execute(
+        "UPDATE tasks SET config = ? WHERE id = ?",
+        (new_task["config"], task_id),
+    )
+    await db.execute(
+        "UPDATE tasks SET output_config = ? WHERE id = ?",
+        (new_task["output_config"], task_id),
+    )
+    await db.commit()
+    return
+
 async def tasks_get_all():
     cursor = await db.execute("SELECT * FROM tasks ORDER BY created_at desc")
     rows = await cursor.fetchall()
@@ -570,6 +586,11 @@ async def tasks_get_by_type(Type):
     data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
     await cursor.close()
     return data
+
+async def delete_task(task_id):
+    await db.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+    await db.commit()
+    return
 
 async def tasks_delete_all():
     await db.execute("DELETE FROM tasks")

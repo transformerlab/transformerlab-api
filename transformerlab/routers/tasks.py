@@ -1,5 +1,5 @@
 import json
-from fastapi import APIRouter
+from fastapi import APIRouter, Body
 
 import transformerlab.db as db
 
@@ -11,10 +11,33 @@ async def tasks_get_all():
     tasks = await db.tasks_get_all()
     return tasks
 
+@router.get("/{task_id}/get")
+async def tasks_get_by_id(task_id: int):
+    tasks = await db.tasks_get_all()
+    for task in tasks:
+        if task["id"] == task_id:
+            return task
+    return {"message": "NOT FOUND"}
+
 @router.get("/list_by_type")
 async def tasks_get_by_type(type: str):
     tasks = await db.tasks_get_by_type(type)
     return tasks
+
+@router.put("/{task_id}/update")
+async def update_task(task_id: int, new_task:dict = Body()):
+    await db.update_task(task_id, new_task)
+    return {"message":"OK"}
+
+@router.get("/{task_id}/delete")
+async def delete_task(task_id: int):
+    await db.delete_task(task_id)
+    return {"message":"OK"}
+
+@router.put("/new_task")
+async def add_task(new_task: dict = Body()):
+    await db.add_task(new_task["name"], new_task["type"], new_task["input_config"], new_task["config"], new_task["plugin"], new_task["output_config"], new_task["experiment_id"])
+    return {"message":"OK"}
 
 @router.get("/delete_all")
 async def tasks_delete_all():
@@ -85,6 +108,7 @@ async def queue_task(task_id: int, inputs: str = "{}", outputs:str = "{}"):
         job_data["config"] = json.loads(task_to_queue["config"])
         job_data["model_name"] = input_config["model_name"]
         job_data["dataset"] = input_config["dataset_name"]
+        job_data["config"]["type"] = "LoRA"
 
         #sets the inputs and outputs from the task
         for key in input_config.keys():
