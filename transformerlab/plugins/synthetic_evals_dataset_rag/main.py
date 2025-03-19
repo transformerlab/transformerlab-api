@@ -132,7 +132,6 @@ def get_docs_list(docs: str) -> List[dict]:
     result_docs = []
 
     for i, doc in enumerate(docs_list):
-        file_name = doc
         doc_path = os.path.join(documents_dir, doc)
 
         if os.path.isdir(doc_path):
