@@ -6,7 +6,7 @@ from transformers import BitsAndBytesConfig
 from trl import GRPOConfig, GRPOTrainer
 from unsloth import FastLanguageModel, PatchFastRL
 
-from transformerlab.tfl_decorators import tfl_trainer
+from transformerlab.sdk.v1.train import tlab_trainer
 
 
 # Set up environment
@@ -40,40 +40,40 @@ def count_xml(text, start_thinking_string, end_thinking_string, start_answer_str
     return count
 
 
-@tfl_trainer.job_wrapper(progress_start=0, progress_end=100)
+@tlab_trainer.job_wrapper()
 def train_model(datasets, report_to=["tensorboard"]):
-    """Main training function using TrainerTFLPlugin"""
+    """Main training function using TrainerTLabPlugin"""
 
-    # Get configuration from tfl_trainer
-    datasets = tfl_trainer.load_dataset()
+    # Get configuration from tlab_trainer
+    datasets = tlab_trainer.load_dataset()
     dataset = datasets["train"]
 
     # Get configuration values
-    model_id = tfl_trainer.model_name
-    max_seq_length = int(tfl_trainer.maximum_sequence_length)
-    max_completion_length = int(tfl_trainer.maximum_completion_length)
-    lora_rank = int(tfl_trainer.lora_r)
-    lora_alpha = int(tfl_trainer.lora_alpha)
-    learning_rate = float(tfl_trainer.learning_rate)
-    learning_rate_schedule = getattr(tfl_trainer, "learning_rate_schedule", "constant")
-    max_grad_norm = float(tfl_trainer.max_grad_norm)
-    batch_size = int(tfl_trainer.batch_size)
-    num_epochs = int(tfl_trainer.num_train_epochs)
-    weight_decay = float(tfl_trainer.weight_decay)
-    adam_beta1 = float(tfl_trainer.adam_beta1)
-    adam_beta2 = float(tfl_trainer.adam_beta2)
-    adam_epsilon = float(tfl_trainer.adam_epsilon)
-    output_dir = tfl_trainer.output_dir
+    model_id = tlab_trainer.params.model_name
+    max_seq_length = int(tlab_trainer.params.maximum_sequence_length)
+    max_completion_length = int(tlab_trainer.params.maximum_completion_length)
+    lora_rank = int(tlab_trainer.params.lora_r)
+    lora_alpha = int(tlab_trainer.params.lora_alpha)
+    learning_rate = float(tlab_trainer.params.learning_rate)
+    learning_rate_schedule = tlab_trainer.params.get("learning_rate_schedule", "constant")
+    max_grad_norm = float(tlab_trainer.params.max_grad_norm)
+    batch_size = int(tlab_trainer.params.batch_size)
+    num_epochs = int(tlab_trainer.params.num_train_epochs)
+    weight_decay = float(tlab_trainer.params.weight_decay)
+    adam_beta1 = float(tlab_trainer.params.adam_beta1)
+    adam_beta2 = float(tlab_trainer.params.adam_beta2)
+    adam_epsilon = float(tlab_trainer.params.adam_epsilon)
+    output_dir = tlab_trainer.params.output_dir
 
     # Template configuration
-    question_formatting_template = getattr(tfl_trainer, "input_template", "")
-    answer_formatting_template = getattr(tfl_trainer, "output_template", "")
-    system_prompt = getattr(tfl_trainer, "instruction_template", "")
+    question_formatting_template = tlab_trainer.params.get("input_template", "")
+    answer_formatting_template = tlab_trainer.params.get("output_template", "")
+    system_prompt = tlab_trainer.params.get("instruction_template", "")
 
-    start_thinking_string = getattr(tfl_trainer, "start_thinking_string", "<reasoning>")
-    end_thinking_string = getattr(tfl_trainer, "end_thinking_string", "</reasoning>")
-    start_answer_string = getattr(tfl_trainer, "start_answer_string", "<answer>")
-    end_answer_string = getattr(tfl_trainer, "end_answer_string", "</answer>")
+    start_thinking_string = tlab_trainer.params.get("start_thinking_string", "<reasoning>")
+    end_thinking_string = tlab_trainer.params.get("end_thinking_string", "</reasoning>")
+    start_answer_string = tlab_trainer.params.get("start_answer_string", "<answer>")
+    end_answer_string = tlab_trainer.params.get("end_answer_string", "</answer>")
 
     # Format instruction function
     def format_instruction(template, mapping):
@@ -174,7 +174,7 @@ def train_model(datasets, report_to=["tensorboard"]):
 
     # Training run name
     today = time.strftime("%Y%m%d-%H%M%S")
-    run_suffix = getattr(tfl_trainer, "template_name", today)
+    run_suffix = tlab_trainer.params.get("template_name", today)
 
     # GRPO training configuration
     args = GRPOConfig(
@@ -198,12 +198,12 @@ def train_model(datasets, report_to=["tensorboard"]):
         adam_beta2=adam_beta2,
         adam_epsilon=adam_epsilon,
         disable_tqdm=False,
-        run_name=f"job_{tfl_trainer.job_id}_{run_suffix}",
-        report_to=tfl_trainer.report_to,
+        run_name=f"job_{tlab_trainer.params.job_id}_{run_suffix}",
+        report_to=tlab_trainer.report_to,
     )
 
-    # Create progress callback using tfl_trainer
-    progress_callback = tfl_trainer.create_progress_callback(framework="huggingface")
+    # Create progress callback using tlab_trainer
+    progress_callback = tlab_trainer.create_progress_callback(framework="huggingface")
 
     # Initialize GRPO trainer
     trainer = GRPOTrainer(
@@ -229,7 +229,7 @@ def train_model(datasets, report_to=["tensorboard"]):
 
     # Save the model
     try:
-        trainer.save_model(output_dir=tfl_trainer.adaptor_output_dir)
+        trainer.save_model(output_dir=tlab_trainer.params.adaptor_output_dir)
     except Exception as e:
         return f"Failed to save model: {str(e)}"
 
