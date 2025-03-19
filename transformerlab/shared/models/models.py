@@ -20,7 +20,7 @@ class Config(Base):
 class Plugin(Base):
     """Plugin definition model."""
 
-    __tablename__ = "plugin"
+    __tablename__ = "plugins"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
