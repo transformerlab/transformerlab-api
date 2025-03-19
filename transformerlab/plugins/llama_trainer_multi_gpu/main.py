@@ -1,246 +1,128 @@
-# The following is adapted from
-# https://www.philschmid.de/instruction-tune-llama-2
-
-import argparse
-import json
 import os
-import sqlite3
-import sys
 import subprocess
 import time
 from random import randrange
 
-# Get all parameters provided to this script from Transformer Lab
-parser = argparse.ArgumentParser()
-parser.add_argument("--input_file", type=str)
-parser.add_argument("--launched_with_accelerate", action="store_true", 
-                   help="Flag to prevent recursive subprocess launching")
-args, unknown = parser.parse_known_args()
-
-print("Arguments:")
-print(args)
-
-input_config = None
-# open the input file that provides configs
-with open(args.input_file) as json_file:
-    input_config = json.load(json_file)
-config = input_config["config"]
-
-accelerate_config = {
-    "cuda": "multi_gpu",
-    "cpu": "cpu",
-    "tpu": "tpu",
-}
-
-train_device = accelerate_config.get(config.get("train_device", "cuda"), "multi_gpu")
-print(f"Training setup for accelerate launch: {train_device}")
-
-if train_device == "multi_gpu":
-    gpu_ids = config.get("gpu_ids", None)
-    if gpu_ids and gpu_ids != "auto":
-        gpu_ids = str(gpu_ids)
-
-    # Set GPU IDS to None if "auto" is specified
-    if gpu_ids == "auto":
-        gpu_ids = None
-
-else:
-    gpu_ids = None
+from transformerlab.sdk.v1.train import tlab_trainer
+from transformerlab.plugin import WORKSPACE_DIR, generate_model_json
 
 
-    
-
-
-# Check if we should launch with accelerate
-if not args.launched_with_accelerate:
-    print("Launching training with accelerate for multi-GPU...")
-    
-    # Fix import issues by ensuring the parent directory is in PYTHONPATH
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    api_dir = os.path.abspath(os.path.join(current_dir, "../../.."))
-    
-    # Create environment for subprocess with modified PYTHONPATH
-    env = os.environ.copy()
-    
-    # Add the specific SDK path to PYTHONPATH
-    tfl_source_dir = os.environ.get("_TFL_SOURCE_CODE_DIR")
-    python_path = env.get("PYTHONPATH", "")
-    
-    # Create a list of paths to include
-    paths_to_include = [api_dir]
-    
-    # If _TFL_SOURCE_CODE_DIR is available, construct the path to the plugin sdk
-    if tfl_source_dir:
-        tflab_sdk_path = os.path.join(tfl_source_dir, "transformerlab", "plugin_sdk")
-        paths_to_include.append(tflab_sdk_path)
-        print(f"Adding SDK path: {tflab_sdk_path}")
-        
-        # Also add the parent directory of the plugin_sdk
-        plugin_parent = os.path.join(tfl_source_dir, "transformerlab")
-        paths_to_include.append(plugin_parent)
-        print(f"Adding plugin parent path: {plugin_parent}")
-    
-    # Add the existing PYTHONPATH if it exists
-    if python_path:
-        paths_to_include.append(python_path)
-    
-    # Join all paths with colons
-    env["PYTHONPATH"] = ":".join(paths_to_include)
-    
-    print(f"Setting PYTHONPATH to: {env['PYTHONPATH']}")
-    
-    cmd = [
-        "accelerate", "launch",
-        f"--{train_device}",
-        __file__,
-        "--input_file", args.input_file,
-        "--launched_with_accelerate"
-    ]
-    if gpu_ids:
-        cmd.extend(["--gpu_ids", gpu_ids])
-        
-    print(f"Running command: {' '.join(cmd)}")
-    
-    # Pass the modified environment to the subprocess
-    result = subprocess.run(cmd, env=env)
-    print(f"Subprocess completed with return code: {result.returncode}")
-    sys.exit(result.returncode)
-
-# Import dependencies after the subprocess check to ensure we're in the right environment
-import torch # noqa
-from datasets import load_dataset # noqa
-from jinja2 import Environment # noqa
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training # noqa
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, TrainerCallback # noqa
-from trl import SFTConfig, SFTTrainer # noqa
-from accelerate import Accelerator # noqa
-
-# Get source code dir and print for debugging
-tfl_source_dir = os.environ.get("_TFL_SOURCE_CODE_DIR")
-
-# Ensure transformerlab can be imported
-try:
-    import transformerlab.plugin
-    print("Successfully imported transformerlab.plugin")
-except ImportError as e:
-    print(f"Error importing transformerlab.plugin: {e}")
-    # Add appropriate paths if needed
-    print("Current sys.path:", sys.path)
-    
-    # Try multiple approaches to find the module
-    if tfl_source_dir:
-        tflab_sdk_path = os.path.join(tfl_source_dir, "transformerlab", "plugin_sdk")
-        if os.path.exists(tflab_sdk_path):
-            print(f"Adding {tflab_sdk_path} to sys.path")
-            sys.path.append(tflab_sdk_path)
-    
-    # Also try the parent directory approach
-    transformerlab_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
-    print(f"Adding {transformerlab_path} to sys.path")
-    sys.path.append(transformerlab_path)
-    
-    # If _TFL_SOURCE_CODE_DIR exists, try adding transformerlab directory
-    if tfl_source_dir:
-        plugin_parent = os.path.join(tfl_source_dir, "transformerlab")
-        if os.path.exists(plugin_parent):
-            print(f"Adding {plugin_parent} to sys.path")
-            sys.path.append(plugin_parent)
-    
-    # Try importing again
-    try:
-        import transformerlab.plugin
-        print("Successfully imported transformerlab.plugin after path adjustment")
-    except ImportError as e:
-        print(f"Still unable to import transformerlab.plugin: {e}")
-        # Print directory structure to debug
-        print("Listing potential transformerlab directories:")
-        if tfl_source_dir:
-            os.system(f"find {tfl_source_dir} -name plugin.py -type f")
-        sys.exit(1)
-
-# Initialize Accelerator only after the subprocess check and imports
-accelerator = Accelerator()
-print(f"Running with accelerate on {accelerator.num_processes} processes")
-
-jinja_environment = Environment()
-
-use_flash_attention = False
-
-# Connect to the LLM Lab database
-llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
-WORKSPACE_DIR: str | None = os.getenv("_TFL_WORKSPACE_DIR")
-db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
-
-input_config = None
-# open the input file that provides configs
-with open(args.input_file) as json_file:
-    input_config = json.load(json_file)
-config = input_config["config"]
-print("Input:")
-print(input_config)
-
-model_id = config["model_name"]
-# model_id = "NousResearch/Llama-2-7b-hf"  # non-gated
-
-JOB_ID = config["job_id"]
-
-WANDB_LOGGING = config.get("log_to_wandb", None)
-
-job = transformerlab.plugin.Job(config["job_id"])
-job.update_progress(0)
-
-# Get the dataset
-# Datasets can be a huggingface ID or the name of a locally uploaded dataset
-# Need to check the DB to figure out which because it changes how we load the dataset
-# TODO: Refactor this to somehow simplify across training plugins
-dataset_id = config["dataset_name"]
-cursor = db.execute("SELECT location FROM dataset WHERE dataset_id = ?", (dataset_id,))
-row = cursor.fetchone()
-cursor.close()
-
-# if no rows exist then the dataset hasn't been installed!
-if row is None:
-    print(f"No dataset named {dataset_id} installed.")
-    job.set_job_completion_status("failed", f"No dataset named {dataset_id} installed.")
-    raise RuntimeError(f"No dataset named {dataset_id} installed")
-
-# dataset_location will be either "local" or "huggingface"
-# (and if it's something else we're going to treat "huggingface" as default)
-dataset_location = row[0]
-
-# Load dataset - if it's local then pass it the path to the dataset directory
-if dataset_location == "local":
-    dataset_target = os.path.join(WORKSPACE_DIR, "datasets", dataset_id)
-
-# Otherwise assume it is a Huggingface ID
-else:
-    dataset_target = dataset_id
-
-dataset = load_dataset(dataset_target, split="train", trust_remote_code=True)
-
-print(f"dataset size: {len(dataset)}")
-print(dataset[randrange(len(dataset))])
-print("formatting_template: " + config["formatting_template"])
-
-template = jinja_environment.from_string(config["formatting_template"])
-
-
-def format_instruction(mapping):
-    return template.render(mapping)
-
-
-print("formatted instruction: (example) ")
-print(format_instruction(dataset[randrange(len(dataset))]))
-
-bnb_config = BitsAndBytesConfig(
-    load_in_4bit=True, bnb_4bit_use_double_quant=True, bnb_4bit_quant_type="nf4", bnb_4bit_compute_dtype=torch.bfloat16
+# Add custom arguments
+tlab_trainer.add_argument(
+    "--launched_with_accelerate", action="store_true", help="Flag to prevent recursive subprocess launching"
 )
 
-# Load model and tokenizer
-try:
-    # For multi-GPU with quantization, auto is typically best
+
+def setup_accelerate_environment():
+    """Set up the environment for the accelerate launch subprocess"""
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    api_dir = os.path.abspath(os.path.join(current_dir, "../../.."))
+    env = os.environ.copy()
+    tlab_source_dir = os.environ.get("_TFL_SOURCE_CODE_DIR")
+    python_path = env.get("PYTHONPATH", "")
+    paths_to_include = [api_dir]
+
+    if tlab_source_dir:
+        tlabab_sdk_path = os.path.join(tlab_source_dir, "transformerlab", "plugin_sdk")
+        paths_to_include.append(tlabab_sdk_path)
+        plugin_parent = os.path.join(tlab_source_dir, "transformerlab")
+        paths_to_include.append(plugin_parent)
+
+    if python_path:
+        paths_to_include.append(python_path)
+
+    env["PYTHONPATH"] = ":".join(paths_to_include)
+    return env
+
+
+@tlab_trainer.job_wrapper()
+def train_model():
+    """Main training function using TrainerTLabPlugin"""
+    # Get configuration from tlab_trainer
+    # Configuration is loaded automatically when tlab_trainer methods are called
+    datasets = tlab_trainer.load_dataset()
+    dataset = datasets["train"]
+
+    # Set up accelerate configuration
+    accelerate_config = {
+        "cuda": "multi_gpu",
+        "cpu": "cpu",
+        "tpu": "tpu",
+    }
+
+    train_device = accelerate_config.get(tlab_trainer.params.train_device, "multi_gpu")
+    print(f"Training setup for accelerate launch: {train_device}")
+
+    # Configure GPU IDs
+    gpu_ids = None
+    if train_device == "multi_gpu":
+        gpu_ids = tlab_trainer.params.gpu_ids
+        if gpu_ids and gpu_ids != "auto":
+            gpu_ids = str(gpu_ids)
+        if gpu_ids == "auto":
+            gpu_ids = None
+
+    # Check if we need to launch with accelerate
+    if not tlab_trainer.params.get("launched_with_accelerate", False):
+        print("Launching training with accelerate for multi-GPU...")
+        env = setup_accelerate_environment()
+
+        cmd = [
+            "accelerate",
+            "launch",
+            f"--{train_device}",
+            __file__,
+            "--input_file",
+            tlab_trainer.params.input_file,
+            "--launched_with_accelerate",
+        ]
+        if gpu_ids:
+            cmd.extend(["--gpu_ids", gpu_ids])
+
+        result = subprocess.run(cmd, env=env)
+        print(f"Subprocess completed with return code: {result.returncode}")
+        return
+
+    # Import dependencies after the subprocess check
+    import torch
+    from jinja2 import Environment
+    from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel
+    from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, AutoConfig
+    from trl import SFTConfig, SFTTrainer
+    from accelerate import Accelerator
+
+    # Initialize Accelerator
+    accelerator = Accelerator()
+    print(f"Running with accelerate on {accelerator.num_processes} processes")
+
+    jinja_environment = Environment()
+    use_flash_attention = False
+
+    # Get model info
+    model_id = tlab_trainer.params.model_name
+
+    print(f"dataset size: {len(dataset)}")
+    print(dataset[randrange(len(dataset))])
+    print("formatting_template: " + tlab_trainer.params.formatting_template)
+
+    template = jinja_environment.from_string(tlab_trainer.params.formatting_template)
+
+    def format_instruction(mapping):
+        return template.render(mapping)
+
+    print("formatted instruction: (example) ")
+    print(format_instruction(dataset[randrange(len(dataset))]))
+
+    # Model configuration
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.bfloat16,
+    )
+
+    # Load model
     device_map = None if accelerator.num_processes > 1 else "auto"
-    print(f"Using device_map: {device_map}")
     model = AutoModelForCausalLM.from_pretrained(
         model_id,
         quantization_config=bnb_config,
@@ -249,142 +131,113 @@ try:
         device_map=device_map,
     )
     model.config.pretraining_tp = 1
-    print(f"Successfully loaded model: {model_id}")
-except Exception as e:
-    print(f"Failed to load model: {e}")
-    job.set_job_completion_status("failed", "Failed to load model")
-    raise e
 
-try:
+    # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
-    print("Tokenizer loaded successfully")
-except Exception as e:
-    print(f"Failed to load tokenizer: {e}")
-    job.set_job_completion_status("failed", "Failure to load tokenizer")
-    raise e
 
-# LoRA config based on QLoRA paper
-peft_config = LoraConfig(
-    lora_alpha=int(config["lora_alpha"]),
-    lora_dropout=float(config["lora_dropout"]),
-    r=int(config["lora_r"]),
-    bias="none",
-    task_type="CAUSAL_LM",
-)
-print(f"LoRA config: alpha={config['lora_alpha']}, dropout={config['lora_dropout']}, r={config['lora_r']}")
+    # LoRA config
+    peft_config = LoraConfig(
+        lora_alpha=int(tlab_trainer.params.lora_alpha),
+        lora_dropout=float(tlab_trainer.params.lora_dropout),
+        r=int(tlab_trainer.params.lora_r),
+        bias="none",
+        task_type="CAUSAL_LM",
+    )
 
-# prepare model for training
-model = prepare_model_for_kbit_training(model)
-model = get_peft_model(model, peft_config)
-print("Model prepared for training with PEFT")
+    # Prepare model
+    model = prepare_model_for_kbit_training(model)
+    model = get_peft_model(model, peft_config)
 
-# This is where the tensorboard output is stored
-output_dir: str = config["output_dir"]
-print(f"Storing Tensorboard Output to: {output_dir}")
+    # Training configuration
+    output_dir = tlab_trainer.params.get("output_dir", "./output")
 
-# In the json job_data column for this job, store the tensorboard output dir
-db.execute(
-    "UPDATE job SET job_data = json_insert(job_data, '$.tensorboard_output_dir', ?) WHERE id = ?",
-    (output_dir, JOB_ID),
-)
-db.commit()
+    # Setup WandB - decorator would handle this check
+    today = time.strftime("%Y%m%d-%H%M%S")
+    run_suffix = tlab_trainer.params.get("template_name", today)
+    max_seq_length = int(tlab_trainer.params.maximum_sequence_length)
 
-max_seq_length = int(config["maximum_sequence_length"])  # max sequence length for model and packing of the dataset
-print(f"Maximum sequence length: {max_seq_length}")
+    args = SFTConfig(
+        output_dir=output_dir,
+        num_train_epochs=int(tlab_trainer.params.num_train_epochs),
+        per_device_train_batch_size=int(tlab_trainer.params.batch_size),
+        gradient_accumulation_steps=2,
+        gradient_checkpointing=True,
+        optim="paged_adamw_32bit",
+        logging_steps=10,
+        save_strategy="epoch",
+        learning_rate=float(tlab_trainer.params.learning_rate),
+        bf16=True,
+        tf32=True,
+        max_grad_norm=0.3,
+        warmup_ratio=0.03,
+        lr_scheduler_type=tlab_trainer.params.learning_rate_schedule,
+        max_seq_length=max_seq_length,
+        disable_tqdm=False,
+        packing=True,
+        run_name=f"job_{tlab_trainer.params.job_id}_{run_suffix}",
+        report_to=tlab_trainer.report_to,
+        ddp_find_unused_parameters=False,
+        dataloader_pin_memory=True,
+        no_cuda=False,
+    )
 
-report_to = ['tensorboard']
+    # Create progress callback using tlab_trainer
+    progress_callback = tlab_trainer.create_progress_callback(framework="huggingface")
 
-if WANDB_LOGGING:
-    WANDB_LOGGING, report_to = transformerlab.plugin.test_wandb_login()
-    if not WANDB_LOGGING:
-        print("WANDB API Key not found. WANDB logging will be disabled. Please set the WANDB API Key in Settings.")
+    # Create trainer
+    trainer = SFTTrainer(
+        model=model,
+        train_dataset=dataset,
+        peft_config=peft_config,
+        tokenizer=tokenizer,
+        formatting_func=format_instruction,
+        args=args,
+        callbacks=[progress_callback],
+    )
 
-today = time.strftime("%Y%m%d-%H%M%S")
-run_suffix = config.get("template_name", today)
-
-args = SFTConfig(
-    output_dir=output_dir,
-    num_train_epochs=int(config["num_train_epochs"]),
-    per_device_train_batch_size=int(config.get("batch_size", 4)),
-    gradient_accumulation_steps=2,
-    gradient_checkpointing=True,
-    optim="paged_adamw_32bit",
-    logging_steps=10,
-    save_strategy="epoch",
-    learning_rate=float(config["learning_rate"]),
-    bf16=True,
-    tf32=True,
-    max_grad_norm=0.3,
-    warmup_ratio=0.03,
-    lr_scheduler_type=config.get("learning_rate_schedule", "constant"),
-    max_seq_length=max_seq_length,
-    disable_tqdm=False,  # disable tqdm since with packing values are in correct
-    packing=True,
-    run_name=f"job_{JOB_ID}_{run_suffix}",
-    report_to=report_to,
-    # Multi-GPU training parameters
-    ddp_find_unused_parameters=False,
-    dataloader_pin_memory=True,
-    # Let Accelerate handle device placement
-    no_cuda=False,
-)
-
-
-class ProgressTableUpdateCallback(TrainerCallback):
-    "A callback that prints updates progress percent in the TransformerLab DB"
-
-    def on_step_end(self, args, state, control, **kwargs):
-        if state.is_local_process_zero:
-            # print(state.epoch)
-            # print(state.global_step)
-            # print(state.max_steps)
-            # I think the following works but it may need to be
-            # augmented by the epoch number
-            progress = state.global_step / state.max_steps
-            progress = int(progress * 100)
-            print(f"Training progress: {progress}% (step {state.global_step}/{state.max_steps})")
-            # db_job_id = JOB_ID
-            # Write to jobs table in database, updating the
-            # progress column:
-            job.update_progress(progress)
-            if job.should_stop:
-                print("Job stop requested, terminating training...")
-                control.should_training_stop = True
-                return control
-
-        return
-
-
-trainer = SFTTrainer(
-    model=model,
-    train_dataset=dataset,
-    peft_config=peft_config,
-    tokenizer=tokenizer,
-    formatting_func=format_instruction,
-    args=args,
-    callbacks=[ProgressTableUpdateCallback],
-)
-try:
-    # train
-    print("Starting training...")
+    # Train model
     trainer.train()
-    print("Training completed successfully")
-except Exception as e:
-    print(f"Training failed with error: {e}")
-    job.set_job_completion_status("failed", "Failure during training")
-    raise e
+
+    # Save model
+    trainer.save_model(output_dir=tlab_trainer.params.adaptor_output_dir)
+
+    if tlab_trainer.params.get("fuse_model", False):
+        # Merge the model with the adaptor
+        try:
+            model_config = AutoConfig.from_pretrained(model_id)
+            architecture = model_config.architectures[0]
+            # Load the base model again
+            model = AutoModelForCausalLM.from_pretrained(
+                    model_id,
+                    quantization_config=bnb_config,
+                    use_cache=False,
+                    use_flash_attention_2=use_flash_attention,
+                    device_map=None,
+                )
+            device = "cuda:0" if torch.cuda.is_available() else "cpu"
+            model.to(device)
+            if "/" in model_id:
+                model_id = model_id.split("/")[-1]
+            adaptor_name = tlab_trainer.params.get("adaptor_name", "default")
+            fused_model_name = f"{model_id}_{adaptor_name}"
+            fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
+            peft_model = PeftModel.from_pretrained(model, tlab_trainer.params.adaptor_output_dir)
+            merged_model = peft_model.merge_and_unload()
+            merged_model.save_pretrained(fused_model_location)
+            tokenizer.save_pretrained(fused_model_location)
+            print(f"Model saved successfully to {fused_model_location}")
+            json_data = {
+                        "description": f"A model trained and generated by Transformer Lab based on {tlab_trainer.params.model_name}"
+                    }
+            generate_model_json(fused_model_name, architecture, json_data=json_data)
+
+        except Exception as e:
+            print(f"Model merging error: {str(e)}")
+
+    # Return success message
+    return "Adaptor trained successfully"
 
 
-try:
-    # save model
-    print(f"Saving model to {config['adaptor_output_dir']}...")
-    trainer.save_model(output_dir=config["adaptor_output_dir"])
-    print("Model saved successfully")
-except Exception as e:
-    print(f"Failed to save model: {e}")
-    job.set_job_completion_status("failed", "Failure to save model")
-    raise e
-
-job.set_job_completion_status("success", "Adaptor trained successfully")
+train_model()

@@ -54,7 +54,7 @@ This versatile tool is particularly useful when you need to create synthetic dat
 - **Minimum:** 1
 - **Maximum:** 1000
 - **Description:**  
-  Sets the maximum number of contexts that can be generated per document. This number, multiplied by the "Max Goldens Per Context," defines the upper limit of synthetic data points per document.
+  Sets the maximum number of contexts that can be generated per document. This number, multiplied by the "Max Goldens Per Context," defines the upper limit of synthetic data points per document. Must be > 100 if generating embedding model datasets while mining negatives (Dataset types: **anchor | positive | negative:** and **anchor | positive | negative_1 | negative_2 | ... | negative_n**)
 
 ### Max Context Length
 
