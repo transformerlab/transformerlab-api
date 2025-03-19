@@ -47,19 +47,19 @@ async def init():
     #     if "duplicate column name" in str(e):
     #         pass
 
-    await db.execute(
-        """CREATE TABLE IF NOT EXISTS 
-                     training_template
-                     (id INTEGER PRIMARY KEY, 
-                     name UNIQUE, 
-                     description, 
-                     type, 
-                     datasets, 
-                     config, 
-                     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, 
-                     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)
-                     """
-    )
+    # await db.execute(
+    #     """CREATE TABLE IF NOT EXISTS
+    #                  training_template
+    #                  (id INTEGER PRIMARY KEY,
+    #                  name UNIQUE,
+    #                  description,
+    #                  type,
+    #                  datasets,
+    #                  config,
+    #                  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    #                  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)
+    #                  """
+    # )
     await db.execute(
         """CREATE TABLE IF NOT EXISTS
                      job

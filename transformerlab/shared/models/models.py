@@ -65,3 +65,20 @@ class Dataset(Base):
     description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     size: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     json_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True, server_default="{}")
+
+
+class TrainingTemplate(Base):
+    """Training template model."""
+
+    __tablename__ = "training_template"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    type: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    datasets: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    config: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    updated_at: Mapped[DateTime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
