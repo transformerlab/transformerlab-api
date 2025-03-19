@@ -131,7 +131,7 @@ async def queue_task(task_id: int, inputs: str = "{}", outputs:str = "{}"):
         job_data["template_name"] = task_to_queue["name"]
     elif job_type == "EVAL":
         job_data["evaluator"] = task_to_queue["name"]
-        job_data["config"] = {}
+        job_data["config"] = json.loads(task_to_queue["config"])
         for key in input_config.keys():
             job_data["config"][key] = input_config[key]
         for key in inputs.keys():

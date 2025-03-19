@@ -154,6 +154,7 @@ async def get_evaluation_plugin_file_contents(experimentId: int, plugin_name: st
 
 @router.get("/run_evaluation_script")
 async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: str, eval_config: dict, job_id: str):
+    print(eval_config)
     experiment_details = await db.experiment_get(id=experimentId)
 
     if experiment_details is None:
@@ -195,18 +196,7 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
         if "evaluations" in experiment_details["config"]:
             experiment_details["config"]["evaluations"] = json.loads(experiment_details["config"]["evaluations"])
 
-    all_evaluations = experiment_details["config"]["evaluations"]
-    this_evaluation = None
-    for evaluation in all_evaluations:
-        if evaluation["name"] == eval_name:
-            this_evaluation = evaluation
-            break
-
-    if this_evaluation is None:
-        return {"message": f"Error: evaluation {eval_name} does not exist in experiment"}
-    template_config = this_evaluation["script_parameters"]
-    for key in eval_config.keys():
-        template_config[key] = eval_config[key]
+    template_config = eval_config["script_parameters"]
     # print("GET OUTPUT JOB DATA", await get_job_output_file_name("2", plugin_name, eval_name, template_config))
     job_output_file = await get_job_output_file_name(job_id, plugin_name)
 
