@@ -5,7 +5,14 @@ import subprocess
 import sys
 import transformerlab.db as db
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 from transformerlab.shared import dirs
+from pydantic import BaseModel
+
+
+class EmbedRequest(BaseModel):
+    experiment_id: str
+    text: str
 
 
 router = APIRouter(prefix="/rag", tags=["rag"])
@@ -144,3 +151,19 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
         pass
 
     return output
+
+
+@router.post("/embed")
+async def embed_text(request: EmbedRequest):
+    """Embed text using the embedding model using sentence transformers"""
+    from sentence_transformers import SentenceTransformer
+
+    experiment_details = await db.experiment_get(id=request.experiment_id)
+    experiment_config = json.loads(experiment_details["config"])
+    embedding_model_name = experiment_config.get("embedding_model", "BAAI/bge-base-en-v1.5")
+    print("Using Embedding model: " + embedding_model_name)
+    model = SentenceTransformer(embedding_model_name)
+    text_list = request.text.split("\n")
+    embeddings = model.encode(text_list)
+
+    return JSONResponse(content={"embeddings": embeddings.tolist()})

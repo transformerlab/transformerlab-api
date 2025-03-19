@@ -104,6 +104,7 @@ huggingface-hub==0.28.0
     #   datasets
     #   evaluate
     #   peft
+    #   sentence-transformers
     #   tokenizers
     #   transformers
 idna==3.7
@@ -117,7 +118,9 @@ inflate64==1.0.1
 jinja2==3.1.5
     # via torch
 joblib==1.4.2
-    # via nltk
+    # via
+    #   nltk
+    #   scikit-learn
 latex2mathml==3.77.0
     # via markdown2
 loralib==0.1.2
@@ -161,6 +164,7 @@ numpy==2.1.2
     #   pandas
     #   peft
     #   rouge-score
+    #   scikit-learn
     #   scipy
     #   tensorboard
     #   tensorboardx
@@ -186,7 +190,9 @@ pandas==2.2.3
 peft==0.14.0
     # via -r requirements.in
 pillow==11.0.0
-    # via torchvision
+    # via
+    #   sentence-transformers
+    #   torchvision
 platformdirs==4.3.6
     # via wandb
 prompt-toolkit==3.0.50
@@ -277,7 +283,14 @@ safetensors==0.5.2
     #   accelerate
     #   peft
     #   transformers
+scikit-learn==1.6.1
+    # via sentence-transformers
 scipy==1.15.1
+    # via
+    #   -r requirements.in
+    #   scikit-learn
+    #   sentence-transformers
+sentence-transformers==3.4.1
     # via -r requirements.in
 sentencepiece==0.2.0
     # via -r requirements.in
@@ -318,6 +331,8 @@ tensorboardx==2.6.2.2
     # via -r requirements.in
 texttable==1.7.0
     # via py7zr
+threadpoolctl==3.6.0
+    # via scikit-learn
 tiktoken==0.8.0
     # via
     #   -r requirements.in
@@ -329,6 +344,7 @@ torch==2.6.0
     #   -r requirements.in
     #   accelerate
     #   peft
+    #   sentence-transformers
     #   torchaudio
     #   torchvision
 torchaudio==2.6.0
@@ -342,11 +358,13 @@ tqdm==4.66.5
     #   huggingface-hub
     #   nltk
     #   peft
+    #   sentence-transformers
     #   transformers
-transformers @ git+https://github.com/huggingface/transformers@30580f035b3e3c449865fb1c0730f89820f98f34
+transformers @ git+https://github.com/huggingface/transformers@9be4728af8bec48073ae841881d7f4e2ac3521d1
     # via
     #   -r requirements.in
     #   peft
+    #   sentence-transformers
 typing-extensions==4.12.2
     # via
     #   aiosqlite
