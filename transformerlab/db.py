@@ -60,19 +60,19 @@ async def init():
     #                  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)
     #                  """
     # )
-    await db.execute(
-        """CREATE TABLE IF NOT EXISTS
-                     job
-                        (id INTEGER PRIMARY KEY,
-                        job_data JSON,
-                        status,
-                        type,
-                        experiment_id,
-                        progress INTEGER DEFAULT -1,
-                        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        updated_at DATETIME NOT NULL DEFAULT current_timestamp)
-                        """
-    )
+    # await db.execute(
+    #     """CREATE TABLE IF NOT EXISTS
+    #                  job
+    #                     (id INTEGER PRIMARY KEY,
+    #                     job_data JSON,
+    #                     status,
+    #                     type,
+    #                     experiment_id,
+    #                     progress INTEGER DEFAULT -1,
+    #                     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    #                     updated_at DATETIME NOT NULL DEFAULT current_timestamp)
+    #                     """
+    # )
 
     # await db.execute(
     #     """CREATE TABLE IF NOT EXISTS

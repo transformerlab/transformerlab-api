@@ -82,3 +82,20 @@ class TrainingTemplate(Base):
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
+
+
+class Job(Base):
+    """Job model."""
+
+    __tablename__ = "job"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    job_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    status: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    type: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    experiment_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    progress: Mapped[int] = mapped_column(Integer, nullable=False, server_default="-1")
+    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    updated_at: Mapped[DateTime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
