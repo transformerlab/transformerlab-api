@@ -244,7 +244,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         experiment = await db.experiment_get_by_name(experiment_name)
         experiment_id = experiment["id"]
         plugin_name = job_config["plugin"]
-        eval_name = job_config["evaluator"]
+        eval_name = job_config.get("evaluator","")
+        eval_config = job_config.get("config",{})
         await db.job_update_status(job_id, "RUNNING")
         print("Running evaluation script")
         plugin_location = dirs.plugin_dir_by_name(plugin_name)
@@ -253,7 +254,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         if not os.path.exists(evals_output_file):
             with open(evals_output_file, "w") as f:
                 f.write("")
-        await run_evaluation_script(experiment_id, plugin_name, eval_name, job_id)
+        await run_evaluation_script(experiment_id, plugin_name, eval_name, eval_config, job_id)
         await db.job_update_status(job_id, "COMPLETE")
         return
     elif master_job_type == "GENERATE":
@@ -313,10 +314,11 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         asyncio.run(db.job_update_job_data_insert_key_value(job_id, "end_time", end_time))
 
     if job_type == "LoRA":
-        model_name = template_config["model_name"]
+        job_config = job_config["config"]
+        model_name = job_config.get("model_name",template_config["model_name"])
         model_name = secure_filename(model_name)
         template_config = json.loads(template["config"])
-        adaptor_name = template_config["adaptor_name"]
+        adaptor_name = job_config.get("adaptor_name",template_config["adaptor_name"])
         template_config["job_id"] = job_id
         template_config["adaptor_output_dir"] = os.path.join(dirs.WORKSPACE_DIR, "adaptors", model_name, adaptor_name)
         template_config["output_dir"] = os.path.join(

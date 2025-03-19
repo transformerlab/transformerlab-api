@@ -153,7 +153,7 @@ async def get_evaluation_plugin_file_contents(experimentId: int, plugin_name: st
 
 
 @router.get("/run_evaluation_script")
-async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: str, job_id: str):
+async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: str, eval_config: dict, job_id: str):
     experiment_details = await db.experiment_get(id=experimentId)
 
     if experiment_details is None:
@@ -162,13 +162,22 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
 
     experiment_name = experiment_details["name"]
     model_name = config["foundation"]
+    if "model_name" in eval_config.keys():
+        model_name = eval_config["model_name"]
+
 
     if config["foundation_filename"] is None or config["foundation_filename"].strip() == "":
         model_file_path = ""
     else:
         model_file_path = config["foundation_filename"]
     model_type = config["foundation_model_architecture"]
+    if "model_architecture" in eval_config.keys():
+        model_type = eval_config["model_architecture"]
+
     model_adapter = config["adaptor"]
+    if "adaptor_name" in eval_config.keys():
+        model_adapter = eval_config["adaptor_name"]
+
 
     # @TODO: This whole thing can be re-written to use the shared function to run a plugin
 
@@ -196,6 +205,8 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
     if this_evaluation is None:
         return {"message": f"Error: evaluation {eval_name} does not exist in experiment"}
     template_config = this_evaluation["script_parameters"]
+    for key in eval_config.keys():
+        template_config[key] = eval_config[key]
     # print("GET OUTPUT JOB DATA", await get_job_output_file_name("2", plugin_name, eval_name, template_config))
     job_output_file = await get_job_output_file_name(job_id, plugin_name)
 

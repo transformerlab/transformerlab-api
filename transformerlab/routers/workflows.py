@@ -5,6 +5,7 @@ from fastapi import APIRouter, UploadFile, Body
 from fastapi.responses import FileResponse
 
 import transformerlab.db as db
+import transformerlab.routers.tasks as tsks
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
@@ -190,6 +191,7 @@ async def start_next_step_in_workflow():
     workflow_experiment_id = currently_running_workflow["experiment_id"]
 
     current_jobs = []
+    current_job = None
 
     if workflow_current_job_id != []:
         for job_id in workflow_current_job_id:
@@ -201,7 +203,7 @@ async def start_next_step_in_workflow():
                 return {"message": "the current job failed"}
 
             if current_job["status"] == "CANCELLED" or current_job["status"] == "DELETED":
-                await db.workflow_update_with_new_job(workflow_id, "[]", -1)
+                await db.workflow_update_with_new_job(workflow_id, "[]", "[]")
                 await db.workflow_update_status(workflow_id, "CANCELLED")
                 return {"message": "the current job was cancelled"}
 
@@ -226,7 +228,7 @@ async def start_next_step_in_workflow():
 
     if not workflow_current_task:  # Check if the list is empty (end of workflow).
         await db.workflow_update_status(workflow_id, "COMPLETE")
-        await db.workflow_update_with_new_job(workflow_id, "[]", -1)  # Reset current job.
+        await db.workflow_update_with_new_job(workflow_id, "[]", "[]")  # Reset current job.
         return {"message": "Workflow Complete!"}
 
     next_node = None
@@ -243,7 +245,7 @@ async def start_next_step_in_workflow():
         workflow_current_task = next_node["out"]  # Skip the START node.
         if not workflow_current_task: #if the next node does not exist
             await db.workflow_update_status(workflow_id, "COMPLETE")
-            await db.workflow_update_with_new_job(workflow_id, "[]", -1)  # Reset current job.
+            await db.workflow_update_with_new_job(workflow_id, "[]", "[]")  # Reset current job.
             return {"message": "Workflow Complete!"}
         for node in workflow_config["nodes"]:
             if node["id"] in workflow_current_task:
@@ -255,9 +257,7 @@ async def start_next_step_in_workflow():
 
 
     # Get the task definition.  Prioritize metadata.task_name, then node.type
-    task_name = next_node.get("metadata", {}).get("task_name")
-    if not task_name:
-        task_name = next_node["type"]
+    task_name = next_node["task"]
 
     #Get tasks by type if no task_name is present
     if(task_name == next_node["type"]):
@@ -282,21 +282,22 @@ async def start_next_step_in_workflow():
         await db.workflow_update_status(workflow_id, "FAILED")
         return {"message": f"Could not find task '{task_name}' for workflow node."}
 
-    # Create job data from the task.
-    job_data = {
-        "config": json.loads(next_task["config"]),
-        "input_config": json.loads(next_task["input_config"]),
-        "output_config": json.loads(next_task["output_config"]),
-        "template_id": next_task["id"],  # Or some other identifier, if needed
-        "template_name": next_task["name"],
-    }
-    #The plugin should always come from the task
-    job_data["plugin"] = next_task["plugin"]
+    if next_task["type"] == "TRAIN":
+        next_task["output_config"] = json.loads(next_task["output_config"])
+        next_task["output_config"]["adaptor_name"] = str(uuid.uuid4()).replace("-","")
+        next_task["output_config"] = json.dumps(next_task["output_config"])
+    if next_task["type"] == "EVAL":
+        if current_job != None:
+            if current_job["type"] == "TRAIN":
+                next_task["input_config"] = json.loads(next_task["input_config"])
+                next_task["input_config"]["model_name"] = current_job["job_data"]["config"]["model_name"]
+                next_task["input_config"]["model_architecture"] = current_job["job_data"]["config"]["model_architecture"]
+                next_task["input_config"]["adaptor_name"] = current_job["job_data"]["config"]["adaptor_name"]
+                next_task["input_config"] = json.dumps(next_task["input_config"])
 
-    next_job_type = next_task["type"]
-    next_job_status = "QUEUED"
-
-    next_job_id = await db.job_create(next_job_type, next_job_status, json.dumps(job_data), workflow_experiment_id)
+    
+    next_job_info = await tsks.queue_task(next_task["id"], next_task["input_config"], next_task["output_config"])
+    next_job_id = next_job_info["id"]
     await db.workflow_update_with_new_job(workflow_id, json.dumps(workflow_current_task), json.dumps([next_job_id]))
 
     return {"message": "Next job created"}
