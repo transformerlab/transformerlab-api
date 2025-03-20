@@ -1,23 +1,26 @@
-import importlib
-
+import json
+import sys
+import traceback
+import numpy as np
 import pandas as pd
+
+from transformerlab.sdk.v1.evals import tlab_evals
+
+# Import DeepEval dependencies
 from deepeval import evaluate
 from deepeval.dataset import EvaluationDataset
 from deepeval.metrics import GEval
 from deepeval.test_case import LLMTestCase, LLMTestCaseParams
+import importlib
 
-from transformerlab.tfl_decorators import tfl_evals
-
-# Define metric groups for validation
-two_input_metrics = ["AnswerRelevancyMetric", "BiasMetric", "ToxicityMetric"]
-three_input_metrics = [
-    "FaithfulnessMetric",
-    "ContextualPrecisionMetric",
-    "ContextualRecallMetric",
-    "ContextualRelevancyMetric",
-    "HallucinationMetric",
-]
-custom_metric = ["GEval"]
+# # Add specific arguments needed for DeepEval metrics
+# tlab_evals.add_argument("--threshold", default=0.5, type=float, help="Score threshold for metrics")
+# tlab_evals.add_argument("--geval_name", default="", type=str, help="Name for custom GEval metrics")
+# tlab_evals.add_argument("--tasks", default="[]", type=str, help="JSON array of custom evaluation tasks")
+# tlab_evals.add_argument(
+#     "--predefined_tasks", default="", type=str, help="Comma-separated list of predefined DeepEval metrics"
+# )
+# tlab_evals.add_argument("--dataset_split", default="train", type=str, help="Dataset split to use for evaluation")
 
 
 def get_metric_class(metric_name: str):
@@ -32,196 +35,258 @@ def get_metric_class(metric_name: str):
         return metric_class
     except AttributeError:
         print(f"Metric {metric_name} not found in deepeval.metrics")
-        raise ValueError(f"Metric {metric_name} not found in deepeval.metrics")
+        sys.exit(1)
 
 
-# Use the job_wrapper decorator to handle job status updates
-@tfl_evals.job_wrapper(progress_start=0, progress_end=100)
+@tlab_evals.job_wrapper()
 def run_evaluation():
-    """Run DeepEval LLM Judge metrics"""
+    """Run DeepEval metrics for LLM-as-judge evaluation"""
 
-    # Type Casting for threshold and limit
-    tfl_evals.threshold = float(tfl_evals.threshold) if hasattr(tfl_evals, "threshold") and tfl_evals.threshold else 0.5
-    tfl_evals.limit = float(tfl_evals.limit) if tfl_evals.limit else 1.0
+    # Setup logging for the evaluation
+    tlab_evals.setup_eval_logging(wandb_project_name="TLab_Evaluations")
 
-    # Parse tasks and prepare metrics
-    tasks = tfl_evals.tasks.split(",")
-    original_metrics = []
-    for task in tasks:
-        if task != "Custom (GEval)":
-            original_metrics.append(task)
-        else:
-            original_metrics.append("GEval")
+    # Parse metrics and tasks
+    predefined_tasks = tlab_evals.params.predefined_tasks.split(",") if tlab_evals.params.predefined_tasks else []
+    formatted_predefined_tasks = [task.strip().replace(" ", "") + "Metric" for task in predefined_tasks]
 
-    tasks = [task.strip().replace(" ", "") + "Metric" if task != "Custom (GEval)" else "GEval" for task in tasks]
-
-    # Setup GEval metrics configuration
-    if "GEval" in tasks and not tfl_evals.context_geval:
-        two_input_metrics.append("GEval")
-    else:
-        three_input_metrics.append("GEval")
-
-    # Load model for evaluation
     try:
-        trlab_model = tfl_evals.load_evaluation_model(field_name="generation_model")
-        print()
-        print("Model loaded successfully")
+        geval_tasks = json.loads(tlab_evals.params.tasks) if tlab_evals.params.tasks else []
+    except Exception as e:
+        print(f"Error parsing tasks JSON: {e}")
+        raise ValueError(f"Invalid tasks JSON format: {tlab_evals.params.tasks}")
 
+    # Classification of metrics
+    two_input_metrics = ["AnswerRelevancyMetric", "BiasMetric", "ToxicityMetric"]
+    three_input_metrics = [
+        "FaithfulnessMetric",
+        "ContextualPrecisionMetric",
+        "ContextualRecallMetric",
+        "ContextualRelevancyMetric",
+        "HallucinationMetric",
+    ]
+
+    # Analyze custom metrics requirements
+    three_input_custom_metric = []
+    two_input_custom_metric = []
+    custom_geval_metrics = []
+
+    for task in geval_tasks:
+        if task["include_context"] == "Yes":
+            three_input_custom_metric.append(task["name"])
+        else:
+            two_input_custom_metric.append(task["name"])
+        custom_geval_metrics.append(task["name"])
+
+    tlab_evals.progress_update(5)
+
+    # Load the model for evaluation
+    try:
+        # Use tlab_evals built-in model loading functionality
+        trlab_model = tlab_evals.load_evaluation_model(field_name="generation_model")
+        print("Model loaded successfully")
     except Exception as e:
         print(f"An error occurred while loading the model: {e}")
-        raise
+        raise ValueError(f"Failed to load model: {str(e)}")
 
-    tfl_evals.progress_update(10)
+    tlab_evals.progress_update(10)
 
+    # Load the dataset
     try:
-        dataset = tfl_evals.load_dataset()
-        df = dataset["train"].to_pandas()
+        dataset_dict = tlab_evals.load_dataset([tlab_evals.params.dataset_split])
+        df = dataset_dict[tlab_evals.params.dataset_split].to_pandas()
         print("Dataset loaded successfully")
     except Exception as e:
-        print(f"An error occurred while reading the dataset: {e}")
-        raise
+        print(f"Error loading dataset: {e}")
+        raise ValueError(f"Failed to load dataset {tlab_evals.params.dataset_name}: {str(e)}")
 
-    tfl_evals.progress_update(20)
+    tlab_evals.progress_update(15)
 
-    # Validate dataset structure
+    # Verify required columns exist
     required_columns = ["input", "output", "expected_output"]
     if not all(col in df.columns for col in required_columns):
         raise ValueError(
-            "The dataset should have the columns `input`, `output` and `expected_output` mandatory. "
+            "The dataset should have the columns `input`, `output` and `expected_output`. "
             "Please re-upload the dataset with the correct columns."
         )
 
-    # Validate dataset content based on metrics
-    if all(elem in two_input_metrics for elem in tasks):
-        # Validate two-input metrics requirements
-        if (
-            not df["input"].notnull().all()
-            or not df["output"].notnull().all()
-            or not df["expected_output"].notnull().all()
-        ):
-            raise ValueError(
-                f"The dataset should have all non-null values in the columns `input`, `output` and `expected_output` "
-                f"columns for the metrics: {tasks}"
-            )
-    else:
-        # Check if context column exists or create one
+    # Check context requirements
+    if any(elem in three_input_metrics for elem in formatted_predefined_tasks) or len(three_input_custom_metric) > 0:
         if "context" not in df.columns:
-            print("Using the expected_output column as the context")
+            print("Using expected_output column as the context")
             df["context"] = df["expected_output"]
 
-        # Validate three-input metrics requirements
-        if (
-            not df["input"].notnull().all()
-            or not df["output"].notnull().all()
-            or not df["expected_output"].notnull().all()
-            or not df["context"].notnull().all()
-        ):
+        # Verify non-null values
+        if not df["context"].notnull().all():
             raise ValueError(
-                f"The dataset should have all non-null values in the columns `input`, `output`, `expected_output` "
-                f"and `context` columns for the metrics: {tasks}"
+                f"The dataset should have all non-null values in the 'context' column for metrics: "
+                f"{formatted_predefined_tasks + three_input_custom_metric}"
             )
 
-    tfl_evals.progress_update(30)
+    # Verify non-null values in required columns
+    for col in required_columns:
+        if not df[col].notnull().all():
+            raise ValueError(f"The dataset should have all non-null values in the '{col}' column")
+
+    tlab_evals.progress_update(20)
 
     # Initialize metrics
     metrics_arr = []
-    for met in tasks:
-        if met not in custom_metric:
+    try:
+        # Initialize predefined metrics
+        for met in formatted_predefined_tasks:
             metric_class = get_metric_class(met)
-            metric = metric_class(model=trlab_model, threshold=tfl_evals.threshold, include_reason=True)
+            metric = metric_class(
+                model=trlab_model, threshold=tlab_evals.params.get("threshold", 0.5), include_reason=True
+            )
             metrics_arr.append(metric)
-        else:
+
+        # Initialize custom GEval metrics
+        for met in geval_tasks:
             evaluation_params = [
                 LLMTestCaseParams.INPUT,
                 LLMTestCaseParams.ACTUAL_OUTPUT,
                 LLMTestCaseParams.EXPECTED_OUTPUT,
             ]
-            if tfl_evals.context_geval:
+            if met["include_context"] == "Yes":
                 evaluation_params.append(LLMTestCaseParams.RETRIEVAL_CONTEXT)
+
             metric = GEval(
-                name=tfl_evals.geval_name,
-                criteria=tfl_evals.geval_criteria,
+                name=met["name"],
+                criteria=met["description"],
                 evaluation_params=evaluation_params,
                 model=trlab_model,
             )
             metrics_arr.append(metric)
+        print("Metrics loaded successfully")
+    except Exception as e:
+        print(f"An error occurred while loading the metrics: {e}")
+        raise ValueError(f"Failed to initialize metrics: {str(e)}")
 
-    print("Metrics loaded successfully")
-    tfl_evals.progress_update(40)
+    tlab_evals.progress_update(30)
 
     # Create test cases
     test_cases = []
-    if all(elem in two_input_metrics for elem in tasks):
-        for _, row in df.iterrows():
-            test_cases.append(
-                LLMTestCase(input=row["input"], actual_output=row["output"], expected_output=row["expected_output"])
-            )
-    elif any(elem in three_input_metrics for elem in tasks):
-        if "HallucinationMetric" not in tasks:
+    try:
+        if (
+            all(elem in two_input_metrics for elem in formatted_predefined_tasks)
+            and len(three_input_custom_metric) == 0
+        ):
+            # Two-input test cases
             for _, row in df.iterrows():
                 test_cases.append(
-                    LLMTestCase(
-                        input=row["input"],
-                        actual_output=row["output"],
-                        expected_output=row["expected_output"],
-                        retrieval_context=[row["context"]],
-                    )
+                    LLMTestCase(input=row["input"], actual_output=row["output"], expected_output=row["expected_output"])
                 )
-        else:
-            for _, row in df.iterrows():
-                test_cases.append(
-                    LLMTestCase(
-                        input=row["input"],
-                        actual_output=row["output"],
-                        expected_output=row["expected_output"],
-                        context=[row["context"]],
+        elif (
+            any(elem in three_input_metrics for elem in formatted_predefined_tasks)
+            or len(three_input_custom_metric) > 0
+        ):
+            # Three-input test cases
+            if "HallucinationMetric" not in formatted_predefined_tasks:
+                for _, row in df.iterrows():
+                    if isinstance(row["context"], list):
+                        context = row["context"]
+                    elif isinstance(row["context"], np.ndarray):
+                        context = row["context"].tolist()
+                    elif (
+                        isinstance(row["context"], str)
+                        and row["context"].startswith("[")
+                        and row["context"].endswith("]")
+                    ):
+                        try:
+                            context = eval(row["context"])
+                        except Exception:
+                            context = [row["context"]]
+                    else:
+                        context = [row["context"]]
+                    test_cases.append(
+                        LLMTestCase(
+                            input=row["input"],
+                            actual_output=row["output"],
+                            expected_output=row["expected_output"],
+                            retrieval_context=context,
+                        )
                     )
-                )
+            else:
+                # Special case for HallucinationMetric
+                for _, row in df.iterrows():
+                    if isinstance(row["context"], list):
+                        context = row["context"]
+                    elif (
+                        isinstance(row["context"], str)
+                        and row["context"].startswith("[")
+                        and row["context"].endswith("]")
+                    ):
+                        try:
+                            context = eval(row["context"])
+                        except Exception:
+                            context = [row["context"]]
+                    else:
+                        context = [row["context"]]
+                    test_cases.append(
+                        LLMTestCase(
+                            input=row["input"],
+                            actual_output=row["output"],
+                            expected_output=row["expected_output"],
+                            context=context,  # Uses 'context' instead of 'retrieval_context'
+                        )
+                    )
+    except Exception as e:
+        print(f"An error occurred while creating test cases: {e}")
+        raise ValueError(f"Failed to create test cases: {str(e)}")
 
     # Apply limit if specified
-    if tfl_evals.limit and float(tfl_evals.limit) != 1.0:
-        num_samples = max(int(len(test_cases) * float(tfl_evals.limit)), 1)
+    if tlab_evals.params.limit and float(tlab_evals.params.limit) != 1.0:
+        num_samples = max(int(len(test_cases) * float(tlab_evals.params.limit)), 1)
         test_cases = test_cases[:num_samples]
 
-    print(f"Test cases loaded successfully: {len(test_cases)}")
-    tfl_evals.progress_update(50)
+    print(f"Test cases created: {len(test_cases)}")
+    tlab_evals.progress_update(40)
 
-    # Create and evaluate dataset
+    # Create evaluation dataset and run evaluation
     dataset = EvaluationDataset(test_cases)
-    output = evaluate(dataset, metrics_arr)
 
-    tfl_evals.progress_update(80)
+    try:
+        # Run the evaluation
+        output = evaluate(dataset, metrics_arr)
+        tlab_evals.progress_update(80)
 
-    # Process results
-    additional_report = []
-    for test_case in output.test_results:
-        for metric in test_case.metrics_data:
-            temp_report = {
-                "test_case_id": test_case.name,
-                "metric_name": metric.name,
-                "score": metric.score,
-                "input": test_case.input,
-                "actual_output": test_case.actual_output,
-                "expected_output": test_case.expected_output,
-                "reason": metric.reason,
-            }
-            additional_report.append(temp_report)
+        # Process results
+        metrics_data = []
+        for test_case in output.test_results:
+            for metric in test_case.metrics_data:
+                metrics_data.append(
+                    {
+                        "test_case_id": test_case.name,
+                        "metric_name": metric.name,
+                        "score": metric.score,
+                        "input": test_case.input,
+                        "output": test_case.actual_output,
+                        "expected_output": test_case.expected_output,
+                        "reason": metric.reason,
+                    }
+                )
 
-    # Create metrics DataFrame and save results
-    metrics_df = pd.DataFrame(additional_report)
-    output_path, plot_data_path = tfl_evals.save_evaluation_results(metrics_df)
+        # Create metrics DataFrame
+        metrics_df = pd.DataFrame(metrics_data)
 
-    # Log metrics to TensorBoard
-    for metric in metrics_df["metric_name"].unique():
-        metric_value = metrics_df[metrics_df["metric_name"] == metric]["score"].mean()
-        tfl_evals.log_metric(metric, metric_value)
+        # Log metrics to TensorBoard
+        for metric in metrics_df["metric_name"].unique():
+            avg_score = metrics_df[metrics_df["metric_name"] == metric]["score"].mean()
+            tlab_evals.log_metric(metric, avg_score)
 
-    tfl_evals.progress_update(100)
-    print(f"Detailed Report saved to {output_path}")
-    print(f"Metrics plot data saved to {plot_data_path}")
-    print("Evaluation completed successfully")
+        # Save evaluation results using the plugin's method
+        output_path, plot_data_path = tlab_evals.save_evaluation_results(metrics_df)
 
-    return output_path, plot_data_path
+        tlab_evals.progress_update(100)
+        print(f"Metrics saved to {output_path}")
+        print(f"Plotting data saved to {plot_data_path}")
+        print("Evaluation completed.")
+
+        return True
+    except Exception as e:
+        traceback.print_exc()
+        print(f"An error occurred during evaluation: {e}")
+        raise ValueError(f"Evaluation failed: {str(e)}")
 
 
 # Run the evaluation when script is executed
