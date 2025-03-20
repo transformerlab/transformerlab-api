@@ -106,7 +106,7 @@ class GenTLabPlugin(TLabPlugin):
 
             # Create a new dataset
             if not dataset_id:
-                params = {"dataset_id": self.params.run_name, "generated": True}
+                params = {"dataset_id": f"{self.params.run_name}_{self.params.job_id}", "generated": True}
             else:
                 params = {"dataset_id": dataset_id, "generated": True}
 
@@ -125,7 +125,7 @@ class GenTLabPlugin(TLabPlugin):
             # Adding dataset so it can be previewed.
             self.add_job_data("additional_output_path", output_file_path)
 
-            print(f"Dataset '{self.params.run_name}' uploaded successfully to TransformerLab")
+            print(f"Dataset '{self.params.run_name}_{self.params.job_id}' uploaded successfully to TransformerLab")
             return True
 
         except Exception as e:
