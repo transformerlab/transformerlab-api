@@ -29,7 +29,7 @@ parser.add_argument("--run_name", default="test", type=str)
 parser.add_argument("--model_name", default="gpt-j-6b", type=str, help="Model to use for evaluation.")
 parser.add_argument("--experiment_name", default="", type=str)
 parser.add_argument("--eval_name", default="", type=str)
-parser.add_argument("--tasks", default="", type=str)
+parser.add_argument("--predefined_tasks", default="", type=str)
 parser.add_argument(
     "--model_adapter",
     default=None,
@@ -42,11 +42,11 @@ parser.add_argument(
 )
 parser.add_argument("--threshold", default=0.5, type=float)
 parser.add_argument("--geval_name", default="", type=str)
-parser.add_argument("--geval_criteria", default="", type=str)
-parser.add_argument("--context_geval", default=None, type=str)
+parser.add_argument("--tasks", default="[]", type=str, help="JSON array of custom evaluation tasks")
 parser.add_argument("--generation_model", default=None, type=str)
 parser.add_argument("--job_id", default=None, type=str)
 parser.add_argument("--limit", default=None, type=float)
+parser.add_argument("--dataset_split", default="train", type=str)
 
 args, other = parser.parse_known_args()
 
@@ -89,19 +89,10 @@ except Exception as e:
     job.set_job_completion_status("failed", "An error occurred while adding job data.")
     sys.exit(1)
 
-args.tasks = args.tasks.split(",")
-original_metrics = []
-for task in args.tasks:
-    if task != "Custom (GEval)":
-        original_metrics.append(task)
-    else:
-        original_metrics.append("GEval")
-# original_metrics = [args.tasks if args.tasks != "Custom (GEval)" else "GEval"]
-args.tasks = [task.strip().replace(" ", "") + "Metric" if task != "Custom (GEval)" else "GEval" for task in args.tasks]
-# if args.tasks != "Custom (GEval)":
-#     args.tasks = args.tasks.strip().replace(" ", "") + "Metric"
-# else:
-#     args.tasks = "GEval"
+args.predefined_tasks = args.predefined_tasks.split(",")
+original_metrics = [task for task in args.predefined_tasks]
+geval_tasks = json.loads(args.tasks) if args.tasks else []
+args.predefined_tasks = [task.strip().replace(" ", "") + "Metric" for task in args.predefined_tasks]
 
 
 def get_tflab_dataset():
@@ -112,7 +103,7 @@ def get_tflab_dataset():
         job.set_job_completion_status("failed", "Failure to get dataset")
         raise e
     dataset = {}
-    dataset_types = ["train"]
+    dataset_types = [args.dataset_split]
     for dataset_type in dataset_types:
         try:
             dataset[dataset_type] = load_dataset(dataset_target, split=dataset_type, trust_remote_code=True)
@@ -122,7 +113,7 @@ def get_tflab_dataset():
             job.set_job_completion_status("failed", "Failure to load dataset")
             raise e
     # Convert the dataset to a pandas dataframe
-    df = dataset["train"].to_pandas()
+    df = dataset[dataset_types[0]].to_pandas()
     return df
 
 
@@ -291,18 +282,16 @@ three_input_metrics = [
     "HallucinationMetric",
 ]
 
-custom_metric = ["GEval"]
-
-try:
-    if "GEval" in args.tasks and not args.context_geval:
-        two_input_metrics.append("GEval")
+# Calculate the length of metrics in geval tasks which have include_context as Yes
+three_input_custom_metric = []
+two_input_custom_metric = []
+custom_geval_metrics = []
+for task in geval_tasks:
+    if task["include_context"] == "Yes":
+        three_input_custom_metric.append(task["name"])
     else:
-        three_input_metrics.append("GEval")
-except Exception as e:
-    print(f"An error occurred while checking the metric: {e}")
-    job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    job.set_job_completion_status("failed", "An error occurred while checking the metric")
-    sys.exit(1)
+        two_input_custom_metric.append(task["name"])
+    custom_geval_metrics.append(task["name"])
 
 
 def run_evaluation():
@@ -338,7 +327,7 @@ def run_evaluation():
         )
         sys.exit(1)
 
-    if all(elem in two_input_metrics for elem in args.tasks):
+    if all(elem in two_input_metrics for elem in args.predefined_tasks) and len(three_input_custom_metric) == 0:
         # Make sure the df has all non-null values in the columns `input` and `output`
         if (
             not df["input"].notnull().all()
@@ -346,18 +335,20 @@ def run_evaluation():
             or not df["expected_output"].notnull().all()
         ):
             print(
-                f"The dataset should have all non-null values in the columns `input`, `output` and `expected_output` columns for the metrics: {args.tasks}"
+                f"The dataset should have all non-null values in the columns `input`, `output` and `expected_output` columns for the metrics: {args.predefined_tasks + two_input_custom_metric}"
             )
             job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             job.set_job_completion_status(
                 "failed",
-                f"The dataset should have all non-null values in the columns `input`, `output` and `expected_output` columns for the metrics: {args.tasks}",
+                f"The dataset should have all non-null values in the columns `input`, `output` and `expected_output` columns for the metrics: {args.predefined_tasks + two_input_custom_metric}",
             )
             sys.exit(1)
     else:
         # Check if there is a column called `context` in the dataset
         if "context" not in df.columns:
-            print(f"The dataset should have a column `context` for the metrics: {args.tasks}")
+            print(
+                f"The dataset should have a column `context` for the metrics: {args.predefined_tasks + three_input_custom_metric}"
+            )
             print("Using the expected_output column as the context")
             df["context"] = df["expected_output"]
 
@@ -369,37 +360,38 @@ def run_evaluation():
             or not df["context"].notnull().all()
         ):
             print(
-                f"The dataset should have all non-null values in the columns `input`, `output`, `expected_output` and `context` columns for the metrics: {args.tasks}"
+                f"The dataset should have all non-null values in the columns `input`, `output`, `expected_output` and `context` columns for the metrics: {args.predefined_tasks + three_input_custom_metric}"
             )
             job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
             job.set_job_completion_status(
                 "failed",
-                f"The dataset should have all non-null values in the columns `input`, `output`, `expected_output` and `context` columns for the metrics: {args.tasks}",
+                f"The dataset should have all non-null values in the columns `input`, `output`, `expected_output` and `context` columns for the metrics: {args.predefined_tasks + three_input_custom_metric}",
             )
             sys.exit(1)
     metrics_arr = []
     try:
-        for met in args.tasks:
-            if met not in custom_metric:
-                metric_class = get_metric_class(met)
-                metric = metric_class(model=trlab_model, threshold=args.threshold, include_reason=True)
-                metrics_arr.append(metric)
-            else:
-                evaluation_params = [
-                    LLMTestCaseParams.INPUT,
-                    LLMTestCaseParams.ACTUAL_OUTPUT,
-                    LLMTestCaseParams.EXPECTED_OUTPUT,
-                ]
-                if args.context_geval:
-                    evaluation_params.append(LLMTestCaseParams.RETRIEVAL_CONTEXT)
-                metric = GEval(
-                    name=args.geval_name,
-                    criteria=args.geval_criteria,
-                    evaluation_params=evaluation_params,
-                    model=trlab_model,
-                )
-                metrics_arr.append(metric)
-            print("Metric loaded successfully")
+        for met in args.predefined_tasks:
+            metric_class = get_metric_class(met)
+            metric = metric_class(model=trlab_model, threshold=args.threshold, include_reason=True)
+            metrics_arr.append(metric)
+
+        for met in geval_tasks:
+            evaluation_params = [
+                LLMTestCaseParams.INPUT,
+                LLMTestCaseParams.ACTUAL_OUTPUT,
+                LLMTestCaseParams.EXPECTED_OUTPUT,
+            ]
+            if met["include_context"] == "Yes":
+                evaluation_params.append(LLMTestCaseParams.RETRIEVAL_CONTEXT)
+
+            metric = GEval(
+                name=met["name"],
+                criteria=met["description"],
+                evaluation_params=evaluation_params,
+                model=trlab_model,
+            )
+            metrics_arr.append(metric)
+        print("Metric loaded successfully")
     except Exception as e:
         print(f"An error occurred while loading the metric: {e}")
         job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -410,7 +402,7 @@ def run_evaluation():
     test_cases = []
 
     try:
-        if all(elem in two_input_metrics for elem in args.tasks):
+        if all(elem in two_input_metrics for elem in args.predefined_tasks) and len(three_input_custom_metric) == 0:
             for _, row in df.iterrows():
                 try:
                     test_cases.append(
@@ -423,8 +415,8 @@ def run_evaluation():
                     job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
                     job.set_job_completion_status("failed", "An error occurred while creating the test case")
                     sys.exit(1)
-        elif any(elem in three_input_metrics for elem in args.tasks):
-            if "HallucinationMetric" not in args.tasks:
+        elif any(elem in three_input_metrics for elem in args.predefined_tasks) or len(three_input_custom_metric) > 0:
+            if "HallucinationMetric" not in args.predefined_tasks:
                 for _, row in df.iterrows():
                     if isinstance(row["context"], list):
                         context = row["context"]
