@@ -262,6 +262,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         experiment_id = experiment["id"]
         plugin_name = job_config["plugin"]
         generation_name = job_config["generator"]
+        generation_config = job_config["config"]
         await db.job_update_status(job_id, "RUNNING")
         print("Running generation script")
         plugin_location = dirs.plugin_dir_by_name(plugin_name)
@@ -270,7 +271,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         if not os.path.exists(gen_output_file):
             with open(gen_output_file, "w") as f:
                 f.write("")
-        await run_generation_script(experiment_id, plugin_name, generation_name, job_id)
+        await run_generation_script(experiment_id, plugin_name, generation_name, generation_config, job_id)
         await db.job_update_status(job_id, "COMPLETE")
         return
 

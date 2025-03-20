@@ -140,6 +140,11 @@ async def queue_task(task_id: int, inputs: str = "{}", outputs:str = "{}"):
         job_data["plugin"] = task_to_queue["plugin"]
     elif job_type == "GENERATE":
         job_data["generator"] = task_to_queue["name"]
+        job_data["config"] = json.loads(task_to_queue["config"])
+        for key in input_config.keys():
+            job_data["config"][key] = input_config[key]
+        for key in inputs.keys():
+            job_data["config"][key] = inputs[key]
         job_data["plugin"] = task_to_queue["plugin"]
     job_id = await db.job_create(job_type, job_status, json.dumps(job_data), task_to_queue["experiment_id"])
     return {"id": job_id}
