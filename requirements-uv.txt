@@ -74,7 +74,7 @@ frozenlist==1.5.0
     # via
     #   aiohttp
     #   aiosignal
-fschat @ git+https://github.com/transformerlab/FastChat@464498217bcfc22c013536995d2a10d4f2c2c5bd
+fschat @ git+https://github.com/transformerlab/FastChat
     # via -r requirements.in
 fsspec==2024.9.0
     # via
@@ -392,7 +392,7 @@ tqdm==4.67.1
     #   peft
     #   sentence-transformers
     #   transformers
-transformers @ git+https://github.com/huggingface/transformers@9be4728af8bec48073ae841881d7f4e2ac3521d1
+transformers @ git+https://github.com/huggingface/transformers
     # via
     #   -r requirements.in
     #   peft
