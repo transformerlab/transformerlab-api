@@ -10,7 +10,7 @@ from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import mine_hard_negatives, paraphrase_mining
 from datasets import Dataset
 
-from transformerlab.tfl_decorators import tfl_gen
+from transformerlab.sdk.v1.generate import tlab_gen
 
 
 class CustomEmbeddingModel(DeepEvalBaseEmbeddingModel):
@@ -73,36 +73,38 @@ def clean_context(s):
     return s[0] if isinstance(s, list) else list(s)[0]
 
 
-def generation_from_docs(docs: list, model, embedding_model_name: str, args):
+def generation_from_docs(docs: list, model, embedding_model_name: str):
     """Generate data from documents using the Synthesizer"""
     try:
         # Initialize embedding model
         embedder = CustomEmbeddingModel(model_name=embedding_model_name)
         print(f"Embedder loaded successfully: {embedding_model_name}")
-        tfl_gen.progress_update(10)
+        tlab_gen.progress_update(10)
 
         # Create context configuration
         context_config = ContextConstructionConfig(
             embedder=embedder,
             critic_model=model,
-            chunk_size=args.chunk_size,
-            max_contexts_per_document=args.max_contexts_per_document,
-            max_context_length=args.max_context_length if not args.generate_dataset_for_embedding_model else 1,
+            chunk_size=tlab_gen.params.chunk_size,
+            max_contexts_per_document=tlab_gen.params.max_contexts_per_document,
+            max_context_length=tlab_gen.params.max_context_length
+            if not tlab_gen.params.generate_dataset_for_embedding_model
+            else 1,
         )
-        tfl_gen.progress_update(20)
+        tlab_gen.progress_update(20)
 
         # Initialize synthesizer and generate golden examples
         synthesizer = Synthesizer(model=model)
         print("Synthesizer initialized successfully")
-        tfl_gen.progress_update(30)
+        tlab_gen.progress_update(30)
 
         synthesizer.generate_goldens_from_docs(
             document_paths=docs,
             context_construction_config=context_config,
             include_expected_output=True,
-            max_goldens_per_context=args.max_goldens_per_context,
+            max_goldens_per_context=tlab_gen.params.max_goldens_per_context,
         )
-        tfl_gen.progress_update(80)
+        tlab_gen.progress_update(80)
 
         # Convert the generated data to a pandas dataframe
         df = synthesizer.to_pandas()
@@ -180,79 +182,83 @@ def run_embedding_dataset_generation(df, embedding_model_name, dataset_type):
     return mined_dataset.to_pandas()
 
 
-@tfl_gen.job_wrapper(progress_start=0, progress_end=100)
+@tlab_gen.job_wrapper()
 def run_generation():
     """Main function to run the synthesizer docs plugin"""
-    print(f"Generation type: {tfl_gen.generation_type}")
-    print(f"Model Name: {tfl_gen.generation_model}")
+    print(f"Generation type: {tlab_gen.params.generation_type}")
+    print(f"Model Name: {tlab_gen.params.generation_model}")
 
     # Type casting
-    tfl_gen.chunk_size = int(tfl_gen.chunk_size)
-    tfl_gen.max_contexts_per_document = int(tfl_gen.max_contexts_per_document)
-    tfl_gen.max_context_length = int(tfl_gen.max_context_length)
-    tfl_gen.max_goldens_per_context = int(tfl_gen.max_goldens_per_context)
-    tfl_gen.generate_dataset_for_embedding_model = bool(getattr(tfl_gen, "generate_dataset_for_embedding_model", False))
+    tlab_gen.params.chunk_size = int(tlab_gen.params.chunk_size)
+    tlab_gen.params.max_contexts_per_document = int(tlab_gen.params.max_contexts_per_document)
+    tlab_gen.params.max_context_length = int(tlab_gen.params.max_context_length)
+    tlab_gen.params.max_goldens_per_context = int(tlab_gen.params.max_goldens_per_context)
+    tlab_gen.params.generate_dataset_for_embedding_model = bool(
+        tlab_gen.params.get("generate_dataset_for_embedding_model", False)
+    )
 
     # Check for docs
-    if not tfl_gen.docs:
+    if not tlab_gen.params.docs:
         print("Docs must be provided for document-based generation.")
         raise ValueError("Docs must be provided for document-based generation.")
 
-    docs = get_docs_list(tfl_gen.docs, tfl_gen.experiment_name)
+    docs = get_docs_list(tlab_gen.params.docs, tlab_gen.params.experiment_name)
     if len(docs) == 0:
         print("No valid documents found.")
         raise ValueError("No valid documents found.")
 
     print(f"Generating data from {len(docs)} documents: {docs}")
 
-    # Load the model for generation using tfl_gen helper
-    trlab_model = tfl_gen.load_evaluation_model()
+    # Load the model for generation using tlab_gen helper
+    trlab_model = tlab_gen.load_evaluation_model()
     print("Model loaded successfully")
 
     # Generate data from docs
     df = generation_from_docs(
         docs=docs,
         model=trlab_model,
-        embedding_model_name=getattr(tfl_gen, "embedding_model", "Snowflake/arctic-embed-m"),
-        args=tfl_gen,
+        embedding_model_name=tlab_gen.params.get("embedding_model", "Snowflake/arctic-embed-m"),
     )
 
     # Generate embedding dataset if requested
     embedding_df = None
-    if getattr(tfl_gen, "generate_dataset_for_embedding_model", False):
-        tfl_gen.progress_update(85)
+    if getattr(tlab_gen, "generate_dataset_for_embedding_model", False):
+        tlab_gen.progress_update(85)
         embedding_df = run_embedding_dataset_generation(
             df=df,
-            embedding_model_name=getattr(tfl_gen, "embedding_model", "Snowflake/arctic-embed-m"),
-            dataset_type=getattr(tfl_gen, "embedding_dataset_type", "anchor | positive | negative"),
+            embedding_model_name=tlab_gen.params.get("embedding_model", "Snowflake/arctic-embed-m"),
+            dataset_type=tlab_gen.params.get("embedding_dataset_type", "anchor | positive | negative"),
         )
 
-    # Save main dataset using tfl_gen helper
+    # Save main dataset using tlab_gen helper
     metadata = {
         "generation_method": "docs",
-        "embedding_model": getattr(tfl_gen, "embedding_model", "Snowflake/arctic-embed-m"),
-        "chunk_size": getattr(tfl_gen, "chunk_size", 256),
-        "max_contexts_per_document": getattr(tfl_gen, "max_contexts_per_document", 10),
-        "max_context_length": getattr(tfl_gen, "max_context_length", 3),
-        "max_goldens_per_context": getattr(tfl_gen, "max_goldens_per_context", 2),
+        "embedding_model": tlab_gen.params.get("embedding_model", "Snowflake/arctic-embed-m"),
+        "chunk_size": tlab_gen.params.get("chunk_size", 256),
+        "max_contexts_per_document": tlab_gen.params.get("max_contexts_per_document", 10),
+        "max_context_length": tlab_gen.params.get("max_context_length", 3),
+        "max_goldens_per_context": tlab_gen.params.get("max_goldens_per_context", 1),
     }
 
-    tfl_gen.progress_update(95)
+    tlab_gen.progress_update(95)
 
     # Save embedding dataset if generated
     if embedding_df is not None and len(embedding_df) > 0:
-        embedding_dataset_name = f"{tfl_gen.run_name}_embedding"
-        embedding_output_file, _ = tfl_gen.save_generated_dataset(
+        embedding_dataset_name = f"{tlab_gen.params.run_name}_embedding"
+        embedding_output_file, _ = tlab_gen.params.save_generated_dataset(
             embedding_df,
-            {**metadata, "dataset_type": getattr(tfl_gen, "embedding_dataset_type", "anchor | positive | negative")},
+            {
+                **metadata,
+                "dataset_type": tlab_gen.params.get("embedding_dataset_type", "anchor | positive | negative"),
+            },
             dataset_id=embedding_dataset_name,
         )
         print(f"Embedding dataset '{embedding_dataset_name}' saved to {embedding_output_file}")
     else:
-        output_file, dataset_name = tfl_gen.save_generated_dataset(df, metadata)
+        output_file, dataset_name = tlab_gen.save_generated_dataset(df, metadata)
         print(f"Data generated successfully as dataset {dataset_name}")
 
-    tfl_gen.progress_update(95)
+    tlab_gen.progress_update(95)
 
     # print(f"Data generated successfully as dataset {dataset_name}")
     # print(f"Saved to {output_file}")

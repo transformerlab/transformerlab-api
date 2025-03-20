@@ -88,10 +88,6 @@ class TLabPlugin:
                         self.setup_train_logging(wandb_project_name=wandb_project_name, manual_logging=manual_logging)
                     elif self.tlab_plugin_type == "evals":
                         self.setup_eval_logging(wandb_project_name=wandb_project_name, manual_logging=manual_logging)
-                    elif self.tlab_plugin_type == "generation":
-                        self.setup_generation_logging(
-                            wandb_project_name=wandb_project_name, manual_logging=manual_logging
-                        )
 
                     # Call the wrapped function
                     result = func(*args, **kwargs)
