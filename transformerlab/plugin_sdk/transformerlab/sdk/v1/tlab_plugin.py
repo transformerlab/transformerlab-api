@@ -197,6 +197,10 @@ class TLabPlugin:
             self.job.update_status("STOPPED")
             raise KeyboardInterrupt("Job stopped by user")
 
+    def get_experiment_config(self, experiment_name: str):
+        """Get experiment configuration"""
+        return transformerlab.plugin.get_experiment_config(experiment_name)
+
     def add_job_data(self, key: str, value: Any):
         """Add data to job"""
         self.job.add_to_job_data(key, value)

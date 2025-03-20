@@ -10,12 +10,6 @@ from tqdm.auto import tqdm
 
 from transformerlab.sdk.v1.generate import tlab_gen
 
-# # Add custom arguments
-# tlab_gen.add_argument("--docs", default=None, type=str, help="Comma-separated list of document files")
-# tlab_gen.add_argument("--chunk_size", default=2000, type=int, help="Chunk size for document splitting")
-# tlab_gen.add_argument("--chunk_overlap", default=200, type=int, help="Chunk overlap for document splitting")
-# tlab_gen.add_argument("--n_generations", default=10, type=int, help="Number of QA pairs to generate")
-
 
 def extract_text_from_pdf(pdf_path: str) -> str:
     """Extract text from PDF files using PyMuPDF"""
