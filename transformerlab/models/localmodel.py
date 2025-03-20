@@ -93,7 +93,7 @@ class LocalModelStore(modelstore.ModelStore):
         non_embedding_models = []
 
         for model in models:
-            if model["json_data"]["architecture"] in embedding_model_architectures:
+            if model["json_data"].get("architecture") in embedding_model_architectures:
                 embedding_models.append(model)
             else:
                 non_embedding_models.append(model)
