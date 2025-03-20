@@ -529,9 +529,9 @@ async def get_model_prompt_template(model: str):
 
 
 @router.get("/model/list")
-async def model_local_list():
+async def model_local_list(embedding=False):
     # the model list is a combination of downloaded hugging face models and locally generated models
-    return await model_helper.list_installed_models()
+    return await model_helper.list_installed_models(embedding)
 
 
 @router.get("/model/provenance/{model_id}")
