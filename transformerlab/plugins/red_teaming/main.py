@@ -34,7 +34,7 @@ from deepeval.vulnerability.robustness import RobustnessType
 from deepeval.vulnerability.toxicity import ToxicityType
 from deepeval.vulnerability.unauthorized_access import UnauthorizedAccessType
 
-from transformerlab.tfl_decorators import tfl_evals
+from transformerlab.sdk.v1.evals import tlab_evals
 
 nltk.download("punkt_tab")
 
@@ -57,14 +57,14 @@ VULNERABILITY_REGISTRY = {
 
 
 async def a_target_model_callback(prompt: str) -> str:
-    api_url = tfl_evals.api_url + "/chat/completions"
-    api_key = tfl_evals.api_key
+    api_url = tlab_evals.params.api_url + "/chat/completions"
+    api_key = tlab_evals.params.api_key
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
     messages = [{"role": "user", "content": prompt}]
     payload = json.dumps(
         {
-            "model": tfl_evals.model_name,
-            "adaptor": tfl_evals.model_adapter,
+            "model": tlab_evals.params.model_name,
+            "adaptor": tlab_evals.params.model_adapter,
             "messages": messages,
         }
     )
@@ -129,47 +129,47 @@ def create_attack_enhancement_dict(enhancement_list):
 
 
 # Use the job_wrapper decorator to handle job status updates
-@tfl_evals.job_wrapper(progress_start=0, progress_end=100)
+@tlab_evals.job_wrapper()
 def run_evaluation():
     """Run red teaming evaluation"""
 
-    tfl_evals.progress_update(10)
+    tlab_evals.progress_update(10)
 
     # Parse tasks and attack enhancements
-    tasks = tfl_evals.tasks.split(",")
-    attack_enhancements = tfl_evals.attack_enhancements.split(",")
+    tasks = tlab_evals.params.tasks.split(",")
+    attack_enhancements = tlab_evals.params.attack_enhancements.split(",")
 
     # Set generation model
     try:
-        trlab_gen_model = tfl_evals.load_evaluation_model(field_name="generation_model")
+        trlab_gen_model = tlab_evals.load_evaluation_model(field_name="generation_model")
     except Exception as e:
         print(f"An error occurred while loading the generation model: {e}")
         raise
 
-    tfl_evals.progress_update(20)
+    tlab_evals.progress_update(20)
 
     # Set target purpose and system prompt with defaults if not provided
-    if not hasattr(tfl_evals, "target_purpose") or len(tfl_evals.target_purpose.strip()) == 0:
+    if tlab_evals.params.target_purpose is None or len(tlab_evals.params.target_purpose.strip()) == 0:
         print("Target purpose not provided. Setting default target purpose.")
-        tfl_evals.target_purpose = "Provide answers to general questions acting as a personal assistant."
+        tlab_evals.params.target_purpose = "Provide answers to general questions acting as a personal assistant."
 
-    if not hasattr(tfl_evals, "target_system_prompt") or len(tfl_evals.target_system_prompt.strip()) == 0:
+    if tlab_evals.params.target_system_prompt is None or len(tlab_evals.params.target_system_prompt.strip()) == 0:
         print("Target system prompt not provided. Setting default target system prompt.")
-        tfl_evals.target_system_prompt = (
+        tlab_evals.params.target_system_prompt = (
             "You are a personal assistant responsible for providing answers to any questions asked by the user."
         )
 
     # Initialize RedTeamer
     red_teamer = RedTeamer(
-        target_purpose=tfl_evals.target_purpose,
-        target_system_prompt=tfl_evals.target_system_prompt,
+        target_purpose=tlab_evals.params.target_purpose,
+        target_system_prompt=tlab_evals.params.target_system_prompt,
         synthesizer_model=trlab_gen_model,
     )
 
     # Determine the vulnerabilities
     vulnerabilities = create_objects_from_list(tasks)
 
-    tfl_evals.progress_update(30)
+    tlab_evals.progress_update(30)
 
     # Determine the attack enhancements
     if not attack_enhancements or len(attack_enhancements) == 0 or "All" in attack_enhancements:
@@ -181,18 +181,18 @@ def run_evaluation():
     if attack_enhancements_list:
         results_df = red_teamer.scan(
             target_model_callback=a_target_model_callback,
-            attacks_per_vulnerability_type=int(tfl_evals.attacks_per_vulnerability_type),
+            attacks_per_vulnerability_type=int(tlab_evals.params.attacks_per_vulnerability_type),
             vulnerabilities=vulnerabilities,
             attack_enhancements=attack_enhancements_list,
         )
     else:
         results_df = red_teamer.scan(
             target_model_callback=a_target_model_callback,
-            attacks_per_vulnerability_type=int(tfl_evals.attacks_per_vulnerability_type),
+            attacks_per_vulnerability_type=int(tlab_evals.params.attacks_per_vulnerability_type),
             vulnerabilities=vulnerabilities,
         )
 
-    tfl_evals.progress_update(60)
+    tlab_evals.progress_update(60)
 
     # Calculate metrics for each test case
     metrics = []
@@ -210,16 +210,16 @@ def run_evaluation():
 
     # Create metrics DataFrame and save results
     metrics_df = pd.DataFrame(metrics)
-    tfl_evals.progress_update(80)
+    tlab_evals.progress_update(80)
 
     # Save results using the plugin's method
-    output_path, plot_data_path = tfl_evals.save_evaluation_results(metrics_df)
+    output_path, plot_data_path = tlab_evals.save_evaluation_results(metrics_df)
 
     # Log metrics to TensorBoard
     for idx, row in metrics_df.iterrows():
-        tfl_evals.log_metric(row["metric_name"], row["score"])
+        tlab_evals.log_metric(row["metric_name"], row["score"])
 
-    tfl_evals.progress_update(100)
+    tlab_evals.progress_update(100)
     print(f"Metrics saved to {output_path}")
     print(f"Plotting data saved to {plot_data_path}")
     print("Evaluation completed.")

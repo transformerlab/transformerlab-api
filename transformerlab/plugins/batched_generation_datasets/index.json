@@ -60,6 +60,17 @@
             "minimum": 1,
             "maximum": 2048,
             "multipleOf": 1
+        },
+        "dataset_split": {
+            "title": "Dataset Split",
+            "type": "string",
+            "default": "train",
+            "enum": [
+                "train",
+                "valid",
+                "test"
+            ]
+  
         }
     },
     "parameters_ui": {
@@ -89,6 +100,13 @@
         "max_tokens": {
             "ui:help": "Select the maximum tokens for generation",
             "ui:widget": "RangeWidget"
+        },
+        "dataset_split":{
+            "ui:help": "Select the dataset split to be used for generation",
+            "ui:widget": "AutoCompleteWidget",
+            "ui:options": {
+                "multiple": false
+            }
         }
     }
 }

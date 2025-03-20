@@ -58,8 +58,8 @@ async def run_evaluation():
     tlab_evals.progress_update(20)
 
     # Load the dataset
-    dataset = tlab_evals.load_dataset(["test"])
-    df = dataset["test"].to_pandas()
+    dataset = tlab_evals.load_dataset()
+    df = dataset["train"].to_pandas()
 
     print("Dataset fetched successfully")
 
