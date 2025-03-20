@@ -3,7 +3,7 @@ import re
 
 import pandas as pd
 
-from transformerlab.tfl_decorators import tfl_evals
+from transformerlab.sdk.v1.evals import tlab_evals
 
 # Get Predefined tasks
 pre_defined = {
@@ -143,27 +143,27 @@ def execute_custom_function_regexp(output_text: str, expression: str, return_typ
         return None
 
 
-@tfl_evals.job_wrapper(progress_start=0, progress_end=100)
+@tlab_evals.job_wrapper()
 def run_evaluation():
     """Run basic evaluations using regex and simple metrics"""
 
     # Type casting for limit
-    tfl_evals.limit = float(tfl_evals.limit) if tfl_evals.limit else 1.0
+    tlab_evals.params.limit = float(tlab_evals.params.limit) if tlab_evals.params.limit else 1.0
 
     # Parse tasks
     tasks = []
 
     # First try to parse the tasks JSON
     try:
-        if hasattr(tfl_evals, "tasks") and tfl_evals.tasks and tfl_evals.tasks.strip() != "":
-            tasks = eval(tfl_evals.tasks)
+        if tlab_evals.params.tasks and tlab_evals.params.tasks.strip() != "":
+            tasks = eval(tlab_evals.params.tasks)
     except Exception as e:
         print(f"Error parsing tasks JSON: {e}")
-        raise ValueError(f"Invalid tasks JSON format: {tfl_evals.tasks}")
+        raise ValueError(f"Invalid tasks JSON format: {tlab_evals.params.tasks}")
 
     # Add predefined tasks if specified
-    if hasattr(tfl_evals, "predefined_tasks") and tfl_evals.predefined_tasks.strip() != "":
-        pre_defined_tasks = tfl_evals.predefined_tasks.split(",")
+    if tlab_evals.params.predefined_tasks and tlab_evals.params.predefined_tasks.strip() != "":
+        pre_defined_tasks = tlab_evals.params.predefined_tasks.split(",")
         for task in pre_defined_tasks:
             if task in pre_defined:
                 tasks.append(pre_defined[task])
@@ -173,41 +173,41 @@ def run_evaluation():
     if not tasks:
         raise ValueError("No tasks specified. Please provide tasks or predefined_tasks.")
 
-    tfl_evals.progress_update(10)
+    tlab_evals.progress_update(10)
 
     # Load dataset
     try:
-        dataset = tfl_evals.load_dataset()
+        dataset = tlab_evals.load_dataset()
         df = dataset["train"].to_pandas()
         print("Dataset loaded successfully")
     except Exception as e:
         print(f"Error loading dataset: {e}")
-        raise ValueError(f"Failed to load dataset {tfl_evals.dataset_name}: {str(e)}")
+        raise ValueError(f"Failed to load dataset {tlab_evals.params.dataset_name}: {str(e)}")
 
     # Verify required columns exist
-    if tfl_evals.input_col not in df.columns:
-        raise ValueError(f"Input column '{tfl_evals.input_col}' not found in the dataset.")
+    if tlab_evals.params.input_col not in df.columns:
+        raise ValueError(f"Input column '{tlab_evals.params.input_col}' not found in the dataset.")
 
-    if tfl_evals.output_col not in df.columns:
-        raise ValueError(f"Output column '{tfl_evals.output_col}' not found in the dataset.")
+    if tlab_evals.params.output_col not in df.columns:
+        raise ValueError(f"Output column '{tlab_evals.params.output_col}' not found in the dataset.")
 
     # Apply limit if specified
-    if tfl_evals.limit and float(tfl_evals.limit) != 1.0:
-        num_samples = max(int(len(df) * float(tfl_evals.limit)), 1)
+    if tlab_evals.params.limit and float(tlab_evals.limit) != 1.0:
+        num_samples = max(int(len(df) * float(tlab_evals.params.limit)), 1)
         df_limited = df.iloc[:num_samples].copy()
     else:
         df_limited = df.copy()
 
     print(f"Test cases loaded successfully: {len(df_limited)}")
-    tfl_evals.progress_update(20)
+    tlab_evals.progress_update(20)
 
     # Apply evaluations
     for task in tasks:
-        df_limited[f"eval_{task['name']}"] = df_limited[tfl_evals.output_col].apply(
+        df_limited[f"eval_{task['name']}"] = df_limited[tlab_evals.params.output_col].apply(
             lambda x: execute_custom_function_regexp(x, task["expression"], task["return_type"].lower())
         )
 
-    tfl_evals.progress_update(40)
+    tlab_evals.progress_update(40)
 
     # Generate metrics data
     metrics = []
@@ -217,7 +217,7 @@ def run_evaluation():
         metric_avg = df_limited[f"eval_{metric_name}"].mean()
 
         # Log metric to TensorBoard
-        tfl_evals.log_metric(metric_name, metric_avg)
+        tlab_evals.log_metric(metric_name, metric_avg)
 
         # Add to scores list for job data
 
@@ -228,20 +228,20 @@ def run_evaluation():
                     "test_case_id": f"test_case_{idx}",
                     "metric_name": metric_name,
                     "score": int(row[f"eval_{metric_name}"]),
-                    "input": row[tfl_evals.input_col],
-                    "output": row[tfl_evals.output_col],
+                    "input": row[tlab_evals.params.input_col],
+                    "output": row[tlab_evals.params.output_col],
                 }
             )
 
-    tfl_evals.progress_update(60)
+    tlab_evals.progress_update(60)
 
     # Create metrics DataFrame
     metrics_df = pd.DataFrame(metrics)
 
     # Save results using the plugin's method
-    output_path, plot_data_path = tfl_evals.save_evaluation_results(metrics_df)
+    output_path, plot_data_path = tlab_evals.save_evaluation_results(metrics_df)
 
-    tfl_evals.progress_update(100)
+    tlab_evals.progress_update(100)
     print(f"Metrics saved to {output_path}")
     print(f"Plotting data saved to {plot_data_path}")
     print("Evaluation completed.")

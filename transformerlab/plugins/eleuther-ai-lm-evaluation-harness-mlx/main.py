@@ -5,7 +5,7 @@ import pandas as pd
 import torch
 import traceback
 
-from transformerlab.tfl_decorators import tfl_evals
+from transformerlab.sdk.v1.evals import tlab_evals
 
 
 def get_detailed_file_names(output_file_path, prefix="samples_", suffix=".jsonl"):
@@ -22,16 +22,16 @@ def get_detailed_file_names(output_file_path, prefix="samples_", suffix=".jsonl"
         return []
 
 
-@tfl_evals.job_wrapper(progress_start=0, progress_end=100)
+@tlab_evals.job_wrapper()
 def run_evaluation():
     """Run the MLX Evaluation Harness"""
     try:
         # Validate parameters
-        if not tfl_evals.model_name or tfl_evals.model_name == "":
+        if not tlab_evals.params.model_name or tlab_evals.params.model_name == "":
             raise ValueError("No model provided. Please re-run after setting a Foundation model.")
 
-        if hasattr(tfl_evals, "limit") and tfl_evals.limit:
-            limit_val = float(tfl_evals.limit)
+        if tlab_evals.params.limit:
+            limit_val = float(tlab_evals.params.limit)
             if limit_val < 0:
                 raise ValueError("Limit must be a positive number.")
             if limit_val > 1:
@@ -40,9 +40,9 @@ def run_evaluation():
                 limit_val = 1.0
 
         # Use model_path as model_name if provided
-        model_name = tfl_evals.model_name
-        if hasattr(tfl_evals, "model_path") and tfl_evals.model_path.strip() != "":
-            model_name = tfl_evals.model_path
+        model_name = tlab_evals.params.model_name
+        if tlab_evals.params.model_path and tlab_evals.model_path.strip() != "":
+            model_name = tlab_evals.params.model_path
             print(f"Model path provided. Using model path as model name: {model_name}")
 
         # Check if CUDA is available
@@ -53,17 +53,26 @@ def run_evaluation():
         plugin_dir = os.path.realpath(os.path.dirname(__file__))
 
         # Prepare output directory for lm-eval
-        output_path = tfl_evals.get_output_file_path(dir_only=True)
+        output_path = tlab_evals.get_output_file_path(dir_only=True)
 
         # Build model args
         model_args = f"model={model_name},trust_remote_code=True"
 
         # Build command
-        command = ["lm-eval", "--model", "mlx", "--model_args", model_args, "--tasks", tfl_evals.tasks, "--log_samples"]
+        command = [
+            "lm-eval",
+            "--model",
+            "mlx",
+            "--model_args",
+            model_args,
+            "--tasks",
+            tlab_evals.params.tasks,
+            "--log_samples",
+        ]
 
         # Add limit if provided
-        if hasattr(tfl_evals, "limit") and tfl_evals.limit and float(tfl_evals.limit) != 1.0:
-            command.extend(["--limit", str(tfl_evals.limit)])
+        if tlab_evals.params.limit and float(tlab_evals.params.limit) != 1.0:
+            command.extend(["--limit", str(tlab_evals.params.limit)])
 
         # Add output path
         command.extend(["--output_path", output_path])
@@ -86,7 +95,7 @@ def run_evaluation():
                 pattern = r"^Running.*?(\d+)%\|"
                 match = re.search(pattern, line)
                 if match:
-                    tfl_evals.progress_update(int(match.group(1)))
+                    tlab_evals.progress_update(int(match.group(1)))
 
         # Get detailed report files
         detailed_report_files = get_detailed_file_names(output_path)
@@ -96,14 +105,14 @@ def run_evaluation():
         scores_list = []
 
         # Extract metrics from detailed reports
-        for task_name in tfl_evals.tasks.split(","):
+        for task_name in tlab_evals.params.tasks.split(","):
             for file in detailed_report_files:
                 if task_name in file:
                     df = pd.read_json(file, lines=True)
                     avg_score = df["acc"].mean()
 
                     # Log to tensorboard
-                    tfl_evals.log_metric(task_name, avg_score)
+                    tlab_evals.log_metric(task_name, avg_score)
                     scores_list.append({"type": task_name, "score": avg_score})
 
                     # Build metrics dataframe
@@ -122,7 +131,7 @@ def run_evaluation():
         metrics_df = pd.DataFrame(metrics_list)
 
         # Save results using plugin's method
-        tfl_evals.save_evaluation_results(metrics_df)
+        tlab_evals.save_evaluation_results(metrics_df)
 
         print("Evaluation completed successfully.")
 

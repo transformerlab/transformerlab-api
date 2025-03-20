@@ -14,6 +14,6 @@ cd lm-evaluation-harness-mlx
 git checkout mlx
 
 # Install dependencies
-pip install -e .
+uv pip install -e .
 
 uv pip install tensorboardX pandas

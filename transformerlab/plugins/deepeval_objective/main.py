@@ -4,7 +4,7 @@ from deepeval.metrics import BaseMetric
 from deepeval.scorer import Scorer
 from deepeval.test_case import LLMTestCase
 
-from transformerlab.tfl_decorators import tfl_evals
+from transformerlab.sdk.v1.evals import tlab_evals
 
 nltk.download("punkt_tab")
 
@@ -166,14 +166,14 @@ metric_classes = {
 
 
 # Use the job_wrapper decorator to handle job status updates
-@tfl_evals.job_wrapper(progress_start=0, progress_end=100)
+@tlab_evals.job_wrapper()
 def run_evaluation():
     # Parse tasks
-    tasks = tfl_evals.tasks.split(",")
+    tasks = tlab_evals.params.tasks.split(",")
     tasks = [metric.lower().replace(" ", "_") for metric in tasks]
 
     # Load the dataset
-    dataset = tfl_evals.load_dataset()
+    dataset = tlab_evals.load_dataset()
     df = dataset["train"].to_pandas()
 
     # Check required columns
@@ -187,21 +187,21 @@ def run_evaluation():
         test_case = LLMTestCase(input=row["input"], actual_output=row["output"], expected_output=row["expected_output"])
         test_cases.append(test_case)
 
-    if hasattr(tfl_evals, "limit") and tfl_evals.limit and float(tfl_evals.limit) < 1.0:
-        num_samples = int(len(test_cases) * float(tfl_evals.limit))
+    if tlab_evals.params.limit and float(tlab_evals.params.limit) < 1.0:
+        num_samples = int(len(test_cases) * float(tlab_evals.params.limit))
         if num_samples < 1:
             num_samples = 1
         test_cases = test_cases[:num_samples]
 
     print(f"Test cases loaded successfully: {len(test_cases)}")
-    tfl_evals.progress_update(20)
+    tlab_evals.progress_update(20)
 
-    if not hasattr(tfl_evals, "threshold"):
-        tfl_evals.threshold = 0.5
+    if tlab_evals.params.threshold is None:
+        tlab_evals.params.threshold = 0.5
     # Calculate metrics for each test case
     metrics = []
     for metric_name in tasks:
-        metric = metric_classes[metric_name](threshold=float(tfl_evals.threshold))
+        metric = metric_classes[metric_name](threshold=float(tlab_evals.params.threshold))
         for idx, test_case in enumerate(test_cases):
             score = metric.measure(test_case)
             if metric_name == "bert_score":
@@ -230,18 +230,18 @@ def run_evaluation():
                     }
                 )
 
-    tfl_evals.progress_update(60)
+    tlab_evals.progress_update(60)
 
     # Create DataFrame and save results
     metrics_df = pd.DataFrame(metrics)
-    tfl_evals.save_evaluation_results(metrics_df)
+    tlab_evals.save_evaluation_results(metrics_df)
 
-    tfl_evals.progress_update(80)
+    tlab_evals.progress_update(80)
 
     # Log metrics to TensorBoard
     for metric_name in tasks:
         avg_score = metrics_df[metrics_df["metric_name"] == metric_name]["score"].mean()
-        tfl_evals.log_metric(metric_name, avg_score)
+        tlab_evals.log_metric(metric_name, avg_score)
 
     return True
 
