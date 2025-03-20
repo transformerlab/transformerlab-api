@@ -7,6 +7,7 @@ from llama_index.core import VectorStoreIndex
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.core import Settings
 from llama_index.core import SimpleDirectoryReader, StorageContext, load_index_from_storage
+from llama_index.core.postprocessor import SentenceTransformerRerank
 import os
 import time
 
@@ -14,12 +15,12 @@ import time
 # Redirect all output to a buffer that we control:
 
 
-def index_documents(documents_dir, persistency_dir):
+def index_documents(documents_dir, persistency_dir, embedding_model="BAAI/bge-small-en-v1.5"):
     reader = SimpleDirectoryReader(input_dir=documents_dir, exclude_hidden=False)
     documents = reader.load_data()
     sys.stderr.write(f"Loaded {len(documents)} docs")
 
-    Settings.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
+    Settings.embed_model = HuggingFaceEmbedding(model_name=embedding_model, trust_remote_code=True)
 
     vector_index = VectorStoreIndex.from_documents(
         documents,
@@ -32,8 +33,8 @@ def index_documents(documents_dir, persistency_dir):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_name", type=str, required=True)
+    parser.add_argument("--embedding_model", default="BAAI/bge-small-en-v1.5", type=str, required=False)
     parser.add_argument("--documents_dir", default="", type=str, required=True)
-    # parser.add_argument('--query', default='', type=str, required=True)
     parser.add_argument("--settings", default="", type=str, required=False)
 
     group = parser.add_mutually_exclusive_group(required=True)
@@ -47,7 +48,7 @@ def main():
 
     if args.index:
         start_time = time.time()
-        index_documents(documents_dir, persistency_dir)
+        index_documents(documents_dir, persistency_dir, args.embedding_model)
         elapsed_time = time.time() - start_time
 
         result = {"status": "success", "elapsed_time": elapsed_time}
@@ -56,11 +57,14 @@ def main():
 
     # SETTINGS
     number_of_search_results = 2
+    use_reranker = False
+    reranker_model = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+    reranker_top_n = 20
 
-    Settings.context_window = 4096
+    Settings.context_window = 2048
     Settings.num_output = 256
 
-    Settings.chunk_size = 512
+    Settings.chunk_size = 256
     Settings.chunk_overlap = 50
 
     response_mode = "compact"
@@ -88,6 +92,12 @@ def main():
             response_mode = settings_param["response_mode"]
         if "temperature" in settings_param:
             temperature = float(settings_param["temperature"])
+        if "use_reranker" in settings_param:
+            use_reranker = bool(settings_param["use_reranker"])
+        if "reranker_model" in settings_param:
+            reranker_model = settings_param["reranker_model"]
+        if "reranker_top_n" in settings_param:
+            reranker_top_n = int(settings_param["reranker_top_n"])
 
     print(f"Settings: {Settings.__dict__}", file=sys.stderr)
 
@@ -108,20 +118,29 @@ def main():
         model=model_short_name,
         is_chat_model=True,
         timeout=40,
-        # context_window=32000,
+        context_window=Settings.context_window,
         tokenizer=model_short_name,
         temperature=temperature,
     )
 
     Settings.llm = llm
 
-    Settings.embed_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
+    Settings.embed_model = HuggingFaceEmbedding(model_name=args.embedding_model, trust_remote_code=True)
     Settings.callback_manager = callback_manager
 
     storage_context = StorageContext.from_defaults(persist_dir=persistency_dir)
     vector_index = load_index_from_storage(storage_context)
 
-    query_engine = vector_index.as_query_engine(response_mode=response_mode, similarity_top_k=number_of_search_results)
+    # Configure reranker if enabled
+    node_postprocessors = []
+    if use_reranker:
+        print(f"Using reranker: {reranker_model}", file=sys.stderr)
+        reranker = SentenceTransformerRerank(model=reranker_model, top_n=reranker_top_n)
+        node_postprocessors.append(reranker)
+
+    query_engine = vector_index.as_query_engine(
+        response_mode=response_mode, similarity_top_k=number_of_search_results, node_postprocessors=node_postprocessors
+    )
 
     rag_response = query_engine.query(args.query)
 

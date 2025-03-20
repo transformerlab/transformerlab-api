@@ -14,12 +14,12 @@ from transformerlab.models import localmodel
 import traceback
 
 
-async def list_installed_models():
+async def list_installed_models(embedding=False):
     """
     This function checks both the DB and the workspace models directory
     and returns a list of models in the format that models are stored in the DB.
     """
-    return await localmodel.LocalModelStore().list_models()
+    return await localmodel.LocalModelStore().list_models(embedding)
 
 
 async def is_model_installed(model_id: str):

@@ -27,5 +27,6 @@ wandb==0.19.8
 tensorboardX
 werkzeug
 sqlalchemy[asyncio]
+sentence-transformers
 git+https://github.com/huggingface/transformers
 git+https://github.com/transformerlab/FastChat
