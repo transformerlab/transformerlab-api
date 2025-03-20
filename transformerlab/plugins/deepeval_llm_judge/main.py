@@ -6,6 +6,7 @@ import sys
 import traceback
 import time
 from datetime import datetime
+import numpy as np
 
 from tensorboardX import SummaryWriter
 import instructor
@@ -420,6 +421,8 @@ def run_evaluation():
                 for _, row in df.iterrows():
                     if isinstance(row["context"], list):
                         context = row["context"]
+                    elif isinstance(row["context"], np.ndarray):
+                        context = row["context"].tolist()
                     elif row["context"].startswith("[") and row["context"].endswith("]"):
                         try:
                             context = eval(row["context"])
