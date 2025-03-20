@@ -6,6 +6,7 @@ import sys
 import traceback
 import time
 from datetime import datetime
+import numpy as np
 
 from tensorboardX import SummaryWriter
 import instructor
@@ -418,22 +419,42 @@ def run_evaluation():
         elif any(elem in three_input_metrics for elem in args.predefined_tasks) or len(three_input_custom_metric) > 0:
             if "HallucinationMetric" not in args.predefined_tasks:
                 for _, row in df.iterrows():
+                    if isinstance(row["context"], list):
+                        context = row["context"]
+                    elif isinstance(row["context"], np.ndarray):
+                        context = row["context"].tolist()
+                    elif row["context"].startswith("[") and row["context"].endswith("]"):
+                        try:
+                            context = eval(row["context"])
+                        except Exception:
+                            context = [row["context"]]
+                    else:
+                        context = [row["context"]]
                     test_cases.append(
                         LLMTestCase(
                             input=row["input"],
                             actual_output=row["output"],
                             expected_output=row["expected_output"],
-                            retrieval_context=[row["context"]],
+                            retrieval_context=context,
                         )
                     )
             else:
                 for _, row in df.iterrows():
+                    if isinstance(row["context"], list):
+                        context = row["context"]
+                    elif row["context"].startswith("[") and row["context"].endswith("]"):
+                        try:
+                            context = eval(row["context"])
+                        except Exception:
+                            context = [row["context"]]
+                    else:
+                        context = [row["context"]]
                     test_cases.append(
                         LLMTestCase(
                             input=row["input"],
                             actual_output=row["output"],
                             expected_output=row["expected_output"],
-                            context=[row["context"]],
+                            context=context,
                         )
                     )
     except Exception as e:
