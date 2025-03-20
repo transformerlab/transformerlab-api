@@ -426,22 +426,34 @@ def run_evaluation():
         elif any(elem in three_input_metrics for elem in args.tasks):
             if "HallucinationMetric" not in args.tasks:
                 for _, row in df.iterrows():
+                    if isinstance(row["context"], list) or (isinstance(eval(row["context"]), list)):
+                        try:
+                            context = eval(row["context"])
+                        except Exception:
+                            context = row["context"]
+                    else:
+                        context = [row["context"]]
                     test_cases.append(
                         LLMTestCase(
                             input=row["input"],
                             actual_output=row["output"],
                             expected_output=row["expected_output"],
-                            retrieval_context=[row["context"]],
+                            retrieval_context=context,
                         )
                     )
             else:
                 for _, row in df.iterrows():
+                    if isinstance(row["context"], list) or (isinstance(eval(row["context"]), list)):
+                        try:
+                            context = eval(row["context"])
+                        except Exception:
+                            context = row["context"]
                     test_cases.append(
                         LLMTestCase(
                             input=row["input"],
                             actual_output=row["output"],
                             expected_output=row["expected_output"],
-                            context=[row["context"]],
+                            context=context,
                         )
                     )
     except Exception as e:
