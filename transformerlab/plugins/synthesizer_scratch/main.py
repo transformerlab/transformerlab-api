@@ -3,10 +3,9 @@ import json
 from deepeval.synthesizer import Evolution, Synthesizer
 from deepeval.synthesizer.config import EvolutionConfig, StylingConfig
 
-# Import tfl_gen instead of using argparse
-from transformerlab.tfl_decorators import tfl_gen
+from transformerlab.sdk.v1.generate import tlab_gen
 
-tfl_gen.add_argument("--num_goldens", default=5, type=int)
+tlab_gen.add_argument("--num_goldens", default=5, type=int)
 
 
 def scratch_generation(model, styling_config: dict, evolution_config: dict = None):
@@ -23,7 +22,7 @@ def scratch_generation(model, styling_config: dict, evolution_config: dict = Non
         raise ValueError("Evolution config dictionary must have the keys `REASONING`, `CONCRETIZING`, `CONSTRAINED`")
 
     print("Generating data from scratch...")
-    tfl_gen.progress_update(35)
+    tlab_gen.progress_update(35)
 
     try:
         # Create StylingConfig
@@ -47,12 +46,12 @@ def scratch_generation(model, styling_config: dict, evolution_config: dict = Non
 
         # Initialize synthesizer
         synthesizer = Synthesizer(styling_config=styling_config, model=model, evolution_config=evolution_config)
-        tfl_gen.progress_update(45)
+        tlab_gen.progress_update(45)
         print("Synthesizer initialized successfully")
 
         # Generate data
-        synthesizer.generate_goldens_from_scratch(num_goldens=tfl_gen.num_goldens)
-        tfl_gen.progress_update(60)
+        synthesizer.generate_goldens_from_scratch(num_goldens=tlab_gen.params.num_goldens)
+        tlab_gen.progress_update(60)
 
         # Convert to DataFrame
         df = synthesizer.to_pandas()
@@ -63,52 +62,57 @@ def scratch_generation(model, styling_config: dict, evolution_config: dict = Non
         raise
 
 
-@tfl_gen.job_wrapper(progress_start=0, progress_end=100)
+@tlab_gen.job_wrapper()
 def run_generation():
     """Run data generation using Synthesizer"""
     # Setup and initialize
 
     # Load model
     try:
-        trlab_model = tfl_gen.load_evaluation_model(field_name="generation_model")
+        trlab_model = tlab_gen.load_evaluation_model(field_name="generation_model")
         print(f"Model loaded successfully: {trlab_model.get_model_name()}")
     except Exception as e:
         print(f"An error occurred while loading the model: {e}")
         raise
 
-    tfl_gen.progress_update(20)
+    tlab_gen.progress_update(20)
 
     # Check required parameters
-    if not tfl_gen.input_format or not tfl_gen.expected_output_format or not tfl_gen.task or not tfl_gen.scenario:
+    if (
+        not tlab_gen.params.input_format
+        or not tlab_gen.params.expected_output_format
+        or not tlab_gen.params.task
+        or not tlab_gen.params.scenario
+    ):
         raise ValueError("Input format, expected output format, task and scenario must be provided for generation.")
 
     # Create styling config
     styling_config = {
-        "input_format": tfl_gen.input_format,
-        "expected_output_format": tfl_gen.expected_output_format,
-        "task": tfl_gen.task,
-        "scenario": tfl_gen.scenario,
+        "input_format": tlab_gen.params.input_format,
+        "expected_output_format": tlab_gen.params.expected_output_format,
+        "task": tlab_gen.params.task,
+        "scenario": tlab_gen.params.scenario,
     }
 
     # Parse evolution config if provided
     evolution_config = None
-    if hasattr(tfl_gen, "evolution_config") and tfl_gen.evolution_config:
+    if tlab_gen.params.evolution_config is not None:
         try:
-            evolution_config = json.loads(tfl_gen.evolution_config)
+            evolution_config = json.loads(tlab_gen.params.evolution_config)
         except json.JSONDecodeError:
             print("Warning: Invalid JSON in evolution_config, using default")
 
-    tfl_gen.progress_update(30)
+    tlab_gen.progress_update(30)
 
     # Call synthesizer function
     df = scratch_generation(trlab_model, styling_config, evolution_config)
 
-    tfl_gen.progress_update(70)
+    tlab_gen.progress_update(70)
 
     # Generate expected outputs if requested
-    if getattr(tfl_gen, "generate_expected_output", "Yes").lower() == "yes":
+    if tlab_gen.params.get("generate_expected_outputs", "Yes").lower() == "yes":
         input_values = df["input"].tolist()
-        expected_outputs = tfl_gen.generate_expected_outputs(
+        expected_outputs = tlab_gen.params.generate_expected_outputs(
             input_values,
             styling_config["task"],
             styling_config["scenario"],
@@ -120,14 +124,14 @@ def run_generation():
     # Rename columns for consistency
     df.rename(columns={"actual_output": "output"}, inplace=True)
 
-    tfl_gen.progress_update(90)
+    tlab_gen.progress_update(90)
 
     # Save dataset
-    output_file, dataset_name = tfl_gen.save_generated_dataset(
+    output_file, dataset_name = tlab_gen.save_generated_dataset(
         df, {"styling_config": styling_config, "evolution_config": evolution_config}
     )
 
-    tfl_gen.progress_update(100)
+    tlab_gen.progress_update(100)
     print(f"Data generated successfully as dataset {dataset_name}")
 
     return True

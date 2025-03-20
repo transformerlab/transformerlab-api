@@ -3,10 +3,10 @@ import traceback
 from deepeval.synthesizer import Synthesizer
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
-from transformerlab.tfl_decorators import tfl_gen
+from transformerlab.sdk.v1.generate import tlab_gen
 
 # Add custom arguments specific to the synthesizer plugin
-tfl_gen.add_argument("--num_goldens", default=5, type=int, help="Number of golden examples to generate")
+tlab_gen.add_argument("--num_goldens", default=5, type=int, help="Number of golden examples to generate")
 
 
 def context_generation(context: str, model, num_goldens: int):
@@ -18,20 +18,20 @@ def context_generation(context: str, model, num_goldens: int):
     sentences = [[sentence] for sentence in sentences]
     print(f"Number of sentences in the context: {len(sentences)}")
 
-    tfl_gen.progress_update(20)
+    tlab_gen.progress_update(20)
 
     # Generate goldens from contexts
     print("Generating data from contexts...")
     try:
         synthesizer = Synthesizer(model=model)
         print("Synthesizer initialized successfully")
-        tfl_gen.progress_update(30)
+        tlab_gen.progress_update(30)
 
         max_goldens_per_context = num_goldens // max(len(sentences), 1)
         synthesizer.generate_goldens_from_contexts(
             contexts=sentences, max_goldens_per_context=max(max_goldens_per_context, 2), include_expected_output=True
         )
-        tfl_gen.progress_update(80)
+        tlab_gen.progress_update(80)
 
         # Convert the generated data to a pandas dataframe
         df = synthesizer.to_pandas()
@@ -48,32 +48,32 @@ def context_generation(context: str, model, num_goldens: int):
         raise
 
 
-@tfl_gen.job_wrapper(progress_start=0, progress_end=100)
+@tlab_gen.job_wrapper(progress_start=0, progress_end=100)
 def run_generation():
     """Main function to run the synthesizer plugin"""
-    print(f"Generation type: {tfl_gen.generation_type}")
-    print(f"Model Name: {tfl_gen.generation_model}")
+    print(f"Generation type: {tlab_gen.params.generation_type}")
+    print(f"Model Name: {tlab_gen.params.generation_model}")
 
     # Check for context
-    if not tfl_gen.context or len(tfl_gen.context.strip()) <= 1:
+    if not tlab_gen.params.context or len(tlab_gen.params.context.strip()) <= 1:
         print("Context must be provided for generation.")
         raise ValueError("Context must be provided for generation.")
 
-    # Load the model for generation using tfl_gen helper
-    trlab_model = tfl_gen.load_evaluation_model()
+    # Load the model for generation using tlab_gen helper
+    trlab_model = tlab_gen.load_evaluation_model()
 
     print("Model loaded successfully")
-    tfl_gen.progress_update(10)
+    tlab_gen.progress_update(10)
 
     # Generate data from context
-    df = context_generation(tfl_gen.context, trlab_model, getattr(tfl_gen, "num_goldens", 5))
+    df = context_generation(tlab_gen.params.context, trlab_model, tlab_gen.params.get("num_goldens", 5))
 
-    # Save dataset using tfl_gen helper
-    output_file, dataset_name = tfl_gen.save_generated_dataset(
+    # Save dataset using tlab_gen helper
+    output_file, dataset_name = tlab_gen.save_generated_dataset(
         df,
         {
             "generation_method": "context",
-            "num_goldens": getattr(tfl_gen, "num_goldens", 5),
+            "num_goldens": tlab_gen.params.get("num_goldens", 5),
         },
     )
 
