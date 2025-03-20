@@ -16,4 +16,4 @@ git checkout mlx
 # Install dependencies
 uv pip install -e .
 
-uv pip install tensorboardX pandas
+uv pip install pandas

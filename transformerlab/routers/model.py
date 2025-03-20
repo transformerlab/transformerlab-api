@@ -529,9 +529,9 @@ async def get_model_prompt_template(model: str):
 
 
 @router.get("/model/list")
-async def model_local_list():
+async def model_local_list(embedding=False):
     # the model list is a combination of downloaded hugging face models and locally generated models
-    return await model_helper.list_installed_models()
+    return await model_helper.list_installed_models(embedding)
 
 
 @router.get("/model/provenance/{model_id}")
@@ -597,9 +597,17 @@ async def model_gets_pefts(
 @router.get("/model/delete_peft")
 async def model_delete_peft(model_id: str, peft: str):
     workspace_dir = dirs.WORKSPACE_DIR
-    adaptors_dir = f"{workspace_dir}/adaptors/{model_id}"
-    peft_path = f"{adaptors_dir}/{peft}"
+    secure_model_id = secure_filename(model_id)
+    adaptors_dir = f"{workspace_dir}/adaptors/{secure_model_id}"
+    # Check if the peft exists
+    if os.path.exists(adaptors_dir):
+        peft_path = f"{adaptors_dir}/{peft}"
+    else:
+        # Assume the adapter is stored in the older naming convention format
+        peft_path = f"{workspace_dir}/adaptors/{model_id}/{peft}"
+
     shutil.rmtree(peft_path)
+
     return {"message": "success"}
 
 

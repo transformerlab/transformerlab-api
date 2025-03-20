@@ -1,6 +1,8 @@
 import os
 import json
 import sqlite3
+import itertools
+
 
 # useful constants
 WORKSPACE_DIR = os.getenv("_TFL_WORKSPACE_DIR")
@@ -81,6 +83,67 @@ def test_wandb_login(project_name: str = "TFL_Training"):
     else:
         os.environ["WANDB_DISABLED"] = "true"
         return False, ["tensorboard"]
+
+
+def experiment_get_by_name(name):
+    db = get_db_connection()
+    cursor = db.execute("SELECT * FROM experiment WHERE name = ?", (name,))
+    row = cursor.fetchone()
+
+    if row is None:
+        return None
+
+    # Convert the SQLite row into a JSON object with keys
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    row = dict(itertools.zip_longest(column_names, row))
+
+    cursor.close()
+    return row
+
+
+def experiment_get(id):
+    db = get_db_connection()
+    if id is None or id == "undefined":
+        return None
+    cursor = db.execute("SELECT * FROM experiment WHERE id = ?", (id,))
+    row = cursor.fetchone()
+
+    if row is None:
+        return None
+
+    # Convert the SQLite row into a JSON object with keys
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    row = dict(itertools.zip_longest(column_names, row))
+
+    cursor.close()
+    return row
+
+
+def get_experiment_id_from_name(name: str):
+    """
+    Returns the experiment ID from the experiment name.
+    """
+    if isinstance(name, str):
+        data = experiment_get_by_name(name)
+        if data is None:
+            return name
+        return data["id"]
+    return name
+
+
+def get_experiment_config(name: str):
+    """
+    Returns the experiment config from the experiment name.
+    """
+    if isinstance(name, str):
+        experiment_id = get_experiment_id_from_name(name)
+        data = experiment_get(experiment_id)
+        if data is None:
+            return None, experiment_id
+        return json.loads(data["config"]), experiment_id
+    return None, experiment_id
 
 
 class Job:

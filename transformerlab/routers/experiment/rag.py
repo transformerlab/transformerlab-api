@@ -5,7 +5,14 @@ import subprocess
 import sys
 import transformerlab.db as db
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 from transformerlab.shared import dirs
+from pydantic import BaseModel
+
+
+class EmbedRequest(BaseModel):
+    experiment_id: str
+    text: str
 
 
 router = APIRouter(prefix="/rag", tags=["rag"])
@@ -22,6 +29,10 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
     experiment_details = await db.experiment_get(id=experimentId)
     experiment_config = json.loads(experiment_details["config"])
     model = experiment_config.get("foundation")
+    embedding_model = experiment_config.get("embedding_model")
+    if embedding_model is None:
+        print("No embedding model found in experiment config, using default")
+        embedding_model = "BAAI/bge-base-en-v1.5"
 
     print("Querying RAG with model " + model + " and query " + query + " and settings " + settings)
 
@@ -44,6 +55,8 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
         plugin_path,
         "--model_name",
         model,
+        "--embedding_model",
+        embedding_model,
         "--query",
         query,
         "--documents_dir",
@@ -85,8 +98,12 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
     experiment_details = await db.experiment_get(id=experimentId)
     experiment_config = json.loads(experiment_details["config"])
     model = experiment_config.get("foundation")
+    embedding_model = experiment_config.get("embedding_model")
+    if embedding_model is None:
+        print("No embedding model found in experiment config, using default")
+        embedding_model = "BAAI/bge-base-en-v1.5"
 
-    print("Reindexing RAG with model " + model)
+    print("Reindexing RAG with embedding model " + embedding_model)
 
     plugin = experiment_config.get("rag_engine")
 
@@ -107,6 +124,8 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
         plugin_path,
         "--model_name",
         model,
+        "--embedding_model",
+        embedding_model,
         "--index",
         "True",
         "--documents_dir",
@@ -132,3 +151,19 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
         pass
 
     return output
+
+
+@router.post("/embed")
+async def embed_text(request: EmbedRequest):
+    """Embed text using the embedding model using sentence transformers"""
+    from sentence_transformers import SentenceTransformer
+
+    experiment_details = await db.experiment_get(id=request.experiment_id)
+    experiment_config = json.loads(experiment_details["config"])
+    embedding_model_name = experiment_config.get("embedding_model", "BAAI/bge-base-en-v1.5")
+    print("Using Embedding model: " + embedding_model_name)
+    model = SentenceTransformer(embedding_model_name)
+    text_list = request.text.split("\n")
+    embeddings = model.encode(text_list)
+
+    return JSONResponse(content={"embeddings": embeddings.tolist()})

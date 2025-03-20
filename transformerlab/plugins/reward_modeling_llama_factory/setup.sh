@@ -1,5 +1,4 @@
 uv pip install "trl>=0.8.2"
-uv pip install tensorboardX # for tensorboard logging
 rm -rf LLaMA-Factory
 git clone https://github.com/hiyouga/LLaMA-Factory.git
 cd LLaMA-Factory

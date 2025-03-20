@@ -144,6 +144,12 @@ class TestExperiments:
         experiment = await experiment_get(test_experiment)
         assert experiment is not None
         assert experiment["name"] == "test_experiment"
+        # now try to get an experiment that does not exist
+        experiment = await experiment_get(999999)
+        assert experiment is None
+        # now try to create a second experiment with the same name:
+        # experiment_id = await experiment_create("test_experiment", "{}")
+        # assert experiment_id is None
 
     @pytest.mark.asyncio
     async def test_experiment_get_all(self):
