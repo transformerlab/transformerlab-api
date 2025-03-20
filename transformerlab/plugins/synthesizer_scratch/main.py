@@ -110,9 +110,9 @@ def run_generation():
     tlab_gen.progress_update(70)
 
     # Generate expected outputs if requested
-    if tlab_gen.params.get("generate_expected_outputs", "Yes").lower() == "yes":
+    if tlab_gen.params.get("generate_expected_output", "Yes").lower() == "yes":
         input_values = df["input"].tolist()
-        expected_outputs = tlab_gen.params.generate_expected_outputs(
+        expected_outputs = tlab_gen.generate_expected_outputs(
             input_values,
             styling_config["task"],
             styling_config["scenario"],
