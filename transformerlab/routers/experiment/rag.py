@@ -35,7 +35,7 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
         embedding_model = "BAAI/bge-base-en-v1.5"
     else:
         embedding_model_file_path = experiment_config.get("embedding_model_filename")
-        if embedding_model_file_path is not None or embedding_model_file_path != "":
+        if embedding_model_file_path is not None and embedding_model_file_path != "":
             embedding_model = embedding_model_file_path
     
 
@@ -109,7 +109,7 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
         embedding_model = "BAAI/bge-base-en-v1.5"
     else:
         embedding_model_file_path = experiment_config.get("embedding_model_filename")
-        if embedding_model_file_path is not None or embedding_model_file_path != "":
+        if embedding_model_file_path is not None and embedding_model_file_path.strip() != "":
             embedding_model = embedding_model_file_path
 
     print("Reindexing RAG with embedding model " + embedding_model)
@@ -175,7 +175,7 @@ async def embed_text(request: EmbedRequest):
         embedding_model = "BAAI/bge-base-en-v1.5"
     else:
         embedding_model_file_path = experiment_config.get("embedding_model_filename")
-        if embedding_model_file_path is not None or embedding_model_file_path != "":
+        if embedding_model_file_path is not None and embedding_model_file_path != "":
             embedding_model = embedding_model_file_path
     print("Using Embedding model: " + embedding_model)
     model = SentenceTransformer(embedding_model)
@@ -183,3 +183,6 @@ async def embed_text(request: EmbedRequest):
     embeddings = model.encode(text_list)
 
     return JSONResponse(content={"embeddings": embeddings.tolist()})
+
+
+
