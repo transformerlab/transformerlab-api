@@ -82,7 +82,6 @@ def train_model(datasets, report_to=["tensorboard"]):
     # Create templates
     question_template = jinja_environment.from_string(question_formatting_template)
     answer_template = jinja_environment.from_string(answer_formatting_template)
-
     # Process dataset
     dataset = dataset.map(
         lambda x: {
@@ -154,7 +153,6 @@ def train_model(datasets, report_to=["tensorboard"]):
         model.config.pretraining_tp = 1
     except Exception as e:
         return f"Failed to load model: {str(e)}"
-
     # Apply LoRA
     model = FastLanguageModel.get_peft_model(
         model,
@@ -220,18 +218,16 @@ def train_model(datasets, report_to=["tensorboard"]):
         args=args,
         callbacks=[progress_callback],
     )
-
     # Train the model
     try:
         trainer.train()
     except Exception as e:
-        return f"Training failed: {str(e)}"
-
+        raise e
     # Save the model
     try:
         trainer.save_model(output_dir=tlab_trainer.params.adaptor_output_dir)
     except Exception as e:
-        return f"Failed to save model: {str(e)}"
+        raise e
 
     # Return success message
     return "Adaptor trained successfully"

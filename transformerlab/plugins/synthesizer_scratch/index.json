@@ -5,7 +5,7 @@
     "description": "Use LLMs to create synthetic data for your usecases from scratch using just a concept of a dataset.",
     "plugin-format": "python",
     "type": "generator",
-    "version": "0.1.8",
+    "version": "0.1.10",
     "git": "https://github.com/confident-ai/deepeval",
     "url": "https://github.com/confident-ai/deepeval",
     "files": [

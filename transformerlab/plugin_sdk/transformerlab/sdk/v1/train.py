@@ -171,7 +171,7 @@ class TrainerTLabPlugin(TLabPlugin):
         """Log a metric to all reporting targets"""
         if "tensorboard" in self.report_to:
             self.writer.add_scalar(metric_name, metric_value, step)
-        if "wandb" in self.report_to:
+        if "wandb" in self.report_to and getattr(self, "wandb_run") is not None:
             self.wandb_run.log({metric_name: metric_value}, step=step)
 
 

@@ -81,7 +81,6 @@ def train_model():
             gpu_ids = str(gpu_ids)
         if gpu_ids == "auto":
             gpu_ids = None
-
     # Check if we need to launch with accelerate
     if not tlab_trainer.params.get("launched_with_accelerate", False):
         print("Launching training with accelerate for multi-GPU...")
@@ -271,12 +270,8 @@ def train_model():
         processing_class=tokenizer,
         callbacks=[progress_callback],
     )
-
     # Train the model
-    try:
-        trainer.train()
-    except Exception as e:
-        return f"Training failed: {str(e)}"
+    trainer.train()
 
     # Save the model
     try:
@@ -285,7 +280,7 @@ def train_model():
         return f"Failed to save model: {str(e)}"
 
     # Return success message
-    return "Adaptor trained successfully"
+    return True
 
 
 train_model()
