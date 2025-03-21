@@ -65,7 +65,8 @@ def load_dataset_column(dataset, column_name="context"):
     print(f"Loaded {len(sentences)} sentences from column '{column_name}'.")
     return sentences
 
-def prepare_training_data(sentences): # noqa
+
+def prepare_training_data(sentences):
     """Create dataset pairs with original and noised sentences."""
     data_pairs = [
         {"noised_text": add_noise(s), "original_text": s} for s in sentences if isinstance(s, str) and len(s) > 0
