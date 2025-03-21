@@ -4,9 +4,10 @@ import os
 import sqlite3
 import time
 import requests
+import random
 
 import torch
-from datasets import load_dataset
+from datasets import load_dataset, Dataset
 from sentence_transformers import (
     SentenceTransformer,
     SentenceTransformerTrainer,
@@ -15,6 +16,7 @@ from sentence_transformers import (
 from sentence_transformers.evaluation import InformationRetrievalEvaluator, SequentialEvaluator
 from sentence_transformers.util import cos_sim
 from transformers import TrainerCallback
+from werkzeug.utils import secure_filename
 
 import transformerlab.plugin
 from jinja2 import Environment
@@ -53,6 +55,34 @@ def get_loss_function(loss_name, model):
     except AttributeError:
         raise ValueError(f"Loss function '{loss_name}' is not available in sentence_transformers.losses.")
 
+def add_noise(sentence):
+    """Randomly removes some words to create a noised version."""
+    words = sentence.split()
+    if len(words) < 2:
+        return sentence  # Skip short sentences
+    num_words_to_remove = max(1, len(words) // 4)  # Remove 25% of words
+    indices_to_remove = random.sample(range(len(words)), num_words_to_remove)
+    noised_words = [w for i, w in enumerate(words) if i not in indices_to_remove]
+    return " ".join(noised_words)
+
+def load_dataset_column(dataset, column_name = "context"):
+    """Load a specific column from a dataset and return the sentences as a list."""
+    
+    # Check if column exists
+    if column_name not in dataset.column_names:
+        raise ValueError(f"Column '{column_name}' not found in dataset. Available columns: {dataset.column_names}")
+    
+    sentences = dataset[column_name]
+    print(f"Loaded {len(sentences)} sentences from column '{column_name}'.")
+    return sentences
+
+
+def prepare_training_data(sentences):
+    data_pairs = [
+        {"noised_text": add_noise(s), "original_text": s}
+        for s in sentences if isinstance(s, str) and len(s) > 0
+    ]
+    return Dataset.from_list(data_pairs)
 
 # Mapping from dataset type to allowed loss functions
 ALLOWED_LOSSES = {
@@ -123,13 +153,18 @@ config = input_config["config"]
 print("Input config:")
 print(json.dumps(config, indent=2))
 
-model_id = config.get("model_name", "BAAI/bge-base-en-v1.5")  # Default embedding model
+model_id = config.get("embedding_model", "BAAI/bge-base-en-v1.5")  # Default embedding model
+model_file_path = config.get("embedding_model_file_path", None)
+if model_file_path or model_file_path != "":
+    model_id = model_file_path
+    print(f"Using model file path: {model_file_path} as the primary model.")
 dataset_id = config.get("dataset_name", "sentence-transformers/all-nli")
 job_id = config["job_id"]
 
 # Set final model name from model_id, template_name, and job_id
 template_name = config.get("template_name", "Fine-tune-embed-" + time.strftime("%Y%m%d-%H%M%S"))
-model_id_output = model_id.replace("/", "~~~")
+# model_id_output = model_id.replace("/", "~~~")
+model_id_output = secure_filename(model_id)
 final_model_name = f"{model_id_output}_{template_name}_{job_id}"
 
 # Define OUTPUT_DIR using final model name
@@ -201,7 +236,12 @@ if max_samples > 0 and max_samples < len(full_dataset):
     full_dataset = full_dataset.select(range(max_samples))
 
 # Normalize dataset columns according to the dataset type.
-normalized_dataset = normalize_dataset_columns(full_dataset, user_dataset_type)
+if user_dataset_type != "single sentences":
+    normalized_dataset = normalize_dataset_columns(full_dataset, user_dataset_type)
+else:
+    sentences = load_dataset_column(full_dataset, config.get("text_column_name", "context"))
+    normalized_dataset = prepare_training_data(sentences)
+
 
 # Prepare an IR evaluator if the normalized dataset has "id", "anchor", and "positive"
 evaluator = None
