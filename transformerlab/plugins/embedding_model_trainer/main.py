@@ -58,8 +58,6 @@ def add_noise(sentence):
 
 def load_dataset_column(dataset, column_name="context"):
     """Load a specific column from a dataset and return the sentences as a list."""
-
-    # Check if column exists
     if column_name not in dataset.column_names:
         raise ValueError(f"Column '{column_name}' not found in dataset. Available columns: {dataset.column_names}")
 
@@ -67,36 +65,7 @@ def load_dataset_column(dataset, column_name="context"):
     print(f"Loaded {len(sentences)} sentences from column '{column_name}'.")
     return sentences
 
-
-def prepare_training_data(sentences):
-    data_pairs = [
-        {"noised_text": add_noise(s), "original_text": s} for s in sentences if isinstance(s, str) and len(s) > 0
-    ]
-    return Dataset.from_list(data_pairs)
-
-
-def add_noise(sentence):
-    """Randomly removes some words to create a noised version."""
-    words = sentence.split()
-    if len(words) < 2:
-        return sentence  # Skip short sentences
-    num_words_to_remove = max(1, len(words) // 4)  # Remove 25% of words
-    indices_to_remove = random.sample(range(len(words)), num_words_to_remove)
-    noised_words = [w for i, w in enumerate(words) if i not in indices_to_remove]
-    return " ".join(noised_words)
-
-
-def load_dataset_column(dataset, column_name="context"):
-    """Load a specific column from a dataset and return the sentences as a list."""
-    if column_name not in dataset.column_names:
-        raise ValueError(f"Column '{column_name}' not found in dataset. Available columns: {dataset.column_names}")
-
-    sentences = dataset[column_name]
-    print(f"Loaded {len(sentences)} sentences from column '{column_name}'.")
-    return sentences
-
-
-def prepare_training_data(sentences):
+def prepare_training_data(sentences): # noqa
     """Create dataset pairs with original and noised sentences."""
     data_pairs = [
         {"noised_text": add_noise(s), "original_text": s} for s in sentences if isinstance(s, str) and len(s) > 0
