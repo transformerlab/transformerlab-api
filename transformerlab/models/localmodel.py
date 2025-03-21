@@ -262,26 +262,26 @@ class LocalModelStore(modelstore.ModelStore):
         """
         List all model journeys in the workspace.
         """
-        print(f"Listing model provenance for model {model_id}")
+        # print(f"Listing model provenance for model {model_id}")
 
         # Fetch all completed TRAIN jobs using the provided function
         jobs = await db.jobs_get_all(type="TRAIN", status="COMPLETE")
 
-        print(f"Found {len(jobs)} completed training jobs")
+        # print(f"Found {len(jobs)} completed training jobs")
 
         # Build a mapping from computed output model name to job details
         provenance_mapping = await self.build_provenance(jobs)
 
-        print(f"Built provenance mapping with {len(provenance_mapping)} entries")
+        # print(f"Built provenance mapping with {len(provenance_mapping)} entries")
 
         # Trace the provenance chain leading to the given final model name
         chain = await self.trace_provenance(model_id, provenance_mapping)
 
-        print(f"Traced provenance chain with {len(chain)} entries")
+        # print(f"Traced provenance chain with {len(chain)} entries")
         # Retrieve eval jobs grouped by model_name using the dedicated function
         evals_by_model = await self.get_evals_by_model()
 
-        print(f"Retrieved evals by model with {len(evals_by_model)} entries")
+        # print(f"Retrieved evals by model with {len(evals_by_model)} entries")
 
         # For every training job in the provenance chain, attach evals for the corresponding model
         for item in chain:
