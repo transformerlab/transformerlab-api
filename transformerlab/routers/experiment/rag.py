@@ -30,11 +30,16 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
     experiment_config = json.loads(experiment_details["config"])
     model = experiment_config.get("foundation")
     embedding_model = experiment_config.get("embedding_model")
-    if embedding_model is None:
+    if embedding_model is None or embedding_model == "":
         print("No embedding model found in experiment config, using default")
         embedding_model = "BAAI/bge-base-en-v1.5"
+    else:
+        embedding_model_file_path = experiment_config.get("embedding_model_filename")
+        if embedding_model_file_path is not None or embedding_model_file_path != "":
+            embedding_model = embedding_model_file_path
+    
 
-    print("Querying RAG with model " + model + " and query " + query + " and settings " + settings)
+    print("Querying RAG with model " + model + " and query " + query + " and settings " + settings + " and embedding model " + embedding_model)
 
     plugin = experiment_config.get("rag_engine")
 
@@ -99,9 +104,13 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
     experiment_config = json.loads(experiment_details["config"])
     model = experiment_config.get("foundation")
     embedding_model = experiment_config.get("embedding_model")
-    if embedding_model is None:
+    if embedding_model is None or embedding_model == "":
         print("No embedding model found in experiment config, using default")
         embedding_model = "BAAI/bge-base-en-v1.5"
+    else:
+        embedding_model_file_path = experiment_config.get("embedding_model_filename")
+        if embedding_model_file_path is not None or embedding_model_file_path != "":
+            embedding_model = embedding_model_file_path
 
     print("Reindexing RAG with embedding model " + embedding_model)
 
@@ -160,9 +169,16 @@ async def embed_text(request: EmbedRequest):
 
     experiment_details = await db.experiment_get(id=request.experiment_id)
     experiment_config = json.loads(experiment_details["config"])
-    embedding_model_name = experiment_config.get("embedding_model", "BAAI/bge-base-en-v1.5")
-    print("Using Embedding model: " + embedding_model_name)
-    model = SentenceTransformer(embedding_model_name)
+    embedding_model = experiment_config.get("embedding_model")
+    if embedding_model is None or embedding_model == "":
+        print("No embedding model found in experiment config, using default")
+        embedding_model = "BAAI/bge-base-en-v1.5"
+    else:
+        embedding_model_file_path = experiment_config.get("embedding_model_filename")
+        if embedding_model_file_path is not None or embedding_model_file_path != "":
+            embedding_model = embedding_model_file_path
+    print("Using Embedding model: " + embedding_model)
+    model = SentenceTransformer(embedding_model)
     text_list = request.text.split("\n")
     embeddings = model.encode(text_list)
 

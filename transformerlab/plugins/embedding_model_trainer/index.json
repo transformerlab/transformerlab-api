@@ -5,7 +5,7 @@
     "plugin-format": "python",
     "type": "trainer",
     "train_type": "embedding",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "model_architectures": [
       "BertModel",
       "SentenceTransformer",
@@ -139,6 +139,11 @@
         ],
         "default": "MatryoshkaLoss"
       },
+      "text_column_name": {
+        "title": "Text Column Name",
+        "type": "string",
+        "default": "context"
+      },
       "num_train_epochs": {
         "title": "Number of Training Epochs",
         "type": "integer",
@@ -234,6 +239,9 @@
       },
       "log_to_wandb": {
         "ui:help": "Whether to log training progress to Weights and Biases."
+      },
+      "text_column_name": {
+        "ui:help": "The name of the column in the dataset that contains the text data. Use this only when training using the single sentences format."
       }
     }
   }
