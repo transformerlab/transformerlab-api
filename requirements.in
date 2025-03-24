@@ -21,6 +21,7 @@ tiktoken
 torch==2.6.0
 torchaudio==2.6.0
 torchvision==0.21.0
+transformers==4.5.0
 peft
 watchfiles
 wandb==0.19.8
@@ -28,5 +29,4 @@ tensorboardX
 werkzeug
 sqlalchemy[asyncio]
 sentence-transformers
-git+https://github.com/huggingface/transformers
 git+https://github.com/transformerlab/FastChat

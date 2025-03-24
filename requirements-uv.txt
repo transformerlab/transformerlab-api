@@ -392,7 +392,7 @@ tqdm==4.67.1
     #   peft
     #   sentence-transformers
     #   transformers
-transformers @ git+https://github.com/huggingface/transformers
+transformers==4.5.0
     # via
     #   -r requirements.in
     #   peft

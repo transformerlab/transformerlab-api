@@ -16,6 +16,9 @@ use_flash_attention = False
 # Initialize Jinja environment
 jinja_environment = Environment()
 
+if torch.cuda.is_available():
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 
 @tlab_trainer.job_wrapper()
 def train_model():
@@ -53,10 +56,8 @@ def train_model():
             quantization_config=bnb_config,
             use_cache=False,
             use_flash_attention_2=use_flash_attention,
-            device_map=None,
+            device_map="auto",
         )
-        device = "cuda:0" if torch.cuda.is_available() else "cpu"
-        model.to(device)
         model.config.pretraining_tp = 1
 
         tokenizer = AutoTokenizer.from_pretrained(model_id)
@@ -163,10 +164,8 @@ def train_model():
                     quantization_config=bnb_config,
                     use_cache=False,
                     use_flash_attention_2=use_flash_attention,
-                    device_map=None,
+                    device_map="auto",
                 )
-            device = "cuda:0" if torch.cuda.is_available() else "cpu"
-            model.to(device)
             if "/" in model_id:
                 model_id = model_id.split("/")[-1]
             adaptor_name = tlab_trainer.params.get("adaptor_name", "default")
