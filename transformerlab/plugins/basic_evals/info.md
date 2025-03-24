@@ -27,6 +27,7 @@ Create your own metrics with:
   - number: Count occurrences
   - contains: Check if text contains a pattern
   - isequal: Exact match comparison
+  - Code: Define custom Python code for evaluation (Must have a function called `evaluate` which runs all code)
 
 ## Getting Started
 
@@ -39,6 +40,7 @@ Create your own metrics with:
 ### 2. Choose Evaluation Methods
 
 #### Using Pre-defined Metrics
+
 Simply select from the dropdown list of available metrics like:
 
 ```json
@@ -51,6 +53,7 @@ Simply select from the dropdown list of available metrics like:
 ```
 
 #### Creating Custom Metrics
+
 Define your own evaluation tasks:
 
 ```json
@@ -60,6 +63,8 @@ Define your own evaluation tasks:
   "return_type": "boolean"
 }
 ```
+
+> Note: Using the `Code` type requires a Python function called `evaluate` that runs the custom code. We only allow the safe, utility and limited builtins from [RestrictedPython](https://github.com/zopefoundation/RestrictedPython). Additionally we also support `re` and `json` modules but no other import is allowed within the code.
 
 ### 3. Configure Evaluation Settings
 

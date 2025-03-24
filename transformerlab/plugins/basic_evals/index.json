@@ -58,7 +58,7 @@
                     "return_type": {
                         "type": "string",
                         "title": "Output Type",
-                        "enum": ["boolean", "number", "contains", "isequal"]
+                        "enum": ["boolean", "number", "contains", "isequal", "code"]
                     }
                 }
             }
