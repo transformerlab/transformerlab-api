@@ -360,7 +360,7 @@ tqdm==4.66.5
     #   peft
     #   sentence-transformers
     #   transformers
-transformers==4.5.0
+transformers==4.50.0
     # via
     #   -r requirements.in
     #   peft
