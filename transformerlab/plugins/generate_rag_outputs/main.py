@@ -1,54 +1,25 @@
-import argparse
-import asyncio
 import json
-import os
-import sys
-import traceback
-from datetime import datetime
-from typing import Any, Dict, List
-
+import pandas as pd
 import requests
-from datasets import load_dataset
+import traceback
+from typing import Dict, Any, List
 
-import transformerlab.plugin
+from transformerlab.sdk.v1.generate import tlab_gen
 
-try:
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description="Run RAG evaluation on dataset")
-    parser.add_argument("--run_name", default="rag_eval_results", type=str)
-    parser.add_argument("--dataset_name", default=None, type=str, help="Dataset to evaluate")
-    parser.add_argument("--experiment_name", default="test", type=str)
-    parser.add_argument("--job_id", default=None, type=str)
-    parser.add_argument("--model_name", default=None, type=str, help="Model to use for RAG")
-    parser.add_argument("--input_field", default="input", type=str, help="Field in dataset containing queries")
-    parser.add_argument("--response_mode", default="compact", type=str, help="Field in dataset containing queries")
-    parser.add_argument("--number_of_search_results", default="2", type=str, help="Number of search results to return")
-    parser.add_argument("--temperature", default="0.7", type=str, help="Temperature for sampling")
-    parser.add_argument("--context_window", default="4096", type=str, help="Context window size")
-    parser.add_argument("--num_output", default="256", type=str, help="Output Length")
-    parser.add_argument("--chunk_size", default="512", type=str, help="Chunk size")
-    parser.add_argument("--chunk_overlap", default="100", type=str, help="Chunk overlap")
-    parser.add_argument("--use_reranker", default=None, type=bool, help="Use reranker")
-    parser.add_argument(
-        "--reranker_model", default="cross-encoder/ms-marco-MiniLM-L-6-v2", type=str, help="Reranker model"
-    )
-    parser.add_argument("--reranker_top_n", default="20", type=str, help="Reranker top n")
-except Exception as e:
-    print(f"Error parsing command line arguments: {str(e)}")
-    sys.exit(1)
-
-
-# parser.add_argument("--rag_settings", default="{}", type=str, help="Additional RAG settings as JSON string")
-
-args, other = parser.parse_known_args()
-
-# Initialize job tracking
-if args.job_id:
-    job = transformerlab.plugin.Job(args.job_id)
-    job.update_progress(0)
-else:
-    print("Job ID not provided.")
-    sys.exit(1)
+# Add custom arguments
+tlab_gen.add_argument("--input_field", default="input", type=str, help="Field in dataset containing queries")
+tlab_gen.add_argument("--response_mode", default="compact", type=str, help="Response mode for RAG output")
+tlab_gen.add_argument("--number_of_search_results", default="2", type=str, help="Number of search results to return")
+tlab_gen.add_argument("--temperature", default="0.7", type=str, help="Temperature for sampling")
+tlab_gen.add_argument("--context_window", default="4096", type=str, help="Context window size")
+tlab_gen.add_argument("--num_output", default="256", type=str, help="Output Length")
+tlab_gen.add_argument("--chunk_size", default="512", type=str, help="Chunk size")
+tlab_gen.add_argument("--chunk_overlap", default="100", type=str, help="Chunk overlap")
+tlab_gen.add_argument("--use_reranker", default=False, type=bool, help="Use reranker")
+tlab_gen.add_argument(
+    "--reranker_model", default="cross-encoder/ms-marco-MiniLM-L-6-v2", type=str, help="Reranker model"
+)
+tlab_gen.add_argument("--reranker_top_n", default="20", type=str, help="Reranker top n")
 
 
 async def run_rag_query(experiment_id, rag_settings, query: str) -> Dict[str, Any]:
@@ -103,44 +74,28 @@ async def run_rag_query(experiment_id, rag_settings, query: str) -> Dict[str, An
         return {"query": query, "answer": f"Error: {str(e)}", "context": [], "sources": [], "error": str(e)}
 
 
-def get_tflab_dataset():
-    try:
-        dataset_target = transformerlab.plugin.get_dataset_path(args.dataset_name)
-    except Exception as e:
-        job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        job.set_job_completion_status("failed", "Failure to get dataset")
-        raise e
-    dataset = {}
-    dataset_types = ["train"]
-    for dataset_type in dataset_types:
-        try:
-            dataset[dataset_type] = load_dataset(dataset_target, split=dataset_type, trust_remote_code=True)
-
-        except Exception as e:
-            job.add_to_job_data("end_time", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-            job.set_job_completion_status("failed", "Failure to load dataset")
-            raise e
-    # Convert the dataset to a pandas dataframe
-    df = dataset["train"].to_pandas()
-    return df
+def check_local_server():
+    """Check if the local model server is running"""
+    response = requests.get("http://localhost:8338/server/worker_healthz")
+    if response.status_code != 200 or not isinstance(response.json(), list) or len(response.json()) == 0:
+        raise RuntimeError("Local Model Server is not running. Please start it before running the evaluation.")
 
 
-async def process_dataset(experiment_id, rag_settings, dataset: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+async def process_dataset(experiment_id, rag_settings, dataset_df) -> List[Dict[str, Any]]:
     """Process each item in the dataset with RAG"""
     results = []
 
-    print(f"Processing {len(dataset)} queries with RAG...")
+    print(f"Processing {len(dataset_df)} queries with RAG...")
 
-    for i, row in dataset.iterrows():
+    for i, row in dataset_df.iterrows():
         # Update progress
-        progress = int((i / len(dataset)) * 90)
-        job.update_progress(progress)
+        progress = int(10 + (i / len(dataset_df)) * 80)
+        tlab_gen.progress_update(progress)
 
         # Extract the query from the specified field
-        # query = item.get(args.input_field, "")
-        query = row[args.input_field]
+        query = row[tlab_gen.params.input_field]
         if not query:
-            print(f"Warning: No query found in item {i} using field '{args.input_field}'")
+            print(f"Warning: No query found in item {i} using field '{tlab_gen.params.input_field}'")
             query = ""
             continue
 
@@ -164,118 +119,75 @@ async def process_dataset(experiment_id, rag_settings, dataset: List[Dict[str, A
     return results
 
 
-def generate_tflab_dataset(output_file_path: str, dataset_id: str = f"{args.run_name}_{args.job_id}"):
-    """Upload the generated dataset to TransformerLab"""
-    try:
-        api_url = "http://localhost:8338/"
-        # Create a new dataset
-        params = {"dataset_id": dataset_id, "generated": True}
-        response = requests.get(api_url + "data/new", params=params)
-        if response.status_code != 200:
-            print(f"Error creating a new dataset: {response.json()}")
-            job.set_job_completion_status("failed", f"Error creating a new dataset: {response.json()}")
-            sys.exit(1)
-
-        with open(output_file_path, "rb") as json_file:
-            files = {"files": json_file}
-            response = requests.post(api_url + "data/fileupload", params=params, files=files)
-
-        if response.status_code != 200:
-            print(f"Error uploading the dataset: {response.json()}")
-            job.set_job_completion_status("failed", f"Error uploading the dataset: {response.json()}")
-            sys.exit(1)
-
-        print("Dataset uploaded successfully")
-
-    except Exception as e:
-        print(f"An error occurred while generating data: {e}")
-        job.set_job_completion_status("failed", f"An error occurred while generating data: {e}")
-        sys.exit(1)
-
-
-def check_local_server():
-    response = requests.get("http://localhost:8338/server/worker_healthz")
-    if response.status_code != 200 or not isinstance(response.json(), list) or len(response.json()) == 0:
-        print("Local Model Server is not running. Please start it before running the evaluation.")
-        sys.exit(1)
-
-
+@tlab_gen.async_job_wrapper()
 async def run_evaluation():
+    """Run RAG evaluation on the specified dataset"""
     try:
+        # Check if the local server is running
         check_local_server()
+
         # Validate required arguments
-        if not args.dataset_name:
+        if not tlab_gen.params.dataset_name:
             raise ValueError("Dataset name is required")
 
         # Configure experiment with the specified RAG engine
-        experiment_config, experiment_id = transformerlab.plugin.get_experiment_config(args.experiment_name)
+        experiment_config, experiment_id = tlab_gen.get_experiment_config(tlab_gen.params.experiment_name)
 
         if experiment_config:
             plugin = experiment_config.get("rag_engine")
             if plugin is None or plugin == "":
-                print(
+                raise ValueError(
                     "No RAG engine has been assigned to this experiment. Please install a RAG plugin from the Plugins Tab."
                 )
-                job.set_job_completion_status("failed", "No RAG engine has been assigned to this experiment.")
-                sys.exit(1)
-            rag_settings = experiment_config.get("rag_engine_settings", {})
-            if args.use_reranker is None or args.use_reranker == "":
-                args.use_reranker = False
-            # if not rag_settings or rag_settings == {}:
+
+            # Set up RAG settings
             rag_settings = {
-                "response_mode": args.response_mode,
-                "number_of_search_results": args.number_of_search_results,
-                "temperature": args.temperature,
-                "context_window": args.context_window,
-                "num_output": args.num_output,
-                "chunk_size": args.chunk_size,
-                "chunk_overlap": args.chunk_overlap,
-                "use_reranker": args.use_reranker,
-                "reranker_model": args.reranker_model,
-                "reranker_top_n": args.reranker_top_n,
+                "response_mode": tlab_gen.params.response_mode,
+                "number_of_search_results": tlab_gen.params.number_of_search_results,
+                "temperature": tlab_gen.params.temperature,
+                "context_window": tlab_gen.params.context_window,
+                "num_output": tlab_gen.params.num_output,
+                "chunk_size": tlab_gen.params.chunk_size,
+                "chunk_overlap": tlab_gen.params.chunk_overlap,
+                "use_reranker": tlab_gen.params.use_reranker,
+                "reranker_model": tlab_gen.params.reranker_model,
+                "reranker_top_n": tlab_gen.params.reranker_top_n,
             }
             print(f"RAG settings: {rag_settings}")
-            rag_settings = json.dumps(rag_settings)
+            rag_settings_json = json.dumps(rag_settings)
 
-        # Load the input dataset
-        print(f"Loading dataset '{args.dataset_name}'...")
-        dataset = get_tflab_dataset()
-        job.update_progress(10)
+        # Load the dataset using tlab_gen's dataset loading capabilities
+        print(f"Loading dataset '{tlab_gen.params.dataset_name}'...")
+        datasets = tlab_gen.load_dataset(dataset_types=["train"])
+        dataset_df = datasets["train"].to_pandas()
+        tlab_gen.progress_update(10)
 
         # Process the dataset
         print("Processing dataset with RAG...")
-        results = await process_dataset(experiment_id, rag_settings, dataset)
-        job.update_progress(90)
+        results = await process_dataset(experiment_id, rag_settings_json, dataset_df)
+        tlab_gen.progress_update(90)
 
-        # Save the results
-        output_dir = os.path.join(os.environ.get("_TFL_WORKSPACE_DIR"), "experiments", args.experiment_name, "datasets")
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        # Convert results to DataFrame for saving
+        results_df = pd.DataFrame(results)
 
-        output_file = os.path.join(output_dir, f"{args.run_name}_{args.job_id}.json")
+        # Save using tlab_gen's dataset saving functionality
+        additional_metadata = {
+            "rag_engine": plugin,
+            "rag_settings": rag_settings,
+            "input_field": tlab_gen.params.input_field,
+            "original_dataset": tlab_gen.params.dataset_name,
+            "record_count": len(results),
+        }
 
-        # Save as JSON
-        print(f"Saving {len(results)} results to {output_file}")
-        with open(output_file, "w") as f:
-            json.dump(results, f, indent=2)
+        output_file, dataset_name = tlab_gen.save_generated_dataset(results_df, additional_metadata=additional_metadata)
 
-        # Upload to TransformerLab
-        print("Mounting the dataset to the TransformerLab workspace...")
-        generate_tflab_dataset(output_file)
-
-        job.update_progress(100)
-        job.set_job_completion_status(
-            "success",
-            f"RAG evaluation completed successfully. Results saved as dataset '{args.run_name}_{args.job_id}'.",
-            additional_output_path=output_file,
-        )
+        print(f"RAG evaluation completed successfully. Results saved as dataset '{dataset_name}'.")
+        return output_file
 
     except Exception as e:
         traceback.print_exc()
-        job.set_job_completion_status("failed", f"An error occurred during evaluation: {str(e)}")
-        sys.exit(1)
+        raise RuntimeError(f"An error occurred during evaluation: {str(e)}")
 
 
-# Run the evaluation
-print("Starting RAG dataset evaluation...")
-asyncio.run(run_evaluation())
+print("Running RAG evaluation...")
+run_evaluation()

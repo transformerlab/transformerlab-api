@@ -1,10 +1,11 @@
+
 {
     "name": "DeepEval Evaluations (LLM-as-Judge)",
     "uniqueId": "deepeval_llm_judge",
     "description": "Using LLMs as Judges for evaluating outputs of other LLMs",
     "plugin-format": "python",
     "type": "evaluator",
-    "version": "0.2.7",
+    "version": "0.2.8",
     "git": "https://github.com/confident-ai/deepeval",
     "url": "https://github.com/confident-ai/deepeval",
     "files": [
@@ -30,8 +31,7 @@
                 "Answer Relevancy",
                 "Contextual Precision",
                 "Contextual Recall",
-                "Contextual Relevancy",
-                "Custom (GEval)"
+                "Contextual Relevancy"
             ]
         },
         "tasks": {
