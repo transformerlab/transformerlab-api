@@ -392,11 +392,13 @@ tqdm==4.67.1
     #   peft
     #   sentence-transformers
     #   transformers
-transformers @ git+https://github.com/huggingface/transformers
+transformers==4.50.0
     # via
     #   -r requirements.in
     #   peft
     #   sentence-transformers
+triton==3.2.0
+    # via torch
 typing-extensions==4.12.2
     # via
     #   aiosqlite
