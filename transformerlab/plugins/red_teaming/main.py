@@ -79,10 +79,6 @@ def create_objects_from_list(input_list):
             prefix, type_str = prefix.strip(), type_str.strip()
 
             if prefix in VULNERABILITY_REGISTRY:
-                class_info = VULNERABILITY_REGISTRY[prefix]
-
-                # Convert string to corresponding type
-                # type_enum_value = getattr(class_type_enum, type_str, None)
                 if type_str:
                     grouped_objects[prefix].append(type_str.lower()) 
                 else:
@@ -96,8 +92,6 @@ def create_objects_from_list(input_list):
     # Create objects from grouped types
     objects_list = []
     for prefix, types in grouped_objects.items():
-        print("PREFIX", prefix)
-        print("TYPES", types)
         class_ref = VULNERABILITY_REGISTRY[prefix]["class"]
         objects_list.append(class_ref(types=types))  # Create object with all types for that prefix
 
@@ -105,8 +99,6 @@ def create_objects_from_list(input_list):
 
 
 def create_attack_enhancement_dict(enhancement_list):
-    total = len(enhancement_list)
-    # probability = 1 / total if total > 0 else 0  # Equal probability for each enhancement
     attack_enhancement_dict = {
         "prompt_injection": PromptInjection,
         "base64": Base64,
@@ -171,8 +163,6 @@ def run_evaluation():
 
     attack_enhancements_list = create_attack_enhancement_dict(attack_enhancements)
 
-    print("VUL", vulnerabilities)
-    print("ATT", attack_enhancements_list)
 
     # Run the scan
     results_df = red_teamer.red_team(
