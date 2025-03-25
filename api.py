@@ -72,12 +72,20 @@ async def lifespan(app: FastAPI):
     await db.init()
     if "--reload" in sys.argv:
         await install_all_plugins()
+    # run the migration
+    asyncio.create_task(migrate())
     asyncio.create_task(run_over_and_over())
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
     # Do the following at API Shutdown:
     await db.close()
     print("FastAPI LIFESPAN: Complete")
+
+#the migrate function only runs the conversion function if no tasks are already present
+async def migrate():
+    if len(tasks.tasks_get_all())==0:
+        tasks.convert_all_to_tasks()
+
 
 
 async def run_over_and_over():
