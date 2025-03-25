@@ -2,6 +2,7 @@ import json
 import re
 
 import pandas as pd
+from RestrictedPython import compile_restricted, safe_builtins, limited_builtins, utility_builtins
 
 from transformerlab.sdk.v1.evals import tlab_evals
 
@@ -138,6 +139,47 @@ def execute_custom_function_regexp(output_text: str, expression: str, return_typ
     elif return_type.lower() == "contains":
         # Check if the output contains the expression
         return expression in output_text.strip()
+    elif return_type.lower() == "code":
+        # Execute custom Python function
+        try:
+            # Create a namespace for the evaluation
+            local_namespace = {"output_text": output_text}
+
+            restricted_globals = {
+                '__builtins__': {
+                    **safe_builtins,
+                    **limited_builtins,
+                    **utility_builtins
+                },
+                're': re,
+                'json': json
+
+            }
+
+            # Execute the code with the output_text variable available
+            # exec(expression, {}, local_namespace)
+            byte_code = compile_restricted(expression, filename="<inline>", mode="exec")
+
+            exec(byte_code, restricted_globals, local_namespace)
+            
+            # The code should define an evaluate() function
+            if "evaluate" not in local_namespace:
+                print("Error: Python code must have an evaluate() function which controls everything")
+                raise ValueError("evaluate() function not found in the code.")
+                
+            # Call the evaluate function
+            result = local_namespace["evaluate"]()
+
+            # Validate that the result is either a numeric score or a boolean
+            if not isinstance(result, (int, float, bool)):
+                print(f"Error: evaluate() function must return a numeric score (int/float) or a boolean, got {type(result).__name__}")
+                raise ValueError("evaluate() function must return a numeric score (int/float) or a boolean.")
+
+            return result
+
+        except Exception as e:
+            print(f"Error executing custom code: {str(e)}")
+            return None
     else:
         print("Invalid return type.")
         return None
@@ -227,7 +269,7 @@ def run_evaluation():
                 {
                     "test_case_id": f"test_case_{idx}",
                     "metric_name": metric_name,
-                    "score": int(row[f"eval_{metric_name}"]),
+                    "score": float(row[f"eval_{metric_name}"]),
                     "input": row[tlab_evals.params.input_col],
                     "output": row[tlab_evals.params.output_col],
                 }
