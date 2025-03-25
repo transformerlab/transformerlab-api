@@ -224,6 +224,8 @@ async def async_run_python_daemon_and_update_status(
 async def run_job(job_id: str, job_config, experiment_name: str = "default", job_details: dict = None):
     # This runs a specified job number defined
     # by template_id
+    if type(job_config) == str:
+        job_config = json.loads(job_config)
     print("Running job: " + str(job_id))
 
     print("Job Config: " + str(job_config))
@@ -275,10 +277,16 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         await db.job_update_status(job_id, "COMPLETE")
         return
 
-    job_type = job_config["config"]["type"]
+    print(job_config["config"])
+    if "type" in job_config:
+        job_type = job_config["config"]["type"]
+    else:
+        job_type = "LoRA"
 
     # Get the plugin script name:
     template_config = job_config["config"]
+    if type(template_config)==str:
+        template_config = json.loads(template_config)
     plugin_name = str(template_config["plugin_name"])
 
     # Get the job details from the database:
@@ -306,8 +314,12 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         end_time = time.strftime("%Y-%m-%d %H:%M:%S")
         asyncio.run(db.job_update_job_data_insert_key_value(job_id, "end_time", end_time))
 
+    print(job_type)
+
     if job_type == "LoRA":
         job_config = job_config["config"]
+        if type(job_config) == str:
+            job_config = json.loads(job_config)
         model_name = job_config["model_name"]
         model_name = secure_filename(model_name)
         template_config = job_config
