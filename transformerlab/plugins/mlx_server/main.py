@@ -57,6 +57,7 @@ class MLXWorker(BaseModelWorker):
         no_register: bool,
         conv_template: str,
         adaptor_path: str = None,
+        use_airllm: bool = False,
     ):
         super().__init__(
             controller_addr,
@@ -71,9 +72,28 @@ class MLXWorker(BaseModelWorker):
         logger.info(f"Loading the model {self.model_names} on worker" + f"{worker_id}, worker type: MLX worker...")
 
         self.model_name = model_path
-        self.mlx_model, self.mlx_tokenizer = load(model_path, adapter_path=adaptor_path)
+        self.use_airllm = use_airllm
 
-        self.tokenizer = self.mlx_tokenizer._tokenizer
+        # self.mlx_model, self.mlx_tokenizer = load(model_path, adapter_path=adaptor_path)
+        if self.use_airllm:
+            try:
+                from airllm import AutoModel
+
+                logger.info("Using AirLLM for inference")
+                self.airllm_model = AutoModel.from_pretrained(model_path)
+                self.tokenizer = self.airllm_model.tokenizer
+            except ImportError:
+                logger.warning("AirLLM not found, falling back to standard MLX. Install with: pip install airllm")
+                self.use_airllm = False
+            except Exception as e:
+                logger.warning(f"Failed to load AirLLM model: {e}")
+                self.use_airllm = False
+
+        # Fall back to standard MLX if AirLLM is not available or not requested
+        if not self.use_airllm:
+            logger.info("Using standard MLX for inference")
+            self.mlx_model, self.mlx_tokenizer = load(model_path, adapter_path=adaptor_path)
+            self.tokenizer = self.mlx_tokenizer._tokenizer
 
         config = get_hugggingface_config(model_path)
 
@@ -171,6 +191,52 @@ class MLXWorker(BaseModelWorker):
         top_p = max(top_p, 1e-5)
         if temperature <= 1e-5:
             top_p = 1.0
+
+            # Use AirLLM for generation if enabled
+        if self.use_airllm:
+            import mlx.core as mx
+
+            # Encode the input text
+            input_tokens = self.tokenizer(
+                context,
+                return_tensors="np",
+                return_attention_mask=False,
+                truncation=True,
+                max_length=self.context_len,
+                padding=False,
+            )
+
+            # Setup generation parameters
+            gen_params = {
+                "max_new_tokens": max_new_tokens,
+                "temperature": temperature,
+                "top_p": top_p,
+                "use_cache": True,
+                "return_dict_in_generate": True,
+            }
+
+            tokens = []
+
+            # Generate with AirLLM
+            generation_output = await run_in_threadpool(
+                self.airllm_model.generate, mx.array(input_tokens["input_ids"]), **gen_params
+            )
+
+            tokens_decoded = generation_output
+
+            ret = {
+                "text": tokens_decoded,
+                "error_code": 0,
+                "usage": {
+                    "prompt_tokens": len(context),
+                    "completion_tokens": len(tokens_decoded) - len(context),
+                    "total_tokens": len(tokens_decoded),
+                },
+                "logprobs": None,  # AirLLM doesn't support logprobs yet
+                "finish_reason": "stop",
+            }
+            yield (json.dumps(ret) + "\0").encode()
+            return
 
         tokens = []
         # skip = 0
@@ -416,8 +482,19 @@ def main():
         default=True,
         help="Trust remote code (e.g., from HuggingFace) whendownloading the model and tokenizer.",
     )
+    parser.add_argument(
+        "--parameters",
+        type=str,
+        default="{}",
+        help="JSON string containing additional parameters",
+    )
 
     args, unknown = parser.parse_known_args()
+
+    parameters = args.parameters
+    parameters = json.loads(parameters)
+
+    args.use_airllm = parameters.get("use_airllm", False)
 
     if args.model_path:
         args.model = args.model_path
@@ -434,6 +511,7 @@ def main():
         False,
         args.conv_template,
         args.adaptor_path,
+        use_airllm=args.use_airllm,
     )
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 

@@ -4,7 +4,7 @@
   "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
   "plugin-format": "python",
   "type": "loader",
-  "version": "0.1.25",
+  "version": "0.1.26",
   "model_architectures": [
     "MLX",
     "CohereForCausalLM",
@@ -28,5 +28,16 @@
     "setup.sh"
   ],
   "setup-script": "setup.sh",
-  "parameters": []
+  "parameters": {
+    "use_airllm" : {
+      "title": "Use AirLLM for Inference",
+      "type": "boolean",
+      "default": false
+    }
+},
+"parameters_ui": {
+  "use_airllm": {
+    "ui:help": "Use AirLLM for Inference. Note that enabling this option will make a bigger model run on your system but the inference speed might reduce"
+  }
+}
 }
