@@ -6,12 +6,12 @@ import transformerlab.db as db
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
-@router.get("/list")
+@router.get("/list", summary="Returns all the tasks")
 async def tasks_get_all():
     tasks = await db.tasks_get_all()
     return tasks
 
-@router.get("/{task_id}/get")
+@router.get("/{task_id}/get", summary="Gets all the data for a single task")
 async def tasks_get_by_id(task_id: int):
     tasks = await db.tasks_get_all()
     for task in tasks:
@@ -19,34 +19,34 @@ async def tasks_get_by_id(task_id: int):
             return task
     return {"message": "NOT FOUND"}
 
-@router.get("/list_by_type")
+@router.get("/list_by_type", summary="Returns all the tasks of a certain type, e.g TRAIN")
 async def tasks_get_by_type(type: str):
     tasks = await db.tasks_get_by_type(type)
     return tasks
 
-@router.put("/{task_id}/update")
+@router.put("/{task_id}/update", summary="Updates a task with new information")
 async def update_task(task_id: int, new_task:dict = Body()):
     await db.update_task(task_id, new_task)
     return {"message":"OK"}
 
-@router.get("/{task_id}/delete")
+@router.get("/{task_id}/delete", summary="Deletes a task")
 async def delete_task(task_id: int):
     await db.delete_task(task_id)
     return {"message":"OK"}
 
-@router.put("/new_task")
+@router.put("/new_task", summary="Create a new task")
 async def add_task(new_task: dict = Body()):
     await db.add_task(new_task["name"], new_task["type"], new_task["input_config"], new_task["config"], new_task["plugin"], new_task["output_config"], new_task["experiment_id"])
     return {"message":"OK"}
 
-@router.get("/delete_all")
+@router.get("/delete_all", summary="Wipe the task table")
 async def tasks_delete_all():
     await db.tasks_delete_all()
     return {"message":"OK"}
 
 # These functions convert templates to tasks so that we can do a migration in dev without breaking main for users
 # Right now it can do trains, evals, and generates
-@router.get("/convert_training_template_to_task")
+@router.get("/convert_training_template_to_task", summary="Convert a specific training template to a task")
 async def convert_training_template_to_task(template_id: int, experiment_id: int):
     template = await db.get_training_template(template_id)
     template_config = json.loads(template["config"])
@@ -56,7 +56,7 @@ async def convert_training_template_to_task(template_id: int, experiment_id: int
     return {"message":"OK"}
 
 
-@router.get("/convert_eval_to_task")
+@router.get("/convert_eval_to_task", summary="Convert a specific eval template to a task")
 async def convert_eval_to_task(eval_name: str, experiment_id: int):
     experiment_evaluations = json.loads(json.loads((await db.experiment_get(experiment_id))["config"])["evaluations"])
     for eval in experiment_evaluations:
@@ -64,7 +64,7 @@ async def convert_eval_to_task(eval_name: str, experiment_id: int):
             await db.add_task(eval["name"], "EVAL", "{}", json.dumps(eval), eval["plugin"], "{}", experiment_id)
     return {"message":"OK"}
 
-@router.get("/convert_generate_to_task")
+@router.get("/convert_generate_to_task", summary="Convert a specific generation template to a task")
 async def convert_generate_to_task(generate_name: str, experiment_id: int):
     experiment_generations = json.loads(json.loads((await db.experiment_get(experiment_id))["config"])["generations"])
     for generation in experiment_generations:
@@ -73,7 +73,7 @@ async def convert_generate_to_task(generate_name: str, experiment_id: int):
     return {"message":"OK"}
 
 #this function is the "convert all" function so that its just 1 api call
-@router.get("/{experiment_id}/convert_all_to_tasks")
+@router.get("/{experiment_id}/convert_all_to_tasks", summary="Convert all templates to tasks")
 async def convert_all_to_tasks(experiment_id):
     #train templates
     train_templates = await db.get_training_templates()
@@ -91,7 +91,7 @@ async def convert_all_to_tasks(experiment_id):
 
 
 
-@router.get("/{task_id}/queue")
+@router.get("/{task_id}/queue", summary="Queue a task to run")
 async def queue_task(task_id: int, inputs: str = "{}", outputs:str = "{}"):
     task_to_queue = await db.tasks_get_by_id(task_id)
     job_type = task_to_queue["type"]
