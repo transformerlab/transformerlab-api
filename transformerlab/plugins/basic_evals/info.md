@@ -64,7 +64,7 @@ Define your own evaluation tasks:
 }
 ```
 
-> Note: Using the `Code` type requires a Python function called `evaluate` that runs the custom code. We only allow the safe, utility and limited builtins from [RestrictedPython](https://github.com/zopefoundation/RestrictedPython). Additionally we also support `re` and `json` modules but no other import is allowed within the code.
+> Note: Using the `Code` type requires a Python function called `evaluate` that runs the custom code. We only allow the safe, utility and limited builtins from [RestrictedPython](https://github.com/zopefoundation/RestrictedPython). Additionally we also support `re` and `json` modules but no other import is allowed within the code. The code should return a boolean value or a numeric value (int/float) only. No other return types are supported.
 
 ### 3. Configure Evaluation Settings
 
