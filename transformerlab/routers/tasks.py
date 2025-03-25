@@ -108,8 +108,8 @@ async def queue_task(task_id: int, inputs: str = "{}", outputs:str = "{}"):
         job_data["config"] = json.loads(task_to_queue["config"])
         job_data["model_name"] = input_config["model_name"]
         job_data["dataset"] = input_config["dataset_name"]
-        if not "type" in job_data["config"].keys():
-            if not "trainingType" in job_data["config"].keys():
+        if "type" not in job_data["config"].keys():
+            if "trainingType" not in job_data["config"].keys():
                 job_data["config"]["type"] = "LoRA"
             else:
                 job_data["config"]["type"] = job_data["config"]["trainingType"]

@@ -188,7 +188,6 @@ async def start_next_step_in_workflow():
     workflow_config = json.loads(currently_running_workflow["config"])
     workflow_current_task = json.loads(currently_running_workflow["current_task"])
     workflow_current_job_id = json.loads(currently_running_workflow["current_job_id"])
-    workflow_experiment_id = currently_running_workflow["experiment_id"]
 
     current_jobs = []
     current_job = None
@@ -287,7 +286,7 @@ async def start_next_step_in_workflow():
         next_task["output_config"]["adaptor_name"] = str(uuid.uuid4()).replace("-","")
         next_task["output_config"] = json.dumps(next_task["output_config"])
     if next_task["type"] == "EVAL":
-        if current_job != None:
+        if current_job is not None:
             if current_job["type"] == "TRAIN":
                 next_task["input_config"] = json.loads(next_task["input_config"])
                 next_task["input_config"]["model_name"] = current_job["job_data"]["config"]["model_name"]
