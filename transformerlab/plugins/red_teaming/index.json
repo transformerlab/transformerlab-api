@@ -11,6 +11,7 @@
         "main.py",
         "setup.sh"
     ],
+    "evalsType": "model",
     "_dataset": false,
     "setup-script": "setup.sh",
     "parameters": {

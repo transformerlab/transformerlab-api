@@ -1,6 +1,7 @@
 {
     "name": "Basic Evaluation Metrics",
     "uniqueId": "basic_evals",
+    "evalsType": "dataset",
     "description": "Evaluating outputs of LLMs using basic defined metrics",
     "plugin-format": "python",
     "type": "evaluator",

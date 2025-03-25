@@ -9,7 +9,8 @@
   "url": "https://github.com/chimezie/lm-evaluation-harness-mlx",
   "supported_hardware_architectures": ["mlx"],
   "files": ["main.py", "setup.sh"],
-  "dataset": false,
+  "evalsType": "dataset",
+  "_dataset": false,
   "setup-script": "setup.sh",
   "parameters": {
     "tasks": {

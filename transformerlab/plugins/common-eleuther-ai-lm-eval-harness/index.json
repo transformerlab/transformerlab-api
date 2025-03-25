@@ -4,12 +4,13 @@
   "description": "A harness for evaluating language models on the most common tasks.",
   "plugin-format": "python",
   "type": "evaluator",
+  "evalsType": "model",
   "version": "0.1.4",
   "git": "https://github.com/EleutherAI/lm-evaluation-harness",
   "url": "https://github.com/EleutherAI/lm-evaluation-harness",
   "supported_hardware_architectures": ["cuda"],
   "files": ["main.py", "setup.sh"],
-  "dataset": false,
+  "_dataset": false,
   "setup-script": "setup.sh",
   "parameters": {
     "tasks": {

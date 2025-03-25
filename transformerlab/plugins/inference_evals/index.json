@@ -4,6 +4,7 @@
     "description": "Evaluate LLMs using inference metrics on a provided dataset",
     "plugin-format": "python",
     "type": "evaluator",
+    "evalsType": "model",
     "version": "0.1.2",
     "git": "",
     "url": "",
