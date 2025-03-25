@@ -17,7 +17,90 @@ class LocalModelStore(modelstore.ModelStore):
     def __init__(self):
         super().__init__()
 
-    async def list_models(self):
+    async def filter_embedding_models(self, models, embedding=False):
+        """
+        Filter out models based on whether they are embedding models or not.
+        """
+        embedding_model_architectures = [
+            "BertModel",
+            "SentenceTransformer",
+            "DistilBertModel",
+            "RobertaModel",
+            "NomicBertModel",
+            "AlbertModel",
+            "XLMRobertaModel",
+            "XLMModel",
+            "XLNetModel",
+            "LongformerModel",
+            "MobileBertModel",
+            "GteModel",
+            "DebertaModel",
+            "DebertaV2Model",
+            "ElectraModel",
+            "CamembertModel",
+            "T5EncoderModel",
+            "MPNetModel",
+            "FlaubertModel",
+            "TransformerXLModel",
+            "GPT2Model",
+            "OpenAIGPTModel",
+            "CTRLModel",
+            "ReformerModel",
+            "BigBirdModel",
+            "FunnelModel",
+            "LayoutLMModel",
+            "SqueezeBertModel",
+            "BartEncoder",
+            "MarianEncoder",
+            "PegasusEncoder",
+            "E5Model",
+            "BGEModel",
+            "SGPT",
+            "FastText",
+            "Word2Vec",
+            "GloVe",
+            "USE",
+            "SimCSE",
+            "CoCondenser",
+            "ConvBERT",
+            "DPR",
+            "CLIP",
+            "ESimCSE",
+            "GTR",
+            "Gecko",
+            "JinaModel",
+            "LaBSE",
+            "LASER",
+            "LexicalModel",
+            "MiniLM",
+            "MiniLMv2",
+            "MuRIL",
+            "REALM",
+            "SBERT",
+            "SPECTER",
+            "TinyBERT",
+            "UniCoil",
+            "ColBERT",
+            "ANCE",
+            "INSTRUCTOR",
+            "Ada",
+            "Curie",
+            "Davinci",
+            "AsymmetricSemanticSearchModel",
+        ]
+
+        embedding_models = []
+        non_embedding_models = []
+
+        for model in models:
+            if model["json_data"].get("architecture") in embedding_model_architectures:
+                embedding_models.append(model)
+            else:
+                non_embedding_models.append(model)
+
+        return embedding_models if embedding else non_embedding_models
+
+    async def list_models(self, embedding=False):
         """
         Check both the database and workspace for models.
         """
@@ -63,6 +146,9 @@ class LocalModelStore(modelstore.ModelStore):
                     except FileNotFoundError:
                         # do nothing: just ignore this directory
                         pass
+
+        # Filter out models based on whether they are embedding models or not
+        models = await self.filter_embedding_models(models, embedding)
 
         return models
 
@@ -176,26 +262,26 @@ class LocalModelStore(modelstore.ModelStore):
         """
         List all model journeys in the workspace.
         """
-        print(f"Listing model provenance for model {model_id}")
+        # print(f"Listing model provenance for model {model_id}")
 
         # Fetch all completed TRAIN jobs using the provided function
         jobs = await db.jobs_get_all(type="TRAIN", status="COMPLETE")
 
-        print(f"Found {len(jobs)} completed training jobs")
+        # print(f"Found {len(jobs)} completed training jobs")
 
         # Build a mapping from computed output model name to job details
         provenance_mapping = await self.build_provenance(jobs)
 
-        print(f"Built provenance mapping with {len(provenance_mapping)} entries")
+        # print(f"Built provenance mapping with {len(provenance_mapping)} entries")
 
         # Trace the provenance chain leading to the given final model name
         chain = await self.trace_provenance(model_id, provenance_mapping)
 
-        print(f"Traced provenance chain with {len(chain)} entries")
+        # print(f"Traced provenance chain with {len(chain)} entries")
         # Retrieve eval jobs grouped by model_name using the dedicated function
         evals_by_model = await self.get_evals_by_model()
 
-        print(f"Retrieved evals by model with {len(evals_by_model)} entries")
+        # print(f"Retrieved evals by model with {len(evals_by_model)} entries")
 
         # For every training job in the provenance chain, attach evals for the corresponding model
         for item in chain:

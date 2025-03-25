@@ -184,7 +184,6 @@ def train_model():
         os.environ.get("_TFL_WORKSPACE_DIR", "."), "models", "pretrained", run_name, "nanotron_config_files"
     )
     os.makedirs(output_path, exist_ok=True)
-
     # Save the configuration to a YAML file
     config_path = os.path.join(output_path, f"{run_name}.yaml")
     with open(config_path, "w") as f:
@@ -199,7 +198,6 @@ def train_model():
     else:
         # Get GPU count
         num_gpus = get_gpu_count()
-
     # Create run_train.py script
     run_train_path = os.path.join(
         os.environ["_TFL_WORKSPACE_DIR"], "plugins", "nanotron_pretrainer", "nanotron", "run_train.py"

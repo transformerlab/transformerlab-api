@@ -117,7 +117,7 @@ class MLXWorker(BaseModelWorker):
         }
 
         # Process top logprobs
-        top_logprobs = []
+        top_logprobs = {}
         if top_k is not None:
             # Get indices of top_k tokens
             top_indices = mx.argpartition(-current_logprobs, kth=top_k - 1)[:top_k]
@@ -127,46 +127,9 @@ class MLXWorker(BaseModelWorker):
             for idx, logprob in zip(top_indices.tolist(), top_probs.tolist()):
                 token = tokenizer.decode([idx])
                 token_bytes = token.encode("utf-8")
-                top_logprobs.append({"token": token, "logprob": logprob, "bytes": list(token_bytes)})
+                top_logprobs[token] = logprob
 
-        return {**token_info, "top_logprobs": top_logprobs}
-
-    def _process_logprobs(
-        self,
-        tokenizer,
-        response,
-        top_k: Optional[int],
-    ) -> Optional[Dict[str, Any]]:
-        """Process logprobs information from generation response to match OpenAI format"""
-        current_token = response.token
-        current_logprobs = response.logprobs
-
-        # Get current token info
-        token_str = tokenizer.decode([current_token])
-        token_logprob = current_logprobs[current_token].item()
-        token_bytes = token_str.encode("utf-8")
-
-        # Base token info
-        token_info = {
-            "token": token_str,
-            "logprob": token_logprob,
-            "bytes": list(token_bytes),
-        }
-
-        # Process top logprobs
-        top_logprobs = []
-        if top_k is not None:
-            # Get indices of top_k tokens
-            top_indices = mx.argpartition(-current_logprobs, kth=top_k - 1)[:top_k]
-            top_probs = current_logprobs[top_indices]
-
-            # Create detailed token information for each top token
-            for idx, logprob in zip(top_indices.tolist(), top_probs.tolist()):
-                token = tokenizer.decode([idx])
-                token_bytes = token.encode("utf-8")
-                top_logprobs.append({"token": token, "logprob": logprob, "bytes": list(token_bytes)})
-
-        return {**token_info, "top_logprobs": top_logprobs}
+        return {**token_info, "top_logprobs": [top_logprobs]}
 
     async def generate_stream(self, params):
         self.call_ct += 1

@@ -1,15 +1,16 @@
 {
-  "name": "Eleuther AI LM Evaluation Harness",
+  "name": "EleutherAI LM Evaluation Harness",
   "uniqueId": "eleuther-ai-lm-evaluation-harness",
   "description": "A harness for evaluating language models.",
   "plugin-format": "python",
   "type": "evaluator",
-  "version": "0.2.3",
+  "version": "0.2.6",
   "git": "https://github.com/EleutherAI/lm-evaluation-harness",
   "url": "https://github.com/EleutherAI/lm-evaluation-harness",
   "supported_hardware_architectures": ["cuda"],
   "files": ["main.py", "setup.sh"],
-  "dataset": false,
+  "evalsType": "dataset",
+  "_dataset": false,
   "setup-script": "setup.sh",
   "parameters": {
     "tasks": {

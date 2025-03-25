@@ -66,7 +66,9 @@ async def predict(
             "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
             "total_tokens": total_tokens,
-            "tokens_per_second": total_tokens / (end_time - start_time) if total_tokens and (end_time - start_time) > 0 else None,
+            "tokens_per_second": total_tokens / (end_time - start_time)
+            if total_tokens and (end_time - start_time) > 0
+            else None,
         }
         return output, metrics
 
@@ -174,6 +176,5 @@ async def process_dataset(
                     examples.loc[global_idx, "completion_tokens"] = result[1].get("completion_tokens", None)
                     examples.loc[global_idx, "total_tokens"] = result[1].get("total_tokens", None)
                     examples.loc[global_idx, "tokens_per_second"] = result[1].get("tokens_per_second", None)
-
 
     return examples

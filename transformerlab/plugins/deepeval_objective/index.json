@@ -4,7 +4,8 @@
     "description": "Evaluating outputs of LLMs using objective metrics",
     "plugin-format": "python",
     "type": "evaluator",
-    "version": "0.2.4",
+    "evalsType": "dataset",
+    "version": "0.2.7",
     "git": "https://github.com/confident-ai/deepeval",
     "url": "https://github.com/confident-ai/deepeval",
     "files": [

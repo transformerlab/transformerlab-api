@@ -4,7 +4,7 @@
   "description": "A training script adapted from https://www.philschmid.de/instruction-tune-llama-2 for training Llama2 using PeFT",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "1.0.14",
+  "version": "1.0.16",
   "model_architectures": ["LlamaForCausalLM", "Qwen2ForCausalLM"],
   "git": "",
   "url": "",
@@ -84,6 +84,11 @@
       "type": "boolean",
       "default": true,
       "required": true
+    },
+    "fuse_model": {
+      "title": "Fuse Model",
+      "type": "boolean",
+      "default": false
     }
   },
   "parameters_ui": {
@@ -103,6 +108,9 @@
     },
     "log_to_wandb": {
       "ui:help": "Log training to Weights and Biases. You must have a Weights and Biases account and API key to use this feature. You need to set the API Key in settings to use this feature."
+    },
+    "fuse_model": {
+      "ui:help": "This will create a new fused model with the adaptor and the model merged. A separate entry will be created in the model zoo for the fused model."
     }
   }
 }
