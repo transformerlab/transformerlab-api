@@ -109,10 +109,7 @@ async def queue_task(task_id: int, inputs: str = "{}", outputs:str = "{}"):
         job_data["model_name"] = input_config["model_name"]
         job_data["dataset"] = input_config["dataset_name"]
         if "type" not in job_data["config"].keys():
-            if "trainingType" not in job_data["config"].keys():
-                job_data["config"]["type"] = "LoRA"
-            else:
-                job_data["config"]["type"] = job_data["config"]["trainingType"]
+            job_data["config"]["type"] = "LoRA"
         #sets the inputs and outputs from the task
         for key in input_config.keys():
             job_data["config"][key] = input_config[key]
