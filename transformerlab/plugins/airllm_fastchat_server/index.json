@@ -1,10 +1,10 @@
 {
-  "name": "Fastchat Server",
-  "uniqueId": "fastchat_server",
+  "name": "Fastchat Server - AirLLM",
+  "uniqueId": "airllm_fastchat_server",
   "description": "Fastchat loads models for inference using Huggingface Transformers for generation.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "1.0.4",
+  "version": "0.1.0",
   "model_architectures": [
     "CohereForCausalLM",
     "FalconForCausalLM",

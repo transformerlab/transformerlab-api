@@ -23,9 +23,7 @@ from airllm import AutoModel
 
 from fastchat.constants import ErrorCode, SERVER_ERROR_MSG
 from fastchat.model.model_adapter import (
-    load_model,
     add_model_args,
-    get_generate_stream_function,
 )
 from fastchat.modules.awq import AWQConfig
 from fastchat.modules.exllama import ExllamaConfig
