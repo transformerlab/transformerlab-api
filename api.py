@@ -83,8 +83,8 @@ async def lifespan(app: FastAPI):
 
 #the migrate function only runs the conversion function if no tasks are already present
 async def migrate():
-    if len(await tasks.tasks_get_all())==0:
-        await tasks.convert_all_to_tasks()
+    if len(tasks.tasks_get_all())==0:
+        tasks.convert_all_to_tasks()
 
 
 
