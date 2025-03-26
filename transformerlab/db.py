@@ -106,10 +106,10 @@ async def init():
                         (id INTEGER PRIMARY KEY,
                         name,
                         type,
-                        input_config JSON,
+                        inputs JSON,
                         config JSON,
                         plugin,
-                        output_config JSON,
+                        outputs JSON,
                         experiment_id,
                         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                         updated_at DATETIME NOT NULL DEFAULT current_timestamp)
@@ -545,26 +545,26 @@ async def job_stop(job_id):
 # TASKS MODEL
 ###############
 
-async def add_task(name, Type, input_config, config, plugin, output_config, experiment_id):
+async def add_task(name, Type, inputs, config, plugin, outputs, experiment_id):
     await db.execute(
-        "INSERT INTO tasks(name, type, input_config, config, plugin, output_config, experiment_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (name, Type, input_config, config, plugin, output_config, experiment_id),
+        "INSERT INTO tasks(name, type, inputs, config, plugin, outputs, experiment_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (name, Type, inputs, config, plugin, outputs, experiment_id),
     )
     await db.commit()
     return
 
 async def update_task(task_id, new_task):
     await db.execute(
-        "UPDATE tasks SET input_config = ? WHERE id = ?",
-        (new_task["input_config"], task_id),
+        "UPDATE tasks SET inputs = ? WHERE id = ?",
+        (new_task["inputs"], task_id),
     )
     await db.execute(
         "UPDATE tasks SET config = ? WHERE id = ?",
         (new_task["config"], task_id),
     )
     await db.execute(
-        "UPDATE tasks SET output_config = ? WHERE id = ?",
-        (new_task["output_config"], task_id),
+        "UPDATE tasks SET outputs = ? WHERE id = ?",
+        (new_task["outputs"], task_id),
     )
     await db.commit()
     return

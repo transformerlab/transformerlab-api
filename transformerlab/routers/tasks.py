@@ -36,7 +36,7 @@ async def delete_task(task_id: int):
 
 @router.put("/new_task", summary="Create a new task")
 async def add_task(new_task: dict = Body()):
-    await db.add_task(new_task["name"], new_task["type"], new_task["input_config"], new_task["config"], new_task["plugin"], new_task["output_config"], new_task["experiment_id"])
+    await db.add_task(new_task["name"], new_task["type"], new_task["inputs"], new_task["config"], new_task["plugin"], new_task["outputs"], new_task["experiment_id"])
     return {"message":"OK"}
 
 @router.get("/delete_all", summary="Wipe the task table")
@@ -50,9 +50,9 @@ async def tasks_delete_all():
 async def convert_training_template_to_task(template_id: int, experiment_id: int):
     template = await db.get_training_template(template_id)
     template_config = json.loads(template["config"])
-    input_config = {"model_name":template_config["model_name"],"model_architecture":template_config["model_architecture"],"dataset_name":template_config["dataset_name"]} 
-    output_config = {"adaptor_name":template_config["adaptor_name"]}
-    await db.add_task(template["name"], "TRAIN", json.dumps(input_config), template["config"], template_config["plugin_name"], json.dumps(output_config), experiment_id)
+    inputs = {"model_name":template_config["model_name"],"model_architecture":template_config["model_architecture"],"dataset_name":template_config["dataset_name"]} 
+    outputs = {"adaptor_name":template_config["adaptor_name"]}
+    await db.add_task(template["name"], "TRAIN", json.dumps(inputs), template["config"], template_config["plugin_name"], json.dumps(outputs), experiment_id)
     return {"message":"OK"}
 
 
@@ -92,39 +92,39 @@ async def convert_all_to_tasks(experiment_id):
 
 
 @router.get("/{task_id}/queue", summary="Queue a task to run")
-async def queue_task(task_id: int, inputs: str = "{}", outputs:str = "{}"):
+async def queue_task(task_id: int, input_override: str = "{}", output_override:str = "{}"):
     task_to_queue = await db.tasks_get_by_id(task_id)
     job_type = task_to_queue["type"]
     job_status = "QUEUED"
     job_data = {}
     #these are the input and output configs from the task
-    input_config = json.loads(task_to_queue["input_config"])
-    output_config = json.loads(task_to_queue["output_config"])
+    inputs = json.loads(task_to_queue["inputs"])
+    outputs = json.loads(task_to_queue["outputs"])
 
     #these are the in runtime changes that will override the input and output config from the task
-    inputs = json.loads(inputs)
-    outputs = json.loads(outputs)
+    input_override = json.loads(input_override)
+    output_override = json.loads(output_override)
     if job_type == "TRAIN":
         job_data["config"] = json.loads(task_to_queue["config"])
-        job_data["model_name"] = input_config["model_name"]
-        job_data["dataset"] = input_config["dataset_name"]
+        job_data["model_name"] = inputs["model_name"]
+        job_data["dataset"] = inputs["dataset_name"]
         if "type" not in job_data["config"].keys():
             job_data["config"]["type"] = "LoRA"
         #sets the inputs and outputs from the task
-        for key in input_config.keys():
-            job_data["config"][key] = input_config[key]
-        for key in output_config.keys():
-            job_data["config"][key] = output_config[key]
-
-        #overrides the inputs and outputs based on the runtime changes requested
         for key in inputs.keys():
-            if key=="model_name":
-                job_data["model_name"] = inputs["model_name"]
-            if key=="dataset":
-                job_data["dataset"] = inputs["dataset_name"]
             job_data["config"][key] = inputs[key]
         for key in outputs.keys():
             job_data["config"][key] = outputs[key]
+
+        #overrides the inputs and outputs based on the runtime changes requested
+        for key in input_override.keys():
+            if key=="model_name":
+                job_data["model_name"] = input_override["model_name"]
+            if key=="dataset":
+                job_data["dataset"] = input_override["dataset_name"]
+            job_data["config"][key] = input_override[key]
+        for key in output_override.keys():
+            job_data["config"][key] = output_override[key]
 
 
         job_data["template_id"] = task_to_queue["id"]
@@ -132,19 +132,19 @@ async def queue_task(task_id: int, inputs: str = "{}", outputs:str = "{}"):
     elif job_type == "EVAL":
         job_data["evaluator"] = task_to_queue["name"]
         job_data["config"] = json.loads(task_to_queue["config"])
-        for key in input_config.keys():
-            job_data["config"][key] = input_config[key]
         for key in inputs.keys():
             job_data["config"][key] = inputs[key]
+        for key in input_override.keys():
+            job_data["config"][key] = input_override[key]
 
         job_data["plugin"] = task_to_queue["plugin"]
     elif job_type == "GENERATE":
         job_data["generator"] = task_to_queue["name"]
         job_data["config"] = json.loads(task_to_queue["config"])
-        for key in input_config.keys():
-            job_data["config"][key] = input_config[key]
         for key in inputs.keys():
             job_data["config"][key] = inputs[key]
+        for key in input_override.keys():
+            job_data["config"][key] = input_override[key]
         job_data["plugin"] = task_to_queue["plugin"]
     job_id = await db.job_create(job_type, job_status, json.dumps(job_data), task_to_queue["experiment_id"])
     return {"id": job_id}

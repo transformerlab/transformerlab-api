@@ -282,20 +282,20 @@ async def start_next_step_in_workflow():
         return {"message": f"Could not find task '{task_name}' for workflow node."}
 
     if next_task["type"] == "TRAIN":
-        next_task["output_config"] = json.loads(next_task["output_config"])
-        next_task["output_config"]["adaptor_name"] = str(uuid.uuid4()).replace("-","")
-        next_task["output_config"] = json.dumps(next_task["output_config"])
+        next_task["outputs"] = json.loads(next_task["outputs"])
+        next_task["outputs"]["adaptor_name"] = str(uuid.uuid4()).replace("-","")
+        next_task["outputs"] = json.dumps(next_task["outputs"])
     if next_task["type"] == "EVAL":
         if current_job is not None:
             if current_job["type"] == "TRAIN":
-                next_task["input_config"] = json.loads(next_task["input_config"])
-                next_task["input_config"]["model_name"] = current_job["job_data"]["config"]["model_name"]
-                next_task["input_config"]["model_architecture"] = current_job["job_data"]["config"]["model_architecture"]
-                next_task["input_config"]["adaptor_name"] = current_job["job_data"]["config"]["adaptor_name"]
-                next_task["input_config"] = json.dumps(next_task["input_config"])
+                next_task["inputs"] = json.loads(next_task["inputs"])
+                next_task["inputs"]["model_name"] = current_job["job_data"]["config"]["model_name"]
+                next_task["inputs"]["model_architecture"] = current_job["job_data"]["config"]["model_architecture"]
+                next_task["inputs"]["adaptor_name"] = current_job["job_data"]["config"]["adaptor_name"]
+                next_task["inputs"] = json.dumps(next_task["inputs"])
 
     
-    next_job_info = await tsks.queue_task(next_task["id"], next_task["input_config"], next_task["output_config"])
+    next_job_info = await tsks.queue_task(next_task["id"], next_task["inputs"], next_task["outputs"])
     next_job_id = next_job_info["id"]
     await db.workflow_update_with_new_job(workflow_id, json.dumps(workflow_current_task), json.dumps([next_job_id]))
 
