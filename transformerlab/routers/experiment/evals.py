@@ -153,7 +153,9 @@ async def get_evaluation_plugin_file_contents(experimentId: int, plugin_name: st
 
 
 @router.get("/run_evaluation_script")
-async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: str, eval_config: dict, job_id: str):
+async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: str, job_id: str):
+    job_config = (await db.job_get(job_id))["job_data"]
+    eval_config = job_config.get("config",{})
     print(eval_config)
     experiment_details = await db.experiment_get(id=experimentId)
 

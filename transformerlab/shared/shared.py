@@ -245,7 +245,6 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         experiment_id = experiment["id"]
         plugin_name = job_config["plugin"]
         eval_name = job_config.get("evaluator","")
-        eval_config = job_config.get("config",{})
         await db.job_update_status(job_id, "RUNNING")
         print("Running evaluation script")
         plugin_location = dirs.plugin_dir_by_name(plugin_name)
@@ -254,7 +253,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         if not os.path.exists(evals_output_file):
             with open(evals_output_file, "w") as f:
                 f.write("")
-        await run_evaluation_script(experiment_id, plugin_name, eval_name, eval_config, job_id)
+        await run_evaluation_script(experiment_id, plugin_name, eval_name, job_id)
         await db.job_update_status(job_id, "COMPLETE")
         return
     elif master_job_type == "GENERATE":
