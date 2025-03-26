@@ -10,32 +10,23 @@ import base64
 import gc
 import json
 import os
-from typing import List, Optional
 import uuid
+from threading import Thread
+from typing import List, Optional
 
-from fastapi import Request
 import torch
 import torch.nn.functional as F
 import uvicorn
-from transformers import AutoTokenizer, Gemma3ForCausalLM, TextIteratorStreamer, set_seed
-from threading import Thread
-import queue
-from fastchat.constants import ErrorCode, SERVER_ERROR_MSG
-from fastchat.model.model_adapter import (
-    load_model,
-    add_model_args,
-    get_generate_stream_function,
-)
+from fastapi import Request
+from fastchat.constants import SERVER_ERROR_MSG, ErrorCode
+from fastchat.model.model_adapter import add_model_args, get_generate_stream_function, load_model
 from fastchat.modules.awq import AWQConfig
 from fastchat.modules.exllama import ExllamaConfig
-from fastchat.modules.xfastertransformer import XftConfig
 from fastchat.modules.gptq import GptqConfig
+from fastchat.modules.xfastertransformer import XftConfig
 from fastchat.serve.base_model_worker import BaseModelWorker, app
-from fastchat.utils import (
-    build_logger,
-    get_context_length,
-    str_to_torch_dtype,
-)
+from fastchat.utils import build_logger, get_context_length, str_to_torch_dtype
+from transformers import AutoTokenizer, Gemma3ForCausalLM, TextIteratorStreamer, set_seed
 
 worker_id = str(uuid.uuid4())[:8]
 logger = build_logger("model_worker", f"model_worker_{worker_id}.log")
@@ -63,12 +54,11 @@ def gemma3_generate_stream(
     stop_str = params.get("stop", None)
     stop_token_ids = params.get("stop_token_ids", None) or []
     logger.info("Using custom Gemma-3 stream generation")
-    
+
     model_name = params.get("model", None)
-    
+
     if tokenizer.eos_token_id not in stop_token_ids:
         stop_token_ids.append(tokenizer.eos_token_id)
-
 
     is_base_model = "pt" in model_name.lower() or "base" in model_name.lower()
 
@@ -76,27 +66,19 @@ def gemma3_generate_stream(
         # Format input based on whether we have messages or a plain prompt
         if messages:
             inputs = tokenizer.apply_chat_template(
-                messages,
-                add_generation_prompt=True,
-                tokenize=True,
-                return_dict=True,
-                return_tensors="pt"
+                messages, add_generation_prompt=True, tokenize=True, return_dict=True, return_tensors="pt"
             ).to(model.device)
         else:
             messages = [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
             inputs = tokenizer.apply_chat_template(
-                messages,
-                add_generation_prompt=True,
-                tokenize=True,
-                return_dict=True,
-                return_tensors="pt"
+                messages, add_generation_prompt=True, tokenize=True, return_dict=True, return_tensors="pt"
             ).to(model.device)
     else:
         inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-        
+
     input_ids = inputs["input_ids"]
     input_echo_len = input_ids.shape[1]
-    
+
     # Configure generation parameters
     generate_kwargs = {
         "max_new_tokens": max_new_tokens,
@@ -110,39 +92,37 @@ def gemma3_generate_stream(
         generate_kwargs["top_k"] = top_k
     if repetition_penalty > 1.0:
         generate_kwargs["repetition_penalty"] = repetition_penalty
-    
-    
-    text_queue = queue.Queue()
+
     streamer = TextIteratorStreamer(tokenizer, skip_prompt=not echo, skip_special_tokens=True)
     generate_kwargs["streamer"] = streamer
-    
+
     # Start generation in a separate thread
     thread = Thread(target=lambda: model.generate(input_ids=input_ids, **generate_kwargs))
     thread.start()
-    
+
     # Track generation progress
     generated_tokens = 0
     output_text = ""
-    
+
     # Stream tokens
     for new_text in streamer:
         output_text += new_text
         generated_tokens += 1
-        
+
         # Check for stop strings
         should_stop = False
         if stop_str:
             if isinstance(stop_str, str):
                 if stop_str in output_text:
-                    output_text = output_text[:output_text.find(stop_str)]
+                    output_text = output_text[: output_text.find(stop_str)]
                     should_stop = True
             elif isinstance(stop_str, list):
                 for stop in stop_str:
                     if stop in output_text:
-                        output_text = output_text[:output_text.find(stop)]
+                        output_text = output_text[: output_text.find(stop)]
                         should_stop = True
                         break
-        
+
         # Stream at intervals or when stopping
         if generated_tokens % stream_interval == 0 or should_stop:
             yield {
@@ -154,14 +134,16 @@ def gemma3_generate_stream(
                 },
                 "finish_reason": "stop" if should_stop else None,
             }
-            
+
         if should_stop:
             break
-    
+
     # Final output with finish reason
     if thread.is_alive():
-        thread.join(timeout=3600)  # Arbitrary value, but if it doesn't complete in this much time then something is wrong
-    
+        thread.join(
+            timeout=3600
+        )  # Arbitrary value, but if it doesn't complete in this much time then something is wrong
+
     yield {
         "text": output_text,
         "usage": {
@@ -171,7 +153,7 @@ def gemma3_generate_stream(
         },
         "finish_reason": "length",
     }
-    
+
     # Clean up
     gc.collect()
     torch.cuda.empty_cache()
@@ -179,7 +161,6 @@ def gemma3_generate_stream(
         torch.xpu.empty_cache()
     if device == "npu":
         torch.npu.empty_cache()
-
 
 
 class ModelWorker(BaseModelWorker):
@@ -220,7 +201,6 @@ class ModelWorker(BaseModelWorker):
             conv_template=conv_template,
         )
 
-
         logger.info(f"Loading the model {self.model_names} on worker {worker_id} ...")
         # Check if this is a Gemma-3 model
         self.is_gemma3 = "gemma-3" in model_path.lower()
@@ -248,7 +228,7 @@ class ModelWorker(BaseModelWorker):
                 awq_config=awq_config,
                 exllama_config=exllama_config,
                 xft_config=xft_config,
-                debug=debug,    
+                debug=debug,
             )
             self.generate_stream_func = get_generate_stream_function(self.model, model_path)
 
