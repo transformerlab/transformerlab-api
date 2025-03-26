@@ -79,14 +79,17 @@ async def convert_all_to_tasks(experiment_id):
     train_templates = await db.get_training_templates()
     for template in train_templates:
         await convert_training_template_to_task(template[0], experiment_id)
+    experiment_config = json.loads((await db.experiment_get(experiment_id))["config"])
     #evals
-    experiment_evaluations = json.loads(json.loads((await db.experiment_get(experiment_id))["config"])["evaluations"])
-    for eval in experiment_evaluations:
-        await convert_eval_to_task(eval["name"], experiment_id)
+    if "evaluations" in experiment_config.keys():
+        experiment_evaluations = json.loads(experiment_config["evaluations"])
+        for eval in experiment_evaluations:
+            await convert_eval_to_task(eval["name"], experiment_id)
     #generations
-    experiment_generations = json.loads(json.loads((await db.experiment_get(experiment_id))["config"])["generations"])
-    for generation in experiment_generations:
-        await convert_generate_to_task(generation["name"], experiment_id)
+    if "generations" in experiment_config:
+        experiment_generations = json.loads(experiment_config["generations"])
+        for generation in experiment_generations:
+            await convert_generate_to_task(generation["name"], experiment_id)
     return {"message":"OK"}
 
 
