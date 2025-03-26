@@ -18,9 +18,10 @@ import json
 import os
 from typing import Any, Dict, List, Optional
 import uuid
-import traceback
+import sys
 
 from huggingface_hub import snapshot_download
+from airllm import AutoModel
 
 from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.concurrency import run_in_threadpool
@@ -35,9 +36,6 @@ from fastchat.serve.model_worker import (
 from fastchat.utils import get_context_length
 
 import mlx.core as mx
-from mlx_lm import load
-from mlx_lm.utils import generate_step
-from mlx_lm.sample_utils import make_sampler
 
 from mlx_embedding_models.embedding import EmbeddingModel
 
@@ -56,7 +54,6 @@ class MLXWorker(BaseModelWorker):
         limit_worker_concurrency: int,
         no_register: bool,
         conv_template: str,
-        adaptor_path: str = None,
     ):
         super().__init__(
             controller_addr,
@@ -71,9 +68,10 @@ class MLXWorker(BaseModelWorker):
         logger.info(f"Loading the model {self.model_names} on worker" + f"{worker_id}, worker type: MLX worker...")
 
         self.model_name = model_path
-        self.mlx_model, self.mlx_tokenizer = load(model_path, adapter_path=adaptor_path)
 
-        self.tokenizer = self.mlx_tokenizer._tokenizer
+        logger.info("Using AirLLM for inference")
+        self.airllm_model = AutoModel.from_pretrained(model_path)
+        self.tokenizer = self.airllm_model.tokenizer
 
         config = get_hugggingface_config(model_path)
 
@@ -138,7 +136,7 @@ class MLXWorker(BaseModelWorker):
         # request_id = params.pop("request_id")
         temperature = float(params.get("temperature", 1.0))
         top_p = float(params.get("top_p", 1.0))
-        top_k = int(params.get("top_k", 10))
+        # top_k = int(params.get("top_k", 10))
         # presence_penalty = float(params.get("presence_penalty", 0.0))
         # frequency_penalty = float(params.get("frequency_penalty", 0.0))
         max_new_tokens = params.get("max_new_tokens", 256)
@@ -172,96 +170,45 @@ class MLXWorker(BaseModelWorker):
         if temperature <= 1e-5:
             top_p = 1.0
 
-        tokens = []
-        # skip = 0
-
-        context_mlx = mx.array(self.tokenizer.encode(context))
-
-        finish_reason = "length"
-
-        # MLX makes you build a sampler to set temperature and top_p
-        # NOTE: We could also pass in top_k and min_p here
-        # but they aren't getting set in UI
-        sampler = make_sampler(temperature, top_p=top_p)
-
-        iterator = await run_in_threadpool(
-            generate_step, context_mlx, self.mlx_model, max_tokens=max_new_tokens, sampler=sampler
+        # Encode the input text
+        input_tokens = self.tokenizer(
+            context,
+            return_tensors="np",
+            return_attention_mask=False,
+            truncation=True,
+            max_length=self.context_len,
+            padding=False,
         )
 
-        cummulative_logprobs = []
-
-        for i in range(max_new_tokens):
-            try:
-                (token, logprobs) = await run_in_threadpool(next, iterator)
-
-            except RuntimeError as e:
-                # If the error throws an exception (e.g. StopIteration)
-                # Let's print it out and then stop streaming
-                print(e)
-                print(traceback.format_exc())
-                finish_reason = "stop"
-                break
-
-            if token == self.tokenizer.eos_token_id:
-                finish_reason = "stop"
-                break
-
-            # define an object with parameters token and lobprobs:
-            response = namedtuple("response", ["token", "logprobs"])
-            response.token = token
-            response.logprobs = logprobs
-
-            if include_logprobs:
-                logprobs = self._process_logprobs(self.tokenizer, response, top_k)
-                # print("logprobs: ", logprobs)
-                cummulative_logprobs.append(logprobs)
-            else:
-                logprobs = None
-
-            tokens.append(token)
-            tokens_decoded = self.tokenizer.decode(tokens)
-            # last_token_decoded = self.mlx_tokenizer.decode([token])
-            # skip = len(tokens_decoded)
-
-            # Check if the generated text contains any of the stop strings:
-            partial_stop = False
-
-            for s in stop:
-                if s in tokens_decoded:
-                    # print("tokens:")
-                    # print(tokens_decoded)
-                    # print("Partial stop found")
-                    # print("stop tokens: ")
-                    # print(stop)
-                    partial_stop = True
-                    break
-
-            if partial_stop:
-                finish_reason = "stop"
-                break
-
-            ret = {
-                "text": tokens_decoded,
-                "error_code": 0,
-                "usage": {
-                    "prompt_tokens": len(context),
-                    "completion_tokens": len(tokens),
-                    "total_tokens": len(context) + len(tokens),
-                },
-                "logprobs": logprobs,
-                "finish_reason": None,  # hard code for now
-            }
-            # print(ret)
-            yield (json.dumps(ret) + "\0").encode()
-        ret = {
-            "text": self.tokenizer.decode(tokens),
-            "error_code": 0,
-            "usage": {},
-            "logprobs": cummulative_logprobs,
-            "finish_reason": finish_reason,
+        # Setup generation parameters
+        gen_params = {
+            "max_new_tokens": max_new_tokens,
+            "temperature": temperature,
+            "top_p": top_p,
+            "use_cache": True,
+            "return_dict_in_generate": True,
         }
-        yield (json.dumps(obj={**ret, **{"finish_reason": None}}) + "\0").encode()
+
+        # Generate with AirLLM
+        generation_output = await run_in_threadpool(
+            self.airllm_model.generate, mx.array(input_tokens["input_ids"]), **gen_params
+        )
+
+        tokens_decoded = generation_output
+
+        ret = {
+            "text": tokens_decoded,
+            "error_code": 0,
+            "usage": {
+                "prompt_tokens": len(context),
+                "completion_tokens": len(tokens_decoded) - len(context),
+                "total_tokens": len(tokens_decoded),
+            },
+            "logprobs": None,  # AirLLM doesn't support logprobs yet
+            "finish_reason": "stop",
+        }
         yield (json.dumps(ret) + "\0").encode()
+        return
 
     async def generate(self, params):
         async for x in self.generate_stream(params):
@@ -421,8 +368,12 @@ def main():
 
     if args.model_path:
         args.model = args.model_path
+
     if args.adaptor_path is None or args.adaptor_path.strip() == "":
         args.adaptor_path = None
+    else:
+        logger.info("Adaptors are not yet supported with AirLLM MLX")
+        sys.exit(1)
 
     worker = MLXWorker(
         args.controller_address,
@@ -433,7 +384,6 @@ def main():
         1024,
         False,
         args.conv_template,
-        args.adaptor_path,
     )
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 
