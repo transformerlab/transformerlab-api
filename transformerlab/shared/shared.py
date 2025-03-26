@@ -261,7 +261,6 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         experiment_id = experiment["id"]
         plugin_name = job_config["plugin"]
         generation_name = job_config["generator"]
-        generation_config = job_config["config"]
         await db.job_update_status(job_id, "RUNNING")
         print("Running generation script")
         plugin_location = dirs.plugin_dir_by_name(plugin_name)
