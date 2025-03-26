@@ -1,0 +1,43 @@
+{
+  "name": "Fastchat Server",
+  "uniqueId": "fastchat_server",
+  "description": "Fastchat loads models for inference using Huggingface Transformers for generation.",
+  "plugin-format": "python",
+  "type": "loader",
+  "version": "1.0.4",
+  "model_architectures": [
+    "CohereForCausalLM",
+    "FalconForCausalLM",
+    "GemmaForCausalLM",
+    "Gemma2ForCausalLM",
+    "GPTBigCodeForCausalLM",
+    "LlamaForCausalLM",
+    "MistralForCausalLM",
+    "MixtralForCausalLM",
+    "PhiForCausalLM",
+    "Phi3ForCausalLM",
+    "Qwen2ForCausalLM",
+    "ExaoneForCausalLM",
+    "T5ForConditionalGeneration"
+  ],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx"],
+  "files": ["main.py", "setup.sh"],
+  "setup-script": "setup.sh",
+  "parameters": {
+  "gpu_ids": {
+          "title": "GPU IDs to use for Inference. Leaving blank will use all available GPUs",
+          "type": "string",
+          "default": ""
+      },
+    "eight_bit": {
+      "title": "Enable 8-bit compression",
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "parameters_ui": {
+    "gpu_ids": {
+      "ui:help": "Specify a comma-separated list of GPU IDs to use for inference. The IDs for each GPU can be found in the Computer tab. For example: 0,1,2,3"
+    }
+  }
+}
