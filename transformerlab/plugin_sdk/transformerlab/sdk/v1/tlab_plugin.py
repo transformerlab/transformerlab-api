@@ -280,6 +280,8 @@ class TLabPlugin:
             gen_model = generation_model.lower()
             if "local" in gen_model:
                 model_type = "local"
+            elif "azure" in gen_model:
+                model_type = "azure"
             elif "openai" in gen_model or "gpt" in gen_model:
                 model_type = "openai"
             elif "claude" in gen_model or "anthropic" in gen_model:
@@ -306,6 +308,13 @@ class TLabPlugin:
 
             os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
             return self._create_commercial_model_wrapper("claude", generation_model)
+
+        elif model_type == "azure":
+            azure_api_details = transformerlab.plugin.get_db_config_value("AZURE_OPENAI_DETAILS")
+            if not azure_api_details or azure_api_details.strip() == "":
+                raise ValueError("Please set the Azure OpenAI Details from Settings.")
+
+            return self._create_commercial_model_wrapper("azure", "")
 
         elif model_type == "openai":
             openai_api_key = transformerlab.plugin.get_db_config_value("OPENAI_API_KEY")
@@ -377,7 +386,7 @@ class TLabPlugin:
         """Create a wrapper for commercial models"""
         from anthropic import Anthropic
         from deepeval.models.base_model import DeepEvalBaseLLM
-        from openai import OpenAI
+        from openai import OpenAI, AzureOpenAI
 
         class CustomCommercialModel(DeepEvalBaseLLM):
             def __init__(self, model_type="claude", model_name="claude-3-7-sonnet-latest"):
@@ -393,6 +402,22 @@ class TLabPlugin:
                     else:
                         os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
                     self.model = Anthropic()
+                elif model_type == "azure":
+                    azure_api_details = transformerlab.plugin.get_db_config_value("AZURE_OPENAI_DETAILS")
+                    if not azure_api_details or azure_api_details.strip() == "":
+                        raise ValueError("Please set the Azure OpenAI Details from Settings.")
+                    azure_api_details = json.loads(azure_api_details)
+
+                    self.model = AzureOpenAI(
+                        api_key=azure_api_details["azure_openai_api_key"],
+                        api_version=azure_api_details["openai_api_version"],
+                        azure_endpoint=azure_api_details["azure_endpoint"],
+                    )
+                    self.generation_model_name = azure_api_details["azure_deployment"]
+                    self.model_name = azure_api_details["azure_deployment"]
+
+                    self.chat_completions_url = f"{azure_api_details['azure_endpoint']}/openai/deployments/{azure_api_details['azure_deployment']}/chat/completions?api-version={azure_api_details['openai_api_version']}"
+                    self.api_key = azure_api_details["azure_openai_api_key"]
 
                 elif model_type == "openai":
                     self.chat_completions_url = "https://api.openai.com/v1/chat/completions"
@@ -405,7 +430,6 @@ class TLabPlugin:
                     self.model = OpenAI()
 
                 elif model_type == "custom":
-                    self.chat_completions_url = "https://api.openai.com/v1/chat/completions"
                     custom_api_details = transformerlab.plugin.get_db_config_value("CUSTOM_MODEL_API_KEY")
 
                     if not custom_api_details or custom_api_details.strip() == "":
@@ -416,8 +440,10 @@ class TLabPlugin:
                             api_key=custom_api_details["customApiKey"],
                             base_url=custom_api_details["customBaseURL"],
                         )
+                        self.chat_completions_url = f"{custom_api_details['customBaseURL']}/chat/completions"
                         self.api_key = custom_api_details["customApiKey"]
                         self.generation_model_name = custom_api_details["customModelName"]
+                        self.model_name = custom_api_details["customModelName"]
 
             def load_model(self):
                 return self.model
