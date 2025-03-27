@@ -9,7 +9,7 @@ import json
 from pydantic import BaseModel
 from typing import Any, List
 
-from datasets import get_dataset_split_names, load_dataset
+from datasets import get_dataset_split_names, get_dataset_config_names, load_dataset
 
 from transformerlab.plugin import Job, get_dataset_path
 import transformerlab.plugin
@@ -205,7 +205,7 @@ class TLabPlugin:
         """Add data to job"""
         self.job.add_to_job_data(key, value)
 
-    def load_dataset(self, dataset_types: List[str] = ["train"]):
+    def load_dataset(self, dataset_types: List[str] = ["train"], config_name: str = None):
         """Decorator for loading datasets with error handling"""
 
         self._ensure_args_parsed()
@@ -220,6 +220,20 @@ class TLabPlugin:
             dataset_target = get_dataset_path(self.params.dataset_name)
             # Get the available splits
             available_splits = get_dataset_split_names(dataset_target)
+            # Get the available config names
+            available_configs = get_dataset_config_names(dataset_target)
+
+            if available_configs and available_configs[0] == "default":
+                available_configs.pop(0)
+                config_name = None
+                print("Default config found, ignoring config_name")
+
+            if config_name and config_name not in available_configs:
+                raise ValueError(f"Config name {config_name} not found in dataset")
+
+            if not config_name and len(available_configs) > 0:
+                config_name = available_configs[0]
+                print(f"Using default config name: {config_name}")
 
             # Handle different validation split names
             dataset_splits = {}
@@ -237,7 +251,7 @@ class TLabPlugin:
             datasets = {}
             for dataset_type in dataset_splits:
                 datasets[dataset_type] = load_dataset(
-                    dataset_target, split=dataset_splits[dataset_type], trust_remote_code=True
+                    dataset_target, data_dir=config_name, split=dataset_splits[dataset_type], trust_remote_code=True
                 )
             if "train" in dataset_types:
                 print(f"Loaded train dataset with {len(datasets['train'])} examples.")
