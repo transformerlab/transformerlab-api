@@ -173,7 +173,7 @@ async def missing_platform_plugins() -> list[str]:
 
     if system == "Darwin" and cpu == "x86_64":
         # This is an OSX Machine with x86_64
-        osx_plugins = ["llama_cpp_server", "gguf_exporter"]
+        osx_plugins = ["ollama_server", "gguf_exporter"]
 
         for plugin in osx_plugins:
             if plugin not in installed_plugins_names:
