@@ -50,7 +50,13 @@ async def tasks_delete_all():
 async def convert_training_template_to_task(template_id: int, experiment_id: int):
     template = await db.get_training_template(template_id)
     template_config = json.loads(template["config"])
-    inputs = {"model_name":template_config["model_name"],"model_architecture":template_config["model_architecture"],"dataset_name":template_config["dataset_name"]} 
+    inputs = {}
+    if "model_name" in template_config.keys():
+        inputs = {"model_name":template_config["model_name"],"model_architecture":template_config["model_architecture"],"dataset_name":template_config["dataset_name"]} 
+    if "embedding_model_name" in template_config.keys():
+        inputs = {"embedding_model_name":template_config["embedding_model_name"],"embedding_model_architecture":template_config["embedding_model_architecture"],"dataset_name":template_config["dataset_name"]}
+
+    outputs = {}
     if "adaptor_name" in template_config.keys():
         outputs = {"adaptor_name":template_config["adaptor_name"]}
     await db.add_task(template["name"], "TRAIN", json.dumps(inputs), template["config"], template_config["plugin_name"], json.dumps(outputs), experiment_id)
