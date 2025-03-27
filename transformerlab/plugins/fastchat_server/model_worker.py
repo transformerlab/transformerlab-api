@@ -10,31 +10,22 @@ import base64
 import gc
 import json
 import os
-from typing import List, Optional
 import uuid
+from typing import List, Optional
 
-from fastapi import Request
 import torch
 import torch.nn.functional as F
-from transformers import set_seed
 import uvicorn
-
-from fastchat.constants import ErrorCode, SERVER_ERROR_MSG
-from fastchat.model.model_adapter import (
-    load_model,
-    add_model_args,
-    get_generate_stream_function,
-)
+from fastapi import Request
+from fastchat.constants import SERVER_ERROR_MSG, ErrorCode
+from fastchat.model.model_adapter import add_model_args, get_generate_stream_function, load_model
 from fastchat.modules.awq import AWQConfig
 from fastchat.modules.exllama import ExllamaConfig
-from fastchat.modules.xfastertransformer import XftConfig
 from fastchat.modules.gptq import GptqConfig
+from fastchat.modules.xfastertransformer import XftConfig
 from fastchat.serve.base_model_worker import BaseModelWorker, app
-from fastchat.utils import (
-    build_logger,
-    get_context_length,
-    str_to_torch_dtype,
-)
+from fastchat.utils import build_logger, get_context_length, str_to_torch_dtype
+from transformers import set_seed
 
 worker_id = str(uuid.uuid4())[:8]
 logger = build_logger("model_worker", f"model_worker_{worker_id}.log")
@@ -94,11 +85,12 @@ class ModelWorker(BaseModelWorker):
             xft_config=xft_config,
             debug=debug,
         )
+        self.generate_stream_func = get_generate_stream_function(self.model, model_path)
+
         self.device = device
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
         self.context_len = get_context_length(self.model.config)
-        self.generate_stream_func = get_generate_stream_function(self.model, model_path)
         self.stream_interval = stream_interval
         self.embed_in_truncate = embed_in_truncate
         self.seed = seed
