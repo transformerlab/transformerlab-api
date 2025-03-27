@@ -11,7 +11,6 @@ import gc
 import json
 import os
 import uuid
-from threading import Thread
 from typing import List, Optional
 
 import torch
@@ -26,7 +25,7 @@ from fastchat.modules.gptq import GptqConfig
 from fastchat.modules.xfastertransformer import XftConfig
 from fastchat.serve.base_model_worker import BaseModelWorker, app
 from fastchat.utils import build_logger, get_context_length, str_to_torch_dtype
-from transformers import AutoTokenizer, Gemma3ForCausalLM, TextIteratorStreamer, set_seed
+from transformers import set_seed
 
 worker_id = str(uuid.uuid4())[:8]
 logger = build_logger("model_worker", f"model_worker_{worker_id}.log")
