@@ -40,6 +40,7 @@ from transformerlab.routers import (
     config,
     jobs,
     workflows,
+    tasks,
     prompts,
     tools,
     batched_prompts,
@@ -71,12 +72,21 @@ async def lifespan(app: FastAPI):
     await db.init()
     if "--reload" in sys.argv:
         await install_all_plugins()
+    # run the migration
+    asyncio.create_task(migrate())
     asyncio.create_task(run_over_and_over())
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
     # Do the following at API Shutdown:
     await db.close()
     print("FastAPI LIFESPAN: Complete")
+
+#the migrate function only runs the conversion function if no tasks are already present
+async def migrate():
+    if len(await tasks.tasks_get_all())==0:
+        for exp in await experiment.experiments_get_all():
+            await tasks.convert_all_to_tasks(exp["id"])
+
 
 
 async def run_over_and_over():
@@ -150,6 +160,7 @@ app.include_router(plugins.router)
 app.include_router(evals.router)
 app.include_router(jobs.router)
 app.include_router(workflows.router)
+app.include_router(tasks.router)
 app.include_router(config.router)
 app.include_router(prompts.router)
 app.include_router(tools.router)
