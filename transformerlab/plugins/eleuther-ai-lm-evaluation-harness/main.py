@@ -90,7 +90,7 @@ def run_evaluation():
             adapter_path = os.path.join(
                 os.environ["_TFL_WORKSPACE_DIR"],
                 "adaptors",
-                tlab_evals.params.model_name,
+                secure_filename(tlab_evals.params.model_name),
                 tlab_evals.params.model_adapter,
             )
             model_args += f",peft={adapter_path}"
