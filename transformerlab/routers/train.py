@@ -253,12 +253,7 @@ async def get_output_file_name(job_id: str):
         if "template_id" not in job_data:
             raise ValueError("Template ID not found in job data")
 
-        template_id = job_data["template_id"]
-        # Then get the template:
-        template = await db.get_training_template(template_id)
-        # Then get the plugin name from the template:
-
-        template_config = json.loads(template["config"])
+        template_config = job_data["config"]
         if "plugin_name" not in template_config:
             raise ValueError("Plugin name not found in template config")
 

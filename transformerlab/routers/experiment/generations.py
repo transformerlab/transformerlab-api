@@ -18,7 +18,7 @@ router = APIRouter(prefix="/generations", tags=["generations"])
 
 @router.post("/add")
 async def experiment_add_generation(experimentId: int, plugin: Any = Body()):
-    """Add an evaluation to an experiment. This will create a new directory in the experiment
+    """Add an generationn to an experiment. This will create a new directory in the experiment
     and add global plugin to the specific experiment. By copying the plugin to the experiment
     directory, we can modify the plugin code for the specific experiment without affecting
     other experiments that use the same plugin."""
@@ -57,7 +57,7 @@ async def experiment_add_generation(experimentId: int, plugin: Any = Body()):
 
 @router.get("/delete")
 async def experiment_delete_generation(experimentId: int, generation_name: str):
-    """Delete an evaluation from an experiment. This will delete the directory in the experiment
+    """Delete an generation from an experiment. This will delete the directory in the experiment
     and remove the global plugin from the specific experiment."""
     try:
         print("Deleting generation", experimentId, generation_name)
@@ -73,7 +73,7 @@ async def experiment_delete_generation(experimentId: int, generation_name: str):
 
         generations = json.loads(experiment_config["generations"])
 
-        # remove the evaluation from the list:
+        # remove the generation from the list:
         generations = [e for e in generations if e["name"] != generation_name]
 
         await db.experiment_update_config(experimentId, "generations", json.dumps(generations))
@@ -89,7 +89,7 @@ async def experiment_delete_generation(experimentId: int, generation_name: str):
 
 @router.post("/edit")
 async def edit_evaluation_generation(experimentId: int, plugin: Any = Body()):
-    """Get the contents of the evaluation"""
+    """Get the contents of the generation"""
     try:
         experiment = await db.experiment_get(experimentId)
 
@@ -97,7 +97,7 @@ async def edit_evaluation_generation(experimentId: int, plugin: Any = Body()):
         if experiment is None:
             return {"message": f"Experiment {experimentId} does not exist"}
 
-        eval_name = plugin["evalName"]
+        generation_name = plugin["evalName"]
         updated_json = plugin["script_parameters"]
 
         plugin_name = updated_json["plugin_name"]
@@ -120,7 +120,7 @@ async def edit_evaluation_generation(experimentId: int, plugin: Any = Body()):
         updated_json.pop("template_name", None)
 
         for generation in generations:
-            if generation["name"] == eval_name and generation["plugin"] == plugin_name:
+            if generation["name"] == generation_name and generation["plugin"] == plugin_name:
                 generation["script_parameters"] = updated_json
                 generation["name"] = template_name
 
@@ -128,7 +128,7 @@ async def edit_evaluation_generation(experimentId: int, plugin: Any = Body()):
 
         return {"message": "OK"}
     except Exception as e:
-        print("Error in edit_evaluation_task", e)
+        print("Error in edit_generation_task", e)
         raise e
 
 
@@ -143,7 +143,7 @@ async def get_generation_plugin_file_contents(experimentId: int, plugin_name: st
 
     # experiment_name = data["name"]
 
-    # print(f"{EXPERIMENTS_DIR}/{experiment_name}/generation/{eval_name}/main.py")
+    # print(f"{EXPERIMENTS_DIR}/{experiment_name}/generation/{generation_name}/main.py")
 
     file_name = "main.py"
     plugin_path = dirs.plugin_dir_by_name(plugin_name)
@@ -160,6 +160,9 @@ async def get_generation_plugin_file_contents(experimentId: int, plugin_name: st
 
 @router.get("/run_generation_script")
 async def run_generation_script(experimentId: int, plugin_name: str, generation_name: str, job_id: str):
+    job_config = (await db.job_get(job_id))["job_data"]
+    generation_config = job_config.get("config",{})
+    print(generation_config)
     plugin_name = secure_filename(plugin_name)
     generation_name = secure_filename(generation_name)
 
@@ -171,13 +174,20 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
 
     experiment_name = experiment_details["name"]
     model_name = config["foundation"]
+    if "model_name" in generation_config.keys():
+        model_name = generation_config["model_name"]
 
     if config["foundation_filename"] is None or config["foundation_filename"].strip() == "":
         model_file_path = ""
     else:
         model_file_path = config["foundation_filename"]
     model_type = config["foundation_model_architecture"]
+    if "model_architecture" in generation_config.keys():
+        model_type = generation_config["model_architecture"]
+
     model_adapter = config["adaptor"]
+    if "adaptor_name" in generation_config.keys():
+        model_adapter = generation_config["adaptor_name"]
 
     # @TODO: This whole thing can be re-written to use the shared function to run a plugin
 
@@ -195,17 +205,8 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
         if "generations" in experiment_details["config"]:
             experiment_details["config"]["generations"] = json.loads(experiment_details["config"]["generations"])
 
-    all_generations = experiment_details["config"]["generations"]
-    this_generation = None
-    for generation in all_generations:
-        if generation["name"] == generation_name:
-            this_generation = generation
-            break
-
-    if this_generation is None:
-        return {"message": f"Error: generation {generation_name} does not exist in experiment"}
-    template_config = this_generation["script_parameters"]
-    # print("GET OUTPUT JOB DATA", await get_job_output_file_name("2", plugin_name, eval_name, template_config))
+    template_config = generation_config["script_parameters"]
+    # print("GET OUTPUT JOB DATA", await get_job_output_file_name("2", plugin_name, generation_name, template_config))
     job_output_file = await get_job_output_file_name(job_id, plugin_name)
 
     input_contents = {"experiment": experiment_details, "config": template_config}
@@ -290,7 +291,7 @@ async def get_job_output_file_name(job_id: str, plugin_name: str):
 
 @router.get("/get_output")
 async def get_output(experimentId: int, generation_name: str):
-    """Get the output of an evaluation"""
+    """Get the output of an generation"""
     data = await db.experiment_get(experimentId)
     # if the experiment does not exist, return an error:
     if data is None:

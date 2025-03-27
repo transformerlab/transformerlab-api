@@ -244,7 +244,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         experiment = await db.experiment_get_by_name(experiment_name)
         experiment_id = experiment["id"]
         plugin_name = job_config["plugin"]
-        eval_name = job_config["evaluator"]
+        eval_name = job_config.get("evaluator","")
         await db.job_update_status(job_id, "RUNNING")
         print("Running evaluation script")
         plugin_location = dirs.plugin_dir_by_name(plugin_name)
@@ -273,18 +273,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         await db.job_update_status(job_id, "COMPLETE")
         return
 
-    # A job is a specific run of a job_template.
-    # So first we pull up the specified job_template id
-    template_id = job_config["template_id"]
-
-    # Get the template
-    template = await db.get_training_template(template_id)
-
-    print("Template: " + str(template))
-    job_type = str(template["type"])
+    job_type = job_config["config"]["type"]
 
     # Get the plugin script name:
-    template_config = json.loads(template["config"])
+    template_config = job_config["config"]
     plugin_name = str(template_config["plugin_name"])
 
     # Get the job details from the database:
@@ -313,10 +305,11 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         asyncio.run(db.job_update_job_data_insert_key_value(job_id, "end_time", end_time))
 
     if job_type == "LoRA":
-        model_name = template_config["model_name"]
+        job_config = job_config["config"]
+        model_name = job_config["model_name"]
         model_name = secure_filename(model_name)
-        template_config = json.loads(template["config"])
-        adaptor_name = template_config["adaptor_name"]
+        template_config = job_config
+        adaptor_name = job_config["adaptor_name"]
         template_config["job_id"] = job_id
         template_config["adaptor_output_dir"] = os.path.join(dirs.WORKSPACE_DIR, "adaptors", model_name, adaptor_name)
         template_config["output_dir"] = os.path.join(
@@ -361,7 +354,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
 
     elif job_type == "pretraining":
-        template_config = json.loads(template["config"])
+        template_config = job_config
         template_config["job_id"] = job_id
         template_config["output_dir"] = os.path.join(
             experiment_dir,
@@ -405,7 +398,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
 
     elif job_type == "embedding":
-        template_config = json.loads(template["config"])
+        template_config = job_config
         template_config["job_id"] = job_id
         template_config["output_dir"] = os.path.join(
             experiment_dir,

@@ -94,6 +94,22 @@ async def init():
                         status,
                         current_task,
                         current_job_id,
+                        experiment_id INTEGER,
+                        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME NOT NULL DEFAULT current_timestamp)
+                        """
+    )
+
+    await db.execute(
+        """CREATE TABLE IF NOT EXISTS
+                    tasks
+                        (id INTEGER PRIMARY KEY,
+                        name,
+                        type,
+                        inputs JSON,
+                        config JSON,
+                        plugin,
+                        outputs JSON,
                         experiment_id,
                         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                         updated_at DATETIME NOT NULL DEFAULT current_timestamp)
@@ -526,9 +542,75 @@ async def job_stop(job_id):
 
 
 ###############
-# TRAINING and TRAINING JOBS MODELS
+# TASKS MODEL
 ###############
 
+async def add_task(name, Type, inputs, config, plugin, outputs, experiment_id):
+    await db.execute(
+        "INSERT INTO tasks(name, type, inputs, config, plugin, outputs, experiment_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (name, Type, inputs, config, plugin, outputs, experiment_id),
+    )
+    await db.commit()
+    return
+
+async def update_task(task_id, new_task):
+    await db.execute(
+        "UPDATE tasks SET inputs = ? WHERE id = ?",
+        (new_task["inputs"], task_id),
+    )
+    await db.execute(
+        "UPDATE tasks SET config = ? WHERE id = ?",
+        (new_task["config"], task_id),
+    )
+    await db.execute(
+        "UPDATE tasks SET outputs = ? WHERE id = ?",
+        (new_task["outputs"], task_id),
+    )
+    await db.commit()
+    return
+
+async def tasks_get_all():
+    cursor = await db.execute("SELECT * FROM tasks ORDER BY created_at desc")
+    rows = await cursor.fetchall()
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
+    await cursor.close()
+    return data
+
+async def tasks_get_by_type(Type):
+    cursor = await db.execute("SELECT * FROM tasks WHERE type = ? ORDER BY created_at desc", (Type, ))
+    rows = await cursor.fetchall()
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
+    await cursor.close()
+    return data
+
+async def delete_task(task_id):
+    await db.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+    await db.commit()
+    return
+
+async def tasks_delete_all():
+    await db.execute("DELETE FROM tasks")
+    await db.commit()
+    return
+
+async def tasks_get_by_id(task_id):
+    cursor = await db.execute("SELECT * FROM tasks WHERE id = ? ORDER BY created_at desc LIMIT 1", (task_id,))
+    row = await cursor.fetchone()
+    if row is None:
+        return None
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    row = dict(itertools.zip_longest(column_names, row))
+    await cursor.close()
+    return row
+
+###############
+# TRAINING and TRAINING JOBS MODELS
+###############
 
 async def get_training_template(id):
     cursor = await db.execute("SELECT * FROM training_template WHERE id = ?", (id,))
