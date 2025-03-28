@@ -2,31 +2,22 @@
 # FastChat.
 # https://github.com/lm-sys/FastChat/blob/main/fastchat/serve/openai_api_server.py
 
-from transformerlab.shared import dirs
-from fastapi import APIRouter
-from fastapi.responses import FileResponse, StreamingResponse
-
-import os
 import asyncio
 import json
 import logging
+import os
 import time
-from typing import Any, Dict, Generator, List, Optional, Union, AsyncGenerator
-
+from typing import Any, AsyncGenerator, Dict, Generator, List, Optional, Union
 
 import httpx
 import shortuuid
 import tiktoken
 
 # Using torch to test for CUDA and MPS support.
-from fastapi import Depends, HTTPException, Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.security.http import HTTPAuthorizationCredentials, HTTPBearer
-from fastchat.constants import (
-    WORKER_API_EMBEDDING_BATCH_SIZE,
-    WORKER_API_TIMEOUT,
-    ErrorCode,
-)
+from fastchat.constants import WORKER_API_EMBEDDING_BATCH_SIZE, WORKER_API_TIMEOUT, ErrorCode
 from fastchat.conversation import Conversation, SeparatorStyle
 from fastchat.protocol.api_protocol import (
     APITokenCheckRequest,
@@ -51,8 +42,9 @@ from fastchat.protocol.openai_api_protocol import (
     ModelPermission,
     UsageInfo,
 )
-
 from pydantic import BaseModel as PydanticBaseModel
+
+from transformerlab.shared import dirs
 
 
 class APIChatCompletionRequest(BaseModel):
@@ -92,6 +84,7 @@ class ChatCompletionRequest(BaseModel):
     frequency_penalty: Optional[float] = 0.0
     user: Optional[str] = None
     logprobs: Optional[bool] = False
+
 
 class VisualizationRequest(PydanticBaseModel):
     model: str
@@ -1170,16 +1163,13 @@ async def visualize_model_generation(request: VisualizationRequest):
 
     if request.stream:
         generator = visualization_stream_generator(
-            request.model, 
-            request.prompt, 
+            request.model,
+            request.prompt,
             max_tokens=request.max_tokens,
             temperature=request.temperature,
-            top_p=request.top_p
+            top_p=request.top_p,
         )
-        return StreamingResponse(
-            generator,
-            media_type="text/event-stream"
-        )
+        return StreamingResponse(generator, media_type="text/event-stream")
     else:
         # For non-streaming mode, return complete visualization after generation
         visualization_data = await generate_complete_visualization(
@@ -1187,40 +1177,38 @@ async def visualize_model_generation(request: VisualizationRequest):
             request.prompt,
             max_tokens=request.max_tokens,
             temperature=request.temperature,
-            top_p=request.top_p
+            top_p=request.top_p,
         )
         return visualization_data
 
+
 async def visualization_stream_generator(
-    model_name: str, 
-    prompt: str, 
-    max_tokens: int = 100,
-    temperature: float = 0.7,
-    top_p: float = 1.0
+    model_name: str, prompt: str, max_tokens: int = 100, temperature: float = 0.7, top_p: float = 1.0
 ) -> AsyncGenerator[str, None]:  # Changed from Generator to AsyncGenerator
     """Stream model activation and attention entropy data during generation"""
     async with httpx.AsyncClient() as client:
         worker_addr = await get_worker_address(model_name, client)
-        
+
         # First, check if the worker supports visualization
         try:
-            visualization_check = await client.get(
-                worker_addr + "/visualization_available",
-                timeout=WORKER_API_TIMEOUT
-            )
+            visualization_check = await client.get(worker_addr + "/visualization_available", timeout=WORKER_API_TIMEOUT)
             if not visualization_check.json().get("available", False):
-                error_msg = json.dumps({
-                    "error": "Visualization not supported by this model worker",
-                    "error_code": ErrorCode.INTERNAL_ERROR
-                })
+                error_msg = json.dumps(
+                    {
+                        "error": "Visualization not supported by this model worker",
+                        "error_code": ErrorCode.INTERNAL_ERROR,
+                    }
+                )
                 yield f"data: {error_msg}\n\n"
                 return
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                error_msg = json.dumps({
-                    "error": "Visualization not supported by this model worker",
-                    "error_code": ErrorCode.INTERNAL_ERROR
-                })
+                error_msg = json.dumps(
+                    {
+                        "error": "Visualization not supported by this model worker",
+                        "error_code": ErrorCode.INTERNAL_ERROR,
+                    }
+                )
                 yield f"data: {error_msg}\n\n"
                 return
             raise
@@ -1231,16 +1219,13 @@ async def visualization_stream_generator(
             "temperature": temperature,
             "top_p": top_p,
             "max_tokens": max_tokens,
-            "stream": True
+            "stream": True,
         }
-        
+
         # Stream generation with visualization data
         try:
             async with client.stream(
-                "POST",
-                worker_addr + "/worker_generate_with_visualization",
-                json=payload,
-                timeout=WORKER_API_TIMEOUT
+                "POST", worker_addr + "/worker_generate_with_visualization", json=payload, timeout=WORKER_API_TIMEOUT
             ) as response:
                 delimiter = b"\0"
                 async for raw_chunk in response.aiter_raw():
@@ -1251,62 +1236,54 @@ async def visualization_stream_generator(
                             data = json.loads(chunk.decode())
                             yield f"data: {json.dumps(data)}\n\n"
                         except Exception as e:
-                            error_msg = json.dumps({
-                                "error": f"Error processing visualization data: {str(e)}",
-                                "error_code": ErrorCode.INTERNAL_ERROR
-                            })
+                            error_msg = json.dumps(
+                                {
+                                    "error": f"Error processing visualization data: {str(e)}",
+                                    "error_code": ErrorCode.INTERNAL_ERROR,
+                                }
+                            )
                             yield f"data: {error_msg}\n\n"
-                
+
                 yield "data: [DONE]\n\n"
         except Exception as e:
-            error_msg = json.dumps({
-                "error": f"Error connecting to model worker: {str(e)}",
-                "error_code": ErrorCode.INTERNAL_ERROR
-            })
+            error_msg = json.dumps(
+                {"error": f"Error connecting to model worker: {str(e)}", "error_code": ErrorCode.INTERNAL_ERROR}
+            )
             yield f"data: {error_msg}\n\n"
             yield "data: [DONE]\n\n"
 
+
 async def generate_complete_visualization(
-    model_name: str, 
-    prompt: str,
-    max_tokens: int = 100,
-    temperature: float = 0.7,
-    top_p: float = 1.0
+    model_name: str, prompt: str, max_tokens: int = 100, temperature: float = 0.7, top_p: float = 1.0
 ):
     """Generate complete visualization data for the entire generation process"""
     async with httpx.AsyncClient() as client:
         worker_addr = await get_worker_address(model_name, client)
-        
+
         # First check if visualization is supported
         try:
-            visualization_check = await client.get(
-                worker_addr + "/visualization_available",
-                timeout=WORKER_API_TIMEOUT
-            )
+            visualization_check = await client.get(worker_addr + "/visualization_available", timeout=WORKER_API_TIMEOUT)
             if not visualization_check.json().get("available", False):
                 return {
                     "error": "Visualization not supported by this model worker",
-                    "error_code": ErrorCode.INTERNAL_ERROR
+                    "error_code": ErrorCode.INTERNAL_ERROR,
                 }
         except httpx.HTTPStatusError:
-            return {
-                "error": "Visualization not supported by this model worker",
-                "error_code": ErrorCode.INTERNAL_ERROR
-            }
-        
+            return {"error": "Visualization not supported by this model worker", "error_code": ErrorCode.INTERNAL_ERROR}
+
         # Set up parameters
         payload = {
             "prompt": prompt,
             "temperature": temperature,
             "top_p": top_p,
             "max_tokens": max_tokens,
-            "stream": False
+            "stream": False,
         }
-        
+
         # Get complete generation with visualization data
         response = await client.post(
             worker_addr + "/worker_generate_with_visualization",
             json=payload,
-            timeout=WORKER_API_TIMEOUT + max_tokens  # Extra time for token generation
+            timeout=WORKER_API_TIMEOUT + max_tokens,  # Extra time for token generation
         )
         return response.json()
