@@ -454,7 +454,7 @@ async def api_generate_with_visualization(request: Request):
             print("Error during visualization:", e)
             print(traceback.format_exc())
             error_response = {
-                "text": f"Error during visualization: {str(e)}",
+                "text": "Error during visualization",
                 "error_code": 1,
             }
             yield (json.dumps(error_response) + "\0").encode()
