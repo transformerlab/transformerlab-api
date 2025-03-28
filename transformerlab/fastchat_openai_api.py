@@ -1236,9 +1236,10 @@ async def visualization_stream_generator(
                             data = json.loads(chunk.decode())
                             yield f"data: {json.dumps(data)}\n\n"
                         except Exception as e:
+                            print("Caught Exception in visualization stream: ", e)
                             error_msg = json.dumps(
                                 {
-                                    "error": f"Error processing visualization data: {str(e)}",
+                                    "error": "Error processing visualization data",
                                     "error_code": ErrorCode.INTERNAL_ERROR,
                                 }
                             )
@@ -1246,8 +1247,9 @@ async def visualization_stream_generator(
 
                 yield "data: [DONE]\n\n"
         except Exception as e:
+            print("Error connecting to model worker ", e)
             error_msg = json.dumps(
-                {"error": f"Error connecting to model worker: {str(e)}", "error_code": ErrorCode.INTERNAL_ERROR}
+                {"error": "Error connecting to model worker", "error_code": ErrorCode.INTERNAL_ERROR}
             )
             yield f"data: {error_msg}\n\n"
             yield "data: [DONE]\n\n"
