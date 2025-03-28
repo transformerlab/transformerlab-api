@@ -34,6 +34,21 @@
             "type": "integer",
             "default": 42
         },
+        "model_size": {
+            "title": "Model Size",
+            "type": "string",
+            "enum": [
+                "160M",
+                "410M",
+                "1B",
+                "3B",
+                "7B",
+                "13B",
+                "30B",
+                "70B",
+                "Custom"
+            ]
+        },
         "checkpoint_interval": {
             "title": "Checkpoint Interval (steps)",
             "type": "integer",
@@ -188,6 +203,9 @@
         "dataset_name": {
             "ui:help": "HuggingFace dataset to use for pre-training."
         },
+        "dataset_split": {
+            "ui:help": "Dataset split to use for pre-training."
+        },
         "tokenizer_name": {
             "ui:help": "HuggingFace tokenizer to use for pre-training."
         },
@@ -220,6 +238,13 @@
         },
         "log_to_wandb": {
             "ui:help": "Log training progress to Weights & Biases."
+        },
+        "model_size": {
+            "ui:help": "Size of the model to train. Custom allows for specifying custom model parameters below as layers, hidden size, intermediate size and attention heads.",
+            "ui:widget": "AutoCompleteWidget",
+            "ui:options": {
+                "multiple": false
+            }
         }
     }
 }
