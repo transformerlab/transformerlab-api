@@ -24,6 +24,11 @@ async def tasks_get_by_type(type: str):
     tasks = await db.tasks_get_by_type(type)
     return tasks
 
+@router.get("/list_by_type_in_experiment", summary="Returns all the tasks of a certain type in a certain experiment, e.g TRAIN")
+async def tasks_get_by_type_in_experiment(type: str, experiment_id: int):
+    tasks = await db.tasks_get_by_type_in_experiment(type, experiment_id)
+    return tasks
+
 @router.put("/{task_id}/update", summary="Updates a task with new information")
 async def update_task(task_id: int, new_task:dict = Body()):
     await db.update_task(task_id, new_task)
@@ -50,7 +55,13 @@ async def tasks_delete_all():
 async def convert_training_template_to_task(template_id: int, experiment_id: int):
     template = await db.get_training_template(template_id)
     template_config = json.loads(template["config"])
-    inputs = {"model_name":template_config["model_name"],"model_architecture":template_config["model_architecture"],"dataset_name":template_config["dataset_name"]} 
+    inputs = {}
+    if "model_name" in template_config.keys():
+        inputs = {"model_name":template_config["model_name"],"model_architecture":template_config["model_architecture"],"dataset_name":template_config["dataset_name"]} 
+    if "embedding_model_name" in template_config.keys():
+        inputs = {"embedding_model_name":template_config["embedding_model_name"],"embedding_model_architecture":template_config["embedding_model_architecture"],"dataset_name":template_config["dataset_name"]}
+
+    outputs = {}
     if "adaptor_name" in template_config.keys():
         outputs = {"adaptor_name":template_config["adaptor_name"]}
     await db.add_task(template["name"], "TRAIN", json.dumps(inputs), template["config"], template_config["plugin_name"], json.dumps(outputs), experiment_id)
