@@ -402,12 +402,6 @@ async def api_generate_with_visualization(request: Request):
             max_tokens = int(params.get("max_tokens", 100))
             stream = params.get("stream", False)
 
-            print("Prompt:", prompt)
-            print("Temperature:", temperature)
-            print("Top P:", top_p)
-            print("Max Tokens:", max_tokens)
-            print("Stream:", stream)
-
             # Prepare for generation
             inputs = worker.tokenizer(prompt, return_tensors="pt").to(worker.device)
             input_ids = inputs["input_ids"].tolist()[0]

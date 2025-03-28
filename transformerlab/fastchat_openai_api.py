@@ -1184,7 +1184,7 @@ async def visualize_model_generation(request: VisualizationRequest):
 
 async def visualization_stream_generator(
     model_name: str, prompt: str, max_tokens: int = 100, temperature: float = 0.7, top_p: float = 1.0
-) -> AsyncGenerator[str, None]:  # Changed from Generator to AsyncGenerator
+) -> AsyncGenerator[str, None]:
     """Stream model activation and attention entropy data during generation"""
     async with httpx.AsyncClient() as client:
         worker_addr = await get_worker_address(model_name, client)
