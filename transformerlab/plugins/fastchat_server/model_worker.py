@@ -11,6 +11,7 @@ import base64
 import gc
 import json
 import os
+import traceback
 import uuid
 from typing import List, Optional
 
@@ -498,11 +499,14 @@ async def api_generate_with_visualization(request: Request):
                     await asyncio.sleep(0)
 
         except torch.cuda.OutOfMemoryError as e:
-            error_response = {"text": f"CUDA out of memory: {str(e)}", "error_code": ErrorCode.CUDA_OUT_OF_MEMORY}
+            print("CUDA out of memory error:", e)
+            error_response = {"text": "CUDA out of memory", "error_code": ErrorCode.CUDA_OUT_OF_MEMORY}
             yield json.dumps(error_response).encode() + b"\0"
 
         except Exception as e:
-            error_response = {"text": f"Error during visualization: {str(e)}", "error_code": ErrorCode.INTERNAL_ERROR}
+            print("Error during visualization:", e)
+            traceback.print_exc()
+            error_response = {"text": "Error during visualization", "error_code": ErrorCode.INTERNAL_ERROR}
             yield json.dumps(error_response).encode() + b"\0"
 
     # Return a StreamingResponse that uses our generator
