@@ -4,6 +4,8 @@ import requests
 import yaml
 import re
 import torch
+from typing import Dict, Tuple
+
 
 from transformerlab.sdk.v1.train import tlab_trainer
 
@@ -35,6 +37,31 @@ def generate_nanotron_config():
     checkpoint_path = os.path.join(
         os.environ.get("_TFL_WORKSPACE_DIR", "."), "models", "pretrained", run_name, "checkpoints"
     )
+
+    MODEL_SIZES: Dict[str, Tuple[int, int, int, int, int]] = {
+        # (layers, hidden, heads, kv_heads, ffn_size)
+        "160M": (12, 768, 12, 12, 3072),  # ~160M params
+        "410M": (24, 1024, 16, 16, 4096),  # ~410M params
+        # Small to medium models
+        "1B": (16, 2048, 16, 16, 5632),  # ~1B params
+        "3B": (28, 3072, 32, 32, 8192),  # ~3B params
+        # Standard sizes
+        "7B": (32, 4096, 32, 32, 11008),  # ~7B params
+        "13B": (40, 5120, 40, 40, 13824),  # ~13B params
+        # Large models
+        "30B": (60, 6656, 52, 52, 17920),  # ~30B params
+        "70B": (80, 8192, 64, 8, 28672),  # ~70B params (MQA)
+    }
+
+    model_size = tlab_trainer.params.get("model_size", "custom")
+    if model_size not in MODEL_SIZES:
+        layers = int(tlab_trainer.params.get("model_num_layers", 2))
+        hidden = int(tlab_trainer.params.get("model_hidden_size", 16))
+        heads = int(tlab_trainer.params.get("model_num_attention_heads", 4))
+        kv_heads = int(tlab_trainer.params.get("model_num_key_value_heads", 4))
+        intermediate = int(tlab_trainer.params.get("model_intermediate_size", 64))
+    else:
+        layers, hidden, heads, kv_heads, intermediate = MODEL_SIZES[tlab_trainer.params.get("model_size")]
 
     # Create the config dictionary
     nanotron_config = {
@@ -100,14 +127,14 @@ def generate_nanotron_config():
                 "bos_token_id": 1,
                 "eos_token_id": 2,
                 "hidden_act": "silu",
-                "hidden_size": int(tlab_trainer.params.get("model_hidden_size", 16)),
+                "hidden_size": hidden,
                 "initializer_range": 0.02,
-                "intermediate_size": int(tlab_trainer.params.get("model_intermediate_size", 64)),
+                "intermediate_size": intermediate,
                 "is_llama_config": True,
                 "max_position_embeddings": int(tlab_trainer.params.get("maximum_sequence_length", 256)),
-                "num_attention_heads": int(tlab_trainer.params.get("model_num_attention_heads", 4)),
-                "num_hidden_layers": int(tlab_trainer.params.get("model_num_layers", 2)),
-                "num_key_value_heads": int(tlab_trainer.params.get("model_num_key_value_heads", 4)),
+                "num_attention_heads": heads,
+                "num_hidden_layers": layers,
+                "num_key_value_heads": kv_heads,
                 "pad_token_id": None,
                 "pretraining_tp": 1,
                 "rms_norm_eps": 1.0e-05,
