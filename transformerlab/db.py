@@ -587,6 +587,15 @@ async def tasks_get_by_type(Type):
     await cursor.close()
     return data
 
+async def tasks_get_by_type_in_experiment(Type, experiment_id):
+    cursor = await db.execute("SELECT * FROM tasks WHERE type = ? AND experiment_id = ? ORDER BY created_at desc", (Type, experiment_id,))
+    rows = await cursor.fetchall()
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
+    await cursor.close()
+    return data
+
 async def delete_task(task_id):
     await db.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
     await db.commit()

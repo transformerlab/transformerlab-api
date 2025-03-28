@@ -24,6 +24,11 @@ async def tasks_get_by_type(type: str):
     tasks = await db.tasks_get_by_type(type)
     return tasks
 
+@router.get("/list_by_type_in_experiment", summary="Returns all the tasks of a certain type in a certain experiment, e.g TRAIN")
+async def tasks_get_by_type_in_experiment(type: str, experiment_id: int):
+    tasks = await db.tasks_get_by_type_in_experiment(type, experiment_id)
+    return tasks
+
 @router.put("/{task_id}/update", summary="Updates a task with new information")
 async def update_task(task_id: int, new_task:dict = Body()):
     await db.update_task(task_id, new_task)
