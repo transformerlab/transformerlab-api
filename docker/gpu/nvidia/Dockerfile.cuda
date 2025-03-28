@@ -8,6 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install minimal dependencies required for the install script
 RUN apt-get update && apt-get install -y \
     curl \
+    git \
     python3.11 \
     python3-pip \
     python-is-python3
