@@ -6,17 +6,21 @@ A model worker that executes the model.
 """
 
 import argparse
+import asyncio
 import base64
 import gc
 import json
 import os
+import traceback
 import uuid
 from typing import List, Optional
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 import uvicorn
 from fastapi import Request
+from fastapi.responses import StreamingResponse
 from fastchat.constants import SERVER_ERROR_MSG, ErrorCode
 from fastchat.model.model_adapter import add_model_args, get_generate_stream_function, load_model
 from fastchat.modules.awq import AWQConfig
@@ -378,6 +382,163 @@ def create_model_worker():
         debug=args.debug,
     )
     return args, worker
+
+
+@app.get("/visualization_available")
+async def check_visualization_available():
+    """Check if this worker supports visualization"""
+    return {"available": True}
+
+
+@app.post("/worker_generate_with_visualization")
+async def api_generate_with_visualization(request: Request):
+    """Generate text with visualization data about activations and attention entropy"""
+    params = await request.json()
+
+    async def generate():
+        try:
+            prompt = params["prompt"]
+            temperature = float(params.get("temperature", 0.7))
+            top_p = float(params.get("top_p", 1.0))
+            max_tokens = int(params.get("max_tokens", 100))
+            stream = params.get("stream", False)
+
+            # Prepare for generation
+            inputs = worker.tokenizer(prompt, return_tensors="pt").to(worker.device)
+            input_ids = inputs["input_ids"].tolist()[0]
+            generated_ids = input_ids.copy()
+
+            if not stream:
+                # Non-streaming mode not implemented yet
+                error_response = {
+                    "text": "Non-streaming mode is not implemented yet.",
+                    "error_code": ErrorCode.INTERNAL_ERROR,
+                }
+                yield json.dumps(error_response).encode() + b"\0"
+                return
+
+            # Streaming mode - yield visualization data for each token
+            for i in range(max_tokens):
+                # if len(generated_ids) > worker.context_len:
+                #     generated_ids = generated_ids[-worker.context_len:]
+                with torch.no_grad():
+                    # Get model outputs with hidden states and attention
+                    outputs = worker.model(
+                        torch.tensor([generated_ids], device=worker.device),
+                        output_hidden_states=True,
+                        output_attentions=True,
+                    )
+
+                    # print("OUTPUTS:", outputs)
+
+                    logits = outputs.logits
+                    hidden_states = outputs.hidden_states
+                    attentions = outputs.attentions
+
+                    # Get next token probabilities
+                    next_token_logits = logits[:, -1, :]
+                    if temperature > 0:
+                        next_token_logits = next_token_logits / temperature
+
+                    # Apply top_p sampling
+                    if top_p < 1.0:
+                        sorted_logits, sorted_indices = torch.sort(next_token_logits, descending=True)
+                        cumulative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
+                        sorted_indices_to_remove = cumulative_probs > top_p
+                        sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
+                        sorted_indices_to_remove[..., 0] = 0
+                        indices_to_remove = sorted_indices[sorted_indices_to_remove]
+                        next_token_logits[0, indices_to_remove] = -float("Inf")
+
+                    # Sample next token
+                    next_token_probs = F.softmax(next_token_logits, dim=-1)
+                    next_token_id = torch.multinomial(next_token_probs, num_samples=1).item()
+                    generated_ids.append(next_token_id)
+
+                    # Process top predictions
+                    top_probs, top_ids = torch.topk(next_token_probs, 5)
+                    top_predictions = [
+                        {
+                            "token": worker.tokenizer.decode([token_id.item()]),
+                            "prob": prob.item(),
+                            "logit": logits[0, -1, token_id.item()].item(),
+                        }
+                        for token_id, prob in zip(top_ids[0], top_probs[0])
+                    ]
+
+                    # Process MLP activations
+                    mlp_activations = process_mlp_activations(hidden_states)
+
+                    # Process attention entropy
+                    attention_entropy = compute_attention_entropy(attentions)
+
+                    # Get generated text so far
+                    generated_text = worker.tokenizer.decode(
+                        generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True
+                    )
+
+                    # Create response data
+                    response = {
+                        "text": generated_text,
+                        "token_id": next_token_id,
+                        "mlp_activations": mlp_activations.tolist(),
+                        "attention_entropy": attention_entropy.tolist(),
+                        "top_predictions": top_predictions,
+                        "error_code": 0,
+                    }
+
+                    # Check for stop condition (e.g., EOS token)
+                    if next_token_id == worker.tokenizer.eos_token_id:
+                        response["finish_reason"] = "stop"
+                        print("EOS token reached, stopping generation.")
+                        yield json.dumps(response).encode() + b"\0"
+                        break
+
+                    yield json.dumps(response).encode() + b"\0"
+                    # Small delay to avoid overwhelming the client
+                    await asyncio.sleep(0)
+
+        except torch.cuda.OutOfMemoryError as e:
+            print("CUDA out of memory error:", e)
+            error_response = {"text": "CUDA out of memory", "error_code": ErrorCode.CUDA_OUT_OF_MEMORY}
+            yield json.dumps(error_response).encode() + b"\0"
+
+        except Exception as e:
+            print("Error during visualization:", e)
+            traceback.print_exc()
+            error_response = {"text": "Error during visualization", "error_code": ErrorCode.INTERNAL_ERROR}
+            yield json.dumps(error_response).encode() + b"\0"
+
+    # Return a StreamingResponse that uses our generator
+    return StreamingResponse(generate(), media_type="application/json-seq")
+
+
+def process_mlp_activations(hidden_states):
+    """Process MLP (Feedforward) layer activations"""
+    # Stack all layer hidden states for the last token
+    activations = torch.stack([layer[:, -1, :] for layer in hidden_states])
+
+    # Use L2 norm as the aggregation method
+    return torch.norm(activations, p=2, dim=-1).cpu().numpy()
+
+
+def compute_attention_entropy(attentions):
+    """Compute entropy of attention distributions per layer"""
+    entropy_values = []
+
+    for attn_layer in attentions:
+        # Get attention for the last token
+        attn = attn_layer[:, :, -1, :]
+        # Compute entropy: -sum(p * log(p))
+        entropy = -torch.sum(attn * torch.log(attn + 1e-9), dim=-1)
+        # Average over attention heads
+        layer_entropy = entropy.mean(dim=-1).cpu().numpy()
+        entropy_values.append(layer_entropy.item())
+        # Replace nans with 0.0
+        final_np_array = np.array(entropy_values)
+        final_np_array[np.isnan(final_np_array)] = 0.0
+
+    return final_np_array
 
 
 @app.post("/tokenize")
