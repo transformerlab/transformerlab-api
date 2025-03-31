@@ -354,7 +354,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
 
     elif job_type == "pretraining":
-        template_config = job_config
+        template_config = job_config["config"]
         template_config["job_id"] = job_id
         template_config["output_dir"] = os.path.join(
             experiment_dir,
@@ -398,7 +398,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
 
     elif job_type == "embedding":
-        template_config = job_config
+        template_config = job_config["config"]
         template_config["job_id"] = job_id
         template_config["output_dir"] = os.path.join(
             experiment_dir,
