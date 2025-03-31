@@ -19,21 +19,28 @@ write_files:
       set -e
 
       export HOME=/home/azureuser
-      
-      echo "Downloading install.sh into /home/azureuser/.transformerlab..."
-      wget -O /home/azureuser/.transformerlab/install.sh https://raw.githubusercontent.com/transformerlab/transformerlab-api/refs/heads/main/install.sh
-      chmod +x /home/azureuser/.transformerlab/install.sh
-      
-      echo "Running install.sh..."
-      bash /home/azureuser/.transformerlab/install.sh
-      
-      echo "Chowning everything under /home/azureuser to azureuser..."
-      chown -R azureuser:azureuser /home/azureuser
 
-      echo "Changing directory to /home/azureuser/.transformerlab/src..."
-      cd /home/azureuser/.transformerlab/src
-      chmod +x run.sh
+      echo "Checking if Transformer Lab is installed..."
+      if [ ! -f /home/azureuser/.transformerlab/install.sh ]; then
       
+        echo "Downloading install.sh into /home/azureuser/.transformerlab..."
+        wget -O /home/azureuser/.transformerlab/install.sh https://raw.githubusercontent.com/transformerlab/transformerlab-api/refs/heads/main/install.sh
+        chmod +x /home/azureuser/.transformerlab/install.sh
+
+        echo "Running install.sh..."
+        bash /home/azureuser/.transformerlab/install.sh
+
+        echo "Chowning everything under /home/azureuser to azureuser..."
+        chown -R azureuser:azureuser /home/azureuser
+
+        echo "Changing directory to /home/azureuser/.transformerlab/src..."
+        cd /home/azureuser/.transformerlab/src
+        chmod +x run.sh
+
+      fi
+
+      echo "Transformer Lab installed."
+
       echo "Running run.sh..."
       bash run.sh
 
