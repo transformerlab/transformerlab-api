@@ -27,15 +27,15 @@ write_files:
       echo "Running install.sh..."
       bash /home/azureuser/.transformerlab/install.sh
       
+      echo "Chowning everything under /home/azureuser to azureuser..."
+      chown -R azureuser:azureuser /home/azureuser
+
       echo "Changing directory to /home/azureuser/.transformerlab/src..."
       cd /home/azureuser/.transformerlab/src
       chmod +x run.sh
       
       echo "Running run.sh..."
       bash run.sh
-      
-      echo "Chowning everything under /home/azureuser to azureuser..."
-      chown -R azureuser:azureuser /home/azureuser
 
   - path: /etc/systemd/system/transformerlab.service
     owner: root:root
