@@ -429,11 +429,31 @@ async def api_generate_with_visualization(request: Request):
                         output_attentions=True,
                     )
 
-                    # print("OUTPUTS:", outputs)
-
                     logits = outputs.logits
                     hidden_states = outputs.hidden_states
                     attentions = outputs.attentions
+
+                    # Check if all logits are nan's then convert model to fp32
+                    if torch.isnan(logits).all():
+                        print("All logits are NaN, converting model to bf16")
+                        worker.model = worker.model.to(torch.bfloat16)
+                        try:
+                            with torch.no_grad():
+                                outputs = worker.model(
+                                    torch.tensor([generated_ids], device=worker.device),
+                                    output_hidden_states=True,
+                                    output_attentions=True,
+                                )
+                            logits = outputs.logits
+                            hidden_states = outputs.hidden_states
+                            attentions = outputs.attentions
+                            if torch.isnan(logits).all():
+                                print("All logits are still NaN after conversion, stopping generation here")
+                                break
+                            
+                        except Exception as e:
+                            print("Error converting model to fp32 and predicting text:", e)
+                            break
 
                     # Get next token probabilities
                     next_token_logits = logits[:, -1, :]
@@ -517,7 +537,9 @@ def process_mlp_activations(hidden_states):
     """Process MLP (Feedforward) layer activations"""
     # Stack all layer hidden states for the last token
     activations = torch.stack([layer[:, -1, :] for layer in hidden_states])
-
+    # Add support for bfloat16
+    if activations.dtype == torch.bfloat16:
+        activations = activations.float()
     # Use L2 norm as the aggregation method
     return torch.norm(activations, p=2, dim=-1).cpu().numpy()
 
@@ -531,6 +553,9 @@ def compute_attention_entropy(attentions):
         attn = attn_layer[:, :, -1, :]
         # Compute entropy: -sum(p * log(p))
         entropy = -torch.sum(attn * torch.log(attn + 1e-9), dim=-1)
+        # Add support for bfloat16
+        if entropy.dtype == torch.bfloat16:
+            entropy = entropy.float()
         # Average over attention heads
         layer_entropy = entropy.mean(dim=-1).cpu().numpy()
         entropy_values.append(layer_entropy.item())
