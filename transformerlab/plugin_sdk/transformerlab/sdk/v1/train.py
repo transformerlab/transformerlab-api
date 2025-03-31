@@ -85,9 +85,16 @@ class TrainerTLabPlugin(TLabPlugin):
             # Load configuration from file
             with open(self.params.input_file) as json_file:
                 input_config = json.load(json_file)
-
+            
+            # Check if there is file["config"]["config"] structure
+            double_config = False
             if "config" in input_config:
-                self.params._config = input_config["config"]
+                if "config" in input_config["config"]:
+                    self.params._config = input_config["config"]["config"]
+                    self.params.outer_config = input_config["config"]
+                    double_config = True
+                else:
+                    self.params._config = input_config["config"]
             else:
                 self.params._config = input_config
 
@@ -95,6 +102,11 @@ class TrainerTLabPlugin(TLabPlugin):
             for key, value in self.params._config.items():
                 if getattr(self.params, key) is None:
                     self.params[key] = value
+            if double_config and self.params.outer_config is not None:
+                for key, value in self.params.outer_config.items():
+                    if getattr(self.params, key) is None:
+                        self.params[key] = value
+            
 
         except Exception as e:
             error_msg = f"Error loading configuration: {str(e)}\n{traceback.format_exc()}"

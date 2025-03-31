@@ -286,7 +286,7 @@ def train_embedding_model():
         }
         generate_model_json(
             final_model_name,
-            tlab_trainer.params.get("embedding_model_architecture", "BertModel", json_data=json_data),
+            tlab_trainer.params.get("embedding_model_architecture", "BertModel"), json_data=json_data,
         )
     except Exception as e:
         print(f"Warning: Failed to import model to Transformer Lab: {e}")
