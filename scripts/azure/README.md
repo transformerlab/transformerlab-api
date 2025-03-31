@@ -97,7 +97,7 @@ Before you begin, make sure you have the following installed:
 
     The provided `run.sh` script will check if each resource exists in Azure and if it is already imported into Terraform’s state. If a resource is found in Azure but not in the state, it will be imported automatically. If it does not exist, Terraform will create it on `terraform apply`.
 
-    Make the script executable and run it:
+    To create and start your server, run:
 
     ```bash
     ./run.sh
