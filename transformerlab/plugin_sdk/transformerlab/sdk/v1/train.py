@@ -85,7 +85,7 @@ class TrainerTLabPlugin(TLabPlugin):
             # Load configuration from file
             with open(self.params.input_file) as json_file:
                 input_config = json.load(json_file)
-            
+
             if "config" in input_config:
                 self.params._config = input_config["config"]
             else:
@@ -95,7 +95,7 @@ class TrainerTLabPlugin(TLabPlugin):
             for key, value in self.params._config.items():
                 if getattr(self.params, key) is None:
                     self.params[key] = value
-            
+
         except Exception as e:
             error_msg = f"Error loading configuration: {str(e)}\n{traceback.format_exc()}"
             print(error_msg)
