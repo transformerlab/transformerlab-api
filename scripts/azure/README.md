@@ -100,7 +100,6 @@ Before you begin, make sure you have the following installed:
     Make the script executable and run it:
 
     ```bash
-    chmod +x run.sh
     ./run.sh
 
 The script should take care of provisioning the resources and starting a VM with transformerlab api running inside. The script will also output the public IP of the VM on the command line to be used in the `Connect to Remote Engine` screen.
