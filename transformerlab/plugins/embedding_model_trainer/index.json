@@ -137,7 +137,7 @@
         "AdaptiveLayerLoss",
         "None"
       ],
-      "default": "MatryoshkaLoss"
+      "default": "None"
     },
     "text_column_name": {
       "title": "Text Column Name",

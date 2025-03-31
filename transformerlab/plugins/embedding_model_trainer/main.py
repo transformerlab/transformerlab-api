@@ -222,14 +222,19 @@ def train_embedding_model():
 
     # Apply loss modifier if specified
     if loss_modifier_name != "None":
-        loss_modifier_module = __import__("sentence_transformers.losses", fromlist=[loss_modifier_name])
-        loss_modifier_cls = getattr(loss_modifier_module, loss_modifier_name)
-
-        if loss_modifier_name == "AdaptiveLayerLoss":
-            # AdaptiveLayerLoss does not take matryoshka_dims as a parameter
-            train_loss = loss_modifier_cls(model=model, loss=inner_train_loss)
+        if user_dataset_type == "single sentences":
+            print("Warning: Loss modifier is not supported for single sentences dataset type.")
+            print("Using the default loss function instead.")
+            train_loss = inner_train_loss
         else:
-            train_loss = loss_modifier_cls(model=model, loss=inner_train_loss, matryoshka_dims=matryoshka_dims)
+            loss_modifier_module = __import__("sentence_transformers.losses", fromlist=[loss_modifier_name])
+            loss_modifier_cls = getattr(loss_modifier_module, loss_modifier_name)
+
+            if loss_modifier_name == "AdaptiveLayerLoss":
+                # AdaptiveLayerLoss does not take matryoshka_dims as a parameter
+                train_loss = loss_modifier_cls(model=model, loss=inner_train_loss)
+            else:
+                train_loss = loss_modifier_cls(model=model, loss=inner_train_loss, matryoshka_dims=matryoshka_dims)
     else:
         train_loss = inner_train_loss
 
@@ -286,7 +291,8 @@ def train_embedding_model():
         }
         generate_model_json(
             final_model_name,
-            tlab_trainer.params.get("embedding_model_architecture", "BertModel"), json_data=json_data,
+            tlab_trainer.params.get("embedding_model_architecture", "BertModel"),
+            json_data=json_data,
         )
     except Exception as e:
         print(f"Warning: Failed to import model to Transformer Lab: {e}")
