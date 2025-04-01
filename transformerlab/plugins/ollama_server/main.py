@@ -16,7 +16,7 @@ import uuid
 from hashlib import sha256
 from typing import List
 from pathlib import Path
-import atexit
+from contextlib import asynccontextmanager
 import traceback
 import uvicorn
 
@@ -36,7 +36,14 @@ from fastchat.utils import is_partial_stop
 from transformers.tokenization_utils_base import BatchEncoding
 
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    # This function is called when the app shuts down
+    cleanup_at_exit()
+
+
+app = FastAPI(lifespan=lifespan)
 worker = None
 
 
@@ -441,9 +448,6 @@ def cleanup_at_exit():
     if worker:
         worker.stop_server()
         del worker
-
-
-atexit.register(cleanup_at_exit)
 
 
 def main():
