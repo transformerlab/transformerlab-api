@@ -33,15 +33,12 @@ write_files:
         echo "Chowning everything under /home/azureuser to azureuser..."
         chown -R azureuser:azureuser /home/azureuser
 
-        echo "Changing directory to /home/azureuser/.transformerlab/src..."
-        cd /home/azureuser/.transformerlab/src
-        chmod +x run.sh
-
       fi
 
       echo "Transformer Lab installed."
 
       echo "Running run.sh..."
+      cd /home/azureuser/.transformerlab/src
       bash run.sh
 
   - path: /etc/systemd/system/transformerlab.service
