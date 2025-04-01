@@ -190,7 +190,13 @@ class LocalModelStore(modelstore.ModelStore):
                 # The configuration is stored as a JSON string inside job_data["config"]
                 config_str = job_data.get("config")
                 try:
-                    config = json.loads(config_str)
+                    if isinstance(config_str, str):
+                        # If the config is a string, parse it as JSON
+                        config = json.loads(config_str)
+                    elif isinstance(config_str, dict):
+                        # If the config is already a dictionary, use it directly
+                        config = config_str
+
                 except Exception as e:
                     print(f"Error parsing config for job id {job.get('id', 'unknown')}: {e}")
                     config = {}
