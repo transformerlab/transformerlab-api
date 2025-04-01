@@ -3,6 +3,7 @@ import atexit
 import json
 import os
 import platform
+import asyncio
 import sys
 import subprocess
 from fastapi.responses import StreamingResponse
@@ -77,34 +78,52 @@ elif torch.backends.mps.is_available():
 router = APIRouter(prefix="/server", tags=["serverinfo"])
 
 
+async def get_mac_disk_usage():
+    if sys.platform != "darwin":
+        return None  # Ensure it only runs on macOS
+
+    try:
+        # Run the subprocess asynchronously
+        process = await asyncio.create_subprocess_shell(
+            "diskutil apfs list | awk '/Capacity In Use By Volumes/'",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+
+        stdout, stderr = await process.communicate()
+
+        if stderr:
+            print(f"Error retrieving disk usage: {stderr.decode().strip()}")
+            return None
+
+        mac_disk_usage = stdout.decode("utf-8").strip()
+
+        # Extract the numeric value before "B" (Bytes) and convert to int
+        if "Capacity In Use By Volumes:" in mac_disk_usage:
+            mac_disk_usage_cleaned = int(
+                mac_disk_usage.split("Capacity In Use By Volumes:")[1].strip().split("B")[0].strip()
+            )
+            return mac_disk_usage_cleaned
+
+    except Exception as e:
+        print(f"Error retrieving disk usage: {e}")
+
+    return None
+
+
 @router.get("/info")
 async def get_computer_information():
     # start with our static system information and add current performance details
     r = system_info
-    mac_disk_usage_cleaned = None
-    ## Detect if the architecture is of a Macbook
-    try:
-        if sys.platform == "darwin":
-            # Calculate diskusage by executing the command diskutil apfs list | awk '/Capacity In Use By Volumes/'
-            # and parsing the output
-            mac_disk_usage = subprocess.check_output(
-                "diskutil apfs list | awk '/Capacity In Use By Volumes/'", shell=True
-            ).decode("utf-8")
 
-            # Extract the relevant information from the output
-            # Output is of format "Capacity In Use By Volumes:   264762257408 B (264.8 GB) (53.6% used)"
-            mac_disk_usage_cleaned = int(
-                mac_disk_usage.split("Capacity In Use By Volumes:")[1].strip().split("B")[0].strip()
-            )
-    except Exception as e:
-        print(f"Error retrieving disk usage: {e}")
-        mac_disk_usage_cleaned = None
+    # Get the current disk usage if its a mac
+    mac_disk_usage = await get_mac_disk_usage()
 
     disk_usage = psutil.disk_usage("/")._asdict()
-    if mac_disk_usage_cleaned:
-        disk_usage["used"] = mac_disk_usage_cleaned
-        disk_usage["free"] = disk_usage["total"] - mac_disk_usage_cleaned
-        disk_usage["percent"] = round((mac_disk_usage_cleaned / disk_usage["total"]) * 100, 2)
+    if mac_disk_usage:
+        disk_usage["used"] = mac_disk_usage
+        disk_usage["free"] = disk_usage["total"] - mac_disk_usage
+        disk_usage["percent"] = round((mac_disk_usage / disk_usage["total"]) * 100, 2)
 
     r.update(
         {
