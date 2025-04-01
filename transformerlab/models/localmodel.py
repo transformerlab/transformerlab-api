@@ -87,6 +87,14 @@ class LocalModelStore(modelstore.ModelStore):
             "Curie",
             "Davinci",
             "AsymmetricSemanticSearchModel",
+            "Qwen2Model",
+            "NVEmbedModel",
+            "NewModel", # Alibaba Models
+            "BertForPreTraining",
+            "CodeXEmbedModel2B", # Salesforce Models
+            "MistralModel",
+            "CodeT5p_Embedding"
+            
         ]
 
         embedding_models = []
