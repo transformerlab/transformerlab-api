@@ -17,7 +17,7 @@ import tiktoken
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.security.http import HTTPAuthorizationCredentials, HTTPBearer
-from fastchat.constants import WORKER_API_EMBEDDING_BATCH_SIZE, WORKER_API_TIMEOUT, ErrorCode
+from fastchat.constants import WORKER_API_EMBEDDING_BATCH_SIZE, ErrorCode
 from fastchat.conversation import Conversation, SeparatorStyle
 from fastchat.protocol.api_protocol import (
     APITokenCheckRequest,
@@ -46,6 +46,7 @@ from pydantic import BaseModel as PydanticBaseModel
 
 from transformerlab.shared import dirs
 
+WORKER_API_TIMEOUT = 3600
 
 class APIChatCompletionRequest(BaseModel):
     model: str
