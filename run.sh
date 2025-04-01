@@ -15,6 +15,8 @@ PORT="8338"
 
 RELOAD=false
 
+FASTCHAT_WORKER_API_TIMEOUT=3600
+
 # echo "Your shell is $SHELL"
 # echo "Conda's binary is at ${CONDA_BIN}"
 # echo "Your current directory is $(pwd)"

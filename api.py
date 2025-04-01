@@ -174,8 +174,6 @@ worker_process = None
 
 def spawn_fastchat_controller_subprocess():
     global controller_process
-    #set fastchat timeout to 1 hour instead of 100 seconds so that it wont auto fail if it takes too long to respond
-    os.environ["FASTCHAT_WORKER_API_TIMEOUT"] = "3600"
     logfile = open("controller.log", "w")
     port = "21001"
     controller_process = subprocess.Popen(
