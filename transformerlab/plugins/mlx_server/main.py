@@ -39,7 +39,7 @@ import math
 import mlx.core as mx
 from mlx_lm import load
 from mlx_lm.utils import generate_step
-from mlx_lm.sample_utils import make_sampler
+from mlx_lm.sample_utils import make_sampler, make_logits_processors
 
 from mlx_embedding_models.embedding import EmbeddingModel
 
@@ -142,7 +142,7 @@ class MLXWorker(BaseModelWorker):
         top_p = float(params.get("top_p", 1.0))
         top_k = int(params.get("top_k", 10))
         # presence_penalty = float(params.get("presence_penalty", 0.0))
-        # frequency_penalty = float(params.get("frequency_penalty", 0.0))
+        frequency_penalty = float(params.get("frequency_penalty", 0.0))
         max_new_tokens = params.get("max_new_tokens", 256)
         stop_str = params.get("stop", None)
         stop_token_ids = params.get("stop_token_ids", None) or []
@@ -186,8 +186,15 @@ class MLXWorker(BaseModelWorker):
         # but they aren't getting set in UI
         sampler = make_sampler(temperature, top_p=top_p)
 
+        logits_processors = make_logits_processors(repetition_penalty=frequency_penalty)
+
         iterator = await run_in_threadpool(
-            generate_step, context_mlx, self.mlx_model, max_tokens=max_new_tokens, sampler=sampler
+            generate_step,
+            context_mlx,
+            self.mlx_model,
+            max_tokens=max_new_tokens,
+            sampler=sampler,
+            logits_processors=logits_processors,
         )
 
         cummulative_logprobs = []
@@ -381,6 +388,7 @@ async def api_generate_with_visualization(request: Request):
             top_p = float(params.get("top_p", 1.0))
             max_new_tokens = int(params.get("max_tokens", 100))
             top_k = int(params.get("top_k", 10))
+            frequency_penalty = float(params.get("frequency_penalty", 0.0))
 
             # Encode the prompt
             context_mlx = mx.array(worker.tokenizer.encode(prompt))
@@ -389,9 +397,16 @@ async def api_generate_with_visualization(request: Request):
             # Create sampler with specified parameters
             sampler = make_sampler(temperature, top_p=top_p)
 
+            logits_processors = make_logits_processors(repetition_penalty=frequency_penalty)
+
             # Initialize token generation
             iterator = await run_in_threadpool(
-                generate_step, context_mlx, worker.mlx_model, max_tokens=max_new_tokens, sampler=sampler
+                generate_step,
+                context_mlx,
+                worker.mlx_model,
+                max_tokens=max_new_tokens,
+                sampler=sampler,
+                logits_processors=logits_processors,
             )
 
             tokens = []
