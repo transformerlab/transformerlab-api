@@ -19,6 +19,7 @@ import os
 from typing import Any, Dict, List, Optional
 import uuid
 import traceback
+import numpy as np
 
 from huggingface_hub import snapshot_download
 
@@ -33,6 +34,7 @@ from fastchat.serve.model_worker import (
     worker_id,
 )
 from fastchat.utils import get_context_length
+import math
 
 import mlx.core as mx
 from mlx_lm import load
@@ -355,6 +357,337 @@ async def api_get_embeddings(request: Request):
 
 
 worker = None
+
+
+@app.get("/visualization_available")
+async def check_visualization_available():
+    """Check if this worker supports visualization"""
+    return {"available": True}
+
+
+@app.post("/worker_generate_with_visualization")
+async def api_generate_with_visualization(request: Request):
+    """Generate text with visualization data about activations and attention entropy"""
+    params = await request.json()
+    await acquire_worker_semaphore()
+    request_id = uuid.uuid4()
+    params["request_id"] = str(request_id)
+
+    async def generate():
+        try:
+            # Extract parameters
+            prompt = params.get("prompt")
+            temperature = float(params.get("temperature", 0.7))
+            top_p = float(params.get("top_p", 1.0))
+            max_new_tokens = int(params.get("max_tokens", 100))
+            top_k = int(params.get("top_k", 10))
+
+            # Encode the prompt
+            context_mlx = mx.array(worker.tokenizer.encode(prompt))
+            input_tokens = worker.tokenizer.encode(prompt)
+
+            # Create sampler with specified parameters
+            sampler = make_sampler(temperature, top_p=top_p)
+
+            # Initialize token generation
+            iterator = await run_in_threadpool(
+                generate_step, context_mlx, worker.mlx_model, max_tokens=max_new_tokens, sampler=sampler
+            )
+
+            tokens = []
+
+            # Generate tokens one by one with visualization data
+            for i in range(max_new_tokens):
+                try:
+                    (token, logprobs) = await run_in_threadpool(next, iterator)
+                except RuntimeError as e:
+                    print(f"Generation stopped: {e}")
+                    print(traceback.format_exc())
+                    break
+
+                if token == worker.tokenizer.eos_token_id:
+                    break
+
+                tokens.append(token)
+                tokens_decoded = worker.tokenizer.decode(tokens)
+
+                # Get top predictions
+                top_indices = mx.argpartition(-logprobs, kth=top_k - 1)[:top_k]
+                top_probs = mx.softmax(logprobs)[top_indices]
+
+                # Sort the top indices by probability
+                sorted_indices = mx.argsort(-top_probs)
+                top_sorted_indices = top_indices[sorted_indices]
+                top_sorted_probs = top_probs[sorted_indices]
+
+                # Create top predictions data
+                top_predictions = []
+                for idx, prob in zip(top_sorted_indices.tolist(), top_sorted_probs.tolist()):
+                    token_text = worker.tokenizer.decode([idx])
+                    top_predictions.append({"token": token_text, "prob": prob, "logit": logprobs[idx].item()})
+
+                # Generate MLP activations
+                # Since MLX doesn't directly expose layer activations like PyTorch,
+                # we'll compute synthetic values based on the model architecture
+                num_layers = len(worker.mlx_model.model.layers)
+                mlp_activations = generate_mlp_activations(worker.mlx_model, input_tokens + tokens, num_layers)
+
+                # Calculate attention entropy
+                attention_entropy = calculate_attention_entropy(worker.mlx_model, input_tokens + tokens, num_layers)
+
+                # Create response with all visualization data
+                response = {
+                    "text": tokens_decoded,
+                    "token_id": token,
+                    "mlp_activations": mlp_activations,
+                    "attention_entropy": attention_entropy,
+                    "top_predictions": top_predictions,
+                    "error_code": 0,
+                }
+
+                yield (json.dumps(response) + "\0").encode()
+
+                # Small delay to avoid overwhelming the client
+                await asyncio.sleep(0)
+
+        except Exception as e:
+            print("Error during visualization:", e)
+            print(traceback.format_exc())
+            error_response = {
+                "text": "Error during visualization",
+                "error_code": 1,
+            }
+            yield (json.dumps(error_response) + "\0").encode()
+        finally:
+            release_worker_semaphore()
+
+    background_tasks = create_background_tasks(request_id)
+    return StreamingResponse(generate(), background=background_tasks)
+
+
+def generate_mlp_activations(model, tokens, num_layers):
+    """
+    Extract MLP activations from the MLX model by accessing internal states.
+    """
+    try:
+        # Convert tokens to MLX array
+        inputs = mx.array([tokens])
+        activations = []
+
+        # Get the initial embeddings
+        if hasattr(model.model, "embed_tokens"):
+            hidden_states = model.model.embed_tokens(inputs)
+        elif hasattr(model.model, "wte"):
+            hidden_states = model.model.wte(inputs)
+        else:
+            print("Couldn't find embedding layer, using zeros")
+            return [0.0] * num_layers
+
+        # First, run a full forward pass to get all layer outputs
+        current_hidden = hidden_states
+        layer_outputs = []
+
+        # Collect layer outputs in the first pass
+        for layer_idx in range(num_layers):
+            try:
+                # Store current hidden state
+                layer_outputs.append(current_hidden)
+
+                # Process through layer
+                layer = model.model.layers[layer_idx]
+                current_hidden = layer(current_hidden)
+
+            except Exception as e:
+                print(f"Error in forward pass for layer {layer_idx}: {e}")
+                # If we can't process this layer, duplicate the previous one
+                if layer_outputs:
+                    layer_outputs.append(layer_outputs[-1])
+                else:
+                    layer_outputs.append(hidden_states)
+
+        # Now extract MLP activations from each layer
+        for layer_idx in range(num_layers):
+            try:
+                # Get the layer and its MLP module
+                layer = model.model.layers[layer_idx]
+
+                # Find MLP module - different models use different names
+                if hasattr(layer, "mlp"):
+                    mlp = layer.mlp
+                elif hasattr(layer, "ffn"):
+                    mlp = layer.ffn
+                else:
+                    print(f"Couldn't find MLP module for layer {layer_idx}")
+                    activations.append([0.0])
+                    continue
+
+                # Get the hidden states for this layer
+                layer_hidden = layer_outputs[layer_idx]
+
+                # Focus on the last token's activation
+                last_hidden = layer_hidden[:, -1:, :]
+                activation_value = 0.0
+
+                # Llama-style MLP with gate_proj and up_proj (SwiGLU)
+                if hasattr(mlp, "gate_proj") and hasattr(mlp, "up_proj"):
+                    gate_output = mlp.gate_proj(last_hidden)
+                    up_output = mlp.up_proj(last_hidden)
+
+                    # SwiGLU activation
+                    intermediate = mx.multiply(gate_output, swish(up_output))
+                    activation_value = float(mx.linalg.norm(intermediate).item())
+
+                # GPT-style MLP with c_fc and c_proj
+                elif hasattr(mlp, "c_fc") and hasattr(mlp, "c_proj"):
+                    intermediate = mlp.c_fc(last_hidden)
+                    activation_value = float(mx.linalg.norm(intermediate).item())
+
+                # Generic MLP with fc1/fc2 or w1/w2
+                else:
+                    for attr_name in ["fc1", "w1", "linear1", "dense_h_to_4h"]:
+                        if hasattr(mlp, attr_name):
+                            intermediate = getattr(mlp, attr_name)(last_hidden)
+                            activation_value = float(mx.linalg.norm(intermediate).item())
+                            break
+
+                activations.append([activation_value])
+
+            except Exception as e:
+                print(f"Error calculating MLP activation for layer {layer_idx}: {e}")
+                print(traceback.format_exc())
+                activations.append([0.0])
+
+        # # Filter out any NaN values
+        # activations = np.array(activations)
+        # activations = np.nan_to_num(activations, nan=0.0)
+        return activations
+
+    except Exception as e:
+        print(f"Error accessing model internals for MLP activations: {e}")
+        print(traceback.format_exc())
+        return [0.0] * num_layers
+
+
+def swish(x):
+    return x * mx.sigmoid(x)
+
+
+def calculate_attention_entropy(model, tokens, num_layers):
+    """
+    Calculate attention entropy from the MLX model by accessing internal states.
+    """
+    try:
+        entropy_values = []
+        inputs = mx.array([tokens])
+
+        # Get the initial embeddings
+        if hasattr(model.model, "embed_tokens"):
+            hidden_states = model.model.embed_tokens(inputs)
+        elif hasattr(model.model, "wte"):
+            hidden_states = model.model.wte(inputs)
+        else:
+            print("Couldn't find embedding layer, using zeros")
+            return [0.0] * num_layers
+
+        # Process through each layer, updating hidden states as we go
+        current_hidden = hidden_states  # Start with embeddings
+
+        # First, run the full model forward pass and store all layer outputs
+        layer_outputs = []
+
+        for layer_idx in range(num_layers):
+            try:
+                # Process through layer
+                layer = model.model.layers[layer_idx]
+
+                # Store the current hidden state for attention calculation
+                layer_outputs.append(current_hidden)
+
+                # Update hidden states for next layer - full forward pass
+                # This captures the residual connections and full layer processing
+                current_hidden = layer(current_hidden)
+
+            except Exception as e:
+                print(f"Error in forward pass for layer {layer_idx}: {e}")
+                # If we can't process this layer, duplicate the previous one
+                if layer_outputs:
+                    layer_outputs.append(layer_outputs[-1])
+                else:
+                    layer_outputs.append(hidden_states)
+
+        # Now calculate entropy for each layer using the proper hidden states
+        for layer_idx in range(num_layers):
+            try:
+                # Get the layer and its attention module
+                layer = model.model.layers[layer_idx]
+
+                if hasattr(layer, "self_attn"):
+                    attn = layer.self_attn
+                elif hasattr(layer, "attention"):
+                    attn = layer.attention
+                else:
+                    print(f"Couldn't find attention module for layer {layer_idx}")
+                    entropy_values.append(0.0)
+                    continue
+
+                # Get the hidden states for this layer
+                layer_hidden = layer_outputs[layer_idx]
+
+                # Calculate attention patterns using layer's Q and K projections
+                if hasattr(attn, "q_proj") and hasattr(attn, "k_proj"):
+                    q = attn.q_proj(layer_hidden)
+                    k = attn.k_proj(layer_hidden)
+
+                    # Get dimensions and reshape
+                    B, L, D = layer_hidden.shape
+                    n_heads = attn.n_heads if hasattr(attn, "n_heads") else attn.num_attention_heads
+                    n_kv_heads = attn.n_kv_heads if hasattr(attn, "n_kv_heads") else n_heads
+                    head_dim = D // n_heads
+
+                    # Reshape queries and keys
+                    queries = q.reshape(B, L, n_heads, -1).transpose(0, 2, 1, 3)
+                    keys = k.reshape(B, L, n_kv_heads, -1).transpose(0, 2, 1, 3)
+
+                    # Handle MQA/GQA
+                    if n_heads != n_kv_heads:
+                        repeats = n_heads // n_kv_heads
+                        keys = mx.repeat(keys, repeats, axis=1)
+
+                    # Get scale factor and calculate scores
+                    scale = attn.scale if hasattr(attn, "scale") else head_dim**-0.5
+                    scores = mx.matmul(queries[:, :, -1:, :], keys.transpose(0, 1, 3, 2))
+                    scores = scores * scale
+
+                    # Calculate entropy
+                    probs = mx.softmax(scores, axis=-1)
+                    safe_probs = mx.clip(probs, 1e-10, 1.0)  # Ensures probs stay in a stable range
+                    head_entropies = -mx.sum(safe_probs * mx.log(safe_probs), axis=-1)
+                    mean_entropy = mx.mean(head_entropies).item()
+                    if math.isnan(mean_entropy):
+                        mean_entropy = 0.0
+                        print(f"NaN entropy for layer {layer_idx}")
+                    # Append the mean entropy for this layer
+                    entropy_values.append(float(mean_entropy))
+                else:
+                    print(f"Couldn't find projection layers for layer {layer_idx}")
+                    entropy_values.append(0.0)
+
+            except Exception as e:
+                print(f"Error calculating entropy for layer {layer_idx}: {e}")
+                print(traceback.format_exc())
+                entropy_values.append(0.0)
+
+        entropy_values = np.array(entropy_values)
+        # Filter out NaN values
+        entropy_values = np.nan_to_num(entropy_values, nan=0.0)
+        # Convert back to list
+        entropy_values = entropy_values.tolist()
+        return entropy_values
+
+    except Exception as e:
+        print(f"Error in attention entropy calculation: {e}")
+        print(traceback.format_exc())
+        return [0.0] * num_layers
 
 
 @app.post("/tokenize")
