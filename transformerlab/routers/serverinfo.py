@@ -84,7 +84,7 @@ async def get_computer_information():
     mac_disk_usage_cleaned = None
     ## Detect if the architecture is of a Macbook
     try:
-        if system_info["platform"].startswith("macOS"):
+        if sys.platform == "darwin":
             # Calculate diskusage by executing the command diskutil apfs list | awk '/Capacity In Use By Volumes/'
             # and parsing the output
             mac_disk_usage = subprocess.check_output(
