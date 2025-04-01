@@ -81,12 +81,37 @@ router = APIRouter(prefix="/server", tags=["serverinfo"])
 async def get_computer_information():
     # start with our static system information and add current performance details
     r = system_info
+    mac_disk_usage_cleaned = None
+    ## Detect if the architecture is of a Macbook
+    try:
+        if system_info["platform"].startswith("macOS"):
+            # Calculate diskusage by executing the command diskutil apfs list | awk '/Capacity In Use By Volumes/'
+            # and parsing the output
+            mac_disk_usage = subprocess.check_output(
+                "diskutil apfs list | awk '/Capacity In Use By Volumes/'", shell=True
+            ).decode("utf-8")
+
+            # Extract the relevant information from the output
+            # Output is of format "Capacity In Use By Volumes:   264762257408 B (264.8 GB) (53.6% used)"
+            mac_disk_usage_cleaned = int(
+                mac_disk_usage.split("Capacity In Use By Volumes:")[1].strip().split("B")[0].strip()
+            )
+    except Exception as e:
+        print(f"Error retrieving disk usage: {e}")
+        mac_disk_usage_cleaned = None
+
+    disk_usage = psutil.disk_usage("/")._asdict()
+    if mac_disk_usage_cleaned:
+        disk_usage["used"] = mac_disk_usage_cleaned
+        disk_usage["free"] = disk_usage["total"] - mac_disk_usage_cleaned
+        disk_usage["percent"] = round((mac_disk_usage_cleaned / disk_usage["total"]) * 100, 2)
+
     r.update(
         {
             "cpu_percent": psutil.cpu_percent(),
             "cpu_count": psutil.cpu_count(),
             "memory": psutil.virtual_memory()._asdict(),
-            "disk": psutil.disk_usage("/")._asdict(),
+            "disk": disk_usage,
             "gpu_memory": "",
         }
     )
