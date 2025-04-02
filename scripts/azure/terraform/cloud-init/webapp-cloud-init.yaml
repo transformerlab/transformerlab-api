@@ -6,6 +6,8 @@ packages:
   - tar
   - curl
   - wget
+  - nginx
+
 
 bootcmd:
   - mkdir -p /home/azureuser/.transformerlab
@@ -41,6 +43,58 @@ write_files:
       cd /home/azureuser/.transformerlab/src
       bash run.sh
 
+  - path: /home/azureuser/install_transformerlab_webapp.sh
+    owner: root:root
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      set -e
+
+      export HOME=/home/azureuser
+
+      echo "Installing node v22..."
+      curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.2/install.sh | bash
+      \. "$HOME/.nvm/nvm.sh"
+      nvm install 22
+
+      echo "Verifying nodejs version:"
+      node -v  # Should print "v22.14.0".
+      nvm current # Should print "v22.14.0".    
+      npm -v # Should print "10.9.2".
+
+      echo "Cloning transformerlab-app"
+      cd /home/azureuser/
+      git clone https://github.com/transformerlab/transformerlab-app
+
+      echo "Building transformerlab-app"
+      cd /home/azureuser/transformerlab-app/
+      npm install cross-env
+      npm run build:cloud
+
+      echo "Enabling transformerlab-app in nginx..."
+      ln -s /etc/nginx/sites-available/transformerlab.conf /etc/nginx/sites-enabled/
+
+      echo "Chowning everything under /home/azureuser to azureuser"
+      chown -R azureuser:azureuser /home/azureuser
+
+  - path: /etc/nginx/sites-available/transformerlab.conf
+    owner: root:root
+    permissions: '0640'
+    content: |
+      server {
+        listen 1212 default_server;
+        listen [::]:1212 default_server;
+
+        root /home/azureuser/transformerlab-app/release/cloud;
+        index index.html index.htm;
+
+        server_name _;
+
+        location / {
+                try_files $uri $uri/ =404;
+        }
+      }
+
   - path: /etc/systemd/system/transformerlab.service
     owner: root:root
     permissions: '0644'
@@ -62,3 +116,7 @@ runcmd:
   - systemctl daemon-reload
   - systemctl enable transformerlab.service
   - systemctl start transformerlab.service
+  - /home/azureuser/install_transformerlab_webapp.sh
+  - systemctl enable nginx
+  - systemctl start nginx
+
