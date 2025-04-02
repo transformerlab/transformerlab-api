@@ -7,10 +7,84 @@ There are functions in model_helper to make it easier to work with.
 
 import os
 import json
-
+from huggingface_hub import hf_hub_download
 from transformerlab.models import modelstore
 import transformerlab.db as db
 from transformerlab.shared import dirs
+
+
+def is_sentence_transformer_model(
+    model_name_or_path: str,
+    token: bool | str | None = None,
+    cache_folder: str | None = None,
+    revision: str | None = None,
+    local_files_only: bool = False,
+) -> bool:
+    """
+    Checks if the given model name or path corresponds to a SentenceTransformer model.
+
+    Args:
+        model_name_or_path (str): The name or path of the model.
+        token (Optional[Union[bool, str]]): The token to be used for authentication. Defaults to None.
+        cache_folder (Optional[str]): The folder to cache the model files. Defaults to None.
+        revision (Optional[str]): The revision of the model. Defaults to None.
+        local_files_only (bool): Whether to only use local files for the model. Defaults to False.
+
+    Returns:
+        bool: True if the model is a SentenceTransformer model, False otherwise.
+    """
+    return bool(
+        load_file_path(
+            model_name_or_path,
+            "modules.json",
+            token=token,
+            cache_folder=cache_folder,
+            revision=revision,
+            local_files_only=local_files_only,
+        )
+    )
+
+
+def load_file_path(
+    model_name_or_path: str,
+    filename: str,
+    token: bool | str | None = None,
+    cache_folder: str | None = None,
+    revision: str | None = None,
+    local_files_only: bool = False,
+) -> str | None:
+    """
+    Loads a file from a local or remote location.
+
+    Args:
+        model_name_or_path (str): The model name or path.
+        filename (str): The name of the file to load.
+        token (Optional[Union[bool, str]]): The token to access the remote file (if applicable).
+        cache_folder (Optional[str]): The folder to cache the downloaded file (if applicable).
+        revision (Optional[str], optional): The revision of the file (if applicable). Defaults to None.
+        local_files_only (bool, optional): Whether to only consider local files. Defaults to False.
+
+    Returns:
+        Optional[str]: The path to the loaded file, or None if the file could not be found or loaded.
+    """
+    # If file is local
+    file_path = os.path.join(model_name_or_path, filename)
+    if os.path.exists(file_path):
+        return file_path
+
+    # If file is remote
+    try:
+        return hf_hub_download(
+            model_name_or_path,
+            filename=filename,
+            revision=revision,
+            library_name="sentence-transformers",
+            token=token,
+            cache_dir=cache_folder,
+            local_files_only=local_files_only,
+        )
+    except Exception:
+        return None
 
 
 class LocalModelStore(modelstore.ModelStore):
@@ -21,79 +95,25 @@ class LocalModelStore(modelstore.ModelStore):
         """
         Filter out models based on whether they are embedding models or not.
         """
-        embedding_model_architectures = [
-            "BertModel",
-            "SentenceTransformer",
-            "DistilBertModel",
-            "RobertaModel",
-            "NomicBertModel",
-            "AlbertModel",
-            "XLMRobertaModel",
-            "XLMModel",
-            "XLNetModel",
-            "LongformerModel",
-            "MobileBertModel",
-            "GteModel",
-            "DebertaModel",
-            "DebertaV2Model",
-            "ElectraModel",
-            "CamembertModel",
-            "T5EncoderModel",
-            "MPNetModel",
-            "FlaubertModel",
-            "TransformerXLModel",
-            "GPT2Model",
-            "OpenAIGPTModel",
-            "CTRLModel",
-            "ReformerModel",
-            "BigBirdModel",
-            "FunnelModel",
-            "LayoutLMModel",
-            "SqueezeBertModel",
-            "BartEncoder",
-            "MarianEncoder",
-            "PegasusEncoder",
-            "E5Model",
-            "BGEModel",
-            "SGPT",
-            "FastText",
-            "Word2Vec",
-            "GloVe",
-            "USE",
-            "SimCSE",
-            "CoCondenser",
-            "ConvBERT",
-            "DPR",
-            "CLIP",
-            "ESimCSE",
-            "GTR",
-            "Gecko",
-            "JinaModel",
-            "LaBSE",
-            "LASER",
-            "LexicalModel",
-            "MiniLM",
-            "MiniLMv2",
-            "MuRIL",
-            "REALM",
-            "SBERT",
-            "SPECTER",
-            "TinyBERT",
-            "UniCoil",
-            "ColBERT",
-            "ANCE",
-            "INSTRUCTOR",
-            "Ada",
-            "Curie",
-            "Davinci",
-            "AsymmetricSemanticSearchModel",
-        ]
 
         embedding_models = []
         non_embedding_models = []
 
         for model in models:
-            if model["json_data"].get("architecture") in embedding_model_architectures:
+            if model.get("model_id", None):
+                if (
+                    model["json_data"].get("model_filename", None)
+                    and model["json_data"]["model_filename"].strip() != ""
+                ):
+                    model_id = model["json_data"]["model_filename"]
+                elif model.get("local_path", None) and model["local_path"].strip() != "":
+                    model_id = model["local_path"]
+                else:
+                    model_id = model["model_id"]
+            else:
+                print("Model ID not found in model data.")
+                print(model)
+            if is_sentence_transformer_model(model_id):
                 embedding_models.append(model)
             else:
                 non_embedding_models.append(model)
@@ -190,7 +210,13 @@ class LocalModelStore(modelstore.ModelStore):
                 # The configuration is stored as a JSON string inside job_data["config"]
                 config_str = job_data.get("config")
                 try:
-                    config = json.loads(config_str)
+                    if isinstance(config_str, str):
+                        # If the config is a string, parse it as JSON
+                        config = json.loads(config_str)
+                    elif isinstance(config_str, dict):
+                        # If the config is already a dictionary, use it directly
+                        config = config_str
+
                 except Exception as e:
                     print(f"Error parsing config for job id {job.get('id', 'unknown')}: {e}")
                     config = {}
@@ -225,7 +251,7 @@ class LocalModelStore(modelstore.ModelStore):
         """
         chain = []
         current_model = latest_model.split("/")[-1]
-        print(f"Tracing provenance chain for model {current_model}")
+        # print(f"Tracing provenance chain for model {current_model}")
 
         while current_model in provenance_mapping:
             job_details = provenance_mapping[current_model]

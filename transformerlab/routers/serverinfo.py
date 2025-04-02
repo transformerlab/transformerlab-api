@@ -1,8 +1,8 @@
 from watchfiles import awatch
-import atexit
 import json
 import os
 import platform
+import asyncio
 import sys
 import subprocess
 from fastapi.responses import StreamingResponse
@@ -19,7 +19,6 @@ from pynvml import (
     nvmlDeviceGetName,
     nvmlDeviceGetUtilizationRates,
     nvmlInit,
-    nvmlShutdown,
 )
 
 from transformerlab.shared import dirs
@@ -77,16 +76,59 @@ elif torch.backends.mps.is_available():
 router = APIRouter(prefix="/server", tags=["serverinfo"])
 
 
+async def get_mac_disk_usage():
+    if sys.platform != "darwin":
+        return None  # Ensure it only runs on macOS
+
+    try:
+        # Run the subprocess asynchronously
+        process = await asyncio.create_subprocess_shell(
+            "diskutil apfs list | awk '/Capacity In Use By Volumes/'",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+
+        stdout, stderr = await process.communicate()
+
+        if stderr:
+            print(f"Error retrieving disk usage: {stderr.decode().strip()}")
+            return None
+
+        mac_disk_usage = stdout.decode("utf-8").strip()
+
+        # Extract the numeric value before "B" (Bytes) and convert to int
+        if "Capacity In Use By Volumes:" in mac_disk_usage:
+            mac_disk_usage_cleaned = int(
+                mac_disk_usage.split("Capacity In Use By Volumes:")[1].strip().split("B")[0].strip()
+            )
+            return mac_disk_usage_cleaned
+
+    except Exception as e:
+        print(f"Error retrieving disk usage: {e}")
+
+    return None
+
+
 @router.get("/info")
 async def get_computer_information():
     # start with our static system information and add current performance details
     r = system_info
+
+    # Get the current disk usage if its a mac
+    mac_disk_usage = await get_mac_disk_usage()
+
+    disk_usage = psutil.disk_usage("/")._asdict()
+    if mac_disk_usage:
+        disk_usage["used"] = mac_disk_usage
+        disk_usage["free"] = disk_usage["total"] - mac_disk_usage
+        disk_usage["percent"] = round((mac_disk_usage / disk_usage["total"]) * 100, 2)
+
     r.update(
         {
             "cpu_percent": psutil.cpu_percent(),
             "cpu_count": psutil.cpu_count(),
             "memory": psutil.virtual_memory()._asdict(),
-            "disk": psutil.disk_usage("/")._asdict(),
+            "disk": disk_usage,
             "gpu_memory": "",
         }
     )
@@ -155,14 +197,6 @@ async def get_pytorch_collect_env():
     # run python -m torch.utils.collect_env and return the output
     output = subprocess.check_output(sys.executable + " -m torch.utils.collect_env", shell=True)
     return output.decode("utf-8")
-
-
-def cleanup_at_exit():
-    if torch.cuda.is_available():
-        nvmlShutdown()
-
-
-atexit.register(cleanup_at_exit)
 
 
 GLOBAL_LOG_PATH = dirs.GLOBAL_LOG_PATH

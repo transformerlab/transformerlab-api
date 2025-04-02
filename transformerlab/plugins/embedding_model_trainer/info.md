@@ -79,7 +79,7 @@ The **Embedding Model Trainer** plugin is designed to train or fine-tune embeddi
         - **`AdaptiveLayerLoss`**: Model performs well even when you remove model layers for faster inference.
         - **`Matryoshka2dLoss`**: Combines the above two to provide possible configurations to improve efficientcy and lower storage costs
 
-        *Note* : *The loss modifiers are attached with default configs. To modify them, kindly add the params directly in the loss modifier section of the plugin in main.py.* 
+        *Note* : *The loss modifiers are attached with default configs. To modify them, kindly add the params directly in the loss modifier section of the plugin in main.py. The MatryoshkaLoss modifiers won't work with the 'single sentences' dataset types, please select 'AdaptiveLayerLoss' or 'None' for that dataset type.* 
 
    - Adjust training parameters (number of epochs, batch size, learning rate, etc.) to suit your hardware and application requirements.
    - Enable **log_to_wandb** if you wish to track training metrics with Weights & Biases.
