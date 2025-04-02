@@ -251,7 +251,7 @@ class LocalModelStore(modelstore.ModelStore):
         """
         chain = []
         current_model = latest_model.split("/")[-1]
-        print(f"Tracing provenance chain for model {current_model}")
+        # print(f"Tracing provenance chain for model {current_model}")
 
         while current_model in provenance_mapping:
             job_details = provenance_mapping[current_model]
