@@ -1,13 +1,12 @@
+from unsloth import FastLanguageModel, PatchFastRL
 import time
 import re
 import torch
 from jinja2 import Environment
 from transformers import BitsAndBytesConfig
 from trl import GRPOConfig, GRPOTrainer
-from unsloth import FastLanguageModel, PatchFastRL
 
 from transformerlab.sdk.v1.train import tlab_trainer
-
 
 # Set up environment
 jinja_environment = Environment()
@@ -41,7 +40,7 @@ def count_xml(text, start_thinking_string, end_thinking_string, start_answer_str
 
 
 @tlab_trainer.job_wrapper()
-def train_model(datasets, report_to=["tensorboard"]):
+def train_model():
     """Main training function using TrainerTLabPlugin"""
 
     # Get configuration from tlab_trainer
@@ -180,6 +179,7 @@ def train_model(datasets, report_to=["tensorboard"]):
         num_train_epochs=num_epochs,
         weight_decay=weight_decay,
         per_device_train_batch_size=batch_size,
+        num_generations=batch_size,
         gradient_accumulation_steps=2,
         gradient_checkpointing=True,
         optim="paged_adamw_32bit",
@@ -207,7 +207,7 @@ def train_model(datasets, report_to=["tensorboard"]):
     trainer = GRPOTrainer(
         model=model,
         train_dataset=dataset,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         reward_funcs=[
             xmlcount_reward_func,
             correctness_reward_func,
