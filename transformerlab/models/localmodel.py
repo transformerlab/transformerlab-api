@@ -269,7 +269,7 @@ class LocalModelStore(modelstore.ModelStore):
         For each eval, remove keys we want to ignore (i.e., additional_output_path,
         completion_status, and completion_details) and attach the job_id.
         """
-        eval_jobs = await db.jobs_get_all(type="EVAL", status="COMPLETED")
+        eval_jobs = await db.jobs_get_all(type="EVAL", status="COMPLETE")
         evals_by_model = {}
         for job in eval_jobs:
             eval_data = job["job_data"]
@@ -280,6 +280,9 @@ class LocalModelStore(modelstore.ModelStore):
             # Attach the JOB ID
             eval_data["job_id"] = job.get("id")
             model_name = eval_data.get("model_name")
+            if model_name and os.path.exists(model_name):
+                # If model_name is a path, take the last part
+                model_name = model_name.split("/")[-1]
             if model_name:
                 evals_by_model.setdefault(model_name, []).append(eval_data)
         return evals_by_model
@@ -307,12 +310,22 @@ class LocalModelStore(modelstore.ModelStore):
         # Retrieve eval jobs grouped by model_name using the dedicated function
         evals_by_model = await self.get_evals_by_model()
 
-        # print(f"Retrieved evals by model with {len(evals_by_model)} entries")
+        if len(chain) == 0:
+            item = {
+                "input_model": model_id,
+                "output_model": model_id,
+                "dataset": None,
+                "parameters": {},
+                "start_time": None,
+                "end_time": None,
+            }
+            item["evals"] = evals_by_model.get(model_id, [])
+            return {"final_model": model_id, "provenance_chain": [item]}
 
         # For every training job in the provenance chain, attach evals for the corresponding model
         for item in chain:
-            train_model_name = item.get("train_model_name")
-            item["evals"] = evals_by_model.get(train_model_name, [])
+            output_model = item.get("output_model")
+            item["evals"] = evals_by_model.get(output_model, [])
 
         # Create the final provenance dictionary output
         output = {"final_model": model_id, "provenance_chain": chain}
