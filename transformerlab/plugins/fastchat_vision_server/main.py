@@ -2,35 +2,32 @@
 A model worker that executes the model.
 """
 
-import asyncio
-import sys
 import argparse
-from fastapi.responses import JSONResponse, StreamingResponse
-from transformers import AutoTokenizer, AutoModelForPreTraining, AutoProcessor
-import uvicorn
-import atexit
-from transformers import set_seed
-import torch.nn.functional as F
-import torch
-import requests
-from PIL import Image
-from io import BytesIO
-import uuid
-from typing import Iterable, List, Optional, Dict
-from fastapi import Request, BackgroundTasks
-
-import json
-import gc
+import asyncio
 import base64
-from fastchat.constants import ErrorCode, SERVER_ERROR_MSG
+import gc
+import json
+import sys
+import uuid
+from contextlib import asynccontextmanager
+from io import BytesIO
+from typing import Dict, Iterable, List, Optional
+
+import requests
+import torch
+import torch.nn.functional as F
+import uvicorn
+from fastapi import BackgroundTasks, FastAPI, Request
+from fastapi.responses import JSONResponse, StreamingResponse
+from fastchat.constants import SERVER_ERROR_MSG, ErrorCode
 from fastchat.modules.awq import AWQConfig
 from fastchat.modules.exllama import ExllamaConfig
-from fastchat.modules.xfastertransformer import XftConfig
 from fastchat.modules.gptq import GptqConfig
-from fastchat.serve.base_model_worker import BaseModelWorker, app
-from fastchat.utils import (
-    get_context_length,
-)
+from fastchat.modules.xfastertransformer import XftConfig
+from fastchat.serve.base_model_worker import BaseModelWorker
+from fastchat.utils import get_context_length
+from PIL import Image
+from transformers import AutoModelForPreTraining, AutoProcessor, AutoTokenizer, set_seed
 from transformers.generation.logits_process import (
     LogitsProcessorList,
     RepetitionPenaltyLogitsProcessor,
@@ -38,6 +35,16 @@ from transformers.generation.logits_process import (
     TopKLogitsWarper,
     TopPLogitsWarper,
 )
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    # This function is called when the app shuts down
+    cleanup_at_exit()
+
+
+app = FastAPI(lifespan=lifespan)
 
 worker_id = str(uuid.uuid4())[:8]
 
@@ -681,9 +688,6 @@ def cleanup_at_exit():
     global worker
     print("Cleaning up...")
     del worker
-
-
-atexit.register(cleanup_at_exit)
 
 
 def main():

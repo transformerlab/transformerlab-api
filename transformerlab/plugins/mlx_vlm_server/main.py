@@ -7,35 +7,37 @@ https://github.com/ml-explore/mlx-examples/tree/main/llava
 
 import argparse
 import asyncio
-import atexit
-from collections import namedtuple
+import base64
+import cProfile
 import json
 import os
-from typing import List
 import uuid
-import requests
+from collections import namedtuple
+from contextlib import asynccontextmanager
 from io import BytesIO
-import base64
+from typing import List
 
-from huggingface_hub import snapshot_download
-
-from fastapi import FastAPI, Request, BackgroundTasks
-from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import StreamingResponse, JSONResponse
+import requests
 import uvicorn
-
+from fastapi import BackgroundTasks, FastAPI, Request
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastchat.serve.base_model_worker import BaseModelWorker
-from fastchat.serve.model_worker import (
-    logger,
-    worker_id,
-)
+from fastchat.serve.model_worker import logger, worker_id
 from fastchat.utils import get_context_length
-
-from generate import load_model, prepare_inputs, generate_text
+from generate import generate_text, load_model, prepare_inputs
+from huggingface_hub import snapshot_download
 from PIL import Image
-import cProfile
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    # This function is called when the app shuts down
+    cleanup_at_exit()
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 class MLXWorker(BaseModelWorker):
@@ -253,9 +255,6 @@ def cleanup_at_exit():
     global worker
     print("Cleaning up...")
     del worker
-
-
-atexit.register(cleanup_at_exit)
 
 
 def main():
