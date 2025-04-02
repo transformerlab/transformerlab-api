@@ -22,6 +22,7 @@ def get_detailed_file_names(output_file_path, prefix="samples_", suffix=".jsonl"
         print(f"An error occurred while getting the output file name: {e}")
         return []
 
+
 @tlab_evals.job_wrapper()
 def run_evaluation():
     """Run the Eleuther AI LM Evaluation Harness"""
@@ -41,7 +42,7 @@ def run_evaluation():
 
     # Use model_path as model_name if provided
     model_name = tlab_evals.params.model_name
-    if tlab_evals.params.model_path and tlab_evals.model_path.strip() != "":
+    if tlab_evals.params.model_path and tlab_evals.params.model_path.strip() != "":
         model_name = tlab_evals.params.model_path
         print(f"Model path provided. Using model path as model name: {model_name}")
 
@@ -107,7 +108,7 @@ def run_evaluation():
             "--trust_remote_code",
             "--log_samples",
         ]
-    
+
     # Add limit if provided
     if tlab_evals.params.limit and float(tlab_evals.params.limit) != 1.0:
         command.extend(["--limit", str(tlab_evals.params.limit)])
