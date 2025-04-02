@@ -374,7 +374,11 @@ def cleanup_at_exit():
             os.kill(int(pid), signal.SIGTERM)
     # Perform NVML Shutdown if CUDA is available
     if torch.cuda.is_available():
-        nvmlShutdown()
+        try:
+            print("🔴 Releasing allocated GPU Resources")
+            nvmlShutdown()
+        except Exception as e:
+            print(f"Error shutting down NVML: {e}")
     print("🔴 Quitting Transformer Lab API server.")
 
 

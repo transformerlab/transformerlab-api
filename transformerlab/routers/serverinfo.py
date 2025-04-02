@@ -1,5 +1,4 @@
 from watchfiles import awatch
-import atexit
 import json
 import os
 import platform
@@ -20,7 +19,6 @@ from pynvml import (
     nvmlDeviceGetName,
     nvmlDeviceGetUtilizationRates,
     nvmlInit,
-    # nvmlShutdown,
 )
 
 from transformerlab.shared import dirs
@@ -199,14 +197,6 @@ async def get_pytorch_collect_env():
     # run python -m torch.utils.collect_env and return the output
     output = subprocess.check_output(sys.executable + " -m torch.utils.collect_env", shell=True)
     return output.decode("utf-8")
-
-
-# def cleanup_at_exit():
-#     if torch.cuda.is_available():
-#         nvmlShutdown()
-
-
-# atexit.register(cleanup_at_exit)
 
 
 GLOBAL_LOG_PATH = dirs.GLOBAL_LOG_PATH
