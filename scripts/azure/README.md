@@ -97,10 +97,9 @@ Before you begin, make sure you have the following installed:
 
     The provided `run.sh` script will check if each resource exists in Azure and if it is already imported into Terraform’s state. If a resource is found in Azure but not in the state, it will be imported automatically. If it does not exist, Terraform will create it on `terraform apply`.
 
-    Make the script executable and run it:
+    To create and start your server, run:
 
     ```bash
-    chmod +x run.sh
     ./run.sh
 
 The script should take care of provisioning the resources and starting a VM with transformerlab api running inside. The script will also output the public IP of the VM on the command line to be used in the `Connect to Remote Engine` screen.
