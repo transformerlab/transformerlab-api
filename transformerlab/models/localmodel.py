@@ -12,6 +12,7 @@ from transformerlab.models import modelstore
 import transformerlab.db as db
 from transformerlab.shared import dirs
 
+
 def is_sentence_transformer_model(
     model_name_or_path: str,
     token: bool | str | None = None,
@@ -86,7 +87,6 @@ def load_file_path(
         return None
 
 
-
 class LocalModelStore(modelstore.ModelStore):
     def __init__(self):
         super().__init__()
@@ -95,97 +95,21 @@ class LocalModelStore(modelstore.ModelStore):
         """
         Filter out models based on whether they are embedding models or not.
         """
-        # embedding_model_architectures = [
-        #     "BertModel",
-        #     "SentenceTransformer",
-        #     "DistilBertModel",
-        #     "RobertaModel",
-        #     "NomicBertModel",
-        #     "AlbertModel",
-        #     "XLMRobertaModel",
-        #     "XLMModel",
-        #     "XLNetModel",
-        #     "LongformerModel",
-        #     "MobileBertModel",
-        #     "GteModel",
-        #     "DebertaModel",
-        #     "DebertaV2Model",
-        #     "ElectraModel",
-        #     "CamembertModel",
-        #     "T5EncoderModel",
-        #     "MPNetModel",
-        #     "FlaubertModel",
-        #     "TransformerXLModel",
-        #     "GPT2Model",
-        #     "OpenAIGPTModel",
-        #     "CTRLModel",
-        #     "ReformerModel",
-        #     "BigBirdModel",
-        #     "FunnelModel",
-        #     "LayoutLMModel",
-        #     "SqueezeBertModel",
-        #     "BartEncoder",
-        #     "MarianEncoder",
-        #     "PegasusEncoder",
-        #     "E5Model",
-        #     "BGEModel",
-        #     "SGPT",
-        #     "FastText",
-        #     "Word2Vec",
-        #     "GloVe",
-        #     "USE",
-        #     "SimCSE",
-        #     "CoCondenser",
-        #     "ConvBERT",
-        #     "DPR",
-        #     "CLIP",
-        #     "ESimCSE",
-        #     "GTR",
-        #     "Gecko",
-        #     "JinaModel",
-        #     "LaBSE",
-        #     "LASER",
-        #     "LexicalModel",
-        #     "MiniLM",
-        #     "MiniLMv2",
-        #     "MuRIL",
-        #     "REALM",
-        #     "SBERT",
-        #     "SPECTER",
-        #     "TinyBERT",
-        #     "UniCoil",
-        #     "ColBERT",
-        #     "ANCE",
-        #     "INSTRUCTOR",
-        #     "Ada",
-        #     "Curie",
-        #     "Davinci",
-        #     "AsymmetricSemanticSearchModel",
-        #     "Qwen2Model",
-        #     "NVEmbedModel",
-        #     "NewModel", # Alibaba Models
-        #     "BertForPreTraining",
-        #     "CodeXEmbedModel2B", # Salesforce Models
-        #     "MistralModel",
-        #     "CodeT5p_Embedding"
-            
-        # ]
 
         embedding_models = []
         non_embedding_models = []
 
         for model in models:
-            # if model["json_data"].get("architecture") in embedding_model_architectures:
-            #     embedding_models.append(model)
-            # else:
-            #     non_embedding_models.append(model)
-            if model.get('model_id', None):
-                if model['json_data'].get('model_filename', None) and model['json_data']['model_filename'].strip() != "":
-                    model_id = model['json_data']['model_filename']
-                elif model.get('local_path', None) and model['local_path'].strip() != "":
-                    model_id = model['local_path']
+            if model.get("model_id", None):
+                if (
+                    model["json_data"].get("model_filename", None)
+                    and model["json_data"]["model_filename"].strip() != ""
+                ):
+                    model_id = model["json_data"]["model_filename"]
+                elif model.get("local_path", None) and model["local_path"].strip() != "":
+                    model_id = model["local_path"]
                 else:
-                    model_id = model['model_id']
+                    model_id = model["model_id"]
             else:
                 print("Model ID not found in model data.")
                 print(model)
