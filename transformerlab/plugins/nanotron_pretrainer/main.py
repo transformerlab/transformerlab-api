@@ -1,6 +1,5 @@
 import os
 import subprocess
-import requests
 import yaml
 import re
 import torch
