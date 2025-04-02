@@ -14,29 +14,31 @@ Right now only generate_stream works -- need to do work to make generate work
 
 import argparse
 import asyncio
-import atexit
 import json
-from typing import List
 import uuid
-
-
-from fastapi import FastAPI, Request, BackgroundTasks
-from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import StreamingResponse, JSONResponse
-import torch
-import uvicorn
-
-from fastchat.serve.base_model_worker import BaseModelWorker
-from fastchat.serve.model_worker import (
-    logger,
-    worker_id,
-)
-from fastchat.utils import is_partial_stop
+from contextlib import asynccontextmanager
+from typing import List
 
 import llama_cpp
+import torch
+import uvicorn
+from fastapi import BackgroundTasks, FastAPI, Request
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import JSONResponse, StreamingResponse
+from fastchat.serve.base_model_worker import BaseModelWorker
+from fastchat.serve.model_worker import logger, worker_id
+from fastchat.utils import is_partial_stop
 from transformers.tokenization_utils_base import BatchEncoding
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    # This function is called when the app shuts down
+    cleanup_at_exit()
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 class LlamaCppTokenizer:
@@ -297,9 +299,6 @@ def cleanup_at_exit():
     global worker
     print("Cleaning up...")
     del worker
-
-
-atexit.register(cleanup_at_exit)
 
 
 def main():

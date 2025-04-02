@@ -5,7 +5,7 @@ The Entrypoint File for Transformer Lab's API Server.
 import os
 import argparse
 import asyncio
-import atexit
+
 import json
 import signal
 import subprocess
@@ -45,6 +45,8 @@ from transformerlab.routers import (
     tools,
     batched_prompts,
 )
+import torch
+from pynvml import nvmlShutdown
 from transformerlab import fastchat_openai_api
 from transformerlab.routers.experiment import experiment
 from transformerlab.shared import dirs
@@ -79,14 +81,16 @@ async def lifespan(app: FastAPI):
     yield
     # Do the following at API Shutdown:
     await db.close()
+    # Run the clean up function
+    cleanup_at_exit()
     print("FastAPI LIFESPAN: Complete")
 
-#the migrate function only runs the conversion function if no tasks are already present
+
+# the migrate function only runs the conversion function if no tasks are already present
 async def migrate():
-    if len(await tasks.tasks_get_all())==0:
+    if len(await tasks.tasks_get_all()) == 0:
         for exp in await experiment.experiments_get_all():
             await tasks.convert_all_to_tasks(exp["id"])
-
 
 
 async def run_over_and_over():
@@ -368,9 +372,10 @@ def cleanup_at_exit():
             pid = f.readline()
             os.remove("worker.pid")
             os.kill(int(pid), signal.SIGTERM)
-
-
-atexit.register(cleanup_at_exit)
+    # Perform NVML Shutdown if CUDA is available
+    if torch.cuda.is_available():
+        nvmlShutdown()
+    print("🔴 Quitting Transformer Lab API server.")
 
 
 def parse_args():

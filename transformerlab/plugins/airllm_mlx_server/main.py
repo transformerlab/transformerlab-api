@@ -12,7 +12,6 @@ pip install mlx-lm
 
 import argparse
 import asyncio
-import atexit
 from collections import namedtuple
 import json
 import os
@@ -34,13 +33,21 @@ from fastchat.serve.model_worker import (
     worker_id,
 )
 from fastchat.utils import get_context_length
+from contextlib import asynccontextmanager
 
 import mlx.core as mx
 
 from mlx_embedding_models.embedding import EmbeddingModel
 
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    # This function is called when the app shuts down
+    cleanup_at_exit()
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 class MLXWorker(BaseModelWorker):
@@ -336,9 +343,6 @@ def cleanup_at_exit():
     global worker
     print("Cleaning up...")
     del worker
-
-
-atexit.register(cleanup_at_exit)
 
 
 def main():

@@ -20,7 +20,7 @@ from pynvml import (
     nvmlDeviceGetName,
     nvmlDeviceGetUtilizationRates,
     nvmlInit,
-    nvmlShutdown,
+    # nvmlShutdown,
 )
 
 from transformerlab.shared import dirs
@@ -201,12 +201,12 @@ async def get_pytorch_collect_env():
     return output.decode("utf-8")
 
 
-def cleanup_at_exit():
-    if torch.cuda.is_available():
-        nvmlShutdown()
+# def cleanup_at_exit():
+#     if torch.cuda.is_available():
+#         nvmlShutdown()
 
 
-atexit.register(cleanup_at_exit)
+# atexit.register(cleanup_at_exit)
 
 
 GLOBAL_LOG_PATH = dirs.GLOBAL_LOG_PATH
