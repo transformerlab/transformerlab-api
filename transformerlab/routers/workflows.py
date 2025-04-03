@@ -208,6 +208,7 @@ async def start_next_step_in_workflow():
     workflow_current_job_id = json.loads(currently_running_workflow["current_job_id"])
 
     current_jobs = []
+    current_job = None
 
     if workflow_current_job_id != []:
         for job_id in workflow_current_job_id:
@@ -218,7 +219,7 @@ async def start_next_step_in_workflow():
                 await db.workflow_update_status(workflow_id, "FAILED")
                 return {"message": "the current job failed"}
 
-            if current_job["status"] == "CANCELLED" or current_job["status"] == "DELETED":
+            if current_job["status"] == "CANCELLED" or current_job["status"] == "DELETED" or current_job["status"] == "STOPPED":
                 await db.workflow_update_with_new_job(workflow_id, "[]", "[]")
                 await db.workflow_update_status(workflow_id, "CANCELLED")
                 return {"message": "the current job was cancelled"}
@@ -272,8 +273,6 @@ async def start_next_step_in_workflow():
         if len(next_nodes) == 0:
             await db.workflow_update_status(workflow_id, "FAILED")
             return {"message": "Could not find the next task in the workflow."}
-
-    print(next_nodes)
 
     next_job_ids = []
     for next_node in next_nodes:
