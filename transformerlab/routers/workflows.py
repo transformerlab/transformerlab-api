@@ -253,14 +253,14 @@ async def start_next_step_in_workflow():
     for node in workflow_config["nodes"]:
         if node["id"] in workflow_current_task:
             next_nodes.append(node)
-    else:
+    if len(next_nodes) == 0:
         await db.workflow_update_status(workflow_id, "FAILED")
         return {"message": "Could not find the next task in the workflow."}
+    
 
     # --- Task Lookup and Job Creation ---
     if next_nodes[0]["type"] == "START":
-        print(workflow_current_task)
-        workflow_current_task = next_node["out"]  # Skip the START node.
+        workflow_current_task = next_nodes[0]["out"]  # Skip the START node.
         if not workflow_current_task: #if the next node does not exist
             await db.workflow_update_status(workflow_id, "COMPLETE")
             await db.workflow_update_with_new_job(workflow_id, "[]", "[]")  # Reset current job.
@@ -269,7 +269,7 @@ async def start_next_step_in_workflow():
         for node in workflow_config["nodes"]:
             if node["id"] in workflow_current_task:
                 next_nodes.append(node)
-        else:
+        if len(next_nodes) == 0:
             await db.workflow_update_status(workflow_id, "FAILED")
             return {"message": "Could not find the next task in the workflow."}
 
@@ -307,6 +307,6 @@ async def start_next_step_in_workflow():
     
         next_job_info = await tsks.queue_task(next_task["id"], next_task["inputs"], next_task["outputs"])
         next_job_ids.append(next_job_info["id"])
-    await db.workflow_update_with_new_job(workflow_id, json.dumps(workflow_current_task), json.dumps([next_job_id]))
+    await db.workflow_update_with_new_job(workflow_id, json.dumps(workflow_current_task), json.dumps(next_job_ids))
 
     return {"message": "Next job created"}
