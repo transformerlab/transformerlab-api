@@ -63,22 +63,32 @@ async def process_batch(
     temperature=0.01,
     max_tokens=1024,
     top_p=1.0,
+    max_concurrent=1,  # Limit concurrent requests
 ):
-    tasks = [
-        predict(
-            session,
-            conversation,  # each 'conversation' is a list of messages
-            model=model,
-            adaptor=adaptor,
-            inference_url=inference_url,
-            api_key=api_key,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            top_p=top_p,
-        )
-        for conversation in batch
-    ]
-    results = await asyncio.gather(*tasks)
+    results = []
+    # Process in smaller groups with limited concurrency
+    for i in range(0, len(batch), max_concurrent):
+        sub_batch = batch[i : i + max_concurrent]
+        tasks = [
+            predict(
+                session,
+                conversation,
+                model=model,
+                adaptor=adaptor,
+                inference_url=inference_url,
+                api_key=api_key,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                top_p=top_p,
+            )
+            for conversation in sub_batch
+        ]
+        sub_results = await asyncio.gather(*tasks)
+        results.extend(sub_results)
+
+        # Add a small delay between batches to allow MLX operations to complete
+        await asyncio.sleep(0.01)
+
     return results
 
 
