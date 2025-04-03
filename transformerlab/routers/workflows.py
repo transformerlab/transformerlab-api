@@ -118,7 +118,7 @@ async def workflow_remove_edge(workflow_id: str, start_node_id: str, end_node_id
     return {"message": "OK"}
 
 @router.post("/{workflow_id}/{start_node_id}/add_edge")
-async def workflow_remove_edge(workflow_id: str, start_node_id: str, end_node_id: str):
+async def workflow_add_edge(workflow_id: str, start_node_id: str, end_node_id: str):
     workflow = await db.workflows_get_by_id(workflow_id)
     config = json.loads(workflow["config"])
 
@@ -208,7 +208,6 @@ async def start_next_step_in_workflow():
     workflow_current_job_id = json.loads(currently_running_workflow["current_job_id"])
 
     current_jobs = []
-    current_job = None
 
     if workflow_current_job_id != []:
         for job_id in workflow_current_job_id:
@@ -227,12 +226,13 @@ async def start_next_step_in_workflow():
             if current_job["status"] != "COMPLETE":
                 return {"message": "the current job is running"}
 
+    workflow_next_tasks = []
     # Determine the next task/node.
     if workflow_current_task != []:
         # We had a current task; find its outputs.
         for node in workflow_config["nodes"]:
             if node["id"] in workflow_current_task:
-                workflow_current_task = node["out"]
+                workflow_next_tasks += node["out"]
                 break  # Important: Exit the loop once found.
         else:  # This 'else' belongs to the 'for', executed if no 'break' occurred.
              await db.workflow_update_status(workflow_id, "FAILED")
@@ -240,54 +240,46 @@ async def start_next_step_in_workflow():
 
     else:
         # No current task; start from the beginning.
-        workflow_current_task = [workflow_config["nodes"][0]["id"]]  # Now a list
+        workflow_next_tasks = [workflow_config["nodes"][0]["id"]]  # Now a list
 
+    workflow_current_task = workflow_next_tasks
 
     if not workflow_current_task:  # Check if the list is empty (end of workflow).
         await db.workflow_update_status(workflow_id, "COMPLETE")
         await db.workflow_update_with_new_job(workflow_id, "[]", "[]")  # Reset current job.
         return {"message": "Workflow Complete!"}
 
-    next_node = None
+    next_nodes = []
     for node in workflow_config["nodes"]:
         if node["id"] in workflow_current_task:
-            next_node = node
-            break
+            next_nodes.append(node)
     else:
         await db.workflow_update_status(workflow_id, "FAILED")
         return {"message": "Could not find the next task in the workflow."}
 
     # --- Task Lookup and Job Creation ---
-    if next_node["type"] == "START":
+    if next_nodes[0]["type"] == "START":
+        print(workflow_current_task)
         workflow_current_task = next_node["out"]  # Skip the START node.
         if not workflow_current_task: #if the next node does not exist
             await db.workflow_update_status(workflow_id, "COMPLETE")
             await db.workflow_update_with_new_job(workflow_id, "[]", "[]")  # Reset current job.
             return {"message": "Workflow Complete!"}
+        next_nodes = []
         for node in workflow_config["nodes"]:
             if node["id"] in workflow_current_task:
-                next_node = node
-                break
+                next_nodes.append(node)
         else:
             await db.workflow_update_status(workflow_id, "FAILED")
             return {"message": "Could not find the next task in the workflow."}
 
+    print(next_nodes)
 
-    # Get the task definition.  Prioritize metadata.task_name, then node.type
-    task_name = next_node["task"]
+    next_job_ids = []
+    for next_node in next_nodes:
+        # Get the task definition.  Prioritize metadata.task_name, then node.type
+        task_name = next_node["task"]
 
-    #Get tasks by type if no task_name is present
-    if(task_name == next_node["type"]):
-        tasks = await db.tasks_get_by_type(task_name)
-        next_task = None
-        #Check for task with same name as workflow task
-        for task in tasks:
-            if(task["name"] == task_name):
-                next_task = task
-                break
-        if next_task is None and len(tasks) > 0:
-                next_task = tasks[0]
-    else:
         next_task = None
         tasks = await db.tasks_get_all()
         for task in tasks:
@@ -295,26 +287,26 @@ async def start_next_step_in_workflow():
                 next_task = task
                 break
 
-    if not next_task:
-        await db.workflow_update_status(workflow_id, "FAILED")
-        return {"message": f"Could not find task '{task_name}' for workflow node."}
+        if not next_task:
+            await db.workflow_update_status(workflow_id, "FAILED")
+            return {"message": f"Could not find task '{task_name}' for workflow node."}
 
-    if next_task["type"] == "TRAIN":
-        next_task["outputs"] = json.loads(next_task["outputs"])
-        next_task["outputs"]["adaptor_name"] = str(uuid.uuid4()).replace("-","")
-        next_task["outputs"] = json.dumps(next_task["outputs"])
-    if next_task["type"] == "EVAL":
-        if current_job is not None:
-            if current_job["type"] == "TRAIN":
-                next_task["inputs"] = json.loads(next_task["inputs"])
-                next_task["inputs"]["model_name"] = current_job["job_data"]["config"]["model_name"]
-                next_task["inputs"]["model_architecture"] = current_job["job_data"]["config"]["model_architecture"]
-                next_task["inputs"]["adaptor_name"] = current_job["job_data"]["config"]["adaptor_name"]
-                next_task["inputs"] = json.dumps(next_task["inputs"])
+        if next_task["type"] == "TRAIN":
+            next_task["outputs"] = json.loads(next_task["outputs"])
+            next_task["outputs"]["adaptor_name"] = str(uuid.uuid4()).replace("-","")
+            next_task["outputs"] = json.dumps(next_task["outputs"])
+        if next_task["type"] == "EVAL":
+            if current_job is not None:
+                if current_job["type"] == "TRAIN":
+                    next_task["inputs"] = json.loads(next_task["inputs"])
+                    next_task["inputs"]["model_name"] = current_job["job_data"]["config"]["model_name"]
+                    next_task["inputs"]["model_architecture"] = current_job["job_data"]["config"]["model_architecture"]
+                    next_task["inputs"]["adaptor_name"] = current_job["job_data"]["config"]["adaptor_name"]
+                    next_task["inputs"] = json.dumps(next_task["inputs"])
 
     
-    next_job_info = await tsks.queue_task(next_task["id"], next_task["inputs"], next_task["outputs"])
-    next_job_id = next_job_info["id"]
+        next_job_info = await tsks.queue_task(next_task["id"], next_task["inputs"], next_task["outputs"])
+        next_job_ids.append(next_job_info["id"])
     await db.workflow_update_with_new_job(workflow_id, json.dumps(workflow_current_task), json.dumps([next_job_id]))
 
     return {"message": "Next job created"}
