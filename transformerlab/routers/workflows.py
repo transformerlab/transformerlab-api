@@ -98,8 +98,27 @@ async def workflow_update_node(workflow_id: str, node_id: str, new_node: dict = 
     return {"message": "OK"}
 
 
+@router.post("/{workflow_id}/{start_node_id}/remove_edge")
+async def workflow_remove_edge(workflow_id: str, start_node_id: str, end_node_id: str):
+    workflow = await db.workflows_get_by_id(workflow_id)
+    config = json.loads(workflow["config"])
+
+    newNodes = []
+
+    for node in config["nodes"]:
+        if node["id"] == start_node_id:
+            if end_node_id in node["out"]:
+                node["out"].remove(end_node_id)
+            newNodes.append(node)
+        else:
+            newNodes.append(node)
+
+    config["nodes"] = newNodes
+    await db.workflow_update_config(workflow_id, json.dumps(config))
+    return {"message": "OK"}
+
 @router.post("/{workflow_id}/{start_node_id}/add_edge")
-async def workflow_add_edge(workflow_id: str, start_node_id: str, end_node_id: str):
+async def workflow_remove_edge(workflow_id: str, start_node_id: str, end_node_id: str):
     workflow = await db.workflows_get_by_id(workflow_id)
     config = json.loads(workflow["config"])
 
@@ -115,7 +134,6 @@ async def workflow_add_edge(workflow_id: str, start_node_id: str, end_node_id: s
     config["nodes"] = newNodes
     await db.workflow_update_config(workflow_id, json.dumps(config))
     return {"message": "OK"}
-
 
 @router.get("/{workflow_id}/{node_id}/delete_node")
 async def workflow_delete_node(workflow_id: str, node_id: str):
