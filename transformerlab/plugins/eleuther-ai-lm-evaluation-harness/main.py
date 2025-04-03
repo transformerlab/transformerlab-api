@@ -42,7 +42,7 @@ def run_evaluation():
 
     # Use model_path as model_name if provided
     model_name = tlab_evals.params.model_name
-    if tlab_evals.params.model_path and tlab_evals.model_path.strip() != "":
+    if tlab_evals.params.model_path and tlab_evals.params.model_path.strip() != "":
         model_name = tlab_evals.params.model_path
         print(f"Model path provided. Using model path as model name: {model_name}")
 

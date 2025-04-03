@@ -2,6 +2,7 @@ import json
 from fastapi import APIRouter, Body
 
 import transformerlab.db as db
+from transformerlab.models import model_helper
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -42,6 +43,47 @@ async def delete_task(task_id: int):
 @router.put("/new_task", summary="Create a new task")
 async def add_task(new_task: dict = Body()):
     await db.add_task(new_task["name"], new_task["type"], new_task["inputs"], new_task["config"], new_task["plugin"], new_task["outputs"], new_task["experiment_id"])
+    if new_task["type"] == "TRAIN":
+        config = json.loads(new_task["config"])
+        # Get the dataset info from the config
+        datasets = config.get("_tlab_recipe_datasets", {})
+        datasets = datasets.get("path", "")
+
+        # Get the model info from the config
+        model = config.get("_tlab_recipe_models", {})
+        model_path = model.get("path", "")
+
+        if datasets == "" and model_path == "":
+            return {"message":"OK"}
+        
+        # Check if the model and dataset are installed
+        # For model: get a list of local models to determine what has been downloaded already
+        model_downloaded = await model_helper.is_model_installed(model_path)
+
+        # Repeat for dataset
+        dataset_downloaded = False
+        local_datasets = await db.get_datasets()
+        for dataset in local_datasets:
+            if dataset["dataset_id"] == datasets:
+                dataset_downloaded = True
+
+        # generate a repsonse to tell if model and dataset need to be downloaded
+        response = {}
+
+        # Dataset info - including whether it needs to be downloaded or not
+        dataset_status = {}
+        dataset_status["path"] = datasets
+        dataset_status["downloaded"] = dataset_downloaded
+        response["dataset"] = dataset_status
+
+        # Model info - including whether it needs to be downloaded or not
+        model_status = {}
+        model_status["path"] = model_path
+        model_status["downloaded"] = model_downloaded
+        response["model"] = model_status
+
+        return {"status": "OK", "data": response}
+
     return {"message":"OK"}
 
 @router.get("/delete_all", summary="Wipe the task table")

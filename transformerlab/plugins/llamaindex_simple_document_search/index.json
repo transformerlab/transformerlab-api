@@ -4,7 +4,7 @@
     "description": "",
     "plugin-format": "python",
     "type": "rag",
-    "version": "0.0.6",
+    "version": "0.0.7",
     "model_architectures": [],
     "files": [
         "main.py",

@@ -131,7 +131,7 @@ def train_model():
         model=model,
         train_dataset=dataset,
         peft_config=peft_config,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         formatting_func=format_instruction,
         args=training_args,
         callbacks=[progress_callback],
