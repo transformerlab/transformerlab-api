@@ -33,40 +33,9 @@ async def init():
     """
     global db
     os.makedirs(os.path.dirname(DATABASE_FILE_NAME), exist_ok=True)
-
     db = await aiosqlite.connect(DATABASE_FILE_NAME)
 
-    await db.execute(
-        """CREATE TABLE IF NOT EXISTS
-                    workflows
-                        (id INTEGER PRIMARY KEY,
-                        name,
-                        config JSON,
-                        status,
-                        current_task,
-                        current_job_id,
-                        experiment_id INTEGER,
-                        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        updated_at DATETIME NOT NULL DEFAULT current_timestamp)
-                        """
-    )
-
-    await db.execute(
-        """CREATE TABLE IF NOT EXISTS
-                    tasks
-                        (id INTEGER PRIMARY KEY,
-                        name,
-                        type,
-                        inputs JSON,
-                        config JSON,
-                        plugin,
-                        outputs JSON,
-                        experiment_id,
-                        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        updated_at DATETIME NOT NULL DEFAULT current_timestamp)
-                        """
-    )
-
+    # Create the tables if they don't exist
     async with async_engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
 
