@@ -101,3 +101,40 @@ class Job(Base):
     )
 
     __table_args__ = (Index("idx_experiment_type", "experiment_id", "type"),)
+
+
+class Workflow(Base):
+    """Workflow model."""
+
+    __tablename__ = "workflows"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    config: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    status: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    current_task: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    current_job_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    experiment_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    updated_at: Mapped[DateTime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class Task(Base):
+    """Task model."""
+
+    __tablename__ = "tasks"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    type: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    inputs: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    config: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    plugin: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    outputs: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    experiment_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    updated_at: Mapped[DateTime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )

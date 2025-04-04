@@ -51,7 +51,7 @@ def load_file_path(
     token: bool | str | None = None,
     cache_folder: str | None = None,
     revision: str | None = None,
-    local_files_only: bool = False,
+    local_files_only: bool = True,
 ) -> str | None:
     """
     Loads a file from a local or remote location.
@@ -172,7 +172,7 @@ class LocalModelStore(modelstore.ModelStore):
 
         return models
 
-    async def compute_output_model(self, input_model, adaptor_name):
+    def compute_output_model(self, input_model, adaptor_name):
         """
         Compute the output model name by taking the last part of the input model
         (in case it is a full path) and appending an underscore and the adaptor name.
@@ -226,7 +226,7 @@ class LocalModelStore(modelstore.ModelStore):
                     # If no adaptor is specified, we cannot compute an output model.
                     continue
 
-                output_model = await self.compute_output_model(input_model, adaptor_name)
+                output_model = self.compute_output_model(input_model, adaptor_name)
 
                 provenance[output_model] = {
                     "job_id": job.get("id"),
@@ -280,9 +280,12 @@ class LocalModelStore(modelstore.ModelStore):
             # Attach the JOB ID
             eval_data["job_id"] = job.get("id")
             model_name = eval_data.get("model_name")
+            adapter_name = eval_data.get("model_adapter")
             if model_name and os.path.exists(model_name):
                 # If model_name is a path, take the last part
                 model_name = model_name.split("/")[-1]
+            if model_name and adapter_name:
+                evals_by_model.setdefault(self.compute_output_model(model_name, adapter_name), []).append(eval_data)
             if model_name:
                 evals_by_model.setdefault(model_name, []).append(eval_data)
         return evals_by_model
