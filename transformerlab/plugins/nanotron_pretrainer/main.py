@@ -10,7 +10,6 @@ from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import generate_model_json
 
 
-
 def get_gpu_count():
     """Get the number of available GPUs using PyTorch"""
     try:
@@ -349,7 +348,6 @@ def train_model():
             print(line.rstrip())  # Echo the output
 
         process_convert.wait()
-
 
         # Import the model into TransformerLab
         try:

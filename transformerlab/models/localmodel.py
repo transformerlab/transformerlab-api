@@ -185,82 +185,63 @@ class LocalModelStore(modelstore.ModelStore):
         base_model = input_model.split("/")[-1]
         return f"{base_model}_{adaptor_name}"
 
-    async def build_provenance(self, jobs):
+    async def build_provenance(self):
         """
-        Build a mapping from the computed output model name (as produced by a training job)
-        to the job details. Each job is assumed to have a 'job_data' field (already converted
-        from JSON) containing:
-          - 'model_name': the input model used for training.
-          - 'dataset': the dataset used.
-          - 'config': a JSON string containing additional training parameters (including 'adaptor_name').
-          - 'start_time' and 'end_time'.
-
-        The computed output model is based on the input model and the adaptor name.
+        Build a mapping from model names to their provenance data by reading _tlab_provenance.json files
+        in each model directory.
         """
         provenance = {}
-        for job in jobs:
-            # Each job is a dict containing a key "job_data"
-            job_data = job["job_data"]
-            if job_data.get("model_name", None) is not None:
-                input_model = job_data.get("model_name").split("/")[-1]
-                dataset = job_data.get("dataset")
-                start_time = job_data.get("start_time")
-                end_time = job_data.get("end_time")
+        models_dir = dirs.MODELS_DIR
 
-                # The configuration is stored as a JSON string inside job_data["config"]
-                config_str = job_data.get("config")
-                try:
-                    if isinstance(config_str, str):
-                        # If the config is a string, parse it as JSON
-                        config = json.loads(config_str)
-                    elif isinstance(config_str, dict):
-                        # If the config is already a dictionary, use it directly
-                        config = config_str
+        # Scan all model directories
+        with os.scandir(models_dir) as dirlist:
+            for entry in dirlist:
+                if entry.is_dir():
+                    # Look for provenance file
+                    provenance_file = os.path.join(models_dir, entry.name, "_tlab_provenance.json")
+                    try:
+                        if os.path.exists(provenance_file):
+                            with open(provenance_file, "r") as f:
+                                prov_data = json.load(f)
+                                if "md5_checksums" in prov_data:
+                                    prov_data["parameters"]["md5_checksums"] = prov_data["md5_checksums"]
 
-                except Exception as e:
-                    print(f"Error parsing config for job id {job.get('id', 'unknown')}: {e}")
-                    config = {}
+                                # Compute output model name if needed
+                                output_model = prov_data.get("model_name")
+                                if not output_model and prov_data.get("input_model") and prov_data.get("adaptor_name"):
+                                    output_model = self.compute_output_model(
+                                        prov_data["input_model"], prov_data["adaptor_name"]
+                                    )
+                                prov_data["output_model"] = output_model
 
-                adaptor_name = config.get("adaptor_name")
-                if not adaptor_name:
-                    # If no adaptor is specified, we cannot compute an output model.
-                    continue
+                                # Add to provenance mapping
+                                provenance[output_model] = prov_data
 
-                output_model = self.compute_output_model(input_model, adaptor_name)
+                    except Exception as e:
+                        print(f"Error loading provenance for {entry.name}: {str(e)}")
 
-                provenance[output_model] = {
-                    "job_id": job.get("id"),
-                    "input_model": input_model,
-                    "output_model": output_model,
-                    "dataset": dataset,
-                    "parameters": config,
-                    "start_time": start_time,
-                    "end_time": end_time,
-                }
         return provenance
 
     async def trace_provenance(self, latest_model, provenance_mapping):
         """
-        Trace back the chain of training jobs from the final model.
-
-        Starting with the provided latest model name, the function walks backwards through the
-        provenance mapping by using the input model of each job (normalized to its base name).
-        It stops when the input model is the same as the current model (indicating a base model).
-        The result is a chain (list) of job details in the order from the earliest training step
-        to the final training job.
+        Trace back the chain of training jobs from the final model using provenance files.
         """
         chain = []
         current_model = latest_model.split("/")[-1]
-        # print(f"Tracing provenance chain for model {current_model}")
 
         while current_model in provenance_mapping:
             job_details = provenance_mapping[current_model]
             chain.insert(0, job_details)
-            # Normalize the parent model by taking the last part if it is a path.
-            parent_model = job_details["input_model"].split("/")[-1]
-            if parent_model == current_model:
+
+            # Get parent model from provenance
+            parent_model = job_details.get("input_model")
+            if not parent_model or parent_model == current_model:
                 break
+
+            # Normalize the parent model by taking the last part if it is a path
+            parent_model = parent_model.split("/")[-1]
             current_model = parent_model
+
         return chain
 
     async def get_evals_by_model(self):
@@ -273,10 +254,10 @@ class LocalModelStore(modelstore.ModelStore):
         evals_by_model = {}
         for job in eval_jobs:
             eval_data = job["job_data"]
-            # Remove keys that are not required
-            eval_data.pop("additional_output_path", None)
-            eval_data.pop("completion_status", None)
-            eval_data.pop("completion_details", None)
+            # # Remove keys that are not required
+            # eval_data.pop("additional_output_path", None)
+            # eval_data.pop("completion_status", None)
+            # eval_data.pop("completion_details", None)
             # Attach the JOB ID
             eval_data["job_id"] = job.get("id")
             model_name = eval_data.get("model_name")
@@ -292,25 +273,15 @@ class LocalModelStore(modelstore.ModelStore):
 
     async def list_model_provenance(self, model_id):
         """
-        List all model journeys in the workspace.
+        List model provenance by reading from _tlab_provenance.json files.
         """
-        # print(f"Listing model provenance for model {model_id}")
+        # Build a mapping from model names to their provenance data
+        provenance_mapping = await self.build_provenance()
 
-        # Fetch all completed TRAIN jobs using the provided function
-        jobs = await db.jobs_get_all(type="TRAIN", status="COMPLETE")
-
-        # print(f"Found {len(jobs)} completed training jobs")
-
-        # Build a mapping from computed output model name to job details
-        provenance_mapping = await self.build_provenance(jobs)
-
-        # print(f"Built provenance mapping with {len(provenance_mapping)} entries")
-
-        # Trace the provenance chain leading to the given final model name
+        # Trace the provenance chain leading to the given model
         chain = await self.trace_provenance(model_id, provenance_mapping)
 
-        # print(f"Traced provenance chain with {len(chain)} entries")
-        # Retrieve eval jobs grouped by model_name using the dedicated function
+        # Retrieve eval jobs grouped by model_name
         evals_by_model = await self.get_evals_by_model()
 
         if len(chain) == 0:
@@ -325,12 +296,12 @@ class LocalModelStore(modelstore.ModelStore):
             item["evals"] = evals_by_model.get(model_id, [])
             return {"final_model": model_id, "provenance_chain": [item]}
 
-        # For every training job in the provenance chain, attach evals for the corresponding model
+        # For every training job in the provenance chain, attach evals
         for item in chain:
-            output_model = item.get("output_model")
+            output_model = item.get("output_model") or item.get("model_name")
             item["evals"] = evals_by_model.get(output_model, [])
 
-        # Create the final provenance dictionary output
+        # Create the final provenance dictionary
         output = {"final_model": model_id, "provenance_chain": chain}
 
         return output
