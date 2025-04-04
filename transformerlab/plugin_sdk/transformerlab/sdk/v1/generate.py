@@ -2,6 +2,7 @@ import json
 import os
 import time
 import requests
+from pathlib import Path
 from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
 
 
@@ -42,7 +43,7 @@ class GenTLabPlugin(TLabPlugin):
                 self.params[key] = arg
                 key = None
 
-    def save_generated_dataset(self, df, additional_metadata=None, dataset_id=None):
+    def save_generated_dataset(self, df, additional_metadata=None, dataset_id=None, suffix=None):
         """Save generated data to file and create dataset in TransformerLab
 
         Args:
@@ -59,7 +60,14 @@ class GenTLabPlugin(TLabPlugin):
         os.makedirs(output_dir, exist_ok=True)
 
         # Save to file
-        output_file = os.path.join(output_dir, f"{self.params.run_name}_{self.params.job_id}.json")
+        if suffix is not None:
+            output_file = os.path.join(output_dir, f"{self.params.run_name}_{self.params.job_id}_{suffix}.json")
+        else:
+            output_file = os.path.join(output_dir, f"{self.params.run_name}_{self.params.job_id}.json")
+
+        if dataset_id is None:
+            # Makes /Users/xx/yy.json to yy
+            dataset_id = Path(output_file).stem
         df.to_json(output_file, orient="records", lines=False)
         print(f"Generated data saved to {output_file}")
 
