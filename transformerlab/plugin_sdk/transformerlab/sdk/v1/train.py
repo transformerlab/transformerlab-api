@@ -1,8 +1,12 @@
-from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
+import hashlib
+import json
 import os
 import time
 import traceback
-from transformerlab.plugin import test_wandb_login
+
+from transformerlab.plugin import WORKSPACE_DIR, generate_model_json, test_wandb_login
+
+from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
 
 
 class TrainerTLabPlugin(TLabPlugin):
@@ -173,6 +177,75 @@ class TrainerTLabPlugin(TLabPlugin):
             self.writer.add_scalar(metric_name, metric_value, step)
         if "wandb" in self.report_to and getattr(self, "wandb_run") is not None:
             self.wandb_run.log({metric_name: metric_value}, step=step)
+
+    def create_transformerlab_model(self, fused_model_name, model_architecture, json_data, output_dir=None):
+        generate_model_json(fused_model_name, model_architecture, json_data=json_data, output_directory=output_dir)
+        print("Generated Model JSON File")
+        if output_dir is None:
+            fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
+        else:
+            fused_model_location = os.path.join(output_dir, fused_model_name)
+
+        # Create the hash files for the model
+        md5_objects = self.create_md5_checksum_model_files(fused_model_location)
+
+        print("Model Checksum Computed")
+
+        # Create the _tlab_provenance.json file
+        provenance_file = self.create_provenance_file(
+            model_location=fused_model_location,
+            model_name=fused_model_name,
+            model_architecture=model_architecture,
+            md5_objects=md5_objects,
+        )
+        print(f"Provenance file created at: {provenance_file}")
+
+    def create_md5_checksum_model_files(self, fused_model_location):
+        def compute_md5(file_path):
+            md5 = hashlib.md5()
+            with open(file_path, "rb") as f:
+                while chunk := f.read(8192):
+                    md5.update(chunk)
+            return md5.hexdigest()
+
+        md5_objects = []
+
+        if not os.path.isdir(fused_model_location):
+            print("Fused model location is not a directory, skipping md5 within provenance")
+            return md5_objects
+
+        for root, _, files in os.walk(fused_model_location):
+            for file in files:
+                file_path = os.path.join(root, file)
+                md5_hash = compute_md5(file_path)
+                md5_objects.append({"file_path": file_path, "md5_hash": md5_hash})
+
+        return md5_objects
+
+    def create_provenance_file(self, model_location, model_name, model_architecture, md5_objects):
+        """Create a _tlab_provenance.json file containing model provenance data"""
+
+        # Get training parameters and metadata
+        provenance_data = {
+            "model_name": model_name,
+            "model_architecture": model_architecture,
+            "job_id": self.params.get("job_id", None),
+            "input_model": self.params.get("model_name", None),
+            "dataset": self.params.get("dataset_name", None),
+            "adaptor_name": self.params.get("adaptor_name", None),
+            "parameters": self.params.get("_config", None),
+            "start_time": self.params.get("start_time", ""),
+            "end_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "md5_checksums": md5_objects,
+        }
+
+        # Write provenance to file
+        provenance_path = os.path.join(model_location, "_tlab_provenance.json")
+        with open(provenance_path, "w") as f:
+            json.dump(provenance_data, f, indent=2)
+
+        print(f"Created provenance file at {provenance_path}")
+        return provenance_path
 
 
 # Create an instance of the TrainerTLabPlugin class

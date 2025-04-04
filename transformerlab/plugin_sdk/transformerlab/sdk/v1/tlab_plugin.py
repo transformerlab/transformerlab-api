@@ -74,8 +74,9 @@ class TLabPlugin:
             def wrapper(*args, **kwargs):
                 # Ensure args are parsed and job is initialized
                 self._ensure_args_parsed()
-
-                self.add_job_data("start_time", time.strftime("%Y-%m-%d %H:%M:%S"))
+                start_time = time.strftime("%Y-%m-%d %H:%M:%S")
+                self.add_job_data("start_time", start_time)
+                self.params.start_time = start_time
                 self.add_job_data("model_name", self.params.model_name)
                 self.add_job_data("template_name", self.params.template_name)
                 self.add_job_data("model_adapter", self.params.get("model_adapter", ""))
