@@ -6,75 +6,6 @@ from datasets import load_from_disk
 from transformerlab.sdk.v1.generate import tlab_gen
 
 
-def setup_arguments():
-    """Add required arguments to tlab_gen"""
-    # Huggingface settings
-
-    # Directories
-    # tlab_gen._parser.add_argument("--local-dataset-dir", required=True, help="Path to local dataset directory")
-    tlab_gen._parser.add_argument("--source-dir", required=True, help="Path to source documents directory")
-    tlab_gen._parser.add_argument(
-        "--output-dir", required=True, help="Path to output directory for processed documents"
-    )
-
-    # Model configuration
-    tlab_gen._parser.add_argument("--model_name", type=str, help="Model name")
-    tlab_gen._parser.add_argument("--api_key", type=str, help="API key for the model")
-    tlab_gen._parser.add_argument("--base_url", type=str, help="Base URL for API requests")
-    tlab_gen._parser.add_argument(
-        "--max-concurrent-requests", type=int, default=8, help="Maximum concurrent API requests"
-    )
-
-    # Chunking configuration
-    tlab_gen._parser.add_argument("--l-min-tokens", type=int, default=64, help="Minimum tokens per chunk")
-    tlab_gen._parser.add_argument("--l-max-tokens", type=int, default=128, help="Maximum tokens per chunk")
-    tlab_gen._parser.add_argument("--tau-threshold", type=float, default=0.8, help="Threshold to decide a boundary")
-    tlab_gen._parser.add_argument("--h-min", type=int, default=2, help="Minimum number of unique chunks to combine")
-    tlab_gen._parser.add_argument("--h-max", type=int, default=5, help="Maximum number of unique chunks to combine")
-    tlab_gen._parser.add_argument(
-        "--num-multihops-factor", type=float, default=2.0, help="Factor for multi-hop generation"
-    )
-
-    # Question generation configuration
-    tlab_gen._parser.add_argument(
-        "--single-shot-instructions",
-        default="Generate questions to test a curious adult",
-        help="Instructions for single-shot question generation",
-    )
-    tlab_gen._parser.add_argument(
-        "--multi-hop-instructions",
-        default="Generate questions to test a curious adult",
-        help="Instructions for multi-hop question generation",
-    )
-
-    # Sampling configuration
-    tlab_gen._parser.add_argument(
-        "--single-shot-sampling-mode",
-        choices=["count", "all", "percentage"],
-        default="count",
-        help="Sampling mode for single-shot questions",
-    )
-    tlab_gen._parser.add_argument(
-        "--single-shot-sampling-value", type=float, default=5, help="Value for sampling (count or percentage)"
-    )
-    tlab_gen._parser.add_argument(
-        "--single-shot-random-seed", type=int, default=123, help="Random seed for single-shot sampling"
-    )
-
-    tlab_gen._parser.add_argument(
-        "--multi-hop-sampling-mode",
-        choices=["count", "percentage"],
-        default="percentage",
-        help="Sampling mode for multi-hop questions",
-    )
-    tlab_gen._parser.add_argument(
-        "--multi-hop-sampling-value", type=float, default=0.3, help="Value for sampling (count or percentage)"
-    )
-    tlab_gen._parser.add_argument(
-        "--multi-hop-random-seed", type=int, default=42, help="Random seed for multi-hop sampling"
-    )
-
-
 def generate_config():
     """Generate YourBench configuration based on tlab_gen params"""
     hf_token = get_token()
@@ -267,5 +198,4 @@ def run_yourbench():
         raise ValueError("Error in process")
 
 
-# setup_arguments()
 run_yourbench()
