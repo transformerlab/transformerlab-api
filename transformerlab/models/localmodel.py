@@ -51,7 +51,7 @@ def load_file_path(
     token: bool | str | None = None,
     cache_folder: str | None = None,
     revision: str | None = None,
-    local_files_only: bool = False,
+    local_files_only: bool = True,
 ) -> str | None:
     """
     Loads a file from a local or remote location.
