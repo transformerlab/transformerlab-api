@@ -78,6 +78,7 @@ class TLabPlugin:
                 self.add_job_data("start_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                 self.add_job_data("model_name", self.params.model_name)
                 self.add_job_data("template_name", self.params.template_name)
+                self.add_job_data("model_adapter", self.params.get("model_adapter", ""))
 
                 # Update starting progress
                 self.job.update_progress(progress_start)
