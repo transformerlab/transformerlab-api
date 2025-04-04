@@ -1,5 +1,6 @@
 import json
 from collections import defaultdict
+import sys
 
 import httpx
 import nltk
@@ -68,6 +69,31 @@ async def a_target_model_callback(prompt: str) -> str:
         except Exception as e:
             print(f"Error occurred while calling the target model: {e}")
             raise
+
+def target_model_callback(prompt: str) -> str:
+    api_url = tlab_evals.params.api_url + "/chat/completions"
+    api_key = tlab_evals.params.api_key
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+    messages = [{"role": "user", "content": prompt}]
+    payload = json.dumps(
+        {
+            "model": tlab_evals.params.model_name,
+            "adaptor": tlab_evals.params.model_adapter,
+            "messages": messages,
+        }
+    )
+
+    try:
+        with httpx.Client() as client:
+            response = client.post(api_url, headers=headers, data=payload, timeout=420)
+            if response.status_code != 200:
+                print(f"Error occurred while calling the target model: {response.text}")
+                raise RuntimeError(f"Error calling target model: {response.text}")
+            response_json = response.json()
+            return response_json["choices"][0]["message"]["content"]
+    except Exception as e:
+        print(f"Error occurred while calling the target model: {e}")
+        raise
 
 
 def create_objects_from_list(input_list):
@@ -145,11 +171,15 @@ def run_evaluation():
             "You are a personal assistant responsible for providing answers to any questions asked by the user."
         )
 
+    # Set the plugin to use sync mode if on macOS
+    # as MLX doesn't support async mode currently
+    async_mode = sys.platform != "darwin"
+
     # Initialize RedTeamer
     red_teamer = RedTeamer(
         simulator_model=trlab_gen_model,
         evaluation_model=trlab_gen_model,
-        async_mode = True
+        async_mode = async_mode
     )
 
     # Determine the vulnerabilities
@@ -163,10 +193,16 @@ def run_evaluation():
 
     attack_enhancements_list = create_attack_enhancement_dict(attack_enhancements)
 
+    if async_mode:
+        print("Using async mode for evaluation.")
+        model_callback = a_target_model_callback
+    else:
+        print("Using sync mode for evaluation.")
+        model_callback = target_model_callback
 
     # Run the scan
     results_df = red_teamer.red_team(
-        model_callback=a_target_model_callback,
+        model_callback=model_callback,
         attacks_per_vulnerability_type=int(tlab_evals.params.attacks_per_vulnerability_type),
         vulnerabilities=vulnerabilities,
         attacks=attack_enhancements_list,
