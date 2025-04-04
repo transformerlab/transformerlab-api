@@ -36,55 +36,6 @@ async def init():
 
     db = await aiosqlite.connect(DATABASE_FILE_NAME)
 
-    # await db.execute("CREATE TABLE IF NOT EXISTS model(id INTEGER PRIMARY KEY, model_id UNIQUE, name, json_data JSON)")
-    # await db.execute(
-    #     "CREATE TABLE IF NOT EXISTS dataset(id INTEGER PRIMARY KEY, dataset_id UNIQUE, location, description, size)"
-    # )
-
-    # try:
-    #     await db.execute("""ALTER TABLE dataset ADD COLUMN json_data JSON DEFAULT '{}'""")
-    # except sqlite3.OperationalError as e:
-    #     if "duplicate column name" in str(e):
-    #         pass
-
-    # await db.execute(
-    #     """CREATE TABLE IF NOT EXISTS
-    #                  training_template
-    #                  (id INTEGER PRIMARY KEY,
-    #                  name UNIQUE,
-    #                  description,
-    #                  type,
-    #                  datasets,
-    #                  config,
-    #                  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    #                  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)
-    #                  """
-    # )
-    # await db.execute(
-    #     """CREATE TABLE IF NOT EXISTS
-    #                  job
-    #                     (id INTEGER PRIMARY KEY,
-    #                     job_data JSON,
-    #                     status,
-    #                     type,
-    #                     experiment_id,
-    #                     progress INTEGER DEFAULT -1,
-    #                     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    #                     updated_at DATETIME NOT NULL DEFAULT current_timestamp)
-    #                     """
-    # )
-
-    # await db.execute(
-    #     """CREATE TABLE IF NOT EXISTS
-    #                  experiment
-    #                     (id INTEGER PRIMARY KEY,
-    #                     name UNIQUE,
-    #                     config JSON,
-    #                     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    #                     updated_at DATETIME NOT NULL DEFAULT current_timestamp)
-    #                     """
-    # )
-
     await db.execute(
         """CREATE TABLE IF NOT EXISTS
                     workflows
@@ -115,24 +66,6 @@ async def init():
                         updated_at DATETIME NOT NULL DEFAULT current_timestamp)
                         """
     )
-
-    # await db.execute("CREATE INDEX IF NOT EXISTS idx_name ON experiment (name)")
-
-    # await db.execute(
-    #     """CREATE TABLE IF NOT EXISTS
-    #         plugins
-    #             (id INTEGER PRIMARY KEY,
-    #             name UNIQUE,
-    #             type TEXT)"""
-    # )
-    # await db.execute(
-    #     """CREATE TABLE IF NOT EXISTS
-    #         config
-    #             (id INTEGER PRIMARY KEY,
-    #             key UNIQUE,
-    #             value TEXT)"""
-    # )
-    # await db.execute("CREATE INDEX IF NOT EXISTS idx_key ON config (key)")
 
     async with async_engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
@@ -545,6 +478,7 @@ async def job_stop(job_id):
 # TASKS MODEL
 ###############
 
+
 async def add_task(name, Type, inputs, config, plugin, outputs, experiment_id):
     await db.execute(
         "INSERT INTO tasks(name, type, inputs, config, plugin, outputs, experiment_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -552,6 +486,7 @@ async def add_task(name, Type, inputs, config, plugin, outputs, experiment_id):
     )
     await db.commit()
     return
+
 
 async def update_task(task_id, new_task):
     await db.execute(
@@ -569,6 +504,7 @@ async def update_task(task_id, new_task):
     await db.commit()
     return
 
+
 async def tasks_get_all():
     cursor = await db.execute("SELECT * FROM tasks ORDER BY created_at desc")
     rows = await cursor.fetchall()
@@ -578,8 +514,9 @@ async def tasks_get_all():
     await cursor.close()
     return data
 
+
 async def tasks_get_by_type(Type):
-    cursor = await db.execute("SELECT * FROM tasks WHERE type = ? ORDER BY created_at desc", (Type, ))
+    cursor = await db.execute("SELECT * FROM tasks WHERE type = ? ORDER BY created_at desc", (Type,))
     rows = await cursor.fetchall()
     desc = cursor.description
     column_names = [col[0] for col in desc]
@@ -587,24 +524,34 @@ async def tasks_get_by_type(Type):
     await cursor.close()
     return data
 
+
 async def tasks_get_by_type_in_experiment(Type, experiment_id):
-    cursor = await db.execute("SELECT * FROM tasks WHERE type = ? AND experiment_id = ? ORDER BY created_at desc", (Type, experiment_id,))
+    cursor = await db.execute(
+        "SELECT * FROM tasks WHERE type = ? AND experiment_id = ? ORDER BY created_at desc",
+        (
+            Type,
+            experiment_id,
+        ),
+    )
     rows = await cursor.fetchall()
     desc = cursor.description
     column_names = [col[0] for col in desc]
     data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
     await cursor.close()
     return data
+
 
 async def delete_task(task_id):
     await db.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
     await db.commit()
     return
 
+
 async def tasks_delete_all():
     await db.execute("DELETE FROM tasks")
     await db.commit()
     return
+
 
 async def tasks_get_by_id(task_id):
     cursor = await db.execute("SELECT * FROM tasks WHERE id = ? ORDER BY created_at desc LIMIT 1", (task_id,))
@@ -617,9 +564,11 @@ async def tasks_get_by_id(task_id):
     await cursor.close()
     return row
 
+
 ###############
 # TRAINING and TRAINING JOBS MODELS
 ###############
+
 
 async def get_training_template(id):
     cursor = await db.execute("SELECT * FROM training_template WHERE id = ?", (id,))
