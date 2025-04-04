@@ -117,6 +117,5 @@ runcmd:
   - systemctl enable transformerlab.service
   - systemctl start transformerlab.service
   - /home/azureuser/install_transformerlab_webapp.sh
-  - systemctl enable nginx
-  - systemctl start nginx
+  - systemctl restart nginx
 
