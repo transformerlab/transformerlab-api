@@ -97,6 +97,11 @@ class VisualizationRequest(PydanticBaseModel):
     stream: Optional[bool] = True
 
 
+class ModelArchitectureRequest(PydanticBaseModel):
+    model: str
+    adaptor: Optional[str] = ""
+
+
 class ModifiedCompletionRequest(CompletionRequest):
     adaptor: Optional[str] = ""
 
@@ -158,7 +163,7 @@ def create_error_response(code: int, message: str) -> JSONResponse:
     return JSONResponse(ErrorResponse(message=message, code=code).dict(), status_code=400)
 
 
-async def check_model(request) -> Optional[JSONResponse]:
+async def check_model(request, bypass_adaptor=False) -> Optional[JSONResponse]:
     controller_address = app_settings.controller_address
     ret = None
     async with httpx.AsyncClient() as client:
@@ -181,10 +186,14 @@ async def check_model(request) -> Optional[JSONResponse]:
                     )
 
             else:
-                ret = create_error_response(
-                    ErrorCode.INVALID_MODEL,
-                    f"Expected model: {'&&'.join(models)}. Your model: {request.model}",
-                )
+                if bypass_adaptor:
+                    # Bypassing adaptor names when we do not have direct access
+                    ret = {"model_name":  models_ret.json()["models"][0]}
+                else:
+                    ret = create_error_response(
+                        ErrorCode.INVALID_MODEL,
+                        f"Expected model: {'&&'.join(models)}. Your model: {request.model}",
+                    )
     return ret
 
 
@@ -1226,7 +1235,10 @@ async def visualization_stream_generator(
         # Stream generation with visualization data
         try:
             async with client.stream(
-                "POST", worker_addr + "/worker_generate_with_visualization", json=payload, timeout=WORKER_API_TIMEOUT
+                "POST",
+                worker_addr + "/worker_generate_activation_visualization",
+                json=payload,
+                timeout=WORKER_API_TIMEOUT,
             ) as response:
                 delimiter = b"\0"
                 async for raw_chunk in response.aiter_raw():
@@ -1285,8 +1297,52 @@ async def generate_complete_visualization(
 
         # Get complete generation with visualization data
         response = await client.post(
-            worker_addr + "/worker_generate_with_visualization",
+            worker_addr + "/worker_generate_activation_visualization",
             json=payload,
             timeout=WORKER_API_TIMEOUT + max_tokens,  # Extra time for token generation
+        )
+        return response.json()
+
+
+@router.post("/v1/model_architecture", dependencies=[Depends(check_api_key)], tags=["visualization"])
+async def get_model_architecture(request: ModelArchitectureRequest):
+    """Retrieve model architecture data for visualization"""
+    error_check_ret = await check_model(request, bypass_adaptor=True)
+    if error_check_ret is not None:
+        if isinstance(error_check_ret, JSONResponse):
+            return error_check_ret
+        elif isinstance(error_check_ret, dict) and "model_name" in error_check_ret.keys():
+            request.model = error_check_ret["model_name"]
+
+    # Get the model architecture data from the worker
+    architecture_data = await generate_model_architecture(request.model)
+    return architecture_data
+
+
+async def generate_model_architecture(model_name: str):
+    """Generate model architecture data for visualization"""
+    async with httpx.AsyncClient() as client:
+        worker_addr = await get_worker_address(model_name, client)
+
+        # First check if architecture visualization is supported
+        try:
+            architecture_check = await client.get(worker_addr + "/architecture_available", timeout=WORKER_API_TIMEOUT)
+            if not architecture_check.json().get("available", False):
+                return {
+                    "error": "Architecture visualization not supported by this model worker",
+                    "error_code": ErrorCode.INTERNAL_ERROR,
+                }
+        except httpx.HTTPStatusError:
+            return {
+                "error": "Architecture visualization not supported by this model worker",
+                "error_code": ErrorCode.INTERNAL_ERROR,
+            }
+
+        # Get model architecture data
+        response = await client.post(
+            worker_addr + "/worker_generate_layers_visualization",
+            headers=headers,
+            json={"model": model_name},
+            timeout=WORKER_API_TIMEOUT,
         )
         return response.json()

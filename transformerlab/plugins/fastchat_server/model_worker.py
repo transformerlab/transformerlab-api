@@ -390,7 +390,7 @@ async def check_visualization_available():
     return {"available": True}
 
 
-@app.post("/worker_generate_with_visualization")
+@app.post("/worker_generate_activation_visualization")
 async def api_generate_with_visualization(request: Request):
     """Generate text with visualization data about activations and attention entropy"""
     params = await request.json()
@@ -450,7 +450,7 @@ async def api_generate_with_visualization(request: Request):
                             if torch.isnan(logits).all():
                                 print("All logits are still NaN after conversion, stopping generation here")
                                 break
-                            
+
                         except Exception as e:
                             print("Error converting model to fp32 and predicting text:", e)
                             break
@@ -564,6 +564,67 @@ def compute_attention_entropy(attentions):
         final_np_array[np.isnan(final_np_array)] = 0.0
 
     return final_np_array
+
+
+@app.get("/architecture_available")
+async def check_architecture_available():
+    """Check if this worker supports model architecture visualization"""
+    return {"available": True}
+
+
+@app.post("/worker_generate_layers_visualization")
+async def api_generate_layers_visualization(request: Request):
+    """Generate model architecture visualization data"""
+    try:
+        params = await request.json()
+
+        import numpy as np
+        import re
+
+        def clean_layer_name(layer_name):
+            return re.sub(r"\.\d+\.", ".", layer_name)
+
+        # Use the already loaded model
+        model = worker.model
+        state_dict = model.state_dict()
+        cube_list = []
+        # unique_layers = sorted(set(clean_layer_name(layer) for layer in state_dict.keys()))
+
+        # Calculate size range for visualization
+        max_param_size = max(v.numel() for v in state_dict.values())
+        min_param_size = min(v.numel() for v in state_dict.values())
+        min_size = 0.5
+        max_size = 2.0
+
+        for layer, params in state_dict.items():
+            param_size = params.numel()
+            # Log scale for better visualization
+            size = float(
+                min_size
+                + ((np.log(param_size) - np.log(min_param_size)) / (np.log(max_param_size) - np.log(min_param_size)))
+                * (max_size - min_size)
+            )
+            clean_name = clean_layer_name(layer)
+            # Uncomment to remove the duplicate named layers
+            # if clean_name in unique_layers:
+            #     unique_layers.remove(clean_name)
+            # else:
+            #     continue
+            cube_list.append(
+                {
+                    "name": clean_name,
+                    "size": size,
+                    "param_count": param_size,
+                }
+            )
+
+        return {"layers": cube_list, "error_code": 0}
+
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        return {"error": str(e), "error_code": ErrorCode.INTERNAL_ERROR}
 
 
 @app.post("/tokenize")

@@ -380,7 +380,7 @@ async def check_visualization_available():
     return {"available": True}
 
 
-@app.post("/worker_generate_with_visualization")
+@app.post("/worker_generate_activation_visualization")
 async def api_generate_with_visualization(request: Request):
     """Generate text with visualization data about activations and attention entropy"""
     params = await request.json()
