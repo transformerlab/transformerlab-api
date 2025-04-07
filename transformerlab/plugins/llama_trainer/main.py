@@ -1,5 +1,6 @@
 import time
 import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 from random import randrange
 
 import torch
@@ -14,10 +15,7 @@ from transformerlab.sdk.v1.train import tlab_trainer
 
 use_flash_attention = False
 # Initialize Jinja environment
-jinja_environment = Environment()
-
-if torch.cuda.is_available():
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+jinja_environment = Environment()    
 
 
 @tlab_trainer.job_wrapper()
