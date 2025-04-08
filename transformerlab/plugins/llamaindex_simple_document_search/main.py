@@ -16,6 +16,9 @@ import time
 
 
 def index_documents(documents_dir, persistency_dir, embedding_model="BAAI/bge-small-en-v1.5"):
+    if os.path.exists(os.path.join(documents_dir, ".tlab_markitdown")):
+        sys.stderr.write("Markitdown detected, using that directory for indexing instead")
+        documents_dir = os.path.join(documents_dir, ".tlab_markitdown")
     reader = SimpleDirectoryReader(input_dir=documents_dir, exclude_hidden=False)
     documents = reader.load_data()
     sys.stderr.write(f"Loaded {len(documents)} docs")
