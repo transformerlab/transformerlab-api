@@ -233,6 +233,7 @@ async def create_folder(experimentId: str, name: str):
 @router.post("/upload_links", summary="Upload the contents from the provided web links.")
 async def document_upload_links(experimentId: str, folder: str = None, data: dict = Body(...)):
     urls = data.get("urls")
+    folder = secure_filename(folder)
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
     if folder and folder != "":
