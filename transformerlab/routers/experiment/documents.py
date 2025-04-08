@@ -1,14 +1,17 @@
+import datetime
 import os
 import shutil
-from fastapi.responses import FileResponse
-from fastapi import APIRouter, HTTPException, UploadFile
-import datetime
+import tempfile
+
 import aiofiles
+from fastapi import APIRouter, Body, HTTPException, UploadFile
+from fastapi.responses import FileResponse
+from markitdown import MarkItDown
+from werkzeug.utils import secure_filename
+
 from transformerlab.routers.experiment import rag
 from transformerlab.shared import dirs
 from transformerlab.shared.shared import slugify
-
-from werkzeug.utils import secure_filename
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -105,6 +108,8 @@ async def delete_document(experimentId: str, document_name: str, folder: str = N
 @router.post("/upload", summary="Upload the contents of a document.")
 async def document_upload(experimentId: str, folder: str, files: list[UploadFile]):
     fileNames = []
+    md = MarkItDown(enable_plugins=False)
+
     # Adding secure filename to the folder name as well
     folder = secure_filename(folder)
     for file in files:
@@ -119,12 +124,18 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
 
         print("file content type is: " + str(file.content_type))
 
+        restricted_file_type = False
+
         if file.content_type not in ["text/plain", "application/json", "application/pdf", "application/octet-stream"]:
-            raise HTTPException(status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
+            restricted_file_type = True
+            print("File Type is Restricted from viewing, we will paste it as an md file instead")
+
+            if file.content_type.startswith("image/"):
+                raise HTTPException(status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
 
         file_ext = os.path.splitext(file_name)[1]
-        if file_ext not in allowed_file_types:
-            raise HTTPException(status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
+        # if file_ext not in allowed_file_types:
+        #     raise HTTPException(status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
 
         experiment_dir = await dirs.experiment_dir_by_id(experimentId)
         documents_dir = os.path.join(experiment_dir, "documents")
@@ -136,22 +147,72 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
                 os.makedirs(os.path.join(documents_dir, folder))
                 documents_dir = os.path.join(documents_dir, folder)
 
-        # Save the file to the dataset directory
-        try:
-            content = await file.read()
-            if not os.path.exists(documents_dir):
-                print("Creating directory")
-                os.makedirs(documents_dir)
+        markitdown_dir = os.path.join(documents_dir, ".tlab_markitdown")
+        if not os.path.exists(markitdown_dir):
+            os.makedirs(markitdown_dir)
 
-            newfilename = os.path.join(documents_dir, str(file_name))
-            async with aiofiles.open(newfilename, "wb") as out_file:
-                await out_file.write(content)
+        if not restricted_file_type:
+            # Save the file to the dataset directory
+            try:
+                content = await file.read()
+                if not os.path.exists(documents_dir):
+                    print("Creating directory")
+                    os.makedirs(documents_dir)
+
+                newfilename = os.path.join(documents_dir, str(file_name))
+                async with aiofiles.open(newfilename, "wb") as out_file:
+                    await out_file.write(content)
+
+                # Convert file to .md format using MarkitDown and save it in markitdown_dir
+                # Do not do this for .jpeg, .jpg, .png, .gif, .webp
+                # Check if the file is an image
+                if file_ext not in [".jpeg", ".jpg", ".png", ".gif", ".webp"]:
+                    try:
+                        result = md.convert(newfilename)
+                        # Save the converted file
+                        newfilename = os.path.join(markitdown_dir, str(file_name).replace(file_ext, ".md"))
+                        print(f"Saving converted file to {markitdown_dir} as {newfilename}")
+
+                        async with aiofiles.open(newfilename, "w", encoding="utf-8") as out_file:
+                            await out_file.write(result.markdown)
+
+                    except Exception as e:
+                        print(f"Error converting file to .md format: {e}")
+            except Exception:
+                raise HTTPException(status_code=403, detail="There was a problem uploading the file")
+        else:
+            # Do the conversion to md using MarkitDown
+            # Save the file to the dataset directory
+            try:
+                content = await file.read()
+                # from io import BytesIO
+
+                # content_io = BytesIO(content)
+                with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                    temp_file.write(content)
+                    temp_file_path = temp_file.name
+                    print(f"Temporary file created at {temp_file_path}")
+                    # Convert the file to .md format using MarkitDown
+                    result = md.convert(temp_file_path)
+                    # Save the converted file
+                    newfilename = os.path.join(documents_dir, str(file_name).replace(file_ext, ".md"))
+                    newfilename_md = os.path.join(markitdown_dir, str(file_name).replace(file_ext, ".md"))
+                    print(f"Saving converted file to {documents_dir} as {newfilename}")
+                    async with aiofiles.open(newfilename, "w", encoding="utf-8") as out_file:
+                        await out_file.write(result.markdown)
+                    print(f"Saving converted file to {markitdown_dir} as {newfilename_md}")
+                    async with aiofiles.open(newfilename_md, "w", encoding="utf-8") as out_file:
+                        await out_file.write(result.markdown)
+                    # Remove the temporary file
+                    os.remove(temp_file_path)
+                    print(f"Temporary file {temp_file_path} deleted")
+            except Exception as e:
+                print(f"Error converting file to .md format: {e}")
+                raise HTTPException(status_code=403, detail="There was a problem uploading the file")
 
             # reindex the vector store on every file upload
             if folder == "rag":
                 await rag.reindex(experimentId)
-        except Exception:
-            raise HTTPException(status_code=403, detail="There was a problem uploading the file")
 
     return {"status": "success", "filename": fileNames}
 
@@ -167,3 +228,37 @@ async def create_folder(experimentId: str, name: str):
     if not os.path.exists(path):
         os.makedirs(path)
     return {"status": "success"}
+
+
+@router.post("/upload_links", summary="Upload the contents from the provided web links.")
+async def document_upload_links(experimentId: str, folder: str = None, data: dict = Body(...)):
+    urls = data.get("urls")
+    folder = secure_filename(folder)
+    experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+    documents_dir = os.path.join(experiment_dir, "documents")
+    if folder and folder != "":
+        if os.path.exists(os.path.join(documents_dir, folder)):
+            documents_dir = os.path.join(documents_dir, folder)
+        else:
+            return {"status": "error", "message": f'Folder "{folder}" not found'}
+
+    markitdown_dir = os.path.join(documents_dir, ".tlab_markitdown")
+
+    if not os.path.exists(markitdown_dir):
+        os.makedirs(markitdown_dir)
+
+    md = MarkItDown(enable_plugins=False)
+    for i, url in enumerate(urls):
+        result = md.convert(url)
+        # Save the converted file
+        filename = os.path.join(documents_dir, f"link_{i + 1}.md")
+        filename_md = os.path.join(markitdown_dir, f"link_{i + 1}.md")
+        async with aiofiles.open(filename, "w", encoding="utf-8") as out_file:
+            await out_file.write(result.markdown)
+
+        async with aiofiles.open(filename_md, "w", encoding="utf-8") as out_file:
+            await out_file.write(result.markdown)
+        # reindex the vector store on every file upload
+        if folder == "rag":
+            await rag.reindex(experimentId)
+    return {"status": "success", "filename": urls}
