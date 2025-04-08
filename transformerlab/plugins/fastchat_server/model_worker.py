@@ -11,6 +11,7 @@ import base64
 import gc
 import json
 import os
+import re
 import traceback
 import uuid
 from typing import List, Optional
@@ -384,7 +385,7 @@ def create_model_worker():
     return args, worker
 
 
-@app.get("/visualization_available")
+@app.get("/supports_activation_visualization")
 async def check_visualization_available():
     """Check if this worker supports visualization"""
     return {"available": True}
@@ -566,7 +567,7 @@ def compute_attention_entropy(attentions):
     return final_np_array
 
 
-@app.get("/architecture_available")
+@app.get("/supports_architecture_visualization")
 async def check_architecture_available():
     """Check if this worker supports model architecture visualization"""
     return {"available": True}
@@ -577,9 +578,7 @@ async def api_generate_layers_visualization(request: Request):
     """Generate model architecture visualization data"""
     try:
         params = await request.json()
-
-        import numpy as np
-        import re
+        # Inspired from https://github.com/attentionmech/trunk
 
         def clean_layer_name(layer_name):
             return re.sub(r"\.\d+\.", ".", layer_name)

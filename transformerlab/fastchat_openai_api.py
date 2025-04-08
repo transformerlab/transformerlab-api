@@ -48,6 +48,7 @@ from transformerlab.shared import dirs
 
 WORKER_API_TIMEOUT = 3600
 
+
 class APIChatCompletionRequest(BaseModel):
     model: str
     adaptor: Optional[str] = ""
@@ -188,7 +189,7 @@ async def check_model(request, bypass_adaptor=False) -> Optional[JSONResponse]:
             else:
                 if bypass_adaptor:
                     # Bypassing adaptor names when we do not have direct access
-                    ret = {"model_name":  models_ret.json()["models"][0]}
+                    ret = {"model_name": models_ret.json()["models"][0]}
                 else:
                     ret = create_error_response(
                         ErrorCode.INVALID_MODEL,
@@ -1201,7 +1202,9 @@ async def visualization_stream_generator(
 
         # First, check if the worker supports visualization
         try:
-            visualization_check = await client.get(worker_addr + "/visualization_available", timeout=WORKER_API_TIMEOUT)
+            visualization_check = await client.get(
+                worker_addr + "/supports_activation_visualization", timeout=WORKER_API_TIMEOUT
+            )
             if not visualization_check.json().get("available", False):
                 error_msg = json.dumps(
                     {
@@ -1277,7 +1280,9 @@ async def generate_complete_visualization(
 
         # First check if visualization is supported
         try:
-            visualization_check = await client.get(worker_addr + "/visualization_available", timeout=WORKER_API_TIMEOUT)
+            visualization_check = await client.get(
+                worker_addr + "/supports_activation_visualization", timeout=WORKER_API_TIMEOUT
+            )
             if not visualization_check.json().get("available", False):
                 return {
                     "error": "Visualization not supported by this model worker",
@@ -1326,7 +1331,9 @@ async def generate_model_architecture(model_name: str):
 
         # First check if architecture visualization is supported
         try:
-            architecture_check = await client.get(worker_addr + "/architecture_available", timeout=WORKER_API_TIMEOUT)
+            architecture_check = await client.get(
+                worker_addr + "/supports_architecture_visualization", timeout=WORKER_API_TIMEOUT
+            )
             if not architecture_check.json().get("available", False):
                 return {
                     "error": "Architecture visualization not supported by this model worker",

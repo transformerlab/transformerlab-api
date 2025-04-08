@@ -374,7 +374,7 @@ async def api_get_embeddings(request: Request):
 worker = None
 
 
-@app.get("/visualization_available")
+@app.get("/supports_activation_visualization")
 async def check_visualization_available():
     """Check if this worker supports visualization"""
     return {"available": True}
