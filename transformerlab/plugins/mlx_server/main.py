@@ -488,6 +488,92 @@ async def api_generate_with_visualization(request: Request):
     return StreamingResponse(generate(), background=background_tasks)
 
 
+@app.get("/supports_architecture_visualization")
+async def check_architecture_available():
+    """Check if this worker supports model architecture visualization"""
+    return {"available": True}
+
+
+@app.post("/worker_generate_layers_visualization")
+async def api_generate_layers_visualization(request: Request):
+    """Generate model architecture visualization data"""
+    try:
+        params = await request.json()
+
+        def clean_layer_name(layer_name):
+            import re
+
+            return re.sub(r"\.\d+\.", ".", layer_name)
+
+        # Recursive function to traverse the parameter structure
+        def collect_parameters(obj, prefix=""):
+            result = []
+
+            if isinstance(obj, dict):
+                for key, value in obj.items():
+                    new_prefix = f"{prefix}.{key}" if prefix else key
+                    result.extend(collect_parameters(value, new_prefix))
+            elif isinstance(obj, list):
+                for i, value in enumerate(obj):
+                    new_prefix = f"{prefix}.{i}" if prefix else str(i)
+                    result.extend(collect_parameters(value, new_prefix))
+            elif hasattr(obj, "__dict__") and not isinstance(obj, mx.array):
+                # Handle objects with attributes
+                for key, value in obj.__dict__.items():
+                    if not key.startswith("_"):  # Skip private attributes
+                        new_prefix = f"{prefix}.{key}" if prefix else key
+                        result.extend(collect_parameters(value, new_prefix))
+            elif isinstance(obj, mx.array):
+                # Found a leaf MLX array
+                result.append((prefix, obj))
+
+            return result
+
+        # Use the already loaded model
+        model = worker.mlx_model.model
+        cube_list = []
+
+        # Get model parameters
+        all_params = []
+        for name, param in model.parameters().items():
+            params_from_path = collect_parameters(param, name)
+            all_params.extend(params_from_path)
+        if len(all_params) == 0:
+            raise ValueError("No parameters found in the model.")
+
+        all_params = dict(all_params)
+
+        # Calculate size range for visualization
+        max_param_size = max(np.prod(p.shape) for p in all_params.values())
+        min_param_size = min(np.prod(p.shape) for p in all_params.values())
+        min_size = 0.5
+        max_size = 2.0
+
+        for layer, params in all_params.items():
+            param_size = np.prod(params.shape)
+            # Log scale for better visualization
+            size = float(
+                min_size
+                + ((np.log(param_size) - np.log(min_param_size)) / (np.log(max_param_size) - np.log(min_param_size)))
+                * (max_size - min_size)
+            )
+            clean_name = clean_layer_name(layer)
+            cube_list.append(
+                {
+                    "name": clean_name,
+                    "size": size,
+                    "param_count": int(param_size),
+                }
+            )
+
+        return {"layers": cube_list, "error_code": 0}
+
+    except Exception as e:
+        print(f"Error generating architecture visualization: {e}")
+        print(traceback.format_exc())
+        return {"error": str(e), "error_code": 1}
+
+
 def generate_mlp_activations(model, tokens, num_layers):
     """
     Extract MLP activations from the MLX model by accessing internal states.
