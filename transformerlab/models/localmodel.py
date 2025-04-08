@@ -193,6 +193,24 @@ class LocalModelStore(modelstore.ModelStore):
         provenance = {}
         models_dir = dirs.MODELS_DIR
 
+        # Load the tlab_complete_provenance.json file if it exists
+        complete_provenance_file = os.path.join(models_dir, "_tlab_complete_provenance.json")
+        if os.path.exists(complete_provenance_file):
+            with open(complete_provenance_file, "r") as f:
+                try:
+                    provenance = json.load(f)
+                except json.JSONDecodeError:
+                    print(f"Error loading {complete_provenance_file}: Invalid JSON format.")
+                    provenance = {}
+                except Exception as e:
+                    print(f"Error loading {complete_provenance_file}: {str(e)}")
+                    provenance = {}
+
+            # The -1 here indicates that we are not counting the _tlab_complete_provenance.json file
+            if len(provenance) > 0 and len(os.listdir(models_dir)) - 1 == len(provenance):
+                return provenance, False
+
+        # If the provenance mapping is not built or models_dir has changed, we need to rebuild it
         # Scan all model directories
         with os.scandir(models_dir) as dirlist:
             for entry in dirlist:
@@ -220,7 +238,7 @@ class LocalModelStore(modelstore.ModelStore):
                     except Exception as e:
                         print(f"Error loading provenance for {entry.name}: {str(e)}")
 
-        return provenance
+        return provenance, True
 
     async def trace_provenance(self, latest_model, provenance_mapping):
         """
@@ -276,7 +294,13 @@ class LocalModelStore(modelstore.ModelStore):
         List model provenance by reading from _tlab_provenance.json files.
         """
         # Build a mapping from model names to their provenance data
-        provenance_mapping = await self.build_provenance()
+        provenance_mapping, provenance_updated = await self.build_provenance()
+
+        if provenance_updated:
+            # Save the provenance mapping as a json file
+            provenance_file = os.path.join(dirs.MODELS_DIR, "_tlab_complete_provenance.json")
+            with open(provenance_file, "w") as f:
+                json.dump(provenance_mapping, f)
 
         # Trace the provenance chain leading to the given model
         chain = await self.trace_provenance(model_id, provenance_mapping)
