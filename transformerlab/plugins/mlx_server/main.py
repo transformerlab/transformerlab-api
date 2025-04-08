@@ -12,37 +12,30 @@ pip install mlx-lm
 
 import argparse
 import asyncio
-from collections import namedtuple
 import json
-import os
-from typing import Any, Dict, List, Optional
-import uuid
-import traceback
-import numpy as np
-from contextlib import asynccontextmanager
-
-
-from huggingface_hub import snapshot_download
-
-from fastapi import FastAPI, Request, BackgroundTasks
-from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import StreamingResponse, JSONResponse
-import uvicorn
-
-from fastchat.serve.base_model_worker import BaseModelWorker
-from fastchat.serve.model_worker import (
-    logger,
-    worker_id,
-)
-from fastchat.utils import get_context_length
 import math
+import os
+import re
+import traceback
+import uuid
+from collections import namedtuple
+from contextlib import asynccontextmanager
+from typing import Any, Dict, List, Optional
 
 import mlx.core as mx
-from mlx_lm import load
-from mlx_lm.utils import generate_step
-from mlx_lm.sample_utils import make_sampler, make_logits_processors
-
+import numpy as np
+import uvicorn
+from fastapi import BackgroundTasks, FastAPI, Request
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import JSONResponse, StreamingResponse
+from fastchat.serve.base_model_worker import BaseModelWorker
+from fastchat.serve.model_worker import logger, worker_id
+from fastchat.utils import get_context_length
+from huggingface_hub import snapshot_download
 from mlx_embedding_models.embedding import EmbeddingModel
+from mlx_lm import load
+from mlx_lm.sample_utils import make_logits_processors, make_sampler
+from mlx_lm.utils import generate_step
 
 
 @asynccontextmanager
@@ -374,13 +367,13 @@ async def api_get_embeddings(request: Request):
 worker = None
 
 
-@app.get("/visualization_available")
+@app.get("/supports_activation_visualization")
 async def check_visualization_available():
     """Check if this worker supports visualization"""
     return {"available": True}
 
 
-@app.post("/worker_generate_with_visualization")
+@app.post("/worker_generate_activation_visualization")
 async def api_generate_with_visualization(request: Request):
     """Generate text with visualization data about activations and attention entropy"""
     params = await request.json()
@@ -486,6 +479,90 @@ async def api_generate_with_visualization(request: Request):
 
     background_tasks = create_background_tasks(request_id)
     return StreamingResponse(generate(), background=background_tasks)
+
+
+@app.get("/supports_architecture_visualization")
+async def check_architecture_available():
+    """Check if this worker supports model architecture visualization"""
+    return {"available": True}
+
+
+@app.post("/worker_generate_layers_visualization")
+async def api_generate_layers_visualization(request: Request):
+    """Generate model architecture visualization data"""
+    try:
+        params = await request.json()
+
+        def clean_layer_name(layer_name):
+            return re.sub(r"\.\d+\.", ".", layer_name)
+
+        # Recursive function to traverse the parameter structure
+        def collect_parameters(obj, prefix=""):
+            result = []
+
+            if isinstance(obj, dict):
+                for key, value in obj.items():
+                    new_prefix = f"{prefix}.{key}" if prefix else key
+                    result.extend(collect_parameters(value, new_prefix))
+            elif isinstance(obj, list):
+                for i, value in enumerate(obj):
+                    new_prefix = f"{prefix}.{i}" if prefix else str(i)
+                    result.extend(collect_parameters(value, new_prefix))
+            elif hasattr(obj, "__dict__") and not isinstance(obj, mx.array):
+                # Handle objects with attributes
+                for key, value in obj.__dict__.items():
+                    if not key.startswith("_"):  # Skip private attributes
+                        new_prefix = f"{prefix}.{key}" if prefix else key
+                        result.extend(collect_parameters(value, new_prefix))
+            elif isinstance(obj, mx.array):
+                # Found a leaf MLX array
+                result.append((prefix, obj))
+
+            return result
+
+        # Use the already loaded model
+        model = worker.mlx_model.model
+        cube_list = []
+
+        # Get model parameters
+        all_params = []
+        for name, param in model.parameters().items():
+            params_from_path = collect_parameters(param, name)
+            all_params.extend(params_from_path)
+        if len(all_params) == 0:
+            raise ValueError("No parameters found in the model.")
+
+        all_params = dict(all_params)
+
+        # Calculate size range for visualization
+        max_param_size = max(np.prod(p.shape) for p in all_params.values())
+        min_param_size = min(np.prod(p.shape) for p in all_params.values())
+        min_size = 0.5
+        max_size = 2.0
+
+        for layer, params in all_params.items():
+            param_size = np.prod(params.shape)
+            # Log scale for better visualization
+            size = float(
+                min_size
+                + ((np.log(param_size) - np.log(min_param_size)) / (np.log(max_param_size) - np.log(min_param_size)))
+                * (max_size - min_size)
+            )
+            clean_name = clean_layer_name(layer)
+            cube_list.append(
+                {
+                    "name": clean_name,
+                    "size": size,
+                    "param_count": int(param_size),
+                }
+            )
+
+        return {"layers": cube_list, "error_code": 0}
+
+    except Exception as e:
+        logger.error(f"Error generating architecture visualization: {e}")
+        logger.error(traceback.format_exc())
+        return {"error": "An internal error has occurred.", "error_code": 1}
 
 
 def generate_mlp_activations(model, tokens, num_layers):
