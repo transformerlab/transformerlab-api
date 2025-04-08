@@ -177,7 +177,7 @@ markdown2==2.5.3
     # via fschat
 markdownify==1.1.0
     # via markitdown
-markitdown==0.1.1
+markitdown[all]==0.1.1
     # via -r requirements.in
 markupsafe==2.1.5
     # via
