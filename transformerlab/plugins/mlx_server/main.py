@@ -569,9 +569,9 @@ async def api_generate_layers_visualization(request: Request):
         return {"layers": cube_list, "error_code": 0}
 
     except Exception as e:
-        print(f"Error generating architecture visualization: {e}")
-        print(traceback.format_exc())
-        return {"error": str(e), "error_code": 1}
+        logger.error(f"Error generating architecture visualization: {e}")
+        logger.error(traceback.format_exc())
+        return {"error": "An internal error has occurred.", "error_code": 1}
 
 
 def generate_mlp_activations(model, tokens, num_layers):
