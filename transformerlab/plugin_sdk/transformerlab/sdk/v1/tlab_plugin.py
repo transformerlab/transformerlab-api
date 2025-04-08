@@ -411,6 +411,7 @@ class TLabPlugin:
 
                 if model_type == "claude":
                     self.chat_completions_url = "https://api.anthropic.com/v1/chat/completions"
+                    self.base_url = "https://api.anthropic.com/v1"
                     anthropic_api_key = transformerlab.plugin.get_db_config_value("ANTHROPIC_API_KEY")
                     self.api_key = anthropic_api_key
                     if not anthropic_api_key or anthropic_api_key.strip() == "":
@@ -437,6 +438,7 @@ class TLabPlugin:
 
                 elif model_type == "openai":
                     self.chat_completions_url = "https://api.openai.com/v1/chat/completions"
+                    self.base_url = "https://api.openai.com/v1"
                     openai_api_key = transformerlab.plugin.get_db_config_value("OPENAI_API_KEY")
                     self.api_key = openai_api_key
                     if not openai_api_key or openai_api_key.strip() == "":
@@ -457,6 +459,7 @@ class TLabPlugin:
                             base_url=custom_api_details["customBaseURL"],
                         )
                         self.chat_completions_url = f"{custom_api_details['customBaseURL']}/chat/completions"
+                        self.base_url = f"{custom_api_details['customBaseURL']}"
                         self.api_key = custom_api_details["customApiKey"]
                         self.generation_model_name = custom_api_details["customModelName"]
                         self.model_name = custom_api_details["customModelName"]

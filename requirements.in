@@ -29,4 +29,5 @@ tensorboardX
 werkzeug
 sqlalchemy[asyncio]
 sentence-transformers
+markitdown[all]
 git+https://github.com/transformerlab/FastChat

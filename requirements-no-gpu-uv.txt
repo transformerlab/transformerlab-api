@@ -30,6 +30,18 @@ anyio==4.8.0
     #   watchfiles
 attrs==25.1.0
     # via aiohttp
+azure-ai-documentintelligence==1.0.2
+    # via markitdown
+azure-core==1.33.0
+    # via
+    #   azure-ai-documentintelligence
+    #   azure-identity
+azure-identity==1.21.0
+    # via markitdown
+beautifulsoup4==4.13.3
+    # via
+    #   markdownify
+    #   markitdown
 brotli==1.1.0
     # via py7zr
 certifi==2024.7.4
@@ -38,17 +50,35 @@ certifi==2024.7.4
     #   httpx
     #   requests
     #   sentry-sdk
+cffi==1.17.1
+    # via cryptography
 charset-normalizer==2.1.1
-    # via requests
+    # via
+    #   markitdown
+    #   pdfminer-six
+    #   requests
 click==8.1.8
     # via
+    #   magika
     #   nltk
     #   uvicorn
     #   wandb
+cobble==0.1.4
+    # via mammoth
+coloredlogs==15.0.1
+    # via onnxruntime
+cryptography==44.0.2
+    # via
+    #   azure-identity
+    #   msal
+    #   pdfminer-six
+    #   pyjwt
 datasets==2.19.1
     # via
     #   -r requirements.in
     #   evaluate
+defusedxml==0.7.1
+    # via youtube-transcript-api
 dill==0.3.8
     # via
     #   datasets
@@ -58,6 +88,8 @@ docker-pycreds==0.4.0
     # via wandb
 einops==0.8.0
     # via -r requirements.in
+et-xmlfile==2.0.0
+    # via openpyxl
 evaluate==0.4.3
     # via -r requirements.in
 fastapi==0.115.7
@@ -70,6 +102,8 @@ filelock==3.13.1
     #   huggingface-hub
     #   torch
     #   transformers
+flatbuffers==25.2.10
+    # via onnxruntime
 frozenlist==1.5.0
     # via
     #   aiohttp
@@ -107,6 +141,8 @@ huggingface-hub==0.28.0
     #   sentence-transformers
     #   tokenizers
     #   transformers
+humanfriendly==10.0
+    # via coloredlogs
 idna==3.7
     # via
     #   anyio
@@ -115,6 +151,8 @@ idna==3.7
     #   yarl
 inflate64==1.0.1
     # via py7zr
+isodate==0.7.2
+    # via azure-ai-documentintelligence
 jinja2==3.1.5
     # via torch
 joblib==1.4.2
@@ -125,12 +163,22 @@ latex2mathml==3.77.0
     # via markdown2
 loralib==0.1.2
     # via -r requirements.in
+lxml==5.3.2
+    # via python-pptx
+magika==0.6.1
+    # via markitdown
+mammoth==1.9.0
+    # via markitdown
 markdown==3.7
     # via tensorboard
 markdown-it-py==3.0.0
     # via rich
 markdown2==2.5.3
     # via fschat
+markdownify==1.1.0
+    # via markitdown
+markitdown==0.1.1
+    # via -r requirements.in
 markupsafe==2.1.5
     # via
     #   jinja2
@@ -139,6 +187,12 @@ mdurl==0.1.2
     # via markdown-it-py
 mpmath==1.3.0
     # via sympy
+msal==1.32.0
+    # via
+    #   azure-identity
+    #   msal-extensions
+msal-extensions==1.3.1
+    # via azure-identity
 multidict==6.1.0
     # via
     #   aiohttp
@@ -161,6 +215,8 @@ numpy==2.1.2
     #   datasets
     #   evaluate
     #   fschat
+    #   magika
+    #   onnxruntime
     #   pandas
     #   peft
     #   rouge-score
@@ -172,6 +228,12 @@ numpy==2.1.2
     #   transformers
 nvidia-ml-py3==7.352.0
     # via -r requirements.in
+olefile==0.47
+    # via markitdown
+onnxruntime==1.21.0
+    # via magika
+openpyxl==3.1.5
+    # via markitdown
 packaging==24.1
     # via
     #   -r requirements.in
@@ -179,6 +241,7 @@ packaging==24.1
     #   datasets
     #   evaluate
     #   huggingface-hub
+    #   onnxruntime
     #   peft
     #   tensorboard
     #   tensorboardx
@@ -187,10 +250,14 @@ pandas==2.2.3
     # via
     #   datasets
     #   evaluate
+    #   markitdown
+pdfminer-six==20250327
+    # via markitdown
 peft==0.14.0
     # via -r requirements.in
 pillow==11.0.0
     # via
+    #   python-pptx
     #   sentence-transformers
     #   torchvision
 platformdirs==4.3.6
@@ -203,6 +270,7 @@ propcache==0.2.1
     #   yarl
 protobuf==5.29.3
     # via
+    #   onnxruntime
     #   tensorboard
     #   tensorboardx
     #   wandb
@@ -222,6 +290,8 @@ pyarrow-hotfix==0.6
     # via datasets
 pybcj==1.0.3
     # via py7zr
+pycparser==2.22
+    # via cffi
 pycryptodomex==3.21.0
     # via py7zr
 pydantic==2.10.6
@@ -235,18 +305,26 @@ pydantic-core==2.27.2
     # via pydantic
 pydantic-settings==2.8.1
     # via fschat
+pydub==0.25.1
+    # via markitdown
 pygments==2.19.1
     # via
     #   markdown2
     #   rich
+pyjwt==2.10.1
+    # via msal
 pyppmd==1.1.1
     # via py7zr
 python-dateutil==2.9.0.post0
     # via pandas
 python-dotenv==1.0.1
-    # via pydantic-settings
+    # via
+    #   magika
+    #   pydantic-settings
 python-multipart==0.0.20
     # via -r requirements.in
+python-pptx==1.0.2
+    # via markitdown
 pytz==2024.2
     # via pandas
 pyyaml==6.0.2
@@ -267,13 +345,17 @@ regex==2024.11.6
     #   transformers
 requests==2.32.2
     # via
+    #   azure-core
     #   datasets
     #   evaluate
     #   fschat
     #   huggingface-hub
+    #   markitdown
+    #   msal
     #   tiktoken
     #   transformers
     #   wandb
+    #   youtube-transcript-api
 rich==13.9.4
     # via fschat
 rouge-score==0.1.2
@@ -306,7 +388,9 @@ shortuuid==1.0.13
     # via fschat
 six==1.17.0
     # via
+    #   azure-core
     #   docker-pycreds
+    #   markdownify
     #   python-dateutil
     #   rouge-score
     #   tensorboard
@@ -315,6 +399,10 @@ smmap==5.0.2
     # via gitdb
 sniffio==1.3.1
     # via anyio
+soupsieve==2.6
+    # via beautifulsoup4
+speechrecognition==3.14.2
+    # via markitdown
 sqlalchemy==2.0.38
     # via -r requirements.in
 starlette==0.45.3
@@ -322,7 +410,9 @@ starlette==0.45.3
 svgwrite==1.4.3
     # via wavedrom
 sympy==1.13.1
-    # via torch
+    # via
+    #   onnxruntime
+    #   torch
 tensorboard==2.18.0
     # via -r requirements.in
 tensorboard-data-server==0.7.2
@@ -369,10 +459,16 @@ typing-extensions==4.12.2
     # via
     #   aiosqlite
     #   anyio
+    #   azure-ai-documentintelligence
+    #   azure-core
+    #   azure-identity
+    #   beautifulsoup4
     #   fastapi
     #   huggingface-hub
     #   pydantic
     #   pydantic-core
+    #   python-pptx
+    #   speechrecognition
     #   sqlalchemy
     #   torch
     #   wandb
@@ -396,9 +492,15 @@ werkzeug==3.1.3
     # via
     #   -r requirements.in
     #   tensorboard
+xlrd==2.0.1
+    # via markitdown
+xlsxwriter==3.2.2
+    # via python-pptx
 xxhash==3.5.0
     # via
     #   datasets
     #   evaluate
 yarl==1.18.3
     # via aiohttp
+youtube-transcript-api==1.0.3
+    # via markitdown

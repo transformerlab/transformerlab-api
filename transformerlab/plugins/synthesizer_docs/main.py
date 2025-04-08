@@ -48,6 +48,9 @@ def get_docs_list(docs: str, experiment_name: str) -> List[str]:
     documents_dir = os.path.join(
         os.environ.get("_TFL_WORKSPACE_DIR", "./"), "experiments", experiment_name, "documents"
     )
+    # Use the markdown files if they exist
+    if os.path.exists(os.path.join(documents_dir, ".tlab_markitdown")):
+        documents_dir = os.path.join(documents_dir, ".tlab_markitdown")
 
     result_docs = []
     for doc in docs_list:
