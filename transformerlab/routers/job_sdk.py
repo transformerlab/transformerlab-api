@@ -1,8 +1,6 @@
-import xmlrpc.client
 from xmlrpc.server import SimpleXMLRPCDispatcher
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import PlainTextResponse
-import inspect
 
 
 class XMLRPCRouter:
@@ -83,16 +81,49 @@ def get_xmlrpc_router(prefix="/job_sdk"):
     # Create a new XML-RPC router
     xmlrpc_router = XMLRPCRouter(prefix=prefix)
 
-    # Register functions you want to expose via XML-RPC
-    # Example:
-    def hello_world(name="World"):
+    # Example returning a string
+    def hello(name="World"):
         return f"Hello, {name}!"
 
-    xmlrpc_router.register_function(hello_world, "hello")
+    # Example returning a dictionary
+    def get_user(user_id):
+        # This could fetch from a database in a real application
+        users = {
+            1: {"name": "Alice", "email": "alice@example.com", "active": True},
+            2: {"name": "Bob", "email": "bob@example.com", "active": False},
+        }
+        return users.get(user_id, {"error": "User not found"})
 
-    # Add any job_sdk functions you want to expose via XML-RPC
-    # For example, if you have existing functions in job_sdk:
-    # xmlrpc_router.register_function(your_existing_function)
+    # Example returning a list of objects
+    def list_users():
+        return [
+            {"id": 1, "name": "Alice", "email": "alice@example.com"},
+            {"id": 2, "name": "Bob", "email": "bob@example.com"},
+            {"id": 3, "name": "Charlie", "email": "charlie@example.com"},
+        ]
+
+    # Example returning nested complex data
+    def get_project_data(project_id):
+        if project_id == 123:
+            return {
+                "id": project_id,
+                "name": "AI Model Training",
+                "status": "running",
+                "progress": 0.75,
+                "tasks": [
+                    {"id": 1, "name": "Data preprocessing", "complete": True},
+                    {"id": 2, "name": "Model training", "complete": False},
+                ],
+                "metrics": {"accuracy": 0.92, "loss": 0.08},
+                "created_at": "2025-04-01T12:00:00Z",
+            }
+        return {"error": "Project not found"}
+
+    # Register all our functions
+    xmlrpc_router.register_function(hello)
+    xmlrpc_router.register_function(get_user)
+    xmlrpc_router.register_function(list_users)
+    xmlrpc_router.register_function(get_project_data)
 
     # Enable introspection (optional)
     xmlrpc_router.register_introspection_functions()
