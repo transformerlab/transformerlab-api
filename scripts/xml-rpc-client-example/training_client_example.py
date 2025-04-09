@@ -40,8 +40,8 @@ class TransformerLabClient:
 
         # Rate limit reports
         current_time = time.time()
-        # if current_time - self.last_report_time < self.report_interval:
-        #     return True
+        if current_time - self.last_report_time < self.report_interval:
+            return True
 
         self.last_report_time = current_time
 
@@ -78,6 +78,22 @@ class TransformerLabClient:
                 self.server.get_training_status(self.job_id, 100)
         except Exception as e:
             print(f"Error completing job: {e}")
+    
+    def save_model(self, saved_model_path: str):
+        """Save the model to the specified path"""
+        if not self.job_id:
+            return
+            
+        try:
+            # Use the dedicated save_model method if it exists
+            if hasattr(self.server, 'save_model'):
+                response = self.server.save_model(self.job_id, saved_model_path)
+                print("Save Model Status", response)
+
+            else:
+                print("save_model method not available in server.")
+        except Exception as e:
+            print(f"Error saving model: {e}")
 
 
 def train():
@@ -88,7 +104,7 @@ def train():
         "experiment_name": "alpha",
         "model_name": "HuggingFaceTB/SmolLM-135M-Instruct",
         "dataset": "Trelis/touch-rugby-rules",
-        "template_name": "llama3instruct_new",
+        "template_name": "smolinstruct-ft",
         "output_dir": "./output",
         "log_to_wandb": False,
         "_config": {
@@ -202,7 +218,7 @@ def train():
                 if state.is_local_process_zero:
                     if state.max_steps > 0:
                         # Calculate progress percentage (30-90%)
-                        progress = 30 + ((state.global_step / state.max_steps) * 90)
+                        progress = 30 + ((state.global_step / state.max_steps) * 60)
                         metrics = {
                             "step": state.global_step,
                             "train/loss": state.log_history[-1]["loss"] if state.log_history else None,
@@ -219,7 +235,7 @@ def train():
                     for key, value in logs.items():
                         if isinstance(value, (int, float)):
                             metrics[key] = value
-                    self.tlab_client.report_progress(30 + ((state.global_step / state.max_steps) * 90), metrics)
+                    self.tlab_client.report_progress(30 + ((state.global_step / state.max_steps) * 60), metrics)
 
         # Setup trainer
         trainer = Trainer(
@@ -238,6 +254,8 @@ def train():
         print("Saving model...")
         trainer.save_model(os.path.join(training_config["output_dir"], f"final_model_{job_id}"))
         tokenizer.save_pretrained(os.path.join(training_config["output_dir"], f"final_model_{job_id}"))
+        print("Saving model in Transformer Lab")
+        result = tlab_client.save_model(os.path.join(training_config["output_dir"], f"final_model_{job_id}"))
 
         # Calculate training time
         end_time = datetime.now()

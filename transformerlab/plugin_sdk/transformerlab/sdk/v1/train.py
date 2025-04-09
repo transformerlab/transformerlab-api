@@ -188,6 +188,7 @@ class TrainerTLabPlugin(TLabPlugin):
             self.writer.add_scalar(metric_name, metric_value, step)
         if "wandb" in self.report_to and getattr(self, "wandb_run") is not None:
             self.wandb_run.log({metric_name: metric_value}, step=step)
+            
 
     def create_transformerlab_model(self, fused_model_name, model_architecture, json_data, output_dir=None):
         generate_model_json(fused_model_name, model_architecture, json_data=json_data, output_directory=output_dir)

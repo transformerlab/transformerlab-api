@@ -3,6 +3,9 @@ from fastapi import APIRouter, Request, Response
 from fastapi.responses import PlainTextResponse
 import time
 import os
+from transformerlab.shared import dirs
+import shutil
+
 
 
 class XMLRPCRouter:
@@ -323,12 +326,57 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
+
+    def save_model(job_id, local_model_path):
+        """Save the model to the specified path"""
+        try:
+            print("REQUEST COMES")
+            trainer_instance = job_trainers.get(job_id)
+            if not trainer_instance:
+                # Fall back to creating a new one with just the job_id set
+                trainer_instance = trainer_factory()
+                trainer_instance.params["job_id"] = job_id
+            
+            models_dir = dirs.MODELS_DIR
+            # Check if local_model_path is a directory
+            model_save_path = os.path.join(models_dir, f"{trainer_instance.params['template_name']}_{job_id}")
+            if os.path.isdir(local_model_path):
+                # Copy all contents of the directory to the model_save_path
+                shutil.copytree(local_model_path, model_save_path)
+                # Read config.json
+                if os.path.exists(os.path.join(local_model_path, "config.json")):
+                    with open(os.path.join(local_model_path, "config.json"), "r") as f:
+                        json_data = json.load(f)
+                else:
+                    raise FileNotFoundError("config.json not found in the specified directory")
+                model_architecture = json_data.get('architectures', [None])[0]
+                if model_architecture is None:
+                    raise ValueError("Model architecture not found in config.json")
+
+                trainer_instance.create_transformerlab_model(f"{trainer_instance.params['template_name']}_{job_id}", model_architecture, json_data)
+            # url = "http://localhost:8338/model/import_from_local_path"
+            # # Check if local_model_path is a directory
+            # response = requests.get(url, params = {'model_path': local_model_path})
+
+            # print("RESPONSE", response)
+            
+            # if response.status_code == 200:
+                # Model saved successfully
+            return {"status": "success", "message": "Model saved successfully"}
+            # else:
+            #     # Failed to save model
+            #     return {"status": "error", "message": "Failed to save model"}
+            
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
     # Register all our functions
     xmlrpc_router.register_function(start_training)
     xmlrpc_router.register_function(get_training_status)
     xmlrpc_router.register_function(stop_training)
     xmlrpc_router.register_function(log_metrics)
     xmlrpc_router.register_function(complete_job)
+    xmlrpc_router.register_function(save_model)
 
     # Enable introspection
     xmlrpc_router.register_introspection_functions()
