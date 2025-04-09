@@ -7,7 +7,6 @@ from transformerlab.shared import dirs
 import shutil
 
 
-
 class XMLRPCRouter:
     """
     A router for FastAPI that handles XML-RPC requests.
@@ -160,13 +159,12 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
     #     trainer_instance = tlab_trainer
 
     if trainer_factory is None:
-        from transformerlab.plugin_sdk.transformerlab.sdk.v1.train import tlab_trainer
-        
         # Define a factory function that returns a fresh trainer instance
         def create_trainer():
             from transformerlab.plugin_sdk.transformerlab.sdk.v1.train import tlab_trainer
+
             return tlab_trainer.__class__()  # Create a new instance of the same class
-            
+
         trainer_factory = create_trainer
 
     # Create a new XML-RPC router
@@ -186,9 +184,7 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
             experiment_id = tlab_core.get_experiment_id_from_name(experiment_name)
 
             # Set up the trainer parameters
-            job_id = job_create_sync(
-                "TRAIN", "RUNNING", job_data=json.dumps(config), experiment_id=str(experiment_id)
-            )
+            job_id = job_create_sync("TRAIN", "RUNNING", job_data=json.dumps(config), experiment_id=str(experiment_id))
 
             trainer_instance = trainer_factory()
             job_trainers[job_id] = trainer_instance
@@ -201,7 +197,13 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
             trainer_instance._args_parsed = True
             trainer_instance.params.reported_metrics = []
 
-            train_logging_dir = os.path.join(tlab_core.WORKSPACE_DIR, "experiments", experiment_name, "tensorboards", trainer_instance.params["template_name"]) 
+            train_logging_dir = os.path.join(
+                tlab_core.WORKSPACE_DIR,
+                "experiments",
+                experiment_name,
+                "tensorboards",
+                trainer_instance.params["template_name"],
+            )
 
             trainer_instance.setup_train_logging(output_dir=train_logging_dir)
 
@@ -225,7 +227,7 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
                 # Fall back to creating a new one with just the job_id set
                 trainer_instance = trainer_factory()
                 trainer_instance.params["job_id"] = job_id
-                
+
             job = trainer_instance._job
 
             # Get status and progress
@@ -249,7 +251,7 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
             return {"status": "stopping", "job_id": job_id}
         except Exception as e:
             return {"status": "error", "message": str(e)}
-    
+
     def log_metrics(job_id, metrics_json):
         """Log metrics for a training job"""
         try:
@@ -257,12 +259,12 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
             # Store metrics in job data or a separate metrics store
             # trainer_instance.params["job_id"] = job_id
             # job = trainer_instance._job
-            
+
             # # Get existing job data and update with metrics
             # job_data = job.get_job_data() or {}
             # if isinstance(job_data, str):
             #     job_data = json.loads(job_data)
-                
+
             # if "metrics" not in job_data:
             #     job_data["metrics"] = []
 
@@ -271,7 +273,7 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
                 # Fall back to creating a new one with just the job_id set
                 trainer_instance = trainer_factory()
                 trainer_instance.params["job_id"] = job_id
-                
+
             trainer_instance.params.reported_metrics.append(metrics)
 
             if "step" in metrics.keys():
@@ -280,11 +282,10 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
                 for key, value in metrics.items():
                     if key != "step":
                         trainer_instance.log_metric(key, value, step)
-            
+
             # Update job data
             # job.update_job_data(json.dumps(job_data))
 
-            
             return {"status": "success", "job_id": job_id}
         except Exception as e:
             return {"status": "error", "message": str(e)}
@@ -297,35 +298,32 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
                 # Fall back to creating a new one with just the job_id set
                 trainer_instance = trainer_factory()
                 trainer_instance.params["job_id"] = job_id
-                
+
             job = trainer_instance._job
-            
+
             # Update job status
             job_update_status_sync(job_id, status)
-            
+
             # Update job data with completion message
             job_data = job.get_job_data() or {}
             if isinstance(job_data, str):
                 job_data = json.loads(job_data)
-            
+
             job.add_to_job_data("metrics", str(trainer_instance.params.reported_metrics))
-                
+
             # job_data["completion_message"] = message
             # job_data["completed_at"] = datetime.now().isoformat()
             end_time = time.strftime("%Y-%m-%d %H:%M:%S")
             job.add_to_job_data("end_time", end_time)
 
-            
-            
             # Update job data
             # job.update_job_data(json.dumps(job_data))
             job.update_progress(100)  # Ensure progress is set to 100%
-            job.set_job_completion_status('success', message)
-            
+            job.set_job_completion_status("success", message)
+
             return {"status": "success", "job_id": job_id}
         except Exception as e:
             return {"status": "error", "message": str(e)}
-
 
     def save_model(job_id, local_model_path):
         """Save the model to the specified path"""
@@ -336,7 +334,7 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
                 # Fall back to creating a new one with just the job_id set
                 trainer_instance = trainer_factory()
                 trainer_instance.params["job_id"] = job_id
-            
+
             models_dir = dirs.MODELS_DIR
             # Check if local_model_path is a directory
             model_save_path = os.path.join(models_dir, f"{trainer_instance.params['template_name']}_{job_id}")
@@ -349,24 +347,26 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
                         json_data = json.load(f)
                 else:
                     raise FileNotFoundError("config.json not found in the specified directory")
-                model_architecture = json_data.get('architectures', [None])[0]
+                model_architecture = json_data.get("architectures", [None])[0]
                 if model_architecture is None:
                     raise ValueError("Model architecture not found in config.json")
 
-                trainer_instance.create_transformerlab_model(f"{trainer_instance.params['template_name']}_{job_id}", model_architecture, json_data)
+                trainer_instance.create_transformerlab_model(
+                    f"{trainer_instance.params['template_name']}_{job_id}", model_architecture, json_data
+                )
             # url = "http://localhost:8338/model/import_from_local_path"
             # # Check if local_model_path is a directory
             # response = requests.get(url, params = {'model_path': local_model_path})
 
             # print("RESPONSE", response)
-            
+
             # if response.status_code == 200:
-                # Model saved successfully
+            # Model saved successfully
             return {"status": "success", "message": "Model saved successfully"}
             # else:
             #     # Failed to save model
             #     return {"status": "error", "message": "Failed to save model"}
-            
+
         except Exception as e:
             return {"status": "error", "message": str(e)}
 

@@ -2,12 +2,9 @@ import xmlrpc.client
 import json
 import time
 import os
-import sys
-import torch
 from datasets import load_dataset
 from pprint import pprint
 from datetime import datetime
-from tqdm import tqdm
 
 
 class TransformerLabClient:
@@ -32,7 +29,6 @@ class TransformerLabClient:
         else:
             raise Exception(f"Failed to start job: {result['message']}")
 
-
     def report_progress(self, progress, metrics=None):
         """Report training progress to TransformerLab"""
         if not self.job_id:
@@ -49,11 +45,11 @@ class TransformerLabClient:
             # Since get_training_status doesn't accept metrics directly,
             # we need to store them in the job data or use another method
             status = self.server.get_training_status(self.job_id, int(progress))
-            
+
             # If metrics are important, consider logging them separately
-            if metrics and hasattr(self.server, 'log_metrics'):
+            if metrics and hasattr(self.server, "log_metrics"):
                 self.server.log_metrics(self.job_id, json.dumps(metrics))
-            
+
             if status.get("status") == "STOPPED":
                 print("Job was stopped remotely. Terminating training...")
                 return False
@@ -67,10 +63,10 @@ class TransformerLabClient:
         """Mark job as complete in TransformerLab"""
         if not self.job_id:
             return
-            
+
         try:
             # Use the dedicated complete_job method if it exists
-            if hasattr(self.server, 'complete_job'):
+            if hasattr(self.server, "complete_job"):
                 self.server.complete_job(self.job_id, status, message)
             else:
                 # Fall back to using get_training_status with 100% progress
@@ -78,15 +74,15 @@ class TransformerLabClient:
                 self.server.get_training_status(self.job_id, 100)
         except Exception as e:
             print(f"Error completing job: {e}")
-    
+
     def save_model(self, saved_model_path: str):
         """Save the model to the specified path"""
         if not self.job_id:
             return
-            
+
         try:
             # Use the dedicated save_model method if it exists
-            if hasattr(self.server, 'save_model'):
+            if hasattr(self.server, "save_model"):
                 response = self.server.save_model(self.job_id, saved_model_path)
                 print("Save Model Status", response)
 
@@ -255,7 +251,7 @@ def train():
         trainer.save_model(os.path.join(training_config["output_dir"], f"final_model_{job_id}"))
         tokenizer.save_pretrained(os.path.join(training_config["output_dir"], f"final_model_{job_id}"))
         print("Saving model in Transformer Lab")
-        result = tlab_client.save_model(os.path.join(training_config["output_dir"], f"final_model_{job_id}"))
+        tlab_client.save_model(os.path.join(training_config["output_dir"], f"final_model_{job_id}"))
 
         # Calculate training time
         end_time = datetime.now()
