@@ -1,6 +1,7 @@
 from xmlrpc.server import SimpleXMLRPCDispatcher
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import PlainTextResponse
+import time
 
 
 class XMLRPCRouter:
@@ -133,7 +134,7 @@ def get_xmlrpc_router(prefix="/job_sdk"):
     return xmlrpc_router.router
 
 
-def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_instance=None):
+def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
     """
     Create and return a configured XML-RPC router for the TLab trainer.
 
@@ -147,14 +148,27 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_instance=None):
     import json
     from transformerlab.db import job_create_sync, job_update_status_sync
 
-    # Import the trainer if not provided
-    if trainer_instance is None:
-        from transformerlab.plugin_sdk.transformerlab.sdk.v1.train import tlab_trainer
+    # # Import the trainer if not provided
+    # if trainer_instance is None:
+    #     from transformerlab.plugin_sdk.transformerlab.sdk.v1.train import tlab_trainer
 
-        trainer_instance = tlab_trainer
+    #     trainer_instance = tlab_trainer
+
+    if trainer_factory is None:
+        from transformerlab.plugin_sdk.transformerlab.sdk.v1.train import tlab_trainer
+        
+        # Define a factory function that returns a fresh trainer instance
+        def create_trainer():
+            from transformerlab.plugin_sdk.transformerlab.sdk.v1.train import tlab_trainer
+            return tlab_trainer.__class__()  # Create a new instance of the same class
+            
+        trainer_factory = create_trainer
 
     # Create a new XML-RPC router
     xmlrpc_router = XMLRPCRouter(prefix=prefix)
+
+    # Dictionary to store job_id -> trainer_instance mapping
+    job_trainers = {}
 
     # Expose trainer methods via RPC-friendly wrappers
     def start_training(config_json):
@@ -168,13 +182,19 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_instance=None):
                 "TRAIN", "RUNNING", job_data=json.dumps(config), experiment_id=config.get("experiment_id", "alpha")
             )
 
+            trainer_instance = trainer_factory()
+            job_trainers[job_id] = trainer_instance
+
             trainer_instance.params["job_id"] = job_id
             for key, value in config.items():
                 trainer_instance.params[key] = value
             trainer_instance._args_parsed = True
+            trainer_instance.params.reported_metrics = []
 
             # Initialize the job
             job = trainer_instance.job
+            start_time = time.strftime("%Y-%m-%d %H:%M:%S")
+            job.add_to_job_data("start_time", start_time)
             # job_update_status_sync(job_id, "RUNNING")
             job.update_progress(0)
 
@@ -186,8 +206,12 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_instance=None):
     def get_training_status(job_id, progress_update):
         """Get the status of a training job"""
         try:
-            # Set job ID and get status
-            trainer_instance.params["job_id"] = job_id
+            trainer_instance = job_trainers.get(job_id)
+            if not trainer_instance:
+                # Fall back to creating a new one with just the job_id set
+                trainer_instance = trainer_factory()
+                trainer_instance.params["job_id"] = job_id
+                
             job = trainer_instance._job
 
             # Get status and progress
@@ -211,11 +235,82 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_instance=None):
             return {"status": "stopping", "job_id": job_id}
         except Exception as e:
             return {"status": "error", "message": str(e)}
+    
+    def log_metrics(job_id, metrics_json):
+        """Log metrics for a training job"""
+        try:
+            metrics = json.loads(metrics_json) if isinstance(metrics_json, str) else metrics_json
+            # Store metrics in job data or a separate metrics store
+            # trainer_instance.params["job_id"] = job_id
+            # job = trainer_instance._job
+            
+            # # Get existing job data and update with metrics
+            # job_data = job.get_job_data() or {}
+            # if isinstance(job_data, str):
+            #     job_data = json.loads(job_data)
+                
+            # if "metrics" not in job_data:
+            #     job_data["metrics"] = []
+
+            trainer_instance = job_trainers.get(job_id)
+            if not trainer_instance:
+                # Fall back to creating a new one with just the job_id set
+                trainer_instance = trainer_factory()
+                trainer_instance.params["job_id"] = job_id
+                
+            trainer_instance.params.reported_metrics.append(metrics)
+            
+            # Update job data
+            # job.update_job_data(json.dumps(job_data))
+
+            
+            return {"status": "success", "job_id": job_id}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def complete_job(job_id, status="COMPLETE", message="Training completed successfully"):
+        """Mark a training job as complete"""
+        try:
+            trainer_instance = job_trainers.get(job_id)
+            if not trainer_instance:
+                # Fall back to creating a new one with just the job_id set
+                trainer_instance = trainer_factory()
+                trainer_instance.params["job_id"] = job_id
+                
+            job = trainer_instance._job
+            
+            # Update job status
+            job_update_status_sync(job_id, status)
+            
+            # Update job data with completion message
+            job_data = job.get_job_data() or {}
+            if isinstance(job_data, str):
+                job_data = json.loads(job_data)
+            
+            job.add_to_job_data("metrics", str(trainer_instance.params.reported_metrics))
+                
+            # job_data["completion_message"] = message
+            # job_data["completed_at"] = datetime.now().isoformat()
+            end_time = time.strftime("%Y-%m-%d %H:%M:%S")
+            job.add_to_job_data("end_time", end_time)
+
+            
+            
+            # Update job data
+            # job.update_job_data(json.dumps(job_data))
+            job.update_progress(100)  # Ensure progress is set to 100%
+            job.set_job_completion_status('success', message)
+            
+            return {"status": "success", "job_id": job_id}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 
     # Register all our functions
     xmlrpc_router.register_function(start_training)
     xmlrpc_router.register_function(get_training_status)
     xmlrpc_router.register_function(stop_training)
+    xmlrpc_router.register_function(log_metrics)
+    xmlrpc_router.register_function(complete_job)
 
     # Enable introspection
     xmlrpc_router.register_introspection_functions()
