@@ -189,6 +189,45 @@ class Job:
             (status, self.id),
         )
 
+    def get_status(self):
+        """
+        Get the status of this job.
+        """
+        cursor = self.db.execute("SELECT status FROM job WHERE id = ?", (self.id,))
+        row = cursor.fetchone()
+        cursor.close()
+
+        if row is not None:
+            return row[0]
+        return None
+
+    def get_progress(self):
+        """
+        Get the progress of this job.
+        """
+        cursor = self.db.execute("SELECT progress FROM job WHERE id = ?", (self.id,))
+        row = cursor.fetchone()
+        cursor.close()
+
+        if row is not None:
+            return row[0]
+        return None
+
+    def get_job_data(self):
+        """
+        Get the job_data of this job.
+        """
+        cursor = self.db.execute("SELECT job_data FROM job WHERE id = ?", (self.id,))
+        row = cursor.fetchone()
+        cursor.close()
+
+        if row is not None:
+            if isinstance(row[0], str):
+                return json.loads(row[0])
+            else:
+                return row[0]
+        return None
+
     def set_tensorboard_output_dir(self, tensorboard_dir: str):
         """
         Sets the directory that tensorboard output is stored.

@@ -4,9 +4,13 @@ import os
 import time
 import traceback
 
-from transformerlab.plugin import WORKSPACE_DIR, generate_model_json, test_wandb_login
+try:
+    from transformerlab.plugin import WORKSPACE_DIR, generate_model_json, test_wandb_login
+    from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
 
-from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
+except ModuleNotFoundError:
+    from transformerlab.plugin_sdk.transformerlab.plugin import WORKSPACE_DIR, generate_model_json, test_wandb_login
+    from transformerlab.plugin_sdk.transformerlab.sdk.v1.tlab_plugin import TLabPlugin
 
 
 class TrainerTLabPlugin(TLabPlugin):
@@ -16,7 +20,7 @@ class TrainerTLabPlugin(TLabPlugin):
         super().__init__()
         self.tlab_plugin_type = "trainer"
         # Add training-specific default arguments
-        self._parser.add_argument("--input_file", type=str, help="Path to configuration file")
+        self._parser.add_argument("--input_file", default=None, type=str, help="Path to configuration file")
 
         # Training state tracking
         self._config_parsed = False

@@ -117,6 +117,7 @@ def get_xmlrpc_router(prefix="/job_sdk"):
                 "metrics": {"accuracy": 0.92, "loss": 0.08},
                 "created_at": "2025-04-01T12:00:00Z",
             }
+
         return {"error": "Project not found"}
 
     # Register all our functions
@@ -126,6 +127,97 @@ def get_xmlrpc_router(prefix="/job_sdk"):
     xmlrpc_router.register_function(get_project_data)
 
     # Enable introspection (optional)
+    xmlrpc_router.register_introspection_functions()
+
+    # Return the router property
+    return xmlrpc_router.router
+
+
+def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_instance=None):
+    """
+    Create and return a configured XML-RPC router for the TLab trainer.
+
+    Args:
+        prefix: The URL prefix for the XML-RPC endpoint
+        trainer_instance: Instance of TrainerTLabPlugin to expose via RPC
+
+    Returns:
+        A configured FastAPI router instance
+    """
+    import json
+    from transformerlab.db import job_create_sync, job_update_status_sync
+
+    # Import the trainer if not provided
+    if trainer_instance is None:
+        from transformerlab.plugin_sdk.transformerlab.sdk.v1.train import tlab_trainer
+
+        trainer_instance = tlab_trainer
+
+    # Create a new XML-RPC router
+    xmlrpc_router = XMLRPCRouter(prefix=prefix)
+
+    # Expose trainer methods via RPC-friendly wrappers
+    def start_training(config_json):
+        """Start a training job with the given configuration"""
+        try:
+            # Parse the JSON config
+            config = json.loads(config_json) if isinstance(config_json, str) else config_json
+
+            # Set up the trainer parameters
+            job_id = job_create_sync(
+                "TRAIN", "RUNNING", job_data=json.dumps(config), experiment_id=config.get("experiment_id", "alpha")
+            )
+
+            trainer_instance.params["job_id"] = job_id
+            for key, value in config.items():
+                trainer_instance.params[key] = value
+            trainer_instance._args_parsed = True
+
+            # Initialize the job
+            job = trainer_instance.job
+            # job_update_status_sync(job_id, "RUNNING")
+            job.update_progress(0)
+
+            # Return success with job ID
+            return {"status": "started", "job_id": job_id}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def get_training_status(job_id, progress_update):
+        """Get the status of a training job"""
+        try:
+            # Set job ID and get status
+            trainer_instance.params["job_id"] = job_id
+            job = trainer_instance._job
+
+            # Get status and progress
+            status = job.get_status()
+            progress = job.get_progress()
+
+            job.update_progress(progress_update)
+
+            # Get any job data
+            job_data = job.get_job_data()
+
+            return {"job_id": job_id, "status": status, "progress": progress, "data": job_data}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def stop_training(job_id):
+        """Stop a training job"""
+        try:
+            # job = trainer_instance.job
+            job_update_status_sync(job_id, "STOPPED")
+            return {"status": "stopping", "job_id": job_id}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    # Register all our functions
+    xmlrpc_router.register_function(start_training)
+    xmlrpc_router.register_function(get_training_status)
+    xmlrpc_router.register_function(stop_training)
+
+    # Enable introspection
     xmlrpc_router.register_introspection_functions()
 
     # Return the router property
