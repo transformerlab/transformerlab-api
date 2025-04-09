@@ -2,6 +2,7 @@ from xmlrpc.server import SimpleXMLRPCDispatcher
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import PlainTextResponse
 import time
+import os
 
 
 class XMLRPCRouter:
@@ -147,6 +148,7 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
     """
     import json
     from transformerlab.db import job_create_sync, job_update_status_sync
+    import transformerlab.plugin_sdk.transformerlab.plugin as tlab_core
 
     # # Import the trainer if not provided
     # if trainer_instance is None:
@@ -177,19 +179,28 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
             # Parse the JSON config
             config = json.loads(config_json) if isinstance(config_json, str) else config_json
 
+            experiment_name = config.get("experiment_name", "alpha")
+            experiment_id = tlab_core.get_experiment_id_from_name(experiment_name)
+
             # Set up the trainer parameters
             job_id = job_create_sync(
-                "TRAIN", "RUNNING", job_data=json.dumps(config), experiment_id=config.get("experiment_id", "alpha")
+                "TRAIN", "RUNNING", job_data=json.dumps(config), experiment_id=str(experiment_id)
             )
 
             trainer_instance = trainer_factory()
             job_trainers[job_id] = trainer_instance
 
             trainer_instance.params["job_id"] = job_id
+            trainer_instance.params["experiment_id"] = experiment_id
+            trainer_instance.params["experiment_name"] = experiment_name
             for key, value in config.items():
                 trainer_instance.params[key] = value
             trainer_instance._args_parsed = True
             trainer_instance.params.reported_metrics = []
+
+            train_logging_dir = os.path.join(tlab_core.WORKSPACE_DIR, "experiments", experiment_name, "tensorboards", trainer_instance.params["template_name"]) 
+
+            trainer_instance.setup_train_logging(output_dir=train_logging_dir)
 
             # Initialize the job
             job = trainer_instance.job
@@ -259,6 +270,13 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
                 trainer_instance.params["job_id"] = job_id
                 
             trainer_instance.params.reported_metrics.append(metrics)
+
+            if "step" in metrics.keys():
+                step = metrics["step"]
+                # Do trainer_instance.log_metrics(metrics) for all keys except "step"
+                for key, value in metrics.items():
+                    if key != "step":
+                        trainer_instance.log_metric(key, value, step)
             
             # Update job data
             # job.update_job_data(json.dumps(job_data))

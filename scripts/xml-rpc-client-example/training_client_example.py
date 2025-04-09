@@ -40,8 +40,8 @@ class TransformerLabClient:
 
         # Rate limit reports
         current_time = time.time()
-        if current_time - self.last_report_time < self.report_interval:
-            return True
+        # if current_time - self.last_report_time < self.report_interval:
+        #     return True
 
         self.last_report_time = current_time
 
@@ -85,10 +85,10 @@ def train():
 
     # Training configuration
     training_config = {
-        "experiment_id": "alpha",
+        "experiment_name": "alpha",
         "model_name": "HuggingFaceTB/SmolLM-135M-Instruct",
         "dataset": "Trelis/touch-rugby-rules",
-        "template_name": "llama3instruct",
+        "template_name": "llama3instruct_new",
         "output_dir": "./output",
         "log_to_wandb": False,
         "_config": {
@@ -205,7 +205,7 @@ def train():
                         progress = 30 + ((state.global_step / state.max_steps) * 90)
                         metrics = {
                             "step": state.global_step,
-                            "loss": state.log_history[-1]["loss"] if state.log_history else None,
+                            "train/loss": state.log_history[-1]["loss"] if state.log_history else None,
                         }
                         # Report progress to TransformerLab
                         if not self.tlab_client.report_progress(progress, metrics):
@@ -214,7 +214,7 @@ def train():
 
             def on_log(self, args, state, control, logs=None, **kwargs):
                 if logs and "loss" in logs:
-                    metrics = {"step": state.global_step, "loss": logs["loss"]}
+                    metrics = {"step": state.global_step, "train/loss": logs["loss"]}
                     # Add other metrics if available
                     for key, value in logs.items():
                         if isinstance(value, (int, float)):

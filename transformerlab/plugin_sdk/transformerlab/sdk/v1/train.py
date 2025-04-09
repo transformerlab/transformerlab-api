@@ -111,7 +111,8 @@ class TrainerTLabPlugin(TLabPlugin):
             self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise
 
-    def setup_train_logging(self, wandb_project_name: str = "TLab_Training", manual_logging=False):
+
+    def setup_train_logging(self, wandb_project_name: str = "TLab_Training", manual_logging=False, output_dir = None):
         """Setup Weights and Biases and TensorBoard logging
 
         Args:
@@ -126,14 +127,20 @@ class TrainerTLabPlugin(TLabPlugin):
         if not self.params.template_name:
             self.params.template_name = "default"
         # Add tensorboard_output_dir
-        self.params.tensorboard_output_dir = os.path.join(
-            self.params.output_dir, f"job_{self.params.job_id}_{self.params.template_name}"
-        )
+        if output_dir is None:
+            self.params.tensorboard_output_dir = os.path.join(
+                self.params.output_dir, f"job_{self.params.job_id}_{self.params.template_name}"
+            )
+            self.add_job_data("tensorboard_output_dir", self.params.output_dir)
+        else:
+            self.params.tensorboard_output_dir = os.path.join(
+                output_dir, f"job_{self.params.job_id}_{self.params.template_name}"
+            )
+            self.add_job_data("tensorboard_output_dir", output_dir)
+
         self.writer = SummaryWriter(self.params.tensorboard_output_dir)
         print("Writing tensorboard logs to:", self.params.output_dir)
 
-        # Store the tensorboard output dir in the job
-        self.add_job_data("tensorboard_output_dir", self.params.output_dir)
 
         # Check config or direct attribute for wandb logging preference
         log_to_wandb = False
