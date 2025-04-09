@@ -45,7 +45,7 @@ from transformerlab.routers import (
     tools,
     batched_prompts,
 )
-from transformerlab.routers.job_sdk import get_xmlrpc_router, XMLRPCRouter
+from transformerlab.routers.job_sdk import get_xmlrpc_router
 import torch
 from pynvml import nvmlShutdown
 from transformerlab import fastchat_openai_api
