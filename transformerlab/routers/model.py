@@ -9,7 +9,7 @@ from fastapi import APIRouter, Body
 from fastchat.model.model_adapter import get_conversation_template
 from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi
 from huggingface_hub import ModelCard, ModelCardData
-from huggingface_hub.utils import HfHubHTTPError
+from huggingface_hub.utils import HfHubHTTPError, GatedRepoError
 import os
 from pathlib import Path
 import logging
@@ -489,14 +489,29 @@ async def download_model_by_huggingface_id(model: str, job_id: int | None = None
     # Or we don't have proper Hugging Face authentication setup
     try:
         model_details = await huggingfacemodel.get_model_details_from_huggingface(model)
+    except GatedRepoError:
+        error_msg = f"{model} is a gated model. \
+To continue downloading, you need to enter a valid \
+Hugging Face token on the settings page, \
+and you must agree to the terms \
+on the model's Huggingface page."
+        # Log the detailed error message
+        print(error_msg)  # Replace with appropriate logging mechanism
+        if job_id:
+            await db.job_update_status(job_id, "UNAUTHORIZED", error_msg)
+        return {"status": "unauthorized", "message": error_msg}
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
         # Log the detailed error message
         print(error_msg)  # Replace with appropriate logging mechanism
-        return {"status": "error", "message": "An internal error has occurred."}
+        if job_id:
+            await db.job_update_status(job_id, "FAILED", error_msg)
+        return {"status": "error", "message": error_msg}
 
     if model_details is None:
         error_msg = f"Error reading config for model with ID {model}"
+        if job_id:
+            await db.job_update_status(job_id, "FAILED", error_msg)
         return {"status": "error", "message": error_msg}
 
     return await download_huggingface_model(model, model_details, job_id)
