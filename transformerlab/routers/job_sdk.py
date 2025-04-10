@@ -230,14 +230,14 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
                 complete_job(job_id, status="STOPPED", message="Job was stopped")
                 return {"status": "stopped", "job_id": job_id}
 
-            # Get status and progress
-            status = job.get_status()
-            progress = job.get_progress()
-
             job.update_progress(progress_update)
+            
 
             # Get any job data
             job_data = job.get_job_data()
+            # Get status and progress
+            status = job.get_status()
+            progress = job.get_progress()
 
             return {"job_id": job_id, "status": status, "progress": progress, "data": job_data}
         except Exception as e:
