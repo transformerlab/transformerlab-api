@@ -111,15 +111,28 @@ class Workflow(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     config: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-    status: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    current_task: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    current_job_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     experiment_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
+class WorkflowRun(Base):
+    """Run of a workflow"""
+
+    __tablename__ = "workflow_runs"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    workflow_id: Mapped[int] = mapped_column(Integer, nullable=True)
+    job_ids: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    node_ids: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    status: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True)
+    current_tasks: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    current_job_ids: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    updated_at: Mapped[DateTime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
 class Task(Base):
     """Task model."""
