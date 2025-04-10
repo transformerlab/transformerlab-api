@@ -1,10 +1,15 @@
+import json
+import os
+import shutil
+import time
 from xmlrpc.server import SimpleXMLRPCDispatcher
+
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import PlainTextResponse
-import time
-import os
+
+import transformerlab.plugin_sdk.transformerlab.plugin as tlab_core
+from transformerlab.db import job_create_sync, job_update_status_sync
 from transformerlab.shared import dirs
-import shutil
 
 
 class XMLRPCRouter:
@@ -148,9 +153,6 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
     Returns:
         A configured FastAPI router instance
     """
-    import json
-    from transformerlab.db import job_create_sync, job_update_status_sync
-    import transformerlab.plugin_sdk.transformerlab.plugin as tlab_core
 
     # # Import the trainer if not provided
 
@@ -231,7 +233,6 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
                 return {"status": "stopped", "job_id": job_id}
 
             job.update_progress(progress_update)
-            
 
             # Get any job data
             job_data = job.get_job_data()
