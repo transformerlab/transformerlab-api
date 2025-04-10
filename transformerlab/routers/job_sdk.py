@@ -9,14 +9,13 @@ from fastapi.responses import PlainTextResponse
 
 from transformerlab.db import job_create_sync, job_update_status_sync
 from transformerlab.shared import dirs
+import transformerlab.plugin_sdk.transformerlab.plugin as tlab_core
 
 
 class XMLRPCRouter:
     """
     A router for FastAPI that handles XML-RPC requests.
     """
-
-    import transformerlab.plugin_sdk.transformerlab.plugin as tlab_core
 
     def __init__(self, prefix="/rpc"):
         self.dispatcher = SimpleXMLRPCDispatcher(allow_none=True, encoding=None)
