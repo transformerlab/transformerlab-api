@@ -153,10 +153,6 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
     import transformerlab.plugin_sdk.transformerlab.plugin as tlab_core
 
     # # Import the trainer if not provided
-    # if trainer_instance is None:
-    #     from transformerlab.plugin_sdk.transformerlab.sdk.v1.train import tlab_trainer
-
-    #     trainer_instance = tlab_trainer
 
     if trainer_factory is None:
         # Define a factory function that returns a fresh trainer instance
@@ -328,7 +324,6 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
     def save_model(job_id, local_model_path):
         """Save the model to the specified path"""
         try:
-            print("REQUEST COMES")
             trainer_instance = job_trainers.get(job_id)
             if not trainer_instance:
                 # Fall back to creating a new one with just the job_id set
@@ -354,20 +349,42 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
                 trainer_instance.create_transformerlab_model(
                     f"{trainer_instance.params['template_name']}_{job_id}", model_architecture, json_data
                 )
-            # url = "http://localhost:8338/model/import_from_local_path"
-            # # Check if local_model_path is a directory
-            # response = requests.get(url, params = {'model_path': local_model_path})
-
-            # print("RESPONSE", response)
-
-            # if response.status_code == 200:
-            # Model saved successfully
             return {"status": "success", "message": "Model saved successfully"}
             # else:
             #     # Failed to save model
             #     return {"status": "error", "message": "Failed to save model"}
 
         except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def update_output_file(job_id, output_file):
+        """Update the output file for a training job"""
+        try:
+            trainer_instance = job_trainers.get(job_id)
+
+            if not trainer_instance:
+                # Fall back to creating a new one with just the job_id set
+                trainer_instance = trainer_factory()
+                trainer_instance.params["job_id"] = job_id
+
+            job = trainer_instance._job
+
+            if trainer_instance.params.get("output_file_path") is None:
+                output_directory = os.path.join(tlab_core.WORKSPACE_DIR, "experiments", trainer_instance.params.get("experiment_name", "alpha"), "remote_trains")
+                if not os.path.exists(output_directory):
+                    os.makedirs(output_directory)
+                output_file_name = os.path.join(output_directory, f"output_{job_id}.txt")
+                trainer_instance.params['output_file_path'] = output_file_name
+                job.add_to_job_data("output_file_path", output_file_name)
+            else:
+                output_file_name = trainer_instance.params.output_file_path
+
+            # Copy the output file to the output directory
+            shutil.copy(output_file, output_file_name)
+
+            return {"status": "success", "job_id": job_id}
+        except Exception as e:
+            print("Error while updating output file", e)
             return {"status": "error", "message": str(e)}
 
     # Register all our functions
@@ -377,6 +394,7 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
     xmlrpc_router.register_function(log_metrics)
     xmlrpc_router.register_function(complete_job)
     xmlrpc_router.register_function(save_model)
+    xmlrpc_router.register_function(update_output_file)
 
     # Enable introspection
     xmlrpc_router.register_introspection_functions()

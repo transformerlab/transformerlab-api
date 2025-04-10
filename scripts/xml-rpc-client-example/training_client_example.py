@@ -1,22 +1,27 @@
 import xmlrpc.client
+import sys
 import json
 import time
 import os
 from datasets import load_dataset
 from pprint import pprint
 from datetime import datetime
+import logging
+from logging.handlers import RotatingFileHandler
 
 
 class TransformerLabClient:
     """Client for reporting training progress to TransformerLab via XML-RPC"""
 
-    def __init__(self, server_url="http://localhost:8338/trainer_rpc"):
+    def __init__(self, server_url="http://localhost:8338/trainer_rpc", log_file=None):
         """Initialize the XML-RPC client"""
         self.server = xmlrpc.client.ServerProxy(server_url)
         self.job_id = None
         self.config = {}
         self.last_report_time = 0
         self.report_interval = 1  # seconds
+        self.log_file = log_file
+
 
     def start_job(self, config):
         """Register job with TransformerLab and get a job ID"""
@@ -24,10 +29,13 @@ class TransformerLabClient:
         if result["status"] == "started":
             self.job_id = result["job_id"]
             self.config = config
-            print(f"Registered job with TransformerLab. Job ID: {self.job_id}")
+            # Set up logger
+            self.create_logger(log_file=self.log_file)
+            self.log_info(f"Registered job with TransformerLab. Job ID: {self.job_id}")
             return self.job_id
         else:
-            raise Exception(f"Failed to start job: {result['message']}")
+            error_msg = f"Failed to start job: {result['message']}"
+            raise Exception(error_msg)
 
     def report_progress(self, progress, metrics=None):
         """Report training progress to TransformerLab"""
@@ -51,7 +59,7 @@ class TransformerLabClient:
                 self.server.log_metrics(self.job_id, json.dumps(metrics))
 
             if status.get("status") == "STOPPED":
-                print("Job was stopped remotely. Terminating training...")
+                self.log_info("Job was stopped remotely. Terminating training...")
                 return False
             return True
         except Exception as e:
@@ -73,7 +81,7 @@ class TransformerLabClient:
                 self.report_progress(100)
                 self.server.get_training_status(self.job_id, 100)
         except Exception as e:
-            print(f"Error completing job: {e}")
+            self.log_error(f"Error completing job: {e}")
 
     def save_model(self, saved_model_path: str):
         """Save the model to the specified path"""
@@ -83,13 +91,86 @@ class TransformerLabClient:
         try:
             # Use the dedicated save_model method if it exists
             if hasattr(self.server, "save_model"):
-                response = self.server.save_model(self.job_id, saved_model_path)
-                print("Save Model Status", response)
+                response = self.server.save_model(self.job_id, os.path.abspath(saved_model_path))
+                print("RESPONSE", response)
 
             else:
-                print("save_model method not available in server.")
+                self.log_warning("save_model method not available in server.")
         except Exception as e:
             print(f"Error saving model: {e}")
+
+    def update_output_file_in_tlab(self):
+        try:
+            if hasattr(self.server, "update_output_file"):
+                # Use the dedicated update_output_file method if it exists
+                result = self.server.update_output_file(self.job_id, os.path.abspath(self.log_file_path))
+            else:
+                print("There was an issue with updating output.txt within Transformer Lab app.")
+        except Exception as e:
+            print(f"There was an issue with updating output.txt within Transformer Lab app: {str(e)}")
+            raise e
+
+
+    def create_logger(self, log_file=None, level=logging.INFO):
+        """Initialize logger with both file and console output"""
+        # Create logger
+        self.logger = logging.getLogger("transformerlab")
+        self.logger.setLevel(level)
+        self.logger.handlers = []  # Clear any existing handlers
+        
+        # Create formatter
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        
+        # If no log file specified, create one with timestamp
+        if not log_file:
+            os.makedirs('logs', exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            log_file = f"logs/transformerlab_training_{timestamp}.log"
+        
+        self.log_file_path = log_file
+                
+        # Create file handler
+        file_handler = RotatingFileHandler(
+            log_file, 
+            maxBytes=10*1024*1024,  # 10MB
+            backupCount=5
+        )
+        file_handler.setFormatter(formatter)
+        self.logger.addHandler(file_handler)
+        
+        # Create console handler
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setFormatter(formatter)
+        self.logger.addHandler(console_handler)
+        
+        self.log_file = log_file
+        self.log_info(f"Logging to file: {log_file}")
+    
+    def log_info(self, message):
+        """Log info message"""
+        self.logger.info(message)
+        self.update_output_file_in_tlab()
+        
+    
+    def log_error(self, message):
+        """Log error message"""
+        self.logger.error(message)
+        self.update_output_file_in_tlab()
+    
+    def log_warning(self, message):
+        """Log warning message"""
+        self.logger.warning(message)
+        self.update_output_file_in_tlab()
+    
+    def log_debug(self, message):
+        """Log debug message"""
+        self.logger.debug(message)
+        self.update_output_file_in_tlab()
+    
+    def log_critical(self, message):
+        """Log critical message"""
+        self.logger.critical(message)
+        self.update_output_file_in_tlab()
 
 
 def train():
@@ -100,7 +181,7 @@ def train():
         "experiment_name": "alpha",
         "model_name": "HuggingFaceTB/SmolLM-135M-Instruct",
         "dataset": "Trelis/touch-rugby-rules",
-        "template_name": "smolinstruct-ft",
+        "template_name": "full-demo",
         "output_dir": "./output",
         "log_to_wandb": False,
         "_config": {
@@ -115,6 +196,7 @@ def train():
         },
     }
 
+
     # Initialize TransformerLab client
     tlab_client = TransformerLabClient()
     job_id = tlab_client.start_job(training_config)
@@ -125,12 +207,12 @@ def train():
     try:
         # Log start time
         start_time = datetime.now()
-        print(f"Training started at {start_time}")
+        tlab_client.log_info(f"Training started at {start_time}")
 
         # Load the dataset
-        print("Loading dataset...")
+        tlab_client.log_info("Loading dataset...")
         dataset = load_dataset(training_config["dataset"])
-        print(f"Loaded dataset with {len(dataset['train'])} training examples")
+        tlab_client.log_info(f"Loaded dataset with {len(dataset['train'])} training examples")
 
         # Report progress to TransformerLab
         tlab_client.report_progress(10, {"status": "dataset_loaded"})
@@ -138,7 +220,7 @@ def train():
         # Load tokenizer and model
         from transformers import AutoTokenizer, AutoModelForCausalLM
 
-        print(f"Loading model: {training_config['model_name']}")
+        tlab_client.log_info(f"Loading model: {training_config['model_name']}")
         tokenizer = AutoTokenizer.from_pretrained(training_config["model_name"])
         model = AutoModelForCausalLM.from_pretrained(
             training_config["model_name"],
@@ -243,20 +325,20 @@ def train():
         )
 
         # Train the model
-        print("Starting training...")
+        tlab_client.log_info("Starting training...")
         trainer.train()
 
         # Save the final model
-        print("Saving model...")
+        tlab_client.log_info("Saving model...")
         trainer.save_model(os.path.join(training_config["output_dir"], f"final_model_{job_id}"))
         tokenizer.save_pretrained(os.path.join(training_config["output_dir"], f"final_model_{job_id}"))
-        print("Saving model in Transformer Lab")
+        tlab_client.log_info("Saving model in Transformer Lab")
         tlab_client.save_model(os.path.join(training_config["output_dir"], f"final_model_{job_id}"))
 
         # Calculate training time
         end_time = datetime.now()
         training_duration = end_time - start_time
-        print(f"Training completed in {training_duration}")
+        tlab_client.log_info(f"Training completed in {training_duration}")
 
         # Complete the job in TransformerLab
         tlab_client.complete_job("COMPLETE", "Training completed successfully")
@@ -269,12 +351,12 @@ def train():
         }
 
     except KeyboardInterrupt:
-        print("Training interrupted by user")
+        tlab_client.log_warning("Training interrupted by user")
         tlab_client.complete_job("STOPPED", "Training stopped by user")
         return {"status": "stopped", "job_id": job_id}
 
     except Exception as e:
-        print(f"Training failed: {str(e)}")
+        tlab_client.log_error(f"Training failed: {str(e)}")
         import traceback
 
         traceback.print_exc()

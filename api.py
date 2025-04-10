@@ -145,7 +145,7 @@ app.add_middleware(
 
 
 def create_error_response(code: int, message: str) -> JSONResponse:
-    return JSONResponse(ErrorResponse(message=message, code=code).dict(), status_code=400)
+    return JSONResponse(ErrorResponse(message=message, code=code).model_dump(), status_code=400)
 
 
 @app.exception_handler(RequestValidationError)
