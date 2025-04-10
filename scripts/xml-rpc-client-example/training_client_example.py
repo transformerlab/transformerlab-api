@@ -3,8 +3,8 @@ from datetime import datetime
 from pprint import pprint
 
 from datasets import load_dataset
-from tlab_sdk_client.callbacks.hf_callback import TLabProgressCallback
-from tlab_sdk_client.client import TransformerLabClient
+from transformerlab_client.callbacks.hf_callback import TLabProgressCallback
+from transformerlab_client.client import TransformerLabClient
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -39,7 +39,7 @@ def train():
 
     # Initialize TransformerLab client
     tlab_client = TransformerLabClient()
-    job_id = tlab_client.start_job(training_config)
+    job_id = tlab_client.start(training_config)
 
     # Create output directory if it doesn't exist
     os.makedirs(training_config["output_dir"], exist_ok=True)
@@ -147,7 +147,7 @@ def train():
         tlab_client.log_info(f"Training completed in {training_duration}")
 
         # Complete the job in TransformerLab
-        tlab_client.complete_job()
+        tlab_client.complete()
 
         return {
             "status": "success",
@@ -158,7 +158,7 @@ def train():
 
     except KeyboardInterrupt:
         tlab_client.log_warning("Training interrupted by user or remotely")
-        tlab_client.stop_job("Training stopped by user or remotely")
+        tlab_client.stop("Training stopped by user or remotely")
         return {"status": "stopped", "job_id": job_id}
 
     except Exception as e:
@@ -166,7 +166,7 @@ def train():
         import traceback
 
         traceback.print_exc()
-        tlab_client.stop_job(f"Training failed: {str(e)}")
+        tlab_client.stop(f"Training failed: {str(e)}")
         return {"status": "error", "job_id": job_id, "error": str(e)}
 
 
