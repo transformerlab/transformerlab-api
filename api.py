@@ -45,7 +45,6 @@ from transformerlab.routers import (
     tools,
     batched_prompts,
 )
-from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router
 import torch
 from pynvml import nvmlShutdown
 from transformerlab import fastchat_openai_api
@@ -63,6 +62,8 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 # to be overriden by the user.
 os.environ["_TFL_WORKSPACE_DIR"] = dirs.WORKSPACE_DIR
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
+
+from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router
 
 
 @asynccontextmanager
