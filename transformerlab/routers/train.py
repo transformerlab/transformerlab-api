@@ -251,6 +251,9 @@ async def get_output_file_name(job_id: str):
 
         job_data = job["job_data"]
         if "template_id" not in job_data:
+            if job_data.get("output_file_path") is not None:
+                # if the job data has an output file path, use that
+                return job_data["output_file_path"]
             raise ValueError("Template ID not found in job data")
 
         template_config = job_data["config"]

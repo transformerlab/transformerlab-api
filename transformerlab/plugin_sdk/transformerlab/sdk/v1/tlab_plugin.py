@@ -11,8 +11,12 @@ from typing import Any, List
 
 from datasets import get_dataset_split_names, get_dataset_config_names, load_dataset
 
-from transformerlab.plugin import Job, get_dataset_path
-import transformerlab.plugin
+try:
+    from transformerlab.plugin import Job, get_dataset_path
+    import transformerlab.plugin as tlab_core
+except ModuleNotFoundError:
+    from transformerlab.plugin_sdk.transformerlab.plugin import Job, get_dataset_path
+    import transformerlab.plugin_sdk.transformerlab.plugin as tlab_core
 
 
 class DotDict(dict):
@@ -201,7 +205,7 @@ class TLabPlugin:
 
     def get_experiment_config(self, experiment_name: str):
         """Get experiment configuration"""
-        return transformerlab.plugin.get_experiment_config(experiment_name)
+        return tlab_core.get_experiment_config(experiment_name)
 
     def add_job_data(self, key: str, value: Any):
         """Add data to job"""
@@ -318,7 +322,7 @@ class TLabPlugin:
             return self._create_local_model_wrapper(custom_model)
 
         elif model_type == "claude":
-            anthropic_api_key = transformerlab.plugin.get_db_config_value("ANTHROPIC_API_KEY")
+            anthropic_api_key = tlab_core.get_db_config_value("ANTHROPIC_API_KEY")
             if not anthropic_api_key or anthropic_api_key.strip() == "":
                 raise ValueError("Please set the Anthropic API Key from Settings.")
 
@@ -326,14 +330,14 @@ class TLabPlugin:
             return self._create_commercial_model_wrapper("claude", generation_model)
 
         elif model_type == "azure":
-            azure_api_details = transformerlab.plugin.get_db_config_value("AZURE_OPENAI_DETAILS")
+            azure_api_details = tlab_core.get_db_config_value("AZURE_OPENAI_DETAILS")
             if not azure_api_details or azure_api_details.strip() == "":
                 raise ValueError("Please set the Azure OpenAI Details from Settings.")
 
             return self._create_commercial_model_wrapper("azure", "")
 
         elif model_type == "openai":
-            openai_api_key = transformerlab.plugin.get_db_config_value("OPENAI_API_KEY")
+            openai_api_key = tlab_core.get_db_config_value("OPENAI_API_KEY")
             if not openai_api_key or openai_api_key.strip() == "":
                 raise ValueError("Please set the OpenAI API Key from Settings.")
 
@@ -341,7 +345,7 @@ class TLabPlugin:
             return self._create_commercial_model_wrapper("openai", generation_model)
 
         elif model_type == "custom":
-            custom_api_details = transformerlab.plugin.get_db_config_value("CUSTOM_MODEL_API_KEY")
+            custom_api_details = tlab_core.get_db_config_value("CUSTOM_MODEL_API_KEY")
             if not custom_api_details or custom_api_details.strip() == "":
                 raise ValueError("Please set the Custom API Details from Settings.")
 
@@ -412,7 +416,7 @@ class TLabPlugin:
                 if model_type == "claude":
                     self.chat_completions_url = "https://api.anthropic.com/v1/chat/completions"
                     self.base_url = "https://api.anthropic.com/v1"
-                    anthropic_api_key = transformerlab.plugin.get_db_config_value("ANTHROPIC_API_KEY")
+                    anthropic_api_key = tlab_core.get_db_config_value("ANTHROPIC_API_KEY")
                     self.api_key = anthropic_api_key
                     if not anthropic_api_key or anthropic_api_key.strip() == "":
                         raise ValueError("Please set the Anthropic API Key from Settings.")
@@ -420,7 +424,7 @@ class TLabPlugin:
                         os.environ["ANTHROPIC_API_KEY"] = anthropic_api_key
                     self.model = Anthropic()
                 elif model_type == "azure":
-                    azure_api_details = transformerlab.plugin.get_db_config_value("AZURE_OPENAI_DETAILS")
+                    azure_api_details = tlab_core.get_db_config_value("AZURE_OPENAI_DETAILS")
                     if not azure_api_details or azure_api_details.strip() == "":
                         raise ValueError("Please set the Azure OpenAI Details from Settings.")
                     azure_api_details = json.loads(azure_api_details)
@@ -439,7 +443,7 @@ class TLabPlugin:
                 elif model_type == "openai":
                     self.chat_completions_url = "https://api.openai.com/v1/chat/completions"
                     self.base_url = "https://api.openai.com/v1"
-                    openai_api_key = transformerlab.plugin.get_db_config_value("OPENAI_API_KEY")
+                    openai_api_key = tlab_core.get_db_config_value("OPENAI_API_KEY")
                     self.api_key = openai_api_key
                     if not openai_api_key or openai_api_key.strip() == "":
                         raise ValueError("Please set the OpenAI API Key from Settings.")
@@ -448,7 +452,7 @@ class TLabPlugin:
                     self.model = OpenAI()
 
                 elif model_type == "custom":
-                    custom_api_details = transformerlab.plugin.get_db_config_value("CUSTOM_MODEL_API_KEY")
+                    custom_api_details = tlab_core.get_db_config_value("CUSTOM_MODEL_API_KEY")
 
                     if not custom_api_details or custom_api_details.strip() == "":
                         raise ValueError("Please set the Custom API Details from Settings.")
