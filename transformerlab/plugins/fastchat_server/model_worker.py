@@ -614,6 +614,7 @@ async def api_generate_layers_visualization(request: Request):
                     "name": clean_name,
                     "size": size,
                     "param_count": param_size,
+                    "shape": str(tuple(params.shape)),
                 }
             )
 
