@@ -232,7 +232,7 @@ async def start_next_step_in_workflow():
                 return {"message": "the current job failed"}
 
             if current_job["status"] == "CANCELLED" or current_job["status"] == "DELETED" or current_job["status"] == "STOPPED":
-                await db.workflow_update_with_new_job(workflow_run_id, "[]", "[]")
+                await db.workflow_run_update_with_new_job(workflow_run_id, "[]", "[]")
                 await db.workflow_run_update_status(workflow_run_id, "CANCELLED")
                 return {"message": "the current job was cancelled"}
 

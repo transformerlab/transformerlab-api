@@ -796,6 +796,16 @@ async def workflows_get_by_id(workflow_id):
     await cursor.close()
     return row
 
+async def workflow_run_get_by_id(workflow_run_id):
+    cursor = await db.execute("SELECT * FROM workflow_runs WHERE id = ? ORDER BY created_at desc LIMIT 1", (workflow_run_id,))
+    row = await cursor.fetchone()
+    if row is None:
+        return None
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    row = dict(itertools.zip_longest(column_names, row))
+    await cursor.close()
+    return row
 
 async def workflow_delete_by_id(workflow_id):
     print("Deleting workflow: " + workflow_id)
@@ -847,7 +857,7 @@ async def workflow_run_get_queued():
 
 async def workflow_run_update_status(workflow_run_id, status):
     await db.execute(
-        "UPDATE workflow_runs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, workflow_id)
+        "UPDATE workflow_runs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, workflow_run_id)
     )
     await db.commit()
     return
@@ -861,6 +871,23 @@ async def workflow_run_update_with_new_job(workflow_run_id, current_task, curren
     await db.execute(
         "UPDATE workflow_runs SET current_job_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         (current_job_id, workflow_run_id),
+    )
+
+    current_workflow_run = await workflow_run_get_by_id(workflow_run_id)
+    current_workflow_run["job_ids"] = json.loads(current_workflow_run["job_ids"])
+    current_workflow_run["job_ids"] += json.loads(current_job_id)
+    current_workflow_run["job_ids"] = json.dumps(current_workflow_run["job_ids"])
+    current_workflow_run["node_ids"] = json.loads(current_workflow_run["node_ids"])
+    current_workflow_run["node_ids"] += json.loads(current_task)
+    current_workflow_run["node_ids"] = json.dumps(current_workflow_run["node_ids"])
+
+    await db.execute(
+        "UPDATE workflow_runs SET node_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (current_workflow_run["node_ids"], workflow_run_id),
+    )
+    await db.execute(
+        "UPDATE workflow_runs SET job_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (current_workflow_run["job_ids"], workflow_run_id),
     )
     await db.commit()
     return
