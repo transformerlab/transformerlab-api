@@ -226,6 +226,10 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
 
             job = trainer_instance._job
 
+            if job.should_stop:
+                complete_job(job_id, status="STOPPED", message="Job was stopped")
+                return {"status": "stopped", "job_id": job_id}
+
             # Get status and progress
             status = job.get_status()
             progress = job.get_progress()
@@ -253,17 +257,6 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
         try:
             metrics = json.loads(metrics_json) if isinstance(metrics_json, str) else metrics_json
             # Store metrics in job data or a separate metrics store
-            # trainer_instance.params["job_id"] = job_id
-            # job = trainer_instance._job
-
-            # # Get existing job data and update with metrics
-            # job_data = job.get_job_data() or {}
-            # if isinstance(job_data, str):
-            #     job_data = json.loads(job_data)
-
-            # if "metrics" not in job_data:
-            #     job_data["metrics"] = []
-
             trainer_instance = job_trainers.get(job_id)
             if not trainer_instance:
                 # Fall back to creating a new one with just the job_id set
@@ -305,17 +298,16 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
             if isinstance(job_data, str):
                 job_data = json.loads(job_data)
 
-            job.add_to_job_data("metrics", str(trainer_instance.params.reported_metrics))
+            job.add_to_job_data("reported_metrics", str(trainer_instance.params.reported_metrics))
 
-            # job_data["completion_message"] = message
-            # job_data["completed_at"] = datetime.now().isoformat()
             end_time = time.strftime("%Y-%m-%d %H:%M:%S")
             job.add_to_job_data("end_time", end_time)
 
             # Update job data
             # job.update_job_data(json.dumps(job_data))
-            job.update_progress(100)  # Ensure progress is set to 100%
-            job.set_job_completion_status("success", message)
+            if status == "COMPLETE":
+                job.update_progress(100)  # Ensure progress is set to 100%
+                job.set_job_completion_status("success", message)
 
             return {"status": "success", "job_id": job_id}
         except Exception as e:
@@ -370,11 +362,16 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
             job = trainer_instance._job
 
             if trainer_instance.params.get("output_file_path") is None:
-                output_directory = os.path.join(tlab_core.WORKSPACE_DIR, "experiments", trainer_instance.params.get("experiment_name", "alpha"), "remote_trains")
+                output_directory = os.path.join(
+                    tlab_core.WORKSPACE_DIR,
+                    "experiments",
+                    trainer_instance.params.get("experiment_name", "alpha"),
+                    "remote_trains",
+                )
                 if not os.path.exists(output_directory):
                     os.makedirs(output_directory)
                 output_file_name = os.path.join(output_directory, f"output_{job_id}.txt")
-                trainer_instance.params['output_file_path'] = output_file_name
+                trainer_instance.params["output_file_path"] = output_file_name
                 job.add_to_job_data("output_file_path", output_file_name)
             else:
                 output_file_name = trainer_instance.params.output_file_path
