@@ -57,6 +57,7 @@ class TransformerLabClient:
 
             if status.get("status") == "stopped":
                 self.log_info("Job was stopped remotely. Terminating training...")
+                sys.exit(1)
                 return False
             return True
         except Exception as e:
@@ -361,8 +362,8 @@ def train():
         }
 
     except KeyboardInterrupt:
-        tlab_client.log_warning("Training interrupted by user")
-        tlab_client.stop_job("Training stopped by user")
+        tlab_client.log_warning("Training interrupted by user or remotely")
+        tlab_client.stop_job("Training stopped by user or remotely")
         return {"status": "stopped", "job_id": job_id}
 
     except Exception as e:

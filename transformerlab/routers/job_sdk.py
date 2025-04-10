@@ -308,6 +308,8 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
             if status == "COMPLETE":
                 job.update_progress(100)  # Ensure progress is set to 100%
                 job.set_job_completion_status("success", message)
+            elif status == "STOPPED":
+                job.set_job_completion_status("failed", message)
 
             return {"status": "success", "job_id": job_id}
         except Exception as e:
