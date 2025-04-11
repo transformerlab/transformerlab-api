@@ -1,17 +1,16 @@
 import json
 import os
 import shutil
-import time
 import threading
-import requests
+import time
 from xmlrpc.server import SimpleXMLRPCDispatcher
 
+import requests
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import PlainTextResponse
 
-from transformerlab.db import job_create_sync, job_update_status_sync
-from transformerlab.shared import dirs
 import transformerlab.plugin_sdk.transformerlab.plugin as tlab_core
+from transformerlab.db import job_create_sync, job_update_status_sync
 
 
 class XMLRPCRouter:
@@ -340,16 +339,22 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
                     raise ValueError("Model architecture not found in config.json")
 
                 trainer_instance.create_transformerlab_model(
-                    local_model_path.split("/")[-1], model_architecture, json_data, generate_json=False, output_dir=os.path.dirname(local_model_path)
+                    local_model_path.split("/")[-1],
+                    model_architecture,
+                    json_data,
+                    generate_json=False,
+                    output_dir=os.path.dirname(local_model_path),
                 )
 
-                thread = threading.Thread(target=lambda: requests.get("http://localhost:8338/model/import_from_local_path", 
-                                        params={'model_path': local_model_path}))
+                thread = threading.Thread(
+                    target=lambda: requests.get(
+                        "http://localhost:8338/model/import_from_local_path", params={"model_path": local_model_path}
+                    )
+                )
                 thread.daemon = True
                 thread.start()
 
             return {"status": "success", "message": "Model saved successfully"}
-
 
         except Exception as e:
             print("Error while saving model", e)
