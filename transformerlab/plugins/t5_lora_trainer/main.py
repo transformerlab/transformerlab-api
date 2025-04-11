@@ -48,6 +48,11 @@ llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
 WORKSPACE_DIR: str | None = os.getenv("_TFL_WORKSPACE_DIR")
 db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
 
+# Optimizations we ahve to set per conection in sqlite
+db.execute("PRAGMA journal_mode=WAL")
+db.execute("PRAGMA synchronous=normal")
+db.execute("PRAGMA busy_timeout=5000")
+
 
 @dataclass
 class LoraArguments:
@@ -260,7 +265,7 @@ class Trainer:
             (output_dir, JOB_ID),
         )
         db.commit()
-        report_to = ['tensorboard']
+        report_to = ["tensorboard"]
 
         if wandb_logging:
             wandb_logging, report_to = transformerlab.shared.test_wandb_login()

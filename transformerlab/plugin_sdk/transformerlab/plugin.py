@@ -23,6 +23,11 @@ def get_db_connection():
     if db is None:
         dbfile = os.path.join(WORKSPACE_DIR, "llmlab.sqlite3")
         db = sqlite3.connect(dbfile, isolation_level=None)
+
+        # Need to set these every time we open a connection
+        db.execute("PRAGMA journal_mode=WAL")
+        db.execute("PRAGMA synchronous=normal")
+        db.execute("PRAGMA busy_timeout=5000")
     return db
 
 
