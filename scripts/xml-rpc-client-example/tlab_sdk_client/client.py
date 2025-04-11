@@ -11,8 +11,11 @@ from logging.handlers import RotatingFileHandler
 class TransformerLabClient:
     """Client for reporting training progress to TransformerLab via XML-RPC"""
 
-    def __init__(self, server_url="http://localhost:8338/trainer_rpc", log_file=None):
+    def __init__(self, server_url: str = "http://localhost:8338", sdk_version: str = "v1", log_file: str = None):
         """Initialize the XML-RPC client"""
+        server_url = server_url.rstrip("/") + f"/{sdk_version}/sdk"
+        if not server_url.startswith("http") or not server_url.startswith("https"):
+            raise ValueError("Invalid server URL. Must start with http:// or https://")
         self.server = xmlrpc.client.ServerProxy(server_url)
         self.job_id = None
         self.config = {}

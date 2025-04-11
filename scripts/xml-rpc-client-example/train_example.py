@@ -3,7 +3,7 @@ import json
 import time
 
 # Connect to the XML-RPC server
-server = xmlrpc.client.ServerProxy("http://localhost:8338/trainer_rpc")
+server = xmlrpc.client.ServerProxy("http://localhost:8338")
 
 # Configuration for a training job
 training_config = {

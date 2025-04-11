@@ -143,7 +143,7 @@ def get_xmlrpc_router(prefix="/job_sdk"):
     return xmlrpc_router.router
 
 
-def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
+def get_trainer_xmlrpc_router(prefix="/v1/sdk", trainer_factory=None):
     """
     Create and return a configured XML-RPC router for the TLab trainer.
 
@@ -155,7 +155,7 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
         A configured FastAPI router instance
     """
 
-    # # Import the trainer if not provided
+    # Import the trainer if not provided
 
     if trainer_factory is None:
         # Define a factory function that returns a fresh trainer instance
