@@ -2,6 +2,8 @@ import json
 import os
 import shutil
 import time
+import threading
+import requests
 from xmlrpc.server import SimpleXMLRPCDispatcher
 
 from fastapi import APIRouter, Request, Response
@@ -327,10 +329,7 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
 
             models_dir = dirs.MODELS_DIR
             # Check if local_model_path is a directory
-            model_save_path = os.path.join(models_dir, f"{trainer_instance.params['template_name']}_{job_id}")
             if os.path.isdir(local_model_path):
-                # Copy all contents of the directory to the model_save_path
-                shutil.copytree(local_model_path, model_save_path)
                 # Read config.json
                 if os.path.exists(os.path.join(local_model_path, "config.json")):
                     with open(os.path.join(local_model_path, "config.json"), "r") as f:
@@ -342,14 +341,19 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
                     raise ValueError("Model architecture not found in config.json")
 
                 trainer_instance.create_transformerlab_model(
-                    f"{trainer_instance.params['template_name']}_{job_id}", model_architecture, json_data
+                    local_model_path.split("/")[-1], model_architecture, json_data, generate_json=False, output_dir=os.path.dirname(local_model_path)
                 )
+
+                thread = threading.Thread(target=lambda: requests.get("http://localhost:8338/model/import_from_local_path", 
+                                        params={'model_path': local_model_path}))
+                thread.daemon = True
+                thread.start()
+
             return {"status": "success", "message": "Model saved successfully"}
-            # else:
-            #     # Failed to save model
-            #     return {"status": "error", "message": "Failed to save model"}
+
 
         except Exception as e:
+            print("Error while saving model", e)
             return {"status": "error", "message": str(e)}
 
     def update_output_file(job_id, output_file):

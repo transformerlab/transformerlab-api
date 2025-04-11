@@ -192,8 +192,11 @@ class TrainerTLabPlugin(TLabPlugin):
             self.wandb_run.log({metric_name: metric_value}, step=step)
             
 
-    def create_transformerlab_model(self, fused_model_name, model_architecture, json_data, output_dir=None):
-        generate_model_json(fused_model_name, model_architecture, json_data=json_data, output_directory=output_dir)
+    def create_transformerlab_model(self, fused_model_name, model_architecture, json_data, output_dir=None, generate_json=True):
+        if generate_json:
+            generate_model_json(fused_model_name, model_architecture, json_data=json_data, output_directory=output_dir)
+        
+
         if output_dir is None:
             fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
         else:
