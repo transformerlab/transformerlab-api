@@ -241,16 +241,27 @@ def main():
         print(f"Error downloading model: {error_msg}")
 
         # save to job database
-        db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
         job_data = json.dumps({"error_msg": str(error_msg)})
         status = "FAILED"
         if returncode == 77:
             status = "UNAUTHORIZED"
-        db.execute(
-            "UPDATE job SET status=?, job_data=json(?)\
-                WHERE id=?",
-            (status, job_data, job_id),
-        )
+
+        # If the error is that the database is locked then this call might also fail
+        # for the same reason! Better catch and at least print a message.
+        db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
+        try:
+            db.execute(
+                "UPDATE job SET status=?, job_data=json(?)\
+                    WHERE id=?",
+                (status, job_data, job_id),
+            )
+        except sqlite3.OperationalError:
+            # NOTE: If we fail to write to the database the app won't get
+            # the right error message. So set a different
+            print(f"Failed to save download job status {status}:")
+            print(error_msg)
+            returncode = 74  # IOERR
+
         db.close()
         exit(returncode)
 
