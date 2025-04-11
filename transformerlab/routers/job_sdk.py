@@ -327,7 +327,6 @@ def get_trainer_xmlrpc_router(prefix="/trainer_rpc", trainer_factory=None):
                 trainer_instance = trainer_factory()
                 trainer_instance.params["job_id"] = job_id
 
-            models_dir = dirs.MODELS_DIR
             # Check if local_model_path is a directory
             if os.path.isdir(local_model_path):
                 # Read config.json

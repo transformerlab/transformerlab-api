@@ -103,7 +103,7 @@ class TransformerLabClient:
         try:
             # Use the dedicated save_model method if it exists
             if hasattr(self.server, "save_model"):
-                response = self.server.save_model(self.job_id, os.path.abspath(saved_model_path))
+                self.server.save_model(self.job_id, os.path.abspath(saved_model_path))
             else:
                 self.log_warning("save_model method not available in server.")
         except Exception as e:
