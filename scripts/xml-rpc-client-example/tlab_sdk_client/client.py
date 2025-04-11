@@ -14,7 +14,7 @@ class TransformerLabClient:
     def __init__(self, server_url: str = "http://localhost:8338", sdk_version: str = "v1", log_file: str = None):
         """Initialize the XML-RPC client"""
         server_url = server_url.rstrip("/") + f"/client/{sdk_version}/jobs"
-        if not server_url.startswith("http") or not server_url.startswith("https"):
+        if not server_url.startswith("http") and not server_url.startswith("https"):
             raise ValueError("Invalid server URL. Must start with http:// or https://")
         self.server = xmlrpc.client.ServerProxy(server_url)
         self.job_id = None
@@ -23,7 +23,7 @@ class TransformerLabClient:
         self.report_interval = 1  # seconds
         self.log_file = log_file
 
-    def start_job(self, config):
+    def start(self, config):
         """Register job with TransformerLab and get a job ID"""
         result = self.server.start_training(json.dumps(config))
         if result["status"] == "started":
@@ -66,7 +66,7 @@ class TransformerLabClient:
             # Still return True to continue training despite reporting error
             return True
 
-    def complete_job(self, message="Training completed successfully"):
+    def complete(self, message="Training completed successfully"):
         """Mark job as complete in TransformerLab"""
         if not self.job_id:
             return
@@ -82,7 +82,7 @@ class TransformerLabClient:
         except Exception as e:
             self.log_error(f"Error completing job: {e}")
 
-    def stop_job(self, message="Training completed successfully"):
+    def stop(self, message="Training completed successfully"):
         """Mark job as complete in TransformerLab"""
         if not self.job_id:
             return
