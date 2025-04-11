@@ -227,6 +227,8 @@ def check_disk_size(model_is_downloaded: Event):
 
 
 def main():
+    global returncode
+
     model_is_downloaded = Event()  # A threadsafe flag to coordinate the two threads
     print(f"flag:  {model_is_downloaded.is_set()}")
 
