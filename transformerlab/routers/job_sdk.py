@@ -143,7 +143,7 @@ def get_xmlrpc_router(prefix="/job_sdk"):
     return xmlrpc_router.router
 
 
-def get_trainer_xmlrpc_router(prefix="/v1/sdk", trainer_factory=None):
+def get_trainer_xmlrpc_router(prefix="/client/v1/jobs", trainer_factory=None):
     """
     Create and return a configured XML-RPC router for the TLab trainer.
 
