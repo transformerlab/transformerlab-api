@@ -205,9 +205,15 @@ class LocalModelStore(modelstore.ModelStore):
                 except Exception as e:
                     print(f"Error loading {complete_provenance_file}: {str(e)}")
                     provenance = {}
-
-            # The -1 here indicates that we are not counting the _tlab_complete_provenance.json file
-            if len(provenance) > 0 and len(os.listdir(models_dir)) - 1 == len(provenance):
+            # Check if the provenance for any local models was missed
+            provenance, local_added_count = await self.check_provenance_for_local_models(provenance)
+            if local_added_count != 0:
+                # Save new provenance mapping
+                with open(complete_provenance_file, "w") as f:
+                    json.dump(provenance, f)
+            # Check if the provenance mapping is up to date
+            # The -1 here indicates that we are not counting the _tlab_complete_provenance.json file in models_dir
+            if len(provenance) > 0 and len(os.listdir(models_dir)) + local_added_count - 1 == len(provenance):
                 return provenance, False
 
         # If the provenance mapping is not built or models_dir has changed, we need to rebuild it
@@ -238,7 +244,44 @@ class LocalModelStore(modelstore.ModelStore):
                     except Exception as e:
                         print(f"Error loading provenance for {entry.name}: {str(e)}")
 
+        # Import from local_models too when building from scratch
+        provenance, _ = await self.check_provenance_for_local_models(provenance)
+
         return provenance, True
+
+    async def check_provenance_for_local_models(self, provenance):
+        # Get the list of all local models
+        models = await db.model_local_list()
+        models_added_to_provenance = 0
+        # Iterate through models and check if they have provenance data and if they exist already in provenance
+        for model_dict in models:
+            if model_dict.get('model_id', "") not in provenance.keys() or model_dict.get('model_name', "") not in provenance.keys():
+                # Check if the model_source is local
+                if model_dict.get('json_data', {}).get("source", "") == 'local' and os.path.exists(model_dict.get('json_data', {}).get("source_id_or_path", "")):
+                    # Check if the model has a _tlab_provenance.json file
+                    provenance_file = os.path.join(model_dict['json_data']['source_id_or_path'], "_tlab_provenance.json")
+                    if os.path.exists(provenance_file):
+                        # Load the provenance file
+                        with open(provenance_file, "r") as f:
+                            prov_data = json.load(f)
+                            if "md5_checksums" in prov_data:
+                                prov_data["parameters"]["md5_checksums"] = prov_data["md5_checksums"]
+
+                            # Compute output model name if needed
+                            output_model = prov_data.get("model_name")
+                            if not output_model and prov_data.get("input_model") and prov_data.get("adaptor_name"):
+                                output_model = self.compute_output_model(
+                                    prov_data["input_model"], prov_data["adaptor_name"]
+                                )
+                            prov_data["output_model"] = output_model
+
+                            # Add to provenance mapping
+                            provenance[output_model] = prov_data
+                            models_added_to_provenance += 1
+        
+        return provenance, models_added_to_provenance
+
+
 
     async def trace_provenance(self, latest_model, provenance_mapping):
         """
