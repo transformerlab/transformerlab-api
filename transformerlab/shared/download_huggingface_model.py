@@ -111,7 +111,6 @@ print("starting script with progressbar updater")
 def download_blocking(model_is_downloaded):
     global error_msg, returncode
     print("Downloading model")
-    db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
 
     # NOTE: For now storing size in two fields.
     # Will remove total_size_of_model_in_mb in the future.
@@ -124,8 +123,16 @@ def download_blocking(model_is_downloaded):
         }
     )
     print(job_data)
+
+    # Connect to the DB to start the job and then close
+    # Need to set these PRAGMAs every time as they get reset per connection
+    db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
+    db.execute("PRAGMA journal_mode=WAL")
+    db.execute("PRAGMA synchronous=normal")
+    db.execute("PRAGMA busy_timeout=5000")
     db.execute("UPDATE job SET progress=?, job_data=json(?) WHERE id=?", (0, job_data, job_id))
     db.close()
+
     if model_filename is not None:
         # Filename mode means we download just one file from the repo, not the whole repo
         # This is useful for downloading GGUF repos which contain multiple versions of the model
@@ -196,11 +203,16 @@ def check_disk_size(model_is_downloaded: Event):
         adjusted_total_size = total_size_of_model_in_mb if total_size_of_model_in_mb > 0 else 7000
         progress = cache_size_growth / adjusted_total_size * 100
         print(f"\nModel Download Progress: {progress:.2f}%\n")
-        # Write to jobs table in database, updating the
-        # progress column:
-        # job_data = json.dumps({"downloaded": cache_size_growth})
 
+        # Need to set these PRAGMAs every time as they get reset per connection
+        # Not sure if we should reconnect over and over in the loop like this
+        # But leaving it to reduce the chance of leaving a connection open if this
+        # thread gets interrupted?
         db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
+        db.execute("PRAGMA journal_mode=WAL")
+        db.execute("PRAGMA synchronous=normal")
+        db.execute("PRAGMA busy_timeout=5000")
+
         try:
             db.execute(
                 "UPDATE job SET job_data=json_set(job_data, '$.downloaded', ?),  progress=? WHERE id=?",
@@ -248,9 +260,14 @@ def main():
         if returncode == 77:
             status = "UNAUTHORIZED"
 
+        # Need to set these PRAGMAs every time as they get reset per connection
+        db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
+        db.execute("PRAGMA journal_mode=WAL")
+        db.execute("PRAGMA synchronous=normal")
+        db.execute("PRAGMA busy_timeout=5000")
+
         # If the error is that the database is locked then this call might also fail
         # for the same reason! Better catch and at least print a message.
-        db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
         try:
             db.execute(
                 "UPDATE job SET status=?, job_data=json(?)\
