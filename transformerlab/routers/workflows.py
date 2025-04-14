@@ -27,6 +27,18 @@ async def workflow_runs_get_all():
     workflow_runs = await db.workflow_run_get_all()
     return workflow_runs
 
+@router.get("/runs/{workflow_run_id}")
+async def workflow_runs_get_by_id(workflow_run_id: str):
+    workflow_run = await db.workflow_run_get_by_id(workflow_run_id)
+    returnInfo = {"run": workflow_run}
+    jobs = []
+    for job_id in json.loads(workflow_run["job_ids"]):
+        job = await db.job_get(job_id)
+        job_data = job["job_data"]
+        jobs.append({"taskName": job_data["template_name"], "jobID": job_id, "jobStartTime": job_data["start_time"], "jobEndTime": job_data["end_time"]})
+    returnInfo["jobs"] = jobs
+    return returnInfo
+
 @router.get("/delete/{workflow_id}")
 async def workflow_delete(workflow_id: str):
     await db.workflow_delete_by_id(workflow_id)
@@ -291,6 +303,8 @@ async def start_next_step_in_workflow():
         if len(next_nodes) == 0:
             await db.workflow_update_status(workflow_run_id, "FAILED")
             return {"message": "Could not find the next task in the workflow."}
+
+    print(next_nodes)
 
     next_job_ids = []
     for next_node in next_nodes:
