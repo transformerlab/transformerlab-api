@@ -875,14 +875,14 @@ async def workflow_run_get_by_id(workflow_run_id):
 
 async def workflow_delete_by_id(workflow_id):
     print("Deleting workflow: " + workflow_id)
-    await db.execute("UPDATE workflows SET status = 'DELETED' WHERE id = ?", (workflow_id,))
+    await db.execute("DELETE FROM workflows WHERE id = ?", (workflow_id,))
     await db.commit()
     return
 
 
 async def workflow_delete_by_name(workflow_name):
     print("Deleting workflow: " + workflow_name)
-    await db.execute("UPDATE workflows SET status = 'DELETED' WHERE name = ?", (workflow_name,))
+    await db.execute("DELETE FROM workflows WHERE name = ?", (workflow_name,))
     await db.commit()
     return
 
