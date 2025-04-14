@@ -244,7 +244,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         experiment = await db.experiment_get_by_name(experiment_name)
         experiment_id = experiment["id"]
         plugin_name = job_config["plugin"]
-        eval_name = job_config.get("evaluator","")
+        eval_name = job_config.get("evaluator", "")
         await db.job_update_status(job_id, "RUNNING")
         print("Running evaluation script")
         plugin_location = dirs.plugin_dir_by_name(plugin_name)
@@ -338,19 +338,45 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         start_time = time.strftime("%Y-%m-%d %H:%M:%S")
         await db.job_update_job_data_insert_key_value(job_id, "start_time", start_time)
 
-        # This calls the training plugin harness, which calls the actual training plugin
-        training_popen_command = [
-            sys.executable,
-            dirs.PLUGIN_HARNESS,
-            "--plugin_dir",
-            plugin_location,
-            "--input_file",
-            input_file,
-            "--experiment_name",
-            experiment_name,
-        ]
-        print("RUNNING: popen command:")
-        print(training_popen_command)
+        # # This calls the training plugin harness, which calls the actual training plugin
+        # training_popen_command = [
+        #     sys.executable,
+        #     dirs.PLUGIN_HARNESS,
+        #     "--plugin_dir",
+        #     plugin_location,
+        #     "--input_file",
+        #     input_file,
+        #     "--experiment_name",
+        #     experiment_name,
+        # ]
+        # print("RUNNING: popen command:")
+        # print(training_popen_command)
+        # popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
+        # Check if plugin has a venv directory
+        venv_path = os.path.join(plugin_location, "venv")
+        if os.path.exists(venv_path) and os.path.isdir(venv_path):
+            print(f">Plugin has virtual environment, activating venv from {venv_path}")
+            venv_python = os.path.join(venv_path, "bin", "python")
+            # Construct command that first activates venv then runs script
+            training_popen_command = [
+                "/bin/bash",
+                "-c",
+                f"source {os.path.join(venv_path, 'bin', 'activate')} && {venv_python} {dirs.PLUGIN_HARNESS} "
+                + f'--plugin_dir "{plugin_location}" --input_file "{input_file}" --experiment_name "{experiment_name}"',
+            ]
+        else:
+            print(">Using system Python interpreter")
+            training_popen_command = [
+                sys.executable,
+                dirs.PLUGIN_HARNESS,
+                "--plugin_dir",
+                plugin_location,
+                "--input_file",
+                input_file,
+                "--experiment_name",
+                experiment_name,
+            ]
+
         popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
 
     elif job_type == "pretraining":
@@ -382,19 +408,45 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         start_time = time.strftime("%Y-%m-%d %H:%M:%S")
         await db.job_update_job_data_insert_key_value(job_id, "start_time", start_time)
 
-        # This calls the training plugin harness, which calls the actual training plugin
-        training_popen_command = [
-            sys.executable,
-            dirs.PLUGIN_HARNESS,
-            "--plugin_dir",
-            plugin_location,
-            "--input_file",
-            input_file,
-            "--experiment_name",
-            experiment_name,
-        ]
-        print("RUNNING: popen command:")
-        print(training_popen_command)
+        # # This calls the training plugin harness, which calls the actual training plugin
+        # training_popen_command = [
+        #     sys.executable,
+        #     dirs.PLUGIN_HARNESS,
+        #     "--plugin_dir",
+        #     plugin_location,
+        #     "--input_file",
+        #     input_file,
+        #     "--experiment_name",
+        #     experiment_name,
+        # ]
+        # print("RUNNING: popen command:")
+        # print(training_popen_command)
+        # popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
+        # Check if plugin has a venv directory
+        venv_path = os.path.join(plugin_location, "venv")
+        if os.path.exists(venv_path) and os.path.isdir(venv_path):
+            print(f">Plugin has virtual environment, activating venv from {venv_path}")
+            venv_python = os.path.join(venv_path, "bin", "python")
+            # Construct command that first activates venv then runs script
+            training_popen_command = [
+                "/bin/bash",
+                "-c",
+                f"source {os.path.join(venv_path, 'bin', 'activate')} && {venv_python} {dirs.PLUGIN_HARNESS} "
+                + f'--plugin_dir "{plugin_location}" --input_file "{input_file}" --experiment_name "{experiment_name}"',
+            ]
+        else:
+            print(">Using system Python interpreter")
+            training_popen_command = [
+                sys.executable,
+                dirs.PLUGIN_HARNESS,
+                "--plugin_dir",
+                plugin_location,
+                "--input_file",
+                input_file,
+                "--experiment_name",
+                experiment_name,
+            ]
+
         popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
 
     elif job_type == "embedding":
@@ -430,19 +482,46 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         start_time = time.strftime("%Y-%m-%d %H:%M:%S")
         await db.job_update_job_data_insert_key_value(job_id, "start_time", start_time)
 
-        # This calls the training plugin harness, which calls the actual training plugin
-        training_popen_command = [
-            sys.executable,
-            dirs.PLUGIN_HARNESS,
-            "--plugin_dir",
-            plugin_location,
-            "--input_file",
-            input_file,
-            "--experiment_name",
-            experiment_name,
-        ]
-        print("RUNNING: popen command:")
-        print(training_popen_command)
+        # # This calls the training plugin harness, which calls the actual training plugin
+        # training_popen_command = [
+        #     sys.executable,
+        #     dirs.PLUGIN_HARNESS,
+        #     "--plugin_dir",
+        #     plugin_location,
+        #     "--input_file",
+        #     input_file,
+        #     "--experiment_name",
+        #     experiment_name,
+        # ]
+        # print("RUNNING: popen command:")
+        # print(training_popen_command)
+        # popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
+
+        # Check if plugin has a venv directory
+        venv_path = os.path.join(plugin_location, "venv")
+        if os.path.exists(venv_path) and os.path.isdir(venv_path):
+            print(f">Plugin has virtual environment, activating venv from {venv_path}")
+            venv_python = os.path.join(venv_path, "bin", "python")
+            # Construct command that first activates venv then runs script
+            training_popen_command = [
+                "/bin/bash",
+                "-c",
+                f"source {os.path.join(venv_path, 'bin', 'activate')} && {venv_python} {dirs.PLUGIN_HARNESS} "
+                + f'--plugin_dir "{plugin_location}" --input_file "{input_file}" --experiment_name "{experiment_name}"',
+            ]
+        else:
+            print(">Using system Python interpreter")
+            training_popen_command = [
+                sys.executable,
+                dirs.PLUGIN_HARNESS,
+                "--plugin_dir",
+                plugin_location,
+                "--input_file",
+                input_file,
+                "--experiment_name",
+                experiment_name,
+            ]
+
         popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
 
     else:
