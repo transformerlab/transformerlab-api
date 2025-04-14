@@ -201,7 +201,7 @@ install_conda() {
       echo "Deleting existing Miniforge installation at $MINIFORGE_ROOT"
       rm -rf "$MINIFORGE_ROOT"
     fi
-    curl -o miniforge_installer.sh "$MINIFORGE_URL" && bash miniforge_installer.sh -b -p "$MINIFORGE_ROOT" && rm miniforge_installer.sh
+    curl -L -o miniforge_installer.sh "$MINIFORGE_URL" && bash miniforge_installer.sh -b -p "$MINIFORGE_ROOT" && rm miniforge_installer.sh
     # Install conda to bash and zsh. We keep these commented out
     # to avoid adding our conda to the user's shell as the default.
     # $MINIFORGE_ROOT/bin/conda init bash
