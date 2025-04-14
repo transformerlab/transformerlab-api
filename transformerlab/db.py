@@ -246,6 +246,35 @@ async def job_create(type, status, job_data="{}", experiment_id=""):
     return row[0]
 
 
+def job_create_sync(type, status, job_data="{}", experiment_id=""):
+    """
+    Synchronous version of job_create function for use with XML-RPC.
+    """
+    global DATABASE_FILE_NAME
+    # check if type is allowed
+    if type not in ALLOWED_JOB_TYPES:
+        raise ValueError(f"Job type {type} is not allowed")
+
+    # Use SQLite directly in synchronous mode
+    conn = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
+    cursor = conn.cursor()
+
+    # Execute insert
+    cursor.execute(
+        "INSERT INTO job(type, status, experiment_id, job_data) VALUES (?, ?, ?, json(?))",
+        (type, status, experiment_id, job_data),
+    )
+
+    # Get the row ID
+    row_id = cursor.lastrowid
+
+    # Commit and close
+    conn.commit()
+    conn.close()
+
+    return row_id
+
+
 async def jobs_get_all(type="", status=""):
     base_query = "SELECT * FROM job"
     if type != "":
@@ -366,6 +395,16 @@ async def job_update_status(job_id, status, error_msg=None):
         job_data = json.dumps({"error_msg": str(error_msg)})
         await db.execute("UPDATE job SET job_data = ? WHERE id = ?", (job_data, job_id))
         await db.commit()
+    return
+
+
+def job_update_status_sync(job_id, status, error_msg=None):
+    global DATABASE_FILE_NAME
+    db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
+
+    db_sync.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
+    db_sync.commit()
+    db_sync.close()
     return
 
 
