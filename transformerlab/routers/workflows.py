@@ -216,9 +216,7 @@ async def start_next_step_in_workflow():
     currently_running_workflow_run = await db.workflow_run_get_running()
     if currently_running_workflow_run is None:
         currently_running_workflow_run = await db.workflow_run_get_queued()
-        db.workflow_run_update_status(currently_running_workflow_run["id"], "RUNNING")
-
-    print(currently_running_workflow_run)
+        await db.workflow_run_update_status(currently_running_workflow_run["id"], "RUNNING")
 
     workflow_run_id = currently_running_workflow_run["id"]
     workflow_id = currently_running_workflow_run["workflow_id"]
