@@ -4,9 +4,13 @@ import os
 import time
 import traceback
 
-from transformerlab.plugin import WORKSPACE_DIR, generate_model_json, test_wandb_login
+try:
+    from transformerlab.plugin import WORKSPACE_DIR, generate_model_json, test_wandb_login
+    from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
 
-from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
+except ModuleNotFoundError:
+    from transformerlab.plugin_sdk.transformerlab.plugin import WORKSPACE_DIR, generate_model_json, test_wandb_login
+    from transformerlab.plugin_sdk.transformerlab.sdk.v1.tlab_plugin import TLabPlugin
 
 
 class TrainerTLabPlugin(TLabPlugin):
@@ -16,7 +20,7 @@ class TrainerTLabPlugin(TLabPlugin):
         super().__init__()
         self.tlab_plugin_type = "trainer"
         # Add training-specific default arguments
-        self._parser.add_argument("--input_file", type=str, help="Path to configuration file")
+        self._parser.add_argument("--input_file", default=None, type=str, help="Path to configuration file")
 
         # Training state tracking
         self._config_parsed = False
@@ -107,7 +111,8 @@ class TrainerTLabPlugin(TLabPlugin):
             self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise
 
-    def setup_train_logging(self, wandb_project_name: str = "TLab_Training", manual_logging=False):
+
+    def setup_train_logging(self, wandb_project_name: str = "TLab_Training", manual_logging=False, output_dir = None):
         """Setup Weights and Biases and TensorBoard logging
 
         Args:
@@ -122,14 +127,22 @@ class TrainerTLabPlugin(TLabPlugin):
         if not self.params.template_name:
             self.params.template_name = "default"
         # Add tensorboard_output_dir
-        self.params.tensorboard_output_dir = os.path.join(
-            self.params.output_dir, f"job_{self.params.job_id}_{self.params.template_name}"
-        )
-        self.writer = SummaryWriter(self.params.tensorboard_output_dir)
-        print("Writing tensorboard logs to:", self.params.output_dir)
+        if output_dir is None:
+            self.params.tensorboard_output_dir = os.path.join(
+                self.params.output_dir, f"job_{self.params.job_id}_{self.params.template_name}"
+            )
+            self.add_job_data("tensorboard_output_dir", self.params.output_dir)
+            print("Writing tensorboard logs to:", self.params.output_dir)
+        else:
+            self.params.tensorboard_output_dir = os.path.join(
+                output_dir, f"job_{self.params.job_id}_{self.params.template_name}"
+            )
+            self.add_job_data("tensorboard_output_dir", output_dir)
+            print("Writing tensorboard logs to:", output_dir)
 
-        # Store the tensorboard output dir in the job
-        self.add_job_data("tensorboard_output_dir", self.params.output_dir)
+        self.writer = SummaryWriter(self.params.tensorboard_output_dir)
+        
+
 
         # Check config or direct attribute for wandb logging preference
         log_to_wandb = False
@@ -177,10 +190,13 @@ class TrainerTLabPlugin(TLabPlugin):
             self.writer.add_scalar(metric_name, metric_value, step)
         if "wandb" in self.report_to and getattr(self, "wandb_run") is not None:
             self.wandb_run.log({metric_name: metric_value}, step=step)
+            
 
-    def create_transformerlab_model(self, fused_model_name, model_architecture, json_data, output_dir=None):
-        generate_model_json(fused_model_name, model_architecture, json_data=json_data, output_directory=output_dir)
-        print("Generated Model JSON File")
+    def create_transformerlab_model(self, fused_model_name, model_architecture, json_data, output_dir=None, generate_json=True):
+        if generate_json:
+            generate_model_json(fused_model_name, model_architecture, json_data=json_data, output_directory=output_dir)
+        
+
         if output_dir is None:
             fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
         else:
@@ -188,8 +204,6 @@ class TrainerTLabPlugin(TLabPlugin):
 
         # Create the hash files for the model
         md5_objects = self.create_md5_checksum_model_files(fused_model_location)
-
-        print("Model Checksum Computed")
 
         # Create the _tlab_provenance.json file
         provenance_file = self.create_provenance_file(
@@ -226,12 +240,15 @@ class TrainerTLabPlugin(TLabPlugin):
         """Create a _tlab_provenance.json file containing model provenance data"""
 
         # Get training parameters and metadata
+        dataset_name = self.params.get("dataset_name", None)
+        if dataset_name is None:
+            dataset_name = self.params.get("dataset", None)
         provenance_data = {
             "model_name": model_name,
             "model_architecture": model_architecture,
             "job_id": self.params.get("job_id", None),
             "input_model": self.params.get("model_name", None),
-            "dataset": self.params.get("dataset_name", None),
+            "dataset": dataset_name,
             "adaptor_name": self.params.get("adaptor_name", None),
             "parameters": self.params.get("_config", None),
             "start_time": self.params.get("start_time", ""),
@@ -244,7 +261,6 @@ class TrainerTLabPlugin(TLabPlugin):
         with open(provenance_path, "w") as f:
             json.dump(provenance_data, f, indent=2)
 
-        print(f"Created provenance file at {provenance_path}")
         return provenance_path
 
 
