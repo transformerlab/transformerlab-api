@@ -5,8 +5,8 @@ ENV_NAME="transformerlab"
 TLAB_DIR="$HOME/.transformerlab"
 TLAB_CODE_DIR="${TLAB_DIR}/src"
 
-MINICONDA_ROOT=${TLAB_DIR}/miniconda3
-CONDA_BIN=${MINICONDA_ROOT}/bin/conda
+MINIFORGE_ROOT=${TLAB_DIR}/miniforge3
+CONDA_BIN=${MINIFORGE_ROOT}/bin/conda
 ENV_DIR=${TLAB_DIR}/envs/${ENV_NAME}
 RUN_DIR=$(pwd)
 
@@ -70,9 +70,9 @@ title() {
 
 check_conda() {
   if ! command -v "${CONDA_BIN}" &> /dev/null; then
-    abort "❌ Conda is not installed at ${MINICONDA_ROOT}. Please install Conda using '${TLAB_DIR}/src/install.sh install_conda' and try again."
+    abort "❌ Conda is not installed at ${MINIFORGE_ROOT}. Please install Conda using '${TLAB_DIR}/src/install.sh install_conda' and try again."
   else
-    ohai "✅ Conda is installed at ${MINICONDA_ROOT}."
+    ohai "✅ Conda is installed at ${MINIFORGE_ROOT}."
   fi
 }
 
@@ -182,7 +182,7 @@ install_conda() {
 
   # check if conda already exists:
   if ! command -v "${CONDA_BIN}" &> /dev/null; then
-    echo "Conda is not installed at ${MINICONDA_ROOT}."
+    echo "Conda is not installed at ${MINIFORGE_ROOT}."
     OS=$(uname -s)
     ARCH=$(uname -m)
 
@@ -190,26 +190,26 @@ install_conda() {
         OS="MacOSX"
     fi
 
-    MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-$OS-$ARCH.sh"
-    echo Downloading "$MINICONDA_URL"
+    MINIFORGE_URL="https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$OS-$ARCH.sh"
+    echo Downloading "$MINIFORGE_URL"
 
     # Change the directory to the Transformer Lab directory
     mkdir -p "$TLAB_DIR"
     cd "$TLAB_DIR"
-    # first check if the MINICONDAROOT exists, and if so, delete it:
-    if [ -d "$MINICONDA_ROOT" ]; then
-      echo "Deleting existing Miniconda installation at $MINICONDA_ROOT"
-      rm -rf "$MINICONDA_ROOT"
+    # first check if the MINIFORGEROOT exists, and if so, delete it:
+    if [ -d "$MINIFORGE_ROOT" ]; then
+      echo "Deleting existing Miniforge installation at $MINIFORGE_ROOT"
+      rm -rf "$MINIFORGE_ROOT"
     fi
-    curl -o miniconda_installer.sh "$MINICONDA_URL" && bash miniconda_installer.sh -b -p "$MINICONDA_ROOT" && rm miniconda_installer.sh
+    curl -o miniforge_installer.sh "$MINIFORGE_URL" && bash miniforge_installer.sh -b -p "$MINIFORGE_ROOT" && rm miniforge_installer.sh
     # Install conda to bash and zsh. We keep these commented out
     # to avoid adding our conda to the user's shell as the default.
-    # $MINICONDA_ROOT/bin/conda init bash
+    # $MINIFORGE_ROOT/bin/conda init bash
     # if [ -n "$(command -v zsh)" ]; then
-    #     $MINICONDA_ROOT/bin/conda init zsh
+    #     $MINIFORGE_ROOT/bin/conda init zsh
     # fi
   else
-      ohai "Conda is installed at ${MINICONDA_ROOT}, we do not need to install it"
+      ohai "Conda is installed at ${MINIFORGE_ROOT}, we do not need to install it"
   fi
 
   # Enable conda in shell
@@ -241,8 +241,8 @@ create_conda_environment() {
   if { conda env list | grep "$ENV_DIR"; } >/dev/null 2>&1; then
       echo "✅ Conda environment $ENV_DIR already exists."
   else
-      echo conda create -y -n "$ENV_DIR" python=3.11
-      conda create -y -k --prefix "$ENV_DIR" python=3.11
+      echo mamba create -y -n "$ENV_DIR" python=3.11
+      mamba create -y -k --prefix "$ENV_DIR" python=3.11
   fi
 
   # Activate the newly created environment
@@ -290,7 +290,7 @@ install_dependencies() {
 
   if [ "$HAS_GPU" = true ] ; then
       echo "Your computer has a GPU; installing cuda:"
-      conda install -y cuda -c nvidia/label/cuda-12.1.1
+      mamba install -y cuda -c nvidia/label/cuda-12.1.1
 
       echo "Installing requirements:"
       # Install the python requirements
@@ -354,7 +354,7 @@ doctor() {
     echo "Your conda version is: $(${CONDA_BIN} --version)" || echo "Issue with conda"
     echo "Conda is seen in path at at: $(which conda)" || echo "Conda is not in your path"
   else
-    echo "Conda is not installed at ${MINICONDA_ROOT}. Please install Conda using '${TLAB_DIR}/src/install.sh install_conda' and try again."
+    echo "Conda is not installed at ${MINIFORGE_ROOT}. Please install Conda using '${TLAB_DIR}/src/install.sh install_conda' and try again."
   fi
   if command -v nvidia-smi &> /dev/null; then
     echo "Your nvidia-smi version is: $(nvidia-smi --version)"
