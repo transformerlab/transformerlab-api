@@ -506,7 +506,7 @@ on the model's Huggingface page."
         print(error_msg)  # Replace with appropriate logging mechanism
         if job_id:
             await db.job_update_status(job_id, "FAILED", error_msg)
-        return {"status": "error", "message": error_msg}
+        return {"status": "error", "message": "An internal error has occurred."}
 
     if model_details is None:
         error_msg = f"Error reading config for model with ID {model}"
