@@ -825,7 +825,7 @@ async def experiment_save_prompt_template(id, template):
 
 
 async def workflows_get_all():
-    cursor = await db.execute("SELECT * FROM workflows WHERE status != 'DELETED' ORDER BY created_at desc")
+    cursor = await db.execute("SELECT * FROM workflows ORDER BY created_at desc")
     rows = await cursor.fetchall()
     desc = cursor.description
     column_names = [col[0] for col in desc]
@@ -833,6 +833,23 @@ async def workflows_get_all():
     await cursor.close()
     return data
 
+async def workflows_get_from_experiment(experiment_id):
+    cursor = await db.execute("SELECT * FROM workflows WHERE experiment_id = ? ORDER BY created_at desc",(experiment_id,))
+    rows = await cursor.fetchall()
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
+    await cursor.close()
+    return data
+
+async def workflow_run_get_all():
+    cursor = await db.execute("SELECT * FROM workflow_runs WHERE status != 'DELETED' ORDER BY created_at desc")
+    rows = await cursor.fetchall()
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
+    await cursor.close()
+    return data
 
 async def workflows_get_by_id(workflow_id):
     cursor = await db.execute("SELECT * FROM workflows WHERE id = ? ORDER BY created_at desc LIMIT 1", (workflow_id,))
@@ -845,6 +862,16 @@ async def workflows_get_by_id(workflow_id):
     await cursor.close()
     return row
 
+async def workflow_run_get_by_id(workflow_run_id):
+    cursor = await db.execute("SELECT * FROM workflow_runs WHERE id = ? ORDER BY created_at desc LIMIT 1", (workflow_run_id,))
+    row = await cursor.fetchone()
+    if row is None:
+        return None
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    row = dict(itertools.zip_longest(column_names, row))
+    await cursor.close()
+    return row
 
 async def workflow_delete_by_id(workflow_id):
     print("Deleting workflow: " + workflow_id)
@@ -861,14 +888,19 @@ async def workflow_delete_by_name(workflow_name):
 
 
 async def workflow_count_running():
-    cursor = await db.execute("SELECT COUNT(*) FROM workflows WHERE status = 'RUNNING'")
+    cursor = await db.execute("SELECT COUNT(*) FROM workflow_runs WHERE status = 'RUNNING'")
     row = await cursor.fetchone()
     await cursor.close()
     return row[0]
 
+async def workflow_count_queued():
+    cursor = await db.execute("SELECT COUNT(*) FROM workflow_runs WHERE status = 'QUEUED'")
+    row = await cursor.fetchone()
+    await cursor.close()
+    return row[0]
 
-async def workflow_get_running():
-    cursor = await db.execute("SELECT * FROM workflows WHERE status = 'RUNNING' LIMIT 1")
+async def workflow_run_get_running():
+    cursor = await db.execute("SELECT * FROM workflow_runs WHERE status = 'RUNNING' LIMIT 1")
     row = await cursor.fetchone()
     if row is None:
         return None
@@ -878,23 +910,50 @@ async def workflow_get_running():
     await cursor.close()
     return row
 
+async def workflow_run_get_queued():
+    cursor = await db.execute("SELECT * FROM workflow_runs WHERE status = 'QUEUED' LIMIT 1")
+    row = await cursor.fetchone()
+    if row is None:
+        return None
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    row = dict(itertools.zip_longest(column_names, row))
+    await cursor.close()
+    return row
 
-async def workflow_update_status(workflow_id, status):
+async def workflow_run_update_status(workflow_run_id, status):
     await db.execute(
-        "UPDATE workflows SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, workflow_id)
+        "UPDATE workflow_runs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, workflow_run_id)
     )
     await db.commit()
     return
 
 
-async def workflow_update_with_new_job(workflow_id, current_task, current_job_id):
+async def workflow_run_update_with_new_job(workflow_run_id, current_task, current_job_id):
     await db.execute(
-        "UPDATE workflows SET current_task = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        (current_task, workflow_id),
+        "UPDATE workflow_runs SET current_tasks = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (current_task, workflow_run_id),
     )
     await db.execute(
-        "UPDATE workflows SET current_job_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        (current_job_id, workflow_id),
+        "UPDATE workflow_runs SET current_job_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (current_job_id, workflow_run_id),
+    )
+
+    current_workflow_run = await workflow_run_get_by_id(workflow_run_id)
+    current_workflow_run["job_ids"] = json.loads(current_workflow_run["job_ids"])
+    current_workflow_run["job_ids"] += json.loads(current_job_id)
+    current_workflow_run["job_ids"] = json.dumps(current_workflow_run["job_ids"])
+    current_workflow_run["node_ids"] = json.loads(current_workflow_run["node_ids"])
+    current_workflow_run["node_ids"] += json.loads(current_task)
+    current_workflow_run["node_ids"] = json.dumps(current_workflow_run["node_ids"])
+
+    await db.execute(
+        "UPDATE workflow_runs SET node_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (current_workflow_run["node_ids"], workflow_run_id),
+    )
+    await db.execute(
+        "UPDATE workflow_runs SET job_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (current_workflow_run["job_ids"], workflow_run_id),
     )
     await db.commit()
     return
@@ -903,8 +962,8 @@ async def workflow_update_with_new_job(workflow_id, current_task, current_job_id
 async def workflow_create(name, config, experiment_id):
     # check if type is allowed
     row = await db.execute_insert(
-        "INSERT INTO workflows(name, config, status, current_task, current_job_id, experiment_id) VALUES (?, json(?), ?, json(?), json(?), ?)",
-        (name, config, "CREATED", "[]", "[]", experiment_id),
+        "INSERT INTO workflows(name, config, experiment_id) VALUES (?, json(?), ?)",
+        (name, config, experiment_id),
     )
     await db.commit()
     return row[0]
@@ -920,6 +979,13 @@ async def workflow_update_config(workflow_id, config):
 async def workflow_delete_all():
     await db.execute("DELETE FROM workflows")
     await db.commit()
+
+async def workflow_runs_delete_all():
+    await db.execute("DELETE FROM workflow_runs")
+    await db.commit()
+
+async def workflow_queue(workflow_id):
+    await db.execute("INSERT INTO workflow_runs(workflow_id, job_ids, node_ids, status, current_tasks, current_job_ids) VALUES (?, ?, ?, ?, ?, ?)", (workflow_id, "[]", "[]","QUEUED", "[]","[]"))
 
 
 ###############
