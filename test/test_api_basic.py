@@ -9,7 +9,8 @@ from api import app
 client = TestClient(app)
 
 
-def test_read_main():
-    response = client.get("/")
-    assert response.status_code == 200
-    assert response.json() == {"msg": "Welcome to Transformer Lab!"}
+# DISABLING: The root now serves the web app if it has been installed.
+# def test_read_main():
+#    response = client.get("/")
+#    assert response.status_code == 200
+#    assert response.json() == {"msg": "Welcome to Transformer Lab!"}
