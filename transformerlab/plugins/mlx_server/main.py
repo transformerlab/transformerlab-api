@@ -487,6 +487,31 @@ async def check_architecture_available():
     return {"available": True}
 
 
+# Recursive function to traverse the parameter structure
+def collect_parameters(obj, prefix=""):
+    result = []
+
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            new_prefix = f"{prefix}.{key}" if prefix else key
+            result.extend(collect_parameters(value, new_prefix))
+    elif isinstance(obj, list):
+        for i, value in enumerate(obj):
+            new_prefix = f"{prefix}.{i}" if prefix else str(i)
+            result.extend(collect_parameters(value, new_prefix))
+    elif hasattr(obj, "__dict__") and not isinstance(obj, mx.array):
+        # Handle objects with attributes
+        for key, value in obj.__dict__.items():
+            if not key.startswith("_"):  # Skip private attributes
+                new_prefix = f"{prefix}.{key}" if prefix else key
+                result.extend(collect_parameters(value, new_prefix))
+    elif isinstance(obj, mx.array):
+        # Found a leaf MLX array
+        result.append((prefix, obj))
+
+    return result
+
+
 @app.post("/worker_generate_layers_visualization")
 async def api_generate_layers_visualization(request: Request):
     """Generate model architecture visualization data"""
@@ -495,30 +520,6 @@ async def api_generate_layers_visualization(request: Request):
 
         def clean_layer_name(layer_name):
             return re.sub(r"\.\d+\.", ".", layer_name)
-
-        # Recursive function to traverse the parameter structure
-        def collect_parameters(obj, prefix=""):
-            result = []
-
-            if isinstance(obj, dict):
-                for key, value in obj.items():
-                    new_prefix = f"{prefix}.{key}" if prefix else key
-                    result.extend(collect_parameters(value, new_prefix))
-            elif isinstance(obj, list):
-                for i, value in enumerate(obj):
-                    new_prefix = f"{prefix}.{i}" if prefix else str(i)
-                    result.extend(collect_parameters(value, new_prefix))
-            elif hasattr(obj, "__dict__") and not isinstance(obj, mx.array):
-                # Handle objects with attributes
-                for key, value in obj.__dict__.items():
-                    if not key.startswith("_"):  # Skip private attributes
-                        new_prefix = f"{prefix}.{key}" if prefix else key
-                        result.extend(collect_parameters(value, new_prefix))
-            elif isinstance(obj, mx.array):
-                # Found a leaf MLX array
-                result.append((prefix, obj))
-
-            return result
 
         # Use the already loaded model
         model = worker.mlx_model.model
@@ -552,6 +553,7 @@ async def api_generate_layers_visualization(request: Request):
             cube_list.append(
                 {
                     "name": clean_name,
+                    "original_name": layer,
                     "size": size,
                     "param_count": int(param_size),
                     "shape": str(params.shape),
@@ -562,6 +564,57 @@ async def api_generate_layers_visualization(request: Request):
 
     except Exception as e:
         logger.error(f"Error generating architecture visualization: {e}")
+        logger.error(traceback.format_exc())
+        return {"error": "An internal error has occurred.", "error_code": 1}
+
+
+@app.post("/worker_get_layer_details")
+async def get_distribution_of_weights_for_specific_layer(request: Request):
+    """
+    Get the distribution of weights for a specific layer in the model.
+    """
+    params = await request.json()
+    layer_name = params.get("layer_name", None)
+
+    try:
+        if not layer_name:
+            return {"error": "Layer name is required.", "error_code": 1}
+
+        # Use the already loaded model
+        model = worker.mlx_model.model
+
+        # Get model parameters
+        all_params = []
+        for name, param in model.parameters().items():
+            params_from_path = collect_parameters(param, name)
+            all_params.extend(params_from_path)
+        if len(all_params) == 0:
+            raise ValueError("No parameters found in the model.")
+
+        all_params = dict(all_params)
+
+        # Get the weights for the specified layer
+        weights_numpy = all_params[layer_name]
+        weights = np.array(weights_numpy.astype(mx.float32), copy=False)
+
+        # Calculate distribution statistics
+        mean = np.mean(weights)
+        std_dev = np.std(weights)
+
+        # for the actual distribution, create a set of bins:
+        # histogram, and get the counts
+        hist, bin_edges = np.histogram(weights, bins=50)
+
+        return {
+            "layer_name": layer_name,
+            "mean": float(mean),
+            "std_dev": float(std_dev),
+            "histogram": hist.tolist(),
+            "bin_edges": bin_edges.tolist(),
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting distribution of weights: {e}")
         logger.error(traceback.format_exc())
         return {"error": "An internal error has occurred.", "error_code": 1}
 
