@@ -214,7 +214,7 @@ async def start_next_step_in_workflow():
     if num_running_workflows + num_queued_workflows == 0:
         return {"message": "A workflow is not running or queued"}
     currently_running_workflow_run = await db.workflow_run_get_running()
-    if currently_running_workflow_run == None:
+    if currently_running_workflow_run is None:
         currently_running_workflow_run = await db.workflow_run_get_queued()
         db.workflow_run_update_status(currently_running_workflow_run["id"], "RUNNING")
 
@@ -317,7 +317,8 @@ async def start_next_step_in_workflow():
             if current_job is not None:
                 if current_job["type"] == "GENERATE":
                     next_task["inputs"] = json.loads(next_task["inputs"])
-                    next_task["inputs"]["dataset_name"] = current_job["job_data"]["config"]["dataset_name"]
+                    print(current_job["job_data"])
+                    next_task["inputs"]["dataset_name"] = current_job["job_data"]["dataset_id"].lower()
                     next_task["inputs"] = json.dumps(next_task["inputs"])
         if next_task["type"] == "EVAL":
             if current_job is not None:
@@ -329,11 +330,11 @@ async def start_next_step_in_workflow():
                     next_task["inputs"] = json.dumps(next_task["inputs"])
                 if current_job["type"] == "GENERATE":
                     next_task["inputs"] = json.loads(next_task["inputs"])
-                    next_task["inputs"]["dataset_name"] = current_job["job_data"]["config"]["dataset_name"]
+                    next_task["inputs"]["dataset_name"] = current_job["job_data"]["dataset_id"].lower()
                     next_task["inputs"] = json.dumps(next_task["inputs"])
         if next_task["type"] == "GENERATE":
             next_task["outputs"] = json.loads(next_task["outputs"])
-            next_task["outputs"]["dataset_name"] = str(uuid.uuid4()).replace("-","")
+            next_task["outputs"]["dataset_id"] = str(uuid.uuid4()).replace("-","")
             next_task["outputs"] = json.dumps(next_task["outputs"])
 
     
