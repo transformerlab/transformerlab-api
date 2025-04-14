@@ -10,12 +10,16 @@ import numpy as np
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+import torch
+if torch.cuda.is_available():
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 from datasets import DatasetDict, concatenate_datasets
 from peft import (
     LoraConfig,
     TaskType,
     get_peft_model,
-    prepare_model_for_int8_training,
+    prepare_model_for_kbit_training,
 )
 from transformers import (
     AutoModelForSeq2SeqLM,
@@ -148,7 +152,6 @@ class T5LoraTrainer:
             device_map="auto"
         )
 
-    @tlab_trainer.job_wrapper()
     def train(self):
         """Main training function using tlab_trainer wrapper for progress tracking"""
         config = tlab_trainer.params._config
@@ -177,7 +180,7 @@ class T5LoraTrainer:
         )
         
         # Prepare model for int8 training with LoRA
-        self.model = prepare_model_for_int8_training(self.model)
+        self.model = prepare_model_for_kbit_training(self.model)
         self.model = get_peft_model(self.model, lora_config)
         self.model.print_trainable_parameters()
         
@@ -249,5 +252,9 @@ class T5LoraTrainer:
 
     
 # Start the training
-trainer = T5LoraTrainer()
-trainer.train()
+@tlab_trainer.job_wrapper()
+def run_training():
+    trainer = T5LoraTrainer()
+    trainer.train()
+
+run_training()
