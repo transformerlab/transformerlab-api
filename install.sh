@@ -4,7 +4,7 @@ set -eu
 ENV_NAME="transformerlab"
 TLAB_DIR="$HOME/.transformerlab"
 TLAB_CODE_DIR="${TLAB_DIR}/src"
-TLAB_STATIC_WEB_DIR="${TLAB_DIR}/static"
+TLAB_STATIC_WEB_DIR="${TLAB_DIR}/webapp"
 
 MINICONDA_ROOT=${TLAB_DIR}/miniconda3
 CONDA_BIN=${MINICONDA_ROOT}/bin/conda

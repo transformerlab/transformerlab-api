@@ -361,7 +361,7 @@ async def server_worker_health(request: Request):
     return result
 
 
-# Add an endpoint that serves the static files in the ./static directory:
+# Add an endpoint that serves the static files in the ~/.transformerlab/webapp directory:
 app.mount("/", StaticFiles(directory=dirs.STATIC_FILES_DIR, html=True), name="application")
 
 
