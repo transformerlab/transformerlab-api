@@ -24,8 +24,8 @@ async def workflows_get_in_experiment(experiment_id: str = "1"):
 
 @router.get("/list_runs")
 async def workflow_runs_get_all():
-    workflows = await db.workflow_run_get_all()
-    return workflows
+    workflow_runs = await db.workflow_run_get_all()
+    return workflow_runs
 
 @router.get("/delete/{workflow_id}")
 async def workflow_delete(workflow_id: str):

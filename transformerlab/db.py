@@ -985,7 +985,8 @@ async def workflow_runs_delete_all():
     await db.commit()
 
 async def workflow_queue(workflow_id):
-    await db.execute("INSERT INTO workflow_runs(workflow_id, job_ids, node_ids, status, current_tasks, current_job_ids) VALUES (?, ?, ?, ?, ?, ?)", (workflow_id, "[]", "[]","QUEUED", "[]","[]"))
+    workflow_name = (await workflows_get_by_id(workflow_id))["name"]
+    await db.execute("INSERT INTO workflow_runs(workflow_id, workflow_name, job_ids, node_ids, status, current_tasks, current_job_ids) VALUES (?, ?, ?, ?, ?, ?, ?)", (workflow_id, workflow_name, "[]", "[]","QUEUED", "[]","[]"))
 
 
 ###############
