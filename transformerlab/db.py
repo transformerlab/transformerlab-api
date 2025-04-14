@@ -16,6 +16,7 @@ from transformerlab.shared import dirs
 from transformerlab.shared.models import models  # noqa: F401
 
 db = None
+db_sync = None
 DATABASE_FILE_NAME = f"{dirs.WORKSPACE_DIR}/llmlab.sqlite3"
 DATABASE_URL = f"sqlite+aiosqlite:///{DATABASE_FILE_NAME}"
 
@@ -34,6 +35,13 @@ async def init():
     global db
     os.makedirs(os.path.dirname(DATABASE_FILE_NAME), exist_ok=True)
     db = await aiosqlite.connect(DATABASE_FILE_NAME)
+
+    global db_sync
+    db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
+    db_sync.execute("PRAGMA journal_mode=WAL")
+    db_sync.execute("PRAGMA synchronous=normal")
+    db_sync.execute("PRAGMA busy_timeout = 5000")
+
 
     # Create the tables if they don't exist
     async with async_engine.begin() as conn:
@@ -247,14 +255,14 @@ def job_create_sync(type, status, job_data="{}", experiment_id=""):
     """
     Synchronous version of job_create function for use with XML-RPC.
     """
-    global DATABASE_FILE_NAME
+    # global DATABASE_FILE_NAME
     # check if type is allowed
     if type not in ALLOWED_JOB_TYPES:
         raise ValueError(f"Job type {type} is not allowed")
 
     # Use SQLite directly in synchronous mode
-    conn = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
-    cursor = conn.cursor()
+    # conn = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
+    cursor = db_sync.cursor()
 
     # Execute insert
     cursor.execute(
@@ -266,8 +274,8 @@ def job_create_sync(type, status, job_data="{}", experiment_id=""):
     row_id = cursor.lastrowid
 
     # Commit and close
-    conn.commit()
-    conn.close()
+    db_sync.commit()
+    cursor.close()
 
     return row_id
 
@@ -396,14 +404,23 @@ async def job_update_status(job_id, status, error_msg=None):
 
 
 def job_update_status_sync(job_id, status, error_msg=None):
-    global DATABASE_FILE_NAME
-    db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
+    try:
+        global DATABASE_FILE_NAME
+        # db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
 
-    db_sync.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
-    db_sync.commit()
-    db_sync.close()
-    return
+        cursor = db_sync.cursor()
 
+
+        cursor.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
+        db_sync.commit()
+        cursor.close()
+        return
+    except Exception as e:
+        print("Error updating job status: " + str(e))
+        return
+    finally:
+        if cursor:
+            cursor.close()
 
 async def job_update(job_id, type, status):
     await db.execute(
@@ -419,11 +436,12 @@ def job_update_sync(job_id, status):
     # which can only support sychronous functions
     # This is a hack to get around that limitation
     global DATABASE_FILE_NAME
-    db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
+    # db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
+    cursor = db_sync.cursor()
 
-    db_sync.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
+    cursor.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
     db_sync.commit()
-    db_sync.close()
+    cursor.close()
     return
 
 
@@ -432,14 +450,14 @@ def job_mark_as_complete_if_running(job_id):
     # only marks a job as "COMPLETE" if it is currenty "RUNNING"
     # This avoids updating "stopped" jobs and marking them as complete
     global DATABASE_FILE_NAME
-    db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
-
-    db_sync.execute(
+    # db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
+    cursor = db_sync.cursor()
+    cursor.execute(
         "UPDATE job SET status = 'COMPLETE', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'RUNNING'",
         (job_id,),
     )
     db_sync.commit()
-    db_sync.close()
+    cursor.close()
     return
 
 
