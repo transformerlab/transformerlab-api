@@ -612,8 +612,10 @@ async def api_generate_layers_visualization(request: Request):
             cube_list.append(
                 {
                     "name": clean_name,
+                    "original_name": layer,
                     "size": size,
                     "param_count": param_size,
+                    "shape": str(tuple(params.shape)),
                 }
             )
 
@@ -624,6 +626,55 @@ async def api_generate_layers_visualization(request: Request):
 
         traceback.print_exc()
         return {"error": str(e), "error_code": ErrorCode.INTERNAL_ERROR}
+
+
+@app.post("/worker_get_layer_details")
+async def get_distribution_of_weights_for_specific_layer(request: Request):
+     """
+     Get the distribution of weights for a specific layer in the model.
+     """
+     params = await request.json()
+     layer_name = params.get("layer_name", None)
+ 
+     try:
+        if not layer_name:
+            return {"error": "Layer name is required.", "error_code": 1}
+ 
+        # Use the already loaded model
+        model = worker.model
+ 
+        # Get model parameters
+        all_params = model.state_dict()
+ 
+        weights_tensor = all_params[layer_name]
+        weights = weights_tensor.detach().cpu().numpy()
+
+        weights = weights[np.isfinite(weights)]  # Drop NaNs/Infs
+
+        # First try computing std in-place
+        std_dev = np.std(weights)
+        if not np.isfinite(std_dev):
+            # Fallback to float32 if std is broken
+            std_dev = np.std(weights.astype(np.float32))
+
+        mean = np.mean(weights) 
+
+        # Create a histogram with 50 bins
+        hist, bin_edges = np.histogram(weights, bins=50)
+
+        return {
+            "layer_name": layer_name,
+            "mean": float(mean),
+            "std_dev": float(std_dev),
+            "histogram": hist.tolist(),
+            "bin_edges": bin_edges.tolist(),
+        }
+ 
+     except Exception as e:
+         logger.error(f"Error getting distribution of weights: {e}")
+         logger.error(traceback.format_exc())
+         return {"error": "An internal error has occurred.", "error_code": 1}
+
 
 
 @app.post("/tokenize")

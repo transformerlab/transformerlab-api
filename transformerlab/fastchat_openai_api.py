@@ -1353,3 +1353,29 @@ async def generate_model_architecture(model_name: str):
             timeout=WORKER_API_TIMEOUT,
         )
         return response.json()
+
+
+@router.post("/v1/layer_details", dependencies=[Depends(check_api_key)], tags=["visualization"])
+async def get_layer_details(request: Request):
+    """Get details about a specific layer in the model architecture"""
+    data = await request.json()
+    model_name = data.get("model_name")
+    layer_name = data.get("layer_name")
+
+    if not model_name or not layer_name:
+        return create_error_response(
+            ErrorCode.PARAM_OUT_OF_RANGE,
+            "Both 'model_name' and 'layer_name' must be provided.",
+        )
+
+    async with httpx.AsyncClient() as client:
+        worker_addr = await get_worker_address(model_name, client)
+
+        # Get layer details
+        response = await client.post(
+            worker_addr + "/worker_get_layer_details",
+            headers=headers,
+            json={"model": model_name, "layer_name": layer_name},
+            timeout=WORKER_API_TIMEOUT,
+        )
+        return response.json()
