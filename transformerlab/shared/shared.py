@@ -338,20 +338,6 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         start_time = time.strftime("%Y-%m-%d %H:%M:%S")
         await db.job_update_job_data_insert_key_value(job_id, "start_time", start_time)
 
-        # # This calls the training plugin harness, which calls the actual training plugin
-        # training_popen_command = [
-        #     sys.executable,
-        #     dirs.PLUGIN_HARNESS,
-        #     "--plugin_dir",
-        #     plugin_location,
-        #     "--input_file",
-        #     input_file,
-        #     "--experiment_name",
-        #     experiment_name,
-        # ]
-        # print("RUNNING: popen command:")
-        # print(training_popen_command)
-        # popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
         # Check if plugin has a venv directory
         venv_path = os.path.join(plugin_location, "venv")
         if os.path.exists(venv_path) and os.path.isdir(venv_path):
@@ -408,20 +394,6 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         start_time = time.strftime("%Y-%m-%d %H:%M:%S")
         await db.job_update_job_data_insert_key_value(job_id, "start_time", start_time)
 
-        # # This calls the training plugin harness, which calls the actual training plugin
-        # training_popen_command = [
-        #     sys.executable,
-        #     dirs.PLUGIN_HARNESS,
-        #     "--plugin_dir",
-        #     plugin_location,
-        #     "--input_file",
-        #     input_file,
-        #     "--experiment_name",
-        #     experiment_name,
-        # ]
-        # print("RUNNING: popen command:")
-        # print(training_popen_command)
-        # popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
         # Check if plugin has a venv directory
         venv_path = os.path.join(plugin_location, "venv")
         if os.path.exists(venv_path) and os.path.isdir(venv_path):
@@ -481,21 +453,6 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
         start_time = time.strftime("%Y-%m-%d %H:%M:%S")
         await db.job_update_job_data_insert_key_value(job_id, "start_time", start_time)
-
-        # # This calls the training plugin harness, which calls the actual training plugin
-        # training_popen_command = [
-        #     sys.executable,
-        #     dirs.PLUGIN_HARNESS,
-        #     "--plugin_dir",
-        #     plugin_location,
-        #     "--input_file",
-        #     input_file,
-        #     "--experiment_name",
-        #     experiment_name,
-        # ]
-        # print("RUNNING: popen command:")
-        # print(training_popen_command)
-        # popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
 
         # Check if plugin has a venv directory
         venv_path = os.path.join(plugin_location, "venv")

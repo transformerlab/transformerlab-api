@@ -91,52 +91,6 @@ async def copy_plugin_files_to_workspace(plugin_id: str):
     copy_tree(plugin_path, dirs.plugin_dir_by_name(plugin_id))
 
 
-# @router.get("/gallery/{plugin_id}/install", summary="Install a plugin from the gallery.")
-# async def install_plugin(plugin_id: str):
-#     """Install a plugin from the gallery"""
-#     # For now we assume all gallery plugins are stored at transformerlab/plugins and installed ones go to
-#     # workspace/plugins
-
-#     plugin_id = secure_filename(plugin_id)
-
-#     plugin_path = os.path.join(dirs.PLUGIN_PRELOADED_GALLERY, plugin_id)
-
-#     # Check if plugin exists at the location:
-#     if not os.path.exists(plugin_path):
-#         print(f"Plugin {plugin_path} not found in gallery.")
-#         return {"error": "Plugin not found in gallery."}
-
-#     # # Check if plugin is already installed:
-#     # if os.path.exists(os.path.join("workspace", "plugins", plugin_id)):
-#     #     return {"error": "Plugin already installed."}
-
-#     # Open the Plugin index.json:
-#     plugin_index_json = open(f"{plugin_path}/index.json", "r")
-#     plugin_index = json.load(plugin_index_json)
-
-#     await copy_plugin_files_to_workspace(plugin_id)
-
-#     new_directory = os.path.join(dirs.PLUGIN_DIR, plugin_id)
-
-#     # If index object contains a key called setup-script, run it:
-#     if "setup-script" in plugin_index:
-#         # Run shell script
-#         print("Running Plugin Install script...")
-#         setup_script_name = plugin_index["setup-script"]
-#         global_log_file_name = dirs.GLOBAL_LOG_PATH
-#         async with aiofiles.open(global_log_file_name, "a") as log_file:
-#             proc = await asyncio.create_subprocess_exec(
-#                 "/bin/bash", f"{setup_script_name}", cwd=new_directory, stdout=log_file, stderr=log_file
-#             )
-#             await proc.wait()
-#             await log_file.write(f"## Plugin Install script for {plugin_id} completed.\n")
-#         print("Plugin Install script completed.")
-#     else:
-#         print("No install script found")
-
-#     return {"status": "success", "message": f"Plugin {plugin_id} installed successfully."}
-
-
 @router.get("/gallery/{plugin_id}/install", summary="Install a plugin from the gallery.")
 async def install_plugin(plugin_id: str):
     """Install a plugin from the gallery"""
@@ -270,7 +224,6 @@ def check_nvidia_gpu() -> bool:
 
             if gpu_info:
                 has_gpu = True
-                print(f"NVIDIA GPU detected: {gpu_info}")
             else:
                 print("Nvidia SMI exists, No NVIDIA GPU detected. Perhaps you need to re-install NVIDIA drivers.")
         except subprocess.SubprocessError:
