@@ -3,7 +3,7 @@ ENV_NAME="transformerlab"
 TLAB_DIR="$HOME/.transformerlab"
 TLAB_CODE_DIR="${TLAB_DIR}/src"
 
-MINIFORGE_ROOT=${TLAB_DIR}/miniforge3ø
+MINIFORGE_ROOT=${TLAB_DIR}/miniforge3
 CONDA_BIN=${MINIFORGE_ROOT}/bin/conda
 ENV_DIR=${TLAB_DIR}/envs/${ENV_NAME}
 
