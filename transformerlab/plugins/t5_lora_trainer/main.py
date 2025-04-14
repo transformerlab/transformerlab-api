@@ -26,6 +26,7 @@ from transformers import (
 )
 
 from transformerlab.sdk.v1.train import tlab_trainer
+from transformerlab.plugin import TEMP_DIR
 
 @dataclass
 class LoraArguments:
@@ -136,8 +137,8 @@ class T5LoraTrainer:
         print(f"Keys of tokenized dataset: {list(self.tokenized_dataset['train'].features)}")
 
         # save datasets to disk for later easy loading
-        self.tokenized_dataset["train"].save_to_disk("workspace/temp/data/train")
-        self.tokenized_dataset["test"].save_to_disk("workspace/temp/data/eval")
+        self.tokenized_dataset["train"].save_to_disk(os.path.join(TEMP_DIR, 'data', 'train'))
+        self.tokenized_dataset["test"].save_to_disk(os.path.join(TEMP_DIR, 'data', 'eval'))
 
     def load_model(self):
         """Load base model for training"""
