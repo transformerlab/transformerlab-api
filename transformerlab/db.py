@@ -58,6 +58,15 @@ async def init():
     return
 
 
+def get_sync_db_connection():
+    global DATABASE_FILE_NAME
+    db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
+    db_sync.execute("PRAGMA journal_mode=WAL")
+    db_sync.execute("PRAGMA synchronous=normal")
+    db_sync.execute("PRAGMA busy_timeout = 5000")
+    return db_sync
+
+
 async def close():
     await db.close()
     await async_engine.dispose()
@@ -259,11 +268,8 @@ def job_create_sync(type, status, job_data="{}", experiment_id=""):
             raise ValueError(f"Job type {type} is not allowed")
 
         # Use SQLite directly in synchronous mode
-        # conn = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
-        db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
-        db_sync.execute("PRAGMA journal_mode=WAL")
-        db_sync.execute("PRAGMA synchronous=normal")
-        db_sync.execute("PRAGMA busy_timeout = 5000")
+        db_sync = get_sync_db_connection()
+
         cursor = db_sync.cursor()
 
         # Execute insert
@@ -417,12 +423,7 @@ def job_update_status_sync(job_id, status, error_msg=None):
     db_sync = None
     cursor = None
     try:
-        global DATABASE_FILE_NAME
-        db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
-        db_sync.execute("PRAGMA journal_mode=WAL")
-        db_sync.execute("PRAGMA synchronous=normal")
-        db_sync.execute("PRAGMA busy_timeout = 5000")
-
+        db_sync = get_sync_db_connection()
         cursor = db_sync.cursor()
 
         cursor.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
@@ -454,11 +455,7 @@ def job_update_sync(job_id, status):
     db_sync = None
     cursor = None
     try:
-        global DATABASE_FILE_NAME
-        db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
-        db_sync.execute("PRAGMA journal_mode=WAL")
-        db_sync.execute("PRAGMA synchronous=normal")
-        db_sync.execute("PRAGMA busy_timeout = 5000")
+        db_sync = get_sync_db_connection()
         cursor = db_sync.cursor()
 
         cursor.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
@@ -481,11 +478,7 @@ def job_mark_as_complete_if_running(job_id):
     db_sync = None
     cursor = None
     try:
-        global DATABASE_FILE_NAME
-        db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
-        db_sync.execute("PRAGMA journal_mode=WAL")
-        db_sync.execute("PRAGMA synchronous=normal")
-        db_sync.execute("PRAGMA busy_timeout = 5000")
+        db_sync = get_sync_db_connection()
         cursor = db_sync.cursor()
         cursor.execute(
             "UPDATE job SET status = 'COMPLETE', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'RUNNING'",
