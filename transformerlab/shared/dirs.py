@@ -61,6 +61,16 @@ else:
     print(f"Source code directory is set to: {os.path.join(HOME_DIR, 'src')}")
     TFL_SOURCE_CODE_DIR = os.path.join(HOME_DIR, "src")
 
+# TFL_STATIC_FILES_DIR is TFL_HOME_DIR/static
+STATIC_FILES_DIR = os.path.join(HOME_DIR, "static")
+os.makedirs(name=STATIC_FILES_DIR, exist_ok=True)
+# if there is no index.html file in the static directory, create blank one
+if not os.path.exists(os.path.join(STATIC_FILES_DIR, "index.html")):
+    with open(os.path.join(STATIC_FILES_DIR, "index.html"), "w") as f:
+        f.write(
+            "<html><body><p>Transformer Lab Cloud App Files Missing. Run <pre>curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash</pre> to install.</p></body></html>"
+        )
+
 # EXPERIMENTS_DIR
 EXPERIMENTS_DIR: str = os.path.join(WORKSPACE_DIR, "experiments")
 os.makedirs(name=EXPERIMENTS_DIR, exist_ok=True)

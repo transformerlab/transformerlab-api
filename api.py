@@ -21,6 +21,7 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from fastchat.constants import (
     ErrorCode,
@@ -198,9 +199,9 @@ async def install_all_plugins():
         await plugins.copy_plugin_files_to_workspace(plugin_id)
 
 
-@app.get("/")
-async def home():
-    return {"msg": "Welcome to Transformer Lab!"}
+# @app.get("/")
+# async def home():
+#     return {"msg": "Welcome to Transformer Lab!"}
 
 
 @app.get("/server/controller_start", tags=["serverinfo"])
@@ -358,6 +359,10 @@ async def server_worker_health(request: Request):
         result.append({"id": model_data.id})
 
     return result
+
+
+# Add an endpoint that serves the static files in the ./static directory:
+app.mount("/", StaticFiles(directory=dirs.STATIC_FILES_DIR, html=True), name="application")
 
 
 def cleanup_at_exit():
