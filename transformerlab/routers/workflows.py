@@ -15,6 +15,13 @@ async def workflows_get_all():
     workflows = await db.workflows_get_all()
     return workflows
 
+@router.get("/list_in_experiment")
+async def workflows_get_in_experiment(experiment_id: str = "1"):
+    workflows = await db.workflows_get_from_experiment(experiment_id)
+    print(experiment_id)
+    print(workflows)
+    return workflows
+
 @router.get("/list_runs")
 async def workflow_runs_get_all():
     workflows = await db.workflow_run_get_all()
@@ -47,6 +54,7 @@ async def workflow_create(name: str, config: str = '{"nodes":[]}', experiment_id
 async def workflow_create_empty(name: str, experiment_id="1"):
     config = {"nodes":[{"type":"START", "id":str(uuid.uuid4()), "name":"START", "out":[]}]}
     workflow_id = await db.workflow_create(name, json.dumps(config), experiment_id)
+    print(experiment_id)
     return workflow_id
 
 
@@ -306,6 +314,11 @@ async def start_next_step_in_workflow():
             next_task["outputs"] = json.loads(next_task["outputs"])
             next_task["outputs"]["adaptor_name"] = str(uuid.uuid4()).replace("-","")
             next_task["outputs"] = json.dumps(next_task["outputs"])
+            if current_job is not None:
+                if current_job["type"] == "GENERATE":
+                    next_task["inputs"] = json.loads(next_task["inputs"])
+                    next_task["inputs"]["dataset_name"] = current_job["job_data"]["config"]["dataset_name"]
+                    next_task["inputs"] = json.dumps(next_task["inputs"])
         if next_task["type"] == "EVAL":
             if current_job is not None:
                 if current_job["type"] == "TRAIN":
@@ -314,6 +327,14 @@ async def start_next_step_in_workflow():
                     next_task["inputs"]["model_architecture"] = current_job["job_data"]["config"]["model_architecture"]
                     next_task["inputs"]["adaptor_name"] = current_job["job_data"]["config"]["adaptor_name"]
                     next_task["inputs"] = json.dumps(next_task["inputs"])
+                if current_job["type"] == "GENERATE":
+                    next_task["inputs"] = json.loads(next_task["inputs"])
+                    next_task["inputs"]["dataset_name"] = current_job["job_data"]["config"]["dataset_name"]
+                    next_task["inputs"] = json.dumps(next_task["inputs"])
+        if next_task["type"] == "GENERATE":
+            next_task["outputs"] = json.loads(next_task["outputs"])
+            next_task["outputs"]["dataset_name"] = str(uuid.uuid4()).replace("-","")
+            next_task["outputs"] = json.dumps(next_task["outputs"])
 
     
         next_job_info = await tsks.queue_task(next_task["id"], next_task["inputs"], next_task["outputs"])

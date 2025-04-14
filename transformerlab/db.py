@@ -768,7 +768,16 @@ async def experiment_save_prompt_template(id, template):
 
 
 async def workflows_get_all():
-    cursor = await db.execute("SELECT * FROM workflows WHERE status != 'DELETED' ORDER BY created_at desc")
+    cursor = await db.execute("SELECT * FROM workflows ORDER BY created_at desc")
+    rows = await cursor.fetchall()
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
+    await cursor.close()
+    return data
+
+async def workflows_get_from_experiment(experiment_id):
+    cursor = await db.execute("SELECT * FROM workflows WHERE experiment_id = ? ORDER BY created_at desc",(experiment_id,))
     rows = await cursor.fetchall()
     desc = cursor.description
     column_names = [col[0] for col in desc]
@@ -896,7 +905,7 @@ async def workflow_run_update_with_new_job(workflow_run_id, current_task, curren
 async def workflow_create(name, config, experiment_id):
     # check if type is allowed
     row = await db.execute_insert(
-        "INSERT INTO workflows(name, config, experiment_id) VALUES (?, json(?), ?, json(?), json(?), ?)",
+        "INSERT INTO workflows(name, config, experiment_id) VALUES (?, json(?), ?)",
         (name, config, experiment_id),
     )
     await db.commit()
