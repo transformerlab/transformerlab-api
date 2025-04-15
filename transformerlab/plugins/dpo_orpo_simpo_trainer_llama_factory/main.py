@@ -45,8 +45,7 @@ def run_train():
         preference_strategy = "sigmoid"  # llama factory calls dpo "sigmoid"
     if preference_strategy not in ["sigmoid", "orpo", "simpo"]:
         print("Invalid preference strategy")
-        tlab_trainer.job.set_job_completion_status("failed", "Invalid preference strategy")
-        exit()
+        raise ValueError("Invalid preference strategy. Must be one of: dpo, orpo, simpo.")
     
     # Load dataset
     dataset = tlab_trainer.load_dataset()
@@ -141,12 +140,6 @@ def run_train():
         for line in process.stdout:
             error_output += line
     
-            if tlab_trainer.job.should_stop:
-                print("Stopping job because of user interruption.")
-                tlab_trainer.job.update_status("STOPPED")
-                tlab_trainer.job.set_job_completion_status("failed", "User stopped the job")
-                process.terminate()
-                return
     
             if "***** Running training *****" in line:
                 training_step_has_started = True

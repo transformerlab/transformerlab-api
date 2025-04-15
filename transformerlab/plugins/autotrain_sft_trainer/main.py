@@ -37,13 +37,6 @@ def train_model():
     # Get template from config
     formatting_template = jinja_environment.from_string(config["formatting_template"])
     
-    # Get the dataset path
-    try:
-        dataset_target = transformerlab.plugin.get_dataset_path(config["dataset_name"])
-    except Exception as e:
-        tlab_trainer.job.set_job_completion_status("failed", "Failure to get dataset")
-        raise e
-    
     # Load datasets (train, test)
     dataset_types = ["train", "test"]
     try:
