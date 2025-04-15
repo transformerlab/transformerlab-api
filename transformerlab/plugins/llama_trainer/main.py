@@ -82,7 +82,7 @@ def train_model():
         tokenizer.padding_side = "right"
 
         print(f"Model and tokenizer loaded successfully: {model_id}")
-    except TypeError as e:
+    except TypeError:
         model = AutoModelForCausalLM.from_pretrained(
                 model_id,
                 quantization_config=bnb_config,
@@ -211,7 +211,7 @@ def train_model():
                         device_map="auto",
                         trust_remote_code=True,
                     )
-            except TypeError as e:
+            except TypeError:
                 model = AutoModelForCausalLM.from_pretrained(
                         model_id,
                         quantization_config=bnb_config,

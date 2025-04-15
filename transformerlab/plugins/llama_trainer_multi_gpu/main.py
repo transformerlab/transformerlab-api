@@ -146,7 +146,7 @@ def train_model():
             trust_remote_code=True
         )
         lora_target_modules = find_lora_target_modules(model)
-    except TypeError as e:
+    except TypeError:
         model = AutoModelForCausalLM.from_pretrained(
                 model_id,
                 quantization_config=bnb_config,
@@ -258,7 +258,7 @@ def train_model():
                     device_map=None,
                     trust_remote_code=True,
                 )
-            except TypeError as e:
+            except TypeError:
                 model = AutoModelForCausalLM.from_pretrained(
                     model_id,
                     quantization_config=bnb_config,
