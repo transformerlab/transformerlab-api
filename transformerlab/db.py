@@ -35,6 +35,9 @@ async def init():
     global db
     os.makedirs(os.path.dirname(DATABASE_FILE_NAME), exist_ok=True)
     db = await aiosqlite.connect(DATABASE_FILE_NAME)
+    await db.execute("PRAGMA journal_mode=WAL")
+    await db.execute("PRAGMA synchronous=normal")
+    await db.execute("PRAGMA busy_timeout=5000")
 
     global db_sync
     db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
