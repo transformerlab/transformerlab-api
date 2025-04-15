@@ -4,7 +4,7 @@
   "description": "Fastchat loads models for inference using Huggingface Transformers for generation.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "model_architectures": [
     "CohereForCausalLM",
     "FalconForCausalLM",
@@ -12,6 +12,7 @@
     "Gemma2ForCausalLM",
     "GPTBigCodeForCausalLM",
     "LlamaForCausalLM",
+    "Llama4ForConditionalGeneration",
     "MistralForCausalLM",
     "MixtralForCausalLM",
     "PhiForCausalLM",
@@ -22,15 +23,22 @@
     "Gemma3ForCausalLM",
     "Gemma3ForConditionalGeneration"
   ],
-  "supported_hardware_architectures": ["cpu", "cuda", "mlx"],
-  "files": ["main.py", "setup.sh"],
+  "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx"
+  ],
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
   "setup-script": "setup.sh",
   "parameters": {
-  "gpu_ids": {
-          "title": "GPU IDs to use for Inference. Leaving blank will use all available GPUs",
-          "type": "string",
-          "default": ""
-      },
+    "gpu_ids": {
+      "title": "GPU IDs to use for Inference. Leaving blank will use all available GPUs",
+      "type": "string",
+      "default": ""
+    },
     "eight_bit": {
       "title": "Enable 8-bit compression",
       "type": "boolean",
