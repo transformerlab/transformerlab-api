@@ -5,68 +5,22 @@ https://github.com/hiyouga/LLaMA-Factory/tree/main
 
 Standard command:
 CUDA_VISIBLE_DEVICES=0 llamafactory-cli train examples/train_lora/llama3_lora_reward.yaml
-
 """
 
 import os
 import subprocess
 import time
-
 import json
 import yaml
 import re
-import sqlite3
-import argparse
 
-import transformerlab.plugin
-
-from datasets import load_dataset
-from jinja2 import Environment
-
-jinja_environment = Environment()
+from transformerlab.sdk.v1.train import tlab_trainer
 
 
-########################################
-# First set up arguments and parameters
-########################################
-
-root_dir = os.environ.get("LLM_LAB_ROOT_PATH")
+# Get environment variables
 plugin_dir = os.path.dirname(os.path.realpath(__file__))
 print("Plugin dir:", plugin_dir)
-
-# Connect to the LLM Lab database
-WORKSPACE_DIR = transformerlab.plugin.WORKSPACE_DIR
-db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3")
-
-# Get all parameters provided to this script from Transformer Lab
-parser = argparse.ArgumentParser()
-parser.add_argument("--input_file", type=str)
-parser.add_argument("--experiment_name", default="", type=str)
-args, unknown = parser.parse_known_args()
-
-print("Arguments:")
-print(args)
-
-input_config = None
-# open the input file that provides configs
-with open(args.input_file) as json_file:
-    input_config = json.load(json_file)
-config = input_config["config"]
-print("Input:")
-print(json.dumps(input_config, indent=4))
-
-model_name = config["model_name"]
-adaptor_output_dir = config["adaptor_output_dir"]
-
-lora_layers = config.get("lora_layers", 1)
-learning_rate = config["learning_rate"]
-batch_size = config.get("batch_size", 4)
-steps_per_eval = config.get("steps_per_eval", 200)
-iters = config.get("iters", -1)
-
-# we need to adapter parameter so set a default
-adaptor_name = config.get("adaptor_name", "default")
-
+WORKSPACE_DIR = os.environ.get("WORKSPACE_DIR")
 
 # Directory for storing temporary working files
 data_directory = f"{WORKSPACE_DIR}/temp/llama_factory_reward/data"
@@ -92,206 +46,174 @@ def create_data_directory_in_llama_factory_format():
         json.dump(dataset_info, f, indent=2)
 
 
-########################################
-# Now process the Datatset
-########################################
+@tlab_trainer.job_wrapper()
+def run_reward_modeling():
+    """Main function to run reward modeling with LlamaFactory"""
+    # Access configuration through tlab_trainer
+    config = tlab_trainer.params._config
+    print("Input config:")
+    print(json.dumps(config, indent=4))
 
-try:
-    dataset_target = transformerlab.plugin.get_dataset_path(config["dataset_name"])
-except Exception as e:
-    print(e)
-    exit()
+    model_name = tlab_trainer.params.model_name
+    adaptor_output_dir = tlab_trainer.params.adaptor_output_dir
+    adaptor_name = tlab_trainer.params.get("adaptor_name", "default")
 
+    # Process dataset
+    try:
+        datasets = tlab_trainer.load_dataset()
+        dataset = datasets["train"]
 
-dataset = load_dataset(dataset_target, trust_remote_code=True)
+        # Output dataset to a json file
+        with open(f"{data_directory}/train2.json", "w") as f:
+            all_data = []
+            for row in dataset:
+                all_data.append(row)
+            json.dump(all_data, f, indent=2)
+    except Exception as e:
+        print(f"Error processing dataset: {e}")
+        raise
 
-# output dataset['train'] to a json file, row by row:
-# This will exhaust memory if the data is large
-with open(f"{data_directory}/train2.json", "w") as f:
-    all_data = []
-    for row in dataset["train"]:
-        all_data.append(row)
-    json.dump(all_data, f, indent=2)
+    # Generate config YAML file for LLaMA-Factory
+    yaml_config_path = f"{data_directory}/llama3_lora_reward.yaml"
 
+    today = time.strftime("%Y%m%d-%H%M%S")
+    output_dir = os.path.join(config["output_dir"], today)
 
-########################################
-# Generate a config YAML file that will be used by LLaMA-Factory
-########################################
-yaml_config_path = f"{data_directory}/llama3_lora_reward.yaml"
+    # Copy template file and modify it
+    os.system(f"cp {plugin_dir}/LLaMA-Factory/examples/train_lora/llama3_lora_reward.yaml {yaml_config_path}")
 
-today = time.strftime("%Y%m%d-%H%M%S")
-output_dir = os.path.join(config["output_dir"], today)
-print(f"Storing Tensorboard Output to: {output_dir}")
+    with open(yaml_config_path, "r") as file:
+        yml = yaml.safe_load(file)
 
-# In the json job_data column for this job, store the tensorboard output dir
-db.execute(
-    "UPDATE job SET job_data = json_insert(job_data, '$.tensorboard_output_dir', ?) WHERE id = ?",
-    (output_dir, config["job_id"]),
-)
-db.commit()
+    create_data_directory_in_llama_factory_format()
 
-# First copy a template file to the data directory
-os.system(f"cp {plugin_dir}/LLaMA-Factory/examples/train_lora/llama3_lora_reward.yaml {yaml_config_path}")
-# Now replace specific values in the file using the PyYAML library:
-
-yml = {}
-with open(yaml_config_path, "r") as file:
-    yml = yaml.safe_load(file)
-
-
-create_data_directory_in_llama_factory_format()
-
-print("Template configuration:")
-print(yml)
-yml["model_name_or_path"] = model_name
-yml["output_dir"] = adaptor_output_dir
-yml["logging_dir"] = output_dir
-yml["learning_rate"] = float(config.get("learning_rate", 0.001))
-yml["num_train_epochs"] = float(config.get("num_train_epochs", 1))
-yml["max_steps"] = float(config.get("max_steps", -1))
-yml["dataset_dir"] = data_directory
-yml["dataset"] = "training_data"
-yml["template"] = "llama3"
-# Without resize_vocab the training fails for many models including Mistral
-yml["resize_vocab"] = True
-print("--------")
-
-with open(yaml_config_path, "w") as file:
-    # Now write out the new file
-    yaml.dump(yml, file)
-    print("New configuration:")
+    print("Template configuration:")
     print(yml)
 
+    # Update YAML configuration
+    yml["model_name_or_path"] = model_name
+    yml["output_dir"] = adaptor_output_dir
+    yml["logging_dir"] = output_dir
+    yml["learning_rate"] = float(config.get("learning_rate", 0.001))
+    yml["num_train_epochs"] = float(config.get("num_train_epochs", 1))
+    yml["max_steps"] = float(config.get("max_steps", -1))
+    yml["dataset_dir"] = data_directory
+    yml["dataset"] = "training_data"
+    yml["template"] = "llama3"
+    yml["resize_vocab"] = True
 
-########################################
-# Now train
-# CUDA_VISIBLE_DEVICES=0 llamafactory-cli train examples/lora_single_gpu/llama3_lora_sft.yaml
-########################################
+    with open(yaml_config_path, "w") as file:
+        yaml.dump(yml, file)
+        print("New configuration:")
+        print(yml)
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-popen_command = ["llamafactory-cli", "train", yaml_config_path]
+    # Set up environment and run training
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    popen_command = ["llamafactory-cli", "train", yaml_config_path]
 
-print("Running command:")
-print(popen_command)
+    print("Running command:")
+    print(popen_command)
 
+    print("Training beginning:")
+    with subprocess.Popen(
+        popen_command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        bufsize=1,
+        universal_newlines=True,
+        cwd=os.path.join(plugin_dir, "LLaMA-Factory"),
+    ) as process:
+        training_step_has_started = False
 
-db.execute(
-    "UPDATE job SET progress = ? WHERE id = ?",
-    (0, config["job_id"]),
-)
-db.commit()
+        for line in process.stdout:
+            if "***** Running training *****" in line:
+                training_step_has_started = True
 
-print("Training beginning:")
+            if not training_step_has_started:
+                continue
 
-with subprocess.Popen(
-    popen_command,
-    stdout=subprocess.PIPE,
-    stderr=subprocess.STDOUT,
-    bufsize=1,
-    universal_newlines=True,
-    cwd=os.path.join(plugin_dir, "LLaMA-Factory"),
-) as process:
-    training_step_has_started = False
+            # Parse progress from output lines
+            pattern = r"(\d+)%\|.*\| (\d+)\/(\d+) \[(\d+):(\d+)<(\d+):(\d+),(\s*)(\d+\.\d+)(.+)]"
+            match = re.search(pattern, line)
+            if match:
+                percentage = match.group(1)
+                current = match.group(2)
+                total = match.group(3)
+                minutes = match.group(4)
+                seconds = match.group(5)
+                it_s = match.group(8)
 
-    for line in process.stdout:
-        if "***** Running training *****" in line:
-            training_step_has_started = True
+                print(
+                    f"Percentage: {percentage}, Current: {current}, Total: {total}, Minutes: {minutes}, Seconds: {seconds}, It/s: {it_s}"
+                )
+                # Update progress using tlab_trainer
+                tlab_trainer.progress_update(round(float(percentage), 1))
 
-        if not training_step_has_started:
-            continue
+            print(line, end="", flush=True)
 
-        # Each output line from lora.py looks like
-        # "  2%|▏         | 8/366 [00:15<11:28,  1.92s/it]"
-        pattern = r"(\d+)%\|.*\| (\d+)\/(\d+) \[(\d+):(\d+)<(\d+):(\d+),(\s*)(\d+\.\d+)(.+)]"
-        match = re.search(pattern, line)
-        if match:
-            percentage = match.group(1)
-            current = match.group(2)
-            total = match.group(3)
-            minutes = match.group(4)
-            seconds = match.group(5)
-            it_s = match.group(8)
+    print("Finished training.")
 
-            print(
-                f"Percentage: {percentage}, Current: {current}, Total: {total}, Minutes: {minutes}, Seconds: {seconds}, It/s: {it_s}"
-            )
-            db.execute(
-                "UPDATE job SET progress = ? WHERE id = ?",
-                (percentage, config["job_id"]),
-            )
-            db.commit()
+    # Fuse the model with the base model
+    print("Now fusing the adaptor with the model.")
 
-        print(line, end="", flush=True)
+    model_name_simple = model_name
+    if "/" in model_name_simple:
+        model_name_simple = model_name_simple.split("/")[-1]
 
-print("Finished training.")
+    fused_model_name = f"{model_name_simple}_{adaptor_name}"
+    fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
 
-# TIME TO FUSE THE MODEL WITH THE BASE MODEL
+    # Make directory for the fused model
+    if not os.path.exists(fused_model_location):
+        os.makedirs(fused_model_location)
 
-print("Now fusing the adaptor with the model.")
+    # Create config for model fusion
+    yaml_config_path = f"{data_directory}/merge_llama3_lora_sft.yaml"
+    os.system(f"cp {plugin_dir}/LLaMA-Factory/examples/merge_lora/llama3_lora_sft.yaml {yaml_config_path}")
 
-model_name = config["model_name"]
-if "/" in model_name:
-    model_name = model_name.split("/")[-1]
-fused_model_name = f"{model_name}_{adaptor_name}"
-fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
+    with open(yaml_config_path, "r") as file:
+        yml = yaml.safe_load(file)
 
-# Make the directory to save the fused model
-if not os.path.exists(fused_model_location):
-    os.makedirs(fused_model_location)
+    yml["model_name_or_path"] = config["model_name"]
+    yml["adapter_name_or_path"] = adaptor_output_dir
+    yml["export_dir"] = fused_model_location
+    yml["resize_vocab"] = True
 
-yaml_config_path = f"{data_directory}/merge_llama3_lora_sft.yaml"
-# First copy a template file to the data directory
-os.system(f"cp {plugin_dir}/LLaMA-Factory/examples/merge_lora/llama3_lora_sft.yaml {yaml_config_path}")
-yml = {}
-with open(yaml_config_path, "r") as file:
-    yml = yaml.safe_load(file)
+    with open(yaml_config_path, "w") as file:
+        yaml.dump(yml, file)
+        print("New configuration:")
+        print(yml)
 
-yml["model_name_or_path"] = config["model_name"]
-yml["adapter_name_or_path"] = adaptor_output_dir
-yml["export_dir"] = fused_model_location
-yml["resize_vocab"] = True
+    # Run fusion process
+    fuse_popen_command = ["llamafactory-cli", "export", yaml_config_path]
 
-with open(yaml_config_path, "w") as file:
-    yaml.dump(yml, file)
-    print("New configuration:")
-    print(yml)
+    with subprocess.Popen(
+        fuse_popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True
+    ) as process:
+        for line in process.stdout:
+            print(line, end="", flush=True)
 
-popen_command = ["llamafactory-cli", "export", yaml_config_path]
+        return_code = process.wait()
 
-
-fuse_popen_command = ["llamafactory-cli", "export", yaml_config_path]
-
-with subprocess.Popen(
-    fuse_popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True
-) as process:
-    for line in process.stdout:
-        print(line, end="", flush=True)
-
-    return_code = process.wait()
-
-    # If model create was successful, create an info.json file so this can be read by the system
-    print("Return code: ", return_code)
-    if return_code == 0:
-        model_description = [
-            {
-                "model_id": f"TransformerLab-mlx/{fused_model_name}",
-                "model_filename": "",
+        # If model fusion was successful, create model info
+        print("Return code: ", return_code)
+        if return_code == 0:
+            # Use tlab_trainer to create the model info
+            json_data = {
+                "uniqueID": f"TransformerLab/{fused_model_name}",
                 "name": fused_model_name,
-                "local_model": True,
-                "json_data": {
-                    "uniqueID": f"TransformerLab/{fused_model_name}",
-                    "name": "MLX",
-                    "description": f"Model generated using Llama Factory in Transformer Lab based on {config['model_name']}",
-                    "architecture": config["model_architecture"],
-                    "huggingface_repo": "",
-                },
+                "description": f"Model generated using Llama Factory in Transformer Lab based on {config['model_name']}",
+                "architecture": config["model_architecture"],
+                "huggingface_repo": "",
             }
-        ]
-        model_description_file = open(f"{fused_model_location}/info.json", "w")
-        json.dump(model_description, model_description_file)
-        model_description_file.close()
 
-        print("Finished fusing the adaptor with the model.")
+            tlab_trainer.create_transformerlab_model(
+                fused_model_name=fused_model_name, model_architecture=config["model_architecture"], json_data=json_data
+            )
 
-    else:
-        print("Fusing model with adaptor failed: ", return_code)
+            print("Finished fusing the adaptor with the model.")
+        else:
+            print("Fusing model with adaptor failed: ", return_code)
+
+
+run_reward_modeling()
