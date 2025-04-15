@@ -91,8 +91,29 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
     The FastAPI worker uses stderr, not stdout"""
 
     print(f"Job {job_id} Running async python script: " + str(python_script))
+    # Extract plugin location from the python_script list
+    plugin_location = None
+    if "--plugin_dir" in python_script:
+        for i, arg in enumerate(python_script):
+            if arg == "--plugin_dir" and i + 1 < len(python_script):
+                plugin_location = python_script[i + 1]
+                break
 
-    command = [sys.executable, "-u", *python_script]
+    # Check if plugin has a venv directory
+    if (
+        plugin_location
+        and os.path.exists(os.path.join(plugin_location, "venv"))
+        and os.path.isdir(os.path.join(plugin_location, "venv"))
+    ):
+        venv_path = os.path.join(plugin_location, "venv")
+        print(f">Plugin has virtual environment, activating venv from {venv_path}")
+        venv_python = os.path.join(venv_path, "bin", "python")
+
+        # Construct bash command that activates venv and then runs the script with all arguments
+        command = [venv_python, *python_script]
+    else:
+        print(">Using system Python interpreter")
+        command = [sys.executable, *python_script]  # Skip to the original Python interpreter
 
     process = await open_process(command=command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
 
@@ -187,7 +208,7 @@ async def async_run_python_daemon_and_update_status(
         command = [venv_python, *python_script]
     else:
         print(">Using system Python interpreter")
-        command = [sys.executable, *python_script]  # Skip the original Python interpreter
+        command = [sys.executable, *python_script]  # Skip to the original Python interpreter
 
     process = await asyncio.create_subprocess_exec(
         *command, stdin=None, stderr=subprocess.STDOUT, stdout=subprocess.PIPE
