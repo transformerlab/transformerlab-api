@@ -38,6 +38,7 @@ async def init():
     await db.execute("PRAGMA synchronous=normal")
     await db.execute("PRAGMA busy_timeout = 5000")
 
+
     # Create the tables if they don't exist
     async with async_engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
