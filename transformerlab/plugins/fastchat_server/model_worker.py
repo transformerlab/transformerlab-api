@@ -542,7 +542,7 @@ def process_mlp_activations(hidden_states):
     if activations.dtype == torch.bfloat16:
         activations = activations.float()
     # Use L2 norm as the aggregation method
-    return torch.norm(activations, p=2, dim=-1).cpu().numpy()
+    return torch.linalg.vector_norm(activations, ord=2, dim=-1).cpu().numpy()
 
 
 def compute_attention_entropy(attentions):
