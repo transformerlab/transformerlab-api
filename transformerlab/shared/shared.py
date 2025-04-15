@@ -102,6 +102,9 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
     # Check if plugin has a venv directory
     if plugin_location:
         plugin_location = os.path.normpath(plugin_location)
+        if not plugin_location.startswith(dirs.PLUGIN_DIR):
+            print(f"Plugin location {plugin_location} is not in {dirs.PLUGIN_DIR}")
+            raise Exception(f"Plugin location {plugin_location} is not in {dirs.PLUGIN_DIR}")
         if os.path.exists(os.path.join(plugin_location, "venv")) and os.path.isdir(
             os.path.join(plugin_location, "venv")
         ):
@@ -200,6 +203,9 @@ async def async_run_python_daemon_and_update_status(
     # Check if plugin has a venv directory
     if plugin_location:
         plugin_location = os.path.normpath(plugin_location)
+        if not plugin_location.startswith(dirs.PLUGIN_DIR):
+            print(f"Plugin location {plugin_location} is not in {dirs.PLUGIN_DIR}")
+            raise Exception(f"Plugin location {plugin_location} is not in {dirs.PLUGIN_DIR}")
         if os.path.exists(os.path.join(plugin_location, "venv")) and os.path.isdir(
             os.path.join(plugin_location, "venv")
         ):
