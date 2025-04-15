@@ -15,12 +15,12 @@ import yaml
 import re
 
 from transformerlab.sdk.v1.train import tlab_trainer
+from transformerlab.plugin import WORKSPACE_DIR
 
 
 # Get environment variables
 plugin_dir = os.path.dirname(os.path.realpath(__file__))
 print("Plugin dir:", plugin_dir)
-WORKSPACE_DIR = os.environ.get("WORKSPACE_DIR")
 
 # Directory for storing temporary working files
 data_directory = f"{WORKSPACE_DIR}/temp/llama_factory_reward/data"
@@ -64,7 +64,7 @@ def run_reward_modeling():
         dataset = datasets["train"]
 
         # Output dataset to a json file
-        with open(f"{data_directory}/train2.json", "w") as f:
+        with open(f"{data_directory}/train.json", "w") as f:
             all_data = []
             for row in dataset:
                 all_data.append(row)
@@ -101,6 +101,7 @@ def run_reward_modeling():
     yml["dataset"] = "training_data"
     yml["template"] = "llama3"
     yml["resize_vocab"] = True
+    print("--------")
 
     with open(yaml_config_path, "w") as file:
         yaml.dump(yml, file)
