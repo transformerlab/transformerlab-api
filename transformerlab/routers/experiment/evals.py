@@ -197,7 +197,6 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
             experiment_details["config"]["evaluations"] = json.loads(experiment_details["config"]["evaluations"])
 
     template_config = eval_config["script_parameters"]
-    # print("GET OUTPUT JOB DATA", await get_job_output_file_name("2", plugin_name, eval_name, template_config))
     job_output_file = await get_job_output_file_name(job_id, plugin_name)
 
     input_contents = {"experiment": experiment_details, "config": template_config}
@@ -267,12 +266,6 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
         with open(job_output_file, "r") as job_output:
             for line in job_output:
                 f.write(line)
-        # process = await asyncio.create_subprocess_exec(
-        #     *subprocess_command,
-        #     stdout=f,
-        #     stderr=subprocess.PIPE
-        # )
-        # await process.communicate()
 
 
 async def get_job_output_file_name(job_id: str, plugin_name: str):

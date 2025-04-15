@@ -111,7 +111,6 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
             venv_path = os.path.join(plugin_location, "venv")
             print(f">Plugin has virtual environment, activating venv from {venv_path}")
             venv_python = os.path.join(venv_path, "bin", "python")
-            # Construct bash command that activates venv and then runs the script with all arguments
             command = [venv_python, *python_script]
         else:
             print(">Using system Python interpreter")
@@ -212,7 +211,6 @@ async def async_run_python_daemon_and_update_status(
             venv_path = os.path.join(plugin_location, "venv")
             print(f">Plugin has virtual environment, activating venv from {venv_path}")
             venv_python = os.path.join(venv_path, "bin", "python")
-            # Construct bash command that activates venv and then runs the script with all arguments
             command = [venv_python, *python_script]
         else:
             print(">Using system Python interpreter")

@@ -223,8 +223,6 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
         extra_args.append("--" + key)
         extra_args.append(template_config[key])
 
-    # print(template_config)
-
     extra_args.extend(
         [
             "--experiment_name",
@@ -245,16 +243,6 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
             str(job_id),
         ]
     )
-
-    # subprocess_command = [sys.executable, dirs.PLUGIN_HARNESS] + extra_args
-
-    # print(f">Running {subprocess_command}")
-
-    # output_file = await dirs.generation_output_file(experiment_name, generation_name)
-
-    # with open(job_output_file, "w") as f:
-    #     process = await asyncio.create_subprocess_exec(*subprocess_command, stdout=f, stderr=subprocess.PIPE)
-    #     await process.communicate()
 
     # Check if plugin has a venv directory
     venv_path = os.path.join(script_directory, "venv")
@@ -286,12 +274,6 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
         with open(job_output_file, "r") as job_output:
             for line in job_output:
                 f.write(line)
-        # process = await asyncio.create_subprocess_exec(
-        #     *subprocess_command,
-        #     stdout=f,
-        #     stderr=subprocess.PIPE
-        # )
-        # await process.communicate()
 
 
 async def get_job_output_file_name(job_id: str, plugin_name: str):
