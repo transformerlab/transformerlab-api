@@ -123,6 +123,7 @@ def train_model():
                 iteration = int(match.group(2))
                 it_per_sec = float(match.group(3))
                 # Update progress in TransformerLab
+                tlab_trainer.progress_update(percent_complete)
                 
             
             # Parse metrics for logging
@@ -139,7 +140,7 @@ def train_model():
                 print("It/sec: ", it_per_sec)
                 print("Loss: ", loss)
                 print("Epoch:", epoch)
-                tlab_trainer.progress_update(percent_complete)
+                
                 
                 # Log metrics to tensorboard and wandb
                 tlab_trainer.log_metric("train/loss", loss, iteration)
