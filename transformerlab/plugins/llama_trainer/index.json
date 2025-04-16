@@ -5,7 +5,7 @@
   "plugin-format": "python",
   "type": "trainer",
   "version": "1.0.20",
-  "model_architectures": ["LlamaForCausalLM", "Qwen2ForCausalLM", "Gemma2ForCausalLM", "Gemma3ForCausalLM", "Gemma3ForConditionalGeneration", "AprielForCausalLM"],
+  "model_architectures": ["LlamaForCausalLM", "Qwen2ForCausalLM", "GemmaForCausalLM", "Gemma2ForCausalLM", "Gemma3ForCausalLM", "Gemma3ForConditionalGeneration", "AprielForCausalLM", "ExaoneForCausalLM", "PhiForCausalLM", "Phi3ForCausalLM", "MistralForCausalLM", "MixtralForCausalLM"],
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
