@@ -37,9 +37,17 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
         embedding_model_file_path = experiment_config.get("embedding_model_filename")
         if embedding_model_file_path is not None and embedding_model_file_path != "":
             embedding_model = embedding_model_file_path
-    
 
-    print("Querying RAG with model " + model + " and query " + query + " and settings " + settings + " and embedding model " + embedding_model)
+    print(
+        "Querying RAG with model "
+        + model
+        + " and query "
+        + query
+        + " and settings "
+        + settings
+        + " and embedding model "
+        + embedding_model
+    )
 
     plugin = experiment_config.get("rag_engine")
 
@@ -52,9 +60,7 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
         return f"Plugin {plugin} does not exist on the filesystem -- you must install or reinstall this plugin."
 
     # Call plug by passing plugin_path to plugin harness
-    print(f"Calling plugin {plugin_path}" + " with model " + model + " and query " + query)
-    process = await asyncio.create_subprocess_exec(
-        sys.executable,
+    params = [
         dirs.PLUGIN_HARNESS,
         "--plugin_dir",
         plugin_path,
@@ -68,6 +74,19 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
         documents_dir,
         "--settings",
         settings,
+    ]
+    print(f"Calling plugin {plugin_path}" + " with model " + model + " and query " + query)
+    venv_path = os.path.join(plugin_path, "venv")
+    if os.path.exists(venv_path) and os.path.isdir(venv_path):
+        print(f">Plugin has virtual environment, activating venv from {venv_path}")
+        venv_python = os.path.join(venv_path, "bin", "python")
+        command = [venv_python, *params]
+    else:
+        print(">Using system python interpreter")
+        command = [sys.executable, *params]
+
+    process = await asyncio.create_subprocess_exec(
+        *command,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
@@ -125,9 +144,7 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
         return f"Plugin {plugin} does not exist on the filesystem -- you must install or reinstall this plugin."
 
     # Call plug by passing plugin_path to plugin harness
-    print(f"Calling plugin {plugin_path}" + " with model " + model + " and reindex")
-    process = await asyncio.create_subprocess_exec(
-        sys.executable,
+    params = [
         dirs.PLUGIN_HARNESS,
         "--plugin_dir",
         plugin_path,
@@ -139,6 +156,18 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
         "True",
         "--documents_dir",
         documents_dir,
+    ]
+    print(f"Calling plugin {plugin_path}" + " with model " + model + " and reindex")
+    venv_path = os.path.join(plugin_path, "venv")
+    if os.path.exists(venv_path) and os.path.isdir(venv_path):
+        print(f">Plugin has virtual environment, activating venv from {venv_path}")
+        venv_python = os.path.join(venv_path, "bin", "python")
+        command = [venv_python, *params]
+    else:
+        print(">Using system python interpreter")
+        command = [sys.executable, *params]
+    process = await asyncio.create_subprocess_exec(
+        *command,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
@@ -183,6 +212,3 @@ async def embed_text(request: EmbedRequest):
     embeddings = model.encode(text_list)
 
     return JSONResponse(content={"embeddings": embeddings.tolist()})
-
-
-

@@ -146,7 +146,7 @@ def run_yourbench():
         tlab_gen.progress_update(40)
 
         command = f"""
-            source {yourbench_dir}/.venv/bin/activate && yourbench run --config {config_path}
+            yourbench run --config {config_path}
             """
 
         process = subprocess.Popen(
