@@ -37,7 +37,9 @@ async def workflow_runs_get_by_id(workflow_run_id: str):
     for job_id in json.loads(workflow_run["job_ids"]):
         job = await db.job_get(job_id)
         job_data = job["job_data"]
-        job_info = {"taskName": job_data["template_name"], "jobID": job_id,"status": job["status"]} 
+        job_info = {"jobID": job_id,"status": job["status"]} 
+        if "template_name" in job_data.keys():
+            job_info["taskName"] = job_data["template_name"]
         if "start_time" in job_data.keys():
             job_info["jobStartTime"] = job_data["start_time"]
         if "end_time" in job_data.keys():
