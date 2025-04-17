@@ -7,6 +7,8 @@ from fastapi.responses import FileResponse
 import transformerlab.db as db
 import transformerlab.routers.tasks as tsks
 
+from transformerlab.shared import dirs
+
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 
@@ -264,8 +266,7 @@ async def start_next_step_in_workflow():
         for node in workflow_config["nodes"]:
             if node["id"] in workflow_current_task:
                 workflow_next_tasks += node["out"]
-                break  # Important: Exit the loop once found.
-        else:  # This 'else' belongs to the 'for', executed if no 'break' occurred.
+        if len(workflow_next_tasks) == 0:
              await db.workflow_run_update_status(workflow_run_id, "FAILED")
              return {"message": "Could not find the current task in the workflow."}
 
@@ -304,8 +305,6 @@ async def start_next_step_in_workflow():
             await db.workflow_update_status(workflow_run_id, "FAILED")
             return {"message": "Could not find the next task in the workflow."}
 
-    print(next_nodes)
-
     next_job_ids = []
     for next_node in next_nodes:
         # Get the task definition.  Prioritize metadata.task_name, then node.type
@@ -337,6 +336,9 @@ async def start_next_step_in_workflow():
                 previous_job_ID = ran_jobs[ran_nodes.index(previous_node["id"])]
                 previous_job = await db.job_get(previous_job_ID)
 
+
+        fusePretext = dirs.MODELS_DIR + "/"
+
         if next_task["type"] == "TRAIN":
             next_task["outputs"] = json.loads(next_task["outputs"])
             next_task["outputs"]["adaptor_name"] = str(uuid.uuid4()).replace("-","")
@@ -344,16 +346,25 @@ async def start_next_step_in_workflow():
             if previous_job is not None:
                 if previous_job["type"] == "GENERATE":
                     next_task["inputs"] = json.loads(next_task["inputs"])
-                    print(previous_job["job_data"])
                     next_task["inputs"]["dataset_name"] = previous_job["job_data"]["dataset_id"].lower()
+                    next_task["inputs"] = json.dumps(next_task["inputs"])
+                if previous_job["type"] == "TRAIN":
+                    next_task["inputs"] = json.loads(next_task["inputs"])
+                    if "fuse_model" in previous_job["job_data"]["config"].keys():
+                        next_task["inputs"]["model_name"] = fusePretext + previous_job["job_data"]["config"]["model_name"].split("/")[-1] + "_" + previous_job["job_data"]["config"]["adaptor_name"]                 
+                        next_task["inputs"]["model_architecture"] = previous_job["job_data"]["config"]["model_architecture"]
                     next_task["inputs"] = json.dumps(next_task["inputs"])
         if next_task["type"] == "EVAL":
             if previous_job is not None:
                 if previous_job["type"] == "TRAIN":
                     next_task["inputs"] = json.loads(next_task["inputs"])
-                    next_task["inputs"]["model_name"] = previous_job["job_data"]["config"]["model_name"]
-                    next_task["inputs"]["model_architecture"] = previous_job["job_data"]["config"]["model_architecture"]
-                    next_task["inputs"]["adaptor_name"] = previous_job["job_data"]["config"]["adaptor_name"]
+                    if "fuse_model" in previous_job["job_data"]["config"].keys():
+                        next_task["inputs"]["model_name"] = fusePretext + previous_job["job_data"]["config"]["model_name"].split("/")[-1] + "_" + previous_job["job_data"]["config"]["adaptor_name"]                 
+                        next_task["inputs"]["model_architecture"] = previous_job["job_data"]["config"]["model_architecture"]
+                    else:
+                        next_task["inputs"]["model_name"] = previous_job["job_data"]["config"]["model_name"]
+                        next_task["inputs"]["model_architecture"] = previous_job["job_data"]["config"]["model_architecture"]
+                        next_task["inputs"]["adaptor_name"] = previous_job["job_data"]["config"]["adaptor_name"]
                     next_task["inputs"] = json.dumps(next_task["inputs"])
                 if previous_job["type"] == "GENERATE":
                     next_task["inputs"] = json.loads(next_task["inputs"])
