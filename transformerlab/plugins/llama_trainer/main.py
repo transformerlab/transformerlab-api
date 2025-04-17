@@ -7,15 +7,17 @@ if torch.cuda.is_available():
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import traceback
 from typing import Dict, List, Any, Optional, Union
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel
 from transformers import (
     AutoModelForCausalLM, 
     AutoTokenizer, 
+    AutoConfig,
     BitsAndBytesConfig,
     TrainingArguments,
     Trainer,
     DataCollatorForLanguageModeling
 )
+from trl import SFTTrainer, SFTConfig
 import jinja2
 from datasets import Dataset
 
@@ -28,6 +30,8 @@ except ImportError:
     # You may need to create sweep.py if it doesn't exist
 
 jinja_environment = jinja2.Environment()
+
+use_flash_attention = False
 
 # Add the new parameters to your tlab_trainer
 # tlab_trainer.add_argument("--run_sweeps", action="store_true", help="Run hyperparameter sweep instead of a single training job")
@@ -78,14 +82,6 @@ def run_single_training():
     def format_instruction(example):
         """Format the instruction using the template"""
         return template.render(example)
-    
-    # Process the dataset
-    def process_dataset(example):
-        """Process each example in the dataset"""
-        prompt = format_instruction(example)
-        return {"text": prompt}
-    
-    processed_dataset = dataset.map(process_dataset)
     
     # Setup parameters
     model_id = tlab_trainer.params.model_name
@@ -139,29 +135,12 @@ def run_single_training():
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
     )
     
-    # Apply LoRA to the model
-    model = get_peft_model(model, lora_config)
-    
     # Get other training parameters
     learning_rate = tlab_trainer.params.get("learning_rate", 2e-4)
     num_epochs = tlab_trainer.params.get("num_train_epochs", 3)
     
-    # Setup tokenization
-    def tokenize_function(examples):
-        """Tokenize the examples with padding and truncation"""
-        return tokenizer(
-            examples["text"],
-            padding="max_length",
-            truncation=True,
-            max_length=max_length,
-            return_tensors="pt"
-        )
-    
-    # Tokenize the dataset
-    tokenized_dataset = processed_dataset.map(tokenize_function, batched=True)
-    
-    # Create training arguments
-    training_args = TrainingArguments(
+    # Create training arguments - keep the same configuration
+    training_args = SFTConfig(
         output_dir=output_dir,
         learning_rate=learning_rate,
         per_device_train_batch_size=batch_size,
@@ -173,24 +152,21 @@ def run_single_training():
         save_total_limit=3,
         report_to=tlab_trainer.report_to
     )
+
     
-    # Initialize the data collator
-    data_collator = DataCollatorForLanguageModeling(
-        tokenizer=tokenizer,
-        mlm=False,
-    )
-    
-    # Initialize the trainer
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=tokenized_dataset,
-        data_collator=data_collator,
-    )
-    
-    # Setup progress reporting callback
+    # Create progress reporting callback
     callback = tlab_trainer.create_progress_callback()
-    trainer.add_callback(callback)
+    
+    # Create SFTTrainer instead of manual tokenization and Trainer setup
+    trainer = SFTTrainer(
+        model=model,
+        train_dataset=dataset,
+        peft_config=lora_config,  # Pass LoRA config directly
+        processing_class=tokenizer,
+        formatting_func=format_instruction,
+        args=training_args,
+        callbacks=[callback]  # Add the progress callback
+    )
     
     # Train the model
     try:
@@ -209,24 +185,75 @@ def run_single_training():
         trainer.save_model(output_dir=adaptor_output_dir)
         print(f"Model saved successfully to {adaptor_output_dir}")
         
-        # Create TransformerLab model
-        tlab_trainer.create_transformerlab_model(
-            fused_model_name=f"{tlab_trainer.params.template_name}_{tlab_trainer.params.job_id}",
-            model_architecture="llama",
-            json_data={
-                "base_model": model_id,
-                "adaptor": os.path.basename(adaptor_output_dir),
-                "adaptor_type": "lora",
-                "configuration": {
-                    "lora_alpha": lora_alpha,
-                    "lora_dropout": lora_dropout,
-                    "lora_r": lora_r
-                }
-            },
-            output_dir=tlab_trainer.params.output_dir
-        )
-        
-        return metrics
+        # # Create TransformerLab model
+        # tlab_trainer.create_transformerlab_model(
+        #     fused_model_name=f"{tlab_trainer.params.model_name}_{tlab_trainer.params.adaptor_name}",
+        #     model_architecture="llama",
+        #     json_data={
+        #         "base_model": model_id,
+        #         "adaptor": os.path.basename(adaptor_output_dir),
+        #         "adaptor_type": "lora",
+        #         "configuration": {
+        #             "lora_alpha": lora_alpha,
+        #             "lora_dropout": lora_dropout,
+        #             "lora_r": lora_r
+        #         }
+        #     },
+        #     output_dir=tlab_trainer.params.output_dir
+        # )
+            # Train the model
+
+        # Save the model
+        try:
+            trainer.save_model(output_dir=adaptor_output_dir)
+            print(f"Model saved successfully to {adaptor_output_dir}")
+        except Exception as e:
+            print(f"Model saving error: {str(e)}")
+            raise
+
+        if tlab_trainer.params.get("fuse_model", False):
+            # Merge the model with the adaptor
+            try:
+                model_config = AutoConfig.from_pretrained(model_id)
+                model_architecture = model_config.architectures[0]
+                # Load the base model again
+                try:
+                    model = AutoModelForCausalLM.from_pretrained(
+                            model_id,
+                            quantization_config=bnb_config,
+                            use_cache=False,
+                            use_flash_attention_2=use_flash_attention,
+                            device_map="auto",
+                            trust_remote_code=True,
+                        )
+                except TypeError:
+                    model = AutoModelForCausalLM.from_pretrained(
+                            model_id,
+                            quantization_config=bnb_config,
+                            use_flash_attention_2=use_flash_attention,
+                            device_map="auto",
+                            trust_remote_code=True,
+                        )
+
+                if "/" in model_id:
+                    model_id = model_id.split("/")[-1]
+                adaptor_name = tlab_trainer.params.get("adaptor_name", "default")
+                fused_model_name = f"{model_id}_{adaptor_name}"
+                fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
+                peft_model = PeftModel.from_pretrained(model, tlab_trainer.params.adaptor_output_dir)
+                merged_model = peft_model.merge_and_unload()
+                merged_model.save_pretrained(fused_model_location)
+                tokenizer.save_pretrained(fused_model_location)
+                print(f"Fused model saved successfully to {fused_model_location}")
+                json_data = {
+                            "description": f"A model trained and generated by Transformer Lab based on {tlab_trainer.params.model_name}"
+                        }
+                tlab_trainer.create_transformerlab_model(fused_model_name, model_architecture, json_data)
+
+            except Exception as e:
+                print(f"Model merging error: {str(e)}")
+            
+            return metrics
         
     except Exception as e:
         error_msg = f"Training error: {str(e)}\n{traceback.format_exc()}"
@@ -364,25 +391,25 @@ def run_hyperparameter_sweep():
         print(json.dumps(best_result["metrics"], indent=2))
         
         # Add best result to job data
-        tlab_trainer.add_job_data("best_config", best_result["params"])
-        tlab_trainer.add_job_data("best_metrics", best_result["metrics"])
+        tlab_trainer.add_job_data("best_config", str(best_result["params"]))
+        tlab_trainer.add_job_data("best_metrics", str(best_result["metrics"]))
         
         # Train the final model with the best configuration
         if tlab_trainer.params.get("train_final_model", True):
             print("\n--- Training final model with best configuration ---")
             
             # Create a new params object with the best config
-            final_params = copy.deepcopy(vars(original_params))
+            final_params = copy.deepcopy(original_params)
             for k, v in best_result["params"].items():
                 final_params[k] = v
                 
-            final_params["output_dir"] = os.path.join(sweep_dir, "final_model")
-            final_params["adaptor_output_dir"] = os.path.join(final_params["output_dir"], "adaptor")
-            final_params["template_name"] = f"{original_params.template_name}_best"
+            # final_params["output_dir"] = os.path.join(sweep_dir, "final_model")
+            # final_params["adaptor_output_dir"] = os.path.join(final_params["output_dir"], "adaptor")
+            # final_params["template_name"] = f"{original_params.template_name}_best"
             
-            # Create directories
-            os.makedirs(final_params["output_dir"], exist_ok=True)
-            os.makedirs(final_params["adaptor_output_dir"], exist_ok=True)
+            # # Create directories
+            # os.makedirs(final_params["output_dir"], exist_ok=True)
+            # os.makedirs(final_params["adaptor_output_dir"], exist_ok=True)
             
             # Store original params
             original_params = tlab_trainer.params
@@ -423,7 +450,6 @@ def run_training_for_sweep(processed_dataset):
     model_id = tlab_trainer.params.model_name
     if model_id is None:
         raise ValueError("Model ID is required for training")
-
     
     # Setup quantization
     bnb_config = BitsAndBytesConfig(
@@ -435,13 +461,13 @@ def run_training_for_sweep(processed_dataset):
     
     print(f"Loading model: {model_id}")
     model = AutoModelForCausalLM.from_pretrained(
-                        model_id,
-                        quantization_config=bnb_config,
-                        use_cache=False,
-                        use_flash_attention_2=False,
-                        device_map="auto",
-                        trust_remote_code=True,
-                    )
+        model_id,
+        quantization_config=bnb_config,
+        use_cache=False,
+        use_flash_attention_2=False,
+        device_map="auto",
+        trust_remote_code=True,
+    )
     
     # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
@@ -468,35 +494,25 @@ def run_training_for_sweep(processed_dataset):
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
     )
     
-    # Apply LoRA to the model
-    model = get_peft_model(model, lora_config)
-    
     # Get training parameters
     learning_rate = tlab_trainer.params.get("learning_rate", 2e-4)
     num_epochs = tlab_trainer.params.get("num_train_epochs", 3)
     output_dir = tlab_trainer.params.output_dir
     
-    # Setup tokenization
-    def tokenize_function(examples):
-        """Tokenize the examples with padding and truncation"""
-        return tokenizer(
-            examples["text"],
-            padding="max_length",
-            truncation=True,
-            max_length=max_length,
-            return_tensors="pt"
-        )
-    
-    # Tokenize the dataset
-    tokenized_dataset = processed_dataset.map(tokenize_function, batched=True)
+    # Define formatting function for SFTTrainer
+    template = jinja_environment.from_string(tlab_trainer.params.formatting_template)
+    def format_instruction(example):
+        """Format the instruction using the template"""
+        return template.render(example)
     
     # Create training arguments
-    training_args = TrainingArguments(
+    training_args = SFTConfig(
         output_dir=output_dir,
         learning_rate=learning_rate,
         per_device_train_batch_size=batch_size,
         gradient_accumulation_steps=gradient_accumulation_steps,
         num_train_epochs=num_epochs,
+        optim="paged_adamw_32bit",
         weight_decay=0.01,
         logging_steps=10,
         save_strategy="epoch",
@@ -508,29 +524,34 @@ def run_training_for_sweep(processed_dataset):
         metric_for_best_model="loss",  # Use loss as the metric
         greater_is_better=False,  # Lower loss is better
     )
+
+    # # Get the original dataset from processed_dataset
+    # # For sweep, we need to extract the original dataset before SFTTrainer formatting
+    # if 'train' in processed_dataset.dataset:
+    #     # If processed_dataset is a subset with train/test split
+    #     original_dataset = processed_dataset.dataset['train']
+    # else:
+    #     # If processed_dataset is the whole dataset
+    original_dataset = processed_dataset
     
-    # Initialize the data collator
-    data_collator = DataCollatorForLanguageModeling(
-        tokenizer=tokenizer,
-        mlm=False,
-    )
-    
-    # Split dataset for evaluation
-    if len(tokenized_dataset) >= 10:  # Only split if we have enough data
-        split_dataset = tokenized_dataset.train_test_split(test_size=0.1)
+    # Create evaluation dataset - use 10% of the data
+    if len(original_dataset) >= 10:
+        split_dataset = original_dataset.train_test_split(test_size=0.1)
         train_data = split_dataset["train"]
         eval_data = split_dataset["test"]
     else:
-        train_data = tokenized_dataset
+        train_data = original_dataset
         eval_data = None
     
-    # Initialize the trainer
-    trainer = Trainer(
+    # Create SFTTrainer
+    trainer = SFTTrainer(
         model=model,
-        args=training_args,
         train_dataset=train_data,
         eval_dataset=eval_data,
-        data_collator=data_collator,
+        peft_config=lora_config,
+        processing_class=tokenizer,
+        formatting_func=format_instruction,
+        args=training_args
     )
     
     # Train the model
