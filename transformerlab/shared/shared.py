@@ -91,8 +91,34 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
     The FastAPI worker uses stderr, not stdout"""
 
     print(f"Job {job_id} Running async python script: " + str(python_script))
+    # Extract plugin location from the python_script list
+    plugin_location = None
+    if "--plugin_dir" in python_script:
+        for i, arg in enumerate(python_script):
+            if arg == "--plugin_dir" and i + 1 < len(python_script):
+                plugin_location = python_script[i + 1]
+                break
 
-    command = [sys.executable, "-u", *python_script]
+    # Check if plugin has a venv directory
+    if plugin_location:
+        plugin_location = os.path.normpath(plugin_location)
+        if not plugin_location.startswith(dirs.PLUGIN_DIR):
+            print(f"Plugin location {plugin_location} is not in {dirs.PLUGIN_DIR}")
+            raise Exception(f"Plugin location {plugin_location} is not in {dirs.PLUGIN_DIR}")
+        if os.path.exists(os.path.join(plugin_location, "venv")) and os.path.isdir(
+            os.path.join(plugin_location, "venv")
+        ):
+            venv_path = os.path.join(plugin_location, "venv")
+            print(f">Plugin has virtual environment, activating venv from {venv_path}")
+            venv_python = os.path.join(venv_path, "bin", "python")
+            command = [venv_python, *python_script]
+        else:
+            print(">Using system Python interpreter")
+            command = [sys.executable, *python_script]
+
+    else:
+        print(">Using system Python interpreter")
+        command = [sys.executable, *python_script]  # Skip the original Python interpreter
 
     process = await open_process(command=command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
 
@@ -163,11 +189,36 @@ async def async_run_python_daemon_and_update_status(
 
     print("🏃‍♂️ Running python script: " + str(python_script))
 
-    command = [sys.executable, *python_script]
-    print(command)
+    # Extract plugin location from the python_script list
+    plugin_location = None
+    for i, arg in enumerate(python_script):
+        if arg == "--plugin_dir" and i + 1 < len(python_script):
+            plugin_location = python_script[i + 1]
+            break
 
-    # open a file to write the output to:
+    # Open a file to write the output to:
     log = open(GLOBAL_LOG_PATH, "a")
+
+    # Check if plugin has a venv directory
+    if plugin_location:
+        plugin_location = os.path.normpath(plugin_location)
+        if not plugin_location.startswith(dirs.PLUGIN_DIR):
+            print(f"Plugin location {plugin_location} is not in {dirs.PLUGIN_DIR}")
+            raise Exception(f"Plugin location {plugin_location} is not in {dirs.PLUGIN_DIR}")
+        if os.path.exists(os.path.join(plugin_location, "venv")) and os.path.isdir(
+            os.path.join(plugin_location, "venv")
+        ):
+            venv_path = os.path.join(plugin_location, "venv")
+            print(f">Plugin has virtual environment, activating venv from {venv_path}")
+            venv_python = os.path.join(venv_path, "bin", "python")
+            command = [venv_python, *python_script]
+        else:
+            print(">Using system Python interpreter")
+            command = [sys.executable, *python_script]
+
+    else:
+        print(">Using system Python interpreter")
+        command = [sys.executable, *python_script]  # Skip the original Python interpreter
 
     process = await asyncio.create_subprocess_exec(
         *command, stdin=None, stderr=subprocess.STDOUT, stdout=subprocess.PIPE
@@ -244,7 +295,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         experiment = await db.experiment_get_by_name(experiment_name)
         experiment_id = experiment["id"]
         plugin_name = job_config["plugin"]
-        eval_name = job_config.get("evaluator","")
+        eval_name = job_config.get("evaluator", "")
         await db.job_update_status(job_id, "RUNNING")
         print("Running evaluation script")
         plugin_location = dirs.plugin_dir_by_name(plugin_name)
@@ -338,19 +389,31 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         start_time = time.strftime("%Y-%m-%d %H:%M:%S")
         await db.job_update_job_data_insert_key_value(job_id, "start_time", start_time)
 
-        # This calls the training plugin harness, which calls the actual training plugin
-        training_popen_command = [
-            sys.executable,
-            dirs.PLUGIN_HARNESS,
-            "--plugin_dir",
-            plugin_location,
-            "--input_file",
-            input_file,
-            "--experiment_name",
-            experiment_name,
-        ]
-        print("RUNNING: popen command:")
-        print(training_popen_command)
+        # Check if plugin has a venv directory
+        venv_path = os.path.join(plugin_location, "venv")
+        if os.path.exists(venv_path) and os.path.isdir(venv_path):
+            print(f">Plugin has virtual environment, activating venv from {venv_path}")
+            venv_python = os.path.join(venv_path, "bin", "python")
+            # Construct command that first activates venv then runs script
+            training_popen_command = [
+                "/bin/bash",
+                "-c",
+                f"source {os.path.join(venv_path, 'bin', 'activate')} && {venv_python} {dirs.PLUGIN_HARNESS} "
+                + f'--plugin_dir "{plugin_location}" --input_file "{input_file}" --experiment_name "{experiment_name}"',
+            ]
+        else:
+            print(">Using system Python interpreter")
+            training_popen_command = [
+                sys.executable,
+                dirs.PLUGIN_HARNESS,
+                "--plugin_dir",
+                plugin_location,
+                "--input_file",
+                input_file,
+                "--experiment_name",
+                experiment_name,
+            ]
+
         popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
 
     elif job_type == "pretraining":
@@ -382,19 +445,31 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         start_time = time.strftime("%Y-%m-%d %H:%M:%S")
         await db.job_update_job_data_insert_key_value(job_id, "start_time", start_time)
 
-        # This calls the training plugin harness, which calls the actual training plugin
-        training_popen_command = [
-            sys.executable,
-            dirs.PLUGIN_HARNESS,
-            "--plugin_dir",
-            plugin_location,
-            "--input_file",
-            input_file,
-            "--experiment_name",
-            experiment_name,
-        ]
-        print("RUNNING: popen command:")
-        print(training_popen_command)
+        # Check if plugin has a venv directory
+        venv_path = os.path.join(plugin_location, "venv")
+        if os.path.exists(venv_path) and os.path.isdir(venv_path):
+            print(f">Plugin has virtual environment, activating venv from {venv_path}")
+            venv_python = os.path.join(venv_path, "bin", "python")
+            # Construct command that first activates venv then runs script
+            training_popen_command = [
+                "/bin/bash",
+                "-c",
+                f"source {os.path.join(venv_path, 'bin', 'activate')} && {venv_python} {dirs.PLUGIN_HARNESS} "
+                + f'--plugin_dir "{plugin_location}" --input_file "{input_file}" --experiment_name "{experiment_name}"',
+            ]
+        else:
+            print(">Using system Python interpreter")
+            training_popen_command = [
+                sys.executable,
+                dirs.PLUGIN_HARNESS,
+                "--plugin_dir",
+                plugin_location,
+                "--input_file",
+                input_file,
+                "--experiment_name",
+                experiment_name,
+            ]
+
         popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
 
     elif job_type == "embedding":
@@ -430,19 +505,31 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         start_time = time.strftime("%Y-%m-%d %H:%M:%S")
         await db.job_update_job_data_insert_key_value(job_id, "start_time", start_time)
 
-        # This calls the training plugin harness, which calls the actual training plugin
-        training_popen_command = [
-            sys.executable,
-            dirs.PLUGIN_HARNESS,
-            "--plugin_dir",
-            plugin_location,
-            "--input_file",
-            input_file,
-            "--experiment_name",
-            experiment_name,
-        ]
-        print("RUNNING: popen command:")
-        print(training_popen_command)
+        # Check if plugin has a venv directory
+        venv_path = os.path.join(plugin_location, "venv")
+        if os.path.exists(venv_path) and os.path.isdir(venv_path):
+            print(f">Plugin has virtual environment, activating venv from {venv_path}")
+            venv_python = os.path.join(venv_path, "bin", "python")
+            # Construct command that first activates venv then runs script
+            training_popen_command = [
+                "/bin/bash",
+                "-c",
+                f"source {os.path.join(venv_path, 'bin', 'activate')} && {venv_python} {dirs.PLUGIN_HARNESS} "
+                + f'--plugin_dir "{plugin_location}" --input_file "{input_file}" --experiment_name "{experiment_name}"',
+            ]
+        else:
+            print(">Using system Python interpreter")
+            training_popen_command = [
+                sys.executable,
+                dirs.PLUGIN_HARNESS,
+                "--plugin_dir",
+                plugin_location,
+                "--input_file",
+                input_file,
+                "--experiment_name",
+                experiment_name,
+            ]
+
         popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
 
     else:
