@@ -155,14 +155,14 @@ def train_model():
                 trust_remote_code=True,
             )
         lora_target_modules = find_lora_target_modules(model)
-        model.config.pretraining_tp = 1
+    except Exception as e:
+        print(f"Model loading error: {str(e)}")
+        raise e
 
-        tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
-        tokenizer.pad_token = tokenizer.eos_token
-        tokenizer.padding_side = "right"
+
     model.config.pretraining_tp = 1
     # Load tokenizer
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
     # LoRA config

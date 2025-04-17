@@ -199,7 +199,7 @@ def train_model():
     if tlab_trainer.params.get("fuse_model", False):
         # Merge the model with the adaptor
         try:
-            model_config = AutoConfig.from_pretrained(model_id)
+            model_config = AutoConfig.from_pretrained(model_id, trust_remote_code=True)
             model_architecture = model_config.architectures[0]
             # Load the base model again
             try:
