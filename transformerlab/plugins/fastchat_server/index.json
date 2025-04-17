@@ -21,7 +21,8 @@
     "T5ForConditionalGeneration",
     "Gemma3ForCausalLM",
     "Gemma3ForConditionalGeneration",
-    "AprielForCausalLM"
+    "AprielForCausalLM",
+    "GPTNeoXForCausalLM"
   ],
   "supported_hardware_architectures": ["cpu", "cuda", "mlx"],
   "files": ["main.py", "setup.sh"],
