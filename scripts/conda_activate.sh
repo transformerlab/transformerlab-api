@@ -3,8 +3,8 @@ ENV_NAME="transformerlab"
 TLAB_DIR="$HOME/.transformerlab"
 TLAB_CODE_DIR="${TLAB_DIR}/src"
 
-MINICONDA_ROOT=${TLAB_DIR}/miniconda3
-CONDA_BIN=${MINICONDA_ROOT}/bin/conda
+MINIFORGE_ROOT=${TLAB_DIR}/miniforge3
+CONDA_BIN=${MINIFORGE_ROOT}/bin/conda
 ENV_DIR=${TLAB_DIR}/envs/${ENV_NAME}
 
 echo "Your shell is $SHELL"
@@ -18,7 +18,7 @@ err_report() {
 trap 'err_report $LINENO' ERR
 
 if ! command -v ${CONDA_BIN} &> /dev/null; then
-    echo "❌ Conda is not installed at ${MINICONDA_ROOT}. Please install Conda there (and only there) and try again."
+    echo "❌ Conda is not installed at ${MINIFORGE_ROOT}. Please install Conda there (and only there) and try again."
 else
     echo "✅ Conda is installed."
 fi
