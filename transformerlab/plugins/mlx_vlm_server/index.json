@@ -5,13 +5,8 @@
   "plugin-format": "python",
   "type": "loader",
   "version": "0.1.18",
-  "model_architectures": [
-    "LlavaForConditionalGeneration"
-  ],
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "model_architectures": ["LlavaForConditionalGeneration"],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
-  "parameters": []
+  "parameters": {}
 }
