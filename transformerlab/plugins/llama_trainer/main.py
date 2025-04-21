@@ -24,14 +24,13 @@ jinja_environment = Environment()
 use_flash_attention = False
 
 # Add the new parameters
-tlab_trainer.add_argument(
-    "--run_sweeps", action="store_true", help="Run hyperparameter sweep instead of a single training job"
-)
-tlab_trainer.add_argument("--save_sweep_models", action="store_true", help="Save models for each sweep configuration")
-tlab_trainer.add_argument("--sweep_metric", type=str, default="eval/loss", help="Metric to optimize in sweep")
-tlab_trainer.add_argument(
-    "--lower_is_better", action="store_true", help="Whether lower values are better for the sweep metric"
-)
+# tlab_trainer.add_argument(
+#     "--run_sweeps", action="store_true", help="Run hyperparameter sweep instead of a single training job"
+# )
+# tlab_trainer.add_argument("--save_sweep_models", action="store_true", help="Save models for each sweep configuration")
+# tlab_trainer.add_argument(
+#     "--lower_is_better", action="store_true", help="Whether lower values are better for the sweep metric"
+# )
 
 
 def find_lora_target_modules(model, keyword="proj"):
@@ -237,7 +236,7 @@ def train_function(**params):
 
         # Save the model - don't save during sweep runs unless explicitly requested
         is_sweep_run = "run_id" in params
-        if not is_sweep_run or params.get("save_sweep_models", False):
+        if not is_sweep_run or params.get("save_sweep_models") is not None:
             trainer.save_model(output_dir=adaptor_output_dir)
             print(f"Model saved successfully to {adaptor_output_dir}")
 
@@ -315,9 +314,9 @@ def run_plugin():
     tlab_trainer.params.learning_rate = float(tlab_trainer.params.get("learning_rate", 2e-4))
 
     # Determine if we're doing a sweep
-    run_sweep = tlab_trainer.params.get("run_sweeps", False)
+    run_sweep = tlab_trainer.params.get("run_sweeps")
 
-    if run_sweep:
+    if run_sweep is not None:
         # Run hyperparameter sweep
         sweep_results = tlab_trainer.run_sweep(train_function)
 

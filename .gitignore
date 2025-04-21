@@ -172,6 +172,9 @@ logs/
 # AWS configuration
 scripts/aws/aws.conf
 
+# Models Saved by RPC
+scripts/xml-rpc-client-example/output
+
 # DeepEval Cache
 */.deepeval-cache.json
 */.deepeval_telemetry.txt

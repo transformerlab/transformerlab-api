@@ -285,20 +285,28 @@ class TrainerTLabPlugin(TLabPlugin):
         datasets = self.load_dataset()
 
         # Get sweep parameter definitions
+        sweep_config = self.params.get("sweep_config", {})
+        if isinstance(sweep_config, str):
+            # If sweep_config is a string, assume it's a JSON object
+            try:
+                sweep_config = json.loads(sweep_config)
+            except json.JSONDecodeError:
+                print(f"Error decoding JSON: {sweep_config}. Using default sweep configuration.")
+                sweep_config = None
         if not sweep_config:
-            sweep_config = self.params.get("sweep_config", {})
-            if not sweep_config:
-                # Default sweep parameters if none specified
-                sweep_config = {
-                    "learning_rate": [1e-4, 3e-4, 5e-4],
-                    "lora_alpha": [8, 16, 32],
-                    "lora_r": [8, 16, 32],
-                    "lora_dropout": [0.1, 0.2],
-                }
-                print(f"Using default sweep configuration: {json.dumps(sweep_config, indent=2)}")
+            # Default sweep parameters if none specified
+            sweep_config = {
+                "learning_rate": [1e-4, 3e-4, 5e-4],
+                "lora_alpha": [8, 16, 32],
+                "lora_r": [8, 16, 32],
+                "lora_dropout": [0.1, 0.2],
+            }
+            print(f"Using default sweep configuration: {json.dumps(sweep_config, indent=2)}")
+        else:
+            print(f"Using provided sweep configuration: {json.dumps(sweep_config, indent=2)}")
 
         # Import here to avoid circular imports
-        from sweep import HyperparameterSweep
+        from transformerlab.sdk.v1.sweep import HyperparameterSweep
 
         # Setup the sweeper with a copy of current parameters
         base_params = copy.deepcopy(self.params)
@@ -387,7 +395,7 @@ class TrainerTLabPlugin(TLabPlugin):
 
         # Find best configuration
         metric_name = self.params.get("sweep_metric", "eval/loss")
-        lower_is_better = self.params.get("lower_is_better", True)
+        lower_is_better = self.params.get("lower_is_better") is not None
         best_result = sweeper.get_best_config(metric_name, lower_is_better)
 
         self.params["train_final_model"] = True
