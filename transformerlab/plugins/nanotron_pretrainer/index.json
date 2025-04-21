@@ -13,6 +13,9 @@
         "setup.sh",
         "config.py"
     ],
+    "supported_hardware_architectures": [
+    "cuda"
+    ],
     "setup-script": "setup.sh",
     "parameters": {
         "train_device": {

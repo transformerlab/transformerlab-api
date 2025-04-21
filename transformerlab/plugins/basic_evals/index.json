@@ -12,6 +12,11 @@
         "main.py",
         "setup.sh"
     ],
+    "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx"
+    ],
     "_dataset": true,
     "_dataset_display_message": "Please make sure the name of the input and output columns match the ones in your dataset",
     "setup-script": "setup.sh",

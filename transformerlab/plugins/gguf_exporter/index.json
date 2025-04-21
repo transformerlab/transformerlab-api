@@ -18,6 +18,10 @@
         "Phi3ForCausalLM",
         "Qwen2ForCausalLM"
     ],
+    "supported_hardware_architectures": [
+    "cpu",
+    "cuda"
+    ],
     "export_architecture": "GGUF",
     "files": [
         "main.py",
