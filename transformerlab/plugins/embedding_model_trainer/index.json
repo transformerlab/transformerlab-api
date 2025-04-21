@@ -80,7 +80,7 @@
     "setup.sh"
   ],
   "setup-script": "setup.sh",
-  "training_template_format": "embedding",
+  "training_template_format": "none",
   "parameters": {
     "dataset_type": {
       "title": "Dataset Type",
