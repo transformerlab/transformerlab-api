@@ -20,7 +20,8 @@
     ],
     "supported_hardware_architectures": [
     "cpu",
-    "cuda"
+    "cuda",
+    "mlx"
     ],
     "export_architecture": "GGUF",
     "files": [
