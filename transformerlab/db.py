@@ -1022,6 +1022,12 @@ async def workflow_update_config(workflow_id, config):
     )
     await db.commit()
 
+async def workflow_update_name(workflow_id, name):
+    await db.execute(
+        "UPDATE workflows SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (name, workflow_id)
+    )
+    await db.commit()
+
 
 async def workflow_delete_all():
     await db.execute("DELETE FROM workflows")
