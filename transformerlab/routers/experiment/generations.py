@@ -251,12 +251,7 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
         # Use bash to activate venv and then run the command
         venv_python = os.path.join(venv_path, "bin", "python")
         # Construct command that first activates venv then runs script
-        subprocess_command = [
-            "/bin/bash",
-            "-c",
-            f"source {os.path.join(venv_path, 'bin', 'activate')} && {venv_python} {dirs.PLUGIN_HARNESS} "
-            + " ".join([f'"{arg}"' for arg in extra_args]),
-        ]
+        subprocess_command = [venv_python, dirs.PLUGIN_HARNESS] + extra_args
     else:
         print(">Using system Python interpreter")
         subprocess_command = [sys.executable, dirs.PLUGIN_HARNESS] + extra_args

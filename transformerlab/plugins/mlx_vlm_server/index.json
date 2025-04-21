@@ -5,13 +5,11 @@
   "plugin-format": "python",
   "type": "loader",
   "version": "0.1.18",
-  "model_architectures": [
-    "LlavaForConditionalGeneration"
+  "model_architectures": ["LlavaForConditionalGeneration"],
+  "supported_hardware_architectures": [
+    "mlx"
   ],
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
-  "parameters": []
+  "parameters": {}
 }

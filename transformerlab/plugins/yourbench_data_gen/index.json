@@ -5,6 +5,11 @@
     "plugin-format": "python",
     "type": "generator",
     "version": "0.1.0",
+    "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx"
+  ],
     "git": "",
     "url": "",
     "files": [

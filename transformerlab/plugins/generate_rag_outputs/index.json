@@ -11,6 +11,11 @@
         "main.py",
         "setup.sh"
     ],
+    "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx"
+    ],
     "_dataset": true,
     "_dataset_display_message": "This plugin requires a dataset to run. Please upload a dataset to continue.",
     "setup-script": "setup.sh",

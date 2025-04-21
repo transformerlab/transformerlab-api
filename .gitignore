@@ -177,8 +177,10 @@ scripts/xml-rpc-client-example/output
 
 # DeepEval Cache
 */.deepeval-cache.json
+*/.temp-deepeval-cache.json
 */.deepeval_telemetry.txt
 .deepeval-cache.json
+.temp-deepeval-cache.json
 .deepeval_telemetry.txt
 
 # Vector DB Code

@@ -73,6 +73,11 @@
     "Davinci",
     "AsymmetricSemanticSearchModel"
   ],
+  "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx"
+  ],
   "git": "",
   "url": "",
   "files": [
@@ -80,7 +85,7 @@
     "setup.sh"
   ],
   "setup-script": "setup.sh",
-  "training_template_format": "embedding",
+  "training_template_format": "none",
   "parameters": {
     "dataset_type": {
       "title": "Dataset Type",
