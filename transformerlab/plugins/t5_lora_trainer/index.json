@@ -8,6 +8,9 @@
     "model_architectures": [
         "T5ForConditionalGeneration"
     ],
+    "supported_hardware_architectures": [
+    "cuda"
+    ],
     "git": "",
     "url": "",
     "files": [

@@ -8,6 +8,11 @@
     "model_architectures": [
         "LlamaForCausalLM"
     ],
+    "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx"
+  ],
     "files": [
         "main.py",
         "setup.sh"

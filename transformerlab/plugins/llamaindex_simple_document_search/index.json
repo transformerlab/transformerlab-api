@@ -6,6 +6,11 @@
     "type": "rag",
     "version": "0.0.8",
     "model_architectures": [],
+    "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx"
+    ],
     "files": [
         "main.py",
         "setup.sh"
