@@ -93,6 +93,10 @@ async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: 
     await db.workflow_update_config(workflow_id, json.dumps(config))
     return {"message": "OK"}
 
+@router.get("/{workflow_id}/update_name")
+async def workflow_update_name(workflow_id: str, new_name: str):
+    db.workflow_update_name(workflow_id, new_name)
+    return {"message": "OK"}
 
 @router.get("/{workflow_id}/add_node")
 async def workflow_add_node(workflow_id: str, node: str):
@@ -327,6 +331,7 @@ async def start_next_step_in_workflow():
         # Get the task definition.  Prioritize metadata.task_name, then node.type
         task_name = next_node["task"]
 
+        #get the next task to run based on the next node to run
         next_task = None
         tasks = await db.tasks_get_all()
         for task in tasks:
@@ -334,10 +339,12 @@ async def start_next_step_in_workflow():
                 next_task = task
                 break
 
+        #if we couldn't find the task, then we just mark the workflow as failed
         if not next_task:
             await db.workflow_run_update_status(workflow_run_id, "FAILED")
             return {"message": f"Could not find task '{task_name}' for workflow node."}
         
+        #here we load the information of the previous job that ran to determine what info to pass to the next job
         previous_node = None
         previous_job_ID = None
         previous_job = None
