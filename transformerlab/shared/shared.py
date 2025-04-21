@@ -396,11 +396,16 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             venv_python = os.path.join(venv_path, "bin", "python")
             # Construct command that first activates venv then runs script
             training_popen_command = [
-                "/bin/bash",
-                "-c",
-                f"source {os.path.join(venv_path, 'bin', 'activate')} && {venv_python} {dirs.PLUGIN_HARNESS} "
-                + f'--plugin_dir "{plugin_location}" --input_file "{input_file}" --experiment_name "{experiment_name}"',
+                venv_python,
+                dirs.PLUGIN_HARNESS,
+                "--plugin_dir",
+                plugin_location,
+                "--input_file",
+                input_file,
+                "--experiment_name",
+                experiment_name,
             ]
+
         else:
             print(">Using system Python interpreter")
             training_popen_command = [
@@ -452,10 +457,14 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             venv_python = os.path.join(venv_path, "bin", "python")
             # Construct command that first activates venv then runs script
             training_popen_command = [
-                "/bin/bash",
-                "-c",
-                f"source {os.path.join(venv_path, 'bin', 'activate')} && {venv_python} {dirs.PLUGIN_HARNESS} "
-                + f'--plugin_dir "{plugin_location}" --input_file "{input_file}" --experiment_name "{experiment_name}"',
+                venv_python,
+                dirs.PLUGIN_HARNESS,
+                "--plugin_dir",
+                plugin_location,
+                "--input_file",
+                input_file,
+                "--experiment_name",
+                experiment_name,
             ]
         else:
             print(">Using system Python interpreter")
@@ -512,10 +521,14 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             venv_python = os.path.join(venv_path, "bin", "python")
             # Construct command that first activates venv then runs script
             training_popen_command = [
-                "/bin/bash",
-                "-c",
-                f"source {os.path.join(venv_path, 'bin', 'activate')} && {venv_python} {dirs.PLUGIN_HARNESS} "
-                + f'--plugin_dir "{plugin_location}" --input_file "{input_file}" --experiment_name "{experiment_name}"',
+                venv_python,
+                dirs.PLUGIN_HARNESS,
+                "--plugin_dir",
+                plugin_location,
+                "--input_file",
+                input_file,
+                "--experiment_name",
+                experiment_name,
             ]
         else:
             print(">Using system Python interpreter")

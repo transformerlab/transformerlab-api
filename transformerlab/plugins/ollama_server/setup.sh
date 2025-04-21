@@ -2,4 +2,4 @@
 # To install ollama do:
 # curl https://ollama.ai/install.sh | sh
 
-pip install ollama
+uv pip install ollama

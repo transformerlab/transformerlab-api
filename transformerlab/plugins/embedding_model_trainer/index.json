@@ -5,7 +5,7 @@
   "plugin-format": "python",
   "type": "trainer",
   "train_type": "embedding",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "model_architectures": [
     "BertModel",
     "SentenceTransformer",
@@ -80,7 +80,7 @@
     "setup.sh"
   ],
   "setup-script": "setup.sh",
-  "training_template_format": "embedding",
+  "training_template_format": "none",
   "parameters": {
     "dataset_type": {
       "title": "Dataset Type",
