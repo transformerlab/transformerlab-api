@@ -7,6 +7,8 @@ from fastapi.responses import FileResponse
 import transformerlab.db as db
 import transformerlab.routers.tasks as tsks
 
+from transformerlab.shared import dirs
+
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 
@@ -35,8 +37,17 @@ async def workflow_runs_get_by_id(workflow_run_id: str):
     for job_id in json.loads(workflow_run["job_ids"]):
         job = await db.job_get(job_id)
         job_data = job["job_data"]
-        jobs.append({"taskName": job_data["template_name"], "jobID": job_id, "jobStartTime": job_data["start_time"], "jobEndTime": job_data["end_time"]})
+        job_info = {"jobID": job_id,"status": job["status"]} 
+        if "template_name" in job_data.keys():
+            job_info["taskName"] = job_data["template_name"]
+        if "start_time" in job_data.keys():
+            job_info["jobStartTime"] = job_data["start_time"]
+        if "end_time" in job_data.keys():
+            job_info["jobEndTime"] = job_data["end_time"]
+        jobs.append(job_info)
     returnInfo["jobs"] = jobs
+    workflow = await db.workflows_get_by_id(workflow_run["workflow_id"])
+    returnInfo["workflow"] = workflow
     return returnInfo
 
 @router.get("/delete/{workflow_id}")
@@ -82,6 +93,10 @@ async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: 
     await db.workflow_update_config(workflow_id, json.dumps(config))
     return {"message": "OK"}
 
+@router.get("/{workflow_id}/update_name")
+async def workflow_update_name(workflow_id: str, new_name: str):
+    db.workflow_update_name(workflow_id, new_name)
+    return {"message": "OK"}
 
 @router.get("/{workflow_id}/add_node")
 async def workflow_add_node(workflow_id: str, node: str):
@@ -221,15 +236,19 @@ async def start_workflow(workflow_id):
 
 @router.get("/start_next_step")
 async def start_next_step_in_workflow():
+    #check running or queued workflows
     num_running_workflows = await db.workflow_count_running()
     num_queued_workflows = await db.workflow_count_queued()
     if num_running_workflows + num_queued_workflows == 0:
         return {"message": "A workflow is not running or queued"}
+
     currently_running_workflow_run = await db.workflow_run_get_running()
+    #if there is no currently running workflow run, then take a queued workflow and set it as running
     if currently_running_workflow_run is None:
         currently_running_workflow_run = await db.workflow_run_get_queued()
         await db.workflow_run_update_status(currently_running_workflow_run["id"], "RUNNING")
 
+    #get a bunch of useful fields for below, such as run id, and the workflow and whatnot
     workflow_run_id = currently_running_workflow_run["id"]
     workflow_id = currently_running_workflow_run["workflow_id"]
     currently_running_workflow = await db.workflows_get_by_id(workflow_id)
@@ -240,11 +259,13 @@ async def start_next_step_in_workflow():
     current_jobs = []
     current_job = None
 
+    #loop through all the currently running jobs in the workflow
     if workflow_current_job_id != []:
         for job_id in workflow_current_job_id:
             current_job = await db.job_get(job_id)
             current_jobs.append(current_job)
 
+            #if the job isnt complete, return early and wait for it to either finish or just mark the workflow as failed/cancelled
             if current_job["status"] == "FAILED":
                 await db.workflow_run_update_status(workflow_run_id, "FAILED")
                 return {"message": "the current job failed"}
@@ -264,9 +285,8 @@ async def start_next_step_in_workflow():
         for node in workflow_config["nodes"]:
             if node["id"] in workflow_current_task:
                 workflow_next_tasks += node["out"]
-                break  # Important: Exit the loop once found.
-        else:  # This 'else' belongs to the 'for', executed if no 'break' occurred.
-             await db.workflow__run_update_status(workflow_run_id, "FAILED")
+        if len(workflow_next_tasks) == 0:
+             await db.workflow_run_update_status(workflow_run_id, "FAILED")
              return {"message": "Could not find the current task in the workflow."}
 
     else:
@@ -289,7 +309,7 @@ async def start_next_step_in_workflow():
         return {"message": "Could not find the next task in the workflow."}
     
 
-    # --- Task Lookup and Job Creation ---
+    #Task Lookup and Job Creation
     if next_nodes[0]["type"] == "START":
         workflow_current_task = next_nodes[0]["out"]  # Skip the START node.
         if not workflow_current_task: #if the next node does not exist
@@ -304,13 +324,14 @@ async def start_next_step_in_workflow():
             await db.workflow_update_status(workflow_run_id, "FAILED")
             return {"message": "Could not find the next task in the workflow."}
 
-    print(next_nodes)
-
     next_job_ids = []
+
+    #queue up the next nodes if all current nodes/jobs are done
     for next_node in next_nodes:
         # Get the task definition.  Prioritize metadata.task_name, then node.type
         task_name = next_node["task"]
 
+        #get the next task to run based on the next node to run
         next_task = None
         tasks = await db.tasks_get_all()
         for task in tasks:
@@ -318,32 +339,69 @@ async def start_next_step_in_workflow():
                 next_task = task
                 break
 
+        #if we couldn't find the task, then we just mark the workflow as failed
         if not next_task:
             await db.workflow_run_update_status(workflow_run_id, "FAILED")
             return {"message": f"Could not find task '{task_name}' for workflow node."}
+        
+        #here we load the information of the previous job that ran to determine what info to pass to the next job
+        previous_node = None
+        previous_job_ID = None
+        previous_job = None
+
+        nodes = json.loads(currently_running_workflow["config"])["nodes"]
+        for node in nodes:
+            if next_node["id"] in node["out"]:
+                previous_node = node
+        if previous_node is not None:
+            if previous_node["type"] != "START":
+                ran_nodes = json.loads(currently_running_workflow_run["node_ids"])
+                ran_jobs = json.loads(currently_running_workflow_run["job_ids"])
+                previous_job_ID = ran_jobs[ran_nodes.index(previous_node["id"])]
+                previous_job = await db.job_get(previous_job_ID)
+
+
+        fusePretext = dirs.MODELS_DIR + "/"
+
+
+        #get all the relevant outputs of the previous job in the workflow
+        previous_job_outputs = {}
+
+        if previous_job is not None:
+            if previous_job["type"] == "GENERATE":
+                if "dataset_id" in previous_job["job_data"].keys():
+                    previous_job_outputs["dataset_name"] = previous_job["job_data"]["dataset_id"].lower()
+                else:
+                    previous_job_outputs["dataset_name"] = previous_job["job_data"]["config"]["dataset_id"].lower()
+            if previous_job["type"] == "TRAIN":
+                if "fuse_model" in previous_job["job_data"]["config"].keys():
+                    previous_job_outputs["model_name"] = fusePretext + previous_job["job_data"]["config"]["model_name"].split("/")[-1] + "_" + previous_job["job_data"]["config"]["adaptor_name"]                 
+                    previous_job_outputs["model_architecture"] = previous_job["job_data"]["config"]["model_architecture"]
+                else:
+                    previous_job_outputs["model_name"] = previous_job["job_data"]["config"]["model_name"]
+                    previous_job_outputs["model_architecture"] = previous_job["job_data"]["config"]["model_architecture"]
+                    previous_job_outputs["adaptor_name"] = previous_job["job_data"]["config"]["adaptor_name"]
+
+
+        #fill the inputs of a job based on what it can take
+        if next_task["type"] == "EVAL":
+            next_task["inputs"] = json.loads(next_task["inputs"])
+            for key in previous_job_outputs.keys():
+                if key in ["model_name", "model_architecture", "adaptor_name", "dataset_name"]:
+                    next_task["inputs"][key] = previous_job_outputs[key]
+            next_task["inputs"] = json.dumps(next_task["inputs"])
 
         if next_task["type"] == "TRAIN":
             next_task["outputs"] = json.loads(next_task["outputs"])
             next_task["outputs"]["adaptor_name"] = str(uuid.uuid4()).replace("-","")
             next_task["outputs"] = json.dumps(next_task["outputs"])
-            if current_job is not None:
-                if current_job["type"] == "GENERATE":
-                    next_task["inputs"] = json.loads(next_task["inputs"])
-                    print(current_job["job_data"])
-                    next_task["inputs"]["dataset_name"] = current_job["job_data"]["dataset_id"].lower()
-                    next_task["inputs"] = json.dumps(next_task["inputs"])
-        if next_task["type"] == "EVAL":
-            if current_job is not None:
-                if current_job["type"] == "TRAIN":
-                    next_task["inputs"] = json.loads(next_task["inputs"])
-                    next_task["inputs"]["model_name"] = current_job["job_data"]["config"]["model_name"]
-                    next_task["inputs"]["model_architecture"] = current_job["job_data"]["config"]["model_architecture"]
-                    next_task["inputs"]["adaptor_name"] = current_job["job_data"]["config"]["adaptor_name"]
-                    next_task["inputs"] = json.dumps(next_task["inputs"])
-                if current_job["type"] == "GENERATE":
-                    next_task["inputs"] = json.loads(next_task["inputs"])
-                    next_task["inputs"]["dataset_name"] = current_job["job_data"]["dataset_id"].lower()
-                    next_task["inputs"] = json.dumps(next_task["inputs"])
+
+            next_task["inputs"] = json.loads(next_task["inputs"])
+            for key in previous_job_outputs.keys():
+                if key in ["model_name", "model_architecture", "dataset_name"]:
+                    next_task["inputs"][key] = previous_job_outputs[key]
+            next_task["inputs"] = json.dumps(next_task["inputs"])
+
         if next_task["type"] == "GENERATE":
             next_task["outputs"] = json.loads(next_task["outputs"])
             next_task["outputs"]["dataset_id"] = str(uuid.uuid4()).replace("-","")
