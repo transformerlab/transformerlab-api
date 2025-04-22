@@ -221,7 +221,7 @@ def train_mlx_lora():
             os.makedirs(fused_model_location)
 
         fuse_popen_command = [
-            sys.executable,
+            python_executable,
             "-m",
             "mlx_lm.fuse",
             "--model",

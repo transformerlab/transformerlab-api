@@ -6,6 +6,25 @@ import argparse
 
 from huggingface_hub import snapshot_download
 
+
+def get_python_executable(plugin_dir):
+    """Check if a virtual environment exists and return the appropriate Python executable"""
+    # Check for virtual environment in the plugin directory
+    venv_path = os.path.join(plugin_dir, "venv")
+
+    if os.path.isdir(venv_path):
+        print("Virtual environment found, using it for evaluation...")
+        # Determine the correct path to the Python executable based on the platform
+        python_executable = os.path.join(venv_path, "bin", "python")
+
+        if os.path.exists(python_executable):
+            return python_executable
+
+    # Fall back to system Python if venv not found or executable doesn't exist
+    print("No virtual environment found, using system Python...")
+    return sys.executable
+
+
 # Get all arguments provided to this script using argparse
 parser = argparse.ArgumentParser(description="Convert a model to GGUF format.")
 parser.add_argument("--output_dir", type=str, help="Directory to save the model in.")
@@ -26,6 +45,7 @@ output_path = os.path.join(args.output_dir, output_filename)
 
 # Directory to run conversion subprocess
 plugin_dir = os.path.realpath(os.path.dirname(__file__))
+python_executable = get_python_executable(plugin_dir)
 
 # The model _should_ be available locally
 # but call hugging_face anyways so we get the proper path to it
@@ -44,7 +64,7 @@ if not os.path.exists(model_path):
 
 # TODO: This default quantizes to 8-bit. Need to read that in as a parameter.
 subprocess_cmd = [
-    sys.executable,
+    python_executable,
     os.path.join(plugin_dir, "llama.cpp", "convert_hf_to_gguf.py"),
     "--outfile",
     output_path,
