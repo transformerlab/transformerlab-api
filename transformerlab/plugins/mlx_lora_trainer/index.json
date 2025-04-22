@@ -23,6 +23,7 @@
   "supported_hardware_architectures": [
     "mlx"
   ],
+  "sweeps": true,
   "files": [
     "main.py",
     "setup.sh"
