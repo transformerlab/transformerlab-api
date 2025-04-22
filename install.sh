@@ -6,8 +6,10 @@ TLAB_DIR="$HOME/.transformerlab"
 TLAB_CODE_DIR="${TLAB_DIR}/src"
 TLAB_STATIC_WEB_DIR="${TLAB_DIR}/webapp"
 
+OLD_MINICONDA_ROOT=${TLAB_DIR}/miniconda3 # old place -- used to detect if an old install exists
 MINIFORGE_ROOT=${TLAB_DIR}/miniforge3
 CONDA_BIN=${MINIFORGE_ROOT}/bin/conda
+MAMBA_BIN=${MINIFORGE_ROOT}/bin/mamba
 ENV_DIR=${TLAB_DIR}/envs/${ENV_NAME}
 RUN_DIR=$(pwd)
 
@@ -77,6 +79,14 @@ check_conda() {
   fi
 }
 
+check_mamba() {
+  if ! command -v "${MAMBA_BIN}" &> /dev/null; then
+    abort "❌ Mamba is not installed at ${MINIFORGE_ROOT}. Please install Mamba using '${TLAB_DIR}/src/install.sh install_conda' and try again."
+  else
+    ohai "✅ Mamba is installed at ${MINIFORGE_ROOT}."
+  fi
+}
+
 check_python() {
   if ! command -v python &> /dev/null; then
     abort "❌ Python is not installed as 'python'. Please install Python and try again or it could be installed as 'python3'"
@@ -89,6 +99,7 @@ check_python() {
 
 unset_conda_for_sure() {
   { conda deactivate && conda deactivate && conda deactivate; } 2> /dev/null
+  { mamba deactivate && mamba deactivate && mamba deactivate; } 2> /dev/null
   export PYTHONNOUSERSITE=1
   unset PYTHONPATH
   unset PYTHONHOME
@@ -209,6 +220,15 @@ install_conda() {
 
   unset_conda_for_sure
 
+  # first check if the old miniconda folder exists, and if so, delete it
+  # This is because we have switched to using Miniforge instead of Miniconda.
+  if [ -n "${OLD_MINICONDA_ROOT:-}" ] && [ -d "$OLD_MINICONDA_ROOT" ]; then
+    echo "[INFO] Deleting deprecated Miniconda installation at $OLD_MINICONDA_ROOT"
+    rm -rf "$OLD_MINICONDA_ROOT"
+  else
+    echo "[INFO] No deprecated Miniconda installation found
+  fi
+
   # check if conda already exists:
   if ! command -v "${CONDA_BIN}" &> /dev/null; then
     echo "Conda is not installed at ${MINIFORGE_ROOT}."
@@ -242,9 +262,13 @@ install_conda() {
   fi
 
   # Enable conda in shell
-  eval "$(${CONDA_BIN} shell.bash hook)"
+  # eval "$(${CONDA_BIN} shell.bash hook)"
 
   check_conda
+  check_mamba
+
+  conda info
+  
   echo "🌕 Step 2: COMPLETE"
 }
 
