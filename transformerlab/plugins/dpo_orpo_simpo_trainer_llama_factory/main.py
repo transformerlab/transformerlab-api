@@ -119,9 +119,15 @@ def run_train():
         print("New configuration:")
         print(yml)
 
+    env = os.environ.copy()
+    env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
+
+    if "venv" in python_executable:
+        python_executable = python_executable.replace("venv/bin/python", "venv/bin/llamafactory-cli")
+
     # Train the model
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-    popen_command = [python_executable, "-m", "llamafactory-cli", "train", yaml_config_path]
+    popen_command = [python_executable, "train", yaml_config_path]
 
     print("Running command:")
     print(popen_command)
@@ -135,6 +141,7 @@ def run_train():
         bufsize=1,
         universal_newlines=True,
         cwd=os.path.join(plugin_dir, "LLaMA-Factory"),
+        env=env,
     ) as process:
         training_step_has_started = False
 
@@ -217,10 +224,10 @@ def fuse_model():
         print("Merge configuration:")
         print(yml)
 
-    fuse_popen_command = [python_executable, "-m", "llamafactory-cli", "export", yaml_config_path]
+    fuse_popen_command = [python_executable, "export", yaml_config_path]
 
     with subprocess.Popen(
-        fuse_popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True
+        fuse_popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True, env = env
     ) as process:
         for line in process.stdout:
             print(line, end="", flush=True)

@@ -72,11 +72,15 @@ def train_model():
     example = formatting_template.render(dataset["train"][1])
     print(example)
 
+    env = os.environ.copy()
+    env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
+
+    if "venv" in python_executable:
+        python_executable = python_executable.replace("venv/bin/python", "venv/bin/autotrain")
+
     # Prepare autotrain command
     popen_command = [
         python_executable,
-        "-m",
-        "autotrain",
         "llm",
         "--train",
         "--model",

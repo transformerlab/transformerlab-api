@@ -23,6 +23,9 @@ output_path = args.output_dir
 plugin_dir = os.path.realpath(os.path.dirname(__file__))
 python_executable = get_python_executable(plugin_dir)
 
+env = os.environ.copy()
+env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
+
 # Call MLX Convert function
 export_process = subprocess.run(
     [
@@ -40,4 +43,5 @@ export_process = subprocess.run(
     ],
     cwd=plugin_dir,
     capture_output=True,
+    env=env,
 )

@@ -100,6 +100,8 @@ def train_mlx_lora():
 
     # Get Python executable (from venv if available)
     python_executable = get_python_executable(plugin_dir)
+    env = os.environ.copy()
+    env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
 
     # Prepare the command for MLX LoRA training
     popen_command = [
@@ -141,7 +143,7 @@ def train_mlx_lora():
 
     # Run the MLX LoRA training process
     with subprocess.Popen(
-        popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True
+        popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True, env=env
     ) as process:
         for line in process.stdout:
             # Parse progress from output
@@ -216,7 +218,7 @@ def train_mlx_lora():
         ]
 
         with subprocess.Popen(
-            fuse_popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True
+            fuse_popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True, env=env
         ) as process:
             for line in process.stdout:
                 print(line, end="", flush=True)
