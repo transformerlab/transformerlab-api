@@ -4,6 +4,25 @@ import os
 import subprocess
 import sys
 
+
+def get_python_executable(plugin_dir):
+    """Check if a virtual environment exists and return the appropriate Python executable"""
+    # Check for virtual environment in the plugin directory
+    venv_path = os.path.join(plugin_dir, "venv")
+
+    if os.path.isdir(venv_path):
+        print("Virtual environment found, using it for evaluation...")
+        # Determine the correct path to the Python executable based on the platform
+        python_executable = os.path.join(venv_path, "bin", "python")
+
+        if os.path.exists(python_executable):
+            return python_executable
+
+    # Fall back to system Python if venv not found or executable doesn't exist
+    print("No virtual environment found, using system Python...")
+    return sys.executable
+
+
 # Get all arguments provided to this script using argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--model-path", type=str)
@@ -60,7 +79,13 @@ if "num_gpus" in parameters:
 # but we can also run it through FastChat's VLLM integration:
 # https://github.com/lm-sys/FastChat/blob/main/docs/vllm_integration.md
 
-popen_args = [sys.executable, "-m", "fastchat.serve.vllm_worker", "--model-path", model]
+# Get plugin directory
+real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
+
+# Get Python executable (from venv if available)
+python_executable = get_python_executable(real_plugin_dir)
+
+popen_args = [python_executable, "-m", "fastchat.serve.vllm_worker", "--model-path", model]
 
 # Add all parameters to the command
 for key, value in parameters.items():
