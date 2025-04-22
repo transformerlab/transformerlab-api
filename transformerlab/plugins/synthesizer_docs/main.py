@@ -9,6 +9,7 @@ from deepeval.synthesizer.config import ContextConstructionConfig
 from sentence_transformers import SentenceTransformer
 from sentence_transformers.util import mine_hard_negatives, paraphrase_mining
 from datasets import Dataset
+import sys
 
 from transformerlab.sdk.v1.generate import tlab_gen
 
@@ -97,7 +98,12 @@ def generation_from_docs(docs: list, model, embedding_model_name: str):
         tlab_gen.progress_update(20)
 
         # Initialize synthesizer and generate golden examples
-        synthesizer = Synthesizer(model=model)
+        # Set the plugin to use sync mode if on macOS
+        # as MLX doesn't support async mode currently
+        async_mode = True
+        if "local" in tlab_gen.params.get("generation_model", "").lower():
+            async_mode = sys.platform != "darwin"
+        synthesizer = Synthesizer(model=model, async_mode=async_mode)
         print("Synthesizer initialized successfully")
         tlab_gen.progress_update(30)
 

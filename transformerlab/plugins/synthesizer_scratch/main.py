@@ -1,7 +1,9 @@
 import json
+import sys
 
 from deepeval.synthesizer import Evolution, Synthesizer
 from deepeval.synthesizer.config import EvolutionConfig, StylingConfig
+
 
 from transformerlab.sdk.v1.generate import tlab_gen
 
@@ -45,7 +47,12 @@ def scratch_generation(model, styling_config: dict, evolution_config: dict = Non
             )
 
         # Initialize synthesizer
-        synthesizer = Synthesizer(styling_config=styling_config, model=model, evolution_config=evolution_config)
+        async_mode = True
+        if "local" in tlab_gen.params.get("generation_model", "").lower():
+            async_mode = sys.platform != "darwin"
+        synthesizer = Synthesizer(
+            styling_config=styling_config, model=model, evolution_config=evolution_config, async_mode=async_mode
+        )
         tlab_gen.progress_update(45)
         print("Synthesizer initialized successfully")
 
