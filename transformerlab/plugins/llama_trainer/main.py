@@ -23,15 +23,6 @@ jinja_environment = Environment()
 
 use_flash_attention = False
 
-# Add the new parameters
-# tlab_trainer.add_argument(
-#     "--run_sweeps", action="store_true", help="Run hyperparameter sweep instead of a single training job"
-# )
-# tlab_trainer.add_argument("--save_sweep_models", action="store_true", help="Save models for each sweep configuration")
-# tlab_trainer.add_argument(
-#     "--lower_is_better", action="store_true", help="Whether lower values are better for the sweep metric"
-# )
-
 
 def find_lora_target_modules(model, keyword="proj"):
     """

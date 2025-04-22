@@ -4,7 +4,7 @@
   "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.4.8",
+  "version": "0.4.9",
   "model_architectures": [
     "MLX",
     "CohereForCausalLM",
@@ -106,6 +106,11 @@
       "type": "boolean",
       "default": true,
       "required": true
+    },
+    "run_sweeps": {
+      "title": "Run Hyperparameter Sweep",
+      "type": "boolean",
+      "default": false
     }
   },
   "parameters_ui": {
@@ -138,6 +143,9 @@
     },
     "log_to_wandb": {
       "ui:help": "Log training to Weights and Biases. You must have a Weights and Biases account and API key to use this feature. You need to set the API Key in settings to use this feature."
+    },
+    "run_sweeps": {
+      "ui:help": "Run a hyperparameter sweep to find the best configuration before training the final model. This will take longer to run, but will help you find the best configuration for your model."
     }
   }
 }
