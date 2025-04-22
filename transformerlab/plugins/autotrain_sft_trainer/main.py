@@ -86,8 +86,13 @@ def train_function(**params):
     if not adaptor_output_dir or not os.path.exists(adaptor_output_dir):
         adaptor_output_dir = os.path.join(os.getcwd(), project_name)
 
+    env = os.environ.copy()
+    env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
+
     if "venv" in python_executable:
         python_executable = python_executable.replace("venv/bin/python", "venv/bin/autotrain")
+
+    
 
     # Prepare autotrain command
     popen_command = [
@@ -132,7 +137,7 @@ def train_function(**params):
 
     # Run the subprocess with output monitoring
     with subprocess.Popen(
-        popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True
+        popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True, env=env
     ) as process:
         iteration = 0
         it_per_sec = 0
