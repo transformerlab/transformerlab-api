@@ -4,6 +4,7 @@ import traceback
 import numpy as np
 import pandas as pd
 
+
 from transformerlab.sdk.v1.evals import tlab_evals
 
 # Import DeepEval dependencies
@@ -246,8 +247,13 @@ def run_evaluation():
     dataset = EvaluationDataset(test_cases)
 
     try:
+        # Set the plugin to use sync mode if on macOS
+        # as MLX doesn't support async mode currently
+        async_mode = True
+        if "local" in tlab_evals.params.get("generation_model", "").lower():
+            async_mode = sys.platform != "darwin"
         # Run the evaluation
-        output = evaluate(dataset, metrics_arr)
+        output = evaluate(dataset, metrics_arr, run_async=async_mode)
         tlab_evals.progress_update(80)
 
         # Process results
