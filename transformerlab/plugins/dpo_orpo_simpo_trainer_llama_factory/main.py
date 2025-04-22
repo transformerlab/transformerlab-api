@@ -10,6 +10,7 @@ CUDA_VISIBLE_DEVICES=0 llamafactory-cli train examples/train_lora/llama3_lora_re
 
 import os
 import subprocess
+import sys
 import time
 import json
 import yaml
@@ -18,11 +19,30 @@ import re
 from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import WORKSPACE_DIR
 
+
 ########################################
 # First set up arguments and parameters
 ########################################
+def get_python_executable(plugin_dir):
+    """Check if a virtual environment exists and return the appropriate Python executable"""
+    # Check for virtual environment in the plugin directory
+    venv_path = os.path.join(plugin_dir, "venv")
+
+    if os.path.isdir(venv_path):
+        print("Virtual environment found, using it for evaluation...")
+        # Determine the correct path to the Python executable based on the platform
+        python_executable = os.path.join(venv_path, "bin", "python")
+
+        if os.path.exists(python_executable):
+            return python_executable
+
+    # Fall back to system Python if venv not found or executable doesn't exist
+    print("No virtual environment found, using system Python...")
+    return sys.executable
+
 
 plugin_dir = os.path.dirname(os.path.realpath(__file__))
+python_executable = get_python_executable(plugin_dir)
 print("Plugin dir:", plugin_dir)
 
 
@@ -118,7 +138,7 @@ def run_train():
 
     # Train the model
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-    popen_command = ["llamafactory-cli", "train", yaml_config_path]
+    popen_command = [python_executable, "-m", "llamafactory-cli", "train", yaml_config_path]
 
     print("Running command:")
     print(popen_command)
@@ -214,7 +234,7 @@ def fuse_model():
         print("Merge configuration:")
         print(yml)
 
-    fuse_popen_command = ["llamafactory-cli", "export", yaml_config_path]
+    fuse_popen_command = [python_executable, "-m", "llamafactory-cli", "export", yaml_config_path]
 
     with subprocess.Popen(
         fuse_popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True

@@ -1,15 +1,34 @@
 import json
+import os
 import re
 import subprocess
-import os
+import sys
+
 from jinja2 import Environment
 
 # Import the TrainerTLabPlugin
 from transformerlab.sdk.v1.train import tlab_trainer
 
-
 # Setup Jinja environment
 jinja_environment = Environment()
+
+
+def get_python_executable(plugin_dir):
+    """Check if a virtual environment exists and return the appropriate Python executable"""
+    # Check for virtual environment in the plugin directory
+    venv_path = os.path.join(plugin_dir, "venv")
+
+    if os.path.isdir(venv_path):
+        print("Virtual environment found, using it for evaluation...")
+        # Determine the correct path to the Python executable based on the platform
+        python_executable = os.path.join(venv_path, "bin", "python")
+
+        if os.path.exists(python_executable):
+            return python_executable
+
+    # Fall back to system Python if venv not found or executable doesn't exist
+    print("No virtual environment found, using system Python...")
+    return sys.executable
 
 
 @tlab_trainer.job_wrapper(manual_logging=True)
@@ -29,6 +48,9 @@ def train_model():
 
     # Setup directories
     plugin_dir = os.path.dirname(os.path.realpath(__file__))
+    # Get Python executable (from venv if available)
+    python_executable = get_python_executable(plugin_dir)
+
     data_directory = os.path.join(plugin_dir, "data")
     if not os.path.exists(data_directory):
         os.makedirs(data_directory)
@@ -70,6 +92,8 @@ def train_model():
 
     # Prepare autotrain command
     popen_command = [
+        python_executable,
+        "-m",
         "autotrain",
         "llm",
         "--train",
