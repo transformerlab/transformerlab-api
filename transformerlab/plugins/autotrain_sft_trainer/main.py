@@ -2,48 +2,30 @@ import json
 import re
 import subprocess
 import os
-import sys
 import copy
 from jinja2 import Environment
 
 # Import the TrainerTLabPlugin
 from transformerlab.sdk.v1.train import tlab_trainer
+from transformerlab.plugin import get_python_executable
 
 
 # Setup Jinja environment
 jinja_environment = Environment()
 
 
-def get_python_executable(plugin_dir):
-    """Check if a virtual environment exists and return the appropriate Python executable"""
-    # Check for virtual environment in the plugin directory
-    venv_path = os.path.join(plugin_dir, "venv")
-
-    if os.path.isdir(venv_path):
-        print("Virtual environment found, using it for evaluation...")
-        # Determine the correct path to the Python executable based on the platform
-        python_executable = os.path.join(venv_path, "bin", "python")
-
-        if os.path.exists(python_executable):
-            return python_executable
-
-    # Fall back to system Python if venv not found or executable doesn't exist
-    print("No virtual environment found, using system Python...")
-    return sys.executable
-
-
 def train_function(**params):
     """Train model with given parameters and return metrics"""
     # Get parameters for training
     learning_rate = params.get("learning_rate", "2e-4")
-    batch_size = str(params.get("batch_size", 4))
-    num_train_epochs = str(params.get("num_train_epochs", 4))
+    batch_size = params.get("batch_size", 4)
+    num_train_epochs = params.get("num_train_epochs", 4)
     adaptor_name = params.get("adaptor_name", "default")
 
     # Add optional LoRA parameters if provided
-    lora_r = str(params.get("lora_r", 8))
-    lora_alpha = str(params.get("lora_alpha", 16))
-    lora_dropout = str(params.get("lora_dropout", 0.05))
+    lora_r = params.get("lora_r", 8)
+    lora_alpha = params.get("lora_alpha", 16)
+    lora_dropout = params.get("lora_dropout", 0.05)
 
     # Generate a model name using the original model and the passed adaptor
     model_name = params.get("model_name")
@@ -52,7 +34,7 @@ def train_function(**params):
 
     # For sweep runs, add run_id to project name
     if "run_id" in params:
-        project_name = f"{project_name}-{params['run_id']}"
+        project_name = f"{project_name}-{params['run_id'].replace('_', '-')}"
 
     # Setup directories
     plugin_dir = os.path.dirname(os.path.realpath(__file__))
@@ -69,15 +51,13 @@ def train_function(**params):
     dataset_types = ["train", "test"]
 
     # Use provided datasets if available, otherwise load them
-    datasets = params.get("datasets", None)
-    if not datasets:
-        try:
-            datasets = tlab_trainer.load_dataset(dataset_types=dataset_types)
-            dataset_types = datasets.keys()
-        except Exception as e:
-            raise e
-    else:
+    try:
+        # This handles all the complexities like missing splits, validation renaming, etc.
+        datasets = tlab_trainer.load_dataset(dataset_types=dataset_types)
         dataset_types = datasets.keys()
+    except Exception as e:
+        # The load_dataset method already handles error reporting to the job
+        raise e
 
     for dataset_type in dataset_types:
         print(f"Processing {dataset_type} dataset with {len(datasets[dataset_type])} examples.")
@@ -103,14 +83,15 @@ def train_function(**params):
 
     # Set output directory for the adaptor
     adaptor_output_dir = params.get("adaptor_output_dir", "")
-    if not adaptor_output_dir:
+    if not adaptor_output_dir or not os.path.exists(adaptor_output_dir):
         adaptor_output_dir = os.path.join(os.getcwd(), project_name)
+
+    if "venv" in python_executable:
+        python_executable = python_executable.replace("venv/bin/python", "venv/bin/autotrain")
 
     # Prepare autotrain command
     popen_command = [
         python_executable,
-        "-m",
-        "autotrain",
         "llm",
         "--train",
         "--model",
@@ -127,11 +108,11 @@ def train_function(**params):
         "sft",
         "--peft",
         "--lora_r",
-        lora_r,
+        str(lora_r),
         "--lora_alpha",
-        lora_alpha,
+        str(lora_alpha),
         "--lora_dropout",
-        lora_dropout,
+        str(lora_dropout),
         "--auto_find_batch_size",
         "--project-name",
         project_name,
@@ -265,7 +246,7 @@ def train_model():
     tlab_trainer.params.sweep_metric = "eval/loss"
     tlab_trainer.params.lower_is_better = True
 
-    if run_sweep is not None:
+    if True:
         # Run hyperparameter sweep
         sweep_results = tlab_trainer.run_sweep(train_function)
 
