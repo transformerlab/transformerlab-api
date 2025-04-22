@@ -1,5 +1,6 @@
 import traceback
 
+import sys
 from deepeval.synthesizer import Synthesizer
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
@@ -23,7 +24,10 @@ def context_generation(context: str, model, num_goldens: int):
     # Generate goldens from contexts
     print("Generating data from contexts...")
     try:
-        synthesizer = Synthesizer(model=model)
+        async_mode = True
+        if "local" in tlab_gen.params.get("generation_model", "").lower():
+            async_mode = sys.platform != "darwin"
+        synthesizer = Synthesizer(model=model, async_mode=async_mode)
         print("Synthesizer initialized successfully")
         tlab_gen.progress_update(30)
 
