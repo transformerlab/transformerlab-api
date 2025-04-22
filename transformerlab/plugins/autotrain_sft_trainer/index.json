@@ -4,7 +4,7 @@
   "description": "SFT training using Huggingface autotrain",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "model_architectures": [
     "LlamaForCausalLM",
     "MistralForCausalLM",
@@ -51,6 +51,11 @@
       "type": "boolean",
       "default": false,
       "required": true
+    },
+    "run_sweeps": {
+      "title": "Run Hyperparameter Sweep",
+      "type": "boolean",
+      "default": false
     }
   },
   "parameters_ui": {
@@ -62,6 +67,9 @@
     },
     "log_to_wandb": {
       "ui:help": "Log training to Weights and Biases. You must have a Weights and Biases account and API key to use this feature. You need to set the API Key in settings to use this feature."
+    },
+    "run_sweeps": {
+      "ui:help": "Run a hyperparameter sweep to find the best configuration before training the final model. This will take longer to run, but will help you find the best configuration for your model."
     }
   }
 }

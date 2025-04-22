@@ -251,7 +251,7 @@ def train_model():
     tlab_trainer.params.sweep_metric = "eval/loss"
     tlab_trainer.params.lower_is_better = True
 
-    if True:
+    if run_sweep:
         # Run hyperparameter sweep
         sweep_results = tlab_trainer.run_sweep(train_function)
 
