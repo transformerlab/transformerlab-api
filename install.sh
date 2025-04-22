@@ -226,7 +226,7 @@ install_conda() {
     echo "[INFO] Deleting deprecated Miniconda installation at $OLD_MINICONDA_ROOT"
     rm -rf "$OLD_MINICONDA_ROOT"
   else
-    echo "[INFO] No deprecated Miniconda installation found
+    echo "[INFO] No deprecated Miniconda installation found"
   fi
 
   # check if conda already exists:
