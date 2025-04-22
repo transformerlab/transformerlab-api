@@ -21,6 +21,23 @@ def get_detailed_file_names(output_file_path, prefix="samples_", suffix=".jsonl"
         print(f"An error occurred while getting the output file name: {e}")
         return []
 
+def get_python_executable(plugin_dir):
+    """Check if a virtual environment exists and return the appropriate Python executable"""
+    # Check for virtual environment in the plugin directory
+    venv_path = os.path.join(plugin_dir, "venv")
+    
+    if os.path.isdir(venv_path):
+        print("Virtual environment found, using it for evaluation...")
+        # Determine the correct path to the Python executable based on the platform
+        python_executable = os.path.join(venv_path, "bin", "python")
+        
+        if os.path.exists(python_executable):
+            return python_executable
+    
+    # Fall back to system Python if venv not found or executable doesn't exist
+    print("No virtual environment found, using system Python...")
+    return sys.executable
+
 
 @tlab_evals.job_wrapper()
 def run_evaluation():
@@ -52,6 +69,9 @@ def run_evaluation():
         # Get plugin directory
         plugin_dir = os.path.realpath(os.path.dirname(__file__))
 
+        # Get Python executable (from venv if available)
+        python_executable = get_python_executable(plugin_dir)
+
         # Prepare output directory for lm-eval
         output_path = tlab_evals.get_output_file_path(dir_only=True)
 
@@ -60,7 +80,9 @@ def run_evaluation():
 
         # Build command
         command = [
-            "lm-eval",
+            python_executable,
+            "-m"
+            "lm_eval",
             "--model",
             "mlx",
             "--model_args",
