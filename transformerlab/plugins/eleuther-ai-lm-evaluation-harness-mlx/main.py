@@ -84,7 +84,8 @@ def run_evaluation():
         # Build command
         command = [
             python_executable,
-            "-mlm_eval",
+            "-m",
+            "lm_eval",
             "--model",
             "mlx",
             "--model_args",
