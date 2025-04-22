@@ -171,7 +171,7 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
                         result = md.convert(newfilename)
                         # Save the converted file
                         newfilename = os.path.join(markitdown_dir, str(file_name).replace(file_ext, ".md"))
-                        print(f"Saving converted file to {markitdown_dir} as {newfilename}")
+                        print(f"Saving converted file to {markitdown_dir}")
 
                         async with aiofiles.open(newfilename, "w", encoding="utf-8") as out_file:
                             await out_file.write(result.markdown)
@@ -197,10 +197,9 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
                     # Save the converted file
                     newfilename = os.path.join(documents_dir, str(file_name).replace(file_ext, ".md"))
                     newfilename_md = os.path.join(markitdown_dir, str(file_name).replace(file_ext, ".md"))
-                    print(f"Saving converted file to {documents_dir} as {newfilename}")
                     async with aiofiles.open(newfilename, "w", encoding="utf-8") as out_file:
                         await out_file.write(result.markdown)
-                    print(f"Saving converted file to {markitdown_dir} as {newfilename_md}")
+                    print(f"Saving converted file to {markitdown_dir} as well")
                     async with aiofiles.open(newfilename_md, "w", encoding="utf-8") as out_file:
                         await out_file.write(result.markdown)
                     # Remove the temporary file
@@ -210,9 +209,9 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
                 print(f"Error converting file to .md format: {e}")
                 raise HTTPException(status_code=403, detail="There was a problem uploading the file")
 
-            # reindex the vector store on every file upload
-            if folder == "rag":
-                await rag.reindex(experimentId)
+        # reindex the vector store on every file upload
+        if folder == "rag":
+            await rag.reindex(experimentId)
 
     return {"status": "success", "filename": fileNames}
 

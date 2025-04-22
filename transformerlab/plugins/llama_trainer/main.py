@@ -10,6 +10,7 @@ from jinja2 import Environment
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, AutoConfig
 from trl import SFTConfig, SFTTrainer
+import torch.nn as nn
 
 
 from transformerlab.plugin import WORKSPACE_DIR
@@ -18,6 +19,20 @@ from transformerlab.sdk.v1.train import tlab_trainer
 use_flash_attention = False
 # Initialize Jinja environment
 jinja_environment = Environment()
+
+
+def find_lora_target_modules(model, keyword="proj"):
+    """
+    Returns all submodule names (e.g., 'q_proj') suitable for LoRA injection.
+    These can be passed directly to LoraConfig as `target_modules`.
+    """
+    module_names = set()
+    for name, module in model.named_modules():
+        if isinstance(module, nn.Linear) and keyword in name:
+            # Keep full relative module name, excluding the root prefix (e.g., "model.")
+            cleaned_name = ".".join(name.split('.')[1:]) if name.startswith("model.") else name
+            module_names.add(cleaned_name.split('.')[-1])  # Use just the relative layer name
+    return sorted(module_names)
 
 
 @tlab_trainer.job_wrapper()
@@ -52,19 +67,35 @@ def train_model():
 
     try:
         model = AutoModelForCausalLM.from_pretrained(
-            model_id,
-            quantization_config=bnb_config,
-            use_cache=False,
-            use_flash_attention_2=use_flash_attention,
-            device_map="auto",
-        )
+                model_id,
+                quantization_config=bnb_config,
+                use_cache=False,
+                use_flash_attention_2=use_flash_attention,
+                device_map="auto",
+                trust_remote_code=True,
+            )
+        lora_target_modules = find_lora_target_modules(model)
         model.config.pretraining_tp = 1
 
-        tokenizer = AutoTokenizer.from_pretrained(model_id)
+        tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
         tokenizer.pad_token = tokenizer.eos_token
         tokenizer.padding_side = "right"
 
         print(f"Model and tokenizer loaded successfully: {model_id}")
+    except TypeError:
+        model = AutoModelForCausalLM.from_pretrained(
+                model_id,
+                quantization_config=bnb_config,
+                use_flash_attention_2=use_flash_attention,
+                device_map="auto",
+                trust_remote_code=True,
+            )
+        lora_target_modules = find_lora_target_modules(model)
+        model.config.pretraining_tp = 1
+
+        tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
+        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.padding_side = "right"
     except Exception as e:
         print(f"Model loading error: {str(e)}")
         raise
@@ -84,7 +115,19 @@ def train_model():
 
     # Prepare model for training
     model = prepare_model_for_kbit_training(model)
-    model = get_peft_model(model, peft_config)
+    try:
+        model = get_peft_model(model, peft_config)
+    except ValueError as e:
+        print(f"PEFT model preparation error: {str(e)}")
+        peft_config = LoraConfig(
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
+            r=lora_r,
+            bias="none",
+            task_type="CAUSAL_LM",
+            target_modules=lora_target_modules,
+        )
+        model = get_peft_model(model, peft_config)
 
     # Get output directories - use direct attribute access
     output_dir = tlab_trainer.params.get("output_dir", "./output")
@@ -156,16 +199,27 @@ def train_model():
     if tlab_trainer.params.get("fuse_model", False):
         # Merge the model with the adaptor
         try:
-            model_config = AutoConfig.from_pretrained(model_id)
+            model_config = AutoConfig.from_pretrained(model_id, trust_remote_code=True)
             model_architecture = model_config.architectures[0]
             # Load the base model again
-            model = AutoModelForCausalLM.from_pretrained(
-                    model_id,
-                    quantization_config=bnb_config,
-                    use_cache=False,
-                    use_flash_attention_2=use_flash_attention,
-                    device_map="auto",
-                )
+            try:
+                model = AutoModelForCausalLM.from_pretrained(
+                        model_id,
+                        quantization_config=bnb_config,
+                        use_cache=False,
+                        use_flash_attention_2=use_flash_attention,
+                        device_map="auto",
+                        trust_remote_code=True,
+                    )
+            except TypeError:
+                model = AutoModelForCausalLM.from_pretrained(
+                        model_id,
+                        quantization_config=bnb_config,
+                        use_flash_attention_2=use_flash_attention,
+                        device_map="auto",
+                        trust_remote_code=True,
+                    )
+
             if "/" in model_id:
                 model_id = model_id.split("/")[-1]
             adaptor_name = tlab_trainer.params.get("adaptor_name", "default")

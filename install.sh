@@ -4,6 +4,7 @@ set -eu
 ENV_NAME="transformerlab"
 TLAB_DIR="$HOME/.transformerlab"
 TLAB_CODE_DIR="${TLAB_DIR}/src"
+TLAB_STATIC_WEB_DIR="${TLAB_DIR}/webapp"
 
 MINIFORGE_ROOT=${TLAB_DIR}/miniforge3
 CONDA_BIN=${MINIFORGE_ROOT}/bin/conda
@@ -150,7 +151,7 @@ download_transformer_lab() {
   LATEST_RELEASE_VERSION=$(curl -Ls -o /dev/null -w %{url_effective} https://github.com/transformerlab/transformerlab-api/releases/latest)
   LATEST_RELEASE_VERSION=$(basename "$LATEST_RELEASE_VERSION")
   LATEST_RELEASE_VERSION_WITHOUT_V=$(echo "$LATEST_RELEASE_VERSION" | sed 's/v//g')
-  echo "Latest Release on Github: $LATEST_RELEASE_VERSION"
+  echo "Latest Release of the API on Github: $LATEST_RELEASE_VERSION"
   TLAB_URL="https://github.com/transformerlab/transformerlab-api/archive/refs/tags/${LATEST_RELEASE_VERSION}.tar.gz"
   echo "Download Location: $TLAB_URL"
 
@@ -167,6 +168,34 @@ download_transformer_lab() {
   rm "${TLAB_DIR}/transformerlab.tar.gz"
   # Create a file called LATEST_VERSION that contains the latest version of Transformer Lab.
   echo "${LATEST_RELEASE_VERSION}" > "${TLAB_CODE_DIR}/LATEST_VERSION"
+
+  # Now do the same thing for the web app which is in a different repo called https://github.com/transformerlab/transformerlab-app
+  # Step 1: First get the latest release version:
+  TLAB_APP_URL="https://github.com/transformerlab/transformerlab-app/releases/latest/download/transformerlab_web.tar.gz"
+  echo "APP Download Location: $TLAB_APP_URL"
+
+  # Delete and recreate the target static files directory
+  echo "Creating clean directory at ${TLAB_STATIC_WEB_DIR}"
+  rm -rf "${TLAB_STATIC_WEB_DIR:?}" 2>/dev/null || true
+  mkdir -p "${TLAB_STATIC_WEB_DIR}"
+
+  # Download and extract, handling possible failure
+  if curl -L --fail "${TLAB_APP_URL}" -o /tmp/transformerlab_web.tar.gz; then
+    # Extraction succeeded, proceed with unpacking
+    tar -xzf /tmp/transformerlab_web.tar.gz -C "${TLAB_STATIC_WEB_DIR}"
+    
+    # Move contents up one level and clean up
+    mv "${TLAB_STATIC_WEB_DIR}/transformerlab_web/"* "${TLAB_STATIC_WEB_DIR}/" 2>/dev/null || true
+    rmdir "${TLAB_STATIC_WEB_DIR}/transformerlab_web" 2>/dev/null || true
+    
+    # Remove the temporary file
+    rm /tmp/transformerlab_web.tar.gz
+    
+    echo "Web app successfully installed."
+  else
+    echo "Warning: Could not download web app from ${TLAB_APP_URL}. Continuing without web app installation."
+  fi
+
   echo "🌕 Step 1: COMPLETE"
 }
 

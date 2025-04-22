@@ -155,7 +155,7 @@ async def get_evaluation_plugin_file_contents(experimentId: int, plugin_name: st
 @router.get("/run_evaluation_script")
 async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: str, job_id: str):
     job_config = (await db.job_get(job_id))["job_data"]
-    eval_config = job_config.get("config",{})
+    eval_config = job_config.get("config", {})
     print(eval_config)
     experiment_details = await db.experiment_get(id=experimentId)
 
@@ -168,7 +168,6 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
     if "model_name" in eval_config.keys():
         model_name = eval_config["model_name"]
 
-
     if config["foundation_filename"] is None or config["foundation_filename"].strip() == "":
         model_file_path = ""
     else:
@@ -180,7 +179,6 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
     model_adapter = config["adaptor"]
     if "adaptor_name" in eval_config.keys():
         model_adapter = eval_config["adaptor_name"]
-
 
     # @TODO: This whole thing can be re-written to use the shared function to run a plugin
 
@@ -199,7 +197,6 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
             experiment_details["config"]["evaluations"] = json.loads(experiment_details["config"]["evaluations"])
 
     template_config = eval_config["script_parameters"]
-    # print("GET OUTPUT JOB DATA", await get_job_output_file_name("2", plugin_name, eval_name, template_config))
     job_output_file = await get_job_output_file_name(job_id, plugin_name)
 
     input_contents = {"experiment": experiment_details, "config": template_config}
@@ -239,7 +236,17 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
         ]
     )
 
-    subprocess_command = [sys.executable, dirs.PLUGIN_HARNESS] + extra_args
+    # Check if plugin has a venv directory
+    venv_path = os.path.join(script_directory, "venv")
+    if os.path.exists(venv_path) and os.path.isdir(venv_path):
+        print(f">Plugin has virtual environment, activating venv from {venv_path}")
+        # Use bash to activate venv and then run the command
+        venv_python = os.path.join(venv_path, "bin", "python")
+        # Construct command that first activates venv then runs script
+        subprocess_command = [venv_python, dirs.PLUGIN_HARNESS] + extra_args
+    else:
+        print(">Using system Python interpreter")
+        subprocess_command = [sys.executable, dirs.PLUGIN_HARNESS] + extra_args
 
     print(f">Running {subprocess_command}")
 
@@ -254,12 +261,6 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
         with open(job_output_file, "r") as job_output:
             for line in job_output:
                 f.write(line)
-        # process = await asyncio.create_subprocess_exec(
-        #     *subprocess_command,
-        #     stdout=f,
-        #     stderr=subprocess.PIPE
-        # )
-        # await process.communicate()
 
 
 async def get_job_output_file_name(job_id: str, plugin_name: str):

@@ -1,15 +1,34 @@
 {
-  "name": "Llama SFT Trainer -- Huggingface TRL",
+  "name": "Huggingface TRL Trainer",
   "uniqueId": "llama_trainer",
   "description": "A training script adapted from https://www.philschmid.de/instruction-tune-llama-2 for training Llama2 using PeFT",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "1.0.19",
-  "model_architectures": ["LlamaForCausalLM", "Qwen2ForCausalLM"],
+  "version": "1.0.22",
+  "model_architectures": [
+    "LlamaForCausalLM",
+    "Qwen2ForCausalLM",
+    "GemmaForCausalLM",
+    "Gemma2ForCausalLM",
+    "Gemma3ForCausalLM",
+    "Gemma3ForConditionalGeneration",
+    "GraniteForCausalLM",
+    "AprielForCausalLM",
+    "ExaoneForCausalLM",
+    "PhiForCausalLM",
+    "Phi3ForCausalLM",
+    "MistralForCausalLM",
+    "MixtralForCausalLM"
+  ],
   "git": "",
   "url": "",
-  "files": ["main.py", "setup.sh"],
-  "supported_hardware_architectures": ["cuda"],
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
+  "supported_hardware_architectures": [
+    "cuda"
+  ],
   "setup-script": "setup.sh",
   "parameters": {
     "maximum_sequence_length": {
@@ -29,7 +48,12 @@
     "learning_rate_schedule": {
       "title": "Learning Rate Schedule",
       "type": "string",
-      "enum": ["constant", "linear", "cosine", "constant_with_warmup"],
+      "enum": [
+        "constant",
+        "linear",
+        "cosine",
+        "constant_with_warmup"
+      ],
       "default": "constant"
     },
     "learning_rate": {

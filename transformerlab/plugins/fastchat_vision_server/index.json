@@ -9,6 +9,11 @@
       "LlavaForConditionalGeneration",
       "Mistral3ForConditionalGeneration"
     ],
+    "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx"
+  ],
     "files": [
       "main.py",
       "setup.sh"

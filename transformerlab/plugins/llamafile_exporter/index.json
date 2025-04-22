@@ -6,6 +6,11 @@
   "type": "exporter",
   "version": "0.1.4",
   "model_architectures": ["GGUF"],
+  "supported_hardware_architectures": [
+    "cpu",
+    "cuda",
+    "mlx"
+  ],
   "export_architecture": "llamafile",
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",

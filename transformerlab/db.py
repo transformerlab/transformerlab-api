@@ -34,6 +34,10 @@ async def init():
     global db
     os.makedirs(os.path.dirname(DATABASE_FILE_NAME), exist_ok=True)
     db = await aiosqlite.connect(DATABASE_FILE_NAME)
+    await db.execute("PRAGMA journal_mode=WAL")
+    await db.execute("PRAGMA synchronous=normal")
+    await db.execute("PRAGMA busy_timeout = 5000")
+
 
     # Create the tables if they don't exist
     async with async_engine.begin() as conn:
@@ -53,6 +57,15 @@ async def init():
     # await init_sql_model()
 
     return
+
+
+def get_sync_db_connection():
+    global DATABASE_FILE_NAME
+    db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
+    db_sync.execute("PRAGMA journal_mode=WAL")
+    db_sync.execute("PRAGMA synchronous=normal")
+    db_sync.execute("PRAGMA busy_timeout = 5000")
+    return db_sync
 
 
 async def close():
@@ -247,29 +260,41 @@ def job_create_sync(type, status, job_data="{}", experiment_id=""):
     """
     Synchronous version of job_create function for use with XML-RPC.
     """
-    global DATABASE_FILE_NAME
-    # check if type is allowed
-    if type not in ALLOWED_JOB_TYPES:
-        raise ValueError(f"Job type {type} is not allowed")
+    db_sync = None
+    cursor = None
+    try:
+        global DATABASE_FILE_NAME
+        # check if type is allowed
+        if type not in ALLOWED_JOB_TYPES:
+            raise ValueError(f"Job type {type} is not allowed")
 
-    # Use SQLite directly in synchronous mode
-    conn = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
-    cursor = conn.cursor()
+        # Use SQLite directly in synchronous mode
+        db_sync = get_sync_db_connection()
 
-    # Execute insert
-    cursor.execute(
-        "INSERT INTO job(type, status, experiment_id, job_data) VALUES (?, ?, ?, json(?))",
-        (type, status, experiment_id, job_data),
-    )
+        cursor = db_sync.cursor()
 
-    # Get the row ID
-    row_id = cursor.lastrowid
+        # Execute insert
+        cursor.execute(
+            "INSERT INTO job(type, status, experiment_id, job_data) VALUES (?, ?, ?, json(?))",
+            (type, status, experiment_id, job_data),
+        )
 
-    # Commit and close
-    conn.commit()
-    conn.close()
+        # Get the row ID
+        row_id = cursor.lastrowid
 
-    return row_id
+        # Commit and close
+        db_sync.commit()
+        cursor.close()
+
+        return row_id
+    except Exception as e:
+        print("Error creating job: " + str(e))
+        return None
+    finally:
+        if cursor:
+            cursor.close()
+        if db_sync:
+            db_sync.close()
 
 
 async def jobs_get_all(type="", status=""):
@@ -396,13 +421,23 @@ async def job_update_status(job_id, status, error_msg=None):
 
 
 def job_update_status_sync(job_id, status, error_msg=None):
-    global DATABASE_FILE_NAME
-    db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
+    db_sync = None
+    cursor = None
+    try:
+        db_sync = get_sync_db_connection()
+        cursor = db_sync.cursor()
 
-    db_sync.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
-    db_sync.commit()
-    db_sync.close()
-    return
+        cursor.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
+        db_sync.commit()
+        return
+    except Exception as e:
+        print("Error updating job status: " + str(e))
+        return
+    finally:
+        if cursor:
+            cursor.close()
+        if db_sync:
+            db_sync.close()
 
 
 async def job_update(job_id, type, status):
@@ -418,29 +453,48 @@ def job_update_sync(job_id, status):
     # It is used by popen_and_call function
     # which can only support sychronous functions
     # This is a hack to get around that limitation
-    global DATABASE_FILE_NAME
-    db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
+    db_sync = None
+    cursor = None
+    try:
+        db_sync = get_sync_db_connection()
+        cursor = db_sync.cursor()
 
-    db_sync.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
-    db_sync.commit()
-    db_sync.close()
-    return
+        cursor.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
+        db_sync.commit()
+        return
+    except Exception as e:
+        print("Error updating job status: " + str(e))
+        return
+    finally:
+        if cursor:
+            cursor.close()
+        if db_sync:
+            db_sync.close()
 
 
 def job_mark_as_complete_if_running(job_id):
     # This synchronous update to jobs
     # only marks a job as "COMPLETE" if it is currenty "RUNNING"
     # This avoids updating "stopped" jobs and marking them as complete
-    global DATABASE_FILE_NAME
-    db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
-
-    db_sync.execute(
-        "UPDATE job SET status = 'COMPLETE', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'RUNNING'",
-        (job_id,),
-    )
-    db_sync.commit()
-    db_sync.close()
-    return
+    db_sync = None
+    cursor = None
+    try:
+        db_sync = get_sync_db_connection()
+        cursor = db_sync.cursor()
+        cursor.execute(
+            "UPDATE job SET status = 'COMPLETE', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'RUNNING'",
+            (job_id,),
+        )
+        db_sync.commit()
+        return
+    except Exception as e:
+        print("Error updating job status: " + str(e))
+        return
+    finally:
+        if cursor:
+            cursor.close()
+        if db_sync:
+            db_sync.close()
 
 
 async def job_delete_all():
@@ -816,6 +870,26 @@ async def workflows_get_all():
     return data
 
 
+async def workflows_get_from_experiment(experiment_id):
+    cursor = await db.execute("SELECT * FROM workflows WHERE experiment_id = ? AND status != 'DELETED' ORDER BY created_at desc",(experiment_id,))
+    rows = await cursor.fetchall()
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
+    await cursor.close()
+    return data
+
+
+async def workflow_run_get_all():
+    cursor = await db.execute("SELECT * FROM workflow_runs WHERE status != 'DELETED' ORDER BY created_at desc")
+    rows = await cursor.fetchall()
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
+    await cursor.close()
+    return data
+
+
 async def workflows_get_by_id(workflow_id):
     cursor = await db.execute("SELECT * FROM workflows WHERE id = ? ORDER BY created_at desc LIMIT 1", (workflow_id,))
     row = await cursor.fetchone()
@@ -828,29 +902,10 @@ async def workflows_get_by_id(workflow_id):
     return row
 
 
-async def workflow_delete_by_id(workflow_id):
-    print("Deleting workflow: " + workflow_id)
-    await db.execute("UPDATE workflows SET status = 'DELETED' WHERE id = ?", (workflow_id,))
-    await db.commit()
-    return
-
-
-async def workflow_delete_by_name(workflow_name):
-    print("Deleting workflow: " + workflow_name)
-    await db.execute("UPDATE workflows SET status = 'DELETED' WHERE name = ?", (workflow_name,))
-    await db.commit()
-    return
-
-
-async def workflow_count_running():
-    cursor = await db.execute("SELECT COUNT(*) FROM workflows WHERE status = 'RUNNING'")
-    row = await cursor.fetchone()
-    await cursor.close()
-    return row[0]
-
-
-async def workflow_get_running():
-    cursor = await db.execute("SELECT * FROM workflows WHERE status = 'RUNNING' LIMIT 1")
+async def workflow_run_get_by_id(workflow_run_id):
+    cursor = await db.execute(
+        "SELECT * FROM workflow_runs WHERE id = ? ORDER BY created_at desc LIMIT 1", (workflow_run_id,)
+    )
     row = await cursor.fetchone()
     if row is None:
         return None
@@ -861,22 +916,91 @@ async def workflow_get_running():
     return row
 
 
-async def workflow_update_status(workflow_id, status):
+async def workflow_delete_by_id(workflow_id):
+    print("Deleting workflow: " + workflow_id)
+    await db.execute("UPDATE workflows SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE id = ?", (workflow_id,))
+    await db.commit()
+    return
+
+
+async def workflow_delete_by_name(workflow_name):
+    print("Deleting workflow: " + workflow_name)
+    await db.execute("UPDATE workflows SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE name = ?", (workflow_name,))
+    await db.commit()
+    return
+
+
+async def workflow_count_running():
+    cursor = await db.execute("SELECT COUNT(*) FROM workflow_runs WHERE status = 'RUNNING'")
+    row = await cursor.fetchone()
+    await cursor.close()
+    return row[0]
+
+
+async def workflow_count_queued():
+    cursor = await db.execute("SELECT COUNT(*) FROM workflow_runs WHERE status = 'QUEUED'")
+    row = await cursor.fetchone()
+    await cursor.close()
+    return row[0]
+
+
+async def workflow_run_get_running():
+    cursor = await db.execute("SELECT * FROM workflow_runs WHERE status = 'RUNNING' LIMIT 1")
+    row = await cursor.fetchone()
+    if row is None:
+        return None
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    row = dict(itertools.zip_longest(column_names, row))
+    await cursor.close()
+    return row
+
+
+async def workflow_run_get_queued():
+    cursor = await db.execute("SELECT * FROM workflow_runs WHERE status = 'QUEUED' LIMIT 1")
+    row = await cursor.fetchone()
+    if row is None:
+        return None
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    row = dict(itertools.zip_longest(column_names, row))
+    await cursor.close()
+    return row
+
+
+async def workflow_run_update_status(workflow_run_id, status):
     await db.execute(
-        "UPDATE workflows SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, workflow_id)
+        "UPDATE workflow_runs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, workflow_run_id)
     )
     await db.commit()
     return
 
 
-async def workflow_update_with_new_job(workflow_id, current_task, current_job_id):
+async def workflow_run_update_with_new_job(workflow_run_id, current_task, current_job_id):
     await db.execute(
-        "UPDATE workflows SET current_task = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        (current_task, workflow_id),
+        "UPDATE workflow_runs SET current_tasks = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (current_task, workflow_run_id),
     )
     await db.execute(
-        "UPDATE workflows SET current_job_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        (current_job_id, workflow_id),
+        "UPDATE workflow_runs SET current_job_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (current_job_id, workflow_run_id),
+    )
+
+    current_workflow_run = await workflow_run_get_by_id(workflow_run_id)
+    current_workflow_run["job_ids"] = json.loads(current_workflow_run["job_ids"])
+    current_workflow_run["job_ids"] += json.loads(current_job_id)
+    current_workflow_run["job_ids"] = json.dumps(current_workflow_run["job_ids"])
+    current_workflow_run["node_ids"] = json.loads(current_workflow_run["node_ids"])
+    current_workflow_run["node_ids"] += json.loads(current_task)
+    current_workflow_run["node_ids"] = json.dumps(current_workflow_run["node_ids"])
+
+    await db.execute(
+        "UPDATE workflow_runs SET node_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (current_workflow_run["node_ids"], workflow_run_id),
+    )
+    await db.execute(
+        "UPDATE workflow_runs SET job_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (current_workflow_run["job_ids"], workflow_run_id),
     )
     await db.commit()
     return
@@ -885,8 +1009,8 @@ async def workflow_update_with_new_job(workflow_id, current_task, current_job_id
 async def workflow_create(name, config, experiment_id):
     # check if type is allowed
     row = await db.execute_insert(
-        "INSERT INTO workflows(name, config, status, current_task, current_job_id, experiment_id) VALUES (?, json(?), ?, json(?), json(?), ?)",
-        (name, config, "CREATED", "[]", "[]", experiment_id),
+        "INSERT INTO workflows(name, config, status, experiment_id) VALUES (?, json(?), ?, ?)",
+        (name, config, "CREATED", experiment_id),
     )
     await db.commit()
     return row[0]
@@ -898,10 +1022,26 @@ async def workflow_update_config(workflow_id, config):
     )
     await db.commit()
 
+async def workflow_update_name(workflow_id, name):
+    await db.execute(
+        "UPDATE workflows SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (name, workflow_id)
+    )
+    await db.commit()
+
 
 async def workflow_delete_all():
     await db.execute("DELETE FROM workflows")
     await db.commit()
+
+
+async def workflow_runs_delete_all():
+    await db.execute("DELETE FROM workflow_runs")
+    await db.commit()
+
+
+async def workflow_queue(workflow_id):
+    workflow_name = (await workflows_get_by_id(workflow_id))["name"]
+    await db.execute("INSERT INTO workflow_runs(workflow_id, workflow_name, job_ids, node_ids, status, current_tasks, current_job_ids) VALUES (?, ?, ?, ?, ?, ?, ?)", (workflow_id, workflow_name, "[]", "[]","QUEUED", "[]","[]"))
 
 
 ###############

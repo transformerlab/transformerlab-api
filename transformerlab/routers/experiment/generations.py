@@ -161,7 +161,7 @@ async def get_generation_plugin_file_contents(experimentId: int, plugin_name: st
 @router.get("/run_generation_script")
 async def run_generation_script(experimentId: int, plugin_name: str, generation_name: str, job_id: str):
     job_config = (await db.job_get(job_id))["job_data"]
-    generation_config = job_config.get("config",{})
+    generation_config = job_config.get("config", {})
     print(generation_config)
     plugin_name = secure_filename(plugin_name)
     generation_name = secure_filename(generation_name)
@@ -223,8 +223,6 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
         extra_args.append("--" + key)
         extra_args.append(template_config[key])
 
-    # print(template_config)
-
     extra_args.extend(
         [
             "--experiment_name",
@@ -246,7 +244,17 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
         ]
     )
 
-    subprocess_command = [sys.executable, dirs.PLUGIN_HARNESS] + extra_args
+    # Check if plugin has a venv directory
+    venv_path = os.path.join(script_directory, "venv")
+    if os.path.exists(venv_path) and os.path.isdir(venv_path):
+        print(f">Plugin has virtual environment, activating venv from {venv_path}")
+        # Use bash to activate venv and then run the command
+        venv_python = os.path.join(venv_path, "bin", "python")
+        # Construct command that first activates venv then runs script
+        subprocess_command = [venv_python, dirs.PLUGIN_HARNESS] + extra_args
+    else:
+        print(">Using system Python interpreter")
+        subprocess_command = [sys.executable, dirs.PLUGIN_HARNESS] + extra_args
 
     print(f">Running {subprocess_command}")
 
@@ -261,12 +269,6 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
         with open(job_output_file, "r") as job_output:
             for line in job_output:
                 f.write(line)
-        # process = await asyncio.create_subprocess_exec(
-        #     *subprocess_command,
-        #     stdout=f,
-        #     stderr=subprocess.PIPE
-        # )
-        # await process.communicate()
 
 
 async def get_job_output_file_name(job_id: str, plugin_name: str):
