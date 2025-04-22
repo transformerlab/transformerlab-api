@@ -8,7 +8,6 @@ import json
 import yaml
 import re
 import subprocess
-import sys
 import os
 from jinja2 import Environment
 
