@@ -66,9 +66,9 @@ warn() {
 
 title() {
   echo ""
-  printf "${tty_blue}#########################################################################${tty_reset}\n"
+  printf "%s#########################################################################%s\n" "${tty_blue}" "${tty_reset}"
   printf "${tty_blue}#### ${tty_bold} %s${tty_reset}\n" "$(shell_join "$@")"
-  printf "${tty_blue}#########################################################################${tty_reset}\n"
+  printf "%s#########################################################################%s\n" "${tty_blue}" "${tty_reset}"
 }
 
 check_conda() {
@@ -138,7 +138,7 @@ else
 fi
 
 # Stack Overflow says the best way to check for WSL is looking for Microsoft in the uname kernel
-if [[ -n $(echo ${KERNEL} | sed -n 's/.*\( *Microsoft *\).*/\1/ip') ]]; then
+if [[ -n $(echo "${KERNEL}" | sed -n 's/.*\( *Microsoft *\).*/\1/ip') ]]; then
   TLAB_ON_WSL=1
 fi
 
@@ -172,7 +172,7 @@ download_transformer_lab() {
   mkdir -p "${TLAB_DIR}"
   curl -L "${TLAB_URL}" -o "${TLAB_DIR}/transformerlab.tar.gz"
   NEW_DIRECTORY_NAME="transformerlab-api-${LATEST_RELEASE_VERSION_WITHOUT_V}"
-  rm -rf "${TLAB_DIR}/${NEW_DIRECTORY_NAME}"
+  rm -rf "${TLAB_DIR:?}/${NEW_DIRECTORY_NAME:?}"
   rm -rf "${TLAB_CODE_DIR}"
   tar -xf "${TLAB_DIR}/transformerlab.tar.gz" -C "${TLAB_DIR}"
   mv "${TLAB_DIR}/${NEW_DIRECTORY_NAME}" "${TLAB_CODE_DIR}"
@@ -347,7 +347,7 @@ install_dependencies() {
 
       echo "Installing requirements:"
       # Install the python requirements
-      if ! ls "$TLAB_CODE_DIR" | grep requirements-uv.txt; then
+      if ! [ -e "$TLAB_CODE_DIR/requirements-uv.txt" ]; then
         cp "$RUN_DIR"/requirements-uv.txt "$TLAB_CODE_DIR"/requirements-uv.txt
       fi
       uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-uv.txt
@@ -363,7 +363,7 @@ install_dependencies() {
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
       echo "Installing Tranformer Lab requirements without GPU support"
 
-      if ! ls "$TLAB_CODE_DIR" | grep requirements-uv.txt; then
+      if ! [ -e "$TLAB_CODE_DIR/requirements-uv.txt" ]; then
         cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
       fi
       uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
@@ -385,7 +385,7 @@ install_dependencies() {
 list_installed_packages() {
   unset_conda_for_sure
   eval "$(${CONDA_BIN} shell.bash hook)"
-  conda activate ${ENV_DIR}
+  conda activate "${ENV_DIR}"
   pip list --format json
 }
 
