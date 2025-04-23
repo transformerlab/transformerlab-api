@@ -6,8 +6,10 @@ TLAB_DIR="$HOME/.transformerlab"
 TLAB_CODE_DIR="${TLAB_DIR}/src"
 TLAB_STATIC_WEB_DIR="${TLAB_DIR}/webapp"
 
-MINICONDA_ROOT=${TLAB_DIR}/miniconda3
-CONDA_BIN=${MINICONDA_ROOT}/bin/conda
+OLD_MINICONDA_ROOT=${TLAB_DIR}/miniconda3 # old place -- used to detect if an old install exists
+MINIFORGE_ROOT=${TLAB_DIR}/miniforge3
+CONDA_BIN=${MINIFORGE_ROOT}/bin/conda
+MAMBA_BIN=${MINIFORGE_ROOT}/bin/mamba
 ENV_DIR=${TLAB_DIR}/envs/${ENV_NAME}
 RUN_DIR=$(pwd)
 
@@ -64,16 +66,24 @@ warn() {
 
 title() {
   echo ""
-  printf "${tty_blue}#########################################################################${tty_reset}\n"
+  printf "%s#########################################################################%s\n" "${tty_blue}" "${tty_reset}"
   printf "${tty_blue}#### ${tty_bold} %s${tty_reset}\n" "$(shell_join "$@")"
-  printf "${tty_blue}#########################################################################${tty_reset}\n"
+  printf "%s#########################################################################%s\n" "${tty_blue}" "${tty_reset}"
 }
 
 check_conda() {
   if ! command -v "${CONDA_BIN}" &> /dev/null; then
-    abort "❌ Conda is not installed at ${MINICONDA_ROOT}. Please install Conda using '${TLAB_DIR}/src/install.sh install_conda' and try again."
+    abort "❌ Conda is not installed at ${MINIFORGE_ROOT}. Please install Conda using '${TLAB_DIR}/src/install.sh install_conda' and try again."
   else
-    ohai "✅ Conda is installed at ${MINICONDA_ROOT}."
+    ohai "✅ Conda is installed at ${MINIFORGE_ROOT}."
+  fi
+}
+
+check_mamba() {
+  if ! command -v "${MAMBA_BIN}" &> /dev/null; then
+    abort "❌ Mamba is not installed at ${MINIFORGE_ROOT}. Please install Mamba using '${TLAB_DIR}/src/install.sh install_conda' and try again."
+  else
+    ohai "✅ Mamba is installed at ${MINIFORGE_ROOT}."
   fi
 }
 
@@ -89,6 +99,7 @@ check_python() {
 
 unset_conda_for_sure() {
   { conda deactivate && conda deactivate && conda deactivate; } 2> /dev/null
+  { mamba deactivate && mamba deactivate && mamba deactivate; } 2> /dev/null
   export PYTHONNOUSERSITE=1
   unset PYTHONPATH
   unset PYTHONHOME
@@ -127,7 +138,7 @@ else
 fi
 
 # Stack Overflow says the best way to check for WSL is looking for Microsoft in the uname kernel
-if [[ -n $(echo ${KERNEL} | sed -n 's/.*\( *Microsoft *\).*/\1/ip') ]]; then
+if [[ -n $(echo "${KERNEL}" | sed -n 's/.*\( *Microsoft *\).*/\1/ip') ]]; then
   TLAB_ON_WSL=1
 fi
 
@@ -161,7 +172,7 @@ download_transformer_lab() {
   mkdir -p "${TLAB_DIR}"
   curl -L "${TLAB_URL}" -o "${TLAB_DIR}/transformerlab.tar.gz"
   NEW_DIRECTORY_NAME="transformerlab-api-${LATEST_RELEASE_VERSION_WITHOUT_V}"
-  rm -rf "${TLAB_DIR}/${NEW_DIRECTORY_NAME}"
+  rm -rf "${TLAB_DIR:?}/${NEW_DIRECTORY_NAME:?}"
   rm -rf "${TLAB_CODE_DIR}"
   tar -xf "${TLAB_DIR}/transformerlab.tar.gz" -C "${TLAB_DIR}"
   mv "${TLAB_DIR}/${NEW_DIRECTORY_NAME}" "${TLAB_CODE_DIR}"
@@ -209,9 +220,18 @@ install_conda() {
 
   unset_conda_for_sure
 
+  # first check if the old miniconda folder exists, and if so, delete it
+  # This is because we have switched to using Miniforge instead of Miniconda.
+  if [ -n "${OLD_MINICONDA_ROOT:-}" ] && [ -d "$OLD_MINICONDA_ROOT" ]; then
+    echo "[INFO] Deleting deprecated Miniconda installation at $OLD_MINICONDA_ROOT"
+    rm -rf "$OLD_MINICONDA_ROOT"
+  else
+    echo "[INFO] No deprecated Miniconda installation found"
+  fi
+
   # check if conda already exists:
   if ! command -v "${CONDA_BIN}" &> /dev/null; then
-    echo "Conda is not installed at ${MINICONDA_ROOT}."
+    echo "Conda is not installed at ${MINIFORGE_ROOT}."
     OS=$(uname -s)
     ARCH=$(uname -m)
 
@@ -219,32 +239,36 @@ install_conda() {
         OS="MacOSX"
     fi
 
-    MINICONDA_URL="https://repo.anaconda.com/miniconda/Miniconda3-latest-$OS-$ARCH.sh"
-    echo Downloading "$MINICONDA_URL"
+    MINIFORGE_URL="https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$OS-$ARCH.sh"
+    echo Downloading "$MINIFORGE_URL"
 
     # Change the directory to the Transformer Lab directory
     mkdir -p "$TLAB_DIR"
     cd "$TLAB_DIR"
-    # first check if the MINICONDAROOT exists, and if so, delete it:
-    if [ -d "$MINICONDA_ROOT" ]; then
-      echo "Deleting existing Miniconda installation at $MINICONDA_ROOT"
-      rm -rf "$MINICONDA_ROOT"
+    # first check if the MINIFORGEROOT exists, and if so, delete it:
+    if [ -d "$MINIFORGE_ROOT" ]; then
+      echo "Deleting existing Miniforge installation at $MINIFORGE_ROOT"
+      rm -rf "$MINIFORGE_ROOT"
     fi
-    curl -o miniconda_installer.sh "$MINICONDA_URL" && bash miniconda_installer.sh -b -p "$MINICONDA_ROOT" && rm miniconda_installer.sh
+    curl -L -o miniforge_installer.sh "$MINIFORGE_URL" && bash miniforge_installer.sh -b -p "$MINIFORGE_ROOT" && rm miniforge_installer.sh
     # Install conda to bash and zsh. We keep these commented out
     # to avoid adding our conda to the user's shell as the default.
-    # $MINICONDA_ROOT/bin/conda init bash
+    # $MINIFORGE_ROOT/bin/conda init bash
     # if [ -n "$(command -v zsh)" ]; then
-    #     $MINICONDA_ROOT/bin/conda init zsh
+    #     $MINIFORGE_ROOT/bin/conda init zsh
     # fi
   else
-      ohai "Conda is installed at ${MINICONDA_ROOT}, we do not need to install it"
+      ohai "Conda is installed at ${MINIFORGE_ROOT}, we do not need to install it"
   fi
 
   # Enable conda in shell
   eval "$(${CONDA_BIN} shell.bash hook)"
 
   check_conda
+  check_mamba
+
+  conda info
+  
   echo "🌕 Step 2: COMPLETE"
 }
 
@@ -270,8 +294,8 @@ create_conda_environment() {
   if { conda env list | grep "$ENV_DIR"; } >/dev/null 2>&1; then
       echo "✅ Conda environment $ENV_DIR already exists."
   else
-      echo conda create -y -n "$ENV_DIR" python=3.11
-      conda create -y -k --prefix "$ENV_DIR" python=3.11
+      echo mamba create -y -n "$ENV_DIR" python=3.11
+      mamba create -y -k --prefix "$ENV_DIR" python=3.11
   fi
 
   # Activate the newly created environment
@@ -323,7 +347,7 @@ install_dependencies() {
 
       echo "Installing requirements:"
       # Install the python requirements
-      if ! ls "$TLAB_CODE_DIR" | grep requirements-uv.txt; then
+      if ! [ -e "$TLAB_CODE_DIR/requirements-uv.txt" ]; then
         cp "$RUN_DIR"/requirements-uv.txt "$TLAB_CODE_DIR"/requirements-uv.txt
       fi
       uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-uv.txt
@@ -339,7 +363,7 @@ install_dependencies() {
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
       echo "Installing Tranformer Lab requirements without GPU support"
 
-      if ! ls "$TLAB_CODE_DIR" | grep requirements-uv.txt; then
+      if ! [ -e "$TLAB_CODE_DIR/requirements-uv.txt" ]; then
         cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
       fi
       uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
@@ -361,7 +385,7 @@ install_dependencies() {
 list_installed_packages() {
   unset_conda_for_sure
   eval "$(${CONDA_BIN} shell.bash hook)"
-  conda activate ${ENV_DIR}
+  conda activate "${ENV_DIR}"
   pip list --format json
 }
 
@@ -383,7 +407,7 @@ doctor() {
     echo "Your conda version is: $(${CONDA_BIN} --version)" || echo "Issue with conda"
     echo "Conda is seen in path at at: $(which conda)" || echo "Conda is not in your path"
   else
-    echo "Conda is not installed at ${MINICONDA_ROOT}. Please install Conda using '${TLAB_DIR}/src/install.sh install_conda' and try again."
+    echo "Conda is not installed at ${MINIFORGE_ROOT}. Please install Conda using '${TLAB_DIR}/src/install.sh install_conda' and try again."
   fi
   if command -v nvidia-smi &> /dev/null; then
     echo "Your nvidia-smi version is: $(nvidia-smi --version)"
