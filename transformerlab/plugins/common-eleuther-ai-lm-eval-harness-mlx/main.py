@@ -1,11 +1,13 @@
 import os
 import re
 import subprocess
-import pandas as pd
-import torch
 import traceback
 
+import pandas as pd
+import torch
+
 from transformerlab.sdk.v1.evals import tlab_evals
+from transformerlab.plugin import get_python_executable
 
 
 def get_detailed_file_names(output_file_path, prefix="samples_", suffix=".jsonl"):
@@ -52,6 +54,9 @@ def run_evaluation():
         # Get plugin directory
         plugin_dir = os.path.realpath(os.path.dirname(__file__))
 
+        # Get Python executable (from venv if available)
+        python_executable = get_python_executable(plugin_dir)
+
         # Prepare output directory for lm-eval
         output_path = tlab_evals.get_output_file_path(dir_only=True)
 
@@ -60,7 +65,9 @@ def run_evaluation():
 
         # Build command
         command = [
-            "lm-eval",
+            python_executable,
+            "-m",
+            "lm_eval",
             "--model",
             "mlx",
             "--model_args",

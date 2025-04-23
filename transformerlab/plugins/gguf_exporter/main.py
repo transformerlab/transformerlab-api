@@ -1,10 +1,15 @@
 # This plugin exports a model to GGUF format so you can interact and train on a MBP with Apple Silicon
 import os
 import subprocess
-import sys
 import argparse
 
 from huggingface_hub import snapshot_download
+
+try:
+    from transformerlab.plugin import get_python_executable
+except ImportError:
+    from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
+
 
 # Get all arguments provided to this script using argparse
 parser = argparse.ArgumentParser(description="Convert a model to GGUF format.")
@@ -26,6 +31,7 @@ output_path = os.path.join(args.output_dir, output_filename)
 
 # Directory to run conversion subprocess
 plugin_dir = os.path.realpath(os.path.dirname(__file__))
+python_executable = get_python_executable(plugin_dir)
 
 # The model _should_ be available locally
 # but call hugging_face anyways so we get the proper path to it
@@ -44,7 +50,7 @@ if not os.path.exists(model_path):
 
 # TODO: This default quantizes to 8-bit. Need to read that in as a parameter.
 subprocess_cmd = [
-    sys.executable,
+    python_executable,
     os.path.join(plugin_dir, "llama.cpp", "convert_hf_to_gguf.py"),
     "--outfile",
     output_path,

@@ -16,11 +16,13 @@ import yaml
 import re
 
 from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import WORKSPACE_DIR
+from transformerlab.plugin import WORKSPACE_DIR, get_python_executable
+
 
 ########################################
 # First set up arguments and parameters
 ########################################
+
 
 plugin_dir = os.path.dirname(os.path.realpath(__file__))
 print("Plugin dir:", plugin_dir)
@@ -116,9 +118,16 @@ def run_train():
         print("New configuration:")
         print(yml)
 
+    env = os.environ.copy()
+    python_executable = get_python_executable(plugin_dir)
+    env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
+
+    if "venv" in python_executable:
+        python_executable = python_executable.replace("venv/bin/python", "venv/bin/llamafactory-cli")
+
     # Train the model
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-    popen_command = ["llamafactory-cli", "train", yaml_config_path]
+    popen_command = [python_executable, "train", yaml_config_path]
 
     print("Running command:")
     print(popen_command)
@@ -132,6 +141,7 @@ def run_train():
         bufsize=1,
         universal_newlines=True,
         cwd=os.path.join(plugin_dir, "LLaMA-Factory"),
+        env=env,
     ) as process:
         training_step_has_started = False
 
@@ -214,10 +224,22 @@ def fuse_model():
         print("Merge configuration:")
         print(yml)
 
-    fuse_popen_command = ["llamafactory-cli", "export", yaml_config_path]
+    env = os.environ.copy()
+    python_executable = get_python_executable(plugin_dir)
+    env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
+
+    if "venv" in python_executable:
+        python_executable = python_executable.replace("venv/bin/python", "venv/bin/llamafactory-cli")
+
+    fuse_popen_command = [python_executable, "export", yaml_config_path]
 
     with subprocess.Popen(
-        fuse_popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True
+        fuse_popen_command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        bufsize=1,
+        universal_newlines=True,
+        env=env,
     ) as process:
         for line in process.stdout:
             print(line, end="", flush=True)

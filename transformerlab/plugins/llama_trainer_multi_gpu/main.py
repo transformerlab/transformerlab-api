@@ -5,7 +5,7 @@ from random import randrange
 import torch.nn as nn
 
 from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import WORKSPACE_DIR
+from transformerlab.plugin import WORKSPACE_DIR, get_python_executable
 
 
 # Add custom arguments
@@ -30,8 +30,11 @@ def find_lora_target_modules(model, keyword="proj"):
 def setup_accelerate_environment():
     """Set up the environment for the accelerate launch subprocess"""
     current_dir = os.path.dirname(os.path.abspath(__file__))
+    plugin_dir = os.path.dirname(os.path.realpath(__file__))
     api_dir = os.path.abspath(os.path.join(current_dir, "../../.."))
     env = os.environ.copy()
+    python_executable = get_python_executable(plugin_dir)
+    env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
     tlab_source_dir = os.environ.get("_TFL_SOURCE_CODE_DIR")
     python_path = env.get("PYTHONPATH", "")
     paths_to_include = [api_dir]

@@ -4,6 +4,12 @@ import os
 import subprocess
 import sys
 
+try:
+    from transformerlab.plugin import get_python_executable
+except ImportError:
+    from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
+
+
 # Get all arguments provided to this script using argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--model-path", type=str)
@@ -60,7 +66,13 @@ if "num_gpus" in parameters:
 # but we can also run it through FastChat's VLLM integration:
 # https://github.com/lm-sys/FastChat/blob/main/docs/vllm_integration.md
 
-popen_args = [sys.executable, "-m", "fastchat.serve.vllm_worker", "--model-path", model]
+# Get plugin directory
+real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
+
+# Get Python executable (from venv if available)
+python_executable = get_python_executable(real_plugin_dir)
+
+popen_args = [python_executable, "-m", "fastchat.serve.vllm_worker", "--model-path", model]
 
 # Add all parameters to the command
 for key, value in parameters.items():
