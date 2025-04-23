@@ -38,8 +38,7 @@ You can use the install script to get the application running:
 ./install.sh
 ```
 
-This will install [conda](https://github.com/conda-forge/miniforge) if it's not installed, and then use conda and pip to
-install the rest of the application requirements.
+This will install [mamba](https://mamba.readthedocs.io/en/latest/user_guide/mamba.html#mamba) if it's not installed, and then use `conda` and `uv pip` to install the rest of the application requirements. (The installer only uses mamba/conda to install Python and CUDA drivers, all Python dependencies are installed using `uv`)
 
 # Manual Installation
 
