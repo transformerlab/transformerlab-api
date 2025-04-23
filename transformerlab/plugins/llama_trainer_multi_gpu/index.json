@@ -22,7 +22,7 @@
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
-  "sweeps": true,
+  "supports": ["sweeps"],
   "supported_hardware_architectures": ["cuda"],
   "setup-script": "setup.sh",
   "parameters": {

@@ -29,7 +29,7 @@
   "supported_hardware_architectures": [
     "cuda"
   ],
-  "sweeps": true,
+  "supports": ["sweeps"],
   "setup-script": "setup.sh",
   "parameters": {
     "maximum_sequence_length": {
