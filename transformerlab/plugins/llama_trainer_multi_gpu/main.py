@@ -34,6 +34,7 @@ def setup_accelerate_environment():
     python_executable = get_python_executable(plugin_dir)
     api_dir = os.path.abspath(os.path.join(current_dir, "../../.."))
     env = os.environ.copy()
+
     env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
     tlab_source_dir = os.environ.get("_TFL_SOURCE_CODE_DIR")
     python_path = env.get("PYTHONPATH", "")

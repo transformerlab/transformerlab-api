@@ -8,7 +8,6 @@ import json
 import yaml
 import re
 import subprocess
-import sys
 import os
 import copy
 from jinja2 import Environment
@@ -16,6 +15,8 @@ from jinja2 import Environment
 # Import tlab_trainer from the SDK
 from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import WORKSPACE_DIR
+
+from transformerlab.plugin import get_python_executable
 
 
 def get_python_executable(plugin_dir):
@@ -117,6 +118,11 @@ def train_function(**params):
     if not os.path.exists(adaptor_output_dir):
         os.makedirs(adaptor_output_dir)
 
+    # Get Python executable (from venv if available)
+    python_executable = get_python_executable(plugin_dir)
+    env = os.environ.copy()
+    env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
+
     # Prepare the command for MLX LoRA training
     popen_command = [
         python_executable,
@@ -160,7 +166,7 @@ def train_function(**params):
 
     # Run the MLX LoRA training process
     with subprocess.Popen(
-        popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True
+        popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True, env=env
     ) as process:
         for line in process.stdout:
             # Parse progress from output
@@ -243,7 +249,7 @@ def train_function(**params):
         ]
 
         with subprocess.Popen(
-            fuse_popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True
+            fuse_popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True, env=env
         ) as process:
             for line in process.stdout:
                 print(line, end="", flush=True)

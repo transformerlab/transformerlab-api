@@ -1,14 +1,13 @@
 import json
+import os
 import re
 import subprocess
-import os
 import copy
 from jinja2 import Environment
 
 # Import the TrainerTLabPlugin
 from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import get_python_executable
-
 
 # Setup Jinja environment
 jinja_environment = Environment()
@@ -39,6 +38,7 @@ def train_function(**params):
     # Setup directories
     plugin_dir = os.path.dirname(os.path.realpath(__file__))
     python_executable = get_python_executable(plugin_dir)
+
     data_directory = os.path.join(plugin_dir, "data")
 
     if not os.path.exists(data_directory):
@@ -81,6 +81,7 @@ def train_function(**params):
     example = formatting_template.render(datasets["train"][1])
     print(example)
 
+
     # Set output directory for the adaptor
     adaptor_output_dir = params.get("adaptor_output_dir", "")
     if not adaptor_output_dir or not os.path.exists(adaptor_output_dir):
@@ -91,8 +92,6 @@ def train_function(**params):
 
     if "venv" in python_executable:
         python_executable = python_executable.replace("venv/bin/python", "venv/bin/autotrain")
-
-    
 
     # Prepare autotrain command
     popen_command = [

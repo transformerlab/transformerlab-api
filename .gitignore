@@ -172,7 +172,8 @@ logs/
 # AWS configuration
 scripts/aws/aws.conf
 
-# Models Saved by RPC
+
+# Saved remote models
 scripts/xml-rpc-client-example/output
 
 # DeepEval Cache
