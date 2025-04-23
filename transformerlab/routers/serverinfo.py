@@ -150,7 +150,7 @@ async def get_computer_information():
 
             # check if device_name is a byte string, if so convert to string:
             if isinstance(device_name, bytes):
-                device_name = device_name.decode()
+                device_name = device_name.decode(errors="ignore")
 
             info["name"] = device_name
 
