@@ -332,7 +332,7 @@ install_dependencies() {
       # Using instructions from https://github.com/Dao-AILab/flash-attention
       uv pip install packaging
       uv pip install ninja
-      uv pip install -U flash-attn==2.7.3 --no-build-isolation -c constraints.txt
+      uv pip install -U flash-attn==2.7.3 --no-build-isolation -c "$TLAB_CODE_DIR"/constraints.txt
       ###
   else
       echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."
