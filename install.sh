@@ -262,7 +262,7 @@ install_conda() {
   fi
 
   # Enable conda in shell
-  # eval "$(${CONDA_BIN} shell.bash hook)"
+  eval "$(${CONDA_BIN} shell.bash hook)"
 
   check_conda
   check_mamba
