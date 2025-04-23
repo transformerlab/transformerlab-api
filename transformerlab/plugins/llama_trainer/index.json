@@ -114,32 +114,6 @@
       "title": "Fuse Model",
       "type": "boolean",
       "default": false
-    },
-    "run_sweeps": {
-      "title": "Run Hyperparameter Sweep",
-      "type": "boolean",
-      "default": false
-    },
-    "save_sweep_models": {
-      "title": "Save Intermediate Sweep Models",
-      "type": "boolean",
-      "default": false
-    },
-    "sweep_metric": {
-      "title": "Sweep Optimization Metric",
-      "type": "string",
-      "default": "eval/loss",
-      "enum": ["eval/loss"]
-    },
-    "lower_is_better": {
-      "title": "Lower Values Are Better (For the Sweep Metric)",
-      "type": "boolean",
-      "default": true
-    },
-    "train_final_model": {
-      "title": "Train Final Model with Best Config",
-      "type": "boolean",
-      "default": true
     }
   },
   "parameters_ui": {
@@ -162,25 +136,6 @@
     },
     "fuse_model": {
       "ui:help": "This will create a new fused model with the adaptor and the model merged. A separate entry will be created in the model zoo for the fused model."
-    },
-    "run_sweeps": {
-      "ui:help": "Run a hyperparameter sweep to find the best configuration before training the final model."
-    },
-    "save_sweep_models": {
-      "ui:help": "Save models from each sweep configuration. Warning: This can use a lot of disk space."
-    },
-    "sweep_metric": {
-      "ui:help": "The metric to optimize during the sweep.",
-      "ui:widget": "AutoCompleteWidget",
-      "ui:options": {
-        "_multiple": false
-      }
-    },
-    "lower_is_better": {
-      "ui:help": "Whether lower values of the sweep metric are better (e.g., for loss) or higher values are better (e.g., for accuracy)."
-    },
-    "train_final_model": {
-      "ui:help": "Train a final model using the best configuration found during the sweep."
     }
   }
 }

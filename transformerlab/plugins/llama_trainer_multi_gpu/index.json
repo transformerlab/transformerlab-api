@@ -115,11 +115,6 @@
       "title": "Fuse Model",
       "type": "boolean",
       "default": false
-    },
-    "run_sweeps": {
-      "title": "Run Hyperparameter Sweep",
-      "type": "boolean",
-      "default": false
     }
   },
   "parameters_ui": {
@@ -152,9 +147,6 @@
     },
     "fuse_model": {
       "ui:help": "This will create a new fused model with the adaptor and the model merged. A separate entry will be created in the model zoo for the fused model."
-    },
-    "run_sweeps": {
-      "ui:help": "Run a hyperparameter sweep to find the best configuration before training the final model."
     }
   }
 }

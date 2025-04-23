@@ -303,11 +303,15 @@ def run_plugin():
     tlab_trainer.params.num_train_epochs = int(tlab_trainer.params.get("num_train_epochs", 3))
     tlab_trainer.params.batch_size = int(tlab_trainer.params.get("batch_size", 4))
     tlab_trainer.params.learning_rate = float(tlab_trainer.params.get("learning_rate", 2e-4))
+    tlab_trainer.params.sweep_metric = "eval/loss"
+    tlab_trainer.params.lower_is_better = True
+    tlab_trainer.params.train_final_model = True
+    tlab_trainer.params.save_sweep_models = False
 
     # Determine if we're doing a sweep
     run_sweep = tlab_trainer.params.get("run_sweeps")
 
-    if run_sweep is not None:
+    if run_sweep:
         # Run hyperparameter sweep
         sweep_results = tlab_trainer.run_sweep(train_function)
 

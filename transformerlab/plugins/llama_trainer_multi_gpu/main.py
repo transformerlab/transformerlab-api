@@ -12,8 +12,6 @@ tlab_trainer.add_argument(
     "--launched_with_accelerate", action="store_true", help="Flag to prevent recursive subprocess launching"
 )
 
-tlab_trainer.add_argument("--run_sweeps", action="store_true", help="Run hyperparameter sweeps")
-
 
 def find_lora_target_modules(model, keyword="proj"):
     """
@@ -60,7 +58,7 @@ def train_model():
     # Get configuration from tlab_trainer
     # Configuration is loaded automatically when tlab_trainer methods are called
     datasets = tlab_trainer.load_dataset()
-    tlab_trainer.params.datasets = datasets
+    # tlab_trainer.params.datasets = datasets
 
     # Set up accelerate configuration
     accelerate_config = {
@@ -82,7 +80,7 @@ def train_model():
             gpu_ids = None
 
     # Determine if we're doing a sweep
-    run_sweep = tlab_trainer.params.get("run_sweeps", False)
+    run_sweep = tlab_trainer.params.get("run_sweeps")
 
     tlab_trainer.params.sweep_metric = "eval/loss"
     tlab_trainer.params.lower_is_better = True
@@ -106,7 +104,7 @@ def train_model():
             cmd.extend(["--gpu_ids", gpu_ids])
 
         # Add sweep parameter if we're doing a sweep
-        if run_sweep is not None:
+        if run_sweep:
             cmd.extend(["--run_sweeps", "true"])
 
         result = subprocess.run(cmd, env=env)
@@ -114,7 +112,7 @@ def train_model():
         return
 
     # If we're running sweeps
-    if run_sweep is not None:
+    if run_sweep:
         # Run hyperparameter sweep
         sweep_results = tlab_trainer.run_sweep(train_function)
 
