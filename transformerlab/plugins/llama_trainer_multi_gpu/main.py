@@ -1,4 +1,3 @@
-print("Loading multi-GPU trainer plugin...")
 import os
 import subprocess
 import time
@@ -10,8 +9,6 @@ import torch.nn as nn
 from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import WORKSPACE_DIR, get_python_executable
 
-print("IMPORTS DONE")
-
 tlab_trainer.add_argument(
     "--launched_with_accelerate", action="store_true", help="Flag to prevent recursive subprocess launching"
 )
@@ -19,8 +16,6 @@ tlab_trainer.add_argument(
 tlab_trainer.add_argument(
     "--run_sweeps", action="store_true", help="Run hyperparameter sweeps"
 )
-
-print("ARGUMENTS ADDED")
 
 def find_lora_target_modules(model, keyword="proj"):
     """
@@ -34,8 +29,6 @@ def find_lora_target_modules(model, keyword="proj"):
             cleaned_name = ".".join(name.split('.')[1:]) if name.startswith("model.") else name
             module_names.add(cleaned_name.split('.')[-1])  # Use just the relative layer name
     return sorted(module_names)
-
-print("FIND LORA TARGET MODULES DONE")
 
 def setup_accelerate_environment():
     """Set up the environment for the accelerate launch subprocess"""
@@ -60,7 +53,6 @@ def setup_accelerate_environment():
 
     env["PYTHONPATH"] = ":".join(paths_to_include)
     return env
-print("SETUP ACCELERATE ENVIRONMENT DONE")
 
 @tlab_trainer.job_wrapper()
 def train_model():
@@ -88,11 +80,15 @@ def train_model():
             gpu_ids = str(gpu_ids)
         if gpu_ids == "auto":
             gpu_ids = None
+
+    
+
             
     # Determine if we're doing a sweep
-    run_sweep = tlab_trainer.params.get("run_sweeps", True)
-    # run_sweep = True
+    run_sweep = tlab_trainer.params.get("run_sweeps", False)
     
+    tlab_trainer.params.sweep_metric = "eval/loss"
+    tlab_trainer.params.lower_is_better = True
     # Check if we need to launch with accelerate
     if not tlab_trainer.params.get("launched_with_accelerate", False):
         print("Launching training with accelerate for multi-GPU...")
@@ -119,7 +115,7 @@ def train_model():
         result = subprocess.run(cmd, env=env)
         print(f"Subprocess completed with return code: {result.returncode}")
         return
-    
+
     # If we're running sweeps
     if run_sweep is not None:
         # Run hyperparameter sweep
@@ -139,6 +135,7 @@ def train_model():
             return {**sweep_results, "final_model_metrics": result}
 
         return sweep_results
+
     else:
         # Run single training
         return train_function(**tlab_trainer.params)
@@ -152,10 +149,9 @@ def train_function(**params):
     from trl import SFTConfig, SFTTrainer
     from accelerate import Accelerator
     
-    # Initialize Accelerator
+    # Initialize Accelerator if not provided
     accelerator = Accelerator()
-    print(f"Running with accelerate on {accelerator.num_processes} processes")
-
+    
     jinja_environment = Environment()
     use_flash_attention = False
 
@@ -208,7 +204,7 @@ def train_function(**params):
             device_map=device_map,
             trust_remote_code=True
         )
-        lora_target_modules = find_lora_target_modules(model)
+        # lora_target_modules = find_lora_target_modules(model)
     except TypeError:
         model = AutoModelForCausalLM.from_pretrained(
                 model_id,
@@ -217,7 +213,7 @@ def train_function(**params):
                 device_map=device_map,
                 trust_remote_code=True,
             )
-        lora_target_modules = find_lora_target_modules(model)
+        # lora_target_modules = find_lora_target_modules(model)
     except Exception as e:
         print(f"Model loading error: {str(e)}")
         raise e
@@ -267,7 +263,7 @@ def train_function(**params):
     batch_size = int(params.get("batch_size", 4))
     lr_schedule = params.get("learning_rate_schedule", "constant")
     gradient_accumulation_steps = int(params.get("gradient_accumulation_steps", 2))
-    
+
 
     # Setup evaluation dataset - use 10% of the data if enough examples
     if len(dataset) >= 10:
@@ -301,7 +297,7 @@ def train_function(**params):
         eval_strategy="epoch",
         do_eval=True,
         packing=True,
-        load_best_model_at_end=True,
+        load_best_model_at_end=False,
         metric_for_best_model="loss",
         greater_is_better=False,
         ddp_find_unused_parameters=False,
