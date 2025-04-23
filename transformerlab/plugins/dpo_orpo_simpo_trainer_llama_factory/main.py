@@ -25,7 +25,6 @@ from transformerlab.plugin import WORKSPACE_DIR, get_python_executable
 
 
 plugin_dir = os.path.dirname(os.path.realpath(__file__))
-python_executable = get_python_executable(plugin_dir)
 print("Plugin dir:", plugin_dir)
 
 
@@ -120,6 +119,7 @@ def run_train():
         print(yml)
 
     env = os.environ.copy()
+    python_executable = get_python_executable(plugin_dir)
     env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
 
     if "venv" in python_executable:
@@ -224,10 +224,22 @@ def fuse_model():
         print("Merge configuration:")
         print(yml)
 
+    env = os.environ.copy()
+    python_executable = get_python_executable(plugin_dir)
+    env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
+
+    if "venv" in python_executable:
+        python_executable = python_executable.replace("venv/bin/python", "venv/bin/llamafactory-cli")
+
     fuse_popen_command = [python_executable, "export", yaml_config_path]
 
     with subprocess.Popen(
-        fuse_popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True, env = env
+        fuse_popen_command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        bufsize=1,
+        universal_newlines=True,
+        env=env,
     ) as process:
         for line in process.stdout:
             print(line, end="", flush=True)
