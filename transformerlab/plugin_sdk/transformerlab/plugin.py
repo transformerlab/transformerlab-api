@@ -2,6 +2,7 @@ import os
 import json
 import sqlite3
 import itertools
+import sys
 
 
 # useful constants
@@ -149,6 +150,7 @@ def get_experiment_config(name: str):
             return None, experiment_id
         return json.loads(data["config"]), experiment_id
     return None, experiment_id
+
 
 def get_python_executable(plugin_dir):
     """Check if a virtual environment exists and return the appropriate Python executable"""

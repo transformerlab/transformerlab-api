@@ -1,6 +1,5 @@
 import os
 import subprocess
-import time
 import traceback
 import copy
 from random import randrange
@@ -13,9 +12,8 @@ tlab_trainer.add_argument(
     "--launched_with_accelerate", action="store_true", help="Flag to prevent recursive subprocess launching"
 )
 
-tlab_trainer.add_argument(
-    "--run_sweeps", action="store_true", help="Run hyperparameter sweeps"
-)
+tlab_trainer.add_argument("--run_sweeps", action="store_true", help="Run hyperparameter sweeps")
+
 
 def find_lora_target_modules(model, keyword="proj"):
     """
@@ -26,9 +24,10 @@ def find_lora_target_modules(model, keyword="proj"):
     for name, module in model.named_modules():
         if isinstance(module, nn.Linear) and keyword in name:
             # Keep full relative module name, excluding the root prefix (e.g., "model.")
-            cleaned_name = ".".join(name.split('.')[1:]) if name.startswith("model.") else name
-            module_names.add(cleaned_name.split('.')[-1])  # Use just the relative layer name
+            cleaned_name = ".".join(name.split(".")[1:]) if name.startswith("model.") else name
+            module_names.add(cleaned_name.split(".")[-1])  # Use just the relative layer name
     return sorted(module_names)
+
 
 def setup_accelerate_environment():
     """Set up the environment for the accelerate launch subprocess"""
@@ -54,13 +53,14 @@ def setup_accelerate_environment():
     env["PYTHONPATH"] = ":".join(paths_to_include)
     return env
 
+
 @tlab_trainer.job_wrapper()
 def train_model():
     """Main training function using TrainerTLabPlugin"""
     # Get configuration from tlab_trainer
     # Configuration is loaded automatically when tlab_trainer methods are called
     datasets = tlab_trainer.load_dataset()
-    dataset = datasets["train"]
+    tlab_trainer.params.datasets = datasets
 
     # Set up accelerate configuration
     accelerate_config = {
@@ -81,12 +81,9 @@ def train_model():
         if gpu_ids == "auto":
             gpu_ids = None
 
-    
-
-            
     # Determine if we're doing a sweep
     run_sweep = tlab_trainer.params.get("run_sweeps", False)
-    
+
     tlab_trainer.params.sweep_metric = "eval/loss"
     tlab_trainer.params.lower_is_better = True
     # Check if we need to launch with accelerate
@@ -103,11 +100,11 @@ def train_model():
             tlab_trainer.params.input_file,
             "--launched_with_accelerate",
         ]
-        
+
         # Add GPU IDs if specified
         if gpu_ids:
             cmd.extend(["--gpu_ids", gpu_ids])
-            
+
         # Add sweep parameter if we're doing a sweep
         if run_sweep is not None:
             cmd.extend(["--run_sweeps", "true"])
@@ -140,6 +137,7 @@ def train_model():
         # Run single training
         return train_function(**tlab_trainer.params)
 
+
 def train_function(**params):
     """Train a model with given parameters and return metrics"""
     import torch
@@ -148,10 +146,10 @@ def train_function(**params):
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, AutoConfig
     from trl import SFTConfig, SFTTrainer
     from accelerate import Accelerator
-    
+
     # Initialize Accelerator if not provided
     accelerator = Accelerator()
-    
+
     jinja_environment = Environment()
     use_flash_attention = False
 
@@ -173,7 +171,7 @@ def train_function(**params):
 
     print(f"dataset size: {len(dataset)}")
     print(dataset[randrange(len(dataset))])
-    
+
     # Setup template for formatting
     formatting_template = params.get("formatting_template")
     print("formatting_template: " + formatting_template)
@@ -202,34 +200,34 @@ def train_function(**params):
             use_cache=False,
             use_flash_attention_2=use_flash_attention,
             device_map=device_map,
-            trust_remote_code=True
+            trust_remote_code=True,
         )
-        # lora_target_modules = find_lora_target_modules(model)
+        lora_target_modules = find_lora_target_modules(model)
     except TypeError:
         model = AutoModelForCausalLM.from_pretrained(
-                model_id,
-                quantization_config=bnb_config,
-                use_flash_attention_2=use_flash_attention,
-                device_map=device_map,
-                trust_remote_code=True,
-            )
-        # lora_target_modules = find_lora_target_modules(model)
+            model_id,
+            quantization_config=bnb_config,
+            use_flash_attention_2=use_flash_attention,
+            device_map=device_map,
+            trust_remote_code=True,
+        )
+        lora_target_modules = find_lora_target_modules(model)
     except Exception as e:
         print(f"Model loading error: {str(e)}")
         raise e
 
     model.config.pretraining_tp = 1
-    
+
     # Load tokenizer
     tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
-    
+
     # Get LoRA parameters
     lora_alpha = int(params.get("lora_alpha", 16))
     lora_dropout = float(params.get("lora_dropout", 0.05))
     lora_r = int(params.get("lora_r", 8))
-    
+
     # LoRA config
     peft_config = LoraConfig(
         lora_alpha=lora_alpha,
@@ -254,16 +252,15 @@ def train_function(**params):
             target_modules=lora_target_modules,
         )
         model = get_peft_model(model, peft_config)
-    
+
     # Get other training parameters
-    run_name = f"job_{params.get('job_id')}_{params.get('template_name', time.strftime('%Y%m%d-%H%M%S'))}"
+    # run_name = f"job_{params.get('job_id')}_{params.get('template_name', time.strftime('%Y%m%d-%H%M%S'))}"
     max_seq_length = int(params.get("maximum_sequence_length", 2048))
     learning_rate = float(params.get("learning_rate", 2e-4))
     num_epochs = int(params.get("num_train_epochs", 3))
     batch_size = int(params.get("batch_size", 4))
     lr_schedule = params.get("learning_rate_schedule", "constant")
     gradient_accumulation_steps = int(params.get("gradient_accumulation_steps", 2))
-
 
     # Setup evaluation dataset - use 10% of the data if enough examples
     if len(dataset) >= 10:
@@ -273,7 +270,6 @@ def train_function(**params):
     else:
         train_data = dataset
         eval_data = None
-
 
     args = SFTConfig(
         output_dir=output_dir,
@@ -291,7 +287,7 @@ def train_function(**params):
         weight_decay=0.01,
         logging_steps=10,
         save_strategy="epoch",
-        lr_scheduler_type=params.get("learning_rate_schedule", "constant"),
+        lr_scheduler_type=lr_schedule,
         save_total_limit=1,
         report_to=tlab_trainer.report_to if hasattr(tlab_trainer, "report_to") else None,
         eval_strategy="epoch",
@@ -326,7 +322,7 @@ def train_function(**params):
     # Train model
     try:
         trainer.train()
-        
+
         # Extract metrics
         metrics = {}
         if hasattr(trainer, "state") and hasattr(trainer.state, "log_history") and trainer.state.log_history:
@@ -340,7 +336,7 @@ def train_function(**params):
                             if k not in ["epoch", "step"]
                         }
                     )
-        
+
         # Save model - don't save during sweep runs unless explicitly requested
         is_sweep_run = "run_id" in params
         if not is_sweep_run or params.get("save_sweep_models") is not None:
@@ -389,9 +385,9 @@ def train_function(**params):
                 tlab_trainer.create_transformerlab_model(fused_model_name, model_architecture, json_data)
             except Exception as e:
                 print(f"Model merging error: {str(e)}")
-        
+
         return metrics
-        
+
     except Exception as e:
         error_msg = f"Training error: {str(e)}\n{traceback.format_exc()}"
         print(error_msg)
