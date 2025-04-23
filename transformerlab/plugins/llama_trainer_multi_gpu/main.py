@@ -57,7 +57,7 @@ def train_model():
     """Main training function using TrainerTLabPlugin"""
     # Get configuration from tlab_trainer
     # Configuration is loaded automatically when tlab_trainer methods are called
-    datasets = tlab_trainer.load_dataset()
+    # datasets = tlab_trainer.load_dataset()
     # tlab_trainer.params.datasets = datasets
 
     # Set up accelerate configuration
