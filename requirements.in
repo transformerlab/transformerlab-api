@@ -30,4 +30,5 @@ werkzeug
 sqlalchemy[asyncio]
 sentence-transformers
 markitdown[all]
+hf_xet
 git+https://github.com/transformerlab/FastChat
