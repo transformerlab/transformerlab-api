@@ -17,3 +17,6 @@ git checkout mlx
 uv pip install -e .
 
 uv pip install pandas
+
+uv pip install mlx==0.23.2 --upgrade
+uv pip install "mlx-lm==0.22.1" --upgrade

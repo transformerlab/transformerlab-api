@@ -6,9 +6,15 @@ import sys
 
 import torch
 
+try:
+    from transformerlab.plugin import get_python_executable
+except ImportError:
+    from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
+
 
 def isnum(s):
     return s.strip().isdigit()
+
 
 # Get all arguments provided to this script using argparse
 parser = argparse.ArgumentParser()
@@ -70,7 +76,13 @@ if device is None or device == "":
 llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
 PLUGIN_DIR = args.plugin_dir
 
-popen_args = [sys.executable, f"{PLUGIN_DIR}/model_worker.py", "--model-path", model, "--device", device]
+# Get plugin directory
+real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
+
+# Get Python executable (from venv if available)
+python_executable = get_python_executable(real_plugin_dir)
+
+popen_args = [python_executable, f"{PLUGIN_DIR}/model_worker.py", "--model-path", model, "--device", device]
 if num_gpus:
     popen_args.extend(["--gpus", gpu_ids])
     popen_args.extend(["--num-gpus", str(num_gpus)])
