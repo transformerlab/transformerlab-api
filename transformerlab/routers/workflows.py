@@ -511,7 +511,7 @@ async def start_next_step_in_workflow():
     except Exception as e:
         await db.workflow_run_update_status(workflow_run_id, "FAILED")
         #dont print the error because github claims that it could be a security issue
-        return {"message": f"Error loading workflow context"}
+        return {"message": = "Error loading workflow context"}
 
     # 3. Check status of jobs from the *previous* step (if any)
     job_status_message = await check_current_jobs_status(workflow_run_id, current_job_ids)
