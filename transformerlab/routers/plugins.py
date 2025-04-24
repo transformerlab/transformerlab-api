@@ -287,6 +287,31 @@ async def install_missing_plugins_for_current_platform():
     return missing_plugins
 
 
-# on startup, copy all plugins from the transformerlab/plugins directory to the workspace/plugins directory
-# print("Copying plugins from transformerlab/plugins to workspace/plugins")
-# copy_tree("transformerlab/plugins", "workspace/plugins", update=1)
+@router.get("/autoupdate_all_plugins", summary="Update all plugins.")
+async def autoupdate_all_plugins():
+    """Update all plugins"""
+    from transformerlab.routers.experiment.plugins import experiment_list_scripts
+
+    try:
+        # Get the list of installed plugins
+        installed_plugins = await experiment_list_scripts(id=1)
+    except Exception as e:
+        print(f"Error getting installed plugins: {e}")
+        return {"status": "error", "message": str(e)}
+    # Check if the plugins are installed
+    if not installed_plugins:
+        print("No plugins installed.")
+        return {"status": "error", "message": "No plugins installed."}
+    # Check if the installed plugins is a list of json objects, otherwise return error
+    if not isinstance(installed_plugins, list):
+        print("Installed plugins is not a list.")
+        return {"status": "error", "message": "Internal error occurred."}
+
+    # Loop through each plugin and update it
+    for plugin in installed_plugins:
+        plugin_id = plugin["uniqueId"]
+        if plugin["version"] != plugin["gallery_version"]:
+            print(f"Updating plugin: {plugin_id}")
+            await install_plugin(plugin_id)
+
+    return {"status": "success", "message": "All plugins updated successfully."}
