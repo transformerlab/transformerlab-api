@@ -506,12 +506,7 @@ async def start_next_step_in_workflow():
         return {"message": "No workflow is running or queued."}
 
     # 2. Load context for the active run
-    try:
-        workflow_run_id, workflow_id, workflow_config, current_tasks, current_job_ids = await load_workflow_context(active_run)
-    except Exception as e:
-        await db.workflow_run_update_status(workflow_run_id, "FAILED")
-        #dont print the error because github claims that it could be a security issue
-        return {"message": = "Error loading workflow context"}
+    workflow_run_id, workflow_id, workflow_config, current_tasks, current_job_ids = await load_workflow_context(active_run)
 
     # 3. Check status of jobs from the *previous* step (if any)
     job_status_message = await check_current_jobs_status(workflow_run_id, current_job_ids)
