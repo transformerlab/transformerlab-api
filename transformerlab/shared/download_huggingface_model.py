@@ -145,7 +145,6 @@ def download_blocking(model_is_downloaded):
         hf_hub_download(
             repo_id=model,
             filename=model_filename,
-            resume_download=True,
             local_dir=location,
             local_dir_use_symlinks=True,
         )
