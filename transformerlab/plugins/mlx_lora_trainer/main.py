@@ -36,6 +36,8 @@ def train_mlx_lora():
     fuse_model = tlab_trainer.params.get("fuse_model", True)
     num_train_epochs = tlab_trainer.params.get("num_train_epochs", None)
     datasets = tlab_trainer.load_dataset(["train", "valid"])
+    steps_per_report = tlab_trainer.params.get("steps_per_report", "10")
+    save_every = tlab_trainer.params.get("save_every", "1000")
 
     # Check if LoRA parameters are set
     lora_rank = tlab_trainer.params.get("lora_rank", None)
@@ -54,10 +56,16 @@ def train_mlx_lora():
             steps_per_epoch = 1  # Handle case where batch size > dataset size
         total_steps = steps_per_epoch * int(num_train_epochs)
         iters = str(total_steps)
+        steps_per_eval = str(total_steps // int(num_train_epochs))
+        steps_per_report = str(total_steps // int(num_train_epochs))
+        save_every = str(total_steps // int(num_train_epochs))
         print(f"Using epoch-based training: {num_train_epochs} epochs")
         print(f"Training dataset size: {num_examples} examples")
         print(f"Steps per epoch: {steps_per_epoch}")
         print(f"Total training iterations: {iters}")
+        print(f"Steps per eval: {steps_per_eval}")
+        print(f"Steps per report: {steps_per_report}")
+        print(f"Save every: {save_every}")
 
     # LoRA parameters have to be passed in a config file
     config_file = None
@@ -142,11 +150,11 @@ def train_mlx_lora():
         "--data",
         data_directory,
         "--steps-per-report",
-        tlab_trainer.params.get("steps_per_report", "10"),
+        steps_per_report,
         "--steps-per-eval",
         steps_per_eval,
         "--save-every",
-        tlab_trainer.params.get("save_every", "100"),
+        save_every,
     ]
 
     # If a config file has been created then include it
