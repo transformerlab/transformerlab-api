@@ -297,7 +297,7 @@ async def autoupdate_all_plugins():
         installed_plugins = await experiment_list_scripts(id=1)
     except Exception as e:
         print(f"Error getting installed plugins: {e}")
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": "Error getting installed plugins."}
     # Check if the plugins are installed
     if not installed_plugins:
         print("No plugins installed.")
