@@ -86,7 +86,7 @@ popen_args = [python_executable, f"{PLUGIN_DIR}/model_worker.py", "--model-path"
 
 model_dtype = parameters.get("model_dtype")
 # Set model dtype if provided
-if model_dtype is not None and model_dtype != "":
+if model_dtype is not None and model_dtype != "" and model_dtype != "auto":
     popen_args.extend(["--dtype", model_dtype])
 if num_gpus:
     popen_args.extend(["--gpus", gpu_ids])
