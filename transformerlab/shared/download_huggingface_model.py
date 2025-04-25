@@ -145,7 +145,6 @@ def download_blocking(model_is_downloaded):
         hf_hub_download(
             repo_id=model,
             filename=model_filename,
-            resume_download=True,
             local_dir=location,
             local_dir_use_symlinks=True,
         )
@@ -170,7 +169,7 @@ def download_blocking(model_is_downloaded):
             f.write(json.dumps(info, indent=2))
     else:
         try:
-            snapshot_download(repo_id=model, resume_download=True, allow_patterns=allow_patterns)
+            snapshot_download(repo_id=model, allow_patterns=allow_patterns)
 
         except GatedRepoError:
             returncode = 77
