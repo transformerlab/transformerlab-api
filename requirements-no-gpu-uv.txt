@@ -167,7 +167,7 @@ loralib==0.1.2
     # via -r requirements.in
 lxml==5.3.2
     # via python-pptx
-macmon-python==0.1.0
+macmon-python==0.1.1
     # via -r requirements.in
 magika==0.6.1
     # via markitdown
