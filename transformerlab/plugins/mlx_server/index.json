@@ -4,7 +4,8 @@
   "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
   "plugin-format": "python",
   "type": "loader",
-  "version": "0.1.29",
+  "version": "0.1.30",
+  "supports": ["chat", "completion", "visualize_model", "model_layers", "rag", "tools", "template", "embeddings", "tokenize", "logprobs", "batched"],
   "model_architectures": [
     "MLX",
     "CohereForCausalLM",
