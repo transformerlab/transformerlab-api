@@ -1137,7 +1137,7 @@ async def count_chat_tokens(request: ChatCompletionRequest):
         token_num = response.json()["count"]
 
     return {
-        "tokenCount": token_num + max_tokens,
+        "tokenCount": token_num,
         "contextLength": context_len,
         "tokensInHistory": token_num,
         "tokensInCompletion": max_tokens,
