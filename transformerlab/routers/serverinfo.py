@@ -117,7 +117,7 @@ async def get_macmon_data():
         from macmon import MacMon
 
         macmon = MacMon()
-        data = macmon.get_metrics()
+        data = await macmon.get_metrics_async()
         json_data = json.loads(data)
         return json_data
 
