@@ -12,24 +12,24 @@ from transformerlab.shared import dirs
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 
-@router.get("/list")
+@router.get("/list", summary="get all workflows")
 async def workflows_get_all():
     workflows = await db.workflows_get_all()
     return workflows
 
-@router.get("/list_in_experiment")
+@router.get("/list_in_experiment", summary="get all workflows in an experiment")
 async def workflows_get_in_experiment(experiment_id: str = "1"):
     workflows = await db.workflows_get_from_experiment(experiment_id)
     print(experiment_id)
     print(workflows)
     return workflows
 
-@router.get("/list_runs")
+@router.get("/list_runs", summary="get all workflow runs")
 async def workflow_runs_get_all():
     workflow_runs = await db.workflow_run_get_all()
     return workflow_runs
 
-@router.get("/runs/{workflow_run_id}")
+@router.get("/runs/{workflow_run_id}", summary="get a specific workflow run by id")
 async def workflow_runs_get_by_id(workflow_run_id: str):
     workflow_run = await db.workflow_run_get_by_id(workflow_run_id)
     returnInfo = {"run": workflow_run}
@@ -50,19 +50,19 @@ async def workflow_runs_get_by_id(workflow_run_id: str):
     returnInfo["workflow"] = workflow
     return returnInfo
 
-@router.get("/delete/{workflow_id}")
+@router.get("/delete/{workflow_id}", summary="delete a workflow")
 async def workflow_delete(workflow_id: str):
     await db.workflow_delete_by_id(workflow_id)
     return {"message": "OK"}
 
 
-@router.get("/delete_all")
+@router.get("/delete_all", summary="wipe all workflows")
 async def workflow_delete_all():
     await db.workflow_delete_all()
     return {"message": "OK"}
 
 
-@router.get("/create")
+@router.get("/create", summary="Create a workflow from config")
 async def workflow_create(name: str, config: str = '{"nodes":[]}', experiment_id="1"):
     config = json.loads(config)
     if len(config["nodes"])>0:
@@ -73,7 +73,7 @@ async def workflow_create(name: str, config: str = '{"nodes":[]}', experiment_id
     return workflow_id
 
 
-@router.get("/create_empty")
+@router.get("/create_empty", summary="Create an empty workflow")
 async def workflow_create_empty(name: str, experiment_id="1"):
     config = {"nodes":[{"type":"START", "id":str(uuid.uuid4()), "name":"START", "out":[]}]}
     workflow_id = await db.workflow_create(name, json.dumps(config), experiment_id)
@@ -81,7 +81,7 @@ async def workflow_create_empty(name: str, experiment_id="1"):
     return workflow_id
 
 
-@router.get("/{workflow_id}/{node_id}/edit_node_metadata")
+@router.get("/{workflow_id}/{node_id}/edit_node_metadata", summary="Edit metadata of a node in a workflow")
 async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: str):
     workflow = await db.workflows_get_by_id(workflow_id)
     config = json.loads(workflow["config"])
@@ -93,12 +93,12 @@ async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: 
     await db.workflow_update_config(workflow_id, json.dumps(config))
     return {"message": "OK"}
 
-@router.get("/{workflow_id}/update_name")
+@router.get("/{workflow_id}/update_name", summary="Update the name of a workflow")
 async def workflow_update_name(workflow_id: str, new_name: str):
     db.workflow_update_name(workflow_id, new_name)
     return {"message": "OK"}
 
-@router.get("/{workflow_id}/add_node")
+@router.get("/{workflow_id}/add_node", summary="Add a node to a workflow")
 async def workflow_add_node(workflow_id: str, node: str):
     new_node_json = json.loads(node)
     workflow = await db.workflows_get_by_id(workflow_id)
@@ -118,7 +118,7 @@ async def workflow_add_node(workflow_id: str, node: str):
     return {"message": "OK"}
 
 
-@router.post("/{workflow_id}/{node_id}/update_node")
+@router.post("/{workflow_id}/{node_id}/update_node", summary="Update a specific node in a workflow")
 async def workflow_update_node(workflow_id: str, node_id: str, new_node: dict = Body()):
     workflow = await db.workflows_get_by_id(workflow_id)
     config = json.loads(workflow["config"])
@@ -137,7 +137,7 @@ async def workflow_update_node(workflow_id: str, node_id: str, new_node: dict = 
     return {"message": "OK"}
 
 
-@router.post("/{workflow_id}/{start_node_id}/remove_edge")
+@router.post("/{workflow_id}/{start_node_id}/remove_edge", summary="Remove an edge between two nodes in a workflow")
 async def workflow_remove_edge(workflow_id: str, start_node_id: str, end_node_id: str):
     workflow = await db.workflows_get_by_id(workflow_id)
     config = json.loads(workflow["config"])
@@ -156,7 +156,7 @@ async def workflow_remove_edge(workflow_id: str, start_node_id: str, end_node_id
     await db.workflow_update_config(workflow_id, json.dumps(config))
     return {"message": "OK"}
 
-@router.post("/{workflow_id}/{start_node_id}/add_edge")
+@router.post("/{workflow_id}/{start_node_id}/add_edge", summary="Add an edge between two nodes in a workflow")
 async def workflow_add_edge(workflow_id: str, start_node_id: str, end_node_id: str):
     workflow = await db.workflows_get_by_id(workflow_id)
     config = json.loads(workflow["config"])
@@ -174,7 +174,7 @@ async def workflow_add_edge(workflow_id: str, start_node_id: str, end_node_id: s
     await db.workflow_update_config(workflow_id, json.dumps(config))
     return {"message": "OK"}
 
-@router.get("/{workflow_id}/{node_id}/delete_node")
+@router.get("/{workflow_id}/{node_id}/delete_node", summary="Delete a node from a workflow")
 async def workflow_delete_node(workflow_id: str, node_id: str):
     workflow = await db.workflows_get_by_id(workflow_id)
     config = json.loads(workflow["config"])
@@ -200,7 +200,7 @@ async def workflow_delete_node(workflow_id: str, node_id: str):
     return {"message": "OK"}
 
 
-@router.get("/{workflow_id}/export_to_yaml")
+@router.get("/{workflow_id}/export_to_yaml", summary="Export a workflow definition to YAML")
 async def workflow_export_to_yaml(workflow_id: str):
     workflow = await db.workflows_get_by_id(workflow_id)
 
@@ -220,7 +220,7 @@ async def workflow_export_to_yaml(workflow_id: str):
     return FileResponse(filename, filename=filename)
 
 
-@router.post("/import_from_yaml")
+@router.post("/import_from_yaml", summary="Import a workflow definition from YAML")
 async def workflow_import_from_yaml(file: UploadFile, experiment_id="1"):
     with open(file.filename, "r") as fileStream:
         workflow = yaml.load(fileStream, Loader=yaml.BaseLoader)
@@ -228,12 +228,12 @@ async def workflow_import_from_yaml(file: UploadFile, experiment_id="1"):
     return {"message": "OK"}
 
 
-@router.get("/{workflow_id}/start")
+@router.get("/{workflow_id}/start", summary="Queue a workflow to start execution")
 async def start_workflow(workflow_id):
     await db.workflow_queue(workflow_id)
     return {"message": "OK"}
 
-@router.get("/workflows/runs/get_currently_running")
+@router.get("/runs/get_currently_running", summary="Get the currently running workflow run and run a queued run if there is no currently running workflow run")
 async def get_active_workflow_run():
     num_running_workflows = await db.workflow_count_running()
     num_queued_workflows = await db.workflow_count_queued()
@@ -498,7 +498,7 @@ async def queue_job_for_node(node: dict, workflow_run: dict, workflow_config: di
         await db.workflow_run_update_status(workflow_run["id"], "FAILED")
         return None
 
-@router.get("/start_next_step")
+@router.get("/start_next_step", summary="Start the next step in the active workflow")
 async def start_next_step_in_workflow():
     # 1. Find the active workflow run (Running or next Queued)
     active_run = await get_active_workflow_run()
