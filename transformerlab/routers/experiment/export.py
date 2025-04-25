@@ -43,18 +43,32 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
     # Convert JSON parameters
     # And set default parameters for anything that didn't get passed in
     params = json.loads(plugin_params)
+    q_type = ""
+    if 'outtype' in params:
+        q_type = params['outtype']
+    elif 'q_bits' in params:
+        q_type = str(params['q_bits']) + "bit"
+
 
     # Generate output model details
     conversion_time = int(time.time())
     output_model_architecture = plugin_architecture
     output_model_id = f"{output_model_architecture}-{input_model_id_without_author}-{conversion_time}"
+    if len(q_type) > 0:
+        output_model_id = f"{output_model_id}-{q_type}"
     output_model_name = f"{input_model_id_without_author} - {output_model_architecture}"
+    if len(q_type) > 0:
+        output_model_name = f"{output_model_name} - {q_type}"
     output_filename = ""
 
     # GGUF is special: it generates a different format with only one file
     # For everything to work we need the model ID and output filename to match
     if output_model_architecture == "GGUF":
+        
         output_model_id = f"{input_model_id_without_author}-{conversion_time}.gguf"
+        if len(q_type) > 0:
+            output_model_id = f"{input_model_id_without_author}-{conversion_time}-{q_type}.gguf"
+
         output_filename = output_model_id
 
     # Figure out plugin and model output directories
