@@ -294,8 +294,8 @@ create_conda_environment() {
   if { conda env list | grep "$ENV_DIR"; } >/dev/null 2>&1; then
       echo "✅ Conda environment $ENV_DIR already exists."
   else
-      echo mamba create -y -n "$ENV_DIR" python=3.11
-      mamba create -y -k --prefix "$ENV_DIR" python=3.11
+      echo mamba create -y --prefix "$ENV_DIR" python=3.11
+      mamba create -y --prefix "$ENV_DIR" python=3.11
   fi
 
   # Activate the newly created environment
