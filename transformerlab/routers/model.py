@@ -578,8 +578,12 @@ async def model_local_delete(model_id: str, delete_from_cache: bool = False):
     root_models_dir = dirs.MODELS_DIR
     model_dir = model_id.rsplit("/", 1)[-1]
     info_file = os.path.join(root_models_dir, model_dir, "info.json")
+
     if os.path.isfile(info_file):
         model_path = os.path.join(root_models_dir, model_dir)
+        model_path = os.path.abspath(model_path)
+        if not model_path.startswith(os.path.abspath(root_models_dir)):
+            print("ERROR: Invalid directory structure")
         print(f"Deleteing {model_path}")
         shutil.rmtree(model_path)
 
