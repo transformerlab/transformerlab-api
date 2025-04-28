@@ -11,6 +11,9 @@ pip install llama-cpp-python
 
 Right now only generate_stream works -- need to do work to make generate work
 """
+import os
+import torch
+print(torch.version.cuda)
 
 import argparse
 import asyncio
