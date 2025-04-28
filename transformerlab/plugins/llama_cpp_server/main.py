@@ -11,9 +11,7 @@ pip install llama-cpp-python
 
 Right now only generate_stream works -- need to do work to make generate work
 """
-import os
 import torch
-print(torch.version.cuda)
 
 import argparse
 import asyncio
@@ -23,7 +21,6 @@ from contextlib import asynccontextmanager
 from typing import List
 
 import llama_cpp
-import torch
 import uvicorn
 from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
