@@ -30,6 +30,7 @@ async def query(
 
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
+    documents_dir = os.path.abspath(documents_dir)
     documents_dir = os.path.join(documents_dir, rag_folder)
     if not os.path.exists(documents_dir):
         return "Error: The RAG folder does not exist in the documents directory"
