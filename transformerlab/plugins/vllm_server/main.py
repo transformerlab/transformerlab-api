@@ -73,9 +73,15 @@ real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
 python_executable = get_python_executable(real_plugin_dir)
 
 popen_args = [python_executable, "-m", "fastchat.serve.vllm_worker", "--model-path", model]
+model_dtype = parameters.get("model_dtype")
+# Set model dtype if provided
+if model_dtype is not None and model_dtype != "":
+    popen_args.extend(["--model_dtype", model_dtype])
 
 # Add all parameters to the command
 for key, value in parameters.items():
+    if key == "model_dtype":
+        continue
     popen_args.extend([f"--{key}", str(value)])
 
 print(popen_args)
