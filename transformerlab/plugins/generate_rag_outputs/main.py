@@ -29,7 +29,7 @@ async def run_rag_query(experiment_id, rag_settings, query: str) -> Dict[str, An
         api_url = f"http://localhost:8338/experiment/{experiment_id}/rag/query"
 
         # Prepare parameters
-        params = {"experimentId": experiment_id, "query": query, "settings": rag_settings}
+        params = {"experimentId": experiment_id, "query": query, "settings": rag_settings, "individual_request": True}
 
         # Make the request
         response = requests.get(api_url, params=params)
