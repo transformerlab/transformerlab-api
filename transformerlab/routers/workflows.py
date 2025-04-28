@@ -8,6 +8,7 @@ import transformerlab.db as db
 import transformerlab.routers.tasks as tsks
 
 from transformerlab.shared import dirs
+from transformerlab.shared.shared import slugify
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
@@ -75,6 +76,7 @@ async def workflow_create(name: str, config: str = '{"nodes":[]}', experiment_id
 
 @router.get("/create_empty", summary="Create an empty workflow")
 async def workflow_create_empty(name: str, experiment_id="1"):
+    name = slugify(name)
     config = {"nodes":[{"type":"START", "id":str(uuid.uuid4()), "name":"START", "out":[]}]}
     workflow_id = await db.workflow_create(name, json.dumps(config), experiment_id)
     print(experiment_id)
@@ -95,7 +97,8 @@ async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: 
 
 @router.get("/{workflow_id}/update_name", summary="Update the name of a workflow")
 async def workflow_update_name(workflow_id: str, new_name: str):
-    db.workflow_update_name(workflow_id, new_name)
+    new_name = slugify(new_name)
+    await db.workflow_update_name(workflow_id, new_name)
     return {"message": "OK"}
 
 @router.get("/{workflow_id}/add_node", summary="Add a node to a workflow")
