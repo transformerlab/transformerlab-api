@@ -72,7 +72,7 @@ fi
 if command -v nvidia-smi &> /dev/null; then
     echo "✅ NVIDIA GPU detected, adding CUDA libraries to path"
     # Add common NVIDIA library paths
-    export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/lib/nvidia:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH=${ENV_DIR}/lib:$LD_LIBRARY_PATH
 fi
 
 echo "▶️ Starting the API server:"
