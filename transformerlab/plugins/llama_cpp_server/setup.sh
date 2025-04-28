@@ -18,8 +18,9 @@ if [[ "$(uname)" == "Darwin" ]]; then
     fi
 elif command -v nvidia-smi &> /dev/null; then
     # Linux/Other with CUDA detected
-    echo "Detected CUDA - installing with CUDA support"
-    CMAKE_ARGS="-DGGML_CUDA=on" uv pip install llama-cpp-python --upgrade --force-reinstall --no-cache-dir
+    echo "ERROR: CUDA GPU detected. This setup script does not support CUDA installation."
+    echo "Please refer to the documentation for CUDA-specific installation instructions."
+    exit 1
 else
     # Linux/Other without CUDA - try using OpenBLAS
     echo "No GPU detected - installing with OpenBLAS support"
