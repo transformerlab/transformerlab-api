@@ -68,6 +68,13 @@ else
     # echo "✅ Uvicorn is installed."
 fi
 
+# Check if NVIDIA GPU is available and add necessary paths
+if command -v nvidia-smi &> /dev/null; then
+    echo "✅ NVIDIA GPU detected, adding CUDA libraries to path"
+    # Add common NVIDIA library paths
+    export LD_LIBRARY_PATH=${ENV_DIR}/lib:$LD_LIBRARY_PATH
+fi
+
 echo "▶️ Starting the API server:"
 if [ "$RELOAD" = true ]; then
     echo "🔁 Reload the server on file changes"
