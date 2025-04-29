@@ -35,7 +35,7 @@ from huggingface_hub import snapshot_download
 from mlx_embedding_models.embedding import EmbeddingModel
 from mlx_lm import load
 from mlx_lm.sample_utils import make_logits_processors, make_sampler
-from mlx_lm.utils import generate_step
+from mlx_lm.generate import generate_step
 
 
 @asynccontextmanager
