@@ -189,11 +189,19 @@ async def install_plugin(plugin_id: str):
         )
         await proc.wait()
 
-        run_installer_for_plugin(plugin_id, log_file)
+        await run_installer_for_plugin(plugin_id, log_file)
 
     print("Plugin installation completed.")
 
     return {"status": "success", "message": f"Plugin {plugin_id} installed successfully."}
+
+
+@router.get("/{plugin_id}/run_installer_script", summary="Run the installer script for a plugin.")
+async def run_installer_script(plugin_id: str):
+    global_log_file_name = dirs.GLOBAL_LOG_PATH
+    async with aiofiles.open(global_log_file_name, "a") as log_file:
+        await run_installer_for_plugin(plugin_id, log_file)
+    return {"status": "success", "message": f"Plugin {plugin_id} installer script run successfully."}
 
 
 @router.get("/list", summary="List the plugins that are currently installed.")
