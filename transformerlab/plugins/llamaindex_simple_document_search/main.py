@@ -50,7 +50,8 @@ def main():
 
     documents_dir = args.documents_dir
     persistency_dir = os.path.join(documents_dir, "persist")
-    if not os.path.exists(persistency_dir):
+
+    if not os.path.exists(persistency_dir) and not args.index:
         sys.stderr.write("Documents have not been indexed. Indexing them first")
         args.index = True
         continue_after_index = True
