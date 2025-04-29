@@ -4,8 +4,20 @@
   "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
   "plugin-format": "python",
   "type": "loader",
-  "version": "0.1.30",
-  "supports": ["chat", "completion", "visualize_model", "model_layers", "rag", "tools", "template", "embeddings", "tokenize", "logprobs", "batched"],
+  "version": "0.1.31",
+  "supports": [
+    "chat",
+    "completion",
+    "visualize_model",
+    "model_layers",
+    "rag",
+    "tools",
+    "template",
+    "embeddings",
+    "tokenize",
+    "logprobs",
+    "batched"
+  ],
   "model_architectures": [
     "MLX",
     "CohereForCausalLM",
@@ -20,15 +32,12 @@
     "MixtralForCausalLM",
     "PhiForCausalLM",
     "Phi3ForCausalLM",
-    "Qwen2ForCausalLM"
+    "Qwen2ForCausalLM",
+    "Qwen3ForCausalLM",
+    "Qwen3MoeForCausalLM"
   ],
-  "supported_hardware_architectures": [
-    "mlx"
-  ],
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "supported_hardware_architectures": ["mlx"],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {}
 }
