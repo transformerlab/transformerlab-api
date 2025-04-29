@@ -25,15 +25,21 @@ import ollama
 from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse, JSONResponse
-
-from fastchat.serve.base_model_worker import BaseModelWorker
-from fastchat.serve.model_worker import (
-    logger,
-    worker_id,
-)
-from fastchat.utils import is_partial_stop
-
 from transformers.tokenization_utils_base import BatchEncoding
+from fastchat.utils import is_partial_stop, build_logger
+
+from transformerlab.plugin import WORKSPACE_DIR
+
+worker_id = str(uuid.uuid4())[:8]
+logfile_path = os.path.join(WORKSPACE_DIR, "logs")
+if not os.path.exists(logfile_path):
+    os.makedirs(logfile_path)
+logger = build_logger("model_worker", os.path.join(logfile_path, f"model_worker_{worker_id}.log"))
+
+import fastchat.serve.base_model_worker
+
+fastchat.serve.base_model_worker.logger = logger
+from fastchat.serve.base_model_worker import BaseModelWorker
 
 
 @asynccontextmanager

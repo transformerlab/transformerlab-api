@@ -182,7 +182,10 @@ worker_process = None
 
 def spawn_fastchat_controller_subprocess():
     global controller_process
-    logfile = open("controller.log", "w")
+    LOGS_DIR = os.path.join(dirs.WORKSPACE_DIR, "logs")
+    if not os.path.exists(LOGS_DIR):
+        os.makedirs(LOGS_DIR)
+    logfile = open(os.path.join(LOGS_DIR, "controller.log"), "w")
     port = "21001"
     controller_process = subprocess.Popen(
         [sys.executable, "-m", "fastchat.serve.controller", "--port", port], stdout=logfile, stderr=logfile
