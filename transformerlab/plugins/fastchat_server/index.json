@@ -4,8 +4,20 @@
   "description": "Fastchat loads models for inference using Huggingface Transformers for generation.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "1.0.13",
-  "supports": ["chat", "completion", "visualize_model", "model_layers", "rag", "tools", "template", "embeddings", "tokenize", "logprobs", "batched"],
+  "version": "1.0.14",
+  "supports": [
+    "chat",
+    "completion",
+    "visualize_model",
+    "model_layers",
+    "rag",
+    "tools",
+    "template",
+    "embeddings",
+    "tokenize",
+    "logprobs",
+    "batched"
+  ],
   "model_architectures": [
     "CohereForCausalLM",
     "FalconForCausalLM",
@@ -24,17 +36,12 @@
     "Gemma3ForCausalLM",
     "Gemma3ForConditionalGeneration",
     "AprielForCausalLM",
-    "GPTNeoXForCausalLM"
+    "GPTNeoXForCausalLM",
+    "Qwen3ForCausalLM",
+    "Qwen3MoeForCausalLM"
   ],
-  "supported_hardware_architectures": [
-    "cpu",
-    "cuda",
-    "mlx"
-  ],
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx"],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
     "gpu_ids": {
@@ -50,12 +57,7 @@
     "model_dtype": {
       "title": "Select a specific data type for the model",
       "type": "string",
-      "enum": [
-        "auto",
-        "float16",
-        "bfloat16",
-        "float32"
-      ]
+      "enum": ["auto", "float16", "bfloat16", "float32"]
     }
   },
   "parameters_ui": {
