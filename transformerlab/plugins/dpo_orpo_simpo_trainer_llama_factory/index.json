@@ -4,7 +4,7 @@
   "description": "An implementation of several Preference Optimization methods using Llama Factory.",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "model_architectures": [
     "LlamaForCausalLM",
     "MistralForCausalLM",
@@ -12,6 +12,8 @@
     "PhiForCausalLM",
     "GemmaForCausalLM",
     "Qwen2ForCausalLM",
+    "Qwen3ForCausalLM",
+    "Qwen3MoeForCausalLM",
     "Phi3ForCausalLM"
   ],
   "supported_hardware_architectures": ["cuda"],
