@@ -13,6 +13,7 @@
     "GemmaForCausalLM",
     "Gemma2ForCausalLM",
     "Gemma3ForCausalLM",
+    "Gemma3ForConditionalGeneration",
     "GPTBigCodeForCausalLM",
     "LlamaForCausalLM",
     "MistralForCausalLM",
@@ -21,8 +22,13 @@
     "Phi3ForCausalLM",
     "Qwen2ForCausalLM"
   ],
-  "supported_hardware_architectures": ["mlx"],
-  "files": ["main.py", "setup.sh"],
+  "supported_hardware_architectures": [
+    "mlx"
+  ],
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
   "setup-script": "setup.sh",
   "parameters": {}
 }
