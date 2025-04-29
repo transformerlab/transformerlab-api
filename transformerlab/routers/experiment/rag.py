@@ -22,8 +22,6 @@ router = APIRouter(prefix="/rag", tags=["rag"])
 async def query(experimentId: str, query: str, settings: str = None, rag_folder: str = "rag"):
     """Query the RAG engine"""
 
-    # Only check if the request being sent is independent of the interact page
-
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
     documents_dir = os.path.join(documents_dir, rag_folder)
@@ -170,7 +168,6 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
     if os.path.exists(venv_path) and os.path.isdir(venv_path):
         print(f">Plugin has virtual environment, activating venv from {venv_path}")
         venv_python = os.path.join(venv_path, "bin", "python")
-        print("PARAMS", params)
         command = [venv_python, *params]
     else:
         print(">Using system python interpreter")
