@@ -4,7 +4,7 @@
     "description": "",
     "plugin-format": "python",
     "type": "rag",
-    "version": "0.0.8",
+    "version": "0.0.9",
     "model_architectures": [],
     "supported_hardware_architectures": [
     "cpu",

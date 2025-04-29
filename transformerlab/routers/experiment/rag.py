@@ -19,14 +19,10 @@ router = APIRouter(prefix="/rag", tags=["rag"])
 
 
 @router.get("/query")
-async def query(
-    experimentId: str, query: str, settings: str = None, rag_folder: str = "rag", individual_request: bool = False
-):
+async def query(experimentId: str, query: str, settings: str = None, rag_folder: str = "rag"):
     """Query the RAG engine"""
 
     # Only check if the request being sent is independent of the interact page
-    if individual_request:
-        await check_and_install_rag_plugin(experimentId)
 
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
@@ -85,6 +81,7 @@ async def query(
         "--settings",
         settings,
     ]
+
     print(f"Calling plugin {plugin_path}" + " with model " + model + " and query " + query)
     venv_path = os.path.join(plugin_path, "venv")
     if os.path.exists(venv_path) and os.path.isdir(venv_path):
@@ -130,8 +127,6 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
     if not os.path.exists(documents_dir):
         return "Error: The RAG folder does not exist in the documents directory."
 
-    await check_and_install_rag_plugin(experimentId)
-
     experiment_details = await db.experiment_get(id=experimentId)
     experiment_config = json.loads(experiment_details["config"])
     model = experiment_config.get("foundation")
@@ -175,6 +170,7 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
     if os.path.exists(venv_path) and os.path.isdir(venv_path):
         print(f">Plugin has virtual environment, activating venv from {venv_path}")
         venv_python = os.path.join(venv_path, "bin", "python")
+        print("PARAMS", params)
         command = [venv_python, *params]
     else:
         print(">Using system python interpreter")
@@ -225,62 +221,3 @@ async def embed_text(request: EmbedRequest):
     embeddings = model.encode(text_list)
 
     return JSONResponse(content={"embeddings": embeddings.tolist()})
-
-
-async def check_and_install_rag_plugin(experimentId: str, plugin_id: str = "llamaindex_simple_document_search"):
-    """Check if the RAG plugin is installed, and install it if not"""
-    try:
-        from transformerlab.routers.experiment.plugins import experiment_list_scripts
-        from transformerlab.routers.plugins import install_plugin
-
-        # Check if the plugin has been set with default settings in experiment JSON and if not set the plugin_id as the rag_engine and set rag_engine_settings as "{}"
-        experiment_details = await db.experiment_get(id=int(experimentId))
-        experiment_config = json.loads(experiment_details["config"])
-        installed_rag_plugins = await experiment_list_scripts(id=int(experimentId), type="rag")
-        rag_engine = experiment_config.get("rag_engine")
-        rag_installed = False
-
-        if rag_engine is None or rag_engine == "":
-            print("No RAG engine found in experiment config, setting default to " + plugin_id)
-            # Get all installed RAG plugins
-            if installed_rag_plugins and len(installed_rag_plugins) > 0:
-                print("RAG plugins are already installed.")
-                for plugin in installed_rag_plugins:
-                    if plugin["plugin_id"] == plugin_id:
-                        print("Requested RAG plugin is already installed.")
-                        rag_installed = True
-
-                if not rag_installed:
-                    print("Requested RAG plugin is not installed, installing it.")
-                    await install_plugin(plugin_id)
-
-            else:
-                print("RAG plugins are not installed, installing the default llamaindex plugin.")
-                # Install the RAG plugin
-                await install_plugin(plugin_id)
-
-            # Set the rag_engine and rag_engine_settings in the experiment config
-            experiment_config["rag_engine"] = plugin_id
-            experiment_config["rag_engine_settings"] = "{}"
-            await db.experiment_update(id=int(experimentId), config=json.dumps(experiment_config))
-        else:
-            print("RAG engine already set to " + rag_engine)
-            # Check if the plugin is installed
-            if installed_rag_plugins and len(installed_rag_plugins) > 0:
-                print("RAG plugins are already installed.")
-                for plugin in installed_rag_plugins:
-                    if plugin["plugin_id"] == rag_engine:
-                        print("Requested RAG plugin is already installed.")
-                        rag_installed = True
-
-                if not rag_installed:
-                    print("Requested RAG plugin is not installed, installing it.")
-                    await install_plugin(rag_engine)
-
-            else:
-                print("RAG plugins are not installed, installing the declared plugin.")
-                # Install the RAG plugin
-                await install_plugin(rag_engine)
-
-    except Exception as e:
-        print("Error checking for RAG plugin: " + str(e))
