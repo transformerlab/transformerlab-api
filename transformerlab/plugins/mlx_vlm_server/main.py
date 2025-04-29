@@ -30,13 +30,13 @@ if not os.path.exists(logfile_path):
     os.makedirs(logfile_path)
 logger = build_logger("model_worker", os.path.join(logfile_path, f"model_worker_{worker_id}.log"))
 
-import fastchat.serve.base_model_worker
+import fastchat.serve.base_model_worker  # noqa
 
 fastchat.serve.base_model_worker.logger = logger
-from fastchat.serve.base_model_worker import BaseModelWorker
-from generate import generate_text, load_model, prepare_inputs
-from huggingface_hub import snapshot_download
-from PIL import Image
+from fastchat.serve.base_model_worker import BaseModelWorker  # noqa
+from generate import generate_text, load_model, prepare_inputs  # noqa
+from huggingface_hub import snapshot_download  # noqa
+from PIL import Image  # noqa
 
 
 @asynccontextmanager

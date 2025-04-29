@@ -34,14 +34,14 @@ if not os.path.exists(logfile_path):
     os.makedirs(logfile_path)
 logger = build_logger("model_worker", os.path.join(logfile_path, f"model_worker_{worker_id}.log"))
 
-import fastchat.serve.base_model_worker
+import fastchat.serve.base_model_worker  # noqa
 
 fastchat.serve.base_model_worker.logger = logger
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager  # noqa
 
-import mlx.core as mx
-from fastchat.serve.base_model_worker import BaseModelWorker
-from mlx_embedding_models.embedding import EmbeddingModel
+import mlx.core as mx  # noqa
+from fastchat.serve.base_model_worker import BaseModelWorker  # noqa
+from mlx_embedding_models.embedding import EmbeddingModel  # noqa
 
 
 @asynccontextmanager

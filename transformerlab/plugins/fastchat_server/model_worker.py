@@ -37,11 +37,11 @@ if not os.path.exists(logfile_path):
     os.makedirs(logfile_path)
 logger = build_logger("model_worker", os.path.join(logfile_path, f"model_worker_{worker_id}.log"))
 
-import fastchat.serve.base_model_worker
+import fastchat.serve.base_model_worker  # noqa
 
 fastchat.serve.base_model_worker.logger = logger
 
-from fastchat.serve.base_model_worker import BaseModelWorker, app
+from fastchat.serve.base_model_worker import BaseModelWorker, app  # noqa
 
 
 class ModelWorker(BaseModelWorker):
