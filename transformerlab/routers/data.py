@@ -12,6 +12,8 @@ import transformerlab.db as db
 from transformerlab.shared import dirs
 from datasets.data_files import EmptyDatasetError
 from transformerlab.shared.shared import slugify
+from transformerlab.shared import galleries
+
 
 from werkzeug.utils import secure_filename
 
@@ -65,9 +67,8 @@ class ErrorResponse(BaseModel):
     },
 )
 async def dataset_gallery() -> Any:
-    file_location = os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "data-gallery.json")
-    with open(file_location) as f:
-        gallery = json.load(f)
+    gallery = galleries.get_data_gallery()
+
     local_datasets = await db.get_datasets()
 
     local_dataset_names = set(str(dataset["dataset_id"]) for dataset in local_datasets)
@@ -258,9 +259,7 @@ async def dataset_download(dataset_id: str, config_name: str = None):
     # Try to get the dataset info from the gallery
     gallery = []
     json_data = {}
-    file_location = os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "galleries", "data-gallery.json")
-    with open(file_location) as f:
-        gallery = json.load(f)
+    gallery = galleries.get_data_gallery()
     for dataset in gallery:
         if dataset["huggingfacerepo"] == dataset_id:
             json_data = dataset
