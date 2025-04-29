@@ -30,10 +30,8 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastchat.utils import is_partial_stop, build_logger
 from transformers.tokenization_utils_base import BatchEncoding
 
-from transformerlab.plugin import WORKSPACE_DIR
-
 worker_id = str(uuid.uuid4())[:8]
-logfile_path = os.path.join(WORKSPACE_DIR, "logs")
+logfile_path = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "logs")
 if not os.path.exists(logfile_path):
     os.makedirs(logfile_path)
 logger = build_logger("model_worker", os.path.join(logfile_path, f"model_worker_{worker_id}.log"))

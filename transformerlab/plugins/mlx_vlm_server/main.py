@@ -23,10 +23,9 @@ from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastchat.utils import get_context_length, build_logger
-from transformerlab.plugin import WORKSPACE_DIR
 
 worker_id = str(uuid.uuid4())[:8]
-logfile_path = os.path.join(WORKSPACE_DIR, "logs")
+logfile_path = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "logs")
 if not os.path.exists(logfile_path):
     os.makedirs(logfile_path)
 logger = build_logger("model_worker", os.path.join(logfile_path, f"model_worker_{worker_id}.log"))
