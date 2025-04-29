@@ -29,7 +29,7 @@ async def run_rag_query(experiment_id, rag_settings, query: str) -> Dict[str, An
         api_url = f"http://localhost:8338/experiment/{experiment_id}/rag/query"
 
         # Prepare parameters
-        params = {"experimentId": experiment_id, "query": query, "settings": rag_settings, "individual_request": True}
+        params = {"experimentId": experiment_id, "query": query, "settings": rag_settings}
 
         # Make the request
         response = requests.get(api_url, params=params)
@@ -137,7 +137,7 @@ async def run_evaluation():
             plugin = experiment_config.get("rag_engine")
             if plugin is None or plugin == "":
                 raise ValueError(
-                    "No RAG engine has been assigned to this experiment. Please install a RAG plugin from the Plugins Tab."
+                    "No RAG engine has been assigned to this experiment. Please install a RAG plugin from the Plugins Tab and set it by going to the Interact tab."
                 )
 
             # Set up RAG settings
