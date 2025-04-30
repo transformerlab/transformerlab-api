@@ -109,6 +109,24 @@ async def get_mac_disk_usage():
     return None
 
 
+async def get_macmon_data():
+    if sys.platform != "darwin":
+        return None  # Ensure it only runs on macOS
+
+    try:
+        from macmon import MacMon
+
+        macmon = MacMon()
+        data = await macmon.get_metrics_async()
+        json_data = json.loads(data)
+        return json_data
+
+    except Exception as e:
+        print(f"Error retrieving macmon data: {e}")
+
+    return None
+
+
 @router.get("/info")
 async def get_computer_information():
     # start with our static system information and add current performance details
@@ -116,6 +134,9 @@ async def get_computer_information():
 
     # Get the current disk usage if its a mac
     mac_disk_usage = await get_mac_disk_usage()
+
+    # Get data from macmon if its a mac
+    macmon_data = await get_macmon_data()
 
     disk_usage = psutil.disk_usage("/")._asdict()
     if mac_disk_usage:
@@ -135,6 +156,9 @@ async def get_computer_information():
 
     g = []
 
+    if macmon_data:
+        r["mac_metrics"] = macmon_data
+
     try:
         deviceCount = nvmlDeviceGetCount()
         # print('device count: ', deviceCount)
@@ -150,7 +174,7 @@ async def get_computer_information():
 
             # check if device_name is a byte string, if so convert to string:
             if isinstance(device_name, bytes):
-                device_name = device_name.decode()
+                device_name = device_name.decode(errors="ignore")
 
             info["name"] = device_name
 

@@ -4,7 +4,20 @@
   "description": "Fastchat loads models for inference using Huggingface Transformers for generation.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "1.0.11",
+  "version": "1.0.14",
+  "supports": [
+    "chat",
+    "completion",
+    "visualize_model",
+    "model_layers",
+    "rag",
+    "tools",
+    "template",
+    "embeddings",
+    "tokenize",
+    "logprobs",
+    "batched"
+  ],
   "model_architectures": [
     "CohereForCausalLM",
     "FalconForCausalLM",
@@ -23,17 +36,12 @@
     "Gemma3ForCausalLM",
     "Gemma3ForConditionalGeneration",
     "AprielForCausalLM",
-    "GPTNeoXForCausalLM"
+    "GPTNeoXForCausalLM",
+    "Qwen3ForCausalLM",
+    "Qwen3MoeForCausalLM"
   ],
-  "supported_hardware_architectures": [
-    "cpu",
-    "cuda",
-    "mlx"
-  ],
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx"],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
     "gpu_ids": {
@@ -45,11 +53,19 @@
       "title": "Enable 8-bit compression",
       "type": "boolean",
       "default": false
+    },
+    "model_dtype": {
+      "title": "Select a specific data type for the model",
+      "type": "string",
+      "enum": ["auto", "float16", "bfloat16", "float32"]
     }
   },
   "parameters_ui": {
     "gpu_ids": {
       "ui:help": "Specify a comma-separated list of GPU IDs to use for inference. The IDs for each GPU can be found in the Computer tab. For example: 0,1,2,3"
+    },
+    "model_dtype": {
+      "ui:help": "Select a specific data type for the model. This might help with older GPUs that do not support bfloat16"
     }
   }
 }

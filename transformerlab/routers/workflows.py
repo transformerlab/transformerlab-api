@@ -8,28 +8,29 @@ import transformerlab.db as db
 import transformerlab.routers.tasks as tsks
 
 from transformerlab.shared import dirs
+from transformerlab.shared.shared import slugify
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 
-@router.get("/list")
+@router.get("/list", summary="get all workflows")
 async def workflows_get_all():
     workflows = await db.workflows_get_all()
     return workflows
 
-@router.get("/list_in_experiment")
+@router.get("/list_in_experiment", summary="get all workflows in an experiment")
 async def workflows_get_in_experiment(experiment_id: str = "1"):
     workflows = await db.workflows_get_from_experiment(experiment_id)
     print(experiment_id)
     print(workflows)
     return workflows
 
-@router.get("/list_runs")
+@router.get("/list_runs", summary="get all workflow runs")
 async def workflow_runs_get_all():
     workflow_runs = await db.workflow_run_get_all()
     return workflow_runs
 
-@router.get("/runs/{workflow_run_id}")
+@router.get("/runs/{workflow_run_id}", summary="get a specific workflow run by id")
 async def workflow_runs_get_by_id(workflow_run_id: str):
     workflow_run = await db.workflow_run_get_by_id(workflow_run_id)
     returnInfo = {"run": workflow_run}
@@ -50,19 +51,19 @@ async def workflow_runs_get_by_id(workflow_run_id: str):
     returnInfo["workflow"] = workflow
     return returnInfo
 
-@router.get("/delete/{workflow_id}")
+@router.get("/delete/{workflow_id}", summary="delete a workflow")
 async def workflow_delete(workflow_id: str):
     await db.workflow_delete_by_id(workflow_id)
     return {"message": "OK"}
 
 
-@router.get("/delete_all")
+@router.get("/delete_all", summary="wipe all workflows")
 async def workflow_delete_all():
     await db.workflow_delete_all()
     return {"message": "OK"}
 
 
-@router.get("/create")
+@router.get("/create", summary="Create a workflow from config")
 async def workflow_create(name: str, config: str = '{"nodes":[]}', experiment_id="1"):
     config = json.loads(config)
     if len(config["nodes"])>0:
@@ -73,15 +74,16 @@ async def workflow_create(name: str, config: str = '{"nodes":[]}', experiment_id
     return workflow_id
 
 
-@router.get("/create_empty")
+@router.get("/create_empty", summary="Create an empty workflow")
 async def workflow_create_empty(name: str, experiment_id="1"):
+    name = slugify(name)
     config = {"nodes":[{"type":"START", "id":str(uuid.uuid4()), "name":"START", "out":[]}]}
     workflow_id = await db.workflow_create(name, json.dumps(config), experiment_id)
     print(experiment_id)
     return workflow_id
 
 
-@router.get("/{workflow_id}/{node_id}/edit_node_metadata")
+@router.get("/{workflow_id}/{node_id}/edit_node_metadata", summary="Edit metadata of a node in a workflow")
 async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: str):
     workflow = await db.workflows_get_by_id(workflow_id)
     config = json.loads(workflow["config"])
@@ -93,12 +95,13 @@ async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: 
     await db.workflow_update_config(workflow_id, json.dumps(config))
     return {"message": "OK"}
 
-@router.get("/{workflow_id}/update_name")
+@router.get("/{workflow_id}/update_name", summary="Update the name of a workflow")
 async def workflow_update_name(workflow_id: str, new_name: str):
-    db.workflow_update_name(workflow_id, new_name)
+    new_name = slugify(new_name)
+    await db.workflow_update_name(workflow_id, new_name)
     return {"message": "OK"}
 
-@router.get("/{workflow_id}/add_node")
+@router.get("/{workflow_id}/add_node", summary="Add a node to a workflow")
 async def workflow_add_node(workflow_id: str, node: str):
     new_node_json = json.loads(node)
     workflow = await db.workflows_get_by_id(workflow_id)
@@ -118,7 +121,7 @@ async def workflow_add_node(workflow_id: str, node: str):
     return {"message": "OK"}
 
 
-@router.post("/{workflow_id}/{node_id}/update_node")
+@router.post("/{workflow_id}/{node_id}/update_node", summary="Update a specific node in a workflow")
 async def workflow_update_node(workflow_id: str, node_id: str, new_node: dict = Body()):
     workflow = await db.workflows_get_by_id(workflow_id)
     config = json.loads(workflow["config"])
@@ -137,7 +140,7 @@ async def workflow_update_node(workflow_id: str, node_id: str, new_node: dict = 
     return {"message": "OK"}
 
 
-@router.post("/{workflow_id}/{start_node_id}/remove_edge")
+@router.post("/{workflow_id}/{start_node_id}/remove_edge", summary="Remove an edge between two nodes in a workflow")
 async def workflow_remove_edge(workflow_id: str, start_node_id: str, end_node_id: str):
     workflow = await db.workflows_get_by_id(workflow_id)
     config = json.loads(workflow["config"])
@@ -156,7 +159,7 @@ async def workflow_remove_edge(workflow_id: str, start_node_id: str, end_node_id
     await db.workflow_update_config(workflow_id, json.dumps(config))
     return {"message": "OK"}
 
-@router.post("/{workflow_id}/{start_node_id}/add_edge")
+@router.post("/{workflow_id}/{start_node_id}/add_edge", summary="Add an edge between two nodes in a workflow")
 async def workflow_add_edge(workflow_id: str, start_node_id: str, end_node_id: str):
     workflow = await db.workflows_get_by_id(workflow_id)
     config = json.loads(workflow["config"])
@@ -174,7 +177,7 @@ async def workflow_add_edge(workflow_id: str, start_node_id: str, end_node_id: s
     await db.workflow_update_config(workflow_id, json.dumps(config))
     return {"message": "OK"}
 
-@router.get("/{workflow_id}/{node_id}/delete_node")
+@router.get("/{workflow_id}/{node_id}/delete_node", summary="Delete a node from a workflow")
 async def workflow_delete_node(workflow_id: str, node_id: str):
     workflow = await db.workflows_get_by_id(workflow_id)
     config = json.loads(workflow["config"])
@@ -200,7 +203,7 @@ async def workflow_delete_node(workflow_id: str, node_id: str):
     return {"message": "OK"}
 
 
-@router.get("/{workflow_id}/export_to_yaml")
+@router.get("/{workflow_id}/export_to_yaml", summary="Export a workflow definition to YAML")
 async def workflow_export_to_yaml(workflow_id: str):
     workflow = await db.workflows_get_by_id(workflow_id)
 
@@ -220,7 +223,7 @@ async def workflow_export_to_yaml(workflow_id: str):
     return FileResponse(filename, filename=filename)
 
 
-@router.post("/import_from_yaml")
+@router.post("/import_from_yaml", summary="Import a workflow definition from YAML")
 async def workflow_import_from_yaml(file: UploadFile, experiment_id="1"):
     with open(file.filename, "r") as fileStream:
         workflow = yaml.load(fileStream, Loader=yaml.BaseLoader)
@@ -228,188 +231,331 @@ async def workflow_import_from_yaml(file: UploadFile, experiment_id="1"):
     return {"message": "OK"}
 
 
-@router.get("/{workflow_id}/start")
+@router.get("/{workflow_id}/start", summary="Queue a workflow to start execution")
 async def start_workflow(workflow_id):
     await db.workflow_queue(workflow_id)
     return {"message": "OK"}
 
-
-@router.get("/start_next_step")
-async def start_next_step_in_workflow():
-    #check running or queued workflows
+@router.get("/runs/get_currently_running", summary="Get the currently running workflow run and run a queued run if there is no currently running workflow run")
+async def get_active_workflow_run():
     num_running_workflows = await db.workflow_count_running()
     num_queued_workflows = await db.workflow_count_queued()
+
     if num_running_workflows + num_queued_workflows == 0:
-        return {"message": "A workflow is not running or queued"}
+        return None  # No workflows to process
 
-    currently_running_workflow_run = await db.workflow_run_get_running()
-    #if there is no currently running workflow run, then take a queued workflow and set it as running
-    if currently_running_workflow_run is None:
-        currently_running_workflow_run = await db.workflow_run_get_queued()
-        await db.workflow_run_update_status(currently_running_workflow_run["id"], "RUNNING")
+    active_run = await db.workflow_run_get_running()
+    #if we have no currenlty active workflow run, then run a queued one
+    if active_run is None:
+        active_run = await db.workflow_run_get_queued()
+        if active_run:
+            await db.workflow_run_update_status(active_run["id"], "RUNNING")
 
-    #get a bunch of useful fields for below, such as run id, and the workflow and whatnot
-    workflow_run_id = currently_running_workflow_run["id"]
-    workflow_id = currently_running_workflow_run["workflow_id"]
-    currently_running_workflow = await db.workflows_get_by_id(workflow_id)
-    workflow_config = json.loads(currently_running_workflow["config"])
-    workflow_current_task = json.loads(currently_running_workflow_run["current_tasks"])
-    workflow_current_job_id = json.loads(currently_running_workflow_run["current_job_ids"])
+    return active_run
 
-    current_jobs = []
-    current_job = None
+async def load_workflow_context(active_run):
+    workflow_run_id = active_run["id"]
+    workflow_id = active_run["workflow_id"]
+    workflow = await db.workflows_get_by_id(workflow_id)
+    workflow_config = json.loads(workflow["config"])
+    current_tasks = json.loads(active_run["current_tasks"]) # List of task IDs (node IDs)
+    current_job_ids = json.loads(active_run["current_job_ids"]) # List of job IDs
 
-    #loop through all the currently running jobs in the workflow
-    if workflow_current_job_id != []:
-        for job_id in workflow_current_job_id:
-            current_job = await db.job_get(job_id)
-            current_jobs.append(current_job)
+    return workflow_run_id, workflow_id, workflow_config, current_tasks, current_job_ids
 
-            #if the job isnt complete, return early and wait for it to either finish or just mark the workflow as failed/cancelled
-            if current_job["status"] == "FAILED":
-                await db.workflow_run_update_status(workflow_run_id, "FAILED")
-                return {"message": "the current job failed"}
+async def check_current_jobs_status(workflow_run_id, current_job_ids):
+    """
+    Checks the status of currently running jobs for the workflow step.
+    Updates workflow status if a job failed or was cancelled.
+    Returns None if all jobs are complete, or a message string if waiting, failed, or cancelled.
+    """
+    if not current_job_ids:
+        return None 
 
-            if current_job["status"] == "CANCELLED" or current_job["status"] == "DELETED" or current_job["status"] == "STOPPED":
-                await db.workflow_run_update_with_new_job(workflow_run_id, "[]", "[]")
-                await db.workflow_run_update_status(workflow_run_id, "CANCELLED")
-                return {"message": "the current job was cancelled"}
-
-            if current_job["status"] != "COMPLETE":
-                return {"message": "the current job is running"}
-
-    workflow_next_tasks = []
-    # Determine the next task/node.
-    if workflow_current_task != []:
-        # We had a current task; find its outputs.
-        for node in workflow_config["nodes"]:
-            if node["id"] in workflow_current_task:
-                workflow_next_tasks += node["out"]
-        if len(workflow_next_tasks) == 0:
+    for job_id in current_job_ids:
+        current_job = await db.job_get(job_id)
+        if not current_job:
              await db.workflow_run_update_status(workflow_run_id, "FAILED")
-             return {"message": "Could not find the current task in the workflow."}
+             return f"Could not find job with ID {job_id}"
+
+        status = current_job["status"]
+
+        if status == "FAILED":
+            await db.workflow_run_update_status(workflow_run_id, "FAILED")
+            return "The current job failed"
+
+        if status in ["CANCELLED", "DELETED", "STOPPED"]:
+            await db.workflow_run_update_with_new_job(workflow_run_id, "[]", "[]")
+            await db.workflow_run_update_status(workflow_run_id, "CANCELLED")
+            return "The current job was cancelled/stopped/deleted"
+
+        if status != "COMPLETE":
+            return "The current job is running"
+
+    return None 
+
+def find_nodes_by_ids(node_ids, all_nodes):
+    """Finds node configuration dictionaries based on a list of node IDs."""
+    return [node for node in all_nodes if node.get("id") in node_ids]
+
+async def determine_next_tasks(current_tasks, workflow_config, workflow_run_id):
+    """
+    Determines the IDs of the next tasks based on the current tasks and workflow config.
+    Returns a list of next task IDs, an empty list if workflow is complete, or None on error.
+    """
+    all_nodes = workflow_config.get("nodes", [])
+    next_task_ids = []
+
+    if current_tasks:
+        current_nodes = find_nodes_by_ids(current_tasks, all_nodes)
+        if not current_nodes:
+             await db.workflow_run_update_status(workflow_run_id, "FAILED")
+             return None
+
+        for node in current_nodes:
+            next_task_ids += node["out"]
 
     else:
-        # No current task; start from the beginning.
-        workflow_next_tasks = [workflow_config["nodes"][0]["id"]]  # Now a list
+        if all_nodes:
+            next_task_ids = [all_nodes[0]["id"]]
 
-    workflow_current_task = workflow_next_tasks
+    return next_task_ids 
 
-    if not workflow_current_task:  # Check if the list is empty (end of workflow).
-        await db.workflow_run_update_status(workflow_run_id, "COMPLETE")
-        await db.workflow_run_update_with_new_job(workflow_run_id, "[]", "[]")
-        return {"message": "Workflow Complete!"}
 
-    next_nodes = []
-    for node in workflow_config["nodes"]:
-        if node["id"] in workflow_current_task:
-            next_nodes.append(node)
-    if len(next_nodes) == 0:
-        await db.workflow_run_update_status(workflow_id, "FAILED")
-        return {"message": "Could not find the next task in the workflow."}
-    
+async def handle_start_node_skip(next_task_ids, workflow_config, workflow_run_id):
+    """
+    Checks if the next task is a START node. If so, finds the subsequent tasks.
+    Returns the actual next task IDs and their corresponding node dicts.
+    Returns (None, None) on error.
+    """
+    all_nodes = workflow_config.get("nodes", [])
+    next_nodes = find_nodes_by_ids(next_task_ids, all_nodes)
 
-    #Task Lookup and Job Creation
-    if next_nodes[0]["type"] == "START":
-        workflow_current_task = next_nodes[0]["out"]  # Skip the START node.
-        if not workflow_current_task: #if the next node does not exist
-            await db.workflow_run_update_status(workflow_run_id, "COMPLETE")
-            await db.workflow_run_update_with_new_job(workflow_run_id, "[]", "[]")  # Reset current job.
-            return {"message": "Workflow Complete!"}
-        next_nodes = []
-        for node in workflow_config["nodes"]:
-            if node["id"] in workflow_current_task:
-                next_nodes.append(node)
-        if len(next_nodes) == 0:
-            await db.workflow_update_status(workflow_run_id, "FAILED")
-            return {"message": "Could not find the next task in the workflow."}
+    if not next_nodes and next_task_ids: 
+        await db.workflow_run_update_status(workflow_run_id, "FAILED")
+        return None, None
 
-    next_job_ids = []
+    # Handle potential multiple start nodes or parallel paths from start
+    final_next_task_ids = []
+    processed_start_nodes = False
 
-    #queue up the next nodes if all current nodes/jobs are done
-    for next_node in next_nodes:
-        # Get the task definition.  Prioritize metadata.task_name, then node.type
-        task_name = next_node["task"]
+    temp_next_nodes = []
+    for node in next_nodes:
+        if node.get("type") == "START":
+            processed_start_nodes = True
+            final_next_task_ids.extend(node.get("out", []))
+        else:
+            temp_next_nodes.append(node)
+            final_next_task_ids.append(node["id"])
 
-        #get the next task to run based on the next node to run
-        next_task = None
-        tasks = await db.tasks_get_all()
-        for task in tasks:
-            if(task["name"] == task_name):
-                next_task = task
-                break
+    if processed_start_nodes:
+        if not final_next_task_ids: 
+             return [], []
 
-        #if we couldn't find the task, then we just mark the workflow as failed
-        if not next_task:
+        next_nodes = find_nodes_by_ids(final_next_task_ids, all_nodes)
+        if not next_nodes:
             await db.workflow_run_update_status(workflow_run_id, "FAILED")
-            return {"message": f"Could not find task '{task_name}' for workflow node."}
-        
-        #here we load the information of the previous job that ran to determine what info to pass to the next job
-        previous_node = None
-        previous_job_ID = None
-        previous_job = None
+            return None, None
+        return final_next_task_ids, next_nodes
+    else:
+        return next_task_ids, next_nodes
 
-        nodes = json.loads(currently_running_workflow["config"])["nodes"]
-        for node in nodes:
-            if next_node["id"] in node["out"]:
-                previous_node = node
-        if previous_node is not None:
-            if previous_node["type"] != "START":
-                ran_nodes = json.loads(currently_running_workflow_run["node_ids"])
-                ran_jobs = json.loads(currently_running_workflow_run["job_ids"])
+
+async def find_task_definition(task_name: str, workflow_run_id: int):
+    """Finds the task definition from the database by name."""
+    tasks = await db.tasks_get_all()
+    for task in tasks:
+        if task.get("name") == task_name:
+            return task
+
+    #if the task isnt found
+    await db.workflow_run_update_status(workflow_run_id, "FAILED")
+    return None
+
+async def find_previous_node_and_job(current_node, workflow_run, workflow_config):
+    """Finds the job corresponding to the node that preceded the current_node."""
+
+    all_nodes = workflow_config.get("nodes", [])
+    previous_job = None 
+
+    # Find nodes that have current_node["id"] in their "out" list
+    potential_previous_nodes = [
+        node for node in all_nodes
+        if current_node.get("id") in node.get("out", [])
+    ]
+
+    if not potential_previous_nodes:
+        return None
+
+    if potential_previous_nodes:
+         # Taking the first predecessor found. Needs improvement for multiple inputs.
+         previous_node = potential_previous_nodes[0]
+         if previous_node.get("type") != "START":
+            ran_nodes_str = workflow_run.get("node_ids", "[]") 
+            ran_jobs_str = workflow_run.get("job_ids", "[]")
+            ran_nodes = json.loads(ran_nodes_str)
+            ran_jobs = json.loads(ran_jobs_str)
+            if previous_node["id"] in ran_nodes:
                 previous_job_ID = ran_jobs[ran_nodes.index(previous_node["id"])]
                 previous_job = await db.job_get(previous_job_ID)
 
+    return previous_job
 
-        fusePretext = dirs.MODELS_DIR + "/"
+def extract_previous_job_outputs(previous_job):
+    """Extracts relevant output information from a completed job."""
+    outputs = {}
+    if previous_job is None or "job_data" not in previous_job or not previous_job["job_data"]:
+        return outputs
+        
+    job_data = previous_job["job_data"] # Assuming job_data is already a dict
+    job_type = previous_job.get("type")
+    job_config = job_data.get("config", {}) # Handle missing config safely
+
+    fuse_pretext = dirs.MODELS_DIR + "/" if hasattr(dirs, 'MODELS_DIR') else "" 
+
+    if job_type == "GENERATE":
+        # Prefer dataset_id from top-level job_data if present
+        dataset_id = job_data.get("dataset_id") or job_config.get("dataset_id")
+        if dataset_id:
+            outputs["dataset_name"] = str(dataset_id).lower().replace(" ", "-")
+
+    elif job_type == "TRAIN":
+        model_name = job_config.get("model_name")
+        adaptor_name = job_config.get("adaptor_name")
+        model_architecture = job_config.get("model_architecture")
+
+        if job_config.get("fuse_model") and model_name and adaptor_name:
+             model_base_name = model_name.split("/")[-1]
+             outputs["model_name"] = f"{fuse_pretext}{model_base_name}_{adaptor_name}"
+        elif model_name:
+             outputs["model_name"] = model_name
+
+        if model_architecture:
+             outputs["model_architecture"] = model_architecture
+        if adaptor_name and not job_config.get("fuse_model"): 
+             outputs["adaptor_name"] = adaptor_name
+
+    return outputs
 
 
-        #get all the relevant outputs of the previous job in the workflow
-        previous_job_outputs = {}
+def prepare_next_task_io(task_def: dict, previous_outputs: dict):
+    """Prepares the JSON input and output strings for the next task."""
+    inputs = json.loads(task_def.get("inputs", "{}"))
+    outputs = json.loads(task_def.get("outputs", "{}"))
+    task_type = task_def.get("type")
 
-        if previous_job is not None:
-            if previous_job["type"] == "GENERATE":
-                if "dataset_id" in previous_job["job_data"].keys():
-                    previous_job_outputs["dataset_name"] = previous_job["job_data"]["dataset_id"].lower()
-                else:
-                    previous_job_outputs["dataset_name"] = previous_job["job_data"]["config"]["dataset_id"].lower()
-            if previous_job["type"] == "TRAIN":
-                if "fuse_model" in previous_job["job_data"]["config"].keys():
-                    previous_job_outputs["model_name"] = fusePretext + previous_job["job_data"]["config"]["model_name"].split("/")[-1] + "_" + previous_job["job_data"]["config"]["adaptor_name"]                 
-                    previous_job_outputs["model_architecture"] = previous_job["job_data"]["config"]["model_architecture"]
-                else:
-                    previous_job_outputs["model_name"] = previous_job["job_data"]["config"]["model_name"]
-                    previous_job_outputs["model_architecture"] = previous_job["job_data"]["config"]["model_architecture"]
-                    previous_job_outputs["adaptor_name"] = previous_job["job_data"]["config"]["adaptor_name"]
+    # Map previous outputs to next inputs
+    if task_type == "EVAL":
+        # Map relevant outputs to specific input fields
+        for key in ["model_name", "model_architecture", "adaptor_name", "dataset_name"]:
+            if key in previous_outputs:
+                inputs[key] = previous_outputs[key]
+
+    elif task_type == "TRAIN":
+        # Map relevant outputs to specific input fields
+        for key in ["model_name", "model_architecture", "dataset_name"]:
+             if key in previous_outputs:
+                 inputs[key] = previous_outputs[key]
+        # Generate dynamic output fields
+        outputs["adaptor_name"] = str(uuid.uuid4()).replace("-", "")
+
+    elif task_type == "GENERATE":
+        # Generate dynamic output fields
+        outputs["dataset_id"] = str(uuid.uuid4()).replace("-", "")
+
+    return json.dumps(inputs), json.dumps(outputs)
 
 
-        #fill the inputs of a job based on what it can take
-        if next_task["type"] == "EVAL":
-            next_task["inputs"] = json.loads(next_task["inputs"])
-            for key in previous_job_outputs.keys():
-                if key in ["model_name", "model_architecture", "adaptor_name", "dataset_name"]:
-                    next_task["inputs"][key] = previous_job_outputs[key]
-            next_task["inputs"] = json.dumps(next_task["inputs"])
+async def queue_job_for_node(node: dict, workflow_run: dict, workflow_config: dict):
+    """Finds task def, prepares IO, and queues a job for a given workflow node."""
+    task_name = node.get("task")
+    if not task_name:
+        return None
 
-        if next_task["type"] == "TRAIN":
-            next_task["outputs"] = json.loads(next_task["outputs"])
-            next_task["outputs"]["adaptor_name"] = str(uuid.uuid4()).replace("-","")
-            next_task["outputs"] = json.dumps(next_task["outputs"])
+    task_def = await find_task_definition(task_name, workflow_run["id"])
+    if not task_def:
+        return None
 
-            next_task["inputs"] = json.loads(next_task["inputs"])
-            for key in previous_job_outputs.keys():
-                if key in ["model_name", "model_architecture", "dataset_name"]:
-                    next_task["inputs"][key] = previous_job_outputs[key]
-            next_task["inputs"] = json.dumps(next_task["inputs"])
+    # Find the job that ran *before* this node to get its outputs
+    previous_job = await find_previous_node_and_job(node, workflow_run, workflow_config)
 
-        if next_task["type"] == "GENERATE":
-            next_task["outputs"] = json.loads(next_task["outputs"])
-            next_task["outputs"]["dataset_id"] = str(uuid.uuid4()).replace("-","")
-            next_task["outputs"] = json.dumps(next_task["outputs"])
+    # Extract outputs from the previous job
+    previous_outputs = extract_previous_job_outputs(previous_job)
 
+    # Prepare inputs and outputs for the new job
+    inputs_json, outputs_json = prepare_next_task_io(task_def, previous_outputs)
+
+    # Queue the task
+    try:
+        task_id_to_queue = task_def.get("id")
+        if task_id_to_queue is None:
+             await db.workflow_run_update_status(workflow_run["id"], "FAILED")
+             return None
+        
+        queued_job_info = await tsks.queue_task(task_id_to_queue, inputs_json, outputs_json)
+        if not queued_job_info or "id" not in queued_job_info:
+            return None
+        return queued_job_info
+    except Exception as e:
+        print(f"Error queueing task {task_name}: {e}")
+        await db.workflow_run_update_status(workflow_run["id"], "FAILED")
+        return None
+
+@router.get("/start_next_step", summary="Start the next step in the active workflow")
+async def start_next_step_in_workflow():
+    # 1. Find the active workflow run (Running or next Queued)
+    active_run = await get_active_workflow_run()
+    if not active_run:
+        return {"message": "No workflow is running or queued."}
+
+    # 2. Load context for the active run
+    workflow_run_id, workflow_id, workflow_config, current_tasks, current_job_ids = await load_workflow_context(active_run)
+
+    # 3. Check status of jobs from the *previous* step (if any)
+    job_status_message = await check_current_jobs_status(workflow_run_id, current_job_ids)
+    if job_status_message:
+        return {"message": job_status_message}
+
+    # --- Jobs from previous step are complete, determine next step ---
+
+    # 4. Determine the next task(s) based on completed ones
+    next_task_ids = await determine_next_tasks(current_tasks, workflow_config, workflow_run_id)
+
+    if next_task_ids is None:
+         return {"message": "Failed to determine next task due to an error."}
+
+    if not next_task_ids:
+        # Workflow is complete
+        await db.workflow_run_update_status(workflow_run_id, "COMPLETE")
+        await db.workflow_run_update_with_new_job(workflow_run_id, "[]", "[]") # Clear current tasks/jobs
+        return {"message": "Workflow Complete!"}
+
+    # 5. Handle START node and get the actual next nodes
+    actual_next_task_ids, next_nodes = await handle_start_node_skip(next_task_ids, workflow_config, workflow_run_id)
+
+    if actual_next_task_ids is None: # Indicates an error occurred in _handle_start_node_skip
+        return {"message": "Failed processing potential START node."}
+
+    if not actual_next_task_ids: # Can happen if START node had no output
+         await db.workflow_run_update_status(workflow_run_id, "COMPLETE")
+         await db.workflow_run_update_with_new_job(workflow_run_id, "[]", "[]")
+         return {"message": "Workflow Complete (ended after START node)!"}
     
-        next_job_info = await tsks.queue_task(next_task["id"], next_task["inputs"], next_task["outputs"])
-        next_job_ids.append(next_job_info["id"])
-    await db.workflow_run_update_with_new_job(workflow_run_id, json.dumps(workflow_current_task), json.dumps(next_job_ids))
+    # 6. Queue jobs for the next node(s)
+    next_job_ids = []
+    for node in next_nodes:
+        # Pass necessary context to the queuing function
+        new_job_info = await queue_job_for_node(node, active_run, workflow_config)
+        if new_job_info and "id" in new_job_info:
+            next_job_ids.append(new_job_info["id"])
+        else:
+             return {"message": f"Failed to queue job for task '{node.get('task', 'UNKNOWN')}'."}
 
-    return {"message": "Next job created"}
+    # 7. Update workflow run state with new current tasks and job IDs
+    await db.workflow_run_update_with_new_job(
+        workflow_run_id,
+        json.dumps(actual_next_task_ids),
+        json.dumps(next_job_ids)
+    )
+
+    return {"message": f"Started next step with job(s): {next_job_ids}"}

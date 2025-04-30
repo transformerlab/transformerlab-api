@@ -12,6 +12,7 @@ import os
 import copy
 from jinja2 import Environment
 
+
 # Import tlab_trainer from the SDK
 from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import WORKSPACE_DIR, get_python_executable
@@ -24,17 +25,45 @@ def train_function(**params):
     python_executable = get_python_executable(plugin_dir)
 
     # Extract configuration parameters
-    lora_layers = params.get("lora_layers", "16")
-    learning_rate = params.get("learning_rate", "5e-5")
-    batch_size = str(params.get("batch_size", "4"))
-    steps_per_eval = str(params.get("steps_per_eval", "200"))
-    iters = params.get("iters", "1000")
-    adaptor_name = params.get("adaptor_name", "default")
-    fuse_model = params.get("fuse_model", True)
+    lora_layers = tlab_trainer.params.get("lora_layers", "16")
+    learning_rate = tlab_trainer.params.get("learning_rate", "5e-5")
+    batch_size = str(tlab_trainer.params.get("batch_size", "4"))
+    steps_per_eval = str(tlab_trainer.params.get("steps_per_eval", "200"))
+    iters = tlab_trainer.params.get("iters", "1000")
+    adaptor_name = tlab_trainer.params.get("adaptor_name", "default")
+    fuse_model = tlab_trainer.params.get("fuse_model", True)
+    num_train_epochs = tlab_trainer.params.get("num_train_epochs", None)
+    datasets = tlab_trainer.load_dataset(["train", "valid"])
+    steps_per_report = tlab_trainer.params.get("steps_per_report", "10")
+    save_every = tlab_trainer.params.get("save_every", "1000")
 
     # Check if LoRA parameters are set
     lora_rank = params.get("lora_rank", None)
     lora_alpha = params.get("lora_alpha", None)
+
+    if num_train_epochs is not None and num_train_epochs != "" and int(num_train_epochs) >= 0:
+        if num_train_epochs == 0:
+            print(
+                "Training is set to 0 epochs which is not allowed. Setting to 1 epoch. To avoid epoch based training set 'Number of Training Epochs' to -1."
+            )
+            num_train_epochs = 1
+        batch_size_int = int(batch_size)
+        num_examples = len(datasets["train"])
+        steps_per_epoch = num_examples // batch_size_int
+        if steps_per_epoch == 0:
+            steps_per_epoch = 1  # Handle case where batch size > dataset size
+        total_steps = steps_per_epoch * int(num_train_epochs)
+        iters = str(total_steps)
+        steps_per_eval = str(total_steps // int(num_train_epochs))
+        steps_per_report = str(total_steps // int(num_train_epochs))
+        save_every = str(total_steps // int(num_train_epochs))
+        print(f"Using epoch-based training: {num_train_epochs} epochs")
+        print(f"Training dataset size: {num_examples} examples")
+        print(f"Steps per epoch: {steps_per_epoch}")
+        print(f"Total training iterations: {iters}")
+        print(f"Steps per eval: {steps_per_eval}")
+        print(f"Steps per report: {steps_per_report}")
+        print(f"Save every: {save_every}")
 
     # LoRA parameters have to be passed in a config file
     config_file = None
@@ -124,11 +153,11 @@ def train_function(**params):
         "--data",
         data_directory,
         "--steps-per-report",
-        str(params.get("steps_per_report", "10")),
+        steps_per_report,
         "--steps-per-eval",
         str(steps_per_eval),
         "--save-every",
-        str(params.get("save_every", "100")),
+        save_every,
     ]
 
     # If a config file has been created then include it
@@ -229,7 +258,12 @@ def train_function(**params):
         ]
 
         with subprocess.Popen(
-            fuse_popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True, env=env
+            fuse_popen_command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            bufsize=1,
+            universal_newlines=True,
+            env=env,
         ) as process:
             for line in process.stdout:
                 print(line, end="", flush=True)

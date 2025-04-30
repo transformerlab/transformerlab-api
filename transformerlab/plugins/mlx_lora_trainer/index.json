@@ -4,7 +4,7 @@
   "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.4.9",
+  "version": "0.4.11",
   "model_architectures": [
     "MLX",
     "CohereForCausalLM",
@@ -18,7 +18,9 @@
     "MixtralForCausalLM",
     "PhiForCausalLM",
     "Phi3ForCausalLM",
-    "Qwen2ForCausalLM"
+    "Qwen2ForCausalLM",
+    "Qwen3ForCausalLM",
+    "Qwen3MoeForCausalLM"
   ],
   "supported_hardware_architectures": [
     "mlx"
@@ -71,6 +73,13 @@
       "default": 1000,
       "minimum": 1,
       "maximum": 1000000
+    },
+    "num_train_epochs": {
+      "title": "Number of Training Epochs",
+      "type": "integer",
+      "default": -1,
+      "minimum": -1,
+      "maximum": 100
     },
     "steps_per_report": {
       "title": "Steps per Report",
@@ -127,6 +136,9 @@
     },
     "iters": {
       "ui:help": "Number of iterations (not epochs) to train -- 1000 could be a starting point."
+    },
+    "num_train_epochs": {
+      "ui:help": "Number of epochs to train. Default is -1 (which disables epoch based training). Setting this to 1 or greater value will override any value set for iterations but it may improve the quality of training."
     },
     "steps_per_report": {
       "ui:help": "Number of training steps between loss reporting."

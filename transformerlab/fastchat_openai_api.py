@@ -161,7 +161,7 @@ async def check_api_key(
 
 
 def create_error_response(code: int, message: str) -> JSONResponse:
-    return JSONResponse(ErrorResponse(message=message, code=code).dict(), status_code=400)
+    return JSONResponse(ErrorResponse(message=message, code=code).model_dump(), status_code=400)
 
 
 async def check_model(request, bypass_adaptor=False) -> Optional[JSONResponse]:
@@ -500,7 +500,7 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
         )
         if "usage" in content:
             task_usage = UsageInfo.parse_obj(content["usage"])
-            for usage_key, usage_value in task_usage.dict().items():
+            for usage_key, usage_value in task_usage.model_dump().items():
                 setattr(usage, usage_key, getattr(usage, usage_key) + usage_value)
 
     return ChatCompletionResponse(model=request.model, choices=choices, usage=usage)
@@ -568,7 +568,7 @@ async def chat_completion_stream_generator(
                     finish_stream_events.append(chunk)
                 continue
             # Convert the chunk to a dictionary
-            chunk_dict = chunk.dict(exclude_unset=True)
+            chunk_dict = chunk.model_dump(exclude_unset=True)
 
             # Convert the dictionary to a JSON string
             sorted_json = json.dumps(chunk_dict, ensure_ascii=False)
@@ -578,7 +578,7 @@ async def chat_completion_stream_generator(
     # There is not "content" field in the last delta message, so exclude_none to exclude field "content".
     for finish_chunk in finish_stream_events:
         # Convert the finish_chunk to a dictionary
-        finish_chunk_dict = finish_chunk.dict(exclude_none=True)
+        finish_chunk_dict = finish_chunk.model_dump(exclude_none=True)
 
         # Convert the dictionary to a JSON string
         sorted_json = json.dumps(finish_chunk_dict, ensure_ascii=False)
@@ -663,7 +663,7 @@ async def create_completion(request: ModifiedCompletionRequest):
             )
 
             task_usage = UsageInfo.parse_obj(content["usage"])
-            for usage_key, usage_value in task_usage.dict().items():
+            for usage_key, usage_value in task_usage.model_dump().items():
                 setattr(usage, usage_key, getattr(usage, usage_key) + usage_value)
 
         return CompletionResponse(model=request.model, choices=choices, usage=UsageInfo.parse_obj(usage))
@@ -968,7 +968,7 @@ async def create_embeddings(request: EmbeddingsRequest, model_name: str = None):
             total_tokens=token_num,
             completion_tokens=None,
         ),
-    ).dict(exclude_none=True)
+    ).model_dump(exclude_none=True)
 
 
 async def get_embedding(payload: Dict[str, Any]):
@@ -1085,7 +1085,7 @@ async def create_chat_completion(request: APIChatCompletionRequest):
             )
         )
         task_usage = UsageInfo.parse_obj(content["usage"])
-        for usage_key, usage_value in task_usage.dict().items():
+        for usage_key, usage_value in task_usage.model_dump().items():
             setattr(usage, usage_key, getattr(usage, usage_key) + usage_value)
 
     return ChatCompletionResponse(model=request.model, choices=choices, usage=usage)
@@ -1137,7 +1137,7 @@ async def count_chat_tokens(request: ChatCompletionRequest):
         token_num = response.json()["count"]
 
     return {
-        "tokenCount": token_num + max_tokens,
+        "tokenCount": token_num,
         "contextLength": context_len,
         "tokensInHistory": token_num,
         "tokensInCompletion": max_tokens,

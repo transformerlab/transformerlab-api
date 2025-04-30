@@ -572,24 +572,36 @@ async def model_local_create(id: str, name: str, json_data={}):
 
 
 @router.get("/model/delete")
-async def model_local_delete(model_id: str):
+async def model_local_delete(model_id: str, delete_from_cache: bool = False):
     # If this is a locally generated model then actually delete from filesystem
     # Check for the model stored in a directory based on the model name (i.e. the part after teh slash)
     root_models_dir = dirs.MODELS_DIR
     model_dir = model_id.rsplit("/", 1)[-1]
     info_file = os.path.join(root_models_dir, model_dir, "info.json")
+
     if os.path.isfile(info_file):
         model_path = os.path.join(root_models_dir, model_dir)
+        model_path = os.path.abspath(model_path)
+        if not model_path.startswith(os.path.abspath(root_models_dir)):
+            print("ERROR: Invalid directory structure")
         print(f"Deleteing {model_path}")
         shutil.rmtree(model_path)
 
     else:
-        # If this is a hugging face model then delete from the database but leave in the cache
-        print(
-            f"Deleting model {model_id}. Note that this will not free up space because it remains in the HuggingFace cache."
-        )
-        print("If you want to delete the model from the HuggingFace cache, you must delete it from:")
-        print("~/.cache/huggingface/hub/")
+        if delete_from_cache:
+            # Delete from the huggingface cache
+            try:
+                huggingfacemodel.delete_model_from_hf_cache(model_id)
+            except Exception as e:
+                print(f"Error deleting model from HuggingFace cache: {e}")
+                # return {"message": "Error deleting model from HuggingFace cache"}
+        else:
+            # If this is a hugging face model then delete from the database but leave in the cache
+            print(
+                f"Deleting model {model_id}. Note that this will not free up space because it remains in the HuggingFace cache."
+            )
+            print("If you want to delete the model from the HuggingFace cache, you must delete it from:")
+            print("~/.cache/huggingface/hub/")
 
     # Delete from the database
     await db.model_local_delete(model_id=model_id)
