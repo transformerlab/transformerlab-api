@@ -321,49 +321,62 @@ install_dependencies() {
 
   check_python
 
-  # store if the box has an nvidia graphics card
-  HAS_GPU=false
+  # Detect GPU type: NVIDIA vs AMD (ROCm)
+  HAS_NVIDIA=false
+  HAS_AMD=false
   if command -v nvidia-smi &> /dev/null; then
-      # Check if nvidia-smi is available
       echo "nvidia-smi is available"
       GPU_INFO=$(nvidia-smi --query-gpu=name --format=csv,noheader,nounits) || echo "Issue with NVIDIA SMI"
-      echo "$GPU_INFO"
       if [ -n "$GPU_INFO" ]; then
           echo "NVIDIA GPU detected: $GPU_INFO"
-          HAS_GPU=true
+          HAS_NVIDIA=true
       else
-          echo "Nvidia SMI exists, No NVIDIA GPU detected. Perhaps you need to re-install NVIDIA drivers."
+          echo "nvidia-smi exists but no NVIDIA GPU found"
+      fi
+  elif command -v rocm-smi &> /dev/null; then
+      echo "rocm-smi is available"
+      AMD_INFO=$(rocm-smi --showproductname | awk '/^GPU/ {print $2}') || echo "Issue with ROCm SMI"
+      if [ -n "$AMD_INFO" ]; then
+          echo "AMD GPU detected: $AMD_INFO"
+          HAS_AMD=true
+      else
+          echo "rocm-smi exists but no AMD GPU found"
       fi
   fi
 
-  #install uv
+  # install uv
   pip install uv
   
-  echo "HAS_GPU=$HAS_GPU"
+  echo "HAS_NVIDIA=$HAS_NVIDIA, HAS_AMD=$HAS_AMD"
 
-  if [ "$HAS_GPU" = true ] ; then
-      echo "Your computer has a GPU; installing cuda:"
+  if [ "$HAS_NVIDIA" = true ]; then
+      echo "Your computer has a NVIDIA GPU; installing CUDA:"
       conda install -y cuda -c nvidia/label/cuda-12.1.1
 
       echo "Installing requirements:"
-      # Install the python requirements
       if ! [ -e "$TLAB_CODE_DIR/requirements-uv.txt" ]; then
         cp "$RUN_DIR"/requirements-uv.txt "$TLAB_CODE_DIR"/requirements-uv.txt
       fi
       uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-uv.txt
 
-      # Install Flash Attention separately - it doesn't play well in requirements file
-      # Using instructions from https://github.com/Dao-AILab/flash-attention
-      uv pip install packaging
-      uv pip install ninja
+      uv pip install packaging ninja
       uv pip install -U flash-attn==2.7.3 --no-build-isolation -c "$TLAB_CODE_DIR"/constraints.txt
-      ###
-  else
-      echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."
-      echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
-      echo "Installing Tranformer Lab requirements without GPU support"
 
-      if ! [ -e "$TLAB_CODE_DIR/requirements-uv.txt" ]; then
+  elif [ "$HAS_AMD" = true ]; then
+      echo "Your computer has an AMD GPU; installing ROCm:"
+
+      #### WONT WORK NEED TO FIND AN EQUIVALENT OF CUDA FOR THIS
+      conda install -y rocm -c rocm/label/main
+
+      echo "Installing requirements for ROCm:"
+      if ! [ -e "$TLAB_CODE_DIR/requirements-rocm-uv.txt" ]; then
+        cp "$RUN_DIR"/requirements-rocm-uv.txt "$TLAB_CODE_DIR"/requirements-rocm-uv.txt
+      fi
+      uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-rocm-uv.txt
+
+  else
+      echo "No GPU detected. Installing CPU‑only requirements."
+      if ! [ -e "$TLAB_CODE_DIR/requirements-no-gpu-uv.txt" ]; then
         cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
       fi
       uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt

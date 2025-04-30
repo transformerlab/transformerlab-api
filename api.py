@@ -47,7 +47,11 @@ from transformerlab.routers import (
     batched_prompts,
 )
 import torch
-from pynvml import nvmlShutdown
+try:
+    from pynvml import nvmlShutdown
+except Exception as e:
+    from pyrsmi import rocml
+    HAS_AMD = True
 from transformerlab import fastchat_openai_api
 from transformerlab.routers.experiment import experiment
 from transformerlab.shared import dirs
@@ -395,7 +399,10 @@ def cleanup_at_exit():
     if torch.cuda.is_available():
         try:
             print("🔴 Releasing allocated GPU Resources")
-            nvmlShutdown()
+            if not HAS_AMD:
+                nvmlShutdown()
+            else:
+                rocml.smi_shutdown()
         except Exception as e:
             print(f"Error shutting down NVML: {e}")
     print("🔴 Quitting Transformer Lab API server.")

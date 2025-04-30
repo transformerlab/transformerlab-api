@@ -18,10 +18,10 @@ sentencepiece
 tensorboard
 tensorboardX
 tiktoken
-torch==2.6.0
-torchaudio==2.6.0
-torchvision==0.21.0
-transformers==4.51.3
+torch==2.7.0
+torchaudio==2.7.0
+torchvision==0.22.0
+transformers==4.51.3 
 peft
 watchfiles
 wandb==0.19.8
@@ -32,4 +32,5 @@ sentence-transformers
 markitdown[all]
 hf_xet
 macmon-python
+pyrsmi
 git+https://github.com/transformerlab/FastChat

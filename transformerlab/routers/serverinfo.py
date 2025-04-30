@@ -12,16 +12,25 @@ from typing import AsyncGenerator
 import psutil
 import torch
 from fastapi import APIRouter
-from pynvml import (
-    nvmlDeviceGetCount,
-    nvmlDeviceGetHandleByIndex,
-    nvmlDeviceGetMemoryInfo,
-    nvmlDeviceGetName,
-    nvmlDeviceGetUtilizationRates,
-    nvmlInit,
-)
+
+try:
+    from pynvml import (
+        nvmlDeviceGetCount,
+        nvmlDeviceGetHandleByIndex,
+        nvmlDeviceGetMemoryInfo,
+        nvmlDeviceGetName,
+        nvmlDeviceGetUtilizationRates,
+        nvmlInit,
+    )
+except Exception as e:
+    print(
+        "⚠️  pynvml is not installed. If you are running on GPU, install to get GPU memory usage.")
+    from pyrsmi import rocml
+
 
 from transformerlab.shared import dirs
+
+HAS_AMD = False
 
 pyTorch_version = torch.__version__
 print(f"🔥 PyTorch version: {pyTorch_version}")
@@ -60,9 +69,13 @@ system_info = {
 # Determine which device to use (cuda/mps/cpu)
 if torch.cuda.is_available():
     system_info["device"] = "cuda"
-
-    # we have a GPU so initialize the nvidia python bindings
-    nvmlInit()
+    try:
+        # we have a GPU so initialize the nvidia python bindings
+        nvmlInit()
+    except Exception as e:
+        print(f"⚠️  Error initializing NVML: {e}")
+        rocml.smi_initialize()
+        HAS_AMD = True
 
     # get CUDA version:
     system_info["cuda_version"] = torch.version.cuda
@@ -160,16 +173,24 @@ async def get_computer_information():
         r["mac_metrics"] = macmon_data
 
     try:
-        deviceCount = nvmlDeviceGetCount()
+        if HAS_AMD:
+            deviceCount = rocml.smi_get_device_count()
+        else:
+            deviceCount = nvmlDeviceGetCount()
         # print('device count: ', deviceCount)
         for i in range(deviceCount):
             info = {}
-
-            handle = nvmlDeviceGetHandleByIndex(i)
+            if HAS_AMD:
+                handle = rocml.smi_get_device_id(i)
+            else:
+                handle = nvmlDeviceGetHandleByIndex(i)
 
             # Certain versions of the NVML library on WSL return a byte string,
             # and this creates a utf error. This is a workaround:
-            device_name = nvmlDeviceGetName(handle)
+            if not HAS_AMD:
+                device_name = nvmlDeviceGetName(handle)
+            else:
+                device_name = rocml.smi_get_device_name(i)
             # print('device name: ', device_name)
 
             # check if device_name is a byte string, if so convert to string:
@@ -177,19 +198,24 @@ async def get_computer_information():
                 device_name = device_name.decode(errors="ignore")
 
             info["name"] = device_name
+            if not HAS_AMD:
+                memory = nvmlDeviceGetMemoryInfo(handle)
+                info["total_memory"] = memory.total
+                info["free_memory"] = memory.free
+                info["used_memory"] = memory.used
 
-            memory = nvmlDeviceGetMemoryInfo(handle)
-            info["total_memory"] = memory.total
-            info["free_memory"] = memory.free
-            info["used_memory"] = memory.used
-
-            u = nvmlDeviceGetUtilizationRates(handle)
-            info["utilization"] = u.gpu
+                u = nvmlDeviceGetUtilizationRates(handle)
+                info["utilization"] = u.gpu
+            else:
+                info["total_memory"] = rocml.smi_get_device_memory_total(i)
+                info["used_memory"] = rocml.smi_get_device_memory_used(i)
+                info["free_memory"] = rocml.smi_get_device_memory_total(i) - rocml.smi_get_device_memory_used(i)
+                info["utilization"] = rocml.smi_get_device_utilization(i)
 
             # info["temp"] = nvmlDeviceGetTemperature(handle)
             g.append(info)
-    except Exception:  # Catch all exceptions and print them
-        # print(f"Error retrieving GPU information: {e}")
+    except Exception as e:  # Catch all exceptions and print them
+        print(f"Error retrieving GPU information: {e}")
 
         g.append(
             {
