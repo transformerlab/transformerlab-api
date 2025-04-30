@@ -91,6 +91,45 @@ async def copy_plugin_files_to_workspace(plugin_id: str):
     copy_tree(plugin_path, dirs.plugin_dir_by_name(plugin_id))
 
 
+async def run_installer_for_plugin(plugin_id: str, log_file):
+    plugin_id = secure_filename(plugin_id)
+    new_directory = os.path.join(dirs.PLUGIN_DIR, plugin_id)
+    venv_path = os.path.join(new_directory, "venv")
+    plugin_path = os.path.join(dirs.PLUGIN_PRELOADED_GALLERY, plugin_id)
+
+    # Check if plugin exists at the location:
+    if not os.path.exists(plugin_path):
+        print(f"Plugin {plugin_path} not found in gallery.")
+        return {"error": "Plugin not found in gallery."}
+
+        # Open the Plugin index.json:
+    plugin_index_json = open(f"{plugin_path}/index.json", "r")
+    plugin_index = json.load(plugin_index_json)
+    plugin_index_json.close()
+
+    # If index object contains a key called setup-script, run it:
+    if "setup-script" in plugin_index:
+        # Run shell script with virtual environment activated
+        print("Running Plugin Install script in virtual environment...")
+        await log_file.write(f"## Running setup script for {plugin_id} in virtual environment...\n")
+
+        setup_script_name = plugin_index["setup-script"]
+        # Use bash -c to properly source the activation script before running setup script
+        proc = await asyncio.create_subprocess_exec(
+            "/bin/bash",
+            "-c",
+            f"source {venv_path}/bin/activate && bash {setup_script_name}",
+            cwd=new_directory,
+            stdout=log_file,
+            stderr=log_file,
+        )
+        await proc.wait()
+    else:
+        print("No install script found")
+        await log_file.write(f"## No setup script found for {plugin_id}.\n")
+    await log_file.write(f"## Plugin Install for {plugin_id} completed.\n")
+
+
 @router.get("/gallery/{plugin_id}/install", summary="Install a plugin from the gallery.")
 async def install_plugin(plugin_id: str):
     """Install a plugin from the gallery"""
@@ -105,11 +144,6 @@ async def install_plugin(plugin_id: str):
     if not os.path.exists(plugin_path):
         print(f"Plugin {plugin_path} not found in gallery.")
         return {"error": "Plugin not found in gallery."}
-
-    # Open the Plugin index.json:
-    plugin_index_json = open(f"{plugin_path}/index.json", "r")
-    plugin_index = json.load(plugin_index_json)
-    plugin_index_json.close()
 
     await copy_plugin_files_to_workspace(plugin_id)
 
@@ -150,32 +184,19 @@ async def install_plugin(plugin_id: str):
         )
         await proc.wait()
 
-        # If index object contains a key called setup-script, run it:
-        if "setup-script" in plugin_index:
-            # Run shell script with virtual environment activated
-            print("Running Plugin Install script in virtual environment...")
-            await log_file.write(f"## Running setup script for {plugin_id} in virtual environment...\n")
-
-            setup_script_name = plugin_index["setup-script"]
-            # Use bash -c to properly source the activation script before running setup script
-            proc = await asyncio.create_subprocess_exec(
-                "/bin/bash",
-                "-c",
-                f"source {venv_path}/bin/activate && bash {setup_script_name}",
-                cwd=new_directory,
-                stdout=log_file,
-                stderr=log_file,
-            )
-            await proc.wait()
-        else:
-            print("No install script found")
-            await log_file.write(f"## No setup script found for {plugin_id}.\n")
-
-        await log_file.write(f"## Plugin Install for {plugin_id} completed.\n")
+        await run_installer_for_plugin(plugin_id, log_file)
 
     print("Plugin installation completed.")
 
     return {"status": "success", "message": f"Plugin {plugin_id} installed successfully."}
+
+
+@router.get("/{plugin_id}/run_installer_script", summary="Run the installer script for a plugin.")
+async def run_installer_script(plugin_id: str):
+    global_log_file_name = dirs.GLOBAL_LOG_PATH
+    async with aiofiles.open(global_log_file_name, "a") as log_file:
+        await run_installer_for_plugin(plugin_id, log_file)
+    return {"status": "success", "message": f"Plugin {plugin_id} installer script run successfully."}
 
 
 @router.get("/list", summary="List the plugins that are currently installed.")
