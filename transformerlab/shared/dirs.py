@@ -49,6 +49,10 @@ else:
     os.makedirs(name=WORKSPACE_DIR, exist_ok=True)
     print(f"Using default workspace directory: {WORKSPACE_DIR}")
 
+FASTCHAT_LOGS_DIR = os.path.join(WORKSPACE_DIR, "logs")
+if not os.path.exists(FASTCHAT_LOGS_DIR):
+    os.makedirs(FASTCHAT_LOGS_DIR)
+
 # TFL_SOURCE_CODE_DIR
 api_py_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if api_py_dir != os.path.join(HOME_DIR, "src"):

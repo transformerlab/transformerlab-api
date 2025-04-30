@@ -5,6 +5,7 @@ A model worker that executes the model.
 import argparse
 import asyncio
 import base64
+import os
 import gc
 import json
 import sys
@@ -24,8 +25,7 @@ from fastchat.modules.awq import AWQConfig
 from fastchat.modules.exllama import ExllamaConfig
 from fastchat.modules.gptq import GptqConfig
 from fastchat.modules.xfastertransformer import XftConfig
-from fastchat.serve.base_model_worker import BaseModelWorker
-from fastchat.utils import get_context_length
+from fastchat.utils import get_context_length, build_logger
 from PIL import Image
 from transformers import AutoModelForPreTraining, AutoProcessor, AutoTokenizer, set_seed
 from transformers.generation.logits_process import (
@@ -36,6 +36,17 @@ from transformers.generation.logits_process import (
     TopPLogitsWarper,
 )
 
+worker_id = str(uuid.uuid4())[:8]
+logfile_path = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "logs")
+if not os.path.exists(logfile_path):
+    os.makedirs(logfile_path)
+logger = build_logger("model_worker", os.path.join(logfile_path, "model_worker.log"))
+
+import fastchat.serve.base_model_worker  # noqa
+
+fastchat.serve.base_model_worker.logger = logger
+from fastchat.serve.base_model_worker import BaseModelWorker  # noqa
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -45,8 +56,6 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-
-worker_id = str(uuid.uuid4())[:8]
 
 
 def prepare_logits_processor(
