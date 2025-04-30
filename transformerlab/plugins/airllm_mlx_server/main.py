@@ -12,32 +12,36 @@ pip install mlx-lm
 
 import argparse
 import asyncio
-from collections import namedtuple
 import json
 import os
-from typing import Any, Dict, List, Optional
-import uuid
 import sys
+import uuid
+from collections import namedtuple
+from typing import Any, Dict, List, Optional
 
-from huggingface_hub import snapshot_download
-from airllm import AutoModel
-
-from fastapi import FastAPI, Request, BackgroundTasks
-from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import StreamingResponse, JSONResponse
 import uvicorn
+from airllm import AutoModel
+from fastapi import BackgroundTasks, FastAPI, Request
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import JSONResponse, StreamingResponse
+from fastchat.utils import build_logger, get_context_length
+from huggingface_hub import snapshot_download
 
-from fastchat.serve.base_model_worker import BaseModelWorker
-from fastchat.serve.model_worker import (
-    logger,
-    worker_id,
-)
-from fastchat.utils import get_context_length
-from contextlib import asynccontextmanager
 
-import mlx.core as mx
+worker_id = str(uuid.uuid4())[:8]
+logfile_path = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "logs")
+if not os.path.exists(logfile_path):
+    os.makedirs(logfile_path)
+logger = build_logger("model_worker", os.path.join(logfile_path, "model_worker.log"))
 
-from mlx_embedding_models.embedding import EmbeddingModel
+import fastchat.serve.base_model_worker  # noqa
+
+fastchat.serve.base_model_worker.logger = logger
+from contextlib import asynccontextmanager  # noqa
+
+import mlx.core as mx  # noqa
+from fastchat.serve.base_model_worker import BaseModelWorker  # noqa
+from mlx_embedding_models.embedding import EmbeddingModel  # noqa
 
 
 @asynccontextmanager

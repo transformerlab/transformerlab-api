@@ -28,12 +28,20 @@ from fastchat.modules.awq import AWQConfig
 from fastchat.modules.exllama import ExllamaConfig
 from fastchat.modules.gptq import GptqConfig
 from fastchat.modules.xfastertransformer import XftConfig
-from fastchat.serve.base_model_worker import BaseModelWorker, app
 from fastchat.utils import build_logger, get_context_length, str_to_torch_dtype
 from transformers import set_seed
 
 worker_id = str(uuid.uuid4())[:8]
-logger = build_logger("model_worker", f"model_worker_{worker_id}.log")
+logfile_path = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "logs")
+if not os.path.exists(logfile_path):
+    os.makedirs(logfile_path)
+logger = build_logger("model_worker", os.path.join(logfile_path, "model_worker.log"))
+
+import fastchat.serve.base_model_worker  # noqa
+
+fastchat.serve.base_model_worker.logger = logger
+
+from fastchat.serve.base_model_worker import BaseModelWorker, app  # noqa
 
 
 class ModelWorker(BaseModelWorker):
@@ -630,22 +638,22 @@ async def api_generate_layers_visualization(request: Request):
 
 @app.post("/worker_get_layer_details")
 async def get_distribution_of_weights_for_specific_layer(request: Request):
-     """
-     Get the distribution of weights for a specific layer in the model.
-     """
-     params = await request.json()
-     layer_name = params.get("layer_name", None)
- 
-     try:
+    """
+    Get the distribution of weights for a specific layer in the model.
+    """
+    params = await request.json()
+    layer_name = params.get("layer_name", None)
+
+    try:
         if not layer_name:
             return {"error": "Layer name is required.", "error_code": 1}
- 
+
         # Use the already loaded model
         model = worker.model
- 
+
         # Get model parameters
         all_params = model.state_dict()
- 
+
         weights_tensor = all_params[layer_name]
         weights = weights_tensor.detach().cpu().numpy()
 
@@ -657,7 +665,7 @@ async def get_distribution_of_weights_for_specific_layer(request: Request):
             # Fallback to float32 if std is broken
             std_dev = np.std(weights.astype(np.float32))
 
-        mean = np.mean(weights) 
+        mean = np.mean(weights)
 
         # Create a histogram with 50 bins
         hist, bin_edges = np.histogram(weights, bins=50)
@@ -669,12 +677,11 @@ async def get_distribution_of_weights_for_specific_layer(request: Request):
             "histogram": hist.tolist(),
             "bin_edges": bin_edges.tolist(),
         }
- 
-     except Exception as e:
-         logger.error(f"Error getting distribution of weights: {e}")
-         logger.error(traceback.format_exc())
-         return {"error": "An internal error has occurred.", "error_code": 1}
 
+    except Exception as e:
+        logger.error(f"Error getting distribution of weights: {e}")
+        logger.error(traceback.format_exc())
+        return {"error": "An internal error has occurred.", "error_code": 1}
 
 
 @app.post("/tokenize")
