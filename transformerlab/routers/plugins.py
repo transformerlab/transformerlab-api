@@ -102,7 +102,7 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
         print(f"Plugin {plugin_path} not found in gallery.")
         return {"error": "Plugin not found in gallery."}
 
-    # Open the Plugin index.json:
+        # Open the Plugin index.json:
     plugin_index_json = open(f"{plugin_path}/index.json", "r")
     plugin_index = json.load(plugin_index_json)
     plugin_index_json.close()
@@ -144,11 +144,6 @@ async def install_plugin(plugin_id: str):
     if not os.path.exists(plugin_path):
         print(f"Plugin {plugin_path} not found in gallery.")
         return {"error": "Plugin not found in gallery."}
-
-    # Open the Plugin index.json:
-    plugin_index_json = open(f"{plugin_path}/index.json", "r")
-    plugin_index = json.load(plugin_index_json)
-    plugin_index_json.close()
 
     await copy_plugin_files_to_workspace(plugin_id)
 
