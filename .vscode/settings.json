@@ -3,6 +3,10 @@
     "editor.defaultFormatter": "charliermarsh.ruff",
     "editor.formatOnSave": true
   },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
   "python.testing.pytestArgs": ["test"],
   "python.testing.unittestEnabled": false,
   "python.testing.pytestEnabled": true
