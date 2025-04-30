@@ -9,20 +9,22 @@ import yaml
 import re
 import subprocess
 import os
-import copy
 from jinja2 import Environment
 
 
 # Import tlab_trainer from the SDK
+# from transformerlab.tlab_decorators import tlab_trainer
 from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import WORKSPACE_DIR, get_python_executable
+from transformerlab.plugin import WORKSPACE_DIR
+
+from transformerlab.plugin import get_python_executable
 
 
-def train_function(**params):
-    """Train a model with given parameters and return metrics"""
+@tlab_trainer.job_wrapper(wandb_project_name="TLab_Training", manual_logging=True)
+def train_mlx_lora():
     jinja_environment = Environment()
     plugin_dir = os.path.dirname(os.path.realpath(__file__))
-    python_executable = get_python_executable(plugin_dir)
+    print("Plugin dir:", plugin_dir)
 
     # Extract configuration parameters
     lora_layers = tlab_trainer.params.get("lora_layers", "16")
@@ -38,8 +40,8 @@ def train_function(**params):
     save_every = tlab_trainer.params.get("save_every", "1000")
 
     # Check if LoRA parameters are set
-    lora_rank = params.get("lora_rank", None)
-    lora_alpha = params.get("lora_alpha", None)
+    lora_rank = tlab_trainer.params.get("lora_rank", None)
+    lora_alpha = tlab_trainer.params.get("lora_alpha", None)
 
     if num_train_epochs is not None and num_train_epochs != "" and int(num_train_epochs) >= 0:
         if num_train_epochs == 0:
@@ -85,18 +87,13 @@ def train_function(**params):
             print("LoRA config:")
             print(lora_config)
 
-    # Load the dataset
-    datasets = params.get("datasets", None)
-    if not datasets:
-        datasets = tlab_trainer.load_dataset(["train", "valid"])
-
     # Directory for storing temporary working files
     data_directory = f"{WORKSPACE_DIR}/plugins/mlx_lora_trainer/data"
     if not os.path.exists(data_directory):
         os.makedirs(data_directory)
 
     # Go over each dataset split and render a new file based on the template
-    formatting_template = jinja_environment.from_string(params.get("formatting_template"))
+    formatting_template = jinja_environment.from_string(tlab_trainer.params.formatting_template)
 
     for split_name in datasets:
         # Get the dataset from our loaded datasets
@@ -120,9 +117,9 @@ def train_function(**params):
     print(example)
 
     # Set output directory for the adaptor
-    adaptor_output_dir = params.get("adaptor_output_dir", "")
+    adaptor_output_dir = tlab_trainer.params.get("adaptor_output_dir", "")
     if adaptor_output_dir == "" or adaptor_output_dir is None:
-        adaptor_output_dir = os.path.join(WORKSPACE_DIR, "adaptors", params.get("model_name"), adaptor_name)
+        adaptor_output_dir = os.path.join(WORKSPACE_DIR, "adaptors", tlab_trainer.params.model_name, adaptor_name)
         print("Using default adaptor output directory:", adaptor_output_dir)
     if not os.path.exists(adaptor_output_dir):
         os.makedirs(adaptor_output_dir)
@@ -138,24 +135,24 @@ def train_function(**params):
         "-um",
         "mlx_lm.lora",
         "--model",
-        params.get("model_name"),
+        tlab_trainer.params.model_name,
         "--iters",
-        str(iters),
+        iters,
         "--train",
         "--adapter-path",
         adaptor_output_dir,
         "--num-layers",
-        str(lora_layers),
+        lora_layers,
         "--batch-size",
-        str(batch_size),
+        batch_size,
         "--learning-rate",
-        str(learning_rate),
+        learning_rate,
         "--data",
         data_directory,
         "--steps-per-report",
         steps_per_report,
         "--steps-per-eval",
-        str(steps_per_eval),
+        steps_per_eval,
         "--save-every",
         save_every,
     ]
@@ -169,9 +166,6 @@ def train_function(**params):
 
     print("Training beginning:")
     print("Adaptor will be saved in:", adaptor_output_dir)
-
-    # Track metrics
-    metrics = {}
 
     # Run the MLX LoRA training process
     with subprocess.Popen(
@@ -202,11 +196,6 @@ def train_function(**params):
                     tlab_trainer.log_metric("train/it_per_sec", it_per_sec, iteration)
                     tlab_trainer.log_metric("train/tokens_per_sec", tokens_per_sec, iteration)
 
-                    # Store the latest metrics to return
-                    metrics["train/loss"] = loss
-                    metrics["train/it_per_sec"] = it_per_sec
-                    metrics["train/tokens_per_sec"] = tokens_per_sec
-
                 # Parse validation metrics
                 else:
                     pattern = r"Val loss (\d+\.\d+), Val took (\d+\.\d+)s"
@@ -214,28 +203,25 @@ def train_function(**params):
                     if match:
                         validation_loss = float(match.group(1))
                         print("Validation Loss: ", validation_loss)
-                        tlab_trainer.log_metric("valid/loss", validation_loss, iteration)
-
-                        # Store validation loss for sweep optimization
-                        metrics["valid/loss"] = validation_loss
+                        tlab_trainer.log_metric("eval/loss", validation_loss, iteration)
 
             print(line, end="", flush=True)
 
     # Check if the training process completed successfully
     if process.returncode and process.returncode != 0:
-        print("An error occurred before training completed.")
+        print("An error occured before training completed.")
         raise RuntimeError("Training failed.")
 
     print("Finished training.")
 
-    # Check if this is a sweep run
-    is_sweep_run = "run_id" in params
-
-    # Fuse the model with the base model if requested (skip during sweep runs)
-    if fuse_model and not is_sweep_run:
+    # Fuse the model with the base model if requested
+    if not fuse_model:
+        print(f"Adaptor training complete and saved at {adaptor_output_dir}.")
+        return True
+    else:
         print("Now fusing the adaptor with the model.")
 
-        model_name = params.get("model_name")
+        model_name = tlab_trainer.params.model_name
         if "/" in model_name:
             model_name = model_name.split("/")[-1]
         fused_model_name = f"{model_name}_{adaptor_name}"
@@ -250,7 +236,7 @@ def train_function(**params):
             "-m",
             "mlx_lm.fuse",
             "--model",
-            params.get("model_name"),
+            tlab_trainer.params.model_name,
             "--adapter-path",
             adaptor_output_dir,
             "--save-path",
@@ -272,64 +258,16 @@ def train_function(**params):
 
             if return_code == 0:
                 json_data = {
-                    "description": f"An MLX model trained and generated by Transformer Lab based on {params.get('model_name')}"
+                    "description": f"An MLX model trained and generated by Transformer Lab based on {tlab_trainer.params.model_name}"
                 }
                 tlab_trainer.create_transformerlab_model(
                     fused_model_name=fused_model_name, model_architecture="MLX", json_data=json_data
                 )
                 print("Finished fusing the adaptor with the model.")
+                return True
             else:
                 print("Fusing model with adaptor failed: ", return_code)
                 raise RuntimeError(f"Model fusion failed with return code {return_code}")
 
-    # Return metrics for sweep optimization
-    return metrics
 
-
-@tlab_trainer.job_wrapper(wandb_project_name="TLab_Training", manual_logging=True)
-def run_plugin():
-    """Main entry point for the training plugin"""
-    tlab_trainer._ensure_args_parsed()
-
-    # Initialize parameters
-    tlab_trainer.params.lora_layers = tlab_trainer.params.get("lora_layers", "16")
-    tlab_trainer.params.learning_rate = tlab_trainer.params.get("learning_rate", "5e-5")
-    tlab_trainer.params.batch_size = tlab_trainer.params.get("batch_size", "4")
-    tlab_trainer.params.steps_per_eval = tlab_trainer.params.get("steps_per_eval", "200")
-    tlab_trainer.params.iters = tlab_trainer.params.get("iters", "1000")
-    tlab_trainer.params.adaptor_name = tlab_trainer.params.get("adaptor_name", "default")
-    tlab_trainer.params.fuse_model = tlab_trainer.params.get("fuse_model", True)
-    tlab_trainer.params.lora_rank = tlab_trainer.params.get("lora_rank", None)
-    tlab_trainer.params.lora_alpha = tlab_trainer.params.get("lora_alpha", None)
-
-    # Determine if we're doing a sweep
-    run_sweep = tlab_trainer.params.get("run_sweeps")
-    tlab_trainer.params.sweep_metric = "valid/loss"
-    tlab_trainer.params.train_final_model = True
-    tlab_trainer.params.lower_is_better = True
-
-    if run_sweep:
-        # Run hyperparameter sweep
-        sweep_results = tlab_trainer.run_sweep(train_function)
-
-        # If there's a best config, train a final model with it
-        if tlab_trainer.params.get("train_final_model", True) and sweep_results["best_config"]:
-            print("\n--- Training final model with best configuration ---")
-
-            # Create parameters with the best configuration
-            final_params = copy.deepcopy(tlab_trainer.params)
-            for k, v in sweep_results["best_config"].items():
-                final_params[k] = v
-
-            # Run final training
-            result = train_function(**final_params)
-            return {**sweep_results, "final_model_metrics": result}
-
-        return sweep_results
-    else:
-        # Run single training
-        return train_function(**tlab_trainer.params)
-
-
-# Execute the plugin when imported
-run_plugin()
+train_mlx_lora()

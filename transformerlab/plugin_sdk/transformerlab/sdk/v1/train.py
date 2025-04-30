@@ -197,6 +197,40 @@ class TrainerTLabPlugin(TLabPlugin):
         if "wandb" in self.report_to and getattr(self, "wandb_run") is not None:
             self.wandb_run.log({metric_name: metric_value}, step=step)
 
+        # Store metrics in memory
+        if not hasattr(self, "_metrics"):
+            self._metrics = {}
+
+        # Store the latest value for each metric
+        self._metrics[metric_name] = metric_value
+
+        # Save metrics to a file in the output directory
+        try:
+            # Ensure output_dir exists
+            output_dir = self.params.get("output_dir", "")
+            if output_dir and os.path.exists(output_dir):
+                # Save metrics to a JSON file
+                metrics_path = os.path.join(output_dir, "metrics.json")
+                with open(metrics_path, "w") as f:
+                    json.dump(self._metrics, f, indent=2)
+
+                print(f"Updated metrics in {metrics_path}: {list(self._metrics.keys())}")
+            else:
+                print(f"Output directory not found or not specified: {output_dir}")
+        except Exception as e:
+            print(f"Error saving metrics to file: {str(e)}")
+
+    def _save_metrics_to_job_data(self):
+        """Save collected metrics to job data"""
+        if hasattr(self, "_metrics") and self._metrics and self.params.job_id:
+            # Convert metrics to JSON string
+            metrics_json = json.dumps(self._metrics)
+
+            # Store in job_data
+            self.add_job_data("training_metrics", str(metrics_json))
+
+        print(f"Updated metrics in job_data: {list(self._metrics.keys())}")
+
     def create_transformerlab_model(
         self, fused_model_name, model_architecture, json_data, output_dir=None, generate_json=True
     ):

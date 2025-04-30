@@ -368,58 +368,296 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             "tensorboards",
             template_config["template_name"],
         )
-
-        # Create a file in the temp directory to store the inputs:
-        tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
-        if not os.path.exists(tempdir):
-            os.makedirs(tempdir)
-        input_file = os.path.join(tempdir, f"plugin_input_{job_id}.json")
-        # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
-        # and should be done in the API itself
-        if "config" in experiment_details:
-            experiment_details["config"] = json.loads(experiment_details["config"])
-            if "inferenceParams" in experiment_details["config"]:
-                experiment_details["config"]["inferenceParams"] = json.loads(
-                    experiment_details["config"]["inferenceParams"]
-                )
-        input_contents = {"experiment": experiment_details, "config": template_config}
-        with open(input_file, "w") as outfile:
-            json.dump(input_contents, outfile, indent=4)
-
+        # Check if plugin has a venv directory
+        venv_path = os.path.join(plugin_location, "venv")
+        await db.job_update_status(job_id, "RUNNING")
         start_time = time.strftime("%Y-%m-%d %H:%M:%S")
         await db.job_update_job_data_insert_key_value(job_id, "start_time", start_time)
 
-        # Check if plugin has a venv directory
-        venv_path = os.path.join(plugin_location, "venv")
         if os.path.exists(venv_path) and os.path.isdir(venv_path):
             print(f">Plugin has virtual environment, activating venv from {venv_path}")
             venv_python = os.path.join(venv_path, "bin", "python")
-            # Construct command that first activates venv then runs script
-            training_popen_command = [
-                venv_python,
-                dirs.PLUGIN_HARNESS,
-                "--plugin_dir",
-                plugin_location,
-                "--input_file",
-                input_file,
-                "--experiment_name",
-                experiment_name,
-            ]
 
-        else:
-            print(">Using system Python interpreter")
-            training_popen_command = [
-                sys.executable,
-                dirs.PLUGIN_HARNESS,
-                "--plugin_dir",
-                plugin_location,
-                "--input_file",
-                input_file,
-                "--experiment_name",
-                experiment_name,
-            ]
+        tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
+        if not os.path.exists(tempdir):
+            os.makedirs(tempdir)
+        # Check if hyperparameter sweep is requested
+        run_sweeps = template_config.get("run_sweeps", False)
+        # if run_sweeps in ["on", "true", "yes"]:
+        if run_sweeps:
+            print(f"Hyperparameter sweep requested for job {job_id}")
 
-        popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
+            # Get sweep configuration
+            sweep_config = template_config.get("sweep_config", {})
+            if isinstance(sweep_config, str):
+                try:
+                    sweep_config = json.loads(sweep_config)
+                except json.JSONDecodeError:
+                    print(f"Error decoding sweep config JSON: {sweep_config}. Using default sweep configuration.")
+                    sweep_config = {
+                        "learning_rate": ["1e-5", "3e-5", "5e-5"],
+                        "lora_rank": ["8", "16", "32"],
+                        "lora_alpha": ["16", "32", "64"],
+                        "batch_size": ["4", "8"],
+                    }
+
+            if not sweep_config:
+                print("No sweep configuration provided. Using default sweep parameters.")
+                sweep_config = {
+                    "learning_rate": ["1e-5", "3e-5", "5e-5"],
+                    # "lora_rank": ["8", "16", "32"],
+                    # "lora_alpha": ["16", "32", "64"],
+                    # "batch_size": ["4", "8"],
+                }
+
+            print(f"Sweep configuration: {json.dumps(sweep_config, indent=2)}")
+
+            # Create sweep directory to store results
+            sweep_dir = os.path.join(template_config["output_dir"], f"sweep_{job_id}")
+            os.makedirs(sweep_dir, exist_ok=True)
+
+            # Generate all configurations
+            from itertools import product
+
+            # Get all parameter names and their possible values
+            param_names = list(sweep_config.keys())
+            param_values = [sweep_config[name] for name in param_names]
+
+            # Generate all combinations using product
+            configs = []
+            for values in product(*param_values):
+                config = dict(zip(param_names, values))
+                configs.append(config)
+
+            total_configs = len(configs)
+            print(f"Generated {total_configs} configurations for sweep")
+
+            # Initialize sweep tracking
+            await db.job_update_job_data_insert_key_value(job_id, "sweep_total", str(total_configs))
+            await db.job_update_job_data_insert_key_value(job_id, "sweep_current", "0")
+
+            # Get metrics configuration
+            metric_name = template_config.get("sweep_metric", "eval/loss")
+            lower_is_better = template_config.get("lower_is_better", "true").lower() in ["true", "yes", "on"]
+            best_metric = float("inf") if lower_is_better else float("-inf")
+            best_config = None
+
+            # Store results for each run
+            results = []
+
+            # Run each configuration sequentially
+            for i, config_params in enumerate(configs):
+                print(f"\n--- Running configuration {i + 1}/{total_configs} ---")
+                print(f"Parameters: {json.dumps(config_params, indent=2)}")
+
+                # Create a unique run directory
+                run_dir = os.path.join(sweep_dir, f"run_{i + 1}")
+                os.makedirs(run_dir, exist_ok=True)
+
+                # Create a unique adaptor directory for this run
+                run_adaptor_dir = os.path.join(
+                    dirs.WORKSPACE_DIR, "adaptors", secure_filename(model_name), f"{adaptor_name}_sweep_{i + 1}"
+                )
+                os.makedirs(run_adaptor_dir, exist_ok=True)
+
+                # Create a copy of the template config for this run
+                run_config = template_config.copy()
+
+                # Update with the specific parameter values for this run
+                for param_name, param_value in config_params.items():
+                    run_config[param_name] = param_value
+
+                # Set unique directories for this run
+                run_config["output_dir"] = run_dir
+                run_config["adaptor_output_dir"] = run_adaptor_dir
+
+                # Create input file for this run
+                run_input_file = os.path.join(tempdir, f"plugin_input_{job_id}_run_{i + 1}.json")
+                run_input_contents = {"experiment": experiment_details, "config": run_config}
+                with open(run_input_file, "w") as outfile:
+                    json.dump(run_input_contents, outfile, indent=4)
+
+                # Update job progress
+                await db.job_update_progress(job_id, int((i / total_configs) * 100))
+                await db.job_update_job_data_insert_key_value(job_id, "sweep_current", str(i + 1))
+                await db.job_update_job_data_insert_key_value(job_id, "sweep_running_config", json.dumps(config_params))
+
+                # Run the training job with this configuration
+                run_output_file = os.path.join(run_dir, f"output_{i + 1}.txt")
+
+                # Create command for this run
+                if os.path.exists(venv_path) and os.path.isdir(venv_path):
+                    venv_python = os.path.join(venv_path, "bin", "python")
+                    run_command = [
+                        venv_python,
+                        dirs.PLUGIN_HARNESS,
+                        "--plugin_dir",
+                        plugin_location,
+                        "--input_file",
+                        run_input_file,
+                        "--experiment_name",
+                        experiment_name,
+                    ]
+                else:
+                    run_command = [
+                        sys.executable,
+                        dirs.PLUGIN_HARNESS,
+                        "--plugin_dir",
+                        plugin_location,
+                        "--input_file",
+                        run_input_file,
+                        "--experiment_name",
+                        experiment_name,
+                    ]
+
+                # Replace synchronous subprocess.run with asyncio
+                async def run_process_async(cmd, output_file):
+                    # Open file for writing
+                    with open(output_file, "w") as f:
+                        # Create subprocess with piped stdout
+                        process = await asyncio.create_subprocess_exec(
+                            *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
+                        )
+
+                        # Process output in real-time
+                        while True:
+                            line = await process.stdout.readline()
+                            if not line:
+                                break
+
+                            # Decode and write to file
+                            decoded_line = line.decode("utf-8")
+                            f.write(decoded_line)
+                            f.flush()
+
+                            # Optionally print to console for debugging
+                            print(f"[Run {i + 1}/{total_configs}]: {decoded_line.strip()}")
+
+                        # Wait for process to complete
+                        await process.wait()
+                        return process.returncode
+
+                # Run the process asynchronously
+                return_code = await run_process_async(run_command, run_output_file)
+
+                # Replace this block:
+                # with open(run_output_file, "w") as f:
+                #     process = subprocess.run(run_command, stdout=f, stderr=subprocess.STDOUT)
+
+                # Check job data for training metrics
+                try:
+                    # Get latest metrics from job_data (assuming plugin saved metrics there)
+                    metrics_path = os.path.join(run_dir, "metrics.json")
+                    if os.path.exists(metrics_path):
+                        with open(metrics_path, "r") as f:
+                            run_metrics = json.load(f)
+                    else:
+                        # Fallback to a default metric value if no metrics found
+                        run_metrics = {metric_name: 0.0}
+
+                    # Track results
+                    results.append(
+                        {
+                            "config": config_params,
+                            "metrics": run_metrics,
+                            "run_dir": run_dir,
+                            "adaptor_dir": run_adaptor_dir,
+                        }
+                    )
+
+                    # Check if this is the best result so far
+                    if metric_name in run_metrics:
+                        metric_value = run_metrics[metric_name]
+                        is_better = (lower_is_better and metric_value < best_metric) or (
+                            not lower_is_better and metric_value > best_metric
+                        )
+
+                        if best_config is None or is_better:
+                            best_metric = metric_value
+                            best_config = config_params.copy()
+                            best_adaptor_dir = run_adaptor_dir
+
+                            # Update job data with current best
+                            await db.job_update_job_data_insert_key_value(
+                                job_id, "sweep_best_config", json.dumps(best_config)
+                            )
+                            await db.job_update_job_data_insert_key_value(
+                                job_id, "sweep_best_metric", json.dumps({metric_name: best_metric})
+                            )
+                except Exception as e:
+                    print(f"Error processing metrics for run {i + 1}: {str(e)}")
+                    results.append(
+                        {"config": config_params, "error": str(e), "run_dir": run_dir, "adaptor_dir": run_adaptor_dir}
+                    )
+
+            # Save all results
+            sweep_results = {
+                "sweep_config": sweep_config,
+                "results": results,
+                "best_config": best_config,
+                "best_metric": {metric_name: best_metric},
+                "metric_name": metric_name,
+                "lower_is_better": lower_is_better,
+            }
+
+            sweep_results_file = os.path.join(sweep_dir, "sweep_results.json")
+            with open(sweep_results_file, "w") as f:
+                json.dump(sweep_results, f, indent=2)
+
+            await db.job_update_job_data_insert_key_value(job_id, "sweep_results_file", sweep_results_file)
+
+            print("\n--- Sweep completed ---")
+            print(f"Best configuration: {json.dumps(best_config, indent=2)}")
+            print(f"Best {metric_name}: {best_metric}")
+
+            # Optionally train final model with best configuration
+            train_final_model = template_config.get("train_final_model", True)
+            if train_final_model and best_config:
+                print("\n--- Training final model with best configuration ---")
+
+                # Use the original output and adaptor directories for the final model
+                final_config = template_config.copy()
+
+                # Update with best parameters
+                for param_name, param_value in best_config.items():
+                    final_config[param_name] = param_value
+
+                # Create input file for final run
+                final_input_file = os.path.join(tempdir, f"plugin_input_{job_id}_final.json")
+                final_input_contents = {"experiment": experiment_details, "config": final_config}
+                with open(final_input_file, "w") as outfile:
+                    json.dump(final_input_contents, outfile, indent=4)
+
+                # Use the appropriate python interpreter
+                if os.path.exists(venv_path) and os.path.isdir(venv_path):
+                    venv_python = os.path.join(venv_path, "bin", "python")
+                    final_command = [
+                        venv_python,
+                        dirs.PLUGIN_HARNESS,
+                        "--plugin_dir",
+                        plugin_location,
+                        "--input_file",
+                        final_input_file,
+                        "--experiment_name",
+                        experiment_name,
+                    ]
+                else:
+                    final_command = [
+                        sys.executable,
+                        dirs.PLUGIN_HARNESS,
+                        "--plugin_dir",
+                        plugin_location,
+                        "--input_file",
+                        final_input_file,
+                        "--experiment_name",
+                        experiment_name,
+                    ]
+
+                # Run the final training synchronously
+                popen_and_call(on_train_complete, experiment_details_as_string, output_file, final_command)
+                return
+
+            return
 
     elif job_type == "pretraining":
         template_config = job_config["config"]
