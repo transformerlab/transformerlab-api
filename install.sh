@@ -363,11 +363,6 @@ install_dependencies() {
       uv pip install -U flash-attn==2.7.3 --no-build-isolation -c "$TLAB_CODE_DIR"/constraints.txt
 
   elif [ "$HAS_AMD" = true ]; then
-      echo "Your computer has an AMD GPU; installing ROCm:"
-
-      #### WONT WORK NEED TO FIND AN EQUIVALENT OF CUDA FOR THIS
-      conda install -y rocm -c rocm/label/main
-
       echo "Installing requirements for ROCm:"
       if ! [ -e "$TLAB_CODE_DIR/requirements-rocm-uv.txt" ]; then
         cp "$RUN_DIR"/requirements-rocm-uv.txt "$TLAB_CODE_DIR"/requirements-rocm-uv.txt
