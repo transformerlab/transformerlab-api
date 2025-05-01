@@ -2804,13 +2804,40 @@
     "logo": "https://blogs.microsoft.com/wp-content/uploads/prod/2012/08/8867.Microsoft_5F00_Logo_2D00_for_2D00_screen.jpg",
     "size_of_model_in_mb": 27969.21728038788,
     "author": {
-      "name": "Microsoft Research",
+      "name": "microsoft",
       "url": "https://huggingface.co/microsoft/Phi-4-reasoning",
       "blurb": ""
     },
     "resources": {
       "canonicalUrl": "https://huggingface.co/microsoft/Phi-4-reasoning",
       "downloadUrl": "https://huggingface.co/microsoft/Phi-4-reasoning",
+      "paperUrl": "?"
+    }
+  },
+  {
+    "uniqueID": "microsoft/Phi-4-reasoning-plus",
+    "name": "Phi-4-reasoning-plus",
+    "description": "On top of Phi-4-reasoning, Phi-4-reasoning-plus has been trained additionally with Reinforcement Learning, hence, it has higher accuracy but generates on average 50% more tokens, thus having higher latency.",
+    "added": "2025-05-01",
+    "tags": [],
+    "parameters": "",
+    "context": "32768",
+    "architecture": "Phi3ForCausalLM",
+    "formats": ["Safetensors"],
+    "huggingface_repo": "microsoft/Phi-4-reasoning-plus",
+    "transformers_version": "4.51.1",
+    "gated": false,
+    "license": "mit",
+    "logo": "https://blogs.microsoft.com/wp-content/uploads/prod/2012/08/8867.Microsoft_5F00_Logo_2D00_for_2D00_screen.jpg",
+    "size_of_model_in_mb": 27969.21728038788,
+    "author": {
+      "name": "microsoft",
+      "url": "https://huggingface.co/microsoft/Phi-4-reasoning-plus",
+      "blurb": ""
+    },
+    "resources": {
+      "canonicalUrl": "https://huggingface.co/microsoft/Phi-4-reasoning-plus",
+      "downloadUrl": "https://huggingface.co/microsoft/Phi-4-reasoning-plus",
       "paperUrl": "?"
     }
   },
