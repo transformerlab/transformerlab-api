@@ -21,9 +21,13 @@ router = APIRouter(prefix="/rag", tags=["rag"])
 @router.get("/query")
 async def query(experimentId: str, query: str, settings: str = None, rag_folder: str = "rag"):
     """Query the RAG engine"""
+
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
     documents_dir = os.path.join(documents_dir, rag_folder)
+    documents_dir = os.path.abspath(documents_dir)
+    if not documents_dir.startswith(os.path.abspath(experiment_dir)):
+        return "Error: Invalid RAG folder path"
     if not os.path.exists(documents_dir):
         return "Error: The RAG folder does not exist in the documents directory"
     experiment_details = await db.experiment_get(id=experimentId)
@@ -75,6 +79,7 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
         "--settings",
         settings,
     ]
+
     print(f"Calling plugin {plugin_path}" + " with model " + model + " and query " + query)
     venv_path = os.path.join(plugin_path, "venv")
     if os.path.exists(venv_path) and os.path.isdir(venv_path):
@@ -113,6 +118,7 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
 @router.get("/reindex")
 async def reindex(experimentId: str, rag_folder: str = "rag"):
     """Reindex the RAG engine"""
+
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
     documents_dir = os.path.join(documents_dir, rag_folder)

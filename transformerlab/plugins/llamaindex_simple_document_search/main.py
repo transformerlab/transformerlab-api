@@ -46,8 +46,15 @@ def main():
 
     args, unknown = parser.parse_known_args()
 
+    continue_after_index = False
+
     documents_dir = args.documents_dir
     persistency_dir = os.path.join(documents_dir, "persist")
+
+    if not os.path.exists(persistency_dir) and not args.index:
+        sys.stderr.write("Documents have not been indexed. Indexing them first")
+        args.index = True
+        continue_after_index = True
 
     if args.index:
         start_time = time.time()
@@ -55,8 +62,10 @@ def main():
         elapsed_time = time.time() - start_time
 
         result = {"status": "success", "elapsed_time": elapsed_time}
-        print(json.dumps(result))
-        return
+        sys.stderr.write(json.dumps(result))
+        if not continue_after_index:
+            sys.stderr.write("Indexing complete. Exiting.")
+            return
 
     # SETTINGS
     number_of_search_results = 2
