@@ -137,7 +137,7 @@ async def run_evaluation():
             plugin = experiment_config.get("rag_engine")
             if plugin is None or plugin == "":
                 raise ValueError(
-                    "No RAG engine has been assigned to this experiment. Please install a RAG plugin from the Plugins Tab."
+                    "No RAG engine has been assigned to this experiment. Please install a RAG plugin from the Plugins Tab and set it by going to the Interact tab."
                 )
 
             # Set up RAG settings
