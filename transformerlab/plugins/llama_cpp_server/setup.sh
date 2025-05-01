@@ -20,6 +20,12 @@ elif command -v nvidia-smi &> /dev/null; then
     # Linux/Other with CUDA detected
     echo "CUDA GPU detected. Installing based on CUDA setup using GGML CUDA"
     CMAKE_ARGS="-DGGML_CUDA=on" FORCE_CMAKE=1 uv pip install llama-cpp-python --force-reinstall --no-cache-dir
+
+elif command -v rocminfo &> /dev/null; then
+    # Linux/Other with CUDA detected
+    echo "AMD GPU detected. Installing based on AMD setup using GGML HIPBLAS"
+    CMAKE_ARGS="-DGGML_HIPBLAS=on" FORCE_CMAKE=1  uv pip install llama-cpp-python --force-reinstall --no-cache-dir
+
 else
     # Linux/Other without CUDA - try using OpenBLAS
     echo "No GPU detected - installing with OpenBLAS support"
