@@ -59,6 +59,7 @@ system_info = {
     "gpu": [],
     "gpu_memory": "",
     "device": "cpu",
+    "device_type": "cpu",
     "cuda_version": "n/a",
     "conda_environment": os.environ.get("CONDA_DEFAULT_ENV", "n/a"),
     "conda_prefix": os.environ.get("CONDA_PREFIX", "n/a"),
@@ -69,21 +70,26 @@ system_info = {
 # Determine which device to use (cuda/mps/cpu)
 if torch.cuda.is_available():
     system_info["device"] = "cuda"
+    system_info["device_type"] = "nvidia"
     try:
         # we have a GPU so initialize the nvidia python bindings
         nvmlInit()
     except Exception as e:
-        print(f"⚠️  Error initializing NVML: {e}")
         rocml.smi_initialize()
         HAS_AMD = True
+        system_info["device_type"] = "amd"
 
     # get CUDA version:
-    system_info["cuda_version"] = torch.version.cuda
+    if not HAS_AMD:
+        system_info["cuda_version"] = torch.version.cuda
+    else:
+        system_info["cuda_version"] = torch.version.hip
 
-    print(f"🏄 PyTorch is using CUDA, version {torch.version.cuda}")
+    print(f"🏄 PyTorch is using CUDA, version {system_info['cuda_version']}")
 
 elif torch.backends.mps.is_available():
     system_info["device"] = "mps"
+    system_info["device_type"] = "apple_silicon"
     print("🏄 PyTorch is using MPS for Apple Metal acceleration")
 
 router = APIRouter(prefix="/server", tags=["serverinfo"])
