@@ -22,15 +22,13 @@ try:
         nvmlDeviceGetUtilizationRates,
         nvmlInit,
     )
-except Exception as e:
-    print(
-        "⚠️  pynvml is not installed. If you are running on GPU, install to get GPU memory usage.")
+    HAS_AMD = False
+except Exception:
     from pyrsmi import rocml
+    HAS_AMD = True
 
 
 from transformerlab.shared import dirs
-
-HAS_AMD = False
 
 pyTorch_version = torch.__version__
 print(f"🔥 PyTorch version: {pyTorch_version}")
@@ -70,20 +68,15 @@ system_info = {
 # Determine which device to use (cuda/mps/cpu)
 if torch.cuda.is_available():
     system_info["device"] = "cuda"
-    system_info["device_type"] = "nvidia"
-    try:
-        # we have a GPU so initialize the nvidia python bindings
-        nvmlInit()
-    except Exception as e:
-        rocml.smi_initialize()
-        HAS_AMD = True
-        system_info["device_type"] = "amd"
-
-    # get CUDA version:
     if not HAS_AMD:
+        nvmlInit()
         system_info["cuda_version"] = torch.version.cuda
+        system_info["device_type"] = "nvidia"
     else:
+        rocml.smi_initialize()
+        system_info["device_type"] = "amd"
         system_info["cuda_version"] = torch.version.hip
+        
 
     print(f"🏄 PyTorch is using CUDA, version {system_info['cuda_version']}")
 
@@ -220,7 +213,7 @@ async def get_computer_information():
 
             # info["temp"] = nvmlDeviceGetTemperature(handle)
             g.append(info)
-    except Exception as e:  # Catch all exceptions and print them
+    except Exception:  # Catch all exceptions and print them
 
         g.append(
             {

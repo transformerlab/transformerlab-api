@@ -49,7 +49,7 @@ from transformerlab.routers import (
 import torch
 try:
     from pynvml import nvmlShutdown
-except Exception as e:
+except Exception:
     from pyrsmi import rocml
     HAS_AMD = True
 from transformerlab import fastchat_openai_api

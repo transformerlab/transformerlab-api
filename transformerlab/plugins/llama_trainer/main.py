@@ -11,15 +11,15 @@ if torch.cuda.is_available():
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     os.environ["HIP_VISIBLE_DEVICES"] = "0"
     
-from jinja2 import Environment
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel
-from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
-from trl import SFTConfig, SFTTrainer
-import torch.nn as nn
+from jinja2 import Environment # noqa: E402
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel # noqa: E402
+from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig # noqa: E402
+from trl import SFTConfig, SFTTrainer # noqa: E402
+import torch.nn as nn # noqa: E402
 
 
-from transformerlab.plugin import WORKSPACE_DIR
-from transformerlab.sdk.v1.train import tlab_trainer
+from transformerlab.plugin import WORKSPACE_DIR # noqa: E402
+from transformerlab.sdk.v1.train import tlab_trainer # noqa: E402
 
 use_flash_attention = False
 # Initialize Jinja environment
