@@ -72,13 +72,15 @@ if torch.cuda.is_available():
         nvmlInit()
         system_info["cuda_version"] = torch.version.cuda
         system_info["device_type"] = "nvidia"
+        pytorch_device = "CUDA"
     else:
         rocml.smi_initialize()
         system_info["device_type"] = "amd"
         system_info["cuda_version"] = torch.version.hip
+        pytorch_device = "ROCm"
         
 
-    print(f"🏄 PyTorch is using CUDA, version {system_info['cuda_version']}")
+    print(f"🏄 PyTorch is using {pytorch_device}, version {system_info['cuda_version']}")
 
 elif torch.backends.mps.is_available():
     system_info["device"] = "mps"
