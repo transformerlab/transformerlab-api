@@ -367,7 +367,7 @@ install_dependencies() {
       if ! [ -e "$TLAB_CODE_DIR/requirements-rocm-uv.txt" ]; then
         cp "$RUN_DIR"/requirements-rocm-uv.txt "$TLAB_CODE_DIR"/requirements-rocm-uv.txt
       fi
-      uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-rocm-uv.txt
+      uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-rocm-uv.txt --index 'https://download.pytorch.org/whl/rocm6.3'
 
   else
       echo "No GPU detected. Installing CPU‑only requirements."
