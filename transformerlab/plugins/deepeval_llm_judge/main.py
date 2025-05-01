@@ -12,6 +12,7 @@ from deepeval import evaluate
 from deepeval.dataset import EvaluationDataset
 from deepeval.metrics import GEval
 from deepeval.test_case import LLMTestCase, LLMTestCaseParams
+from deepeval.evaluate.configs import AsyncConfig
 import importlib
 
 # # Add specific arguments needed for DeepEval metrics
@@ -253,7 +254,8 @@ def run_evaluation():
         if "local" in tlab_evals.params.get("generation_model", "").lower():
             async_mode = sys.platform != "darwin"
         # Run the evaluation
-        output = evaluate(dataset, metrics_arr, run_async=async_mode)
+        async_config = AsyncConfig(run_async=async_mode)
+        output = evaluate(dataset, metrics_arr, async_config=async_config)
         tlab_evals.progress_update(80)
 
         # Process results

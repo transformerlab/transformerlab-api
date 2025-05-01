@@ -1,1 +1,1 @@
-uv pip install deepeval langchain-openai chromadb sentence-transformers pypdf instructor anthropic datasets
+uv pip install deepeval langchain-openai chromadb sentence-transformers pypdf instructor anthropic datasets langchain langchain-community langchain_text_splitters
