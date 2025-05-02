@@ -22,12 +22,21 @@ import uvicorn
 from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
-from fastchat.serve.base_model_worker import BaseModelWorker
-from fastchat.serve.model_worker import logger, worker_id
-from fastchat.utils import get_context_length
-from generate import generate_text, load_model, prepare_inputs
-from huggingface_hub import snapshot_download
-from PIL import Image
+from fastchat.utils import get_context_length, build_logger
+
+worker_id = str(uuid.uuid4())[:8]
+logfile_path = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "logs")
+if not os.path.exists(logfile_path):
+    os.makedirs(logfile_path)
+logger = build_logger("model_worker", os.path.join(logfile_path, "model_worker.log"))
+
+import fastchat.serve.base_model_worker  # noqa
+
+fastchat.serve.base_model_worker.logger = logger
+from fastchat.serve.base_model_worker import BaseModelWorker  # noqa
+from generate import generate_text, load_model, prepare_inputs  # noqa
+from huggingface_hub import snapshot_download  # noqa
+from PIL import Image  # noqa
 
 
 @asynccontextmanager
