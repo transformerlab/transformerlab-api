@@ -125,11 +125,15 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
         )
         await proc.wait()
     else:
-        print("No install script found")
-        await log_file.write(f"## No setup script found for {plugin_id}.\n")
-    await log_file.write(f"## Plugin Install for {plugin_id} completed.\n")
-    print("Plugin installation completed.")
-    return {"status": "success", "message": f"Plugin {plugin_id} installed successfully."}
+        error_msg = f"No setup script found for {plugin_id}."
+        print(error_msg)
+        await log_file.write(f"## {error_msg}\n")
+        return {"status": "error", "message": error_msg}
+
+    return_msg = f"Plugin {plugin_id} installed successfully."
+    await log_file.write(f"## {return_msg}\n")
+    print(return_msg)
+    return {"status": "success", "message": return_msg}
 
 
 @router.get("/gallery/{plugin_id}/install", summary="Install a plugin from the gallery.")
