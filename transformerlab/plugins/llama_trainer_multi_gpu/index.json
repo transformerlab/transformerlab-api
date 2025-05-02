@@ -1,3 +1,4 @@
+
 {
   "name": "Huggingface TRL Trainer (Multi GPU Support)",
   "uniqueId": "llama_trainer_multi_gpu",
@@ -23,9 +24,14 @@
   ],
   "git": "",
   "url": "",
-  "files": ["main.py", "setup.sh"],
+  "files": [
+    "main.py",
+    "setup.sh"
+  ],
   "supports": ["sweeps"],
-  "supported_hardware_architectures": ["cuda"],
+  "supported_hardware_architectures": [
+    "cuda"
+  ],
   "setup-script": "setup.sh",
   "parameters": {
     "train_device": {
