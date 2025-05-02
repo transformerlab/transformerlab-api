@@ -123,7 +123,14 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
             stdout=log_file,
             stderr=log_file,
         )
-        await proc.wait()
+        return_code = await proc.wait()
+
+        # If installation failed, return an error
+        if return_code != 0:
+            error_msg = f"Setup script {setup_script_name} for {plugin_id} failed with exit code {return_code}."
+            print(error_msg)
+            await log_file.write(f"## {error_msg}\n")
+            return {"status": "error", "message": error_msg}
     else:
         error_msg = f"No setup script found for {plugin_id}."
         print(error_msg)
