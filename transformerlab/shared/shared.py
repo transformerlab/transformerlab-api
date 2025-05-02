@@ -474,7 +474,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 # Create input file for this run
                 run_input_file = os.path.join(tempdir, f"plugin_input_{job_id}_run_{i + 1}.json")
                 run_input_contents = {"experiment": experiment_details, "config": run_config}
-                with open(run_input_file, "a") as outfile:
+                with open(run_input_file, "w") as outfile:
                     json.dump(run_input_contents, outfile, indent=4)
 
                 # Update job progress
@@ -514,7 +514,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 # Replace synchronous subprocess.run with asyncio
                 async def run_process_async(cmd, output_file):
                     # Open file for writing
-                    with open(output_file, "w") as f:
+                    with open(output_file, "a") as f:
                         # Create subprocess with piped stdout
                         process = await asyncio.create_subprocess_exec(
                             *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
@@ -528,7 +528,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
                             # Decode and write to file
                             decoded_line = line.decode("utf-8")
-                            f.write(f"[Run {i + 1}/{total_configs}]: {decoded_line.strip()}")
+                            f.write(f"\n[Run {i + 1}/{total_configs}]: {decoded_line.strip()}")
                             f.flush()
 
                             # Optionally print to console for debugging
