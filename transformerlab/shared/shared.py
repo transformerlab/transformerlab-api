@@ -1,23 +1,22 @@
 import asyncio
 import json
 import os
+import re
+import shutil
 import subprocess
 import sys
 import threading
-import re
 import time
 import unicodedata
-from transformerlab.routers.experiment.evals import run_evaluation_script
-from transformerlab.routers.experiment.generations import run_generation_script
-from transformerlab.shared import dirs
-from werkzeug.utils import secure_filename
-
 
 from anyio import open_process
 from anyio.streams.text import TextReceiveStream
+from werkzeug.utils import secure_filename
 
 import transformerlab.db as db
-
+from transformerlab.routers.experiment.evals import run_evaluation_script
+from transformerlab.routers.experiment.generations import run_generation_script
+from transformerlab.shared import dirs
 from transformerlab.shared.dirs import GLOBAL_LOG_PATH
 
 
@@ -375,7 +374,6 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         await db.job_update_job_data_insert_key_value(job_id, "start_time", start_time)
 
         if os.path.exists(venv_path) and os.path.isdir(venv_path):
-            print(f">Plugin has virtual environment, activating venv from {venv_path}")
             venv_python = os.path.join(venv_path, "bin", "python")
 
         tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
@@ -490,6 +488,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
                 # Create command for this run
                 if os.path.exists(venv_path) and os.path.isdir(venv_path):
+                    print(f">Plugin has virtual environment, activating venv from {venv_path}")
                     venv_python = os.path.join(venv_path, "bin", "python")
                     run_command = [
                         venv_python,
@@ -502,6 +501,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                         experiment_name,
                     ]
                 else:
+                    print(">Using system Python interpreter")
                     run_command = [
                         sys.executable,
                         dirs.PLUGIN_HARNESS,
@@ -546,7 +546,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 # Delete the output adaptor directory if it exists
                 if os.path.exists(run_adaptor_dir) and os.path.isdir(run_adaptor_dir):
                     print(f"Deleting adaptor directory: {run_adaptor_dir}")
-                    os.rmdir(run_adaptor_dir)
+                    shutil.rmtree(run_adaptor_dir, ignore_errors=True)
 
                 # Check job data for training metrics
                 try:
@@ -662,8 +662,86 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 return
 
             return
+
         else:
+            #     job_config = job_config["config"]
+            # model_name = job_config["model_name"]
+            # model_name = secure_filename(model_name)
+            # template_config = job_config
+            # adaptor_name = job_config["adaptor_name"]
+            # template_config["job_id"] = job_id
+            # template_config["adaptor_output_dir"] = os.path.join(dirs.WORKSPACE_DIR, "adaptors", model_name, adaptor_name)
+            # template_config["output_dir"] = os.path.join(
+            #     experiment_dir,
+            #     "tensorboards",
+            #     template_config["template_name"],
+            # )
+            # # Check if plugin has a venv directory
+            # venv_path = os.path.join(plugin_location, "venv")
+            # await db.job_update_status(job_id, "RUNNING")
+            # start_time = time.strftime("%Y-%m-%d %H:%M:%S")
+            # await db.job_update_job_data_insert_key_value(job_id, "start_time", start_time)
+
+            # if os.path.exists(venv_path) and os.path.isdir(venv_path):
+            #     print(f">Plugin has virtual environment, activating venv from {venv_path}")
+            #     venv_python = os.path.join(venv_path, "bin", "python")
+
+            # tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
+            # if not os.path.exists(tempdir):
+            #     os.makedirs(tempdir)
+
+            # Create a file in the temp directory to store the inputs:
+            tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
+            if not os.path.exists(tempdir):
+                os.makedirs(tempdir)
+            input_file = os.path.join(tempdir, f"plugin_input_{job_id}.json")
+            # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
+            # and should be done in the API itself
+            if "config" in experiment_details:
+                experiment_details["config"] = json.loads(experiment_details["config"])
+                if "inferenceParams" in experiment_details["config"]:
+                    experiment_details["config"]["inferenceParams"] = json.loads(
+                        experiment_details["config"]["inferenceParams"]
+                    )
+            input_contents = {"experiment": experiment_details, "config": template_config}
+            with open(input_file, "w") as outfile:
+                json.dump(input_contents, outfile, indent=4)
+
+            start_time = time.strftime("%Y-%m-%d %H:%M:%S")
+            await db.job_update_job_data_insert_key_value(job_id, "start_time", start_time)
+
+            # Check if plugin has a venv directory
+            venv_path = os.path.join(plugin_location, "venv")
             print("No hyperparameter sweep requested, running single job")
+            if os.path.exists(venv_path) and os.path.isdir(venv_path):
+                print(f">Plugin has virtual environment, activating venv from {venv_path}")
+                venv_python = os.path.join(venv_path, "bin", "python")
+                # Construct command that first activates venv then runs script
+                training_popen_command = [
+                    venv_python,
+                    dirs.PLUGIN_HARNESS,
+                    "--plugin_dir",
+                    plugin_location,
+                    "--input_file",
+                    input_file,
+                    "--experiment_name",
+                    experiment_name,
+                ]
+
+            else:
+                print(">Using system Python interpreter")
+                training_popen_command = [
+                    sys.executable,
+                    dirs.PLUGIN_HARNESS,
+                    "--plugin_dir",
+                    plugin_location,
+                    "--input_file",
+                    input_file,
+                    "--experiment_name",
+                    experiment_name,
+                ]
+
+        popen_and_call(on_train_complete, experiment_details_as_string, output_file, training_popen_command)
 
     elif job_type == "pretraining":
         template_config = job_config["config"]
