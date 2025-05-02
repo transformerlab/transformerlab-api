@@ -538,7 +538,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                         return process.returncode
 
                 # Run the process asynchronously
-                return_code = await run_process_async(run_command, run_output_file)
+                await run_process_async(run_command, run_output_file)
 
                 # Replace this block:
                 # with open(run_output_file, "w") as f:
@@ -575,7 +575,6 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                         if best_config is None or is_better:
                             best_metric = metric_value
                             best_config = config_params.copy()
-                            best_adaptor_dir = run_adaptor_dir
 
                             # Update job data with current best
                             await db.job_update_job_data_insert_key_value(
