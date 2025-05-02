@@ -3,7 +3,6 @@ import json
 import os
 import time
 import traceback
-import copy
 
 try:
     from transformerlab.plugin import WORKSPACE_DIR, generate_model_json, test_wandb_login
