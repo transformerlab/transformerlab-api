@@ -533,9 +533,6 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                             f.write(f"\n[Run {i + 1}/{total_configs}]: {decoded_line.strip()}")
                             f.flush()
 
-                            # Optionally print to console for debugging
-                            print(f"[Run {i + 1}/{total_configs}]: {decoded_line.strip()}")
-
                         # Wait for process to complete
                         await process.wait()
                         return process.returncode
