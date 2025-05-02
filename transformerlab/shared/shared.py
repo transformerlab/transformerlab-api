@@ -484,7 +484,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
                 # Run the training job with this configuration
                 run_output_file = os.path.join(sweep_dir, f"output_sweep_{job_id}.txt")
-                await db.job_update_job_data_insert_key_value(job_id, "sweep_output_file", os.path.join(sweep_dir, f"output_sweep_{job_id}.txt"))
+                await db.job_update_job_data_insert_key_value(
+                    job_id, "sweep_output_file", os.path.join(sweep_dir, f"output_sweep_{job_id}.txt")
+                )
 
                 # Create command for this run
                 if os.path.exists(venv_path) and os.path.isdir(venv_path):
@@ -541,9 +543,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 # Run the process asynchronously
                 await run_process_async(run_command, run_output_file)
 
-                # Replace this block:
-                # with open(run_output_file, "w") as f:
-                #     process = subprocess.run(run_command, stdout=f, stderr=subprocess.STDOUT)
+                # Delete the output adaptor directory if it exists
+                if os.path.exists(run_adaptor_dir) and os.path.isdir(run_adaptor_dir):
+                    print(f"Deleting adaptor directory: {run_adaptor_dir}")
+                    os.rmdir(run_adaptor_dir)
 
                 # Check job data for training metrics
                 try:
@@ -659,6 +662,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 return
 
             return
+        else:
+            print("No hyperparameter sweep requested, running single job")
 
     elif job_type == "pretraining":
         template_config = job_config["config"]
