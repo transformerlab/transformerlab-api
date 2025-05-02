@@ -90,7 +90,12 @@ class TrainerTLabPlugin(TLabPlugin):
                             if name == "step":
                                 continue
                             try:
-                                self.tlab.log_metric(name.replace("train_", "train/").replace("eval_", "eval/"), float(val), step, logging_platforms=False)
+                                self.tlab.log_metric(
+                                    name.replace("train_", "train/").replace("eval_", "eval/"),
+                                    float(val),
+                                    step,
+                                    logging_platforms=False,
+                                )
                             except Exception:
                                 pass
                     return control
@@ -100,7 +105,12 @@ class TrainerTLabPlugin(TLabPlugin):
                     if state.is_local_process_zero and metrics:
                         for name, val in metrics.items():
                             try:
-                                self.tlab.log_metric(name.replace("train_", "train/").replace("eval_", "eval/"), float(val), state.global_step, logging_platforms=False)
+                                self.tlab.log_metric(
+                                    name.replace("train_", "train/").replace("eval_", "eval/"),
+                                    float(val),
+                                    state.global_step,
+                                    logging_platforms=False,
+                                )
                             except Exception:
                                 pass
                     return control
@@ -307,156 +317,6 @@ class TrainerTLabPlugin(TLabPlugin):
             json.dump(provenance_data, f, indent=2)
 
         return provenance_path
-
-    def run_sweep(self, train_function, sweep_config=None):
-        """Run a hyperparameter sweep with the specified train function
-
-        Args:
-            train_function: Function that performs the training with given parameters
-            sweep_config: Dictionary of parameters to sweep (or None to use defaults)
-
-        Returns:
-            Dictionary with sweep results and best configuration
-        """
-        print("Starting hyperparameter sweep")
-
-        # Load dataset once for all runs
-        datasets = self.load_dataset()
-
-        # Get sweep parameter definitions
-        sweep_config = self.params.get("sweep_config", {})
-        if isinstance(sweep_config, str):
-            # If sweep_config is a string, assume it's a JSON object
-            try:
-                sweep_config = json.loads(sweep_config)
-            except json.JSONDecodeError:
-                print(f"Error decoding JSON: {sweep_config}. Using default sweep configuration.")
-                sweep_config = None
-        if not sweep_config:
-            # Default sweep parameters if none specified
-            sweep_config = {
-                "learning_rate": [1e-4, 3e-4, 5e-4],
-                "lora_alpha": [8, 16, 32],
-                "lora_r": [8, 16, 32],
-                "lora_dropout": [0.1, 0.2],
-            }
-            print(f"Using default sweep configuration: {json.dumps(sweep_config, indent=2)}")
-        else:
-            print(f"Using provided sweep configuration: {json.dumps(sweep_config, indent=2)}")
-
-        # Import here to avoid circular imports
-        from transformerlab.sdk.v1.sweep import HyperparameterSweep
-
-        # Setup the sweeper with a copy of current parameters
-        base_params = copy.deepcopy(self.params)
-        print("Base parameters for sweep:")
-        print(json.dumps({k: v for k, v in base_params.items() if not k.startswith("_")}, indent=2))
-        sweeper = HyperparameterSweep(base_params)
-
-        # Add parameters to sweep
-        for param_name, values in sweep_config.items():
-            sweeper.add_parameter(param_name, values)
-
-        # Generate all configurations
-        configs = sweeper.generate_configs()
-        total_configs = len(configs)
-
-        print(f"Generated {total_configs} configurations for sweep")
-
-        # Create a directory for sweep results
-        sweep_dir = os.path.join(self.params.output_dir, f"sweep_{self.params.job_id}")
-        os.makedirs(sweep_dir, exist_ok=True)
-
-        # Setup logging for the sweep
-        sweep_log_path = os.path.join(sweep_dir, "sweep_results.json")
-        self.add_job_data("sweep_log_path", str(sweep_log_path))
-        self.add_job_data("sweep_configs", str(total_configs))
-
-        # Store original params
-        original_params = self.params
-
-        # Run each configuration
-        for i, config in enumerate(configs):
-            run_id = f"run_{i + 1}_of_{total_configs}"
-
-            # Update job progress based on sweep progress
-            overall_progress = int((i / total_configs) * 100)
-            self.progress_update(overall_progress)
-
-            print(f"\n--- Starting sweep {run_id} ---")
-            print(f"Configuration: {json.dumps({k: config[k] for k in sweep_config.keys()}, indent=2)}")
-
-            # Create run-specific output directories
-            run_output_dir = os.path.join(sweep_dir, run_id)
-            run_adaptor_dir = os.path.join(run_output_dir, "adaptor")
-            os.makedirs(run_output_dir, exist_ok=True)
-            os.makedirs(run_adaptor_dir, exist_ok=True)
-
-            try:
-                # Create a new params object for this run
-                run_params = copy.deepcopy(config)
-                run_params["output_dir"] = run_output_dir
-                run_params["adaptor_output_dir"] = run_adaptor_dir
-                run_params["run_id"] = run_id
-                run_params["datasets"] = datasets
-
-                # Replace the params temporarily
-                self.params = DotDict(run_params)
-
-                # Run training with this configuration
-                metrics = train_function(**run_params)
-
-                # Add result to sweeper
-                sweeper.add_result(config, metrics)
-
-                print(f"Run {i + 1} completed with metrics: {json.dumps(metrics, indent=2)}")
-
-            except Exception as e:
-                error_msg = f"Error in sweep run {i + 1}: {str(e)}\n{traceback.format_exc()}"
-                print(error_msg)
-                sweeper.add_result(config, {}, "failed")
-            finally:
-                # Restore original params
-                self.params = original_params
-
-            # Save intermediate sweep results
-            with open(sweep_log_path, "w") as f:
-                json.dump(
-                    {
-                        "sweep_config": sweep_config,
-                        "results": sweeper.results,
-                        "completed_runs": i + 1,
-                        "total_runs": total_configs,
-                    },
-                    f,
-                    indent=2,
-                )
-
-        # Find best configuration
-        metric_name = self.params.get("sweep_metric", "eval/loss")
-        lower_is_better = self.params.get("lower_is_better") is not None
-        best_result = sweeper.get_best_config(metric_name, lower_is_better)
-
-        self.params["train_final_model"] = True
-
-        if best_result:
-            print("\n--- Sweep completed ---")
-            print("Best configuration:")
-            print(json.dumps(best_result["params"], indent=2))
-            print("Metrics:")
-            print(json.dumps(best_result["metrics"], indent=2))
-
-            # Add best result to job data
-            self.add_job_data("best_config", str(best_result["params"]))
-            self.add_job_data("best_metrics", str(best_result["metrics"]))
-
-        # Return all results
-        return {
-            "sweep_results": sweeper.results,
-            "best_config": best_result["params"] if best_result else None,
-            "best_metrics": best_result["metrics"] if best_result else None,
-            "sweep_log_path": sweep_log_path,
-        }
 
 
 # Create an instance of the TrainerTLabPlugin class

@@ -661,32 +661,6 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             return
 
         else:
-            #     job_config = job_config["config"]
-            # model_name = job_config["model_name"]
-            # model_name = secure_filename(model_name)
-            # template_config = job_config
-            # adaptor_name = job_config["adaptor_name"]
-            # template_config["job_id"] = job_id
-            # template_config["adaptor_output_dir"] = os.path.join(dirs.WORKSPACE_DIR, "adaptors", model_name, adaptor_name)
-            # template_config["output_dir"] = os.path.join(
-            #     experiment_dir,
-            #     "tensorboards",
-            #     template_config["template_name"],
-            # )
-            # # Check if plugin has a venv directory
-            # venv_path = os.path.join(plugin_location, "venv")
-            # await db.job_update_status(job_id, "RUNNING")
-            # start_time = time.strftime("%Y-%m-%d %H:%M:%S")
-            # await db.job_update_job_data_insert_key_value(job_id, "start_time", start_time)
-
-            # if os.path.exists(venv_path) and os.path.isdir(venv_path):
-            #     print(f">Plugin has virtual environment, activating venv from {venv_path}")
-            #     venv_python = os.path.join(venv_path, "bin", "python")
-
-            # tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
-            # if not os.path.exists(tempdir):
-            #     os.makedirs(tempdir)
-
             # Create a file in the temp directory to store the inputs:
             tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
             if not os.path.exists(tempdir):
