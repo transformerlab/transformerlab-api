@@ -1,1 +1,1 @@
-uv pip install deepeval langchain-openai instructor anthropic datasets seaborn tensorboardX
+uv pip install deepeval==2.8.2 langchain-openai instructor anthropic datasets seaborn tensorboardX
