@@ -18,7 +18,6 @@
   ],
   "supported_hardware_architectures": ["cuda"],
   "files": ["main.py", "info.md", "setup.sh"],
-  "supports": ["sweeps"],
   "setup-script": "setup.sh",
   "parameters": {
     "batch_size": {
