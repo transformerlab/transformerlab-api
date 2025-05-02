@@ -609,6 +609,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             print("\n--- Sweep completed ---")
             print(f"Best configuration: {json.dumps(best_config, indent=2)}")
             print(f"Best {metric_name}: {best_metric}")
+            await db.job_update_sweep_progress(job_id, 100)
 
             # Optionally train final model with best configuration
             train_final_model = template_config.get("train_final_model", True)
