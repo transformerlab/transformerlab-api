@@ -22,16 +22,11 @@
     "MistralForCausalLM",
     "MixtralForCausalLM"
   ],
+  "supports": ["sweeps"],
   "git": "",
   "url": "",
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
-  "supported_hardware_architectures": [
-    "cuda"
-  ],
-  "supports": ["sweeps"],
+  "files": ["main.py", "setup.sh"],
+  "supported_hardware_architectures": ["cuda"],
   "setup-script": "setup.sh",
   "parameters": {
     "maximum_sequence_length": {

@@ -61,34 +61,51 @@ class TrainerTLabPlugin(TLabPlugin):
         """
         self._ensure_args_parsed()
 
-        if framework.lower() == "huggingface" or framework.lower() == "hf":
-            # Import here to avoid dependency issues if HF isn't installed
+        if framework.lower() in ("huggingface", "hf"):
             try:
                 from transformers import TrainerCallback
-
-                class TLabProgressCallback(TrainerCallback):
-                    """Callback that updates progress in TransformerLab DB during HuggingFace training"""
-
-                    def __init__(self, tlab_instance):
-                        self.tlab = tlab_instance
-
-                    def on_step_end(self, args, state, control, **callback_kwargs):
-                        if state.is_local_process_zero:
-                            if state.max_steps > 0:
-                                progress = state.global_step / state.max_steps
-                                progress = int(progress * 100)
-                                self.tlab.progress_update(progress)
-
-                                # Check if job should be stopped
-                                if self.tlab.job.should_stop:
-                                    control.should_training_stop = True
-
-                        return control
-
-                return TLabProgressCallback(self)
-
             except ImportError:
                 raise ImportError("Could not create HuggingFace callback. Please install transformers package.")
+
+            class TLabProgressCallback(TrainerCallback):
+                """Callback that updates progress and logs metrics to metrics.json"""
+
+                def __init__(self, tlab_instance):
+                    self.tlab = tlab_instance
+
+                def on_step_end(self, args, state, control, **cb_kwargs):
+                    if state.is_local_process_zero and state.max_steps > 0:
+                        progress = int(state.global_step / state.max_steps * 100)
+                        self.tlab.progress_update(progress)
+                        if self.tlab.job.should_stop:
+                            control.should_training_stop = True
+                    return control
+
+                def on_log(self, args, state, control, logs=None, **cb_kwargs):
+                    # Called whenever Trainer.log() is called
+                    if state.is_local_process_zero and logs:
+                        step = logs.get("step", state.global_step)
+                        for name, val in logs.items():
+                            # skip the step counter itself
+                            if name == "step":
+                                continue
+                            try:
+                                self.tlab.log_metric(name.replace("train_", "train/").replace("eval_", "eval/"), float(val), step, logging_platforms=False)
+                            except Exception:
+                                pass
+                    return control
+
+                def on_evaluate(self, args, state, control, metrics=None, **cb_kwargs):
+                    # Called at end of evaluation
+                    if state.is_local_process_zero and metrics:
+                        for name, val in metrics.items():
+                            try:
+                                self.tlab.log_metric(name.replace("train_", "train/").replace("eval_", "eval/"), float(val), state.global_step, logging_platforms=False)
+                            except Exception:
+                                pass
+                    return control
+
+            return TLabProgressCallback(self)
 
         else:
             raise ValueError(f"Unsupported framework: {framework}. Supported frameworks: huggingface")
@@ -190,12 +207,13 @@ class TrainerTLabPlugin(TLabPlugin):
 
         self.report_to = report_to
 
-    def log_metric(self, metric_name: str, metric_value: float, step: int = None):
+    def log_metric(self, metric_name: str, metric_value: float, step: int = None, logging_platforms: bool = True):
         """Log a metric to all reporting targets"""
-        if "tensorboard" in self.report_to:
-            self.writer.add_scalar(metric_name, metric_value, step)
-        if "wandb" in self.report_to and getattr(self, "wandb_run") is not None:
-            self.wandb_run.log({metric_name: metric_value}, step=step)
+        if logging_platforms:
+            if "tensorboard" in self.report_to:
+                self.writer.add_scalar(metric_name, metric_value, step)
+            if "wandb" in self.report_to and getattr(self, "wandb_run") is not None:
+                self.wandb_run.log({metric_name: metric_value}, step=step)
 
         # Store metrics in memory
         if not hasattr(self, "_metrics"):
@@ -213,23 +231,10 @@ class TrainerTLabPlugin(TLabPlugin):
                 metrics_path = os.path.join(output_dir, "metrics.json")
                 with open(metrics_path, "w") as f:
                     json.dump(self._metrics, f, indent=2)
-
-                print(f"Updated metrics in {metrics_path}: {list(self._metrics.keys())}")
             else:
                 print(f"Output directory not found or not specified: {output_dir}")
         except Exception as e:
             print(f"Error saving metrics to file: {str(e)}")
-
-    def _save_metrics_to_job_data(self):
-        """Save collected metrics to job data"""
-        if hasattr(self, "_metrics") and self._metrics and self.params.job_id:
-            # Convert metrics to JSON string
-            metrics_json = json.dumps(self._metrics)
-
-            # Store in job_data
-            self.add_job_data("training_metrics", str(metrics_json))
-
-        print(f"Updated metrics in job_data: {list(self._metrics.keys())}")
 
     def create_transformerlab_model(
         self, fused_model_name, model_architecture, json_data, output_dir=None, generate_json=True
