@@ -474,16 +474,17 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 # Create input file for this run
                 run_input_file = os.path.join(tempdir, f"plugin_input_{job_id}_run_{i + 1}.json")
                 run_input_contents = {"experiment": experiment_details, "config": run_config}
-                with open(run_input_file, "w") as outfile:
+                with open(run_input_file, "a") as outfile:
                     json.dump(run_input_contents, outfile, indent=4)
 
                 # Update job progress
-                await db.job_update_progress(job_id, int((i / total_configs) * 100))
+                await db.job_update_sweep_progress(job_id, int((i / total_configs) * 100))
                 await db.job_update_job_data_insert_key_value(job_id, "sweep_current", str(i + 1))
                 await db.job_update_job_data_insert_key_value(job_id, "sweep_running_config", json.dumps(config_params))
 
                 # Run the training job with this configuration
-                run_output_file = os.path.join(run_dir, f"output_{i + 1}.txt")
+                run_output_file = os.path.join(sweep_dir, f"output_sweep_{job_id}.txt")
+                await db.job_update_job_data_insert_key_value(job_id, "sweep_output_file", os.path.join(sweep_dir, f"output_sweep_{job_id}.txt"))
 
                 # Create command for this run
                 if os.path.exists(venv_path) and os.path.isdir(venv_path):
@@ -527,7 +528,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
                             # Decode and write to file
                             decoded_line = line.decode("utf-8")
-                            f.write(decoded_line)
+                            f.write(f"[Run {i + 1}/{total_configs}]: {decoded_line.strip()}")
                             f.flush()
 
                             # Optionally print to console for debugging

@@ -545,6 +545,18 @@ async def job_update_progress(job_id, progress):
         "UPDATE job SET progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         (progress, job_id),
     )
+    
+
+async def job_update_sweep_progress(job_id, value):
+    value = json.dumps(value)
+    key = "sweep_progress"
+
+    await db.execute(
+        "UPDATE job SET job_data = " + f"json_set(job_data,'$.sweep_progress', json(?))  WHERE id = ?",
+        (value, job_id),
+    )
+    await db.commit()
+    return
 
 
 ###############
