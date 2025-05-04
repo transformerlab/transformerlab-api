@@ -343,7 +343,7 @@ install_dependencies() {
 
   if [ "$HAS_GPU" = true ] ; then
       echo "Your computer has a GPU; installing cuda:"
-      conda install -y cuda -c nvidia/label/cuda-12.1.1
+      conda install -y cuda -c nvidia/label/cuda-12.8.1
 
       echo "Installing requirements:"
       # Install the python requirements

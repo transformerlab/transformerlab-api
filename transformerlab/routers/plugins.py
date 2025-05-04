@@ -177,7 +177,7 @@ async def install_plugin(plugin_id: str):
         proc = await asyncio.create_subprocess_exec(
             "/bin/bash",
             "-c",
-            f"source {venv_path}/bin/activate && uv pip sync {requirements_file_path}",
+            f"source {venv_path}/bin/activate && uv pip sync {requirements_file_path} --index=https://download.pytorch.org/whl/cu128",
             cwd=new_directory,
             stdout=log_file,
             stderr=log_file,
