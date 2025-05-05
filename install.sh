@@ -363,7 +363,7 @@ install_dependencies() {
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
       echo "Installing Tranformer Lab requirements without GPU support"
 
-      if ! [ -e "$TLAB_CODE_DIR/requirements-uv.txt" ]; then
+      if ! [ -e "$TLAB_CODE_DIR/requirements-no-gpu-uv.txt" ]; then
         cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
       fi
       uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
