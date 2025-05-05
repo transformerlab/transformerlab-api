@@ -373,7 +373,7 @@ install_dependencies() {
       if ! [ -e "$TLAB_CODE_DIR/requirements-no-gpu-uv.txt" ]; then
         cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
       fi
-      cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
+      #cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
       uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
 
   else
@@ -384,7 +384,7 @@ install_dependencies() {
       if ! [ -e "$TLAB_CODE_DIR/requirements-no-gpu-uv.txt" ]; then
         cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
       fi
-      cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
+      #cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
       uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt --index "https://download.pytorch.org/whl/cpu"
   fi
 
