@@ -3,6 +3,7 @@ from distutils.dir_util import copy_tree
 import json
 import os
 import platform
+import sys
 
 import aiofiles
 import subprocess
@@ -165,16 +166,21 @@ async def install_plugin(plugin_id: str):
         print("Running uv sync to install dependencies...")
         await log_file.write(f"## Running uv sync for {plugin_id}...\n")
 
-        # Use a similar logic
         if check_nvidia_gpu():
             # If we have a GPU, use the requirements file for GPU
             requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-uv.txt")
             additional_flags = "--index 'https://download.pytorch.org/whl/cu128'"
+        # Check if system is MacOS with Apple Silicon
+        elif sys.platform == "darwin":
+            # If we have a MacOS with Apple Silicon, use the requirements file for MacOS
+            print("Apple Silicon detected, using MacOS requirements file.")
+            requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-no-gpu-uv.txt")
+            additional_flags = ""
         else:
             # If we don't have a GPU, use the requirements file for CPU
             print("No NVIDIA GPU detected, using CPU requirements file.")
             requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-no-gpu-uv.txt")
-            additional_flags = ""
+            additional_flags = "--index 'https://download.pytorch.org/whl/cpu'"
 
         proc = await asyncio.create_subprocess_exec(
             "/bin/bash",
