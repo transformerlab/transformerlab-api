@@ -168,6 +168,7 @@ async def install_plugin(plugin_id: str):
 
         if check_nvidia_gpu():
             # If we have a GPU, use the requirements file for GPU
+            print("NVIDIA GPU detected, using GPU requirements file.")
             requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-uv.txt")
             additional_flags = "--index 'https://download.pytorch.org/whl/cu128'"
         # Check if system is MacOS with Apple Silicon
