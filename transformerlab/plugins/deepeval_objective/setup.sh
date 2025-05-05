@@ -1,1 +1,1 @@
-uv pip install deepeval bert-score datasets seaborn tensorboardX
+uv pip install deepeval==2.8.2 bert-score datasets seaborn tensorboardX

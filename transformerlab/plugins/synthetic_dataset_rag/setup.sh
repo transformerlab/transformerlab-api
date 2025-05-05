@@ -1,1 +1,1 @@
-uv pip install langchain langchain-openai anthropic openai datasets PyMuPDF deepeval
+uv pip install langchain langchain-openai anthropic openai datasets PyMuPDF deepeval==2.8.2

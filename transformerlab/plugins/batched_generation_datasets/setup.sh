@@ -1,1 +1,1 @@
-uv pip install deepeval langchain-openai instructor anthropic datasets
+uv pip install deepeval==2.8.2 langchain-openai instructor anthropic datasets langchain langchain-community langchain_text_splitters
