@@ -366,13 +366,14 @@ install_dependencies() {
       uv pip install ninja
       # uv pip install -U flash-attn==2.7.3 --no-build-isolation --index "https://download.pytorch.org/whl/cu128"
       ###
-  elif ["$HAS_MACOS" = true] ; then
+  elif [ "$HAS_MACOS" = true ] ; then
       echo "MacOS Device Detected."
       echo "Installing Tranformer Lab requirements based on MacOS support"
 
       if ! [ -e "$TLAB_CODE_DIR/requirements-no-gpu-uv.txt" ]; then
         cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
       fi
+      cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
       uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
 
   else
@@ -383,6 +384,7 @@ install_dependencies() {
       if ! [ -e "$TLAB_CODE_DIR/requirements-no-gpu-uv.txt" ]; then
         cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
       fi
+      cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
       uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt --index "https://download.pytorch.org/whl/cpu"
   fi
 
