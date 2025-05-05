@@ -323,6 +323,14 @@ install_dependencies() {
 
   # store if the box has an nvidia graphics card
   HAS_GPU=false
+  HAS_MACOS=false
+
+  # Check if the system is macOS
+  if [[ "$(uname)" == "Darwin" ]]; then
+      echo "macOS detected"
+      HAS_MACOS=true
+  fi
+
   if command -v nvidia-smi &> /dev/null; then
       # Check if nvidia-smi is available
       echo "nvidia-smi is available"
@@ -358,15 +366,26 @@ install_dependencies() {
       uv pip install ninja
       uv pip install -U flash-attn==2.7.3 --no-build-isolation -c "$TLAB_CODE_DIR"/constraints.txt
       ###
+  elif [ "$HAS_MACOS" = true ] ; then
+      echo "MacOS Device Detected."
+      echo "Installing Tranformer Lab requirements based on MacOS support"
+
+      if ! [ -e "$TLAB_CODE_DIR/requirements-no-gpu-uv.txt" ]; then
+        cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
+      fi
+      cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
+      uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
+
   else
       echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
       echo "Installing Tranformer Lab requirements without GPU support"
 
-      if ! [ -e "$TLAB_CODE_DIR/requirements-uv.txt" ]; then
+      if ! [ -e "$TLAB_CODE_DIR/requirements-no-gpu-uv.txt" ]; then
         cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
       fi
-      uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
+      cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
+      uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt --index "https://download.pytorch.org/whl/cpu"
   fi
 
   # Check if the uvicorn command works:
