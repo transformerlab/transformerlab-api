@@ -4,7 +4,7 @@
   "description": "Exports the current model to GGUF format so it can be run on computers without a GPU.",
   "plugin-format": "python",
   "type": "exporter",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "model_architectures": [
     "CohereForCausalLM",
     "FalconForCausalLM",
@@ -30,6 +30,11 @@
       "type": "string",
       "default": "q8_0",
       "enum": ["q8_0", "f16", "f32"]
+    },
+    "exported_model_name": {
+      "title": "Exported Model Name",
+      "type": "string",
+      "default": "my-exported-model"
     }
   }
 }

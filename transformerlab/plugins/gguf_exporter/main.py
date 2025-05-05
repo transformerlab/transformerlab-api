@@ -16,6 +16,7 @@ parser = argparse.ArgumentParser(description="Convert a model to GGUF format.")
 parser.add_argument("--output_dir", type=str, help="Directory to save the model in.")
 parser.add_argument("--output_model_id", type=str, help="Directory to save the model in.")
 parser.add_argument("--model_name", default="gpt-j-6b", type=str, help="Name of model to export.")
+parser.add_argument("--exported_model_name", default="my-exported-model", help="Name of the exported model folder.")
 parser.add_argument(
     "--outtype", default="q8_0", type=str, help="GGUF output format. q8_0 quantizes the model to 8 bits."
 )
@@ -25,9 +26,7 @@ args, unknown = parser.parse_known_args()
 input_model = args.model_name
 outtype = args.outtype
 
-# For internals to work we need the directory and output filename to be the same
-output_filename = args.output_model_id
-output_path = os.path.join(args.output_dir, output_filename)
+output_path = os.path.expanduser(f"~/.transformerlab/workspace/models/{args.exported_model_name}")
 
 # Directory to run conversion subprocess
 plugin_dir = os.path.realpath(os.path.dirname(__file__))

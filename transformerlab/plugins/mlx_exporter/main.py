@@ -15,9 +15,10 @@ parser = argparse.ArgumentParser(description="Convert a model to MLX format.")
 parser.add_argument("--output_dir", type=str, help="Directory to save the model in.")
 parser.add_argument("--model_name", default="gpt-j-6b", type=str, help="Name of model to export.")
 parser.add_argument("--q_bits", default="4", type=str, help="Bits per weight for quantization.")
+parser.add_argument("--exported_model_name", default="my-exported-model", help="Name of the exported model folder.")
 args, unknown = parser.parse_known_args()
 
-output_path = args.output_dir
+output_path = os.path.expanduser(f"~/.transformerlab/workspace/models/{args.exported_model_name}")
 
 # Directory to run conversion subprocess
 plugin_dir = os.path.realpath(os.path.dirname(__file__))
