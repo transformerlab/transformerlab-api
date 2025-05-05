@@ -169,15 +169,17 @@ async def install_plugin(plugin_id: str):
         if check_nvidia_gpu():
             # If we have a GPU, use the requirements file for GPU
             requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-uv.txt")
+            additional_flags = "--index 'https://download.pytorch.org/whl/cu128'"
         else:
             # If we don't have a GPU, use the requirements file for CPU
             print("No NVIDIA GPU detected, using CPU requirements file.")
             requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-no-gpu-uv.txt")
+            additional_flags = ""
 
         proc = await asyncio.create_subprocess_exec(
             "/bin/bash",
             "-c",
-            f"source {venv_path}/bin/activate && uv pip sync {requirements_file_path} --index=https://download.pytorch.org/whl/cu128",
+            f"source {venv_path}/bin/activate && uv pip sync {requirements_file_path} {additional_flags}",
             cwd=new_directory,
             stdout=log_file,
             stderr=log_file,
