@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eu
+# set -eu
 
 ENV_NAME="transformerlab"
 TLAB_DIR="$HOME/.transformerlab"
@@ -343,20 +343,19 @@ install_dependencies() {
 
   if [ "$HAS_GPU" = true ] ; then
       echo "Your computer has a GPU; installing cuda:"
-      conda install -y cuda -c nvidia/label/cuda-12.8.1
+      conda install -y cuda==12.8.1 --force-reinstall -c nvidia/label/cuda-12.8.1
 
       echo "Installing requirements:"
       # Install the python requirements
       if ! [ -e "$TLAB_CODE_DIR/requirements-uv.txt" ]; then
         cp "$RUN_DIR"/requirements-uv.txt "$TLAB_CODE_DIR"/requirements-uv.txt
       fi
-      uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-uv.txt
-
+      uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-uv.txt --index "https://download.pytorch.org/whl/cu128"
       # Install Flash Attention separately - it doesn't play well in requirements file
       # Using instructions from https://github.com/Dao-AILab/flash-attention
       uv pip install packaging
       uv pip install ninja
-      uv pip install -U flash-attn==2.7.3 --no-build-isolation -c "$TLAB_CODE_DIR"/constraints.txt
+      # uv pip install -U flash-attn==2.7.3 --no-build-isolation --index "https://download.pytorch.org/whl/cu128"
       ###
   else
       echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."
