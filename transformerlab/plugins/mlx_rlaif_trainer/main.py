@@ -73,6 +73,7 @@ def train_mlx_rlaif():
         f"--seed={seed}",
         f"--custom_hf_dataset={custom_dataset_path}",
         f"--max_completion_length={max_completion_length}",
+        f"--output_dir={model_output_dir}",
     ]
     if ground_truth_reward:
         popen_command.append("--ground_truth_reward")
