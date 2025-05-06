@@ -13,6 +13,8 @@
     "PhiForCausalLM",
     "Qwen2ForCausalLM"
   ],
+  "training_template_format": "none",
+  "training_data_instructions": "Enxure that the dataset below has the following required columns: \"conversations\", \"chosen\", \"rejected\"",
   "supported_hardware_architectures": ["mlx"],
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
