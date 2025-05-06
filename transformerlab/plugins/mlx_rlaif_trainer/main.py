@@ -29,6 +29,7 @@ def train_mlx_rlaif():
     adap_kl_ctrl = tlab_trainer.params.get("adap_kl_ctrl", True)
     init_kl_coef = str(tlab_trainer.params.get("init_kl_coef", "0.2"))
     seed = str(tlab_trainer.params.get("seed", "42"))
+    max_completion_length = str(tlab_trainer.params.get("max_completion_length", "256"))
 
     # Load datasets for training
     datasets = tlab_trainer.load_dataset(["train"])
@@ -63,7 +64,6 @@ def train_mlx_rlaif():
     popen_command = [
         python_executable,
         ppo_script_path,
-        "--log_with=wandb",
         f"--model={model_name}",
         f"--batch_size={batch_size}",
         f"--mini_batch_size={mini_batch_size}",
@@ -72,7 +72,7 @@ def train_mlx_rlaif():
         f"--init_kl_coef={init_kl_coef}",
         f"--seed={seed}",
         f"--custom_hf_dataset={custom_dataset_path}",
-        f"--output_dir={model_output_dir}",
+        f"--max_completion_length={max_completion_length}",
     ]
     if ground_truth_reward:
         popen_command.append("--ground_truth_reward")
@@ -92,7 +92,7 @@ def train_mlx_rlaif():
         for line in process.stdout:
             print(line, end="", flush=True)
             # Progress parsing
-            step_pattern = r"Step (\d+)"
+            step_pattern = r"Step - (\d+)"
             step_match = re.search(step_pattern, line)
             if step_match:
                 current_step = int(step_match.group(1))
