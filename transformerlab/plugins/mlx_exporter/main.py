@@ -3,7 +3,6 @@ import os
 import subprocess
 import argparse
 
-
 try:
     from transformerlab.plugin import get_python_executable
 except ImportError:
@@ -18,7 +17,7 @@ parser.add_argument("--q_bits", default="4", type=str, help="Bits per weight for
 parser.add_argument("--exported_model_name", default="my-exported-model", help="Name of the exported model folder.")
 args, unknown = parser.parse_known_args()
 
-output_path = os.path.expanduser(f"~/.transformerlab/workspace/models/{args.exported_model_name}")
+output_path = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "models", args.exported_model_name)
 
 # Directory to run conversion subprocess
 plugin_dir = os.path.realpath(os.path.dirname(__file__))

@@ -26,7 +26,7 @@ args, unknown = parser.parse_known_args()
 input_model = args.model_name
 outtype = args.outtype
 
-output_path = os.path.expanduser(f"~/.transformerlab/workspace/models/{args.exported_model_name}")
+output_path = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "models", args.exported_model_name)
 
 # Directory to run conversion subprocess
 plugin_dir = os.path.realpath(os.path.dirname(__file__))
