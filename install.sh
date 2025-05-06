@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eu
+set -e
 
 ENV_NAME="transformerlab"
 TLAB_DIR="$HOME/.transformerlab"
