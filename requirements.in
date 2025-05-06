@@ -24,7 +24,7 @@ torchvision==0.21.0
 transformers==4.51.3
 peft
 watchfiles
-wandb==0.19.8
+wandb==0.19.10
 tensorboardX
 werkzeug
 sqlalchemy[asyncio]
