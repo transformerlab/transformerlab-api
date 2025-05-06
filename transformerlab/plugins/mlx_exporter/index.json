@@ -41,7 +41,7 @@
         "2"
       ]
     },
-    "exported_model_name": {
+    "new_output_model_id": {
       "title": "Exported Model Name",
       "type": "string",
       "default": "my-exported-model"

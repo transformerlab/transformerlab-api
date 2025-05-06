@@ -11,30 +11,27 @@ parser.add_argument(
     "--model_path", default="gpt-j-6b", type=str, help="Path to directory or file containing the model."
 )
 parser.add_argument("--output_dir", type=str, help="Directory to save the model in.")
-
-# TODO: The app generates an ID but it's not consistent with how llamafiles are normally named
-# parser.add_argument('--output_model_id', type=str, help='ID of outputted llamafile.')
+parser.add_argument("--output_model_id", type=str, help="ID of outputted llamafile.")
 args, unknown = parser.parse_known_args()
 
-# We need to pass the model ID in the .args file
-# Make sure we remove the author part (everything before and including "/")
+# Get model details from arguments
 input_model = args.model_name
-input_model_id_without_author = input_model.split("/")[-1]
-
-# But we need the actual model path to get the GGUF file
 input_model_path = args.model_path
+output_model_id = args.output_model_id
+output_dir = args.output_dir
 
 # Directory to run conversion subprocess
 plugin_dir = os.path.realpath(os.path.dirname(__file__))
 
-# Output details - ignoring the output_model_id passed by app
-outfile = f"{input_model_id_without_author}.llamafile"
-output_dir = args.output_dir
+# From export.py we know that output_model_id is the base name without extension
+# Create the filename with .llamafile extension
+model_name = output_model_id
+output_filename = f"{model_name}.llamafile"
 
 # Setup arguments for executing this model
 argsfile = os.path.join(plugin_dir, ".args")
 argsoutput = f"""-m
-{input_model_id_without_author}
+{model_name}
 --host
 0.0.0.0
 -ngl
@@ -47,14 +44,15 @@ with open(argsfile, "w") as f:
     f.write(argsoutput)
 
 # Create a copy of pre-built llamafile to use as a base
-shutil.copy(os.path.join(plugin_dir, "llamafile"), os.path.join(plugin_dir, outfile))
+shutil.copy(os.path.join(plugin_dir, "llamafile"), os.path.join(plugin_dir, output_filename))
 
 # Merge files together in single executable using zipalign
-subprocess_cmd = ["sh", "./zipalign", "-j0", outfile, input_model_path, ".args"]
+subprocess_cmd = ["sh", "./zipalign", "-j0", output_filename, input_model_path, ".args"]
 export_process = subprocess.run(
     subprocess_cmd, cwd=plugin_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
 )
 print(export_process.stdout)
 
-# Move file to output_dir
-shutil.move(os.path.join(plugin_dir, outfile), os.path.join(output_dir, outfile))
+# Move file to output_dir - the directory already exists (created by export.py)
+# The info.json file will be created by export.py after this script runs
+shutil.move(os.path.join(plugin_dir, output_filename), os.path.join(output_dir, output_filename))

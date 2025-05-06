@@ -61,15 +61,57 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
         output_model_name = f"{output_model_name} - {q_type}"
     output_filename = ""
 
+    # Check if a custom model name was provided
+    custom_name = params.get('new_output_model_id')
+
     # GGUF is special: it generates a different format with only one file
     # For everything to work we need the model ID and output filename to match
     if output_model_architecture == "GGUF":
-        
-        output_model_id = f"{input_model_id_without_author}-{conversion_time}.gguf"
-        if len(q_type) > 0:
-            output_model_id = f"{input_model_id_without_author}-{conversion_time}-{q_type}.gguf"
+        if custom_name:
+            output_model_id = f"{custom_name}.gguf"
+        else:
+            output_model_id = f"{input_model_id_without_author}-{conversion_time}.gguf"
+            if len(q_type) > 0:
+                output_model_id = f"{input_model_id_without_author}-{conversion_time}-{q_type}.gguf"
 
-        output_filename = output_model_id
+    # Llamafile needs special handling
+    elif output_model_architecture == "llamafile":
+        # For llamafile, we need to create a directory and put a .llamafile file inside it
+        if custom_name:
+            # Use custom name as the directory name (without extension)
+            base_dir_name = custom_name
+            # The actual file will have .llamafile extension
+            output_filename = f"{custom_name}.llamafile"
+        else:
+            # Use model name as directory name
+            base_dir_name = input_model_id_without_author
+            output_filename = f"{input_model_id_without_author}.llamafile"
+            
+        # Now set output_model_id to be the directory name
+        output_model_id = base_dir_name
+
+    # Generic handling for any other exporter that supports custom names
+    elif custom_name:
+        output_model_id = custom_name
+
+    # Check if a model with the same output_model_id already exists
+    # If so, append _1, _2, etc. to the end of the name
+
+    base_name, ext = os.path.splitext(output_model_id)
+    counter = 1
+    candidate = f"{base_name}{ext}"
+
+    while os.path.exists(os.path.join(dirs.MODELS_DIR, candidate)):
+        candidate = f"{base_name}_{counter}{ext}"
+        counter += 1
+
+    output_model_id = candidate
+    
+    # Update output_filename if this is a llamafile (since we need to match directory and filename)
+    if output_model_architecture == "llamafile" and counter > 1:
+        output_filename = f"{candidate}.llamafile"
+        
+    output_filename = output_model_id
 
     # Figure out plugin and model output directories
     script_directory = dirs.plugin_dir_by_name(plugin_name)
@@ -77,7 +119,10 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
     output_model_id = secure_filename(output_model_id)
 
     output_path = os.path.join(dirs.MODELS_DIR, output_model_id)
-    os.makedirs(output_path)
+    
+    # Create the output directory if it doesn't exist
+    # Use exist_ok=True to avoid errors if directory already exists
+    os.makedirs(output_path, exist_ok=True)
 
     # Create a job in the DB with the details of this export
     job_data = dict(

@@ -14,5 +14,11 @@
   "export_architecture": "llamafile",
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
-  "parameters": {}
+  "parameters": {
+    "new_output_model_id": {
+      "title": "Exported Model Name",
+      "type": "string",
+      "default": "my-exported-model"
+    }
+  }
 }
