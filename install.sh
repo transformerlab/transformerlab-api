@@ -341,6 +341,7 @@ install_dependencies() {
   pip install uv
   
   echo "HAS_GPU=$HAS_GPU"
+  PIP_WHEEL_FLAGS="--upgrade"
 
   if [ "$HAS_GPU" = true ] ; then
       echo "Your computer has a GPU; installing cuda:"
@@ -351,7 +352,7 @@ install_dependencies() {
       if ! [ -e "$TLAB_CODE_DIR/requirements-uv.txt" ]; then
         cp "$RUN_DIR"/requirements-uv.txt "$TLAB_CODE_DIR"/requirements-uv.txt
       fi
-      uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-uv.txt
+      uv pip install ${PIP_WHEEL_FLAGS} -r "$TLAB_CODE_DIR"/requirements-uv.txt
 
       # Install Flash Attention separately - it doesn't play well in requirements file
       # Using instructions from https://github.com/Dao-AILab/flash-attention
@@ -368,11 +369,12 @@ install_dependencies() {
         cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
       fi
 
-      if [[ -n "${TLAB_ON_MACOS}" ]]; then
-          uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
-      else
-          uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt --index "https://download.pytorch.org/whl/cpu"
+      if [[ -z "${TLAB_ON_MACOS}" ]]; then
+          # Add the CPU-specific PyTorch index for non-macOS systems
+          PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/cpu"
       fi
+      # Run the installation with dynamic flags
+      uv pip install ${PIP_WHEEL_FLAGS} -r "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
   fi
 
   # Check if the uvicorn command works:
