@@ -33,4 +33,4 @@ markitdown[all]
 hf_xet
 macmon-python
 pyrsmi
-git+https://github.com/transformerlab/FastChat
+transformerlab-inference

@@ -29,7 +29,7 @@ elif command -v rocminfo &> /dev/null; then
 else
     # Linux/Other without CUDA - try using OpenBLAS
     echo "No GPU detected - installing with OpenBLAS support"
-    CMAKE_ARGS="-DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS" uv pip install llama-cpp-python --upgrade --no-cache-dir
+    uv pip install llama-cpp-python --upgrade --no-cache-dir --force-reinstall
 fi
 
 echo "llama-cpp-python installation complete."
