@@ -78,7 +78,8 @@ fi
 echo "▶️ Starting the API server:"
 if [ "$RELOAD" = true ]; then
     echo "🔁 Reload the server on file changes"
-    uv run -v uvicorn api:app --reload --port ${PORT} --host ${HOST}
+    uv run --no-project -v uvicorn api:app --reload --port ${PORT} --host ${HOST}
 else
-    uv run -v uvicorn api:app --port ${PORT} --host ${HOST} --no-access-log
+    echo "uv run --no-default-groups --only-group gpu -v uvicorn api:app --port ${PORT} --host ${HOST} --no-access-log"
+    uv run --no-project -v uvicorn api:app --port ${PORT} --host ${HOST} --no-access-log
 fi
