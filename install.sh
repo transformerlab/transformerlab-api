@@ -324,7 +324,6 @@ install_dependencies() {
   # store if the machine has MacOS/NVIDIA graphics card
   HAS_GPU=false
 
-  # store if the box has an nvidia graphics card
   if command -v nvidia-smi &> /dev/null; then
       # Check if nvidia-smi is available
       echo "nvidia-smi is available"

@@ -2,6 +2,7 @@ import asyncio
 from distutils.dir_util import copy_tree
 import json
 import os
+import sys
 import platform
 import sys
 
@@ -101,9 +102,9 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
     # Check if plugin exists at the location:
     if not os.path.exists(plugin_path):
         print(f"Plugin {plugin_path} not found in gallery.")
-        return {"error": "Plugin not found in gallery."}
+        return {"status": "error", "message": "Plugin not found in gallery."}
 
-        # Open the Plugin index.json:
+    # Open the Plugin index.json:
     plugin_index_json = open(f"{plugin_path}/index.json", "r")
     plugin_index = json.load(plugin_index_json)
     plugin_index_json.close()
@@ -124,11 +125,24 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
             stdout=log_file,
             stderr=log_file,
         )
-        await proc.wait()
+        return_code = await proc.wait()
+
+        # If installation failed, return an error
+        if return_code != 0:
+            error_msg = f"Setup script {setup_script_name} for {plugin_id} failed with exit code {return_code}."
+            print(error_msg)
+            await log_file.write(f"## {error_msg}\n")
+            return {"status": "error", "message": error_msg}
     else:
-        print("No install script found")
-        await log_file.write(f"## No setup script found for {plugin_id}.\n")
-    await log_file.write(f"## Plugin Install for {plugin_id} completed.\n")
+        error_msg = f"No setup script found for {plugin_id}."
+        print(error_msg)
+        await log_file.write(f"## {error_msg}\n")
+        return {"status": "error", "message": error_msg}
+
+    return_msg = f"Plugin {plugin_id} installed successfully."
+    await log_file.write(f"## {return_msg}\n")
+    print(return_msg)
+    return {"status": "success", "message": return_msg}
 
 
 @router.get("/gallery/{plugin_id}/install", summary="Install a plugin from the gallery.")
@@ -144,7 +158,7 @@ async def install_plugin(plugin_id: str):
     # Check if plugin exists at the location:
     if not os.path.exists(plugin_path):
         print(f"Plugin {plugin_path} not found in gallery.")
-        return {"error": "Plugin not found in gallery."}
+        return {"status": "error", "message": "Plugin not found in gallery."}
 
     await copy_plugin_files_to_workspace(plugin_id)
 
@@ -193,19 +207,17 @@ async def install_plugin(plugin_id: str):
         )
         await proc.wait()
 
-        await run_installer_for_plugin(plugin_id, log_file)
+        return await run_installer_for_plugin(plugin_id, log_file)
 
-    print("Plugin installation completed.")
-
-    return {"status": "success", "message": f"Plugin {plugin_id} installed successfully."}
+    return {"status": "error", "message": f"Failed to open log file: {global_log_file_name}"}
 
 
 @router.get("/{plugin_id}/run_installer_script", summary="Run the installer script for a plugin.")
 async def run_installer_script(plugin_id: str):
     global_log_file_name = dirs.GLOBAL_LOG_PATH
     async with aiofiles.open(global_log_file_name, "a") as log_file:
-        await run_installer_for_plugin(plugin_id, log_file)
-    return {"status": "success", "message": f"Plugin {plugin_id} installer script run successfully."}
+        return await run_installer_for_plugin(plugin_id, log_file)
+    return {"status": "error", "message": f"Failed to open log file: {global_log_file_name}"}
 
 
 @router.get("/list", summary="List the plugins that are currently installed.")
