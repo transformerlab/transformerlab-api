@@ -35,11 +35,11 @@ jobs:
           ./install.sh install_conda
           ./install.sh create_conda_environment
           ./install.sh install_dependencies
-          uv pip install --system pytest pytest-asyncio jsonschema requests
+          uv pip install --system pytest pytest-asyncio jsonschema requests pytest-cov
       - name: Now run the server by calling ./run.sh and wait for it to be ready
         run: |
           ./run.sh &
           sleep 10  # Wait for the server to start
-      - name: Test with pytest
+      - name: Test with pytest and coverage
         run: |
-          pytest test/api/
+          pytest --cov=transformerlab --cov-report=term-missing test/api/
