@@ -1,7 +1,6 @@
 # This plugin exports a model to GGUF format so you can interact and train on a MBP with Apple Silicon
 import os
 import subprocess
-import argparse
 
 from huggingface_hub import snapshot_download
 
