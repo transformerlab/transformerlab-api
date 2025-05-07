@@ -5,20 +5,19 @@ description = "TransformerLab API: Fast, flexible, and scalable ML serving platf
 authors = [
     { name = "Transformer Lab Contributors", email = "support@transformerlab.ai" },
 ]
-license = { file = "LICENSE" }
+license = "AGPL-3.0-only"
+license-files = ["LICENSE"]
+
 readme = "README.md"
 requires-python = ">=3.8"
 keywords = ["machine learning", "api", "transformers", "serving", "inference"]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: Apache Software License",
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS",
     "Intended Audience :: Developers",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-homepage = "https://github.com/transformerlab/transformerlab-api"
-repository = "https://github.com/transformerlab/transformerlab-api"
 
 # Main dependencies (GPU/requirements-uv.txt versions)
 dependencies = [
@@ -216,3 +215,7 @@ cpu = [
     "tqdm==4.66.5",
     "urllib3==1.26.13",
 ]
+
+
+[tool.setuptools.packages.find]
+include = ["transformerlab*"]
