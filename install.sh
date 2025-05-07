@@ -1,5 +1,5 @@
 #!/bin/bash
-# set -eu
+set -e
 
 ENV_NAME="transformerlab"
 TLAB_DIR="$HOME/.transformerlab"
@@ -323,13 +323,6 @@ install_dependencies() {
 
   # store if the machine has MacOS/NVIDIA graphics card
   HAS_GPU=false
-  HAS_MACOS=false
-
-  # Check if the system is macOS
-  if [[ "$(uname)" == "Darwin" ]]; then
-      echo "macOS detected"
-      HAS_MACOS=true
-  fi
 
   # store if the box has an nvidia graphics card
   if command -v nvidia-smi &> /dev/null; then
@@ -349,6 +342,7 @@ install_dependencies() {
   pip install uv
   
   echo "HAS_GPU=$HAS_GPU"
+  PIP_WHEEL_FLAGS="--upgrade"
 
   if [ "$HAS_GPU" = true ] ; then
       echo "Your computer has a GPU; installing cuda:"
@@ -359,23 +353,15 @@ install_dependencies() {
       if ! [ -e "$TLAB_CODE_DIR/requirements-uv.txt" ]; then
         cp "$RUN_DIR"/requirements-uv.txt "$TLAB_CODE_DIR"/requirements-uv.txt
       fi
-      uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-uv.txt --index "https://download.pytorch.org/whl/cu128"
+      PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/cu128"
+      uv pip install ${PIP_WHEEL_FLAGS} -r "$TLAB_CODE_DIR"/requirements-uv.txt
+
       # Install Flash Attention separately - it doesn't play well in requirements file
       # Using instructions from https://github.com/Dao-AILab/flash-attention
       uv pip install packaging
       uv pip install ninja
       # uv pip install -U flash-attn==2.7.3 --no-build-isolation --index "https://download.pytorch.org/whl/cu128"
       ###
-  elif [ "$HAS_MACOS" = true ] ; then
-      echo "MacOS Device Detected."
-      echo "Installing Tranformer Lab requirements based on MacOS support"
-
-      if ! [ -e "$TLAB_CODE_DIR/requirements-no-gpu-uv.txt" ]; then
-        cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
-      fi
-      cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
-      uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
-
   else
       echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
@@ -384,8 +370,13 @@ install_dependencies() {
       if ! [ -e "$TLAB_CODE_DIR/requirements-no-gpu-uv.txt" ]; then
         cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
       fi
-      cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
-      uv pip install --upgrade -r "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt --index "https://download.pytorch.org/whl/cpu"
+
+      if [[ -z "${TLAB_ON_MACOS}" ]]; then
+          # Add the CPU-specific PyTorch index for non-macOS systems
+          PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/cpu"
+      fi
+      # Run the installation with dynamic flags
+      uv pip install ${PIP_WHEEL_FLAGS} -r "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
   fi
 
   # Check if the uvicorn command works:
