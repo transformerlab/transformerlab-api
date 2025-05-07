@@ -69,10 +69,7 @@
     "attack_enhancements": {
       "title": "Attack Enhancements",
       "type": "string",
-<<<<<<< HEAD
-=======
       "default": "All",
->>>>>>> cad09d886832e4d38460c55c5e14a424a17330e4
       "enum": [
         "All",
         "Base64",
