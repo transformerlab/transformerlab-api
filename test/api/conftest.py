@@ -1,5 +1,3 @@
-import subprocess
-import time
 import pytest
 
 
