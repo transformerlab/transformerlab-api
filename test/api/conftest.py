@@ -9,18 +9,18 @@ def live_server():
     import socket
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(("", 0))
+    s.bind(("127.0.0.1", 0))
     port = s.getsockname()[1]
     s.close()
 
     # Start the server process
     print("about to run: ./run.sh -p", port)
-    server_process = subprocess.Popen(["./run.sh", "-p", str(port)])
+    server_process = subprocess.Popen(["./run.sh", "-h", "127.0.0.1", "-p", str(port)])
 
     # Give it time to start
     time.sleep(5)
 
-    base_url = f"http://0.0.0.0:{port}"
+    base_url = f"http://127.0.0.1:{port}"
 
     # Verify the server is running
     import requests
