@@ -35,7 +35,6 @@ jobs:
         ./install.sh install_conda
         ./install.sh create_conda_environment
         ./install.sh install_dependencies
-        ./install.sh print_success_message
     - name: Now run the server by calling ./run.sh and wait for it to be ready
       run: |
         ./run.sh &
