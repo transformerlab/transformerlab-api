@@ -20,7 +20,7 @@ def live_server():
     server_process = subprocess.Popen(["./run.sh", "-h", host, "-p", str(port)])
 
     # Give it time to start
-    time.sleep(5)
+    time.sleep(20)
 
     base_url = f"http://{host}:{port}"
 
