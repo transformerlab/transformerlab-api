@@ -107,8 +107,7 @@ async def experiment_list_scripts(id: int, type: str = None, filter: str = None)
 
 @router.get(path="/install_plugin_to_experiment")
 async def install_plugin_to_experiment(id: int, plugin_name: str):
-    await install_plugin(plugin_name)
-    return {"message": f"Plugin {plugin_name} installed"}
+    return await install_plugin(plugin_name)
 
 
 @router.get(path="/delete_plugin_from_experiment")
