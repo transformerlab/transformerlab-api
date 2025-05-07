@@ -70,6 +70,7 @@ class MLXWorker(BaseModelWorker):
         no_register: bool,
         conv_template: str,
         adaptor_path: str = None,
+        context_len: int = 2048,
     ):
         super().__init__(
             controller_addr,
@@ -87,6 +88,7 @@ class MLXWorker(BaseModelWorker):
         self.mlx_model, self.mlx_tokenizer = load(model_path, adapter_path=adaptor_path)
 
         self.tokenizer = self.mlx_tokenizer._tokenizer
+        self.manual_context_len = context_len
 
         config = get_hugggingface_config(model_path)
 
@@ -97,9 +99,9 @@ class MLXWorker(BaseModelWorker):
                 config.rope_scaling["factor"] = 1
 
         try:
-            self.context_len = get_context_length(config)
+            self.context_len = get_context_length(config, default=self.manual_context_len)
         except Exception:
-            self.context_len = 2048
+            self.context_len = self.manual_context_len
 
         print("Context length: ", self.context_len)
 
@@ -910,8 +912,16 @@ def main():
         default=True,
         help="Trust remote code (e.g., from HuggingFace) whendownloading the model and tokenizer.",
     )
+    parser.add_argument("--parameters", type=str, default="{}")
+    parser.add_argument("--plugin_dir", type=str)
 
     args, unknown = parser.parse_known_args()
+
+    try:
+        parameters = json.loads(args.parameters)
+        context_length = int(parameters.get("context_length", "2048"))
+    except Exception:
+        context_length = 2048
 
     if args.model_path:
         args.model = args.model_path
@@ -928,6 +938,7 @@ def main():
         False,
         args.conv_template,
         args.adaptor_path,
+        context_len=context_length,
     )
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 
