@@ -29,7 +29,7 @@ from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from fastchat.utils import build_logger, SEQUENCE_LENGTH_KEYS
+from fastchat.utils import build_logger, get_context_length
 from huggingface_hub import snapshot_download
 from mlx_embedding_models.embedding import EmbeddingModel
 from mlx_lm import load
@@ -99,7 +99,7 @@ class MLXWorker(BaseModelWorker):
                 config.rope_scaling["factor"] = 1
 
         try:
-            self.context_len = self.get_context_length(config)
+            self.context_len = get_context_length(config, default=self.manual_context_len)
         except Exception:
             self.context_len = self.manual_context_len
 
@@ -300,20 +300,6 @@ class MLXWorker(BaseModelWorker):
         output_array = output_array.tolist()
         ret["embedding"] = output_array
         return ret
-
-    def get_context_length(self, config):
-        """Get the context length of a model from a huggingface model config."""
-        rope_scaling = getattr(config, "rope_scaling", None)
-        if rope_scaling:
-            rope_scaling_factor = config.rope_scaling["factor"]
-        else:
-            rope_scaling_factor = 1
-
-        for key in SEQUENCE_LENGTH_KEYS:
-            val = getattr(config, key, None)
-            if val is not None:
-                return int(rope_scaling_factor * val)
-        return self.manual_context_len
 
 
 def release_worker_semaphore():
