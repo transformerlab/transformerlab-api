@@ -70,6 +70,7 @@ class MLXWorker(BaseModelWorker):
         no_register: bool,
         conv_template: str,
         adaptor_path: str = None,
+        context_len: int = 2048,
     ):
         super().__init__(
             controller_addr,
@@ -99,7 +100,7 @@ class MLXWorker(BaseModelWorker):
         try:
             self.context_len = get_context_length(config)
         except Exception:
-            self.context_len = 2048
+            self.context_len = context_len
 
         print("Context length: ", self.context_len)
 
@@ -910,8 +911,16 @@ def main():
         default=True,
         help="Trust remote code (e.g., from HuggingFace) whendownloading the model and tokenizer.",
     )
+    parser.add_argument("--parameters", type=str, default="{}")
+    parser.add_argument("--plugin_dir", type=str)
 
     args, unknown = parser.parse_known_args()
+
+    try:
+        parameters = json.loads(args.parameters)
+        context_length = int(parameters.get("context_length", "2048"))
+    except Exception:
+        context_length = 2048
 
     if args.model_path:
         args.model = args.model_path
@@ -928,6 +937,7 @@ def main():
         False,
         args.conv_template,
         args.adaptor_path,
+        context_len=context_length,
     )
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 
