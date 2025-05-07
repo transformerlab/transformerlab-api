@@ -338,7 +338,7 @@ install_dependencies() {
   fi
 
   #install uv
-  pip install uv
+  pip install uv setuptools wheel
   
   echo "HAS_GPU=$HAS_GPU"
   PIP_WHEEL_FLAGS="--upgrade"
@@ -347,15 +347,10 @@ install_dependencies() {
       echo "Your computer has a GPU; installing cuda:"
       conda install -y cuda -c nvidia/label/cuda-12.1.1
 
-      echo "Installing requirements:"
-      # Install the python requirements
-      if ! [ -e "$TLAB_CODE_DIR/requirements-uv.txt" ]; then
-        cp "$RUN_DIR"/requirements-uv.txt "$TLAB_CODE_DIR"/requirements-uv.txt
-      fi
-      uv pip install ${PIP_WHEEL_FLAGS} -r "$TLAB_CODE_DIR"/requirements-uv.txt
+      echo "Installing requirements via uv and pyproject.toml [gpu] extra:"
+      uv pip install ${PIP_WHEEL_FLAGS} "${RUN_DIR}"[gpu]
 
       # Install Flash Attention separately - it doesn't play well in requirements file
-      # Using instructions from https://github.com/Dao-AILab/flash-attention
       uv pip install packaging
       uv pip install ninja
       uv pip install -U flash-attn==2.7.3 --no-build-isolation -c "$TLAB_CODE_DIR"/constraints.txt
@@ -363,18 +358,14 @@ install_dependencies() {
   else
       echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
-      echo "Installing Tranformer Lab requirements without GPU support"
-
-      if ! [ -e "$TLAB_CODE_DIR/requirements-no-gpu-uv.txt" ]; then
-        cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
-      fi
+      echo "Installing Tranformer Lab requirements without GPU support via uv and pyproject.toml [cpu] extra"
 
       if [[ -z "${TLAB_ON_MACOS}" ]]; then
           # Add the CPU-specific PyTorch index for non-macOS systems
           PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/cpu"
       fi
       # Run the installation with dynamic flags
-      uv pip install ${PIP_WHEEL_FLAGS} -r "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
+      uv pip install ${PIP_WHEEL_FLAGS} "${RUN_DIR}"[cpu]
   fi
 
   # Check if the uvicorn command works:
