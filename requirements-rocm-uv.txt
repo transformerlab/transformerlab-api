@@ -493,7 +493,7 @@ urllib3==1.26.13
     #   sentry-sdk
 uvicorn==0.34.2
     # via fschat
-wandb==0.19.8
+wandb==0.19.10
     # via -r requirements.in
 watchfiles==1.0.5
     # via -r requirements.in
