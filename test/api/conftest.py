@@ -15,13 +15,14 @@ def live_server():
 
     # # Start the server process
     # print("about to run: ./run.sh -p", port)
+    host = "localhost"
     port = 8000  # For testing, we can use a fixed port
-    server_process = subprocess.Popen(["./run.sh", "-h", "127.0.0.1", "-p", str(port)])
+    server_process = subprocess.Popen(["./run.sh", "-h", host, "-p", str(port)])
 
     # Give it time to start
     time.sleep(5)
 
-    base_url = f"http://127.0.0.1:{port}"
+    base_url = f"http://{host}:{port}"
 
     # Verify the server is running
     import requests
