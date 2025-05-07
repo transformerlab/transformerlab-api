@@ -13,7 +13,7 @@ Run these from the root of the project.
 To run the faster non-API tests:
 ```
 uv pip install --system pytest pytest-asyncio jsonschema
-pytest test/test_db.py test/plugins/
+pytest test/db/ test/plugins/
 ```
 
 To run the slower API tests:
