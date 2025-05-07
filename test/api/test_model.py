@@ -4,7 +4,11 @@ import requests
 def test_model_gallery(live_server):
     resp = requests.get(f"{live_server}/model/gallery")
     assert resp.status_code == 200
-    assert isinstance(resp.json(), list) or isinstance(resp.json(), dict)
+    data = resp.json()
+    assert isinstance(data, list)
+    if data:
+        model = data[0]
+        assert "name" in model or "uniqueID" in model
 
 
 def test_model_list_local_uninstalled(live_server):
