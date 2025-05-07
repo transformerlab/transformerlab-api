@@ -1,49 +1,4 @@
-import subprocess
-import time
-import pytest
 import requests
-
-
-@pytest.fixture(scope="session")
-def live_server():
-    # Get a free port
-    import socket
-
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(("", 0))
-    port = s.getsockname()[1]
-    s.close()
-
-    # Start the server process
-    print("about to run: ./run.sh -p", port)
-    server_process = subprocess.Popen(["./run.sh", "-p", str(port)])
-
-    # Give it time to start
-    time.sleep(5)
-
-    base_url = f"http://0.0.0.0:{port}"
-
-    # Verify the server is running
-    import requests
-
-    try:
-        response = requests.get(f"{base_url}/")
-        assert response.status_code == 200
-    except Exception as e:
-        server_process.terminate()
-        raise Exception(f"Failed to start server: {e}")
-
-    yield base_url
-
-    # Teardown - stop the server
-    server_process.terminate()
-    server_process.wait()
-
-
-# Tests using the live server
-def test_root(live_server):
-    response = requests.get(f"{live_server}/")
-    assert response.status_code == 200
 
 
 def test_server_info(live_server):
