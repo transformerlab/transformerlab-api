@@ -40,6 +40,12 @@ jobs:
       #   run: |
       #     ./run.sh &
       #     sleep 10  # Wait for the server to start
+      # - name: Test with pytest and coverage
+      #   run: |
+      #     source ~/.transformerlab/miniforge3/etc/profile.d/conda.sh && conda activate ~/.transformerlab/envs/transformerlab && pytest test/api/ --cov=transformerlab
       - name: Test with pytest and coverage
         run: |
-          source ~/.transformerlab/miniforge3/etc/profile.d/conda.sh && conda activate ~/.transformerlab/envs/transformerlab && pytest test/api/ --cov=transformerlab
+          source ~/.transformerlab/miniforge3/etc/profile.d/conda.sh
+          conda activate ~/.transformerlab/envs/transformerlab
+          uv pip install pytest pytest-asyncio pytest-cov
+          pytest test/api/ --cov=transformerlab
