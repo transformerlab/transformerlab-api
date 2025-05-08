@@ -4,12 +4,18 @@ import subprocess
 
 from huggingface_hub import snapshot_download
 
-from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
-from transformerlab.plugin_sdk.transformerlab.sdk.v1.export import tlab_exporter
+try:
+    from transformerlab.sdk.v1.export import tlab_exporter
+    from transformerlab.plugin import get_python_executable
+except ImportError:
+    from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
+    from transformerlab.plugin_sdk.transformerlab.sdk.v1.export import tlab_exporter
 
 
 tlab_exporter.add_argument("--output_model_id", type=str, help="Directory to save the model in.")
-tlab_exporter.add_argument("--outtype", default="q8_0", type=str, help="GGUF output format. q8_0 quantizes the model to 8 bits.")
+tlab_exporter.add_argument(
+    "--outtype", default="q8_0", type=str, help="GGUF output format. q8_0 quantizes the model to 8 bits."
+)
 
 
 @tlab_exporter.exporter_job_wrapper(progress_start=0, progress_end=100)

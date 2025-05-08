@@ -2,8 +2,12 @@
 import os
 import subprocess
 
-from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
-from transformerlab.plugin_sdk.transformerlab.sdk.v1.export import tlab_exporter   
+try:
+    from transformerlab.sdk.v1.export import tlab_exporter
+    from transformerlab.plugin import get_python_executable
+except ImportError:
+    from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
+    from transformerlab.plugin_sdk.transformerlab.sdk.v1.export import tlab_exporter
 
 
 tlab_exporter.add_argument("--q_bits", default="4", type=str, help="Bits per weight for quantization.")
