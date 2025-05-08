@@ -353,6 +353,7 @@ install_dependencies() {
         cp "$RUN_DIR"/requirements-uv.txt "$TLAB_CODE_DIR"/requirements-uv.txt
       fi
       PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/cu128"
+      cp "$RUN_DIR"/requirements-uv.txt "$TLAB_CODE_DIR"/requirements-uv.txt
       uv pip install ${PIP_WHEEL_FLAGS} -r "$TLAB_CODE_DIR"/requirements-uv.txt
 
       # Install Flash Attention separately - it doesn't play well in requirements file
