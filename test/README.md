@@ -4,7 +4,7 @@ So far we have the following PyTests:
 
 * `db/*` These are tests for the database layer
 * `plugins/*` In here is a test to ensure all plugin `index.json` follow the correct plugin schema
-* `api/*` here are all the tests for the API. These testes require a running server on port `8338`
+* `api/*` here are all the tests for the API. Make sure you activate the conda environment before running these tests.
 
 ### Running the Tests
 
