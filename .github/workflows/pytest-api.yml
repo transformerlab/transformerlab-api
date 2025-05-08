@@ -1,0 +1,44 @@
+# This workflow will install Python dependencies and run tests
+
+name: Pytest for API
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          pip install uv
+          ENV_NAME="transformerlab"
+          TLAB_DIR="$HOME/.transformerlab"
+          TLAB_CODE_DIR="${TLAB_DIR}/src"
+          TLAB_STATIC_WEB_DIR="${TLAB_DIR}/webapp"
+          mkdir -p "${TLAB_DIR}"
+          mkdir -p "${TLAB_CODE_DIR}"
+          mkdir -p "${TLAB_STATIC_WEB_DIR}"
+          ./install.sh install_conda
+          ./install.sh create_conda_environment
+          ./install.sh install_dependencies
+          uv pip install --system pytest pytest-asyncio jsonschema requests pytest-cov
+      - name: Test with pytest and coverage
+        run: |
+          source ~/.transformerlab/miniforge3/etc/profile.d/conda.sh
+          conda activate ~/.transformerlab/envs/transformerlab
+          uv pip install pytest pytest-asyncio pytest-cov
+          pytest test/api/ --cov=transformerlab
