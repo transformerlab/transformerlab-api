@@ -5,7 +5,7 @@ import subprocess
 try:
     from transformerlab.sdk.v1.export import tlab_exporter
     from transformerlab.plugin import get_python_executable
-except ImportError:
+except ImportError or ModuleNotFoundError:
     from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
     from transformerlab.plugin_sdk.transformerlab.sdk.v1.export import tlab_exporter
 

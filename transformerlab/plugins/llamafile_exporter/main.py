@@ -4,7 +4,7 @@ import shutil
 
 try:
     from transformerlab.sdk.v1.export import tlab_exporter
-except ImportError:
+except ImportError or ModuleNotFoundError:
     from transformerlab.plugin_sdk.transformerlab.sdk.v1.export import tlab_exporter
 
 
