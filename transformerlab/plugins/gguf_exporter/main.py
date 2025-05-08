@@ -50,7 +50,6 @@ def gguf_export():
     tlab_exporter.progress_update(30)
     tlab_exporter.add_job_data("status", "Quantizing model to 8-bit format")
 
-    # TODO: This default quantizes to 8-bit. Need to read that in as a parameter.
     subprocess_cmd = [
         python_executable,
         os.path.join(plugin_dir, "llama.cpp", "convert_hf_to_gguf.py"),
