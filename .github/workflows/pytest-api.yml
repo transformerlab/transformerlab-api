@@ -42,4 +42,4 @@ jobs:
       #     sleep 10  # Wait for the server to start
       - name: Test with pytest and coverage
         run: |
-          pytest test/api/ --cov=transformerlab
+          ~/.transformerlab/miniforge3/bin/conda init && conda activate ~/.transformerlab/envs/transformerlab && pytest test/api/ --cov=transformerlab
