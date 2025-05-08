@@ -282,9 +282,21 @@ async def get_output_file_name(job_id: str):
 
 
 @router.get("/job/{job_id}/output")
-async def get_training_job_output(job_id: str):
+async def get_training_job_output(job_id: str, sweeps: bool = False):
     try:
-        output_file_name = await get_output_file_name(job_id)
+        if sweeps:
+            job = await db.job_get(job_id)
+            job_data = json.loads(job["job_data"])
+            output_file = job_data.get("sweep_output_file", None)
+            if output_file is not None and os.path.exists(output_file):
+                with open(output_file, "r") as f:
+                    output = f.read()
+                return output
+            else:
+                output_file_name = await get_output_file_name(job_id)
+
+        else:
+            output_file_name = await get_output_file_name(job_id)
 
         with open(output_file_name, "r") as f:
             output = f.read()
@@ -300,10 +312,21 @@ async def get_training_job_output(job_id: str):
 
 
 @router.get("/job/{job_id}/stream_output")
-async def watch_log(job_id: str):
+async def watch_log(job_id: str, sweeps: bool = False):
     try:
         job_id = secure_filename(job_id)
-        output_file_name = await get_output_file_name(job_id)
+
+        job = await db.job_get(job_id)
+        job_data = job["job_data"]
+        if sweeps:
+            output_file = job_data.get("sweep_output_file", None)
+            if output_file is not None and os.path.exists(output_file):
+                output_file_name = output_file
+                
+            else:
+                output_file_name = await get_output_file_name(job_id)
+        else:
+            output_file_name = await get_output_file_name(job_id)
     except ValueError as e:
         # if the value error starts with "No output file found for job" then wait 4 seconds and try again
         # because the file might not have been created yet

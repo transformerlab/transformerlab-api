@@ -86,7 +86,7 @@ class TLabPlugin:
                 self.add_job_data("model_adapter", self.params.get("model_adapter", ""))
 
                 # Update starting progress
-                self.job.update_progress(progress_start)
+                self.progress_update(progress_start)
 
                 try:
                     # Setup logging
@@ -99,7 +99,7 @@ class TLabPlugin:
                     result = func(*args, **kwargs)
 
                     # Update final progress and success status
-                    self.job.update_progress(progress_end)
+                    self.progress_update(progress_end)
                     self.job.set_job_completion_status("success", "Job completed successfully")
                     self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                     if manual_logging and getattr(self.params, "wandb_run") is not None:
@@ -149,7 +149,7 @@ class TLabPlugin:
                 self.add_job_data("template_name", self.params.template_name)
 
                 # Update starting progress
-                self.job.update_progress(progress_start)
+                self.progress_update(progress_start)
 
                 async def run_async():
                     try:
@@ -167,7 +167,7 @@ class TLabPlugin:
                         result = await func(*args, **kwargs)
 
                         # Update final progress and success status
-                        self.job.update_progress(progress_end)
+                        self.progress_update(progress_end)
                         self.job.set_job_completion_status("success", "Job completed successfully")
                         self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                         if manual_logging and getattr(self, "wandb_run") is not None:
@@ -198,6 +198,12 @@ class TLabPlugin:
 
     def progress_update(self, progress: int):
         """Update job progress"""
+        job_data = self.job.get_job_data()
+        if job_data.get("sweep_progress") is not None:
+            if int(job_data.get("sweep_progress")) != 100:
+                self.job.update_job_data("sweep_subprogress", progress)
+                return
+        
         self.job.update_progress(progress)
         if self.job.should_stop:
             self.job.update_status("STOPPED")

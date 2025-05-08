@@ -273,6 +273,19 @@ class Job:
         except Exception as e:
             print(f"Error adding to job data: {e}")
 
+    def update_job_data(self, key: str, value: str):
+        """
+        Adds a key-value pair to the job_data JSON object.
+        """
+        try:
+            self.db.execute(
+                "UPDATE job SET job_data = " + f"json_set(job_data,'$.{key}', json(?))  WHERE id = ?",
+                (value, self.id),
+            )
+            self.db.commit()
+        except Exception as e:
+            print(f"Error adding to job data: {e}")
+
     def set_job_completion_status(
         self,
         completion_status: str,

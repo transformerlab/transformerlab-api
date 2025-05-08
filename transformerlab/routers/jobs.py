@@ -93,11 +93,19 @@ async def get_training_job(job_id: str):
 
 
 @router.get("/{job_id}/output")
-async def get_training_job_output(job_id: str):
+async def get_training_job_output(job_id: str, sweeps: bool = False):
     # First get the template Id from this job:
     job = await db.job_get(job_id)
 
     job_data = json.loads(job["job_data"])
+
+    if sweeps:
+        output_file = job_data.get("sweep_output_file", None)
+        if output_file is not None and os.path.exists(output_file):
+            with open(output_file, "r") as f:
+                output = f.read()
+            return output
+
     if "template_id" not in job_data:
         return {"error": "true"}
 
@@ -152,7 +160,7 @@ async def update_training_template(
 
 
 @router.get("/{job_id}/stream_output")
-async def stream_job_output(job_id: str):
+async def stream_job_output(job_id: str, sweeps: bool = False):
     job = await db.job_get(job_id)
     job_data = job["job_data"]
 
@@ -162,6 +170,11 @@ async def stream_job_output(job_id: str):
     plugin_dir = dirs.plugin_dir_by_name(plugin_name)
 
     output_file_name = os.path.join(plugin_dir, f"output_{job_id}.txt")
+
+    if sweeps:
+        output_file = job_data.get("sweep_output_file", None)
+        if output_file is not None and os.path.exists(output_file):
+            output_file_name = output_file
 
     if not os.path.exists(output_file_name):
         with open(output_file_name, "w") as f:
