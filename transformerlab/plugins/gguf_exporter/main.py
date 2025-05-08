@@ -4,12 +4,8 @@ import subprocess
 
 from huggingface_hub import snapshot_download
 
-try:
-    from transformerlab.plugin import get_python_executable
-    from transformerlab.sdk.v1.export import tlab_exporter
-except ImportError:
-    from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
-    from transformerlab.plugin_sdk.transformerlab.sdk.v1.export import tlab_exporter
+from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
+from transformerlab.plugin_sdk.transformerlab.sdk.v1.export import tlab_exporter
 
 
 tlab_exporter.add_argument("--output_model_id", type=str, help="Directory to save the model in.")
@@ -52,7 +48,7 @@ def gguf_export():
         )
 
     tlab_exporter.progress_update(30)
-    tlab_exporter.add_job_data("status", "Converting model to GGUF format")
+    tlab_exporter.add_job_data("status", "Quantizing model to 8-bit format")
 
     # TODO: This default quantizes to 8-bit. Need to read that in as a parameter.
     subprocess_cmd = [
@@ -64,6 +60,9 @@ def gguf_export():
         outtype,
         model_path,
     ]
+
+    tlab_exporter.progress_update(60)
+    tlab_exporter.add_job_data("status", "Converting model to GGUF format")
 
     # Call GGUF Convert function
     export_process = subprocess.run(

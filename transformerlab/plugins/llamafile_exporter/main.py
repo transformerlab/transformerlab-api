@@ -2,10 +2,7 @@ import os
 import subprocess
 import shutil
 
-try:
-    from transformerlab.sdk.v1.export import tlab_exporter
-except ImportError:
-    from transformerlab.plugin_sdk.transformerlab.sdk.v1.export import tlab_exporter
+from transformerlab.plugin_sdk.transformerlab.sdk.v1.export import tlab_exporter
 
 
 tlab_exporter.add_argument("--model_path", default="gpt-j-6b", type=str, help="Path to directory or file containing the model.")
