@@ -37,7 +37,7 @@ do
         c) CUSTOM_ENV=true;;
         r) RELOAD=true;;
         p) PORT=${OPTARG};;
-        h) HOST=${OPTARG};;
+        h) TLABHOST=${OPTARG};;
     esac
 done
 
