@@ -10,7 +10,7 @@ CONDA_BIN=${MINIFORGE_ROOT}/bin/conda
 ENV_DIR=${TLAB_DIR}/envs/${ENV_NAME}
 CUSTOM_ENV=false
 
-HOST="0.0.0.0"
+HOST="::"
 PORT="8338"
 
 RELOAD=false
