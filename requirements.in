@@ -18,9 +18,9 @@ sentencepiece
 tensorboard
 tensorboardX
 tiktoken
-torch==2.6.0
-torchaudio==2.6.0
-torchvision==0.21.0
+torch
+torchaudio
+torchvision
 transformers==4.51.3
 peft
 watchfiles
