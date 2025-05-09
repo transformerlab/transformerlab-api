@@ -49,15 +49,11 @@
       "type": "string",
       "default": ""
     },
-    "eight_bit": {
-      "title": "Enable 8-bit compression",
-      "type": "boolean",
-      "default": false
-    },
-    "four_bit": {
-      "title": "Enable 4-bit compression (for unsloth bnb or related models)",
-      "type": "boolean",
-      "default": false
+    "load_compressed": {
+      "title": "Load compressed model",
+      "type": "string",
+      "default": "None",
+      "enum": ["None", "8-bit", "4-bit"]
     },
     "model_dtype": {
       "title": "Select a specific data type for the model",
