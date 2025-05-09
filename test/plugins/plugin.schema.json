@@ -27,7 +27,7 @@
       "type": "array",
       "items": {
         "type": "string",
-        "enum": ["cuda", "mlx", "cpu"]
+        "enum": ["cuda", "mlx", "cpu", "amd"]
       }
     },
     "files": {

@@ -178,12 +178,17 @@ async def install_plugin(plugin_id: str):
         # Run uv sync after setup script, also with environment activated
         print("Running uv sync to install dependencies...")
         await log_file.write(f"## Running uv sync for {plugin_id}...\n")
+        additional_flags = ""
 
         if check_nvidia_gpu():
             # If we have a GPU, use the requirements file for GPU
             print("NVIDIA GPU detected, using GPU requirements file.")
             requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-uv.txt")
             additional_flags = "--index 'https://download.pytorch.org/whl/cu128'"
+        elif check_amd_gpu():
+            # If we have an AMD GPU, use the requirements file for AMD
+            requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-rocm-uv.txt")
+            additional_flags += "--index 'https://download.pytorch.org/whl/rocm6.3'"
         # Check if system is MacOS with Apple Silicon
         elif sys.platform == "darwin":
             # If we have a MacOS with Apple Silicon, use the requirements file for MacOS
@@ -192,10 +197,10 @@ async def install_plugin(plugin_id: str):
             additional_flags = ""
         else:
             # If we don't have a GPU, use the requirements file for CPU
-            print("No NVIDIA GPU detected, using CPU requirements file.")
             requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-no-gpu-uv.txt")
             additional_flags = "--index 'https://download.pytorch.org/whl/cpu'"
 
+        print(f"Using requirements file: {requirements_file_path}")
         proc = await asyncio.create_subprocess_exec(
             "/bin/bash",
             "-c",
@@ -250,7 +255,7 @@ def check_nvidia_gpu() -> bool:
     """
     has_gpu = False
     gpu_info = ""
-
+    print("Checking for NVIDIA GPU...")
     # Check if nvidia-smi is available
     if shutil.which("nvidia-smi") is not None:
         try:
@@ -269,6 +274,36 @@ def check_nvidia_gpu() -> bool:
                 print("Nvidia SMI exists, No NVIDIA GPU detected. Perhaps you need to re-install NVIDIA drivers.")
         except subprocess.SubprocessError:
             print("Issue with NVIDIA SMI")
+
+    return has_gpu
+
+def check_amd_gpu() -> bool:
+    """
+    Check if AMD GPU is available
+
+    Returns:
+        bool: True if AMD GPU is detected, False otherwise
+    """
+    has_gpu = False
+
+    # Check if ROCm is available
+    if shutil.which("rocminfo") is not None:
+        try:
+            # Run rocminfo to get GPU information
+            result = subprocess.run(
+                ["rocminfo"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            gpu_info = result.stdout.strip()
+
+            if gpu_info:
+                has_gpu = True
+            else:
+                print("ROCm exists, No AMD GPU detected. Perhaps you need to re-install AMD drivers.")
+        except subprocess.SubprocessError:
+            print("Issue with ROCm")
 
     return has_gpu
 
