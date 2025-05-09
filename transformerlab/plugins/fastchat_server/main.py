@@ -41,6 +41,13 @@ if parameters.get("eight_bit") == "on":
 else:
     eight_bit = False
 
+if parameters.get("four_bit") == "on":
+    eight_bit = False
+    four_bit = True
+else:
+    four_bit = False
+
+
 gpu_ids = parameters.get("gpu_ids", "")
 if gpu_ids is not None and gpu_ids != "":
     gpu_ids_formatted = gpu_ids.split(",")
@@ -93,6 +100,8 @@ if num_gpus:
     popen_args.extend(["--num-gpus", str(num_gpus)])
 if eight_bit:
     popen_args.append("--load-8bit")
+if four_bit:
+    popen_args.append("--load-4bit")
 
 
 print(popen_args)

@@ -4,7 +4,7 @@
   "description": "Fastchat loads models for inference using Huggingface Transformers for generation.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "1.0.15",
+  "version": "1.0.16",
   "supports": [
     "chat",
     "completion",
@@ -51,6 +51,11 @@
     },
     "eight_bit": {
       "title": "Enable 8-bit compression",
+      "type": "boolean",
+      "default": false
+    },
+    "four_bit": {
+      "title": "Enable 4-bit compression (for unsloth bnb or related models)",
       "type": "boolean",
       "default": false
     },
