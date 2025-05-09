@@ -38,6 +38,7 @@ parameters = json.loads(parameters)
 
 eight_bit = False
 four_bit = False
+
 if parameters.get("load_compressed", "None") != "None":
     if parameters.get("load_compressed", "None") == "8-bit":
         eight_bit = True
