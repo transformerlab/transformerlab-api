@@ -4,13 +4,12 @@ name: Pytest
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -18,16 +17,21 @@ jobs:
         python-version: ["3.11"]
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        pip install uv
-        uv pip install --system pytest pytest-asyncio jsonschema
-        if [ -f requirements-no-gpu-uv.txt ]; then uv pip install --system -r requirements-no-gpu-uv.txt; fi
-    - name: Test with pytest
-      run: |
-        pytest
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          pip install uv
+          uv pip install --system pytest pytest-asyncio jsonschema requests pytest-cov
+          uv pip install --system -r requirements-no-gpu-uv.txt  --upgrade --index=https://download.pytorch.org/whl/cpu
+      - name: Test with pytest
+        run: |
+          pytest --cov=transformerlab --cov-branch --cov-report=xml --ignore=test/server/
+
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

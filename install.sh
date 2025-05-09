@@ -324,6 +324,7 @@ install_dependencies() {
   # Detect GPU type: NVIDIA vs AMD (ROCm)
   HAS_NVIDIA=false
   HAS_AMD=false
+
   if command -v nvidia-smi &> /dev/null; then
       echo "nvidia-smi is available"
       GPU_INFO=$(nvidia-smi --query-gpu=name --format=csv,noheader,nounits) || echo "Issue with NVIDIA SMI"
@@ -352,19 +353,20 @@ install_dependencies() {
 
   if [ "$HAS_NVIDIA" = true ]; then
       echo "Your computer has a GPU; installing cuda:"
-      conda install -y cuda -c nvidia/label/cuda-12.1.1
+      conda install -y cuda==12.8.1 --force-reinstall -c nvidia/label/cuda-12.8.1
 
       echo "Installing requirements:"
       # Install the python requirements
       if ! [ -e "$TLAB_CODE_DIR/requirements-uv.txt" ]; then
         cp "$RUN_DIR"/requirements-uv.txt "$TLAB_CODE_DIR"/requirements-uv.txt
       fi
+      PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/cu128"
       uv pip install ${PIP_WHEEL_FLAGS} -r "$TLAB_CODE_DIR"/requirements-uv.txt
 
       # Install Flash Attention separately - it doesn't play well in requirements file
       # Using instructions from https://github.com/Dao-AILab/flash-attention
-      uv pip install packaging ninja
-      uv pip install -U flash-attn==2.7.3 --no-build-isolation -c "$TLAB_CODE_DIR"/constraints.txt
+      uv pip install packaging
+      uv pip install ninja
 
   elif [ "$HAS_AMD" = true ]; then
       echo "Installing requirements for ROCm:"

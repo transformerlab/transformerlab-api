@@ -180,12 +180,11 @@ async def install_plugin(plugin_id: str):
         await log_file.write(f"## Running uv sync for {plugin_id}...\n")
         additional_flags = ""
 
-        # Use a similar logic
         if check_nvidia_gpu():
             # If we have a GPU, use the requirements file for GPU
             print("NVIDIA GPU detected, using GPU requirements file.")
             requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-uv.txt")
-            additional_flags = ""
+            additional_flags = "--index 'https://download.pytorch.org/whl/cu128'"
         elif check_amd_gpu():
             # If we have an AMD GPU, use the requirements file for AMD
             requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-rocm-uv.txt")
