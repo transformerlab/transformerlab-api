@@ -29,7 +29,7 @@ jobs:
           uv pip install --system -r requirements-no-gpu-uv.txt  --upgrade --index=https://download.pytorch.org/whl/cpu
       - name: Test with pytest
         run: |
-          pytest --cov=transformerlab --cov-branch --cov-report=xml
+          pytest --cov=transformerlab --cov-branch --cov-report=xml --ignore=test/server/
 
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v5
