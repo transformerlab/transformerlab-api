@@ -1,6 +1,6 @@
 # This workflow will install Python dependencies and run tests
 
-name: Pytest for API
+name: Test for Install and Serving
 
 on:
   push:
@@ -35,10 +35,11 @@ jobs:
           ./install.sh install_conda
           ./install.sh create_conda_environment
           ./install.sh install_dependencies
-          uv pip install --system pytest pytest-asyncio jsonschema requests pytest-cov
-      - name: Test with pytest and coverage
+          uv pip install --system pytest pytest-asyncio jsonschema requests
+      - name: Now run the server by calling ./run.sh and wait for it to be ready
         run: |
-          source ~/.transformerlab/miniforge3/etc/profile.d/conda.sh
-          conda activate ~/.transformerlab/envs/transformerlab
-          uv pip install pytest pytest-asyncio pytest-cov
-          pytest test/api/ --cov=transformerlab
+          ./run.sh &
+          sleep 10  # Wait for the server to start
+      - name: Test the API Server and DB Setup
+        run: |
+          pytest test/server/
