@@ -36,10 +36,16 @@ if adaptor != "":
 parameters = args.parameters
 parameters = json.loads(parameters)
 
-if parameters.get("eight_bit") == "on":
-    eight_bit = True
-else:
-    eight_bit = False
+eight_bit = False
+four_bit = False
+if parameters.get("load_compressed", "None") != "None":
+    if parameters.get("load_compressed", "None") == "8-bit":
+        eight_bit = True
+        four_bit = False
+    elif parameters.get("load_compressed", "None") == "4-bit":
+        eight_bit = False
+        four_bit = True
+
 
 gpu_ids = parameters.get("gpu_ids", "")
 if gpu_ids is not None and gpu_ids != "":
@@ -93,6 +99,8 @@ if num_gpus:
     popen_args.extend(["--num-gpus", str(num_gpus)])
 if eight_bit:
     popen_args.append("--load-8bit")
+if four_bit:
+    popen_args.append("--load-4bit")
 
 
 print(popen_args)
