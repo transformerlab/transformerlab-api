@@ -940,7 +940,37 @@ def main():
         args.adaptor_path,
         context_len=context_length,
     )
-    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+    # Start uvicorn in a background task, then run fastchat.serve.openai_api_server
+    import threading
+
+    def run_uvicorn():
+        uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+
+    uvicorn_thread = threading.Thread(target=run_uvicorn, daemon=True)
+    uvicorn_thread.start()
+
+    import subprocess
+    import time
+
+    python_executable = "/Users/deep.gandhi/.transformerlab/workspace/plugins/mlx_server/venv/bin/python"
+    proc = subprocess.Popen(
+        [
+            python_executable,
+            "-m",
+            "fastchat.serve.tlab_openai_api_server",
+            "--host",
+            "localhost",
+            "--port",
+            "12345",
+        ]
+    )
+
+    try:
+        while uvicorn_thread.is_alive():
+            time.sleep(120)
+    finally:
+        proc.terminate()
+        proc.wait()
 
 
 if __name__ == "__main__":

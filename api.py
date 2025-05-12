@@ -48,6 +48,7 @@ from transformerlab.routers import (
 )
 import torch
 from pynvml import nvmlShutdown
+
 from transformerlab import fastchat_openai_api
 from transformerlab.routers.experiment import experiment
 from transformerlab.shared import dirs
@@ -172,7 +173,7 @@ app.include_router(config.router)
 app.include_router(prompts.router)
 app.include_router(tools.router)
 app.include_router(batched_prompts.router)
-app.include_router(fastchat_openai_api.router)
+# app.include_router(fastchat_openai_api.router)
 app.include_router(get_xmlrpc_router())
 app.include_router(get_trainer_xmlrpc_router())
 
