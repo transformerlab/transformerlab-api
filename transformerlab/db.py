@@ -38,7 +38,6 @@ async def init():
     await db.execute("PRAGMA synchronous=normal")
     await db.execute("PRAGMA busy_timeout = 5000")
 
-
     # Create the tables if they don't exist
     async with async_engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
@@ -871,7 +870,10 @@ async def workflows_get_all():
 
 
 async def workflows_get_from_experiment(experiment_id):
-    cursor = await db.execute("SELECT * FROM workflows WHERE experiment_id = ? AND status != 'DELETED' ORDER BY created_at desc",(experiment_id,))
+    cursor = await db.execute(
+        "SELECT * FROM workflows WHERE experiment_id = ? AND status != 'DELETED' ORDER BY created_at desc",
+        (experiment_id,),
+    )
     rows = await cursor.fetchall()
     desc = cursor.description
     column_names = [col[0] for col in desc]
@@ -916,16 +918,20 @@ async def workflow_run_get_by_id(workflow_run_id):
     return row
 
 
-async def workflow_delete_by_id(workflow_id):
-    print("Deleting workflow: " + workflow_id)
-    await db.execute("UPDATE workflows SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE id = ?", (workflow_id,))
+async def workflow_delete_by_id(workflow_id: str):
+    print("Deleting workflow: " + str(workflow_id))
+    await db.execute(
+        "UPDATE workflows SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE id = ?", (workflow_id,)
+    )
     await db.commit()
     return
 
 
 async def workflow_delete_by_name(workflow_name):
     print("Deleting workflow: " + workflow_name)
-    await db.execute("UPDATE workflows SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE name = ?", (workflow_name,))
+    await db.execute(
+        "UPDATE workflows SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE name = ?", (workflow_name,)
+    )
     await db.commit()
     return
 
@@ -1022,10 +1028,9 @@ async def workflow_update_config(workflow_id, config):
     )
     await db.commit()
 
+
 async def workflow_update_name(workflow_id, name):
-    await db.execute(
-        "UPDATE workflows SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (name, workflow_id)
-    )
+    await db.execute("UPDATE workflows SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (name, workflow_id))
     await db.commit()
 
 
@@ -1041,7 +1046,10 @@ async def workflow_runs_delete_all():
 
 async def workflow_queue(workflow_id):
     workflow_name = (await workflows_get_by_id(workflow_id))["name"]
-    await db.execute("INSERT INTO workflow_runs(workflow_id, workflow_name, job_ids, node_ids, status, current_tasks, current_job_ids) VALUES (?, ?, ?, ?, ?, ?, ?)", (workflow_id, workflow_name, "[]", "[]","QUEUED", "[]","[]"))
+    await db.execute(
+        "INSERT INTO workflow_runs(workflow_id, workflow_name, job_ids, node_ids, status, current_tasks, current_job_ids) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (workflow_id, workflow_name, "[]", "[]", "QUEUED", "[]", "[]"),
+    )
 
 
 ###############
