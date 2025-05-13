@@ -3,6 +3,7 @@ import os
 os.environ["TFL_HOME_DIR"] = "./test/tmp/"
 os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
 
+from transformerlab import db
 from transformerlab.db import (
     create_huggingface_dataset,
     experiment_get_by_name,
