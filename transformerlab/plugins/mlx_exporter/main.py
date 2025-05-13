@@ -1,47 +1,63 @@
 # This plugin exports a model to MLX format so you can interact and train on a MBP with Apple Silicon
 import os
 import subprocess
-import argparse
-
 
 try:
+    from transformerlab.sdk.v1.export import tlab_exporter
     from transformerlab.plugin import get_python_executable
-except ImportError:
+except ImportError or ModuleNotFoundError:
     from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
+    from transformerlab.plugin_sdk.transformerlab.sdk.v1.export import tlab_exporter
 
 
-# Get all arguments provided to this script using argparse
-parser = argparse.ArgumentParser(description="Convert a model to MLX format.")
-parser.add_argument("--output_dir", type=str, help="Directory to save the model in.")
-parser.add_argument("--model_name", default="gpt-j-6b", type=str, help="Name of model to export.")
-parser.add_argument("--q_bits", default="4", type=str, help="Bits per weight for quantization.")
-args, unknown = parser.parse_known_args()
+tlab_exporter.add_argument("--q_bits", default="4", type=str, help="Bits per weight for quantization.")
 
-output_path = args.output_dir
 
-# Directory to run conversion subprocess
-plugin_dir = os.path.realpath(os.path.dirname(__file__))
-python_executable = get_python_executable(plugin_dir)
+@tlab_exporter.exporter_job_wrapper(progress_start=0, progress_end=100)
+def mlx_export():
+    """Export a model to MLX format"""
 
-env = os.environ.copy()
-env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
+    # Directory to run conversion subprocess
+    plugin_dir = os.path.realpath(os.path.dirname(__file__))
+    python_executable = get_python_executable(plugin_dir)
 
-# Call MLX Convert function
-export_process = subprocess.run(
-    [
-        python_executable,
-        "-u",
-        "-m",
-        "mlx_lm.convert",
-        "--hf-path",
-        args.model_name,
-        "--mlx-path",
-        output_path,
-        "-q",
-        "--q-bits",
-        str(args.q_bits),
-    ],
-    cwd=plugin_dir,
-    capture_output=True,
-    env=env,
-)
+    env = os.environ.copy()
+    env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
+
+    tlab_exporter.progress_update(10)
+    tlab_exporter.add_job_data("status", "Starting MLX conversion")
+
+    # Call MLX Convert function
+    export_process = subprocess.run(
+        [
+            python_executable,
+            "-u",
+            "-m",
+            "mlx_lm.convert",
+            "--hf-path",
+            tlab_exporter.params.get("model_name"),
+            "--mlx-path",
+            tlab_exporter.params.get("output_dir"),
+            "-q",
+            "--q-bits",
+            str(tlab_exporter.params.get("q_bits")),
+        ],
+        cwd=plugin_dir,
+        capture_output=True,
+        env=env,
+    )
+
+    # Add output to job data
+    stdout = export_process.stdout.decode("utf-8")
+    stderr = export_process.stderr.decode("utf-8")
+    tlab_exporter.add_job_data("stdout", stdout)
+    tlab_exporter.add_job_data("stderr", stderr)
+
+    # Final progress update
+    tlab_exporter.progress_update(100)
+    tlab_exporter.add_job_data("status", "MLX conversion complete")
+
+    return "Successful export to MLX format"
+
+
+mlx_export()

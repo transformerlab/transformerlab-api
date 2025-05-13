@@ -25,8 +25,13 @@ jobs:
       - name: Install dependencies
         run: |
           pip install uv
-          uv pip install --system pytest pytest-asyncio jsonschema
-          if [ -f requirements-no-gpu-uv.txt ]; then uv pip install --system -r requirements-no-gpu-uv.txt; fi
+          uv pip install --system pytest pytest-asyncio jsonschema requests pytest-cov
+          uv pip install --system -r requirements-no-gpu-uv.txt  --upgrade --index=https://download.pytorch.org/whl/cpu
       - name: Test with pytest
         run: |
-          pytest test/db/ test/plugins/
+          pytest --cov=transformerlab --cov-branch --cov-report=xml
+
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

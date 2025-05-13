@@ -37,7 +37,7 @@ class ExportTLabPlugin(TLabPlugin):
             elif key:  # Argument value
                 self.params[key] = arg
                 key = None
-
+                
     # Added exporter-specific functionality and removed wandb logging
     def exporter_job_wrapper(self, progress_start: int = 0, progress_end: int = 100):
         """Decorator for wrapping an exporter function with job status updates"""
