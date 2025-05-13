@@ -26,7 +26,6 @@ import llama_cpp
 import uvicorn
 import subprocess
 import time
-import sys
 from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse

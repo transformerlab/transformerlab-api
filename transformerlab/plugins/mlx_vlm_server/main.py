@@ -18,7 +18,6 @@ from io import BytesIO
 from typing import List
 import subprocess
 import time
-import sys
 
 import requests
 import uvicorn
