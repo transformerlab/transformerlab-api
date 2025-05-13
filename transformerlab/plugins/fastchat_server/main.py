@@ -106,18 +106,40 @@ if four_bit:
 print(popen_args)
 proc = subprocess.Popen(popen_args, stderr=subprocess.PIPE, stdout=None)
 
+# Start fastchat.serve.openai_api_server in a subprocess as well
+openai_api_proc = subprocess.Popen(
+    [
+        python_executable,
+        "-m",
+        "fastchat.serve.openai_api_server",
+        "--host",
+        "localhost",
+        "--port",
+        "8339",
+    ],
+    stderr=subprocess.PIPE,
+    stdout=None,
+)
+
 # save worker process id to file
 # this will allow transformer lab to kill it later
 with open(f"{llmlab_root_dir}/worker.pid", "w") as f:
     f.write(str(proc.pid))
 
-# read output:
-for line in proc.stderr:
-    # if line contains "Ready to serve" then we can break
-    if "torch.cuda.OutOfMemoryError" in line.decode("utf-8"):
-        print("CUDA Out of memory error", file=sys.stderr)
-        sys.exit(99)  # 99 is our code for CUDA OOM
-    print(line.decode("utf-8"), file=sys.stderr)
+try:
+    # read output:
+    for line in proc.stderr:
+        # if line contains "Ready to serve" then we can break
+        if "torch.cuda.OutOfMemoryError" in line.decode("utf-8"):
+            print("CUDA Out of memory error", file=sys.stderr)
+            openai_api_proc.terminate()
+            sys.exit(99)  # 99 is our code for CUDA OOM
+        print(line.decode("utf-8"), file=sys.stderr)
+except Exception as e:
+    print(f"Exception in worker process: {e}", file=sys.stderr)
+finally:
+    openai_api_proc.terminate()
+    openai_api_proc.wait()
 
 print("FastChat Worker exited", file=sys.stderr)
 sys.exit(1)
