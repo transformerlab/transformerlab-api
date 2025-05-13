@@ -113,7 +113,7 @@ openai_api_proc = subprocess.Popen(
         "-m",
         "fastchat.serve.openai_api_server",
         "--host",
-        "localhost",
+        "0.0.0.0",
         "--port",
         "8339",
     ],

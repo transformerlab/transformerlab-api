@@ -137,6 +137,8 @@ app = fastapi.FastAPI(
     lifespan=lifespan,
     openapi_tags=tags_metadata,
 )
+# FALLBACK_PORT = 8339 # For chat api related responses
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -179,6 +181,44 @@ app.include_router(get_trainer_xmlrpc_router())
 
 controller_process = None
 worker_process = None
+
+# @app.exception_handler(404)
+# async def custom_404_handler(request: Request, exc):
+#     fallback_url = f"http://localhost:{FALLBACK_PORT}{request.url.path}"
+#     print(f"Fallback URL: {fallback_url}")
+#     try:
+#         async with httpx.AsyncClient() as client:
+#             fallback_response = await client.stream(
+#                 method=request.method,
+#                 url=fallback_url,
+#                 headers=request.headers.raw,
+#                 content=await request.body(),
+#                 params=dict(request.query_params)
+#             )
+
+#             print(f"Fallback response: {fallback_response}")
+
+#             async def iter_stream():
+#                 async for chunk in fallback_response.aiter_bytes():
+#                     yield chunk
+#                 await fallback_response.aclose()
+
+#             return StreamingResponse(
+#                 iter_stream(),
+#                 status_code=fallback_response.status_code,
+#                 headers={
+#                     k: v for k, v in fallback_response.headers.items()
+#                     if k.lower() not in ["content-encoding", "transfer-encoding", "content-length"]
+#                 },
+#                 media_type=fallback_response.headers.get("content-type")
+#             )
+#     except httpx.RequestError as e:
+#         print(f"Error contacting fallback: {e}")
+#         return JSONResponse(
+#             status_code=404,
+#             content={"detail": "Not Found on main app or fallback port"}
+#         )
+
 
 
 def spawn_fastchat_controller_subprocess():
