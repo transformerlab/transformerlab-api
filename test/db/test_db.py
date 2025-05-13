@@ -5,11 +5,14 @@ os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
 
 from transformerlab.db import (
     create_huggingface_dataset,
+    experiment_get_by_name,
     get_dataset,
     get_datasets,
     create_local_dataset,
     delete_dataset,
     get_generated_datasets,
+    get_plugins_of_type,
+    get_training_template_by_name,
     job_count_running,
     job_delete,
     job_get_error_msg,
@@ -74,7 +77,117 @@ from transformerlab.db import (
 )
 
 import pytest
-import transformerlab.db as db
+
+
+@pytest.mark.asyncio
+async def test_get_dataset_returns_none_for_missing():
+    dataset = await get_dataset("does_not_exist")
+    assert dataset is None
+
+
+@pytest.mark.asyncio
+async def test_model_local_delete_nonexistent():
+    # Should not raise
+    await model_local_delete("nonexistent_model")
+
+
+@pytest.mark.asyncio
+async def test_job_get_status_and_error_msg_for_nonexistent():
+    # Should raise or return None for missing job
+    with pytest.raises(Exception):
+        await job_get_status(999999)
+    with pytest.raises(Exception):
+        await job_get_error_msg(999999)
+
+
+@pytest.mark.asyncio
+async def test_job_update_job_data_insert_key_value_overwrite():
+    job_id = await job_create("TRAIN", "QUEUED")
+    await job_update_job_data_insert_key_value(job_id, "foo", {"bar": 1})
+    await job_update_job_data_insert_key_value(job_id, "foo", {"baz": 2})
+    job = await job_get(job_id)
+    assert job["job_data"]["foo"] == {"baz": 2}
+
+
+@pytest.mark.asyncio
+async def test_job_update_status_without_error_msg():
+    job_id = await job_create("TRAIN", "QUEUED")
+    await job_update_status(job_id, "RUNNING")
+    status = await job_get_status(job_id)
+    assert status == "RUNNING"
+
+
+@pytest.mark.asyncio
+async def test_job_delete_marks_deleted():
+    job_id = await job_create("TRAIN", "QUEUED")
+    await job_delete(job_id)
+    job = await job_get(job_id)
+    assert job["status"] == "DELETED"
+
+
+@pytest.mark.asyncio
+async def test_job_cancel_in_progress_jobs_sets_cancelled():
+    job_id = await job_create("TRAIN", "RUNNING")
+    await job_cancel_in_progress_jobs()
+    job = await job_get(job_id)
+    assert job["status"] == "CANCELLED"
+
+
+@pytest.mark.asyncio
+async def test_tasks_get_by_id_returns_none_for_missing():
+    task = await tasks_get_by_id(999999)
+    assert task is None
+
+
+@pytest.mark.asyncio
+async def test_get_training_template_and_by_name_returns_none_for_missing():
+    tmpl = await get_training_template(999999)
+    assert tmpl is None
+    tmpl = await get_training_template_by_name("does_not_exist")
+    assert tmpl is None
+
+
+@pytest.mark.asyncio
+async def test_experiment_get_by_name_returns_none_for_missing():
+    exp = await experiment_get_by_name("does_not_exist")
+    assert exp is None
+
+
+@pytest.mark.asyncio
+async def test_workflows_get_by_id_returns_none_for_missing():
+    workflow = await workflows_get_by_id(999999)
+    assert workflow is None
+
+
+@pytest.mark.asyncio
+async def test_workflow_run_get_by_id_returns_none_for_missing():
+    run = await workflow_run_get_by_id(999999)
+    assert run is None
+
+
+@pytest.mark.asyncio
+async def test_get_plugin_returns_none_for_missing():
+    plugin = await get_plugin("does_not_exist")
+    assert plugin is None
+
+
+@pytest.mark.asyncio
+async def test_get_plugins_of_type_returns_list():
+    plugins = await get_plugins()
+    if plugins:
+        plugin_type = plugins[0].get("type", "test_type")
+    else:
+        plugin_type = "test_type"
+        await save_plugin("plugin_type_test", plugin_type)
+    plugins_of_type = await get_plugins_of_type(plugin_type)
+    assert isinstance(plugins_of_type, list)
+
+
+@pytest.mark.asyncio
+async def test_config_get_returns_none_for_missing():
+    value = await config_get("missing_config_key")
+    assert value is None
+
 
 pytest_plugins = ("pytest_asyncio",)
 
