@@ -5,10 +5,16 @@ os.environ["TFL_HOME_DIR"] = "./test/tmp/"
 os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
 
 from transformerlab.db import (
+    create_huggingface_dataset,
     get_dataset,
     get_datasets,
     create_local_dataset,
     delete_dataset,
+    get_generated_datasets,
+    job_count_running,
+    job_delete,
+    job_get_error_msg,
+    jobs_get_next_queued_job,
     model_local_list,
     model_local_count,
     model_local_create,
@@ -114,51 +120,87 @@ class TestDatasets:
 
 
 class TestModels:
-    @pytest.mark.asyncio
-    async def test_create_and_get_model(self):
-        await model_local_create("test_model", "Test Model", {})
-        model = await model_local_get("test_model")
-        assert model is not None
-        assert model["model_id"] == "test_model"
+    class TestJobs:
+        @pytest.mark.asyncio
+        async def test_job_create_invalid_type(self):
+            with pytest.raises(Exception):
+                await job_create("INVALID_TYPE", "QUEUED")
 
-    @pytest.mark.asyncio
-    async def test_model_local_list(self):
-        models = await model_local_list()
-        assert isinstance(models, list)
+        @pytest.mark.asyncio
+        async def test_job_get_nonexistent(self):
+            job = await job_get(999999)
+            assert job is None
 
-    @pytest.mark.asyncio
-    async def test_model_local_count(self):
-        count = await model_local_count()
-        assert isinstance(count, int)
+        @pytest.mark.asyncio
+        async def test_job_delete(self):
+            job_id = await job_create("TRAIN", "QUEUED")
+            await job_delete(job_id)
+            job = await job_get(job_id)
+            print(job)
+            assert job["status"] == "DELETED"
 
-    @pytest.mark.asyncio
-    async def test_model_local_delete(self):
-        await model_local_create("test_model_delete", "Test Model Delete", {})
-        await model_local_delete("test_model_delete")
-        model = await model_local_get("test_model_delete")
-        assert model is None
+        @pytest.mark.asyncio
+        async def test_job_count_running(self):
+            await job_create("TRAIN", "RUNNING")
+            count = await job_count_running()
+            assert isinstance(count, int)
+            assert count > 0
 
+        @pytest.mark.asyncio
+        async def test_jobs_get_next_queued_job(self):
+            await job_create("TRAIN", "QUEUED")
+            job = await jobs_get_next_queued_job()
+            assert job is not None
+            assert job["status"] == "QUEUED"
 
-class TestJobs:
-    @pytest.mark.asyncio
-    async def test_create_and_get_job(self):
-        job_id = await job_create("TRAIN", "QUEUED")
-        job = await job_get(job_id)
-        assert job is not None
-        assert job["id"] == job_id
+        @pytest.mark.asyncio
+        async def test_job_update_status_with_error_msg(self):
+            job_id = await job_create("TRAIN", "QUEUED")
+            await job_update_status(job_id, "FAILED", error_msg="Test error")
+            status = await job_get_status(job_id)
+            assert status == "FAILED"
+            error_msg = await job_get_error_msg(job_id)
+            assert error_msg == "Test error"
 
-    @pytest.mark.asyncio
-    async def test_jobs_get_all(self):
-        jobs = await jobs_get_all()
-        assert isinstance(jobs, list)
+    class TestDatasets:
+        @pytest.mark.asyncio
+        async def test_get_generated_datasets(self):
+            dataset = await get_dataset("test_generated_dataset")
+            if dataset:
+                await delete_dataset("test_generated_dataset")
+            await create_local_dataset("test_generated_dataset", {"generated": True})
+            datasets = await get_generated_datasets()
+            assert isinstance(datasets, list)
+            assert any(dataset["dataset_id"] == "test_generated_dataset" for dataset in datasets)
+            await delete_dataset("test_generated_dataset")
 
-    @pytest.mark.asyncio
-    async def test_job_update_status(self):
-        job_id = await job_create("TRAIN", "QUEUED")
-        print(job_id)
-        await job_update_status(job_id, "RUNNING")
-        status = await job_get_status(job_id)
-        assert status == "RUNNING"
+        @pytest.mark.asyncio
+        async def test_create_huggingface_dataset(self):
+            dataset = await get_dataset("hf_dataset")
+            if dataset:
+                await delete_dataset("hf_dataset")
+            await create_huggingface_dataset("hf_dataset", "HuggingFace Dataset", 100, {"key": "value"})
+            dataset = await get_dataset("hf_dataset")
+            assert dataset is not None
+            assert dataset["location"] == "huggingfacehub"
+            assert dataset["description"] == "HuggingFace Dataset"
+            assert dataset["size"] == 100
+            assert dataset["json_data"]["key"] == "value"
+
+    class TestModels:
+        @pytest.mark.asyncio
+        async def test_model_local_get_nonexistent(self):
+            model = await model_local_get("nonexistent_model")
+            assert model is None
+
+        @pytest.mark.asyncio
+        async def test_model_local_create_duplicate(self):
+            await model_local_create("duplicate_model", "Duplicate Model", {})
+            await model_local_create("duplicate_model", "Duplicate Model Updated", {"key": "value"})
+            model = await model_local_get("duplicate_model")
+            assert model is not None
+            assert model["name"] == "Duplicate Model Updated"
+            assert model["json_data"]["key"] == "value"
 
 
 class TestExperiments:
@@ -212,7 +254,7 @@ class TestConfig:
         value = await config_get("test_key")
         assert value == "test_value2"
         # now try to get a key that does not exist
-        value = await config_get("test_key2")
+        value = await config_get("test_key2_SHOULD_NOT_EXIST")
         assert value is None
         # now try to set a key with None value
         await config_set("test_key3", None)

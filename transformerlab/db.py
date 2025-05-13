@@ -504,7 +504,7 @@ async def job_delete_all():
 
 
 async def job_delete(job_id):
-    print("Deleting job: " + job_id)
+    print("Deleting job: " + str(job_id))
     # await db.execute("DELETE FROM job WHERE id = ?", (job_id,))
     # instead of deleting, set status of job to deleted:
     await db.execute("UPDATE job SET status = 'DELETED' WHERE id = ?", (job_id,))
