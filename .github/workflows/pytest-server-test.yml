@@ -42,4 +42,4 @@ jobs:
           sleep 10  # Wait for the server to start
       - name: Test the API Server and DB Setup
         run: |
-          pytest test/server/
+          pytest -m live_server test/server/ 
