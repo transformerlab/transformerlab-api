@@ -1,6 +1,5 @@
 import os
 
-
 os.environ["TFL_HOME_DIR"] = "./test/tmp/"
 os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
 
@@ -17,14 +16,26 @@ from transformerlab.db import (
     jobs_get_next_queued_job,
     model_local_create,
     model_local_get,
+    model_local_list,
+    model_local_count,
+    model_local_delete,
     job_create,
     job_get_status,
     job_get,
     job_update_status,
+    job_delete_all,
+    job_cancel_in_progress_jobs,
+    job_update_job_data_insert_key_value,
+    job_stop,
+    jobs_get_all,
+    jobs_get_all_by_experiment_and_type,
     experiment_get_all,
     experiment_create,
     experiment_get,
     experiment_delete,
+    experiment_update,
+    experiment_update_config,
+    experiment_save_prompt_template,
     get_plugins,
     get_plugin,
     save_plugin,
@@ -46,9 +57,130 @@ from transformerlab.db import (
     workflows_get_all,
     workflows_get_by_id,
     workflows_get_from_experiment,
+    add_task,
+    update_task,
+    tasks_get_all,
+    tasks_get_by_type,
+    tasks_get_by_type_in_experiment,
+    delete_task,
+    tasks_delete_all,
+    tasks_get_by_id,
+    get_training_template,
+    get_training_templates,
+    create_training_template,
+    update_training_template,
+    delete_training_template,
+    export_job_create,
 )
+
 import pytest
 import transformerlab.db as db
+
+pytest_plugins = ("pytest_asyncio",)
+
+
+@pytest.mark.asyncio
+async def test_model_local_list_and_count():
+    await model_local_create("model1", "Model 1", {})
+    await model_local_create("model2", "Model 2", {})
+    models = await model_local_list()
+    count = await model_local_count()
+    assert isinstance(models, list)
+    assert count == len(models)
+    await model_local_delete("model1")
+    await model_local_delete("model2")
+
+
+@pytest.mark.asyncio
+async def test_job_delete_all_and_cancel_in_progress_jobs():
+    await job_create("TRAIN", "RUNNING")
+    await job_create("TRAIN", "QUEUED")
+    await job_delete_all()
+    jobs = await jobs_get_all()
+    assert all(job["status"] == "DELETED" for job in jobs)
+    await job_cancel_in_progress_jobs()  # Should not raise
+
+
+@pytest.mark.asyncio
+async def test_job_update_job_data_insert_key_value_and_stop():
+    job_id = await job_create("TRAIN", "QUEUED")
+    await job_update_job_data_insert_key_value(job_id, "foo", {"bar": 1})
+    job = await job_get(job_id)
+    assert job["job_data"]["foo"] == {"bar": 1}
+    await job_stop(job_id)
+    job = await job_get(job_id)
+    assert job["job_data"]["stop"] is True
+
+
+@pytest.mark.asyncio
+async def test_jobs_get_all_and_by_experiment_and_type(test_experiment):
+    job_id = await job_create("TRAIN", "QUEUED", "{}", test_experiment)
+    jobs = await jobs_get_all("TRAIN", "QUEUED")
+    assert any(j["id"] == job_id for j in jobs)
+    jobs_by_exp = await jobs_get_all_by_experiment_and_type(test_experiment, "TRAIN")
+    assert any(j["id"] == job_id for j in jobs_by_exp)
+
+
+@pytest.mark.asyncio
+async def test_experiment_update_and_update_config_and_save_prompt_template(test_experiment):
+    await experiment_update(test_experiment, '{"foo": "bar"}')
+    exp = await experiment_get(test_experiment)
+    assert exp["config"] == '{"foo": "bar"}'
+    await experiment_update_config(test_experiment, "baz", 123)
+    exp = await experiment_get(test_experiment)
+    assert '"baz":123' in exp["config"]
+    await experiment_save_prompt_template(test_experiment, '"prompt"')
+    exp = await experiment_get(test_experiment)
+    assert "prompt_template" in exp["config"]
+
+
+@pytest.mark.asyncio
+async def test_task_crud(test_experiment):
+    await add_task("task1", "TYPE", "{}", "{}", "plugin", "{}", test_experiment)
+    tasks = await tasks_get_all()
+    assert any(t["name"] == "task1" for t in tasks)
+    task = tasks[0]
+    await update_task(task["id"], {"inputs": "[]", "config": "{}", "outputs": "[]", "name": "task1_updated"})
+    updated = await tasks_get_by_id(task["id"])
+    assert updated["name"] == "task1_updated"
+    await delete_task(task["id"])
+    deleted = await tasks_get_by_id(task["id"])
+    assert deleted is None
+
+
+@pytest.mark.asyncio
+async def test_tasks_get_by_type_and_in_experiment(test_experiment):
+    await add_task("task2", "TYPE2", "{}", "{}", "plugin", "{}", test_experiment)
+    by_type = await tasks_get_by_type("TYPE2")
+    assert any(t["name"] == "task2" for t in by_type)
+    by_type_exp = await tasks_get_by_type_in_experiment("TYPE2", test_experiment)
+    assert any(t["name"] == "task2" for t in by_type_exp)
+    await tasks_delete_all()
+    all_tasks = await tasks_get_all()
+    assert len(all_tasks) == 0
+
+
+@pytest.mark.asyncio
+async def test_training_template_crud():
+    await create_training_template("tmpl", "desc", "type", "[]", "{}")
+    templates = await get_training_templates()
+    assert any(t[1] == "tmpl" for t in templates)
+    tmpl_id = templates[0][0]
+    await update_training_template(tmpl_id, "tmpl2", "desc2", "type2", "[]", "{}")
+    tmpl = await get_training_template(tmpl_id)
+    assert tmpl["name"] == "tmpl2"
+    await delete_training_template(tmpl_id)
+    tmpl = await get_training_template(tmpl_id)
+    assert tmpl is None
+
+
+@pytest.mark.asyncio
+async def test_export_job_create(test_experiment):
+    job_id = await export_job_create(test_experiment, '{"exporter_name": "exp"}')
+    job = await job_get(job_id)
+    assert job is not None
+    assert job["type"] == "EXPORT_MODEL"
+
 
 pytest_plugins = ("pytest_asyncio",)
 

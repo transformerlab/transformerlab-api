@@ -530,7 +530,7 @@ async def job_update_job_data_insert_key_value(job_id, key, value):
 
 
 async def job_stop(job_id):
-    print("Stopping job: " + job_id)
+    print("Stopping job: " + str(job_id))
     await job_update_job_data_insert_key_value(job_id, "stop", True)
     return
 
@@ -739,13 +739,6 @@ async def training_jobs_get_all():
 #     )
 #     await db.commit()  # is this necessary?
 #     return row[0]
-
-
-async def job_get_for_template_id(template_id):
-    cursor = await db.execute("SELECT * FROM job WHERE template_id = ?", (template_id,))
-    rows = await cursor.fetchall()
-    await cursor.close()
-    return rows
 
 
 ####################
