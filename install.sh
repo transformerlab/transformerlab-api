@@ -349,7 +349,8 @@ install_dependencies() {
 
       echo "Installing requirements:"
       # Install the python requirements
-      if ! [ -e "$TLAB_CODE_DIR/requirements-uv.txt" ]; then
+      if $COPY_REQS || ! [ -e "$TLAB_CODE_DIR/requirements-uv.txt" ]; then
+        echo "using $TLAB_CODE_DIR/requirements-uv.txt"
         cp "$RUN_DIR"/requirements-uv.txt "$TLAB_CODE_DIR"/requirements-uv.txt
       fi
       PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/cu128"
@@ -365,7 +366,8 @@ install_dependencies() {
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
       echo "Installing Tranformer Lab requirements without GPU support"
 
-      if ! [ -e "$TLAB_CODE_DIR/requirements-no-gpu-uv.txt" ]; then
+      if $COPY_REQS || ! [ -e "$TLAB_CODE_DIR/requirements-no-gpu-uv.txt" ]; then
+        echo "using $TLAB_CODE_DIR/requirements-no-gpu-uv.txt"
         cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
       fi
 
@@ -444,8 +446,21 @@ print_success_message() {
   echo
 }
 
-# Check if there are arguments to this script, and if so, run the appropriate function.
-if [[ "$#" -eq 0 ]]; then
+
+COPY_REQS=false
+ARGS=()
+
+# Parse arguments: separate flag and function names
+for arg in "$@"; do
+  if [ "$arg" == "--use-local-reqs" ]; then
+    COPY_REQS=true
+  else
+    ARGS+=("$arg")
+  fi
+done
+
+# Full installation if no args (excluding --copy-reqs)
+if [[ ${#ARGS[@]} -eq 0 ]]; then
   title "Performing a full installation of Transformer Lab."
   download_transformer_lab
   install_conda
@@ -453,8 +468,7 @@ if [[ "$#" -eq 0 ]]; then
   install_dependencies
   print_success_message
 else
-  for arg in "$@"
-  do
+  for arg in "${ARGS[@]}"; do
     case $arg in
       download_transformer_lab)
         download_transformer_lab
