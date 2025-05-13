@@ -16,6 +16,9 @@ from collections import namedtuple
 from contextlib import asynccontextmanager
 from io import BytesIO
 from typing import List
+import subprocess
+import time
+import sys
 
 import requests
 import uvicorn
@@ -37,6 +40,8 @@ from fastchat.serve.base_model_worker import BaseModelWorker  # noqa
 from generate import generate_text, load_model, prepare_inputs  # noqa
 from huggingface_hub import snapshot_download  # noqa
 from PIL import Image  # noqa
+
+from transformerlab.plugin import get_python_executable  # noqa
 
 
 @asynccontextmanager
@@ -304,7 +309,38 @@ def main():
         args.conv_template,
     )
     print("Starting server")
-    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+     # Start uvicorn in a background task, then run fastchat.serve.openai_api_server
+    import threading
+
+    def run_uvicorn():
+        uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+
+    uvicorn_thread = threading.Thread(target=run_uvicorn, daemon=True)
+    uvicorn_thread.start()
+
+
+    real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
+    python_executable = get_python_executable(real_plugin_dir)
+
+    proc = subprocess.Popen(
+        [
+            python_executable,
+            "-m",
+            "fastchat.serve.tlab_openai_api_server",
+            "--host",
+            "localhost",
+            "--port",
+            "8339",
+        ]
+    )
+
+    try:
+        while uvicorn_thread.is_alive():
+            time.sleep(120)
+    finally:
+        proc.terminate()
+        proc.wait()
+
 
 
 if __name__ == "__main__":

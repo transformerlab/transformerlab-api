@@ -963,7 +963,7 @@ def main():
             "-m",
             "fastchat.serve.tlab_openai_api_server",
             "--host",
-            "localhost",
+            "0.0.0.0",
             "--port",
             "8339",
         ]

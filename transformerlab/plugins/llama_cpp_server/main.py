@@ -24,11 +24,16 @@ from typing import List
 
 import llama_cpp
 import uvicorn
+import subprocess
+import time
+import sys
 from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastchat.utils import is_partial_stop, build_logger
 from transformers.tokenization_utils_base import BatchEncoding
+
+from transformerlab.plugin import get_python_executable
 
 worker_id = str(uuid.uuid4())[:8]
 logfile_path = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "logs")
@@ -372,7 +377,36 @@ def main():
         args.conv_template,
         n_gpu_layers,
     )
-    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+    # uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+    import threading
+
+    def run_uvicorn():
+        uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+
+    uvicorn_thread = threading.Thread(target=run_uvicorn, daemon=True)
+    uvicorn_thread.start()
+
+    real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
+    python_executable = get_python_executable(real_plugin_dir)
+
+    proc = subprocess.Popen(
+        [
+            python_executable,
+            "-m",
+            "fastchat.serve.tlab_openai_api_server",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8339",
+        ]
+    )
+
+    try:
+        while uvicorn_thread.is_alive():
+            time.sleep(120)
+    finally:
+        proc.terminate()
+        proc.wait()
 
 
 if __name__ == "__main__":
