@@ -10,7 +10,6 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
 import transformerlab.db as db
-from transformerlab.shared import shared
 from transformerlab.shared import dirs
 from transformerlab.routers.serverinfo import watch_file
 
