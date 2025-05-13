@@ -158,7 +158,7 @@ def get_python_executable(plugin_dir):
     venv_path = os.path.join(plugin_dir, "venv")
 
     if os.path.isdir(venv_path):
-        print("Virtual environment found, using it for evaluation...")
+        print("Virtual environment found, using it for execution...")
         # Determine the correct path to the Python executable based on the platform
         python_executable = os.path.join(venv_path, "bin", "python")
 

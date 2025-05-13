@@ -15,6 +15,8 @@ import asyncio
 import json
 import math
 import os
+import subprocess
+import time
 import re
 import traceback
 import uuid
@@ -35,6 +37,7 @@ from mlx_embedding_models.embedding import EmbeddingModel
 from mlx_lm import load
 from mlx_lm.generate import generate_step
 from mlx_lm.sample_utils import make_logits_processors, make_sampler
+from transformerlab.plugin import get_python_executable
 
 worker_id = str(uuid.uuid4())[:8]
 logfile_path = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "logs")
@@ -949,10 +952,11 @@ def main():
     uvicorn_thread = threading.Thread(target=run_uvicorn, daemon=True)
     uvicorn_thread.start()
 
-    import subprocess
-    import time
+    plugin_dir = args.plugin_dir
+    if plugin_dir is not None:
+        real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
+        python_executable = get_python_executable(real_plugin_dir)
 
-    python_executable = "/Users/deep.gandhi/.transformerlab/workspace/plugins/mlx_server/venv/bin/python"
     proc = subprocess.Popen(
         [
             python_executable,
@@ -961,7 +965,7 @@ def main():
             "--host",
             "localhost",
             "--port",
-            "12345",
+            "8339",
         ]
     )
 
