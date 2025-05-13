@@ -504,7 +504,7 @@ async def job_delete_all():
 
 
 async def job_delete(job_id):
-    print("Deleting job: " + job_id)
+    print("Deleting job: " + str(job_id))
     # await db.execute("DELETE FROM job WHERE id = ?", (job_id,))
     # instead of deleting, set status of job to deleted:
     await db.execute("UPDATE job SET status = 'DELETED' WHERE id = ?", (job_id,))
@@ -923,8 +923,8 @@ async def workflow_run_get_by_id(workflow_run_id):
     return row
 
 
-async def workflow_delete_by_id(workflow_id):
-    print("Deleting workflow: " + workflow_id)
+async def workflow_delete_by_id(workflow_id: str):
+    print("Deleting workflow: " + str(workflow_id))
     await db.execute(
         "UPDATE workflows SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE id = ?", (workflow_id,)
     )
