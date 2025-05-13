@@ -321,7 +321,7 @@ install_dependencies() {
 
   check_python
 
-  # store if the box has an nvidia graphics card
+  # store if the machine has MacOS/NVIDIA graphics card
   HAS_GPU=false
 
   if command -v nvidia-smi &> /dev/null; then
@@ -345,20 +345,20 @@ install_dependencies() {
 
   if [ "$HAS_GPU" = true ] ; then
       echo "Your computer has a GPU; installing cuda:"
-      conda install -y cuda -c nvidia/label/cuda-12.1.1
+      conda install -y cuda==12.8.1 --force-reinstall -c nvidia/label/cuda-12.8.1
 
       echo "Installing requirements:"
       # Install the python requirements
       if ! [ -e "$TLAB_CODE_DIR/requirements-uv.txt" ]; then
         cp "$RUN_DIR"/requirements-uv.txt "$TLAB_CODE_DIR"/requirements-uv.txt
       fi
+      PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/cu128"
       uv pip install ${PIP_WHEEL_FLAGS} -r "$TLAB_CODE_DIR"/requirements-uv.txt
 
       # Install Flash Attention separately - it doesn't play well in requirements file
       # Using instructions from https://github.com/Dao-AILab/flash-attention
       uv pip install packaging
       uv pip install ninja
-      uv pip install -U flash-attn==2.7.3 --no-build-isolation -c "$TLAB_CODE_DIR"/constraints.txt
       ###
   else
       echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."

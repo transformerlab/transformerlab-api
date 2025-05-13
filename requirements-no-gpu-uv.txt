@@ -228,7 +228,7 @@ numpy==2.1.2
     #   torchvision
     #   transformerlab-inference
     #   transformers
-nvidia-ml-py3==7.352.0
+nvidia-ml-py==12.575.51
     # via -r requirements.in
 olefile==0.47
     # via markitdown
@@ -411,7 +411,7 @@ starlette==0.45.3
     # via fastapi
 svgwrite==1.4.3
     # via wavedrom
-sympy==1.13.1
+sympy==1.13.3
     # via
     #   onnxruntime
     #   torch
@@ -431,7 +431,7 @@ tiktoken==0.8.0
     #   transformerlab-inference
 tokenizers==0.21.1
     # via transformers
-torch==2.6.0
+torch==2.7.0
     # via
     #   -r requirements.in
     #   accelerate
@@ -439,9 +439,9 @@ torch==2.6.0
     #   sentence-transformers
     #   torchaudio
     #   torchvision
-torchaudio==2.6.0
+torchaudio==2.7.0
     # via -r requirements.in
-torchvision==0.21.0
+torchvision==0.22.0
     # via -r requirements.in
 tqdm==4.66.5
     # via
@@ -452,7 +452,7 @@ tqdm==4.66.5
     #   peft
     #   sentence-transformers
     #   transformers
-transformerlab-inference==0.2.36
+transformerlab-inference==0.2.38
     # via -r requirements.in
 transformers==4.51.3
     # via
