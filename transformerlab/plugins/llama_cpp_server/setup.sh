@@ -21,7 +21,7 @@ elif command -v nvidia-smi &> /dev/null; then
     echo "CUDA GPU detected. Installing based on CUDA setup using GGML CUDA"
     CMAKE_ARGS="-DGGML_CUDA=on" FORCE_CMAKE=1 uv pip install llama-cpp-python --force-reinstall --no-cache-dir
     # Uncomment and replace with your local installation for testing
-    uv pip install -e /home/deep/transformerlab/transformerlab-inference/
+    # uv pip install -e /home/deep/transformerlab/transformerlab-inference/
 else
     # Linux/Other without CUDA - try using OpenBLAS
     echo "No GPU detected - installing with OpenBLAS support"
