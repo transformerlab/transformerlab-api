@@ -562,6 +562,11 @@ async def update_task(task_id, new_task):
         "UPDATE tasks SET outputs = ? WHERE id = ?",
         (new_task["outputs"], task_id),
     )
+    if "name" in new_task and new_task["name"] != "":
+        await db.execute(
+            "UPDATE tasks SET name = ? WHERE id = ?",
+            (new_task["name"], task_id),
+        )
     await db.commit()
     return
 
