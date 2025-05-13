@@ -1,18 +1,22 @@
 import json
 import os
 import time
-
+import asyncio
+import logging
+import subprocess
+import sys
 
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 
 import transformerlab.db as db
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
+from transformerlab.routers.serverinfo import watch_file
 
 from werkzeug.utils import secure_filename
 
 router = APIRouter(prefix="/export", tags=["export"])
-
 
 @router.get("/run_exporter_script")
 async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: str, plugin_params: str = "{}"):
@@ -77,11 +81,10 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
     output_model_id = secure_filename(output_model_id)
 
     output_path = os.path.join(dirs.MODELS_DIR, output_model_id)
-    os.makedirs(output_path)
 
     # Create a job in the DB with the details of this export
     job_data = dict(
-        exporter_name=plugin_name,
+        plugin=plugin_name,
         input_model_id=input_model_id,
         input_model_path=input_model_path,
         input_model_architecture=input_model_architecture,
@@ -98,6 +101,8 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
     args = [
         "--plugin_dir",
         script_directory,
+        "--job_id",
+        str(job_id),
         "--model_name",
         input_model_id,
         "--model_path",
@@ -116,12 +121,40 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
         args.extend(new_param)
 
     # Run the export plugin
-    # This calls the training plugin harness, which calls the actual training plugin
-    subprocess_command = [dirs.PLUGIN_HARNESS] + args
+    subprocess_command = [sys.executable, dirs.PLUGIN_HARNESS] + args
     try:
-        process = await shared.async_run_python_script_and_update_status(
-            python_script=subprocess_command, job_id=job_id, begin_string="Exporting"
-        )
+        # Get the output file path
+        job_output_file = await get_output_file_name(job_id)
+        
+        # Create the output file and run the process with output redirection
+        with open(job_output_file, "w") as f:
+            process = await asyncio.create_subprocess_exec(
+                *subprocess_command, 
+                stdout=f, 
+                stderr=subprocess.PIPE,
+                cwd=script_directory
+            )
+            _, stderr = await process.communicate()
+
+            try:
+                stderr_str = stderr.decode("utf-8", errors="replace") 
+            except Exception as e:
+                stderr_str = f"[stderr decode error]: {e}"
+
+            if stderr_str.strip():
+                if "Traceback" in stderr_str or "Error" in stderr_str or "Exception" in stderr_str:
+                    print(f"Error output: {stderr_str}")
+                    f.write(f"\nError output:\n{stderr_str}")
+                else:
+                    print(f"Standard error stream:\n{stderr_str}")
+                    f.write(f"\nStandard error stream:\n{stderr_str}")
+
+            if process.returncode != 0:
+                fail_msg = f"Failed to export model. Return code: {process.returncode}"
+                await db.job_update_status(job_id=job_id, status="FAILED")
+                print(fail_msg)
+                return {"message": fail_msg}
+                
     except Exception as e:
         import logging
 
@@ -129,15 +162,8 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
         await db.job_update_status(job_id=job_id, status="FAILED")
         return {"message": "Failed to export model due to an internal error."}
 
-    if process.returncode != 0:
-        fail_msg = f"Failed to export model. Return code: {process.returncode}"
-        await db.job_update_status(job_id=job_id, status="FAILED")
-        print(fail_msg)
-        return {"message": fail_msg}
-
     # Model create was successful!
     # Create an info.json file so this can be read by the system
-    # TODO: Add parameters to json_data
     output_model_full_id = f"TransformerLab/{output_model_id}"
     model_description = [
         {
@@ -161,6 +187,7 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
     json.dump(model_description, model_description_file)
     model_description_file.close()
 
+    await db.job_update_status(job_id=job_id, status="COMPLETE")
     return {"message": "success", "job_id": job_id}
 
 
@@ -174,3 +201,62 @@ async def get_export_jobs(id: int):
 async def get_export_job(id: int, jobId: str):
     job = await db.job_get(jobId)
     return job
+
+
+async def get_output_file_name(job_id: str):
+    try:
+        # Ensure job_id is a string
+        job_id = str(job_id)
+        
+        # Get job data
+        job = await db.job_get(job_id)
+        job_data = job["job_data"]
+        
+        # Check if it has a custom output file path
+        if job_data.get("output_file_path") is not None:
+            return job_data["output_file_path"]
+        
+        # Get the plugin name from the job data
+        plugin_name = job_data.get("plugin")
+        if not plugin_name:
+            raise ValueError("Exporter name not found in job data")
+        
+        # Get the plugin directory
+        plugin_dir = dirs.plugin_dir_by_name(plugin_name)
+        
+        job_id = secure_filename(job_id)
+        
+        # Check for output file with job id
+        if os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
+            output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
+        else:
+            # Create the output file path even if it doesn't exist yet
+            output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
+        
+        return output_file
+    except Exception as e:
+        raise e
+    
+
+@router.get("/job/{job_id}/stream_output")
+async def watch_export_log(job_id: str):
+    try:
+        job_id = secure_filename(job_id)
+        output_file_name = await get_output_file_name(job_id)
+    except ValueError as e:
+        # if the value error starts with "No output file found for job" then wait 4 seconds and try again
+        # because the file might not have been created yet
+        if str(e).startswith("No output file found for job"):
+            await asyncio.sleep(4)
+            print("Retrying to get output file in 4 seconds...")
+            output_file_name = await get_output_file_name(job_id)
+        else:
+            logging.error(f"ValueError: {e}")
+            return "An internal error has occurred!"
+
+    return StreamingResponse(
+        # we force polling because i can't get this to work otherwise -- changes aren't detected
+        watch_file(output_file_name, start_from_beginning=True, force_polling=True),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+    )
