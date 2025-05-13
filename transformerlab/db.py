@@ -1078,6 +1078,9 @@ async def get_plugins_of_type(type: str):
 async def get_plugin(slug: str):
     cursor = await db.execute("SELECT id, * FROM plugins WHERE name = ?", (slug,))
     row = await cursor.fetchone()
+    if row is None:
+        await cursor.close()
+        return None
     desc = cursor.description
     column_names = [col[0] for col in desc]
     row = dict(itertools.zip_longest(column_names, row))
