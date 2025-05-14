@@ -14,7 +14,8 @@ from transformerlab.shared import dirs
 MODEL_GALLERY_FILE = "model-gallery.json"
 RECIPE_GALLERY_FILE = "recipe-gallery.json"
 DATA_GALLERY_FILE = "dataset-gallery.json"
-GALLERY_FILES = [MODEL_GALLERY_FILE, RECIPE_GALLERY_FILE, DATA_GALLERY_FILE]
+MODEL_GROUP_GALLERY_FILE = "model-group-gallery.json"
+GALLERY_FILES = [MODEL_GALLERY_FILE, RECIPE_GALLERY_FILE, DATA_GALLERY_FILE, MODEL_GROUP_GALLERY_FILE]
 
 TLAB_REMOTE_GALLERIES_URL = "https://raw.githubusercontent.com/transformerlab/galleries/main/"
 
@@ -32,6 +33,8 @@ def update_gallery_cache():
 def get_models_gallery():
     return get_gallery_file(MODEL_GALLERY_FILE)
 
+def get_model_groups_gallery():
+    return get_gallery_file(MODEL_GROUP_GALLERY_FILE)
 
 def get_recipes_gallery():
     return get_gallery_file(RECIPE_GALLERY_FILE)

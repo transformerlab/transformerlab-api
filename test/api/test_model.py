@@ -20,3 +20,13 @@ def test_model_list_local_uninstalled():
         resp = client.get("/model/list_local_uninstalled")
         assert resp.status_code == 200
         assert "data" in resp.json() or "status" in resp.json()
+
+def test_model_group_gallery():
+    with TestClient(app) as client:
+        resp = client.get("/model/model_groups_list")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data, list)
+        if data:
+            model = data[0]
+            assert "name" in model or "models" in model
