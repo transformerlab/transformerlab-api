@@ -93,7 +93,7 @@ async def model_gallery_list_all():
     return gallery
 
 
-@router.get("/model/groups", summary="Returns the grouped model gallery from model-group-gallery.json.")
+@router.get("/model/model_groups_list", summary="Returns the grouped model gallery from model-group-gallery.json.")
 async def model_groups_list_all():
     gallery = galleries.get_model_groups_gallery()
 
@@ -108,7 +108,7 @@ async def model_groups_list_all():
     for group in gallery:
         if "models" not in group:
             continue
-        
+
         # Iterate through models and add any values needed in result
         for model in group["models"]:
             # Mark which models have been downloaded already by checking for uniqueID
