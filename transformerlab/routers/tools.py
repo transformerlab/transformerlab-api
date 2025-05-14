@@ -245,15 +245,17 @@ async def install_mcp_server(server_name: str = Query(..., description="Module n
     if server_name.endswith(".py"):
         safe_root = os.path.expanduser("~")
         server_name = os.path.abspath(os.path.normpath(server_name))
-        # Check if the file is within the user's home directory
-        if not os.path.commonpath([server_name, safe_root]) == safe_root:
+        # Check if the file is within the user's home directory and prevent symbolic link attacks
+        if not os.path.commonpath([server_name, safe_root]) == safe_root or not server_name.startswith(
+            safe_root + os.sep
+        ):
             return JSONResponse(
                 status_code=403,
                 content={"status": "error", "message": "Access to external files is forbidden."},
             )
 
         server_name = os.path.abspath(os.path.normpath(server_name))
-        if os.path.isfile(server_name):
+        if os.path.islink(server_name) or not os.path.isfile(server_name):
             return {"status": "success", "message": f"File '{server_name}' exists."}
         else:
             return JSONResponse(
