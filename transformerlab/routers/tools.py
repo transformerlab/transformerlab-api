@@ -5,7 +5,7 @@ import importlib
 from transformers.utils import get_json_schema
 from transformerlab.shared import dirs
 
-from fastapi import APIRouter, Body, Query
+from fastapi import APIRouter, Query
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from fastapi.responses import JSONResponse
