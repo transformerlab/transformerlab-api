@@ -93,6 +93,42 @@ async def model_gallery_list_all():
     return gallery
 
 
+@router.get("/model/model_groups_list", summary="Returns the grouped model gallery from model-group-gallery.json.")
+async def model_groups_list_all():
+    gallery = galleries.get_model_groups_gallery()
+
+    # Get list of locally installed models
+    local_models = await model_helper.list_installed_models()
+    local_model_names = set(model["model_id"] for model in local_models)
+
+    # Define what counts as a “new” model
+    one_month_ago = datetime.date.today() + dateutil.relativedelta.relativedelta(months=-1)
+    new_model_cutoff_date = one_month_ago.strftime("%Y-%m-%d")
+
+    for group in gallery:
+        if "models" not in group:
+            continue
+
+        # Iterate through models and add any values needed in result
+        for model in group["models"]:
+            # Mark which models have been downloaded already by checking for uniqueID
+            model["downloaded"] = True if model["uniqueID"] in local_model_names else False
+
+            # Application filters on archived flag. If none set then set to false
+            if "archived" not in model:
+                model["archived"] = False
+
+            # If no added date then set to a default
+            if "added" not in model:
+                model["added"] = "2024-02-01"
+
+            # Application uses the new flag to decide whether to display a badge
+            # TODO: Probably shouldn't be doing > string comparison for dates
+            model["new"] = True if (model["added"] > new_model_cutoff_date) else False
+
+    return gallery
+
+
 @router.get("/model/gallery/sizes")
 async def model_gallery_update_sizes():
     """
