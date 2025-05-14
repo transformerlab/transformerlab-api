@@ -15,6 +15,8 @@ import asyncio
 import json
 import math
 import os
+import subprocess
+import time
 import re
 import traceback
 import uuid
@@ -35,6 +37,7 @@ from mlx_embedding_models.embedding import EmbeddingModel
 from mlx_lm import load
 from mlx_lm.generate import generate_step
 from mlx_lm.sample_utils import make_logits_processors, make_sampler
+from transformerlab.plugin import get_python_executable
 
 worker_id = str(uuid.uuid4())[:8]
 logfile_path = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "logs")
@@ -940,7 +943,38 @@ def main():
         args.adaptor_path,
         context_len=context_length,
     )
-    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+    # Start uvicorn in a background task, then run fastchat.serve.openai_api_server
+    import threading
+
+    def run_uvicorn():
+        uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+
+    uvicorn_thread = threading.Thread(target=run_uvicorn, daemon=True)
+    uvicorn_thread.start()
+
+    plugin_dir = args.plugin_dir
+    if plugin_dir is not None:
+        real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
+        python_executable = get_python_executable(real_plugin_dir)
+
+    proc = subprocess.Popen(
+        [
+            python_executable,
+            "-m",
+            "fastchat.serve.tlab_openai_api_server",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "8339",
+        ]
+    )
+
+    try:
+        while uvicorn_thread.is_alive():
+            time.sleep(120)
+    finally:
+        proc.terminate()
+        proc.wait()
 
 
 if __name__ == "__main__":
