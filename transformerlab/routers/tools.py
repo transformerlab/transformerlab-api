@@ -1,15 +1,16 @@
-import os
-import sys
-import json
 import importlib
-from transformers.utils import get_json_schema
-from transformerlab.shared import dirs
+import json
+import os
+import subprocess
+import sys
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Query
-from pydantic import BaseModel
-from typing import Optional, Dict, Any
 from fastapi.responses import JSONResponse
-import subprocess
+from pydantic import BaseModel
+from transformers.utils import get_json_schema
+
+from transformerlab.shared import dirs
 
 # MCP client imports
 try:
@@ -242,7 +243,15 @@ async def install_mcp_server(server_name: str = Query(..., description="Module n
     env = os.environ.copy()
     # If it's a .py file, treat as a full file path and check if it exists
     if server_name.endswith(".py"):
-        server_name = os.path.abspath(server_name)
+        safe_root = os.path.expanduser("~")
+        # Check if the file is within the user's home directory
+        if not os.path.commonpath([os.path.abspath(server_name), safe_root]) == safe_root:
+            return JSONResponse(
+                status_code=403,
+                content={"status": "error", "message": "Access to external files is forbidden."},
+            )
+
+        server_name = os.path.abspath(os.path.normpath(server_name))
         if os.path.isfile(server_name):
             return {"status": "success", "message": f"File '{server_name}' exists."}
         else:
