@@ -1,3 +1,4 @@
+
 #!/bin/bash
 set -e
 
@@ -349,12 +350,17 @@ install_dependencies() {
 
       echo "Installing requirements:"
       # Install the python requirements
-      if $COPY_REQS || ! [ -e "$TLAB_CODE_DIR/requirements-uv.txt" ]; then
-        echo "using $TLAB_CODE_DIR/requirements-uv.txt"
-        cp "$RUN_DIR"/requirements-uv.txt "$TLAB_CODE_DIR"/requirements-uv.txt
+      if [ -e "$RUN_DIR/requirements-uv.txt" ]; then
+        REQS_PATH="$RUN_DIR/requirements-uv.txt"
+      elif [ -e "$TLAB_CODE_DIR/requirements-uv.txt" ]; then
+        REQS_PATH="$TLAB_CODE_DIR/requirements-uv.txt"
+      else
+        echo "Error: requirements-uv.txt not found in run directory or src location."
+        exit 1
       fi
+
       PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/cu128"
-      uv pip install ${PIP_WHEEL_FLAGS} -r "$TLAB_CODE_DIR"/requirements-uv.txt
+      uv pip install ${PIP_WHEEL_FLAGS} -r ${REQS_PATH}
 
       # Install Flash Attention separately - it doesn't play well in requirements file
       # Using instructions from https://github.com/Dao-AILab/flash-attention
@@ -366,17 +372,23 @@ install_dependencies() {
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
       echo "Installing Tranformer Lab requirements without GPU support"
 
-      if $COPY_REQS || ! [ -e "$TLAB_CODE_DIR/requirements-no-gpu-uv.txt" ]; then
-        echo "using $TLAB_CODE_DIR/requirements-no-gpu-uv.txt"
-        cp "$RUN_DIR"/requirements-no-gpu-uv.txt "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
+      if [ -e "$RUN_DIR/requirements-no-gpu-uv.txt" ]; then
+        REQS_PATH="$RUN_DIR/requirements-no-gpu-uv.txt"
+      elif [ -e "$TLAB_CODE_DIR/requirements-no-gpu-uv.txt" ]; then
+        REQS_PATH="$TLAB_CODE_DIR/requirements-no-gpu-uv.txt"
+      else
+        echo "Error: requirements-no-gpu-uv.txt not found in run directory or src location."
+        exit 1
       fi
 
       if [[ -z "${TLAB_ON_MACOS}" ]]; then
           # Add the CPU-specific PyTorch index for non-macOS systems
           PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/cpu"
       fi
+
+      echo "Using requirements from ${REQS_PATH}"
       # Run the installation with dynamic flags
-      uv pip install ${PIP_WHEEL_FLAGS} -r "$TLAB_CODE_DIR"/requirements-no-gpu-uv.txt
+      uv pip install ${PIP_WHEEL_FLAGS} -r ${REQS_PATH}
   fi
 
   # Check if the uvicorn command works:
@@ -446,21 +458,8 @@ print_success_message() {
   echo
 }
 
-
-COPY_REQS=false
-ARGS=()
-
-# Parse arguments: separate flag and function names
-for arg in "$@"; do
-  if [ "$arg" == "--use-local-reqs" ]; then
-    COPY_REQS=true
-  else
-    ARGS+=("$arg")
-  fi
-done
-
-# Full installation if no args (excluding --copy-reqs)
-if [[ ${#ARGS[@]} -eq 0 ]]; then
+# Check if there are arguments to this script, and if so, run the appropriate function.
+if [[ "$#" -eq 0 ]]; then
   title "Performing a full installation of Transformer Lab."
   download_transformer_lab
   install_conda
@@ -468,7 +467,8 @@ if [[ ${#ARGS[@]} -eq 0 ]]; then
   install_dependencies
   print_success_message
 else
-  for arg in "${ARGS[@]}"; do
+  for arg in "$@"
+  do
     case $arg in
       download_transformer_lab)
         download_transformer_lab
