@@ -255,7 +255,7 @@ nvidia-cusparse-cu12==12.5.7.53
     #   torch
 nvidia-cusparselt-cu12==0.6.3
     # via torch
-nvidia-ml-py3==7.352.0
+nvidia-ml-py==12.575.51
     # via -r requirements.in
 nvidia-nccl-cu12==2.26.2
     # via torch
