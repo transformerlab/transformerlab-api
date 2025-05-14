@@ -79,7 +79,7 @@ async def list_tools(
         {"name": name, "description": f"{name}:\n{func.__doc__}\n\n"} for name, func in available_tools.items()
     ]
     if mcp_server_file:
-        args = mcp_args.split(",") if mcp_args else None
+        args = mcp_args.split(",") if mcp_args and len(mcp_args) > 1 else None
         # env = json.loads(mcp_env) if mcp_env else None
         base_env = os.environ.copy()
         override_env = json.loads(mcp_env) if mcp_env else {}
@@ -110,7 +110,7 @@ async def get_prompt(
     available_tools = load_tools()
     tool_descriptions = [get_json_schema(func) for name, func in available_tools.items()]
     if mcp_server_file:
-        args = mcp_args.split(",") if mcp_args else None
+        args = mcp_args.split(",") if mcp_args and len(mcp_args) > 1 else None
         base_env = os.environ.copy()
         override_env = json.loads(mcp_env) if mcp_env else {}
         env = {**base_env, **override_env}
@@ -145,11 +145,11 @@ async def call_tool(
     tool_id: str,
     params: str,
     mcp_server_file: str = Query(None, description="MCP server file to call MCP tool"),
-    mcp_args: Optional[str] = Query(None, description="Comma-separated args for MCP server"),
-    mcp_env: Optional[str] = Query(None, description="JSON string for MCP server env"),
+    mcp_args: Optional[str] = Query(None, description="Comma-separated args for MCP server (if needed)"),
+    mcp_env: Optional[str] = Query(None, description="JSON string for MCP server env (if needed)"),
 ):
     if mcp_server_file:
-        args = mcp_args.split(",") if mcp_args else None
+        args = mcp_args.split(",") if mcp_args and len(mcp_args) > 1 else None
         # env = json.loads(mcp_env) if mcp_env else None
         base_env = os.environ.copy()
         override_env = json.loads(mcp_env) if mcp_env else {}
@@ -159,7 +159,15 @@ async def call_tool(
         except Exception:
             return {"status": "error", "message": "Invalid parameters provided."}
         result = await mcp_call_tool(mcp_server_file, tool_id, arguments=function_args, args=args, env=env)
-        return {"status": "success", "data": result}
+        final_result = ""
+        for content in result.content:
+            content = content.model_dump()
+            if isinstance(content, dict) and content.get("type") == "text":
+                final_result += f"\n {content.get('text')}"
+            elif isinstance(content, dict) and content.get("type") == "json":
+                final_result += f"\n {str(content.get('json'))}"
+
+        return {"status": "success", "data": final_result}
     else:
         available_tools = load_tools()
         if tool_id not in available_tools:
@@ -226,20 +234,6 @@ async def mcp_call_tool(server_file: str, tool_id: str, arguments=None, args=Non
         async with ClientSession(read, write) as session:
             await session.initialize()
             return await session.call_tool(tool_id, arguments=arguments or {})
-
-
-# @router.post("/mcp/list", summary="List tools from a user-specified MCP server file.")
-# async def mcp_tools_list(params: MCPServerParams = Body(...)):
-#     result = await mcp_list_tools(params.server_file, args=params.args, env=params.env)
-#     return result
-
-
-# @router.post("/mcp/call/{tool_id}", summary="Call a tool on a user-specified MCP server file.")
-# async def mcp_tools_call(tool_id: str, params: MCPCallParams = Body(...)):
-#     result = await mcp_call_tool(
-#         params.server_file, tool_id, arguments=params.arguments, args=params.args, env=params.env
-#     )
-#     return result
 
 
 @router.get("/install_mcp_server", summary="Install or check MCP server module or script.")
