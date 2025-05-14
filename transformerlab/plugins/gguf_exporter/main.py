@@ -94,7 +94,7 @@ def gguf_export():
 
                 output_lines.append(line)
                 print(line, flush=True)
-                progress_value = 0;
+                progress_value = 0
 
                 # Detect writing progress
                 if line.startswith("Writing:"):
