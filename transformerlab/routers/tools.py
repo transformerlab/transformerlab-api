@@ -242,6 +242,7 @@ async def install_mcp_server(server_name: str = Query(..., description="Module n
     env = os.environ.copy()
     # If it's a .py file, treat as a full file path and check if it exists
     if server_name.endswith(".py"):
+        server_name = os.path.abspath(server_name)
         if os.path.isfile(server_name):
             return {"status": "success", "message": f"File '{server_name}' exists."}
         else:
@@ -265,4 +266,6 @@ async def install_mcp_server(server_name: str = Query(..., description="Module n
                 content={"status": "error", "message": f"Failed to install '{server_name}'.", "output": result.stderr},
             )
     except Exception as e:
-        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+        return JSONResponse(
+            status_code=500, content={"status": "error", "message": "An internal error occurred during installation"}
+        )
