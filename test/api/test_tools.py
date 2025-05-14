@@ -13,3 +13,48 @@ def test_tools_call():
     with TestClient(app) as client:
         resp = client.get("/tools/call/add?params={}")
         assert resp.status_code in (200, 400, 404)
+
+
+def test_tools_prompt():
+    with TestClient(app) as client:
+        resp = client.get("/tools/prompt")
+        assert resp.status_code == 200
+        assert "<tools>" in resp.text
+
+
+def test_tools_call_invalid_tool():
+    with TestClient(app) as client:
+        resp = client.get("/tools/call/invalid_tool?params={}")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "error"
+
+
+def test_tools_call_invalid_params():
+    with TestClient(app) as client:
+        resp = client.get("/tools/call/add?params=not_a_json")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "error"
+
+
+# def test_tools_install_mcp_server_invalid_file():
+#     with TestClient(app) as client:
+#         resp = client.get("/tools/install_mcp_server?server_name=/not/a/real/path.py")
+#         assert resp.status_code == 404
+#         assert resp.json()["status"] == "error"
+
+
+# def test_tools_install_mcp_server_valid_file(tmp_path, monkeypatch):
+#     # Create a dummy file in tmp_path
+#     dummy_file = tmp_path / "dummy.py"
+#     dummy_file.write_text("# dummy")
+#     with TestClient(app) as client:
+#         resp = client.get(f"/tools/install_mcp_server?server_name={dummy_file}")
+#         assert resp.status_code == 200
+#         assert resp.json()["status"] == "success"
+
+
+def test_tools_install_mcp_server_module(monkeypatch):
+    with TestClient(app) as client:
+        resp = client.get("/tools/install_mcp_server?server_name=mcp-server-git")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "success"
