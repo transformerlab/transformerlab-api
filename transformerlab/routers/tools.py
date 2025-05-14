@@ -265,7 +265,7 @@ async def install_mcp_server(server_name: str = Query(..., description="Module n
                 status_code=500,
                 content={"status": "error", "message": f"Failed to install '{server_name}'.", "output": result.stderr},
             )
-    except Exception as e:
+    except Exception:
         return JSONResponse(
             status_code=500, content={"status": "error", "message": "An internal error occurred during installation"}
         )
