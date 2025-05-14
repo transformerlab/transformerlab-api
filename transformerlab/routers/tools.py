@@ -244,8 +244,9 @@ async def install_mcp_server(server_name: str = Query(..., description="Module n
     # If it's a .py file, treat as a full file path and check if it exists
     if server_name.endswith(".py"):
         safe_root = os.path.expanduser("~")
+        server_name = os.path.abspath(os.path.normpath(server_name))
         # Check if the file is within the user's home directory
-        if not os.path.commonpath([os.path.abspath(server_name), safe_root]) == safe_root:
+        if not os.path.commonpath([server_name, safe_root]) == safe_root:
             return JSONResponse(
                 status_code=403,
                 content={"status": "error", "message": "Access to external files is forbidden."},
