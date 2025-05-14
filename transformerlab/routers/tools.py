@@ -148,30 +148,31 @@ async def call_tool(
     mcp_args: Optional[str] = Query(None, description="Comma-separated args for MCP server (if needed)"),
     mcp_env: Optional[str] = Query(None, description="JSON string for MCP server env (if needed)"),
 ):
-    if mcp_server_file:
-        args = mcp_args.split(",") if mcp_args and len(mcp_args) > 1 else None
-        # env = json.loads(mcp_env) if mcp_env else None
-        base_env = os.environ.copy()
-        override_env = json.loads(mcp_env) if mcp_env else {}
-        env = {**base_env, **override_env}
-        try:
-            function_args = json.loads(params)
-        except Exception:
-            return {"status": "error", "message": "Invalid parameters provided."}
-        result = await mcp_call_tool(mcp_server_file, tool_id, arguments=function_args, args=args, env=env)
-        final_result = ""
-        for content in result.content:
-            content = content.model_dump()
-            if isinstance(content, dict) and content.get("type") == "text":
-                final_result += f"\n {content.get('text')}"
-            elif isinstance(content, dict) and content.get("type") == "json":
-                final_result += f"\n {str(content.get('json'))}"
+    available_tools = load_tools()
+    if tool_id not in available_tools:
+        if mcp_server_file:
+            args = mcp_args.split(",") if mcp_args and len(mcp_args) > 1 else None
+            # env = json.loads(mcp_env) if mcp_env else None
+            base_env = os.environ.copy()
+            override_env = json.loads(mcp_env) if mcp_env else {}
+            env = {**base_env, **override_env}
+            try:
+                function_args = json.loads(params)
+            except Exception:
+                return {"status": "error", "message": "Invalid parameters provided."}
+            result = await mcp_call_tool(mcp_server_file, tool_id, arguments=function_args, args=args, env=env)
+            final_result = ""
+            for content in result.content:
+                content = content.model_dump()
+                if isinstance(content, dict) and content.get("type") == "text":
+                    final_result += f"\n {content.get('text')}"
+                elif isinstance(content, dict) and content.get("type") == "json":
+                    final_result += f"\n {str(content.get('json'))}"
 
-        return {"status": "success", "data": final_result}
-    else:
-        available_tools = load_tools()
-        if tool_id not in available_tools:
+            return {"status": "success", "data": final_result}
+        else:
             return {"status": "error", "message": f"No tool with ID {tool_id} found."}
+    else:
         try:
             function_args = json.loads(params)
         except Exception as e:
