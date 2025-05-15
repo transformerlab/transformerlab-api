@@ -11,7 +11,11 @@
     "Qwen2VLForConditionalGeneration",
     "Qwen2VLForCausalLM",
     "Qwen2_5_VLForConditionalGeneration",
-    "MllamaForConditionalGeneration"
+    "MllamaForConditionalGeneration",
+    "LlavaNextForConditionalGeneration",
+    "LlavaForConditionalGeneration",
+    "VipLlavaForConditionalGeneration",
+    "LlavaOnevisionForConditionalGeneration"
   ],
   "git": "",
   "url": "",
