@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-uv pip install  --upgrade evaluate bitsandbytes trl peft qwen-vl-utils
+uv pip install  --upgrade evaluate bitsandbytes trl peft

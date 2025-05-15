@@ -9,7 +9,8 @@
     "Qwen2ForVision2Seq",
     "Qwen2VLForVision2Seq",
     "Qwen2VLForConditionalGeneration",
-    "Qwen2VLForCausalLM"
+    "Qwen2VLForCausalLM",
+    "Qwen2_5_VLForConditionalGeneration"
   ],
   "git": "",
   "url": "",
