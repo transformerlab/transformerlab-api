@@ -25,36 +25,45 @@ def train_vlm():
     print(dataset[randrange(len(dataset))])
 
     # Setup template for formatting
-    formatting_template = getattr(tlab_trainer.params, "formatting_template", None)
-    if not formatting_template:
-        raise ValueError("A formatting_template must be provided in tlab_trainer.params")
-    template = jinja_environment.from_string(formatting_template)
+    input_template = getattr(tlab_trainer.params, "input_template", "")
+    output_template = getattr(tlab_trainer.params, "output_template", "")
+    system_prompt = getattr(tlab_trainer.params, "instruction_template", "")
+
+    input_template_jinja = jinja_environment.from_string(input_template)
+    
+    output_template_jinja = jinja_environment.from_string(output_template)
+    
+    system_prompt_jinja = jinja_environment.from_string(system_prompt)
+    
 
     image_col = getattr(tlab_trainer.params, "image_col_name", "image")
 
     def format_data(sample):
-        # Render the prompt using Jinja2
-        user_prompt = template.render(sample)
-        # Compose messages in OpenAI format
+        # Render each template with the sample as context
+        rendered_system = system_prompt_jinja.render(sample)
+        rendered_input = input_template_jinja.render(sample)
+        rendered_output = output_template_jinja.render(sample)
         return {
             "messages": [
                 {
                     "role": "system",
-                    "content": [{"type": "text", "text": tlab_trainer.params.get("system_message", "You are a helpful assistant.")}],
+                    "content": [{"type": "text", "text": rendered_system}],
                 },
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": user_prompt},
+                        {"type": "text", "text": rendered_input},
                         {"type": "image", "image": sample[image_col]},
                     ],
                 },
                 {
                     "role": "assistant",
-                    "content": [{"type": "text", "text": sample.get("description", "")}],
+                    "content": [{"type": "text", "text": rendered_output}],
                 },
             ]
         }
+
+
 
     # Convert dataset to OAI messages
     dataset = [format_data(sample) for sample in dataset]
