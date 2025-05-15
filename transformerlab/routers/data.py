@@ -180,8 +180,6 @@ async def dataset_preview(
             return {"status": "error", "message": f"Split '{split}' does not exist in the dataset."}
         dataset_len = len(dataset[split])
         columns = dataset[split][offset : min(offset + limit, dataset_len)]
-        print("RESULT COLUMNS")
-        print(columns)
         # Serialize each value in the columns dict, preserving the columnar format
         if isinstance(columns, dict):
             result["columns"] = {k: [serialize_row(v) for v in vals] for k, vals in columns.items()}
@@ -263,7 +261,7 @@ async def dataset_preview_with_template(
         row = {}
         row["__index__"] = i + offset
         for key in result["columns"].keys():
-            row[key] = result["columns"][key][i]
+            row[key] = serialize_row(result["columns"][key][i])
 
         # Apply the template to a new key in row called __formatted__
         row["__formatted__"] = jinja_template.render(row)
