@@ -36,13 +36,18 @@ def train_vlm():
     system_prompt_jinja = jinja_environment.from_string(system_prompt)
     
 
-    image_col = getattr(tlab_trainer.params, "image_col_name", "image")
+    image_col = getattr(tlab_trainer.params, "image_col_name", "")
 
     def format_data(sample):
         # Render each template with the sample as context
         rendered_system = system_prompt_jinja.render(sample)
         rendered_input = input_template_jinja.render(sample)
         rendered_output = output_template_jinja.render(sample)
+
+        user_content = [{"type": "text", "text": rendered_input}]
+        if image_col and image_col != "":
+            user_content.append({"type": "image", "image": sample[image_col]})
+
         return {
             "messages": [
                 {
@@ -51,10 +56,7 @@ def train_vlm():
                 },
                 {
                     "role": "user",
-                    "content": [
-                        {"type": "text", "text": rendered_input},
-                        {"type": "image", "image": sample[image_col]},
-                    ],
+                    "content": user_content,
                 },
                 {
                     "role": "assistant",
@@ -62,6 +64,7 @@ def train_vlm():
                 },
             ]
         }
+
 
 
 

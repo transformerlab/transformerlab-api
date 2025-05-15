@@ -88,7 +88,7 @@
       "ui:help": "System prompt for the assistant, e.g., 'You are a helpful assistant.'"
     },
     "image_col_name": {
-      "ui:help": "Name of the column in your dataset that contains the image data. This image column will be automatically added along with your input template. DO NOT include the image column in your input template."
+      "ui:help": "Name of the column in your dataset that contains the image data. This image column will be automatically added along with your input template. DO NOT include the image column in your input template. You can leave this blank if you don't want to add an image during training."
     },
     "batch_size": {
       "ui:help": "The number of samples processed simultaneously during training. Higher values require more memory."
