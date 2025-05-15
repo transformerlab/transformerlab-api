@@ -1,6 +1,8 @@
+import pytest
 import requests
 
 
+@pytest.mark.live_server
 def test_server_info(live_server):
     response = requests.get(f"{live_server}/server/info")
     assert response.status_code == 200
@@ -20,6 +22,7 @@ def test_server_info(live_server):
         assert key in disk
 
 
+@pytest.mark.live_server
 def test_server_python_libraries(live_server):
     response = requests.get(f"{live_server}/server/python_libraries")
     assert response.status_code == 200
@@ -33,6 +36,7 @@ def test_server_python_libraries(live_server):
         assert "version" in package and isinstance(package["version"], str) and package["version"]
 
 
+@pytest.mark.live_server
 def test_server_pytorch_collect_env(live_server):
     response = requests.get(f"{live_server}/server/pytorch_collect_env")
     assert response.status_code == 200

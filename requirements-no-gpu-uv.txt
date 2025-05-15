@@ -228,7 +228,7 @@ numpy==2.1.2
     #   torchvision
     #   transformerlab-inference
     #   transformers
-nvidia-ml-py3==7.352.0
+nvidia-ml-py==12.575.51
     # via -r requirements.in
 olefile==0.47
     # via markitdown

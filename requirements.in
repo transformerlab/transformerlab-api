@@ -6,7 +6,7 @@ einops
 evaluate
 fastapi
 loralib
-nvidia-ml-py3
+nvidia-ml-py
 packaging
 psutil
 py7zr
