@@ -25,7 +25,7 @@ def test_export_job():
 @patch('os.makedirs')
 @patch('os.path.join')
 @patch('json.dump')
-@patch('open')
+@patch('builtins.open')
 def test_run_exporter_script_success(
     mock_open, mock_json_dump, mock_path_join, mock_makedirs, 
     mock_job_update, mock_get_output_file, mock_subprocess, 
