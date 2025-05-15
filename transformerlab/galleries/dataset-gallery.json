@@ -37,7 +37,7 @@
   },
   {
     "id": 5,
-    "name": "Antropic RLHF",
+    "name": "Anthropic RLHF",
     "type": "Text-Generation",
     "huggingfacerepo": "Anthropic/hh-rlhf",
     "description": "Human preference data about helpfulness and harmlessness from Training a Helpful and Harmless Assistant with Reinforcement Learning from Human Feedback. ",
@@ -49,7 +49,7 @@
     "name": "Nectar",
     "type": "Conversational",
     "huggingfacerepo": "berkeley-nest/Nectar",
-    "description": "Nectar is the first high-quality 7-wise comparison dataset, generated through GPT-4-based ranking. Nectar contains diverse chat prompts, high-quality and diverse responses, and accurate ranking labels. Nectar's prompts are an amalgamation of diverse sources, including lmsys-chat-1M, ShareGPT, Antropic/hh-rlhf, UltraFeedback, Evol-Instruct, and Flan. ",
+    "description": "Nectar is the first high-quality 7-wise comparison dataset, generated through GPT-4-based ranking. Nectar contains diverse chat prompts, high-quality and diverse responses, and accurate ranking labels. Nectar's prompts are an amalgamation of diverse sources, including lmsys-chat-1M, ShareGPT, Anthropic/hh-rlhf, UltraFeedback, Evol-Instruct, and Flan. ",
     "size": 182954,
     "license": "APACHE-2.0"
   },
