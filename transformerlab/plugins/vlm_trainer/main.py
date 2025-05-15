@@ -1,3 +1,4 @@
+# Inspired by Phil Schmid's TRL Script: https://github.com/philschmid/deep-learning-pytorch-huggingface/blob/main/training/fine-tune-multimodal-llms-with-trl.ipynb
 import os
 import torch
 if torch.cuda.is_available():
@@ -64,6 +65,7 @@ def train_vlm():
                 },
             ]
         }
+
 
 
 
