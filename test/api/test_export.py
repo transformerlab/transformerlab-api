@@ -6,14 +6,14 @@ from unittest.mock import patch, AsyncMock, MagicMock
 
 def test_export_jobs():
     with TestClient(app) as client:
-        resp = client.get("/export/jobs?id=1")
+        resp = client.get("/experiment/1/export/jobs")
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
 
 
 def test_export_job():
     with TestClient(app) as client:
-        resp = client.get("/export/job?id=1&jobId=job123")
+        resp = client.get("/experiment/1/export/job?jobId=job123")
         assert resp.status_code == 200
 
 
@@ -56,11 +56,11 @@ def test_run_exporter_script_success(
     
     with TestClient(app) as client:
         resp = client.get(
-            "/export/run_exporter_script?id=1&plugin_name=test_plugin&plugin_architecture=GGUF&plugin_params=%7B%22q_bits%22%3A%224%22%7D"
+            "/experiment/1/export/run_exporter_script?plugin_name=test_plugin&plugin_architecture=GGUF&plugin_params=%7B%22q_bits%22%3A%224%22%7D"
         )
         assert resp.status_code == 200
         result = resp.json()
-        assert result["message"] == "success"
+        assert result["status"] == "success"
         assert result["job_id"] == "job123"
         
         # Verify that status was updated to COMPLETE
@@ -74,7 +74,7 @@ def test_run_exporter_script_invalid_experiment(mock_experiment_get):
     
     with TestClient(app) as client:
         resp = client.get(
-            "/export/run_exporter_script?id=999&plugin_name=test_plugin&plugin_architecture=GGUF"
+            "/experiment/999/export/run_exporter_script?plugin_name=test_plugin&plugin_architecture=GGUF"
         )
         assert resp.status_code == 200
         result = resp.json()
@@ -109,11 +109,11 @@ def test_run_exporter_script_process_error(
     
     with TestClient(app) as client:
         resp = client.get(
-            "/export/run_exporter_script?id=1&plugin_name=test_plugin&plugin_architecture=GGUF"
+            "/experiment/1/export/run_exporter_script?plugin_name=test_plugin&plugin_architecture=GGUF"
         )
         assert resp.status_code == 200
         result = resp.json()
-        assert "Failed to export model" in result["message"]
+        assert "Export failed" in result["message"]
         
         # Verify that status was updated to FAILED
         mock_job_update.assert_called_with(job_id="job123", status="FAILED") 
