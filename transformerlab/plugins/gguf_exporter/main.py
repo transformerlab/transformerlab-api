@@ -24,10 +24,8 @@ def gguf_export():
     outtype = tlab_exporter.params.get("outtype")
     output_dir = tlab_exporter.params.get("output_dir")
 
-    output_path = os.path.join(output_dir, "TEST")
-
     # Create output file
-    os.makedirs(output_path, exist_ok=True)
+    os.makedirs(output_dir, exist_ok=True)
 
     plugin_dir = os.path.realpath(os.path.dirname(__file__))
     python_executable = get_python_executable(plugin_dir)
@@ -59,7 +57,7 @@ def gguf_export():
     command = [
         python_executable,
         os.path.join(plugin_dir, "llama.cpp", "convert_hf_to_gguf.py"),
-        "--outfile", output_path,
+        "--outfile", output_dir,
         "--outtype", outtype,
         model_path,
     ]
