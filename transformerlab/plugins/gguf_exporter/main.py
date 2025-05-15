@@ -25,9 +25,9 @@ def gguf_export():
     output_model_id = tlab_exporter.params.get("output_model_id")
     output_dir = tlab_exporter.params.get("output_dir")
 
-    output_path = os.path.join(output_dir, os.path.splitext(output_model_id)[0])
-    output_file = os.path.join(output_path, output_model_id)
+    output_path = os.path.join(output_dir, "TEST")
 
+    # Create output file
     os.makedirs(output_path, exist_ok=True)
 
     plugin_dir = os.path.realpath(os.path.dirname(__file__))
@@ -39,6 +39,8 @@ def gguf_export():
     print("Starting GGUF conversion...")
     tlab_exporter.add_job_data("status", "Starting GGUF conversion")
 
+    # The model _should_ be available locally
+    # but call hugging_face anyways so we get the proper path to it
     model_path = input_model
     if not os.path.exists(model_path):
         tlab_exporter.add_job_data("status", "Downloading model from Hugging Face")
@@ -58,7 +60,7 @@ def gguf_export():
     command = [
         python_executable,
         os.path.join(plugin_dir, "llama.cpp", "convert_hf_to_gguf.py"),
-        "--outfile", output_file,
+        "--outfile", output_path,
         "--outtype", outtype,
         model_path,
     ]
@@ -79,7 +81,7 @@ def gguf_export():
         ) as process:
 
             output_lines = []
-            progress_value = 60
+            progress_value = 10
 
             for line in process.stdout:
                 line = line.strip()
@@ -94,7 +96,6 @@ def gguf_export():
 
                 output_lines.append(line)
                 print(line, flush=True)
-                progress_value = 0
 
                 # Detect writing progress
                 if line.startswith("Writing:"):

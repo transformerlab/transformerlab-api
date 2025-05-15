@@ -53,6 +53,8 @@ def mlx_export():
                 all_output_lines.append(line)
                 print(line, flush=True)
                 
+                # Determining progress based on MLX export command output
+                # WARNING: If output from MLX command changes, this will need to be updated
                 if "Loading" in line:
                     progress_value = 15
                     tlab_exporter.add_job_data("status", "Loading model")

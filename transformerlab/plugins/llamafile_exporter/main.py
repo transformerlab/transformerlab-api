@@ -23,7 +23,7 @@ def llamafile_export():
     outfile_name = f"{input_model_id_without_author}.llamafile"
     argsfile = os.path.join(plugin_dir, ".args")
 
-    # Create output_dir (plugin is responsible)
+    # Create output file
     os.makedirs(output_dir, exist_ok=True)
 
     print("Starting Llamafile conversion...")
