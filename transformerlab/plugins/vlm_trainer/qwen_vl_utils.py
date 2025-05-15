@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import base64
@@ -39,7 +38,7 @@ FPS_MAX_FRAMES = 768
 # Set the maximum number of video token inputs.
 # Here, 128K represents the maximum number of input tokens for the VLLM model.
 # Remember to adjust it according to your own configuration.
-VIDEO_TOTAL_PIXELS = int(float(os.environ.get('VIDEO_MAX_PIXELS', 128000 * 28 * 28 * 0.9)))
+VIDEO_TOTAL_PIXELS = int(float(os.environ.get("VIDEO_MAX_PIXELS", 128000 * 28 * 28 * 0.9)))
 logger.info(f"set VIDEO_TOTAL_PIXELS: {VIDEO_TOTAL_PIXELS}")
 
 
@@ -88,7 +87,7 @@ def smart_resize(
 
 
 def to_rgb(pil_image: Image.Image) -> Image.Image:
-    if pil_image.mode == 'RGBA':
+    if pil_image.mode == "RGBA":
         white_background = Image.new("RGB", pil_image.size, (255, 255, 255))
         white_background.paste(pil_image, mask=pil_image.split()[3])  # Use alpha channel as mask
         return white_background
@@ -284,7 +283,9 @@ def calculate_video_frame_range(
             f"Video duration: {max_duration:.2f}s ({total_frames} frames @ {video_fps}fps)"
         )
 
-    logger.info(f"calculate video frame range: {start_frame=}, {end_frame=}, {total_frames=} from {video_start=}, {video_end=}, {video_fps=:.3f}")
+    logger.info(
+        f"calculate video frame range: {start_frame=}, {end_frame=}, {total_frames=} from {video_start=}, {video_end=}, {video_fps=:.3f}"
+    )
     return start_frame, end_frame, end_frame - start_frame + 1
 
 
@@ -303,6 +304,7 @@ def _read_video_decord(
         torch.Tensor: the video tensor with shape (T, C, H, W).
     """
     import decord
+
     video_path = ele["video"]
     st = time.time()
     vr = decord.VideoReader(video_path)
@@ -325,9 +327,11 @@ def is_torchcodec_available() -> bool:
     """Check if torchcodec is available and properly installed."""
     try:
         import importlib.util
+
         if importlib.util.find_spec("torchcodec") is None:
             return False
-        from torchcodec.decoders import VideoDecoder
+        from torchcodec.decoders import VideoDecoder  # noqa
+
         return True
     except (ImportError, AttributeError, Exception):
         return False
@@ -348,7 +352,8 @@ def _read_video_torchcodec(
         torch.Tensor: the video tensor with shape (T, C, H, W).
     """
     from torchcodec.decoders import VideoDecoder
-    TORCHCODEC_NUM_THREADS = int(os.environ.get('TORCHCODEC_NUM_THREADS', 8))
+
+    TORCHCODEC_NUM_THREADS = int(os.environ.get("TORCHCODEC_NUM_THREADS", 8))
     logger.info(f"set TORCHCODEC_NUM_THREADS: {TORCHCODEC_NUM_THREADS}")
     video_path = ele["video"]
     st = time.time()
@@ -391,7 +396,9 @@ def get_video_reader_backend() -> str:
     return video_reader_backend
 
 
-def fetch_video(ele: dict, image_factor: int = IMAGE_FACTOR, return_video_sample_fps: bool = False) -> torch.Tensor | list[Image.Image]:
+def fetch_video(
+    ele: dict, image_factor: int = IMAGE_FACTOR, return_video_sample_fps: bool = False
+) -> torch.Tensor | list[Image.Image]:
     if isinstance(ele["video"], str):
         video_reader_backend = get_video_reader_backend()
         try:
@@ -460,7 +467,7 @@ def extract_vision_info(conversations: list[dict] | list[list[dict]]) -> list[di
                         "image" in ele
                         or "image_url" in ele
                         or "video" in ele
-                        or ele.get("type","") in ("image", "image_url", "video")
+                        or ele.get("type", "") in ("image", "image_url", "video")
                     ):
                         vision_infos.append(ele)
     return vision_infos
@@ -470,7 +477,6 @@ def process_vision_info(
     conversations: list[dict] | list[list[dict]],
     return_video_kwargs: bool = False,
 ) -> tuple[list[Image.Image] | None, list[torch.Tensor | list[Image.Image]] | None, Optional[dict]]:
-
     vision_infos = extract_vision_info(conversations)
     ## Read images or videos
     image_inputs = []
@@ -490,5 +496,5 @@ def process_vision_info(
     if len(video_inputs) == 0:
         video_inputs = None
     if return_video_kwargs:
-        return image_inputs, video_inputs, {'fps': video_sample_fps_list}
+        return image_inputs, video_inputs, {"fps": video_sample_fps_list}
     return image_inputs, video_inputs
