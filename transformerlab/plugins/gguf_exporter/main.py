@@ -22,7 +22,6 @@ def gguf_export():
     """Export a model to GGUF format"""
     input_model = tlab_exporter.params.get("model_name")
     outtype = tlab_exporter.params.get("outtype")
-    output_model_id = tlab_exporter.params.get("output_model_id")
     output_dir = tlab_exporter.params.get("output_dir")
 
     output_path = os.path.join(output_dir, "TEST")
