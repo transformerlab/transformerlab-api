@@ -79,6 +79,8 @@ datasets==2.19.1
     #   evaluate
 defusedxml==0.7.1
     # via youtube-transcript-api
+diffusers==0.33.1
+    # via -r requirements.in
 dill==0.3.8
     # via
     #   datasets
@@ -99,6 +101,7 @@ fastapi==0.115.7
 filelock==3.13.1
     # via
     #   datasets
+    #   diffusers
     #   huggingface-hub
     #   torch
     #   transformers
@@ -136,6 +139,7 @@ huggingface-hub==0.30.2
     # via
     #   accelerate
     #   datasets
+    #   diffusers
     #   evaluate
     #   peft
     #   sentence-transformers
@@ -149,6 +153,8 @@ idna==3.4
     #   httpx
     #   requests
     #   yarl
+importlib-metadata==8.7.0
+    # via diffusers
 inflate64==1.0.1
     # via py7zr
 isodate==0.7.2
@@ -215,6 +221,7 @@ numpy==2.1.2
     # via
     #   accelerate
     #   datasets
+    #   diffusers
     #   evaluate
     #   magika
     #   onnxruntime
@@ -296,6 +303,7 @@ peft==0.14.0
     # via -r requirements.in
 pillow==11.0.0
     # via
+    #   diffusers
     #   python-pptx
     #   sentence-transformers
     #   torchvision
@@ -379,6 +387,7 @@ pyzstd==0.16.2
     # via py7zr
 regex==2024.11.6
     # via
+    #   diffusers
     #   nltk
     #   tiktoken
     #   transformers
@@ -386,6 +395,7 @@ requests==2.28.1
     # via
     #   azure-core
     #   datasets
+    #   diffusers
     #   evaluate
     #   huggingface-hub
     #   markitdown
@@ -402,6 +412,7 @@ rouge-score==0.1.2
 safetensors==0.5.3
     # via
     #   accelerate
+    #   diffusers
     #   peft
     #   transformers
 scikit-learn==1.6.1
@@ -548,3 +559,5 @@ yarl==1.18.3
     # via aiohttp
 youtube-transcript-api==1.0.3
     # via markitdown
+zipp==3.21.0
+    # via importlib-metadata
