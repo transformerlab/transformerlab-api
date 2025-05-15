@@ -198,7 +198,7 @@ def train_vlm():
             adaptor_name = tlab_trainer.params.get("adaptor_name", "default")
             fused_model_name = f"{model_id_short}_{adaptor_name}"
             fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
-            peft_model = PeftModel.from_pretrained(model, args.output_dir)
+            peft_model = PeftModel.from_pretrained(model, args.adaptor_output_dir)
             merged_model = peft_model.merge_and_unload()
             merged_model.save_pretrained(fused_model_location)
             processor.tokenizer.save_pretrained(fused_model_location)
