@@ -141,18 +141,12 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
                 stderr_str = f"[stderr decode error]: {e}"
 
             if stderr_str.strip():
-                if "Traceback" in stderr_str or "Error" in stderr_str or "Exception" in stderr_str:
-                    print(f"Error output: {stderr_str}")
-                    f.write(f"\nError output:\n{stderr_str}")
-                else:
-                    print(f"Standard error stream:\n{stderr_str}")
-                    f.write(f"\nStandard error stream:\n{stderr_str}")
+                print(f"Error: {stderr_str}")
+                f.write(f"\nError:\n{stderr_str}")
 
             if process.returncode != 0:
-                fail_msg = f"Failed to export model. Return code: {process.returncode}"
                 await db.job_update_status(job_id=job_id, status="FAILED")
-                print(fail_msg)
-                return {"message": fail_msg}
+                return {"status": "error", "message": f"Export failed:{stderr_str}"}
                 
     except Exception as e:
         import logging
@@ -187,7 +181,7 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
     model_description_file.close()
 
     await db.job_update_status(job_id=job_id, status="COMPLETE")
-    return {"message": "success", "job_id": job_id}
+    return {"status": "success", "job_id": job_id}
 
 
 @router.get("/jobs")
@@ -217,7 +211,7 @@ async def get_output_file_name(job_id: str):
         # Get the plugin name from the job data
         plugin_name = job_data.get("plugin")
         if not plugin_name:
-            raise ValueError("Exporter name not found in job data")
+            raise ValueError("Plugin not found in job data")
         
         # Get the plugin directory
         plugin_dir = dirs.plugin_dir_by_name(plugin_name)
