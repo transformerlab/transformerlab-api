@@ -44,7 +44,7 @@ beautifulsoup4==4.13.3
     #   markitdown
 brotli==1.1.0
     # via py7zr
-certifi==2022.12.7
+certifi==2024.7.4
     # via
     #   httpcore
     #   httpx
@@ -122,7 +122,7 @@ greenlet==3.1.1
     # via sqlalchemy
 grpcio==1.70.0
     # via tensorboard
-h11==0.14.0
+h11==0.16.0
     # via
     #   httpcore
     #   uvicorn
@@ -143,7 +143,7 @@ huggingface-hub==0.30.2
     #   transformers
 humanfriendly==10.0
     # via coloredlogs
-idna==3.4
+idna==3.7
     # via
     #   anyio
     #   httpx
@@ -153,7 +153,7 @@ inflate64==1.0.1
     # via py7zr
 isodate==0.7.2
     # via azure-ai-documentintelligence
-jinja2==3.1.4
+jinja2==3.1.6
     # via torch
 joblib==1.4.2
     # via
@@ -382,7 +382,7 @@ regex==2024.11.6
     #   nltk
     #   tiktoken
     #   transformers
-requests==2.28.1
+requests==2.32.2
     # via
     #   azure-core
     #   datasets
@@ -518,7 +518,7 @@ typing-extensions==4.12.2
     #   wandb
 tzdata==2025.1
     # via pandas
-urllib3==1.26.13
+urllib3==1.26.19
     # via
     #   requests
     #   sentry-sdk
