@@ -322,29 +322,37 @@ install_dependencies() {
 
   check_python
 
-  # store if the machine has MacOS/NVIDIA graphics card
-  HAS_GPU=false
+  # Detect GPU type: NVIDIA vs AMD (ROCm)
+  HAS_NVIDIA=false
+  HAS_AMD=false
 
   if command -v nvidia-smi &> /dev/null; then
-      # Check if nvidia-smi is available
       echo "nvidia-smi is available"
       GPU_INFO=$(nvidia-smi --query-gpu=name --format=csv,noheader,nounits) || echo "Issue with NVIDIA SMI"
-      echo "$GPU_INFO"
       if [ -n "$GPU_INFO" ]; then
           echo "NVIDIA GPU detected: $GPU_INFO"
-          HAS_GPU=true
+          HAS_NVIDIA=true
       else
-          echo "Nvidia SMI exists, No NVIDIA GPU detected. Perhaps you need to re-install NVIDIA drivers."
+          echo "nvidia-smi exists but no NVIDIA GPU found"
+      fi
+  elif command -v rocm-smi &> /dev/null; then
+      echo "rocm-smi is available"
+      AMD_INFO=$(rocm-smi --showproductname | awk '/^GPU/ {print $2}') || echo "Issue with ROCm SMI"
+      if [ -n "$AMD_INFO" ]; then
+          echo "AMD GPU detected: $AMD_INFO"
+          HAS_AMD=true
+      else
+          echo "rocm-smi exists but no AMD GPU found"
       fi
   fi
 
-  #install uv
+  # install uv
   pip install uv
   
-  echo "HAS_GPU=$HAS_GPU"
+  echo "HAS_NVIDIA=$HAS_NVIDIA, HAS_AMD=$HAS_AMD"
   PIP_WHEEL_FLAGS="--upgrade"
 
-  if [ "$HAS_GPU" = true ] ; then
+  if [ "$HAS_NVIDIA" = true ]; then
       echo "Your computer has a GPU; installing cuda:"
       conda install -y cuda==12.8.1 --force-reinstall -c nvidia/label/cuda-12.8.1
 
@@ -361,6 +369,14 @@ install_dependencies() {
 
       PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/cu128"
       uv pip install ${PIP_WHEEL_FLAGS} -r ${REQS_PATH}
+
+  elif [ "$HAS_AMD" = true ]; then
+      echo "Installing requirements for ROCm:"
+      if ! [ -e "$TLAB_CODE_DIR/requirements-rocm-uv.txt" ]; then
+        cp "$RUN_DIR"/requirements-rocm-uv.txt "$TLAB_CODE_DIR"/requirements-rocm-uv.txt
+      fi
+      PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/rocm6.3"
+      uv pip install ${PIP_WHEEL_FLAGS} -r "$TLAB_CODE_DIR"/requirements-rocm-uv.txt
 
   else
       echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."
