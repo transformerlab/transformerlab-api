@@ -241,6 +241,7 @@ def train_embedding_model():
     # Configure training arguments
     training_args = SentenceTransformerTrainingArguments(
         output_dir=output_dir,
+        logging_dir=os.path.join(output_dir, f"job_{job_id}_embedding_model_plugin"),
         num_train_epochs=num_train_epochs,
         per_device_train_batch_size=batch_size,
         fp16=fp16,
