@@ -18,7 +18,6 @@ def mlx_export():
     python_executable = get_python_executable(plugin_dir)
 
     env = os.environ.copy()
-    env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
 
     command = [
         python_executable, "-u", "-m", "mlx_lm", "convert",

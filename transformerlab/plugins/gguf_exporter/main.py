@@ -31,7 +31,6 @@ def gguf_export():
     python_executable = get_python_executable(plugin_dir)
 
     env = os.environ.copy()
-    env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
 
     print("Starting GGUF conversion...")
     tlab_exporter.add_job_data("status", "Starting GGUF conversion")
