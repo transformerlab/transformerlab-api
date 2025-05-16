@@ -61,6 +61,8 @@ async def start_next_job():
         experiment_id = nextjob["experiment_id"]
         data = await db.experiment_get(experiment_id)
         if data is None:
+            # mark the job as failed
+            await db.job_update_status(nextjob["id"], "FAILED")
             return {"message": f"Experiment {id} does not exist"}
         # config = json.loads(data["config"])
 
