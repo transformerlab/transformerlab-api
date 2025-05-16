@@ -10,25 +10,6 @@
   },
   {
     "id": 2,
-    "name": "Open Orca",
-    "type": "Conversational",
-    "huggingfacerepo": "Open-Orca/OpenOrca",
-    "description": "Rich collection of augmented FLAN data aligns, as best as possible, with the distributions outlined in the Orca paper. It has been instrumental in generating high-performing model checkpoints and serves as a valuable resource for all NLP researchers and developers!",
-    "size": "4224200000",
-    "license": "GPL"
-  },
-  {
-    "id": 3,
-    "name": "Salesforce DialogStudio",
-    "type": "Conversational",
-    "website": "https://github.com/salesforce/DialogStudio",
-    "huggingfacerepo": "Salesforce/dialogstudio",
-    "description": "DialogStudio is a large collection and unified dialog datasets. The figure below provides a summary of the general statistics associated with DialogStudio. DialogStudio unified each dataset while preserving its original information, and this aids in supporting research on both individual datasets and Large Language Model (LLM) training.",
-    "size": "330000000",
-    "license": "GPL"
-  },
-  {
-    "id": 4,
     "name": "Databricks Dolly 15k",
     "type": "Conversational",
     "huggingfacerepo": "databricks/databricks-dolly-15k",
@@ -37,44 +18,16 @@
     "license": "GPL"
   },
   {
-    "id": 5,
-    "name": "Clinical Dataset",
-    "type": "Summarization",
-    "huggingfacerepo": "Elfsong/ClinicalDataset",
-    "description": "The training set consists of 1,201 pairs of conversations and associated section headers and contents. The validation set consists of 100 pairs of conversations and their summaries.",
-    "size": "2400000",
-    "license": "GPL"
-  },
-  {
-    "id": 6,
-    "name": "OpenChat ShareGPT GPT-4",
-    "type": "Conversational",
-    "huggingfacerepo": "openchat/openchat_sharegpt4_dataset",
-    "description": "OpenChat is a series of open-source language models based on supervised fine-tuning (SFT). We leverage the ~80k ShareGPT conversations with a conditioning strategy and weighted loss to achieve remarkable performance despite our simple methods. Our final vision is to develop a high-performance, open-source, and commercially available large language model, and we are continuously making progress.",
-    "size": "24200000",
-    "license": "GPL"
-  },
-  {
-    "id": 7,
+    "id": 3,
     "name": "SAMSum Corpus",
     "type": "Summarization",
     "huggingfacerepo": "samsum",
     "description": "The SAMSum dataset contains about 16k messenger-like conversations with summaries. Conversations were created and written down by linguists fluent in English. Linguists were asked to create conversations similar to those they write on a daily basis, reflecting the proportion of topics of their real-life messenger convesations. The style and register are diversified - conversations could be informal, semi-formal or formal, they may contain slang words, emoticons and typos. Then, the conversations were annotated with summaries. It was assumed that summaries should be a concise brief of what people talked about in the conversation in third person. The SAMSum dataset was prepared by Samsung R&D Institute Poland and is distributed for research purposes (non-commercial licence: CC BY-NC-ND 4.0).",
-    "size": 6.5e6,
+    "size": 6500000.0,
     "license": "GPL"
   },
   {
-    "id": 8,
-    "name": "Wikipedia (20220301.en)",
-    "type": "Text-Generation",
-    "huggingfacerepo": "wikipedia",
-    "description": "Wikipedia dataset containing cleaned articles of all languages. The datasets are built from the Wikipedia dump (https://dumps.wikimedia.org/) with one split per language. Each example contains the content of one full Wikipedia article with cleaning to strip markdown and unwanted sections (references, etc.).",
-    "size": 20598313936,
-    "license": "GPL",
-    "dataset_config": "20220301.en"
-  },
-  {
-    "id": 9,
+    "id": 4,
     "name": "PKU-SafeRLHF",
     "type": "Text-Generation",
     "huggingfacerepo": "PKU-Alignment/PKU-SafeRLHF",
@@ -83,16 +36,25 @@
     "license": "CC BY-NC 4.0"
   },
   {
-    "id": 10,
+    "id": 5,
+    "name": "Anthropic RLHF",
+    "type": "Text-Generation",
+    "huggingfacerepo": "Anthropic/hh-rlhf",
+    "description": "Human preference data about helpfulness and harmlessness from Training a Helpful and Harmless Assistant with Reinforcement Learning from Human Feedback. ",
+    "size": 169352,
+    "license": "GPL"
+  },
+  {
+    "id": 6,
     "name": "Nectar",
     "type": "Conversational",
     "huggingfacerepo": "berkeley-nest/Nectar",
-    "description": "Nectar is the first high-quality 7-wise comparison dataset, generated through GPT-4-based ranking. Nectar contains diverse chat prompts, high-quality and diverse responses, and accurate ranking labels. Nectar's prompts are an amalgamation of diverse sources, including lmsys-chat-1M, ShareGPT, Antropic/hh-rlhf, UltraFeedback, Evol-Instruct, and Flan. ",
+    "description": "Nectar is the first high-quality 7-wise comparison dataset, generated through GPT-4-based ranking. Nectar contains diverse chat prompts, high-quality and diverse responses, and accurate ranking labels. Nectar's prompts are an amalgamation of diverse sources, including lmsys-chat-1M, ShareGPT, Anthropic/hh-rlhf, UltraFeedback, Evol-Instruct, and Flan. ",
     "size": 182954,
     "license": "APACHE-2.0"
   },
   {
-    "id": 11,
+    "id": 7,
     "name": "OpenHermes",
     "type": "Text-Generation",
     "huggingfacerepo": "teknium/openhermes",
@@ -101,12 +63,50 @@
     "license": "GPL"
   },
   {
-    "id": 12,
+    "id": 8,
     "name": "MetaMathQA",
     "type": "Conversational",
     "huggingfacerepo": "meta-math/MetaMathQA",
     "description": "MetaMath-Mistral-7B is fully fine-tuned on the MetaMathQA datasets and based on the powerful Mistral-7B model. It is glad to see using MetaMathQA datasets and changing the base model from llama-2-7B to Mistral-7b can boost the GSM8K performance from 66.5 to 77.7.",
     "size": 395000,
     "license": "MIT"
+  },
+  {
+    "id": 9,
+    "name": "OpenWebText 10k",
+    "type": "Text-Generation",
+    "huggingfacerepo": "stas/openwebtext-10k",
+    "description": "10K slice of OpenWebText - An open-source replication of the WebText dataset from OpenAI.",
+    "size": 10000,
+    "license": "GPL"
+  },
+  {
+    "id": 10,
+    "name": "INTELLECT-2 RL Dataset",
+    "type": "Conversational",
+    "huggingfacerepo": "PrimeIntellect/INTELLECT-2-RL-Dataset",
+    "description": "Math and Coding tasks used for training the INTELLECT-2 model.",
+    "size": 285000,
+    "license": "GPL"
+  },
+  {
+    "id": 11,
+    "name": "Agentica DeepCoder Dataset",
+    "type": "Conversational",
+    "huggingfacerepo": "agentica-org/DeepCoder-Preview-Dataset",
+    "description": "7.5K TACO Verified problems for training and evaluation of the Agentica DeepCoder model. ",
+    "size": 7500,
+    "license": "GPL",
+    "dataset_config": "taco"
+  },
+  {
+    "id": 12,
+    "name": "Wikipedia (20220301.en)",
+    "type": "Text-Generation",
+    "huggingfacerepo": "wikimedia/wikipedia",
+    "description": "Wikipedia dataset containing cleaned articles of all languages. The datasets are built from the Wikipedia dump (https://dumps.wikimedia.org/) with one split per language. Each example contains the content of one full Wikipedia article with cleaning to strip markdown and unwanted sections (references, etc.).",
+    "size": 20598313936,
+    "license": "GPL",
+    "dataset_config": "20231101.en"
   }
 ]

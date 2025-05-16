@@ -4,22 +4,23 @@ from random import randrange
 
 import torch
 import shutil
+
 HAS_AMD = False
 if shutil.which("rocminfo") is not None:
     HAS_AMD = True
 if torch.cuda.is_available():
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     os.environ["HIP_VISIBLE_DEVICES"] = "0"
-    
-from jinja2 import Environment # noqa: E402
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel # noqa: E402
-from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig # noqa: E402
-from trl import SFTConfig, SFTTrainer # noqa: E402
-import torch.nn as nn # noqa: E402
+
+from jinja2 import Environment  # noqa: E402
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel  # noqa: E402
+from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig  # noqa: E402
+from trl import SFTConfig, SFTTrainer  # noqa: E402
+import torch.nn as nn  # noqa: E402
 
 
-from transformerlab.plugin import WORKSPACE_DIR # noqa: E402
-from transformerlab.sdk.v1.train import tlab_trainer # noqa: E402
+from transformerlab.plugin import WORKSPACE_DIR  # noqa: E402
+from transformerlab.sdk.v1.train import tlab_trainer  # noqa: E402
 
 use_flash_attention = False
 # Initialize Jinja environment
@@ -35,8 +36,8 @@ def find_lora_target_modules(model, keyword="proj"):
     for name, module in model.named_modules():
         if isinstance(module, nn.Linear) and keyword in name:
             # Keep full relative module name, excluding the root prefix (e.g., "model.")
-            cleaned_name = ".".join(name.split('.')[1:]) if name.startswith("model.") else name
-            module_names.add(cleaned_name.split('.')[-1])  # Use just the relative layer name
+            cleaned_name = ".".join(name.split(".")[1:]) if name.startswith("model.") else name
+            module_names.add(cleaned_name.split(".")[-1])  # Use just the relative layer name
     return sorted(module_names)
 
 
@@ -62,6 +63,7 @@ def train_model():
     # Setup quantization
     if not HAS_AMD:
         from transformers import BitsAndBytesConfig
+
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_use_double_quant=True,
@@ -84,12 +86,12 @@ def train_model():
             )
         else:
             model = AutoModelForCausalLM.from_pretrained(
-                    model_id,
-                    use_cache=False,
-                    use_flash_attention_2=use_flash_attention,
-                    device_map="auto",
-                    trust_remote_code=True,
-                )
+                model_id,
+                use_cache=False,
+                use_flash_attention_2=use_flash_attention,
+                device_map="auto",
+                trust_remote_code=True,
+            )
         lora_target_modules = find_lora_target_modules(model)
         model.config.pretraining_tp = 1
 
@@ -109,11 +111,11 @@ def train_model():
             )
         else:
             model = AutoModelForCausalLM.from_pretrained(
-                    model_id,
-                    use_flash_attention_2=use_flash_attention,
-                    device_map="auto",
-                    trust_remote_code=True,
-                )
+                model_id,
+                use_flash_attention_2=use_flash_attention,
+                device_map="auto",
+                trust_remote_code=True,
+            )
         lora_target_modules = find_lora_target_modules(model)
         model.config.pretraining_tp = 1
 
@@ -216,20 +218,30 @@ def train_model():
             run_name=f"job_{tlab_trainer.params.job_id}_{run_suffix}",
             report_to=tlab_trainer.report_to,
         )
-        
 
     # Create progress callback
-    progress_callback = tlab_trainer.create_progress_callback(framework="huggingface")
+    callback = tlab_trainer.create_progress_callback() if hasattr(tlab_trainer, "create_progress_callback") else None
+    callbacks = [callback] if callback else []
+
+    # Setup evaluation dataset - use 10% of the data if enough examples
+    if len(dataset) >= 10:
+        split_dataset = dataset.train_test_split(test_size=0.1)
+        train_data = split_dataset["train"]
+        eval_data = split_dataset["test"]
+    else:
+        train_data = dataset
+        eval_data = None
 
     # Create trainer
     trainer = SFTTrainer(
         model=model,
-        train_dataset=dataset,
+        train_dataset=train_data,
+        eval_dataset=eval_data,
         peft_config=peft_config,
         processing_class=tokenizer,
         formatting_func=format_instruction,
         args=training_args,
-        callbacks=[progress_callback],
+        callbacks=callbacks,
     )
 
     # Train the model
@@ -256,19 +268,19 @@ def train_model():
             # Load the base model again
             try:
                 model = AutoModelForCausalLM.from_pretrained(
-                        model_id,
-                        use_cache=False,
-                        use_flash_attention_2=use_flash_attention,
-                        device_map="auto",
-                        trust_remote_code=True,
-                    )
+                    model_id,
+                    use_cache=False,
+                    use_flash_attention_2=use_flash_attention,
+                    device_map="auto",
+                    trust_remote_code=True,
+                )
             except TypeError:
                 model = AutoModelForCausalLM.from_pretrained(
-                        model_id,
-                        use_flash_attention_2=use_flash_attention,
-                        device_map="auto",
-                        trust_remote_code=True,
-                    )
+                    model_id,
+                    use_flash_attention_2=use_flash_attention,
+                    device_map="auto",
+                    trust_remote_code=True,
+                )
 
             if "/" in model_id:
                 model_id = model_id.split("/")[-1]
@@ -281,8 +293,8 @@ def train_model():
             tokenizer.save_pretrained(fused_model_location)
             print(f"Model saved successfully to {fused_model_location}")
             json_data = {
-                        "description": f"A model trained and generated by Transformer Lab based on {tlab_trainer.params.model_name}"
-                    }
+                "description": f"A model trained and generated by Transformer Lab based on {tlab_trainer.params.model_name}"
+            }
             tlab_trainer.create_transformerlab_model(fused_model_name, model_architecture, json_data)
 
         except Exception as e:

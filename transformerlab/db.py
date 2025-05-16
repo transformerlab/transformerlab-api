@@ -504,7 +504,7 @@ async def job_delete_all():
 
 
 async def job_delete(job_id):
-    print("Deleting job: " + job_id)
+    print("Deleting job: " + str(job_id))
     # await db.execute("DELETE FROM job WHERE id = ?", (job_id,))
     # instead of deleting, set status of job to deleted:
     await db.execute("UPDATE job SET status = 'DELETED' WHERE id = ?", (job_id,))
@@ -530,8 +530,31 @@ async def job_update_job_data_insert_key_value(job_id, key, value):
 
 
 async def job_stop(job_id):
-    print("Stopping job: " + job_id)
+    print("Stopping job: " + str(job_id))
     await job_update_job_data_insert_key_value(job_id, "stop", True)
+    return
+
+
+async def job_update_progress(job_id, progress):
+    """
+    Update the percent complete for this job.
+
+    progress: int representing percent complete
+    """
+    await db.execute(
+        "UPDATE job SET progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (progress, job_id),
+    )
+
+
+async def job_update_sweep_progress(job_id, value):
+    value = json.dumps(value)
+
+    await db.execute(
+        "UPDATE job SET job_data = " + "json_set(job_data,'$.sweep_progress', json(?))  WHERE id = ?",
+        (value, job_id),
+    )
+    await db.commit()
     return
 
 
@@ -741,13 +764,6 @@ async def training_jobs_get_all():
 #     return row[0]
 
 
-async def job_get_for_template_id(template_id):
-    cursor = await db.execute("SELECT * FROM job WHERE template_id = ?", (template_id,))
-    rows = await cursor.fetchall()
-    await cursor.close()
-    return rows
-
-
 ####################
 # EXPEORT JOBS MODEL
 # Export jobs use the job_data JSON object to store:
@@ -923,8 +939,8 @@ async def workflow_run_get_by_id(workflow_run_id):
     return row
 
 
-async def workflow_delete_by_id(workflow_id):
-    print("Deleting workflow: " + workflow_id)
+async def workflow_delete_by_id(workflow_id: str):
+    print("Deleting workflow: " + str(workflow_id))
     await db.execute(
         "UPDATE workflows SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE id = ?", (workflow_id,)
     )
@@ -1085,6 +1101,9 @@ async def get_plugins_of_type(type: str):
 async def get_plugin(slug: str):
     cursor = await db.execute("SELECT id, * FROM plugins WHERE name = ?", (slug,))
     row = await cursor.fetchone()
+    if row is None:
+        await cursor.close()
+        return None
     desc = cursor.description
     column_names = [col[0] for col in desc]
     row = dict(itertools.zip_longest(column_names, row))

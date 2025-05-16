@@ -22,6 +22,7 @@
     "MistralForCausalLM",
     "MixtralForCausalLM"
   ],
+  "supports": ["sweeps"],
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],

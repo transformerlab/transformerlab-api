@@ -61,6 +61,10 @@ def get_docs_list(docs: str) -> List[dict]:
                         print(f"Error reading file {file_full_path}: {e}")
         else:
             full_path = os.path.join(documents_dir, doc)
+            # Replace ending extension with .md if .tlab_markitdown is in the full_path somewhere
+            if ".tlab_markitdown" in full_path:
+                base, ext = os.path.splitext(full_path)
+                full_path = base + ".md"
             try:
                 if full_path.lower().endswith(".pdf"):
                     content = extract_text_from_pdf(full_path)

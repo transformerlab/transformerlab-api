@@ -5,18 +5,15 @@ datasets
 einops
 evaluate
 fastapi
-loralib
-nvidia-ml-py3
+nvidia-ml-py
 packaging
 psutil
-py7zr
-pydantic>= 2.0
 python-multipart
-rouge-score
+pydantic>= 2.0
+nltk==3.9.1
 scipy
 sentencepiece
 tensorboard
-tensorboardX
 tiktoken
 torch==2.7.0
 torchaudio==2.7.0
