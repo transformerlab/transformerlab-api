@@ -171,7 +171,7 @@ markdown2==2.5.3
     # via transformerlab-inference
 markdownify==1.1.0
     # via markitdown
-markitdown==0.1.1
+markitdown[all]==0.1.1
     # via -r requirements.in
 markupsafe==2.1.5
     # via
@@ -217,8 +217,6 @@ numpy==2.1.2
     #   torchvision
     #   transformerlab-inference
     #   transformers
-nvidia-ml-py==12.575.51
-    # via -r requirements.in
 olefile==0.47
     # via markitdown
 onnxruntime==1.21.1
@@ -409,7 +407,7 @@ tiktoken==0.9.0
     #   transformerlab-inference
 tokenizers==0.21.1
     # via transformers
-torch==2.7.0+rocm6.3
+torch==2.7.0
     # via
     #   -r requirements.in
     #   accelerate
@@ -417,9 +415,9 @@ torch==2.7.0+rocm6.3
     #   sentence-transformers
     #   torchaudio
     #   torchvision
-torchaudio==2.7.0+rocm6.3
+torchaudio==2.7.0
     # via -r requirements.in
-torchvision==0.22.0+rocm6.3
+torchvision==0.22.0
     # via -r requirements.in
 tqdm==4.66.5
     # via
