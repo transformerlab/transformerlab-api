@@ -1,7 +1,12 @@
 [
     {
         "name": "exaone",
-        "description": "EXAONE models tailored for Korean NLP and multilingual reasoning.",
+        "description": "Multimodal foundation, designed for enterprise-scale reasoning across language, vision, and code domains.",
+        "tags": [
+            "multimodal",
+            "multilingual",
+            "reasoning"
+        ],
         "models": [
             {
                 "uniqueID": "LGAI-EXAONE/EXAONE-Deep-2.4B",
@@ -94,7 +99,12 @@
     },
     {
         "name": "vicuna",
-        "description": "Vicuna models trained on open assistant datasets.",
+        "description": "Fine-tuned and conversational. Derived from the Alpaca and LLaMA line.",
+        "tags": [
+            "chat",
+            "instruction-tuned",
+            "alpaca-derivative"
+        ],
         "models": [
             {
                 "uniqueID": "lmsys/vicuna-7b-v1.5",
@@ -184,7 +194,12 @@
     },
     {
         "name": "watt",
-        "description": "Watt family of models for specialized domain tasks.",
+        "description": "Specialized for tool use and dynamic plugin-based reasoning tasks.",
+        "tags": [
+            "tool-use",
+            "inference",
+            "plugins"
+        ],
         "models": [
             {
                 "uniqueID": "watt-ai/watt-tool-8B",
@@ -222,7 +237,12 @@
     },
     {
         "name": "aya",
-        "description": "Models under the AYA name, optimized for general-purpose LLM tasks.",
+        "description": "Instruction-tuned and multilingual, supporting 23 languages with strong general-purpose capabilities.",
+        "tags": [
+            "multilingual",
+            "instruction-tuned",
+            "general-purpose"
+        ],
         "models": [
             {
                 "uniqueID": "CohereForAI/aya-23-8B",
@@ -246,7 +266,11 @@
     },
     {
         "name": "openllama",
-        "description": "OpenLLaMA models\u2014open versions of Meta\u2019s LLaMA architecture.",
+        "description": "Community-built open version of the LLaMA architecture for research and development.",
+        "tags": [
+            "open-weight",
+            "llama-compatible"
+        ],
         "models": [
             {
                 "uniqueID": "openlm-research/open_llama_3b_v2",
@@ -310,7 +334,12 @@
     },
     {
         "name": "gemma",
-        "description": "Google's Gemma models including Gemma2 and Gemma3 variations.",
+        "description": "Compact, research-focused language model developed for experimental scalability.",
+        "tags": [
+            "google",
+            "compact",
+            "research"
+        ],
         "models": [
             {
                 "uniqueID": "unsloth/gemma-3-1b-it-GGUF",
@@ -1021,7 +1050,12 @@
     },
     {
         "name": "llama",
-        "description": "Meta's LLaMA series including LLaMA 2 and LLaMA 3.",
+        "description": "Foundational language models known for versatility and strong pretraining baseline by Meta.",
+        "tags": [
+            "meta",
+            "base-model",
+            "general-purpose"
+        ],
         "models": [
             {
                 "uniqueID": "mlx-community/Llama-2-7b-mlx",
@@ -1663,7 +1697,14 @@
     },
     {
         "name": "llava",
-        "description": "LLaVA models for visual instruction tuning and multimodal tasks.",
+        "description": "A vision-language model capable of multimodal understanding and visual question answering.",
+        "tags": [
+            "multimodal",
+            "vision-language",
+            "vqa",
+            "image-captioning",
+            "chat"
+        ],
         "models": [
             {
                 "uniqueID": "bczhou/tiny-llava-v1-hf",
@@ -1727,7 +1768,11 @@
     },
     {
         "name": "intellect",
-        "description": "INTELLECT models aimed at advanced reasoning and summarization.",
+        "description": "Reasoning-focused. Designed for analytical and structured language tasks.",
+        "tags": [
+            "reasoning",
+            "research"
+        ],
         "models": [
             {
                 "uniqueID": "PrimeIntellect/INTELLECT-2",
@@ -1763,7 +1808,12 @@
     },
     {
         "name": "smollm",
-        "description": "Small open-source models for lightweight inference use cases.",
+        "description": "Tiny instruct models designed for experimentation and lightweight tasks.",
+        "tags": [
+            "tiny-model",
+            "instruct",
+            "experimentation"
+        ],
         "models": [
             {
                 "uniqueID": "mlx-community/SmolLM-135M-4bit",
@@ -1856,7 +1906,12 @@
     },
     {
         "name": "cogito",
-        "description": "Cogito AI models targeting reasoning and language understanding.",
+        "description": "Hybrid reasoning capability. Outperforming peers across standard benchmarks in its size class.",
+        "tags": [
+            "reasoning",
+            "hybrid",
+            "performance"
+        ],
         "models": [
             {
                 "uniqueID": "deepcogito/cogito-v1-preview-llama-3B",
@@ -2012,7 +2067,12 @@
     },
     {
         "name": "mistral",
-        "description": "Mistral models including the Instruct and 24B small variants.",
+        "description": "Fast, open-weight transformer optimized for low-latency inference.",
+        "tags": [
+            "open-weight",
+            "fast-inference",
+            "efficient"
+        ],
         "models": [
             {
                 "uniqueID": "mlx-community/Mistral-7B-Instruct-v0.1-4bit-mlx",
@@ -2487,7 +2547,11 @@
     },
     {
         "name": "falcon",
-        "description": "Falcon models, open-weight LLMs by TII UAE.",
+        "description": "Open-weight transformer with competitive performance across diverse language tasks.",
+        "tags": [
+            "general-purpose",
+            "open-weight"
+        ],
         "models": [
             {
                 "uniqueID": "tiiuae/falcon-7b",
@@ -2551,7 +2615,12 @@
     },
     {
         "name": "flan",
-        "description": "Google's FLAN series of instruction-tuned language models.",
+        "description": "Versatile instruction-tuned variant of T5 excelling across multitask benchmarks.",
+        "tags": [
+            "instruction-tuned",
+            "versatile",
+            "t5"
+        ],
         "models": [
             {
                 "uniqueID": "google/flan-t5-small",
@@ -2586,7 +2655,12 @@
     },
     {
         "name": "qwen",
-        "description": "Qwen and Qwen2.5 models including QwenCoder and instruction-tuned variants.",
+        "description": "Multilingual, high-accuracy transformer excelling in reasoning and benchmark tasks.",
+        "tags": [
+            "performance",
+            "reasoning",
+            "multilingual"
+        ],
         "models": [
             {
                 "uniqueID": "Qwen/Qwen2-7B-Instruct",
@@ -3672,7 +3746,12 @@
     },
     {
         "name": "starling",
-        "description": "Starling models focused on chat and dialogue optimization.",
+        "description": "General-purpose, designed for engaging instruction-following dialogues.",
+        "tags": [
+            "chat",
+            "instruct",
+            "research"
+        ],
         "models": [
             {
                 "uniqueID": "berkeley-nest/Starling-LM-7B-alpha",
@@ -3706,7 +3785,12 @@
     },
     {
         "name": "fastchat-t5",
-        "description": "T5-based models adapted for FastChat interface compatibility.",
+        "description": "Lightweight chatbot model optimized for fast response generation using the T5 architecture.",
+        "tags": [
+            "chatbot",
+            "fast-inference",
+            "t5"
+        ],
         "models": [
             {
                 "uniqueID": "lmsys/fastchat-t5-3b-v1.0",
@@ -3740,7 +3824,12 @@
     },
     {
         "name": "command",
-        "description": "Cohere's Command family including instruction-tuned variants.",
+        "description": "Robust and instruction-following. Designed for enterprise-scale NLP tasks.",
+        "tags": [
+            "instruction-tuned",
+            "enterprise",
+            "cohere"
+        ],
         "models": [
             {
                 "uniqueID": "CohereForAI/c4ai-command-a-03-2025",
@@ -3858,7 +3947,12 @@
     },
     {
         "name": "zyphra",
-        "description": "Zyphra models for efficient deployment in constrained environments.",
+        "description": "small yet powerful, excelling in code and math reasoning with high token efficiency.",
+        "tags": [
+            "reasoning",
+            "math",
+            "code-generation"
+        ],
         "models": [
             {
                 "uniqueID": "Zyphra/ZR1-1.5B",
@@ -3894,7 +3988,12 @@
     },
     {
         "name": "phi",
-        "description": "Microsoft's Phi models for small, efficient LLM deployment.",
+        "description": "Small and efficient. Ideal for edge deployment and low-resource inference.",
+        "tags": [
+            "small-model",
+            "efficient",
+            "microsoft"
+        ],
         "models": [
             {
                 "uniqueID": "microsoft/Phi-3-mini-128k-instruct",
@@ -4132,7 +4231,12 @@
     },
     {
         "name": "nous-hermes",
-        "description": "Instruction-tuned models by Nous Research based on Hermes.",
+        "description": "Refined instruction-tuned, capable of high-quality chat and reasoning outputs.",
+        "tags": [
+            "instruction-tuned",
+            "reasoning",
+            "chat"
+        ],
         "models": [
             {
                 "uniqueID": "Nous-Hermes-13b",
@@ -4194,7 +4298,12 @@
     },
     {
         "name": "tinydolphin",
-        "description": "Tiny Dolphin model compatible with Apple silicon.",
+        "description": "Experimental and compact, trained on curated instruction datasets.",
+        "tags": [
+            "tiny-model",
+            "experimental",
+            "dolphin-dataset"
+        ],
         "models": [
             {
                 "uniqueID": "mlx-community/TinyDolphin-2.8-1.1b-4bit-mlx",
@@ -4228,7 +4337,12 @@
     },
     {
         "name": "deepseek",
-        "description": "Models released by DeepSeek.",
+        "description": "General-purpose language models focused on strong downstream task performance.",
+        "tags": [
+            "general-purpose",
+            "performance",
+            "chat"
+        ],
         "models": [
             {
                 "uniqueID": "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
@@ -4425,7 +4539,12 @@
     },
     {
         "name": "starcoder",
-        "description": "StarCoder models for code generation tasks.",
+        "description": "Leading in code-generation. Trained on open-source repositories for development tasks.",
+        "tags": [
+            "code-generation",
+            "github",
+            "bigcode"
+        ],
         "models": [
             {
                 "uniqueID": "bigcode/starcoder",
@@ -4463,7 +4582,12 @@
     },
     {
         "name": "deepcoder",
-        "description": "DeepCoder models focused on code generation and synthesis.",
+        "description": "Neural program synthesis model built to generate and complete code efficiently.",
+        "tags": [
+            "code-generation",
+            "microsoft",
+            "programming"
+        ],
         "models": [
             {
                 "uniqueID": "agentica-org/DeepCoder-14B-Preview",
@@ -4598,7 +4722,12 @@
     },
     {
         "name": "apriel",
-        "description": "Models released under the Apriel family, including Nemotron variants.",
+        "description": "Compact and high-performance reasoning. Optimized for efficiency and low memory usage.",
+        "tags": [
+            "reasoning",
+            "inference",
+            "efficient"
+        ],
         "models": [
             {
                 "uniqueID": "ServiceNow-AI/Apriel-5B-Instruct",
@@ -4694,7 +4823,12 @@
     },
     {
         "name": "zephyr",
-        "description": "Zephyr models from HuggingFace for chat-tuned generation.",
+        "description": "Hugging Face instruction-tuned model known for clean chat behavior and fast performance.",
+        "tags": [
+            "instruction-tuned",
+            "huggingface",
+            "chat"
+        ],
         "models": [
             {
                 "uniqueID": "HuggingFaceH4/zephyr-7b-alpha",
@@ -4731,7 +4865,12 @@
     },
     {
         "name": "reflection",
-        "description": "Reflection-tuned LLMs for enhanced reasoning steps.",
+        "description": "Large-scale, optimized for self-improvement and reflective reasoning.",
+        "tags": [
+            "meta",
+            "reasoning",
+            "self-improvement"
+        ],
         "models": [
             {
                 "uniqueID": "mattshumer/Reflection-Llama-3.1-70B",
@@ -4765,7 +4904,12 @@
     },
     {
         "name": "opencoder",
-        "description": "OpenCoder models optimized for code generation and understanding.",
+        "description": "Reasoning-enabled code generators optimized for programming assistance.",
+        "tags": [
+            "code-generation",
+            "reasoning",
+            "code-generation"
+        ],
         "models": [
             {
                 "uniqueID": "infly/OpenCoder-8B-Instruct",
@@ -4803,7 +4947,12 @@
     },
     {
         "name": "granite",
-        "description": "Granite models, high-performance open-source LLMs.",
+        "description": "Enterprise-grade. Tailored for secure, reliable, and general-purpose deployments.",
+        "tags": [
+            "ibm",
+            "enterprise",
+            "general-purpose"
+        ],
         "models": [
             {
                 "uniqueID": "ibm-granite/granite-3.3-2b-base",
@@ -4929,7 +5078,11 @@
     },
     {
         "name": "tinyllama",
-        "description": "TinyLLaMA models optimized for edge and mobile applications.",
+        "description": "Miniature variant of LLaMA suitable for testing and fast inference scenarios.",
+        "tags": [
+            "tiny-model",
+            "llama-compatible"
+        ],
         "models": [
             {
                 "uniqueID": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
