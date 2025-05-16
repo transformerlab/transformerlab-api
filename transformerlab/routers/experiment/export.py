@@ -146,7 +146,7 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
 
             if process.returncode != 0:
                 await db.job_update_status(job_id=job_id, status="FAILED")
-                return {"status": "error", "message": f"Export failed:{stderr_str}"}
+                return {"status": "error", "message": f"Export failed due to an internal error. Please check the output file for more details."}
                 
     except Exception as e:
         import logging
