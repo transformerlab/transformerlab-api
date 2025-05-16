@@ -362,11 +362,6 @@ install_dependencies() {
       PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/cu128"
       uv pip install ${PIP_WHEEL_FLAGS} -r ${REQS_PATH}
 
-      # Install Flash Attention separately - it doesn't play well in requirements file
-      # Using instructions from https://github.com/Dao-AILab/flash-attention
-      uv pip install packaging
-      uv pip install ninja
-      ###
   else
       echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
