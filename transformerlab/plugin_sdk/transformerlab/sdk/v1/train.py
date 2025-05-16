@@ -111,8 +111,7 @@ class TrainerTLabPlugin(TLabPlugin):
             self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise
 
-
-    def setup_train_logging(self, wandb_project_name: str = "TLab_Training", manual_logging=False, output_dir = None):
+    def setup_train_logging(self, wandb_project_name: str = "TLab_Training", manual_logging=False, output_dir=None):
         """Setup Weights and Biases and TensorBoard logging
 
         Args:
@@ -141,8 +140,6 @@ class TrainerTLabPlugin(TLabPlugin):
             print("Writing tensorboard logs to:", output_dir)
 
         self.writer = SummaryWriter(self.params.tensorboard_output_dir)
-        
-
 
         # Check config or direct attribute for wandb logging preference
         log_to_wandb = False
@@ -184,18 +181,110 @@ class TrainerTLabPlugin(TLabPlugin):
 
         self.report_to = report_to
 
+    def _get_system_metrics(self):
+        """Collect system metrics for logging (CPU, RAM, VRAM, etc.), using select macmon metrics on macOS if available."""
+        import psutil
+        import torch
+        import sys
+
+        metrics = {}
+        if sys.platform == "darwin":
+            try:
+                from macmon import MacMon
+                import json as _json
+
+                macmon = MacMon()
+                data = macmon.get_metrics()
+                if isinstance(data, str):
+                    mac_metrics = _json.loads(data)
+                else:
+                    mac_metrics = data
+                mm = mac_metrics
+                if "cpu_power" in mm:
+                    metrics["system/cpu_power"] = mm["cpu_power"]
+                if "gpu_power" in mm:
+                    metrics["system/gpu_power"] = mm["gpu_power"]
+                if "ram_power" in mm:
+                    metrics["system/ram_power"] = mm["ram_power"]
+                if "all_power" in mm:
+                    metrics["system/all_power"] = mm["all_power"]
+                if "sys_power" in mm:
+                    metrics["system/sys_power"] = mm["sys_power"]
+                if "gpu_usage" in mm and isinstance(mm["gpu_usage"], list) and len(mm["gpu_usage"]) == 2:
+                    metrics["system/gpu_usage_id"] = mm["gpu_usage"][0]
+                    metrics["system/gpu_usage_percent"] = mm["gpu_usage"][1]
+                if "ecpu_usage" in mm and isinstance(mm["ecpu_usage"], list) and len(mm["ecpu_usage"]) == 2:
+                    metrics["system/ecpu_usage_id"] = mm["ecpu_usage"][0]
+                    metrics["system/ecpu_usage_percent"] = mm["ecpu_usage"][1]
+                if "pcpu_usage" in mm and isinstance(mm["pcpu_usage"], list) and len(mm["pcpu_usage"]) == 2:
+                    metrics["system/pcpu_usage_id"] = mm["pcpu_usage"][0]
+                    metrics["system/pcpu_usage_percent"] = mm["pcpu_usage"][1]
+                if "temp" in mm and isinstance(mm["temp"], dict):
+                    if "cpu_temp_avg" in mm["temp"]:
+                        metrics["system/cpu_temp_avg"] = mm["temp"]["cpu_temp_avg"]
+                    if "gpu_temp_avg" in mm["temp"]:
+                        metrics["system/gpu_temp_avg"] = mm["temp"]["gpu_temp_avg"]
+                if "memory" in mm and isinstance(mm["memory"], dict):
+                    if "ram_total" in mm["memory"]:
+                        metrics["system/ram_total"] = mm["memory"]["ram_total"]
+                    if "ram_usage" in mm["memory"]:
+                        metrics["system/ram_usage"] = mm["memory"]["ram_usage"]
+                    if "swap_total" in mm["memory"]:
+                        metrics["system/swap_total"] = mm["memory"]["swap_total"]
+                    if "swap_usage" in mm["memory"]:
+                        metrics["system/swap_usage"] = mm["memory"]["swap_usage"]
+            except Exception:
+                # Fallback to psutil/torch if macmon fails
+                metrics["system/cpu_percent"] = psutil.cpu_percent()
+                metrics["system/ram_used_mb"] = psutil.virtual_memory().used / (1024 * 1024)
+                metrics["system/ram_total_mb"] = psutil.virtual_memory().total / (1024 * 1024)
+                metrics["system/ram_percent"] = psutil.virtual_memory().percent
+        else:
+            # CPU and RAM
+            metrics["system/cpu_percent"] = psutil.cpu_percent()
+            metrics["system/ram_used_mb"] = psutil.virtual_memory().used / (1024 * 1024)
+            metrics["system/ram_total_mb"] = psutil.virtual_memory().total / (1024 * 1024)
+            metrics["system/ram_percent"] = psutil.virtual_memory().percent
+
+        # Device-specific metrics
+        if torch.cuda.is_available():
+            try:
+                import pynvml
+
+                pynvml.nvmlInit()
+                # Get metrics for the main GPU
+                handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+                meminfo = pynvml.nvmlDeviceGetMemoryInfo(handle)
+                metrics["system/vram_used_mb"] = meminfo.used / (1024 * 1024)
+                metrics["system/vram_total_mb"] = meminfo.total / (1024 * 1024)
+                metrics["system/vram_free_mb"] = meminfo.free / (1024 * 1024)
+                util = pynvml.nvmlDeviceGetUtilizationRates(handle)
+                metrics["system/gpu_utilization"] = util.gpu
+            except Exception:
+                metrics["system/vram_used_mb"] = -1
+                metrics["system/vram_total_mb"] = -1
+                metrics["system/gpu_utilization"] = -1
+        return metrics
+
     def log_metric(self, metric_name: str, metric_value: float, step: int = None):
-        """Log a metric to all reporting targets"""
+        """Log a metric to all reporting targets, and also log system metrics under system/*"""
+        # Log the main metric
         if "tensorboard" in self.report_to:
             self.writer.add_scalar(metric_name, metric_value, step)
         if "wandb" in self.report_to and getattr(self, "wandb_run") is not None:
             self.wandb_run.log({metric_name: metric_value}, step=step)
-            
 
-    def create_transformerlab_model(self, fused_model_name, model_architecture, json_data, output_dir=None, generate_json=True):
+        # Log system metrics
+        system_metrics = self._get_system_metrics()
+        for sys_metric, sys_value in system_metrics.items():
+            if "tensorboard" in self.report_to:
+                self.writer.add_scalar(sys_metric, sys_value, step)
+
+    def create_transformerlab_model(
+        self, fused_model_name, model_architecture, json_data, output_dir=None, generate_json=True
+    ):
         if generate_json:
             generate_model_json(fused_model_name, model_architecture, json_data=json_data, output_directory=output_dir)
-        
 
         if output_dir is None:
             fused_model_location = os.path.join(WORKSPACE_DIR, "models", fused_model_name)
