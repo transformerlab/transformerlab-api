@@ -76,6 +76,26 @@ class TrainerTLabPlugin(TLabPlugin):
 
                         return control
 
+                    def on_log(self, args, state, control, logs=None, **kwargs):
+                        # Log VRAM usage
+                        import torch
+
+                        if torch.cuda.is_available():
+                            try:
+                                logs["system/vram_allocated"] = torch.cuda.memory_allocated() / 1e9
+                                logs["system/vram_reserved"] = torch.cuda.memory_reserved() / 1e9
+                            except Exception:
+                                pass
+                        else:
+                            # Trace RAM usage
+                            try:
+                                import psutil
+
+                                logs["system/ram_used_mb"] = psutil.virtual_memory().used / (1024 * 1024)
+                                logs["system/ram_total_mb"] = psutil.virtual_memory().total / (1024 * 1024)
+                            except Exception:
+                                pass
+
                 return TLabProgressCallback(self)
 
             except ImportError:
