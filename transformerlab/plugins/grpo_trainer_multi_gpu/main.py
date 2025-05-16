@@ -231,6 +231,7 @@ def train_model():
     # GRPO training configuration
     args = GRPOConfig(
         output_dir=output_dir,
+        logging_dir=os.path.join(output_dir, f"job_{tlab_trainer.params.job_id}_{run_suffix}"),
         num_train_epochs=num_epochs,
         weight_decay=weight_decay,
         per_device_train_batch_size=batch_size,

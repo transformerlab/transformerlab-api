@@ -203,7 +203,7 @@ class T5LoraTrainer:
             auto_find_batch_size=True,
             learning_rate=float(config.get("learning_rate", 3e-4)),
             num_train_epochs=int(config.get("num_train_epochs", 3)),
-            logging_dir=f"{output_dir}/logs",
+            logging_dir=os.path.join(output_dir, f"job_{tlab_trainer.params.job_id}"),
             logging_strategy="steps",
             logging_steps=100,
             save_strategy="no",

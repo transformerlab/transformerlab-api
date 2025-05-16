@@ -203,6 +203,7 @@ def train_model():
 
     args = SFTConfig(
         output_dir=output_dir,
+        logging_dir=os.path.join(output_dir, f"job_{tlab_trainer.params.job_id}_{run_suffix}"),
         num_train_epochs=int(tlab_trainer.params.num_train_epochs),
         per_device_train_batch_size=int(tlab_trainer.params.batch_size),
         gradient_accumulation_steps=2,

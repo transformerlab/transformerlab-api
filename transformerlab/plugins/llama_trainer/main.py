@@ -151,6 +151,7 @@ def train_model():
         gradient_accumulation_steps=2,
         gradient_checkpointing=True,
         optim="paged_adamw_32bit",
+        logging_dir=os.path.join(output_dir, f"job_{tlab_trainer.params.job_id}_{run_suffix}"),
         logging_steps=10,
         save_strategy="epoch",
         learning_rate=learning_rate,
