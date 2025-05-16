@@ -14,11 +14,30 @@ class ExportTLabPlugin(TLabPlugin):
 
     def _ensure_args_parsed(self):
         """Ensure arguments are parsed and convert self.params to a DotDict"""
-        super()._ensure_args_parsed()
-
+        if not self._args_parsed:
+            args, unknown_args = self._parser.parse_known_args()
+            
+            # Transfer all known arguments to attributes of self
+            for key, value in vars(args).items():
+                self.params[key] = value
+            
+            self._parse_unknown_args(unknown_args)
+            self._args_parsed = True
+            
         if not isinstance(self.params, DotDict):
             self.params = DotDict(self.params)
 
+    def _parse_unknown_args(self, unknown_args):
+        """Parse unknown arguments which change with each export job"""
+        key = None
+        for arg in unknown_args:
+            if arg.startswith("--"):  # Argument key
+                key = arg.lstrip("-")
+                self.params[key] = True
+            elif key:  # Argument value
+                self.params[key] = arg
+                key = None
+                
     # Added exporter-specific functionality and removed wandb logging
     def exporter_job_wrapper(self, progress_start: int = 0, progress_end: int = 100):
         """Decorator for wrapping an exporter function with job status updates"""

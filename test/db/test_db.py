@@ -291,7 +291,7 @@ async def test_training_template_crud():
 
 @pytest.mark.asyncio
 async def test_export_job_create(test_experiment):
-    job_id = await export_job_create(test_experiment, '{"exporter_name": "exp"}')
+    job_id = await export_job_create(test_experiment, '{"plugin": "exp"}')
     job = await job_get(job_id)
     assert job is not None
     assert job["type"] == "EXPORT_MODEL"
