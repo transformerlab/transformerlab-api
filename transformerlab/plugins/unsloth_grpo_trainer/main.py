@@ -1,6 +1,7 @@
 from unsloth import FastLanguageModel, PatchFastRL
 import time
 import re
+import os
 import torch
 from jinja2 import Environment
 from transformers import BitsAndBytesConfig
