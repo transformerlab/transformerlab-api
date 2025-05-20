@@ -371,20 +371,17 @@ def is_wsl():
 
 def patch_rocm_runtime_for_venv(venv_path):
     try:
-        pip_path = os.path.join(venv_path, "bin", "pip")
-        if not os.path.exists(pip_path):
-            print(f"pip not found in venv at {pip_path}")
-            return {"status": "error", "message": "pip not found in venv."}
+        # pip_path = os.path.join(venv_path, "bin", "pip")
+        # if not os.path.exists(pip_path):
+        #     print(f"pip not found in venv at {pip_path}")
+        #     return {"status": "error", "message": "pip not found in venv."}
 
         # Get torch location within venv
-        torch_info = subprocess.check_output([pip_path, "show", "torch"], text=True)
-        for line in torch_info.splitlines():
-            if line.startswith("Location: "):
-                location = line.split(": ", 1)[1]
-                break
-        else:
+        # torch_info = subprocess.check_output([pip_path, "show", "torch"], text=True)
+        location = os.path.join(venv_path, "lib", "python3.11", "site-packages")
+        if not os.path.exists(location):
             print("Could not find torch installation location.")
-            return
+            return {"status": "error", "message": "Could not find torch installation location."}
 
         torch_lib_path = os.path.join(location, "torch", "lib")
         print(f"Patching ROCm runtime in: {torch_lib_path}")
