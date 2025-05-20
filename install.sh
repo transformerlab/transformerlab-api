@@ -138,8 +138,10 @@ else
 fi
 
 # Stack Overflow says the best way to check for WSL is looking for Microsoft in the uname kernel
-if [[ -n $(echo "${KERNEL}" | sed -n 's/.*\( *Microsoft *\).*/\1/ip') ]]; then
+\if [[ "${KERNEL}" =~ ([Mm]icrosoft|[Ww][Ss][Ll]2) ]]; then
   TLAB_ON_WSL=1
+else
+  TLAB_ON_WSL=0
 fi
 
 ##############################
@@ -376,7 +378,17 @@ install_dependencies() {
         cp "$RUN_DIR"/requirements-rocm-uv.txt "$TLAB_CODE_DIR"/requirements-rocm-uv.txt
       fi
       PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/rocm6.3"
+      echo "WSL IS ${TLAB_ON_WSL}"
       uv pip install ${PIP_WHEEL_FLAGS} -r "$TLAB_CODE_DIR"/requirements-rocm-uv.txt
+
+      if [ "$TLAB_ON_WSL" = 1 ]; then
+        location=$(pip show torch | grep Location | awk -F ": " '{print $2}')
+        cd "${location}/torch/lib/" || exit 1
+        rm -f libhsa-runtime64.so*
+        cp /opt/rocm/lib/libhsa-runtime64.so.1.14.0 .
+        ln -sf libhsa-runtime64.so.1.14.0 libhsa-runtime64.so.1
+        ln -sf libhsa-runtime64.so.1 libhsa-runtime64.so
+      fi
 
   else
       echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."
