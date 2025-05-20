@@ -19,17 +19,11 @@ import subprocess
 import uuid
 import yaml
 import json
-import time
 import shutil
 import pandas as pd
 from pathlib import Path
 
 from transformerlab.sdk.v1.generate import tlab_gen
-
-
-import os
-import sys
-from pathlib import Path
 
 
 def get_synthetic_kit_cli_path():
