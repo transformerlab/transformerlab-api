@@ -209,7 +209,15 @@ async def install_plugin(plugin_id: str):
             stdout=log_file,
             stderr=log_file,
         )
-        await proc.wait()
+        returncode = await proc.wait()
+        if returncode != 0:
+            if is_wsl() and check_amd_gpu():
+                response = patch_rocm_runtime_for_venv(venv_path=venv_path)
+                if response["status"] == "error":
+                    error_msg = response["message"]
+                    print(error_msg)
+                    await log_file.write(f"## {error_msg}\n")
+                    return {"status": "error", "message": error_msg}
 
         return await run_installer_for_plugin(plugin_id, log_file)
 
@@ -277,6 +285,7 @@ def check_nvidia_gpu() -> bool:
 
     return has_gpu
 
+
 def check_amd_gpu() -> bool:
     """
     Check if AMD GPU is available
@@ -306,6 +315,106 @@ def check_amd_gpu() -> bool:
             print("Issue with ROCm")
 
     return has_gpu
+
+
+def is_wsl():
+    try:
+        kernel_output = subprocess.check_output(["uname", "-r"], text=True).lower()
+        return "microsoft" in kernel_output or "wsl2" in kernel_output
+    except subprocess.CalledProcessError:
+        return False
+
+
+# def patch_rocm_runtime():
+#     try:
+#         # Get torch installation path
+#         torch_info = subprocess.check_output(["pip", "show", "torch"], text=True)
+#         for line in torch_info.splitlines():
+#             if line.startswith("Location: "):
+#                 location = line.split(": ", 1)[1]
+#                 break
+#         else:
+#             print("Could not find torch installation location.")
+#             return
+
+#         torch_lib_path = os.path.join(location, "torch", "lib")
+#         print(f"Patching ROCm runtime in: {torch_lib_path}")
+
+#         # Remove old libhsa-runtime64.so* files
+#         for file in os.listdir(torch_lib_path):
+#             if file.startswith("libhsa-runtime64.so"):
+#                 os.remove(os.path.join(torch_lib_path, file))
+
+#         # Copy ROCm .so file
+#         src = "/opt/rocm/lib/libhsa-runtime64.so.1.14.0"
+#         dst = os.path.join(torch_lib_path, "libhsa-runtime64.so.1.14.0")
+#         shutil.copy(src, dst)
+
+#         # Helper to safely create symlinks (force -sf)
+#         def force_symlink(target, link_name):
+#             full_link = os.path.join(torch_lib_path, link_name)
+#             if os.path.islink(full_link) or os.path.exists(full_link):
+#                 os.remove(full_link)
+#             os.symlink(target, full_link)
+
+#         # Create symbolic links
+#         force_symlink("libhsa-runtime64.so.1.14.0", "libhsa-runtime64.so.1")
+#         force_symlink("libhsa-runtime64.so.1", "libhsa-runtime64.so")
+
+#         print("ROCm runtime patched successfully.")
+#         return {"status": "success", "message": "ROCm runtime patched successfully."}
+
+#     except Exception as e:
+#         print(f"Failed to patch ROCm runtime: {e}")
+#         return {"status": "error", "message": "Failed to patch ROCm runtime"}
+
+
+def patch_rocm_runtime_for_venv(venv_path):
+    try:
+        pip_path = os.path.join(venv_path, "bin", "pip")
+        if not os.path.exists(pip_path):
+            print(f"pip not found in venv at {pip_path}")
+            return {"status": "error", "message": "pip not found in venv."}
+
+        # Get torch location within venv
+        torch_info = subprocess.check_output([pip_path, "show", "torch"], text=True)
+        for line in torch_info.splitlines():
+            if line.startswith("Location: "):
+                location = line.split(": ", 1)[1]
+                break
+        else:
+            print("Could not find torch installation location.")
+            return
+
+        torch_lib_path = os.path.join(location, "torch", "lib")
+        print(f"Patching ROCm runtime in: {torch_lib_path}")
+
+        # Remove old libhsa-runtime64.so* files
+        for file in os.listdir(torch_lib_path):
+            if file.startswith("libhsa-runtime64.so"):
+                os.remove(os.path.join(torch_lib_path, file))
+
+        # Copy ROCm .so file
+        src = "/opt/rocm/lib/libhsa-runtime64.so.1.14.0"
+        dst = os.path.join(torch_lib_path, "libhsa-runtime64.so.1.14.0")
+        shutil.copy(src, dst)
+
+        # Create symlinks
+        def force_symlink(target, link_name):
+            full_link = os.path.join(torch_lib_path, link_name)
+            if os.path.islink(full_link) or os.path.exists(full_link):
+                os.remove(full_link)
+            os.symlink(target, full_link)
+
+        force_symlink("libhsa-runtime64.so.1.14.0", "libhsa-runtime64.so.1")
+        force_symlink("libhsa-runtime64.so.1", "libhsa-runtime64.so")
+
+        print("ROCm runtime patched successfully.")
+        return {"status": "success", "message": "ROCm runtime patched successfully."}
+
+    except Exception as e:
+        print(f"Failed to patch ROCm runtime: {e}")
+        return {"status": "error", "message": "Failed to patch ROCm runtime"}
 
 
 async def missing_platform_plugins() -> list[str]:
