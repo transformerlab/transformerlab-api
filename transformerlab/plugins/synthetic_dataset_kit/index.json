@@ -8,16 +8,13 @@
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
-  "supported_hardware_architectures": ["cpu", "cuda"],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx"],
   "_dataset": false,
   "setup-script": "setup.sh",
   "parameters": {
     "generation_model": {
-      "title": "Generation Model",
-      "type": "string",
-      "enum": ["local"],
-      "default": "local",
-      "readOnly": true
+      "title": "Generation Model (Model to be used for Generation. Select `local` to use the local model running)",
+      "type": "string"
     },
     "task_type": {
       "title": "Generation Type",
@@ -57,14 +54,17 @@
     "vllm_api_base": {
       "title": "vLLM Server API Base",
       "type": "string",
-      "default": "http://localhost:8000/v1",
+      "default": "http://localhost:8338/v1",
       "description": "API endpoint of the vLLM server used by synthetic-data-kit."
     }
   },
   "parameters_ui": {
     "generation_model": {
-      "ui:help": "This plugin only supports local models.",
-      "ui:widget": "select"
+      "ui:help": "Select the model to be used for generating QA pairs",
+      "ui:widget": "ModelProviderWidget",
+      "ui:options": {
+        "multiple": false
+      }
     },
     "task_type": {
       "ui:help": "Choose the type of generation: QA pairs, CoT examples, or summaries."

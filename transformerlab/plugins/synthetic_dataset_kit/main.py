@@ -43,52 +43,6 @@ def get_synthetic_kit_cli_path():
         raise FileNotFoundError(f"'synthetic-data-kit' CLI not found at {cli_path}")
 
 
-def is_server_alive(sys_path, api_base):
-    try:
-        subprocess.run(
-            [sys_path, "system-check", f"--api-base={api_base}"],
-            check=True,
-        )
-        return True
-    except subprocess.CalledProcessError as e:
-        print("STDOUT:\n", e.stdout)
-        print("STDERR:\n", e.stderr)
-        return False
-
-
-def launch_vllm(model_path, port):
-    return subprocess.Popen(
-        [
-            sys.executable,
-            "-m",
-            "vllm.entrypoints.openai.api_server",
-            "--model",
-            model_path,
-            "--port",
-            str(port),
-        ],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-
-
-def wait_for_server(api_base, timeout=30):
-    for _ in range(timeout):
-        if is_server_alive(api_base):
-            return True
-        time.sleep(1)
-    return False
-
-
-def stop_process(proc):
-    if proc:
-        try:
-            proc.terminate()
-            proc.wait(timeout=10)
-        except Exception:
-            proc.kill()
-
-
 @tlab_gen.job_wrapper()
 def run_generation():
     """
@@ -106,16 +60,15 @@ def run_generation():
     threshold = tlab_gen.params.get("curation_threshold", 7.0)
     output_format = tlab_gen.params.get("output_format", "jsonl")
     prompt_template = tlab_gen.params.get("prompt_template", "")
-    model_name = tlab_gen.params.get("model_name", "meta-llama/Llama-3-8B-Instruct")
-    model_path = tlab_gen.params.get("model_path", model_name)
-    api_base = tlab_gen.params.get("vllm_api_base", "http://localhost:8000/v1")
-    port = int(api_base.rsplit(":", 1)[-1].rstrip("/v1"))
+    api_base = tlab_gen.params.get("vllm_api_base", "http://localhost:8338/v1")
+    port = str(api_base.rsplit(":", 1)[-1].rstrip("/v1"))
     workspace = os.environ["_TFL_WORKSPACE_DIR"]
     experiment = tlab_gen.params.experiment_name
     documents_dir = os.path.join(workspace, "experiments", experiment, "documents")
     doc_filenames = [d.strip() for d in docs_str.split(",") if d.strip()]
     full_paths = [os.path.join(documents_dir, name) for name in doc_filenames]
     tmp_dir = "transformerlab/plugins/synthetic_dataset_kit/data"
+    model_name = str(tlab_gen.params.get("model_name", "meta-llama/Llama-3-8B-Instruct"))
 
     # Prompt selector based on generation_type
     DEFAULT_PROMPTS = {
@@ -256,7 +209,7 @@ def run_generation():
         "vllm": {
             "api_base": api_base,
             "port": port,
-            "model": model_path,
+            "model": model_name,
             "max_retries": 3,
             "retry_delay": 1.0,
         },
@@ -280,36 +233,6 @@ def run_generation():
     config_path = os.path.join(tmp_dir, f"tmp_config_{sub_folder}.yaml")
     with open(config_path, "w") as f:
         yaml.dump(config, f)
-
-    # Backup global config if exists, then overwrite it with plugin-specific one
-    global_config_path = Path.home() / ".synthetic_data" / "config.yaml"
-    backup_path = global_config_path.with_name("config.yaml.bak")
-
-    # Make a backup if it doesn't already exist
-    if global_config_path.exists() and not backup_path.exists():
-        global_config_path.rename(backup_path)
-
-    # Ensure the folder exists
-    global_config_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # Write new config
-    global_config_path.write_text(yaml.dump(config))
-
-    started_vllm = False
-    vllm_process = None
-
-    # Check if vLLM is already running. If not, try launching it locally.
-    if not is_server_alive(sys_path, api_base):
-        try:
-            # Attempt to start local vLLM using user-defined model path
-            vllm_process = launch_vllm(model_path, port)
-            if wait_for_server(api_base):
-                started_vllm = True
-                print("vLLM server started.")
-            else:
-                raise RuntimeError("vLLM did not start or is not reachable at expected API base.")
-        except Exception as e:
-            raise RuntimeError(f"Failed to start vLLM server: {e}")
 
     final_outputs = []
     total_docs = len(full_paths)
@@ -337,6 +260,7 @@ def run_generation():
                 ],
                 check=True,
             )
+            tlab_gen.progress_update(((i + 0.25) / total_docs) * 100)
 
             # 2. Create: generate synthetic data based on document content
             subprocess.run(
@@ -346,39 +270,67 @@ def run_generation():
                     output_txt,
                     "--type",
                     generation_type,
+                    "--api-base",
+                    api_base,
+                    "--model",
+                    model_name,
                     "-o",
                     f"transformerlab/plugins/synthetic_dataset_kit/data/{sub_folder}/generated/",
                 ],
                 check=True,
             )
+            tlab_gen.progress_update(((i + 0.5) / total_docs) * 100)
+            if output_format != "chatml":
+                # 3. Curate: filter QA pairs based on quality threshold
+                subprocess.run(
+                    [
+                        sys_path,
+                        "-c",
+                        str(config_path),
+                        "curate",
+                        gen_json,
+                        "-t",
+                        threshold,
+                        "-o",
+                        clean_json,
+                    ],
+                    check=True,
+                )
+                tlab_gen.progress_update(((i + 0.75) / total_docs) * 100)
 
-            # 3. Curate: filter QA pairs based on quality threshold
-            subprocess.run(
-                [
-                    sys_path,
-                    "curate",
-                    gen_json,
-                    "-t",
-                    threshold,
-                    "-o",
-                    clean_json,
-                ],
-                check=True,
-            )
+                # 4. Save-as: convert result to desired output format (jsonl, alpaca, chatml, etc.)
+                subprocess.run(
+                    [
+                        sys_path,
+                        "-c",
+                        str(config_path),
+                        "save-as",
+                        clean_json,
+                        "-f",
+                        output_format,
+                        "-o",
+                        final_jsonl,
+                    ],
+                    check=True,
+                )
+            else:
+                tlab_gen.progress_update(((i + 0.75) / total_docs) * 100)
 
-            # 4. Save-as: convert result to desired output format (jsonl, alpaca, chatml, etc.)
-            subprocess.run(
-                [
-                    sys_path,
-                    "save-as",
-                    clean_json,
-                    "-f",
-                    output_format,
-                    "-o",
-                    final_jsonl,
-                ],
-                check=True,
-            )
+                # 4. Save-as: convert result to desired output format (jsonl, alpaca, chatml, etc.)
+                subprocess.run(
+                    [
+                        sys_path,
+                        "-c",
+                        str(config_path),
+                        "save-as",
+                        gen_json,
+                        "-f",
+                        output_format,
+                        "-o",
+                        final_jsonl,
+                    ],
+                    check=True,
+                )
 
             # Read final output file and parse each line to return to TransformerLab
             with open(final_jsonl) as f:
@@ -387,7 +339,6 @@ def run_generation():
                         final_outputs.append(json.loads(line))
                 elif output_format == "alpaca":
                     final_outputs = json.load(f)  # Only valid if file is a single JSON array
-
             tlab_gen.progress_update((i + 1) / total_docs * 100)
 
         except subprocess.CalledProcessError as e:
@@ -398,17 +349,8 @@ def run_generation():
                 os.remove(config_path)
             raise RuntimeError(f"Subprocess failed with code {e.returncode}") from e
 
-    # Clean up temporary config file and restore original config
-    if backup_path.exists():
-        global_config_path.unlink(missing_ok=True)  # remove current modified file
-        backup_path.rename(global_config_path)
-
     if os.path.exists(config_path):
         os.remove(config_path)
-
-    # Stop the vLLM server if started here.
-    if started_vllm:
-        stop_process(vllm_process)
 
     df = pd.DataFrame(final_outputs)
     output_path, dataset_name = tlab_gen.save_generated_dataset(df)
