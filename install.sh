@@ -138,7 +138,7 @@ else
 fi
 
 # Stack Overflow says the best way to check for WSL is looking for Microsoft in the uname kernel
-\if [[ "${KERNEL}" =~ ([Mm]icrosoft|[Ww][Ss][Ll]2) ]]; then
+if [[ "${KERNEL}" =~ ([Mm]icrosoft|[Ww][Ss][Ll]2) ]]; then
   TLAB_ON_WSL=1
 else
   TLAB_ON_WSL=0
