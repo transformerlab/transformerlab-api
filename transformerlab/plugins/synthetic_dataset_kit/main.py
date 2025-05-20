@@ -27,15 +27,30 @@ from pathlib import Path
 from transformerlab.sdk.v1.generate import tlab_gen
 
 
-def is_server_alive(api_base):
+import os
+import sys
+from pathlib import Path
+
+
+def get_synthetic_kit_cli_path():
+    # sys.executable points to: /path/to/venv/bin/python
+    venv_bin_dir = Path(sys.executable).parent
+    cli_path = venv_bin_dir / "synthetic-data-kit"
+
+    if cli_path.exists():
+        return str(cli_path)
+    else:
+        raise FileNotFoundError(f"'synthetic-data-kit' CLI not found at {cli_path}")
+
+
+def is_server_alive(sys_path, api_base):
     try:
         subprocess.run(
-            ["synthetic-data-kit", "system-check", f'--api-base="{api_base}"'],
+            [sys_path, "system-check", f"--api-base={api_base}"],
             check=True,
         )
         return True
     except subprocess.CalledProcessError as e:
-        print("Error running command:")
         print("STDOUT:\n", e.stdout)
         print("STDERR:\n", e.stderr)
         return False
@@ -84,7 +99,7 @@ def run_generation():
 
     Saves the final dataset using tlab_gen.save_generated_dataset() which makes it accessible via the UI.
     """
-
+    sys_path = get_synthetic_kit_cli_path()
     docs_str = tlab_gen.params.docs
     generation_type = tlab_gen.params.get("task_type", "qa")
     num_pairs = tlab_gen.params.get("num_pairs", 25)
@@ -284,7 +299,7 @@ def run_generation():
     vllm_process = None
 
     # Check if vLLM is already running. If not, try launching it locally.
-    if not is_server_alive(api_base):
+    if not is_server_alive(sys_path, api_base):
         try:
             # Attempt to start local vLLM using user-defined model path
             vllm_process = launch_vllm(model_path, port)
@@ -312,7 +327,7 @@ def run_generation():
             # 1. Ingest: convert input file to plain text
             subprocess.run(
                 [
-                    "synthetic-data-kit",
+                    sys_path,
                     "-c",
                     str(config_path),
                     "ingest",
@@ -326,7 +341,7 @@ def run_generation():
             # 2. Create: generate synthetic data based on document content
             subprocess.run(
                 [
-                    "synthetic-data-kit",
+                    sys_path,
                     "create",
                     output_txt,
                     "--type",
@@ -340,7 +355,7 @@ def run_generation():
             # 3. Curate: filter QA pairs based on quality threshold
             subprocess.run(
                 [
-                    "synthetic-data-kit",
+                    sys_path,
                     "curate",
                     gen_json,
                     "-t",
@@ -354,7 +369,7 @@ def run_generation():
             # 4. Save-as: convert result to desired output format (jsonl, alpaca, chatml, etc.)
             subprocess.run(
                 [
-                    "synthetic-data-kit",
+                    sys_path,
                     "save-as",
                     clean_json,
                     "-f",
