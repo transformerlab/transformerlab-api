@@ -210,7 +210,7 @@ async def install_plugin(plugin_id: str):
             stderr=log_file,
         )
         returncode = await proc.wait()
-        if returncode != 0:
+        if returncode == 0:
             if is_wsl() and check_amd_gpu():
                 response = patch_rocm_runtime_for_venv(venv_path=venv_path)
                 if response["status"] == "error":
