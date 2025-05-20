@@ -89,8 +89,9 @@ if torch.cuda.is_available():
         system_info["cuda_version"] = torch.version.cuda
         system_info["device_type"] = "nvidia"
         pytorch_device = "CUDA"
-    elif HAS_AMD and not IS_WSL_SYSTEM:
-        rocml.smi_initialize()
+    elif HAS_AMD:
+        if not IS_WSL_SYSTEM:
+            rocml.smi_initialize()
         system_info["device_type"] = "amd"
         system_info["cuda_version"] = torch.version.hip
         pytorch_device = "ROCm"
