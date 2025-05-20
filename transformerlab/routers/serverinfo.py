@@ -13,6 +13,7 @@ import psutil
 import torch
 from fastapi import APIRouter
 
+
 try:
     from pynvml import (
         nvmlDeviceGetCount,
@@ -22,9 +23,11 @@ try:
         nvmlDeviceGetUtilizationRates,
         nvmlInit,
     )
+
     HAS_AMD = False
 except Exception:
     from pyrsmi import rocml
+
     HAS_AMD = True
 
 
@@ -44,6 +47,19 @@ except ImportError:
     print(
         "🟡 Flash Attention is not installed. If you are running on GPU, install to accelerate inference and training. https://github.com/Dao-AILab/flash-attention"
     )
+
+
+def is_wsl():
+    try:
+        kernel_output = subprocess.check_output(["uname", "-r"], text=True).lower()
+        return "microsoft" in kernel_output or "wsl2" in kernel_output
+    except subprocess.CalledProcessError:
+        return False
+
+
+IS_WSL_SYSTEM = is_wsl()
+if IS_WSL_SYSTEM:
+    print("🏄 Running on WSL")
 
 
 # Read in static system info
@@ -73,12 +89,11 @@ if torch.cuda.is_available():
         system_info["cuda_version"] = torch.version.cuda
         system_info["device_type"] = "nvidia"
         pytorch_device = "CUDA"
-    else:
+    elif HAS_AMD and not IS_WSL_SYSTEM:
         rocml.smi_initialize()
         system_info["device_type"] = "amd"
         system_info["cuda_version"] = torch.version.hip
         pytorch_device = "ROCm"
-        
 
     print(f"🏄 PyTorch is using {pytorch_device}, version {system_info['cuda_version']}")
 
@@ -174,14 +189,14 @@ async def get_computer_information():
         r["mac_metrics"] = macmon_data
 
     try:
-        if HAS_AMD:
+        if HAS_AMD and not IS_WSL_SYSTEM:
             deviceCount = rocml.smi_get_device_count()
         else:
             deviceCount = nvmlDeviceGetCount()
         # print('device count: ', deviceCount)
         for i in range(deviceCount):
             info = {}
-            if HAS_AMD:
+            if HAS_AMD and not IS_WSL_SYSTEM:
                 handle = rocml.smi_get_device_id(i)
             else:
                 handle = nvmlDeviceGetHandleByIndex(i)
@@ -190,8 +205,10 @@ async def get_computer_information():
             # and this creates a utf error. This is a workaround:
             if not HAS_AMD:
                 device_name = nvmlDeviceGetName(handle)
-            else:
+            elif HAS_AMD and not IS_WSL_SYSTEM:
                 device_name = rocml.smi_get_device_name(i)
+            else:
+                raise Exception("Unsupported GPU type for rocm-smi")
             # print('device name: ', device_name)
 
             # check if device_name is a byte string, if so convert to string:
@@ -207,16 +224,17 @@ async def get_computer_information():
 
                 u = nvmlDeviceGetUtilizationRates(handle)
                 info["utilization"] = u.gpu
-            else:
+            elif HAS_AMD and not IS_WSL_SYSTEM:
                 info["total_memory"] = rocml.smi_get_device_memory_total(i)
                 info["used_memory"] = rocml.smi_get_device_memory_used(i)
                 info["free_memory"] = rocml.smi_get_device_memory_total(i) - rocml.smi_get_device_memory_used(i)
                 info["utilization"] = rocml.smi_get_device_utilization(i)
+            else:
+                raise Exception("Unsupported GPU type")
 
             # info["temp"] = nvmlDeviceGetTemperature(handle)
             g.append(info)
     except Exception:  # Catch all exceptions and print them
-
         g.append(
             {
                 "name": "cpu",
