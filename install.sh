@@ -335,15 +335,16 @@ install_dependencies() {
       else
           echo "nvidia-smi exists but no NVIDIA GPU found"
       fi
-  elif command -v rocm-smi &> /dev/null; then
-      echo "rocm-smi is available"
-      AMD_INFO=$(rocm-smi --showproductname | awk '/^GPU/ {print $2}') || echo "Issue with ROCm SMI"
-      if [ -n "$AMD_INFO" ]; then
-          echo "AMD GPU detected: $AMD_INFO"
-          HAS_AMD=true
-      else
-          echo "rocm-smi exists but no AMD GPU found"
-      fi
+  elif command -v rocminfo &> /dev/null; then
+      echo "rocminfo is available"
+      HAS_AMD=true
+      # AMD_INFO=$(rocm-smi --showproductname | awk '/^GPU/ {print $2}') || echo "Issue with ROCm SMI" 
+      # if [ -n "$AMD_INFO" ]; then
+      #     echo "AMD GPU detected: $AMD_INFO"
+          # HAS_AMD=true
+      # else
+      #     echo "rocm-smi exists but no AMD GPU found"
+      # fi
   fi
 
   # install uv
