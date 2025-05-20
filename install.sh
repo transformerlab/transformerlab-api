@@ -378,7 +378,6 @@ install_dependencies() {
         cp "$RUN_DIR"/requirements-rocm-uv.txt "$TLAB_CODE_DIR"/requirements-rocm-uv.txt
       fi
       PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/rocm6.3"
-      echo "WSL IS ${TLAB_ON_WSL}"
       uv pip install ${PIP_WHEEL_FLAGS} -r "$TLAB_CODE_DIR"/requirements-rocm-uv.txt
 
       if [ "$TLAB_ON_WSL" = 1 ]; then
