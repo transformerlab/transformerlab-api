@@ -143,11 +143,7 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
     This function can raise several Exceptions from HuggingFace
     """
 
-    # Use the Hugging Face Hub API to download the config.json file for this model
-    # This may throw an exception if the model doesn't exist or we don't have access rights
-    huggingface_hub.hf_hub_download(repo_id=hugging_face_id, filename="config.json")
-
-    # Also get model info for metadata and license details
+    # Get model info for metadata and license details
     # Similar to hf_hub_download this can throw exceptions
     # Some models don't have a model card (mostly models that have been deprecated)
     # In that case just set model_card_data to an empty object
@@ -158,7 +154,62 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
     except AttributeError:
         model_card_data = {}
 
-    # Use Hugging Face file system API and let it figure out which file we should be reading
+    # Detect SD model by tags or by presence of model_index.json
+    model_tags = getattr(hf_model_info, "tags", [])
+    print("Model tags:", model_tags)
+    is_sd = False
+    if any("stable-diffusion" in t or "diffusers" in t for t in model_tags):
+        is_sd = True
+    try:
+        repo_files = huggingface_hub.list_repo_files(hugging_face_id)
+        if any(f.endswith("model_index.json") for f in repo_files):
+            is_sd = True
+    except Exception:
+        repo_files = []
+
+    sd_patterns = [
+        "*.ckpt",
+        "*.safetensors",
+        "*.pt",
+        "*.bin",
+        "config.json",
+        "model_index.json",
+        "vocab.json",
+        "merges.txt",
+        "tokenizer.json",
+        "*.yaml",
+        "*.yml",
+    ]
+
+    if is_sd:
+        # Try to read model_index.json for metadata, else just return minimal config
+        model_index_path = os.path.join(hugging_face_id, "model_index.json")
+        fs = huggingface_hub.HfFileSystem()
+        model_index = None
+        try:
+            with fs.open(model_index_path) as f:
+                model_index = json.load(f)
+        except Exception:
+            model_index = None
+        config = {
+            "uniqueID": hugging_face_id,
+            "name": getattr(hf_model_info, "modelId", hugging_face_id),
+            "private": getattr(hf_model_info, "private", False),
+            "gated": getattr(hf_model_info, "gated", False),
+            "architecture": getattr(model_index, "_class_name", "StableDiffusionPipeline"),
+            "huggingface_repo": hugging_face_id,
+            "model_type": "stable-diffusion",
+            "size_of_model_in_mb": get_huggingface_download_size(hugging_face_id, sd_patterns) / (1024 * 1024),
+            "tags": model_tags,
+            "license": model_card_data.get("license", ""),
+            "allow_patterns": sd_patterns,
+        }
+        if model_index:
+            config["model_index"] = model_index
+        return config
+
+    # Non-SD models: require config.json
+    huggingface_hub.hf_hub_download(repo_id=hugging_face_id, filename="config.json")
     fs = huggingface_hub.HfFileSystem()
     filename = os.path.join(hugging_face_id, "config.json")
     with fs.open(filename) as f:
@@ -187,6 +238,32 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
 
         # TODO: Context length definition seems to vary by architecture. May need conditional logic here.
         context_size = filedata.get("max_position_embeddings", "")
+
+        # --- Stable Diffusion detection and allow_patterns logic ---
+        sd_patterns = [
+            "*.ckpt",
+            "*.safetensors",
+            "*.pt",
+            "*.bin",
+            "config.json",
+            "model_index.json",
+            "vocab.json",
+            "merges.txt",
+            "tokenizer.json",
+            "*.yaml",
+            "*.yml",
+        ]
+        is_sd = False
+        # Heuristic: check tags or config for 'stable-diffusion' or 'diffusers' or common SD files
+        if any("stable-diffusion" in t or "diffusers" in t for t in model_tags):
+            is_sd = True
+        # Or check for model_index.json in repo files
+        try:
+            repo_files = huggingface_hub.list_repo_files(hugging_face_id)
+            if any(f.endswith("model_index.json") for f in repo_files):
+                is_sd = True
+        except Exception:
+            pass
 
         # TODO: Figure out description, paramters, model size
         newmodel = basemodel.BaseModel(hugging_face_id)
