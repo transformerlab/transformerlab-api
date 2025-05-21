@@ -374,9 +374,15 @@ install_dependencies() {
 
   elif [ "$HAS_AMD" = true ]; then
       echo "Installing requirements for ROCm:"
-      if ! [ -e "$TLAB_CODE_DIR/requirements-rocm-uv.txt" ]; then
-        cp "$RUN_DIR"/requirements-rocm-uv.txt "$TLAB_CODE_DIR"/requirements-rocm-uv.txt
+      if [ -e "$RUN_DIR/requirements-rocm-uv.txt" ]; then
+        REQS_PATH="$RUN_DIR/requirements-rocm-uv.txt"
+      elif [ -e "$TLAB_CODE_DIR/requirements-rocm-uv.txt" ]; then
+        REQS_PATH="$TLAB_CODE_DIR/requirements-rocm-uv.txt"
+      else
+        echo "Error: requirements-rocm-uv.txt not found in run directory or src location."
+        exit 1
       fi
+
       PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/rocm6.3"
       uv pip install ${PIP_WHEEL_FLAGS} -r "$TLAB_CODE_DIR"/requirements-rocm-uv.txt
 
