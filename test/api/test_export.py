@@ -3,7 +3,6 @@ from api import app
 import json
 from unittest.mock import patch, AsyncMock, MagicMock
 import pytest
-import itertools
 from transformerlab.routers.experiment.export import get_output_file_name
 import asyncio
 
