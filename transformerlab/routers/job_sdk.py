@@ -310,12 +310,94 @@ def get_trainer_xmlrpc_router(prefix="/client/v1/jobs", trainer_factory=None):
             if status == "COMPLETE":
                 job.update_progress(100)  # Ensure progress is set to 100%
                 job.set_job_completion_status("success", message)
+                
+                # Check if we need to set a different model before starting workflow
+                workflow_name = trainer_instance.params.get("workflow_name")
+                if workflow_name:
+                    experiment_id = trainer_instance.params.get("experiment_id", "1")
+                    
+                    # If there's a model to set in the experiment config
+                    # model_to_set = trainer_instance.params.get("set_model")
+                    model_to_set = f"final_model_{job_id}"
+                    if model_to_set:
+                        print(f"Setting model to {model_to_set} in experiment {experiment_id}")
+                        try:
+                            # Use a non-blocking thread to update the experiment config
+                            # and then start the workflow
+                            thread = threading.Thread(
+                                target=lambda: set_model_and_start_workflow(model_to_set, workflow_name, experiment_id)
+                            )
+                            thread.daemon = True
+                            thread.start()
+                        except Exception as e:
+                            print(f"Error setting model and starting workflow: {str(e)}")
+                    else:
+                        # No model change needed, just start the workflow
+                        start_workflow_from_name(workflow_name, experiment_id)
+                        
             elif status == "STOPPED":
                 job.set_job_completion_status("failed", message)
 
             return {"status": "success", "job_id": job_id}
         except Exception as e:
+            print(f"Error in complete_job: {str(e)}")
             return {"status": "error", "message": str(e)}
+        
+    def set_model_and_start_workflow(model_name, workflow_name, experiment_id):
+        """Set the model in the experiment config and then start the workflow"""
+        try:
+            # First update the experiment config to use the new model
+            response = requests.get(
+                f"http://localhost:8338/experiment/{experiment_id}/update_config",
+                params={"key": "foundation", "value": model_name},
+                timeout=10
+            )
+            
+            if response.status_code != 200:
+                print(f"Error updating experiment config: HTTP {response.status_code}")
+                return
+                
+            print(f"Successfully set model to {model_name} in experiment {experiment_id}")
+            
+            # Now start the workflow
+            start_workflow_from_name(workflow_name, experiment_id)
+            
+        except Exception as e:
+            print(f"Error in set_model_and_start_workflow: {str(e)}")
+        
+    def start_workflow_from_name(workflow_name, experiment_id):
+        try:
+            print(f"Starting workflow '{workflow_name}' from experiment {experiment_id}")
+            
+            # Use requests to make API calls since we're in a separate thread
+            # First, get workflows in the experiment
+            response = requests.get(
+                f"http://localhost:8338/workflows/list_in_experiment?experiment_id={experiment_id}",
+                timeout=10
+            )
+            
+            if response.status_code != 200:
+                print(f"Error fetching workflows: HTTP {response.status_code}")
+                return
+                
+            workflows = response.json()
+            
+            # Find the workflow with matching name
+            workflow_id = None
+            for workflow in workflows:
+                if workflow.get("name") == workflow_name:
+                    workflow_id = workflow.get("id")
+                    break
+            
+            if workflow_id:
+                # Start the workflow
+                requests.get(f"http://localhost:8338/workflows/{workflow_id}/start", timeout=10)
+                print(f"Started workflow '{workflow_name}' (ID: {workflow_id})")
+            else:
+                print(f"Could not find workflow with name '{workflow_name}' in experiment {experiment_id}")
+                
+        except Exception as e:
+            print(f"Error starting workflow: {str(e)}")
 
     def save_model(job_id, local_model_path):
         """Save the model to the specified path"""
