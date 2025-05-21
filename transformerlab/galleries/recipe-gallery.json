@@ -36,8 +36,8 @@
             "path": "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
         },
         "datasets": {
-            "name": "samsum",
-            "path": "samsum"
+            "name": "knkarthick/samsum",
+            "path": "knkarthick/samsum"
         },
         "training": {
             "type": "LoRA",
@@ -84,7 +84,7 @@
             "path": "google/gemma-2-2b-it"
         },
         "datasets": {
-            "name": "Machine Learning QA Collection",
+            "name": "win-wang/Machine_Learning_QA_Collection",
             "path": "win-wang/Machine_Learning_QA_Collection"
         },
         "training": {
