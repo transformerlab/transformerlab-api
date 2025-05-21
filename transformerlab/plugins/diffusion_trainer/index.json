@@ -1,0 +1,192 @@
+{
+  "name": "Stable Diffusion LoRA Trainer",
+  "uniqueId": "diffusion_trainer",
+  "description": "A plugin for fine-tuning Stable Diffusion using LoRA adapters with Accelerate multi-GPU support.",
+  "plugin-format": "python",
+  "type": "trainer",
+  "version": "0.1.0",
+  "supports": ["experimental"],
+  "git": "",
+  "url": "",
+  "files": ["main.py", "setup.sh"],
+  "supported_hardware_architectures": ["cuda"],
+  "setup-script": "setup.sh",
+  "parameters": {
+    "model_name_manual": {
+      "title": "Model Name",
+      "type": "string",
+      "required": true,
+      "description": "The HuggingFace model hub name or local path for the base Stable Diffusion model."
+    },
+    "train_batch_size": {
+      "title": "Train Batch Size",
+      "type": "integer",
+      "default": 16,
+      "minimum": 1,
+      "maximum": 128
+    },
+    "num_train_epochs": {
+      "title": "Number of Training Epochs",
+      "type": "integer",
+      "default": 10,
+      "minimum": 1,
+      "maximum": 1000
+    },
+    "learning_rate": {
+      "title": "Learning Rate",
+      "type": "number",
+      "default": 1e-4,
+      "minimum": 1e-7
+    },
+    "adam_beta1": {
+      "title": "Adam Beta 1",
+      "type": "number",
+      "default": 0.9
+    },
+    "adam_beta2": {
+      "title": "Adam Beta 2",
+      "type": "number",
+      "default": 0.999
+    },
+    "adam_weight_decay": {
+      "title": "Adam Weight Decay",
+      "type": "number",
+      "default": 0.01
+    },
+    "adam_epsilon": {
+      "title": "Adam Epsilon",
+      "type": "number",
+      "default": 1e-8
+    },
+    "max_grad_norm": {
+      "title": "Max Grad Norm",
+      "type": "number",
+      "default": 1.0
+    },
+    "gradient_accumulation_steps": {
+      "title": "Gradient Accumulation Steps",
+      "type": "integer",
+      "default": 1,
+      "minimum": 1,
+      "maximum": 32
+    },
+    "resolution": {
+      "title": "Image Resolution",
+      "type": "integer",
+      "default": 512,
+      "minimum": 64,
+      "maximum": 1024
+    },
+    "center_crop": {
+      "title": "Center Crop",
+      "type": "boolean",
+      "default": false
+    },
+    "random_flip": {
+      "title": "Random Horizontal Flip",
+      "type": "boolean",
+      "default": false
+    },
+    "image_interpolation_mode": {
+      "title": "Image Interpolation Mode",
+      "type": "string",
+      "default": "lanczos",
+      "enum": ["lanczos", "bilinear", "bicubic", "nearest"]
+    },
+    "caption_column": {
+      "title": "Caption Column",
+      "type": "string",
+      "default": "text"
+    },
+    "image_column": {
+      "title": "Image Column",
+      "type": "string",
+      "default": "image"
+    },
+    "lora_r": {
+      "title": "LoRA Rank (r)",
+      "type": "integer",
+      "default": 4,
+      "minimum": 1,
+      "maximum": 128
+    },
+    "lora_alpha": {
+      "title": "LoRA Alpha",
+      "type": "integer",
+      "default": 4,
+      "minimum": 1,
+      "maximum": 128
+    },
+    "mixed_precision": {
+      "title": "Mixed Precision",
+      "type": "string",
+      "enum": ["no", "fp16", "bf16"],
+      "default": "no"
+    },
+    "max_train_steps": {
+      "title": "Max Train Steps",
+      "type": "integer",
+      "default": null
+    },
+    "lr_scheduler": {
+      "title": "LR Scheduler",
+      "type": "string",
+      "enum": ["constant", "linear", "cosine", "constant_with_warmup"],
+      "default": "constant"
+    },
+    "lr_warmup_steps": {
+      "title": "LR Warmup Steps",
+      "type": "integer",
+      "default": 500
+    },
+    "noise_offset": {
+      "title": "Noise Offset",
+      "type": "number",
+      "default": 0
+    },
+    "prediction_type": {
+      "title": "Prediction Type",
+      "type": "string",
+      "enum": ["epsilon", "v_prediction"],
+      "default": "epsilon"
+    },
+    "snr_gamma": {
+      "title": "SNR Gamma",
+      "type": "number",
+      "default": null
+    },
+    "adaptor_name": {
+      "title": "Adaptor Name",
+      "type": "string",
+      "default": "adaptor",
+      "required": true
+    },
+    "log_to_wandb": {
+      "title": "Log to Weights and Biases",
+      "type": "boolean",
+      "default": true
+    }
+  },
+  "parameters_ui": {
+    "train_batch_size": {
+      "ui:help": "Number of images per batch."
+    },
+    "resolution": {
+      "ui:help": "Image size for training. Must match model requirements."
+    },
+    "lora_r": {
+      "ui:widget": "RangeWidget",
+      "ui:help": "Rank of LoRA update matrices."
+    },
+    "lora_alpha": {
+      "ui:widget": "RangeWidget",
+      "ui:help": "LoRA scaling factor."
+    },
+    "mixed_precision": {
+      "ui:help": "Enable mixed precision training for faster speed and lower memory."
+    },
+    "log_to_wandb": {
+      "ui:help": "Log training to Weights and Biases. Requires W&B account and API key."
+    }
+  }
+}
