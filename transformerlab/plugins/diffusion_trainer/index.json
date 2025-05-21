@@ -12,18 +12,11 @@
   "supported_hardware_architectures": ["cuda"],
   "setup-script": "setup.sh",
   "parameters": {
-    "model_name_manual": {
-      "title": "Model Name",
-      "type": "string",
-      "required": true,
-      "description": "The HuggingFace model hub name or local path for the base Stable Diffusion model."
-    },
     "train_batch_size": {
       "title": "Train Batch Size",
       "type": "integer",
-      "default": 16,
-      "minimum": 1,
-      "maximum": 128
+      "default": 1,
+      "minimum": 1
     },
     "num_train_epochs": {
       "title": "Number of Training Epochs",
