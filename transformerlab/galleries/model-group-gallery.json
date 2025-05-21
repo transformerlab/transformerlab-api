@@ -1697,7 +1697,7 @@
     },
     {
         "name": "llava",
-        "description": "A vision-language model capable of multimodal understanding and visual question answering.",
+        "description": "Vision-language model capable of multimodal understanding and visual question answering.",
         "tags": [
             "multimodal",
             "vision-language",
@@ -3819,6 +3819,50 @@
                     "paperUrl": "?"
                 },
                 "model_group": "fastchat-t5"
+            }
+        ]
+    },
+    {
+        "name": "bytedance",
+        "description": "Parameter efficient family for reasoning and coding",
+        "tags": [
+            "programming",
+            "reasoning",
+            "efficient"
+        ],
+        "models": [
+            {
+                "uniqueID": "ByteDance-Seed/Seed-Coder-8B-Reasoning-bf16",
+                "name": "Seed-Coder-8B-Reasoning-bf16",
+                "description": "A powerful, transparent, and parameter-efficient open-source code model",
+                "added": "2025-05-21",
+                "tags": [
+                    "reasoning",
+                    "programming"
+                ],
+                "parameters": "8B",
+                "context": "65536",
+                "architecture": "LlamaForCausalLM",
+                "formats": [
+                    "Safetensors"
+                ],
+                "huggingface_repo": "ByteDance-Seed/Seed-Coder-8B-Reasoning-bf16",
+                "transformers_version": "4.51.3",
+                "gated": false,
+                "license": "mit",
+                "logo": "",
+                "size_of_model_in_mb": 15747.93223285675,
+                "author": {
+                    "name": "ByteDance-Seed",
+                    "url": "https://huggingface.co/ByteDance-Seed/Seed-Coder-8B-Reasoning-bf16",
+                    "blurb": ""
+                },
+                "resources": {
+                    "canonicalUrl": "https://huggingface.co/ByteDance-Seed/Seed-Coder-8B-Reasoning-bf16",
+                    "downloadUrl": "https://huggingface.co/ByteDance-Seed/Seed-Coder-8B-Reasoning-bf16",
+                    "paperUrl": "?"
+                },
+                "model_group": "bytedance"
             }
         ]
     },
