@@ -17,8 +17,6 @@ def mlx_export():
     plugin_dir = os.path.realpath(os.path.dirname(__file__))
     python_executable = get_python_executable(plugin_dir)
 
-    env = os.environ.copy()
-
     command = [
         python_executable, "-u", "-m", "mlx_lm", "convert",
         "--hf-path", tlab_exporter.params.get("model_name"),
@@ -39,7 +37,6 @@ def mlx_export():
             cwd=plugin_dir,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            env=env,
             universal_newlines=True,
             bufsize=1
         ) as process:
