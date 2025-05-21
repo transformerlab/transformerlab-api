@@ -290,3 +290,34 @@ def test_watch_export_log_retry_success(
 
     # make sure sleep was awaited with 4 seconds at least once
     assert any(call.args == (4,) for call in mock_sleep.await_args_list)
+
+
+@patch("transformerlab.db.experiment_get")
+@patch("transformerlab.db.export_job_create")
+@patch("asyncio.create_subprocess_exec")
+@patch("transformerlab.routers.experiment.export.get_output_file_name")
+@patch("builtins.open")
+def test_stderr_decode_fallback(
+    mock_open, mock_get_outfile, mock_subproc, mock_job_create, mock_exp_get
+):
+    # minimal fixtures
+    mock_exp_get.return_value = {"config": '{"foundation":"hf/x","foundation_model_architecture":"pt"}'}
+    mock_job_create.return_value = "j1"
+    mock_get_outfile.return_value = "/tmp/out.txt"
+
+    # make stderr.decode() raise
+    bad_stderr = MagicMock()
+    bad_stderr.decode.side_effect = UnicodeDecodeError("utf-8", b"", 0, 1, "boom")
+    proc = AsyncMock(returncode=0)
+    proc.communicate.return_value = (None, bad_stderr)
+    mock_subproc.return_value = proc
+
+    fake_file = MagicMock()
+    mock_open.return_value.__enter__.return_value = fake_file
+
+    with TestClient(app) as c:
+        assert c.get("/experiment/1/export/run_exporter_script?plugin_name=p&plugin_architecture=GGUF").status_code == 200
+
+    # confirm fallback string was written
+    written = "".join(call.args[0] for call in fake_file.write.call_args_list)
+    assert "[stderr decode error]" in written
