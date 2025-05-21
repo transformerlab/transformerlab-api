@@ -1,85 +1,104 @@
-# Synthetic Dataset Generator (Meta synthetic-data-kit)
+# Synthetic Dataset Generator (synthetic-data-kit)
 
 ## Overview
 
-The Synthetic Dataset Generator plugin creates synthetic question-answer pairs, reasoning traces, or summaries from uploaded documents using Meta's [`synthetic-data-kit`](https://github.com/meta-llama/synthetic-data-kit). It is designed to help users bootstrap high-quality datasets for fine-tuning or evaluation by generating natural language examples directly from content.
+This plugin integrates Meta's `synthetic-data-kit` with TransformerLab to generate high-quality synthetic datasets for tasks like:
 
-The plugin:
-- creates a vLLM server using the selected model in the foundation.
-- Uses Meta’s structured CLI pipeline: `ingest`, `create`, `curate`, `save-as`
-- Supports generating QA, CoT (chain-of-thought), or summaries
-- Accepts various input formats (PDF, DOCX, PPTX, HTML, YouTube, plain text)
-- Works with models already running in Transformer Lab or launched locally via vLLM
-- Produces datasets in formats ready for Alpaca, ChatML, or JSONL finetuning workflows
+- Question-answering
+- Summarization
+- Chain-of-thought reasoning
 
-This tool is ideal for researchers or ML engineers looking to prepare high-quality datasets without manual labeling or scripting.
+It works by extracting content from input documents (PDF, DOCX, etc.), generating responses using a VLLM-based language model, curating the outputs, and formatting them into `jsonl`, `alpaca`, or `chatml`.
+
+## 🔒 Model Requirements
+
+This plugin requires a model that is:
+
+- ✅ Compatible with **Hugging Face's `transformers` library**
+- ✅ Supported by **VLLM** as of v0.3.3 or later
+- ✅ In **float16, bf16, or int4 (GPTQ/AWQ)** format
+
+### ✅ Known working architectures:
+- `LlamaForCausalLM` (e.g. LLaMA 2/3)
+- `QwenForCausalLM` (Qwen1.5+)
+- `MistralForCausalLM`
+- `GemmaForCausalLM`
+- `FalconForCausalLM`
+- `InternLMForCausalLM`
+
+### ❌ Not supported:
+- GGUF / GGML models (e.g. for llama.cpp)
+- MLX (Apple Silicon) models
+- T5-style encoder-decoder models (e.g. `flan-t5-small`)
+- Models with unsupported tokenizers or unknown architectures
+- Quantized formats not loadable by VLLM
+
+If an unsupported model is selected, the job will fail during generation with a clear error.
+
+## Supported Features
+
+- Document ingestion (PDF, DOCX, TXT, HTML, etc.)
+- Generation of QA pairs, summaries, or reasoning chains
+- Curation with scoring thresholds
+- Output formatting: `jsonl`, `alpaca`, `chatml`
+- Run isolation with individual output folders
+- Uploading final datasets to TransformerLab
 
 ## Parameters
 
-### Generation Type (`generation_type`)
+### Model Name
 
-- **Type:** string
-- **Default:** `qa`
-- **Options:** `qa`, `cot`, `summary`
-- **Description:**  
-  Controls what type of examples are generated from the input documents.
+- **Type:** string  
+- **Description:** A Hugging Face-compatible model name or local path. The model must be supported by VLLM.
 
-### Number of Pairs (`num_pairs`)
+### Generation Task Type
 
-- **Type:** integer
-- **Default:** 25
-- **Range:** 1–500
-- **Description:**  
-  The number of examples to generate per document. The actual number may vary depending on input size and curation threshold.
+- **Type:** string  
+- **Options:** `qa`, `summary`, `cot`, `qa_rating`, `cot_enhancement`  
+- **Description:** Defines what type of content to generate.
 
-### Curation Threshold (`curation_threshold`)
+### Reference Documents (tflabcustomui_docs)
 
-- **Type:** float
-- **Default:** 7.0
-- **Range:** 1.0–10.0
-- **Description:**  
-  Score threshold used during the `curate` step to filter low-quality outputs. Higher values retain only top-scoring examples.
+- **Type:** string  
+- **Description:** Comma-separated list of documents to use for generation.
 
-### Output Format (`output_format`)
+### Number of Pairs
 
-- **Type:** string
-- **Default:** `jsonl`
-- **Options:** `jsonl`, `alpaca`, `chatml`
-- **Description:**  
-  The desired format of the final dataset file.
+- **Type:** integer  
+- **Default:** 10  
+- **Description:** Total number of QA pairs or generations to produce.
 
-### Prompt Template (`prompt_template`)
+### Curation Threshold
 
-- **Type:** string (optional)
-- **Description:**  
-  Allows overriding the default prompt template used during generation by writing a YAML-compatible prompt string.
+- **Type:** integer (1–10)  
+- **Description:** Minimum score required to retain a generated pair.
+
+### Output Format
+
+- **Type:** string  
+- **Options:** `jsonl`, `alpaca`, `chatml`  
+- **Description:** Output structure for the final dataset.
 
 ## Usage
-1. **Run a desired model inside the app** Choose the model you'll want to use as the generator and run it.
-1. **Provide Input Documents:** Upload PDFs, TXT, DOCX, etc., in the Documents tab.
-2. **Choose Generation Type:** Select whether to generate QA pairs, reasoning examples, or summaries.
-3. **Tune Parameters:** Adjust number of outputs, output format, and optional curation quality threshold.
-4. **(Optional) Provide Prompt Template:** If needed, insert a custom prompt to guide the generation.
-5. **Run the Plugin:** The final dataset will be automatically saved and visible inside Transformer Lab.
+
+1. Upload your documents.
+2. Choose a supported LLM (see model requirements above).
+3. Choose generation type and number of examples.
+4. Run the plugin.
+5. Your dataset will be generated, curated, and uploaded.
 
 ## Output Format
 
-The final output format depends on your selection. A sample JSONL structure might look like:
+Each output format is structured for downstream compatibility:
 
+### JSONL (default)
 ```json
-[
-  {
-    "input": "What is the purpose of Transformer Lab plugins?",
-    "output": "They allow users to extend model training, generation, and evaluation functionality.",
-    "metadata": {
-      "source": "plugin_doc.pdf"
-    }
-  }
-]
-```
+{"question": "What is AI?", "answer": "Artificial intelligence."}
 
-## Notes
+### Alpaca
+```json
+{"instruction": "What is AI?", "input": "", "output": "Artificial intelligence."}
 
-- This plugin does not require you to install or configure `synthetic-data-kit` manually.
-- All processing is orchestrated via Transformer Lab.
-- Temporary files and configurations are automatically cleaned after job completion.
+### ChatML
+```json
+{"messages": [{"role": "user", "content": "What is AI?"}, {"role": "assistant", "content": "Artificial intelligence."}]}
