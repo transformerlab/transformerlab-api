@@ -35,9 +35,9 @@ def train_diffusion_lora():
     dataset = datasets_dict["train"]
 
     # Model and tokenizer loading
-    pretrained_model_name_or_path = args.get("model_name_manual")
-    # if args.get("model_path") is not None and args.get("model_path") != "":
-    #     pretrained_model_name_or_path = args.get("model_path")
+    pretrained_model_name_or_path = args.get("model_name")
+    if args.get("model_path") is not None and args.get("model_path").strip() != "":
+        pretrained_model_name_or_path = args.get("model_path")
     revision = args.get("revision", None)
     variant = args.get("variant", None)
 
