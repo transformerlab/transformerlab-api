@@ -259,15 +259,5 @@ def train_diffusion_lora():
     )
     print(f"LoRA weights saved to {save_directory}")
 
-    model_id = pretrained_model_name_or_path.replace("/", "_")
-    adaptor_name = tlab_trainer.params.get("adaptor_name", "default")
-    fused_model_name = f"{model_id}_{adaptor_name}"
-
-    tlab_trainer.create_transformerlab_model(
-        fused_model_name=fused_model_name,
-        model_architecture="StableDiffusionPipeline",
-        json_data={"description": f"LoRA fine-tuned Stable Diffusion model trained on {pretrained_model_name_or_path}"},
-    )
-
 
 train_diffusion_lora()

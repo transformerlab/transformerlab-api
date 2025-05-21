@@ -29,7 +29,7 @@
     "num_train_epochs": {
       "title": "Number of Training Epochs",
       "type": "integer",
-      "default": 10,
+      "default": 100,
       "minimum": 1,
       "maximum": 1000
     },
@@ -107,16 +107,18 @@
     "lora_r": {
       "title": "LoRA Rank (r)",
       "type": "integer",
-      "default": 4,
-      "minimum": 1,
+      "default": 8,
+      "minimum": 4,
+      "multipleOf": 4,
       "maximum": 128
     },
     "lora_alpha": {
       "title": "LoRA Alpha",
       "type": "integer",
-      "default": 4,
-      "minimum": 1,
-      "maximum": 128
+      "default": 16,
+      "minimum": 4,
+      "maximum": 128,
+      "multipleOf": 4
     },
     "mixed_precision": {
       "title": "Mixed Precision",
@@ -127,7 +129,7 @@
     "max_train_steps": {
       "title": "Max Train Steps",
       "type": "integer",
-      "default": null
+      "default": 50
     },
     "lr_scheduler": {
       "title": "LR Scheduler",
@@ -138,7 +140,7 @@
     "lr_warmup_steps": {
       "title": "LR Warmup Steps",
       "type": "integer",
-      "default": 500
+      "default": 50
     },
     "noise_offset": {
       "title": "Noise Offset",
