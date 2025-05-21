@@ -3,6 +3,9 @@ from api import app
 import json
 from unittest.mock import patch, AsyncMock, MagicMock
 import pytest
+import itertools
+from transformerlab.routers.experiment.export import get_output_file_name
+import asyncio
 
 
 def test_export_jobs():
@@ -174,9 +177,6 @@ def test_get_output_file_name_with_custom_path(
     mock_plugin_dir.return_value = "/plugins/test_plugin"
     mock_exists.return_value = True
     
-    from transformerlab.routers.experiment.export import get_output_file_name
-    import asyncio
-    
     result = asyncio.run(get_output_file_name("job123"))
     assert result == "/custom/path/output.txt"
 
@@ -191,9 +191,6 @@ def test_get_output_file_name_without_plugin(
     mock_job_get.return_value = {
         "job_data": {}  # No plugin specified
     }
-    
-    from transformerlab.routers.experiment.export import get_output_file_name
-    import asyncio
     
     with pytest.raises(ValueError, match="Plugin not found in job data"):
         asyncio.run(get_output_file_name("job123"))
@@ -213,9 +210,6 @@ def test_get_output_file_name_with_plugin(
     }
     mock_plugin_dir.return_value = "/plugins/test_plugin"
     mock_exists.return_value = True
-    
-    from transformerlab.routers.experiment.export import get_output_file_name
-    import asyncio
     
     result = asyncio.run(get_output_file_name("job123"))
     assert result == "/plugins/test_plugin/output_job123.txt"
@@ -242,3 +236,58 @@ def test_watch_export_log_other_error(mock_get_output_file):
         assert resp.status_code == 200
         response_text = resp.text.strip('"')
         assert response_text == "An internal error has occurred!" 
+
+
+@patch("transformerlab.db.job_get")
+@patch("transformerlab.routers.experiment.export.dirs.plugin_dir_by_name")
+@patch("os.path.exists")
+def test_get_output_file_name_no_existing_file(
+    mock_exists, mock_plugin_dir, mock_job_get
+):
+    """
+    When the job has a plugin but no bespoke output_file_path and
+    the file doesn't exist yet, export.get_output_file_name should
+    still return the *constructed* path.
+    """
+    mock_job_get.return_value = {"job_data": {"plugin": "test_plugin"}}
+    mock_plugin_dir.return_value = "/plugins/test_plugin"
+    mock_exists.return_value = False  # force the “else” branch
+
+    result = asyncio.run(get_output_file_name("job123"))
+    assert result == "/plugins/test_plugin/output_job123.txt"
+
+
+@patch("transformerlab.routers.experiment.export.watch_file")
+@patch("transformerlab.routers.experiment.export.asyncio.sleep")
+@patch("transformerlab.routers.experiment.export.get_output_file_name")
+def test_watch_export_log_retry_success(
+    mock_get_output_file, mock_sleep, mock_watch_file
+):
+    """
+    First call to get_output_file_name raises the special ValueError.
+    async sleep is awaited, then the second call succeeds and the route
+    returns a StreamingResponse built from watch_file().
+    """
+    # 1️⃣ make get_output_file_name fail once, then succeed
+    mock_get_output_file.side_effect = [
+        ValueError("No output file found for job 123"),
+        "/tmp/output_job123.txt",
+    ]
+
+    # 2️⃣ avoid a real 4-second wait
+    mock_sleep.return_value = AsyncMock()
+
+    # 3️⃣ provide an iterator so FastAPI can stream something
+    mock_watch_file.return_value = iter(["line1\n"])
+
+    with TestClient(app) as client:
+        resp = client.get("/experiment/1/export/job/job123/stream_output")
+        assert resp.status_code == 200
+        # because watch_file yielded “line1”, the body must contain it
+        assert "line1" in resp.text
+
+    # ensure the retry actually happened
+    assert mock_get_output_file.call_count >= 2    
+
+    # make sure sleep was awaited with 4 seconds at least once
+    assert any(call.args == (4,) for call in mock_sleep.await_args_list)
