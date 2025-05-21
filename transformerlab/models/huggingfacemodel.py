@@ -156,7 +156,6 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
 
     # Detect SD model by tags or by presence of model_index.json
     model_tags = getattr(hf_model_info, "tags", [])
-    print("Model tags:", model_tags)
     is_sd = False
     if any("stable-diffusion" in t or "diffusers" in t for t in model_tags):
         is_sd = True
