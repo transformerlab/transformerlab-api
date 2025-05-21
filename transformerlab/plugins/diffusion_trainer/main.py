@@ -1,37 +1,27 @@
 import math
-import os
 import random
-import shutil
-from contextlib import nullcontext
-from pathlib import Path
 
-import datasets
 import numpy as np
 import torch
 import torch.nn.functional as F
 import torch.utils.checkpoint
 import transformers
-from packaging import version
 from peft import LoraConfig
 from peft.utils import get_peft_model_state_dict
 from torchvision import transforms
 
-import diffusers
-from diffusers import AutoencoderKL, DDPMScheduler, DiffusionPipeline, StableDiffusionPipeline, UNet2DConditionModel
+from diffusers import AutoencoderKL, DDPMScheduler, StableDiffusionPipeline, UNet2DConditionModel
 from diffusers.optimization import get_scheduler
 from diffusers.training_utils import cast_training_params, compute_snr
 from diffusers.utils import check_min_version, convert_state_dict_to_diffusers
-from diffusers.utils.hub_utils import load_or_create_model_card, populate_model_card
-from diffusers.utils.import_utils import is_xformers_available
-from diffusers.utils.torch_utils import is_compiled_module
+
+from transformerlab.sdk.v1.train import tlab_trainer
+
 check_min_version("0.34.0.dev0")
 
-# Import tlab_trainer from the SDK
-from transformerlab.sdk.v1.train import tlab_trainer
 
 @tlab_trainer.job_wrapper(wandb_project_name="TLab_Training", manual_logging=True)
 def train_diffusion_lora():
-
     # Extract parameters from tlab_trainer
     args = tlab_trainer.params
 
@@ -43,7 +33,6 @@ def train_diffusion_lora():
     # Load dataset using tlab_trainer
     datasets_dict = tlab_trainer.load_dataset(["train"])
     dataset = datasets_dict["train"]
-    column_names = dataset.column_names
 
     # Model and tokenizer loading
     pretrained_model_name_or_path = args.get("model_name_manual")
@@ -53,10 +42,18 @@ def train_diffusion_lora():
     variant = args.get("variant", None)
 
     noise_scheduler = DDPMScheduler.from_pretrained(pretrained_model_name_or_path, subfolder="scheduler")
-    tokenizer = transformers.CLIPTokenizer.from_pretrained(pretrained_model_name_or_path, subfolder="tokenizer", revision=revision)
-    text_encoder = transformers.CLIPTextModel.from_pretrained(pretrained_model_name_or_path, subfolder="text_encoder", revision=revision)
-    vae = AutoencoderKL.from_pretrained(pretrained_model_name_or_path, subfolder="vae", revision=revision, variant=variant)
-    unet = UNet2DConditionModel.from_pretrained(pretrained_model_name_or_path, subfolder="unet", revision=revision, variant=variant)
+    tokenizer = transformers.CLIPTokenizer.from_pretrained(
+        pretrained_model_name_or_path, subfolder="tokenizer", revision=revision
+    )
+    text_encoder = transformers.CLIPTextModel.from_pretrained(
+        pretrained_model_name_or_path, subfolder="text_encoder", revision=revision
+    )
+    vae = AutoencoderKL.from_pretrained(
+        pretrained_model_name_or_path, subfolder="vae", revision=revision, variant=variant
+    )
+    unet = UNet2DConditionModel.from_pretrained(
+        pretrained_model_name_or_path, subfolder="unet", revision=revision, variant=variant
+    )
     print(f"Model and tokenizer loaded successfully: {pretrained_model_name_or_path}")
 
     # Freeze parameters
@@ -95,9 +92,11 @@ def train_diffusion_lora():
     interpolation = getattr(transforms.InterpolationMode, args.get("image_interpolation_mode", "lanczos").upper(), None)
     args["resolution"] = int(args.get("resolution", 512))
     train_transforms = transforms.Compose(
-        [   
+        [
             transforms.Resize(args.get("resolution", 512), interpolation=interpolation),
-            transforms.CenterCrop(args.get("resolution", 512)) if args.get("center_crop", False) else transforms.RandomCrop(args.get("resolution", 512)),
+            transforms.CenterCrop(args.get("resolution", 512))
+            if args.get("center_crop", False)
+            else transforms.RandomCrop(args.get("resolution", 512)),
             transforms.RandomHorizontalFlip() if args.get("random_flip", False) else transforms.Lambda(lambda x: x),
             transforms.ToTensor(),
             transforms.Normalize([0.5], [0.5]),
@@ -113,14 +112,15 @@ def train_diffusion_lora():
             elif isinstance(caption, (list, np.ndarray)):
                 captions.append(random.choice(caption) if is_train else caption[0])
             else:
-                raise ValueError(f"Caption column `{caption_column}` should contain either strings or lists of strings.")
+                raise ValueError(
+                    f"Caption column `{caption_column}` should contain either strings or lists of strings."
+                )
         inputs = tokenizer(
             captions, max_length=tokenizer.model_max_length, padding="max_length", truncation=True, return_tensors="pt"
         )
         return inputs.input_ids
 
     image_column = args.get("image_column", "image")
-    caption_column = args.get("caption_column", "text")
 
     def preprocess_train(examples):
         images = [image.convert("RGB") for image in examples[image_column]]
@@ -180,7 +180,6 @@ def train_diffusion_lora():
     global_step = 0
     for epoch in range(num_train_epochs):
         unet.train()
-        train_loss = 0.0
         for step, batch in enumerate(train_dataloader):
             # Convert images to latent space
             latents = vae.encode(batch["pixel_values"].to(device, dtype=weight_dtype)).latent_dist.sample()
@@ -194,7 +193,9 @@ def train_diffusion_lora():
                 )
 
             bsz = latents.shape[0]
-            timesteps = torch.randint(0, noise_scheduler.config.num_train_timesteps, (bsz,), device=latents.device).long()
+            timesteps = torch.randint(
+                0, noise_scheduler.config.num_train_timesteps, (bsz,), device=latents.device
+            ).long()
             noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
             encoder_hidden_states = text_encoder(batch["input_ids"].to(device), return_dict=False)[0]
 
@@ -216,7 +217,9 @@ def train_diffusion_lora():
                 loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
             else:
                 snr = compute_snr(noise_scheduler, timesteps)
-                mse_loss_weights = torch.stack([snr, args["snr_gamma"] * torch.ones_like(timesteps)], dim=1).min(dim=1)[0]
+                mse_loss_weights = torch.stack([snr, args["snr_gamma"] * torch.ones_like(timesteps)], dim=1).min(dim=1)[
+                    0
+                ]
                 if noise_scheduler.config.prediction_type == "epsilon":
                     mse_loss_weights = mse_loss_weights / snr
                 elif noise_scheduler.config.prediction_type == "v_prediction":
@@ -264,6 +267,7 @@ def train_diffusion_lora():
         fused_model_name=fused_model_name,
         model_architecture="StableDiffusionPipeline",
         json_data={"description": f"LoRA fine-tuned Stable Diffusion model trained on {pretrained_model_name_or_path}"},
-            )
+    )
+
 
 train_diffusion_lora()
