@@ -164,20 +164,36 @@ def train_model():
         packing=True,
         run_name=f"job_{tlab_trainer.params.job_id}_{run_suffix}",
         report_to=tlab_trainer.report_to,
+        eval_strategy="epoch",
+        do_eval=True,
+        load_best_model_at_end=True,
+        metric_for_best_model="loss",
+        greater_is_better=False,
     )
 
     # Create progress callback
-    progress_callback = tlab_trainer.create_progress_callback(framework="huggingface")
+    callback = tlab_trainer.create_progress_callback() if hasattr(tlab_trainer, "create_progress_callback") else None
+    callbacks = [callback] if callback else []
+
+    # Setup evaluation dataset - use 10% of the data if enough examples
+    if len(dataset) >= 10:
+        split_dataset = dataset.train_test_split(test_size=0.1)
+        train_data = split_dataset["train"]
+        eval_data = split_dataset["test"]
+    else:
+        train_data = dataset
+        eval_data = None
 
     # Create trainer
     trainer = SFTTrainer(
         model=model,
-        train_dataset=dataset,
+        train_dataset=train_data,
+        eval_dataset=eval_data,
         peft_config=peft_config,
         processing_class=tokenizer,
         formatting_func=format_instruction,
         args=training_args,
-        callbacks=[progress_callback],
+        callbacks=callbacks,
     )
 
     # Train the model

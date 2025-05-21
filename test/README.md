@@ -12,12 +12,12 @@ Run these from the root of the project.
 
 To run the faster non-API tests:
 ```
-uv pip install --system pytest pytest-asyncio jsonschema
+uv pip install --system pytest pytest-asyncio jsonschema shellcheck-py
 pytest test/db/ test/plugins/
 ```
 
 To run the slower API tests:
 ```
-uv pip install --system pytest pytest-asyncio jsonschema requests
+uv pip install --system pytest pytest-asyncio jsonschema requests shellcheck-py
 pytest test/api/
 ```
