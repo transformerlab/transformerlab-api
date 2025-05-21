@@ -257,19 +257,22 @@ def train_diffusion_lora():
     # Save LoRA weights
     unet = unet.to(torch.float32)
     unet_lora_state_dict = convert_state_dict_to_diffusers(get_peft_model_state_dict(unet))
+    save_directory = args.get("adaptor_output_dir", output_dir)
     StableDiffusionPipeline.save_lora_weights(
-        save_directory=output_dir,
+        save_directory=save_directory,
         unet_lora_layers=unet_lora_state_dict,
         safe_serialization=True,
     )
-    print(f"LoRA weights saved to {output_dir}")
+    print(f"LoRA weights saved to {save_directory}")
 
-    # Optionally: create model card, provenance, etc.
+    model_id = pretrained_model_name_or_path.replace("/", "_")
+    adaptor_name = tlab_trainer.params.get("adaptor_name", "default")
+    fused_model_name = f"{model_id}_{adaptor_name}"
+
     tlab_trainer.create_transformerlab_model(
-        fused_model_name=os.path.basename(output_dir),
+        fused_model_name=fused_model_name,
         model_architecture="StableDiffusionPipeline",
-        json_data={"description": f"LoRA fine-tuned Stable Diffusion model at {output_dir}"},
-        output_dir=os.path.dirname(output_dir),
-    )
+        json_data={"description": f"LoRA fine-tuned Stable Diffusion model trained on {pretrained_model_name_or_path}"},
+            )
 
 train_diffusion_lora()
