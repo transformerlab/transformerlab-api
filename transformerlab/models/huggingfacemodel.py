@@ -298,7 +298,7 @@ def get_huggingface_download_size(model_id: str, allow_patterns: list = []):
     """
 
     # This can throw Exceptions: RepositoryNotFoundError
-    hf_model_info = huggingface_hub.list_repo_tree(model_id)
+    hf_model_info = huggingface_hub.list_repo_tree(model_id, recursive=True)
 
     # Iterate over files in the model repo and add up size if they are included in download
     download_size = 0
