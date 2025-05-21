@@ -1,5 +1,8 @@
 from fastapi.testclient import TestClient
 from api import app
+import sys
+import types
+import importlib
 
 
 def test_server_info():
@@ -56,3 +59,16 @@ def test_server_pytorch_collect_env():
         assert response.status_code == 200
         data = response.text
         assert "PyTorch" in data
+
+
+def test_is_wsl_false(monkeypatch):
+    # Simulate subprocess.CalledProcessError
+    import subprocess
+
+    def fake_check_output(*args, **kwargs):
+        raise subprocess.CalledProcessError(1, "uname")
+
+    monkeypatch.setattr(subprocess, "check_output", fake_check_output)
+    from transformerlab.routers import serverinfo
+
+    assert serverinfo.is_wsl() is False
