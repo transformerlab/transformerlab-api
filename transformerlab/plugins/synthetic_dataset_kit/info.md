@@ -26,6 +26,8 @@ This plugin requires a model that is:
 - `FalconForCausalLM`
 - `InternLMForCausalLM`
 
+For a complete list of supported models see: [text](https://docs.vllm.ai/en/latest/models/supported_models.html#text-generation)
+
 ### ❌ Not supported:
 - GGUF / GGML models (e.g. for llama.cpp)
 - MLX (Apple Silicon) models
