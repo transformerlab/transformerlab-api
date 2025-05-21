@@ -30,3 +30,4 @@ markitdown[all]
 hf_xet
 macmon-python
 transformerlab-inference
+diffusers==0.33.1
