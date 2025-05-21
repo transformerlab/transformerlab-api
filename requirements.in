@@ -6,7 +6,6 @@ einops
 evaluate
 fastapi
 fastapi-users[sqlalchemy]
-nvidia-ml-py
 packaging
 psutil
 python-multipart
@@ -30,6 +29,9 @@ sentence-transformers
 markitdown[all]
 hf_xet
 macmon-python
-mcp[cli]
 transformerlab-inference
-pyrsmi
+diffusers==0.33.1
+nvidia-ml-py
+transformerlab-inference
+mcp[cli]
+

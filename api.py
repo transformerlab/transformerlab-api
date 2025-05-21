@@ -40,10 +40,12 @@ from transformerlab.routers import (
     evals,
     config,
     jobs,
+    workflows,
     tasks,
     prompts,
     tools,
     batched_prompts,
+    diffusion,
     recipes,
     users,
 )
@@ -51,13 +53,13 @@ import torch
 
 try:
     from pynvml import nvmlShutdown
+    HAS_AMD = False
 except Exception:
     from pyrsmi import rocml
 
     HAS_AMD = True
 from transformerlab import fastchat_openai_api
 from transformerlab.routers.experiment import experiment
-from transformerlab.routers.experiment import workflows as experiment_workflows
 from transformerlab.shared import dirs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
@@ -109,15 +111,7 @@ async def run_over_and_over():
     while True:
         await asyncio.sleep(3)
         await jobs.start_next_job()
-        
-        # Get the next active workflow run
-        active_run = await experiment_workflows.get_active_workflow_run()
-        if active_run:
-            # Get the workflow to find its experiment
-            workflow = await db.workflows_get_by_id(active_run["workflow_id"])
-            if workflow:
-                # Call start_next_step with the workflow's experiment ID
-                await experiment_workflows.start_next_step_in_workflow(int(workflow["experiment_id"]))
+        await workflows.start_next_step_in_workflow()
 
 
 description = "Transformerlab API helps you do awesome stuff. 🚀"
@@ -156,7 +150,7 @@ app = fastapi.FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -182,6 +176,7 @@ app.include_router(experiment.router)
 app.include_router(plugins.router)
 app.include_router(evals.router)
 app.include_router(jobs.router)
+app.include_router(workflows.router)
 app.include_router(tasks.router)
 app.include_router(config.router)
 app.include_router(prompts.router)
@@ -189,6 +184,7 @@ app.include_router(tools.router)
 app.include_router(recipes.router)
 app.include_router(batched_prompts.router)
 app.include_router(fastchat_openai_api.router)
+app.include_router(diffusion.router)
 app.include_router(get_xmlrpc_router())
 app.include_router(get_trainer_xmlrpc_router())
 
@@ -449,6 +445,8 @@ def run():
     args = parse_args()
 
     print(f"args: {args}")
+    if args.allowed_origins == ["*"]:
+        args.allowed_credentials = False
 
     app.add_middleware(
         CORSMiddleware,
