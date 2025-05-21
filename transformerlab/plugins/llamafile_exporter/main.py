@@ -9,76 +9,75 @@ except ImportError or ModuleNotFoundError:
 
 
 tlab_exporter.add_argument(
-    "--model_path", default="gpt-j-6b", type=str, help="Path to directory or file containing the model."
-)
+    "--model_path", default="gpt-j-6b", type=str, help="Path to directory or file containing the model.")
 
 
 @tlab_exporter.exporter_job_wrapper(progress_start=0, progress_end=100)
 def llamafile_export():
     """Export a model to Llamafile format"""
-
-    # Make sure we remove the author part (everything before and including "/")
     input_model = tlab_exporter.params.get("model_name")
     input_model_id_without_author = input_model.split("/")[-1]
-
-    # But we need the actual model path to get the GGUF file
     input_model_path = tlab_exporter.params.get("model_path")
-
-    # Directory to run conversion subprocess
+    output_dir = tlab_exporter.params.get("output_dir")  # Must be created by plugin
     plugin_dir = os.path.realpath(os.path.dirname(__file__))
-
-    # Output details - ignoring the output_model_id passed by app
-    outfile = f"{input_model_id_without_author}.llamafile"
-    output_dir = tlab_exporter.params.get("output_dir")
-
-    tlab_exporter.progress_update(10)
-    tlab_exporter.add_job_data("status", "Starting Llamafile conversion")
-
-    # Setup arguments for executing this model
+    outfile_name = f"{input_model_id_without_author}.llamafile"
     argsfile = os.path.join(plugin_dir, ".args")
-    argsoutput = f"""-m
-    {input_model_id_without_author}
-    --host
-    0.0.0.0
-    -ngl
-    9999
-    ...
-    """
 
-    # Create a .args file to include in the llamafile
+    # Create output file
+    os.makedirs(output_dir, exist_ok=True)
+
+    print("Starting Llamafile conversion...")
+    tlab_exporter.progress_update(15)
+    tlab_exporter.add_job_data("status", "Starting Llamafile conversion")
+    print("Creating .args file...")
+
+    argsoutput = f"""-m
+                {input_model_id_without_author}
+                --host
+                0.0.0.0
+                -ngl
+                9999
+                """
+    
     with open(argsfile, "w") as f:
         f.write(argsoutput)
 
     tlab_exporter.progress_update(30)
     tlab_exporter.add_job_data("status", "Creating base llamafile")
+    print("Copying base llamafile...")
 
-    # Create a copy of pre-built llamafile to use as a base
-    shutil.copy(os.path.join(plugin_dir, "llamafile"), os.path.join(plugin_dir, outfile))
+    base_llamafile = os.path.join(plugin_dir, "llamafile")
+    temp_llamafile = os.path.join(plugin_dir, outfile_name)
+    shutil.copy(base_llamafile, temp_llamafile)
 
     tlab_exporter.progress_update(50)
     tlab_exporter.add_job_data("status", "Merging model with Llamafile")
 
     # Merge files together in single executable using zipalign
-    subprocess_cmd = ["sh", "./zipalign", "-j0", outfile, input_model_path, ".args"]
+    subprocess_cmd = ["sh", "./zipalign", "-j0", outfile_name, input_model_path, ".args"]
     export_process = subprocess.run(
         subprocess_cmd, cwd=plugin_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
     )
-
-    # Add output to job data
+    
     stdout = export_process.stdout
-    stderr = export_process.stderr if hasattr(export_process, "stderr") else ""
-    tlab_exporter.add_job_data("stdout", stdout)
-    tlab_exporter.add_job_data("stderr", stderr)
+    for line in stdout.strip().splitlines():
+        print(line)
+
+    if export_process.returncode != 0:
+        tlab_exporter.add_job_data("stderr", stdout)
+        print(f"zipalign failed with code {export_process.returncode}")
+        raise RuntimeError(f"zipalign failed with return code {export_process.returncode}")
 
     tlab_exporter.progress_update(80)
     tlab_exporter.add_job_data("status", "Moving Llamafile to output directory")
+    print(f"Moving {outfile_name} to output directory {output_dir}...")
 
-    # Move file to output_dir
-    shutil.move(os.path.join(plugin_dir, outfile), os.path.join(output_dir, outfile))
+    final_llamafile_path = os.path.join(output_dir, outfile_name)
+    shutil.move(temp_llamafile, final_llamafile_path)
 
-    # Final progress update
     tlab_exporter.progress_update(100)
     tlab_exporter.add_job_data("status", "Llamafile creation complete")
+    print("Llamafile export completed successfully!")
 
     return "Successful export to Llamafile format"
 
