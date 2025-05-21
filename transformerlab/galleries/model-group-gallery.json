@@ -1697,7 +1697,7 @@
     },
     {
         "name": "llava",
-        "description": "A vision-language model capable of multimodal understanding and visual question answering.",
+        "description": "Vision-language model capable of multimodal understanding and visual question answering.",
         "tags": [
             "multimodal",
             "vision-language",
@@ -2157,6 +2157,39 @@
                 "resources": {
                     "canonicalUrl": "",
                     "downloadUrl": "",
+                    "paperUrl": "?"
+                },
+                "model_group": "mistral"
+            },
+            {
+                "uniqueID": "mistralai/Devstral-Small-2505",
+                "name": "Devstral-Small-2505",
+                "description": "Agentic LLM for software engineering tasks",
+                "added": "2025-05-21",
+                "tags": [
+                    "coding",
+                    "lightweight"
+                ],
+                "parameters": "",
+                "context": "131072",
+                "architecture": "MistralForCausalLM",
+                "formats": [
+                    "Safetensors"
+                ],
+                "huggingface_repo": "mistralai/Devstral-Small-2505",
+                "transformers_version": "4.51.3",
+                "gated": false,
+                "license": "apache-2.0",
+                "logo": "https://huggingface.co/mistralai/Mistral-Small-3.1-24B-Instruct-2503",
+                "size_of_model_in_mb": 89935.80525779724,
+                "author": {
+                    "name": "mistralai",
+                    "url": "https://huggingface.co/mistralai/Devstral-Small-2505",
+                    "blurb": ""
+                },
+                "resources": {
+                    "canonicalUrl": "https://huggingface.co/mistralai/Devstral-Small-2505",
+                    "downloadUrl": "https://huggingface.co/mistralai/Devstral-Small-2505",
                     "paperUrl": "?"
                 },
                 "model_group": "mistral"
@@ -3819,6 +3852,50 @@
                     "paperUrl": "?"
                 },
                 "model_group": "fastchat-t5"
+            }
+        ]
+    },
+    {
+        "name": "bytedance",
+        "description": "Parameter efficient family for reasoning and coding",
+        "tags": [
+            "programming",
+            "reasoning",
+            "efficient"
+        ],
+        "models": [
+            {
+                "uniqueID": "ByteDance-Seed/Seed-Coder-8B-Reasoning-bf16",
+                "name": "Seed-Coder-8B-Reasoning-bf16",
+                "description": "A powerful, transparent, and parameter-efficient open-source code model",
+                "added": "2025-05-21",
+                "tags": [
+                    "reasoning",
+                    "programming"
+                ],
+                "parameters": "8B",
+                "context": "65536",
+                "architecture": "LlamaForCausalLM",
+                "formats": [
+                    "Safetensors"
+                ],
+                "huggingface_repo": "ByteDance-Seed/Seed-Coder-8B-Reasoning-bf16",
+                "transformers_version": "4.51.3",
+                "gated": false,
+                "license": "mit",
+                "logo": "",
+                "size_of_model_in_mb": 15747.93223285675,
+                "author": {
+                    "name": "ByteDance-Seed",
+                    "url": "https://huggingface.co/ByteDance-Seed/Seed-Coder-8B-Reasoning-bf16",
+                    "blurb": ""
+                },
+                "resources": {
+                    "canonicalUrl": "https://huggingface.co/ByteDance-Seed/Seed-Coder-8B-Reasoning-bf16",
+                    "downloadUrl": "https://huggingface.co/ByteDance-Seed/Seed-Coder-8B-Reasoning-bf16",
+                    "paperUrl": "?"
+                },
+                "model_group": "bytedance"
             }
         ]
     },
