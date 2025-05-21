@@ -1,55 +1,49 @@
+import math
+import os
+import random
+import shutil
+from contextlib import nullcontext
+from pathlib import Path
+
+import datasets
+import numpy as np
+import torch
+import torch.nn.functional as F
+import torch.utils.checkpoint
+import transformers
+from packaging import version
+from peft import LoraConfig
+from peft.utils import get_peft_model_state_dict
+from torchvision import transforms
+
+import diffusers
+from diffusers import AutoencoderKL, DDPMScheduler, DiffusionPipeline, StableDiffusionPipeline, UNet2DConditionModel
+from diffusers.optimization import get_scheduler
+from diffusers.training_utils import cast_training_params, compute_snr
+from diffusers.utils import check_min_version, convert_state_dict_to_diffusers
+from diffusers.utils.hub_utils import load_or_create_model_card, populate_model_card
+from diffusers.utils.import_utils import is_xformers_available
+from diffusers.utils.torch_utils import is_compiled_module
+check_min_version("0.34.0.dev0")
+
 # Import tlab_trainer from the SDK
 from transformerlab.sdk.v1.train import tlab_trainer
 
 @tlab_trainer.job_wrapper(wandb_project_name="TLab_Training", manual_logging=True)
 def train_diffusion_lora():
-    print("STARTING NOW")
-    import math
-    import os
-    import random
-    import shutil
-    from contextlib import nullcontext
-    from pathlib import Path
 
-    import datasets
-    import numpy as np
-    import torch
-    import torch.nn.functional as F
-    import torch.utils.checkpoint
-    import transformers
-    from packaging import version
-    from peft import LoraConfig
-    from peft.utils import get_peft_model_state_dict
-    from torchvision import transforms
-
-    import diffusers
-    from diffusers import AutoencoderKL, DDPMScheduler, DiffusionPipeline, StableDiffusionPipeline, UNet2DConditionModel
-    from diffusers.optimization import get_scheduler
-    from diffusers.training_utils import cast_training_params, compute_snr
-    from diffusers.utils import check_min_version, convert_state_dict_to_diffusers
-    from diffusers.utils.hub_utils import load_or_create_model_card, populate_model_card
-    from diffusers.utils.import_utils import is_xformers_available
-    from diffusers.utils.torch_utils import is_compiled_module
-    print("IMPORT COMPLETE")
-    check_min_version("0.34.0.dev0")
     # Extract parameters from tlab_trainer
     args = tlab_trainer.params
 
     print("***** Running training *****")
-    print("ARGS:", args)
 
     # Setup logging directory
     output_dir = args.get("output_dir", "sd-model-finetuned-lora")
-    logging_dir = os.path.join(output_dir, args.get("logging_dir", "logs"))
-    # os.makedirs(output_dir, exist_ok=True)
-    print(f"Output directory: {output_dir}")
-    print(f"Logging directory: {logging_dir}")
 
     # Load dataset using tlab_trainer
     datasets_dict = tlab_trainer.load_dataset(["train"])
     dataset = datasets_dict["train"]
     column_names = dataset.column_names
-    print(f"Dataset column names: {column_names}")
 
     # Model and tokenizer loading
     pretrained_model_name_or_path = args.get("model_name_manual")
@@ -57,16 +51,13 @@ def train_diffusion_lora():
     #     pretrained_model_name_or_path = args.get("model_path")
     revision = args.get("revision", None)
     variant = args.get("variant", None)
-    print(f"Pretrained model name or path: {pretrained_model_name_or_path}")
-    print(f"Revision: {revision}")
-    print(f"Variant: {variant}")
 
     noise_scheduler = DDPMScheduler.from_pretrained(pretrained_model_name_or_path, subfolder="scheduler")
     tokenizer = transformers.CLIPTokenizer.from_pretrained(pretrained_model_name_or_path, subfolder="tokenizer", revision=revision)
     text_encoder = transformers.CLIPTextModel.from_pretrained(pretrained_model_name_or_path, subfolder="text_encoder", revision=revision)
     vae = AutoencoderKL.from_pretrained(pretrained_model_name_or_path, subfolder="vae", revision=revision, variant=variant)
     unet = UNet2DConditionModel.from_pretrained(pretrained_model_name_or_path, subfolder="unet", revision=revision, variant=variant)
-    print("Model and tokenizer loaded successfully")
+    print(f"Model and tokenizer loaded successfully: {pretrained_model_name_or_path}")
 
     # Freeze parameters
     unet.requires_grad_(False)
