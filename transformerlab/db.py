@@ -535,6 +535,29 @@ async def job_stop(job_id):
     return
 
 
+async def job_update_progress(job_id, progress):
+    """
+    Update the percent complete for this job.
+
+    progress: int representing percent complete
+    """
+    await db.execute(
+        "UPDATE job SET progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (progress, job_id),
+    )
+
+
+async def job_update_sweep_progress(job_id, value):
+    value = json.dumps(value)
+
+    await db.execute(
+        "UPDATE job SET job_data = " + "json_set(job_data,'$.sweep_progress', json(?))  WHERE id = ?",
+        (value, job_id),
+    )
+    await db.commit()
+    return
+
+
 ###############
 # TASKS MODEL
 ###############
