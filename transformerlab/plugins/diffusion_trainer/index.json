@@ -8,6 +8,14 @@
   "supports": ["experimental"],
   "git": "",
   "url": "",
+  "model_architectures": [
+    "StableDiffusionPipeline",
+    "DiffusionPipeline",
+    "StableDiffusionXLPipeline",
+    "StableDiffusionXL",
+    "StableDiffusionXLPipeline",
+    "StableDiffusion"
+  ],
   "files": ["main.py", "setup.sh"],
   "supported_hardware_architectures": ["cuda"],
   "setup-script": "setup.sh",
