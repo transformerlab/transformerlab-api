@@ -1,8 +1,5 @@
 from fastapi.testclient import TestClient
 from api import app
-import sys
-import types
-import importlib
 
 
 def test_server_info():
