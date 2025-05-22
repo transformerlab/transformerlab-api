@@ -92,11 +92,6 @@ async def install_recipe_dependencies(id: int, experiment_name: str):
     if not recipe:
         return {"error": f"Recipe with id {id} not found."}
 
-    # experiment = await db.experiment_get_by_name(experiment_name)
-    # if not experiment:
-    #     return {"error": f"Experiment '{experiment_name}' not found."}
-    # # _ = experiment  # keep for future use if needed
-
     # Get local models and datasets
     local_models = await model_helper.list_installed_models()
     local_model_names = set(model["model_id"] for model in local_models)
@@ -153,3 +148,15 @@ async def install_recipe_dependencies(id: int, experiment_name: str):
                 result["status"] = "error: config not provided"
         install_results.append(result)
     return {"results": install_results}
+
+
+@router.post("/{id}/create_experiment")
+async def create_experiment_for_recipe(id: int, experiment_name: str):
+    """Create a new experiment with the given name and blank config."""
+    # Check if experiment already exists
+    existing = await db.experiment_get_by_name(experiment_name)
+    if existing:
+        return {"error": f"Experiment '{experiment_name}' already exists."}
+    # Create experiment with blank config
+    experiment_id = await db.experiment_create(name=experiment_name, config="{}")
+    return {"experiment_id": experiment_id, "name": experiment_name, "status": "created"}
