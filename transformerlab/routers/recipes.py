@@ -26,7 +26,7 @@ async def get_recipe_by_id(id: int):
 
 @router.get("/{id}/check_dependencies")
 async def check_recipe_dependencies(id: int):
-    """Check if the dependencies for a recipe are installed for a given experiment."""
+    """Check if the dependencies for a recipe are installed for a given environment."""
     # Get the recipe
     recipes_gallery = galleries.get_exp_recipe_gallery()
     recipe = next((r for r in recipes_gallery if r.get("id") == id), None)
