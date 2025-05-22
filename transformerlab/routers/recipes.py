@@ -25,7 +25,7 @@ async def get_recipe_by_id(id: int):
 
 
 @router.get("/{id}/check_dependencies")
-async def check_recipe_dependencies(id: int, experiment_name: str):
+async def check_recipe_dependencies(id: int):
     """Check if the dependencies for a recipe are installed for a given experiment."""
     # Get the recipe
     recipes_gallery = galleries.get_exp_recipe_gallery()
@@ -35,12 +35,6 @@ async def check_recipe_dependencies(id: int, experiment_name: str):
 
     if len(recipe.get("dependencies", [])) == 0:
         return {"dependencies": []}
-
-    # Get experiment config
-    experiment = await db.experiment_get_by_name(experiment_name)
-    if not experiment:
-        return {"error": f"Experiment '{experiment_name}' not found."}
-    config = json.loads(experiment["config"]) if isinstance(experiment["config"], str) else experiment["config"]
 
     # Get local models and datasets
     local_models = await model_helper.list_installed_models()
@@ -54,37 +48,30 @@ async def check_recipe_dependencies(id: int, experiment_name: str):
     plugin_gallery = await plugins_router.plugin_gallery()
     installed_plugins = set(p["uniqueId"] for p in plugin_gallery if p.get("installed"))
 
-    # Get installed workflows for the experiment
-    workflows = await db.workflows_get_from_experiment(experiment["id"])
-    installed_workflow_names = set(wf["name"] for wf in workflows if wf.get("name"))
-
     results = []
     for dep in recipe.get("dependencies", []):
         dep_type = dep.get("type")
         dep_name = dep.get("name")
+        if dep_type == "workflow":
+            # Skip workflow installation in this background job
+            continue
         status = {"type": dep_type, "name": dep_name, "installed": False}
         if dep_type == "model":
-            # Check if the experiment's foundation model matches and is installed
-            foundation = config.get("foundation", "")
-            status["used_in_experiment"] = foundation == dep_name
             status["installed"] = dep_name in local_model_names
         elif dep_type == "dataset":
             # Check if dataset is installed
             status["installed"] = dep_name in local_dataset_ids
         elif dep_type == "plugin":
             status["installed"] = dep_name in installed_plugins
-        elif dep_type == "workflow":
-            status["installed"] = dep_name in installed_workflow_names
         results.append(status)
     return {"dependencies": results}
 
 
 @router.get("/{id}/install_dependencies")
-async def install_recipe_dependencies(id: int, experiment_name: str):
+async def install_recipe_dependencies(id: int):
     """Install model and dataset dependencies for a recipe."""
     from transformerlab.routers import model as model_router
     from transformerlab.routers import data as data_router
-    from transformerlab.routers import workflows as workflows_router
 
     # Get the recipe
     recipes_gallery = galleries.get_exp_recipe_gallery()
@@ -105,6 +92,9 @@ async def install_recipe_dependencies(id: int, experiment_name: str):
     for dep in recipe.get("dependencies", []):
         dep_type = dep.get("type")
         dep_name = dep.get("name")
+        if dep_type == "workflow":
+            # Skip workflow installation in this background job
+            continue
         result = {"type": dep_type, "name": dep_name, "action": None, "status": None}
         if dep_type == "model":
             if dep_name not in local_model_names:
@@ -128,38 +118,14 @@ async def install_recipe_dependencies(id: int, experiment_name: str):
             install_result = await plugins_router.install_plugin(plugin_id=dep_name)
             result["action"] = "install_plugin"
             result["status"] = install_result.get("status", "unknown")
-        elif dep_type == "workflow":
-            from transformerlab.routers import workflows as workflows_router
-
-            # Check if config is provided
-            workflow_config = dep.get("config")
-            if workflow_config is not None:
-                # Get experiment to pass experiment_id
-                experiment = await db.experiment_get_by_name(experiment_name)
-                if not experiment:
-                    result["action"] = "install_workflow"
-                    result["status"] = f"error: experiment '{experiment_name}' not found."
-                else:
-                    # Call workflow_create with name and config
-                    workflow_id = await workflows_router.workflow_create(
-                        name=dep_name, config=json.dumps(workflow_config), experiment_id=experiment["id"]
-                    )
-                    result["action"] = "install_workflow"
-                    result["status"] = f"success: {workflow_id}"
-            else:
-                result["action"] = "install_workflow"
-                result["status"] = "error: config not provided"
         install_results.append(result)
     return {"results": install_results}
 
 
-async def _install_recipe_dependencies_job(job_id, id, experiment_name):
+async def _install_recipe_dependencies_job(job_id, id):
     from transformerlab.routers import model as model_router
     from transformerlab.routers import data as data_router
-    from transformerlab.routers import workflows as workflows_router
     from transformerlab.routers import plugins as plugins_router
-    import transformerlab.db as db
-    import json
 
     try:
         await db.job_update_status(job_id, "RUNNING")
@@ -183,6 +149,9 @@ async def _install_recipe_dependencies_job(job_id, id, experiment_name):
         for dep in recipe.get("dependencies", []):
             dep_type = dep.get("type")
             dep_name = dep.get("name")
+            if dep_type == "workflow":
+                # Skip workflow installation in this background job
+                continue
             result = {"type": dep_type, "name": dep_name, "action": None, "status": None}
             try:
                 if dep_type == "model":
@@ -205,21 +174,6 @@ async def _install_recipe_dependencies_job(job_id, id, experiment_name):
                     install_result = await plugins_router.install_plugin(plugin_id=dep_name)
                     result["action"] = "install_plugin"
                     result["status"] = install_result.get("status", "unknown")
-                elif dep_type == "workflow":
-                    workflow_config = dep.get("config")
-                    experiment = await db.experiment_get_by_name(experiment_name)
-                    if workflow_config is not None and experiment:
-                        workflow_id = await workflows_router.workflow_create(
-                            name=dep_name, config=json.dumps(workflow_config), experiment_id=experiment["id"]
-                        )
-                        result["action"] = "install_workflow"
-                        result["status"] = f"success: {workflow_id}"
-                    elif not experiment:
-                        result["action"] = "install_workflow"
-                        result["status"] = f"error: experiment '{experiment_name}' not found."
-                    else:
-                        result["action"] = "install_workflow"
-                        result["status"] = "error: config not provided"
             except Exception as e:
                 result["action"] = "error"
                 result["status"] = str(e)
@@ -233,22 +187,17 @@ async def _install_recipe_dependencies_job(job_id, id, experiment_name):
 
 
 @router.get("/{id}/install_dependencies_bg")
-async def bg_install_recipe_dependencies(id: int, experiment_name: str, background_tasks: BackgroundTasks):
+async def bg_install_recipe_dependencies(id: int, background_tasks: BackgroundTasks):
     """Install dependencies for a recipe in the background and track progress."""
-    # Fetch experiment by name
-    experiment = await db.experiment_get_by_name(experiment_name)
-    if not experiment:
-        return {"error": f"Experiment '{experiment_name}' not found."}
-    experiment_id = experiment["id"]
-    # Create a job entry with correct experiment_id
+
     job_id = await db.job_create(
         type="INSTALL_RECIPE_DEPS",
         status="QUEUED",
-        job_data=json.dumps({"recipe_id": id, "experiment_name": experiment_name, "results": [], "progress": 0}),
-        experiment_id=experiment_id,
+        job_data=json.dumps({"recipe_id": id, "results": [], "progress": 0}),
+        experiment_id="",
     )
     # Start background task
-    background_tasks.add_task(_install_recipe_dependencies_job, job_id, id, experiment_name)
+    background_tasks.add_task(_install_recipe_dependencies_job, job_id, id)
     return {"job_id": job_id, "status": "started"}
 
 
@@ -269,11 +218,80 @@ async def get_install_job_status(job_id: int):
 
 @router.post("/{id}/create_experiment")
 async def create_experiment_for_recipe(id: int, experiment_name: str):
-    """Create a new experiment with the given name and blank config."""
+    """Create a new experiment with the given name and blank config, and install workflow dependencies."""
+    from transformerlab.routers import workflows as workflows_router
+    from transformerlab.routers.experiment import experiment as experiment_router
+
     # Check if experiment already exists
     existing = await db.experiment_get_by_name(experiment_name)
     if existing:
         return {"error": f"Experiment '{experiment_name}' already exists."}
     # Create experiment with blank config
     experiment_id = await db.experiment_create(name=experiment_name, config="{}")
-    return {"experiment_id": experiment_id, "name": experiment_name, "status": "created"}
+
+    # Get the recipe
+    recipes_gallery = galleries.get_exp_recipe_gallery()
+    recipe = next((r for r in recipes_gallery if r.get("id") == id), None)
+    if not recipe:
+        return {"error": f"Recipe with id {id} not found."}
+
+    # Set foundation model if present in dependencies
+    model_set_result = None
+    local_models = await model_helper.list_installed_models()
+    local_model_dict = {m["model_id"]: m for m in local_models}
+    for dep in recipe.get("dependencies", []):
+        if dep.get("type") == "model":
+            model_id = dep.get("name")
+            model = local_model_dict.get(model_id)
+            # Check if the model is installed
+            if not model:
+                model_set_result = {"error": f"Model '{model_id}' not found in local models."}
+                break
+            model_name = model.get("model_id", "")
+            model_filename = ""
+            if model.get("stored_in_filesystem"):
+                model_filename = model.get("local_path", "")
+            elif model.get("json_data", {}).get("model_filename"):
+                model_filename = model["json_data"]["model_filename"]
+            architecture = model.get("json_data", {}).get("architecture", "")
+
+            # Update experiment config fields using the experiment update_config route
+            await experiment_router.experiments_update_config(experiment_id, "foundation", model_name)
+            await experiment_router.experiments_update_config(
+                experiment_id, "foundation_model_architecture", architecture
+            )
+            await experiment_router.experiments_update_config(experiment_id, "foundation_filename", model_filename)
+            model_set_result = {
+                "foundation": model_name,
+                "foundation_model_architecture": architecture,
+                "foundation_filename": model_filename,
+            }
+            break  # Only set the first model dependency
+
+    workflow_results = []
+    for dep in recipe.get("dependencies", []):
+        if dep.get("type") == "workflow":
+            workflow_config = dep.get("config")
+            dep_name = dep.get("name")
+            result = {"name": dep_name, "action": "install_workflow"}
+            if workflow_config is not None:
+                try:
+                    workflow_id = await workflows_router.workflow_create(
+                        name=dep_name,
+                        config=json.dumps(workflow_config),
+                        experiment_id=experiment_id,
+                    )
+                    result["status"] = f"success: {workflow_id}"
+                except Exception as e:
+                    result["status"] = f"error: {str(e)}"
+            else:
+                result["status"] = "error: config not provided"
+            workflow_results.append(result)
+
+    return {
+        "experiment_id": experiment_id,
+        "name": experiment_name,
+        "status": "created",
+        "model_set_result": model_set_result,
+        "workflow_results": workflow_results,
+    }
