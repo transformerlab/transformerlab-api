@@ -28,8 +28,6 @@ This plugin requires a model that is:
 
 For a complete list of supported models see: [text](https://docs.vllm.ai/en/latest/models/supported_models.html#text-generation)
 
-**Note:** This plugin does not work with third-party APIs since they cannot be supported by vLLM.
-
 ### ❌ Not supported:
 - GGUF / GGML models (e.g. for llama.cpp)
 - MLX (Apple Silicon) models

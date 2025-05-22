@@ -64,6 +64,7 @@ def run_generation():
     full_paths = [os.path.join(documents_dir, name) for name in doc_filenames]
     tmp_dir = f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data"
     model_name = str(tlab_gen.params.get("model_name", "meta-llama/Llama-3-8B-Instruct"))
+    tlab_gen.check_local_server()
 
     # Prompt selector based on generation_type
     DEFAULT_PROMPTS = {
