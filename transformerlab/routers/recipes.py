@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 from transformerlab.shared import galleries
 import transformerlab.db as db
 from transformerlab.models import model_helper
@@ -148,6 +148,115 @@ async def install_recipe_dependencies(id: int, experiment_name: str):
                 result["status"] = "error: config not provided"
         install_results.append(result)
     return {"results": install_results}
+
+
+async def _install_recipe_dependencies_job(job_id, id, experiment_name):
+    from transformerlab.routers import model as model_router
+    from transformerlab.routers import data as data_router
+    from transformerlab.routers import workflows as workflows_router
+    from transformerlab.routers import plugins as plugins_router
+    import transformerlab.db as db
+    import json
+
+    try:
+        await db.job_update_status(job_id, "RUNNING")
+        recipes_gallery = galleries.get_exp_recipe_gallery()
+        recipe = next((r for r in recipes_gallery if r.get("id") == id), None)
+        if not recipe:
+            await db.job_update_status(job_id, "FAILED", error_msg=f"Recipe with id {id} not found.")
+            return
+        local_models = await model_helper.list_installed_models()
+        local_model_names = set(model["model_id"] for model in local_models)
+        local_datasets = await db.get_datasets()
+        local_dataset_ids = set(ds["dataset_id"] for ds in local_datasets)
+        total = len(recipe.get("dependencies", []))
+        progress = 0
+        results = []
+        for dep in recipe.get("dependencies", []):
+            dep_type = dep.get("type")
+            dep_name = dep.get("name")
+            result = {"type": dep_type, "name": dep_name, "action": None, "status": None}
+            try:
+                if dep_type == "model":
+                    if dep_name not in local_model_names:
+                        download_result = await model_router.download_model_by_huggingface_id(model=dep_name)
+                        result["action"] = "download_model"
+                        result["status"] = download_result.get("status", "unknown")
+                    else:
+                        result["action"] = "already_installed"
+                        result["status"] = "success"
+                elif dep_type == "dataset":
+                    if dep_name not in local_dataset_ids:
+                        download_result = await data_router.dataset_download(dataset_id=dep_name)
+                        result["action"] = "download_dataset"
+                        result["status"] = download_result.get("status", "unknown")
+                    else:
+                        result["action"] = "already_installed"
+                        result["status"] = "success"
+                elif dep_type == "plugin":
+                    install_result = await plugins_router.install_plugin(plugin_id=dep_name)
+                    result["action"] = "install_plugin"
+                    result["status"] = install_result.get("status", "unknown")
+                elif dep_type == "workflow":
+                    workflow_config = dep.get("config")
+                    experiment = await db.experiment_get_by_name(experiment_name)
+                    if workflow_config is not None and experiment:
+                        workflow_id = await workflows_router.workflow_create(
+                            name=dep_name, config=json.dumps(workflow_config), experiment_id=experiment["id"]
+                        )
+                        result["action"] = "install_workflow"
+                        result["status"] = f"success: {workflow_id}"
+                    elif not experiment:
+                        result["action"] = "install_workflow"
+                        result["status"] = f"error: experiment '{experiment_name}' not found."
+                    else:
+                        result["action"] = "install_workflow"
+                        result["status"] = "error: config not provided"
+            except Exception as e:
+                result["action"] = "error"
+                result["status"] = str(e)
+            results.append(result)
+            progress += 1
+            await db.job_update_progress(job_id, int(progress * 100 / total))
+            await db.job_update_job_data_insert_key_value(job_id, "results", results)
+        await db.job_update_status(job_id, "COMPLETE")
+    except Exception as e:
+        await db.job_update_status(job_id, "FAILED", error_msg=str(e))
+
+
+@router.get("/{id}/install_dependencies_bg")
+async def bg_install_recipe_dependencies(id: int, experiment_name: str, background_tasks: BackgroundTasks):
+    """Install dependencies for a recipe in the background and track progress."""
+    # Fetch experiment by name
+    experiment = await db.experiment_get_by_name(experiment_name)
+    if not experiment:
+        return {"error": f"Experiment '{experiment_name}' not found."}
+    experiment_id = experiment["id"]
+    # Create a job entry with correct experiment_id
+    job_id = await db.job_create(
+        type="INSTALL_RECIPE_DEPS",
+        status="QUEUED",
+        job_data=json.dumps({"recipe_id": id, "experiment_name": experiment_name, "results": [], "progress": 0}),
+        experiment_id=experiment_id,
+    )
+    # Start background task
+    background_tasks.add_task(_install_recipe_dependencies_job, job_id, id, experiment_name)
+    return {"job_id": job_id, "status": "started"}
+
+
+@router.get("/jobs/{job_id}/status")
+async def get_install_job_status(job_id: int):
+    """Get the status and progress of a dependency installation job."""
+    job = await db.job_get(job_id)
+    if not job:
+        return {"error": f"Job {job_id} not found."}
+    return {
+        "job_id": job_id,
+        "status": job["status"],
+        "progress": job.get("progress", 0),
+        "results": job["job_data"].get("results", []),
+        "error_msg": job["job_data"].get("error_msg"),
+    }
 
 
 @router.post("/{id}/create_experiment")
