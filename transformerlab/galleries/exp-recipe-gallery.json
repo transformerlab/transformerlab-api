@@ -7,7 +7,7 @@
     "dependencies": [
       {
         "type": "model",
-        "name": "llama3.2"
+        "name": "mlx-community/Llama-3.2-1B-Instruct-4bit"
       },
       {
         "type": "plugin",
@@ -19,7 +19,7 @@
       },
       {
         "type": "plugin",
-        "name": "evaluation-harness"
+        "name": "eleuther-ai-lm-evaluation-harness-mlx"
       },
       {
         "type": "workflow",
