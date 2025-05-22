@@ -45,6 +45,7 @@ from transformerlab.routers import (
     prompts,
     tools,
     batched_prompts,
+    recipes,
 )
 import torch
 from pynvml import nvmlShutdown
@@ -171,6 +172,7 @@ app.include_router(tasks.router)
 app.include_router(config.router)
 app.include_router(prompts.router)
 app.include_router(tools.router)
+app.include_router(recipes.router)
 app.include_router(batched_prompts.router)
 app.include_router(fastchat_openai_api.router)
 app.include_router(get_xmlrpc_router())
