@@ -24,6 +24,7 @@ import pandas as pd
 from pathlib import Path
 
 from transformerlab.sdk.v1.generate import tlab_gen
+from transformerlab.plugin import WORKSPACE_DIR
 
 
 def get_synthetic_kit_cli_path():
@@ -61,7 +62,7 @@ def run_generation():
     documents_dir = os.path.join(workspace, "experiments", experiment, "documents")
     doc_filenames = [d.strip() for d in docs_str.split(",") if d.strip()]
     full_paths = [os.path.join(documents_dir, name) for name in doc_filenames]
-    tmp_dir = "transformerlab/plugins/synthetic_dataset_kit/data"
+    tmp_dir = f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data"
     model_name = str(tlab_gen.params.get("model_name", "meta-llama/Llama-3-8B-Instruct"))
 
     # Prompt selector based on generation_type
@@ -175,18 +176,18 @@ def run_generation():
     sub_folder = str(uuid.uuid4().hex)
     paths = {
         "input": {
-            "pdf": f"transformerlab/plugins/synthetic_dataset_kit/{sub_folder}/data/pdf/",
-            "html": f"transformerlab/plugins/synthetic_dataset_kit/{sub_folder}/data/html/",
-            "youtube": f"transformerlab/plugins/synthetic_dataset_kit/{sub_folder}/data/youtube/",
-            "docx": f"transformerlab/plugins/synthetic_dataset_kit/{sub_folder}/data/docx/",
-            "ppt": f"transformerlab/plugins/synthetic_dataset_kit/{sub_folder}/data/ppt/",
-            "txt": f"transformerlab/plugins/synthetic_dataset_kit/{sub_folder}/data/txt/",
+            "pdf": f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/{sub_folder}/data/pdf/",
+            "html": f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/{sub_folder}/data/html/",
+            "youtube": f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/{sub_folder}/data/youtube/",
+            "docx": f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/{sub_folder}/data/docx/",
+            "ppt": f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/{sub_folder}/data/ppt/",
+            "txt": f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/{sub_folder}/data/txt/",
         },
         "output": {
-            "parsed": f"transformerlab/plugins/synthetic_dataset_kit/data/{sub_folder}/output/",
-            "generated": f"transformerlab/plugins/synthetic_dataset_kit/data/{sub_folder}/generated/",
-            "cleaned": f"transformerlab/plugins/synthetic_dataset_kit/data/{sub_folder}/cleaned/",
-            "final": f"transformerlab/plugins/synthetic_dataset_kit/data/{sub_folder}/final/",
+            "parsed": f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/output/",
+            "generated": f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/generated/",
+            "cleaned": f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/cleaned/",
+            "final": f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/final/",
         },
     }
 
@@ -235,10 +236,10 @@ def run_generation():
     for i, path in enumerate(full_paths):
         # Construct output filenames based on document basename and generation type
         base = Path(path).stem
-        output_txt = f"transformerlab/plugins/synthetic_dataset_kit/data/{sub_folder}/output/{base}.txt"
-        gen_json = f"transformerlab/plugins/synthetic_dataset_kit/data/{sub_folder}/generated/{base}_{generation_type}_pairs.json"
-        clean_json = f"transformerlab/plugins/synthetic_dataset_kit/data/{sub_folder}/cleaned/{base}_{generation_type}_pairs_cleaned.json"
-        final_jsonl = f"transformerlab/plugins/synthetic_dataset_kit/data/{sub_folder}/final/{base}_{generation_type}_pairs_cleaned.jsonl"
+        output_txt = f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/output/{base}.txt"
+        gen_json = f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/generated/{base}_{generation_type}_pairs.json"
+        clean_json = f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/cleaned/{base}_{generation_type}_pairs_cleaned.json"
+        final_jsonl = f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/final/{base}_{generation_type}_pairs_cleaned.jsonl"
 
         try:
             # 1. Ingest: convert input file to plain text
@@ -250,7 +251,7 @@ def run_generation():
                     "ingest",
                     path,
                     "-o",
-                    f"transformerlab/plugins/synthetic_dataset_kit/data/{sub_folder}/output/",
+                    f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/output/",
                 ],
                 check=True,
             )
@@ -269,7 +270,7 @@ def run_generation():
                     "--model",
                     model_name,
                     "-o",
-                    f"transformerlab/plugins/synthetic_dataset_kit/data/{sub_folder}/generated/",
+                    f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/generated/",
                 ],
                 check=True,
             )
