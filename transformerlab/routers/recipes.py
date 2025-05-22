@@ -33,6 +33,9 @@ async def check_recipe_dependencies(id: int, experiment_name: str):
     if not recipe:
         return {"error": f"Recipe with id {id} not found."}
 
+    if len(recipe.get("dependencies", [])) == 0:
+        return {"dependencies": []}
+
     # Get experiment config
     experiment = await db.experiment_get_by_name(experiment_name)
     if not experiment:
