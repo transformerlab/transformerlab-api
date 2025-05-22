@@ -84,6 +84,7 @@ async def install_recipe_dependencies(id: int, experiment_name: str):
     """Install model and dataset dependencies for a recipe."""
     from transformerlab.routers import model as model_router
     from transformerlab.routers import data as data_router
+    from transformerlab.routers import workflows as workflows_router
 
     # Get the recipe
     recipes_gallery = galleries.get_exp_recipe_gallery()
@@ -129,5 +130,26 @@ async def install_recipe_dependencies(id: int, experiment_name: str):
             install_result = await plugins_router.install_plugin(plugin_id=dep_name)
             result["action"] = "install_plugin"
             result["status"] = install_result.get("status", "unknown")
+        elif dep_type == "workflow":
+            from transformerlab.routers import workflows as workflows_router
+
+            # Check if config is provided
+            workflow_config = dep.get("config")
+            if workflow_config is not None:
+                # Get experiment to pass experiment_id
+                experiment = await db.experiment_get_by_name(experiment_name)
+                if not experiment:
+                    result["action"] = "install_workflow"
+                    result["status"] = f"error: experiment '{experiment_name}' not found."
+                else:
+                    # Call workflow_create with name and config
+                    workflow_id = await workflows_router.workflow_create(
+                        name=dep_name, config=json.dumps(workflow_config), experiment_id=experiment["id"]
+                    )
+                    result["action"] = "install_workflow"
+                    result["status"] = f"success: {workflow_id}"
+            else:
+                result["action"] = "install_workflow"
+                result["status"] = "error: config not provided"
         install_results.append(result)
     return {"results": install_results}
