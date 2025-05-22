@@ -15,7 +15,7 @@
       },
       {
         "type": "dataset",
-        "name": "samsum"
+        "name": "spencer/samsum_reformat"
       },
       {
         "type": "plugin",
