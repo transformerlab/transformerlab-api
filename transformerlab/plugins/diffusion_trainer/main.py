@@ -106,19 +106,29 @@ def train_diffusion_lora():
     def tokenize_captions(examples, is_train=True):
         captions = []
         caption_column = args.get("caption_column", "text")
+        trigger_word = args.get("trigger_word", "").strip()
+        
         for caption in examples[caption_column]:
             if isinstance(caption, str):
-                captions.append(caption)
+                processed_caption = caption
             elif isinstance(caption, (list, np.ndarray)):
-                captions.append(random.choice(caption) if is_train else caption[0])
+                processed_caption = random.choice(caption) if is_train else caption[0]
             else:
                 raise ValueError(
                     f"Caption column `{caption_column}` should contain either strings or lists of strings."
                 )
+            
+            # Add trigger word to the beginning of the caption if specified
+            if trigger_word:
+                processed_caption = f"{trigger_word}, {processed_caption}"
+            
+            captions.append(processed_caption)
+            
         inputs = tokenizer(
             captions, max_length=tokenizer.model_max_length, padding="max_length", truncation=True, return_tensors="pt"
         )
         return inputs.input_ids
+
 
     image_column = args.get("image_column", "image")
 
