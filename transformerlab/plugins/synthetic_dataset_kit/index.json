@@ -8,7 +8,7 @@
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
-  "supported_hardware_architectures": ["cpu", "cuda"],
+  "supported_hardware_architectures": ["cuda", "mlx"],
   "_dataset": false,
   "setup-script": "setup.sh",
   "parameters": {
