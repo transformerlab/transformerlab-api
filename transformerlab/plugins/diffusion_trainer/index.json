@@ -23,8 +23,7 @@
     "trigger_word": {
       "title": "Trigger Word",
       "type": "string",
-      "default": "",
-      "description": "Optional trigger word to prepend to all captions during training"
+      "default": ""
     },
     "train_batch_size": {
       "title": "Train Batch Size",
@@ -132,11 +131,6 @@
       "enum": ["no", "fp16", "bf16"],
       "default": "no"
     },
-    "max_train_steps": {
-      "title": "Max Train Steps",
-      "type": "integer",
-      "default": 50
-    },
     "lr_scheduler": {
       "title": "LR Scheduler",
       "type": "string",
@@ -163,6 +157,17 @@
       "title": "SNR Gamma",
       "type": "number",
       "default": null
+    },
+    "eval_prompt": {
+      "title": "Evaluation Prompt",
+      "type": "string",
+      "default": ""
+    },
+    "eval_steps": {
+      "title": "Evaluation Steps",
+      "type": "integer",
+      "default": 1,
+      "minimum": 1
     },
     "adaptor_name": {
       "title": "Adaptor Name",
@@ -198,7 +203,13 @@
       "ui:help": "Log training to Weights and Biases. Requires W&B account and API key."
     },
     "trigger_word": {
-      "ui:help": "A unique word/phrase that will be added to all captions. Use this word when generating images with the trained LoRA. Example: 'sks person' or 'ohwx style'"
+      "ui:help": "Optional trigger word to prepend to all captions during training. Example: 'sks person' or 'ohwx style'"
+    },
+    "eval_prompt": {
+      "ui:help": "Text prompt used to generate evaluation images during training. Leave empty to skip evaluation image generation."
+    },
+    "eval_steps": {
+      "ui:help": "Generate evaluation images every N epochs. Set to 1 to generate after each epoch."
     }
   }
 }

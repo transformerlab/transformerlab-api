@@ -1,5 +1,7 @@
 import math
 import random
+import os
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -9,6 +11,7 @@ import transformers
 from peft import LoraConfig
 from peft.utils import get_peft_model_state_dict
 from torchvision import transforms
+from PIL import Image
 
 from diffusers import AutoencoderKL, DDPMScheduler, StableDiffusionPipeline, UNet2DConditionModel
 from diffusers.optimization import get_scheduler
@@ -16,6 +19,7 @@ from diffusers.training_utils import cast_training_params, compute_snr
 from diffusers.utils import check_min_version, convert_state_dict_to_diffusers
 
 from transformerlab.sdk.v1.train import tlab_trainer
+from transformerlab.plugin import WORKSPACE_DIR
 
 check_min_version("0.34.0.dev0")
 
@@ -29,6 +33,20 @@ def train_diffusion_lora():
 
     # Setup logging directory
     output_dir = args.get("output_dir", "sd-model-finetuned-lora")
+
+    # Setup evaluation images directory
+    job_id = tlab_trainer.params.job_id
+    eval_images_dir = None
+    eval_prompt = args.get("eval_prompt", "").strip()
+    eval_steps = int(args.get("eval_steps", 1))
+    
+    if eval_prompt:
+        eval_images_dir = Path(WORKSPACE_DIR) / "temp" / f"eval_images_{job_id}"
+        eval_images_dir.mkdir(parents=True, exist_ok=True)
+        print(f"Evaluation images will be saved to: {eval_images_dir}")
+        
+        # Add eval images directory to job data
+        tlab_trainer.add_job_data("eval_images_dir", str(eval_images_dir))
 
     # Load dataset using tlab_trainer
     datasets_dict = tlab_trainer.load_dataset(["train"])
@@ -88,6 +106,42 @@ def train_diffusion_lora():
 
     lora_layers = filter(lambda p: p.requires_grad, unet.parameters())
 
+    # Create evaluation pipeline function
+    def generate_eval_image(epoch):
+        if not eval_prompt or not eval_images_dir:
+            return
+            
+        print(f"Generating evaluation image for epoch {epoch}...")
+        
+        # Create pipeline with current model state
+        pipeline = StableDiffusionPipeline(
+            vae=vae,
+            text_encoder=text_encoder,
+            tokenizer=tokenizer,
+            unet=unet,
+            scheduler=noise_scheduler,
+            safety_checker=None,
+            feature_extractor=None,
+            requires_safety_checker=False,
+        )
+        pipeline = pipeline.to(device)
+        
+        # Generate image
+        with torch.no_grad():
+            image = pipeline(
+                eval_prompt,
+                num_inference_steps=50,
+                guidance_scale=7.5,
+                height=int(args.get("resolution", 512)),
+                width=int(args.get("resolution", 512)),
+            ).images[0]
+        
+        # Save image
+        image_path = eval_images_dir / f"epoch_{epoch}.png"
+        image.save(image_path)
+        
+        print(f"Evaluation image saved to: {image_path}")
+
     # Data transforms
     interpolation = getattr(transforms.InterpolationMode, args.get("image_interpolation_mode", "lanczos").upper(), None)
     args["resolution"] = int(args.get("resolution", 512))
@@ -129,7 +183,6 @@ def train_diffusion_lora():
         )
         return inputs.input_ids
 
-
     image_column = args.get("image_column", "image")
 
     def preprocess_train(examples):
@@ -165,7 +218,8 @@ def train_diffusion_lora():
     # Scheduler
     num_train_epochs = int(args.get("num_train_epochs", 100))
     gradient_accumulation_steps = int(args.get("gradient_accumulation_steps", 1))
-    max_train_steps = args.get("max_train_steps", None)
+    # max_train_steps = args.get("max_train_steps", None)
+    max_train_steps = None
     if max_train_steps is None:
         num_update_steps_per_epoch = math.ceil(len(train_dataloader) / gradient_accumulation_steps)
         max_train_steps = num_train_epochs * num_update_steps_per_epoch
@@ -185,6 +239,10 @@ def train_diffusion_lora():
     print(f"  Num Epochs = {num_train_epochs}")
     print(f"  Batch size = {args.get('train_batch_size', 16)}")
     print(f"  Total optimization steps = {max_train_steps}")
+    if eval_prompt:
+        print(f"  Evaluation prompt: '{eval_prompt}'")
+        print(f"  Evaluation every {eval_steps} epoch(s)")
+    
     args["noise_offset"] = int(args.get("noise_offset", 0))
 
     global_step = 0
@@ -255,8 +313,19 @@ def train_diffusion_lora():
                 if global_step >= max_train_steps:
                     break
 
+        # Generate evaluation image at the end of epoch
+        if eval_prompt and (epoch + 1) % eval_steps == 0:
+            unet.eval()
+            generate_eval_image(epoch + 1)
+            unet.train()
+
         if global_step >= max_train_steps:
             break
+
+    # Final evaluation image
+    if eval_prompt:
+        unet.eval()
+        generate_eval_image("final")
 
     # Save LoRA weights
     unet = unet.to(torch.float32)
