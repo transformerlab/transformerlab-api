@@ -5,8 +5,12 @@ import json
 import aiofiles
 from datasets import load_dataset, load_dataset_builder
 from fastapi import APIRouter, HTTPException, UploadFile, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Dict, Any
+from PIL.Image import Image as PILImage
+from io import BytesIO
+import base64
 
 import transformerlab.db as db
 from transformerlab.shared import dirs
@@ -20,6 +24,8 @@ from werkzeug.utils import secure_filename
 from jinja2 import Environment
 from jinja2.sandbox import SandboxedEnvironment
 import logging
+
+import traceback
 
 jinja_environment = Environment()
 sandboxed_jinja2_evironment = SandboxedEnvironment()
@@ -235,7 +241,14 @@ async def dataset_preview_with_template(
         row = {}
         row["__index__"] = i + offset
         for key in result["columns"].keys():
-            row[key] = result["columns"][key][i]
+            value = result["columns"][key][i]
+            if isinstance(value, PILImage):
+                buffer = BytesIO()
+                value.save(buffer, format="JPEG")
+                encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
+                row[key] = f"data:image/jpeg;base64,{encoded}"
+            else:
+                row[key] = value
 
         # Apply the template to a new key in row called __formatted__
         row["__formatted__"] = jinja_template.render(row)
@@ -246,6 +259,50 @@ async def dataset_preview_with_template(
         "status": "success",
         "data": {"columns": column_names, "rows": rows, "len": dataset_len, "offset": offset, "limit": limit},
     }
+
+
+@router.post("/save_metadata", summary="Update caption fields by __index__.")
+async def save_metadata(dataset_id: str, file: UploadFile):
+    try:
+        import json
+
+        dataset_dir = dirs.dataset_dir_by_id(slugify(dataset_id))
+
+        # Read incoming edited rows
+        content = await file.read()
+        edits = json.loads(content)  # list of full row dicts
+
+        # Locate the metadata file
+        candidates = [f for f in os.listdir(dataset_dir) if f.endswith((".json", ".jsonl", ".csv"))]
+        if not candidates:
+            return JSONResponse(status_code=404, content={"status": "error", "message": "No metadata file found."})
+        metadata_path = os.path.join(dataset_dir, candidates[0])  # use first match
+
+        # Load original rows
+        with open(metadata_path, "r", encoding="utf-8") as f:
+            original = [json.loads(line) for line in f]
+
+        # Apply edits based on __index__
+        for row in edits:
+            i = int(row["__index__"])
+            # Copy the last non-system key (not __index__ or image)
+            keys = [k for k in row.keys() if not k.startswith("__") and k != "image"]
+            if keys:
+                caption_key = keys[-1]
+                original[i][caption_key] = row[caption_key]
+
+        # Save back to file
+        with open(metadata_path, "w", encoding="utf-8") as f:
+            for row in original:
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+        return {"status": "success", "message": "Captions updated."}
+
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 
 @router.get("/download", summary="Download a dataset from the HuggingFace Hub to the LLMLab server.")
