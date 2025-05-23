@@ -6,11 +6,7 @@
   "type": "loader",
   "version": "0.1.10",
   "model_architectures": ["GGUF"],
-  "supported_hardware_architectures": [
-    "cpu",
-    "cuda",
-    "mlx"
-    ],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
