@@ -141,7 +141,6 @@ def train_model():
 
     # Prepare model for training
     if not HAS_AMD:
-        print("COMING IN TO PREPARE MODEL FOR TRAINING")
         model = prepare_model_for_kbit_training(model)
     try:
         model = get_peft_model(model, peft_config)

@@ -188,7 +188,7 @@ async def install_plugin(plugin_id: str):
         elif check_amd_gpu():
             # If we have an AMD GPU, use the requirements file for AMD
             requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-rocm-uv.txt")
-            additional_flags += "--index 'https://download.pytorch.org/whl/rocm6.3'"
+            additional_flags = "--index 'https://download.pytorch.org/whl/rocm6.3'"
         # Check if system is MacOS with Apple Silicon
         elif sys.platform == "darwin":
             # If we have a MacOS with Apple Silicon, use the requirements file for MacOS
