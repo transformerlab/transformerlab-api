@@ -542,12 +542,26 @@ async def jobs_get_next_queued_job():
 
 
 async def job_update_status(job_id, status, error_msg=None):
+    print(f"🔄 Updating job {job_id} status to {status}")
     await db.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
     await db.commit()
     if error_msg:
         job_data = json.dumps({"error_msg": str(error_msg)})
         await db.execute("UPDATE job SET job_data = ? WHERE id = ?", (job_data, job_id))
         await db.commit()
+    
+    # Process triggers if job is completed
+    if status == "COMPLETE":
+        print(f"🎯 Job {job_id} completed, attempting to process triggers")
+        try:
+            from transformerlab.jobs_trigger_processing import process_job_completion_triggers
+            await process_job_completion_triggers(job_id)
+            print(f"✅ Trigger processing completed for job {job_id}")
+        except Exception as e:
+            print(f"💥 Error processing triggers for job {job_id}: {str(e)}")
+            import traceback
+            traceback.print_exc()
+    
     return
 
 
@@ -617,6 +631,30 @@ def job_mark_as_complete_if_running(job_id):
             (job_id,),
         )
         db_sync.commit()
+        
+        # Process triggers for completed jobs
+        print(f"🎯 Job {job_id} marked as complete, attempting to process triggers")
+        try:
+            # Since this is a synchronous context, we need to run the async trigger processing
+            # using asyncio. We'll do this in a way that doesn't block if there's already an event loop.
+            import asyncio
+            from transformerlab.jobs_trigger_processing import process_job_completion_triggers
+            
+            # Try to get the current event loop, if it exists
+            try:
+                loop = asyncio.get_running_loop()
+                # If we're already in an async context, schedule the task
+                loop.create_task(process_job_completion_triggers(job_id))
+                print(f"✅ Scheduled trigger processing for job {job_id}")
+            except RuntimeError:
+                # No running event loop, so we can run it directly
+                asyncio.run(process_job_completion_triggers(job_id))
+                print(f"✅ Trigger processing completed for job {job_id}")
+        except Exception as e:
+            print(f"💥 Error processing triggers for job {job_id}: {str(e)}")
+            import traceback
+            traceback.print_exc()
+        
         return
     except Exception as e:
         print("Error updating job status: " + str(e))
@@ -1375,3 +1413,14 @@ async def job_mark_triggers_processed(job_id: int):
         (datetime.now().isoformat(), job_id)
     )
     await db.commit()
+
+
+async def experiment_get_directory_by_id(experiment_id: int) -> str:
+    """Get experiment directory path by experiment ID"""
+    experiment = await experiment_get(experiment_id)
+    if not experiment:
+        print(f"Error: experiment {experiment_id} not found")
+        return os.path.join(dirs.EXPERIMENTS_DIR, "error")
+    
+    experiment_name = experiment["name"]
+    return dirs.experiment_dir_by_name(experiment_name)

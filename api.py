@@ -58,7 +58,7 @@ from transformerlab.routers.experiment import experiment
 from transformerlab.shared import dirs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
-
+from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router
 
 # The following environment variable can be used by other scripts
 # who need to connect to the root DB, for example
@@ -68,8 +68,6 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 # to be overriden by the user.
 os.environ["_TFL_WORKSPACE_DIR"] = dirs.WORKSPACE_DIR
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
-
-from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router
 
 
 @asynccontextmanager
@@ -107,7 +105,9 @@ async def run_over_and_over():
         await asyncio.sleep(3)
         await jobs.start_next_job()
         await workflows.start_next_step_in_workflow()
-        await jobs_trigger_processing.process_completed_job_triggers()
+        # Note: Trigger processing is now event-based (triggered when jobs complete)
+        # rather than polling-based. See job_update_status() in db.py and 
+        # process_job_completion_triggers() in jobs_trigger_processing.py
 
 
 description = "Transformerlab API helps you do awesome stuff. 🚀"

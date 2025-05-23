@@ -50,7 +50,7 @@ def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs
             print("No output file specified, printing to stdout")
             log = subprocess.PIPE
 
-        proc = subprocess.Popen(*popenArgs, **popenKWArgs, stdin=subprocess.PIPE, stdout=log, stderr=log)
+        proc = subprocess.Popen(*popenArgs, **popenKWArgs, stdin=subprocess.PIPE, stdout=log, stderr=log, env=os.environ.copy())
         proc.communicate(input=input.encode("utf-8"))
         proc.wait()
         onExit()
@@ -119,7 +119,7 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
         print(">Using system Python interpreter")
         command = [sys.executable, *python_script]  # Skip the original Python interpreter
 
-    process = await open_process(command=command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
+    process = await open_process(command=command, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, env=os.environ.copy())
 
     # read stderr and print:
     if process.stdout:
@@ -220,7 +220,7 @@ async def async_run_python_daemon_and_update_status(
         command = [sys.executable, *python_script]  # Skip the original Python interpreter
 
     process = await asyncio.create_subprocess_exec(
-        *command, stdin=None, stderr=subprocess.STDOUT, stdout=subprocess.PIPE
+        *command, stdin=None, stderr=subprocess.STDOUT, stdout=subprocess.PIPE, env=os.environ.copy()
     )
 
     pid = process.pid
