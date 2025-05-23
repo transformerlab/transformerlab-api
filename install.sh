@@ -384,7 +384,7 @@ install_dependencies() {
       fi
 
       PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/rocm6.3"
-      uv pip install ${PIP_WHEEL_FLAGS} -r "$TLAB_CODE_DIR"/requirements-rocm-uv.txt
+      uv pip install ${PIP_WHEEL_FLAGS} -r ${REQS_PATH}
 
       if [ "$TLAB_ON_WSL" = 1 ]; then
         location=$(pip show torch | grep Location | awk -F ": " '{print $2}')
