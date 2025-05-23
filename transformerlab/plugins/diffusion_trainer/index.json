@@ -20,6 +20,12 @@
   "supported_hardware_architectures": ["cuda"],
   "setup-script": "setup.sh",
   "parameters": {
+    "trigger_word": {
+      "title": "Trigger Word",
+      "type": "string",
+      "default": "",
+      "description": "Optional trigger word to prepend to all captions during training"
+    },
     "train_batch_size": {
       "title": "Train Batch Size",
       "type": "integer",
@@ -190,6 +196,9 @@
     },
     "log_to_wandb": {
       "ui:help": "Log training to Weights and Biases. Requires W&B account and API key."
+    },
+    "trigger_word": {
+      "ui:help": "A unique word/phrase that will be added to all captions. Use this word when generating images with the trained LoRA. Example: 'sks person' or 'ohwx style'"
     }
   }
 }
