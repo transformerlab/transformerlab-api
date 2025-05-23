@@ -298,10 +298,8 @@ async def save_metadata(dataset_id: str, file: UploadFile):
         return {"status": "success", "message": "Captions updated."}
 
     except Exception as e:
-        logging.error("An error occurred while saving metadata: {e}", exc_info=True)
-        return JSONResponse(
-            status_code=500, content={"status": "error", "message": "An internal error has occurred: {e}."}
-        )
+        logging.error(f"An error occurred while saving metadata: {e}", exc_info=True)
+        return JSONResponse(status_code=500, content={"status": "error", "message": "An internal error has occurred."})
 
 
 @router.get("/download", summary="Download a dataset from the HuggingFace Hub to the LLMLab server.")
