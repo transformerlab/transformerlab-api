@@ -9,7 +9,7 @@
   "git": "https://github.com/huggingface/nanotron",
   "url": "https://github.com/huggingface/nanotron",
   "files": ["main.py", "setup.sh", "config.py"],
-  "supported_hardware_architectures": ["cuda"],
+  "supported_hardware_architectures": [],
   "setup-script": "setup.sh",
   "parameters": {
     "train_device": {
