@@ -36,8 +36,8 @@
             "path": "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
         },
         "datasets": {
-            "name": "samsum",
-            "path": "samsum"
+            "name": "knkarthick/samsum",
+            "path": "knkarthick/samsum"
         },
         "training": {
             "type": "LoRA",
