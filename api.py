@@ -107,6 +107,7 @@ async def run_over_and_over():
         await asyncio.sleep(3)
         await jobs.start_next_job()
         await workflows.start_next_step_in_workflow()
+        await jobs_trigger_processing.process_completed_job_triggers()
 
 
 description = "Transformerlab API helps you do awesome stuff. 🚀"
@@ -181,6 +182,7 @@ app.include_router(batched_prompts.router)
 app.include_router(fastchat_openai_api.router)
 app.include_router(get_xmlrpc_router())
 app.include_router(get_trainer_xmlrpc_router())
+app.include_router(workflow_triggers.router)
 
 controller_process = None
 worker_process = None

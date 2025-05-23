@@ -99,6 +99,7 @@ class Job(Base):
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime, index=True, server_default=func.now(), onupdate=func.now(), nullable=False
     )
+    triggers_processed_at: Mapped[Optional[DateTime]] = mapped_column(DateTime, nullable=True, server_default=None)
 
     __table_args__ = (Index("idx_experiment_type", "experiment_id", "type"),)
 
@@ -149,6 +150,23 @@ class Task(Base):
     plugin: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     outputs: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     experiment_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    updated_at: Mapped[DateTime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+class WorkflowTrigger(Base):
+    """Workflow Trigger model."""
+
+    __tablename__ = "workflow_triggers"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    description: Mapped[str] = mapped_column(String, nullable=True)
+    trigger_type: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    experiment_id: Mapped[int] = mapped_column(Integer, index=True, nullable=False)
+    is_enabled: Mapped[bool] = mapped_column(Integer, nullable=False, server_default='1')
+    config: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False

@@ -4,8 +4,6 @@ import os
 import sqlite3
 
 import aiosqlite
-from sqlalchemy import select
-from sqlalchemy.dialects.sqlite import insert  # Correct import for SQLite upsert
 
 # from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
@@ -17,7 +15,6 @@ from datetime import datetime
 
 from transformerlab.shared import dirs
 from transformerlab.shared.models import models  # noqa: F401
-from transformerlab.shared.models.models import Config
 
 db = None
 DATABASE_FILE_NAME = f"{dirs.WORKSPACE_DIR}/llmlab.sqlite3"
@@ -29,113 +26,6 @@ async_engine = create_async_engine(DATABASE_URL, echo=False)
 
 # Create a configured "Session" class
 async_session = sessionmaker(async_engine, expire_on_commit=False, class_=AsyncSession)
-
-# List of triggers to be seeded into the database.
-# The `_seed_workflow_triggers` function will process this list during application startup.
-TRIGGERS_TO_SEED = [
-    {
-        "name": "On Training Completed",
-        "description": "Workflows will automatically start after every training job is completed.",
-        "trigger_type": "TRAIN",
-        "experiment_name": "dev", 
-        "is_enabled": True,
-        "config": {"workflow_ids": []} 
-    },
-    {
-        "name": "On New Model Downloaded",
-        "description": "Workflows will automatically start after every new model is downloaded.",
-        "trigger_type": "DOWNLOAD_MODEL",
-        "experiment_name": "dev",
-        "is_enabled": True,
-        "config": {"workflow_ids": []}
-    },
-    {
-        "name": "On New Model Loaded",
-        "description": "Workflows will automatically start after every new model is loaded for inference.",
-        "trigger_type": "LOAD_MODEL",
-        "experiment_name": "dev",
-        "is_enabled": True,
-        "config": {"workflow_ids": []}
-    },
-    {
-        "name": "On Model Export Completed",
-        "description": "Workflows will automatically start after every model is exported.",
-        "trigger_type": "EXPORT_MODEL",
-        "experiment_name": "dev",
-        "is_enabled": True,
-        "config": {"workflow_ids": []}
-    },
-    {
-        "name": "On Evaluation Completed",
-        "description": "Workflows will automatically start after every evaluation job is completed.",
-        "trigger_type": "EVAL",
-        "experiment_name": "dev",
-        "is_enabled": True,
-        "config": {"workflow_ids": []}
-    },
-    {
-        "name": "On Generation Completed",
-        "description": "Workflows will automatically start after every generation job is completed.",
-        "trigger_type": "GENERATE",
-        "experiment_name": "dev",
-        "is_enabled": True,
-        "config": {"workflow_ids": []}
-    },
-]
-
-async def _seed_workflow_triggers(db_conn):
-    """
-    Seeds workflow triggers into the database based on the TRIGGERS_TO_SEED list.
-    Checks if a trigger for a given experiment_id and trigger_type already exists
-    before inserting to prevent duplicates.
-    """
-    print("🌱 Seeding workflow triggers...")
-    for trigger_data in TRIGGERS_TO_SEED:
-        experiment_name = trigger_data["experiment_name"]
-        trigger_type = trigger_data["trigger_type"]
-        name = trigger_data["name"]
-        description = trigger_data["description"]
-
-        # Get experiment_id from experiment_name
-        # This relies on experiment_get_by_name being defined elsewhere in this file
-        experiment = await experiment_get_by_name(experiment_name) 
-        if not experiment:
-            print(f"  ⚠️  Skipping trigger '{name}': Experiment '{experiment_name}' not found.")
-            continue
-        
-        experiment_id = experiment['id']
-
-        # Check if this specific trigger (by experiment_id and type) already exists
-        cursor = await db_conn.execute(
-            "SELECT id FROM workflow_triggers WHERE experiment_id = ? AND trigger_type = ?",
-            (experiment_id, trigger_type)
-        )
-        existing_trigger = await cursor.fetchone()
-        await cursor.close()
-
-        if not existing_trigger:
-            print(f"  Creating trigger: '{name}' for experiment '{experiment_name}' (ID: {experiment_id}), Type: {trigger_type}")
-            await db_conn.execute(
-                "INSERT OR IGNORE INTO workflow_triggers (name, description, trigger_type, experiment_id, is_enabled, config) VALUES (?, ?, ?, ?, ?, ?)",
-                (
-                    name,
-                    description,
-                    trigger_type,
-                    experiment_id,
-                    1 if trigger_data["is_enabled"] else 0,
-                    json.dumps(trigger_data["config"])
-                )
-            )
-        else:
-            # Update the description for existing triggers
-            print(f"  Updating trigger description for experiment '{experiment_name}' (ID: {experiment_id}), Type: {trigger_type}")
-            await db_conn.execute(
-                "UPDATE workflow_triggers SET description = ? WHERE id = ?",
-                (description, existing_trigger[0])
-            )
-    
-    await db_conn.commit()
-    print("✅ Workflow triggers seeding complete.")
 
 
 async def init():
@@ -153,24 +43,20 @@ async def init():
     async with async_engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
 
-    # Add description column to workflow_triggers if it doesn't exist
-    try:
-        await db.execute("ALTER TABLE workflow_triggers ADD COLUMN description TEXT")
-        print("✅ Added description column to workflow_triggers table")
-    except Exception as e:
-        if "duplicate column name" not in str(e).lower():
-            print(f"⚠️  Note about description column: {str(e)}")
-
     print("✅ Database initialized")
 
     print("✅ SEED DATA")
-    async with async_session() as session:
-        for name in ["alpha", "beta", "gamma"]:
-            # Check if experiment already exists
-            exists = await session.execute(select(models.Experiment).where(models.Experiment.name == name))
-            if not exists.scalar_one_or_none():
-                session.add(models.Experiment(name=name, config="{}"))
-        await session.commit()
+    await db.execute("INSERT OR IGNORE INTO experiment(name, config) VALUES (?, ?)", ("alpha", "{}"))
+    await db.execute("INSERT OR IGNORE INTO experiment(name, config) VALUES (?, ?)", ("beta", "{}"))
+    await db.execute("INSERT OR IGNORE INTO experiment(name, config) VALUES (?, ?)", ("gamma", "{}"))
+    await db.commit()
+
+    await db.execute("""
+        INSERT OR IGNORE INTO workflow_triggers 
+        (name, trigger_type, experiment_id, is_enabled, config) 
+        VALUES 
+        ('Default Training Completion Trigger for Experiment 1', 'TRAINING_COMPLETED', 4, 1, '{"workflow_ids":[]}')
+    """)
 
     # On startup, look for any jobs that are in the RUNNING state and set them to CANCELLED instead:
     # This is to handle the case where the server is restarted while a job is running.
@@ -362,17 +248,7 @@ async def model_local_delete(model_id):
 ###############
 
 # Allowed job types:
-ALLOWED_JOB_TYPES = [
-    "TRAIN",
-    "EXPORT_MODEL",
-    "DOWNLOAD_MODEL",
-    "LOAD_MODEL",
-    "TASK",
-    "EVAL",
-    "UNDEFINED",
-    "GENERATE",
-    "INSTALL_RECIPE_DEPS",
-]
+ALLOWED_JOB_TYPES = ["TRAIN", "EXPORT_MODEL", "DOWNLOAD_MODEL", "LOAD_MODEL", "TASK", "EVAL", "UNDEFINED", "GENERATE"]
 
 
 async def job_create(type, status, job_data="{}", experiment_id=""):
@@ -664,29 +540,6 @@ async def job_update_job_data_insert_key_value(job_id, key, value):
 async def job_stop(job_id):
     print("Stopping job: " + str(job_id))
     await job_update_job_data_insert_key_value(job_id, "stop", True)
-    return
-
-
-async def job_update_progress(job_id, progress):
-    """
-    Update the percent complete for this job.
-
-    progress: int representing percent complete
-    """
-    await db.execute(
-        "UPDATE job SET progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        (progress, job_id),
-    )
-
-
-async def job_update_sweep_progress(job_id, value):
-    value = json.dumps(value)
-
-    await db.execute(
-        "UPDATE job SET job_data = " + "json_set(job_data,'$.sweep_progress', json(?))  WHERE id = ?",
-        (value, job_id),
-    )
-    await db.commit()
     return
 
 
@@ -1255,18 +1108,18 @@ async def save_plugin(name: str, type: str):
 
 
 async def config_get(key: str):
-    async with async_session() as session:
-        result = await session.execute(select(Config.value).where(Config.key == key))
-        row = result.scalar_one_or_none()
-        return row
+    cursor = await db.execute("SELECT value FROM config WHERE key = ?", (key,))
+    row = await cursor.fetchone()
+    await cursor.close()
+    if row:
+        return row[0]
+    else:
+        return None
 
 
 async def config_set(key: str, value: str):
-    stmt = insert(Config).values(key=key, value=value)
-    stmt = stmt.on_conflict_do_update(index_elements=["key"], set_={"value": value})
-    async with async_session() as session:
-        await session.execute(stmt)
-        await session.commit()
+    await db.execute("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)", (key, value))
+    await db.commit()
     return
 
 
