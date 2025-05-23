@@ -26,3 +26,21 @@ def test_data_preview():
     with TestClient(app) as client:
         resp = client.get("/data/preview?dataset_id=dummy_dataset")
         assert resp.status_code in (200, 400, 404)
+
+
+def test_save_metadata():
+    from io import BytesIO
+    import json
+
+    test_data = [
+        {"__index__": 0, "image": "dummy.jpg", "text": "caption A"},
+        {"__index__": 1, "image": "dummy2.jpg", "text": "caption B"},
+    ]
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/data/save_metadata",
+            data={"dataset_id": "dummy_dataset"},
+            files={"file": ("patch.json", BytesIO(json.dumps(test_data).encode("utf-8")), "application/json")},
+        )
+        assert response.status_code in (200, 400, 404)
