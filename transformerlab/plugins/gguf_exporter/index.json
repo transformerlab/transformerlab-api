@@ -20,7 +20,7 @@
     "Qwen3ForCausalLM",
     "Qwen3MoeForCausalLM"
   ],
-  "supported_hardware_architectures": ["cpu", "cuda", "mlx"],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
   "export_architecture": "GGUF",
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",

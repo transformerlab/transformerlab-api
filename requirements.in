@@ -15,10 +15,10 @@ scipy
 sentencepiece
 tensorboard
 tiktoken
-torch
-torchaudio
-torchvision
-transformers==4.51.3
+torch==2.7.0
+torchaudio==2.7.0
+torchvision==0.22.0
+transformers==4.51.3 
 peft
 watchfiles
 wandb==0.19.10
@@ -31,3 +31,5 @@ hf_xet
 macmon-python
 transformerlab-inference
 diffusers==0.33.1
+pyrsmi
+transformerlab-inference
