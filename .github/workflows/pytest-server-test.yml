@@ -39,7 +39,7 @@ jobs:
       - name: Now run the server by calling ./run.sh and wait for it to be ready
         run: |
           ./run.sh &
-          sleep 10  # Wait for the server to start
+          sleep 20  # Wait for the server to start
       - name: Test the API Server and DB Setup
         run: |
-          pytest -m live_server test/server/ 
+          pytest -m live_server test/server/

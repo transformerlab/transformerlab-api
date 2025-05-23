@@ -73,6 +73,10 @@ if command -v nvidia-smi &> /dev/null; then
     echo "✅ NVIDIA GPU detected, adding CUDA libraries to path"
     # Add common NVIDIA library paths
     export LD_LIBRARY_PATH=${ENV_DIR}/lib:$LD_LIBRARY_PATH
+elif command -v rocminfo &> /dev/null; then
+    echo "✅ AMD GPU detected, adding appropriate libraries to path"
+    export PATH=$PATH:/opt/rocm/bin:/opt/rocm/rocprofiler/bin:/opt/rocm/opencl/bin
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/rocm/lib:/opt/rocm/lib64
 fi
 
 echo "▶️ Starting the API server:"
