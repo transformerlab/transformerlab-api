@@ -4,7 +4,7 @@
   "description": "An implementation of Supervised Finetuning using Llama Factory.",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "model_architectures": [
     "GemmaForCausalLM",
     "LlamaForCausalLM",
@@ -16,9 +16,7 @@
     "Qwen3ForCausalLM",
     "Qwen3MoeForCausalLM"
   ],
-  "supported_hardware_architectures": [
-    "cuda"
-  ],
+  "supported_hardware_architectures": ["cuda", "amd"],
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "training_template_format": "alpaca",
