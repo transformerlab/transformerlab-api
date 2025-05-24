@@ -263,8 +263,6 @@ async def dataset_preview_with_template(
 @router.post("/save_metadata", summary="Update caption fields by __index__.")
 async def save_metadata(dataset_id: str, file: UploadFile):
     try:
-        import json
-
         dataset_dir = dirs.dataset_dir_by_id(slugify(dataset_id))
 
         # Read incoming edited rows
