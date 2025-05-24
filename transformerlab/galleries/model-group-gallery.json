@@ -5190,5 +5190,84 @@
                 "model_group": "tinyllama"
             }
         ]
+    },
+    {
+        "name": "nvidia",
+        "description": "Reasoning models that are post trained for reasoning, human chat preferences, and tasks, such as RAG and tool calling.",
+        "tags": [
+            "reasoning",
+            "chat",
+            "rag"
+        ],
+        "models": [
+            {
+                "uniqueID": "nvidia/Llama-3.1-Nemotron-Nano-4B-v1.1",
+                "name": "Llama-3.1-Nemotron-Nano-4B-v1.1",
+                "description": "Offers a great tradeoff between model accuracy and efficiency. The model fits on a single RTX GPU and can be used locally",
+                "added": "2025-05-24",
+                "tags": [
+                    "reasoning",
+                    "chat",
+                    "rag"
+                ],
+                "parameters": "4B",
+                "context": "131072",
+                "architecture": "LlamaForCausalLM",
+                "formats": [
+                    "Safetensors"
+                ],
+                "huggingface_repo": "nvidia/Llama-3.1-Nemotron-Nano-4B-v1.1",
+                "transformers_version": "4.47.1",
+                "gated": false,
+                "license": "other",
+                "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
+                "size_of_model_in_mb": 8623.903450965881,
+                "author": {
+                    "name": "nvidia",
+                    "url": "https://huggingface.co/nvidia/Llama-3.1-Nemotron-Nano-4B-v1.1",
+                    "blurb": ""
+                },
+                "resources": {
+                    "canonicalUrl": "https://huggingface.co/nvidia/Llama-3.1-Nemotron-Nano-4B-v1.1",
+                    "downloadUrl": "https://huggingface.co/nvidia/Llama-3.1-Nemotron-Nano-4B-v1.1",
+                    "paperUrl": "?"
+                },
+                "model_group": "nvidia"
+            },
+            {
+                "uniqueID": "nvidia/Llama-3.1-Nemotron-Nano-8B-v1",
+                "name": "Llama-3.1-Nemotron-Nano-8B-v1",
+                "description": "Offers a great tradeoff between model accuracy and efficiency. The model fits on a single RTX GPU and can be used locally",
+                "added": "2025-05-24",
+                "tags": [
+                    "reasoning",
+                    "chat",
+                    "rag"
+                ],
+                "parameters": "8B",
+                "context": "131072",
+                "architecture": "LlamaForCausalLM",
+                "formats": [
+                    "Safetensors"
+                ],
+                "huggingface_repo": "nvidia/Llama-3.1-Nemotron-Nano-8B-v1",
+                "transformers_version": "4.47.1",
+                "gated": false,
+                "license": "other",
+                "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
+                "size_of_model_in_mb": 15333.027109146118,
+                "author": {
+                    "name": "nvidia",
+                    "url": "https://huggingface.co/nvidia/Llama-3.1-Nemotron-Nano-8B-v1",
+                    "blurb": ""
+                },
+                "resources": {
+                    "canonicalUrl": "https://huggingface.co/nvidia/Llama-3.1-Nemotron-Nano-8B-v1",
+                    "downloadUrl": "https://huggingface.co/nvidia/Llama-3.1-Nemotron-Nano-8B-v1",
+                    "paperUrl": "?"
+                },
+                "model_group": "nvidia"
+            }
+        ]
     }
 ]
