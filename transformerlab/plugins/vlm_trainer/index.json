@@ -56,19 +56,19 @@
       "minimum": 1
     },
     "lora_r": {
-      "title": "Lora R",
+      "title": "LoRA Rank",
       "type": "number",
       "minimum": 4,
       "default": 8
     },
     "lora_alpha": {
-      "title": "Lora Alpha",
+      "title": "LoRA Alpha",
       "type": "number",
       "minimum": 4,
       "default": 16
     },
     "lora_dropout": {
-      "title": "Lora Dropout",
+      "title": "LoRA Dropout",
       "type": "number",
       "minimum": 0,
       "default": 0.05
