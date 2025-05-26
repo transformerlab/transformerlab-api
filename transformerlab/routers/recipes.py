@@ -170,7 +170,7 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
     # Check if experiment already exists
     existing = await db.experiment_get_by_name(experiment_name)
     if existing:
-        return {"error": f"Experiment '{experiment_name}' already exists."}
+        return {"status": "error", "message": f"Experiment '{experiment_name}' already exists.", "data": {}}
     # Create experiment with blank config
     experiment_id = await db.experiment_create(name=experiment_name, config="{}")
 
@@ -178,7 +178,7 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
     recipes_gallery = galleries.get_exp_recipe_gallery()
     recipe = next((r for r in recipes_gallery if r.get("id") == id), None)
     if not recipe:
-        return {"error": f"Recipe with id {id} not found."}
+        return {"status": "error", "message": f"Recipe with id {id} not found.", "data": {}}
 
     # Set foundation model if present in dependencies
     model_set_result = None
@@ -234,11 +234,14 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
             workflow_results.append(result)
 
     return {
-        "experiment_id": experiment_id,
-        "name": experiment_name,
-        "status": "created",
-        "model_set_result": model_set_result,
-        "workflow_results": workflow_results,
+        "status": "success",
+        "message": "",
+        "data": {
+            "experiment_id": experiment_id,
+            "name": experiment_name,
+            "model_set_result": model_set_result,
+            "workflow_results": workflow_results,
+        },
     }
 
 
