@@ -9,5 +9,5 @@
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {},
-  "supported_hardware_architectures": ["cloud"]
+  "supported_hardware_architectures": ["cpu"]
 }
