@@ -155,7 +155,7 @@ class OpenAIServer(BaseModelWorker):
         openai.api_key = self.api_key
         
         try:
-            self.context_len = get_openai_context_length(self.model, api_key)
+            self.context_len = get_openai_context_length(self.model_name, api_key)
         except Exception as e:
             logger.warning(f"Could not query context length from OpenAI, falling back to 4096: {e}")
             self.context_len = 4096
@@ -164,7 +164,7 @@ class OpenAIServer(BaseModelWorker):
         #edit this at the end
         # HACK: We don't really have access to the tokenization in openai
         # But we need a tokenizer to work with fastchat
-        self.tokenizer = OpenAITokenizer(model=self.model)
+        self.tokenizer = OpenAITokenizer(model=self.model_name)
 
         self.init_heart_beat()
 
