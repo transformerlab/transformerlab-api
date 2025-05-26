@@ -1,0 +1,13 @@
+{
+  "name": "OpenAI Server",
+  "uniqueId": "openai_server",
+  "description": "Connects to OpenAI's API to run hosted models like GPT-4 or GPT-3.5 via FastChat.",
+  "plugin-format": "python",
+  "type": "loader",
+  "version": "0.1.1",
+  "model_architectures": ["openai"],
+  "files": ["main.py", "setup.sh"],
+  "setup-script": "setup.sh",
+  "parameters": {},
+  "supported_hardware_architectures": ["cloud"]
+}
