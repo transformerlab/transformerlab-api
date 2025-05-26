@@ -296,6 +296,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         experiment_id = experiment["id"]
         plugin_name = job_config["plugin"]
         eval_name = job_config.get("evaluator", "")
+        await db.job_update_status(job_id, "RUNNING")
         print("Running evaluation script")
         plugin_location = dirs.plugin_dir_by_name(plugin_name)
         evals_output_file = os.path.join(plugin_location, f"output_{job_id}.txt")
@@ -304,12 +305,18 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             with open(evals_output_file, "w") as f:
                 f.write("")
         await run_evaluation_script(experiment_id, plugin_name, eval_name, job_id)
+        # Only set to COMPLETE if the job wasn't stopped
+        job_row = await db.job_get(job_id)
+        job_data = job_row.get("job_data", None)
+        if not (job_data and job_data.get("stop", False)):
+            await db.job_update_status(job_id, "COMPLETE")
         return
     elif master_job_type == "GENERATE":
         experiment = await db.experiment_get_by_name(experiment_name)
         experiment_id = experiment["id"]
         plugin_name = job_config["plugin"]
         generation_name = job_config["generator"]
+        await db.job_update_status(job_id, "RUNNING")
         print("Running generation script")
         plugin_location = dirs.plugin_dir_by_name(plugin_name)
         gen_output_file = os.path.join(plugin_location, f"output_{job_id}.txt")
@@ -318,6 +325,11 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             with open(gen_output_file, "w") as f:
                 f.write("")
         await run_generation_script(experiment_id, plugin_name, generation_name, job_id)
+        # Only set to COMPLETE if the job wasn't stopped
+        job_row = await db.job_get(job_id)
+        job_data = job_row.get("job_data", None)
+        if not (job_data and job_data.get("stop", False)):
+            await db.job_update_status(job_id, "COMPLETE")
         return
 
     job_type = job_config["config"]["type"]
