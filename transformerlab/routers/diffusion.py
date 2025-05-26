@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from io import BytesIO
 import torch
 import asyncio
-from diffusers import StableDiffusionPipeline
+from diffusers import StableDiffusionPipeline, StableDiffusionUpscalePipeline, StableDiffusionLatentUpscalePipeline
 import threading
 import os
 from werkzeug.utils import secure_filename
@@ -14,6 +14,7 @@ import json
 import uuid
 from datetime import datetime
 from typing import List
+from PIL import Image
 
 
 router = APIRouter(prefix="/diffusion", tags=["diffusion"])
@@ -23,6 +24,10 @@ ALLOWED_STABLE_DIFFUSION_ARCHITECTURES = [
     "StableDiffusionImg2ImgPipeline",
     "StableDiffusionInpaintPipeline",
 ]
+
+# Fixed upscaling models
+UPSCALE_MODEL_STANDARD = "stabilityai/stable-diffusion-x4-upscaler"
+UPSCALE_MODEL_LATENT = "stabilityai/sd-x2-latent-upscaler"
 
 
 # Request schema for image generation
@@ -34,6 +39,8 @@ class DiffusionRequest(BaseModel):
     num_inference_steps: int = 30
     guidance_scale: float = 7.5
     seed: int | None = None
+    upscale: bool = False
+    upscale_factor: int = 4
 
 
 # Response schema for history
@@ -48,6 +55,8 @@ class ImageHistoryItem(BaseModel):
     seed: int | None
     image_path: str
     timestamp: str
+    upscaled: bool = False
+    upscale_factor: int = 1
 
 
 class HistoryResponse(BaseModel):
@@ -177,6 +186,65 @@ def get_pipeline(model: str, adaptor: str = "", device: str = "cuda"):
         return pipe
 
 
+def get_upscale_pipeline(upscale_factor: int = 4, device: str = "cuda"):
+    """Get the appropriate upscaling pipeline based on the factor"""
+    cache_key = f"upscale_{upscale_factor}"
+    
+    with _PIPELINES_LOCK:
+        if cache_key in _PIPELINES:
+            return _PIPELINES[cache_key]
+        
+        if upscale_factor == 2:
+            # Use latent upscaler for 2x
+            pipe = StableDiffusionLatentUpscalePipeline.from_pretrained(
+                UPSCALE_MODEL_LATENT,
+                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                safety_checker=None,
+                requires_safety_checker=False,
+            )
+        else:
+            # Use standard upscaler for 4x (default)
+            pipe = StableDiffusionUpscalePipeline.from_pretrained(
+                UPSCALE_MODEL_STANDARD,
+                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                safety_checker=None,
+                requires_safety_checker=False,
+            )
+        
+        pipe = pipe.to(device)
+        _PIPELINES[cache_key] = pipe
+        return pipe
+
+
+def upscale_image(image: Image.Image, prompt: str, upscale_factor: int = 4, device: str = "cuda"):
+    """Upscale an image using Stable Diffusion upscaler"""
+    upscale_pipe = get_upscale_pipeline(upscale_factor, device)
+    
+    if upscale_factor == 2:
+        # For latent upscaler, we need to resize the image first
+        # The latent upscaler expects a specific size
+        width, height = image.size
+        # Resize to be compatible with latent upscaler
+        image = image.resize((width // 8 * 8, height // 8 * 8))
+        
+        result = upscale_pipe(
+            prompt=prompt,
+            image=image,
+            num_inference_steps=20,
+            guidance_scale=0,
+        )
+    else:
+        # For standard 4x upscaler
+        result = upscale_pipe(
+            prompt=prompt,
+            image=image,
+            num_inference_steps=20,
+            guidance_scale=0,
+        )
+    
+    return result.images[0]
+
+
 @router.post("/generate", summary="Generate image with Stable Diffusion")
 async def generate_image(request: DiffusionRequest):
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -202,6 +270,14 @@ async def generate_image(request: DiffusionRequest):
     try:
         image = await asyncio.get_event_loop().run_in_executor(None, run_pipe)
 
+        # Apply upscaling if requested
+        if request.upscale:
+            print(f"Upscaling image with factor {request.upscale_factor}x")
+            def run_upscale():
+                return upscale_image(image, request.prompt, request.upscale_factor, device)
+            
+            image = await asyncio.get_event_loop().run_in_executor(None, run_upscale)
+
         # Generate unique ID and timestamp
         generation_id = str(uuid.uuid4())
         timestamp = datetime.now().isoformat()
@@ -211,6 +287,7 @@ async def generate_image(request: DiffusionRequest):
         image_filename = f"{generation_id}.png"
         image_path = os.path.join(get_images_dir(), image_filename)
         image.save(image_path, format="PNG")
+        
         # Save to history
         history_item = ImageHistoryItem(
             id=generation_id,
@@ -223,6 +300,8 @@ async def generate_image(request: DiffusionRequest):
             seed=request.seed,
             image_path=image_path,
             timestamp=timestamp,
+            upscaled=request.upscale,
+            upscale_factor=request.upscale_factor if request.upscale else 1,
         )
         save_to_history(history_item)
 
