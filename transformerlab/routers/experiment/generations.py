@@ -257,18 +257,49 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
         subprocess_command = [sys.executable, dirs.PLUGIN_HARNESS] + extra_args
 
     print(f">Running {subprocess_command}")
+    
+    # Update job status to RUNNING when we start the process
+    await db.job_update_status(job_id=job_id, status="RUNNING")
 
     output_file = await dirs.generation_output_file(experiment_name, generation_name)
 
     with open(job_output_file, "w") as f:
         process = await asyncio.create_subprocess_exec(*subprocess_command, stdout=f, stderr=subprocess.PIPE)
-        await process.communicate()
+        
+        # Monitor the process for stop signals like other jobs do
+        while process.returncode is None:
+            # Check if the job should be stopped
+            job_row = await db.job_get(job_id)
+            job_data = job_row.get("job_data", None)
+            if job_data and job_data.get("stop", False):
+                print(f"Job {job_id}: 'stop' flag detected. Terminating generation process.")
+                process.terminate()
+                await asyncio.sleep(1)  # Give it time to terminate gracefully
+                if process.returncode is None:
+                    process.kill()  # Force kill if it didn't terminate
+                await process.wait()
+                await db.job_update_status(job_id=job_id, status="STOPPED")
+                return
+            
+            # Wait a bit before checking again
+            try:
+                await asyncio.wait_for(process.wait(), timeout=1.0)
+                break  # Process completed normally
+            except asyncio.TimeoutError:
+                continue  # Process still running, check stop flag again
 
-    with open(output_file, "w") as f:
-        # Copy all contents from job_output_file to output_file
-        with open(job_output_file, "r") as job_output:
-            for line in job_output:
-                f.write(line)
+    # If we reach here, process completed normally - check if it was stopped
+    job_row = await db.job_get(job_id)
+    job_data = job_row.get("job_data", None)
+    if not (job_data and job_data.get("stop", False)):
+        await db.job_update_status(job_id=job_id, status="COMPLETE")
+
+    # Copy output from job file to generation output file
+    if os.path.exists(job_output_file):
+        with open(output_file, "w") as f:
+            with open(job_output_file, "r") as job_output:
+                for line in job_output:
+                    f.write(line)
 
 
 async def get_job_output_file_name(job_id: str, plugin_name: str):
