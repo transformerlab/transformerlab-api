@@ -389,7 +389,9 @@ requests==2.28.1
     #   wandb
     #   youtube-transcript-api
 rich==13.9.4
-    # via transformerlab-inference
+    # via
+    #   transformerlab-inference
+    #   typer
 safetensors==0.5.3
     # via
     #   accelerate
