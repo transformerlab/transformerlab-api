@@ -1,7 +1,7 @@
 import os
 import pytest
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 # Set environment variables before importing modules
 os.environ["TFL_HOME_DIR"] = "./test/tmp/"
@@ -39,7 +39,7 @@ class TestRunJobShared:
         job_id = await db.job_create("EVAL", "QUEUED", experiment_id=test_experiment)
         
         # Mock the evaluation script function
-        with patch('transformerlab.shared.shared.run_evaluation_script', new_callable=AsyncMock) as mock_eval:
+        with patch('transformerlab.shared.shared.run_evaluation_script', new_callable=AsyncMock):
             with patch('transformerlab.shared.shared.dirs.plugin_dir_by_name') as mock_plugin_dir:
                 with patch('os.path.exists', return_value=True):
                     with patch('builtins.open', create=True):
@@ -65,7 +65,7 @@ class TestRunJobShared:
         job_id = await db.job_create("EVAL", "QUEUED", json.dumps(job_data), test_experiment)
         
         # Mock the evaluation script function
-        with patch('transformerlab.shared.shared.run_evaluation_script', new_callable=AsyncMock) as mock_eval:
+        with patch('transformerlab.shared.shared.run_evaluation_script', new_callable=AsyncMock):
             with patch('transformerlab.shared.shared.dirs.plugin_dir_by_name') as mock_plugin_dir:
                 with patch('os.path.exists', return_value=True):
                     with patch('builtins.open', create=True):
@@ -93,7 +93,7 @@ class TestRunJobShared:
         job_id = await db.job_create("GENERATE", "QUEUED", experiment_id=test_experiment)
         
         # Mock the generation script function
-        with patch('transformerlab.shared.shared.run_generation_script', new_callable=AsyncMock) as mock_gen:
+        with patch('transformerlab.shared.shared.run_generation_script', new_callable=AsyncMock):
             with patch('transformerlab.shared.shared.dirs.plugin_dir_by_name') as mock_plugin_dir:
                 with patch('os.path.exists', return_value=True):
                     with patch('builtins.open', create=True):
@@ -119,7 +119,7 @@ class TestRunJobShared:
         job_id = await db.job_create("GENERATE", "QUEUED", json.dumps(job_data), test_experiment)
         
         # Mock the generation script function
-        with patch('transformerlab.shared.shared.run_generation_script', new_callable=AsyncMock) as mock_gen:
+        with patch('transformerlab.shared.shared.run_generation_script', new_callable=AsyncMock):
             with patch('transformerlab.shared.shared.dirs.plugin_dir_by_name') as mock_plugin_dir:
                 with patch('os.path.exists', return_value=True):
                     with patch('builtins.open', create=True):
@@ -147,7 +147,7 @@ class TestRunJobShared:
         job_id = await db.job_create("EVAL", "QUEUED", "{}", test_experiment)
         
         # Mock the evaluation script function
-        with patch('transformerlab.shared.shared.run_evaluation_script', new_callable=AsyncMock) as mock_eval:
+        with patch('transformerlab.shared.shared.run_evaluation_script', new_callable=AsyncMock):
             with patch('transformerlab.shared.shared.dirs.plugin_dir_by_name') as mock_plugin_dir:
                 with patch('os.path.exists', return_value=True):
                     with patch('builtins.open', create=True):
@@ -172,7 +172,7 @@ class TestRunJobShared:
         job_id = await db.job_create("GENERATE", "QUEUED", "{}", test_experiment)
         
         # Mock the generation script function
-        with patch('transformerlab.shared.shared.run_generation_script', new_callable=AsyncMock) as mock_gen:
+        with patch('transformerlab.shared.shared.run_generation_script', new_callable=AsyncMock):
             with patch('transformerlab.shared.shared.dirs.plugin_dir_by_name') as mock_plugin_dir:
                 with patch('os.path.exists', return_value=True):
                     with patch('builtins.open', create=True):
