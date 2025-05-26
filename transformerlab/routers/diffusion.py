@@ -169,7 +169,7 @@ def get_pipeline(model: str, adaptor: str = "", device: str = "cuda"):
                 else:
                     print(f"Error: Adaptor file not found at {adaptor_path}")
                     raise FileNotFoundError(f"Adaptor file not found: {adaptor_path}")
-            except Exception as e:
+            except Exception:
                 print(f"Warning: Failed to load LoRA adaptor '{adaptor}'")
                 # Continue without LoRA rather than failing
 
