@@ -72,6 +72,10 @@ class TrainerTLabPlugin(TLabPlugin):
 
                 def __init__(self, tlab_instance):
                     self.tlab = tlab_instance
+                    self.writer = None
+
+                def on_init_end(self, args, state, control, **kwargs):
+                    self.writer = SummaryWriter(log_dir=args.logging_dir)
 
                 def on_step_end(self, args, state, control, **cb_kwargs):
                     if state.is_local_process_zero and state.max_steps > 0:
