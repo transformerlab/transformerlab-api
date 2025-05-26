@@ -307,12 +307,7 @@ class OpenAIServer(BaseModelWorker):
         return ret
 
     def stop_server(self):
-        """
-        Called by cleanup_at_exit.
-        """
-        # You can unload a model by not passing a prompt to generate
-        # and setting keep_alive to 0
-        self.model.generate(model=self.ollama_model_name, keep_alive=0)
+        pass # Nothing to unload for OpenAI
 
 
 def release_worker_semaphore():
