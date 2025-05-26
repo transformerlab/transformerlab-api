@@ -6,7 +6,7 @@
   "type": "trainer",
   "version": "1.0.5",
   "model_architectures": ["T5ForConditionalGeneration"],
-  "supported_hardware_architectures": ["cuda"],
+  "supported_hardware_architectures": ["cuda", "amd"],
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],

@@ -240,7 +240,17 @@ async def model_local_delete(model_id):
 ###############
 
 # Allowed job types:
-ALLOWED_JOB_TYPES = ["TRAIN", "EXPORT_MODEL", "DOWNLOAD_MODEL", "LOAD_MODEL", "TASK", "EVAL", "UNDEFINED", "GENERATE"]
+ALLOWED_JOB_TYPES = [
+    "TRAIN",
+    "EXPORT_MODEL",
+    "DOWNLOAD_MODEL",
+    "LOAD_MODEL",
+    "TASK",
+    "EVAL",
+    "UNDEFINED",
+    "GENERATE",
+    "INSTALL_RECIPE_DEPS",
+]
 
 
 async def job_create(type, status, job_data="{}", experiment_id=""):
@@ -532,6 +542,29 @@ async def job_update_job_data_insert_key_value(job_id, key, value):
 async def job_stop(job_id):
     print("Stopping job: " + str(job_id))
     await job_update_job_data_insert_key_value(job_id, "stop", True)
+    return
+
+
+async def job_update_progress(job_id, progress):
+    """
+    Update the percent complete for this job.
+
+    progress: int representing percent complete
+    """
+    await db.execute(
+        "UPDATE job SET progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (progress, job_id),
+    )
+
+
+async def job_update_sweep_progress(job_id, value):
+    value = json.dumps(value)
+
+    await db.execute(
+        "UPDATE job SET job_data = " + "json_set(job_data,'$.sweep_progress', json(?))  WHERE id = ?",
+        (value, job_id),
+    )
+    await db.commit()
     return
 
 

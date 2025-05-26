@@ -13,6 +13,14 @@ except ModuleNotFoundError:
     from transformerlab.plugin_sdk.transformerlab.sdk.v1.tlab_plugin import TLabPlugin
 
 
+class DotDict(dict):
+    """Dictionary subclass that allows attribute access to dictionary keys"""
+
+    __getattr__ = dict.get
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+
 class TrainerTLabPlugin(TLabPlugin):
     """Enhanced decorator class for TransformerLab training plugins"""
 
@@ -53,61 +61,79 @@ class TrainerTLabPlugin(TLabPlugin):
         self._ensure_args_parsed()
         from tensorboardX import SummaryWriter
 
-        if framework.lower() == "huggingface" or framework.lower() == "hf":
-            # Import here to avoid dependency issues if HF isn't installed
+        if framework.lower() in ("huggingface", "hf"):
             try:
                 from transformers import TrainerCallback
-
-                class TLabProgressCallback(TrainerCallback):
-                    """Callback that updates progress in TransformerLab DB during HuggingFace training"""
-
-                    def __init__(self, tlab_instance):
-                        self.tlab = tlab_instance
-                        self.writer = None
-
-                    def on_init_end(self, args, state, control, **kwargs):
-                        self.writer = SummaryWriter(log_dir=args.logging_dir)
-
-                        print("LOGGING DIR:", args.logging_dir)
-
-                        
-
-                    def on_step_end(self, args, state, control, **callback_kwargs):
-                        if state.is_local_process_zero:
-                            if state.max_steps > 0:
-                                progress = state.global_step / state.max_steps
-                                progress = int(progress * 100)
-                                self.tlab.progress_update(progress)
-
-                                # Check if job should be stopped
-                                if self.tlab.job.should_stop:
-                                    control.should_training_stop = True
-
-                        return control
-
-                    def on_log(self, args, state, control, logs=None, **kwargs):
-                        if self.writer is None:
-                            return  # Safety check
-                        
-                        import torch
-                        import psutil
-
-                        step = state.global_step
-
-                        if torch.cuda.is_available():
-                            self.writer.add_scalar("system/vram_allocated_gb", torch.cuda.memory_allocated() / 1e9, step)
-                            self.writer.add_scalar("system/vram_reserved_gb", torch.cuda.memory_reserved() / 1e9, step)
-                            # self.writer.flush()
-                        else:
-                            mem = psutil.virtual_memory()
-                            self.writer.add_scalar("system/ram_used_mb", mem.used / 1e6, step)
-                            self.writer.add_scalar("system/ram_total_mb", mem.total / 1e6, step)
-                            # self.writer.flush()
-
-                return TLabProgressCallback(self)
-
             except ImportError:
                 raise ImportError("Could not create HuggingFace callback. Please install transformers package.")
+
+            class TLabProgressCallback(TrainerCallback):
+                """Callback that updates progress and logs metrics to metrics.json"""
+
+                def __init__(self, tlab_instance):
+                    self.tlab = tlab_instance
+
+                def on_step_end(self, args, state, control, **cb_kwargs):
+                    if state.is_local_process_zero and state.max_steps > 0:
+                        progress = int(state.global_step / state.max_steps * 100)
+                        self.tlab.progress_update(progress)
+                        if self.tlab.job.should_stop:
+                            control.should_training_stop = True
+                    return control
+
+                def on_log(self, args, state, control, logs=None, **cb_kwargs):
+                    # Called whenever Trainer.log() is called
+                    if state.is_local_process_zero and logs:
+                        step = logs.get("step", state.global_step)
+                        for name, val in logs.items():
+                            # skip the step counter itself
+                            if name == "step":
+                                continue
+                            try:
+                                self.tlab.log_metric(
+                                    name.replace("train_", "train/").replace("eval_", "eval/"),
+                                    float(val),
+                                    step,
+                                    logging_platforms=False,
+                                )
+                            except Exception:
+                                pass
+                    return control
+
+                def on_evaluate(self, args, state, control, metrics=None, **cb_kwargs):
+                    # Called at end of evaluation
+                    if state.is_local_process_zero and metrics:
+                        for name, val in metrics.items():
+                            try:
+                                self.tlab.log_metric(
+                                    name.replace("train_", "train/").replace("eval_", "eval/"),
+                                    float(val),
+                                    state.global_step,
+                                    logging_platforms=False,
+                                )
+                            except Exception:
+                                pass
+
+                    if self.writer is None:
+                        return  # Safety check
+
+                    import torch
+                    import psutil
+
+                    step = state.global_step
+
+                    if torch.cuda.is_available():
+                        self.writer.add_scalar("system/vram_allocated_gb", torch.cuda.memory_allocated() / 1e9, step)
+                        self.writer.add_scalar("system/vram_reserved_gb", torch.cuda.memory_reserved() / 1e9, step)
+                        # self.writer.flush()
+                    else:
+                        mem = psutil.virtual_memory()
+                        self.writer.add_scalar("system/ram_used_mb", mem.used / 1e6, step)
+                        self.writer.add_scalar("system/ram_total_mb", mem.total / 1e6, step)
+
+                    return control
+
+            return TLabProgressCallback(self)
 
         else:
             raise ValueError(f"Unsupported framework: {framework}. Supported frameworks: huggingface")
@@ -274,7 +300,6 @@ class TrainerTLabPlugin(TLabPlugin):
     #         metrics["system/ram_total_mb"] = psutil.virtual_memory().total / (1024 * 1024)
     #         metrics["system/ram_percent"] = psutil.virtual_memory().percent
 
-
     #     # Device-specific metrics
     #     if torch.cuda.is_available():
     #         try:
@@ -295,19 +320,40 @@ class TrainerTLabPlugin(TLabPlugin):
     #             metrics["system/gpu_utilization"] = -1
     #     return metrics
 
-    def log_metric(self, metric_name: str, metric_value: float, step: int = None):
-        """Log a metric to all reporting targets, and also log system metrics under system/*"""
-        # Log the main metric
-        if "tensorboard" in self.report_to:
-            self.writer.add_scalar(metric_name, metric_value, step)
-        if "wandb" in self.report_to and getattr(self, "wandb_run") is not None:
-            self.wandb_run.log({metric_name: metric_value}, step=step)
+    def log_metric(self, metric_name: str, metric_value: float, step: int = None, logging_platforms: bool = True):
+        """Log a metric to all reporting targets"""
+        if logging_platforms:
+            if "tensorboard" in self.report_to:
+                self.writer.add_scalar(metric_name, metric_value, step)
+            if "wandb" in self.report_to and getattr(self, "wandb_run") is not None:
+                self.wandb_run.log({metric_name: metric_value}, step=step)
 
-        # # Log system metrics
-        # system_metrics = self._get_system_metrics()
-        # for sys_metric, sys_value in system_metrics.items():
-        #     if "tensorboard" in self.report_to:
-        #         self.writer.add_scalar(sys_metric, sys_value, step)
+            # # Log system metrics
+            # system_metrics = self._get_system_metrics()
+            # for sys_metric, sys_value in system_metrics.items():
+            #     if "tensorboard" in self.report_to:
+            #         self.writer.add_scalar(sys_metric, sys_value, step)
+
+        # Store metrics in memory
+        if not hasattr(self, "_metrics"):
+            self._metrics = {}
+
+        # Store the latest value for each metric
+        self._metrics[metric_name] = metric_value
+
+        # Save metrics to a file in the output directory
+        try:
+            # Ensure output_dir exists
+            output_dir = self.params.get("output_dir", "")
+            if output_dir and os.path.exists(output_dir):
+                # Save metrics to a JSON file
+                metrics_path = os.path.join(output_dir, "metrics.json")
+                with open(metrics_path, "w") as f:
+                    json.dump(self._metrics, f, indent=2)
+            else:
+                print(f"Output directory not found or not specified: {output_dir}")
+        except Exception as e:
+            print(f"Error saving metrics to file: {str(e)}")
 
     def create_transformerlab_model(
         self, fused_model_name, model_architecture, json_data, output_dir=None, generate_json=True

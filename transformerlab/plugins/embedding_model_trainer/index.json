@@ -73,7 +73,7 @@
     "Davinci",
     "AsymmetricSemanticSearchModel"
   ],
-  "supported_hardware_architectures": ["cpu", "cuda", "mlx"],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],

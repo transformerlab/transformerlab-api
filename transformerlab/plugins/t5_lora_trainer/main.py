@@ -13,6 +13,7 @@ from typing import List, Optional
 import torch
 if torch.cuda.is_available():
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    os.environ["HIP_VISIBLE_DEVICES"] = "0"
 
 from datasets import DatasetDict, concatenate_datasets
 from peft import (
@@ -148,7 +149,6 @@ class T5LoraTrainer:
         """Load base model for training"""
         self.model = AutoModelForSeq2SeqLM.from_pretrained(
             tlab_trainer.params.model_name, 
-            load_in_8bit=True, 
             device_map="auto"
         )
 

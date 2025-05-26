@@ -1,4 +1,3 @@
-
 #!/bin/bash
 set -e
 
@@ -139,8 +138,10 @@ else
 fi
 
 # Stack Overflow says the best way to check for WSL is looking for Microsoft in the uname kernel
-if [[ -n $(echo "${KERNEL}" | sed -n 's/.*\( *Microsoft *\).*/\1/ip') ]]; then
+if [[ "${KERNEL}" =~ ([Mm]icrosoft|[Ww][Ss][Ll]2) ]]; then
   TLAB_ON_WSL=1
+else
+  TLAB_ON_WSL=0
 fi
 
 ##############################
@@ -322,29 +323,38 @@ install_dependencies() {
 
   check_python
 
-  # store if the machine has MacOS/NVIDIA graphics card
-  HAS_GPU=false
+  # Detect GPU type: NVIDIA vs AMD (ROCm)
+  HAS_NVIDIA=false
+  HAS_AMD=false
 
   if command -v nvidia-smi &> /dev/null; then
-      # Check if nvidia-smi is available
       echo "nvidia-smi is available"
       GPU_INFO=$(nvidia-smi --query-gpu=name --format=csv,noheader,nounits) || echo "Issue with NVIDIA SMI"
-      echo "$GPU_INFO"
       if [ -n "$GPU_INFO" ]; then
           echo "NVIDIA GPU detected: $GPU_INFO"
-          HAS_GPU=true
+          HAS_NVIDIA=true
       else
-          echo "Nvidia SMI exists, No NVIDIA GPU detected. Perhaps you need to re-install NVIDIA drivers."
+          echo "nvidia-smi exists but no NVIDIA GPU found"
       fi
+  elif command -v rocminfo &> /dev/null; then
+      echo "rocminfo is available"
+      HAS_AMD=true
+      # AMD_INFO=$(rocm-smi --showproductname | awk '/^GPU/ {print $2}') || echo "Issue with ROCm SMI" 
+      # if [ -n "$AMD_INFO" ]; then
+      #     echo "AMD GPU detected: $AMD_INFO"
+          # HAS_AMD=true
+      # else
+      #     echo "rocm-smi exists but no AMD GPU found"
+      # fi
   fi
 
-  #install uv
+  # install uv
   pip install uv
   
-  echo "HAS_GPU=$HAS_GPU"
+  echo "HAS_NVIDIA=$HAS_NVIDIA, HAS_AMD=$HAS_AMD"
   PIP_WHEEL_FLAGS="--upgrade"
 
-  if [ "$HAS_GPU" = true ] ; then
+  if [ "$HAS_NVIDIA" = true ]; then
       echo "Your computer has a GPU; installing cuda:"
       conda install -y cuda==12.8.1 --force-reinstall -c nvidia/label/cuda-12.8.1
 
@@ -362,11 +372,29 @@ install_dependencies() {
       PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/cu128"
       uv pip install ${PIP_WHEEL_FLAGS} -r ${REQS_PATH}
 
-      # Install Flash Attention separately - it doesn't play well in requirements file
-      # Using instructions from https://github.com/Dao-AILab/flash-attention
-      uv pip install packaging
-      uv pip install ninja
-      ###
+  elif [ "$HAS_AMD" = true ]; then
+      echo "Installing requirements for ROCm:"
+      if [ -e "$RUN_DIR/requirements-rocm-uv.txt" ]; then
+        REQS_PATH="$RUN_DIR/requirements-rocm-uv.txt"
+      elif [ -e "$TLAB_CODE_DIR/requirements-rocm-uv.txt" ]; then
+        REQS_PATH="$TLAB_CODE_DIR/requirements-rocm-uv.txt"
+      else
+        echo "Error: requirements-rocm-uv.txt not found in run directory or src location."
+        exit 1
+      fi
+
+      PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/rocm6.3"
+      uv pip install ${PIP_WHEEL_FLAGS} -r ${REQS_PATH}
+
+      if [ "$TLAB_ON_WSL" = 1 ]; then
+        location=$(pip show torch | grep Location | awk -F ": " '{print $2}')
+        cd "${location}/torch/lib/" || exit 1
+        rm -f libhsa-runtime64.so*
+        cp /opt/rocm/lib/libhsa-runtime64.so.1.14.0 .
+        ln -sf libhsa-runtime64.so.1.14.0 libhsa-runtime64.so.1
+        ln -sf libhsa-runtime64.so.1 libhsa-runtime64.so
+      fi
+
   else
       echo "No NVIDIA GPU detected drivers detected. Install NVIDIA drivers to enable GPU support."
       echo "https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#pre-installation-actions"
