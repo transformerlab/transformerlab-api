@@ -170,7 +170,6 @@ async def dataset_preview(
     if streaming:
         dataset_len = -1
         dataset = dataset[split].skip(offset)
-        result["rows"] = list(dataset.take(limit))
         rows = list(dataset.take(limit))
         # Serialize rows
         result["rows"] = [serialize_row(row) for row in rows]
