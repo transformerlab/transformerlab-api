@@ -131,6 +131,7 @@ class OpenAIServer(BaseModelWorker):
         controller_addr: str,
         worker_addr: str,
         worker_id: str,
+        model_path: str,
         model_names: List[str],
         limit_worker_concurrency: int,
         conv_template: str,
@@ -140,6 +141,7 @@ class OpenAIServer(BaseModelWorker):
             controller_addr,
             worker_addr,
             worker_id,
+            model_path,
             model_names,
             limit_worker_concurrency,
             conv_template
@@ -394,6 +396,7 @@ def main():
     parser.add_argument("--port", type=int, default=21002)
     parser.add_argument("--worker-address", type=str, default="http://localhost:21002")
     parser.add_argument("--controller-address", type=str, default="http://localhost:21001")
+    parser.add_argument("--model-path", type=str, default="llama3")
     parser.add_argument("--api-keys", type=lambda s: s.split(","))
     parser.add_argument(
         "--model-names",
@@ -409,6 +412,7 @@ def main():
         args.controller_address,
         args.worker_address,
         worker_id,
+        args.model_path,
         args.model_names,
         1024,
         args.conv_template,
