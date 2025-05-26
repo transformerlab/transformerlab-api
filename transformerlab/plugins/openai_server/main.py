@@ -146,7 +146,8 @@ class OpenAIServer(BaseModelWorker):
         )
         self.model_name = model_names[0] 
 
-        self.api_key = os.getenv("OPENAI_API_KEY")
+        # self.api_key = os.getenv("OPENAI_API_KEY")
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise EnvironmentError("OPENAI_API_KEY environment variable is not set.")
         openai.api_key = self.api_key
@@ -399,6 +400,7 @@ def main():
         type=lambda s: s.split(","),
         help="Optional display comma separated names",
     )
+    parser.add_argument("--conv-template", type=str, default=None, help="Conversation prompt template.")
     parser.add_argument("--parameters", type=str, default=None)
 
     args, _ = parser.parse_known_args()
@@ -409,7 +411,10 @@ def main():
         worker_id,
         args.model_names,
         1024,
+        args.conv_template,
+        args.api_keys,
     )
+
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 
 
