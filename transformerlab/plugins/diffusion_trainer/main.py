@@ -1,6 +1,5 @@
 import math
 import random
-import os
 from pathlib import Path
 
 import numpy as np
@@ -11,7 +10,6 @@ import transformers
 from peft import LoraConfig
 from peft.utils import get_peft_model_state_dict
 from torchvision import transforms
-from PIL import Image
 
 from diffusers import AutoencoderKL, DDPMScheduler, StableDiffusionPipeline, UNet2DConditionModel
 from diffusers.optimization import get_scheduler
