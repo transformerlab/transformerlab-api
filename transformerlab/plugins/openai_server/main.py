@@ -149,9 +149,8 @@ class OpenAIServer(BaseModelWorker):
         )
         self.model_name = model_names
 
-        # self.api_key = os.getenv("OPENAI_API_KEY")
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        if not api_key:
+        if not self.api_key:
             raise EnvironmentError("OPENAI_API_KEY environment variable is not set.")
         openai.api_key = self.api_key
         
