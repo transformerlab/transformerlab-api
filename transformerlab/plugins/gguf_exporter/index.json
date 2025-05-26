@@ -4,7 +4,7 @@
   "description": "Exports the current model to GGUF format so it can be run on computers without a GPU.",
   "plugin-format": "python",
   "type": "exporter",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "model_architectures": [
     "CohereForCausalLM",
     "FalconForCausalLM",
@@ -20,7 +20,7 @@
     "Qwen3ForCausalLM",
     "Qwen3MoeForCausalLM"
   ],
-  "supported_hardware_architectures": ["cpu", "cuda", "mlx"],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
   "export_architecture": "GGUF",
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",

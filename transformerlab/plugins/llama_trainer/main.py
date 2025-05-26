@@ -3,18 +3,24 @@ import os
 from random import randrange
 
 import torch
+import shutil
+
+HAS_AMD = False
+if shutil.which("rocminfo") is not None:
+    HAS_AMD = True
 if torch.cuda.is_available():
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-    
-from jinja2 import Environment
-from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel
-from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, AutoConfig
-from trl import SFTConfig, SFTTrainer
-import torch.nn as nn
+    os.environ["HIP_VISIBLE_DEVICES"] = "0"
+
+from jinja2 import Environment  # noqa: E402
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel  # noqa: E402
+from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig  # noqa: E402
+from trl import SFTConfig, SFTTrainer  # noqa: E402
+import torch.nn as nn  # noqa: E402
 
 
-from transformerlab.plugin import WORKSPACE_DIR
-from transformerlab.sdk.v1.train import tlab_trainer
+from transformerlab.plugin import WORKSPACE_DIR  # noqa: E402
+from transformerlab.sdk.v1.train import tlab_trainer  # noqa: E402
 
 use_flash_attention = False
 # Initialize Jinja environment
@@ -30,8 +36,8 @@ def find_lora_target_modules(model, keyword="proj"):
     for name, module in model.named_modules():
         if isinstance(module, nn.Linear) and keyword in name:
             # Keep full relative module name, excluding the root prefix (e.g., "model.")
-            cleaned_name = ".".join(name.split('.')[1:]) if name.startswith("model.") else name
-            module_names.add(cleaned_name.split('.')[-1])  # Use just the relative layer name
+            cleaned_name = ".".join(name.split(".")[1:]) if name.startswith("model.") else name
+            module_names.add(cleaned_name.split(".")[-1])  # Use just the relative layer name
     return sorted(module_names)
 
 
@@ -55,20 +61,32 @@ def train_model():
     print(format_instruction(dataset[randrange(len(dataset))]))
 
     # Setup quantization
-    bnb_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_use_double_quant=True,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.bfloat16,
-    )
+    if not HAS_AMD:
+        from transformers import BitsAndBytesConfig
+
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_compute_dtype=torch.bfloat16,
+        )
 
     # Load model
     model_id = tlab_trainer.params.model_name
 
     try:
-        model = AutoModelForCausalLM.from_pretrained(
+        if not HAS_AMD:
+            model = AutoModelForCausalLM.from_pretrained(
                 model_id,
                 quantization_config=bnb_config,
+                use_cache=False,
+                use_flash_attention_2=use_flash_attention,
+                device_map="auto",
+                trust_remote_code=True,
+            )
+        else:
+            model = AutoModelForCausalLM.from_pretrained(
+                model_id,
                 use_cache=False,
                 use_flash_attention_2=use_flash_attention,
                 device_map="auto",
@@ -83,9 +101,17 @@ def train_model():
 
         print(f"Model and tokenizer loaded successfully: {model_id}")
     except TypeError:
-        model = AutoModelForCausalLM.from_pretrained(
+        if not HAS_AMD:
+            model = AutoModelForCausalLM.from_pretrained(
                 model_id,
                 quantization_config=bnb_config,
+                use_flash_attention_2=use_flash_attention,
+                device_map="auto",
+                trust_remote_code=True,
+            )
+        else:
+            model = AutoModelForCausalLM.from_pretrained(
+                model_id,
                 use_flash_attention_2=use_flash_attention,
                 device_map="auto",
                 trust_remote_code=True,
@@ -114,7 +140,8 @@ def train_model():
     )
 
     # Prepare model for training
-    model = prepare_model_for_kbit_training(model)
+    if not HAS_AMD:
+        model = prepare_model_for_kbit_training(model)
     try:
         model = get_peft_model(model, peft_config)
     except ValueError as e:
@@ -128,6 +155,9 @@ def train_model():
             target_modules=lora_target_modules,
         )
         model = get_peft_model(model, peft_config)
+
+    num_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Trainable parameters: {num_trainable}")
 
     # Get output directories - use direct attribute access
     output_dir = tlab_trainer.params.get("output_dir", "./output")
@@ -143,41 +173,84 @@ def train_model():
     today = time.strftime("%Y%m%d-%H%M%S")
     run_suffix = tlab_trainer.params.get("template_name", today)
 
-    # Setup training configuration
-    training_args = SFTConfig(
-        output_dir=output_dir,
-        num_train_epochs=num_train_epochs,
-        per_device_train_batch_size=batch_size,
-        gradient_accumulation_steps=2,
-        gradient_checkpointing=True,
-        optim="paged_adamw_32bit",
-        logging_steps=10,
-        save_strategy="epoch",
-        learning_rate=learning_rate,
-        bf16=True,
-        tf32=True,
-        max_grad_norm=0.3,
-        warmup_ratio=0.03,
-        lr_scheduler_type=lr_scheduler,
-        max_seq_length=max_seq_length,
-        disable_tqdm=False,
-        packing=True,
-        run_name=f"job_{tlab_trainer.params.job_id}_{run_suffix}",
-        report_to=tlab_trainer.report_to,
-    )
+    if not HAS_AMD:
+        # Setup training configuration
+        training_args = SFTConfig(
+            output_dir=output_dir,
+            num_train_epochs=num_train_epochs,
+            per_device_train_batch_size=batch_size,
+            gradient_accumulation_steps=2,
+            gradient_checkpointing=True,
+            optim="paged_adamw_32bit",
+            logging_steps=10,
+            save_strategy="epoch",
+            learning_rate=learning_rate,
+            bf16=True,
+            tf32=True,
+            max_grad_norm=0.3,
+            warmup_ratio=0.03,
+            lr_scheduler_type=lr_scheduler,
+            max_seq_length=max_seq_length,
+            disable_tqdm=False,
+            packing=True,
+            run_name=f"job_{tlab_trainer.params.job_id}_{run_suffix}",
+            report_to=tlab_trainer.report_to,
+            do_eval=True,
+            load_best_model_at_end=True,
+            metric_for_best_model="loss",
+            greater_is_better=False,
+            eval_strategy="epoch"
+        )
+    else:
+        # Setup training configuration
+        training_args = SFTConfig(
+            output_dir=output_dir,
+            num_train_epochs=num_train_epochs,
+            per_device_train_batch_size=batch_size,
+            gradient_accumulation_steps=2,
+            optim="adamw_torch",
+            logging_steps=10,
+            save_strategy="epoch",
+            learning_rate=learning_rate,
+            fp16=True,
+            max_grad_norm=0.3,
+            warmup_ratio=0.03,
+            lr_scheduler_type=lr_scheduler,
+            max_seq_length=max_seq_length,
+            disable_tqdm=False,
+            packing=True,
+            run_name=f"job_{tlab_trainer.params.job_id}_{run_suffix}",
+            report_to=tlab_trainer.report_to,
+            eval_strategy="epoch",
+            do_eval=True,
+            load_best_model_at_end=True,
+            metric_for_best_model="loss",
+            greater_is_better=False,
+        )
 
     # Create progress callback
-    progress_callback = tlab_trainer.create_progress_callback(framework="huggingface")
+    callback = tlab_trainer.create_progress_callback() if hasattr(tlab_trainer, "create_progress_callback") else None
+    callbacks = [callback] if callback else []
+
+    # Setup evaluation dataset - use 10% of the data if enough examples
+    if len(dataset) >= 10:
+        split_dataset = dataset.train_test_split(test_size=0.1)
+        train_data = split_dataset["train"]
+        eval_data = split_dataset["test"]
+    else:
+        train_data = dataset
+        eval_data = None
 
     # Create trainer
     trainer = SFTTrainer(
         model=model,
-        train_dataset=dataset,
+        train_dataset=train_data,
+        eval_dataset=eval_data,
         peft_config=peft_config,
         processing_class=tokenizer,
         formatting_func=format_instruction,
         args=training_args,
-        callbacks=[progress_callback],
+        callbacks=callbacks,
     )
 
     # Train the model
@@ -204,21 +277,19 @@ def train_model():
             # Load the base model again
             try:
                 model = AutoModelForCausalLM.from_pretrained(
-                        model_id,
-                        quantization_config=bnb_config,
-                        use_cache=False,
-                        use_flash_attention_2=use_flash_attention,
-                        device_map="auto",
-                        trust_remote_code=True,
-                    )
+                    model_id,
+                    use_cache=False,
+                    use_flash_attention_2=use_flash_attention,
+                    device_map="auto",
+                    trust_remote_code=True,
+                )
             except TypeError:
                 model = AutoModelForCausalLM.from_pretrained(
-                        model_id,
-                        quantization_config=bnb_config,
-                        use_flash_attention_2=use_flash_attention,
-                        device_map="auto",
-                        trust_remote_code=True,
-                    )
+                    model_id,
+                    use_flash_attention_2=use_flash_attention,
+                    device_map="auto",
+                    trust_remote_code=True,
+                )
 
             if "/" in model_id:
                 model_id = model_id.split("/")[-1]
@@ -231,8 +302,8 @@ def train_model():
             tokenizer.save_pretrained(fused_model_location)
             print(f"Model saved successfully to {fused_model_location}")
             json_data = {
-                        "description": f"A model trained and generated by Transformer Lab based on {tlab_trainer.params.model_name}"
-                    }
+                "description": f"A model trained and generated by Transformer Lab based on {tlab_trainer.params.model_name}"
+            }
             tlab_trainer.create_transformerlab_model(fused_model_name, model_architecture, json_data)
 
         except Exception as e:

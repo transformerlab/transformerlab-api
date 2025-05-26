@@ -1,1 +1,1 @@
-uv pip install trl bitsandbytes accelerate
+uv pip install trl bitsandbytes accelerate peft

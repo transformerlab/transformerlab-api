@@ -14,7 +14,6 @@ from deepeval.metrics import GEval
 from deepeval.test_case import LLMTestCase, LLMTestCaseParams
 
 from transformerlab.sdk.v1.evals import tlab_evals
-
 # # Add specific arguments needed for DeepEval metrics
 # tlab_evals.add_argument("--threshold", default=0.5, type=float, help="Score threshold for metrics")
 # tlab_evals.add_argument("--geval_name", default="", type=str, help="Name for custom GEval metrics")
@@ -256,7 +255,6 @@ def run_evaluation():
         # Run the evaluation
         async_config = AsyncConfig(run_async=async_mode)
         output = evaluate(dataset, metrics_arr, async_config=async_config)
-
         tlab_evals.progress_update(80)
 
         # Process results

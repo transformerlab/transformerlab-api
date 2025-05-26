@@ -3,6 +3,9 @@ import os
 import shutil
 import json
 import aiofiles
+import base64
+from io import BytesIO
+from PIL.Image import Image as PILImage
 from datasets import load_dataset, load_dataset_builder
 from fastapi import APIRouter, HTTPException, UploadFile, Query
 from pydantic import BaseModel
@@ -167,17 +170,39 @@ async def dataset_preview(
     if streaming:
         dataset_len = -1
         dataset = dataset[split].skip(offset)
-        result["rows"] = list(dataset.take(limit))
+        rows = list(dataset.take(limit))
+        # Serialize rows
+        result["rows"] = [serialize_row(row) for row in rows]
         result["splits"] = None
     else:
         if d["location"] != "local" and split not in dataset.keys():
             return {"status": "error", "message": f"Split '{split}' does not exist in the dataset."}
         dataset_len = len(dataset[split])
-        result["columns"] = dataset[split][offset : min(offset + limit, dataset_len)]
+        columns = dataset[split][offset : min(offset + limit, dataset_len)]
+        # Serialize each value in the columns dict, preserving the columnar format
+        if isinstance(columns, dict):
+            result["columns"] = {k: [serialize_row(v) for v in vals] for k, vals in columns.items()}
+        else:
+            result["columns"] = columns
         result["splits"] = list(dataset.keys())
 
     result["len"] = dataset_len
     return {"status": "success", "data": result}
+
+
+def serialize_row(row):
+    """Convert PIL Images in a row to base64 strings, preserving original structure."""
+    if isinstance(row, dict):
+        return {k: serialize_row(v) for k, v in row.items()}
+    elif isinstance(row, list):
+        return [serialize_row(v) for v in row]
+    elif isinstance(row, PILImage):
+        buffered = BytesIO()
+        row.save(buffered, format="JPEG")
+        img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        return f"data:image/jpeg;base64,{img_str}"
+    else:
+        return row
 
 
 @router.get(
@@ -235,7 +260,7 @@ async def dataset_preview_with_template(
         row = {}
         row["__index__"] = i + offset
         for key in result["columns"].keys():
-            row[key] = result["columns"][key][i]
+            row[key] = serialize_row(result["columns"][key][i])
 
         # Apply the template to a new key in row called __formatted__
         row["__formatted__"] = jinja_template.render(row)
