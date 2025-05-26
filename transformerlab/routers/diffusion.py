@@ -97,7 +97,6 @@ def save_to_history(item: ImageHistoryItem):
     """Save an image generation record to history"""
     ensure_directories()
     history_file = get_history_file_path()
-    print(f"Saving history to {history_file}")
 
     # Load existing history
     history = []
@@ -212,7 +211,6 @@ async def generate_image(request: DiffusionRequest):
         image_filename = f"{generation_id}.png"
         image_path = os.path.join(get_images_dir(), image_filename)
         image.save(image_path, format="PNG")
-        print(f"Image saved to {image_path}")
         # Save to history
         history_item = ImageHistoryItem(
             id=generation_id,
@@ -329,7 +327,7 @@ async def get_image_by_id(image_id: str):
             image_data = f.read()
         img_str = base64.b64encode(image_data).decode("utf-8")
 
-        return JSONResponse(content={"id": image_item.id, "image_base64": img_str, "metadata": image_item.dict()})
+        return JSONResponse(content={"id": image_item.id, "image_base64": img_str, "metadata": image_item.model_dump()})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to read image: {str(e)}")
 
