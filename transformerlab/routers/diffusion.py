@@ -41,6 +41,12 @@ class DiffusionRequest(BaseModel):
     seed: int | None = None
     upscale: bool = False
     upscale_factor: int = 4
+    # Negative prompting
+    negative_prompt: str = ""
+    # Advanced guidance control
+    eta: float = 0.0
+    clip_skip: int = 0
+    guidance_rescale: float = 0.0
 
 
 # Response schema for history
@@ -57,6 +63,10 @@ class ImageHistoryItem(BaseModel):
     timestamp: str
     upscaled: bool = False
     upscale_factor: int = 1
+    negative_prompt: str = ""
+    eta: float = 0.0
+    clip_skip: int = 0
+    guidance_rescale: float = 0.0
 
 
 class HistoryResponse(BaseModel):
@@ -258,7 +268,21 @@ async def generate_image(request: DiffusionRequest):
             "num_inference_steps": request.num_inference_steps,
             "guidance_scale": request.guidance_scale,
             "generator": generator,
+            "eta": request.eta,
         }
+        
+
+        # Add negative prompt if provided
+        if request.negative_prompt:
+            generation_kwargs["negative_prompt"] = request.negative_prompt
+
+        # Add guidance rescale if provided
+        if request.guidance_rescale > 0.0:
+            generation_kwargs["guidance_rescale"] = request.guidance_rescale
+
+        # Add clip skip if provided (requires scheduler support)
+        if request.clip_skip > 0:
+            generation_kwargs["clip_skip"] = request.clip_skip
 
         # Add LoRA scale if adaptor is being used
         if request.adaptor and request.adaptor.strip():
@@ -302,7 +326,11 @@ async def generate_image(request: DiffusionRequest):
             timestamp=timestamp,
             upscaled=request.upscale,
             upscale_factor=request.upscale_factor if request.upscale else 1,
-        )
+            negative_prompt=request.negative_prompt,
+            eta=request.eta,
+            clip_skip=request.clip_skip,
+            guidance_rescale=request.guidance_rescale,
+        ) 
         save_to_history(history_item)
 
         # Return base64 encoded image for immediate display
