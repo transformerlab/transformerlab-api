@@ -144,7 +144,8 @@ class OpenAIServer(BaseModelWorker):
             model_path,
             model_names,
             limit_worker_concurrency,
-            conv_template
+            conv_template,
+            api_key,
         )
         self.model_name = model_names
 
@@ -424,3 +425,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
