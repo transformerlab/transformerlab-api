@@ -21,6 +21,7 @@
   "url": "",
   "files": ["main.py", "setup.sh"],
   "supported_hardware_architectures": ["cuda"],
+  "supports": ["experimental"],
   "training_template_format": "alpaca",
   "setup-script": "setup.sh",
   "parameters": {
