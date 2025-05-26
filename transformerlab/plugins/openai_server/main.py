@@ -273,6 +273,10 @@ class OpenAIServer(BaseModelWorker):
         temperature = float(params.get("temperature", 1.0))
         top_p = float(params.get("top_p", 1.0))
         frequency_penalty = float(params.get("frequency_penalty", 0.0))
+        max_tokens = params.get("max_new_tokens", 256)
+        stop_str = params.get("stop", None)
+
+
         params = {"top_p": top_p, "temperature": temperature, "frequency_penalty": frequency_penalty}
 
         messages = [{"role": "user", "content": prompt}]
@@ -285,7 +289,7 @@ class OpenAIServer(BaseModelWorker):
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
-                stop=stop,
+                stop=stop_str,
                 stream=False
             )
         )
