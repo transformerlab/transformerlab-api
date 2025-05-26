@@ -146,26 +146,22 @@ class OpenAIServer(BaseModelWorker):
         )
         self.model_name = model_names[0] 
 
-        api_key = os.getenv("OPENAI_API_KEY")
+        self.api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise EnvironmentError("OPENAI_API_KEY environment variable is not set.")
-        openai.api_key = api_key
+        openai.api_key = self.api_key
         
         try:
             self.context_len = get_openai_context_length(self.model, api_key)
         except Exception as e:
             logger.warning(f"Could not query context length from OpenAI, falling back to 4096: {e}")
             self.context_len = 4096
+        print("Setting context length to", self.context_len)
 
         #edit this at the end
-        # HACK: We don't really have access to the tokenization in ollama
+        # HACK: We don't really have access to the tokenization in openai
         # But we need a tokenizer to work with fastchat
-        # self.tokenizer = OllamaTokenizer(model=self.model)
-
-        self.context_len = fetch_remote(
-        self.worker_addr + "/model_details", {"model": self.model_name}, "context_length"
-    )
-        print("Setting context length to", self.context_len)
+        self.tokenizer = OpenAITokenizer(model=self.model)
 
         self.init_heart_beat()
 
@@ -183,8 +179,8 @@ class OpenAIServer(BaseModelWorker):
         frequency_penalty = float(params.get("frequency_penalty", 0.0))
 
         # These parameters don't seem to be in the UI
-        # top_k = params.get("top_k", -1.0)
-        # presence_penalty = float(params.get("presence_penalty", 0.0))
+        top_k = params.get("top_k", -1.0)
+        presence_penalty = float(params.get("presence_penalty", 0.0))
 
         # Create a set out of our stop_str parameter
         stop = set()
@@ -223,67 +219,49 @@ class OpenAIServer(BaseModelWorker):
 
         finish_reason = "length"
 
-        # TODO: Should this use generate?
-        iterator = await run_in_threadpool(
-            self.model.chat,
-            model=self.ollama_model_name,
+        response = await openai.ChatCompletion.acreate(
+            model=self.model_name,
             messages=[{"role": "user", "content": context}],
+            temperature=temperature,
+            top_p=top_p,
+            max_tokens=max_new_tokens,
+            stop=stop,
             stream=True,
-            options=generation_params,
         )
 
-        for i in range(max_new_tokens):
-            # Try to get next token.
-            # If the generator hits a stop the interator finishes and throws:
-            # RuntimeError: coroutine raised StopIteration
-            try:
-                response = await run_in_threadpool(next, iterator)
-            except RuntimeError as e:
-                print(e)
-                print(traceback.format_exc())
-                finish_reason = "stop"
-                break
-
-            # Check if ollama returned a stop
-            if response.get("done"):
-                finish_reason = response.get("done_reason", "")
-                break
-
-            # Normally we'd add a response token to a list of tokens and detokenize
-            # But ollama is detokenizing for us
-            decoded_token = response["message"]["content"]
-            decoded_tokens.append(decoded_token)
-            tokens_decoded_str = "".join(decoded_tokens)
-
-            # Check for stop string
-            # Note that ollama can do this if we just pass stop to it correctly
-            partial_stop = any(is_partial_stop(tokens_decoded_str, i) for i in stop)
-            if partial_stop:
-                finish_reason = "stop"
-                break
-
-            ret = {
-                "text": tokens_decoded_str,
-                "error_code": 0,
-                "usage": {
-                    "prompt_tokens": len(context),
-                    "completion_tokens": len(decoded_tokens),
-                    "total_tokens": len(context) + len(decoded_tokens),
-                },
-                "cumulative_logprob": [],
-                "finish_reason": None,  # hard code for now
-            }
-            yield (json.dumps(ret) + "\0").encode()
-
-        ret = {
-            "text": "".join(decoded_tokens),
+        async for chunk in response:
+            if "choices" in chunk:
+                delta = chunk["choices"][0].get("delta", {})
+                token = delta.get("content", "")
+                if token:
+                    decoded_tokens.append(token)
+                    tokens_decoded_str = "".join(decoded_tokens)
+                    
+                    ret = {
+                        "text": tokens_decoded_str,
+                        "error_code": 0,
+                        "usage": {
+                            "prompt_tokens": len(context),  # crude estimate
+                            "completion_tokens": len(decoded_tokens),
+                            "total_tokens": len(context) + len(decoded_tokens),
+                        },
+                        "cumulative_logprob": [],
+                        "finish_reason": None,
+                    }
+        
+        final_text = "".join(decoded_tokens)
+        final_ret = {
+            "text": final_text,
             "error_code": 0,
-            "usage": {},
+            "usage": {
+                "prompt_tokens": len(context),
+                "completion_tokens": len(decoded_tokens),
+                "total_tokens": len(context) + len(decoded_tokens),
+            },
             "cumulative_logprob": [],
-            "finish_reason": finish_reason,
+            "finish_reason": finish_reason or "stop",
         }
-        yield (json.dumps(obj={**ret, **{"finish_reason": None}}) + "\0").encode()
-        yield (json.dumps(ret) + "\0").encode()
+        yield (json.dumps(final_ret) + "\0").encode()
 
     async def generate(self, params):
         prompt = params.pop("prompt")
