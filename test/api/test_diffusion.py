@@ -19,9 +19,13 @@ def test_diffusion_generate_success():
         payload = {
             "model": "fake-model",
             "prompt": "a cat riding a bicycle",
+            "negative_prompt": "blurry, low quality",
             "num_inference_steps": 5,
             "guidance_scale": 7.5,
             "seed": 42,
+            "eta": 0.0,
+            "clip_skip": 0,
+            "guidance_rescale": 0.0,
         }
         with TestClient(app) as client:
             resp = client.post("/diffusion/generate", json=payload)
