@@ -66,8 +66,8 @@ def validate_and_resolve_path(path: str, root: str) -> Path:
     """
     Validates and resolves a path to ensure it is within the specified root directory.
     """
-    resolved_path = Path(os.path.normpath(path)).resolve()
-    resolved_root = Path(os.path.normpath(root)).resolve()
+    resolved_path = Path(os.path.normpath(path)).resolve(strict=True)
+    resolved_root = Path(os.path.normpath(root)).resolve(strict=True)
 
     if not resolved_path.is_relative_to(resolved_root):
         raise ValueError(f"Access denied for path: {resolved_path}")
@@ -102,6 +102,9 @@ async def dataset_gallery() -> Any:
 @router.get("/info", summary="Fetch the details of a particular dataset.")
 async def dataset_info(dataset_id: str):
     d = await db.get_dataset(dataset_id)
+    if d is None:
+        return {"status": "error", "message": "Dataset not found."}
+
     r = {}
 
     if d["location"] == "local":
@@ -296,12 +299,9 @@ async def dataset_preview_with_template(
                                     caption = row[1]
 
                                     # Construct the full image path securely
-                                    file_path = Path(os.path.normpath(root)) / file_name
-                                    resolved_file_path = file_path.resolve()
-                                    if not str(resolved_file_path).startswith(str(Path(dataset_dir).resolve())):
-                                        raise ValueError(f"Access denied for path: {resolved_file_path}")
-                                    if resolved_file_path.is_symlink() or not resolved_file_path.exists():
-                                        raise ValueError(f"Invalid or non-existent file: {resolved_file_path}")
+                                    resolved_file_path = validate_and_resolve_path(
+                                        Path(os.path.normpath(root)) / file_name, dataset_dir
+                                    )
 
                                     if resolved_file_path.exists():
                                         encoded, img_hash = compute_base64_and_hash(resolved_file_path, dataset_dir)
