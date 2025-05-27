@@ -47,6 +47,8 @@ class DiffusionRequest(BaseModel):
     eta: float = 0.0
     clip_skip: int = 0
     guidance_rescale: float = 0.0
+    height: int = 0
+    width: int = 0
 
 
 # Response schema for history
@@ -67,6 +69,8 @@ class ImageHistoryItem(BaseModel):
     eta: float = 0.0
     clip_skip: int = 0
     guidance_rescale: float = 0.0
+    height: int = 0
+    width: int = 0
 
 
 class HistoryResponse(BaseModel):
@@ -284,6 +288,11 @@ async def generate_image(request: DiffusionRequest):
         if request.clip_skip > 0:
             generation_kwargs["clip_skip"] = request.clip_skip
 
+        # Set height and width if specified
+        if request.height > 0 and request.width > 0:
+            generation_kwargs["height"] = request.height
+            generation_kwargs["width"] = request.width
+
         # Add LoRA scale if adaptor is being used
         if request.adaptor and request.adaptor.strip():
             generation_kwargs["cross_attention_kwargs"] = {"scale": request.adaptor_scale}
@@ -330,6 +339,8 @@ async def generate_image(request: DiffusionRequest):
             eta=request.eta,
             clip_skip=request.clip_skip,
             guidance_rescale=request.guidance_rescale,
+            height = request.height if request.height > 0 else image.height,
+            width = request.width if request.width > 0 else image.width,
         ) 
         save_to_history(history_item)
 
