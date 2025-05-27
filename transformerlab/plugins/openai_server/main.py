@@ -140,7 +140,7 @@ class OpenAIServer(BaseModelWorker):
             limit_worker_concurrency,
             conv_template,
         )
-        self.model_name = model_names[0]
+        self.model_name = model_names
 
         self.api_key = os.getenv("OPENAI_API_KEY")
         if not self.api_key:
