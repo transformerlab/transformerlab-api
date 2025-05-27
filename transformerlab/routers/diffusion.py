@@ -9,6 +9,7 @@ import asyncio
 from diffusers import StableDiffusionPipeline, StableDiffusionUpscalePipeline, StableDiffusionLatentUpscalePipeline
 import threading
 import os
+import random
 from werkzeug.utils import secure_filename
 import json
 import uuid
@@ -274,7 +275,16 @@ def upscale_image(image: Image.Image, prompt: str, upscale_factor: int = 4, devi
 async def generate_image(request: DiffusionRequest):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     pipe = get_pipeline(request.model, request.adaptor, device=device)
-    generator = torch.manual_seed(request.seed) if request.seed is not None else None
+
+    # Set seed - use provided seed or generate a random one
+    if request.seed is None or request.seed < 0:
+        print("No valid seed provided, generating a random seed")
+        seed = random.randint(0, 2**32 - 1)
+    else:
+        print(f"Using provided seed: {request.seed}")
+        seed = request.seed
+
+    generator = torch.manual_seed(seed)
 
     # Run in thread to avoid blocking event loop
     def run_pipe():
@@ -341,7 +351,7 @@ async def generate_image(request: DiffusionRequest):
             adaptor_scale=request.adaptor_scale,
             num_inference_steps=request.num_inference_steps,
             guidance_scale=request.guidance_scale,
-            seed=request.seed,
+            seed=seed,
             image_path=image_path,
             timestamp=timestamp,
             upscaled=request.upscale,
