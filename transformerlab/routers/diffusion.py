@@ -15,6 +15,10 @@ import uuid
 from datetime import datetime
 from typing import List
 from PIL import Image
+import shutil
+import transformerlab.db as db
+from transformerlab.shared import dirs
+from transformerlab.shared.shared import slugify
 
 
 router = APIRouter(prefix="/diffusion", tags=["diffusion"])
@@ -76,6 +80,12 @@ class ImageHistoryItem(BaseModel):
 class HistoryResponse(BaseModel):
     images: List[ImageHistoryItem]
     total: int
+
+
+class CreateDatasetRequest(BaseModel):
+    dataset_name: str
+    image_ids: List[str]
+    description: str = ""
 
 
 # Global cache for loaded pipelines
@@ -203,11 +213,11 @@ def get_pipeline(model: str, adaptor: str = "", device: str = "cuda"):
 def get_upscale_pipeline(upscale_factor: int = 4, device: str = "cuda"):
     """Get the appropriate upscaling pipeline based on the factor"""
     cache_key = f"upscale_{upscale_factor}"
-    
+
     with _PIPELINES_LOCK:
         if cache_key in _PIPELINES:
             return _PIPELINES[cache_key]
-        
+
         if upscale_factor == 2:
             # Use latent upscaler for 2x
             pipe = StableDiffusionLatentUpscalePipeline.from_pretrained(
@@ -224,7 +234,7 @@ def get_upscale_pipeline(upscale_factor: int = 4, device: str = "cuda"):
                 safety_checker=None,
                 requires_safety_checker=False,
             )
-        
+
         pipe = pipe.to(device)
         _PIPELINES[cache_key] = pipe
         return pipe
@@ -233,14 +243,14 @@ def get_upscale_pipeline(upscale_factor: int = 4, device: str = "cuda"):
 def upscale_image(image: Image.Image, prompt: str, upscale_factor: int = 4, device: str = "cuda"):
     """Upscale an image using Stable Diffusion upscaler"""
     upscale_pipe = get_upscale_pipeline(upscale_factor, device)
-    
+
     if upscale_factor == 2:
         # For latent upscaler, we need to resize the image first
         # The latent upscaler expects a specific size
         width, height = image.size
         # Resize to be compatible with latent upscaler
         image = image.resize((width // 8 * 8, height // 8 * 8))
-        
+
         result = upscale_pipe(
             prompt=prompt,
             image=image,
@@ -255,7 +265,7 @@ def upscale_image(image: Image.Image, prompt: str, upscale_factor: int = 4, devi
             num_inference_steps=20,
             guidance_scale=0,
         )
-    
+
     return result.images[0]
 
 
@@ -274,7 +284,6 @@ async def generate_image(request: DiffusionRequest):
             "generator": generator,
             "eta": request.eta,
         }
-        
 
         # Add negative prompt if provided
         if request.negative_prompt:
@@ -306,9 +315,10 @@ async def generate_image(request: DiffusionRequest):
         # Apply upscaling if requested
         if request.upscale:
             print(f"Upscaling image with factor {request.upscale_factor}x")
+
             def run_upscale():
                 return upscale_image(image, request.prompt, request.upscale_factor, device)
-            
+
             image = await asyncio.get_event_loop().run_in_executor(None, run_upscale)
 
         # Generate unique ID and timestamp
@@ -320,7 +330,7 @@ async def generate_image(request: DiffusionRequest):
         image_filename = f"{generation_id}.png"
         image_path = os.path.join(get_images_dir(), image_filename)
         image.save(image_path, format="PNG")
-        
+
         # Save to history
         history_item = ImageHistoryItem(
             id=generation_id,
@@ -339,9 +349,9 @@ async def generate_image(request: DiffusionRequest):
             eta=request.eta,
             clip_skip=request.clip_skip,
             guidance_rescale=request.guidance_rescale,
-            height = request.height if request.height > 0 else image.height,
-            width = request.width if request.width > 0 else image.width,
-        ) 
+            height=request.height if request.height > 0 else image.height,
+            width=request.width if request.width > 0 else image.width,
+        )
         save_to_history(history_item)
 
         # Return base64 encoded image for immediate display
@@ -534,3 +544,112 @@ async def clear_history():
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to clear history: {str(e)}")
+
+
+@router.post("/dataset/create", summary="Create dataset from history images")
+async def create_dataset_from_history(request: CreateDatasetRequest):
+    """
+    Create a dataset from selected images in history
+
+    Args:
+        request: Contains list of image IDs to include in the dataset
+
+    Returns:
+        JSON response with dataset details
+    """
+    image_ids = request.image_ids
+    if not image_ids or not isinstance(image_ids, list):
+        raise HTTPException(status_code=400, detail="Invalid image IDs list")
+
+    # Sanitize dataset name
+    dataset_id = slugify(request.dataset_name)
+    if not dataset_id:
+        raise HTTPException(status_code=400, detail="Invalid dataset name")
+
+    # Check if dataset already exists
+    existing_dataset = await db.get_dataset(dataset_id)
+    if existing_dataset:
+        raise HTTPException(status_code=400, detail=f"Dataset '{dataset_id}' already exists")
+
+    # Load history and find selected images
+    history = load_history(limit=1000)  # Load enough history
+    selected_images = [item for item in history.images if item.id in image_ids]
+
+    if not selected_images:
+        raise HTTPException(status_code=404, detail="No images found for the given IDs")
+
+    # Create dataset in database
+    try:
+        json_data = {
+            "generated": True,
+            "source": "diffusion_history",
+            "description": request.description or f"Dataset created from {len(selected_images)} diffusion images",
+            "image_count": len(selected_images),
+            "created_from_image_ids": image_ids,
+        }
+        await db.create_local_dataset(dataset_id, json_data=json_data)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create dataset in database: {str(e)}")
+
+    # Create dataset directory
+    dataset_dir = dirs.dataset_dir_by_id(dataset_id)
+    images_dir = os.path.join(dataset_dir, "train")
+    os.makedirs(images_dir, exist_ok=True)
+
+    # Prepare dataset metadata and copy images
+    dataset_records = []
+
+    for i, image_item in enumerate(selected_images):
+        try:
+            # Generate new filename for the image
+            image_filename = f"image_{i:04d}.png"
+            dest_image_path = os.path.join(images_dir, image_filename)
+
+            # Copy image file
+            if os.path.exists(image_item.image_path):
+                shutil.copy2(image_item.image_path, dest_image_path)
+            else:
+                print(f"Warning: Image file not found at {image_item.image_path}")
+                continue
+
+            # Just include essential fields for image-only dataset as huggingface doesn't allow columns with anything else
+            dataset_records.append(
+                {
+                    "file_name": f"{image_filename}",
+                    "text": image_item.prompt,
+                }
+            )
+
+        except Exception as e:
+            print(f"Warning: Failed to process image {image_item.id}: {str(e)}")
+            continue
+
+    if not dataset_records:
+        # Clean up if no images were successfully processed
+        await db.delete_dataset(dataset_id)
+        shutil.rmtree(dataset_dir, ignore_errors=True)
+        raise HTTPException(status_code=500, detail="Failed to process any images")
+
+    # Save dataset as JSONL file
+    try:
+        # Make train directory if it doesn't exist
+        os.makedirs(os.path.join(dataset_dir, "train"), exist_ok=True)
+        dataset_file = os.path.join(dataset_dir, "train", "metadata.jsonl")
+        with open(dataset_file, "w") as f:
+            for record in dataset_records:
+                f.write(json.dumps(record) + "\n")
+    except Exception as e:
+        # Clean up on failure
+        await db.delete_dataset(dataset_id)
+        shutil.rmtree(dataset_dir, ignore_errors=True)
+        raise HTTPException(status_code=500, detail=f"Failed to save dataset: {str(e)}")
+
+    return JSONResponse(
+        content={
+            "status": "success",
+            "message": f"Dataset '{dataset_id}' created successfully with {len(dataset_records)} images.",
+            "dataset_id": dataset_id,
+            "dataset_dir": dataset_dir,
+            "records_count": len(dataset_records),
+        }
+    )
