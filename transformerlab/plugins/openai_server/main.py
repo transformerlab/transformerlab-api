@@ -46,31 +46,6 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 worker = None
 
-fetch_timeout = aiohttp.ClientTimeout(total=3 * 3600)
-
-async def fetch_remote(url, pload=None, name=None):
-    async with aiohttp.ClientSession(timeout=fetch_timeout) as session:
-        async with session.post(url, json=pload) as response:
-            chunks = []
-            if response.status != 200:
-                ret = {
-                    "text": f"{response.reason}",
-                    "error_code": ErrorCode.INTERNAL_ERROR,
-                }
-                return json.dumps(ret)
-
-            async for chunk, _ in response.content.iter_chunks():
-                chunks.append(chunk)
-        output = b"".join(chunks)
-
-    if name is not None:
-        res = json.loads(output)
-        if name != "":
-            res = res[name]
-        return res
-
-    return output
-
 class OpenAITokenizer:
     """
     This is a total hack tokenizer just to get things to proceed.
