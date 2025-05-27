@@ -148,7 +148,7 @@ async def dataset_info(dataset_id: str):
                 "supervised_keys": ds_builder.info.supervised_keys,
                 "version": ds_builder.info.version,
             }
-        except Exception as e:
+        except Exception:
             return {"status": "error"}
 
     return r
@@ -484,7 +484,7 @@ async def save_metadata(dataset_id: str, file: UploadFile):
         return {"status": "success", "message": f"Updated {edits_applied} row(s)."}
 
     except Exception:
-        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+        return JSONResponse(status_code=500, content={"status": "error"})
 
 
 @router.get("/download", summary="Download a dataset from the HuggingFace Hub to the LLMLab server.")
