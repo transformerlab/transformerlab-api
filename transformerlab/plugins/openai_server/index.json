@@ -11,12 +11,9 @@
   "parameters": {
     "model_name": {
     "title": "Model Name",
-    "type": "array",
-    "items": {
-      "type": "string"
-    },
+    "type": "string",
     "required": true,
-    "default": ["gpt-3.5-turbo"]
+    "default": "gpt-3.5-turbo"
   }
   },
   "supported_hardware_architectures": ["cpu"]
