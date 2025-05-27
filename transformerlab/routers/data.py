@@ -235,15 +235,17 @@ async def dataset_preview_with_template(
     dataset_len = 0
 
     def compute_base64_and_hash(image_path, dataset_root):
-        # Resolve absolute paths
-        resolved_image_path = Path(image_path).resolve()
-        resolved_dataset_root = Path(dataset_root).resolve()
+        # Resolve and normalize paths
+        resolved_image_path = Path(os.path.normpath(image_path)).resolve()
+        resolved_dataset_root = Path(os.path.normpath(dataset_root)).resolve()
 
-        # Check if resolved_image_path is within dataset_root
-        if not resolved_image_path.is_relative_to(resolved_dataset_root):
+        # Validate that resolved_image_path is within dataset_root
+        if not str(resolved_image_path).startswith(str(resolved_dataset_root)):
             raise ValueError(f"Access denied for path: {resolved_image_path}")
         if resolved_image_path.is_symlink() or not resolved_image_path.exists():
-            raise ValueError(f"Invalid or non-existent file:{resolved_image_path}")
+            raise ValueError(f"Invalid or non-existent file: {resolved_image_path}")
+
+        # Open and process the image file
         with open(resolved_image_path, "rb") as f:
             img = PILImage.open(f)
             buffer = BytesIO()
@@ -306,12 +308,12 @@ async def dataset_preview_with_template(
                                     caption = row[1]
 
                                     # Construct the full image path securely
-                                    file_path = Path(root) / file_name
+                                    file_path = Path(os.path.normpath(root)) / file_name
                                     resolved_file_path = file_path.resolve()
-                                    if not str(resolved_file_path).startswith(str(dataset_dir)):
+                                    if not str(resolved_file_path).startswith(str(Path(dataset_dir).resolve())):
                                         raise ValueError(f"Access denied for path: {resolved_file_path}")
-                                    if resolved_file_path.is_symlink():
-                                        raise ValueError(f"Skipping symlink file: {resolved_file_path}")
+                                    if resolved_file_path.is_symlink() or not resolved_file_path.exists():
+                                        raise ValueError(f"Invalid or non-existent file: {resolved_file_path}")
 
                                     if resolved_file_path.exists():
                                         encoded, img_hash = compute_base64_and_hash(resolved_file_path, dataset_root)
