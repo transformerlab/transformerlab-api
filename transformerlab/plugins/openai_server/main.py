@@ -103,7 +103,7 @@ class OpenAIServer(BaseModelWorker):
         controller_addr: str,
         worker_addr: str,
         worker_id: str,
-        # model_path: str,
+        model_path: str,
         model_names: str,
         limit_worker_concurrency: int,
         conv_template: str,
@@ -112,7 +112,7 @@ class OpenAIServer(BaseModelWorker):
             controller_addr,
             worker_addr,
             worker_id,
-            # model_path,
+            model_path,
             model_names,
             limit_worker_concurrency,
             conv_template,
@@ -125,7 +125,7 @@ class OpenAIServer(BaseModelWorker):
         openai.api_key = self.api_key
         
         try:
-            self.context_len = get_openai_context_length(self.model_name, self.api_key)
+            self.context_len = get_openai_context_length(self.model_names, self.api_key)
         except Exception as e:
             logger.warning(f"Could not query context length from OpenAI, falling back to 4096: {e}")
             self.context_len = 4096
@@ -134,9 +134,9 @@ class OpenAIServer(BaseModelWorker):
         #edit this at the end
         # HACK: We don't really have access to the tokenization in openai
         # But we need a tokenizer to work with fastchat
-        self.tokenizer = OpenAITokenizer(model=self.model_name)
+        self.tokenizer = OpenAITokenizer(model=self.model_names)
 
-        # self.init_heart_beat()
+        self.init_heart_beat()
 
     async def generate_stream(self, params):
         self.call_ct += 1
@@ -367,7 +367,7 @@ def main():
     parser.add_argument("--port", type=int, default=21002)
     parser.add_argument("--worker-address", type=str, default="http://localhost:21002")
     parser.add_argument("--controller-address", type=str, default="http://localhost:21001")
-    # parser.add_argument("--model-path", type=str, default="llama3")
+    parser.add_argument("--model-path", type=str, default="openai_model")
     parser.add_argument("--conv-template", type=str, default=None, help="Conversation prompt template.")
     parser.add_argument("--parameters", type=str, default=None)
 
@@ -383,7 +383,7 @@ def main():
         args.controller_address,
         args.worker_address,
         worker_id,
-        # args.model_path,
+        args.model_path,
         model_name,
         1024,
         args.conv_template
