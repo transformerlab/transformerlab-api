@@ -308,16 +308,16 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         # Check if stop button was clicked and update status accordingly
         job_row = await db.job_get(job_id)
         job_data = job_row.get("job_data", None)
-        if job_data:
-            if job_data.get("stop", False):
-                await db.job_update_status(job_id, "STOPPED")
-                return {"status": "stopped", "job_id": job_id, "message": "Evaluation job was stopped by user"}
-            else:
-                await db.job_update_status(job_id, "COMPLETE")
-                return {"status": "complete", "job_id": job_id, "message": "Evaluation job completed successfully"}
-        else:
+        if job_data is None:
             await db.job_update_status(job_id, "FAILED")
             return {"status": "error", "job_id": job_id, "message": "Evaluation job failed: No job data found"}
+        
+        if job_data.get("stop", False):
+            await db.job_update_status(job_id, "STOPPED")
+            return {"status": "stopped", "job_id": job_id, "message": "Evaluation job was stopped by user"}
+        else:
+            await db.job_update_status(job_id, "COMPLETE")
+            return {"status": "complete", "job_id": job_id, "message": "Evaluation job completed successfully"}
     elif master_job_type == "GENERATE":
         experiment = await db.experiment_get_by_name(experiment_name)
         experiment_id = experiment["id"]
@@ -335,16 +335,16 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         # Check should_stop flag and update status accordingly
         job_row = await db.job_get(job_id)
         job_data = job_row.get("job_data", None)
-        if job_data:
-            if job_data.get("stop", False):
-                await db.job_update_status(job_id, "STOPPED")
-                return {"status": "stopped", "job_id": job_id, "message": "Generation job was stopped by user"}
-            else:
-                await db.job_update_status(job_id, "COMPLETE")
-                return {"status": "complete", "job_id": job_id, "message": "Generation job completed successfully"}
-        else:
+        if job_data is None:
             await db.job_update_status(job_id, "FAILED")
             return {"status": "error", "job_id": job_id, "message": "Generation job failed: No job data found"}
+        
+        if job_data.get("stop", False):
+            await db.job_update_status(job_id, "STOPPED")
+            return {"status": "stopped", "job_id": job_id, "message": "Generation job was stopped by user"}
+        else:
+            await db.job_update_status(job_id, "COMPLETE")
+            return {"status": "complete", "job_id": job_id, "message": "Generation job completed successfully"}
 
     job_type = job_config["config"]["type"]
 

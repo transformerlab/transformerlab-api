@@ -59,7 +59,7 @@ class TestRunJobShared:
 
     @pytest.mark.asyncio
     async def test_eval_job_not_completed_when_stopped(self, test_experiment):
-        """Test that EVAL job is NOT marked as COMPLETE when stop flag is set"""
+        """Test that EVAL job is marked as STOPPED when stop flag is set"""
         # Create a job with stop flag set
         job_data = {"stop": True}
         job_id = await db.job_create("EVAL", "QUEUED", json.dumps(job_data), test_experiment)
@@ -82,9 +82,9 @@ class TestRunJobShared:
                         # Run the job
                         await run_job(str(job_id), job_config, "test_experiment", {"type": "EVAL"})
                         
-                        # Verify the job was NOT marked as COMPLETE (should still be RUNNING)
+                        # Verify the job was marked as STOPPED
                         job_status = await db.job_get_status(job_id)
-                        assert job_status == "RUNNING"
+                        assert job_status == "STOPPED"
 
     @pytest.mark.asyncio
     async def test_generate_job_completes_when_not_stopped(self, test_experiment):
@@ -113,7 +113,7 @@ class TestRunJobShared:
 
     @pytest.mark.asyncio
     async def test_generate_job_not_completed_when_stopped(self, test_experiment):
-        """Test that GENERATE job is NOT marked as COMPLETE when stop flag is set"""
+        """Test that GENERATE job is marked as STOPPED when stop flag is set"""
         # Create a job with stop flag set
         job_data = {"stop": True}
         job_id = await db.job_create("GENERATE", "QUEUED", json.dumps(job_data), test_experiment)
@@ -136,9 +136,9 @@ class TestRunJobShared:
                         # Run the job
                         await run_job(str(job_id), job_config, "test_experiment", {"type": "GENERATE"})
                         
-                        # Verify the job was NOT marked as COMPLETE (should still be RUNNING)
+                        # Verify the job was marked as STOPPED
                         job_status = await db.job_get_status(job_id)
-                        assert job_status == "RUNNING"
+                        assert job_status == "STOPPED"
 
     @pytest.mark.asyncio
     async def test_eval_job_handles_missing_job_data(self, test_experiment):
