@@ -86,36 +86,25 @@ async def dataset_gallery() -> Any:
 
 @router.get("/info", summary="Fetch the details of a particular dataset.")
 async def dataset_info(dataset_id: str):
-    print(f"INFO request for dataset_id={dataset_id}")
     d = await db.get_dataset(dataset_id)
-    if d is None:
-        print(f"No dataset found for id={dataset_id}")
-        return {}
     r = {}
 
     if d["location"] == "local":
         dataset_dir = dirs.dataset_dir_by_id(slugify(dataset_id))
-        print(f"Dataset directory resolved to {dataset_dir}")
 
         try:
             dataset = load_dataset(path=dataset_dir)
             splits = list(dataset.keys())
             split = splits[0]
             features = dataset[split].features
-            print(f"Loaded dataset splits: {splits}")
-            print(f"Features in split '{split}': {features}")
 
             is_image_dataset = any(isinstance(f, Image) for f in features.values())
-            print(f"Is image dataset: {is_image_dataset}")
 
             if is_image_dataset:
-                print("Reloading dataset with imagefolder for image dataset")
                 dataset = load_dataset("imagefolder", data_dir=dataset_dir)
                 splits = list(dataset.keys())
                 split = splits[0]
                 features = dataset[split].features
-                print(f"Reloaded splits: {splits}")
-                print(f"Reloaded features in split '{split}': {features}")
 
                 r["features"] = features
                 r["splits"] = splits
@@ -130,21 +119,17 @@ async def dataset_info(dataset_id: str):
                                 label_set.add(parent_folder)
                 available_labels = sorted(label_set)
                 r["labels"] = available_labels
-                print(f"Extracted labels from image dataset: {available_labels}")
             else:
-                print("Non-image dataset detected; returning base features")
                 r["features"] = features
         except EmptyDatasetError:
-            print("Dataset is empty")
             return {"status": "error", "message": "The dataset is empty."}
         except Exception as e:
-            print(f"Error loading local dataset: {type(e).__name__}: {e}")
-            return {"status": "error", "message": str(e)}
+            print(f"Error: {e}")
+            return {"status": "error"}
 
     else:
         dataset_config = d.get("json_data", {}).get("dataset_config", None)
         config_name = d.get("json_data", {}).get("config_name", None)
-        print(f"Loading remote dataset for id={dataset_id}, config={dataset_config}, name={config_name}")
         try:
             if dataset_config is not None:
                 ds_builder = load_dataset_builder(dataset_id, dataset_config, trust_remote_code=True)
@@ -152,7 +137,6 @@ async def dataset_info(dataset_id: str):
                 ds_builder = load_dataset_builder(path=dataset_id, name=config_name, trust_remote_code=True)
             else:
                 ds_builder = load_dataset_builder(dataset_id, trust_remote_code=True)
-            print(f"Loaded dataset builder: {ds_builder.info}")
             r = {
                 "description": ds_builder.info.description,
                 "features": ds_builder.info.features,
@@ -167,9 +151,8 @@ async def dataset_info(dataset_id: str):
             }
         except Exception as e:
             print(f"Error loading remote dataset: {type(e).__name__}: {e}")
-            return {"status": "error", "message": str(e)}
+            return {"status": "error"}
 
-    print(f"Returning info response: {r}")
     return r
 
 
@@ -249,13 +232,20 @@ async def dataset_preview_with_template(
     offset: int = Query(0, ge=0, description="Starting index"),
     limit: int = Query(10, ge=1, le=1000, description="Max items to fetch"),
 ) -> Any:
-    print(f"Preview request for dataset_id={dataset_id}, offset={offset}, limit={limit}")
     d = await db.get_dataset(dataset_id)
     dataset_dir = dirs.dataset_dir_by_id(dataset_id)
     dataset_len = 0
 
-    def compute_base64_and_hash(image_path):
-        with open(image_path, "rb") as f:
+    def compute_base64_and_hash(image_path, dataset_root):
+        # Resolve absolute paths
+        resolved_image_path = Path(image_path).resolve()
+        resolved_dataset_root = Path(dataset_root).resolve()
+
+        # Check if resolved_image_path is within dataset_root
+        if not str(resolved_image_path).startswith(str(resolved_dataset_root)):
+            raise ValueError(f"Access denied for path: {resolved_image_path}")
+
+        with open(resolved_image_path, "rb") as f:
             img = PILImage.open(f)
             buffer = BytesIO()
             img.save(buffer, format="JPEG")
@@ -265,37 +255,34 @@ async def dataset_preview_with_template(
 
     try:
         if d["location"] == "local":
-            print(f"Loading local dataset from {dataset_dir}")
             dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
-            print(f"Loaded dataset splits: {list(dataset.keys())}")
 
             split_name = list(dataset.keys())[0]
             features = dataset[split_name].features
             is_image_dataset = any(isinstance(f, Image) for f in features.values())
-            print(f"Is image dataset: {is_image_dataset}")
 
             metadata_map = {}
             if is_image_dataset:
-                print("Processing metadata files...")
                 dataset = load_dataset("imagefolder", data_dir=dataset_dir)
-                # Print keys for each split (if there are multiple splits)
-                for split, ds in dataset.items():
-                    print(f"Split: {split}")
-                    print(f"Keys: {ds.column_names}")
+                dataset_root = Path(dataset_dir).resolve()
 
-                # If no splits, just print column names
-                if isinstance(dataset, dict):
-                    # Multiple splits (train, test, etc.)
-                    for split, ds in dataset.items():
-                        print(f"{split}: {ds.column_names}")
-                else:
-                    # Single dataset
-                    print(f"Column names: {dataset.column_names}")
-                for root, dirs_, files in os.walk(dataset_dir):
+                for root, dirs_, files in os.walk(dataset_dir, followlinks=False):
+                    resolved_root = Path(root).resolve()
+
+                    # Check if resolved root is within dataset_dir
+                    if not str(resolved_root).startswith(str(dataset_root)):
+                        print(f"Skipping potentially unsafe directory: {resolved_root}")
+                        continue
+
                     for file in files:
                         if file.endswith((".json", ".jsonl", ".csv")):
-                            path = os.path.join(root, file)
-                            print(f"Loading metadata file: {path}")
+                            file_path = resolved_root / file
+                            path = file_path.resolve()
+
+                            # Check if file is within dataset_dir
+                            if not str(path).startswith(str(dataset_root)):
+                                print(f"Skipping potentially unsafe file: {path}")
+                                continue
                             with open(path, "r", encoding="utf-8") as f:
                                 if path.endswith(".json"):
                                     rows = [list(row.values()) for row in json.load(f)]
@@ -312,18 +299,23 @@ async def dataset_preview_with_template(
                                         continue
                                     file_name = row[0]
                                     caption = row[1]
-                                    image_path = os.path.join(root, file_name)
-                                    rel_path = os.path.relpath(os.path.join(root, file_name), dataset_dir)
-                                    full_image_path = os.path.join(dataset_dir, rel_path)
-                                    if os.path.exists(image_path):
-                                        encoded, img_hash = compute_base64_and_hash(image_path)
+
+                                    # Construct the full image path securely
+                                    file_path = Path(root) / file_name
+                                    resolved_file_path = file_path.resolve()
+
+                                    # Ensure the resolved path is inside dataset_root
+                                    if not str(resolved_file_path).startswith(str(dataset_root)):
+                                        print(f"Skipping potentially unsafe image path: {resolved_file_path}")
+                                        continue
+
+                                    if resolved_file_path.exists():
+                                        encoded, img_hash = compute_base64_and_hash(resolved_file_path, dataset_root)
                                         metadata_map[(img_hash, caption)] = {
                                             "file_name": file_name,
                                             "previous_caption": caption,
-                                            "full_image_path": full_image_path,
+                                            "full_image_path": str(resolved_file_path),
                                         }
-
-                print(f"Metadata processing complete: {len(metadata_map)} entries.")
             else:
                 dataset_len = len(dataset["train"])
                 return {
@@ -336,7 +328,6 @@ async def dataset_preview_with_template(
                     },
                 }
         else:
-            print(f"Loading remote dataset: {dataset_id}")
             dataset_config = d.get("json_data", {}).get("dataset_config", None)
             config_name = d.get("json_data", {}).get("config_name", None)
             if dataset_config:
@@ -345,22 +336,18 @@ async def dataset_preview_with_template(
                 dataset = load_dataset(path=dataset_id, name=config_name, trust_remote_code=True)
             else:
                 dataset = load_dataset(dataset_id, trust_remote_code=True)
-            print(f"Loaded remote dataset splits: {list(dataset.keys())}")
 
     except Exception as e:
         print(f"Error loading dataset: {type(e).__name__}: {e}")
-        return {"status": "error", "message": str(e)}
+        return {"status": "error"}
 
     dataset_len = sum(len(split) for split in dataset.values())
-    print(f"Total dataset length: {dataset_len}")
 
     jinja_template = sandboxed_jinja2_evironment.from_string(template)
     rows = []
     index = 0
 
-    print("Building rows for preview...")
     for split_name, split_data in dataset.items():
-        print(f"Processing split '{split_name}' with {len(split_data)} records")
         for i in range(len(split_data)):
             if index < offset:
                 index += 1
@@ -389,8 +376,6 @@ async def dataset_preview_with_template(
                 if meta:
                     row["file_name"] = meta["file_name"]
                     row["previous_caption"] = meta["previous_caption"]
-                    print(f"Matched hash+caption: {img_hash}, caption={row_caption}")
-                    image_path = os.path.join(root, meta["file_name"])
                     parent_folder = Path(meta["full_image_path"]).parent.name
                     if "label" not in row or row["label"] is None:
                         if parent_folder.lower() not in ["train", "test"]:
@@ -401,7 +386,6 @@ async def dataset_preview_with_template(
                     row["file_name"] = None
                     row["previous_caption"] = ""
                     row["label"] = ""
-                    print(f"No match for hash+caption: {img_hash}, caption={row_caption}")
 
                 row["image"] = f"data:image/jpeg;base64,{encoded}"
 
@@ -409,7 +393,6 @@ async def dataset_preview_with_template(
             rows.append(row)
 
     column_names = list(rows[0].keys()) if rows else []
-    print(f"Returning preview with columns: {column_names}")
 
     return {
         "status": "success",
@@ -421,11 +404,9 @@ async def dataset_preview_with_template(
 async def save_metadata(dataset_id: str, file: UploadFile):
     try:
         dataset_dir = dirs.dataset_dir_by_id(slugify(dataset_id))
-        print(f"save_metadata: dataset_id={dataset_id}, dataset_dir={dataset_dir}")
 
         content = await file.read()
         edits = json.loads(content)
-        print(f"Received {len(edits)} edit(s)")
 
         metadata_files = []
         for root, dirs_, files in os.walk(dataset_dir):
@@ -433,10 +414,8 @@ async def save_metadata(dataset_id: str, file: UploadFile):
                 if f.endswith((".json", ".jsonl", ".csv")):
                     path = os.path.join(root, f)
                     metadata_files.append(path)
-                    print(f"Found metadata file: {path}")
 
         if not metadata_files:
-            print("No metadata files found!")
             return JSONResponse(status_code=404, content={"status": "error", "message": "No metadata files found."})
 
         edits_applied = 0
@@ -446,7 +425,6 @@ async def save_metadata(dataset_id: str, file: UploadFile):
             edit_basename = os.path.basename(edit_file_name) if edit_file_name else None
             prev_caption = edit.get("previous_caption")
             new_caption = edit.get("text")
-            print(f"Processing edit: basename={edit_basename}, previous_caption={prev_caption}")
 
             if not edit_basename or prev_caption is None:
                 print("Edit missing required fields. Skipping.")
@@ -483,16 +461,11 @@ async def save_metadata(dataset_id: str, file: UploadFile):
                     else:
                         continue
 
-                    print(f"Comparing with row: basename={row_file_basename}, caption={row_caption}")
-
                     if row_file_basename == edit_basename and row_caption == prev_caption:
-                        print(f"Match found in {metadata_path}")
                         if isinstance(row, list):
-                            print(f"Updating description from '{row_caption}' to '{new_caption}'")
                             row[1] = new_caption
                         elif isinstance(row, dict):
                             key_to_update = list(row.keys())[1]
-                            print(f"Updating description from '{row[key_to_update]}' to '{new_caption}'")
                             row[key_to_update] = new_caption
                         edits_applied += 1
                         match_found = True
@@ -510,13 +483,7 @@ async def save_metadata(dataset_id: str, file: UploadFile):
                                 f_out.write(json.dumps(row, ensure_ascii=False) + "\n")
                         elif metadata_path.endswith(".json"):
                             json.dump(original, f_out, ensure_ascii=False, indent=2)
-                    print(f"Updated file: {metadata_path}")
                     break
-
-            if not match_found:
-                print(f"No match found for basename={edit_basename} with previous_caption={prev_caption}")
-
-        print(f"Total edits applied: {edits_applied}")
         return {"status": "success", "message": f"Updated {edits_applied} row(s)."}
 
     except Exception as e:
