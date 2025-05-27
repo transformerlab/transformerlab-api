@@ -8,6 +8,16 @@
   "model_architectures": ["LlamaForCausalLM"],
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
-  "parameters": {},
+  "parameters": {
+    "model_name": {
+    "title": "Model Name",
+    "type": "array",
+    "items": {
+      "type": "string"
+    },
+    "required": true,
+    "default": ["gpt-3.5-turbo"]
+  }
+  },
   "supported_hardware_architectures": ["cpu"]
 }

@@ -145,7 +145,7 @@ class OpenAIServer(BaseModelWorker):
             limit_worker_concurrency,
             conv_template,
         )
-        self.model_name = model_names
+        self.model_name = model_names[0]
 
         self.api_key = os.getenv("OPENAI_API_KEY")
         if not self.api_key:
@@ -395,22 +395,23 @@ def main():
     parser.add_argument("--worker-address", type=str, default="http://localhost:21002")
     parser.add_argument("--controller-address", type=str, default="http://localhost:21001")
     parser.add_argument("--model-path", type=str, default="llama3")
-    parser.add_argument(
-        "--model-names",
-        type=lambda s: s.split(","),
-        help="Optional display comma separated names",
-    )
     parser.add_argument("--conv-template", type=str, default=None, help="Conversation prompt template.")
     parser.add_argument("--parameters", type=str, default=None)
 
     args, _ = parser.parse_known_args()
+
+    try:
+        parameters = json.loads(args.parameters)
+        model_name = str(parameters.get("model_name", "gpt-3.5-turbo"))
+    except Exception:
+        raise ValueError("Model name must be provided in the parameters.")
 
     worker = OpenAIServer(
         args.controller_address,
         args.worker_address,
         worker_id,
         args.model_path,
-        args.model_names,
+        model_name,
         1024,
         args.conv_template
     )
