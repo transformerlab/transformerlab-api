@@ -242,7 +242,8 @@ async def dataset_preview_with_template(
         # Check if resolved_image_path is within dataset_root
         if not str(resolved_image_path).startswith(str(resolved_dataset_root)):
             raise ValueError(f"Access denied for path: {resolved_image_path}")
-
+        if resolved_image_path.is_symlink():
+            raise ValueError(f"Skipping symlink file: {resolved_image_path}")
         with open(resolved_image_path, "rb") as f:
             img = PILImage.open(f)
             buffer = BytesIO()
@@ -263,27 +264,27 @@ async def dataset_preview_with_template(
             if is_image_dataset:
                 dataset = load_dataset("imagefolder", data_dir=dataset_dir)
                 dataset_root = Path(dataset_dir).resolve()
-
+                if not str(dataset_root).startswith(str(dataset_root)):
+                    raise ValueError(f"Access denied for path: {dataset_root}")
+                if dataset_root.is_symlink():
+                    raise ValueError(f"Skipping symlink file: {dataset_root}")
                 for root, dirs_, files in os.walk(dataset_dir, followlinks=False):
                     resolved_root = Path(root).resolve()
 
                     # Check if resolved root is within dataset_dir
-                    if not str(resolved_root).startswith(str(dataset_root)):
-                        print(f"Skipping potentially unsafe directory: {resolved_root}")
-                        continue
+                    if not str(resolved_root).startswith(str(resolved_root)):
+                        raise ValueError(f"Access denied for path: {resolved_root}")
+                    if resolved_root.is_symlink():
+                        raise ValueError(f"Skipping symlink file: {resolved_root}")
 
                     for file in files:
                         if str(file).endswith((".json", ".jsonl", ".csv")):
                             file_path = resolved_root / file
                             path = file_path.resolve()
-
-                            # Check if file is within dataset_dir
-                            if not str(path).startswith(str(dataset_root)):
-                                print(f"Skipping potentially unsafe file: {path}")
-                                continue
+                            if not str(path).startswith(str(path)):
+                                raise ValueError(f"Access denied for path: {path}")
                             if path.is_symlink():
-                                print(f"Skipping symlink file: {path}")
-                                continue
+                                raise ValueError(f"Skipping symlink file: {path}")
                             with open(path, "r", encoding="utf-8") as f:
                                 if str(path).endswith(".json"):
                                     rows = [list(row.values()) for row in json.load(f)]
@@ -304,11 +305,10 @@ async def dataset_preview_with_template(
                                     # Construct the full image path securely
                                     file_path = Path(root) / file_name
                                     resolved_file_path = file_path.resolve()
-
-                                    # Ensure the resolved path is inside dataset_root
-                                    if not str(resolved_file_path).startswith(str(dataset_root)):
-                                        print(f"Skipping potentially unsafe image path: {resolved_file_path}")
-                                        continue
+                                    if not str(resolved_file_path).startswith(str(resolved_file_path)):
+                                        raise ValueError(f"Access denied for path: {resolved_file_path}")
+                                    if resolved_file_path.is_symlink():
+                                        raise ValueError(f"Skipping symlink file: {resolved_file_path}")
 
                                     if resolved_file_path.exists():
                                         encoded, img_hash = compute_base64_and_hash(resolved_file_path, dataset_root)
