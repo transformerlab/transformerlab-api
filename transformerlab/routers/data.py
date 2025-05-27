@@ -62,6 +62,21 @@ class ErrorResponse(BaseModel):
     message: str
 
 
+def validate_and_resolve_path(path: str, root: str) -> Path:
+    """
+    Validates and resolves a path to ensure it is within the specified root directory.
+    """
+    resolved_path = Path(os.path.normpath(path)).resolve()
+    resolved_root = Path(os.path.normpath(root)).resolve()
+
+    if not resolved_path.is_relative_to(resolved_root):
+        raise ValueError(f"Access denied for path: {resolved_path}")
+    if resolved_path.is_symlink() or not resolved_path.exists():
+        raise ValueError(f"Invalid or non-existent path: {resolved_path}")
+
+    return resolved_path
+
+
 @router.get(
     "/gallery",
     summary="Display the datasets available in the dataset gallery.",
@@ -235,15 +250,8 @@ async def dataset_preview_with_template(
     dataset_len = 0
 
     def compute_base64_and_hash(image_path, dataset_root):
-        # Resolve and normalize paths
-        resolved_image_path = Path(os.path.normpath(image_path)).resolve()
-        resolved_dataset_root = Path(os.path.normpath(dataset_root)).resolve()
-
-        # Validate that resolved_image_path is within dataset_root
-        if not str(resolved_image_path).startswith(str(resolved_dataset_root)):
-            raise ValueError(f"Access denied for path: {resolved_image_path}")
-        if resolved_image_path.is_symlink() or not resolved_image_path.exists():
-            raise ValueError(f"Invalid or non-existent file: {resolved_image_path}")
+        # Centralized path validation
+        resolved_image_path = validate_and_resolve_path(image_path, dataset_root)
 
         # Open and process the image file
         with open(resolved_image_path, "rb") as f:
@@ -265,31 +273,11 @@ async def dataset_preview_with_template(
             metadata_map = {}
             if is_image_dataset:
                 dataset = load_dataset("imagefolder", data_dir=dataset_dir)
-                dataset_root = Path(dirs.datasets_base_dir()).resolve()  # Safe root directory
-                resolved_dataset_dir = Path(dataset_dir).resolve()
-
-                # Validate that resolved_dataset_dir is within dataset_root
-                if not str(resolved_dataset_dir).startswith(str(dataset_root)):
-                    raise ValueError(f"Access denied for path: {resolved_dataset_dir}")
-                if resolved_dataset_dir.is_symlink():
-                    raise ValueError(f"Skipping symlink file: {resolved_dataset_dir}")
                 for root, dirs_, files in os.walk(dataset_dir, followlinks=False):
-                    resolved_root = Path(root).resolve()
-
-                    # Check if resolved root is within dataset_dir
-                    if not resolved_root.is_relative_to(dataset_dir):
-                        raise ValueError(f"Access denied for path: {resolved_root}")
-                    if resolved_root.is_symlink() or not resolved_root.exists():
-                        raise ValueError(f"Invalid or non-existent directory: {resolved_root}")
-
+                    resolved_root = validate_and_resolve_path(root, dataset_dir)
                     for file in files:
                         if str(file).endswith((".json", ".jsonl", ".csv")):
-                            file_path = resolved_root / file
-                            path = file_path.resolve()
-                            if not path.is_relative_to(dataset_dir):
-                                raise ValueError(f"Access denied for path: {path}")
-                            if path.is_symlink() or not path.exists():
-                                raise ValueError(f"Invalid or non-existent file: {path}")
+                            path = validate_and_resolve_path(resolved_root / file, dataset_dir)
                             with open(path, "r", encoding="utf-8") as f:
                                 if str(path).endswith(".json"):
                                     rows = [list(row.values()) for row in json.load(f)]
@@ -316,7 +304,7 @@ async def dataset_preview_with_template(
                                         raise ValueError(f"Invalid or non-existent file: {resolved_file_path}")
 
                                     if resolved_file_path.exists():
-                                        encoded, img_hash = compute_base64_and_hash(resolved_file_path, dataset_root)
+                                        encoded, img_hash = compute_base64_and_hash(resolved_file_path, dataset_dir)
                                         metadata_map[(img_hash, caption)] = {
                                             "file_name": file_name,
                                             "previous_caption": caption,
