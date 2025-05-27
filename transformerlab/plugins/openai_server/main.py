@@ -8,24 +8,19 @@ Requires that openai is installed on your server.
 import argparse
 import asyncio
 import os
-import subprocess
 import json
 import uuid
-from hashlib import sha256
 from typing import List
-from pathlib import Path
 from contextlib import asynccontextmanager
-import traceback
 import uvicorn
 import aiohttp
 
 import openai
 
 from fastapi import FastAPI, Request, BackgroundTasks
-from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse, JSONResponse
 from transformers.tokenization_utils_base import BatchEncoding
-from fastchat.utils import is_partial_stop, build_logger
+from fastchat.utils import build_logger
 from fastchat.constants import ErrorCode
 
 
@@ -177,11 +172,11 @@ class OpenAIServer(BaseModelWorker):
         stop_str = params.get("stop", None)
         temperature = float(params.get("temperature", 1.0))
         top_p = float(params.get("top_p", 1.0))
-        frequency_penalty = float(params.get("frequency_penalty", 0.0))
+        # frequency_penalty = float(params.get("frequency_penalty", 0.0))
 
         # These parameters don't seem to be in the UI
-        top_k = params.get("top_k", -1.0)
-        presence_penalty = float(params.get("presence_penalty", 0.0))
+        # top_k = params.get("top_k", -1.0)
+        # presence_penalty = float(params.get("presence_penalty", 0.0))
 
         # Create a set out of our stop_str parameter
         stop = set()
@@ -212,7 +207,6 @@ class OpenAIServer(BaseModelWorker):
         # Bundle together generation parameters
         # TODO: Add num_gpu and figure out num_ctx?
         # TODO: Add stop set so we don't have to manually check
-        generation_params = {"top_p": top_p, "temperature": temperature, "frequency_penalty": frequency_penalty}
 
         decoded_tokens = []
 
@@ -249,6 +243,8 @@ class OpenAIServer(BaseModelWorker):
                         "cumulative_logprob": [],
                         "finish_reason": None,
                     }
+                    yield (json.dumps(ret) + "\0").encode()
+
         
         final_text = "".join(decoded_tokens)
         final_ret = {
