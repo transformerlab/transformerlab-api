@@ -30,8 +30,48 @@ async_engine = create_async_engine(DATABASE_URL, echo=False)
 # Create a configured "Session" class
 async_session = sessionmaker(async_engine, expire_on_commit=False, class_=AsyncSession)
 
-# List of triggers to be seeded into the database.
-# The `_seed_workflow_triggers` function will process this list during application startup.
+# Predefined trigger blueprints - the single source of truth for available trigger types
+PREDEFINED_TRIGGER_BLUEPRINTS = [
+    {
+        "trigger_type": "TRAIN",
+        "name": "On Training Completed",
+        "description": "Starts the workflow after every training job is completed.",
+        "default_is_enabled": False
+    },
+    {
+        "trigger_type": "DOWNLOAD_MODEL",
+        "name": "On Model Downloaded",
+        "description": "Starts the workflow after every new model is downloaded.",
+        "default_is_enabled": False
+    },
+    {
+        "trigger_type": "LOAD_MODEL",
+        "name": "On Model Loaded",
+        "description": "Starts the workflow after every new model is loaded for inference.",
+        "default_is_enabled": False
+    },
+    {
+        "trigger_type": "EXPORT_MODEL",
+        "name": "On Model Exported",
+        "description": "Starts the workflow after model export is completed.",
+        "default_is_enabled": False
+    },
+    {
+        "trigger_type": "EVAL",
+        "name": "On Evaluation Completed",
+        "description": "Starts the workflow after every evaluation job is completed.",
+        "default_is_enabled": False
+    },
+    {
+        "trigger_type": "GENERATE",
+        "name": "On Generation Completed",
+        "description": "Starts the workflow after every generation job is completed.",
+        "default_is_enabled": False
+    },
+]
+
+# Legacy triggers list - kept for backward compatibility during transition
+# TODO: Remove this after migration is complete
 TRIGGERS_TO_SEED = [
     {
         "name": "On Training Completed",
@@ -160,6 +200,14 @@ async def init():
     except Exception as e:
         if "duplicate column name" not in str(e).lower():
             print(f"⚠️  Note about description column: {str(e)}")
+
+    # Add trigger_configs column to workflows if it doesn't exist
+    try:
+        await db.execute("ALTER TABLE workflows ADD COLUMN trigger_configs TEXT")
+        print("✅ Added trigger_configs column to workflows table")
+    except Exception as e:
+        if "duplicate column name" not in str(e).lower():
+            print(f"⚠️  Note about trigger_configs column: {str(e)}")
 
     print("✅ Database initialized")
 
@@ -1057,6 +1105,11 @@ async def workflows_get_all():
     column_names = [col[0] for col in desc]
     data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
     await cursor.close()
+    
+    # Normalize trigger_configs for each workflow
+    for workflow in data:
+        workflow["trigger_configs"] = _normalize_trigger_configs(workflow.get("trigger_configs"))
+    
     return data
 
 
@@ -1070,6 +1123,11 @@ async def workflows_get_from_experiment(experiment_id):
     column_names = [col[0] for col in desc]
     data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
     await cursor.close()
+    
+    # Normalize trigger_configs for each workflow
+    for workflow in data:
+        workflow["trigger_configs"] = _normalize_trigger_configs(workflow.get("trigger_configs"))
+    
     return data
 
 
@@ -1092,6 +1150,9 @@ async def workflows_get_by_id(workflow_id):
     column_names = [col[0] for col in desc]
     row = dict(itertools.zip_longest(column_names, row))
     await cursor.close()
+    
+    # Normalize trigger_configs to ensure it's always complete
+    row["trigger_configs"] = _normalize_trigger_configs(row.get("trigger_configs"))
     return row
 
 
@@ -1204,10 +1265,20 @@ async def workflow_run_update_with_new_job(workflow_run_id, current_task, curren
 
 
 async def workflow_create(name, config, experiment_id):
-    # check if type is allowed
+    # Initialize trigger_configs with default values from PREDEFINED_TRIGGER_BLUEPRINTS
+    trigger_configs = []
+    for blueprint in PREDEFINED_TRIGGER_BLUEPRINTS:
+        trigger_configs.append({
+            "trigger_type": blueprint["trigger_type"],
+            "is_enabled": blueprint["default_is_enabled"]
+        })
+    
+    trigger_configs_json = json.dumps(trigger_configs)
+    
+    # Insert workflow with trigger_configs
     row = await db.execute_insert(
-        "INSERT INTO workflows(name, config, status, experiment_id) VALUES (?, json(?), ?, ?)",
-        (name, config, "CREATED", experiment_id),
+        "INSERT INTO workflows(name, config, status, experiment_id, trigger_configs) VALUES (?, json(?), ?, ?, json(?))",
+        (name, config, "CREATED", experiment_id, trigger_configs_json),
     )
     await db.commit()
     return row[0]
@@ -1223,6 +1294,98 @@ async def workflow_update_config(workflow_id, config):
 async def workflow_update_name(workflow_id, name):
     await db.execute("UPDATE workflows SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (name, workflow_id))
     await db.commit()
+
+
+def _normalize_trigger_configs(trigger_configs_raw):
+    """Helper function to normalize trigger_configs to ensure completeness."""
+    trigger_configs = trigger_configs_raw
+    if trigger_configs:
+        try:
+            trigger_configs = json.loads(trigger_configs) if isinstance(trigger_configs, str) else trigger_configs
+        except (json.JSONDecodeError, TypeError):
+            trigger_configs = None
+    
+    if not trigger_configs or not isinstance(trigger_configs, list):
+        # Generate default trigger_configs from blueprints
+        trigger_configs = []
+        for blueprint in PREDEFINED_TRIGGER_BLUEPRINTS:
+            trigger_configs.append({
+                "trigger_type": blueprint["trigger_type"],
+                "is_enabled": blueprint["default_is_enabled"]
+            })
+    else:
+        # Ensure all predefined trigger types are present
+        complete_configs = []
+        for blueprint in PREDEFINED_TRIGGER_BLUEPRINTS:
+            trigger_type = blueprint["trigger_type"]
+            # Find existing config for this type
+            existing_config = next((config for config in trigger_configs if config.get("trigger_type") == trigger_type), None)
+            
+            if existing_config:
+                complete_configs.append({
+                    "trigger_type": trigger_type,
+                    "is_enabled": existing_config.get("is_enabled", blueprint["default_is_enabled"])
+                })
+            else:
+                complete_configs.append({
+                    "trigger_type": trigger_type,
+                    "is_enabled": blueprint["default_is_enabled"]
+                })
+        
+        trigger_configs = complete_configs
+    
+    return trigger_configs
+
+
+async def workflow_update_trigger_configs(workflow_id: int, new_configs_list: list[dict]) -> dict:
+    """Update the trigger configurations for a specific workflow."""
+    # Validation
+    if not isinstance(new_configs_list, list) or len(new_configs_list) != 6:
+        raise ValueError("new_configs_list must be a list of exactly 6 trigger configurations")
+    
+    # Get predefined trigger types for validation
+    predefined_types = {blueprint["trigger_type"] for blueprint in PREDEFINED_TRIGGER_BLUEPRINTS}
+    
+    # Validate each config
+    provided_types = set()
+    for config in new_configs_list:
+        if not isinstance(config, dict):
+            raise ValueError("Each trigger config must be a dictionary")
+        
+        trigger_type = config.get("trigger_type")
+        is_enabled = config.get("is_enabled")
+        
+        if not trigger_type or trigger_type not in predefined_types:
+            raise ValueError(f"Invalid trigger_type: {trigger_type}. Must be one of: {predefined_types}")
+        
+        if not isinstance(is_enabled, bool):
+            raise ValueError(f"is_enabled must be a boolean for trigger_type: {trigger_type}")
+        
+        if trigger_type in provided_types:
+            raise ValueError(f"Duplicate trigger_type: {trigger_type}")
+        
+        provided_types.add(trigger_type)
+    
+    # Ensure all predefined types are present
+    if provided_types != predefined_types:
+        missing_types = predefined_types - provided_types
+        raise ValueError(f"Missing trigger types: {missing_types}")
+    
+    # Check if workflow exists
+    workflow = await workflows_get_by_id(workflow_id)
+    if not workflow:
+        raise ValueError(f"Workflow with id {workflow_id} not found")
+    
+    # Update the database
+    trigger_configs_json = json.dumps(new_configs_list)
+    await db.execute(
+        "UPDATE workflows SET trigger_configs = json(?), updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (trigger_configs_json, workflow_id)
+    )
+    await db.commit()
+    
+    # Return the updated workflow
+    return await workflows_get_by_id(workflow_id)
 
 
 async def workflow_delete_all():
@@ -1404,6 +1567,69 @@ async def workflow_trigger_get_enabled_by_experiment_id_and_type(experiment_id: 
     
     await cursor.close()
     return data
+
+
+async def workflow_get_by_job_event(job_type: str, job_experiment_id: int, job_name: str = None) -> list[dict]:
+    """Find all workflows that should be activated by a specific job completion event."""
+    # Get all active workflows
+    cursor = await db.execute("SELECT id, name, trigger_configs, experiment_id FROM workflows WHERE status != 'DELETED'")
+    rows = await cursor.fetchall()
+    
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    workflows = [dict(itertools.zip_longest(column_names, row)) for row in rows]
+    await cursor.close()
+    
+    matching_workflows = []
+    
+    for workflow_row in workflows:
+        workflow_exp_id = workflow_row["experiment_id"]
+        
+        # Match 3: Implicit Experiment Context - workflow must be in same experiment as job
+        if workflow_exp_id != job_experiment_id:
+            continue
+        
+        trigger_configs_raw = workflow_row["trigger_configs"]
+        if not trigger_configs_raw:
+            continue
+        
+        try:
+            # Deserialize trigger_configs
+            if isinstance(trigger_configs_raw, str):
+                trigger_configs = json.loads(trigger_configs_raw)
+            else:
+                trigger_configs = trigger_configs_raw
+                
+            if not isinstance(trigger_configs, list):
+                continue
+                
+        except (json.JSONDecodeError, TypeError):
+            continue
+        
+        # Check each trigger configuration
+        for trigger_def in trigger_configs:
+            if not isinstance(trigger_def, dict):
+                continue
+                
+            # Match 1: Type - trigger type must match job type
+            if trigger_def.get("trigger_type") != job_type:
+                continue
+                
+            # Match 2: Enabled - trigger must be enabled
+            if not trigger_def.get("is_enabled", False):
+                continue
+            
+            # Match 4: Optional job name pattern (for future extension)
+            # Currently not implemented, but structure is ready
+            
+            # All conditions met - add workflow to matching list
+            matching_workflows.append({
+                "id": workflow_row["id"],
+                "name": workflow_row["name"]
+            })
+            break  # One matching trigger is enough to activate the workflow
+    
+    return matching_workflows
 
 
 async def job_mark_triggers_processed(job_id: int):

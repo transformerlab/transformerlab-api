@@ -4,9 +4,11 @@ import sqlite3
 import itertools
 import sys
 
+from transformerlab.shared.dirs import HOME_DIR
 
 # useful constants
-WORKSPACE_DIR = os.getenv("_TFL_WORKSPACE_DIR")
+# WORKSPACE_DIR = os.getenv("_TFL_WORKSPACE_DIR")
+WORKSPACE_DIR = os.path.join(HOME_DIR, "workspace")
 if WORKSPACE_DIR is None:
     print("Plugin Harness Error: Environment variable _TFL_WORKSPACE_DIR is not set. Quitting.")
     exit(1)

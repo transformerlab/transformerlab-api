@@ -1,7 +1,8 @@
 """
 Logic for processing triggers when jobs are completed.
 
-This module processes triggers for completed jobs based on the trigger types defined in db.TRIGGERS_TO_SEED.
+This module processes triggers for completed jobs using the new per-workflow trigger system.
+Each workflow has its own trigger_configs that define which job completion events should activate it.
 """
 
 import logging
@@ -54,21 +55,23 @@ async def process_job_completion_triggers(job_id: int):
 
         logger.info(f"Processing triggers for completed {job_type} job {job_id} in experiment {experiment_id}")
 
-        # Step 4: Find active triggers for this experiment and type
-        active_triggers = await db.workflow_trigger_get_enabled_by_experiment_id_and_type(
-            experiment_id, trigger_type
-        )
+        # Step 4: Find workflows that should be triggered by this job event
+        matching_workflows = await db.workflow_get_by_job_event(job_type, experiment_id, job_name=None)
 
-        if not active_triggers:
-            logger.info(f"No active triggers found for {trigger_type} in experiment {experiment_id}")
+        if not matching_workflows:
+            logger.info(f"No workflows found with enabled {trigger_type} triggers in experiment {experiment_id}")
             await db.job_update_job_data_insert_key_value(job_id, "triggers_processed", True)
             return
 
-        logger.info(f"Found {len(active_triggers)} active triggers for job {job_id}")
+        logger.info(f"Found {len(matching_workflows)} workflows to trigger for job {job_id}")
 
-        # Step 5: Process each active trigger
-        for trigger in active_triggers:
-            await process_trigger_for_job(job_id, trigger)
+        # Step 5: Queue each matching workflow
+        for workflow in matching_workflows:
+            try:
+                await db.workflow_queue(workflow["id"])
+                logger.info(f"Job {job_id} queued workflow {workflow['id']} ({workflow['name']})")
+            except Exception as e:
+                logger.error(f"Error queuing workflow {workflow['id']}: {str(e)}")
 
         # Step 6: Mark job as processed
         await db.job_update_job_data_insert_key_value(job_id, "triggers_processed", True)
@@ -93,8 +96,8 @@ async def process_completed_job_triggers():
     4. For each enabled trigger, queues the associated workflows
     5. Marks the job as having had its triggers processed
     """
-    # Get unique trigger types from TRIGGERS_TO_SEED
-    trigger_types = {trigger["trigger_type"] for trigger in db.TRIGGERS_TO_SEED}
+    # Get unique trigger types from PREDEFINED_TRIGGER_BLUEPRINTS
+    trigger_types = {blueprint["trigger_type"] for blueprint in db.PREDEFINED_TRIGGER_BLUEPRINTS}
     
     for trigger_type in trigger_types:
         try:
@@ -126,25 +129,27 @@ async def process_completed_job_triggers():
             logger.error(f"Error processing {trigger_type} job triggers: {str(e)}", exc_info=True)
 
 
-async def process_trigger_for_job(job_id: int, trigger: Dict[str, Any]):
-    """Process a single trigger for a job."""
-    trigger_id = trigger["id"]
-    
-    # Check that the config and workflow_ids exist
-    if not trigger["config"] or "workflow_ids" not in trigger["config"]:
-        logger.warning(f"Trigger {trigger_id} has no workflow_ids configured, skipping")
-        return
-    
-    workflow_ids = trigger["config"]["workflow_ids"]
-    if not isinstance(workflow_ids, list) or not workflow_ids:
-        logger.warning(f"Trigger {trigger_id} has invalid workflow_ids: {workflow_ids}, skipping")
-        return
-    
-    # Queue each workflow
-    for workflow_id in workflow_ids:
-        try:
-            await db.workflow_queue(workflow_id)
-            logger.info(f"Job {job_id} queued workflow {workflow_id} via trigger {trigger_id}")
-        except Exception as e:
-            logger.error(f"Error queuing workflow {workflow_id} via trigger {trigger_id}: {str(e)}")
-            # Continue processing other workflows 
+# Legacy function - no longer used with the new per-workflow trigger system
+# Kept for reference during transition period
+# async def process_trigger_for_job(job_id: int, trigger: Dict[str, Any]):
+#     """Process a single trigger for a job."""
+#     trigger_id = trigger["id"]
+#     
+#     # Check that the config and workflow_ids exist
+#     if not trigger["config"] or "workflow_ids" not in trigger["config"]:
+#         logger.warning(f"Trigger {trigger_id} has no workflow_ids configured, skipping")
+#         return
+#     
+#     workflow_ids = trigger["config"]["workflow_ids"]
+#     if not isinstance(workflow_ids, list) or not workflow_ids:
+#         logger.warning(f"Trigger {trigger_id} has invalid workflow_ids: {workflow_ids}, skipping")
+#         return
+#     
+#     # Queue each workflow
+#     for workflow_id in workflow_ids:
+#         try:
+#             await db.workflow_queue(workflow_id)
+#             logger.info(f"Job {job_id} queued workflow {workflow_id} via trigger {trigger_id}")
+#         except Exception as e:
+#             logger.error(f"Error queuing workflow {workflow_id} via trigger {trigger_id}: {str(e)}")
+#             # Continue processing other workflows

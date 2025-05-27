@@ -1,8 +1,10 @@
 import json
 import yaml
 import uuid
-from fastapi import APIRouter, UploadFile, Body
+from typing import List
+from fastapi import APIRouter, UploadFile, Body, HTTPException
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 import transformerlab.db as db
 import transformerlab.routers.tasks as tsks
@@ -10,13 +12,36 @@ import transformerlab.routers.tasks as tsks
 from transformerlab.shared import dirs
 from transformerlab.shared.shared import slugify
 
+
+class TriggerConfigUpdateItem(BaseModel):
+    trigger_type: str
+    is_enabled: bool
+
+
+class WorkflowTriggerConfigsUpdateRequest(BaseModel):
+    configs: List[TriggerConfigUpdateItem]
+
 router = APIRouter(prefix="/workflows", tags=["workflows"])
+
+
+# Static routes first
+@router.get("/predefined_triggers", summary="Get predefined triggers (frontend compatibility)")
+async def get_predefined_triggers():
+    """Get the list of predefined trigger types with their descriptions. Frontend-compatible endpoint."""
+    return db.PREDEFINED_TRIGGER_BLUEPRINTS
+
+
+@router.get("/trigger_blueprints", summary="Get predefined trigger blueprints")
+async def get_trigger_blueprints():
+    """Get the list of predefined trigger types with their descriptions."""
+    return db.PREDEFINED_TRIGGER_BLUEPRINTS
 
 
 @router.get("/list", summary="get all workflows")
 async def workflows_get_all():
     workflows = await db.workflows_get_all()
     return workflows
+
 
 @router.get("/list_in_experiment", summary="get all workflows in an experiment")
 async def workflows_get_in_experiment(experiment_id: str = "1"):
@@ -25,36 +50,11 @@ async def workflows_get_in_experiment(experiment_id: str = "1"):
     print(workflows)
     return workflows
 
+
 @router.get("/list_runs", summary="get all workflow runs")
 async def workflow_runs_get_all():
     workflow_runs = await db.workflow_run_get_all()
     return workflow_runs
-
-@router.get("/runs/{workflow_run_id}", summary="get a specific workflow run by id")
-async def workflow_runs_get_by_id(workflow_run_id: str):
-    workflow_run = await db.workflow_run_get_by_id(workflow_run_id)
-    returnInfo = {"run": workflow_run}
-    jobs = []
-    for job_id in json.loads(workflow_run["job_ids"]):
-        job = await db.job_get(job_id)
-        job_data = job["job_data"]
-        job_info = {"jobID": job_id,"status": job["status"]} 
-        if "template_name" in job_data.keys():
-            job_info["taskName"] = job_data["template_name"]
-        if "start_time" in job_data.keys():
-            job_info["jobStartTime"] = job_data["start_time"]
-        if "end_time" in job_data.keys():
-            job_info["jobEndTime"] = job_data["end_time"]
-        jobs.append(job_info)
-    returnInfo["jobs"] = jobs
-    workflow = await db.workflows_get_by_id(workflow_run["workflow_id"])
-    returnInfo["workflow"] = workflow
-    return returnInfo
-
-@router.get("/delete/{workflow_id}", summary="delete a workflow")
-async def workflow_delete(workflow_id: str):
-    await db.workflow_delete_by_id(workflow_id)
-    return {"message": "OK"}
 
 
 @router.get("/delete_all", summary="wipe all workflows")
@@ -81,6 +81,41 @@ async def workflow_create_empty(name: str, experiment_id="1"):
     workflow_id = await db.workflow_create(name, json.dumps(config), experiment_id)
     print(experiment_id)
     return workflow_id
+
+
+# Dynamic routes with path parameters
+@router.get("/{workflow_id}", summary="get a specific workflow by id")
+async def workflow_get_by_id(workflow_id: int):
+    workflow = await db.workflows_get_by_id(workflow_id)
+    if workflow is None:
+        return {"error": "Workflow not found"}
+    return workflow
+
+@router.get("/runs/{workflow_run_id}", summary="get a specific workflow run by id")
+async def workflow_runs_get_by_id(workflow_run_id: str):
+    workflow_run = await db.workflow_run_get_by_id(workflow_run_id)
+    returnInfo = {"run": workflow_run}
+    jobs = []
+    for job_id in json.loads(workflow_run["job_ids"]):
+        job = await db.job_get(job_id)
+        job_data = job["job_data"]
+        job_info = {"jobID": job_id,"status": job["status"]} 
+        if "template_name" in job_data.keys():
+            job_info["taskName"] = job_data["template_name"]
+        if "start_time" in job_data.keys():
+            job_info["jobStartTime"] = job_data["start_time"]
+        if "end_time" in job_data.keys():
+            job_info["jobEndTime"] = job_data["end_time"]
+        jobs.append(job_info)
+    returnInfo["jobs"] = jobs
+    workflow = await db.workflows_get_by_id(workflow_run["workflow_id"])
+    returnInfo["workflow"] = workflow
+    return returnInfo
+
+@router.get("/delete/{workflow_id}", summary="delete a workflow")
+async def workflow_delete(workflow_id: str):
+    await db.workflow_delete_by_id(workflow_id)
+    return {"message": "OK"}
 
 
 @router.get("/{workflow_id}/{node_id}/edit_node_metadata", summary="Edit metadata of a node in a workflow")
@@ -235,6 +270,25 @@ async def workflow_import_from_yaml(file: UploadFile, experiment_id="1"):
 async def start_workflow(workflow_id):
     await db.workflow_queue(workflow_id)
     return {"message": "OK"}
+
+
+@router.put("/{workflow_id}/trigger_configs", summary="Update workflow trigger configurations")
+async def update_workflow_trigger_configs(workflow_id: int, update_request: WorkflowTriggerConfigsUpdateRequest):
+    """Update the trigger configurations for a specific workflow."""
+    try:
+        # Convert Pydantic models to dictionaries
+        configs_list = [config.dict() for config in update_request.configs]
+        
+        # Call the database function
+        updated_workflow = await db.workflow_update_trigger_configs(workflow_id, configs_list)
+        
+        return updated_workflow
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 
 @router.get("/runs/get_currently_running", summary="Get the currently running workflow run and run a queued run if there is no currently running workflow run")
 async def get_active_workflow_run():
