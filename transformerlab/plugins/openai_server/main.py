@@ -159,7 +159,7 @@ class OpenAIServer(BaseModelWorker):
         # But we need a tokenizer to work with fastchat
         self.tokenizer = OpenAITokenizer(model=self.model_name)
 
-        self.init_heart_beat()
+        # self.init_heart_beat()
 
     async def generate_stream(self, params):
         self.call_ct += 1
