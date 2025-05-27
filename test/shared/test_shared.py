@@ -188,4 +188,60 @@ class TestRunJobShared:
                         
                         # Verify the job was marked as COMPLETE (since stop is not True)
                         job_status = await db.job_get_status(job_id)
-                        assert job_status == "COMPLETE" 
+                        assert job_status == "COMPLETE"
+
+    @pytest.mark.asyncio
+    async def test_eval_job_fails_when_job_data_is_none(self, test_experiment):
+        """Test that EVAL job is marked as FAILED when job_data is None"""
+        # Create a job with None job_data
+        job_id = await db.job_create("EVAL", "QUEUED", experiment_id=test_experiment)
+        
+        # Mock the evaluation script function
+        with patch('transformerlab.shared.shared.run_evaluation_script', new_callable=AsyncMock):
+            with patch('transformerlab.shared.shared.dirs.plugin_dir_by_name') as mock_plugin_dir:
+                with patch('os.path.exists', return_value=True):
+                    with patch('builtins.open', create=True):
+                        # Mock db.job_get to return a job with None job_data
+                        with patch('transformerlab.shared.shared.db.job_get') as mock_job_get:
+                            mock_job_get.return_value = {"job_data": None}
+                            mock_plugin_dir.return_value = "/fake/plugin/dir"
+                            
+                            job_config = {
+                                "plugin": "test_plugin",
+                                "evaluator": "test_evaluator"
+                            }
+                            
+                            # Run the job
+                            result = await run_job(str(job_id), job_config, "test_experiment", {"type": "EVAL"})
+                            
+                            # Verify the result indicates error
+                            assert result["status"] == "error"
+                            assert "No job data found" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_generate_job_fails_when_job_data_is_none(self, test_experiment):
+        """Test that GENERATE job is marked as FAILED when job_data is None"""
+        # Create a job with None job_data
+        job_id = await db.job_create("GENERATE", "QUEUED", experiment_id=test_experiment)
+        
+        # Mock the generation script function
+        with patch('transformerlab.shared.shared.run_generation_script', new_callable=AsyncMock):
+            with patch('transformerlab.shared.shared.dirs.plugin_dir_by_name') as mock_plugin_dir:
+                with patch('os.path.exists', return_value=True):
+                    with patch('builtins.open', create=True):
+                        # Mock db.job_get to return a job with None job_data
+                        with patch('transformerlab.shared.shared.db.job_get') as mock_job_get:
+                            mock_job_get.return_value = {"job_data": None}
+                            mock_plugin_dir.return_value = "/fake/plugin/dir"
+                            
+                            job_config = {
+                                "plugin": "test_plugin",
+                                "generator": "test_generator"
+                            }
+                            
+                            # Run the job
+                            result = await run_job(str(job_id), job_config, "test_experiment", {"type": "GENERATE"})
+                            
+                            # Verify the result indicates error
+                            assert result["status"] == "error"
+                            assert "No job data found" in result["message"] 
