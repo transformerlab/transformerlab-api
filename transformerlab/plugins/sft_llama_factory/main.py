@@ -121,6 +121,10 @@ def run_train():
     print("Template configuration:")
     print(yml)
 
+    # Remove max_samples if it exists to use all training data
+    if "max_samples" in yml:
+        del yml["max_samples"]
+
     yml["model_name_or_path"] = tlab_trainer.params.model_name
     yml["output_dir"] = tlab_trainer.params.adaptor_output_dir
     yml["logging_dir"] = output_dir
