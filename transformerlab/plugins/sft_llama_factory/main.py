@@ -122,8 +122,10 @@ def run_train():
     print(yml)
 
     # Remove max_samples if it exists to use all training data
-    if "max_samples" in yml:
+    if "max_samples" in yml and int(tlab_trainer.params.max_samples) < 1:
         del yml["max_samples"]
+    else:
+        yml["max_samples"] = int(tlab_trainer.params.max_samples)
 
     yml["model_name_or_path"] = tlab_trainer.params.model_name
     yml["output_dir"] = tlab_trainer.params.adaptor_output_dir

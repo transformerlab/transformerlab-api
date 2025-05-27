@@ -44,6 +44,11 @@
       "type": "integer",
       "default": -1
     },
+    "max_samples": {
+      "title": "Max Samples (-1 means no limit)",
+      "type": "integer",
+      "default": -1
+    },
     "lora_r": {
       "title": "Lora R",
       "type": "number",
@@ -77,12 +82,13 @@
       "ui:help": "Maximum sequence length for the model. Longer sequences will be truncated. Keep lower to save memory."
     },
     "lora_r": {
-      "ui:widget": "range",
       "ui:help": "Rank of the update matrices, expressed in int. Lower rank results in smaller update matrices with fewer trainable parameters."
     },
     "lora_alpha": {
-      "ui:widget": "range",
       "ui:help": "LoRA scaling factor. Make it a multiple of LoRA R."
+    },
+    "max_samples": {
+      "ui:help": "Maximum number of samples to train on. Set to -1 for no limit."
     }
   }
 }
