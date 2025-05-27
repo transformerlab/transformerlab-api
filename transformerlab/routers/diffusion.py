@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from huggingface_hub import model_info, list_repo_files
 import base64
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from io import BytesIO
 import torch
 import asyncio
@@ -433,8 +433,31 @@ async def get_history(limit: int = 50, offset: int = 0):
     return load_history(limit=limit, offset=offset)
 
 
-@router.get("/history/{image_id}/image", summary="Get image by ID")
+@router.get("/history/{image_id}", summary="Get the actual image by ID")
 async def get_image_by_id(image_id: str):
+    history = load_history(limit=1000)  # Load enough to find the image
+
+    # Find the image in history
+    image_item = None
+    for item in history.images:
+        if item.id == image_id:
+            image_item = item
+            break
+
+    if not image_item:
+        raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
+
+    # Check if image file exists
+    if not os.path.exists(image_item.image_path):
+        raise HTTPException(status_code=404, detail=f"Image file not found at {image_item.image_path}")
+
+    return FileResponse(
+        image_item.image_path,
+    )
+
+
+@router.get("/history/{image_id}/info", summary="Get image by ID")
+async def get_image_info_by_id(image_id: str):
     """
     Get a specific image by its ID
 
