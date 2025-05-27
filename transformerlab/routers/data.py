@@ -430,8 +430,6 @@ async def save_metadata(dataset_id: str, file: UploadFile):
                 print("Edit missing required fields. Skipping.")
                 continue
 
-            match_found = False
-
             for metadata_path in metadata_files:
                 with open(metadata_path, "r", encoding="utf-8") as f:
                     header = []
@@ -468,7 +466,6 @@ async def save_metadata(dataset_id: str, file: UploadFile):
                             key_to_update = list(row.keys())[1]
                             row[key_to_update] = new_caption
                         edits_applied += 1
-                        match_found = True
                         updated = True
                         break
 
