@@ -112,7 +112,7 @@ async def dataset_info(dataset_id: str):
                 label_set = set()
                 for root, dirs_, files in os.walk(dataset_dir):
                     for file in files:
-                        if file.lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
+                        if str(file).lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
                             image_path = os.path.join(root, file)
                             parent_folder = Path(image_path).parent.name
                             if parent_folder.lower() not in ["train", "test"]:
@@ -123,8 +123,7 @@ async def dataset_info(dataset_id: str):
                 r["features"] = features
         except EmptyDatasetError:
             return {"status": "error", "message": "The dataset is empty."}
-        except Exception as e:
-            print(f"Error: {e}")
+        except Exception:
             return {"status": "error"}
 
     else:
@@ -150,7 +149,6 @@ async def dataset_info(dataset_id: str):
                 "version": ds_builder.info.version,
             }
         except Exception as e:
-            print(f"Error loading remote dataset: {type(e).__name__}: {e}")
             return {"status": "error"}
 
     return r
@@ -275,7 +273,7 @@ async def dataset_preview_with_template(
                         continue
 
                     for file in files:
-                        if file.endswith((".json", ".jsonl", ".csv")):
+                        if str(file).endswith((".json", ".jsonl", ".csv")):
                             file_path = resolved_root / file
                             path = file_path.resolve()
 
@@ -283,12 +281,15 @@ async def dataset_preview_with_template(
                             if not str(path).startswith(str(dataset_root)):
                                 print(f"Skipping potentially unsafe file: {path}")
                                 continue
+                            if path.is_symlink():
+                                print(f"Skipping symlink file: {path}")
+                                continue
                             with open(path, "r", encoding="utf-8") as f:
-                                if path.endswith(".json"):
+                                if str(path).endswith(".json"):
                                     rows = [list(row.values()) for row in json.load(f)]
-                                elif path.endswith(".jsonl"):
+                                elif str(path).endswith(".jsonl"):
                                     rows = [list(json.loads(line).values()) for line in f]
-                                elif path.endswith(".csv"):
+                                elif str(path).endswith(".csv"):
                                     reader = csv.reader(f)
                                     rows = list(reader)
                                 else:
@@ -337,8 +338,7 @@ async def dataset_preview_with_template(
             else:
                 dataset = load_dataset(dataset_id, trust_remote_code=True)
 
-    except Exception as e:
-        print(f"Error loading dataset: {type(e).__name__}: {e}")
+    except Exception:
         return {"status": "error"}
 
     dataset_len = sum(len(split) for split in dataset.values())
@@ -411,7 +411,7 @@ async def save_metadata(dataset_id: str, file: UploadFile):
         metadata_files = []
         for root, dirs_, files in os.walk(dataset_dir):
             for f in files:
-                if f.endswith((".json", ".jsonl", ".csv")):
+                if str(f).endswith((".json", ".jsonl", ".csv")):
                     path = os.path.join(root, f)
                     metadata_files.append(path)
 
@@ -433,16 +433,16 @@ async def save_metadata(dataset_id: str, file: UploadFile):
             for metadata_path in metadata_files:
                 with open(metadata_path, "r", encoding="utf-8") as f:
                     header = []
-                    if metadata_path.endswith(".csv"):
+                    if str(metadata_path).endswith(".csv"):
                         reader = csv.reader(f)
                         all_rows = list(reader)
                         if not all_rows:
                             continue
                         header = all_rows[0]
                         original = all_rows[1:]
-                    elif metadata_path.endswith(".jsonl"):
+                    elif str(metadata_path).endswith(".jsonl"):
                         original = [json.loads(line) for line in f]
-                    elif metadata_path.endswith(".json"):
+                    elif str(metadata_path).endswith(".json"):
                         original = json.load(f)
                     else:
                         continue
@@ -471,20 +471,19 @@ async def save_metadata(dataset_id: str, file: UploadFile):
 
                 if updated:
                     with open(metadata_path, "w", encoding="utf-8", newline="") as f_out:
-                        if metadata_path.endswith(".csv"):
+                        if str(metadata_path).endswith(".csv"):
                             writer = csv.writer(f_out)
                             writer.writerow(header)
                             writer.writerows(original)
-                        elif metadata_path.endswith(".jsonl"):
+                        elif str(metadata_path).endswith(".jsonl"):
                             for row in original:
                                 f_out.write(json.dumps(row, ensure_ascii=False) + "\n")
-                        elif metadata_path.endswith(".json"):
+                        elif str(metadata_path).endswith(".json"):
                             json.dump(original, f_out, ensure_ascii=False, indent=2)
                     break
         return {"status": "success", "message": f"Updated {edits_applied} row(s)."}
 
-    except Exception as e:
-        print(f"Error in save_metadata: {type(e).__name__}: {e}")
+    except Exception:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
 
