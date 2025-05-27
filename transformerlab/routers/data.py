@@ -7,7 +7,7 @@ import base64
 from io import BytesIO
 from PIL.Image import Image as PILImage
 import hashlib
-from datasets import load_dataset, load_dataset_builder, ClassLabel, Image
+from datasets import load_dataset, load_dataset_builder, Image
 from fastapi import APIRouter, HTTPException, UploadFile, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
