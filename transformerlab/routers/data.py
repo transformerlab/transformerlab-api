@@ -240,10 +240,10 @@ async def dataset_preview_with_template(
         resolved_dataset_root = Path(dataset_root).resolve()
 
         # Check if resolved_image_path is within dataset_root
-        if not str(resolved_image_path).startswith(str(resolved_dataset_root)):
+        if not resolved_image_path.is_relative_to(resolved_dataset_root):
             raise ValueError(f"Access denied for path: {resolved_image_path}")
-        if resolved_image_path.is_symlink():
-            raise ValueError(f"Skipping symlink file: {resolved_image_path}")
+        if resolved_image_path.is_symlink() or not resolved_image_path.exists():
+            raise ValueError(f"Invalid or non-existent file:{resolved_image_path}")
         with open(resolved_image_path, "rb") as f:
             img = PILImage.open(f)
             buffer = BytesIO()
@@ -263,28 +263,31 @@ async def dataset_preview_with_template(
             metadata_map = {}
             if is_image_dataset:
                 dataset = load_dataset("imagefolder", data_dir=dataset_dir)
-                dataset_root = Path(dataset_dir).resolve()
-                if not str(dataset_root).startswith(str(dataset_root)):
-                    raise ValueError(f"Access denied for path: {dataset_root}")
-                if dataset_root.is_symlink():
-                    raise ValueError(f"Skipping symlink file: {dataset_root}")
+                dataset_root = Path(dirs.datasets_base_dir()).resolve()  # Safe root directory
+                resolved_dataset_dir = Path(dataset_dir).resolve()
+
+                # Validate that resolved_dataset_dir is within dataset_root
+                if not str(resolved_dataset_dir).startswith(str(dataset_root)):
+                    raise ValueError(f"Access denied for path: {resolved_dataset_dir}")
+                if resolved_dataset_dir.is_symlink():
+                    raise ValueError(f"Skipping symlink file: {resolved_dataset_dir}")
                 for root, dirs_, files in os.walk(dataset_dir, followlinks=False):
                     resolved_root = Path(root).resolve()
 
                     # Check if resolved root is within dataset_dir
-                    if not str(resolved_root).startswith(str(resolved_root)):
+                    if not resolved_root.is_relative_to(dataset_dir):
                         raise ValueError(f"Access denied for path: {resolved_root}")
-                    if resolved_root.is_symlink():
-                        raise ValueError(f"Skipping symlink file: {resolved_root}")
+                    if resolved_root.is_symlink() or not resolved_root.exists():
+                        raise ValueError(f"Invalid or non-existent directory: {resolved_root}")
 
                     for file in files:
                         if str(file).endswith((".json", ".jsonl", ".csv")):
                             file_path = resolved_root / file
                             path = file_path.resolve()
-                            if not str(path).startswith(str(path)):
+                            if not path.is_relative_to(dataset_dir):
                                 raise ValueError(f"Access denied for path: {path}")
-                            if path.is_symlink():
-                                raise ValueError(f"Skipping symlink file: {path}")
+                            if path.is_symlink() or not path.exists():
+                                raise ValueError(f"Invalid or non-existent file: {path}")
                             with open(path, "r", encoding="utf-8") as f:
                                 if str(path).endswith(".json"):
                                     rows = [list(row.values()) for row in json.load(f)]
@@ -305,7 +308,7 @@ async def dataset_preview_with_template(
                                     # Construct the full image path securely
                                     file_path = Path(root) / file_name
                                     resolved_file_path = file_path.resolve()
-                                    if not str(resolved_file_path).startswith(str(resolved_file_path)):
+                                    if not str(resolved_file_path).startswith(str(dataset_dir)):
                                         raise ValueError(f"Access denied for path: {resolved_file_path}")
                                     if resolved_file_path.is_symlink():
                                         raise ValueError(f"Skipping symlink file: {resolved_file_path}")
