@@ -80,7 +80,9 @@ class OpenAITokenizer:
 
 def get_openai_context_length(model_name: str, api_key: str) -> int:
     client = openai.OpenAI(api_key=api_key)
+    print(client)
     model_info = client.models.retrieve(model_name)
+    print(model_info)
     # Check for the correct attribute
     for key in ["context_window", "max_tokens", "max_context_length", "max_sequence_length"]:
         if hasattr(model_info, key):
