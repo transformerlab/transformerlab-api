@@ -249,6 +249,7 @@ async def install_mcp_server(server_name: str = Query(..., description="Module n
         if not os.path.commonpath([server_name, safe_root]) == safe_root or not server_name.startswith(
             safe_root + os.sep
         ):
+            print(f"Access to external files is forbidden: {server_name}")
             return JSONResponse(
                 status_code=403,
                 content={"status": "error", "message": "Access to external files is forbidden."},
@@ -258,6 +259,7 @@ async def install_mcp_server(server_name: str = Query(..., description="Module n
         if os.path.islink(server_name) or not os.path.isfile(server_name):
             return {"status": "success", "message": f"File '{server_name}' exists."}
         else:
+            print(f"File '{server_name}' does not exist.")
             return JSONResponse(
                 status_code=404, content={"status": "error", "message": f"File '{server_name}' not found."}
             )
@@ -271,13 +273,16 @@ async def install_mcp_server(server_name: str = Query(..., description="Module n
             env=env,
         )
         if result.returncode == 0:
+            print(f"Successfully installed '{server_name}'.")
             return {"status": "success", "message": f"Successfully installed '{server_name}'.", "output": result.stdout}
         else:
+            print(f"Failed to install '{server_name}': {result.stderr}")
             return JSONResponse(
                 status_code=500,
                 content={"status": "error", "message": f"Failed to install '{server_name}'.", "output": result.stderr},
             )
-    except Exception:
+    except Exception as e:
+        print(f"An error occurred while installing '{server_name}': {e}")
         return JSONResponse(
             status_code=500, content={"status": "error", "message": "An internal error occurred during installation"}
         )
