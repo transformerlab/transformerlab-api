@@ -29,5 +29,6 @@ sentence-transformers
 markitdown[all]
 hf_xet
 macmon-python
-pyrsmi
+mcp[cli]
 transformerlab-inference
+pyrsmi
