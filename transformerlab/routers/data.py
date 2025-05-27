@@ -3,15 +3,15 @@ import os
 import shutil
 import json
 import aiofiles
-import base64
-from io import BytesIO
-from PIL.Image import Image as PILImage
 import hashlib
 from datasets import load_dataset, load_dataset_builder, Image
 from fastapi import APIRouter, HTTPException, UploadFile, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Dict, Any
+from io import BytesIO
+from PIL import Image as PILImage
+import base64
 import csv
 from pathlib import Path
 import transformerlab.db as db
@@ -222,39 +222,17 @@ async def dataset_preview(
     if streaming:
         dataset_len = -1
         dataset = dataset[split].skip(offset)
-        rows = list(dataset.take(limit))
-        # Serialize rows
-        result["rows"] = [serialize_row(row) for row in rows]
+        result["rows"] = list(dataset.take(limit))
         result["splits"] = None
     else:
         if d["location"] != "local" and split not in dataset.keys():
             return {"status": "error", "message": f"Split '{split}' does not exist in the dataset."}
         dataset_len = len(dataset[split])
-        columns = dataset[split][offset : min(offset + limit, dataset_len)]
-        # Serialize each value in the columns dict, preserving the columnar format
-        if isinstance(columns, dict):
-            result["columns"] = {k: [serialize_row(v) for v in vals] for k, vals in columns.items()}
-        else:
-            result["columns"] = columns
+        result["columns"] = dataset[split][offset : min(offset + limit, dataset_len)]
         result["splits"] = list(dataset.keys())
 
     result["len"] = dataset_len
     return {"status": "success", "data": result}
-
-
-def serialize_row(row):
-    """Convert PIL Images in a row to base64 strings, preserving original structure."""
-    if isinstance(row, dict):
-        return {k: serialize_row(v) for k, v in row.items()}
-    elif isinstance(row, list):
-        return [serialize_row(v) for v in row]
-    elif isinstance(row, PILImage):
-        buffered = BytesIO()
-        row.save(buffered, format="JPEG")
-        img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
-        return f"data:image/jpeg;base64,{img_str}"
-    else:
-        return row
 
 
 @router.get(
