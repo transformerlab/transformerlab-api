@@ -244,4 +244,56 @@ class TestRunJobShared:
                             
                             # Verify the result indicates error
                             assert result["status"] == "error"
-                            assert "No job data found" in result["message"] 
+                            assert "No job data found" in result["message"]
+
+    @pytest.mark.asyncio
+    async def test_eval_job_completes_when_stop_key_missing(self, test_experiment):
+        """Test that EVAL job is marked as COMPLETE when stop key is missing entirely"""
+        # Create a job with job_data that has no "stop" key
+        job_data = {"other_key": "value"}
+        job_id = await db.job_create("EVAL", "QUEUED", json.dumps(job_data), test_experiment)
+        
+        # Mock the evaluation script function
+        with patch('transformerlab.shared.shared.run_evaluation_script', new_callable=AsyncMock):
+            with patch('transformerlab.shared.shared.dirs.plugin_dir_by_name') as mock_plugin_dir:
+                with patch('os.path.exists', return_value=True):
+                    with patch('builtins.open', create=True):
+                        mock_plugin_dir.return_value = "/fake/plugin/dir"
+                        
+                        job_config = {
+                            "plugin": "test_plugin",
+                            "evaluator": "test_evaluator"
+                        }
+                        
+                        # Run the job
+                        await run_job(str(job_id), job_config, "test_experiment", {"type": "EVAL"})
+                        
+                        # Verify the job was marked as COMPLETE
+                        job_status = await db.job_get_status(job_id)
+                        assert job_status == "COMPLETE"
+
+    @pytest.mark.asyncio
+    async def test_generate_job_completes_when_stop_key_missing(self, test_experiment):
+        """Test that GENERATE job is marked as COMPLETE when stop key is missing entirely"""
+        # Create a job with job_data that has no "stop" key
+        job_data = {"other_key": "value"}
+        job_id = await db.job_create("GENERATE", "QUEUED", json.dumps(job_data), test_experiment)
+        
+        # Mock the generation script function
+        with patch('transformerlab.shared.shared.run_generation_script', new_callable=AsyncMock):
+            with patch('transformerlab.shared.shared.dirs.plugin_dir_by_name') as mock_plugin_dir:
+                with patch('os.path.exists', return_value=True):
+                    with patch('builtins.open', create=True):
+                        mock_plugin_dir.return_value = "/fake/plugin/dir"
+                        
+                        job_config = {
+                            "plugin": "test_plugin",
+                            "generator": "test_generator"
+                        }
+                        
+                        # Run the job
+                        await run_job(str(job_id), job_config, "test_experiment", {"type": "GENERATE"})
+                        
+                        # Verify the job was marked as COMPLETE
+                        job_status = await db.job_get_status(job_id)
+                        assert job_status == "COMPLETE"
