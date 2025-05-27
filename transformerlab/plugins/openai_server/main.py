@@ -135,7 +135,6 @@ class OpenAIServer(BaseModelWorker):
         model_names: List[str],
         limit_worker_concurrency: int,
         conv_template: str,
-        api_key: str,
     ):
         super().__init__(
             controller_addr,
@@ -145,17 +144,16 @@ class OpenAIServer(BaseModelWorker):
             model_names,
             limit_worker_concurrency,
             conv_template,
-            api_key,
         )
         self.model_name = model_names
 
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+        self.api_key = os.getenv("OPENAI_API_KEY")
         if not self.api_key:
             raise EnvironmentError("OPENAI_API_KEY environment variable is not set.")
         openai.api_key = self.api_key
         
         try:
-            self.context_len = get_openai_context_length(self.model_name, api_key)
+            self.context_len = get_openai_context_length(self.model_name, self.api_key)
         except Exception as e:
             logger.warning(f"Could not query context length from OpenAI, falling back to 4096: {e}")
             self.context_len = 4096
@@ -397,7 +395,6 @@ def main():
     parser.add_argument("--worker-address", type=str, default="http://localhost:21002")
     parser.add_argument("--controller-address", type=str, default="http://localhost:21001")
     parser.add_argument("--model-path", type=str, default="llama3")
-    parser.add_argument("--api-keys", type=lambda s: s.split(","))
     parser.add_argument(
         "--model-names",
         type=lambda s: s.split(","),
@@ -415,8 +412,7 @@ def main():
         args.model_path,
         args.model_names,
         1024,
-        args.conv_template,
-        args.api_keys,
+        args.conv_template
     )
 
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
