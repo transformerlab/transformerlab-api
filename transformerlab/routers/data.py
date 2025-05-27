@@ -66,8 +66,14 @@ def validate_and_resolve_path(path: str, root: str) -> Path:
     """
     Validates and resolves a path to ensure it is within the specified root directory.
     """
-    resolved_path = Path(os.path.normpath(path)).resolve(strict=True)
-    resolved_root = Path(os.path.normpath(root)).resolve(strict=True)
+    normalized_path = os.path.normpath(path)
+    normalized_root = os.path.normpath(root)
+
+    if ".." in normalized_path or not normalized_path.startswith(normalized_root):
+        raise ValueError(f"Access denied for path: {normalized_path}")
+
+    resolved_path = Path(normalized_path).resolve(strict=True)
+    resolved_root = Path(normalized_root).resolve(strict=True)
 
     if not resolved_path.is_relative_to(resolved_root):
         raise ValueError(f"Access denied for path: {resolved_path}")
