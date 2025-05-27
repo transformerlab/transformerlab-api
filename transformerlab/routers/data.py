@@ -71,9 +71,14 @@ def validate_and_resolve_path(path: str, root: str) -> Path:
 
     if ".." in normalized_path or not normalized_path.startswith(normalized_root):
         raise ValueError(f"Access denied for path: {normalized_path}")
-
-    resolved_path = Path(normalized_path).resolve(strict=True)
-    resolved_root = Path(normalized_root).resolve(strict=True)
+    try:
+        resolved_path = Path(normalized_path).resolve(strict=True)
+    except Exception:
+        raise ValueError(f"Path does not exist: {normalized_path}")
+    try:
+        resolved_root = Path(normalized_root).resolve(strict=True)
+    except Exception:
+        raise ValueError(f"Path does not exist: {normalized_path}")
 
     if not resolved_path.is_relative_to(resolved_root):
         raise ValueError(f"Access denied for path: {resolved_path}")
@@ -81,6 +86,41 @@ def validate_and_resolve_path(path: str, root: str) -> Path:
         raise ValueError(f"Invalid or non-existent path: {resolved_path}")
 
     return resolved_path
+
+
+def find_image_path(root, file_name, dataset_root):
+    # Try root/file_name first
+    try:
+        candidate_path = validate_and_resolve_path(Path(root) / file_name, dataset_root)
+        if candidate_path.exists():
+            return candidate_path
+    except ValueError:
+        pass  # Path invalid or outside dataset_root
+
+    # Search subdirectories under root
+    for dirpath, _, filenames in os.walk(root):
+        for f in filenames:
+            if f == file_name:
+                try:
+                    candidate = validate_and_resolve_path(Path(dirpath) / f, dataset_root)
+                    if candidate.exists():
+                        return candidate
+                except ValueError:
+                    continue
+
+    # Optionally: search entire dataset_root if still not found
+    for dirpath, _, filenames in os.walk(dataset_root):
+        for f in filenames:
+            if f == file_name:
+                try:
+                    candidate = validate_and_resolve_path(Path(dirpath) / f, dataset_root)
+                    if candidate.exists():
+                        return candidate
+                except ValueError:
+                    continue
+
+    # If not found
+    return None
 
 
 @router.get(
@@ -117,6 +157,23 @@ async def dataset_info(dataset_id: str):
         dataset_dir = dirs.dataset_dir_by_id(slugify(dataset_id))
 
         try:
+            parquet_files = [
+                os.path.join(root, f)
+                for root, _, files in os.walk(dataset_dir)
+                for f in files
+                if f.lower().endswith(".parquet")
+            ]
+            if parquet_files:
+                # Load using Parquet
+                dataset = load_dataset("parquet", data_files=parquet_files)
+                splits = list(dataset.keys())
+                split = splits[0]
+                features = dataset[split].features
+
+                r["features"] = features
+                r["splits"] = splits
+                r["is_parquet"] = True
+                return r
             dataset = load_dataset(path=dataset_dir)
             splits = list(dataset.keys())
             split = splits[0]
@@ -174,7 +231,7 @@ async def dataset_info(dataset_id: str):
             }
         except Exception:
             return {"status": "error"}
-
+    r["is_parquet"] = False
     return r
 
 
@@ -273,60 +330,73 @@ async def dataset_preview_with_template(
 
     try:
         if d["location"] == "local":
-            dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
-
-            split_name = list(dataset.keys())[0]
-            features = dataset[split_name].features
-            is_image_dataset = any(isinstance(f, Image) for f in features.values())
-
-            metadata_map = {}
-            if is_image_dataset:
-                dataset = load_dataset("imagefolder", data_dir=dataset_dir)
-                for root, dirs_, files in os.walk(dataset_dir, followlinks=False):
-                    resolved_root = validate_and_resolve_path(root, dataset_dir)
-                    for file in files:
-                        if str(file).endswith((".json", ".jsonl", ".csv")):
-                            path = validate_and_resolve_path(resolved_root / file, dataset_dir)
-                            with open(path, "r", encoding="utf-8") as f:
-                                if str(path).endswith(".json"):
-                                    rows = [list(row.values()) for row in json.load(f)]
-                                elif str(path).endswith(".jsonl"):
-                                    rows = [list(json.loads(line).values()) for line in f]
-                                elif str(path).endswith(".csv"):
-                                    reader = csv.reader(f)
-                                    rows = list(reader)
-                                else:
-                                    continue
-                                for row in rows:
-                                    # Inside metadata processing
-                                    if len(row) < 2:
-                                        continue
-                                    file_name = row[0]
-                                    caption = row[1]
-
-                                    # Construct the full image path securely
-                                    resolved_file_path = validate_and_resolve_path(
-                                        Path(os.path.normpath(root)) / file_name, dataset_dir
-                                    )
-
-                                    if resolved_file_path.exists():
-                                        encoded, img_hash = compute_base64_and_hash(resolved_file_path, dataset_dir)
-                                        metadata_map[(img_hash, caption)] = {
-                                            "file_name": file_name,
-                                            "previous_caption": caption,
-                                            "full_image_path": str(resolved_file_path),
-                                        }
+            is_image_dataset = False
+            parquet_files = [
+                os.path.join(root, f)
+                for root, _, files in os.walk(dataset_dir)
+                for f in files
+                if f.lower().endswith(".parquet")
+            ]
+            if parquet_files:
+                dataset = load_dataset("parquet", data_files=parquet_files)
+                dataset_len = sum(len(split) for split in dataset.values())
             else:
-                dataset_len = len(dataset["train"])
-                return {
-                    "status": "success",
-                    "data": {
-                        "columns": dataset["train"][offset : min(offset + limit, dataset_len)],
-                        "len": dataset_len,
-                        "offset": offset,
-                        "limit": limit,
-                    },
-                }
+                dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
+
+                split_name = list(dataset.keys())[0]
+                features = dataset[split_name].features
+                is_image_dataset = any(isinstance(f, Image) for f in features.values())
+
+                metadata_map = {}
+                if is_image_dataset:
+                    dataset = load_dataset("imagefolder", data_dir=dataset_dir)
+                    for root, dirs_, files in os.walk(dataset_dir, followlinks=False):
+                        resolved_root = validate_and_resolve_path(root, dataset_dir)
+                        for file in files:
+                            if str(file).endswith((".json", ".jsonl", ".csv")):
+                                path = validate_and_resolve_path(resolved_root / file, dataset_dir)
+                                with open(path, "r", encoding="utf-8") as f:
+                                    if str(path).endswith(".json"):
+                                        rows = [list(row.values()) for row in json.load(f)]
+                                    elif str(path).endswith(".jsonl"):
+                                        rows = [list(json.loads(line).values()) for line in f]
+                                    elif str(path).endswith(".csv"):
+                                        reader = csv.reader(f)
+                                        all_rows = list(reader)
+                                        if not all_rows:
+                                            continue
+                                        rows = all_rows[1:]  # Skip the header row
+                                    else:
+                                        continue
+                                    for row in rows:
+                                        # Inside metadata processing
+                                        if len(row) < 2:
+                                            continue
+                                        file_name = row[0]
+                                        caption = row[1]
+                                        # Construct the full image path securely
+                                        resolved_file_path = find_image_path(root, file_name, dataset_dir)
+                                        if not resolved_file_path:
+                                            continue
+
+                                        if resolved_file_path.exists():
+                                            encoded, img_hash = compute_base64_and_hash(resolved_file_path, dataset_dir)
+                                            metadata_map[(img_hash, caption)] = {
+                                                "file_name": file_name,
+                                                "previous_caption": caption,
+                                                "full_image_path": str(resolved_file_path),
+                                            }
+                else:
+                    dataset_len = len(dataset["train"])
+                    return {
+                        "status": "success",
+                        "data": {
+                            "columns": dataset["train"][offset : min(offset + limit, dataset_len)],
+                            "len": dataset_len,
+                            "offset": offset,
+                            "limit": limit,
+                        },
+                    }
         else:
             dataset_config = d.get("json_data", {}).get("dataset_config", None)
             config_name = d.get("json_data", {}).get("config_name", None)
@@ -359,32 +429,33 @@ async def dataset_preview_with_template(
             index += 1
             row["split"] = split_name
 
-            if d["location"] == "local" and is_image_dataset:
+            if d["location"] == "local" and (is_image_dataset or parquet_files):
                 image = row["image"]
                 buffer = BytesIO()
                 image.save(buffer, format="JPEG")
                 encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
-                img_hash = hashlib.sha256(encoded.encode()).hexdigest()
-                # Dynamically get the caption field name
-                caption_col = next(
-                    (col for col in dataset[split_name].features.keys() if col != "image" and col != "label"), None
-                )
-                row_caption = row.get(caption_col) if caption_col else ""
-                meta = metadata_map.get((img_hash, row_caption))
-
-                if meta:
-                    row["file_name"] = meta["file_name"]
-                    row["previous_caption"] = meta["previous_caption"]
-                    parent_folder = Path(meta["full_image_path"]).parent.name
-                    if "label" not in row or row["label"] is None:
-                        if parent_folder.lower() not in ["train", "test"]:
-                            row["label"] = parent_folder
-                        else:
-                            row["label"] = ""
-                else:
-                    row["file_name"] = None
-                    row["previous_caption"] = ""
-                    row["label"] = ""
+                if not parquet_files:
+                    img_hash = hashlib.sha256(encoded.encode()).hexdigest()
+                    # Dynamically get the caption field name
+                    caption_col = next(
+                        (col for col in dataset[split_name].features.keys() if col != "image" and col != "label"), None
+                    )
+                    row_caption = row.get(caption_col) if caption_col else ""
+                    meta = metadata_map.get((img_hash, row_caption))
+                    if meta:
+                        row["file_name"] = meta["file_name"]
+                        row["previous_caption"] = meta["previous_caption"]
+                        parent_folder = Path(meta["full_image_path"]).parent.name
+                        if "label" not in row or row["label"] is None:
+                            if parent_folder.lower() not in ["train", "test"]:
+                                row["label"] = parent_folder
+                            else:
+                                row["label"] = ""
+                    else:
+                        row["text"] = ""
+                        row["file_name"] = None
+                        row["previous_caption"] = ""
+                        row["label"] = ""
 
                 row["image"] = f"data:image/jpeg;base64,{encoded}"
 
@@ -426,7 +497,6 @@ async def save_metadata(dataset_id: str, file: UploadFile):
             new_caption = edit.get("text")
 
             if not edit_basename or prev_caption is None:
-                print("Edit missing required fields. Skipping.")
                 continue
 
             for metadata_path in metadata_files:
