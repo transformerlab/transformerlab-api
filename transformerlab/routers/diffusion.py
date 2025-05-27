@@ -86,6 +86,7 @@ class CreateDatasetRequest(BaseModel):
     dataset_name: str
     image_ids: List[str]
     description: str = ""
+    include_metadata: bool = True
 
 
 # Global cache for loaded pipelines
@@ -612,13 +613,36 @@ async def create_dataset_from_history(request: CreateDatasetRequest):
                 print(f"Warning: Image file not found at {image_item.image_path}")
                 continue
 
-            # Just include essential fields for image-only dataset as huggingface doesn't allow columns with anything else
-            dataset_records.append(
-                {
-                    "file_name": f"{image_filename}",
-                    "text": image_item.prompt,
-                }
-            )
+            # Create record with essential fields
+            record = {
+                "file_name": image_filename,
+                "text": image_item.prompt,
+                "negative_text": image_item.negative_prompt,
+            }
+
+            # Add metadata if requested
+            if request.include_metadata:
+                record.update(
+                    {
+                        "model": image_item.model,
+                        "adaptor": image_item.adaptor,
+                        "adaptor_scale": image_item.adaptor_scale,
+                        "num_inference_steps": image_item.num_inference_steps,
+                        "guidance_scale": image_item.guidance_scale,
+                        "seed": image_item.seed,
+                        "upscaled": image_item.upscaled,
+                        "upscale_factor": image_item.upscale_factor,
+                        "eta": image_item.eta,
+                        "clip_skip": image_item.clip_skip,
+                        "guidance_rescale": image_item.guidance_rescale,
+                        "height": image_item.height,
+                        "width": image_item.width,
+                        "timestamp": image_item.timestamp,
+                        "original_id": image_item.id,
+                    }
+                )
+
+            dataset_records.append(record)
 
         except Exception as e:
             print(f"Warning: Failed to process image {image_item.id}: {str(e)}")
