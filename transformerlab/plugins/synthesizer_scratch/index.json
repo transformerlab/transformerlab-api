@@ -8,7 +8,7 @@
   "git": "https://github.com/confident-ai/deepeval",
   "url": "https://github.com/confident-ai/deepeval",
   "files": ["main.py", "setup.sh"],
-  "supported_hardware_architectures": ["cpu", "cuda", "mlx"],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
   "dataset": false,
   "setup-script": "setup.sh",
   "parameters": {
