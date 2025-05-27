@@ -4,7 +4,7 @@
   "description": "Use LLMs to create synthetic data for your usecases from reference documents.",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "git": "https://github.com/confident-ai/deepeval",
   "url": "https://github.com/confident-ai/deepeval",
   "files": ["main.py", "setup.sh"],
@@ -29,29 +29,25 @@
       "title": "Chunk Size",
       "type": "integer",
       "default": 256,
-      "minimum": 1,
-      "maximum": 2048
+      "minimum": 1
     },
     "max_contexts_per_document": {
       "title": "Max Contexts Per Document",
       "type": "integer",
       "default": 10,
-      "minimum": 1,
-      "maximum": 1000
+      "minimum": 1
     },
     "max_context_length": {
       "title": "Max Context Length",
       "type": "integer",
       "default": 3,
-      "minimum": 1,
-      "maximum": 2048
+      "minimum": 1
     },
     "max_goldens_per_context": {
       "title": "Max Goldens Per Context",
       "type": "integer",
       "default": 2,
-      "minimum": 1,
-      "maximum": 1000
+      "minimum": 1
     },
     "generate_dataset_for_embedding_model": {
       "title": "Generate Dataset for Embedding Model",
