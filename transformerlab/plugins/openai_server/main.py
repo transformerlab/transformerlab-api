@@ -13,7 +13,6 @@ import uuid
 from typing import List
 from contextlib import asynccontextmanager
 import uvicorn
-import aiohttp
 
 import openai
 
@@ -21,7 +20,6 @@ from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.responses import StreamingResponse, JSONResponse
 from transformers.tokenization_utils_base import BatchEncoding
 from fastchat.utils import build_logger
-from fastchat.constants import ErrorCode
 
 
 worker_id = str(uuid.uuid4())[:8]
