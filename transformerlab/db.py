@@ -4,6 +4,7 @@ import os
 import sqlite3
 
 import aiosqlite
+from sqlalchemy import select  # Add this import
 
 # from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
@@ -45,10 +46,13 @@ async def init():
     print("✅ Database initialized")
 
     print("✅ SEED DATA")
-    await db.execute("INSERT OR IGNORE INTO experiment(name, config) VALUES (?, ?)", ("alpha", "{}"))
-    await db.execute("INSERT OR IGNORE INTO experiment(name, config) VALUES (?, ?)", ("beta", "{}"))
-    await db.execute("INSERT OR IGNORE INTO experiment(name, config) VALUES (?, ?)", ("gamma", "{}"))
-    await db.commit()
+    async with async_session() as session:
+        for name in ["alpha", "beta", "gamma"]:
+            # Check if experiment already exists
+            exists = await session.execute(select(models.Experiment).where(models.Experiment.name == name))
+            if not exists.scalar_one_or_none():
+                session.add(models.Experiment(name=name, config="{}"))
+        await session.commit()
 
     # On startup, look for any jobs that are in the RUNNING state and set them to CANCELLED instead:
     # This is to handle the case where the server is restarted while a job is running.
