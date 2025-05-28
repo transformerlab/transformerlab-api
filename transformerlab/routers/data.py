@@ -146,7 +146,8 @@ async def dataset_info(dataset_id: str):
                 r["features"] = features
         except EmptyDatasetError:
             return {"status": "error", "message": "The dataset is empty."}
-        except Exception:
+        except Exception as e:
+            log(f"Exception occurred: {type(e).__name__}: {e}")
             return {"status": "error"}
 
     else:
@@ -171,7 +172,8 @@ async def dataset_info(dataset_id: str):
                 "supervised_keys": ds_builder.info.supervised_keys,
                 "version": ds_builder.info.version,
             }
-        except Exception:
+        except Exception as e:
+            log(f"Exception occurred: {type(e).__name__}: {e}")
             return {"status": "error"}
     r["is_parquet"] = False
     return r
@@ -214,7 +216,7 @@ async def dataset_preview(
             else:
                 dataset = load_dataset(dataset_id, trust_remote_code=True, streaming=streaming)
     except Exception as e:
-        logging.error(f"Exception occurred: {type(e).__name__}: {e}")
+        log(f"Exception occurred: {type(e).__name__}: {e}")
         return {"status": "error", "message": "An internal error has occurred."}
 
     if split is None or split == "":
@@ -262,7 +264,7 @@ async def dataset_preview_with_template(
             is_image_dataset = False
             parquet_files = [
                 os.path.join(root, f)
-                for root, _, files in os.walk(dataset_dir)
+                for root, _, files in os.walk(dataset_dir, followlinks=False)
                 for f in files
                 if f.lower().endswith(".parquet")
             ]
@@ -296,7 +298,8 @@ async def dataset_preview_with_template(
             else:
                 dataset = load_dataset(dataset_id, trust_remote_code=True)
 
-    except Exception:
+    except Exception as e:
+        log(f"Exception occurred: {type(e).__name__}: {e}")
         return {"status": "error"}
 
     dataset_len = sum(len(split) for split in dataset.values())
@@ -401,7 +404,8 @@ async def save_metadata(dataset_id: str, file: UploadFile):
         return {"status": "success", "message": f"Updated {edits_applied} row(s)."}
 
     except Exception as e:
-        return JSONResponse(status_code=500, content={"status": "error", "message": f"Exception: {str(e)}"})
+        log(f"Exception occurred: {type(e).__name__}: {e}")
+        return JSONResponse(status_code=500, content={"status": "error", "message": "Exception"})
 
 
 @router.get("/download", summary="Download a dataset from the HuggingFace Hub to the LLMLab server.")
@@ -626,7 +630,8 @@ async def duplicate_dataset(dataset_id: str, new_dataset_id: str):
         return {"status": "success", "message": f"Dataset duplicated from {dataset_id} to {new_dataset_id}."}
 
     except Exception as e:
-        return {"status": "error", "message": f"An error occurred: {str(e)}"}
+        log(f"Exception occurred: {type(e).__name__}: {e}")
+        return {"status": "error", "message": "An error occurred"}
 
 
 class FlushFile:
