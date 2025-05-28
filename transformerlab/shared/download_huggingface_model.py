@@ -6,7 +6,9 @@ from huggingface_hub import hf_hub_download, snapshot_download
 from huggingface_hub.utils import GatedRepoError
 import argparse
 import os
+import sys
 from pathlib import Path
+from multiprocessing import Process, Queue
 
 # If there is an error set returncode and error_msg
 # returncode is used by API to know about errors and
@@ -52,6 +54,48 @@ if args.allow_patterns:
         pass
 
 print(f"Downloading model {model} with job_id {job_id}")
+
+
+def do_download(repo_id, allow_patterns, queue):
+    try:
+        snapshot_download(repo_id, allow_patterns=allow_patterns)
+        queue.put("done")
+    except Exception as e:
+        queue.put(f"error: {str(e)}")
+
+
+def cancel_check():
+    try:
+        db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
+        db.execute("PRAGMA journal_mode=WAL")
+        db.execute("PRAGMA synchronous=normal")
+        db.execute("PRAGMA busy_timeout=5000")
+        status = db.execute("SELECT job_data FROM job WHERE id=?", (job_id,)).fetchone()
+        db.close()
+
+        if status:
+            job_data = json.loads(status[0])
+            return job_data.get("status") == "cancelled"
+    except Exception as e:
+        print(f"Warning: cancel_check() failed: {e}", file=sys.stderr)
+    return False
+
+
+def launch_snapshot_with_cancel(repo_id, allow_patterns):
+    queue = Queue()
+    p = Process(target=do_download, args=(repo_id, allow_patterns, queue))
+    p.start()
+
+    while p.is_alive():
+        if cancel_check():
+            print("Cancellation detected. Terminating download...", file=sys.stderr)
+            p.terminate()
+            p.join()
+            return "cancelled"
+        sys.stdout.flush()
+
+    result = queue.get()
+    return result
 
 
 def get_dir_size(path):
@@ -169,7 +213,8 @@ def download_blocking(model_is_downloaded):
             f.write(json.dumps(info, indent=2))
     else:
         try:
-            snapshot_download(repo_id=model, allow_patterns=allow_patterns)
+            # snapshot_download(repo_id=model, allow_patterns=allow_patterns)
+            launch_snapshot_with_cancel(repo_id=model, allow_patterns=allow_patterns)
 
         except GatedRepoError:
             returncode = 77
