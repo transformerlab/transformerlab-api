@@ -47,10 +47,18 @@ from transformerlab.routers import (
     batched_prompts,
 )
 import torch
+
+# FastAPI Users integration
+from fastapi import Depends
+from transformerlab.services.user_service import auth_backend, current_active_user, fastapi_users
+from transformerlab.schemas.user import UserCreate, UserRead, UserUpdate
+from transformerlab.shared.models.models import User
+
 try:
     from pynvml import nvmlShutdown
 except Exception:
     from pyrsmi import rocml
+
     HAS_AMD = True
 from transformerlab import fastchat_openai_api
 from transformerlab.routers.experiment import experiment
@@ -179,6 +187,38 @@ app.include_router(batched_prompts.router)
 app.include_router(fastchat_openai_api.router)
 app.include_router(get_xmlrpc_router())
 app.include_router(get_trainer_xmlrpc_router())
+
+
+### FastAPI Users Routers ###
+# TODO: Move this to it's own file
+# And when you do that take the imports with it!
+app.include_router(fastapi_users.get_auth_router(auth_backend), prefix="/auth/jwt", tags=["auth"])
+app.include_router(
+    fastapi_users.get_register_router(UserRead, UserCreate),
+    prefix="/auth",
+    tags=["auth"],
+)
+app.include_router(
+    fastapi_users.get_reset_password_router(),
+    prefix="/auth",
+    tags=["auth"],
+)
+app.include_router(
+    fastapi_users.get_verify_router(UserRead),
+    prefix="/auth",
+    tags=["auth"],
+)
+app.include_router(
+    fastapi_users.get_users_router(UserRead, UserUpdate),
+    prefix="/users",
+    tags=["users"],
+)
+
+
+@app.get("/authenticated-route")
+async def authenticated_route(user: User = Depends(current_active_user)):
+    return {"message": f"Hello {user.email}!"}
+
 
 controller_process = None
 worker_process = None
