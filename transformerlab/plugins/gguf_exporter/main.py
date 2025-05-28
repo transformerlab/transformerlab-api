@@ -30,6 +30,9 @@ def gguf_export():
     plugin_dir = os.path.realpath(os.path.dirname(__file__))
     python_executable = get_python_executable(plugin_dir)
 
+    env = os.environ.copy()
+    env["PATH"] = python_executable.replace("/python", ":") + env["PATH"]
+
     print("Starting GGUF conversion...")
     tlab_exporter.add_job_data("status", "Starting GGUF conversion")
 
@@ -69,6 +72,7 @@ def gguf_export():
             cwd=plugin_dir,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
+            env=env,
             universal_newlines=True,
             bufsize=1,
         ) as process:
@@ -78,6 +82,15 @@ def gguf_export():
 
             for line in process.stdout:
                 line = line.strip()
+
+                # Filter out unwanted log lines
+                if line.startswith("INFO:hf-to-gguf:"):
+                    continue
+                if line.startswith("{{") or "{{" in line or "}}" in line or "{" in line or "}" in line or "gguf.vocab" in line:
+                    continue
+                if "huggingface/tokenizers:" in line:
+                    continue
+
                 output_lines.append(line)
                 print(line, flush=True)
 
