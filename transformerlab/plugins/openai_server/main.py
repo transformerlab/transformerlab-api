@@ -364,7 +364,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", type=str, default="localhost")
-    parser.add_argument("--port", type=int, default=21002)
+    parser.add_argument("--port", type=int, default=21022)
     parser.add_argument("--worker-address", type=str, default="http://localhost:21022")
     parser.add_argument("--controller-address", type=str, default="http://localhost:21001")
     parser.add_argument("--model-path", type=str, default="openai_model")
