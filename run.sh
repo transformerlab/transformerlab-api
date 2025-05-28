@@ -10,7 +10,7 @@ CONDA_BIN=${MINIFORGE_ROOT}/bin/conda
 ENV_DIR=${TLAB_DIR}/envs/${ENV_NAME}
 CUSTOM_ENV=false
 
-HOST="0.0.0.0"
+TLABHOST="0.0.0.0"
 PORT="8338"
 
 RELOAD=false
@@ -37,7 +37,7 @@ do
         c) CUSTOM_ENV=true;;
         r) RELOAD=true;;
         p) PORT=${OPTARG};;
-        h) HOST=${OPTARG};;
+        h) TLABHOST=${OPTARG};;
     esac
 done
 
@@ -73,12 +73,16 @@ if command -v nvidia-smi &> /dev/null; then
     echo "✅ NVIDIA GPU detected, adding CUDA libraries to path"
     # Add common NVIDIA library paths
     export LD_LIBRARY_PATH=${ENV_DIR}/lib:$LD_LIBRARY_PATH
+elif command -v rocminfo &> /dev/null; then
+    echo "✅ AMD GPU detected, adding appropriate libraries to path"
+    export PATH=$PATH:/opt/rocm/bin:/opt/rocm/rocprofiler/bin:/opt/rocm/opencl/bin
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/rocm/lib:/opt/rocm/lib64
 fi
 
 echo "▶️ Starting the API server:"
 if [ "$RELOAD" = true ]; then
     echo "🔁 Reload the server on file changes"
-    uv run -v uvicorn api:app --reload --port ${PORT} --host ${HOST}
+    uv run -v uvicorn api:app --reload --port ${PORT} --host ${TLABHOST}
 else
-    uv run -v uvicorn api:app --port ${PORT} --host ${HOST} --no-access-log
+    uv run -v uvicorn api:app --port ${PORT} --host ${TLABHOST} --no-access-log
 fi

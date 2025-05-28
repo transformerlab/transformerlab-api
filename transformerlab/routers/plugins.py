@@ -178,13 +178,17 @@ async def install_plugin(plugin_id: str):
         # Run uv sync after setup script, also with environment activated
         print("Running uv sync to install dependencies...")
         await log_file.write(f"## Running uv sync for {plugin_id}...\n")
+        additional_flags = ""
 
-        # Use a similar logic
         if check_nvidia_gpu():
             # If we have a GPU, use the requirements file for GPU
             print("NVIDIA GPU detected, using GPU requirements file.")
             requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-uv.txt")
-            additional_flags = ""
+            additional_flags = "--index 'https://download.pytorch.org/whl/cu128'"
+        elif check_amd_gpu():
+            # If we have an AMD GPU, use the requirements file for AMD
+            requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-rocm-uv.txt")
+            additional_flags = "--index 'https://download.pytorch.org/whl/rocm6.3'"
         # Check if system is MacOS with Apple Silicon
         elif sys.platform == "darwin":
             # If we have a MacOS with Apple Silicon, use the requirements file for MacOS
@@ -193,10 +197,10 @@ async def install_plugin(plugin_id: str):
             additional_flags = ""
         else:
             # If we don't have a GPU, use the requirements file for CPU
-            print("No NVIDIA GPU detected, using CPU requirements file.")
             requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-no-gpu-uv.txt")
             additional_flags = "--index 'https://download.pytorch.org/whl/cpu'"
 
+        print(f"Using requirements file: {requirements_file_path}")
         proc = await asyncio.create_subprocess_exec(
             "/bin/bash",
             "-c",
@@ -205,7 +209,15 @@ async def install_plugin(plugin_id: str):
             stdout=log_file,
             stderr=log_file,
         )
-        await proc.wait()
+        returncode = await proc.wait()
+        if returncode == 0:
+            if is_wsl() and check_amd_gpu():
+                response = patch_rocm_runtime_for_venv(venv_path=venv_path)
+                if response["status"] == "error":
+                    error_msg = response["message"]
+                    print(error_msg)
+                    await log_file.write(f"## {error_msg}\n")
+                    return {"status": "error", "message": error_msg}
 
         return await run_installer_for_plugin(plugin_id, log_file)
 
@@ -251,7 +263,7 @@ def check_nvidia_gpu() -> bool:
     """
     has_gpu = False
     gpu_info = ""
-
+    print("Checking for NVIDIA GPU...")
     # Check if nvidia-smi is available
     if shutil.which("nvidia-smi") is not None:
         try:
@@ -272,6 +284,83 @@ def check_nvidia_gpu() -> bool:
             print("Issue with NVIDIA SMI")
 
     return has_gpu
+
+
+def check_amd_gpu() -> bool:
+    """
+    Check if AMD GPU is available
+
+    Returns:
+        bool: True if AMD GPU is detected, False otherwise
+    """
+    has_gpu = False
+
+    # Check if ROCm is available
+    if shutil.which("rocminfo") is not None:
+        try:
+            # Run rocminfo to get GPU information
+            result = subprocess.run(
+                ["rocminfo"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            gpu_info = result.stdout.strip()
+
+            if gpu_info:
+                has_gpu = True
+            else:
+                print("ROCm exists, No AMD GPU detected. Perhaps you need to re-install AMD drivers.")
+        except subprocess.SubprocessError:
+            print("Issue with ROCm")
+
+    return has_gpu
+
+
+def is_wsl():
+    try:
+        kernel_output = subprocess.check_output(["uname", "-r"], text=True).lower()
+        return "microsoft" in kernel_output or "wsl2" in kernel_output
+    except subprocess.CalledProcessError:
+        return False
+
+
+def patch_rocm_runtime_for_venv(venv_path):
+    try:
+        location = os.path.join(venv_path, "lib", "python3.11", "site-packages")
+        if not os.path.exists(location):
+            print("Could not find torch installation location.")
+            return {"status": "error", "message": "Could not find torch installation location."}
+
+        torch_lib_path = os.path.join(location, "torch", "lib")
+        print(f"Patching ROCm runtime in: {torch_lib_path}")
+
+        # Remove old libhsa-runtime64.so* files
+        for file in os.listdir(torch_lib_path):
+            if file.startswith("libhsa-runtime64.so"):
+                os.remove(os.path.join(torch_lib_path, file))
+
+        # Copy ROCm .so file
+        src = "/opt/rocm/lib/libhsa-runtime64.so.1.14.0"
+        dst = os.path.join(torch_lib_path, "libhsa-runtime64.so.1.14.0")
+        shutil.copy(src, dst)
+
+        # Create symlinks
+        def force_symlink(target, link_name):
+            full_link = os.path.join(torch_lib_path, link_name)
+            if os.path.islink(full_link) or os.path.exists(full_link):
+                os.remove(full_link)
+            os.symlink(target, full_link)
+
+        force_symlink("libhsa-runtime64.so.1.14.0", "libhsa-runtime64.so.1")
+        force_symlink("libhsa-runtime64.so.1", "libhsa-runtime64.so")
+
+        print("ROCm runtime patched successfully.")
+        return {"status": "success", "message": "ROCm runtime patched successfully."}
+
+    except Exception as e:
+        print(f"Failed to patch ROCm runtime: {e}")
+        return {"status": "error", "message": "Failed to patch ROCm runtime"}
 
 
 async def missing_platform_plugins() -> list[str]:

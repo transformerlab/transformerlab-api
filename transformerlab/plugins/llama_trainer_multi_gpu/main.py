@@ -203,6 +203,7 @@ def train_model():
 
     args = SFTConfig(
         output_dir=output_dir,
+        logging_dir=os.path.join(output_dir, f"job_{tlab_trainer.params.job_id}_{run_suffix}"),
         num_train_epochs=int(tlab_trainer.params.num_train_epochs),
         per_device_train_batch_size=int(tlab_trainer.params.batch_size),
         gradient_accumulation_steps=2,
@@ -224,20 +225,37 @@ def train_model():
         ddp_find_unused_parameters=False,
         dataloader_pin_memory=True,
         no_cuda=False,
+        do_eval=True,
+        load_best_model_at_end=False,
+        metric_for_best_model="loss",
+        greater_is_better=False,
+        eval_strategy="epoch",
     )
 
-    # Create progress callback using tlab_trainer
-    progress_callback = tlab_trainer.create_progress_callback(framework="huggingface")
+
+    # Create progress callback
+    callback = tlab_trainer.create_progress_callback() if hasattr(tlab_trainer, "create_progress_callback") else None
+    callbacks = [callback] if callback else []
+
+    # Setup evaluation dataset - use 10% of the data if enough examples
+    if len(dataset) >= 10:
+        split_dataset = dataset.train_test_split(test_size=0.1)
+        train_data = split_dataset["train"]
+        eval_data = split_dataset["test"]
+    else:
+        train_data = dataset
+        eval_data = None
 
     # Create trainer
     trainer = SFTTrainer(
         model=model,
-        train_dataset=dataset,
+        train_dataset=train_data,
+        eval_dataset=eval_data,
         peft_config=peft_config,
         processing_class=tokenizer,
         formatting_func=format_instruction,
         args=args,
-        callbacks=[progress_callback],
+        callbacks=callbacks,
     )
 
     # Train model

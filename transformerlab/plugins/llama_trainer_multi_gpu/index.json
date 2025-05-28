@@ -4,7 +4,7 @@
   "description": "A training script adapted from https://www.philschmid.de/instruction-tune-llama-2 for training Llama2 using PeFT",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.1.9",
+  "version": "0.1.11",
   "model_architectures": [
     "LlamaForCausalLM",
     "Qwen2ForCausalLM",
@@ -23,24 +23,16 @@
   ],
   "git": "",
   "url": "",
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
-  "supported_hardware_architectures": [
-    "cuda"
-  ],
+  "files": ["main.py", "setup.sh"],
+  "supports": ["sweeps"],
+  "supported_hardware_architectures": ["cuda"],
   "setup-script": "setup.sh",
   "parameters": {
     "train_device": {
       "title": "Training Device",
       "type": "string",
       "required": true,
-      "enum": [
-        "cuda",
-        "cpu",
-        "tpu"
-      ],
+      "enum": ["cuda", "cpu", "tpu"],
       "default": "cuda"
     },
     "gpu_ids": {
@@ -52,40 +44,31 @@
       "title": "Maximum Sequence Length",
       "type": "integer",
       "default": 2048,
-      "minimum": 1,
-      "maximum": 4096
+      "minimum": 1
     },
     "batch_size": {
       "title": "Batch Size",
       "type": "integer",
       "default": 4,
-      "minimum": 1,
-      "maximum": 64
+      "minimum": 1
     },
     "learning_rate_schedule": {
       "title": "Learning Rate Schedule",
       "type": "string",
-      "enum": [
-        "constant",
-        "linear",
-        "cosine",
-        "constant_with_warmup"
-      ],
+      "enum": ["constant", "linear", "cosine", "constant_with_warmup"],
       "default": "constant"
     },
     "learning_rate": {
       "title": "Learning Rate",
       "type": "number",
       "default": 5e-5,
-      "minimum": 1e-6,
-      "maximum": 1e6
+      "minimum": 1e-6
     },
     "num_train_epochs": {
       "title": "Number of Training Epochs",
       "type": "integer",
       "default": 1,
-      "minimum": 1,
-      "maximum": 24
+      "minimum": 1
     },
     "max_steps": {
       "title": "Max Steps (-1 means no limit)",

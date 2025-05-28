@@ -142,19 +142,19 @@ def train_mlx_lora():
         "--adapter-path",
         adaptor_output_dir,
         "--num-layers",
-        lora_layers,
+        str(lora_layers),
         "--batch-size",
-        batch_size,
+        str(batch_size),
         "--learning-rate",
-        learning_rate,
+        str(learning_rate),
         "--data",
         data_directory,
         "--steps-per-report",
-        steps_per_report,
+        str(steps_per_report),
         "--steps-per-eval",
-        steps_per_eval,
+        str(steps_per_eval),
         "--save-every",
-        save_every,
+        str(save_every),
     ]
 
     # If a config file has been created then include it
@@ -203,7 +203,7 @@ def train_mlx_lora():
                     if match:
                         validation_loss = float(match.group(1))
                         print("Validation Loss: ", validation_loss)
-                        tlab_trainer.log_metric("valid/loss", validation_loss, iteration)
+                        tlab_trainer.log_metric("eval/loss", validation_loss, iteration)
 
             print(line, end="", flush=True)
 

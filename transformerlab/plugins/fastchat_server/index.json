@@ -4,7 +4,7 @@
   "description": "Fastchat loads models for inference using Huggingface Transformers for generation.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "1.0.15",
+  "version": "1.0.16",
   "supports": [
     "chat",
     "completion",
@@ -40,7 +40,7 @@
     "Qwen3ForCausalLM",
     "Qwen3MoeForCausalLM"
   ],
-  "supported_hardware_architectures": ["cpu", "cuda", "mlx"],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
@@ -49,10 +49,11 @@
       "type": "string",
       "default": ""
     },
-    "eight_bit": {
-      "title": "Enable 8-bit compression",
-      "type": "boolean",
-      "default": false
+    "load_compressed": {
+      "title": "Load compressed model",
+      "type": "string",
+      "default": "None",
+      "enum": ["None", "8-bit", "4-bit"]
     },
     "model_dtype": {
       "title": "Select a specific data type for the model",

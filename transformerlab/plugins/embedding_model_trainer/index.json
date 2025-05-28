@@ -5,7 +5,7 @@
   "plugin-format": "python",
   "type": "trainer",
   "train_type": "embedding",
-  "version": "0.0.4",
+  "version": "0.0.6",
   "model_architectures": [
     "BertModel",
     "SentenceTransformer",
@@ -49,41 +49,34 @@
     "CoCondenser",
     "ConvBERT",
     "DPR",
-    "CLIP", 
+    "CLIP",
     "ESimCSE",
-    "GTR", 
+    "GTR",
     "Gecko",
     "JinaModel",
-    "LaBSE", 
-    "LASER", 
+    "LaBSE",
+    "LASER",
     "LexicalModel",
     "MiniLM",
     "MiniLMv2",
-    "MuRIL", 
+    "MuRIL",
     "REALM",
     "SBERT",
-    "SPECTER", 
+    "SPECTER",
     "TinyBERT",
     "UniCoil",
     "ColBERT",
-    "ANCE", 
+    "ANCE",
     "INSTRUCTOR",
     "Ada",
     "Curie",
     "Davinci",
     "AsymmetricSemanticSearchModel"
   ],
-  "supported_hardware_architectures": [
-    "cpu",
-    "cuda",
-    "mlx"
-  ],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
   "git": "",
   "url": "",
-  "files": [
-    "main.py",
-    "setup.sh"
-  ],
+  "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "training_template_format": "none",
   "parameters": {
@@ -153,22 +146,19 @@
       "title": "Number of Training Epochs",
       "type": "integer",
       "default": 3,
-      "minimum": 1,
-      "maximum": 30
+      "minimum": 1
     },
     "batch_size": {
       "title": "Batch Size",
       "type": "integer",
       "default": 16,
-      "minimum": 1,
-      "maximum": 1024
+      "minimum": 1
     },
     "learning_rate": {
       "title": "Learning Rate",
       "type": "number",
       "default": 0.00002,
-      "minimum": 0.000001,
-      "maximum": 0.1
+      "minimum": 0.000001
     },
     "warmup_ratio": {
       "title": "Warmup Ratio",
@@ -204,21 +194,21 @@
       "ui:help": "The type of dataset you are using for fine tuning the embedding model",
       "ui:widget": "AutoCompleteWidget",
       "ui:options": {
-          "multiple": false
+        "multiple": false
       }
     },
     "loss_function": {
       "ui:help": "The loss function to use for training. Refer to the url for more details: https://sbert.net/docs/sentence_transformer/loss_overview.html",
       "ui:widget": "AutoCompleteWidget",
       "ui:options": {
-          "multiple": false
+        "multiple": false
       }
     },
     "loss_modifier_name": {
       "ui:help": "Instil useful properties into the trained embedding model using Loss Modifiers. Refer to the url for more details: https://sbert.net/docs/sentence_transformer/loss_overview.html",
       "ui:widget": "AutoCompleteWidget",
       "ui:options": {
-          "multiple": false
+        "multiple": false
       }
     },
     "num_train_epochs": {

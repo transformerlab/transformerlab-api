@@ -4,6 +4,8 @@ import os
 import sqlite3
 
 import aiosqlite
+from sqlalchemy import select
+from sqlalchemy.dialects.sqlite import insert  # Correct import for SQLite upsert
 
 # from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
@@ -14,6 +16,7 @@ from sqlalchemy.orm import sessionmaker
 
 from transformerlab.shared import dirs
 from transformerlab.shared.models import models  # noqa: F401
+from transformerlab.shared.models.models import Config
 
 db = None
 DATABASE_FILE_NAME = f"{dirs.WORKSPACE_DIR}/llmlab.sqlite3"
@@ -38,7 +41,6 @@ async def init():
     await db.execute("PRAGMA synchronous=normal")
     await db.execute("PRAGMA busy_timeout = 5000")
 
-
     # Create the tables if they don't exist
     async with async_engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
@@ -46,10 +48,13 @@ async def init():
     print("✅ Database initialized")
 
     print("✅ SEED DATA")
-    await db.execute("INSERT OR IGNORE INTO experiment(name, config) VALUES (?, ?)", ("alpha", "{}"))
-    await db.execute("INSERT OR IGNORE INTO experiment(name, config) VALUES (?, ?)", ("beta", "{}"))
-    await db.execute("INSERT OR IGNORE INTO experiment(name, config) VALUES (?, ?)", ("gamma", "{}"))
-    await db.commit()
+    async with async_session() as session:
+        for name in ["alpha", "beta", "gamma"]:
+            # Check if experiment already exists
+            exists = await session.execute(select(models.Experiment).where(models.Experiment.name == name))
+            if not exists.scalar_one_or_none():
+                session.add(models.Experiment(name=name, config="{}"))
+        await session.commit()
 
     # On startup, look for any jobs that are in the RUNNING state and set them to CANCELLED instead:
     # This is to handle the case where the server is restarted while a job is running.
@@ -241,7 +246,17 @@ async def model_local_delete(model_id):
 ###############
 
 # Allowed job types:
-ALLOWED_JOB_TYPES = ["TRAIN", "EXPORT_MODEL", "DOWNLOAD_MODEL", "LOAD_MODEL", "TASK", "EVAL", "UNDEFINED", "GENERATE"]
+ALLOWED_JOB_TYPES = [
+    "TRAIN",
+    "EXPORT_MODEL",
+    "DOWNLOAD_MODEL",
+    "LOAD_MODEL",
+    "TASK",
+    "EVAL",
+    "UNDEFINED",
+    "GENERATE",
+    "INSTALL_RECIPE_DEPS",
+]
 
 
 async def job_create(type, status, job_data="{}", experiment_id=""):
@@ -505,7 +520,7 @@ async def job_delete_all():
 
 
 async def job_delete(job_id):
-    print("Deleting job: " + job_id)
+    print("Deleting job: " + str(job_id))
     # await db.execute("DELETE FROM job WHERE id = ?", (job_id,))
     # instead of deleting, set status of job to deleted:
     await db.execute("UPDATE job SET status = 'DELETED' WHERE id = ?", (job_id,))
@@ -531,8 +546,31 @@ async def job_update_job_data_insert_key_value(job_id, key, value):
 
 
 async def job_stop(job_id):
-    print("Stopping job: " + job_id)
+    print("Stopping job: " + str(job_id))
     await job_update_job_data_insert_key_value(job_id, "stop", True)
+    return
+
+
+async def job_update_progress(job_id, progress):
+    """
+    Update the percent complete for this job.
+
+    progress: int representing percent complete
+    """
+    await db.execute(
+        "UPDATE job SET progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (progress, job_id),
+    )
+
+
+async def job_update_sweep_progress(job_id, value):
+    value = json.dumps(value)
+
+    await db.execute(
+        "UPDATE job SET job_data = " + "json_set(job_data,'$.sweep_progress', json(?))  WHERE id = ?",
+        (value, job_id),
+    )
+    await db.commit()
     return
 
 
@@ -563,6 +601,11 @@ async def update_task(task_id, new_task):
         "UPDATE tasks SET outputs = ? WHERE id = ?",
         (new_task["outputs"], task_id),
     )
+    if "name" in new_task and new_task["name"] != "":
+        await db.execute(
+            "UPDATE tasks SET name = ? WHERE id = ?",
+            (new_task["name"], task_id),
+        )
     await db.commit()
     return
 
@@ -737,13 +780,6 @@ async def training_jobs_get_all():
 #     return row[0]
 
 
-async def job_get_for_template_id(template_id):
-    cursor = await db.execute("SELECT * FROM job WHERE template_id = ?", (template_id,))
-    rows = await cursor.fetchall()
-    await cursor.close()
-    return rows
-
-
 ####################
 # EXPEORT JOBS MODEL
 # Export jobs use the job_data JSON object to store:
@@ -871,7 +907,10 @@ async def workflows_get_all():
 
 
 async def workflows_get_from_experiment(experiment_id):
-    cursor = await db.execute("SELECT * FROM workflows WHERE experiment_id = ? AND status != 'DELETED' ORDER BY created_at desc",(experiment_id,))
+    cursor = await db.execute(
+        "SELECT * FROM workflows WHERE experiment_id = ? AND status != 'DELETED' ORDER BY created_at desc",
+        (experiment_id,),
+    )
     rows = await cursor.fetchall()
     desc = cursor.description
     column_names = [col[0] for col in desc]
@@ -916,16 +955,20 @@ async def workflow_run_get_by_id(workflow_run_id):
     return row
 
 
-async def workflow_delete_by_id(workflow_id):
-    print("Deleting workflow: " + workflow_id)
-    await db.execute("UPDATE workflows SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE id = ?", (workflow_id,))
+async def workflow_delete_by_id(workflow_id: str):
+    print("Deleting workflow: " + str(workflow_id))
+    await db.execute(
+        "UPDATE workflows SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE id = ?", (workflow_id,)
+    )
     await db.commit()
     return
 
 
 async def workflow_delete_by_name(workflow_name):
     print("Deleting workflow: " + workflow_name)
-    await db.execute("UPDATE workflows SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE name = ?", (workflow_name,))
+    await db.execute(
+        "UPDATE workflows SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE name = ?", (workflow_name,)
+    )
     await db.commit()
     return
 
@@ -1022,10 +1065,9 @@ async def workflow_update_config(workflow_id, config):
     )
     await db.commit()
 
+
 async def workflow_update_name(workflow_id, name):
-    await db.execute(
-        "UPDATE workflows SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (name, workflow_id)
-    )
+    await db.execute("UPDATE workflows SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (name, workflow_id))
     await db.commit()
 
 
@@ -1041,7 +1083,10 @@ async def workflow_runs_delete_all():
 
 async def workflow_queue(workflow_id):
     workflow_name = (await workflows_get_by_id(workflow_id))["name"]
-    await db.execute("INSERT INTO workflow_runs(workflow_id, workflow_name, job_ids, node_ids, status, current_tasks, current_job_ids) VALUES (?, ?, ?, ?, ?, ?, ?)", (workflow_id, workflow_name, "[]", "[]","QUEUED", "[]","[]"))
+    await db.execute(
+        "INSERT INTO workflow_runs(workflow_id, workflow_name, job_ids, node_ids, status, current_tasks, current_job_ids) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (workflow_id, workflow_name, "[]", "[]", "QUEUED", "[]", "[]"),
+    )
 
 
 ###############
@@ -1072,6 +1117,9 @@ async def get_plugins_of_type(type: str):
 async def get_plugin(slug: str):
     cursor = await db.execute("SELECT id, * FROM plugins WHERE name = ?", (slug,))
     row = await cursor.fetchone()
+    if row is None:
+        await cursor.close()
+        return None
     desc = cursor.description
     column_names = [col[0] for col in desc]
     row = dict(itertools.zip_longest(column_names, row))
@@ -1091,16 +1139,16 @@ async def save_plugin(name: str, type: str):
 
 
 async def config_get(key: str):
-    cursor = await db.execute("SELECT value FROM config WHERE key = ?", (key,))
-    row = await cursor.fetchone()
-    await cursor.close()
-    if row:
-        return row[0]
-    else:
-        return None
+    async with async_session() as session:
+        result = await session.execute(select(Config.value).where(Config.key == key))
+        row = result.scalar_one_or_none()
+        return row
 
 
 async def config_set(key: str, value: str):
-    await db.execute("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)", (key, value))
-    await db.commit()
+    stmt = insert(Config).values(key=key, value=value)
+    stmt = stmt.on_conflict_do_update(index_elements=["key"], set_={"value": value})
+    async with async_session() as session:
+        await session.execute(stmt)
+        await session.commit()
     return

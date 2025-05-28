@@ -1,7 +1,8 @@
-import requests
+from fastapi.testclient import TestClient
+from api import app
 
 
-# Tests using the live server
-def test_root(live_server):
-    response = requests.get(f"{live_server}/")
-    assert response.status_code == 200
+def test_root():
+    with TestClient(app) as client:
+        response = client.get("/")
+        assert response.status_code == 200
