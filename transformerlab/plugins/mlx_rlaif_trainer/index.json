@@ -4,7 +4,7 @@
   "description": "MLX PPO (Proximal Policy Optimization) Reinforcement Learning from AI Feedback (RLAIF) trainer for MLX models.",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "model_architectures": [
     "MLX",
     "LlamaForCausalLM",
@@ -23,36 +23,31 @@
       "title": "Batch Size",
       "type": "integer",
       "default": 8,
-      "minimum": 1,
-      "maximum": 64
+      "minimum": 1
     },
     "mini_batch_size": {
       "title": "Mini Batch Size",
       "type": "integer",
       "default": 8,
-      "minimum": 1,
-      "maximum": 64
+      "minimum": 1
     },
     "ppo_epochs": {
       "title": "PPO Epochs",
       "type": "integer",
       "default": 4,
-      "minimum": 1,
-      "maximum": 100
+      "minimum": 1
     },
     "num_steps": {
       "title": "Number of Steps",
       "type": "integer",
       "default": 5550,
-      "minimum": 1,
-      "maximum": 1000000
+      "minimum": 1
     },
     "max_completion_length": {
       "title": "Max Completion Length",
       "type": "integer",
       "default": 256,
-      "minimum": 1,
-      "maximum": 4096
+      "minimum": 1
     },
     "init_kl_coef": {
       "title": "Initial KL Coefficient",

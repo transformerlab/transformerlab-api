@@ -458,6 +458,10 @@ class TestExperiments:
         # now try to create a second experiment with the same name:
         # experiment_id = await experiment_create("test_experiment", "{}")
         # assert experiment_id is None
+        # Now check if an experiment named "alpha" exists, it should be there as part of the db init:
+        experiment = await experiment_get_by_name("alpha")
+        assert experiment is not None
+        assert experiment["name"] == "alpha"
 
     @pytest.mark.asyncio
     async def test_experiment_get_all(self):
