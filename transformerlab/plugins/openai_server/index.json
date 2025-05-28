@@ -9,12 +9,6 @@
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
-    "model_name": {
-    "title": "Model Name",
-    "type": "string",
-    "required": true,
-    "default": "gpt-3.5-turbo"
-  }
   },
   "supported_hardware_architectures": ["cpu"]
 }

@@ -348,10 +348,8 @@ def main():
 
     args, _ = parser.parse_known_args()
 
-    parameters = json.loads(args.parameters)
-    logger.info(args.parameters)
-    logger.info(parameters)
-    model_name = str(parameters.get("model_name", "gpt-3.5-turbo"))
+    # parameters = json.loads(args.parameters)
+    # model_name = str(parameters.get("model_name", "gpt-3.5-turbo"))
     
 
     worker = OpenAIServer(
@@ -359,7 +357,7 @@ def main():
         args.worker_address,
         worker_id,
         args.model_path,
-        model_name,
+        "gpt-3.5-turbo",
         1024,
         args.conv_template
     )
