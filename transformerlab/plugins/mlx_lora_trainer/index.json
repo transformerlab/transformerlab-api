@@ -4,7 +4,7 @@
   "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.4.12",
+  "version": "0.4.13",
   "model_architectures": [
     "MLX",
     "CohereForCausalLM",
@@ -38,15 +38,13 @@
       "title": "Batch Size",
       "type": "integer",
       "default": 4,
-      "minimum": 1,
-      "maximum": 8
+      "minimum": 1
     },
     "learning_rate": {
       "title": "Learning Rate",
       "type": "number",
       "default": 5e-5,
-      "minimum": 1e-6,
-      "maximum": 1e6
+      "minimum": 1e-6
     },
     "lora_rank": {
       "title": "LoRA Rank",
@@ -66,15 +64,13 @@
       "title": "Iterations",
       "type": "integer",
       "default": 1000,
-      "minimum": 1,
-      "maximum": 1000000
+      "minimum": 1
     },
     "num_train_epochs": {
       "title": "Number of Training Epochs",
       "type": "integer",
       "default": -1,
-      "minimum": -1,
-      "maximum": 100
+      "minimum": -1
     },
     "steps_per_report": {
       "title": "Steps per Report",

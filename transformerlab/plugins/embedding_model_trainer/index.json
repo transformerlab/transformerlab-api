@@ -5,7 +5,7 @@
   "plugin-format": "python",
   "type": "trainer",
   "train_type": "embedding",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "model_architectures": [
     "BertModel",
     "SentenceTransformer",
@@ -146,22 +146,19 @@
       "title": "Number of Training Epochs",
       "type": "integer",
       "default": 3,
-      "minimum": 1,
-      "maximum": 30
+      "minimum": 1
     },
     "batch_size": {
       "title": "Batch Size",
       "type": "integer",
       "default": 16,
-      "minimum": 1,
-      "maximum": 1024
+      "minimum": 1
     },
     "learning_rate": {
       "title": "Learning Rate",
       "type": "number",
       "default": 0.00002,
-      "minimum": 0.000001,
-      "maximum": 0.1
+      "minimum": 0.000001
     },
     "warmup_ratio": {
       "title": "Warmup Ratio",
