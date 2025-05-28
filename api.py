@@ -182,7 +182,6 @@ app.include_router(batched_prompts.router)
 app.include_router(fastchat_openai_api.router)
 app.include_router(get_xmlrpc_router())
 app.include_router(get_trainer_xmlrpc_router())
-app.include_router(workflow_triggers.router)
 
 controller_process = None
 worker_process = None
@@ -248,7 +247,7 @@ async def server_worker_start(
     eight_bit: bool = False,
     cpu_offload: bool = False,
     inference_engine: str = "default",
-    experiment_id: str = None,
+    experiment_id: int = None,
     inference_params: str = "",
 ):
     global worker_process

@@ -6,7 +6,6 @@ Each workflow has its own trigger_configs that define which job completion event
 """
 
 import logging
-from typing import Dict, Any
 import transformerlab.db as db
 
 # Set up logging
@@ -50,7 +49,7 @@ async def process_job_completion_triggers(job_id: int):
             await db.job_update_job_data_insert_key_value(job_id, "triggers_processed", True)
             return
 
-        # Step 3: Map job type to trigger type (they should match based on TRIGGERS_TO_SEED)
+        # Step 3: Map job type to trigger type (they match for predefined blueprints)
         trigger_type = job_type  # Direct mapping
 
         logger.info(f"Processing triggers for completed {job_type} job {job_id} in experiment {experiment_id}")
@@ -80,76 +79,3 @@ async def process_job_completion_triggers(job_id: int):
     except Exception as e:
         # Log the error but don't crash the application
         logger.error(f"Error processing triggers for job {job_id}: {str(e)}", exc_info=True)
-
-
-async def process_completed_job_triggers():
-    """
-    Legacy polling-based trigger processing function.
-    
-    This function is kept for backward compatibility but should be replaced
-    with the event-based process_job_completion_triggers() function.
-    
-    This function:
-    1. Gets all trigger types from TRIGGERS_TO_SEED
-    2. For each trigger type, fetches completed jobs of that type that haven't had their triggers processed
-    3. For each job, finds any enabled triggers of the matching type in its experiment
-    4. For each enabled trigger, queues the associated workflows
-    5. Marks the job as having had its triggers processed
-    """
-    # Get unique trigger types from PREDEFINED_TRIGGER_BLUEPRINTS
-    trigger_types = {blueprint["trigger_type"] for blueprint in db.PREDEFINED_TRIGGER_BLUEPRINTS}
-    
-    for trigger_type in trigger_types:
-        try:
-            # Step 1: Fetch unprocessed completed jobs for this trigger type
-            cursor = await db.db.execute(
-                "SELECT * FROM job WHERE type = ? AND status = 'COMPLETE' AND (json_extract(job_data, '$.triggers_processed') IS NULL OR json_extract(job_data, '$.triggers_processed') = 0)",
-                (trigger_type,)
-            )
-            jobs = await cursor.fetchall()
-
-            # Convert rows to dicts
-            desc = cursor.description
-            column_names = [col[0] for col in desc]
-            job_dicts = [dict(zip(column_names, job)) for job in jobs]
-            await cursor.close()
-
-            if not job_dicts:
-                # No jobs to process for this trigger type
-                continue
-
-            logger.info(f"Found {len(job_dicts)} completed {trigger_type} jobs with unprocessed triggers")
-
-            # Step 2: Process each job using the new event-based function
-            for job in job_dicts:
-                await process_job_completion_triggers(job["id"])
-
-        except Exception as e:
-            # Log the error but don't crash the application
-            logger.error(f"Error processing {trigger_type} job triggers: {str(e)}", exc_info=True)
-
-
-# Legacy function - no longer used with the new per-workflow trigger system
-# Kept for reference during transition period
-# async def process_trigger_for_job(job_id: int, trigger: Dict[str, Any]):
-#     """Process a single trigger for a job."""
-#     trigger_id = trigger["id"]
-#     
-#     # Check that the config and workflow_ids exist
-#     if not trigger["config"] or "workflow_ids" not in trigger["config"]:
-#         logger.warning(f"Trigger {trigger_id} has no workflow_ids configured, skipping")
-#         return
-#     
-#     workflow_ids = trigger["config"]["workflow_ids"]
-#     if not isinstance(workflow_ids, list) or not workflow_ids:
-#         logger.warning(f"Trigger {trigger_id} has invalid workflow_ids: {workflow_ids}, skipping")
-#         return
-#     
-#     # Queue each workflow
-#     for workflow_id in workflow_ids:
-#         try:
-#             await db.workflow_queue(workflow_id)
-#             logger.info(f"Job {job_id} queued workflow {workflow_id} via trigger {trigger_id}")
-#         except Exception as e:
-#             logger.error(f"Error queuing workflow {workflow_id} via trigger {trigger_id}: {str(e)}")
-#             # Continue processing other workflows

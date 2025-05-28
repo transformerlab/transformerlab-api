@@ -10,7 +10,6 @@ from sqlalchemy.dialects.sqlite import insert  # Correct import for SQLite upser
 # from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from datetime import datetime
 
 # Make sure SQLAlchemy is installed using pip install sqlalchemy[asyncio] as
 # described here https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html
@@ -70,114 +69,6 @@ PREDEFINED_TRIGGER_BLUEPRINTS = [
     },
 ]
 
-# Legacy triggers list - kept for backward compatibility during transition
-# TODO: Remove this after migration is complete
-TRIGGERS_TO_SEED = [
-    {
-        "name": "On Training Completed",
-        "description": "Workflows will automatically start after every training job is completed.",
-        "trigger_type": "TRAIN",
-        "experiment_name": "dev", 
-        "is_enabled": True,
-        "config": {"workflow_ids": []} 
-    },
-    {
-        "name": "On New Model Downloaded",
-        "description": "Workflows will automatically start after every new model is downloaded.",
-        "trigger_type": "DOWNLOAD_MODEL",
-        "experiment_name": "dev",
-        "is_enabled": True,
-        "config": {"workflow_ids": []}
-    },
-    {
-        "name": "On New Model Loaded",
-        "description": "Workflows will automatically start after every new model is loaded for inference.",
-        "trigger_type": "LOAD_MODEL",
-        "experiment_name": "dev",
-        "is_enabled": True,
-        "config": {"workflow_ids": []}
-    },
-    {
-        "name": "On Model Export Completed",
-        "description": "Workflows will automatically start after every model is exported.",
-        "trigger_type": "EXPORT_MODEL",
-        "experiment_name": "dev",
-        "is_enabled": True,
-        "config": {"workflow_ids": []}
-    },
-    {
-        "name": "On Evaluation Completed",
-        "description": "Workflows will automatically start after every evaluation job is completed.",
-        "trigger_type": "EVAL",
-        "experiment_name": "dev",
-        "is_enabled": True,
-        "config": {"workflow_ids": []}
-    },
-    {
-        "name": "On Generation Completed",
-        "description": "Workflows will automatically start after every generation job is completed.",
-        "trigger_type": "GENERATE",
-        "experiment_name": "dev",
-        "is_enabled": True,
-        "config": {"workflow_ids": []}
-    },
-]
-
-async def _seed_workflow_triggers(db_conn):
-    """
-    Seeds workflow triggers into the database based on the TRIGGERS_TO_SEED list.
-    Checks if a trigger for a given experiment_id and trigger_type already exists
-    before inserting to prevent duplicates.
-    """
-    print("🌱 Seeding workflow triggers...")
-    for trigger_data in TRIGGERS_TO_SEED:
-        experiment_name = trigger_data["experiment_name"]
-        trigger_type = trigger_data["trigger_type"]
-        name = trigger_data["name"]
-        description = trigger_data["description"]
-
-        # Get experiment_id from experiment_name
-        # This relies on experiment_get_by_name being defined elsewhere in this file
-        experiment = await experiment_get_by_name(experiment_name) 
-        if not experiment:
-            print(f"  ⚠️  Skipping trigger '{name}': Experiment '{experiment_name}' not found.")
-            continue
-        
-        experiment_id = experiment['id']
-
-        # Check if this specific trigger (by experiment_id and type) already exists
-        cursor = await db_conn.execute(
-            "SELECT id FROM workflow_triggers WHERE experiment_id = ? AND trigger_type = ?",
-            (experiment_id, trigger_type)
-        )
-        existing_trigger = await cursor.fetchone()
-        await cursor.close()
-
-        if not existing_trigger:
-            print(f"  Creating trigger: '{name}' for experiment '{experiment_name}' (ID: {experiment_id}), Type: {trigger_type}")
-            await db_conn.execute(
-                "INSERT OR IGNORE INTO workflow_triggers (name, description, trigger_type, experiment_id, is_enabled, config) VALUES (?, ?, ?, ?, ?, ?)",
-                (
-                    name,
-                    description,
-                    trigger_type,
-                    experiment_id,
-                    1 if trigger_data["is_enabled"] else 0,
-                    json.dumps(trigger_data["config"])
-                )
-            )
-        else:
-            # Update the description for existing triggers
-            print(f"  Updating trigger description for experiment '{experiment_name}' (ID: {experiment_id}), Type: {trigger_type}")
-            await db_conn.execute(
-                "UPDATE workflow_triggers SET description = ? WHERE id = ?",
-                (description, existing_trigger[0])
-            )
-    
-    await db_conn.commit()
-    print("✅ Workflow triggers seeding complete.")
-
-
 async def init():
     """
     Create the database, tables, and workspace folder if they don't exist.
@@ -192,14 +83,6 @@ async def init():
     # Create the tables if they don't exist
     async with async_engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
-
-    # Add description column to workflow_triggers if it doesn't exist
-    try:
-        await db.execute("ALTER TABLE workflow_triggers ADD COLUMN description TEXT")
-        print("✅ Added description column to workflow_triggers table")
-    except Exception as e:
-        if "duplicate column name" not in str(e).lower():
-            print(f"⚠️  Note about description column: {str(e)}")
 
     # Add trigger_configs column to workflows if it doesn't exist
     try:
@@ -423,7 +306,7 @@ ALLOWED_JOB_TYPES = [
 ]
 
 
-async def job_create(type, status, job_data="{}", experiment_id=""):
+async def job_create(type, status, job_data="{}", experiment_id=None):
     # check if type is allowed
     if type not in ALLOWED_JOB_TYPES:
         raise ValueError(f"Job type {type} is not allowed")
@@ -435,7 +318,7 @@ async def job_create(type, status, job_data="{}", experiment_id=""):
     return row[0]
 
 
-def job_create_sync(type, status, job_data="{}", experiment_id=""):
+def job_create_sync(type, status, job_data="{}", experiment_id=None):
     """
     Synchronous version of job_create function for use with XML-RPC.
     """
@@ -1471,104 +1354,6 @@ async def config_set(key: str, value: str):
     return
 
 
-###############
-# WORKFLOW TRIGGERS MODEL
-###############
-
-
-async def workflow_trigger_get_by_experiment_id(experiment_id: int):
-    """Fetch all triggers for a given experiment."""
-    cursor = await db.execute(
-        "SELECT rowid, * FROM workflow_triggers WHERE experiment_id = ?", (experiment_id,)
-    )
-    rows = await cursor.fetchall()
-
-    # convert to json:
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    
-    # Parse JSON config
-    for row in data:
-        if row["config"]:
-            row["config"] = json.loads(row["config"])
-    
-    await cursor.close()
-    return data
-
-
-async def workflow_trigger_get_by_id(trigger_id: int):
-    """Fetch a specific trigger by its ID."""
-    cursor = await db.execute("SELECT rowid, * FROM workflow_triggers WHERE id = ?", (trigger_id,))
-    row = await cursor.fetchone()
-
-    # Return None if the trigger_id isn't in the database
-    if row is None:
-        return None
-
-    # Map column names to row data
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row_dict = dict(itertools.zip_longest(column_names, row))
-    
-    # Parse JSON config
-    if row_dict["config"]:
-        row_dict["config"] = json.loads(row_dict["config"])
-    
-    await cursor.close()
-    return row_dict
-
-
-async def workflow_trigger_update(trigger_id: int, config: dict = None, is_enabled: bool = None):
-    """Update the config and/or is_enabled status of a specific trigger."""
-    update_parts = []
-    params = []
-
-    if config is not None:
-        update_parts.append("config = json(?)")
-        params.append(json.dumps(config))
-
-    if is_enabled is not None:
-        update_parts.append("is_enabled = ?")
-        params.append(1 if is_enabled else 0)
-    
-    if not update_parts:
-        return None  # Nothing to update
-
-    # Add the current time for updated_at and the trigger_id
-    update_parts.append("updated_at = ?")
-    params.append(datetime.now().isoformat())
-    params.append(trigger_id)
-
-    sql = f"UPDATE workflow_triggers SET {', '.join(update_parts)} WHERE id = ?"
-    await db.execute(sql, params)
-    await db.commit()
-    
-    return await workflow_trigger_get_by_id(trigger_id)
-
-
-async def workflow_trigger_get_enabled_by_experiment_id_and_type(experiment_id: int, trigger_type: str):
-    """Fetch all enabled triggers for a specific experiment and type."""
-    cursor = await db.execute(
-        "SELECT rowid, * FROM workflow_triggers WHERE experiment_id = ? AND trigger_type = ? AND is_enabled = 1",
-        (experiment_id, trigger_type)
-    )
-    rows = await cursor.fetchall()
-
-    # convert to json:
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    
-    # Parse JSON config
-    for row in data:
-        if row["config"]:
-            row["config"] = json.loads(row["config"])
-    
-    await cursor.close()
-    return data
-
-
 async def workflow_get_by_job_event(job_type: str, job_experiment_id: int, job_name: str = None) -> list[dict]:
     """Find all workflows that should be activated by a specific job completion event."""
     # Get all active workflows
@@ -1630,15 +1415,6 @@ async def workflow_get_by_job_event(job_type: str, job_experiment_id: int, job_n
             break  # One matching trigger is enough to activate the workflow
     
     return matching_workflows
-
-
-async def job_mark_triggers_processed(job_id: int):
-    """Mark a job as having had its triggers processed."""
-    await db.execute(
-        "UPDATE job SET triggers_processed_at = ? WHERE id = ?",
-        (datetime.now().isoformat(), job_id)
-    )
-    await db.commit()
 
 
 async def experiment_get_directory_by_id(experiment_id: int) -> str:
