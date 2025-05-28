@@ -78,25 +78,6 @@ class OpenAITokenizer:
         # return (len(tokens))
         return len(prompt) // 4
 
-# def get_openai_context_length(model_name: str, api_key: str) -> int:
-#     client = openai.OpenAI(api_key=api_key)
-#     print(client)
-#     model_info = client.models.retrieve(model_name)
-#     print(model_info)
-#     # Check for the correct attribute
-#     for key in ["context_window", "max_tokens", "max_context_length", "max_sequence_length"]:
-#         if hasattr(model_info, key):
-#             return getattr(model_info, key)
-#         elif key in getattr(model_info, "dict", lambda: {})():
-#             return model_info[key]
-#     # Check in 'model_info' dict
-#     if "context_window" in model_info:
-#         return model_info["context_window"]
-#     if "max_tokens" in model_info:
-#         return model_info["max_tokens"]
-#     # Fallback to 4096 if nothing is found
-#     return 4096
-
 class OpenAIServer(BaseModelWorker):
     def __init__(
         self,
@@ -124,10 +105,6 @@ class OpenAIServer(BaseModelWorker):
             raise EnvironmentError("OPENAI_API_KEY environment variable is not set.")
         openai.api_key = self.api_key
         
-        # try:
-        #     #self.context_len = get_openai_context_length(self.model_names, self.api_key)
-        # except Exception as e:
-        #     logger.warning(f"Could not query context length from OpenAI, falling back to 4096: {e}")
         self.context_len = 4096
         print("Setting context length to", self.context_len)
 
@@ -373,11 +350,9 @@ def main():
 
     args, _ = parser.parse_known_args()
 
-    try:
-        parameters = json.loads(args.parameters)
-        model_name = str(parameters.get("model_name", "gpt-3.5-turbo"))
-    except Exception:
-        raise ValueError("Model name must be provided in the parameters.")
+    parameters = json.loads(args.parameters)
+    model_name = str(parameters.get("model_name", "gpt-3.5-turbo"))
+    
 
     worker = OpenAIServer(
         args.controller_address,
