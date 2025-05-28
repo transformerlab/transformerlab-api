@@ -396,8 +396,9 @@ async def is_stable_diffusion_model(request: DiffusionRequest):
         info = model_info(model_id)
         tags = getattr(info, "tags", [])
         architectures = getattr(info, "architectures", [])
+
         # Check tags or architectures
-        if any("stable-diffusion" in t or "diffusers" in t for t in tags):
+        if any("stable-diffusion" in t for t in tags) and any("diffusers" in t for t in tags):
             return {"is_stable_diffusion": True, "reason": "Found SD tag"}
         if any(a in ALLOWED_STABLE_DIFFUSION_ARCHITECTURES for a in architectures):
             return {"is_stable_diffusion": True, "reason": "Architecture matches allowed SD"}
@@ -405,7 +406,32 @@ async def is_stable_diffusion_model(request: DiffusionRequest):
         try:
             files = list_repo_files(model_id)
             if any(f.endswith("model_index.json") for f in files):
-                return {"is_stable_diffusion": True, "reason": "model_index.json present"}
+                # Read the model_index.json file
+                model_index_file = next(f for f in files if f.endswith("model_index.json"))
+                # Get huggingface_hug cache directory
+                hf_home = os.environ.get("HF_HOME", os.path.expanduser("~/.cache/huggingface"))
+                model_cache_dir = os.path.join(
+                    hf_home, "hub", "models--" + model_id.replace("/", "--")
+                )
+
+                snapshots_dir = os.path.join(model_cache_dir, "snapshots")
+
+                # Get the first subdirectory in snapshots
+                snapshot_subdirs = [
+                    os.path.join(snapshots_dir, d)
+                    for d in os.listdir(snapshots_dir)
+                    if os.path.isdir(os.path.join(snapshots_dir, d))
+                ]
+
+                latest_snapshot_dir = snapshot_subdirs[0]
+
+                model_index_path = os.path.join(latest_snapshot_dir, model_index_file)
+                with open(model_index_path, "r") as f:
+                    model_index = json.load(f)
+                if model_index.get("_class_name", "") in ALLOWED_STABLE_DIFFUSION_ARCHITECTURES:
+                    return {"is_stable_diffusion": True, "reason": "model_index.json present"}
+                else:
+                    return {"is_stable_diffusion": False, "reason": "model_index.json architecture does not match SD"}
         except Exception:
             pass
         return {"is_stable_diffusion": False, "reason": "No SD indicators found"}
