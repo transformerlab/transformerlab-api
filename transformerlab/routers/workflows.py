@@ -24,24 +24,15 @@ class WorkflowTriggerConfigsUpdateRequest(BaseModel):
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 
-# Static routes first
 @router.get("/predefined_triggers", summary="Get predefined triggers (frontend compatibility)")
 async def get_predefined_triggers():
     """Get the list of predefined trigger types with their descriptions. Frontend-compatible endpoint."""
     return db.PREDEFINED_TRIGGER_BLUEPRINTS
 
-
-@router.get("/trigger_blueprints", summary="Get predefined trigger blueprints")
-async def get_trigger_blueprints():
-    """Get the list of predefined trigger types with their descriptions."""
-    return db.PREDEFINED_TRIGGER_BLUEPRINTS
-
-
 @router.get("/list", summary="get all workflows")
 async def workflows_get_all():
     workflows = await db.workflows_get_all()
     return workflows
-
 
 @router.get("/list_in_experiment", summary="get all workflows in an experiment")
 async def workflows_get_in_experiment(experiment_id: str = "1"):
@@ -50,46 +41,10 @@ async def workflows_get_in_experiment(experiment_id: str = "1"):
     print(workflows)
     return workflows
 
-
 @router.get("/list_runs", summary="get all workflow runs")
 async def workflow_runs_get_all():
     workflow_runs = await db.workflow_run_get_all()
     return workflow_runs
-
-
-@router.get("/delete_all", summary="wipe all workflows")
-async def workflow_delete_all():
-    await db.workflow_delete_all()
-    return {"message": "OK"}
-
-
-@router.get("/create", summary="Create a workflow from config")
-async def workflow_create(name: str, config: str = '{"nodes":[]}', experiment_id="1"):
-    config = json.loads(config)
-    if len(config["nodes"])>0:
-        config["nodes"] = [{"type":"START", "id":str(uuid.uuid4()), "name":"START", "out":[config["nodes"][0]["id"]]}] + config["nodes"]
-    else:
-        config["nodes"] = [{"type":"START", "id":str(uuid.uuid4()), "name":"START", "out":[]}]
-    workflow_id = await db.workflow_create(name, json.dumps(config), experiment_id)
-    return workflow_id
-
-
-@router.get("/create_empty", summary="Create an empty workflow")
-async def workflow_create_empty(name: str, experiment_id="1"):
-    name = slugify(name)
-    config = {"nodes":[{"type":"START", "id":str(uuid.uuid4()), "name":"START", "out":[]}]}
-    workflow_id = await db.workflow_create(name, json.dumps(config), experiment_id)
-    print(experiment_id)
-    return workflow_id
-
-
-# Dynamic routes with path parameters
-@router.get("/{workflow_id}", summary="get a specific workflow by id")
-async def workflow_get_by_id(workflow_id: int):
-    workflow = await db.workflows_get_by_id(workflow_id)
-    if workflow is None:
-        return {"error": "Workflow not found"}
-    return workflow
 
 @router.get("/runs/{workflow_run_id}", summary="get a specific workflow run by id")
 async def workflow_runs_get_by_id(workflow_run_id: str):
@@ -117,6 +72,35 @@ async def workflow_delete(workflow_id: str):
     await db.workflow_delete_by_id(workflow_id)
     return {"message": "OK"}
 
+@router.get("/delete_all", summary="wipe all workflows")
+async def workflow_delete_all():
+    await db.workflow_delete_all()
+    return {"message": "OK"}
+
+@router.get("/create", summary="Create a workflow from config")
+async def workflow_create(name: str, config: str = '{"nodes":[]}', experiment_id="1"):
+    config = json.loads(config)
+    if len(config["nodes"])>0:
+        config["nodes"] = [{"type":"START", "id":str(uuid.uuid4()), "name":"START", "out":[config["nodes"][0]["id"]]}] + config["nodes"]
+    else:
+        config["nodes"] = [{"type":"START", "id":str(uuid.uuid4()), "name":"START", "out":[]}]
+    workflow_id = await db.workflow_create(name, json.dumps(config), experiment_id)
+    return workflow_id
+
+@router.get("/create_empty", summary="Create an empty workflow")
+async def workflow_create_empty(name: str, experiment_id="1"):
+    name = slugify(name)
+    config = {"nodes":[{"type":"START", "id":str(uuid.uuid4()), "name":"START", "out":[]}]}
+    workflow_id = await db.workflow_create(name, json.dumps(config), experiment_id)
+    print(experiment_id)
+    return workflow_id
+
+@router.get("/{workflow_id}", summary="get a specific workflow by id")
+async def workflow_get_by_id(workflow_id: int):
+    workflow = await db.workflows_get_by_id(workflow_id)
+    if workflow is None:
+        return {"error": "Workflow not found"}
+    return workflow
 
 @router.get("/{workflow_id}/{node_id}/edit_node_metadata", summary="Edit metadata of a node in a workflow")
 async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: str):
