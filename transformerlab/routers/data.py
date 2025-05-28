@@ -256,7 +256,7 @@ async def dataset_preview_with_template(
     limit: int = Query(10, ge=1, le=1000, description="Max items to fetch"),
 ) -> Any:
     d = await db.get_dataset(dataset_id)
-    dataset_dir = dirs.dataset_dir_by_id(dataset_id)
+    dataset_dir = dirs.dataset_dir_by_id(slugify(dataset_id))
     dataset_len = 0
 
     try:
