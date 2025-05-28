@@ -348,8 +348,8 @@ def main():
     args, _ = parser.parse_known_args()
 
     parameters = json.loads(args.parameters)
-    print(args.parameters)
-    print(parameters)
+    logger.info(args.parameters)
+    logger.info(parameters)
     model_name = str(parameters.get("model_name", "gpt-3.5-turbo"))
     
 
