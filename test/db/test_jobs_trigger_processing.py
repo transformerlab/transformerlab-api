@@ -15,7 +15,6 @@ from transformerlab.db import (
     workflow_update_trigger_configs,
     workflow_delete_all,
     job_create,
-    job_update_status,
     PREDEFINED_TRIGGER_BLUEPRINTS
 )
 
