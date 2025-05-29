@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from io import BytesIO
 import torch
 import asyncio
-from diffusers import StableDiffusionPipeline, StableDiffusionUpscalePipeline, StableDiffusionLatentUpscalePipeline, AutoPipelineForText2Image
+from diffusers import StableDiffusionUpscalePipeline, StableDiffusionLatentUpscalePipeline, AutoPipelineForText2Image, AutoPipelineForImage2Image
 import threading
 import os
 import random
@@ -85,6 +85,10 @@ class DiffusionRequest(BaseModel):
     guidance_rescale: float = 0.0
     height: int = 0
     width: int = 0
+    # Image-to-image specific fields
+    input_image: str = ""  # Base64 encoded input image
+    strength: float = 0.8  # Denoising strength for img2img (0.0 = no change, 1.0 = full generation)
+    is_img2img: bool = False  # Whether this is an img2img generation
 
 
 # Response schema for history
@@ -108,6 +112,10 @@ class ImageHistoryItem(BaseModel):
     height: int = 0
     width: int = 0
     generation_time: float = 0.0  # Time taken for generation in seconds
+    # Image-to-image specific fields
+    input_image_path: str = ""  # Path to input image (for img2img)
+    strength: float = 0.8  # Denoising strength used
+    is_img2img: bool = False  # Whether this was an img2img generation
 
 
 class HistoryResponse(BaseModel):
@@ -204,25 +212,37 @@ def load_history(limit: int = 50, offset: int = 0) -> HistoryResponse:
         return HistoryResponse(images=[], total=0)
 
 
-def get_pipeline_key(model: str, adaptor: str = "") -> str:
-    """Generate cache key for model + adaptor combination"""
-    return f"{model}::{adaptor}" if adaptor else model
+def get_pipeline_key(model: str, adaptor: str = "", is_img2img: bool = False) -> str:
+    """Generate cache key for model + adaptor + pipeline type combination"""
+    pipeline_type = "img2img" if is_img2img else "txt2img"
+    base_key = f"{model}::{adaptor}" if adaptor else model
+    return f"{base_key}::{pipeline_type}"
 
 
-def get_pipeline(model: str, adaptor: str = "", device: str = "cuda"):
-    cache_key = get_pipeline_key(model, adaptor)
+def get_pipeline(model: str, adaptor: str = "", device: str = "cuda", is_img2img: bool = False):
+    cache_key = get_pipeline_key(model, adaptor, is_img2img)
 
     with _PIPELINES_LOCK:
         if cache_key in _PIPELINES:
             return _PIPELINES[cache_key]
 
-        # Load base pipeline
-        pipe = AutoPipelineForText2Image.from_pretrained(
-            model,
-            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-            safety_checker=None,
-            requires_safety_checker=False,
-        )
+        # Load appropriate pipeline based on type
+        if is_img2img:
+            pipe = AutoPipelineForImage2Image.from_pretrained(
+                model,
+                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                safety_checker=None,
+                requires_safety_checker=False,
+            )
+            print(f"Loaded image-to-image pipeline for model: {model}")
+        else:
+            pipe = AutoPipelineForText2Image.from_pretrained(
+                model,
+                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                safety_checker=None,
+                requires_safety_checker=False,
+            )
+            print(f"Loaded text-to-image pipeline for model: {model}")
         pipe = pipe.to(device)
 
         # Load LoRA adaptor if provided - same code for local and HF Hub!
@@ -305,59 +325,86 @@ def upscale_image(image: Image.Image, prompt: str, upscale_factor: int = 4, devi
 
 @router.post("/generate", summary="Generate image with Stable Diffusion")
 async def generate_image(request: DiffusionRequest):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    pipe = get_pipeline(request.model, request.adaptor, device=device)
-
-    # Set seed - use provided seed or generate a random one
-    if request.seed is None or request.seed < 0:
-        print("No valid seed provided, generating a random seed")
-        seed = random.randint(0, 2**32 - 1)
-    else:
-        print(f"Using provided seed: {request.seed}")
-        seed = request.seed
-
-    generator = torch.manual_seed(seed)
-
-    # Start timing
-    start_time = time.time()
-
-    # Run in thread to avoid blocking event loop
-    def run_pipe():
-        generation_kwargs = {
-            "prompt": request.prompt,
-            "num_inference_steps": request.num_inference_steps,
-            "guidance_scale": request.guidance_scale,
-            "generator": generator,
-            "eta": request.eta,
-        }
-
-        # Add negative prompt if provided
-        if request.negative_prompt:
-            generation_kwargs["negative_prompt"] = request.negative_prompt
-
-        # Add guidance rescale if provided
-        if request.guidance_rescale > 0.0:
-            generation_kwargs["guidance_rescale"] = request.guidance_rescale
-
-        # Add clip skip if provided (requires scheduler support)
-        if request.clip_skip > 0:
-            generation_kwargs["clip_skip"] = request.clip_skip
-
-        # Set height and width if specified
-        if request.height > 0 and request.width > 0:
-            generation_kwargs["height"] = request.height
-            generation_kwargs["width"] = request.width
-
-        # Add LoRA scale if adaptor is being used
-        if request.adaptor and request.adaptor.strip():
-            generation_kwargs["cross_attention_kwargs"] = {"scale": request.adaptor_scale}
-
-        result = pipe(**generation_kwargs)
-        return result.images[0]
-
     try:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        
+        # Determine if this is img2img based on is_img2img flag or input_image presence
+        is_img2img = request.is_img2img or bool(request.input_image.strip())
+        
+        # Process input image if provided
+        input_image_obj = None
+        input_image_path = ""
+        if is_img2img:
+            try:
+                # Decode base64 image
+                image_data = base64.b64decode(request.input_image)
+                input_image_obj = Image.open(BytesIO(image_data)).convert("RGB")
+
+                
+                # Save input image for history
+                ensure_directories()
+                input_image_filename = f"input_{str(uuid.uuid4())}.png"
+                input_image_path = os.path.join(get_images_dir(), input_image_filename)
+                input_image_obj.save(input_image_path, format="PNG")
+                print(f"Input image saved: {input_image_path}")
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Invalid input image: {str(e)}")
+        
+        pipe = get_pipeline(request.model, request.adaptor, device=device, is_img2img=is_img2img)
+
+        # Set seed - use provided seed or generate a random one
+        if request.seed is None or request.seed < 0:
+            seed = random.randint(0, 2**32 - 1)
+        else:
+            seed = request.seed
+
+        generator = torch.manual_seed(seed)
+        # Start timing
+        start_time = time.time()
+
+        # Run in thread to avoid blocking event loop
+        def run_pipe():
+            generation_kwargs = {
+                "prompt": request.prompt,
+                "num_inference_steps": request.num_inference_steps,
+                "guidance_scale": request.guidance_scale,
+                "generator": generator,
+                "eta": request.eta,
+            }
+
+            # Add image and strength for img2img
+            if is_img2img:
+                generation_kwargs["image"] = input_image_obj
+                generation_kwargs["strength"] = request.strength
+
+            # Add negative prompt if provided
+            if request.negative_prompt:
+                generation_kwargs["negative_prompt"] = request.negative_prompt
+
+            # Add guidance rescale if provided
+            if request.guidance_rescale > 0.0:
+                generation_kwargs["guidance_rescale"] = request.guidance_rescale
+
+            # Add clip skip if provided (requires scheduler support)
+            if request.clip_skip > 0:
+                generation_kwargs["clip_skip"] = request.clip_skip
+
+            # Set height and width if specified
+            if request.height > 0 and request.width > 0:
+                generation_kwargs["height"] = request.height
+                generation_kwargs["width"] = request.width
+
+            # Add LoRA scale if adaptor is being used
+            if request.adaptor and request.adaptor.strip():
+                generation_kwargs["cross_attention_kwargs"] = {"scale": request.adaptor_scale}
+
+            result = pipe(**generation_kwargs)
+            return result.images[0]
+
+
         # Time the main generation
         generation_start = time.time()
+        print("Starting image generation...")
         image = await asyncio.get_event_loop().run_in_executor(None, run_pipe)
         generation_time = time.time() - generation_start
 
@@ -408,6 +455,10 @@ async def generate_image(request: DiffusionRequest):
             height=request.height if request.height > 0 else image.height,
             width=request.width if request.width > 0 else image.width,
             generation_time=total_generation_time,
+            # Image-to-image specific fields
+            input_image_path=input_image_path,
+            strength=request.strength if is_img2img else 0.8,
+            is_img2img=is_img2img,
         )
         save_to_history(history_item)
 
@@ -478,7 +529,7 @@ async def get_history(limit: int = 50, offset: int = 0):
 
 
 @router.get("/history/{image_id}", summary="Get the actual image by ID")
-async def get_image_by_id(image_id: str):
+async def get_image_by_id(image_id: str, input_image: bool = False):
     history = load_history(limit=1000)  # Load enough to find the image
 
     # Find the image in history
@@ -491,12 +542,23 @@ async def get_image_by_id(image_id: str):
     if not image_item:
         raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
 
-    # Check if image file exists
-    if not os.path.exists(image_item.image_path):
-        raise HTTPException(status_code=404, detail=f"Image file not found at {image_item.image_path}")
+    # Determine which image to return based on input_image parameter
+    if input_image:
+        # Return the input image if requested and available
+        if not image_item.input_image_path or not image_item.input_image_path.strip():
+            raise HTTPException(status_code=404, detail=f"No input image found for image ID {image_id}")
+        
+        image_path = image_item.input_image_path
+        if not os.path.exists(image_path):
+            raise HTTPException(status_code=404, detail=f"Input image file not found at {image_path}")
+    else:
+        # Return the generated output image (default behavior)
+        image_path = image_item.image_path
+        if not os.path.exists(image_path):
+            raise HTTPException(status_code=404, detail=f"Image file not found at {image_path}")
 
     return FileResponse(
-        image_item.image_path,
+        image_path,
     )
 
 
@@ -690,6 +752,14 @@ async def create_dataset_from_history(request: CreateDatasetRequest):
                 print(f"Warning: Image file not found at {image_item.image_path}")
                 continue
 
+            # Copy input image if this was an img2img generation
+            input_image_filename = ""
+            if getattr(image_item, "is_img2img", False) and getattr(image_item, "input_image_path", ""):
+                if os.path.exists(image_item.input_image_path):
+                    input_image_filename = f"input_{i:04d}.png"
+                    dest_input_image_path = os.path.join(images_dir, input_image_filename)
+                    shutil.copy2(image_item.input_image_path, dest_input_image_path)
+
             # Create record with essential fields
             record = {
                 "file_name": image_filename,
@@ -716,6 +786,10 @@ async def create_dataset_from_history(request: CreateDatasetRequest):
                         "width": image_item.width,
                         "timestamp": image_item.timestamp,
                         "original_id": image_item.id,
+                        # Image-to-image specific fields
+                        "input_image_path": getattr(image_item, "input_image_path", ""),
+                        "strength": getattr(image_item, "strength", 0.8),
+                        "is_img2img": getattr(image_item, "is_img2img", False),
                     }
                 )
 
