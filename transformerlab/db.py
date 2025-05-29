@@ -2,6 +2,7 @@ import itertools
 import json
 import os
 import sqlite3
+import asyncio
 
 import aiosqlite
 from sqlalchemy import select
@@ -17,6 +18,7 @@ from sqlalchemy.orm import sessionmaker
 from transformerlab.shared import dirs
 from transformerlab.shared.models import models  # noqa: F401
 from transformerlab.shared.models.models import Config
+from transformerlab.jobs_trigger_processing import process_job_completion_triggers
 
 db = None
 DATABASE_FILE_NAME = f"{dirs.WORKSPACE_DIR}/llmlab.sqlite3"
@@ -568,9 +570,7 @@ def job_mark_as_complete_if_running(job_id):
         try:
             # Since this is a synchronous context, we need to run the async trigger processing
             # using asyncio. We'll do this in a way that doesn't block if there's already an event loop.
-            import asyncio
-            from transformerlab.jobs_trigger_processing import process_job_completion_triggers
-            
+        
             # Try to get the current event loop, if it exists
             try:
                 loop = asyncio.get_running_loop()

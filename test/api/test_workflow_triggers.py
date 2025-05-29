@@ -1,14 +1,11 @@
 import json
 import os
-import pytest
-import uuid
 from fastapi.testclient import TestClient
 
 os.environ["TFL_HOME_DIR"] = "./test/tmp/"
 os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
 
 from api import app
-from transformerlab import db
 from transformerlab.db import (
     PREDEFINED_TRIGGER_BLUEPRINTS
 )
@@ -42,9 +39,9 @@ class TestPredefinedTriggersEndpoints:
             assert trigger_types == expected_types
 
     def test_get_trigger_blueprints(self):
-        """Test GET /workflows/trigger_blueprints endpoint."""
+        """Test GET /workflows/predefined_triggers endpoint (alias test)."""
         with TestClient(app) as client:
-            response = client.get("/workflows/trigger_blueprints")
+            response = client.get("/workflows/predefined_triggers")
             
             assert response.status_code == 200
             data = response.json()
