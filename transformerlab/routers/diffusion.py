@@ -154,11 +154,29 @@ class CreateDatasetRequest(BaseModel):
 
 
 # Global cache for loaded pipelines
-_PIPELINES: dict = {}
+# _PIPELINES: dict = {}
 _PIPELINES_LOCK = threading.Lock()
 
 # History file path
 HISTORY_FILE = "history.json"
+
+
+def cleanup_pipeline(pipe=None):
+    """Clean up pipeline to free VRAM"""
+    try:
+        if pipe is not None:
+            del pipe
+            
+        # Force garbage collection and clear CUDA cache
+        import gc
+        gc.collect()
+        
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+        
+    except Exception as e:
+        print(f"Warning: Failed to cleanup pipeline: {str(e)}")
 
 
 def get_diffusion_dir():
@@ -246,8 +264,8 @@ def get_pipeline(model: str, adaptor: str = "", device: str = "cuda", is_img2img
     cache_key = get_pipeline_key(model, adaptor, is_img2img)
 
     with _PIPELINES_LOCK:
-        if cache_key in _PIPELINES:
-            return _PIPELINES[cache_key]
+        # if cache_key in _PIPELINES:
+        #     return _PIPELINES[cache_key]
 
         # Load appropriate pipeline based on type
         if is_img2img:
@@ -283,17 +301,17 @@ def get_pipeline(model: str, adaptor: str = "", device: str = "cuda", is_img2img
                 print(f"Warning: Failed to load LoRA adaptor '{adaptor}'")
                 # Continue without LoRA rather than failing
 
-        _PIPELINES[cache_key] = pipe
+        # _PIPELINES[cache_key] = pipe
         return pipe
 
 
 def get_upscale_pipeline(upscale_factor: int = 4, device: str = "cuda"):
     """Get the appropriate upscaling pipeline based on the factor"""
-    cache_key = f"upscale_{upscale_factor}"
+    # cache_key = f"upscale_{upscale_factor}"
 
     with _PIPELINES_LOCK:
-        if cache_key in _PIPELINES:
-            return _PIPELINES[cache_key]
+        # if cache_key in _PIPELINES:
+        #     return _PIPELINES[cache_key]
 
         if upscale_factor == 2:
             # Use latent upscaler for 2x
@@ -313,7 +331,7 @@ def get_upscale_pipeline(upscale_factor: int = 4, device: str = "cuda"):
             )
 
         pipe = pipe.to(device)
-        _PIPELINES[cache_key] = pipe
+        # _PIPELINES[cache_key] = pipe
         return pipe
 
 
@@ -321,35 +339,40 @@ def upscale_image(image: Image.Image, prompt: str, upscale_factor: int = 4, devi
     """Upscale an image using Stable Diffusion upscaler"""
     upscale_pipe = get_upscale_pipeline(upscale_factor, device)
 
-    if upscale_factor == 2:
-        # For latent upscaler, we need to resize the image first
-        # The latent upscaler expects a specific size
-        width, height = image.size
-        # Resize to be compatible with latent upscaler
-        image = image.resize((width // 8 * 8, height // 8 * 8))
+    try:
+        if upscale_factor == 2:
+            # For latent upscaler, we need to resize the image first
+            # The latent upscaler expects a specific size
+            width, height = image.size
+            # Resize to be compatible with latent upscaler
+            image = image.resize((width // 8 * 8, height // 8 * 8))
 
-        result = upscale_pipe(
-            prompt=prompt,
-            image=image,
-            num_inference_steps=20,
-            guidance_scale=0,
-        )
-    else:
-        # For standard 4x upscaler
-        result = upscale_pipe(
-            prompt=prompt,
-            image=image,
-            num_inference_steps=20,
-            guidance_scale=0,
-        )
+            result = upscale_pipe(
+                prompt=prompt,
+                image=image,
+                num_inference_steps=20,
+                guidance_scale=0,
+            )
+        else:
+            # For standard 4x upscaler
+            result = upscale_pipe(
+                prompt=prompt,
+                image=image,
+                num_inference_steps=20,
+                guidance_scale=0,
+            )
 
-    return result.images[0]
+        return result.images[0]
+    finally:
+        # Clean up the upscale pipeline to free VRAM
+        cleanup_pipeline(upscale_pipe)
 
 
 @router.post("/generate", summary="Generate image with Stable Diffusion")
 async def generate_image(request: DiffusionRequest):
     try:
         device = "cuda" if torch.cuda.is_available() else "cpu"
+        cleanup_pipeline()  # Clean up any previous pipelines
 
         # Determine if this is img2img based on is_img2img flag or input_image presence
         is_img2img = request.is_img2img or bool(request.input_image.strip())
@@ -426,6 +449,9 @@ async def generate_image(request: DiffusionRequest):
         print("Starting image generation...")
         image = await asyncio.get_event_loop().run_in_executor(None, run_pipe)
         generation_time = time.time() - generation_start
+
+        # Clean up the main pipeline to free VRAM
+        cleanup_pipeline(pipe)
 
         # Apply upscaling if requested
         if request.upscale:
