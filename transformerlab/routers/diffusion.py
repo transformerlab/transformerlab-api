@@ -398,8 +398,10 @@ async def is_stable_diffusion_model(request: DiffusionRequest):
         architectures = getattr(info, "architectures", [])
 
         # Check tags or architectures
+        SD_TAG = False
         if any("stable-diffusion" in t for t in tags) and any("diffusers" in t for t in tags):
-            return {"is_stable_diffusion": True, "reason": "Found SD tag"}
+            # return {"is_stable_diffusion": True, "reason": "Found SD tag"}
+            SD_TAG = True
         if any(a in ALLOWED_STABLE_DIFFUSION_ARCHITECTURES for a in architectures):
             return {"is_stable_diffusion": True, "reason": "Architecture matches allowed SD"}
         # Check for model_index.json file
@@ -431,7 +433,10 @@ async def is_stable_diffusion_model(request: DiffusionRequest):
                 if model_index.get("_class_name", "") in ALLOWED_STABLE_DIFFUSION_ARCHITECTURES:
                     return {"is_stable_diffusion": True, "reason": "model_index.json present"}
                 else:
-                    return {"is_stable_diffusion": False, "reason": "model_index.json architecture does not match SD"}
+                    if SD_TAG and model_index.get("_class_name", "") == "":
+                        return {"is_stable_diffusion": True, "reason": "SD tag present but architecture does not match SD"}
+                    else:
+                        return {"is_stable_diffusion": False, "reason": "model_index.json architecture does not match SD"}
         except Exception:
             pass
         return {"is_stable_diffusion": False, "reason": "No SD indicators found"}
