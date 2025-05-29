@@ -867,9 +867,9 @@ async def experiment_update_config(id, key, value):
         stmt = (
             update(models.Experiment)
             .where(models.Experiment.id == id)
-            .values(config=text(f"json_set(config, '$.{key}', json(:value))"))
+            .values(config=text("json_set(config, :json_key, json(:value))"))
         )
-        await session.execute(stmt, {"value": value_json})
+        await session.execute(stmt, {"json_key": f"$.{key}", "value": value_json})
         await session.commit()
     return
 
