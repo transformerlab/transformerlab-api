@@ -25,8 +25,10 @@ from transformerlab.db import (
 async def setup_db():
     """Initialize database for testing."""
     await db.init()
-    yield
-    # Cleanup is handled by individual tests
+    try:
+        yield
+    finally:
+        await db.close()
 
 
 @pytest.fixture
