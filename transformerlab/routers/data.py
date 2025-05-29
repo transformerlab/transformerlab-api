@@ -3,6 +3,7 @@ import os
 import shutil
 import json
 import aiofiles
+from PIL import Image as PILImage
 from datasets import load_dataset, load_dataset_builder, Image
 from fastapi import APIRouter, HTTPException, UploadFile, Query
 from fastapi.responses import JSONResponse
@@ -10,6 +11,7 @@ from pydantic import BaseModel
 from typing import Dict, Any
 from io import BytesIO
 import base64
+import hashlib
 from pathlib import Path
 import transformerlab.db as db
 from transformerlab.shared import dirs
@@ -38,6 +40,34 @@ GLOBAL_LOG_PATH = dirs.GLOBAL_LOG_PATH
 def log(msg):
     with open(GLOBAL_LOG_PATH, "a") as f:
         f.write(msg + "\n")
+
+
+def hash_image_content(image_obj, is_path=False):
+    """
+    Accepts either a file path (str/Path) or a base64 data URL string.
+    Produces the base64-encoded image field exactly as in the original encoding,
+    then hashes it using SHA256.
+    """
+    try:
+        if isinstance(image_obj, str):
+            if is_path:
+                # It's a file path - open and encode as data URL base64
+                with PILImage.open(image_obj) as image:
+                    buffer = BytesIO()
+                    image.save(buffer, format="JPEG")
+                    encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
+                    data_url = f"data:image/jpeg;base64,{encoded}"
+                    image_bytes = data_url.encode("utf-8")
+            else:
+                # It's a base64 data URL string from edit["image"]
+                image_bytes = image_obj.encode("utf-8")
+        else:
+            return None
+
+        return hashlib.sha256(image_bytes).hexdigest()
+    except Exception as e:
+        log(f"Error hashing image content: {e}")
+        return None
 
 
 # logging.basicConfig(filename=GLOBAL_LOG_PATH, level=logging.INFO,
@@ -120,7 +150,6 @@ async def dataset_info(dataset_id: str):
             features = dataset[split].features
 
             is_image_dataset = any(isinstance(f, Image) for f in features.values())
-
             if is_image_dataset:
                 dataset = load_dataset("imagefolder", data_dir=dataset_dir)
                 splits = list(dataset.keys())
@@ -344,7 +373,6 @@ async def save_metadata(dataset_id: str, file: UploadFile):
     try:
         # Get and resolve the dataset directory
         dataset_dir = Path(dirs.dataset_dir_by_id(slugify(dataset_id))).resolve()
-
         # Read uploaded file content
         content = await file.read()
         edits = json.loads(content)
@@ -382,16 +410,32 @@ async def save_metadata(dataset_id: str, file: UploadFile):
                 for row in data:
                     # Find the caption field dynamically
                     row_caption = next((row.get(field) for field in possible_caption_fields if field in row), None)
+
+                    # Hash edit image
                     if row_caption == edit.get("previous_caption") and row.get("label") == edit.get("label"):
-                        print("Going to EDIT")
-                        # Update the caption field
-                        for field in possible_caption_fields:
-                            if field in row:
-                                row[field] = edit.get("text")
-                                break
-                        edits_applied += 1
-                        updated = True
-                        break
+                        # Get the image path from the first element of row
+                        image_key = next(iter(row))
+                        image_path = row[image_key]
+                        image_full_path = metadata_path.parent / image_path
+
+                        # Hash row image content
+                        row_image_hash = hash_image_content(str(image_full_path), is_path=True)
+
+                        # Hash edit image content from base64
+                        try:
+                            edit_image_hash = hash_image_content(edit.get("image"))
+                        except Exception as e:
+                            log(f"Error decoding base64 image: {e}")
+                            edit_image_hash = None
+
+                        if row_image_hash == edit_image_hash:
+                            for field in possible_caption_fields:
+                                if field in row:
+                                    row[field] = edit.get("text")
+                                    break
+                            edits_applied += 1
+                            updated = True
+                            break
 
             if updated:
                 with open(metadata_path, "w", encoding="utf-8") as f_out:
@@ -603,11 +647,13 @@ async def duplicate_dataset(dataset_id: str, new_dataset_id: str):
     # Check if the original dataset exists
     d = await db.get_dataset(dataset_id_slug)
     if d is None:
+        print("DB NOT FOUND")
         return {"status": "error", "message": f"Dataset {dataset_id} not found."}
 
     # Check if the target dataset name already exists
     existing = await db.get_dataset(new_dataset_id_slug)
     if existing is not None:
+        print("DB EXISTS")
         return {"status": "error", "message": f"Dataset {new_dataset_id} already exists."}
 
     # Create a new dataset entry
@@ -619,17 +665,20 @@ async def duplicate_dataset(dataset_id: str, new_dataset_id: str):
 
     try:
         if not os.path.exists(src_dir):
+            print("Source dataset directory not found.")
             return {"status": "error", "message": "Source dataset directory not found."}
 
         if os.path.exists(dest_dir):
+            print("Target dataset directory already exists.")
             return {"status": "error", "message": "Target dataset directory already exists."}
 
         # Copy the directory contents
         shutil.copytree(src_dir, dest_dir)
-
+        print(f"Dataset duplicated from {dataset_id} to {new_dataset_id}.")
         return {"status": "success", "message": f"Dataset duplicated from {dataset_id} to {new_dataset_id}."}
 
     except Exception as e:
+        print(f"Exception occurred: {type(e).__name__}: {e}")
         log(f"Exception occurred: {type(e).__name__}: {e}")
         return {"status": "error", "message": "An error occurred"}
 
