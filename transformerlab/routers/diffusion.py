@@ -25,7 +25,7 @@ from transformerlab.shared.shared import slugify
 
 router = APIRouter(prefix="/diffusion", tags=["diffusion"])
 
-ALLOWED_STABLE_DIFFUSION_ARCHITECTURES = [
+ALLOWED_TEXT2IMG_ARCHITECTURES = [
     "StableDiffusionPipeline",
     "StableDiffusion3Pipeline",
     "StableDiffusionXLPipeline",
@@ -449,7 +449,7 @@ async def is_stable_diffusion_model(request: DiffusionRequest):
             architectures = [architectures]
 
         # Check architectures
-        if any(a in ALLOWED_STABLE_DIFFUSION_ARCHITECTURES for a in architectures):
+        if any(a in ALLOWED_TEXT2IMG_ARCHITECTURES for a in architectures):
             return {"is_stable_diffusion": True, "reason": "Architecture matches allowed SD"}
         
         return {"is_stable_diffusion": False, "reason": "No SD indicators found"}
