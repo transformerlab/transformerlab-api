@@ -732,9 +732,6 @@ class TestWorkflowUpdateTriggerConfigsMissingTypes:
         """Test scenario where count is correct (6) but some required types are missing."""
         workflow_id = await workflow_create("test_workflow", "{}", test_experiment)
         
-        # Use a mock to bypass the individual validation checks and reach the missing types check
-        import unittest.mock
-        
         # Create a scenario where we have 6 valid configs but missing some required types
         # by duplicating some types
         new_configs = [
@@ -764,3 +761,129 @@ class TestExperimentDirectorySuccess:
         assert result is not None
         assert isinstance(result, str)
         assert "error" not in result.lower()  # Should not be error path 
+
+
+class TestJobCompletionTriggerProcessingExceptions:
+    """Test exception handling in job completion trigger processing."""
+
+    @pytest.mark.asyncio
+    async def test_job_update_status_trigger_processing_exception(self, test_experiment, clean_workflows):
+        """Test exception handling in job_update_status when trigger processing fails (lines 493-496)."""
+        import unittest.mock
+        
+        # Mock the trigger processing to raise an exception
+        with unittest.mock.patch('transformerlab.jobs_trigger_processing.process_job_completion_triggers') as mock_process, \
+             unittest.mock.patch('builtins.print') as mock_print, \
+             unittest.mock.patch('traceback.print_exc') as mock_traceback:
+            
+            mock_process.side_effect = RuntimeError("Trigger processing failed")
+            
+            from transformerlab.db import job_create, job_update_status
+            
+            # Create a job
+            job_id = await job_create("TRAIN", "RUNNING", "{}", test_experiment)
+            
+            # Update status to COMPLETE, which should trigger processing and fail
+            await job_update_status(job_id, "COMPLETE")
+            
+            # Verify exception handling (lines 493-496)
+            print_calls = [call[0][0] for call in mock_print.call_args_list]
+            assert any("💥 Error processing triggers" in call for call in print_calls)
+            mock_traceback.assert_called()
+
+
+class TestSyncJobCompletionTriggerProcessing:
+    """Test sync job completion trigger processing paths."""
+
+    def test_job_mark_as_complete_sync_no_event_loop(self):
+        """Test job_mark_as_complete_if_running when no event loop is running (lines 580, 582-587)."""
+        import unittest.mock
+        import asyncio
+        
+        # Mock database operations
+        with unittest.mock.patch('transformerlab.db.get_sync_db_connection') as mock_get_conn, \
+             unittest.mock.patch('asyncio.get_running_loop') as mock_get_loop, \
+             unittest.mock.patch('asyncio.run') as mock_async_run, \
+             unittest.mock.patch('builtins.print') as mock_print:
+            
+            # Setup database mocks
+            mock_conn = unittest.mock.MagicMock()
+            mock_cursor = unittest.mock.MagicMock()
+            mock_conn.cursor.return_value = mock_cursor
+            mock_get_conn.return_value = mock_conn
+            
+            # Mock no running event loop (triggers RuntimeError on line 580)
+            mock_get_loop.side_effect = RuntimeError("No event loop running")
+            
+            from transformerlab.db import job_mark_as_complete_if_running
+            
+            # Call the function
+            job_mark_as_complete_if_running(123)
+            
+            # Verify the sync path was taken (lines 582-587)
+            mock_async_run.assert_called_once()
+            print_calls = [call[0][0] for call in mock_print.call_args_list]
+            assert any("✅ Trigger processing completed" in call for call in print_calls)
+
+    def test_job_mark_as_complete_sync_trigger_processing_exception(self):
+        """Test exception handling in sync job completion (lines 584-587)."""
+        import unittest.mock
+        
+        # Mock database operations and trigger processing failure
+        with unittest.mock.patch('transformerlab.db.get_sync_db_connection') as mock_get_conn, \
+             unittest.mock.patch('asyncio.get_running_loop') as mock_get_loop, \
+             unittest.mock.patch('asyncio.run') as mock_async_run, \
+             unittest.mock.patch('builtins.print') as mock_print, \
+             unittest.mock.patch('traceback.print_exc') as mock_traceback:
+            
+            # Setup database mocks
+            mock_conn = unittest.mock.MagicMock()
+            mock_cursor = unittest.mock.MagicMock()
+            mock_conn.cursor.return_value = mock_cursor
+            mock_get_conn.return_value = mock_conn
+            
+            # Mock no running event loop and asyncio.run failure
+            mock_get_loop.side_effect = RuntimeError("No event loop running")
+            mock_async_run.side_effect = Exception("Async trigger processing failed")
+            
+            from transformerlab.db import job_mark_as_complete_if_running
+            
+            # Call the function
+            job_mark_as_complete_if_running(123)
+            
+            # Verify exception handling (lines 584-587)
+            print_calls = [call[0][0] for call in mock_print.call_args_list]
+            assert any("💥 Error processing triggers" in call for call in print_calls)
+            mock_traceback.assert_called()
+
+
+class TestWorkflowGetByJobEventSpecificLine1381:
+    """Test to cover line 1381 in workflow_get_by_job_event."""
+
+    @pytest.mark.asyncio
+    async def test_workflow_get_by_job_event_line_1381_coverage(self, test_experiment, clean_workflows):
+        """Test workflow_get_by_job_event to specifically trigger line 1381."""
+        from transformerlab.db import workflow_create, workflow_get_by_job_event
+        import transformerlab.db as db
+        
+        # Create workflow
+        workflow_id = await workflow_create("test_workflow", "{}", test_experiment)
+        
+        # Enable TRAIN trigger 
+        new_configs = []
+        for bp in db.PREDEFINED_TRIGGER_BLUEPRINTS:
+            new_configs.append({
+                "trigger_type": bp["trigger_type"],
+                "is_enabled": bp["trigger_type"] == "TRAIN"
+            })
+        await db.workflow_update_trigger_configs(workflow_id, new_configs)
+        
+        # This should execute the normal path and reach line 1381
+        # where trigger_configs = trigger_configs_raw (when it's already parsed)
+        result = await workflow_get_by_job_event("TRAIN", test_experiment)
+        
+        # Should find the workflow since TRAIN is enabled
+        assert len(result) == 1
+        assert result[0]["id"] == workflow_id
+
+# ... existing code ... 
