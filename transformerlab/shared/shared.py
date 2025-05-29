@@ -866,4 +866,3 @@ def print_in_rainbow(text):
             print(chunk, end="")
             print(reset, end="")
         print("", flush=True)
-        

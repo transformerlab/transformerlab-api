@@ -59,6 +59,7 @@ from transformerlab.shared import dirs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
 
+
 # The following environment variable can be used by other scripts
 # who need to connect to the root DB, for example
 os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
@@ -106,9 +107,6 @@ async def run_over_and_over():
         await asyncio.sleep(3)
         await jobs.start_next_job()
         await workflows.start_next_step_in_workflow()
-        # Note: Trigger processing is now event-based (triggered when jobs complete)
-        # rather than polling-based. See job_update_status() in db.py and 
-        # process_job_completion_triggers() in jobs_trigger_processing.py
 
 
 description = "Transformerlab API helps you do awesome stuff. 🚀"

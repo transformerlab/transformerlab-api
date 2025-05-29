@@ -72,10 +72,12 @@ async def workflow_delete(workflow_id: str):
     await db.workflow_delete_by_id(workflow_id)
     return {"message": "OK"}
 
+
 @router.get("/delete_all", summary="wipe all workflows")
 async def workflow_delete_all():
     await db.workflow_delete_all()
     return {"message": "OK"}
+
 
 @router.get("/create", summary="Create a workflow from config")
 async def workflow_create(name: str, config: str = '{"nodes":[]}', experiment_id="1"):
@@ -86,6 +88,7 @@ async def workflow_create(name: str, config: str = '{"nodes":[]}', experiment_id
         config["nodes"] = [{"type":"START", "id":str(uuid.uuid4()), "name":"START", "out":[]}]
     workflow_id = await db.workflow_create(name, json.dumps(config), experiment_id)
     return workflow_id
+
 
 @router.get("/create_empty", summary="Create an empty workflow")
 async def workflow_create_empty(name: str, experiment_id="1"):
