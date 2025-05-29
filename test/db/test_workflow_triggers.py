@@ -885,4 +885,45 @@ class TestWorkflowGetByJobEventSpecificLine1381:
         assert len(result) == 1
         assert result[0]["id"] == workflow_id
 
+    @pytest.mark.asyncio
+    async def test_workflow_get_by_job_event_with_non_string_trigger_configs_line_1381(self, test_experiment, clean_workflows):
+        """Test workflow_get_by_job_event when trigger_configs_raw is not a string to cover line 1381."""
+        import unittest.mock
+        from transformerlab.db import workflow_get_by_job_event
+        import transformerlab.db as db
+        
+        # Create mock data that simulates the database returning non-string trigger_configs
+        mock_workflow_data = [{
+            "id": 123,
+            "name": "test_workflow", 
+            "experiment_id": test_experiment,
+            "trigger_configs": [  # This is already parsed as a list, not a string
+                {
+                    "trigger_type": "TRAIN",
+                    "is_enabled": True
+                }
+            ]
+        }]
+        
+        # Mock the database query to return our test data
+        async def mock_execute(query):
+            mock_cursor = unittest.mock.MagicMock()
+            mock_cursor.fetchall = unittest.mock.AsyncMock(return_value=[
+                (123, "test_workflow", mock_workflow_data[0]["trigger_configs"], test_experiment)
+            ])
+            mock_cursor.description = [
+                ("id", None), ("name", None), ("trigger_configs", None), ("experiment_id", None)
+            ]
+            mock_cursor.close = unittest.mock.AsyncMock()
+            return mock_cursor
+        
+        with unittest.mock.patch.object(db.db, 'execute', side_effect=mock_execute):
+            # Call the function - this should hit line 1381
+            result = await workflow_get_by_job_event("TRAIN", test_experiment)
+            
+            # Verify results
+            assert len(result) == 1
+            assert result[0]["id"] == 123
+            assert result[0]["name"] == "test_workflow"
+
 # ... existing code ... 
