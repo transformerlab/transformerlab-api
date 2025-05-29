@@ -1,12 +1,17 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from huggingface_hub import model_info, list_repo_files
+from huggingface_hub import model_info
 import base64
 from fastapi.responses import FileResponse, JSONResponse
 from io import BytesIO
 import torch
 import asyncio
-from diffusers import StableDiffusionUpscalePipeline, StableDiffusionLatentUpscalePipeline, AutoPipelineForText2Image, AutoPipelineForImage2Image
+from diffusers import (
+    StableDiffusionUpscalePipeline,
+    StableDiffusionLatentUpscalePipeline,
+    AutoPipelineForText2Image,
+    AutoPipelineForImage2Image,
+)
 import threading
 import os
 import random
@@ -76,7 +81,7 @@ ALLOWED_TEXT2IMG_ARCHITECTURES = [
     "LatentConsistencyModelImg2ImgPipeline",
     "FluxImg2ImgPipeline",
     "FluxControlNetImg2ImgPipeline",
-    "FluxControlImg2ImgPipeline"
+    "FluxControlImg2ImgPipeline",
 ]
 
 # Fixed upscaling models
@@ -345,10 +350,10 @@ def upscale_image(image: Image.Image, prompt: str, upscale_factor: int = 4, devi
 async def generate_image(request: DiffusionRequest):
     try:
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        
+
         # Determine if this is img2img based on is_img2img flag or input_image presence
         is_img2img = request.is_img2img or bool(request.input_image.strip())
-        
+
         # Process input image if provided
         input_image_obj = None
         input_image_path = ""
@@ -358,7 +363,6 @@ async def generate_image(request: DiffusionRequest):
                 image_data = base64.b64decode(request.input_image)
                 input_image_obj = Image.open(BytesIO(image_data)).convert("RGB")
 
-                
                 # Save input image for history
                 ensure_directories()
                 input_image_filename = f"input_{str(uuid.uuid4())}.png"
@@ -367,7 +371,7 @@ async def generate_image(request: DiffusionRequest):
                 print(f"Input image saved: {input_image_path}")
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Invalid input image: {str(e)}")
-        
+
         pipe = get_pipeline(request.model, request.adaptor, device=device, is_img2img=is_img2img)
 
         # Set seed - use provided seed or generate a random one
@@ -377,8 +381,6 @@ async def generate_image(request: DiffusionRequest):
             seed = request.seed
 
         generator = torch.manual_seed(seed)
-        # Start timing
-        start_time = time.time()
 
         # Run in thread to avoid blocking event loop
         def run_pipe():
@@ -419,7 +421,6 @@ async def generate_image(request: DiffusionRequest):
             result = pipe(**generation_kwargs)
             return result.images[0]
 
-
         # Time the main generation
         generation_start = time.time()
         print("Starting image generation...")
@@ -437,7 +438,9 @@ async def generate_image(request: DiffusionRequest):
             image = await asyncio.get_event_loop().run_in_executor(None, run_upscale)
             upscale_time = time.time() - upscale_start
             total_generation_time = generation_time + upscale_time
-            print(f"Generation took {generation_time:.2f}s, upscaling took {upscale_time:.2f}s, total: {total_generation_time:.2f}s")
+            print(
+                f"Generation took {generation_time:.2f}s, upscaling took {upscale_time:.2f}s, total: {total_generation_time:.2f}s"
+            )
         else:
             total_generation_time = generation_time
             print(f"Generation took {generation_time:.2f}s")
@@ -510,7 +513,6 @@ async def is_stable_diffusion_model(request: DiffusionRequest):
     model_id = request.model
     try:
         info = model_info(model_id)
-        tags = getattr(info, "tags", [])
         config = getattr(info, "config", {})
         diffusers_config = config.get("diffusers", {})
         architectures = diffusers_config.get("_class_name", "")
@@ -520,7 +522,7 @@ async def is_stable_diffusion_model(request: DiffusionRequest):
         # Check architectures
         if any(a in ALLOWED_TEXT2IMG_ARCHITECTURES for a in architectures):
             return {"is_stable_diffusion": True, "reason": "Architecture matches allowed SD"}
-        
+
         return {"is_stable_diffusion": False, "reason": "No SD indicators found"}
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Model not found or error: {str(e)}")
@@ -565,7 +567,7 @@ async def get_image_by_id(image_id: str, input_image: bool = False):
         # Return the input image if requested and available
         if not image_item.input_image_path or not image_item.input_image_path.strip():
             raise HTTPException(status_code=404, detail=f"No input image found for image ID {image_id}")
-        
+
         image_path = image_item.input_image_path
         if not os.path.exists(image_path):
             raise HTTPException(status_code=404, detail=f"Input image file not found at {image_path}")
