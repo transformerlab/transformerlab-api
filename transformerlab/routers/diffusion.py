@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from io import BytesIO
 import torch
 import asyncio
-from diffusers import StableDiffusionPipeline, StableDiffusionUpscalePipeline, StableDiffusionLatentUpscalePipeline
+from diffusers import StableDiffusionPipeline, StableDiffusionUpscalePipeline, StableDiffusionLatentUpscalePipeline, AutoPipelineForText2Image
 import threading
 import os
 import random
@@ -27,8 +27,38 @@ router = APIRouter(prefix="/diffusion", tags=["diffusion"])
 
 ALLOWED_STABLE_DIFFUSION_ARCHITECTURES = [
     "StableDiffusionPipeline",
-    "StableDiffusionImg2ImgPipeline",
-    "StableDiffusionInpaintPipeline",
+    "StableDiffusion3Pipeline",
+    "StableDiffusionXLPipeline",
+    "StableDiffusion3PAGPipeline",
+    "StableDiffusionControlNetPAGPipeline",
+    "StableDiffusionXLPAGPipeline",
+    "StableDiffusionXLControlNetPAGPipeline",
+    "FluxPipeline",
+    "FluxControlPipeline",
+    "FluxControlNetPipeline",
+    "LuminaPipeline",
+    "Lumina2Pipeline",
+    "CogView3PlusPipeline",
+    "CogView4Pipeline",
+    "CogView4ControlPipeline",
+    "IFPipeline",
+    "HunyuanDiTPipeline",
+    "HunyuanDiTPAGPipeline",
+    "KandinskyCombinedPipeline",
+    "KandinskyV22CombinedPipeline",
+    "Kandinsky3Pipeline",
+    "StableDiffusionControlNetPipeline",
+    "StableDiffusionXLControlNetPipeline",
+    "StableDiffusionXLControlNetUnionPipeline",
+    "StableDiffusion3ControlNetPipeline",
+    "WuerstchenCombinedPipeline",
+    "StableCascadeCombinedPipeline",
+    "LatentConsistencyModelPipeline",
+    "PixArtAlphaPipeline",
+    "PixArtSigmaPipeline",
+    "SanaPipeline",
+    "PixArtSigmaPAGPipeline",
+    "AuraFlowPipeline",
 ]
 
 # Fixed upscaling models
@@ -187,7 +217,7 @@ def get_pipeline(model: str, adaptor: str = "", device: str = "cuda"):
             return _PIPELINES[cache_key]
 
         # Load base pipeline
-        pipe = StableDiffusionPipeline.from_pretrained(
+        pipe = AutoPipelineForText2Image.from_pretrained(
             model,
             torch_dtype=torch.float16 if device == "cuda" else torch.float32,
             safety_checker=None,
