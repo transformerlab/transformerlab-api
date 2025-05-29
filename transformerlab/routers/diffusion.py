@@ -11,8 +11,7 @@ from diffusers import (
     StableDiffusionLatentUpscalePipeline,
     AutoPipelineForText2Image,
     AutoPipelineForImage2Image,
-    StableDiffusionXLPipeline
-
+    StableDiffusionXLPipeline,
 )
 import threading
 import os
@@ -168,15 +167,16 @@ def cleanup_pipeline(pipe=None):
     try:
         if pipe is not None:
             del pipe
-            
+
         # Force garbage collection and clear CUDA cache
         import gc
+
         gc.collect()
-        
+
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
-        
+
     except Exception as e:
         print(f"Warning: Failed to cleanup pipeline: {str(e)}")
 
@@ -263,7 +263,7 @@ def get_pipeline_key(model: str, adaptor: str = "", is_img2img: bool = False) ->
 
 
 def get_pipeline(model: str, adaptor: str = "", device: str = "cuda", is_img2img: bool = False):
-    cache_key = get_pipeline_key(model, adaptor, is_img2img)
+    # cache_key = get_pipeline_key(model, adaptor, is_img2img)
 
     with _PIPELINES_LOCK:
         # if cache_key in _PIPELINES:
@@ -297,13 +297,9 @@ def get_pipeline(model: str, adaptor: str = "", device: str = "cuda", is_img2img
                     if not isinstance(pipe, StableDiffusionXLPipeline):
                         pipe.load_lora_weights(adaptor_path)
                     else:
-                    # Only for SDXL Pipelines because they use a different kind of UNet
+                        # Only for SDXL Pipelines because they use a different kind of UNet
                         state_dict, network_alphas = pipe.lora_state_dict(adaptor_path, prefix=None)
-                        pipe.load_lora_into_unet(
-                            state_dict, 
-                            network_alphas = network_alphas, 
-                            unet = pipe.unet
-                        )
+                        pipe.load_lora_into_unet(state_dict, network_alphas=network_alphas, unet=pipe.unet)
                     print(f"Loaded LoRA adaptor: {adaptor}")
                 else:
                     print(f"Error: Adaptor file not found at {adaptor_path}")
