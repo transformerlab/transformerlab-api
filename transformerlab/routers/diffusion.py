@@ -14,6 +14,7 @@ from werkzeug.utils import secure_filename
 import json
 import uuid
 from datetime import datetime
+import time
 from typing import List
 from PIL import Image
 import shutil
@@ -76,6 +77,7 @@ class ImageHistoryItem(BaseModel):
     guidance_rescale: float = 0.0
     height: int = 0
     width: int = 0
+    generation_time: float = 0.0  # Time taken for generation in seconds
 
 
 class HistoryResponse(BaseModel):
@@ -286,6 +288,9 @@ async def generate_image(request: DiffusionRequest):
 
     generator = torch.manual_seed(seed)
 
+    # Start timing
+    start_time = time.time()
+
     # Run in thread to avoid blocking event loop
     def run_pipe():
         generation_kwargs = {
@@ -321,7 +326,10 @@ async def generate_image(request: DiffusionRequest):
         return result.images[0]
 
     try:
+        # Time the main generation
+        generation_start = time.time()
         image = await asyncio.get_event_loop().run_in_executor(None, run_pipe)
+        generation_time = time.time() - generation_start
 
         # Apply upscaling if requested
         if request.upscale:
@@ -330,7 +338,14 @@ async def generate_image(request: DiffusionRequest):
             def run_upscale():
                 return upscale_image(image, request.prompt, request.upscale_factor, device)
 
+            upscale_start = time.time()
             image = await asyncio.get_event_loop().run_in_executor(None, run_upscale)
+            upscale_time = time.time() - upscale_start
+            total_generation_time = generation_time + upscale_time
+            print(f"Generation took {generation_time:.2f}s, upscaling took {upscale_time:.2f}s, total: {total_generation_time:.2f}s")
+        else:
+            total_generation_time = generation_time
+            print(f"Generation took {generation_time:.2f}s")
 
         # Generate unique ID and timestamp
         generation_id = str(uuid.uuid4())
@@ -362,6 +377,7 @@ async def generate_image(request: DiffusionRequest):
             guidance_rescale=request.guidance_rescale,
             height=request.height if request.height > 0 else image.height,
             width=request.width if request.width > 0 else image.width,
+            generation_time=total_generation_time,
         )
         save_to_history(history_item)
 
@@ -379,6 +395,7 @@ async def generate_image(request: DiffusionRequest):
                 "image_base64": img_str,
                 "image_path": image_path,
                 "timestamp": timestamp,
+                "generation_time": total_generation_time,
                 "error_code": 0,
             }
         )
