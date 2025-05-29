@@ -4,8 +4,13 @@
   "description": "A GPRO trainer based using a Multi GPU setup trained using TRL and Accelerate",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.0.5",
-  "model_architectures": ["LlamaForCausalLM", "Qwen2ForCausalLM", "Qwen3ForCausalLM", "Qwen3MoeForCausalLM"],
+  "version": "0.0.7",
+  "model_architectures": [
+    "LlamaForCausalLM",
+    "Qwen2ForCausalLM",
+    "Qwen3ForCausalLM",
+    "Qwen3MoeForCausalLM"
+  ],
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
@@ -49,22 +54,19 @@
       "title": "Maximum Sequence Length",
       "type": "integer",
       "default": 1024,
-      "minimum": 1,
-      "maximum": 4096
+      "minimum": 1
     },
     "maximum_completion_length": {
       "title": "Maximum Completion Length",
       "type": "integer",
       "default": 512,
-      "minimum": 1,
-      "maximum": 4096
+      "minimum": 1
     },
     "batch_size": {
       "title": "Batch Size",
       "type": "integer",
       "default": 4,
-      "minimum": 1,
-      "maximum": 64
+      "minimum": 1
     },
     "learning_rate_schedule": {
       "title": "Learning Rate Schedule",
@@ -76,15 +78,13 @@
       "title": "Learning Rate",
       "type": "number",
       "default": 5e-5,
-      "minimum": 1e-6,
-      "maximum": 1e6
+      "minimum": 1e-6
     },
     "num_train_epochs": {
       "title": "Number of Training Epochs",
       "type": "integer",
       "default": 1,
-      "minimum": 1,
-      "maximum": 24
+      "minimum": 1
     },
     "max_steps": {
       "title": "Max Steps (-1 means no limit)",

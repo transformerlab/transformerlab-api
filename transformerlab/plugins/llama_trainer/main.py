@@ -195,6 +195,11 @@ def train_model():
             packing=True,
             run_name=f"job_{tlab_trainer.params.job_id}_{run_suffix}",
             report_to=tlab_trainer.report_to,
+            do_eval=True,
+            load_best_model_at_end=True,
+            metric_for_best_model="loss",
+            greater_is_better=False,
+            eval_strategy="epoch"
         )
     else:
         # Setup training configuration
@@ -216,6 +221,11 @@ def train_model():
             packing=True,
             run_name=f"job_{tlab_trainer.params.job_id}_{run_suffix}",
             report_to=tlab_trainer.report_to,
+            eval_strategy="epoch",
+            do_eval=True,
+            load_best_model_at_end=True,
+            metric_for_best_model="loss",
+            greater_is_better=False,
         )
 
     # Create progress callback

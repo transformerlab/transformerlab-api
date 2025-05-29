@@ -4,7 +4,7 @@
   "description": "Use a local or commercial LLM to generated outputs for the dataset generated.",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
@@ -56,7 +56,6 @@
       "type": "integer",
       "default": 1024,
       "minimum": 1,
-      "maximum": 2048,
       "multipleOf": 1
     },
     "dataset_split": {
