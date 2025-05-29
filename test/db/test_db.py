@@ -379,7 +379,6 @@ class TestModels:
             job_id = await job_create("TRAIN", "QUEUED")
             await job_delete(job_id)
             job = await job_get(job_id)
-            print(job)
             assert job["status"] == "DELETED"
 
         @pytest.mark.asyncio

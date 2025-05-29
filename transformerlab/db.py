@@ -4,19 +4,20 @@ import os
 import sqlite3
 
 import aiosqlite
-from sqlalchemy import select
+from sqlalchemy import select, update, text
 from sqlalchemy.dialects.sqlite import insert  # Correct import for SQLite upsert
 
 # from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
+
 # Make sure SQLAlchemy is installed using pip install sqlalchemy[asyncio] as
 # described here https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html
 
 from transformerlab.shared import dirs
 from transformerlab.shared.models import models  # noqa: F401
-from transformerlab.shared.models.models import Config
+from transformerlab.shared.models.models import Config, Plugin
 
 db = None
 DATABASE_FILE_NAME = f"{dirs.WORKSPACE_DIR}/llmlab.sqlite3"
@@ -805,21 +806,20 @@ async def export_job_create(experiment_id, job_data_json):
 
 
 async def experiment_get_all():
-    cursor = await db.execute("SELECT * FROM experiment order by created_at desc")
-    rows = await cursor.fetchall()
-    # Do the following to convert the return into a JSON object with keys
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    await cursor.close()
-    return data
+    async with async_session() as session:
+        result = await session.execute(select(models.Experiment).order_by(models.Experiment.created_at.desc()))
+        experiments = result.scalars().all()
+        # Convert ORM objects to dicts
+        return [e.__dict__ for e in experiments]
 
 
 async def experiment_create(name, config):
-    # use python insert and commit command
-    row = await db.execute_insert("INSERT INTO experiment(name, config) VALUES (?, ?)", (name, config))
-    await db.commit()
-    return row[0]
+    async with async_session() as session:
+        experiment = models.Experiment(name=name, config=config)
+        session.add(experiment)
+        await session.commit()
+        await session.refresh(experiment)
+        return experiment.id
 
 
 async def experiment_get(id):
@@ -841,19 +841,12 @@ async def experiment_get(id):
 
 
 async def experiment_get_by_name(name):
-    cursor = await db.execute("SELECT * FROM experiment WHERE name = ?", (name,))
-    row = await cursor.fetchone()
-
-    if row is None:
-        return None
-
-    # Convert the SQLite row into a JSON object with keys
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
-
-    await cursor.close()
-    return row
+    async with async_session() as session:
+        result = await session.execute(select(models.Experiment).where(models.Experiment.name == name))
+        experiment = result.scalar_one_or_none()
+        if experiment is None:
+            return None
+        return experiment.__dict__
 
 
 async def experiment_delete(id):
@@ -869,25 +862,24 @@ async def experiment_update(id, config):
 
 
 async def experiment_update_config(id, key, value):
-    value = json.dumps(value)
-
-    await db.execute(
-        "UPDATE experiment SET config = " + f"json_set(config,'$.{key}', json(?))  WHERE id = ?",
-        (value, id),
-    )
-    await db.commit()
+    value_json = json.dumps(value)
+    async with async_session() as session:
+        stmt = (
+            update(models.Experiment)
+            .where(models.Experiment.id == id)
+            .values(config=text(f"json_set(config, '$.{key}', json(:value))"))
+        )
+        await session.execute(stmt, {"value": value_json})
+        await session.commit()
     return
 
 
 async def experiment_save_prompt_template(id, template):
-    # The following looks the JSON blob called "config" and adds a key called "prompt_template" if it doesn't exist
-    # it then sets the value of that key to the value of the template parameter
-    # This is the pattern to follow for updating fields in the config JSON blob
-    await db.execute(
-        "UPDATE experiment SET config = json_set(config,'$.prompt_template', json(?))  WHERE id = ?",
-        (template, id),
-    )
-    await db.commit()
+    async with async_session() as session:
+        stmt = update(models.Experiment).where(models.Experiment.id == id)
+        stmt = stmt.values(config=text("json_set(config, '$.prompt_template', json(:template))"))
+        await session.execute(stmt, {"template": template})
+        await session.commit()
     return
 
 
@@ -1095,41 +1087,36 @@ async def workflow_queue(workflow_id):
 
 
 async def get_plugins():
-    cursor = await db.execute("SELECT id, * FROM plugins")
-    rows = await cursor.fetchall()
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    await cursor.close()
-    return data
+    async with async_session() as session:
+        result = await session.execute(select(Plugin))
+        plugins = result.scalars().all()
+        # Convert ORM objects to dicts
+        return [p.__dict__ for p in plugins]
 
 
 async def get_plugins_of_type(type: str):
-    cursor = await db.execute("SELECT id, * FROM plugins WHERE type = ?", (type,))
-    rows = await cursor.fetchall()
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    await cursor.close()
-    return data
+    async with async_session() as session:
+        result = await session.execute(select(Plugin).where(Plugin.type == type))
+        plugins = result.scalars().all()
+        return [p.__dict__ for p in plugins]
 
 
 async def get_plugin(slug: str):
-    cursor = await db.execute("SELECT id, * FROM plugins WHERE name = ?", (slug,))
-    row = await cursor.fetchone()
-    if row is None:
-        await cursor.close()
-        return None
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
-    await cursor.close()
-    return row
+    async with async_session() as session:
+        result = await session.execute(select(Plugin).where(Plugin.name == slug))
+        plugin = result.scalar_one_or_none()
+        return plugin.__dict__ if plugin else None
 
 
 async def save_plugin(name: str, type: str):
-    await db.execute("INSERT OR REPLACE INTO plugins (name, type) VALUES (?, ?)", (name, type))
-    await db.commit()
+    async with async_session() as session:
+        plugin = await session.get(Plugin, name)
+        if plugin:
+            plugin.type = type
+        else:
+            plugin = Plugin(name=name, type=type)
+            session.add(plugin)
+        await session.commit()
     return
 
 
