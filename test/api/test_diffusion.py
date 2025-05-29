@@ -49,77 +49,117 @@ def test_diffusion_generate_missing_fields(missing_field):
         assert resp.status_code in (400, 422)
 
 
-def test_is_stable_diffusion_true_tag():
-    with (
-        patch("transformerlab.routers.diffusion.model_info") as mock_model_info,
-        patch("transformerlab.routers.diffusion.list_repo_files") as mock_list_repo_files,
-    ):
+def test_is_stable_diffusion_true_stable_diffusion_pipeline():
+    """Test that StableDiffusionPipeline is correctly identified as SD model"""
+    with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
         mock_info = MagicMock()
-        mock_info.tags = ["stable-diffusion"]
-        mock_info.architectures = []
+        mock_info.config = {"diffusers": {"_class_name": "StableDiffusionPipeline"}}
         mock_model_info.return_value = mock_info
-        mock_list_repo_files.return_value = []
         payload = {"model": "fake-model"}
         with TestClient(app) as client:
             resp = client.post("/diffusion/is_stable_diffusion", json=payload)
             assert resp.status_code == 200
             data = resp.json()
             assert data["is_stable_diffusion"] is True
-            assert "SD tag" in data["reason"]
+            assert "Architecture matches allowed SD" in data["reason"]
 
 
-def test_is_stable_diffusion_true_architecture():
-    with (
-        patch("transformerlab.routers.diffusion.model_info") as mock_model_info,
-        patch("transformerlab.routers.diffusion.list_repo_files") as mock_list_repo_files,
-    ):
+def test_is_stable_diffusion_true_stable_diffusion_xl():
+    """Test that StableDiffusionXLPipeline is correctly identified as SD model"""
+    with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
         mock_info = MagicMock()
-        mock_info.tags = []
-        mock_info.architectures = ["StableDiffusionPipeline"]
+        mock_info.config = {"diffusers": {"_class_name": "StableDiffusionXLPipeline"}}
         mock_model_info.return_value = mock_info
-        mock_list_repo_files.return_value = []
         payload = {"model": "fake-model"}
         with TestClient(app) as client:
             resp = client.post("/diffusion/is_stable_diffusion", json=payload)
             assert resp.status_code == 200
             data = resp.json()
             assert data["is_stable_diffusion"] is True
-            assert "Architecture" in data["reason"]
+            assert "Architecture matches allowed SD" in data["reason"]
 
 
-def test_is_stable_diffusion_true_model_index():
-    with (
-        patch("transformerlab.routers.diffusion.model_info") as mock_model_info,
-        patch("transformerlab.routers.diffusion.list_repo_files") as mock_list_repo_files,
-    ):
+def test_is_stable_diffusion_true_flux_pipeline():
+    """Test that FluxPipeline is correctly identified as SD model"""
+    with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
         mock_info = MagicMock()
-        mock_info.tags = []
-        mock_info.architectures = []
+        mock_info.config = {"diffusers": {"_class_name": "FluxPipeline"}}
         mock_model_info.return_value = mock_info
-        mock_list_repo_files.return_value = ["foo/model_index.json"]
         payload = {"model": "fake-model"}
         with TestClient(app) as client:
             resp = client.post("/diffusion/is_stable_diffusion", json=payload)
             assert resp.status_code == 200
             data = resp.json()
             assert data["is_stable_diffusion"] is True
-            assert "model_index.json" in data["reason"]
+            assert "Architecture matches allowed SD" in data["reason"]
 
 
-def test_is_stable_diffusion_false():
-    with (
-        patch("transformerlab.routers.diffusion.model_info") as mock_model_info,
-        patch("transformerlab.routers.diffusion.list_repo_files") as mock_list_repo_files,
-    ):
+def test_is_stable_diffusion_true_list_architecture():
+    """Test that a list of architectures containing SD pipeline is identified correctly"""
+    with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
         mock_info = MagicMock()
-        mock_info.tags = []
-        mock_info.architectures = []
+        mock_info.config = {"diffusers": {"_class_name": ["SomeOtherPipeline", "StableDiffusionPipeline"]}}
         mock_model_info.return_value = mock_info
-        mock_list_repo_files.return_value = ["foo/other_file.txt"]
+        payload = {"model": "fake-model"}
+        with TestClient(app) as client:
+            resp = client.post("/diffusion/is_stable_diffusion", json=payload)
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["is_stable_diffusion"] is True
+            assert "Architecture matches allowed SD" in data["reason"]
+
+
+def test_is_stable_diffusion_false_no_diffusers_config():
+    """Test that models without diffusers config are not identified as SD"""
+    with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
+        mock_info = MagicMock()
+        mock_info.config = {}
+        mock_model_info.return_value = mock_info
         payload = {"model": "fake-model"}
         with TestClient(app) as client:
             resp = client.post("/diffusion/is_stable_diffusion", json=payload)
             assert resp.status_code == 200
             data = resp.json()
             assert data["is_stable_diffusion"] is False
-            assert "No SD indicators" in data["reason"]
+            assert "No SD indicators found" in data["reason"]
+
+
+def test_is_stable_diffusion_false_unsupported_architecture():
+    """Test that unsupported architectures are not identified as SD"""
+    with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
+        mock_info = MagicMock()
+        mock_info.config = {"diffusers": {"_class_name": "SomeUnsupportedPipeline"}}
+        mock_model_info.return_value = mock_info
+        payload = {"model": "fake-model"}
+        with TestClient(app) as client:
+            resp = client.post("/diffusion/is_stable_diffusion", json=payload)
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["is_stable_diffusion"] is False
+            assert "No SD indicators found" in data["reason"]
+
+
+def test_is_stable_diffusion_model_not_found():
+    """Test that non-existent models return 404 error"""
+    with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
+        mock_model_info.side_effect = Exception("Model not found")
+        payload = {"model": "non-existent-model"}
+        with TestClient(app) as client:
+            resp = client.post("/diffusion/is_stable_diffusion", json=payload)
+            assert resp.status_code == 404
+            assert "Model not found or error" in resp.json()["detail"]
+
+
+def test_is_stable_diffusion_empty_class_name():
+    """Test handling of empty _class_name in diffusers config"""
+    with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
+        mock_info = MagicMock()
+        mock_info.config = {"diffusers": {"_class_name": ""}}
+        mock_model_info.return_value = mock_info
+        payload = {"model": "fake-model"}
+        with TestClient(app) as client:
+            resp = client.post("/diffusion/is_stable_diffusion", json=payload)
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["is_stable_diffusion"] is False
+            assert "No SD indicators found" in data["reason"]
