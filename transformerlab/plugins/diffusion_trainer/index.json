@@ -4,17 +4,15 @@
   "description": "A plugin for fine-tuning Stable Diffusion using LoRA adapters with Accelerate multi-GPU support.",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "supports": ["experimental"],
   "git": "",
   "url": "",
   "model_architectures": [
     "StableDiffusionPipeline",
-    "DiffusionPipeline",
     "StableDiffusionXLPipeline",
-    "StableDiffusionXL",
-    "StableDiffusionXLPipeline",
-    "StableDiffusion"
+    "StableDiffusion3Pipeline",
+    "FluxPipeline"
   ],
   "files": ["main.py", "setup.sh"],
   "supported_hardware_architectures": ["cuda"],
