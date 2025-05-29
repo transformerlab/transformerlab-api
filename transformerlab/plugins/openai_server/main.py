@@ -21,6 +21,7 @@ from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.responses import StreamingResponse, JSONResponse
 from transformers.tokenization_utils_base import BatchEncoding
 from fastchat.utils import build_logger
+from fastapi.middleware.cors import CORSMiddleware
 
 
 worker_id = str(uuid.uuid4())[:8]
@@ -43,6 +44,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 worker = None
 
 class OpenAITokenizer:
