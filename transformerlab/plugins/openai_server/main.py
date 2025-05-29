@@ -12,6 +12,8 @@ import json
 import uuid
 from contextlib import asynccontextmanager
 import uvicorn
+from typing import List
+
 
 import openai
 
@@ -82,7 +84,7 @@ class OpenAIServer(BaseModelWorker):
         worker_addr: str,
         worker_id: str,
         model_path: str,
-        model_names: str,
+        model_names: List[str],
         limit_worker_concurrency: int,
         conv_template: str,
     ):
@@ -95,8 +97,7 @@ class OpenAIServer(BaseModelWorker):
             limit_worker_concurrency,
             conv_template,
         )
-        print(model_names)
-        self.model_name = model_names
+        self.model_name = model_names[0]
 
         self.api_key = os.getenv("OPENAI_API_KEY")
         if not self.api_key:
@@ -109,7 +110,7 @@ class OpenAIServer(BaseModelWorker):
         #edit this at the end
         # HACK: We don't really have access to the tokenization in openai
         # But we need a tokenizer to work with fastchat
-        self.tokenizer = OpenAITokenizer(model=self.model_names)
+        self.tokenizer = OpenAITokenizer(model=self.model_name)
 
         self.init_heart_beat()
 
@@ -357,7 +358,7 @@ def main():
         args.worker_address,
         worker_id,
         args.model_path,
-        "gpt-3.5-turbo",
+        ["gpt-3.5-turbo"],
         1024,
         args.conv_template
     )
