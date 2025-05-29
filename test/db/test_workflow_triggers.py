@@ -798,7 +798,6 @@ class TestSyncJobCompletionTriggerProcessing:
     def test_job_mark_as_complete_sync_no_event_loop(self):
         """Test job_mark_as_complete_if_running when no event loop is running (lines 580, 582-587)."""
         import unittest.mock
-        import asyncio
         
         # Mock database operations
         with unittest.mock.patch('transformerlab.db.get_sync_db_connection') as mock_get_conn, \
