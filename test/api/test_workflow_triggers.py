@@ -304,4 +304,73 @@ class TestWorkflowGetByIdErrorHandling:
             assert response.status_code == 200
             data = response.json()
             assert "error" in data
-            assert "not found" in data["error"].lower() 
+            assert "not found" in data["error"].lower()
+
+    def test_workflow_get_by_id_success(self):
+        """Test successfully getting workflow by ID."""
+        with TestClient(app) as client:
+            # First create a workflow
+            create_response = client.get("/workflows/create?name=test_workflow&experiment_id=1")
+            assert create_response.status_code == 200
+            
+            # Get all workflows to find the created one
+            list_response = client.get("/workflows/list")
+            assert list_response.status_code == 200
+            workflows = list_response.json()
+            
+            if workflows:
+                workflow_id = workflows[0]["id"]
+                
+                # Get specific workflow by ID
+                response = client.get(f"/workflows/{workflow_id}")
+                
+                assert response.status_code == 200
+                data = response.json()
+                assert "id" in data
+                assert data["id"] == workflow_id
+                assert "error" not in data
+
+
+class TestWorkflowTriggerConfigsSuccessPath:
+    """Test successful trigger config updates."""
+
+    def test_update_trigger_configs_success(self):
+        """Test successful trigger config update."""
+        with TestClient(app) as client:
+            # First create a workflow
+            create_response = client.get("/workflows/create?name=test_success_workflow&experiment_id=1")
+            assert create_response.status_code == 200
+            
+            # Get all workflows to find the created one
+            list_response = client.get("/workflows/list")
+            assert list_response.status_code == 200
+            workflows = list_response.json()
+            
+            if workflows:
+                workflow_id = workflows[0]["id"]
+                
+                # Prepare valid update data
+                update_data = {
+                    "configs": []
+                }
+                for bp in PREDEFINED_TRIGGER_BLUEPRINTS:
+                    update_data["configs"].append({
+                        "trigger_type": bp["trigger_type"],
+                        "is_enabled": True
+                    })
+                
+                # Update trigger configs
+                response = client.put(
+                    f"/workflows/{workflow_id}/trigger_configs",
+                    json=update_data
+                )
+                
+                assert response.status_code == 200
+                data = response.json()
+                assert "id" in data
+                assert "trigger_configs" in data
+                assert len(data["trigger_configs"]) == len(PREDEFINED_TRIGGER_BLUEPRINTS)
+                
+                # Verify all triggers are enabled
+                for config in data["trigger_configs"]:
+                    assert config["is_enabled"] is True 

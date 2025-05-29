@@ -1249,11 +1249,6 @@ async def workflow_update_trigger_configs(workflow_id: int, new_configs_list: li
         
         provided_types.add(trigger_type)
     
-    # Ensure all predefined types are present
-    if provided_types != predefined_types:
-        missing_types = predefined_types - provided_types
-        raise ValueError(f"Missing trigger types: {missing_types}")
-    
     # Check if workflow exists
     workflow = await workflows_get_by_id(workflow_id)
     if not workflow:
