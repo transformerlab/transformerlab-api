@@ -507,6 +507,33 @@ def job_update_status_sync(job_id, status, error_msg=None):
 
         cursor.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
         db_sync.commit()
+        
+        # Process triggers if job is completed
+        if status == "COMPLETE":
+            print(f"🎯 Job {job_id} completed, attempting to process triggers")
+            try:
+                from transformerlab.jobs_trigger_processing import process_job_completion_triggers
+                
+                # Since this is a synchronous context, we need to run the async trigger processing
+                # using asyncio. We'll do this in a way that doesn't block if there's already an event loop.
+                
+                # Try to get the current event loop, if it exists
+                try:
+                    import asyncio
+                    loop = asyncio.get_running_loop()
+                    # If we're already in an async context, schedule the task
+                    loop.create_task(process_job_completion_triggers(job_id))
+                    print(f"✅ Scheduled trigger processing for job {job_id}")
+                except RuntimeError:
+                    # No running event loop, so we can run it directly
+                    import asyncio
+                    asyncio.run(process_job_completion_triggers(job_id))
+                    print(f"✅ Trigger processing completed for job {job_id}")
+            except Exception as e:
+                print(f"💥 Error processing triggers for job {job_id}: {str(e)}")
+                import traceback
+                traceback.print_exc()
+        
         return
     except Exception as e:
         print("Error updating job status: " + str(e))
