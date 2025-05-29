@@ -705,6 +705,162 @@ async def test_job_update_status_sync(setup_db):
 
 
 @pytest.mark.asyncio
+async def test_job_update_status_sync_trigger_processing_no_event_loop(setup_db, test_experiment, clean_workflows):
+    """Test trigger processing in job_update_status_sync when no event loop is running."""
+    import unittest.mock
+    
+    # Create a workflow with TRAIN trigger enabled
+    workflow_id = await db.workflow_create("test_workflow", "{}", test_experiment)
+    new_configs = []
+    for bp in db.PREDEFINED_TRIGGER_BLUEPRINTS:
+        new_configs.append({
+            "trigger_type": bp["trigger_type"],
+            "is_enabled": bp["trigger_type"] == "TRAIN"
+        })
+    await db.workflow_update_trigger_configs(workflow_id, new_configs)
+    
+    # Create a job
+    job_id = await db.job_create("TRAIN", "RUNNING", "{}", test_experiment)
+    
+    # Mock asyncio functions to simulate no running event loop
+    with unittest.mock.patch('asyncio.get_running_loop') as mock_get_loop, \
+         unittest.mock.patch('asyncio.run') as mock_async_run, \
+         unittest.mock.patch('builtins.print') as mock_print:
+        
+        # Mock no running event loop (triggers RuntimeError)
+        mock_get_loop.side_effect = RuntimeError("No event loop running")
+        
+        # Update status to COMPLETE to trigger processing
+        db.job_update_status_sync(job_id, "COMPLETE")
+        
+        # Verify the sync path was taken
+        mock_async_run.assert_called_once()
+        print_calls = [call[0][0] for call in mock_print.call_args_list]
+        assert any("🎯 Job" in call and "completed, attempting to process triggers" in call for call in print_calls)
+        assert any("✅ Trigger processing completed" in call for call in print_calls)
+
+
+@pytest.mark.asyncio 
+async def test_job_update_status_sync_trigger_processing_with_event_loop(setup_db, test_experiment, clean_workflows):
+    """Test trigger processing in job_update_status_sync when an event loop is running."""
+    import unittest.mock
+    
+    # Create a workflow with TRAIN trigger enabled
+    workflow_id = await db.workflow_create("test_workflow", "{}", test_experiment)
+    new_configs = []
+    for bp in db.PREDEFINED_TRIGGER_BLUEPRINTS:
+        new_configs.append({
+            "trigger_type": bp["trigger_type"],
+            "is_enabled": bp["trigger_type"] == "TRAIN"
+        })
+    await db.workflow_update_trigger_configs(workflow_id, new_configs)
+    
+    # Create a job
+    job_id = await db.job_create("TRAIN", "RUNNING", "{}", test_experiment)
+    
+    # Mock asyncio functions to simulate existing event loop
+    with unittest.mock.patch('asyncio.get_running_loop') as mock_get_loop, \
+         unittest.mock.patch('builtins.print') as mock_print:
+        
+        # Mock existing event loop
+        mock_loop = unittest.mock.MagicMock()
+        mock_get_loop.return_value = mock_loop
+        
+        # Update status to COMPLETE to trigger processing
+        db.job_update_status_sync(job_id, "COMPLETE")
+        
+        # Verify the async task scheduling path was taken
+        mock_loop.create_task.assert_called_once()
+        print_calls = [call[0][0] for call in mock_print.call_args_list]
+        assert any("🎯 Job" in call and "completed, attempting to process triggers" in call for call in print_calls)
+        assert any("✅ Scheduled trigger processing" in call for call in print_calls)
+
+
+@pytest.mark.asyncio
+async def test_job_update_status_sync_trigger_processing_error_handling(setup_db, test_experiment):
+    """Test error handling in trigger processing for job_update_status_sync."""
+    import unittest.mock
+    
+    # Create a job
+    job_id = await db.job_create("TRAIN", "RUNNING", "{}", test_experiment)
+    
+    # Mock trigger processing to raise an exception
+    with unittest.mock.patch('transformerlab.jobs_trigger_processing.process_job_completion_triggers'), \
+         unittest.mock.patch('asyncio.get_running_loop') as mock_get_loop, \
+         unittest.mock.patch('asyncio.run') as mock_async_run, \
+         unittest.mock.patch('builtins.print') as mock_print, \
+         unittest.mock.patch('traceback.print_exc') as mock_traceback:
+        
+        # Mock no running event loop and asyncio.run failure
+        mock_get_loop.side_effect = RuntimeError("No event loop running")
+        mock_async_run.side_effect = Exception("Trigger processing failed")
+        
+        # Update status to COMPLETE to trigger processing
+        db.job_update_status_sync(job_id, "COMPLETE")
+        
+        # Verify exception handling
+        print_calls = [call[0][0] for call in mock_print.call_args_list]
+        assert any("💥 Error processing triggers" in call for call in print_calls)
+        mock_traceback.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_job_update_status_sync_no_trigger_processing_for_non_complete(setup_db, test_experiment):
+    """Test that trigger processing is not called for non-COMPLETE status updates."""
+    import unittest.mock
+    
+    # Create a job
+    job_id = await db.job_create("TRAIN", "QUEUED", "{}", test_experiment)
+    
+    # Mock trigger processing
+    with unittest.mock.patch('transformerlab.jobs_trigger_processing.process_job_completion_triggers') as mock_process, \
+         unittest.mock.patch('builtins.print') as mock_print:
+        
+        # Update status to RUNNING (not COMPLETE)
+        db.job_update_status_sync(job_id, "RUNNING")
+        
+        # Verify trigger processing was not called
+        mock_process.assert_not_called()
+        print_calls = [call[0][0] for call in mock_print.call_args_list]
+        assert not any("🎯 Job" in call and "completed, attempting to process triggers" in call for call in print_calls)
+
+
+@pytest.mark.asyncio
+async def test_job_update_status_sync_import_error_handling(setup_db, test_experiment):
+    """Test handling of import errors in trigger processing."""
+    import unittest.mock
+    import sys
+    
+    # Create a job
+    job_id = await db.job_create("TRAIN", "RUNNING", "{}", test_experiment)
+    
+    # Mock the import by temporarily removing the module from sys.modules and making import fail
+    original_module = sys.modules.get('transformerlab.jobs_trigger_processing')
+    
+    # Temporarily remove the module from sys.modules to force re-import
+    if 'transformerlab.jobs_trigger_processing' in sys.modules:
+        del sys.modules['transformerlab.jobs_trigger_processing']
+    
+    with unittest.mock.patch('builtins.print') as mock_print, \
+         unittest.mock.patch('traceback.print_exc') as mock_traceback:
+        
+        # Mock the module to not exist
+        with unittest.mock.patch.dict('sys.modules', {'transformerlab.jobs_trigger_processing': None}):
+            
+            # Update status to COMPLETE to trigger processing
+            db.job_update_status_sync(job_id, "COMPLETE")
+            
+            # Verify exception handling
+            print_calls = [call[0][0] for call in mock_print.call_args_list]
+            assert any("💥 Error processing triggers" in call for call in print_calls)
+            mock_traceback.assert_called()
+    
+    # Restore the original module if it existed
+    if original_module is not None:
+        sys.modules['transformerlab.jobs_trigger_processing'] = original_module
+
+
+@pytest.mark.asyncio
 async def test_job_update_sync(setup_db):
     """Test the job_update_sync function."""
     # First create a job
@@ -743,94 +899,6 @@ async def test_job_mark_as_complete_if_running(setup_db):
     assert job2["status"] == "QUEUED"
 
 
-# @pytest.mark.skip(reason="Skipping  because I can't get it to work")
-# @pytest.mark.asyncio
-# async def test_workflow_run_get_running(setup_db):
-#     """Test the workflow_run_get_running function."""
-#     # Create a workflow and workflow_run using db methods
-#     workflow_id = await db.workflow_create("test_workflow", "{}", "test_experiment")
-#     await db.workflow_queue(workflow_id)
-
-#     # Sleep for 3 seconds, async:
-#     await asyncio.sleep(3)
-
-#     # Test the function
-#     running_workflow = await db.workflow_run_get_running()
-
-#     # Verify results
-#     assert running_workflow is not None
-#     assert running_workflow["status"] == "RUNNING"
-#     assert running_workflow["workflow_name"] == "test_workflow"
-
-
-# @pytest.mark.skip(reason="Skipping because I can't get it to work")
-# @pytest.mark.asyncio
-# async def test_training_jobs_get_all(setup_db):
-#     """Test the training_jobs_get_all function."""
-#     # Create a training template using db method
-#     template_id = await db.create_training_template("test_template", "Test description", "fine-tuning", "[]", "{}")
-
-#     # Create a job that references this training template
-#     job_data = {"template_id": template_id, "description": "Test training job"}
-#     job_id = await db.job_create("TRAIN", "QUEUED", json.dumps(job_data), "test_experiment")
-
-#     # Test the function
-#     training_jobs = await db.training_jobs_get_all()
-
-#     # Verify results
-#     assert len(training_jobs) > 0
-#     found_job = False
-#     for job in training_jobs:
-#         if job["id"] == job_id:
-#             found_job = True
-#             assert job["type"] == "TRAIN"
-#             assert job["status"] == "QUEUED"
-#             assert job["job_data"]["template_id"] == template_id
-#             assert job["job_data"]["description"] == "Test training job"
-#             assert "config" in job
-
-#     assert found_job, "The created training job was not found in the results"
-
-
-# @pytest.mark.skip(reason="Skipping test_workflow_run_get_running because I can't get it to work")
-# @pytest.mark.asyncio
-# async def test_workflow_run_get_queued(setup_db):
-#     """Test the workflow_run_get_queued function."""
-#     # Create a workflow and workflow_run using db methods
-#     workflow_id = await db.workflow_create("queued_workflow", "{}", "test_experiment")
-
-#     # Test the function
-#     queued_workflow = await db.workflow_run_get_queued()
-
-#     # Verify results
-#     assert queued_workflow is not None
-#     assert queued_workflow["status"] == "QUEUED"
-#     assert queued_workflow["workflow_name"] == "queued_workflow"
-
-
-# @pytest.mark.skip(reason="Skipping test_workflow_run_get_running because I can't get it to work")
-# @pytest.mark.asyncio
-# async def test_workflow_run_update_with_new_job(setup_db):
-#     """Test the workflow_run_update_with_new_job function."""
-#     # Create a workflow and workflow_run using db methods
-#     workflow_id = await db.workflow_create("test_workflow", "{}", "test_experiment")  # noqa: F841
-
-#     # New task and job IDs
-#     current_task = '["task1"]'
-#     current_job_id = "[1]"
-
-#     # Test the function
-#     await db.workflow_run_update_with_new_job(workflow_run_id, current_task, current_job_id)
-
-#     # Verify results
-#     updated_workflow_run = await db.workflow_run_get_by_id(workflow_run_id)
-#     assert updated_workflow_run is not None
-#     assert updated_workflow_run["current_tasks"] == current_task
-#     assert updated_workflow_run["current_job_ids"] == current_job_id
-#     assert json.loads(updated_workflow_run["job_ids"]) == [1]
-#     assert json.loads(updated_workflow_run["node_ids"]) == ["task1"]
-
-
 @pytest.mark.asyncio
 async def test_job_update(setup_db):
     """Test the job_update function that updates both type and status of a job."""
@@ -855,3 +923,14 @@ async def test_job_update(setup_db):
     assert updated_job["status"] == new_status
     assert updated_job["id"] == job_id
     assert updated_job["experiment_id"] == "test_experiment"
+
+
+# Fixture for clean workflows in trigger tests
+@pytest.fixture
+async def clean_workflows():
+    """Clean up workflows before and after tests."""
+    # Clean up before test
+    await db.workflow_delete_all()
+    yield
+    # Clean up after test
+    await db.workflow_delete_all()
