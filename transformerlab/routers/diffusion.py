@@ -772,13 +772,13 @@ async def create_dataset_from_history(request: CreateDatasetRequest):
                 print(f"Warning: Image file not found at {image_item.image_path}")
                 continue
 
-            # Copy input image if this was an img2img generation
-            input_image_filename = ""
-            if getattr(image_item, "is_img2img", False) and getattr(image_item, "input_image_path", ""):
-                if os.path.exists(image_item.input_image_path):
-                    input_image_filename = f"input_{i:04d}.png"
-                    dest_input_image_path = os.path.join(images_dir, input_image_filename)
-                    shutil.copy2(image_item.input_image_path, dest_input_image_path)
+            # # Copy input image if this was an img2img generation
+            # input_image_filename = ""
+            # if getattr(image_item, "is_img2img", False) and getattr(image_item, "input_image_path", ""):
+            #     if os.path.exists(image_item.input_image_path):
+            #         input_image_filename = f"input_{i:04d}.png"
+            #         dest_input_image_path = os.path.join(images_dir, input_image_filename)
+            #         shutil.copy2(image_item.input_image_path, dest_input_image_path)
 
             # Create record with essential fields
             record = {
@@ -806,10 +806,6 @@ async def create_dataset_from_history(request: CreateDatasetRequest):
                         "width": image_item.width,
                         "timestamp": image_item.timestamp,
                         "original_id": image_item.id,
-                        # Image-to-image specific fields
-                        "input_image_path": getattr(image_item, "input_image_path", ""),
-                        "strength": getattr(image_item, "strength", 0.8),
-                        "is_img2img": getattr(image_item, "is_img2img", False),
                     }
                 )
 
