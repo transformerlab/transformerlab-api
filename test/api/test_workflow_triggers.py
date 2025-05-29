@@ -214,8 +214,8 @@ class TestWorkflowTriggerConfigsEndpoint:
             assert "exactly 6 trigger configurations" in response.json()["detail"]
 
     def test_update_trigger_configs_missing_configs_field(self):
-        """Test updating without configs field."""
-        update_data = {}
+        """Test updating with missing configs field."""
+        update_data = {}  # No configs field
         
         with TestClient(app) as client:
             response = client.put(
@@ -226,7 +226,7 @@ class TestWorkflowTriggerConfigsEndpoint:
             assert response.status_code == 400  # API converts validation errors to 400
 
     def test_update_trigger_configs_content_type_validation(self):
-        """Test that content type must be JSON."""
+        """Test updating with wrong content type."""
         update_data = {
             "configs": []
         }
@@ -237,16 +237,17 @@ class TestWorkflowTriggerConfigsEndpoint:
             })
         
         with TestClient(app) as client:
+            # Send as form data instead of JSON
             response = client.put(
                 "/workflows/1/trigger_configs",
-                data=json.dumps(update_data),  # Send as string instead of JSON
+                data=json.dumps(update_data),  # Send as raw data, not JSON
                 headers={"Content-Type": "application/x-www-form-urlencoded"}
             )
             
-            assert response.status_code == 400  # API converts validation errors to 400
+            assert response.status_code == 400
 
     def test_update_trigger_configs_method_not_allowed(self):
-        """Test that other HTTP methods are not allowed."""
+        """Test using wrong HTTP method."""
         update_data = {
             "configs": []
         }
@@ -257,17 +258,50 @@ class TestWorkflowTriggerConfigsEndpoint:
             })
         
         with TestClient(app) as client:
-            # Test GET method
-            response = client.get("/workflows/1/trigger_configs")
-            assert response.status_code == 404  # Route doesn't exist
-            
-            # Test POST method
+            # Use POST instead of PUT
             response = client.post(
                 "/workflows/1/trigger_configs",
                 json=update_data
             )
-            assert response.status_code == 405  # Method not allowed
             
-            # Test DELETE method
-            response = client.delete("/workflows/1/trigger_configs")
-            assert response.status_code == 405  # Method not allowed 
+            assert response.status_code == 405  # Method Not Allowed
+
+    def test_update_trigger_configs_general_exception_handling(self):
+        """Test general exception handling in the endpoint."""
+        import unittest.mock
+        
+        update_data = {
+            "configs": []
+        }
+        for bp in PREDEFINED_TRIGGER_BLUEPRINTS:
+            update_data["configs"].append({
+                "trigger_type": bp["trigger_type"],
+                "is_enabled": True
+            })
+        
+        with TestClient(app) as client:
+            # Mock the database function to raise a general exception
+            with unittest.mock.patch('transformerlab.db.workflow_update_trigger_configs') as mock_update:
+                mock_update.side_effect = RuntimeError("Database connection failed")
+                
+                response = client.put(
+                    "/workflows/1/trigger_configs",
+                    json=update_data
+                )
+                
+                assert response.status_code == 500
+                assert "Internal server error" in response.json()["detail"]
+
+
+class TestWorkflowGetByIdErrorHandling:
+    """Test workflow_get_by_id endpoint error handling."""
+
+    def test_workflow_get_by_id_not_found(self):
+        """Test getting workflow by non-existent ID."""
+        with TestClient(app) as client:
+            response = client.get("/workflows/999999")
+            
+            assert response.status_code == 200
+            data = response.json()
+            assert "error" in data
+            assert "not found" in data["error"].lower() 

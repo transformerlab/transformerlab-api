@@ -17,7 +17,8 @@ from transformerlab.db import (
     workflows_get_all,
     workflows_get_from_experiment,
     workflow_delete_all,
-    experiment_create
+    experiment_create,
+    experiment_get_directory_by_id
 )
 
 
@@ -293,6 +294,39 @@ class TestWorkflowTriggerConfigs:
             await workflow_update_trigger_configs(workflow_id, new_configs)
 
     @pytest.mark.asyncio
+    async def test_workflow_update_trigger_configs_missing_some_trigger_types(self, test_experiment, clean_workflows):
+        """Test updating with only some trigger types present."""
+        workflow_id = await workflow_create("test_workflow", "{}", test_experiment)
+        
+        # Only provide 3 out of 6 required configs (missing multiple types)
+        new_configs = [
+            {"trigger_type": "TRAIN", "is_enabled": True},
+            {"trigger_type": "EVAL", "is_enabled": True},
+            {"trigger_type": "GENERATE", "is_enabled": False}
+        ]
+        
+        with pytest.raises(ValueError, match="new_configs_list must be a list of exactly 6 trigger configurations"):
+            await workflow_update_trigger_configs(workflow_id, new_configs)
+
+    @pytest.mark.asyncio
+    async def test_workflow_update_trigger_configs_missing_trigger_types_when_count_is_correct(self, test_experiment, clean_workflows):
+        """Test updating where count is 6 but missing some required trigger types."""
+        workflow_id = await workflow_create("test_workflow", "{}", test_experiment)
+        
+        # Provide 6 configs but with missing types (duplicates instead)
+        new_configs = [
+            {"trigger_type": "TRAIN", "is_enabled": True},
+            {"trigger_type": "TRAIN", "is_enabled": False},  # Duplicate
+            {"trigger_type": "EVAL", "is_enabled": True},
+            {"trigger_type": "EVAL", "is_enabled": False},   # Duplicate
+            {"trigger_type": "GENERATE", "is_enabled": True},
+            {"trigger_type": "GENERATE", "is_enabled": False} # Duplicate
+        ]
+        
+        with pytest.raises(ValueError, match="Duplicate trigger_type"):
+            await workflow_update_trigger_configs(workflow_id, new_configs)
+
+    @pytest.mark.asyncio
     async def test_workflow_update_trigger_configs_invalid_is_enabled_type(self, test_experiment, clean_workflows):
         """Test updating with non-boolean is_enabled value."""
         workflow_id = await workflow_create("test_workflow", "{}", test_experiment)
@@ -556,4 +590,71 @@ class TestWorkflowsGetWithTriggerNormalization:
         # All should have default values
         for config in workflow["trigger_configs"]:
             blueprint = next(bp for bp in PREDEFINED_TRIGGER_BLUEPRINTS if bp["trigger_type"] == config["trigger_type"])
-            assert config["is_enabled"] == blueprint["default_is_enabled"] 
+            assert config["is_enabled"] == blueprint["default_is_enabled"]
+
+
+class TestExperimentDirectoryByIdErrorHandling:
+    """Test experiment_get_directory_by_id error handling."""
+
+    @pytest.mark.asyncio
+    async def test_experiment_get_directory_by_id_not_found(self):
+        """Test experiment_get_directory_by_id with non-existent experiment."""
+        result = await experiment_get_directory_by_id(999999)
+        
+        # Should return error directory path when experiment not found
+        assert "error" in result.lower()
+
+
+class TestWorkflowGetByJobEventWithComplexScenarios:
+    """Test workflow_get_by_job_event with complex edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_workflow_get_by_job_event_with_json_decode_error(self, test_experiment, clean_workflows):
+        """Test workflow_get_by_job_event with JSON decode errors in trigger configs."""
+        # Create workflow
+        workflow_id = await workflow_create("test_workflow", "{}", test_experiment)
+        
+        # Manually set invalid JSON that will cause JSONDecodeError
+        await db.db.execute(
+            "UPDATE workflows SET trigger_configs = ? WHERE id = ?",
+            ("{invalid json", workflow_id)  # Malformed JSON
+        )
+        await db.db.commit()
+        
+        # Should handle JSONDecodeError gracefully
+        result = await workflow_get_by_job_event("TRAIN", test_experiment)
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_workflow_get_by_job_event_with_non_list_trigger_configs(self, test_experiment, clean_workflows):
+        """Test workflow_get_by_job_event when trigger_configs is not a list."""
+        # Create workflow
+        workflow_id = await workflow_create("test_workflow", "{}", test_experiment)
+        
+        # Set trigger_configs to a non-list (dict)
+        await db.db.execute(
+            "UPDATE workflows SET trigger_configs = ? WHERE id = ?",
+            ('{"not": "a list"}', workflow_id)
+        )
+        await db.db.commit()
+        
+        # Should handle non-list trigger_configs gracefully
+        result = await workflow_get_by_job_event("TRAIN", test_experiment)
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_workflow_get_by_job_event_with_non_dict_trigger_config(self, test_experiment, clean_workflows):
+        """Test workflow_get_by_job_event when individual trigger config is not a dict."""
+        # Create workflow
+        workflow_id = await workflow_create("test_workflow", "{}", test_experiment)
+        
+        # Set trigger_configs to list with non-dict elements
+        await db.db.execute(
+            "UPDATE workflows SET trigger_configs = ? WHERE id = ?",
+            ('["not_a_dict", "also_not_a_dict"]', workflow_id)
+        )
+        await db.db.commit()
+        
+        # Should handle non-dict trigger configs gracefully
+        result = await workflow_get_by_job_event("TRAIN", test_experiment)
+        assert result == [] 
