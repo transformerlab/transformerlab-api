@@ -340,7 +340,7 @@ class TestWorkflowGetByJobEvent:
     async def test_get_workflows_by_job_event_no_matching_triggers(self, test_experiment, clean_workflows):
         """Test finding workflows when none have matching enabled triggers."""
         # Create workflow with all triggers disabled
-        workflow_id = await workflow_create("test_workflow", "{}", test_experiment)
+        await workflow_create("test_workflow", "{}", test_experiment)
         
         # Keep all triggers disabled (default state)
         result = await workflow_get_by_job_event("TRAIN", test_experiment)
