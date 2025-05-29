@@ -185,17 +185,31 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
         model_index_path = os.path.join(hugging_face_id, "model_index.json")
         fs = huggingface_hub.HfFileSystem()
         model_index = None
+
         try:
             with fs.open(model_index_path) as f:
                 model_index = json.load(f)
+                class_name = model_index.get("_class_name", "")
+                if class_name == "":
+                    config = getattr(model_index, "config", {})
+                    diffusers_config = config.get("diffusers", {})
+                    architectures = diffusers_config.get("_class_name", "")
+                    if isinstance(architectures, str):
+                        architectures = [architectures]
+                else:
+                    if isinstance(class_name, str):
+                        architectures = [class_name]
+                    else:
+                        architectures = class_name
         except Exception:
             model_index = None
+            architectures = ["UnknownDiffusionModel"]
         config = {
             "uniqueID": hugging_face_id,
             "name": getattr(hf_model_info, "modelId", hugging_face_id),
             "private": getattr(hf_model_info, "private", False),
             "gated": getattr(hf_model_info, "gated", False),
-            "architecture": getattr(model_index, "_class_name", "StableDiffusionPipeline"),
+            "architecture": architectures[0],
             "huggingface_repo": hugging_face_id,
             "model_type": "stable-diffusion",
             "size_of_model_in_mb": get_huggingface_download_size(hugging_face_id, sd_patterns) / (1024 * 1024),
