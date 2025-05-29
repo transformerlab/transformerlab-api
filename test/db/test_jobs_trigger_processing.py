@@ -3,10 +3,18 @@ import os
 import pytest
 import uuid
 import unittest.mock
+import tempfile
+import shutil
 
-os.environ["TFL_HOME_DIR"] = "./test/tmp/"
-os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
+# Create a unique test directory using absolute paths to prevent contamination
+TEST_BASE_DIR = os.path.abspath(os.path.join(tempfile.gettempdir(), f"transformerlab_jobs_test_{uuid.uuid4().hex[:8]}"))
+os.makedirs(TEST_BASE_DIR, exist_ok=True)
 
+# Set environment variables BEFORE any transformerlab imports
+os.environ["TFL_HOME_DIR"] = TEST_BASE_DIR
+os.environ["TFL_WORKSPACE_DIR"] = TEST_BASE_DIR
+
+# Now import transformerlab modules
 from transformerlab import db
 from transformerlab.jobs_trigger_processing import process_job_completion_triggers
 from transformerlab.db import (
@@ -18,15 +26,22 @@ from transformerlab.db import (
     PREDEFINED_TRIGGER_BLUEPRINTS
 )
 
+# Patch the database path to ensure complete isolation
+TEST_DB_PATH = os.path.join(TEST_BASE_DIR, "test_llmlab.sqlite3")
+
 
 @pytest.fixture(scope="module", autouse=True)
 async def setup_db():
     """Initialize database for testing."""
+    # Database is already patched at import time
     await db.init()
     try:
         yield
     finally:
         await db.close()
+        # Clean up test directory
+        if os.path.exists(TEST_BASE_DIR):
+            shutil.rmtree(TEST_BASE_DIR, ignore_errors=True)
 
 
 @pytest.fixture

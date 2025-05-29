@@ -2,11 +2,35 @@ import json
 import os
 import pytest
 import uuid
+import tempfile
+import shutil
+from pathlib import Path
 
-os.environ["TFL_HOME_DIR"] = "./test/tmp/"
-os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
+# Create a unique test directory using absolute paths to prevent contamination
+TEST_BASE_DIR = os.path.abspath(os.path.join(tempfile.gettempdir(), f"transformerlab_test_{uuid.uuid4().hex[:8]}"))
+os.makedirs(TEST_BASE_DIR, exist_ok=True)
 
-from transformerlab import db
+# Set environment variables BEFORE any transformerlab imports
+os.environ["TFL_HOME_DIR"] = TEST_BASE_DIR
+os.environ["TFL_WORKSPACE_DIR"] = TEST_BASE_DIR
+
+# Patch the database path to ensure complete isolation BEFORE importing modules
+TEST_DB_PATH = os.path.join(TEST_BASE_DIR, "test_llmlab.sqlite3")
+
+# Import and patch database module
+import transformerlab.db as db
+db.DATABASE_FILE_NAME = TEST_DB_PATH
+db.DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
+
+# Recreate the async engine with the new path
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
+
+db.async_engine = create_async_engine(f"sqlite+aiosqlite:///{TEST_DB_PATH}", echo=False)
+db.async_session = sessionmaker(db.async_engine, expire_on_commit=False, class_=AsyncSession)
+
+# Now import the rest
 from transformerlab.db import (
     PREDEFINED_TRIGGER_BLUEPRINTS,
     _normalize_trigger_configs,
@@ -23,13 +47,19 @@ from transformerlab.db import (
 
 
 @pytest.fixture(scope="module", autouse=True)
-async def setup_db():
-    """Initialize database for testing."""
+async def setup_and_cleanup_test_db():
+    """Initialize isolated test database and cleanup after tests."""
+    # Database is already patched at import time
+    # Initialize test database
     await db.init()
     try:
         yield
     finally:
+        # Close database connections
         await db.close()
+        # Clean up test directory
+        if os.path.exists(TEST_BASE_DIR):
+            shutil.rmtree(TEST_BASE_DIR, ignore_errors=True)
 
 
 @pytest.fixture
