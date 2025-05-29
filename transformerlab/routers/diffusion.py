@@ -11,6 +11,8 @@ from diffusers import (
     StableDiffusionLatentUpscalePipeline,
     AutoPipelineForText2Image,
     AutoPipelineForImage2Image,
+    StableDiffusionXLPipeline
+
 )
 import threading
 import os
@@ -292,13 +294,23 @@ def get_pipeline(model: str, adaptor: str = "", device: str = "cuda", is_img2img
                 adaptor_dir = os.path.join(os.environ.get("_TFL_WORKSPACE_DIR"), "adaptors", secure_filename(model))
                 adaptor_path = os.path.join(adaptor_dir, secure_filename(adaptor))
                 if os.path.exists(adaptor_path):
-                    pipe.load_lora_weights(adaptor_path)
+                    if not isinstance(pipe, StableDiffusionXLPipeline):
+                        pipe.load_lora_weights(adaptor_path)
+                    else:
+                    # Only for SDXL Pipelines because they use a different kind of UNet
+                        state_dict, network_alphas = pipe.lora_state_dict(adaptor_path, prefix=None)
+                        pipe.load_lora_into_unet(
+                            state_dict, 
+                            network_alphas = network_alphas, 
+                            unet = pipe.unet
+                        )
                     print(f"Loaded LoRA adaptor: {adaptor}")
                 else:
                     print(f"Error: Adaptor file not found at {adaptor_path}")
                     raise FileNotFoundError(f"Adaptor file not found: {adaptor_path}")
-            except Exception:
+            except Exception as e:
                 print(f"Warning: Failed to load LoRA adaptor '{adaptor}'")
+                print(f"Error: {str(e)}")
                 # Continue without LoRA rather than failing
 
         # _PIPELINES[cache_key] = pipe
