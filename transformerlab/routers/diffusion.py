@@ -59,6 +59,24 @@ ALLOWED_TEXT2IMG_ARCHITECTURES = [
     "SanaPipeline",
     "PixArtSigmaPAGPipeline",
     "AuraFlowPipeline",
+    "StableDiffusionImg2ImgPipeline",
+    "StableDiffusionXLImg2ImgPipeline",
+    "StableDiffusion3Img2ImgPipeline",
+    "StableDiffusion3PAGImg2ImgPipeline",
+    "IFImg2ImgPipeline",
+    "KandinskyImg2ImgCombinedPipeline",
+    "KandinskyV22Img2ImgCombinedPipeline",
+    "Kandinsky3Img2ImgPipeline",
+    "StableDiffusionControlNetImg2ImgPipeline",
+    "StableDiffusionPAGImg2ImgPipeline",
+    "StableDiffusionXLControlNetImg2ImgPipeline",
+    "StableDiffusionXLControlNetUnionImg2ImgPipeline",
+    "StableDiffusionXLPAGImg2ImgPipeline",
+    "StableDiffusionXLControlNetPAGImg2ImgPipeline",
+    "LatentConsistencyModelImg2ImgPipeline",
+    "FluxImg2ImgPipeline",
+    "FluxControlNetImg2ImgPipeline",
+    "FluxControlImg2ImgPipeline"
 ]
 
 # Fixed upscaling models
