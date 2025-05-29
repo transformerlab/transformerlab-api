@@ -4,33 +4,8 @@ import pytest
 import uuid
 import tempfile
 import shutil
-from pathlib import Path
 
-# Create a unique test directory using absolute paths to prevent contamination
-TEST_BASE_DIR = os.path.abspath(os.path.join(tempfile.gettempdir(), f"transformerlab_test_{uuid.uuid4().hex[:8]}"))
-os.makedirs(TEST_BASE_DIR, exist_ok=True)
-
-# Set environment variables BEFORE any transformerlab imports
-os.environ["TFL_HOME_DIR"] = TEST_BASE_DIR
-os.environ["TFL_WORKSPACE_DIR"] = TEST_BASE_DIR
-
-# Patch the database path to ensure complete isolation BEFORE importing modules
-TEST_DB_PATH = os.path.join(TEST_BASE_DIR, "test_llmlab.sqlite3")
-
-# Import and patch database module
-import transformerlab.db as db
-db.DATABASE_FILE_NAME = TEST_DB_PATH
-db.DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
-
-# Recreate the async engine with the new path
-from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.asyncio import AsyncSession
-
-db.async_engine = create_async_engine(f"sqlite+aiosqlite:///{TEST_DB_PATH}", echo=False)
-db.async_session = sessionmaker(db.async_engine, expire_on_commit=False, class_=AsyncSession)
-
-# Now import the rest
+from transformerlab import db
 from transformerlab.db import (
     PREDEFINED_TRIGGER_BLUEPRINTS,
     _normalize_trigger_configs,
@@ -44,6 +19,28 @@ from transformerlab.db import (
     experiment_create,
     experiment_get_directory_by_id
 )
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
+
+# Create a unique test directory using absolute paths to prevent contamination
+TEST_BASE_DIR = os.path.abspath(os.path.join(tempfile.gettempdir(), f"transformerlab_test_{uuid.uuid4().hex[:8]}"))
+os.makedirs(TEST_BASE_DIR, exist_ok=True)
+
+# Set environment variables BEFORE any transformerlab imports
+os.environ["TFL_HOME_DIR"] = TEST_BASE_DIR
+os.environ["TFL_WORKSPACE_DIR"] = TEST_BASE_DIR
+
+# Patch the database path to ensure complete isolation
+TEST_DB_PATH = os.path.join(TEST_BASE_DIR, "test_llmlab.sqlite3")
+
+# Patch database module
+db.DATABASE_FILE_NAME = TEST_DB_PATH
+db.DATABASE_URL = f"sqlite+aiosqlite:///{TEST_DB_PATH}"
+
+# Recreate the async engine with the new path
+db.async_engine = create_async_engine(f"sqlite+aiosqlite:///{TEST_DB_PATH}", echo=False)
+db.async_session = sessionmaker(db.async_engine, expire_on_commit=False, class_=AsyncSession)
 
 
 @pytest.fixture(scope="module", autouse=True)
