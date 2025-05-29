@@ -297,3 +297,25 @@ class TestRunJobShared:
                         # Verify the job was marked as COMPLETE
                         job_status = await db.job_get_status(job_id)
                         assert job_status == "COMPLETE"
+
+    @pytest.mark.asyncio
+    async def test_task_job_completes_successfully(self, test_experiment):
+        """Test that TASK job is marked as COMPLETE and returns correct response"""
+        # Create a job
+        job_id = await db.job_create("TASK", "QUEUED", experiment_id=test_experiment)
+        
+        job_config = {
+            "plugin": "test_plugin"
+        }
+        
+        # Run the job
+        result = await run_job(str(job_id), job_config, "test_experiment", {"type": "TASK"})
+        
+        # Verify the job was marked as COMPLETE
+        job_status = await db.job_get_status(job_id)
+        assert job_status == "COMPLETE"
+        
+        # Verify the return value matches expected format
+        assert result["status"] == "complete"
+        assert result["job_id"] == str(job_id)
+        assert result["message"] == "Task job completed successfully"
