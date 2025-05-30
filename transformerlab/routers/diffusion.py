@@ -995,13 +995,25 @@ async def create_dataset_from_history(request: CreateDatasetRequest):
     if not selected_images:
         raise HTTPException(status_code=404, detail="No images found for the given IDs")
 
+    # Calculate total image count (accounting for multi-image generations)
+    total_image_count = 0
+    for image_item in selected_images:
+        if os.path.isdir(image_item.image_path):
+            # Count images in folder
+            image_files = [f for f in os.listdir(image_item.image_path) 
+                          if f.endswith('.png') and f.replace('.png', '').isdigit()]
+            total_image_count += len(image_files)
+        else:
+            # Single image
+            total_image_count += 1
+
     # Create dataset in database
     try:
         json_data = {
             "generated": True,
             "source": "diffusion_history",
-            "description": request.description or f"Dataset created from {len(selected_images)} diffusion images",
-            "image_count": len(selected_images),
+            "description": request.description or f"Dataset created from {total_image_count} diffusion images",
+            "image_count": total_image_count,
             "created_from_image_ids": image_ids,
         }
         await db.create_local_dataset(dataset_id, json_data=json_data)
@@ -1015,58 +1027,111 @@ async def create_dataset_from_history(request: CreateDatasetRequest):
 
     # Prepare dataset metadata and copy images
     dataset_records = []
+    file_counter = 0
 
-    for i, image_item in enumerate(selected_images):
+    for image_item in selected_images:
         try:
-            # Generate new filename for the image
-            image_filename = f"image_{i:04d}.png"
-            dest_image_path = os.path.join(images_dir, image_filename)
-
-            # Copy image file
-            if os.path.exists(image_item.image_path):
-                shutil.copy2(image_item.image_path, dest_image_path)
-            else:
-                print(f"Warning: Image file not found at {image_item.image_path}")
-                continue
-
-            # # Copy input image if this was an img2img generation
-            # input_image_filename = ""
-            # if getattr(image_item, "is_img2img", False) and getattr(image_item, "input_image_path", ""):
-            #     if os.path.exists(image_item.input_image_path):
-            #         input_image_filename = f"input_{i:04d}.png"
-            #         dest_input_image_path = os.path.join(images_dir, input_image_filename)
-            #         shutil.copy2(image_item.input_image_path, dest_input_image_path)
-
-            # Create record with essential fields
-            record = {
-                "file_name": image_filename,
-                "text": image_item.prompt,
-                "negative_text": image_item.negative_prompt,
-            }
-
-            # Add metadata if requested
-            if request.include_metadata:
-                record.update(
-                    {
-                        "model": image_item.model,
-                        "adaptor": image_item.adaptor,
-                        "adaptor_scale": image_item.adaptor_scale,
-                        "num_inference_steps": image_item.num_inference_steps,
-                        "guidance_scale": image_item.guidance_scale,
-                        "seed": image_item.seed,
-                        "upscaled": image_item.upscaled,
-                        "upscale_factor": image_item.upscale_factor,
-                        "eta": image_item.eta,
-                        "clip_skip": image_item.clip_skip,
-                        "guidance_rescale": image_item.guidance_rescale,
-                        "height": image_item.height,
-                        "width": image_item.width,
-                        "timestamp": image_item.timestamp,
-                        "original_id": image_item.id,
+            # Check if this is a multi-image generation (folder) or single image
+            if os.path.isdir(image_item.image_path):
+                # Multi-image generation - process each image in the folder
+                image_files = []
+                for filename in os.listdir(image_item.image_path):
+                    if filename.endswith('.png') and filename.replace('.png', '').isdigit():
+                        image_files.append(filename)
+                
+                # Sort by numeric order (0.png, 1.png, etc.)
+                image_files.sort(key=lambda x: int(x.replace('.png', '')))
+                
+                for img_filename in image_files:
+                    src_image_path = os.path.join(image_item.image_path, img_filename)
+                    
+                    # Generate new filename for the dataset
+                    dataset_filename = f"image_{file_counter:04d}.png"
+                    dest_image_path = os.path.join(images_dir, dataset_filename)
+                    
+                    # Copy image file
+                    if os.path.exists(src_image_path):
+                        shutil.copy2(src_image_path, dest_image_path)
+                    else:
+                        print(f"Warning: Image file not found at {src_image_path}")
+                        continue
+                    
+                    # Create record with essential fields
+                    record = {
+                        "file_name": dataset_filename,
+                        "text": image_item.prompt,
                     }
-                )
+                    
+                    # Add metadata if requested
+                    if request.include_metadata:
+                        record.update(
+                            {
+                                "model": image_item.model,
+                                "adaptor": image_item.adaptor,
+                                "adaptor_scale": image_item.adaptor_scale,
+                                "num_inference_steps": image_item.num_inference_steps,
+                                "guidance_scale": image_item.guidance_scale,
+                                "seed": image_item.seed,
+                                "negative_text": image_item.negative_prompt,
+                                "upscaled": image_item.upscaled,
+                                "upscale_factor": image_item.upscale_factor,
+                                "eta": image_item.eta,
+                                "clip_skip": image_item.clip_skip,
+                                "guidance_rescale": image_item.guidance_rescale,
+                                "height": image_item.height,
+                                "width": image_item.width,
+                                "timestamp": image_item.timestamp,
+                                "original_id": image_item.id,
+                                "image_index": int(img_filename.replace('.png', '')),  # Add image index for multi-image generations
+                            }
+                        )
+                    
+                    dataset_records.append(record)
+                    file_counter += 1
+                    
+            else:
+                # Single image generation (backward compatibility)
+                dataset_filename = f"image_{file_counter:04d}.png"
+                dest_image_path = os.path.join(images_dir, dataset_filename)
 
-            dataset_records.append(record)
+                # Copy image file
+                if os.path.exists(image_item.image_path):
+                    shutil.copy2(image_item.image_path, dest_image_path)
+                else:
+                    print(f"Warning: Image file not found at {image_item.image_path}")
+                    continue
+
+                # Create record with essential fields
+                record = {
+                    "file_name": dataset_filename,
+                    "text": image_item.prompt,
+                    "negative_text": image_item.negative_prompt,
+                }
+
+                # Add metadata if requested
+                if request.include_metadata:
+                    record.update(
+                        {
+                            "model": image_item.model,
+                            "adaptor": image_item.adaptor,
+                            "adaptor_scale": image_item.adaptor_scale,
+                            "num_inference_steps": image_item.num_inference_steps,
+                            "guidance_scale": image_item.guidance_scale,
+                            "seed": image_item.seed,
+                            "upscaled": image_item.upscaled,
+                            "upscale_factor": image_item.upscale_factor,
+                            "eta": image_item.eta,
+                            "clip_skip": image_item.clip_skip,
+                            "guidance_rescale": image_item.guidance_rescale,
+                            "height": image_item.height,
+                            "width": image_item.width,
+                            "timestamp": image_item.timestamp,
+                            "original_id": image_item.id,
+                        }
+                    )
+
+                dataset_records.append(record)
+                file_counter += 1
 
         except Exception as e:
             print(f"Warning: Failed to process image {image_item.id}: {str(e)}")
