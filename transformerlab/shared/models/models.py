@@ -32,9 +32,13 @@ class Plugin(Base):
 
 
 class User(SQLAlchemyBaseUserTableUUID, Base):
-    """This is the standard FastAPI Users User model."""
+    """
+    This builds a standard FastAPI-Users User model
+    plus any additional fields we want.
+    (By default you only get id, email and password and some statuses)
+    """
 
-    pass
+    name: Mapped[str] = mapped_column(String(64), nullable=False, server_default="")
 
 
 class Experiment(Base):
