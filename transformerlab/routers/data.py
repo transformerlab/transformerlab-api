@@ -86,96 +86,44 @@ async def dataset_gallery() -> Any:
 async def dataset_info(dataset_id: str):
     d = await db.get_dataset(dataset_id)
     if d is None:
-        return {"status": "error", "message": "Dataset not found."}
-
+        return {}
     r = {}
-
+    # This means it is a custom dataset the user uploaded
     if d["location"] == "local":
-        dataset_dir = dirs.dataset_dir_by_id(slugify(dataset_id))
-
         try:
-            parquet_files = [
-                os.path.join(root, f)
-                for root, _, files in os.walk(dataset_dir, followlinks=False)
-                for f in files
-                if f.lower().endswith(".parquet")
-            ]
-            if parquet_files:
-                # Load using Parquet
-                dataset = load_dataset("parquet", data_files=parquet_files)
-                splits = list(dataset.keys())
-                split = splits[0]
-                features = dataset[split].features
-                is_image_dataset = any(
-                    isinstance(feature.dtype, Image.__class__) or (feature._type and feature._type.lower() == "image")
-                    for feature in features.values()
-                )
-                r["features"] = features
-                r["splits"] = splits
-                r["is_parquet"] = True
-                r["is_image"] = is_image_dataset
-                return r
-            dataset = load_dataset(path=dataset_dir)
-            splits = list(dataset.keys())
-            split = splits[0]
-            features = dataset[split].features
-
-            is_image_dataset = any(isinstance(f, Image) for f in features.values())
-            if is_image_dataset:
-                dataset = load_dataset("imagefolder", data_dir=dataset_dir)
-                splits = list(dataset.keys())
-                split = splits[0]
-                features = dataset[split].features
-
-                r["is_image"] = True
-                r["features"] = features
-                r["splits"] = splits
-
-                label_set = set()
-                for root, dirs_, files in os.walk(dataset_dir, followlinks=False):
-                    for file in files:
-                        if str(file).lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
-                            image_path = os.path.join(root, file)
-                            parent_folder = Path(image_path).parent.name
-                            if parent_folder.lower() not in ["train", "test"]:
-                                label_set.add(parent_folder)
-                available_labels = sorted(label_set)
-                r["labels"] = available_labels
-            else:
-                r["is_image"] = False
-                r["features"] = features
+            dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
         except EmptyDatasetError:
             return {"status": "error", "message": "The dataset is empty."}
-        except Exception as e:
-            log(f"Exception occurred: {type(e).__name__}: {e}")
-            return {"status": "error"}
+        split = list(dataset.keys())[0]
+        r["features"] = dataset[split].features
+
+        # Add image column check
+        is_image = any(
+            f._type.lower() == "image" or str(f).lower() == "image" for f in dataset[split].features.values()
+        )
+        r["is_image"] = is_image
 
     else:
         dataset_config = d.get("json_data", {}).get("dataset_config", None)
         config_name = d.get("json_data", {}).get("config_name", None)
-        try:
-            if dataset_config is not None:
-                ds_builder = load_dataset_builder(dataset_id, dataset_config, trust_remote_code=True)
-            elif config_name is not None:
-                ds_builder = load_dataset_builder(path=dataset_id, name=config_name, trust_remote_code=True)
-            else:
-                ds_builder = load_dataset_builder(dataset_id, trust_remote_code=True)
-            r = {
-                "description": ds_builder.info.description,
-                "features": ds_builder.info.features,
-                "dataset_size": ds_builder.info.dataset_size,
-                "download_size": ds_builder.info.download_size,
-                "citation": ds_builder.info.citation,
-                "homepage": ds_builder.info.homepage,
-                "license": ds_builder.info.license,
-                "splits": ds_builder.info.splits,
-                "supervised_keys": ds_builder.info.supervised_keys,
-                "version": ds_builder.info.version,
-            }
-        except Exception as e:
-            log(f"Exception occurred: {type(e).__name__}: {e}")
-            return {"status": "error", "message": "An internal error has occurred!"}
-    r["is_parquet"] = False
+        if dataset_config is not None:
+            ds_builder = load_dataset_builder(dataset_id, dataset_config, trust_remote_code=True)
+        elif config_name is not None:
+            ds_builder = load_dataset_builder(path=dataset_id, name=config_name, trust_remote_code=True)
+        else:
+            ds_builder = load_dataset_builder(dataset_id, trust_remote_code=True)
+        r = {
+            "description": ds_builder.info.description,
+            "features": ds_builder.info.features,
+            "dataset_size": ds_builder.info.dataset_size,
+            "download_size": ds_builder.info.download_size,
+            "citation": ds_builder.info.citation,
+            "homepage": ds_builder.info.homepage,
+            "license": ds_builder.info.license,
+            "splits": ds_builder.info.splits,
+            "supervised_keys": ds_builder.info.supervised_keys,
+            "version": ds_builder.info.version,
+        }
     return r
 
 
@@ -216,7 +164,7 @@ async def dataset_preview(
             else:
                 dataset = load_dataset(dataset_id, trust_remote_code=True, streaming=streaming)
     except Exception as e:
-        log(f"Exception occurred: {type(e).__name__}: {e}")
+        logging.error(f"Exception occurred: {type(e).__name__}: {e}")
         return {"status": "error", "message": "An internal error has occurred."}
 
     if split is None or split == "":
@@ -228,110 +176,111 @@ async def dataset_preview(
     if streaming:
         dataset_len = -1
         dataset = dataset[split].skip(offset)
-        result["rows"] = list(dataset.take(limit))
+        rows = list(dataset.take(limit))
+        # Serialize rows
+        result["rows"] = [serialize_row(row) for row in rows]
         result["splits"] = None
     else:
         if d["location"] != "local" and split not in dataset.keys():
             return {"status": "error", "message": f"Split '{split}' does not exist in the dataset."}
         dataset_len = len(dataset[split])
-        result["columns"] = dataset[split][offset : min(offset + limit, dataset_len)]
+        columns = dataset[split][offset : min(offset + limit, dataset_len)]
+        # Serialize each value in the columns dict, preserving the columnar format
+        if isinstance(columns, dict):
+            result["columns"] = {k: [serialize_row(v) for v in vals] for k, vals in columns.items()}
+        else:
+            result["columns"] = columns
         result["splits"] = list(dataset.keys())
 
     result["len"] = dataset_len
     return {"status": "success", "data": result}
 
 
+def serialize_row(row):
+    """Convert PIL Images in a row to base64 strings, preserving original structure."""
+    if isinstance(row, dict):
+        return {k: serialize_row(v) for k, v in row.items()}
+    elif isinstance(row, list):
+        return [serialize_row(v) for v in row]
+    elif isinstance(row, PILImage.Image):
+        buffered = BytesIO()
+        row.save(buffered, format="JPEG")
+        img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        return f"data:image/jpeg;base64,{img_str}"
+    else:
+        return row
+
+
 @router.get(
     "/preview_with_template",
     summary="Preview the contents of a dataset after applying a jinja template to it.",
     responses={
-        200: {"model": SuccessResponse, "description": "Preview data with column names and rows"},
+        200: {
+            "model": SuccessResponse,
+            "description": "Successful response. Data is a list of column names followed by data, which can be of any datatype.",
+        },
         400: {"model": ErrorResponse},
     },
 )
 async def dataset_preview_with_template(
-    dataset_id: str = Query(description="Dataset ID (HuggingFace or local)"),
+    dataset_id: str = Query(
+        description="The ID of the dataset to preview. This can be a HuggingFace dataset ID or a local dataset ID."
+    ),
     template: str = "",
-    offset: int = Query(0, ge=0, description="Starting index"),
-    limit: int = Query(10, ge=1, le=1000, description="Max items to fetch"),
+    offset: int = Query(0, description="The starting index from where to fetch the data.", ge=0),
+    limit: int = Query(10, description="The maximum number of data items to fetch.", ge=1, le=1000),
 ) -> Any:
     d = await db.get_dataset(dataset_id)
-    dataset_dir = dirs.dataset_dir_by_id(slugify(dataset_id))
     dataset_len = 0
+    result = {}
+    # This means it is a custom dataset the user uploaded
+    if d["location"] == "local":
+        try:
+            dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
+        except Exception as e:
+            logging.error(f"Error loading dataset: {type(e).__name__}: {e}")
+            return {"status": "error", "message": "An internal error has occurred."}
+        dataset_len = len(dataset["train"])
+        result["columns"] = dataset["train"][offset : min(offset + limit, dataset_len)]
 
-    try:
-        if d["location"] == "local":
-            is_image_dataset = False
-            parquet_files = [
-                os.path.join(root, f)
-                for root, _, files in os.walk(dataset_dir, followlinks=False)
-                for f in files
-                if f.lower().endswith(".parquet")
-            ]
-            if parquet_files:
-                dataset = load_dataset("parquet", data_files=parquet_files)
-            else:
-                dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
-
-                split_name = list(dataset.keys())[0]
-                features = dataset[split_name].features
-                is_image_dataset = any(isinstance(f, Image) for f in features.values())
-
-                if not is_image_dataset:
-                    dataset_len = len(dataset["train"])
-                    return {
-                        "status": "success",
-                        "data": {
-                            "columns": dataset["train"][offset : min(offset + limit, dataset_len)],
-                            "len": dataset_len,
-                            "offset": offset,
-                            "limit": limit,
-                        },
-                    }
+        if "test" in dataset:
+            test_slice = dataset["test"][offset : min(offset + limit, len(dataset["test"]))]
+            for key in test_slice.keys():
+                if key in result["columns"]:
+                    result["columns"][key].extend(test_slice[key])
+                else:
+                    result["columns"][key] = test_slice[key]
+            dataset_len += len(dataset["test"])
+    else:
+        dataset_config = d.get("json_data", {}).get("dataset_config", None)
+        config_name = d.get("json_data", {}).get("config_name", None)
+        if dataset_config is not None:
+            dataset = load_dataset(dataset_id, dataset_config, trust_remote_code=True)
+        elif config_name is not None:
+            dataset = load_dataset(path=dataset_id, name=config_name, trust_remote_code=True)
         else:
-            dataset_config = d.get("json_data", {}).get("dataset_config", None)
-            config_name = d.get("json_data", {}).get("config_name", None)
-            if dataset_config:
-                dataset = load_dataset(dataset_id, dataset_config, trust_remote_code=True)
-            elif config_name:
-                dataset = load_dataset(path=dataset_id, name=config_name, trust_remote_code=True)
-            else:
-                dataset = load_dataset(dataset_id, trust_remote_code=True)
-
-    except Exception as e:
-        log(f"Exception occurred: {type(e).__name__}: {e}")
-        return {"status": "error"}
-
-    dataset_len = sum(len(split) for split in dataset.values())
+            dataset = load_dataset(dataset_id, trust_remote_code=True)
+        dataset_len = len(dataset["train"])
+        result["columns"] = dataset["train"][offset : min(offset + limit, dataset_len)]
+    result["len"] = dataset_len
 
     jinja_template = sandboxed_jinja2_evironment.from_string(template)
+
+    column_names = list(result["columns"].keys())
+
     rows = []
-    index = 0
+    # now iterate over all columns and rows, do not use offset or len because we've already
+    # sliced the dataset
+    for i in range(0, len(result["columns"][column_names[0]])):
+        row = {}
+        row["__index__"] = i + offset
+        for key in result["columns"].keys():
+            row[key] = serialize_row(result["columns"][key][i])
 
-    for split_name, split_data in dataset.items():
-        for i in range(len(split_data)):
-            if index < offset:
-                index += 1
-                continue
-            if len(rows) >= limit:
-                break
-
-            row = dict(split_data[i])
-            row["__index__"] = index
-            index += 1
-            row["split"] = split_name
-
-            if d["location"] == "local" and (is_image_dataset or parquet_files):
-                image = row["image"]
-                buffer = BytesIO()
-                image.save(buffer, format="JPEG")
-                encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
-                row["image"] = f"data:image/jpeg;base64,{encoded}"
-
-            row["__formatted__"] = jinja_template.render(row)
-            rows.append(row)
-
-    column_names = list(rows[0].keys()) if rows else []
+        # Apply the template to a new key in row called __formatted__
+        row["__formatted__"] = jinja_template.render(row)
+        # row['__template__'] = template
+        rows.append(row)
 
     return {
         "status": "success",
@@ -376,7 +325,7 @@ async def dataset_edit_with_template(
                     else:
                         continue
                 except Exception as e:
-                    log(f"Failed to read metadata from {metadata_path}: {e}")
+                    logging.error(f"Failed to read metadata from {metadata_path}: {e}")
                     return {"status": "error", "message": "Failed to read metadata file!"}
 
                 for entry in data:
@@ -406,7 +355,7 @@ async def dataset_edit_with_template(
                             encoded_img = base64.b64encode(buffer.getvalue()).decode("utf-8")
                             image_data_url = f"data:image/jpeg;base64,{encoded_img}"
                     except Exception as e:
-                        log(f"Failed to process image {image_path}: {e}")
+                        logging.error(f"Failed to process image {image_path}: {e}")
                         return {"status": "error", "message": "Failed to process images!"}
 
                     row = {
@@ -469,7 +418,7 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
     try:
         updates = json.loads(updates_raw.decode("utf-8"))
     except Exception as e:
-        log(f"Invalid JSON file: {e}")
+        logging.error(f"Invalid JSON file: {e}")
         return {"status": "error", "message": "Invalid JSON file!"}
 
     # Scan source metadata
@@ -511,7 +460,7 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
                             "metadata_root": root,
                         }
                 except Exception as e:
-                    log(f"Error reading metadata {metadata_path}: {e}")
+                    logging.error(f"Error reading metadata {metadata_path}: {e}")
                     return {"status": "error", "message": "Failed to read metadata!"}
 
     metadata_accumulator = {}
@@ -538,11 +487,11 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
         try:
             shutil.copy2(source_path, dest_path)
         except Exception as e:
-            log(f"Failed to copy {source_path} to {dest_path}: {e}")
+            logging.error(f"Failed to copy {source_path} to {dest_path}: {e}")
             return {"status": "error", "message": "Failed to copy from source to destination"}
 
         key = (final_split, final_label)
-        metadata_entry = {"file_name": file_name, "caption": final_caption, "label": final_label}
+        metadata_entry = {"file_name": file_name, "caption": final_caption, "label": final_label, "split": final_split}
         metadata_accumulator.setdefault(key, []).append(metadata_entry)
 
     for (split, label), entries in metadata_accumulator.items():
@@ -553,7 +502,7 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
                 for entry in entries:
                     f.write(json.dumps(entry) + "\n")
         except Exception as e:
-            log(f"Failed to write metadata file {metadata_file}: {e}")
+            logging.error(f"Failed to write metadata file {metadata_file}: {e}")
             return {"status": "error", "message": "Failed to write metadata file!"}
 
     result = await dataset_new(dataset_id=new_dataset_id, generated=False)
