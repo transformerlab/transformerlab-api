@@ -91,6 +91,7 @@
     "id": 8,
     "title": "Fine Tune a Small Language Model using MLX",
     "description": "Train a Llama 3.2 1B model to understand and answer questions about Touch Rugby rules using the MLX framework. Perfect for rule-based question answering.",
+    "notes": "# MLX Fine-Tuning Notes\n\n## Overview\nThis recipe fine-tunes a Llama 3.2 1B model specifically for Touch Rugby rules using the MLX framework.\n\n## Important Considerations\n- MLX is optimized for Apple Silicon (M1/M2/M3 chips)\n- The dataset contains Touch Rugby rules in Q&A format\n- Model size is kept small (1B parameters) for efficient inference\n\n## Training Tips\n- Monitor loss curves carefully\n- Use appropriate LoRA rank (typically 8-64)\n- Validate on unseen rugby scenarios\n\n## Expected Outcomes\nAfter training, the model should be able to answer questions about:\n- Touch Rugby rules and regulations\n- Game procedures and scoring\n- Player positions and responsibilities",
     "requiredMachineArchitecture": ["mlx"],
     "dependencies": [
       {

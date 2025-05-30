@@ -180,6 +180,19 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
     if not recipe:
         return {"status": "error", "message": f"Recipe with id {id} not found.", "data": {}}
 
+    # Populate Notes file if recipe contains notes
+    notes_result = None
+    if recipe.get("notes"):
+        try:
+            # Use the experiment router's save_file_contents function to create the Notes file
+            notes_result = await experiment_router.experiment_save_file_contents(
+                id=experiment_id,
+                filename="readme.md",
+                file_contents=recipe.get("notes")
+            )
+        except Exception:
+            notes_result = {"error": "Failed to create Notes file."}
+
     # Set foundation model if present in dependencies
     model_set_result = None
     local_models = await model_helper.list_installed_models()
@@ -241,6 +254,7 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
             "name": experiment_name,
             "model_set_result": model_set_result,
             "workflow_results": workflow_results,
+            "notes_result": notes_result,
         },
     }
 
