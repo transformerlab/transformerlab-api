@@ -303,6 +303,27 @@ def load_history(limit: int = 50, offset: int = 0) -> HistoryResponse:
         return HistoryResponse(images=[], total=0)
 
 
+def find_image_by_id(image_id: str) -> ImageHistoryItem | None:
+    """Find a specific image by ID without loading all history"""
+    history_file = get_history_file_path()
+
+    if not os.path.exists(history_file):
+        return None
+
+    try:
+        with open(history_file, "r") as f:
+            history = json.load(f)
+
+        # Search for the specific image ID
+        for item in history:
+            if item.get("id") == image_id:
+                return ImageHistoryItem(**item)
+
+        return None
+    except (json.JSONDecodeError, FileNotFoundError):
+        return None
+
+
 def get_pipeline_key(model: str, adaptor: str = "", is_img2img: bool = False) -> str:
     """Generate cache key for model + adaptor + pipeline type combination"""
     pipeline_type = "img2img" if is_img2img else "txt2img"
@@ -646,7 +667,7 @@ async def get_history(limit: int = 50, offset: int = 0):
     Returns:
         HistoryResponse with list of images and total count
     """
-    if limit <= 0 or limit > 100:
+    if limit <= 0:
         raise HTTPException(status_code=400, detail="Limit must be between 1 and 100")
     if offset < 0:
         raise HTTPException(status_code=400, detail="Offset must be non-negative")
@@ -664,14 +685,8 @@ async def get_image_by_id(image_id: str, index: int = 0, input_image: bool = Fal
         index: The index of the image in the set (default 0)
         input_image: Whether to return the input image instead of generated image
     """
-    history = load_history(limit=1000)  # Load enough to find the image
-
-    # Find the image in history
-    image_item = None
-    for item in history.images:
-        if item.id == image_id:
-            image_item = item
-            break
+    # Use the efficient function to find the specific image
+    image_item = find_image_by_id(image_id)
 
     if not image_item:
         raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
@@ -731,14 +746,8 @@ async def get_image_info_by_id(image_id: str):
     Returns:
         Image metadata including number of images available
     """
-    history = load_history(limit=1000)  # Load enough to find the image
-
-    # Find the image in history
-    image_item = None
-    for item in history.images:
-        if item.id == image_id:
-            image_item = item
-            break
+    # Use the efficient function to find the specific image
+    image_item = find_image_by_id(image_id)
 
     if not image_item:
         raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
@@ -772,14 +781,8 @@ async def get_image_count(image_id: str):
     Returns:
         Number of images available
     """
-    history = load_history(limit=1000)  # Load enough to find the image
-
-    # Find the image in history
-    image_item = None
-    for item in history.images:
-        if item.id == image_id:
-            image_item = item
-            break
+    # Use the efficient function to find the specific image
+    image_item = find_image_by_id(image_id)
 
     if not image_item:
         raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
@@ -812,14 +815,8 @@ async def get_all_images(image_id: str):
     import zipfile
     import tempfile
     
-    history = load_history(limit=1000)  # Load enough to find the image
-
-    # Find the image in history
-    image_item = None
-    for item in history.images:
-        if item.id == image_id:
-            image_item = item
-            break
+    # Use the efficient function to find the specific image
+    image_item = find_image_by_id(image_id)
 
     if not image_item:
         raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
@@ -994,9 +991,12 @@ async def create_dataset_from_history(request: CreateDatasetRequest):
     if existing_dataset:
         raise HTTPException(status_code=400, detail=f"Dataset '{dataset_id}' already exists")
 
-    # Load history and find selected images
-    history = load_history(limit=1000)  # Load enough history
-    selected_images = [item for item in history.images if item.id in image_ids]
+    # Find selected images efficiently
+    selected_images = []
+    for image_id in image_ids:
+        image_item = find_image_by_id(image_id)
+        if image_item:
+            selected_images.append(image_item)
 
     if not selected_images:
         raise HTTPException(status_code=404, detail="No images found for the given IDs")
