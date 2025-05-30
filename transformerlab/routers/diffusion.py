@@ -693,12 +693,20 @@ async def get_image_by_id(image_id: str, index: int = 0, input_image: bool = Fal
             if index < 0 or index >= (image_item.num_images if hasattr(image_item, 'num_images') else 1):
                 raise HTTPException(status_code=404, detail=f"Image index {index} out of range. Available: 0-{(image_item.num_images if hasattr(image_item, 'num_images') else 1) - 1}")
             
-            image_path = os.path.join(image_item.image_path, f"{index}.png")
+            # image_path = os.path.join(image_item.image_path, f"{index}.png")
+            image_path = os.path.normpath(os.path.join(image_item.image_path, f"{index}.png"))
+            # Ensure the normalized path is within the expected directory
+            if not image_path.startswith(os.path.abspath(image_item.image_path)):
+                raise HTTPException(status_code=400, detail="Invalid image path")
         else:
             # Old format: single image file
             if index != 0:
                 raise HTTPException(status_code=404, detail=f"Only index 0 available for this image set")
-            image_path = image_item.image_path
+            image_path = os.path.normpath(image_item.image_path)
+
+            # Ensure the normalized path is within the expected directory
+            if not image_path.startswith(os.path.abspath(image_item.image_path)):
+                raise HTTPException(status_code=400, detail="Invalid image path")
         
         if not os.path.exists(image_path):
             raise HTTPException(status_code=404, detail=f"Image file not found at {image_path}")
