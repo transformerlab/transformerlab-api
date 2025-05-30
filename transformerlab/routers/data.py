@@ -11,7 +11,6 @@ from pydantic import BaseModel
 from typing import Dict, Any
 from io import BytesIO
 import base64
-import hashlib
 from pathlib import Path
 import transformerlab.db as db
 from transformerlab.shared import dirs
@@ -470,6 +469,7 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
     try:
         updates = json.loads(updates_raw.decode("utf-8"))
     except Exception as e:
+        log(f"Invalid JSON file: {e}")
         return {"status": "error", "message": "Invalid JSON file!"}
 
     # Scan source metadata
