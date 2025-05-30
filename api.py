@@ -50,10 +50,8 @@ from transformerlab.routers import (
 import torch
 
 # FastAPI Users integration
-from fastapi import Depends
-from transformerlab.services.user_service import auth_backend, current_active_user, fastapi_users
+from transformerlab.services.user_service import auth_backend, fastapi_users
 from transformerlab.schemas.user import UserCreate, UserRead, UserUpdate
-from transformerlab.shared.models.models import User
 
 try:
     from pynvml import nvmlShutdown
