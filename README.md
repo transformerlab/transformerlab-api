@@ -58,26 +58,31 @@ Once conda and dependencies are installed, run the following:
 
 ## Updating Requirements
 
-Dependencies are managed with uv (installed separately). Add new requirements to `requirements.in` and regenerate their corresponding `requirements-uv.txt` files by running the following commands:
+Dependencies are managed with uv (installed separately). Add new requirements to `requirements.in` and regenerate their corresponding `requirements-uv.txt` variations by running the following commands:
 
 ```bash
 # GPU enabled requirements for CUDA
 uv pip compile requirements.in -o requirements-uv.txt --index=https://download.pytorch.org/whl/cu128
+sed -i 's/\+cu128//g' requirements-uv.txt
 
 # GPU enabled requirements for ROCm
 uv pip compile requirements.in -o requirements-rocm-uv.txt --index=https://download.pytorch.org/whl/rocm6.3
+sed -i 's/\+rocm6.3//g' requirements-rocm-uv.txt
 
 # requirements for systems without GPU support
 uv pip compile requirements.in -o requirements-no-gpu-uv.txt --extra-index-url=https://download.pytorch.org/whl/cpu
-sed -i 's/\+cpu//g' requirements-no-gpu-uv.txt #replaces all +cpu in the requirements as uv pip compile adds it to all the pytorch libraries, and that breaks the install
-
-NOTE: If the update removes the `[all]` qualifier on the markitdown package then you should add that back.
-i.e. Change from this:
-`markitdown==<version_number>`
-to this:
-`markitdown[all]==<version_number>`
-
+sed -i 's/\+cpu//g' requirements-no-gpu-uv.txt
 ```
+
+### NOTES:
+
+1. If the update removes the `[all]` qualifier on the markitdown package then you should add that back.
+   i.e. Change from this:
+   `markitdown==<version_number>`
+   to this:
+   `markitdown[all]==<version_number>`
+
+2. the `sed` commands are to remove the suffixes on pytorch libraries that get added but break the install
 
 # Windows Notes
 
