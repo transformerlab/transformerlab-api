@@ -5,7 +5,6 @@ datasets
 einops
 evaluate
 fastapi
-nvidia-ml-py
 packaging
 psutil
 python-multipart
@@ -29,6 +28,10 @@ sentence-transformers
 markitdown[all]
 hf_xet
 macmon-python
-mcp[cli]
 transformerlab-inference
+diffusers==0.33.1
 pyrsmi
+nvidia-ml-py
+transformerlab-inference
+mcp[cli]
+
