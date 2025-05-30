@@ -67,7 +67,7 @@ sed -i 's/\+cu128//g' requirements-uv.txt
 
 # GPU enabled requirements for ROCm
 uv pip compile requirements.in -o requirements-rocm-uv.txt --index=https://download.pytorch.org/whl/rocm6.3
-sed -i 's/\+rocm6.3//g' requirements-rocm-uv.txt
+sed -i 's/\+rocm6\.3//g' requirements-rocm-uv.txt
 
 # requirements for systems without GPU support
 uv pip compile requirements.in -o requirements-no-gpu-uv.txt --extra-index-url=https://download.pytorch.org/whl/cpu
@@ -82,7 +82,9 @@ sed -i 's/\+cpu//g' requirements-no-gpu-uv.txt
    to this:
    `markitdown[all]==<version_number>`
 
-2. the `sed` commands are to remove the suffixes on pytorch libraries that get added but break the install
+2. If the command that generates `requirements-rocm-uv.txt` adds the `nvidia-ml-py` library then you should remove that.
+
+3. the `sed` commands are to remove the suffixes on pytorch libraries that get added but break the install
 
 # Windows Notes
 
