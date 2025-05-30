@@ -191,7 +191,7 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                 file_contents=recipe.get("notes")
             )
         except Exception as e:
-            notes_result = {"error": f"Failed to create Notes file: {str(e)}"}
+            notes_result = {"error": "Failed to create Notes file."}
 
     # Set foundation model if present in dependencies
     model_set_result = None
