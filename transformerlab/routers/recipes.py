@@ -80,7 +80,6 @@ async def _install_recipe_dependencies_job(job_id, id):
             await db.job_update_status(job_id, "FAILED", error_msg=f"Recipe with id {id} not found.")
             return
         if len(recipe.get("dependencies", [])) == 0:
-            await db.job_update_job_data_insert_key_value(job_id, "results", [])
             await db.job_update_status(job_id, "COMPLETE")
             return
 
@@ -246,6 +245,70 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                 result["status"] = "error: config not provided"
             workflow_results.append(result)
 
+    # Process tasks and create tasks in database
+    task_results = []
+    tasks = recipe.get("tasks", [])
+    
+    # Extract dataset from dependencies (assuming only one dataset)
+    dataset_name = ""
+    dataset_deps = [dep for dep in recipe.get("dependencies", []) if dep.get("type") == "dataset"]
+    if dataset_deps:
+        dataset_name = dataset_deps[0].get("name", "")
+    
+    for i, task in enumerate(tasks):
+        if "training" in task:
+            training_config = task["training"]
+            
+            try:
+                # Parse the config_json to extract template metadata
+                config_json = training_config.get("config_json", "{}")
+                parsed_config = json.loads(config_json)
+
+                # Generate simple task name that helps user follow order of tasks
+                task_name = f"Task_{i+1}"
+                
+                # Create inputs JSON (what the task needs as inputs)
+                inputs = {
+                    "model_name": parsed_config.get("model_name", ""),
+                    "model_architecture": parsed_config.get("model_architecture", ""),
+                    "dataset_name": dataset_name  # Using dataset from dependencies
+                }
+                
+                # Create outputs JSON (what the task produces)
+                outputs = {}
+                if "adaptor_name" in parsed_config:
+                    outputs = {"adaptor_name": parsed_config["adaptor_name"]}
+                
+                # Get plugin name
+                plugin_name = parsed_config.get("plugin_name", "")
+                
+                # Create task in database
+                await db.add_task(
+                    name=task_name,
+                    Type="TRAIN",
+                    inputs=json.dumps(inputs),
+                    config=config_json,
+                    plugin=plugin_name,
+                    outputs=json.dumps(outputs),
+                    experiment_id=experiment_id
+                )
+                
+                task_results.append({
+                    "task_index": i+1,
+                    "task_name": task_name,
+                    "action": "create_task",
+                    "status": "success",
+                    "dataset_used": dataset_name,
+                    "plugin": plugin_name
+                })
+                
+            except Exception:
+                task_results.append({
+                    "task_index": i+1,
+                    "action": "create_task", 
+                    "status": "error: Failed to create training task"
+                })
+
     return {
         "status": "success",
         "message": "",
@@ -254,6 +317,7 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
             "name": experiment_name,
             "model_set_result": model_set_result,
             "workflow_results": workflow_results,
+            "task_results": task_results,
             "notes_result": notes_result,
         },
     }

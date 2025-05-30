@@ -107,6 +107,16 @@
         "name": "Trelis/touch-rugby-rules"
       }
     ],
+    "tasks": [
+      {
+        "training": {
+          "type": "LoRA",
+          "plugin": "mlx_lora_trainer",
+          "formatting_template": "{{prompt}}\n{{completion}}",
+          "config_json": "{\"template_name\":\"TouchRugby\",\"plugin_name\":\"mlx_lora_trainer\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"{{prompt}}\\n{{completion}}\",\"dataset_name\":\"Trelis/touch-rugby-rules\",\"lora_layers\":\"16\",\"batch_size\":\"8\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"32\",\"lora_alpha\":\"128\",\"iters\":\"120\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"20\",\"save_every\":\"10\",\"adaptor_name\":\"touch-rugby\"}"
+        }
+      }
+    ],
     "cardImage": "https://images.unsplash.com/photo-1558151507-c1aa3d917dbb?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
   }
 ]
