@@ -363,7 +363,7 @@ class TLabPlugin:
     def check_local_server(self):
         """Check if the local model server is running"""
         response = requests.get("http://localhost:8338/server/worker_healthz")
-        if response.status_code != 200 or not isinstance(response.json(), list) or len(response.json()) == 0:
+        if response.status_code != 200 or not isinstance(response.json(), list) or len(response.json()) == 0 or not "gpt" in response.json()[0]["id"]:
             raise RuntimeError("Local Model Server is not running. Please start it before running the evaluation.")
 
     def _create_local_model_wrapper(self, model):
