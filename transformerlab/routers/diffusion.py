@@ -99,12 +99,12 @@ ALLOWED_IMG2IMG_ARCHITECTURES = [
     "IFPipeline",
     "KandinskyImg2ImgCombinedPipeline",
     "KandinskyCombinedPipeline",
-    "KandinskyV22CombinedPipeline"
+    "KandinskyV22CombinedPipeline",
     "KandinskyV22Img2ImgCombinedPipeline",
     "Kandinsky3Img2ImgPipeline",
     "Kandinsky3Pipeline",
     "StableDiffusionControlNetImg2ImgPipeline",
-    "StableDiffusionControlNetPipeline"
+    "StableDiffusionControlNetPipeline",
     "StableDiffusionPAGImg2ImgPipeline",
     "StableDiffusionPAGPipeline",
     "StableDiffusionXLControlNetImg2ImgPipeline",
@@ -142,6 +142,12 @@ class DiffusionRequest(BaseModel):
     seed: int | None = None
     upscale: bool = False
     upscale_factor: int = 4
+    num_images: int = 1
+
+    @property
+    def validated_num_images(self) -> int:
+        """Ensure num_images is within reasonable bounds"""
+        return max(1, min(self.num_images, 8))
     # Negative prompting
     negative_prompt: str = ""
     # Advanced guidance control
@@ -176,7 +182,8 @@ class ImageHistoryItem(BaseModel):
     guidance_rescale: float = 0.0
     height: int = 0
     width: int = 0
-    generation_time: float = 0.0  # Time taken for generation in seconds
+    generation_time: float = 0.0
+    num_images: int = 1
     # Image-to-image specific fields
     input_image_path: str = ""  # Path to input image (for img2img)
     strength: float = 0.8  # Denoising strength used
@@ -420,6 +427,10 @@ def upscale_image(image: Image.Image, prompt: str, upscale_factor: int = 4, devi
 @router.post("/generate", summary="Generate image with Stable Diffusion")
 async def generate_image(request: DiffusionRequest):
     try:
+        # Validate num_images parameter
+        if request.num_images < 1 or request.num_images > 10:
+            raise HTTPException(status_code=400, detail="num_images must be between 1 and 10")
+        
         device = "cuda" if torch.cuda.is_available() else "cpu"
         cleanup_pipeline()  # Clean up any previous pipelines
 
@@ -462,6 +473,7 @@ async def generate_image(request: DiffusionRequest):
                 "guidance_scale": request.guidance_scale,
                 "generator": generator,
                 "eta": request.eta,
+                "num_images_per_prompt": request.num_images,  # Generate multiple images
             }
 
             # Add image and strength for img2img
@@ -491,12 +503,12 @@ async def generate_image(request: DiffusionRequest):
                 generation_kwargs["cross_attention_kwargs"] = {"scale": request.adaptor_scale}
 
             result = pipe(**generation_kwargs)
-            return result.images[0]
+            return result.images  # Return all images
 
         # Time the main generation
         generation_start = time.time()
         print("Starting image generation...")
-        image = await asyncio.get_event_loop().run_in_executor(None, run_pipe)
+        images = await asyncio.get_event_loop().run_in_executor(None, run_pipe)
         generation_time = time.time() - generation_start
 
         # Clean up the main pipeline to free VRAM
@@ -504,13 +516,18 @@ async def generate_image(request: DiffusionRequest):
 
         # Apply upscaling if requested
         if request.upscale:
-            print(f"Upscaling image with factor {request.upscale_factor}x")
+            print(f"Upscaling {len(images)} images with factor {request.upscale_factor}x")
 
             def run_upscale():
-                return upscale_image(image, request.prompt, request.upscale_factor, device)
+                upscaled_images = []
+                for i, image in enumerate(images):
+                    print(f"Upscaling image {i+1}/{len(images)}")
+                    upscaled_image = upscale_image(image, request.prompt, request.upscale_factor, device)
+                    upscaled_images.append(upscaled_image)
+                return upscaled_images
 
             upscale_start = time.time()
-            image = await asyncio.get_event_loop().run_in_executor(None, run_upscale)
+            images = await asyncio.get_event_loop().run_in_executor(None, run_upscale)
             upscale_time = time.time() - upscale_start
             total_generation_time = generation_time + upscale_time
             print(
@@ -524,11 +541,21 @@ async def generate_image(request: DiffusionRequest):
         generation_id = str(uuid.uuid4())
         timestamp = datetime.now().isoformat()
 
-        # Save image to disk
+        # Create folder for images and save them
         ensure_directories()
-        image_filename = f"{generation_id}.png"
-        image_path = os.path.join(get_images_dir(), image_filename)
-        image.save(image_path, format="PNG")
+        images_folder = os.path.join(get_images_dir(), generation_id)
+        os.makedirs(images_folder, exist_ok=True)
+        
+        # Save images to the folder
+        for i, image in enumerate(images):
+            image_filename = f"{i}.png"
+            image_path = os.path.join(images_folder, image_filename)
+            image.save(image_path, format="PNG")
+
+        # Get dimensions from the first image
+        first_image = images[0]
+        actual_height = request.height if request.height > 0 else first_image.height
+        actual_width = request.width if request.width > 0 else first_image.width
 
         # Save to history
         history_item = ImageHistoryItem(
@@ -540,7 +567,7 @@ async def generate_image(request: DiffusionRequest):
             num_inference_steps=request.num_inference_steps,
             guidance_scale=request.guidance_scale,
             seed=seed,
-            image_path=image_path,
+            image_path=images_folder,  # Now pointing to the folder
             timestamp=timestamp,
             upscaled=request.upscale,
             upscale_factor=request.upscale_factor if request.upscale else 1,
@@ -548,9 +575,10 @@ async def generate_image(request: DiffusionRequest):
             eta=request.eta,
             clip_skip=request.clip_skip,
             guidance_rescale=request.guidance_rescale,
-            height=request.height if request.height > 0 else image.height,
-            width=request.width if request.width > 0 else image.width,
+            height=actual_height,
+            width=actual_width,
             generation_time=total_generation_time,
+            num_images=len(images),  # Store the number of images generated
             # Image-to-image specific fields
             input_image_path=input_image_path,
             strength=request.strength if is_img2img else 0.8,
@@ -558,19 +586,15 @@ async def generate_image(request: DiffusionRequest):
         )
         save_to_history(history_item)
 
-        # Return base64 encoded image for immediate display
-        buffered = BytesIO()
-        image.save(buffered, format="PNG")
-        img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
-
+        # Return metadata (no more base64 images)
         return JSONResponse(
             content={
                 "id": generation_id,
                 "prompt": request.prompt,
                 "adaptor": request.adaptor,
                 "adaptor_scale": request.adaptor_scale,
-                "image_base64": img_str,
-                "image_path": image_path,
+                "image_folder": images_folder,
+                "num_images": len(images),
                 "timestamp": timestamp,
                 "generation_time": total_generation_time,
                 "error_code": 0,
@@ -631,7 +655,15 @@ async def get_history(limit: int = 50, offset: int = 0):
 
 
 @router.get("/history/{image_id}", summary="Get the actual image by ID")
-async def get_image_by_id(image_id: str, input_image: bool = False):
+async def get_image_by_id(image_id: str, index: int = 0, input_image: bool = False):
+    """
+    Get an image from history by ID and index
+    
+    Args:
+        image_id: The unique ID of the image set
+        index: The index of the image in the set (default 0)
+        input_image: Whether to return the input image instead of generated image
+    """
     history = load_history(limit=1000)  # Load enough to find the image
 
     # Find the image in history
@@ -655,25 +687,35 @@ async def get_image_by_id(image_id: str, input_image: bool = False):
             raise HTTPException(status_code=404, detail=f"Input image file not found at {image_path}")
     else:
         # Return the generated output image (default behavior)
-        image_path = image_item.image_path
+        # Check if image_path is a folder (new format) or a file (old format)
+        if os.path.isdir(image_item.image_path):
+            # New format: folder with numbered images
+            if index < 0 or index >= (image_item.num_images if hasattr(image_item, 'num_images') else 1):
+                raise HTTPException(status_code=404, detail=f"Image index {index} out of range. Available: 0-{(image_item.num_images if hasattr(image_item, 'num_images') else 1) - 1}")
+            
+            image_path = os.path.join(image_item.image_path, f"{index}.png")
+        else:
+            # Old format: single image file
+            if index != 0:
+                raise HTTPException(status_code=404, detail=f"Only index 0 available for this image set")
+            image_path = image_item.image_path
+        
         if not os.path.exists(image_path):
             raise HTTPException(status_code=404, detail=f"Image file not found at {image_path}")
 
-    return FileResponse(
-        image_path,
-    )
+    return FileResponse(image_path)
 
 
-@router.get("/history/{image_id}/info", summary="Get image by ID")
+@router.get("/history/{image_id}/info", summary="Get image metadata by ID")
 async def get_image_info_by_id(image_id: str):
     """
-    Get a specific image by its ID
+    Get metadata for a specific image set by its ID
 
     Args:
-        image_id: The unique ID of the image
+        image_id: The unique ID of the image set
 
     Returns:
-        Base64 encoded image data
+        Image metadata including number of images available
     """
     history = load_history(limit=1000)  # Load enough to find the image
 
@@ -687,28 +729,128 @@ async def get_image_info_by_id(image_id: str):
     if not image_item:
         raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
 
-    # Check if image file exists
+    # Check if image folder/file exists
     if not os.path.exists(image_item.image_path):
-        raise HTTPException(status_code=404, detail=f"Image file not found at {image_item.image_path}")
+        raise HTTPException(status_code=404, detail=f"Image path not found at {image_item.image_path}")
+
+    # Determine number of images available
+    num_images = 1  # Default for old format
+    if os.path.isdir(image_item.image_path):
+        # Count PNG files in the directory
+        png_files = [f for f in os.listdir(image_item.image_path) if f.endswith('.png') and f.replace('.png', '').isdigit()]
+        num_images = len(png_files)
+    
+    # Update the metadata to include actual number of images
+    metadata = image_item.model_dump()
+    metadata['num_images'] = num_images
+
+    return JSONResponse(content={"id": image_item.id, "metadata": metadata})
+
+
+@router.get("/history/{image_id}/count", summary="Get image count for an image set")
+async def get_image_count(image_id: str):
+    """
+    Get the number of images available for a given image_id
+    
+    Args:
+        image_id: The unique ID of the image set
+    
+    Returns:
+        Number of images available
+    """
+    history = load_history(limit=1000)  # Load enough to find the image
+
+    # Find the image in history
+    image_item = None
+    for item in history.images:
+        if item.id == image_id:
+            image_item = item
+            break
+
+    if not image_item:
+        raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
+
+    # Check if image folder/file exists
+    if not os.path.exists(image_item.image_path):
+        raise HTTPException(status_code=404, detail=f"Image path not found at {image_item.image_path}")
+
+    # Determine number of images available
+    num_images = 1  # Default for old format
+    if os.path.isdir(image_item.image_path):
+        # Count PNG files in the directory
+        png_files = [f for f in os.listdir(image_item.image_path) if f.endswith('.png') and f.replace('.png', '').isdigit()]
+        num_images = len(png_files)
+
+    return JSONResponse(content={"id": image_id, "num_images": num_images})
+
+
+@router.get("/history/{image_id}/all", summary="Get all images for an image set as a zip file")
+async def get_all_images(image_id: str):
+    """
+    Get all images for a given image_id as a zip file
+    
+    Args:
+        image_id: The unique ID of the image set
+    
+    Returns:
+        Zip file containing all images
+    """
+    import zipfile
+    import tempfile
+    
+    history = load_history(limit=1000)  # Load enough to find the image
+
+    # Find the image in history
+    image_item = None
+    for item in history.images:
+        if item.id == image_id:
+            image_item = item
+            break
+
+    if not image_item:
+        raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
+
+    # Check if image folder/file exists
+    if not os.path.exists(image_item.image_path):
+        raise HTTPException(status_code=404, detail=f"Image path not found at {image_item.image_path}")
+
+    # Create a temporary zip file
+    temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
+    temp_zip.close()
 
     try:
-        # Read and encode image
-        with open(image_item.image_path, "rb") as f:
-            image_data = f.read()
-        img_str = base64.b64encode(image_data).decode("utf-8")
+        with zipfile.ZipFile(temp_zip.name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            if os.path.isdir(image_item.image_path):
+                # New format: add all PNG files from the directory
+                for filename in os.listdir(image_item.image_path):
+                    if filename.endswith('.png') and filename.replace('.png', '').isdigit():
+                        file_path = os.path.join(image_item.image_path, filename)
+                        zipf.write(file_path, filename)
+            else:
+                # Old format: add the single file
+                filename = os.path.basename(image_item.image_path)
+                zipf.write(image_item.image_path, filename)
 
-        return JSONResponse(content={"id": image_item.id, "image_base64": img_str, "metadata": image_item.model_dump()})
+        return FileResponse(
+            temp_zip.name,
+            media_type='application/zip',
+            filename=f"images_{image_id}.zip",
+            headers={"Content-Disposition": f"attachment; filename=images_{image_id}.zip"}
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to read image: {str(e)}")
+        # Clean up temp file on error
+        if os.path.exists(temp_zip.name):
+            os.unlink(temp_zip.name)
+        raise HTTPException(status_code=500, detail=f"Failed to create zip file: {str(e)}")
 
 
 @router.delete("/history/{image_id}", summary="Delete image from history")
 async def delete_image_from_history(image_id: str):
     """
-    Delete a specific image from history and remove the image file
+    Delete a specific image set from history and remove the image files
 
     Args:
-        image_id: The unique ID of the image to delete
+        image_id: The unique ID of the image set to delete
     """
     history_file = get_history_file_path()
 
@@ -732,16 +874,26 @@ async def delete_image_from_history(image_id: str):
         if not item_to_remove:
             raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
 
-        # Remove image file if it exists
-        if os.path.exists(item_to_remove["image_path"]):
-            os.remove(item_to_remove["image_path"])
+        # Remove image files/folder
+        image_path = item_to_remove["image_path"]
+        if os.path.exists(image_path):
+            if os.path.isdir(image_path):
+                # New format: remove entire folder
+                shutil.rmtree(image_path)
+            else:
+                # Old format: remove single file
+                os.remove(image_path)
+
+        # Remove input image if it exists
+        if item_to_remove.get("input_image_path") and os.path.exists(item_to_remove["input_image_path"]):
+            os.remove(item_to_remove["input_image_path"])
 
         # Save updated history
         with open(history_file, "w") as f:
             json.dump(updated_history, f, indent=2)
 
         return JSONResponse(
-            content={"message": f"Image {image_id} deleted successfully", "deleted_item": item_to_remove}
+            content={"message": f"Image set {image_id} deleted successfully", "deleted_item": item_to_remove}
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete image: {str(e)}")
@@ -762,21 +914,36 @@ async def clear_history():
             with open(history_file, "r") as f:
                 history = json.load(f)
 
-            # Remove all image files
+            # Remove all image files/folders
             for item in history:
-                if os.path.exists(item["image_path"]):
-                    os.remove(item["image_path"])
-                    deleted_count += 1
+                image_path = item["image_path"]
+                if os.path.exists(image_path):
+                    if os.path.isdir(image_path):
+                        # New format: remove folder and count files inside
+                        file_count = len([f for f in os.listdir(image_path) if f.endswith('.png')])
+                        shutil.rmtree(image_path)
+                        deleted_count += file_count
+                    else:
+                        # Old format: remove single file
+                        os.remove(image_path)
+                        deleted_count += 1
+                
+                # Remove input image if it exists
+                if item.get("input_image_path") and os.path.exists(item["input_image_path"]):
+                    os.remove(item["input_image_path"])
 
             # Clear history file
             with open(history_file, "w") as f:
                 json.dump([], f)
 
-        # Remove any remaining files in images directory
+        # Remove any remaining files/folders in images directory
         if os.path.exists(images_dir):
-            for filename in os.listdir(images_dir):
-                if filename.endswith(".png"):
-                    os.remove(os.path.join(images_dir, filename))
+            for item_name in os.listdir(images_dir):
+                item_path = os.path.join(images_dir, item_name)
+                if os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+                elif item_name.endswith(".png"):
+                    os.remove(item_path)
 
         return JSONResponse(
             content={
