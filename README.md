@@ -58,15 +58,25 @@ Once conda and dependencies are installed, run the following:
 
 ## Updating Requirements
 
-Dependencies are managed with uv (installed separately). Add new requirements to `requirements.in` and regenerate their corresponding `requirements-uv.txt` files by running the following two commands:
+Dependencies are managed with uv (installed separately). Add new requirements to `requirements.in` and regenerate their corresponding `requirements-uv.txt` files by running the following commands:
 
 ```bash
-# default GPU enabled requirements
-uv pip compile requirements.in -o requirements-uv.txt
+# GPU enabled requirements for CUDA
+uv pip compile requirements.in -o requirements-uv.txt --index=https://download.pytorch.org/whl/cu128
+
+# GPU enabled requirements for ROCm
+uv pip compile requirements.in -o requirements-uv.txt --index=https://download.pytorch.org/whl/rocm6.3
 
 # requirements for systems without GPU support
 uv pip compile requirements.in -o requirements-no-gpu-uv.txt --extra-index-url=https://download.pytorch.org/whl/cpu
 sed -i 's/\+cpu//g' requirements-no-gpu-uv.txt #replaces all +cpu in the requirements as uv pip compile adds it to all the pytorch libraries, and that breaks the install
+
+NOTE: If the update removes the `[all]` qualifier on the markitdown package then you should add that back.
+i.e. Change from this:
+`markitdown==<version_number>`
+to this:
+`markitdown[all]==<version_number>`
+
 ```
 
 # Windows Notes
