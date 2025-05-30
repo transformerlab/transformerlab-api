@@ -6,6 +6,8 @@ import os
 from transformerlab.shared import dirs
 from transformerlab.shared.shared import slugify
 import shutil
+from pathlib import Path
+from PIL import Image
 
 
 def cleanup_dataset(dataset_id):
@@ -33,59 +35,6 @@ def test_data_preview():
     with TestClient(app) as client:
         resp = client.get("/data/preview?dataset_id=dummy_dataset")
         assert resp.status_code in (200, 400, 404)
-
-
-def test_save_metadata():
-    test_data = [
-        {"__index__": 0, "image": "dummy.jpg", "text": "caption A"},
-        {"__index__": 1, "image": "dummy2.jpg", "text": "caption B"},
-    ]
-
-    with TestClient(app) as client:
-        response = client.post(
-            "/data/save_metadata",
-            data={"dataset_id": "dummy_dataset"},
-            files={"file": ("patch.json", BytesIO(json.dumps(test_data).encode("utf-8")), "application/json")},
-        )
-        assert response.status_code in (200, 400, 404)
-
-
-def test_save_metadata_and_preview():
-    test_dataset_id = "dummy_preview_dataset"
-    test_rows = [
-        {"file_name": "dummy0.jpg", "previous_caption": "Original caption 0", "text": "Updated caption 1"},
-        {"file_name": "dummy1.jpg", "previous_caption": "Original caption 1", "text": "Updated caption 2"},
-    ]
-
-    with TestClient(app) as client:
-        dataset_dir = dirs.dataset_dir_by_id(slugify(test_dataset_id))
-        os.makedirs(dataset_dir, exist_ok=True)
-        metadata_path = os.path.join(dataset_dir, "metadata.jsonl")
-
-        # Create initial metadata with matching file names and captions
-        with open(metadata_path, "w", encoding="utf-8") as f:
-            for i in range(2):
-                row = {"file_name": f"dummy{i}.jpg", "text": f"Original caption {i}"}
-                f.write(json.dumps(row) + "\n")
-
-        # Post updated metadata
-        response = client.post(
-            f"/data/save_metadata?dataset_id={test_dataset_id}",
-            files={"file": ("patch.json", BytesIO(json.dumps(test_rows).encode("utf-8")), "application/json")},
-        )
-        assert response.status_code == 200
-
-        # Reload metadata and check updated captions
-        with open(metadata_path, "r", encoding="utf-8") as f:
-            updated_rows = [json.loads(line) for line in f]
-        for updated, expected in zip(updated_rows, test_rows):
-            assert updated["text"] == expected["text"]
-
-        # Test preview works
-        resp = client.get(f"/data/preview?dataset_id={test_dataset_id}")
-        assert resp.status_code == 200 or resp.status_code == 400
-
-    cleanup_dataset(test_dataset_id)
 
 
 def test_data_preview_trelis_touch_rugby_rules():
@@ -119,7 +68,7 @@ def test_data_info():
         response = client.post(f"/data/fileupload?dataset_id={test_dataset_id}", files=files)
         assert response.status_code == 200
 
-        # 🔥 Register the dataset via /data/new or manually (adjust if needed)
+        # Register the dataset via /data/new or manually (adjust if needed)
         register_response = client.get(f"/data/new?dataset_id={test_dataset_id}")
         assert register_response.status_code in (200, 400)
 
@@ -165,47 +114,93 @@ def test_data_preview_with_template():
         cleanup_dataset(test_dataset_id)
 
 
-def test_duplicate_dataset():
+def test_save_metadata():
     with TestClient(app) as client:
-        original_id = "dummy_original_dataset"
-        new_id = "dummy_copied_dataset"
-        original_dir = dirs.dataset_dir_by_id(slugify(original_id))
-        os.makedirs(original_dir, exist_ok=True)
+        source_dataset_id = "source_dataset"
+        new_dataset_id = "destination_dataset"
+        dataset_dir = dirs.dataset_dir_by_id(slugify(source_dataset_id))
+        os.makedirs(dataset_dir, exist_ok=True)
 
-        # Create dummy file for dataset
-        image_path = os.path.join(original_dir, "file.txt")
-        with open(image_path, "w") as f:
-            f.write("Hello, world!")
+        # Create dummy JPEG image
+        image_path = os.path.join(dataset_dir, "image.jpg")
+        with open(image_path, "wb") as f:
+            f.write(b"\xff\xd8\xff\xe0" + b"JPEG DUMMY" + b"\xff\xd9")
 
-        # Create consistent metadata
-        metadata_content = json.dumps({"file_name": "file.txt", "text": "hello", "label": "test_label"}) + "\n"
+        # Prepare metadata JSONL
+        metadata_content = json.dumps({"file_name": "image.jpg", "text": "sample caption"}) + "\n"
         metadata_filename = "metadata.jsonl"
 
-        # Upload metadata using /fileupload
+        # Upload metadata
         files = {"files": (metadata_filename, BytesIO(metadata_content.encode()), "application/jsonl")}
-        upload_resp = client.post(f"/data/fileupload?dataset_id={original_id}", files=files)
-        assert upload_resp.status_code == 200
-        assert upload_resp.json()["status"] == "success"
+        response = client.post(f"/data/fileupload?dataset_id={source_dataset_id}", files=files)
+        assert response.status_code == 200
 
-        # Register dataset using /data/new
-        register_resp = client.get(f"/data/new?dataset_id={original_id}")
-        assert register_resp.status_code in (200, 400)
+        # Register the dataset via /data/new or manually (adjust if needed)
+        register_response = client.get(f"/data/new?dataset_id={source_dataset_id}")
+        assert register_response.status_code in (200, 400)
 
-        # Attempt to duplicate dataset
-        resp = client.post(f"/data/duplicate_dataset?dataset_id={original_id}&new_dataset_id={new_id}")
-        assert resp.status_code == 200
-        result = resp.json()
-        assert result["status"] in ("success", "error")
+        updates = [
+            {
+                "file_name": "image1.jpg",
+                "previous_label": "cat",
+                "previous_split": "train",
+                "previous_caption": "Old Caption",
+                "label": "cat",
+                "split": "train",
+                "caption": "New Caption",
+            }
+        ]
+        updates_json = BytesIO(json.dumps(updates).encode("utf-8"))
 
-        # Check if new dataset dir exists
-        new_dir = dirs.dataset_dir_by_id(slugify(new_id))
-        print("Test dataset dir:", dirs.dataset_dir_by_id(slugify(new_id)))
-        assert os.path.exists(new_dir), f"Expected new dir {new_dir} to exist"
+        response = client.post(
+            f"/data/save_metadata?dataset_id={source_dataset_id}&new_dataset_id={new_dataset_id}",
+            files={"file": ("metadata_updates.json", updates_json, "application/json")},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "success"
 
-        # Edge case: duplicate nonexistent dataset
-        resp = client.post("/data/duplicate_dataset?dataset_id=nonexistent&new_dataset_id=newset")
-        assert resp.status_code == 200
-        assert resp.json()["status"] == "error"
+        new_dataset_dir = Path(dirs.dataset_dir_by_id(slugify(new_dataset_id)))
+        assert new_dataset_dir.exists()
 
-    cleanup_dataset(original_id)
-    cleanup_dataset(new_id)
+    cleanup_dataset(source_dataset_id)
+    cleanup_dataset(new_dataset_id)
+
+
+def test_edit_with_template():
+    with TestClient(app) as client:
+        dataset_id = "test_dataset"
+        dataset_dir = dirs.dataset_dir_by_id(slugify(dataset_id))
+        os.makedirs(dataset_dir, exist_ok=True)
+
+        image_path = os.path.join(dataset_dir, "image.jpg")
+        image = Image.new("RGB", (100, 100), color="red")
+        image.save(image_path, "JPEG")
+
+        metadata_content = (
+            json.dumps({"file_name": "image.jpg", "text": "sample caption", "label": "cat", "split": "train"}) + "\n"
+        )
+        metadata_filename = "metadata.jsonl"
+
+        files = {"files": (metadata_filename, BytesIO(metadata_content.encode()), "application/jsonl")}
+        response = client.post(f"/data/fileupload?dataset_id={dataset_id}", files=files)
+        assert response.status_code == 200
+
+        register_response = client.get(f"/data/new?dataset_id={dataset_id}")
+        assert register_response.status_code in (200, 400)
+
+        response = client.get(f"/data/edit_with_template?dataset_id={dataset_id}&template=")
+        assert response.status_code == 200
+        data = response.json()
+        print("Response JSON:", data)
+        assert data["status"] == "success"
+        rows = data["data"]["rows"]
+        assert len(rows) > 0
+        row = rows[0]
+        assert "file_name" in row
+        assert "image" in row
+        assert "text" in row
+        assert "label" in row
+        assert "split" in row
+
+    cleanup_dataset(dataset_id)
