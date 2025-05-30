@@ -1,4 +1,3 @@
-import base64
 from fastapi.testclient import TestClient
 import pytest
 from unittest.mock import patch, MagicMock
