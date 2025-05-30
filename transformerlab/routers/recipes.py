@@ -190,7 +190,7 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                 filename="readme.md",
                 file_contents=recipe.get("notes")
             )
-        except Exception as e:
+        except Exception:
             notes_result = {"error": "Failed to create Notes file."}
 
     # Set foundation model if present in dependencies
