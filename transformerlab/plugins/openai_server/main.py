@@ -367,7 +367,7 @@ def main():
         args.worker_address,
         worker_id,
         args.model_path,
-        ["gpt-3.5-turbo"],
+        ["TinyLlama/TinyLlama-1.1B-Chat-v1.0"],
         1024,
         args.conv_template
     )
