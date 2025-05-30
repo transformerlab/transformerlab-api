@@ -694,9 +694,13 @@ async def get_image_by_id(image_id: str, index: int = 0, input_image: bool = Fal
                 raise HTTPException(status_code=404, detail=f"Image index {index} out of range. Available: 0-{(image_item.num_images if hasattr(image_item, 'num_images') else 1) - 1}")
             
             # image_path = os.path.join(image_item.image_path, f"{index}.png")
-            image_path = os.path.normpath(os.path.join(image_item.image_path, f"{index}.png"))
+            # image_path = os.path.normpath(os.path.join(image_item.image_path, f"{index}.png"))
+             # Sanitize the filename and construct the path
+            sanitized_filename = secure_filename(f"{index}.png")
+            image_path = os.path.normpath(os.path.join(image_item.image_path, sanitized_filename))
+            expected_directory = os.path.abspath(image_item.image_path)
             # Ensure the normalized path is within the expected directory
-            if not image_path.startswith(os.path.abspath(image_item.image_path)):
+            if not image_path.startswith(expected_directory) or not os.path.commonpath([expected_directory, image_path]) == expected_directory:
                 raise HTTPException(status_code=400, detail="Invalid image path")
         else:
             # Old format: single image file
@@ -704,8 +708,10 @@ async def get_image_by_id(image_id: str, index: int = 0, input_image: bool = Fal
                 raise HTTPException(status_code=404, detail="Only index 0 available for this image set")
             image_path = os.path.normpath(image_item.image_path)
 
-            # Ensure the normalized path is within the expected directory
-            if not image_path.startswith(os.path.abspath(image_item.image_path)):
+            # # Ensure the normalized path is within the expected directory
+            # if not image_path.startswith(os.path.abspath(image_item.image_path)):
+            expected_directory = os.path.abspath(image_item.image_path)
+            if not image_path.startswith(expected_directory) or not os.path.commonpath([expected_directory, image_path]) == expected_directory:
                 raise HTTPException(status_code=400, detail="Invalid image path")
         
         if not os.path.exists(image_path):
