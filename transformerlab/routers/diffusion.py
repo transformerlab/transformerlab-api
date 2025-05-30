@@ -701,7 +701,7 @@ async def get_image_by_id(image_id: str, index: int = 0, input_image: bool = Fal
         else:
             # Old format: single image file
             if index != 0:
-                raise HTTPException(status_code=404, detail=f"Only index 0 available for this image set")
+                raise HTTPException(status_code=404, detail="Only index 0 available for this image set")
             image_path = os.path.normpath(image_item.image_path)
 
             # Ensure the normalized path is within the expected directory
