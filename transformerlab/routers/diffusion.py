@@ -86,6 +86,47 @@ ALLOWED_TEXT2IMG_ARCHITECTURES = [
     "FluxControlImg2ImgPipeline",
 ]
 
+# Allowed architectures for img2img pipelines
+ALLOWED_IMG2IMG_ARCHITECTURES = [
+    "StableDiffusionImg2ImgPipeline",
+    "StableDiffusionXLImg2ImgPipeline",
+    "StableDiffusion3Img2ImgPipeline",
+    "StableDiffusion3PAGImg2ImgPipeline",
+    "StableDiffusionPipeline",
+    "StableDiffusion3Pipeline",
+    "StableDiffusionXLPipeline",
+    "StableDiffusion3PAGPipeline",
+    "IFImg2ImgPipeline",
+    "IFPipeline",
+    "KandinskyImg2ImgCombinedPipeline",
+    "KandinskyCombinedPipeline",
+    "KandinskyV22CombinedPipeline"
+    "KandinskyV22Img2ImgCombinedPipeline",
+    "Kandinsky3Img2ImgPipeline",
+    "Kandinsky3Pipeline",
+    "StableDiffusionControlNetImg2ImgPipeline",
+    "StableDiffusionControlNetPipeline"
+    "StableDiffusionPAGImg2ImgPipeline",
+    "StableDiffusionPAGPipeline",
+    "StableDiffusionXLControlNetImg2ImgPipeline",
+    "StableDiffusionXLControlNetPipeline",
+    "StableDiffusionXLControlNetUnionImg2ImgPipeline",
+    "StableDiffusionXLControlNetUnionPipeline",
+    "StableDiffusionXLPAGImg2ImgPipeline",
+    "StableDiffusionXLPAGPipeline",
+    "StableDiffusionXLControlNetPAGImg2ImgPipeline",
+    "StableDiffusionXLControlNetPAGPipeline",
+    "LatentConsistencyModelImg2ImgPipeline",
+    "LatentConsistencyModelPipeline",
+    "FluxImg2ImgPipeline",
+    "FluxPipeline",
+    "FluxControlNetImg2ImgPipeline",
+    "FluxControlNetPipeline",
+    "FluxControlImg2ImgPipeline",
+    "FluxControlPipeline",
+]
+
+
 # Fixed upscaling models
 UPSCALE_MODEL_STANDARD = "stabilityai/stable-diffusion-x4-upscaler"
 UPSCALE_MODEL_LATENT = "stabilityai/sd-x2-latent-upscaler"
@@ -549,6 +590,8 @@ async def is_stable_diffusion_model(request: DiffusionRequest):
     Returns {"is_stable_diffusion": True/False, "reason": "..."}
     """
     model_id = request.model
+    if not model_id or model_id.strip() == "":
+        return {"is_stable_diffusion": False, "reason": "Model ID is empty"}
     try:
         info = model_info(model_id)
         config = getattr(info, "config", {})
@@ -557,9 +600,14 @@ async def is_stable_diffusion_model(request: DiffusionRequest):
         if isinstance(architectures, str):
             architectures = [architectures]
 
-        # Check architectures
-        if any(a in ALLOWED_TEXT2IMG_ARCHITECTURES for a in architectures):
-            return {"is_stable_diffusion": True, "reason": "Architecture matches allowed SD"}
+        if request.is_img2img:
+            # Check if this is an img2img model
+            if any(a in ALLOWED_IMG2IMG_ARCHITECTURES for a in architectures):
+                return {"is_stable_diffusion": True, "reason": "Architecture matches allowed SD img2img"}
+        else:
+            # Check architectures
+            if any(a in ALLOWED_TEXT2IMG_ARCHITECTURES for a in architectures):
+                return {"is_stable_diffusion": True, "reason": "Architecture matches allowed SD"}
 
         return {"is_stable_diffusion": False, "reason": "No SD indicators found"}
     except Exception as e:
