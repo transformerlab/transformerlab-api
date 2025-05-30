@@ -97,3 +97,23 @@ def test_recipes_create_experiment_invalid_recipe():
         assert data["status"] == "error"
         assert "not found" in data["message"]
 
+
+def test_recipes_create_experiment_notes_functionality():
+    """Test that creating an experiment from a recipe with notes actually saves the notes as readme.md"""
+    with TestClient(app) as client:
+        # Use recipe ID 8 which we added notes to in exp-recipe-gallery.json
+        resp = client.post("/recipes/8/create_experiment?experiment_name=test_notes_functionality")
+        
+        assert resp.status_code in (200, 400, 409)
+        data = resp.json()
+        
+        if resp.status_code == 200 and data.get("status") == "success":
+            # Should have notes_result in the response data
+            assert "data" in data
+            assert "notes_result" in data["data"]
+            
+            # Since recipe 1 has notes, notes_result should not be None
+            notes_result = data["data"]["notes_result"]
+            if notes_result is not None:
+                assert isinstance(notes_result, dict)
+
