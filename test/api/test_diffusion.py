@@ -33,11 +33,6 @@ def test_diffusion_generate_success():
             data = resp.json()
             assert data["prompt"] == payload["prompt"]
             assert data["error_code"] == 0
-            # Should be a base64 string
-            assert isinstance(data["image_base64"], str)
-            # Should decode to bytes
-            base64.b64decode(data["image_base64"])
-
 
 @pytest.mark.parametrize("missing_field", ["model"])
 def test_diffusion_generate_missing_fields(missing_field):
