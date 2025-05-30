@@ -86,5 +86,26 @@
     "description": "Execute your model on edge devices using Nanotron’s runtime environment. Achieve real-time performance and low power consumption.",
     "requiredMachineArchitecture": ["cuda"],
     "cardImage": "https://images.unsplash.com/photo-1747253523880-a8e2a41b301d?auto=format&fit=crop&w=318"
+  },
+  {
+    "id": 8,
+    "title": "Fine Tune a Small Language Model using MLX",
+    "description": "Train a Llama 3.2 1B model to understand and answer questions about Touch Rugby rules using the MLX framework. Perfect for rule-based question answering.",
+    "requiredMachineArchitecture": ["mlx"],
+    "dependencies": [
+      {
+        "type": "model",
+        "name": "mlx-community/Llama-3.2-1B-Instruct-4bit"
+      },
+      {
+        "type": "plugin",
+        "name": "mlx_lora_trainer"
+      },
+      {
+        "type": "dataset",
+        "name": "Trelis/touch-rugby-rules"
+      }
+    ],
+    "cardImage": "https://images.unsplash.com/photo-1558151507-c1aa3d917dbb?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
   }
 ]
