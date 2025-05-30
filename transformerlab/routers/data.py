@@ -4,7 +4,7 @@ import shutil
 import json
 import aiofiles
 from PIL import Image as PILImage
-from datasets import load_dataset, load_dataset_builder, Image
+from datasets import load_dataset, load_dataset_builder
 from fastapi import APIRouter, HTTPException, UploadFile, Query
 import csv
 from pydantic import BaseModel
@@ -242,15 +242,6 @@ async def dataset_preview_with_template(
             return {"status": "error", "message": "An internal error has occurred."}
         dataset_len = len(dataset["train"])
         result["columns"] = dataset["train"][offset : min(offset + limit, dataset_len)]
-
-        if "test" in dataset:
-            test_slice = dataset["test"][offset : min(offset + limit, len(dataset["test"]))]
-            for key in test_slice.keys():
-                if key in result["columns"]:
-                    result["columns"][key].extend(test_slice[key])
-                else:
-                    result["columns"][key] = test_slice[key]
-            dataset_len += len(dataset["test"])
     else:
         dataset_config = d.get("json_data", {}).get("dataset_config", None)
         config_name = d.get("json_data", {}).get("config_name", None)
