@@ -9,7 +9,7 @@ from fastapi import APIRouter, Body
 from fastchat.model.model_adapter import get_conversation_template
 from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi
 from huggingface_hub import ModelCard, ModelCardData
-from huggingface_hub.utils import HfHubHTTPError, GatedRepoError
+from huggingface_hub.utils import HfHubHTTPError, GatedRepoError, EntryNotFoundError
 import os
 from pathlib import Path
 import logging
@@ -672,6 +672,99 @@ async def model_delete_peft(model_id: str, peft: str):
     shutil.rmtree(peft_path)
 
     return {"message": "success"}
+
+
+@router.post("/model/install_peft")
+async def install_peft(peft: str, model_id: str, job_id: int | None = None):
+    try:
+        model_details = await huggingfacemodel.get_model_details_from_huggingface(peft)
+    except EntryNotFoundError:
+        print(f"Adaptor {peft} does not have a config.json. Proceeding without details.")
+        model_details = {}
+    except GatedRepoError:
+        error_msg = f"{peft} is a gated adapter. Please log in and accept the terms on the adapter's Hugging Face page."
+        print(error_msg)
+        return {"status": "unauthorized", "message": error_msg}
+    except Exception as e:
+        error_msg = f"{type(e).__name__}: {e}"
+        print(error_msg)
+        return {"status": "error", "message": error_msg}
+
+    print(f"Model Details: {model_details}")
+    # Create or update job
+    if job_id is None:
+        job_id = await db.job_create(type="INSTALL_PEFT", status="STARTED", job_data="{}")
+    else:
+        await db.job_update(job_id=job_id, type="INSTALL_PEFT", status="STARTED")
+
+    # Prepare script args
+    args = [
+        f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_adaptor.py",
+        "--peft",
+        peft,
+        "--local_model_id",
+        model_id,
+        "--job_id",
+        str(job_id),
+    ]
+
+    # Start async subprocess without waiting for completion (like download_huggingface_model)
+    asyncio.create_task(
+        shared.async_run_python_script_and_update_status(
+            python_script=args, job_id=job_id, begin_string="Fetching Adapter"
+        )
+    )
+
+    return {"status": "started", "job_id": job_id}
+
+
+@router.get("/model/search_peft")
+async def search_peft(peft: str):
+    api = HfApi()
+
+    # Define generic terms
+    generic_terms = {"peft", "adapter", "adaptor", "lora"}
+    peft_lower = peft.lower().strip()
+
+    # Split input and filter
+    query_words = [
+        word
+        for word in peft_lower.replace("-", " ").replace("_", " ").replace("/", " ").split()
+        if word not in generic_terms and len(word) > 2
+    ]
+    if not query_words:
+        print("No meaningful query words — skipping search.")
+        return []
+
+    results = api.list_models(search=peft)
+    adapters = []
+
+    for model in results:
+        card_data = model.cardData or {}
+        model_id_lower = model.modelId.lower()
+        model_words = model_id_lower.replace("-", " ").replace("_", " ").replace("/", " ").split()
+
+        # Count matches
+        match_count = sum(1 for q_word in query_words if q_word in model_words)
+        match_ratio = match_count / len(query_words)
+
+        # Check if model is likely an adapter
+        is_adapter = any(tag.lower() in {"peft", "adapter", "adaptor", "lora"} for tag in (model.tags or [])) or any(
+            keyword in model_id_lower for keyword in {"peft", "adapter", "adaptor", "lora"}
+        )
+
+        if match_ratio >= 0.75 and is_adapter:
+            adapters.append(
+                {
+                    "adapter_id": model.modelId,
+                    "description": card_data.get("description", ""),
+                    "downloads": model.downloads,
+                    "size": card_data.get("size", "N/A"),
+                    "tags": model.tags,
+                }
+            )
+
+    return adapters
 
 
 @router.get(path="/model/get_local_hfconfig")

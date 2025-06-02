@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+from unittest.mock import AsyncMock, patch
 from api import app
 import pytest
 
@@ -21,6 +22,7 @@ def test_model_list_local_uninstalled():
         assert resp.status_code == 200
         assert "data" in resp.json() or "status" in resp.json()
 
+
 def test_model_group_gallery():
     with TestClient(app) as client:
         resp = client.get("/model/model_groups_list")
@@ -30,3 +32,35 @@ def test_model_group_gallery():
         if data:
             model = data[0]
             assert "name" in model or "models" in model
+
+
+def test_search_peft():
+    with TestClient(app) as client:
+        response = client.get("/model/search_peft?peft=adapter")  # You can change 'adapter' to a sample query
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        for item in data:
+            assert "adapter_id" in item
+
+
+@pytest.mark.asyncio
+@patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", new_callable=AsyncMock)
+@patch("transformerlab.routers.model.shared.async_run_python_script_and_update_status", new_callable=AsyncMock)
+async def test_install_peft_mock(mock_run_script, mock_get_details):
+    with TestClient(app) as client:
+        # Mock get_model_details to return a dummy config
+        mock_get_details.return_value = {"name": "dummy_adapter"}
+
+        # Mock run_script to simulate a subprocess with success
+        mock_process = AsyncMock()
+        mock_process.returncode = 0
+        mock_run_script.return_value = mock_process
+
+        test_model_id = "unsloth_Llama-3.2-1B-Instruct"
+        test_peft_id = "dummy_adapter"
+
+        response = client.post(f"/model/install_peft?model_id={test_model_id}&peft={test_peft_id}")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "started"  # As install_peft now returns 'started' after starting the async task
