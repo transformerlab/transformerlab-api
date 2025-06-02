@@ -109,7 +109,7 @@
     ],
     "tasks": [
       {
-        "task_type": "training",
+        "task_type": "TRAIN",
         "type": "LoRA",
         "plugin": "mlx_lora_trainer",
         "formatting_template": "{{prompt}}\n{{completion}}",

@@ -257,7 +257,7 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
         dataset_name = dataset_deps[0].get("name", "")
     
     for i, task in enumerate(tasks):
-        if task.get("task_type") == "training":
+        if task.get("task_type") == "TRAIN":
             try:
                 # Parse the config_json to extract template metadata
                 config_json = task.get("config_json", "{}")

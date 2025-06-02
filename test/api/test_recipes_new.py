@@ -41,7 +41,7 @@ TEST_EXP_RECIPES = [
         ],
         "tasks": [
             {
-                "task_type": "training",
+                "task_type": "TRAIN",
                 "type": "LoRA",
                 "plugin": "test_trainer",
                 "formatting_template": "{{prompt}}\n{{completion}}",
@@ -65,7 +65,7 @@ TEST_EXP_RECIPES = [
         ],
         "tasks": [
             {
-                "task_type": "training",
+                "task_type": "TRAIN",
                 "type": "LoRA",
                 "plugin": "mlx_lora_trainer",
                 "formatting_template": "{{text}}",
@@ -89,7 +89,7 @@ TEST_EXP_RECIPES = [
         ],
         "tasks": [
             {
-                "task_type": "training",
+                "task_type": "TRAIN",
                 "type": "LoRA",
                 "plugin": "test_trainer",
                 "formatting_template": "{{prompt}}\n{{completion}}",
@@ -113,7 +113,7 @@ TEST_EXP_RECIPES = [
         ],
         "tasks": [
             {
-                "task_type": "training",
+                "task_type": "TRAIN",
                 "type": "LoRA",
                 "plugin": "test_trainer",
                 "formatting_template": "{{prompt}}\n{{completion}}",
@@ -180,7 +180,7 @@ def test_recipes_get_by_id_with_tasks():
         assert data["id"] == 2
         assert "tasks" in data
         assert len(data["tasks"]) == 1
-        assert data["tasks"][0]["task_type"] == "training"
+        assert data["tasks"][0]["task_type"] == "TRAIN"
 
 
 def test_create_experiment_with_notes():
