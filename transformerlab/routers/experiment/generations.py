@@ -276,9 +276,14 @@ async def get_job_output_file_name(job_id: str, plugin_name: str):
     plugin_name = secure_filename(plugin_name)
     try:
         plugin_dir = dirs.plugin_dir_by_name(plugin_name)
+        new_output_dir = os.path.join(dirs.WORKSPACE_DIR, "temp", plugin_name)
 
         # job output is stored in separate files with a job number in the name...
-        if os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
+        if os.path.exists(os.path.join(new_output_dir, f"output_{job_id}.txt")):
+            output_file = os.path.join(new_output_dir, f"output_{job_id}.txt")
+
+        # job output is stored in separate files with a job number in the name...
+        elif os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
             output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
 
         # but it used to be all stored in a single file called output.txt, so check that as well

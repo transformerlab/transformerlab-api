@@ -297,8 +297,12 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         eval_name = job_config.get("evaluator", "")
         await db.job_update_status(job_id, "RUNNING")
         print("Running evaluation script")
-        plugin_location = dirs.plugin_dir_by_name(plugin_name)
-        evals_output_file = os.path.join(plugin_location, f"output_{job_id}.txt")
+        WORKSPACE_DIR = dirs.WORKSPACE_DIR
+        # plugin_location = dirs.plugin_dir_by_name(plugin_name)
+        output_temp_file_dir = os.path.join(WORKSPACE_DIR, "temp", plugin_name)
+        if not os.path.exists(output_temp_file_dir):
+            os.makedirs(output_temp_file_dir)
+        evals_output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
         # Create output file if it doesn't exist
         if not os.path.exists(evals_output_file):
             with open(evals_output_file, "w") as f:
@@ -310,7 +314,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         if job_data is None:
             await db.job_update_status(job_id, "FAILED")
             return {"status": "error", "job_id": job_id, "message": "Evaluation job failed: No job data found"}
-        
+
         if job_data.get("stop", False):
             await db.job_update_status(job_id, "STOPPED")
             return {"status": "stopped", "job_id": job_id, "message": "Evaluation job was stopped by user"}
@@ -324,8 +328,12 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         generation_name = job_config["generator"]
         await db.job_update_status(job_id, "RUNNING")
         print("Running generation script")
-        plugin_location = dirs.plugin_dir_by_name(plugin_name)
-        gen_output_file = os.path.join(plugin_location, f"output_{job_id}.txt")
+        WORKSPACE_DIR = dirs.WORKSPACE_DIR
+        # plugin_location = dirs.plugin_dir_by_name(plugin_name)
+        output_temp_file_dir = os.path.join(WORKSPACE_DIR, "temp", plugin_name)
+        if not os.path.exists(output_temp_file_dir):
+            os.makedirs(output_temp_file_dir)
+        gen_output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
         # Create output file if it doesn't exist
         if not os.path.exists(gen_output_file):
             with open(gen_output_file, "w") as f:
@@ -337,7 +345,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         if job_data is None:
             await db.job_update_status(job_id, "FAILED")
             return {"status": "error", "job_id": job_id, "message": "Generation job failed: No job data found"}
-        
+
         if job_data.get("stop", False):
             await db.job_update_status(job_id, "STOPPED")
             return {"status": "stopped", "job_id": job_id, "message": "Generation job was stopped by user"}
@@ -362,8 +370,12 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
     # The script is in workspace/experiments/plugins/<plugin_name>/main.py so we need to
     # form that string:
+    WORKSPACE_DIR = dirs.WORKSPACE_DIR
     plugin_location = dirs.plugin_dir_by_name(plugin_name)
-    output_file = os.path.join(plugin_location, f"output_{job_id}.txt")
+    output_temp_file_dir = os.path.join(WORKSPACE_DIR, "temp", plugin_name)
+    if not os.path.exists(output_temp_file_dir):
+        os.makedirs(output_temp_file_dir)
+    output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
 
     def on_train_complete():
         print("Training Job: The process has finished")

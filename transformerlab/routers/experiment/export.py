@@ -17,6 +17,7 @@ from werkzeug.utils import secure_filename
 
 router = APIRouter(prefix="/export", tags=["export"])
 
+
 @router.get("/run_exporter_script")
 async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: str, plugin_params: str = "{}"):
     """
@@ -47,11 +48,10 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
     # And set default parameters for anything that didn't get passed in
     params = json.loads(plugin_params)
     q_type = ""
-    if 'outtype' in params:
-        q_type = params['outtype']
-    elif 'q_bits' in params:
-        q_type = str(params['q_bits']) + "bit"
-
+    if "outtype" in params:
+        q_type = params["outtype"]
+    elif "q_bits" in params:
+        q_type = str(params["q_bits"]) + "bit"
 
     # Generate output model details
     conversion_time = int(time.time())
@@ -67,7 +67,6 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
     # GGUF is special: it generates a different format with only one file
     # For everything to work we need the model ID and output filename to match
     if output_model_architecture == "GGUF":
-        
         output_model_id = f"{input_model_id_without_author}-{conversion_time}.gguf"
         if len(q_type) > 0:
             output_model_id = f"{input_model_id_without_author}-{conversion_time}-{q_type}.gguf"
@@ -124,19 +123,16 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
     try:
         # Get the output file path
         job_output_file = await get_output_file_name(job_id)
-        
+
         # Create the output file and run the process with output redirection
         with open(job_output_file, "w") as f:
             process = await asyncio.create_subprocess_exec(
-                *subprocess_command, 
-                stdout=f, 
-                stderr=subprocess.PIPE,
-                cwd=script_directory
+                *subprocess_command, stdout=f, stderr=subprocess.PIPE, cwd=script_directory
             )
             _, stderr = await process.communicate()
 
             try:
-                stderr_str = stderr.decode("utf-8", errors="replace") 
+                stderr_str = stderr.decode("utf-8", errors="replace")
             except Exception as e:
                 stderr_str = f"[stderr decode error]: {e}"
 
@@ -146,8 +142,11 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
 
             if process.returncode != 0:
                 await db.job_update_status(job_id=job_id, status="FAILED")
-                return {"status": "error", "message": "Export failed due to an internal error. Please check the output file for more details."}
-                
+                return {
+                    "status": "error",
+                    "message": "Export failed due to an internal error. Please check the output file for more details.",
+                }
+
     except Exception as e:
         import logging
 
@@ -195,40 +194,44 @@ async def get_export_job(id: int, jobId: str):
     job = await db.job_get(jobId)
     return job
 
+
 async def get_output_file_name(job_id: str):
     try:
         # Ensure job_id is a string
         job_id = str(job_id)
-        
+
         # Get job data
         job = await db.job_get(job_id)
         job_data = job["job_data"]
-        
+
         # Check if it has a custom output file path
         if job_data.get("output_file_path") is not None:
             return job_data["output_file_path"]
-        
+
         # Get the plugin name from the job data
         plugin_name = job_data.get("plugin")
         if not plugin_name:
             raise ValueError("Plugin not found in job data")
-        
+
         # Get the plugin directory
         plugin_dir = dirs.plugin_dir_by_name(plugin_name)
-        
+
         job_id = secure_filename(job_id)
-        
+
         # Check for output file with job id
-        if os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
+        new_output_dir = os.path.join(dirs.WORKSPACE_DIR, "temp", plugin_name)
+        if os.path.exists(os.path.join(new_output_dir, f"output_{job_id}.txt")):
+            output_file = os.path.join(new_output_dir, f"output_{job_id}.txt")
+        elif os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
             output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
         else:
             # Create the output file path even if it doesn't exist yet
             output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
-        
+
         return output_file
     except Exception as e:
         raise e
-    
+
 
 @router.get("/job/{job_id}/stream_output")
 async def watch_export_log(job_id: str):

@@ -170,17 +170,25 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
 
     plugin_name = job_data["plugin"]
     plugin_dir = dirs.plugin_dir_by_name(plugin_name)
+    new_output_dir = os.path.join(dirs.WORKSPACE_DIR, "temp", plugin_name)
+    if not os.path.exists(new_output_dir):
+        os.makedirs(new_output_dir)
 
     output_file_name = os.path.join(plugin_dir, f"output_{job_id}.txt")
+    new_output_file_name = os.path.join(new_output_dir, f"output_{job_id}.txt")
 
     if sweeps:
         output_file = job_data.get("sweep_output_file", None)
         if output_file is not None and os.path.exists(output_file):
             output_file_name = output_file
 
-    if not os.path.exists(output_file_name):
-        with open(output_file_name, "w") as f:
+    if os.path.exists(new_output_file_name):
+        output_file_name = new_output_file_name
+    elif not os.path.exists(new_output_file_name) and not os.path.exists(output_file_name):
+        with open(new_output_file_name, "w") as f:
             f.write("")
+    elif not os.path.exists(new_output_file_name) and os.path.exists(output_file_name):
+        output_file_name = output_file_name
 
     return StreamingResponse(
         # we force polling because i can't get this to work otherwise -- changes aren't detected
