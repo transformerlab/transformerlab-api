@@ -209,6 +209,7 @@ async def async_run_python_daemon_and_update_status(
         ):
             venv_path = os.path.join(plugin_location, "venv")
             print(f">Plugin has virtual environment, activating venv from {venv_path}")
+            # log.write(f">Plugin has virtual environment, activating venv from {venv_path}")
             venv_python = os.path.join(venv_path, "bin", "python")
             command = [venv_python, *python_script]
         else:
@@ -232,13 +233,13 @@ async def async_run_python_daemon_and_update_status(
     error_msg = None
     while line:
         decoded = line.decode()
-
         # If we hit the begin_string then the daemon is started and we can return!
         if begin_string in decoded:
             if set_process_id_function is not None:
                 if set_process_id_function:
                     set_process_id_function(process)
             print(f"Worker job {job_id} started successfully")
+            log.write(f"Worker job {job_id} started successfully")
             await db.job_update_status(job_id=job_id, status="COMPLETE")
 
             # Schedule the read_process_output coroutine in the current event
@@ -266,6 +267,7 @@ async def async_run_python_daemon_and_update_status(
         error_msg = f"Process terminated prematurely with exit code {returncode}"
 
     print(f"ERROR: Worker job {job_id} failed with exit code {returncode}.")
+    log.write(f"ERROR: Worker job {job_id} failed with exit code {returncode}.\n")
     print(error_msg)
     await db.job_update_status(job_id=job_id, status="FAILED", error_msg=error_msg)
     return process
@@ -289,7 +291,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         # update task to be marked as COMPLETE:
         await db.job_update_status(job_id, "COMPLETE")
         # implement rest later
-        return {"status": "complete", "job_id": job_id, "message": "Task job completed successfully"}
+        return
     elif master_job_type == "EVAL":
         experiment = await db.experiment_get_by_name(experiment_name)
         experiment_id = experiment["id"]
@@ -304,19 +306,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             with open(evals_output_file, "w") as f:
                 f.write("")
         await run_evaluation_script(experiment_id, plugin_name, eval_name, job_id)
-        # Check if stop button was clicked and update status accordingly
-        job_row = await db.job_get(job_id)
-        job_data = job_row.get("job_data", None)
-        if job_data is None:
-            await db.job_update_status(job_id, "FAILED")
-            return {"status": "error", "job_id": job_id, "message": "Evaluation job failed: No job data found"}
-        
-        if job_data.get("stop", False):
-            await db.job_update_status(job_id, "STOPPED")
-            return {"status": "stopped", "job_id": job_id, "message": "Evaluation job was stopped by user"}
-        else:
-            await db.job_update_status(job_id, "COMPLETE")
-            return {"status": "complete", "job_id": job_id, "message": "Evaluation job completed successfully"}
+        await db.job_update_status(job_id, "COMPLETE")
+        return
     elif master_job_type == "GENERATE":
         experiment = await db.experiment_get_by_name(experiment_name)
         experiment_id = experiment["id"]
@@ -331,19 +322,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             with open(gen_output_file, "w") as f:
                 f.write("")
         await run_generation_script(experiment_id, plugin_name, generation_name, job_id)
-        # Check should_stop flag and update status accordingly
-        job_row = await db.job_get(job_id)
-        job_data = job_row.get("job_data", None)
-        if job_data is None:
-            await db.job_update_status(job_id, "FAILED")
-            return {"status": "error", "job_id": job_id, "message": "Generation job failed: No job data found"}
-        
-        if job_data.get("stop", False):
-            await db.job_update_status(job_id, "STOPPED")
-            return {"status": "stopped", "job_id": job_id, "message": "Generation job was stopped by user"}
-        else:
-            await db.job_update_status(job_id, "COMPLETE")
-            return {"status": "complete", "job_id": job_id, "message": "Generation job completed successfully"}
+        await db.job_update_status(job_id, "COMPLETE")
+        return
 
     job_type = job_config["config"]["type"]
 
