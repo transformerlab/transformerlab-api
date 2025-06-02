@@ -41,12 +41,11 @@ TEST_EXP_RECIPES = [
         ],
         "tasks": [
             {
-                "training": {
-                    "type": "LoRA",
-                    "plugin": "test_trainer",
-                    "formatting_template": "{{prompt}}\n{{completion}}",
-                    "config_json": "{\"template_name\":\"TestTemplate\",\"plugin_name\":\"test_trainer\",\"model_name\":\"test-model-2\",\"dataset_name\":\"test-dataset-for-training\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\"}"
-                }
+                "task_type": "training",
+                "type": "LoRA",
+                "plugin": "test_trainer",
+                "formatting_template": "{{prompt}}\n{{completion}}",
+                "config_json": "{\"template_name\":\"TestTemplate\",\"plugin_name\":\"test_trainer\",\"model_name\":\"test-model-2\",\"dataset_name\":\"test-dataset-for-training\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\"}"
             }
         ]
     },
@@ -66,12 +65,11 @@ TEST_EXP_RECIPES = [
         ],
         "tasks": [
             {
-                "training": {
-                    "type": "LoRA",
-                    "plugin": "mlx_lora_trainer",
-                    "formatting_template": "{{text}}",
-                    "config_json": "{\"template_name\":\"NoNotesTemplate\",\"plugin_name\":\"mlx_lora_trainer\",\"model_name\":\"test-model-3\",\"dataset_name\":\"test-dataset-3\",\"batch_size\":\"8\",\"learning_rate\":\"0.001\"}"
-                }
+                "task_type": "training",
+                "type": "LoRA",
+                "plugin": "mlx_lora_trainer",
+                "formatting_template": "{{text}}",
+                "config_json": "{\"template_name\":\"NoNotesTemplate\",\"plugin_name\":\"mlx_lora_trainer\",\"model_name\":\"test-model-3\",\"dataset_name\":\"test-dataset-3\",\"batch_size\":\"8\",\"learning_rate\":\"0.001\"}"
             }
         ]
     },
@@ -91,12 +89,11 @@ TEST_EXP_RECIPES = [
         ],
         "tasks": [
             {
-                "training": {
-                    "type": "LoRA",
-                    "plugin": "test_trainer",
-                    "formatting_template": "{{prompt}}\n{{completion}}",
-                    "config_json": "{\"template_name\":\"AdaptorTest\",\"plugin_name\":\"test_trainer\",\"model_name\":\"test-model-4\",\"dataset_name\":\"test-dataset-4\",\"adaptor_name\":\"test_adaptor\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\"}"
-                }
+                "task_type": "training",
+                "type": "LoRA",
+                "plugin": "test_trainer",
+                "formatting_template": "{{prompt}}\n{{completion}}",
+                "config_json": "{\"template_name\":\"AdaptorTest\",\"plugin_name\":\"test_trainer\",\"model_name\":\"test-model-4\",\"dataset_name\":\"test-dataset-4\",\"adaptor_name\":\"test_adaptor\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\"}"
             }
         ]
     },
@@ -116,12 +113,11 @@ TEST_EXP_RECIPES = [
         ],
         "tasks": [
             {
-                "training": {
-                    "type": "LoRA",
-                    "plugin": "test_trainer",
-                    "formatting_template": "{{prompt}}\n{{completion}}",
-                    "config_json": "{invalid json syntax to trigger exception"
-                }
+                "task_type": "training",
+                "type": "LoRA",
+                "plugin": "test_trainer",
+                "formatting_template": "{{prompt}}\n{{completion}}",
+                "config_json": "{invalid json syntax to trigger exception"
             }
         ]
     }
@@ -184,7 +180,7 @@ def test_recipes_get_by_id_with_tasks():
         assert data["id"] == 2
         assert "tasks" in data
         assert len(data["tasks"]) == 1
-        assert "training" in data["tasks"][0]
+        assert data["tasks"][0]["task_type"] == "training"
 
 
 def test_create_experiment_with_notes():
