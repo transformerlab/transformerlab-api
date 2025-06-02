@@ -753,14 +753,14 @@ async def generate_image(request: DiffusionRequest):
         raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")
 
 
-@router.post("/is_stable_diffusion", summary="Check if model is Stable Diffusion")
-async def is_stable_diffusion_model(request: DiffusionRequest):
+@router.post("/is_valid_diffusion_model", summary="Check if model is Stable Diffusion")
+async def is_valid_diffusion(request: DiffusionRequest):
     """
-    Returns {"is_stable_diffusion": True/False, "reason": "..."}
+    Returns {"is_valid_diffusion_model": True/False, "reason": "..."}
     """
     model_id = request.model
     if not model_id or model_id.strip() == "":
-        return {"is_stable_diffusion": False, "reason": "Model ID is empty"}
+        return {"is_valid_diffusion_model": False, "reason": "Model ID is empty"}
     try:
         info = model_info(model_id)
         config = getattr(info, "config", {})
@@ -770,19 +770,25 @@ async def is_stable_diffusion_model(request: DiffusionRequest):
             architectures = [architectures]
 
         if request.is_inpainting:
-            # Check if this is an inpainting model
+            # First check if it's already an inpainting-specific architecture
             if any(a in ALLOWED_INPAINTING_ARCHITECTURES for a in architectures):
-                return {"is_stable_diffusion": True, "reason": "Architecture matches allowed SD inpainting"}
+                return {"is_valid_diffusion_model": True, "reason": "Architecture matches allowed SD inpainting"}
+            
+            # Then check if we can derive an inpainting pipeline from a text2img architecture
+            # This follows the same logic as diffusers AutoPipelineForInpainting
+            for arch in architectures:
+                if arch in ALLOWED_TEXT2IMG_ARCHITECTURES: 
+                    return {"is_valid_diffusion_model": True, "reason": f"Text2img architecture {arch} can be used for inpainting"}
         elif request.is_img2img:
             # Check if this is an img2img model
             if any(a in ALLOWED_IMG2IMG_ARCHITECTURES for a in architectures):
-                return {"is_stable_diffusion": True, "reason": "Architecture matches allowed SD img2img"}
+                return {"is_valid_diffusion_model": True, "reason": "Architecture matches allowed SD img2img"}
         else:
             # Check architectures
             if any(a in ALLOWED_TEXT2IMG_ARCHITECTURES for a in architectures):
-                return {"is_stable_diffusion": True, "reason": "Architecture matches allowed SD"}
+                return {"is_valid_diffusion_model": True, "reason": "Architecture matches allowed SD"}
 
-        return {"is_stable_diffusion": False, "reason": "No SD indicators found"}
+        return {"is_valid_diffusion_model": False, "reason": "No SD indicators found"}
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Model not found or error: {str(e)}")
 
