@@ -219,7 +219,6 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                 experiment_id, "foundation_model_architecture", architecture
             )
             await experiment_router.experiments_update_config(experiment_id, "foundation_filename", model_filename)
-            
             model_set_result = {
                 "foundation": model_name,
                 "foundation_model_architecture": architecture,
@@ -264,9 +263,6 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                 # Parse the config_json to extract template metadata
                 config_json = task.get("config_json", "{}")
                 parsed_config = json.loads(config_json)
-
-                # For EVAL and GENERATE tasks, script_parameters should already be in config_json
-                # No additional processing needed as they're already embedded in the config
 
                 # Generate simple task name that helps user follow order of tasks
                 task_name = f"Task_{i+1}"

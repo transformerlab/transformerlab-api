@@ -250,7 +250,7 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
     )
 
     # Check if plugin has a venv directory
-    venv_path =os.path.join(script_directory, "venv")
+    venv_path = os.path.join(script_directory, "venv")
     if os.path.exists(venv_path) and os.path.isdir(venv_path):
         print(f">Plugin has virtual environment, activating venv from {venv_path}")
         # Use bash to activate venv and then run the command
