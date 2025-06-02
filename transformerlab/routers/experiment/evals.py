@@ -251,6 +251,7 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
     print(f">Running {subprocess_command}")
 
     output_file = await dirs.eval_output_file(experiment_name, eval_name)
+    print(f">EVAL Output file: {job_output_file}")
 
     with open(job_output_file, "w") as f:
         process = await asyncio.create_subprocess_exec(*subprocess_command, stdout=f, stderr=subprocess.PIPE)

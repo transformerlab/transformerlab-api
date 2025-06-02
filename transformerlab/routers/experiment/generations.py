@@ -260,6 +260,8 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
 
     output_file = await dirs.generation_output_file(experiment_name, generation_name)
 
+    print(f">GENERATION Output file: {job_output_file}")
+
     with open(job_output_file, "w") as f:
         process = await asyncio.create_subprocess_exec(*subprocess_command, stdout=f, stderr=subprocess.PIPE)
         await process.communicate()
