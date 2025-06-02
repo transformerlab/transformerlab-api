@@ -76,15 +76,9 @@ sed -i 's/\+cpu//g' requirements-no-gpu-uv.txt
 
 ### NOTES:
 
-1. If the update removes the `[all]` qualifier on the markitdown package then you should add that back.
-   i.e. Change from this:
-   `markitdown==<version_number>`
-   to this:
-   `markitdown[all]==<version_number>`
+1. If the command that generates `requirements-rocm-uv.txt` adds the `nvidia-ml-py` library then you should remove that.
 
-2. If the command that generates `requirements-rocm-uv.txt` adds the `nvidia-ml-py` library then you should remove that.
-
-3. the `sed` commands are to remove the suffixes on pytorch libraries that get added but break the install
+2. the `sed` commands are to remove the suffixes on pytorch libraries that get added but break the install
 
 # Windows Notes
 
