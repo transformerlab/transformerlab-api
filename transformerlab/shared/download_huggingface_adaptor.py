@@ -135,7 +135,7 @@ def main():
                 "UPDATE job SET status=?, job_data=json(?) WHERE id=?",
                 ("SUCCESS", json.dumps({"success_msg": f"Adapter {peft} installed successfully"}), job_id),
             )
-        except sqlite3.OperationalError as e:
+        except sqlite3.OperationalError:
             returncode = 74
 
     db.close()
