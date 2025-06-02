@@ -19,7 +19,7 @@ TEST_EXP_RECIPES = [
                 "name": "test-model"
             },
             {
-                "type": "dataset", 
+                "type": "dataset",
                 "name": "test-dataset"
             }
         ]
@@ -162,22 +162,22 @@ TEST_EXP_RECIPES = [
 def setup_test_recipes():
     """Setup test recipe file by overwriting the cached gallery file"""
     cache_file_path = gallery_cache_file_path(EXP_RECIPES_GALLERY_FILE)
-    
+
     # Store original file if it exists
     original_content = None
     if os.path.exists(cache_file_path):
         with open(cache_file_path, 'r') as f:
             original_content = f.read()
-    
+
     # Ensure the directory exists
     os.makedirs(os.path.dirname(cache_file_path), exist_ok=True)
-    
+
     # Write our test recipes to the cache file
     with open(cache_file_path, 'w') as f:
         json.dump(TEST_EXP_RECIPES, f)
-    
+
     yield  # This is where the test runs
-    
+
     # Cleanup: restore original file or remove test file
     if original_content is not None:
         with open(cache_file_path, 'w') as f:
@@ -220,7 +220,8 @@ def test_recipes_get_by_id_with_tasks():
 def test_create_experiment_with_notes():
     with TestClient(app) as client:
         test_experiment_name = f"test_notes_exp_{os.getpid()}"
-        resp = client.post(f"/recipes/1/create_experiment?experiment_name={test_experiment_name}")
+        resp = client.post(
+            f"/recipes/1/create_experiment?experiment_name={test_experiment_name}")
         assert resp.status_code == 200
         data = resp.json()
         # Should either succeed or have a reasonable response
@@ -230,7 +231,8 @@ def test_create_experiment_with_notes():
 def test_create_experiment_with_tasks():
     with TestClient(app) as client:
         test_experiment_name = f"test_tasks_exp_{os.getpid()}"
-        resp = client.post(f"/recipes/2/create_experiment?experiment_name={test_experiment_name}")
+        resp = client.post(
+            f"/recipes/2/create_experiment?experiment_name={test_experiment_name}")
         assert resp.status_code == 200
         data = resp.json()
         # Should either succeed or have a reasonable response
@@ -244,7 +246,8 @@ def test_create_experiment_with_tasks():
 def test_create_experiment_tasks_only():
     with TestClient(app) as client:
         test_experiment_name = f"test_tasks_only_{os.getpid()}"
-        resp = client.post(f"/recipes/3/create_experiment?experiment_name={test_experiment_name}")
+        resp = client.post(
+            f"/recipes/3/create_experiment?experiment_name={test_experiment_name}")
         assert resp.status_code == 200
         data = resp.json()
         # Should either succeed or have a reasonable response
@@ -254,13 +257,15 @@ def test_create_experiment_tasks_only():
 def test_create_experiment_duplicate_name():
     with TestClient(app) as client:
         test_experiment_name = f"duplicate_test_{os.getpid()}"
-        
+
         # First creation
-        resp1 = client.post(f"/recipes/1/create_experiment?experiment_name={test_experiment_name}")
+        resp1 = client.post(
+            f"/recipes/1/create_experiment?experiment_name={test_experiment_name}")
         assert resp1.status_code == 200
-        
+
         # Second creation with same name should fail
-        resp2 = client.post(f"/recipes/1/create_experiment?experiment_name={test_experiment_name}")
+        resp2 = client.post(
+            f"/recipes/1/create_experiment?experiment_name={test_experiment_name}")
         assert resp2.status_code == 200
         data = resp2.json()
         assert data.get("status") == "error"
@@ -270,7 +275,8 @@ def test_create_experiment_duplicate_name():
 def test_create_experiment_invalid_recipe_id():
     with TestClient(app) as client:
         test_experiment_name = f"invalid_recipe_test_{os.getpid()}"
-        resp = client.post(f"/recipes/999/create_experiment?experiment_name={test_experiment_name}")
+        resp = client.post(
+            f"/recipes/999/create_experiment?experiment_name={test_experiment_name}")
         assert resp.status_code == 200
         data = resp.json()
         assert data.get("status") == "error"
@@ -281,7 +287,8 @@ def test_create_experiment_with_adaptor_name():
     """Test creating experiment with recipe that has adaptor_name in config (covers line 281)"""
     with TestClient(app) as client:
         test_experiment_name = f"test_adaptor_{os.getpid()}"
-        resp = client.post(f"/recipes/4/create_experiment?experiment_name={test_experiment_name}")
+        resp = client.post(
+            f"/recipes/4/create_experiment?experiment_name={test_experiment_name}")
         assert resp.status_code == 200
         data = resp.json()
         # Should either succeed or have a reasonable response
@@ -296,7 +303,8 @@ def test_create_experiment_with_invalid_json_config():
     """Test creating experiment with invalid JSON config to trigger exception handling (covers lines 306-307)"""
     with TestClient(app) as client:
         test_experiment_name = f"test_invalid_json_{os.getpid()}"
-        resp = client.post(f"/recipes/5/create_experiment?experiment_name={test_experiment_name}")
+        resp = client.post(
+            f"/recipes/5/create_experiment?experiment_name={test_experiment_name}")
         assert resp.status_code == 200
         data = resp.json()
         # Should succeed but with error in task results due to invalid JSON
@@ -306,7 +314,8 @@ def test_create_experiment_with_invalid_json_config():
             # Should have at least one task result with an error status
             assert len(task_results) > 0
             # At least one task should have error status due to invalid JSON
-            has_error = any("error" in result.get("status", "") for result in task_results)
+            has_error = any("error" in result.get("status", "")
+                            for result in task_results)
             assert has_error
 
 
@@ -329,7 +338,8 @@ def test_create_experiment_with_multiple_task_types():
     """Test creating an experiment with multiple task types"""
     with TestClient(app) as client:
         test_experiment_name = f"test_multi_tasks_{os.getpid()}"
-        resp = client.post(f"/recipes/6/create_experiment?experiment_name={test_experiment_name}")
+        resp = client.post(
+            f"/recipes/6/create_experiment?experiment_name={test_experiment_name}")
         assert resp.status_code == 200
         data = resp.json()
         assert "status" in data
@@ -338,7 +348,8 @@ def test_create_experiment_with_multiple_task_types():
             assert "task_results" in data["data"]
             task_results = data["data"]["task_results"]
             assert len(task_results) == 3
-            task_types = [result.get("task_type") for result in task_results if "task_type" in result]
+            task_types = [result.get("task_type")
+                          for result in task_results if "task_type" in result]
             assert "TRAIN" in task_types
             assert "EVAL" in task_types
-            assert "GENERATE" in task_types 
+            assert "GENERATE" in task_types
