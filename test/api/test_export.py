@@ -185,7 +185,7 @@ def test_get_output_file_name_with_plugin(mock_exists, mock_plugin_dir, mock_job
     mock_exists.return_value = True
 
     result = asyncio.run(get_output_file_name("job123"))
-    assert "temp/test_plugin/output_job123.txt" in result
+    assert "jobs/job123/output_job123.txt" in result
 
 
 @patch("transformerlab.routers.experiment.export.get_output_file_name")
