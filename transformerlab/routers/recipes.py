@@ -80,7 +80,6 @@ async def _install_recipe_dependencies_job(job_id, id):
             await db.job_update_status(job_id, "FAILED", error_msg=f"Recipe with id {id} not found.")
             return
         if len(recipe.get("dependencies", [])) == 0:
-            await db.job_update_job_data_insert_key_value(job_id, "results", [])
             await db.job_update_status(job_id, "COMPLETE")
             return
 
@@ -257,12 +256,10 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
         dataset_name = dataset_deps[0].get("name", "")
     
     for i, task in enumerate(tasks):
-        if "training" in task:
-            training_config = task["training"]
-            
+        if task.get("task_type") == "training":
             try:
                 # Parse the config_json to extract template metadata
-                config_json = training_config.get("config_json", "{}")
+                config_json = task.get("config_json", "{}")
                 parsed_config = json.loads(config_json)
 
                 # Generate simple task name that helps user follow order of tasks
