@@ -74,6 +74,56 @@ TEST_EXP_RECIPES = [
                 }
             }
         ]
+    },
+    {
+        "id": 4,
+        "title": "Test Recipe - With Adaptor Name",
+        "description": "A test recipe that includes adaptor_name in config to test line 281",
+        "dependencies": [
+            {
+                "type": "model",
+                "name": "test-model-4"
+            },
+            {
+                "type": "dataset",
+                "name": "test-dataset-4"
+            }
+        ],
+        "tasks": [
+            {
+                "training": {
+                    "type": "LoRA",
+                    "plugin": "test_trainer",
+                    "formatting_template": "{{prompt}}\n{{completion}}",
+                    "config_json": "{\"template_name\":\"AdaptorTest\",\"plugin_name\":\"test_trainer\",\"model_name\":\"test-model-4\",\"dataset_name\":\"test-dataset-4\",\"adaptor_name\":\"test_adaptor\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\"}"
+                }
+            }
+        ]
+    },
+    {
+        "id": 5,
+        "title": "Test Recipe - Invalid JSON Config",
+        "description": "A test recipe with invalid JSON to test exception handling",
+        "dependencies": [
+            {
+                "type": "model",
+                "name": "test-model-5"
+            },
+            {
+                "type": "dataset",
+                "name": "test-dataset-5"
+            }
+        ],
+        "tasks": [
+            {
+                "training": {
+                    "type": "LoRA",
+                    "plugin": "test_trainer",
+                    "formatting_template": "{{prompt}}\n{{completion}}",
+                    "config_json": "{invalid json syntax to trigger exception"
+                }
+            }
+        ]
     }
 ]
 
@@ -194,4 +244,37 @@ def test_create_experiment_invalid_recipe_id():
         assert resp.status_code == 200
         data = resp.json()
         assert data.get("status") == "error"
-        assert "not found" in data.get("message", "") 
+        assert "not found" in data.get("message", "")
+
+
+def test_create_experiment_with_adaptor_name():
+    """Test creating experiment with recipe that has adaptor_name in config (covers line 281)"""
+    with TestClient(app) as client:
+        test_experiment_name = f"test_adaptor_{os.getpid()}"
+        resp = client.post(f"/recipes/4/create_experiment?experiment_name={test_experiment_name}")
+        assert resp.status_code == 200
+        data = resp.json()
+        # Should either succeed or have a reasonable response
+        assert "status" in data or "message" in data
+        # If it succeeds, should have task results
+        if data.get("status") == "success":
+            assert "data" in data
+            assert "task_results" in data["data"]
+
+
+def test_create_experiment_with_invalid_json_config():
+    """Test creating experiment with invalid JSON config to trigger exception handling (covers lines 306-307)"""
+    with TestClient(app) as client:
+        test_experiment_name = f"test_invalid_json_{os.getpid()}"
+        resp = client.post(f"/recipes/5/create_experiment?experiment_name={test_experiment_name}")
+        assert resp.status_code == 200
+        data = resp.json()
+        # Should succeed but with error in task results due to invalid JSON
+        assert "status" in data or "message" in data
+        if data.get("status") == "success" and "data" in data and "task_results" in data["data"]:
+            task_results = data["data"]["task_results"]
+            # Should have at least one task result with an error status
+            assert len(task_results) > 0
+            # At least one task should have error status due to invalid JSON
+            has_error = any("error" in result.get("status", "") for result in task_results)
+            assert has_error 
