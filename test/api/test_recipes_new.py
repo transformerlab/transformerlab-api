@@ -120,6 +120,40 @@ TEST_EXP_RECIPES = [
                 "config_json": "{invalid json syntax to trigger exception"
             }
         ]
+    },
+    {
+        "id": 6,
+        "title": "Test Recipe - With Multiple Task Types",
+        "description": "A test recipe that includes training, evaluation and generation tasks",
+        "dependencies": [
+            {
+                "type": "model",
+                "name": "test-model-6"
+            },
+            {
+                "type": "dataset",
+                "name": "test-dataset-6"
+            }
+        ],
+        "tasks": [
+            {
+                "task_type": "TRAIN",
+                "type": "LoRA",
+                "plugin": "test_trainer",
+                "formatting_template": "{{prompt}}\n{{completion}}",
+                "config_json": "{\"template_name\":\"TestTemplate\",\"plugin_name\":\"test_trainer\",\"model_name\":\"test-model-6\",\"dataset_name\":\"test-dataset-6\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\"}"
+            },
+            {
+                "task_type": "EVAL",
+                "plugin": "test_evaluator",
+                "config_json": "{\"template_name\":\"TestEval\",\"plugin_name\":\"test_evaluator\",\"model_name\":\"test-model-6\",\"eval_type\":\"basic\",\"metrics\":[\"accuracy\",\"f1\"],\"eval_dataset\":\"test-eval-dataset\"}"
+            },
+            {
+                "task_type": "GENERATE",
+                "plugin": "test_generator",
+                "config_json": "{\"template_name\":\"TestGen\",\"plugin_name\":\"test_generator\",\"model_name\":\"test-model-6\",\"prompt_template\":\"Generate a response: {{input}}\",\"generation_params\":{\"max_length\":100,\"temperature\":0.7}}"
+            }
+        ]
     }
 ]
 
@@ -273,4 +307,38 @@ def test_create_experiment_with_invalid_json_config():
             assert len(task_results) > 0
             # At least one task should have error status due to invalid JSON
             has_error = any("error" in result.get("status", "") for result in task_results)
-            assert has_error 
+            assert has_error
+
+
+def test_recipes_get_by_id_with_multiple_task_types():
+    """Test that a recipe with multiple task types (TRAIN, EVAL, GENERATE) is handled correctly"""
+    with TestClient(app) as client:
+        resp = client.get("/recipes/6")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["id"] == 6
+        assert "tasks" in data
+        assert len(data["tasks"]) == 3
+        task_types = [task["task_type"] for task in data["tasks"]]
+        assert "TRAIN" in task_types
+        assert "EVAL" in task_types
+        assert "GENERATE" in task_types
+
+
+def test_create_experiment_with_multiple_task_types():
+    """Test creating an experiment with multiple task types"""
+    with TestClient(app) as client:
+        test_experiment_name = f"test_multi_tasks_{os.getpid()}"
+        resp = client.post(f"/recipes/6/create_experiment?experiment_name={test_experiment_name}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "status" in data
+        if data.get("status") == "success":
+            assert "data" in data
+            assert "task_results" in data["data"]
+            task_results = data["data"]["task_results"]
+            assert len(task_results) == 3
+            task_types = [result.get("task_type") for result in task_results if "task_type" in result]
+            assert "TRAIN" in task_types
+            assert "EVAL" in task_types
+            assert "GENERATE" in task_types 

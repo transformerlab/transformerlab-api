@@ -219,12 +219,19 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                 experiment_id, "foundation_model_architecture", architecture
             )
             await experiment_router.experiments_update_config(experiment_id, "foundation_filename", model_filename)
+            # Set default adaptor to empty string to prevent KeyError in generation/eval scripts
+            await experiment_router.experiments_update_config(experiment_id, "adaptor", "")
+            
             model_set_result = {
                 "foundation": model_name,
                 "foundation_model_architecture": architecture,
                 "foundation_filename": model_filename,
             }
             break  # Only set the first model dependency
+
+    # Ensure adaptor field is always set, even if no model dependencies were found
+    if model_set_result is None:
+        await experiment_router.experiments_update_config(experiment_id, "adaptor", "")
 
     workflow_results = []
     for dep in recipe.get("dependencies", []):
@@ -257,11 +264,15 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
         dataset_name = dataset_deps[0].get("name", "")
     
     for i, task in enumerate(tasks):
-        if task.get("task_type") == "TRAIN":
+        task_type = task.get("task_type")
+        if task_type in ["TRAIN", "EVAL", "GENERATE"]:
             try:
                 # Parse the config_json to extract template metadata
                 config_json = task.get("config_json", "{}")
                 parsed_config = json.loads(config_json)
+
+                # For EVAL and GENERATE tasks, script_parameters should already be in config_json
+                # No additional processing needed as they're already embedded in the config
 
                 # Generate simple task name that helps user follow order of tasks
                 task_name = f"Task_{i+1}"
@@ -272,11 +283,31 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                     "model_architecture": parsed_config.get("model_architecture", ""),
                     "dataset_name": dataset_name  # Using dataset from dependencies
                 }
+
+                # For EVAL tasks, add evaluation specific inputs
+                if task_type == "EVAL":
+                    inputs.update({
+                        "tasks": parsed_config.get("tasks", ""),
+                        "limit": parsed_config.get("limit", ""),
+                        "run_name": parsed_config.get("run_name", "")
+                    })
+                # For GENERATE tasks, add generation specific inputs
+                elif task_type == "GENERATE":
+                    inputs.update({
+                        "num_goldens": parsed_config.get("num_goldens", ""),
+                        "scenario": parsed_config.get("scenario", ""),
+                        "task": parsed_config.get("task", ""),
+                        "run_name": parsed_config.get("run_name", "")
+                    })
                 
                 # Create outputs JSON (what the task produces)
                 outputs = {}
-                if "adaptor_name" in parsed_config:
+                if task_type == "TRAIN" and "adaptor_name" in parsed_config:
                     outputs = {"adaptor_name": parsed_config["adaptor_name"]}
+                elif task_type == "EVAL":
+                    outputs = {"eval_results": {}}
+                elif task_type == "GENERATE":
+                    outputs = {"generated_outputs": []}
                 
                 # Get plugin name
                 plugin_name = parsed_config.get("plugin_name", "")
@@ -284,7 +315,7 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                 # Create task in database
                 await db.add_task(
                     name=task_name,
-                    Type="TRAIN",
+                    Type=task_type,
                     inputs=json.dumps(inputs),
                     config=config_json,
                     plugin=plugin_name,
@@ -297,6 +328,7 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                     "task_name": task_name,
                     "action": "create_task",
                     "status": "success",
+                    "task_type": task_type,
                     "dataset_used": dataset_name,
                     "plugin": plugin_name
                 })
@@ -305,7 +337,7 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                 task_results.append({
                     "task_index": i+1,
                     "action": "create_task", 
-                    "status": "error: Failed to create training task"
+                    "status": f"error: Failed to create {task_type.lower()} task."
                 })
 
     return {
