@@ -299,7 +299,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         print("Running evaluation script")
         WORKSPACE_DIR = dirs.WORKSPACE_DIR
         # plugin_location = dirs.plugin_dir_by_name(plugin_name)
-        output_temp_file_dir = os.path.join(WORKSPACE_DIR, "jobs", job_id)
+        output_temp_file_dir = os.path.join(WORKSPACE_DIR, "jobs", str(job_id))
         if not os.path.exists(output_temp_file_dir):
             os.makedirs(output_temp_file_dir)
         evals_output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
@@ -330,7 +330,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         print("Running generation script")
         WORKSPACE_DIR = dirs.WORKSPACE_DIR
         # plugin_location = dirs.plugin_dir_by_name(plugin_name)
-        output_temp_file_dir = os.path.join(WORKSPACE_DIR, "jobs", job_id)
+        output_temp_file_dir = os.path.join(WORKSPACE_DIR, "jobs", str(job_id))
         if not os.path.exists(output_temp_file_dir):
             os.makedirs(output_temp_file_dir)
         gen_output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
@@ -372,7 +372,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     # form that string:
     WORKSPACE_DIR = dirs.WORKSPACE_DIR
     plugin_location = dirs.plugin_dir_by_name(plugin_name)
-    output_temp_file_dir = os.path.join(WORKSPACE_DIR, "jobs", job_id)
+    output_temp_file_dir = os.path.join(WORKSPACE_DIR, "jobs", str(job_id))
     if not os.path.exists(output_temp_file_dir):
         os.makedirs(output_temp_file_dir)
     output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")

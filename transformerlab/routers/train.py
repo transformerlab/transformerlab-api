@@ -267,7 +267,7 @@ async def get_output_file_name(job_id: str):
         job_id = secure_filename(job_id)
 
         # job output is stored in separate files with a job number in the name...
-        jobs_dir_output_file_name = os.path.join(dirs.WORKSPACE_DIR, "jobs", job_id)
+        jobs_dir_output_file_name = os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id))
 
         # job output is stored in separate files with a job number in the name...
         if os.path.exists(os.path.join(jobs_dir_output_file_name, f"output_{job_id}.txt")):

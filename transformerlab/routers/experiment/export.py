@@ -219,7 +219,7 @@ async def get_output_file_name(job_id: str):
         job_id = secure_filename(job_id)
 
         # Check for output file with job id
-        jobs_dir_output_file_name = os.path.join(dirs.WORKSPACE_DIR, "jobs", job_id)
+        jobs_dir_output_file_name = os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id))
         if os.path.exists(os.path.join(jobs_dir_output_file_name, f"output_{job_id}.txt")):
             output_file = os.path.join(jobs_dir_output_file_name, f"output_{job_id}.txt")
         elif os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):

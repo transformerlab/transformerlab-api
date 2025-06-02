@@ -170,7 +170,7 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
 
     plugin_name = job_data["plugin"]
     plugin_dir = dirs.plugin_dir_by_name(plugin_name)
-    new_output_dir = os.path.join(dirs.WORKSPACE_DIR, "jobs", job_id)
+    new_output_dir = os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id))
     if not os.path.exists(new_output_dir):
         os.makedirs(new_output_dir)
 
