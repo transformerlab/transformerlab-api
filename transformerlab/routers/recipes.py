@@ -80,6 +80,7 @@ async def _install_recipe_dependencies_job(job_id, id):
             await db.job_update_status(job_id, "FAILED", error_msg=f"Recipe with id {id} not found.")
             return
         if len(recipe.get("dependencies", [])) == 0:
+            await db.job_update_job_data_insert_key_value(job_id, "results", [])
             await db.job_update_status(job_id, "COMPLETE")
             return
 
