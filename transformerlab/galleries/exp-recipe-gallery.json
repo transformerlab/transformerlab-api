@@ -1,0 +1,121 @@
+[
+  {
+    "id": 1,
+    "title": "Train a Model From Scratch",
+    "description": "Build a new machine learning model from the ground up using Nanotron. Ideal for custom use cases and datasets.",
+    "requiredMachineArchitecture": ["mlx", "cuda"],
+    "dependencies": [
+      {
+        "type": "model",
+        "name": "mlx-community/Llama-3.2-1B-Instruct-4bit"
+      },
+      {
+        "type": "plugin",
+        "name": "llama-trainer"
+      },
+      {
+        "type": "dataset",
+        "name": "spencer/samsum_reformat"
+      },
+      {
+        "type": "plugin",
+        "name": "eleuther-ai-lm-evaluation-harness-mlx"
+      },
+      {
+        "type": "workflow",
+        "name": "eval-and-deploy"
+      }
+    ],
+    "cardImage": "https://images.unsplash.com/photo-1532614338840-ab30cf10ed36?auto=format&fit=crop&w=318"
+  },
+  {
+    "id": 2,
+    "title": "Fine-tune an Existing Model",
+    "description": "Adapt a pre-trained model to your specific needs using LoRA. Save time and resources by leveraging existing knowledge.",
+    "requiredMachineArchitecture": ["cuda"],
+    "cardImage": "https://images.unsplash.com/photo-1747253523880-a8e2a41b301d?auto=format&fit=crop&w=318"
+  },
+  {
+    "id": 3,
+    "title": "Evaluate a Model",
+    "description": "Assess the performance of your model using Eleuther Labs AI Evaluation Harness. Gain insights into accuracy and reliability.",
+    "dependencies": [
+      {
+        "type": "model",
+        "name": "mlx-community/Llama-3.2-1B-Instruct-4bit"
+      },
+      {
+        "type": "dataset",
+        "name": "spencer/samsum_reformat"
+      },
+      {
+        "type": "plugin",
+        "name": "eleuther-ai-lm-evaluation-harness-mlx"
+      },
+      {
+        "type": "workflow",
+        "name": "eval-and-deploy"
+      }
+    ],
+    "cardImage": "https://images.unsplash.com/photo-1747607176057-175b357ef4ab?auto=format&fit=crop&w=318"
+  },
+  {
+    "id": 4,
+    "title": "Convert a Model to the MLX Format",
+    "description": "Transform your model into the MLX format for compatibility with various deployment environments.",
+    "requiredMachineArchitecture": ["mlx"],
+    "cardImage": "https://images.unsplash.com/photo-1747253523880-a8e2a41b301d?auto=format&fit=crop&w=318"
+  },
+  {
+    "id": 5,
+    "title": "Quantize a Model",
+    "description": "Optimize your model for faster inference and reduced size using Nanotron’s quantization tools.",
+    "requiredMachineArchitecture": ["mlx", "cuda"],
+    "cardImage": "https://images.unsplash.com/photo-1532614338840-ab30cf10ed36?auto=format&fit=crop&w=318"
+  },
+  {
+    "id": 6,
+    "title": "Deploy a Model to the Edge",
+    "description": "Seamlessly deploy your model to edge devices using Nanotron’s deployment tools. Ensure low-latency and efficient performance.",
+    "requiredMachineArchitecture": ["mlx"],
+    "cardImage": "https://images.unsplash.com/photo-1747607176057-175b357ef4ab?auto=format&fit=crop&w=318"
+  },
+  {
+    "id": 7,
+    "title": "Run a Model on the Edge",
+    "description": "Execute your model on edge devices using Nanotron’s runtime environment. Achieve real-time performance and low power consumption.",
+    "requiredMachineArchitecture": ["cuda"],
+    "cardImage": "https://images.unsplash.com/photo-1747253523880-a8e2a41b301d?auto=format&fit=crop&w=318"
+  },
+  {
+    "id": 8,
+    "title": "Fine Tune a Small Language Model using MLX",
+    "description": "Train a Llama 3.2 1B model to understand and answer questions about Touch Rugby rules using the MLX framework. Perfect for rule-based question answering.",
+    "notes": "# MLX Fine-Tuning Notes\n\n## Overview\nThis recipe fine-tunes a Llama 3.2 1B model specifically for Touch Rugby rules using the MLX framework.\n\n## Important Considerations\n- MLX is optimized for Apple Silicon (M1/M2/M3 chips)\n- The dataset contains Touch Rugby rules in Q&A format\n- Model size is kept small (1B parameters) for efficient inference\n\n## Training Tips\n- Monitor loss curves carefully\n- Use appropriate LoRA rank (typically 8-64)\n- Validate on unseen rugby scenarios\n\n## Expected Outcomes\nAfter training, the model should be able to answer questions about:\n- Touch Rugby rules and regulations\n- Game procedures and scoring\n- Player positions and responsibilities",
+    "requiredMachineArchitecture": ["mlx"],
+    "dependencies": [
+      {
+        "type": "model",
+        "name": "mlx-community/Llama-3.2-1B-Instruct-4bit"
+      },
+      {
+        "type": "plugin",
+        "name": "mlx_lora_trainer"
+      },
+      {
+        "type": "dataset",
+        "name": "Trelis/touch-rugby-rules"
+      }
+    ],
+    "tasks": [
+      {
+        "task_type": "TRAIN",
+        "type": "LoRA",
+        "plugin": "mlx_lora_trainer",
+        "formatting_template": "{{prompt}}\n{{completion}}",
+        "config_json": "{\"template_name\":\"TouchRugby\",\"plugin_name\":\"mlx_lora_trainer\",\"model_name\":\"mlx-community/Llama-3.2-1B-Instruct-4bit\",\"model_architecture\":\"LlamaForCausalLM\",\"formatting_template\":\"{{prompt}}\\n{{completion}}\",\"dataset_name\":\"Trelis/touch-rugby-rules\",\"lora_layers\":\"16\",\"batch_size\":\"8\",\"learning_rate\":\"0.0001\",\"lora_rank\":\"32\",\"lora_alpha\":\"128\",\"iters\":\"120\",\"steps_per_report\":\"10\",\"steps_per_eval\":\"20\",\"save_every\":\"10\",\"adaptor_name\":\"touch-rugby\"}"
+      }
+    ],
+    "cardImage": "https://images.unsplash.com/photo-1558151507-c1aa3d917dbb?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+  }
+]
