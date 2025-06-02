@@ -178,13 +178,13 @@ markdown2==2.5.3
     # via transformerlab-inference
 markdownify==1.1.0
     # via markitdown
-markitdown[all]==0.1.1
+markitdown==0.1.1
     # via -r requirements.in
 markupsafe==2.1.5
     # via
     #   jinja2
     #   werkzeug
-mcp[cli]==1.8.1
+mcp==1.8.1
     # via -r requirements.in
 mdurl==0.1.2
     # via markdown-it-py
