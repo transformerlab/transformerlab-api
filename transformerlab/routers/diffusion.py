@@ -172,6 +172,7 @@ class DiffusionRequest(BaseModel):
     def validated_num_images(self) -> int:
         """Ensure num_images is within reasonable bounds"""
         return max(1, min(self.num_images, 8))
+
     # Negative prompting
     negative_prompt: str = ""
     # Advanced guidance control
@@ -364,7 +365,9 @@ def get_pipeline_key(model: str, adaptor: str = "", is_img2img: bool = False, is
     return f"{base_key}::{pipeline_type}"
 
 
-def get_pipeline(model: str, adaptor: str = "", device: str = "cuda", is_img2img: bool = False, is_inpainting: bool = False):
+def get_pipeline(
+    model: str, adaptor: str = "", device: str = "cuda", is_img2img: bool = False, is_inpainting: bool = False
+):
     # cache_key = get_pipeline_key(model, adaptor, is_img2img, is_inpainting)
 
     with _PIPELINES_LOCK:
@@ -492,18 +495,20 @@ async def generate_image(request: DiffusionRequest):
         # Validate num_images parameter
         if request.num_images < 1 or request.num_images > 10:
             raise HTTPException(status_code=400, detail="num_images must be between 1 and 10")
-        
+
         # Generate unique ID and timestamp
         generation_id = str(uuid.uuid4())
         timestamp = datetime.now().isoformat()
-        
+
         # Create folder for images
         ensure_directories()
         images_folder = os.path.join(get_images_dir(), generation_id)
         os.makedirs(images_folder, exist_ok=True)
-        
+
         # Determine pipeline type based on flags and provided images
-        is_inpainting = request.is_inpainting or (bool(request.input_image.strip()) and bool(request.mask_image.strip()))
+        is_inpainting = request.is_inpainting or (
+            bool(request.input_image.strip()) and bool(request.mask_image.strip())
+        )
         is_img2img = request.is_img2img or (bool(request.input_image.strip()) and not is_inpainting)
 
         # Process input image and mask if provided
@@ -511,7 +516,7 @@ async def generate_image(request: DiffusionRequest):
         mask_image_obj = None
         input_image_path = ""
         mask_image_path = ""
-        
+
         if is_inpainting or is_img2img:
             try:
                 # Decode base64 input image
@@ -526,7 +531,7 @@ async def generate_image(request: DiffusionRequest):
                 print(f"Input image saved: {input_image_path}")
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Invalid input image: {str(e)}")
-        
+
         if is_inpainting:
             try:
                 # Decode base64 mask image
@@ -541,7 +546,7 @@ async def generate_image(request: DiffusionRequest):
                 print(f"Mask image saved: {mask_image_path}")
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Invalid mask image: {str(e)}")
-        
+
         # Check if we should use multi-GPU approach
         if should_use_multi_gpu(request.use_multi_gpu):
             print(f"Using multi-GPU subprocess approach for model: {request.model}")
@@ -550,32 +555,34 @@ async def generate_image(request: DiffusionRequest):
                 result = await run_multi_gpu_generation(
                     request, generation_id, images_folder, input_image_path, mask_image_path, is_img2img, is_inpainting
                 )
-                
+
                 images = []
                 for img_path in result["images"]:
                     images.append(Image.open(img_path))
-                
+
                 total_generation_time = result["generation_time"]
                 seed = result["seed"]
-                
+
                 # Get dimensions from the first image
                 first_image = images[0]
                 actual_height = request.height if request.height > 0 else first_image.height
                 actual_width = request.width if request.width > 0 else first_image.width
-                
+
             except Exception as e:
                 print(f"Multi-GPU generation failed, falling back to single GPU: {str(e)}")
                 # Fall back to single GPU approach
                 device = "cuda" if torch.cuda.is_available() else "cpu"
                 cleanup_pipeline()
-                
+
         else:
             use_single_gpu = True
-        
+
         if use_single_gpu:
             device = "cuda" if torch.cuda.is_available() else "cpu"
             cleanup_pipeline()  # Clean up any previous pipelines
-            pipe = get_pipeline(request.model, request.adaptor, device=device, is_img2img=is_img2img, is_inpainting=is_inpainting)
+            pipe = get_pipeline(
+                request.model, request.adaptor, device=device, is_img2img=is_img2img, is_inpainting=is_inpainting
+            )
 
             # Set seed - use provided seed or generate a random one
             if request.seed is None or request.seed < 0:
@@ -584,7 +591,7 @@ async def generate_image(request: DiffusionRequest):
                 seed = request.seed
 
             generator = torch.manual_seed(seed)
-            
+
             # Process input image and mask for single GPU path
             input_image_obj = None
             mask_image_obj = None
@@ -595,7 +602,7 @@ async def generate_image(request: DiffusionRequest):
                     input_image_obj = Image.open(BytesIO(image_data)).convert("RGB")
                 except Exception as e:
                     raise HTTPException(status_code=400, detail=f"Invalid input image: {str(e)}")
-            
+
             if is_inpainting:
                 try:
                     # Decode base64 mask image
@@ -659,12 +666,12 @@ async def generate_image(request: DiffusionRequest):
 
             # Clean up the main pipeline to free VRAM
             cleanup_pipeline(pipe)
-            
+
             # Get dimensions from the first image
             first_image = images[0]
             actual_height = request.height if request.height > 0 else first_image.height
             actual_width = request.width if request.width > 0 else first_image.width
-            
+
             total_generation_time = generation_time
 
         # Apply upscaling if requested (for both paths)
@@ -675,7 +682,7 @@ async def generate_image(request: DiffusionRequest):
                 upscaled_images = []
                 device = "cuda" if torch.cuda.is_available() else "cpu"
                 for i, image in enumerate(images):
-                    print(f"Upscaling image {i+1}/{len(images)}")
+                    print(f"Upscaling image {i + 1}/{len(images)}")
                     upscaled_image = upscale_image(image, request.prompt, request.upscale_factor, device)
                     upscaled_images.append(upscaled_image)
                 return upscaled_images
@@ -689,7 +696,7 @@ async def generate_image(request: DiffusionRequest):
             )
         else:
             print(f"Generation took {total_generation_time:.2f}s")
-        
+
         # Save images to the folder (for single GPU path, multi-GPU already saved)
         if use_single_gpu:
             for i, image in enumerate(images):
@@ -773,12 +780,15 @@ async def is_valid_diffusion(request: DiffusionRequest):
             # First check if it's already an inpainting-specific architecture
             if any(a in ALLOWED_INPAINTING_ARCHITECTURES for a in architectures):
                 return {"is_valid_diffusion_model": True, "reason": "Architecture matches allowed SD inpainting"}
-            
+
             # Then check if we can derive an inpainting pipeline from a text2img architecture
             # This follows the same logic as diffusers AutoPipelineForInpainting
             for arch in architectures:
-                if arch in ALLOWED_TEXT2IMG_ARCHITECTURES: 
-                    return {"is_valid_diffusion_model": True, "reason": f"Text2img architecture {arch} can be used for inpainting"}
+                if arch in ALLOWED_TEXT2IMG_ARCHITECTURES:
+                    return {
+                        "is_valid_diffusion_model": True,
+                        "reason": f"Text2img architecture {arch} can be used for inpainting",
+                    }
         elif request.is_img2img:
             # Check if this is an img2img model
             if any(a in ALLOWED_IMG2IMG_ARCHITECTURES for a in architectures):
@@ -817,7 +827,7 @@ async def get_history(limit: int = 50, offset: int = 0):
 async def get_image_by_id(image_id: str, index: int = 0, input_image: bool = False, mask_image: bool = False):
     """
     Get an image from history by ID and index
-    
+
     Args:
         image_id: The unique ID of the image set
         index: The index of the image in the set (default 0)
@@ -851,17 +861,23 @@ async def get_image_by_id(image_id: str, index: int = 0, input_image: bool = Fal
         # Check if image_path is a folder (new format) or a file (old format)
         if os.path.isdir(image_item.image_path):
             # New format: folder with numbered images
-            if index < 0 or index >= (image_item.num_images if hasattr(image_item, 'num_images') else 1):
-                raise HTTPException(status_code=404, detail=f"Image index {index} out of range. Available: 0-{(image_item.num_images if hasattr(image_item, 'num_images') else 1) - 1}")
-            
+            if index < 0 or index >= (image_item.num_images if hasattr(image_item, "num_images") else 1):
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Image index {index} out of range. Available: 0-{(image_item.num_images if hasattr(image_item, 'num_images') else 1) - 1}",
+                )
+
             # image_path = os.path.join(image_item.image_path, f"{index}.png")
             # image_path = os.path.normpath(os.path.join(image_item.image_path, f"{index}.png"))
-             # Sanitize the filename and construct the path
+            # Sanitize the filename and construct the path
             sanitized_filename = secure_filename(f"{index}.png")
             image_path = os.path.normpath(os.path.join(image_item.image_path, sanitized_filename))
             expected_directory = os.path.abspath(image_item.image_path)
             # Ensure the normalized path is within the expected directory
-            if not image_path.startswith(expected_directory) or not os.path.commonpath([expected_directory, image_path]) == expected_directory:
+            if (
+                not image_path.startswith(expected_directory)
+                or not os.path.commonpath([expected_directory, image_path]) == expected_directory
+            ):
                 raise HTTPException(status_code=400, detail="Invalid image path")
         else:
             # Old format: single image file
@@ -872,9 +888,12 @@ async def get_image_by_id(image_id: str, index: int = 0, input_image: bool = Fal
             # # Ensure the normalized path is within the expected directory
             # if not image_path.startswith(os.path.abspath(image_item.image_path)):
             expected_directory = os.path.abspath(image_item.image_path)
-            if not image_path.startswith(expected_directory) or not os.path.commonpath([expected_directory, image_path]) == expected_directory:
+            if (
+                not image_path.startswith(expected_directory)
+                or not os.path.commonpath([expected_directory, image_path]) == expected_directory
+            ):
                 raise HTTPException(status_code=400, detail="Invalid image path")
-        
+
         if not os.path.exists(image_path):
             raise HTTPException(status_code=404, detail=f"Image file not found at {image_path}")
 
@@ -906,12 +925,14 @@ async def get_image_info_by_id(image_id: str):
     num_images = 1  # Default for old format
     if os.path.isdir(image_item.image_path):
         # Count PNG files in the directory
-        png_files = [f for f in os.listdir(image_item.image_path) if f.endswith('.png') and f.replace('.png', '').isdigit()]
+        png_files = [
+            f for f in os.listdir(image_item.image_path) if f.endswith(".png") and f.replace(".png", "").isdigit()
+        ]
         num_images = len(png_files)
-    
+
     # Update the metadata to include actual number of images
     metadata = image_item.model_dump()
-    metadata['num_images'] = num_images
+    metadata["num_images"] = num_images
 
     return JSONResponse(content={"id": image_item.id, "metadata": metadata})
 
@@ -920,10 +941,10 @@ async def get_image_info_by_id(image_id: str):
 async def get_image_count(image_id: str):
     """
     Get the number of images available for a given image_id
-    
+
     Args:
         image_id: The unique ID of the image set
-    
+
     Returns:
         Number of images available
     """
@@ -941,7 +962,9 @@ async def get_image_count(image_id: str):
     num_images = 1  # Default for old format
     if os.path.isdir(image_item.image_path):
         # Count PNG files in the directory
-        png_files = [f for f in os.listdir(image_item.image_path) if f.endswith('.png') and f.replace('.png', '').isdigit()]
+        png_files = [
+            f for f in os.listdir(image_item.image_path) if f.endswith(".png") and f.replace(".png", "").isdigit()
+        ]
         num_images = len(png_files)
 
     return JSONResponse(content={"id": image_id, "num_images": num_images})
@@ -951,16 +974,16 @@ async def get_image_count(image_id: str):
 async def get_all_images(image_id: str):
     """
     Get all images for a given image_id as a zip file
-    
+
     Args:
         image_id: The unique ID of the image set
-    
+
     Returns:
         Zip file containing all images
     """
     import zipfile
     import tempfile
-    
+
     # Use the efficient function to find the specific image
     image_item = find_image_by_id(image_id)
 
@@ -972,15 +995,15 @@ async def get_all_images(image_id: str):
         raise HTTPException(status_code=404, detail=f"Image path not found at {image_item.image_path}")
 
     # Create a temporary zip file
-    temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix='.zip')
+    temp_zip = tempfile.NamedTemporaryFile(delete=False, suffix=".zip")
     temp_zip.close()
 
     try:
-        with zipfile.ZipFile(temp_zip.name, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        with zipfile.ZipFile(temp_zip.name, "w", zipfile.ZIP_DEFLATED) as zipf:
             if os.path.isdir(image_item.image_path):
                 # New format: add all PNG files from the directory
                 for filename in os.listdir(image_item.image_path):
-                    if filename.endswith('.png') and filename.replace('.png', '').isdigit():
+                    if filename.endswith(".png") and filename.replace(".png", "").isdigit():
                         file_path = os.path.join(image_item.image_path, filename)
                         zipf.write(file_path, filename)
             else:
@@ -990,9 +1013,9 @@ async def get_all_images(image_id: str):
 
         return FileResponse(
             temp_zip.name,
-            media_type='application/zip',
+            media_type="application/zip",
             filename=f"images_{image_id}.zip",
-            headers={"Content-Disposition": f"attachment; filename=images_{image_id}.zip"}
+            headers={"Content-Disposition": f"attachment; filename=images_{image_id}.zip"},
         )
     except Exception as e:
         # Clean up temp file on error
@@ -1077,14 +1100,14 @@ async def clear_history():
                 if os.path.exists(image_path):
                     if os.path.isdir(image_path):
                         # New format: remove folder and count files inside
-                        file_count = len([f for f in os.listdir(image_path) if f.endswith('.png')])
+                        file_count = len([f for f in os.listdir(image_path) if f.endswith(".png")])
                         shutil.rmtree(image_path)
                         deleted_count += file_count
                     else:
                         # Old format: remove single file
                         os.remove(image_path)
                         deleted_count += 1
-                
+
                 # Remove input image if it exists
                 if item.get("input_image_path") and os.path.exists(item["input_image_path"]):
                     os.remove(item["input_image_path"])
@@ -1152,8 +1175,9 @@ async def create_dataset_from_history(request: CreateDatasetRequest):
     for image_item in selected_images:
         if os.path.isdir(image_item.image_path):
             # Count images in folder
-            image_files = [f for f in os.listdir(image_item.image_path) 
-                          if f.endswith('.png') and f.replace('.png', '').isdigit()]
+            image_files = [
+                f for f in os.listdir(image_item.image_path) if f.endswith(".png") and f.replace(".png", "").isdigit()
+            ]
             total_image_count += len(image_files)
         else:
             # Single image
@@ -1188,32 +1212,32 @@ async def create_dataset_from_history(request: CreateDatasetRequest):
                 # Multi-image generation - process each image in the folder
                 image_files = []
                 for filename in os.listdir(image_item.image_path):
-                    if filename.endswith('.png') and filename.replace('.png', '').isdigit():
+                    if filename.endswith(".png") and filename.replace(".png", "").isdigit():
                         image_files.append(filename)
-                
+
                 # Sort by numeric order (0.png, 1.png, etc.)
-                image_files.sort(key=lambda x: int(x.replace('.png', '')))
-                
+                image_files.sort(key=lambda x: int(x.replace(".png", "")))
+
                 for img_filename in image_files:
                     src_image_path = os.path.join(image_item.image_path, img_filename)
-                    
+
                     # Generate new filename for the dataset
                     dataset_filename = f"image_{file_counter:04d}.png"
                     dest_image_path = os.path.join(images_dir, dataset_filename)
-                    
+
                     # Copy image file
                     if os.path.exists(src_image_path):
                         shutil.copy2(src_image_path, dest_image_path)
                     else:
                         print(f"Warning: Image file not found at {src_image_path}")
                         continue
-                    
+
                     # Create record with essential fields
                     record = {
                         "file_name": dataset_filename,
                         "text": image_item.prompt,
                     }
-                    
+
                     # Add metadata if requested
                     if request.include_metadata:
                         record.update(
@@ -1234,13 +1258,15 @@ async def create_dataset_from_history(request: CreateDatasetRequest):
                                 "width": image_item.width,
                                 "timestamp": image_item.timestamp,
                                 "original_id": image_item.id,
-                                "image_index": int(img_filename.replace('.png', '')),  # Add image index for multi-image generations
+                                "image_index": int(
+                                    img_filename.replace(".png", "")
+                                ),  # Add image index for multi-image generations
                             }
                         )
-                    
+
                     dataset_records.append(record)
                     file_counter += 1
-                    
+
             else:
                 # Single image generation (backward compatibility)
                 dataset_filename = f"image_{file_counter:04d}.png"
@@ -1320,24 +1346,33 @@ async def create_dataset_from_history(request: CreateDatasetRequest):
     )
 
 
-def should_use_multi_gpu(use_multi_gpu = False) -> bool:
+def should_use_multi_gpu(use_multi_gpu=False) -> bool:
     """Check if a model should use multi-GPU subprocess approach"""
     return use_multi_gpu and torch.cuda.device_count() > 1
+
 
 def get_python_executable():
     """Get the Python executable path"""
     return sys.executable
 
-async def run_multi_gpu_generation(request: DiffusionRequest, generation_id: str, images_folder: str, 
-                                  input_image_path: str = "", mask_image_path: str = "", is_img2img: bool = False, is_inpainting: bool = False) -> dict:
+
+async def run_multi_gpu_generation(
+    request: DiffusionRequest,
+    generation_id: str,
+    images_folder: str,
+    input_image_path: str = "",
+    mask_image_path: str = "",
+    is_img2img: bool = False,
+    is_inpainting: bool = False,
+) -> dict:
     """Run image generation using multi-GPU subprocess approach"""
-    
+
     # Set seed - use provided seed or generate a random one
     if request.seed is None or request.seed < 0:
         seed = random.randint(0, 2**32 - 1)
     else:
         seed = request.seed
-    
+
     # Prepare configuration for worker
     config = {
         "model": request.model,
@@ -1362,41 +1397,43 @@ async def run_multi_gpu_generation(request: DiffusionRequest, generation_id: str
         "upscale": request.upscale,
         "upscale_factor": request.upscale_factor,
     }
-    
+
     # Save config to temporary file
     ensure_directories()
     config_path = os.path.join(get_diffusion_dir(), f"config_{generation_id}.json")
-    with open(config_path, 'w') as f:
+    with open(config_path, "w") as f:
         json.dump(config, f, indent=2)
-    
+
     # Get worker script path
     # current_dir = os.path.dirname(os.path.abspath(__file__))
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
     worker_script = os.path.join(os.path.dirname(current_dir), "shared", "diffusion_worker.py")
-    
+
     try:
         # Setup environment for accelerate
         env = os.environ.copy()
         env["CUDA_VISIBLE_DEVICES"] = ",".join([str(i) for i in range(torch.cuda.device_count())])
-        
+
         # Build command for accelerate launch
         cmd = [
             get_python_executable(),
-            "-m", "accelerate.commands.launch",
+            "-m",
+            "accelerate.commands.launch",
             "--multi_gpu",
-            "--num_processes", str(torch.cuda.device_count()),
+            "--num_processes",
+            str(torch.cuda.device_count()),
             worker_script,
-            "--config", config_path,
-            "--output-dir", images_folder,
-            "--worker-id", generation_id
+            "--config",
+            config_path,
+            "--output-dir",
+            images_folder,
+            "--worker-id",
+            generation_id,
         ]
-        
+
         print(f"Running multi-GPU generation with command: {' '.join(cmd)}")
-        
-        # Run the subprocess with real-time output
-        start_time = time.time()
-        
+
         # Start the process without capturing output
         process = subprocess.Popen(
             cmd,
@@ -1405,9 +1442,9 @@ async def run_multi_gpu_generation(request: DiffusionRequest, generation_id: str
             stderr=subprocess.STDOUT,  # Redirect stderr to stdout
             text=True,
             bufsize=1,  # Line buffered
-            universal_newlines=True
+            universal_newlines=True,
         )
-        
+
         # Print output in real-time
         output_lines = []
         while True:
@@ -1417,68 +1454,71 @@ async def run_multi_gpu_generation(request: DiffusionRequest, generation_id: str
                 output_lines.append(line)
             elif process.poll() is not None:
                 break
-        
+
         # Wait for process to complete and get return code
         return_code = process.wait()
-        total_time = time.time() - start_time
-        
+
         # Combine all output for error checking
-        combined_output = ''.join(output_lines)
-        
+        combined_output = "".join(output_lines)
+
         if return_code != 0:
             print(f"Worker subprocess failed with return code {return_code}")
             print(f"Combined output: {combined_output}")
-            
+
             # Check if it's an OOM error (exitcode -9 indicates process was killed)
-            if result.returncode == -9 or "CUDA out of memory" in result.stderr or "OutOfMemoryError" in result.stderr:
+            if return_code == -9 or "CUDA out of memory" in combined_output or "OutOfMemoryError" in combined_output:
                 # Try to load any partial result to get OOM details
                 result_path = os.path.join(images_folder, "result.json")
                 if os.path.exists(result_path):
                     try:
-                        with open(result_path, 'r') as f:
+                        with open(result_path, "r") as f:
                             worker_result = json.load(f)
                         if worker_result.get("error_type") == "OOM":
                             oom_suggestions = worker_result.get("suggestions", [])
                             suggestion_text = "\n".join([f"  • {s}" for s in oom_suggestions])
-                            raise RuntimeError(f"CUDA Out of Memory during multi-GPU generation.\n\nSuggestions:\n{suggestion_text}")
-                    except:
+                            raise RuntimeError(
+                                f"CUDA Out of Memory during multi-GPU generation.\n\nSuggestions:\n{suggestion_text}"
+                            )
+                    except Exception:
                         pass
-                raise RuntimeError("CUDA Out of Memory during multi-GPU generation. Try reducing image resolution, inference steps, or closing other GPU processes.")
-            
-            raise RuntimeError(f"Multi-GPU generation failed: {result.stderr}")
-        
+                raise RuntimeError(
+                    "CUDA Out of Memory during multi-GPU generation. Try reducing image resolution, inference steps, or closing other GPU processes."
+                )
+
+            raise RuntimeError(f"Multi-GPU generation failed: {combined_output}")
+
         # Load result from worker
         result_path = os.path.join(images_folder, "result.json")
         if not os.path.exists(result_path):
             raise RuntimeError("Worker did not produce result file")
-        
-        with open(result_path, 'r') as f:
+
+        with open(result_path, "r") as f:
             worker_result = json.load(f)
-        
+
         if not worker_result.get("success", False):
-            error_msg = worker_result.get('error', 'Unknown error')
-            error_type = worker_result.get('error_type', '')
-            
+            error_msg = worker_result.get("error", "Unknown error")
+            error_type = worker_result.get("error_type", "")
+
             if error_type == "OOM":
                 suggestions = worker_result.get("suggestions", [])
                 suggestion_text = "\n".join([f"  • {s}" for s in suggestions])
                 raise RuntimeError(f"CUDA Out of Memory: {error_msg}\n\nSuggestions:\n{suggestion_text}")
             else:
                 raise RuntimeError(f"Worker reported failure: {error_msg}")
-        
+
         # Clean up config file
         try:
             os.remove(config_path)
-        except:
+        except Exception:
             pass
-        
+
         return {
             "images": worker_result["images"],
             "generation_time": worker_result["generation_time"],
             "seed": worker_result["seed"],
-            "num_images": worker_result["num_images"]
+            "num_images": worker_result["num_images"],
         }
-        
+
     except subprocess.TimeoutExpired:
         print("Multi-GPU generation timed out")
         raise RuntimeError("Generation timed out after 10 minutes")
@@ -1486,6 +1526,6 @@ async def run_multi_gpu_generation(request: DiffusionRequest, generation_id: str
         # Clean up config file on error
         try:
             os.remove(config_path)
-        except:
+        except Exception:
             pass
         raise e
