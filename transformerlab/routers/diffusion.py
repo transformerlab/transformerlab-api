@@ -6,11 +6,13 @@ from fastapi.responses import FileResponse, JSONResponse
 from io import BytesIO
 import torch
 import asyncio
+import gc
 from diffusers import (
     StableDiffusionUpscalePipeline,
     StableDiffusionLatentUpscalePipeline,
     AutoPipelineForText2Image,
     AutoPipelineForImage2Image,
+    AutoPipelineForInpainting,
     StableDiffusionXLPipeline,
 )
 import threading
@@ -27,6 +29,8 @@ import shutil
 import transformerlab.db as db
 from transformerlab.shared import dirs
 from transformerlab.shared.shared import slugify
+import subprocess
+import sys
 
 
 router = APIRouter(prefix="/diffusion", tags=["diffusion"])
@@ -125,6 +129,25 @@ ALLOWED_IMG2IMG_ARCHITECTURES = [
     "FluxControlPipeline",
 ]
 
+# Allowed architectures for inpainting pipelines
+ALLOWED_INPAINTING_ARCHITECTURES = [
+    "StableDiffusionInpaintPipeline",
+    "StableDiffusionXLInpaintPipeline",
+    "StableDiffusion3InpaintPipeline",
+    "StableDiffusionPipeline",
+    "StableDiffusion3Pipeline",
+    "StableDiffusionXLPipeline",
+    "KandinskyInpaintPipeline",
+    "KandinskyV22InpaintPipeline",
+    "Kandinsky3Pipeline",
+    "StableDiffusionControlNetInpaintPipeline",
+    "StableDiffusionXLControlNetInpaintPipeline",
+    "IFInpaintingPipeline",
+    "IFPipeline",
+    "FluxInpaintPipeline",
+    "FluxPipeline",
+]
+
 
 # Fixed upscaling models
 UPSCALE_MODEL_STANDARD = "stabilityai/stable-diffusion-x4-upscaler"
@@ -136,6 +159,7 @@ class DiffusionRequest(BaseModel):
     model: str
     prompt: str = ""
     adaptor: str = ""
+    use_multi_gpu: bool = False
     adaptor_scale: float = 1.0
     num_inference_steps: int = 30
     guidance_scale: float = 7.5
@@ -160,6 +184,9 @@ class DiffusionRequest(BaseModel):
     input_image: str = ""  # Base64 encoded input image
     strength: float = 0.8  # Denoising strength for img2img (0.0 = no change, 1.0 = full generation)
     is_img2img: bool = False  # Whether this is an img2img generation
+    # Inpainting specific fields
+    mask_image: str = ""  # Base64 encoded mask image for inpainting
+    is_inpainting: bool = False  # Whether this is an inpainting generation
 
 
 # Response schema for history
@@ -188,6 +215,9 @@ class ImageHistoryItem(BaseModel):
     input_image_path: str = ""  # Path to input image (for img2img)
     strength: float = 0.8  # Denoising strength used
     is_img2img: bool = False  # Whether this was an img2img generation
+    # Inpainting specific fields
+    mask_image_path: str = ""  # Path to mask image (for inpainting)
+    is_inpainting: bool = False  # Whether this was an inpainting generation
 
 
 class HistoryResponse(BaseModel):
@@ -217,8 +247,6 @@ def cleanup_pipeline(pipe=None):
             del pipe
 
         # Force garbage collection and clear CUDA cache
-        import gc
-
         gc.collect()
 
         if torch.cuda.is_available():
@@ -324,22 +352,35 @@ def find_image_by_id(image_id: str) -> ImageHistoryItem | None:
         return None
 
 
-def get_pipeline_key(model: str, adaptor: str = "", is_img2img: bool = False) -> str:
+def get_pipeline_key(model: str, adaptor: str = "", is_img2img: bool = False, is_inpainting: bool = False) -> str:
     """Generate cache key for model + adaptor + pipeline type combination"""
-    pipeline_type = "img2img" if is_img2img else "txt2img"
+    if is_inpainting:
+        pipeline_type = "inpainting"
+    elif is_img2img:
+        pipeline_type = "img2img"
+    else:
+        pipeline_type = "txt2img"
     base_key = f"{model}::{adaptor}" if adaptor else model
     return f"{base_key}::{pipeline_type}"
 
 
-def get_pipeline(model: str, adaptor: str = "", device: str = "cuda", is_img2img: bool = False):
-    # cache_key = get_pipeline_key(model, adaptor, is_img2img)
+def get_pipeline(model: str, adaptor: str = "", device: str = "cuda", is_img2img: bool = False, is_inpainting: bool = False):
+    # cache_key = get_pipeline_key(model, adaptor, is_img2img, is_inpainting)
 
     with _PIPELINES_LOCK:
         # if cache_key in _PIPELINES:
         #     return _PIPELINES[cache_key]
 
         # Load appropriate pipeline based on type
-        if is_img2img:
+        if is_inpainting:
+            pipe = AutoPipelineForInpainting.from_pretrained(
+                model,
+                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                safety_checker=None,
+                requires_safety_checker=False,
+            )
+            print(f"Loaded inpainting pipeline for model: {model}")
+        elif is_img2img:
             pipe = AutoPipelineForImage2Image.from_pretrained(
                 model,
                 torch_dtype=torch.float16 if device == "cuda" else torch.float32,
@@ -354,7 +395,7 @@ def get_pipeline(model: str, adaptor: str = "", device: str = "cuda", is_img2img
                 safety_checker=None,
                 requires_safety_checker=False,
             )
-            print(f"Loaded text-to-image pipeline for model: {model}")
+            print(f"Loaded text-to-image pipeline for model: {model} with dtype {pipe.dtype}")
         pipe = pipe.to(device)
 
         # Load LoRA adaptor if provided - same code for local and HF Hub!
@@ -452,18 +493,28 @@ async def generate_image(request: DiffusionRequest):
         if request.num_images < 1 or request.num_images > 10:
             raise HTTPException(status_code=400, detail="num_images must be between 1 and 10")
         
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        cleanup_pipeline()  # Clean up any previous pipelines
+        # Generate unique ID and timestamp
+        generation_id = str(uuid.uuid4())
+        timestamp = datetime.now().isoformat()
+        
+        # Create folder for images
+        ensure_directories()
+        images_folder = os.path.join(get_images_dir(), generation_id)
+        os.makedirs(images_folder, exist_ok=True)
+        
+        # Determine pipeline type based on flags and provided images
+        is_inpainting = request.is_inpainting or (bool(request.input_image.strip()) and bool(request.mask_image.strip()))
+        is_img2img = request.is_img2img or (bool(request.input_image.strip()) and not is_inpainting)
 
-        # Determine if this is img2img based on is_img2img flag or input_image presence
-        is_img2img = request.is_img2img or bool(request.input_image.strip())
-
-        # Process input image if provided
+        # Process input image and mask if provided
         input_image_obj = None
+        mask_image_obj = None
         input_image_path = ""
-        if is_img2img:
+        mask_image_path = ""
+        
+        if is_inpainting or is_img2img:
             try:
-                # Decode base64 image
+                # Decode base64 input image
                 image_data = base64.b64decode(request.input_image)
                 input_image_obj = Image.open(BytesIO(image_data)).convert("RGB")
 
@@ -475,72 +526,154 @@ async def generate_image(request: DiffusionRequest):
                 print(f"Input image saved: {input_image_path}")
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Invalid input image: {str(e)}")
+        
+        if is_inpainting:
+            try:
+                # Decode base64 mask image
+                mask_data = base64.b64decode(request.mask_image)
+                mask_image_obj = Image.open(BytesIO(mask_data)).convert("L")  # Convert to grayscale
 
-        pipe = get_pipeline(request.model, request.adaptor, device=device, is_img2img=is_img2img)
-
-        # Set seed - use provided seed or generate a random one
-        if request.seed is None or request.seed < 0:
-            seed = random.randint(0, 2**32 - 1)
+                # Save mask image for history
+                ensure_directories()
+                mask_image_filename = f"mask_{str(uuid.uuid4())}.png"
+                mask_image_path = os.path.join(get_images_dir(), mask_image_filename)
+                mask_image_obj.save(mask_image_path, format="PNG")
+                print(f"Mask image saved: {mask_image_path}")
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Invalid mask image: {str(e)}")
+        
+        # Check if we should use multi-GPU approach
+        if should_use_multi_gpu(request.use_multi_gpu):
+            print(f"Using multi-GPU subprocess approach for model: {request.model}")
+            use_single_gpu = False
+            try:
+                result = await run_multi_gpu_generation(
+                    request, generation_id, images_folder, input_image_path, mask_image_path, is_img2img, is_inpainting
+                )
+                
+                images = []
+                for img_path in result["images"]:
+                    images.append(Image.open(img_path))
+                
+                total_generation_time = result["generation_time"]
+                seed = result["seed"]
+                
+                # Get dimensions from the first image
+                first_image = images[0]
+                actual_height = request.height if request.height > 0 else first_image.height
+                actual_width = request.width if request.width > 0 else first_image.width
+                
+            except Exception as e:
+                print(f"Multi-GPU generation failed, falling back to single GPU: {str(e)}")
+                # Fall back to single GPU approach
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+                cleanup_pipeline()
+                
         else:
-            seed = request.seed
+            use_single_gpu = True
+        
+        if use_single_gpu:
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            cleanup_pipeline()  # Clean up any previous pipelines
+            pipe = get_pipeline(request.model, request.adaptor, device=device, is_img2img=is_img2img, is_inpainting=is_inpainting)
 
-        generator = torch.manual_seed(seed)
+            # Set seed - use provided seed or generate a random one
+            if request.seed is None or request.seed < 0:
+                seed = random.randint(0, 2**32 - 1)
+            else:
+                seed = request.seed
 
-        # Run in thread to avoid blocking event loop
-        def run_pipe():
-            generation_kwargs = {
-                "prompt": request.prompt,
-                "num_inference_steps": request.num_inference_steps,
-                "guidance_scale": request.guidance_scale,
-                "generator": generator,
-                "eta": request.eta,
-                "num_images_per_prompt": request.num_images,  # Generate multiple images
-            }
+            generator = torch.manual_seed(seed)
+            
+            # Process input image and mask for single GPU path
+            input_image_obj = None
+            mask_image_obj = None
+            if is_inpainting or is_img2img:
+                try:
+                    # Decode base64 input image
+                    image_data = base64.b64decode(request.input_image)
+                    input_image_obj = Image.open(BytesIO(image_data)).convert("RGB")
+                except Exception as e:
+                    raise HTTPException(status_code=400, detail=f"Invalid input image: {str(e)}")
+            
+            if is_inpainting:
+                try:
+                    # Decode base64 mask image
+                    mask_data = base64.b64decode(request.mask_image)
+                    mask_image_obj = Image.open(BytesIO(mask_data)).convert("L")  # Convert to grayscale
+                except Exception as e:
+                    raise HTTPException(status_code=400, detail=f"Invalid mask image: {str(e)}")
 
-            # Add image and strength for img2img
-            if is_img2img:
-                generation_kwargs["image"] = input_image_obj
-                generation_kwargs["strength"] = request.strength
+            # Run in thread to avoid blocking event loop
+            def run_pipe():
+                generation_kwargs = {
+                    "prompt": request.prompt,
+                    "num_inference_steps": request.num_inference_steps,
+                    "guidance_scale": request.guidance_scale,
+                    "generator": generator,
+                    "num_images_per_prompt": request.num_images,  # Generate multiple images
+                }
 
-            # Add negative prompt if provided
-            if request.negative_prompt:
-                generation_kwargs["negative_prompt"] = request.negative_prompt
+                # Add image and mask for inpainting
+                if is_inpainting:
+                    generation_kwargs["image"] = input_image_obj
+                    generation_kwargs["mask_image"] = mask_image_obj
+                    generation_kwargs["strength"] = request.strength
+                # Add image and strength for img2img
+                elif is_img2img:
+                    generation_kwargs["image"] = input_image_obj
+                    generation_kwargs["strength"] = request.strength
 
-            # Add guidance rescale if provided
-            if request.guidance_rescale > 0.0:
-                generation_kwargs["guidance_rescale"] = request.guidance_rescale
+                # Add negative prompt if provided
+                if request.negative_prompt:
+                    generation_kwargs["negative_prompt"] = request.negative_prompt
 
-            # Add clip skip if provided (requires scheduler support)
-            if request.clip_skip > 0:
-                generation_kwargs["clip_skip"] = request.clip_skip
+                if request.eta > 0.0:
+                    generation_kwargs["eta"] = request.eta
 
-            # Set height and width if specified
-            if request.height > 0 and request.width > 0:
-                generation_kwargs["height"] = request.height
-                generation_kwargs["width"] = request.width
+                # Add guidance rescale if provided
+                if request.guidance_rescale > 0.0:
+                    generation_kwargs["guidance_rescale"] = request.guidance_rescale
 
-            # Add LoRA scale if adaptor is being used
-            if request.adaptor and request.adaptor.strip():
-                generation_kwargs["cross_attention_kwargs"] = {"scale": request.adaptor_scale}
+                # Add clip skip if provided (requires scheduler support)
+                if request.clip_skip > 0:
+                    generation_kwargs["clip_skip"] = request.clip_skip
 
-            result = pipe(**generation_kwargs)
-            return result.images  # Return all images
+                # Set height and width if specified
+                if request.height > 0 and request.width > 0:
+                    generation_kwargs["height"] = request.height
+                    generation_kwargs["width"] = request.width
 
-        # Time the main generation
-        generation_start = time.time()
-        print("Starting image generation...")
-        images = await asyncio.get_event_loop().run_in_executor(None, run_pipe)
-        generation_time = time.time() - generation_start
+                # Add LoRA scale if adaptor is being used
+                if request.adaptor and request.adaptor.strip():
+                    generation_kwargs["cross_attention_kwargs"] = {"scale": request.adaptor_scale}
 
-        # Clean up the main pipeline to free VRAM
-        cleanup_pipeline(pipe)
+                result = pipe(**generation_kwargs)
+                return result.images  # Return all images
 
-        # Apply upscaling if requested
+            # Time the main generation
+            generation_start = time.time()
+            print("Starting image generation...")
+            images = await asyncio.get_event_loop().run_in_executor(None, run_pipe)
+            generation_time = time.time() - generation_start
+
+            # Clean up the main pipeline to free VRAM
+            cleanup_pipeline(pipe)
+            
+            # Get dimensions from the first image
+            first_image = images[0]
+            actual_height = request.height if request.height > 0 else first_image.height
+            actual_width = request.width if request.width > 0 else first_image.width
+            
+            total_generation_time = generation_time
+
+        # Apply upscaling if requested (for both paths)
         if request.upscale:
             print(f"Upscaling {len(images)} images with factor {request.upscale_factor}x")
 
             def run_upscale():
                 upscaled_images = []
+                device = "cuda" if torch.cuda.is_available() else "cpu"
                 for i, image in enumerate(images):
                     print(f"Upscaling image {i+1}/{len(images)}")
                     upscaled_image = upscale_image(image, request.prompt, request.upscale_factor, device)
@@ -550,28 +683,19 @@ async def generate_image(request: DiffusionRequest):
             upscale_start = time.time()
             images = await asyncio.get_event_loop().run_in_executor(None, run_upscale)
             upscale_time = time.time() - upscale_start
-            total_generation_time = generation_time + upscale_time
+            total_generation_time += upscale_time
             print(
-                f"Generation took {generation_time:.2f}s, upscaling took {upscale_time:.2f}s, total: {total_generation_time:.2f}s"
+                f"Generation took {total_generation_time - upscale_time:.2f}s, upscaling took {upscale_time:.2f}s, total: {total_generation_time:.2f}s"
             )
         else:
-            total_generation_time = generation_time
-            print(f"Generation took {generation_time:.2f}s")
-
-        # Generate unique ID and timestamp
-        generation_id = str(uuid.uuid4())
-        timestamp = datetime.now().isoformat()
-
-        # Create folder for images and save them
-        ensure_directories()
-        images_folder = os.path.join(get_images_dir(), generation_id)
-        os.makedirs(images_folder, exist_ok=True)
+            print(f"Generation took {total_generation_time:.2f}s")
         
-        # Save images to the folder
-        for i, image in enumerate(images):
-            image_filename = f"{i}.png"
-            image_path = os.path.join(images_folder, image_filename)
-            image.save(image_path, format="PNG")
+        # Save images to the folder (for single GPU path, multi-GPU already saved)
+        if use_single_gpu:
+            for i, image in enumerate(images):
+                image_filename = f"{i}.png"
+                image_path = os.path.join(images_folder, image_filename)
+                image.save(image_path, format="PNG")
 
         # Get dimensions from the first image
         first_image = images[0]
@@ -602,8 +726,11 @@ async def generate_image(request: DiffusionRequest):
             num_images=len(images),  # Store the number of images generated
             # Image-to-image specific fields
             input_image_path=input_image_path,
-            strength=request.strength if is_img2img else 0.8,
+            strength=request.strength if (is_img2img or is_inpainting) else 0.8,
             is_img2img=is_img2img,
+            # Inpainting specific fields
+            mask_image_path=mask_image_path,
+            is_inpainting=is_inpainting,
         )
         save_to_history(history_item)
 
@@ -622,6 +749,7 @@ async def generate_image(request: DiffusionRequest):
             }
         )
     except Exception as e:
+        print(f"Error during image generation: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")
 
 
@@ -641,7 +769,11 @@ async def is_stable_diffusion_model(request: DiffusionRequest):
         if isinstance(architectures, str):
             architectures = [architectures]
 
-        if request.is_img2img:
+        if request.is_inpainting:
+            # Check if this is an inpainting model
+            if any(a in ALLOWED_INPAINTING_ARCHITECTURES for a in architectures):
+                return {"is_stable_diffusion": True, "reason": "Architecture matches allowed SD inpainting"}
+        elif request.is_img2img:
             # Check if this is an img2img model
             if any(a in ALLOWED_IMG2IMG_ARCHITECTURES for a in architectures):
                 return {"is_stable_diffusion": True, "reason": "Architecture matches allowed SD img2img"}
@@ -676,7 +808,7 @@ async def get_history(limit: int = 50, offset: int = 0):
 
 
 @router.get("/history/{image_id}", summary="Get the actual image by ID")
-async def get_image_by_id(image_id: str, index: int = 0, input_image: bool = False):
+async def get_image_by_id(image_id: str, index: int = 0, input_image: bool = False, mask_image: bool = False):
     """
     Get an image from history by ID and index
     
@@ -684,6 +816,7 @@ async def get_image_by_id(image_id: str, index: int = 0, input_image: bool = Fal
         image_id: The unique ID of the image set
         index: The index of the image in the set (default 0)
         input_image: Whether to return the input image instead of generated image
+        mask_image: Whether to return the mask image instead of generated image
     """
     # Use the efficient function to find the specific image
     image_item = find_image_by_id(image_id)
@@ -691,8 +824,15 @@ async def get_image_by_id(image_id: str, index: int = 0, input_image: bool = Fal
     if not image_item:
         raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
 
-    # Determine which image to return based on input_image parameter
-    if input_image:
+    # Determine which image to return based on parameters
+    if mask_image:
+        # Return the mask image if requested and available
+        if not image_item.mask_image_path or not image_item.mask_image_path.strip():
+            raise HTTPException(status_code=404, detail=f"No mask image found for image ID {image_id}")
+        image_path = image_item.mask_image_path
+        if not os.path.exists(image_path):
+            raise HTTPException(status_code=404, detail=f"Mask image file not found at {image_path}")
+    elif input_image:
         # Return the input image if requested and available
         if not image_item.input_image_path or not image_item.input_image_path.strip():
             raise HTTPException(status_code=404, detail=f"No input image found for image ID {image_id}")
@@ -1172,3 +1312,174 @@ async def create_dataset_from_history(request: CreateDatasetRequest):
             "records_count": len(dataset_records),
         }
     )
+
+
+def should_use_multi_gpu(use_multi_gpu = False) -> bool:
+    """Check if a model should use multi-GPU subprocess approach"""
+    return use_multi_gpu and torch.cuda.device_count() > 1
+
+def get_python_executable():
+    """Get the Python executable path"""
+    return sys.executable
+
+async def run_multi_gpu_generation(request: DiffusionRequest, generation_id: str, images_folder: str, 
+                                  input_image_path: str = "", mask_image_path: str = "", is_img2img: bool = False, is_inpainting: bool = False) -> dict:
+    """Run image generation using multi-GPU subprocess approach"""
+    
+    # Set seed - use provided seed or generate a random one
+    if request.seed is None or request.seed < 0:
+        seed = random.randint(0, 2**32 - 1)
+    else:
+        seed = request.seed
+    
+    # Prepare configuration for worker
+    config = {
+        "model": request.model,
+        "adaptor": request.adaptor,
+        "adaptor_scale": request.adaptor_scale,
+        "prompt": request.prompt,
+        "negative_prompt": request.negative_prompt,
+        "num_images": request.num_images,
+        "num_inference_steps": request.num_inference_steps,
+        "guidance_scale": request.guidance_scale,
+        "seed": seed,
+        "eta": request.eta,
+        "clip_skip": request.clip_skip,
+        "guidance_rescale": request.guidance_rescale,
+        "height": request.height,
+        "width": request.width,
+        "strength": request.strength,
+        "is_img2img": is_img2img,
+        "input_image": request.input_image if (is_img2img or is_inpainting) else "",
+        "is_inpainting": is_inpainting,
+        "mask_image": request.mask_image if is_inpainting else "",
+        "upscale": request.upscale,
+        "upscale_factor": request.upscale_factor,
+    }
+    
+    # Save config to temporary file
+    ensure_directories()
+    config_path = os.path.join(get_diffusion_dir(), f"config_{generation_id}.json")
+    with open(config_path, 'w') as f:
+        json.dump(config, f, indent=2)
+    
+    # Get worker script path
+    # current_dir = os.path.dirname(os.path.abspath(__file__))
+
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    worker_script = os.path.join(os.path.dirname(current_dir), "shared", "diffusion_worker.py")
+    
+    try:
+        # Setup environment for accelerate
+        env = os.environ.copy()
+        env["CUDA_VISIBLE_DEVICES"] = ",".join([str(i) for i in range(torch.cuda.device_count())])
+        
+        # Build command for accelerate launch
+        cmd = [
+            get_python_executable(),
+            "-m", "accelerate.commands.launch",
+            "--multi_gpu",
+            "--num_processes", str(torch.cuda.device_count()),
+            worker_script,
+            "--config", config_path,
+            "--output-dir", images_folder,
+            "--worker-id", generation_id
+        ]
+        
+        print(f"Running multi-GPU generation with command: {' '.join(cmd)}")
+        
+        # Run the subprocess with real-time output
+        start_time = time.time()
+        
+        # Start the process without capturing output
+        process = subprocess.Popen(
+            cmd,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,  # Redirect stderr to stdout
+            text=True,
+            bufsize=1,  # Line buffered
+            universal_newlines=True
+        )
+        
+        # Print output in real-time
+        output_lines = []
+        while True:
+            line = process.stdout.readline()
+            if line:
+                print(line.rstrip())  # Print to console in real-time
+                output_lines.append(line)
+            elif process.poll() is not None:
+                break
+        
+        # Wait for process to complete and get return code
+        return_code = process.wait()
+        total_time = time.time() - start_time
+        
+        # Combine all output for error checking
+        combined_output = ''.join(output_lines)
+        
+        if return_code != 0:
+            print(f"Worker subprocess failed with return code {return_code}")
+            print(f"Combined output: {combined_output}")
+            
+            # Check if it's an OOM error (exitcode -9 indicates process was killed)
+            if result.returncode == -9 or "CUDA out of memory" in result.stderr or "OutOfMemoryError" in result.stderr:
+                # Try to load any partial result to get OOM details
+                result_path = os.path.join(images_folder, "result.json")
+                if os.path.exists(result_path):
+                    try:
+                        with open(result_path, 'r') as f:
+                            worker_result = json.load(f)
+                        if worker_result.get("error_type") == "OOM":
+                            oom_suggestions = worker_result.get("suggestions", [])
+                            suggestion_text = "\n".join([f"  • {s}" for s in oom_suggestions])
+                            raise RuntimeError(f"CUDA Out of Memory during multi-GPU generation.\n\nSuggestions:\n{suggestion_text}")
+                    except:
+                        pass
+                raise RuntimeError("CUDA Out of Memory during multi-GPU generation. Try reducing image resolution, inference steps, or closing other GPU processes.")
+            
+            raise RuntimeError(f"Multi-GPU generation failed: {result.stderr}")
+        
+        # Load result from worker
+        result_path = os.path.join(images_folder, "result.json")
+        if not os.path.exists(result_path):
+            raise RuntimeError("Worker did not produce result file")
+        
+        with open(result_path, 'r') as f:
+            worker_result = json.load(f)
+        
+        if not worker_result.get("success", False):
+            error_msg = worker_result.get('error', 'Unknown error')
+            error_type = worker_result.get('error_type', '')
+            
+            if error_type == "OOM":
+                suggestions = worker_result.get("suggestions", [])
+                suggestion_text = "\n".join([f"  • {s}" for s in suggestions])
+                raise RuntimeError(f"CUDA Out of Memory: {error_msg}\n\nSuggestions:\n{suggestion_text}")
+            else:
+                raise RuntimeError(f"Worker reported failure: {error_msg}")
+        
+        # Clean up config file
+        try:
+            os.remove(config_path)
+        except:
+            pass
+        
+        return {
+            "images": worker_result["images"],
+            "generation_time": worker_result["generation_time"],
+            "seed": worker_result["seed"],
+            "num_images": worker_result["num_images"]
+        }
+        
+    except subprocess.TimeoutExpired:
+        print("Multi-GPU generation timed out")
+        raise RuntimeError("Generation timed out after 10 minutes")
+    except Exception as e:
+        # Clean up config file on error
+        try:
+            os.remove(config_path)
+        except:
+            pass
+        raise e
