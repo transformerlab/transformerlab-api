@@ -46,8 +46,7 @@ async def check_recipe_dependencies(id: int):
     from transformerlab.routers import plugins as plugins_router
 
     plugin_gallery = await plugins_router.plugin_gallery()
-    installed_plugins = set(p["uniqueId"]
-                            for p in plugin_gallery if p.get("installed"))
+    installed_plugins = set(p["uniqueId"] for p in plugin_gallery if p.get("installed"))
 
     results = []
     for dep in recipe.get("dependencies", []):
@@ -98,15 +97,13 @@ async def _install_recipe_dependencies_job(job_id, id):
             if dep_type == "workflow":
                 # Skip workflow installation in this background job
                 continue
-            result = {"type": dep_type, "name": dep_name,
-                      "action": None, "status": None}
+            result = {"type": dep_type, "name": dep_name, "action": None, "status": None}
             try:
                 if dep_type == "model":
                     if dep_name not in local_model_names:
                         download_result = await model_router.download_model_by_huggingface_id(model=dep_name)
                         result["action"] = "download_model"
-                        result["status"] = download_result.get(
-                            "status", "unknown")
+                        result["status"] = download_result.get("status", "unknown")
                     else:
                         result["action"] = "already_installed"
                         result["status"] = "success"
@@ -114,8 +111,7 @@ async def _install_recipe_dependencies_job(job_id, id):
                     if dep_name not in local_dataset_ids:
                         download_result = await data_router.dataset_download(dataset_id=dep_name)
                         result["action"] = "download_dataset"
-                        result["status"] = download_result.get(
-                            "status", "unknown")
+                        result["status"] = download_result.get("status", "unknown")
                     else:
                         result["action"] = "already_installed"
                         result["status"] = "success"
@@ -207,8 +203,7 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
             model = local_model_dict.get(model_id)
             # Check if the model is installed
             if not model:
-                model_set_result = {
-                    "error": f"Model '{model_id}' not found in local models."}
+                model_set_result = {"error": f"Model '{model_id}' not found in local models."}
                 break
             model_name = model.get("model_id", "")
             model_filename = ""
@@ -257,14 +252,13 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
     # Process tasks and create tasks in database
     task_results = []
     tasks = recipe.get("tasks", [])
-
+    
     # Extract dataset from dependencies (assuming only one dataset)
     dataset_name = ""
-    dataset_deps = [dep for dep in recipe.get(
-        "dependencies", []) if dep.get("type") == "dataset"]
+    dataset_deps = [dep for dep in recipe.get("dependencies", []) if dep.get("type") == "dataset"]
     if dataset_deps:
         dataset_name = dataset_deps[0].get("name", "")
-
+    
     for i, task in enumerate(tasks):
         task_type = task.get("task_type")
         if task_type in ["TRAIN", "EVAL", "GENERATE"]:
@@ -276,12 +270,11 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                 # Ensure all tasks have an adaptor field - set default if not provided
                 if "adaptor" not in parsed_config:
                     parsed_config["adaptor"] = ""
-                    # Update the config_json with the default adaptor
                     config_json = json.dumps(parsed_config)
 
                 # Generate simple task name that helps user follow order of tasks
                 task_name = f"Task_{i+1}"
-
+                
                 # Create inputs JSON (what the task needs as inputs)
                 inputs = {
                     "model_name": parsed_config.get("model_name", ""),
@@ -304,7 +297,7 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                         "task": parsed_config.get("task", ""),
                         "run_name": parsed_config.get("run_name", "")
                     })
-
+                
                 # Create outputs JSON (what the task produces)
                 # All tasks have adaptor
                 outputs = {"adaptor": parsed_config["adaptor"]}
@@ -316,7 +309,7 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
 
                 # Get plugin name
                 plugin_name = parsed_config.get("plugin_name", "")
-
+                
                 # Create task in database
                 await db.add_task(
                     name=task_name,
@@ -327,7 +320,7 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                     outputs=json.dumps(outputs),
                     experiment_id=experiment_id
                 )
-
+                
                 task_results.append({
                     "task_index": i+1,
                     "task_name": task_name,
@@ -337,11 +330,11 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                     "dataset_used": dataset_name,
                     "plugin": plugin_name
                 })
-
+                
             except Exception:
                 task_results.append({
                     "task_index": i+1,
-                    "action": "create_task",
+                    "action": "create_task", 
                     "status": f"error: Failed to create {task_type.lower()} task."
                 })
 
@@ -359,7 +352,7 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
     }
 
 
-# OLDER CODE WITHOUT A JOB SYSTEM
+## OLDER CODE WITHOUT A JOB SYSTEM
 
 # @router.get("/{id}/install_dependencies")
 # async def install_recipe_dependencies(id: int):
