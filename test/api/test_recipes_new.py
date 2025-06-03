@@ -461,7 +461,8 @@ def test_workflow_creation_with_recipe_title():
                     break
             
             if created_workflow:
-                assert created_workflow["name"] == "Recipe"
+                # The workflow name gets slugified, so "Recipe" becomes "recipe"
+                assert created_workflow["name"] == "recipe"
 
 
 def test_workflow_nodes_match_tasks():
