@@ -144,8 +144,6 @@ ALLOWED_INPAINTING_ARCHITECTURES = [
     "StableDiffusionXLControlNetInpaintPipeline",
     "IFInpaintingPipeline",
     "IFPipeline",
-    "FluxInpaintPipeline",
-    "FluxPipeline",
 ]
 
 
@@ -785,7 +783,7 @@ async def is_valid_diffusion(request: DiffusionRequest):
             # Then check if we can derive an inpainting pipeline from a text2img architecture
             # This follows the same logic as diffusers AutoPipelineForInpainting
             for arch in architectures:
-                if arch in ALLOWED_TEXT2IMG_ARCHITECTURES:
+                if arch in ALLOWED_TEXT2IMG_ARCHITECTURES and 'flux' not in arch.lower():
                     return {
                         "is_valid_diffusion_model": True,
                         "reason": f"Text2img architecture {arch} can be used for inpainting",
