@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, patch
 from api import app
 import pytest
+from unittest.mock import MagicMock, mock_open
 
 
 def test_model_gallery():
@@ -34,17 +35,95 @@ def test_model_group_gallery():
             assert "name" in model or "models" in model
 
 
-def test_search_peft():
-    with TestClient(app) as client:
-        adapter_id = "tcotter/Llama-3.2-1B-Instruct-Mojo-Adapter"
-        model_id = "unsloth/Llama-3.2-1B-Instruct"
-        device = "mps"
-        response = client.get(f"/model/search_peft?peft=${adapter_id}&model_id=${model_id}&device=${device}")
+def make_mock_adapter_info(overrides={}):
+    return MagicMock(
+        modelId="mock/model",
+        tags=["tag1", "tag2"],
+        cardData={
+            "description": "mock desc",
+            "base_model": "unsloth/Llama-3.2-1B-Instruct",
+            **overrides.get("cardData", {}),
+        },
+        config={"architectures": "MockArch", "model_type": "MockType", **overrides.get("config", {})},
+        downloads=123,
+    )
+
+
+def test_search_peft_success():
+    adapter_id = "tcotter/Llama-3.2-1B-Instruct-Mojo-Adapter"
+    model_id = "unsloth/Llama-3.2-1B-Instruct"
+    device = "mps"
+
+    with (
+        TestClient(app) as client,
+        patch("transformerlab.routers.model.snapshot_download", return_value="/tmp/mock"),
+        patch("builtins.open", mock_open(read_data='{"architectures": "MockArch", "model_type": "MockType"}')),
+        patch("json.load", return_value={"architectures": "MockArch", "model_type": "MockType"}),
+        patch("huggingface_hub.HfApi.model_info", return_value=make_mock_adapter_info()),
+        patch("transformerlab.routers.model.hf_hub_download", return_value="/tmp/mock/README.md"),
+        patch("builtins.open", mock_open(read_data="mps compatible adapter")),
+    ):
+        response = client.get(f"/model/search_peft?peft={adapter_id}&model_id={model_id}&device={device}")
         assert response.status_code == 200
-        data = response.json()
-        assert isinstance(data, list)
-        for item in data:
-            assert "adapter_id" in item
+        result = response.json()[0]
+        assert result["adapter_id"] == adapter_id
+        assert result["check_status"]["arch_status"] in ["success", "fail", "unknown"]
+
+
+def test_search_peft_model_config_fail():
+    with (
+        TestClient(app) as client,
+        patch("transformerlab.routers.model.snapshot_download", side_effect=FileNotFoundError()),
+    ):
+        response = client.get("/model/search_peft?peft=dummy&model_id=invalid-model&device=cpu")
+        assert response.status_code == 200
+        assert response.json()[0]["check_status"]["error"] == "Failed to load local base model config"
+
+
+def test_search_peft_adapter_info_fail():
+    with (
+        TestClient(app) as client,
+        patch("transformerlab.routers.model.snapshot_download", return_value="/tmp/mock"),
+        patch("builtins.open", mock_open(read_data="{}")),
+        patch("json.load", return_value={}),
+        patch("huggingface_hub.HfApi.model_info", side_effect=RuntimeError("not found")),
+    ):
+        response = client.get("/model/search_peft?peft=dummy&model_id=valid_model&device=cpu")
+        assert response.status_code == 200
+        assert response.json()[0]["check_status"]["error"] == "not found"
+
+
+def test_search_peft_architecture_detection_unknown():
+    adapter_info = make_mock_adapter_info()
+    with (
+        TestClient(app) as client,
+        patch("transformerlab.routers.model.snapshot_download", return_value="/tmp/mock"),
+        patch("builtins.open", mock_open(read_data="{}")),
+        patch("json.load", return_value={"architectures": "A", "model_type": "B"}),
+        patch("huggingface_hub.HfApi.model_info", return_value=adapter_info),
+        patch("transformerlab.routers.model.hf_hub_download", side_effect=Exception("fail")),
+    ):
+        response = client.get("/model/search_peft?peft=dummy&model_id=valid_model&device=cpu")
+        assert response.status_code == 200
+        assert response.json()[0]["check_status"]["arch_status"] == "unknown"
+
+
+def test_search_peft_unknown_field_status():
+    adapter_info = make_mock_adapter_info(overrides={"config": {}})  # Missing architectures, model_type
+    with (
+        TestClient(app) as client,
+        patch("transformerlab.routers.model.snapshot_download", return_value="/tmp/mock"),
+        patch("builtins.open", mock_open(read_data="{}")),
+        patch("json.load", return_value={}),  # base_config also missing fields
+        patch("huggingface_hub.HfApi.model_info", return_value=adapter_info),
+        patch("transformerlab.routers.model.hf_hub_download", return_value="/tmp/mock/README.md"),
+        patch("builtins.open", mock_open(read_data="some unrelated text")),
+    ):
+        response = client.get("/model/search_peft?peft=dummy&model_id=valid_model&device=cpu")
+        assert response.status_code == 200
+        status = response.json()[0]["check_status"]
+        assert status["architectures_status"] == "unknown"
+        assert status["model_type_status"] == "unknown"
 
 
 @pytest.mark.asyncio
