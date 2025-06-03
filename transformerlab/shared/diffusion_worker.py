@@ -172,6 +172,7 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
     num_inference_steps = config.get("num_inference_steps", 50)
     guidance_scale = config.get("guidance_scale", 3.5)
     max_sequence_length = config.get("max_sequence_length", 512)
+    num_images = config.get("num_images", 1)
 
     # Step 1: Load text encoders for prompt encoding
     print("Step 1: Loading text encoders...")
@@ -255,6 +256,7 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
             guidance_scale=guidance_scale,
             height=height,
             width=width,
+            num_images_per_prompt=num_images,
             output_type="latent",
         ).images
 
