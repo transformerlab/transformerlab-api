@@ -539,7 +539,7 @@ def test_workflow_creation_failure_handling():
             
             # Try adding a node to a non-existent workflow to trigger another failure case
             invalid_workflow_resp = client.get(
-                f"/workflows/99999/add_node?node={{\"type\":\"TRAIN\",\"name\":\"test\",\"task\":\"test\"}}")
+                "/workflows/99999/add_node?node={{\"type\":\"TRAIN\",\"name\":\"test\",\"task\":\"test\"}}")
             
             # This should also handle the error gracefully
             assert invalid_workflow_resp.status_code in [200, 400, 404, 422, 500]
