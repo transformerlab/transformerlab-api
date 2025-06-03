@@ -100,6 +100,8 @@ def launch_snapshot_with_cancel(repo_id, allow_patterns):
 
 def get_dir_size(path):
     total = 0
+    if not os.path.exists(path):
+        return total
     with os.scandir(path) as it:
         for entry in it:
             # Skip symlinks to avoid double counting
