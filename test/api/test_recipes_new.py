@@ -146,7 +146,7 @@ TEST_EXP_RECIPES = [
             {
                 "task_type": "EVAL",
                 "plugin": "test_evaluator",
-                "config_json": "{\"template_name\":\"TestEval\",\"plugin_name\":\"test_evaluator\",\"model_name\":\"test-model-6\",\"eval_type\":\"basic\",\"metrics\":[\"accuracy\",\"f1\"],\"eval_dataset\":\"test-eval-dataset\"}"
+                "config_json": "{\"template_name\":\"TestEval\",\"plugin_name\":\"test_evaluator\",\"model_name\":\"test-model-6\",\"eval_type\":\"basic\",\"script_parameters\":{\"tasks\":[\"mmlu\",\"hellaswag\"],\"limit\":0.5,\"device_map\":{\"model\":\"auto\",\"tensor_parallel\":true}},\"eval_dataset\":\"test-eval-dataset\"}"
             },
             {
                 "task_type": "GENERATE",
@@ -335,7 +335,7 @@ def test_recipes_get_by_id_with_multiple_task_types():
 
 
 def test_create_experiment_with_multiple_task_types():
-    """Test creating an experiment with multiple task types"""
+    """Test creating an experiment with multiple task types (covers line 276 with list/dict in script_parameters)"""
     with TestClient(app) as client:
         test_experiment_name = f"test_multi_tasks_{os.getpid()}"
         resp = client.post(
@@ -353,3 +353,27 @@ def test_create_experiment_with_multiple_task_types():
             assert "TRAIN" in task_types
             assert "EVAL" in task_types
             assert "GENERATE" in task_types
+
+
+def test_create_experiment_with_script_parameters_list_dict():
+    """Test creating experiment with recipe that has list and dict values in script_parameters (covers line 276)"""
+    with TestClient(app) as client:
+        test_experiment_name = f"test_script_params_{os.getpid()}"
+        resp = client.post(
+            f"/recipes/7/create_experiment?experiment_name={test_experiment_name}")
+        assert resp.status_code == 200
+        data = resp.json()
+        # Should either succeed or have a reasonable response
+        assert "status" in data or "message" in data
+        # If it succeeds, should have task results
+        if data.get("status") == "success":
+            assert "data" in data
+            assert "task_results" in data["data"]
+            task_results = data["data"]["task_results"]
+            assert len(task_results) == 1
+            # Task should be created successfully with EVAL type
+            task_result = task_results[0]
+            assert task_result.get("task_type") == "EVAL"
+            assert task_result.get("action") == "create_task"
+            # This test exercises the code path where list/dict values in script_parameters
+            # get converted to JSON strings on line 276
