@@ -2,10 +2,6 @@ from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, patch
 from api import app
 import pytest
-import sys
-import os
-import subprocess
-import runpy
 
 
 def test_model_gallery():
