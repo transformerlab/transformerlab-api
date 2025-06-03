@@ -267,7 +267,12 @@ async def get_output_file_name(job_id: str):
         job_id = secure_filename(job_id)
 
         # job output is stored in separate files with a job number in the name...
-        if os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
+        jobs_dir_output_file_name = os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id))
+
+        # job output is stored in separate files with a job number in the name...
+        if os.path.exists(os.path.join(jobs_dir_output_file_name, f"output_{job_id}.txt")):
+            output_file = os.path.join(jobs_dir_output_file_name, f"output_{job_id}.txt")
+        elif os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
             output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
 
         # but it used to be all stored in a single file called output.txt, so check that as well
@@ -322,7 +327,7 @@ async def watch_log(job_id: str, sweeps: bool = False):
             output_file = job_data.get("sweep_output_file", None)
             if output_file is not None and os.path.exists(output_file):
                 output_file_name = output_file
-                
+
             else:
                 output_file_name = await get_output_file_name(job_id)
         else:

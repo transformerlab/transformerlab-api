@@ -185,7 +185,7 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
     if "model_architecture" in generation_config.keys():
         model_type = generation_config["model_architecture"]
 
-    model_adapter = config["adaptor"]
+    model_adapter = config.get("adaptor_name", "")
     if "adaptor_name" in generation_config.keys():
         model_adapter = generation_config["adaptor_name"]
 
@@ -260,6 +260,8 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
 
     output_file = await dirs.generation_output_file(experiment_name, generation_name)
 
+    print(f">GENERATION Output file: {job_output_file}")
+
     with open(job_output_file, "w") as f:
         process = await asyncio.create_subprocess_exec(*subprocess_command, stdout=f, stderr=subprocess.PIPE)
         await process.communicate()
@@ -276,9 +278,14 @@ async def get_job_output_file_name(job_id: str, plugin_name: str):
     plugin_name = secure_filename(plugin_name)
     try:
         plugin_dir = dirs.plugin_dir_by_name(plugin_name)
+        jobs_dir_output_file_name = os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id))
 
         # job output is stored in separate files with a job number in the name...
-        if os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
+        if os.path.exists(os.path.join(jobs_dir_output_file_name, f"output_{job_id}.txt")):
+            output_file = os.path.join(jobs_dir_output_file_name, f"output_{job_id}.txt")
+
+        # job output is stored in separate files with a job number in the name...
+        elif os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
             output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
 
         # but it used to be all stored in a single file called output.txt, so check that as well
