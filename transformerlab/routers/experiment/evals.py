@@ -176,7 +176,7 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
     if "model_architecture" in eval_config.keys():
         model_type = eval_config["model_architecture"]
 
-    model_adapter = config["adaptor"]
+    model_adapter = config.get("adaptor_name", "")
     if "adaptor_name" in eval_config.keys():
         model_adapter = eval_config["adaptor_name"]
 
