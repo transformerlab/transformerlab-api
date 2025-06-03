@@ -221,12 +221,11 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
     extra_args = ["--plugin_dir", script_directory]
     for key in template_config:
         extra_args.append("--" + key)
-        # Convert all values to strings to avoid TypeError with lists/dicts
         value = template_config[key]
         if isinstance(value, (list, dict)):
             extra_args.append(json.dumps(value))
         else:
-            extra_args.append(str(value))
+            extra_args.append(value)
 
     extra_args.extend(
         [
