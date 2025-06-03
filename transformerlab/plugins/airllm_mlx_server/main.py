@@ -24,7 +24,7 @@ from airllm import AutoModel
 from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
-from fastchat.utils import build_logger, get_context_length
+from fastchat.utils import get_context_length
 from huggingface_hub import snapshot_download
 from transformerlab.plugin import setup_model_worker_logger
 

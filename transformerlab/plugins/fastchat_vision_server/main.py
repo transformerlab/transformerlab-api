@@ -5,7 +5,6 @@ A model worker that executes the model.
 import argparse
 import asyncio
 import base64
-import os
 import gc
 import json
 import sys
