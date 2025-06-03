@@ -2,6 +2,7 @@ from fastapi import APIRouter, BackgroundTasks
 from transformerlab.shared import galleries
 import transformerlab.db as db
 from transformerlab.models import model_helper
+import transformerlab.routers.workflows as workflows_router
 import json
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
@@ -255,6 +256,9 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
     dataset_deps = [dep for dep in recipe.get("dependencies", []) if dep.get("type") == "dataset"]
     if dataset_deps:
         dataset_name = dataset_deps[0].get("name", "")
+
+    # Create workflow titled 'Recipe' 
+    workflow_id = await workflows_router.workflow_create_empty("Recipe", experiment_id)
     
     for i, task in enumerate(tasks):
         task_type = task.get("task_type")
@@ -268,13 +272,13 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                 for key, value in parsed_config.items():
                     if key != "script_parameters" and isinstance(value, (list, dict)):
                         parsed_config[key] = json.dumps(value)
-                
+                        
                 # Convert list/dict values inside script_parameters to strings
                 if "script_parameters" in parsed_config and isinstance(parsed_config["script_parameters"], dict):
                     for param_key, param_value in parsed_config["script_parameters"].items():
                         if isinstance(param_value, (list, dict)):
                             parsed_config["script_parameters"][param_key] = json.dumps(param_value)
-
+            
                 # Generate simple task name that helps user follow order of tasks
                 task_name = f"Task_{i+1}"
                 
@@ -305,9 +309,9 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                 outputs = {}
 
                 if task_type == "EVAL":
-                    outputs["eval_results"] = {}
+                    outputs["eval_results"] = "{}"
                 elif task_type == "GENERATE":
-                    outputs["generated_outputs"] = []
+                    outputs["generated_outputs"] = "[]"
 
                 # Get plugin name
                 plugin_name = parsed_config.get("plugin_name", "")
@@ -322,6 +326,20 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                     outputs=json.dumps(outputs),
                     experiment_id=experiment_id
                 )
+
+                # Add the task to the workflow
+                node_data = {
+                    "type": task_type,
+                    "name": task_name,
+                    "task": task_name  # This must match the task name we just created
+                }
+
+                try:
+                    await workflows_router.workflow_add_node(workflow_id, json.dumps(node_data))
+                    workflow_added = True
+                except Exception:
+                    print(f"Failed to add task {task_name} to workflow.")
+                    workflow_added = False
                 
                 task_results.append({
                     "task_index": i+1,
@@ -330,7 +348,8 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                     "status": "success",
                     "task_type": task_type,
                     "dataset_used": dataset_name,
-                    "plugin": plugin_name
+                    "plugin": plugin_name,
+                    "added_to_workflow": workflow_added
                 })
                 
             except Exception:
@@ -346,6 +365,7 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
         "data": {
             "experiment_id": experiment_id,
             "name": experiment_name,
+            "workflow_id": workflow_id,
             "model_set_result": model_set_result,
             "workflow_results": workflow_results,
             "task_results": task_results,

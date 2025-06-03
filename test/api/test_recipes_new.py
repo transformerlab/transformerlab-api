@@ -360,7 +360,7 @@ def test_create_experiment_with_script_parameters_list_dict():
     with TestClient(app) as client:
         test_experiment_name = f"test_script_params_{os.getpid()}"
         resp = client.post(
-            f"/recipes/7/create_experiment?experiment_name={test_experiment_name}")
+            f"/recipes/6/create_experiment?experiment_name={test_experiment_name}")
         assert resp.status_code == 200
         data = resp.json()
         # Should either succeed or have a reasonable response
@@ -370,10 +370,144 @@ def test_create_experiment_with_script_parameters_list_dict():
             assert "data" in data
             assert "task_results" in data["data"]
             task_results = data["data"]["task_results"]
-            assert len(task_results) == 1
-            # Task should be created successfully with EVAL type
-            task_result = task_results[0]
-            assert task_result.get("task_type") == "EVAL"
-            assert task_result.get("action") == "create_task"
+            assert len(task_results) == 3
             # This test exercises the code path where list/dict values in script_parameters
             # get converted to JSON strings on line 276
+
+
+def test_create_experiment_with_workflow_single_task():
+    """Test creating an experiment with workflow creation for a single task using existing recipe 2"""
+    with TestClient(app) as client:
+        test_experiment_name = f"test_workflow_single_{os.getpid()}"
+        resp = client.post(
+            f"/recipes/2/create_experiment?experiment_name={test_experiment_name}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "status" in data
+        
+        if data.get("status") == "success":
+            assert "data" in data
+            # Check that workflow_id is included in response
+            assert "workflow_id" in data["data"]
+            assert data["data"]["workflow_id"] is not None
+            
+            # Check task results include workflow information
+            assert "task_results" in data["data"]
+            task_results = data["data"]["task_results"]
+            assert len(task_results) == 1
+            
+            task_result = task_results[0]
+            assert task_result.get("task_type") == "TRAIN"
+            assert task_result.get("action") == "create_task"
+            assert task_result.get("status") == "success"
+            # Should have workflow addition status
+            assert "added_to_workflow" in task_result
+
+
+def test_create_experiment_with_workflow_multiple_tasks():
+    """Test creating an experiment with workflow creation for multiple sequential tasks using existing recipe 6"""
+    with TestClient(app) as client:
+        test_experiment_name = f"test_workflow_multi_{os.getpid()}"
+        resp = client.post(
+            f"/recipes/6/create_experiment?experiment_name={test_experiment_name}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "status" in data
+        
+        if data.get("status") == "success":
+            assert "data" in data
+            # Check that workflow_id is included in response
+            assert "workflow_id" in data["data"]
+            assert data["data"]["workflow_id"] is not None
+            
+            # Check task results
+            assert "task_results" in data["data"]
+            task_results = data["data"]["task_results"]
+            assert len(task_results) == 3
+            
+            # Verify all three task types are created in order
+            task_types = [result.get("task_type") for result in task_results]
+            assert task_types == ["TRAIN", "EVAL", "GENERATE"]
+            
+            # Verify all tasks have workflow addition status
+            for task_result in task_results:
+                assert task_result.get("action") == "create_task"
+                assert task_result.get("status") == "success"
+                assert "added_to_workflow" in task_result
+
+
+def test_workflow_creation_with_recipe_title():
+    """Test that the workflow is created with 'Recipe' as the title using existing recipe 3"""
+    with TestClient(app) as client:
+        test_experiment_name = f"test_workflow_title_{os.getpid()}"
+        resp = client.post(
+            f"/recipes/3/create_experiment?experiment_name={test_experiment_name}")
+        assert resp.status_code == 200
+        data = resp.json()
+        
+        if data.get("status") == "success" and "workflow_id" in data["data"]:
+            workflow_id = data["data"]["workflow_id"]
+            
+            # Get the created workflow to verify it has correct title
+            workflow_resp = client.get(f"/workflows/list")
+            assert workflow_resp.status_code == 200
+            workflows = workflow_resp.json()
+            
+            # Find our workflow
+            created_workflow = None
+            for workflow in workflows:
+                if workflow.get("id") == workflow_id:
+                    created_workflow = workflow
+                    break
+            
+            if created_workflow:
+                assert created_workflow["name"] == "Recipe"
+
+
+def test_workflow_nodes_match_tasks():
+    """Test that workflow nodes are created correctly with task references using existing recipe 6"""
+    with TestClient(app) as client:
+        test_experiment_name = f"test_workflow_nodes_{os.getpid()}"
+        resp = client.post(
+            f"/recipes/6/create_experiment?experiment_name={test_experiment_name}")
+        assert resp.status_code == 200
+        data = resp.json()
+        
+        if data.get("status") == "success" and "workflow_id" in data["data"]:
+            workflow_id = data["data"]["workflow_id"]
+            
+            # Get the created workflow
+            workflow_resp = client.get(f"/workflows/list")
+            assert workflow_resp.status_code == 200
+            workflows = workflow_resp.json()
+            
+            # Find our workflow
+            created_workflow = None
+            for workflow in workflows:
+                if workflow.get("id") == workflow_id:
+                    created_workflow = workflow
+                    break
+            
+            if created_workflow:
+                import json
+                config = json.loads(created_workflow["config"])
+                nodes = config.get("nodes", [])
+                
+                # Should have START node plus 3 task nodes
+                assert len(nodes) >= 4
+                
+                # Find task nodes (excluding START node)
+                task_nodes = [node for node in nodes if node.get("type") != "START"]
+                assert len(task_nodes) == 3
+                
+                # Verify task nodes have correct structure
+                expected_task_names = ["Task_1", "Task_2", "Task_3"]
+                expected_types = ["TRAIN", "EVAL", "GENERATE"]
+                
+                for i, node in enumerate(task_nodes):
+                    assert node.get("name") == expected_task_names[i]
+                    assert node.get("task") == expected_task_names[i]
+                    assert node.get("type") == expected_types[i]
+                    assert "id" in node
+                    assert "out" in node
+                    assert "metadata" in node
