@@ -160,6 +160,7 @@ class DiffusionRequest(BaseModel):
     prompt: str = ""
     adaptor: str = ""
     use_multi_gpu: bool = False
+    enable_sharding: bool = True
     adaptor_scale: float = 1.0
     num_inference_steps: int = 30
     guidance_scale: float = 7.5
@@ -548,8 +549,8 @@ async def generate_image(request: DiffusionRequest):
                 raise HTTPException(status_code=400, detail=f"Invalid mask image: {str(e)}")
 
         # Check if we should use multi-GPU approach
-        if should_use_multi_gpu(request.use_multi_gpu):
-            print(f"Using multi-GPU subprocess approach for model: {request.model}")
+        if should_use_diffusion_worker(request.model):
+            print(f"Using Diffusion Worker subprocess approach for model: {request.model}")
             use_single_gpu = False
             try:
                 result = await run_multi_gpu_generation(
@@ -1346,9 +1347,25 @@ async def create_dataset_from_history(request: CreateDatasetRequest):
     )
 
 
-def should_use_multi_gpu(use_multi_gpu=False) -> bool:
-    """Check if a model should use multi-GPU subprocess approach"""
-    return use_multi_gpu and torch.cuda.device_count() > 1
+def should_use_diffusion_worker(model) -> bool:
+    """Use the diffusion worker only for FLUX models"""
+    # return use_multi_gpu and torch.cuda.device_count() > 1
+    try:
+        # Check if model has FLUX components by looking for config
+        from huggingface_hub import model_info
+        info = model_info(model)
+        config = getattr(info, "config", {})
+        diffusers_config = config.get("diffusers", {})
+        architectures = diffusers_config.get("_class_name", "")
+        if isinstance(architectures, str):
+            architectures = [architectures]
+        for arch in architectures:
+            if "flux" in arch.lower():
+                return True
+
+        return False
+    except Exception as e:
+        return False
 
 
 def get_python_executable():
@@ -1396,6 +1413,7 @@ async def run_multi_gpu_generation(
         "mask_image": request.mask_image if is_inpainting else "",
         "upscale": request.upscale,
         "upscale_factor": request.upscale_factor,
+        "enable_sharding": request.enable_sharding,
     }
 
     # Save config to temporary file
@@ -1420,9 +1438,8 @@ async def run_multi_gpu_generation(
             get_python_executable(),
             "-m",
             "accelerate.commands.launch",
-            "--multi_gpu",
             "--num_processes",
-            str(torch.cuda.device_count()),
+            str(1),
             worker_script,
             "--config",
             config_path,
@@ -1434,29 +1451,27 @@ async def run_multi_gpu_generation(
 
         print(f"Running multi-GPU generation with command: {' '.join(cmd)}")
 
-        # Start the process without capturing output
-        process = subprocess.Popen(
-            cmd,
+        # Start the process asynchronously
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
             env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,  # Redirect stderr to stdout
-            text=True,
-            bufsize=1,  # Line buffered
-            universal_newlines=True,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,  # Redirect stderr to stdout
         )
 
-        # Print output in real-time
+        # Print output in real-time asynchronously
         output_lines = []
         while True:
-            line = process.stdout.readline()
+            line = await process.stdout.readline()
             if line:
-                print(line.rstrip())  # Print to console in real-time
-                output_lines.append(line)
-            elif process.poll() is not None:
+                line_text = line.decode('utf-8').rstrip()
+                print(line_text)  # Print to console in real-time
+                output_lines.append(line_text + '\n')
+            else:
                 break
 
         # Wait for process to complete and get return code
-        return_code = process.wait()
+        return_code = await process.wait()
 
         # Combine all output for error checking
         combined_output = "".join(output_lines)

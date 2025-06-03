@@ -9,6 +9,8 @@ import json
 import os
 import sys
 import time
+import gc
+import traceback
 from PIL import Image
 import torch
 import random
@@ -27,7 +29,16 @@ from diffusers import (  # noqa: E402
     StableDiffusionXLPipeline,
     StableDiffusionUpscalePipeline,
     StableDiffusionLatentUpscalePipeline,
+    FluxPipeline,
+    FluxTransformer2DModel,
+    AutoencoderKL,
 )
+
+try:
+    from diffusers.image_processor import VaeImageProcessor
+except ImportError:
+    # Fallback for older diffusers versions
+    VaeImageProcessor = None
 
 
 def setup_device_map(config):
@@ -90,6 +101,242 @@ def setup_device_map(config):
     print(f"Using multi-GPU setup with available GPUs: {available_gpus}")
     # For multi-GPU, let accelerate handle the device mapping
     return "auto"
+
+
+def flush_memory():
+    """Comprehensive memory cleanup function"""
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.reset_max_memory_allocated()
+        torch.cuda.reset_peak_memory_stats()
+        torch.cuda.ipc_collect()
+    print("Memory flushed")
+
+
+def is_flux_model(model_path):
+    """Check if the model is a FLUX model that supports sharding"""
+    try:
+        # Check if model has FLUX components by looking for config
+        from huggingface_hub import model_info
+        info = model_info(model_path)
+        config = getattr(info, "config", {})
+        diffusers_config = config.get("diffusers", {})
+        architectures = diffusers_config.get("_class_name", "")
+        if isinstance(architectures, str):
+            architectures = [architectures]
+        for arch in architectures:
+            if "flux" in arch.lower():
+                print(f"Model {model_path} is identified as a FLUX model")
+                return True
+
+        return False
+    except Exception as e:
+        print(f"Error checking model {model_path} for FLUX compatibility: {e}")
+        return False
+
+
+def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpainting, device, config):
+    """Load pipeline using model sharding for large models like FLUX"""
+
+    print("Loading pipeline with model sharding...")
+
+    # Flush memory before starting
+    flush_memory()
+
+    # Check if we should use sharding
+    use_sharding = (
+        device == "auto"
+        and torch.cuda.device_count() >= 2
+        and is_flux_model(model_path)
+        and config.get("enable_sharding", True)
+    )
+
+    if not use_sharding:
+        print("Using standard pipeline loading (sharding disabled or not applicable)")
+        return load_pipeline_with_device_map(model_path, adaptor_path, is_img2img, is_inpainting, device)
+
+    print("Using FLUX model sharding for memory efficiency")
+
+    # Extract config parameters for sharding
+    prompt = config.get("prompt", "")
+    # Use default FLUX dimensions if height/width are 0 or not specified
+    height = config.get("height", 768)
+    width = config.get("width", 768)
+    
+    # Handle case where height/width are 0 (use FLUX defaults)
+    if height <= 0:
+        height = 768
+    if width <= 0:
+        width = 768
+    num_inference_steps = config.get("num_inference_steps", 50)
+    guidance_scale = config.get("guidance_scale", 3.5)
+    max_sequence_length = config.get("max_sequence_length", 512)
+
+    # Step 1: Load text encoders for prompt encoding
+    print("Step 1: Loading text encoders...")
+
+    # Calculate max memory for text encoders
+    num_gpus = torch.cuda.device_count()
+    max_memory = {}
+    for i in range(num_gpus):
+        torch.cuda.set_device(i)
+        total_memory = torch.cuda.get_device_properties(i).total_memory / (1024**3)
+        reserved_memory = torch.cuda.memory_reserved(i) / (1024**3)
+        free_memory = total_memory - reserved_memory
+        # Use 80% of free memory for text encoders, minimum 4GB
+        usable_memory = max(4, int(free_memory * 0.8))
+        max_memory[i] = f"{usable_memory}GB"
+        print(f"GPU {i}: Allocating {usable_memory}GB for text encoders")
+
+    # Load pipeline with only text encoders
+    text_encoder_pipeline = FluxPipeline.from_pretrained(
+        model_path,
+        transformer=None,  # Don't load transformer yet
+        vae=None,          # Don't load VAE yet
+        device_map="balanced",
+        max_memory=max_memory,
+        torch_dtype=torch.bfloat16,
+        safety_checker=None,
+        requires_safety_checker=False,
+    )
+
+    print("Encoding prompts...")
+    with torch.no_grad():
+        prompt_embeds, pooled_prompt_embeds, text_ids = text_encoder_pipeline.encode_prompt(
+            prompt=prompt,
+            prompt_2=None,
+            max_sequence_length=max_sequence_length,
+        )
+
+    print(f"Prompt embeddings shape: {prompt_embeds.shape}")
+    print(f"Pooled prompt embeddings shape: {pooled_prompt_embeds.shape}")
+
+    # Step 2: Clean up text encoders
+    print("Step 2: Cleaning up text encoders...")
+    del text_encoder_pipeline.text_encoder
+    del text_encoder_pipeline.text_encoder_2
+    del text_encoder_pipeline.tokenizer
+    del text_encoder_pipeline.tokenizer_2
+    del text_encoder_pipeline
+    flush_memory()
+
+    # Step 3: Load transformer with device mapping
+    print("Step 3: Loading transformer...")
+    transformer = FluxTransformer2DModel.from_pretrained(
+        model_path,
+        subfolder="transformer",
+        device_map="auto",
+        torch_dtype=torch.bfloat16,
+    )
+
+    print(f"Transformer device map: {transformer.hf_device_map}")
+
+    # Create pipeline with transformer for denoising
+    denoising_pipeline = FluxPipeline.from_pretrained(
+        model_path,
+        text_encoder=None,
+        text_encoder_2=None,
+        tokenizer=None,
+        tokenizer_2=None,
+        vae=None,
+        transformer=transformer,
+        torch_dtype=torch.bfloat16,
+        safety_checker=None,
+        requires_safety_checker=False,
+    )
+
+    print("Running denoising...")
+    with torch.no_grad():
+        latents = denoising_pipeline(
+            prompt_embeds=prompt_embeds,
+            pooled_prompt_embeds=pooled_prompt_embeds,
+            num_inference_steps=num_inference_steps,
+            guidance_scale=guidance_scale,
+            height=height,
+            width=width,
+            output_type="latent",
+        ).images
+
+    print(f"Generated latents shape: {latents.shape}")
+
+    # Step 4: Clean up transformer
+    print("Step 4: Cleaning up transformer...")
+    del denoising_pipeline.transformer
+    del denoising_pipeline
+    del transformer
+    flush_memory()
+
+    # Step 5: Load VAE and decode
+    print("Step 5: Loading VAE for decoding...")
+
+    # Try to use a single GPU with most free memory for VAE
+    best_gpu = 0
+    max_free = 0
+    for i in range(num_gpus):
+        torch.cuda.set_device(i)
+        total_memory = torch.cuda.get_device_properties(i).total_memory / (1024**3)
+        reserved_memory = torch.cuda.memory_reserved(i) / (1024**3)
+        free_memory = total_memory - reserved_memory
+        if free_memory > max_free:
+            max_free = free_memory
+            best_gpu = i
+
+    vae_device = f"cuda:{best_gpu}"
+    print(f"Loading VAE on {vae_device} (has {max_free:.1f}GB free)")
+
+    vae = AutoencoderKL.from_pretrained(
+        model_path,
+        subfolder="vae",
+        torch_dtype=torch.bfloat16,
+    ).to(vae_device)
+
+    # Setup image processor
+    vae_scale_factor = 2 ** (len(vae.config.block_out_channels) - 1) if hasattr(vae.config, 'block_out_channels') else 8
+
+    if VaeImageProcessor:
+        image_processor = VaeImageProcessor(vae_scale_factor=vae_scale_factor)
+    else:
+        # Fallback for older versions
+        image_processor = None
+
+    print("Running VAE decoding...")
+    with torch.no_grad():
+        # Move latents to VAE device
+        latents = latents.to(vae_device)
+
+        # Unpack latents using FluxPipeline method
+        latents = FluxPipeline._unpack_latents(latents, height, width, vae_scale_factor)
+        latents = (latents / vae.config.scaling_factor) + vae.config.shift_factor
+
+        # Decode
+        decoded_images = vae.decode(latents, return_dict=False)[0]
+
+        # Post-process images
+        if image_processor:
+            images = image_processor.postprocess(decoded_images, output_type="pil")
+        else:
+            # Manual post-processing fallback
+            decoded_images = (decoded_images / 2 + 0.5).clamp(0, 1)
+            decoded_images = decoded_images.cpu().permute(0, 2, 3, 1).float().numpy()
+            images = []
+            for img_array in decoded_images:
+                img_array = (img_array * 255).round().astype("uint8")
+                image = Image.fromarray(img_array)
+                images.append(image)
+
+    print(f"Successfully decoded {len(images)} images using sharding")
+
+    # Clean up VAE
+    del vae
+    flush_memory()
+
+    # Create a mock result object that matches the expected interface
+    class ShardedResult:
+        def __init__(self, images):
+            self.images = images
+
+    return ShardedResult(images)
 
 
 def load_pipeline_with_device_map(model_path, adaptor_path, is_img2img, is_inpainting, device):
@@ -257,7 +504,6 @@ def main():
         config = json.load(f)
 
     print(f"Worker {args.worker_id} starting generation...")
-    print(f"Config: {json.dumps(config, indent=2)}")
 
     # Clear CUDA cache at start to free any lingering memory
     if torch.cuda.is_available():
@@ -328,7 +574,16 @@ def main():
             print("Cleared CUDA cache before loading pipeline")
 
         start_time = time.time()
-        pipe = load_pipeline_with_device_map(model_path, adaptor_path, is_img2img, is_inpainting, device)
+        gen_start_time = None
+        if config.get("enable_sharding", True) and is_flux_model(model_path):
+            print("Using model sharding for FLUX model")
+            # Use model sharding for FLUX models if enabled in config
+            gen_start_time = time.time()
+
+            pipe = load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpainting, device, config)
+        else:
+            # Default to device map loading
+            pipe = load_pipeline_with_device_map(model_path, adaptor_path, is_img2img, is_inpainting, device)
         load_time = time.time() - start_time
         print(f"Pipeline loaded in {load_time:.2f}s")
 
@@ -384,7 +639,8 @@ def main():
 
         # Generate images
         print("Starting image generation...")
-        gen_start_time = time.time()
+        if gen_start_time is None:
+            gen_start_time = time.time()
 
         # Enable memory efficient attention and other optimizations
         if hasattr(pipe, "enable_xformers_memory_efficient_attention"):
@@ -429,8 +685,15 @@ def main():
                 raise
         try:
             with torch.inference_mode():
-                result = pipe(**generation_kwargs)
-                images = result.images
+                # Check if this is a ShardedResult (from model sharding)
+                if hasattr(pipe, 'images') and not callable(pipe):
+                    # This is already a ShardedResult with generated images
+                    images = pipe.images
+                    print(f"Using pre-generated images from sharding: {len(images)} images")
+                else:
+                    # This is a normal pipeline, call it to generate images
+                    result = pipe(**generation_kwargs)
+                    images = result.images
         except RuntimeError as e:
             if "illegal memory access" in str(e) or "CUDA error" in str(e):
                 print(f"CUDA memory access error detected: {e}")
@@ -469,8 +732,12 @@ def main():
         generation_time = time.time() - gen_start_time
         print(f"Generated {len(images)} images in {generation_time:.2f}s")
 
-        # Clean up pipeline to free memory immediately
-        del pipe
+        # Clean up pipeline to free memory immediately (only if it's a callable pipeline)
+        if callable(pipe):
+            del pipe
+        else:
+            # For ShardedResult, just clear the reference
+            del pipe
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             import gc
@@ -634,7 +901,6 @@ def main():
 
         # Clean up any remaining GPU memory
         if torch.cuda.is_available():
-            
             import gc
 
             gc.collect()
