@@ -121,12 +121,6 @@ ALLOWED_IMG2IMG_ARCHITECTURES = [
     "StableDiffusionXLControlNetPAGPipeline",
     "LatentConsistencyModelImg2ImgPipeline",
     "LatentConsistencyModelPipeline",
-    "FluxImg2ImgPipeline",
-    "FluxPipeline",
-    "FluxControlNetImg2ImgPipeline",
-    "FluxControlNetPipeline",
-    "FluxControlImg2ImgPipeline",
-    "FluxControlPipeline",
 ]
 
 # Allowed architectures for inpainting pipelines
