@@ -2,7 +2,6 @@ from fastapi import APIRouter, BackgroundTasks
 from transformerlab.shared import galleries
 import transformerlab.db as db
 from transformerlab.models import model_helper
-import transformerlab.routers.workflows as workflows_router
 import json
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])

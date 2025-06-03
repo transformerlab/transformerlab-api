@@ -449,7 +449,7 @@ def test_workflow_creation_with_recipe_title():
             workflow_id = data["data"]["workflow_id"]
             
             # Get the created workflow to verify it has correct title
-            workflow_resp = client.get(f"/workflows/list")
+            workflow_resp = client.get("/workflows/list")
             assert workflow_resp.status_code == 200
             workflows = workflow_resp.json()
             
@@ -477,7 +477,7 @@ def test_workflow_nodes_match_tasks():
             workflow_id = data["data"]["workflow_id"]
             
             # Get the created workflow
-            workflow_resp = client.get(f"/workflows/list")
+            workflow_resp = client.get("/workflows/list")
             assert workflow_resp.status_code == 200
             workflows = workflow_resp.json()
             
