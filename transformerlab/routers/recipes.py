@@ -267,11 +267,6 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                 config_json = task.get("config_json", "{}")
                 parsed_config = json.loads(config_json)
 
-                # Ensure all tasks have an adaptor field - set default if not provided
-                if "adaptor" not in parsed_config:
-                    parsed_config["adaptor"] = ""
-                    config_json = json.dumps(parsed_config)
-
                 # Generate simple task name that helps user follow order of tasks
                 task_name = f"Task_{i+1}"
                 
@@ -298,9 +293,6 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                         "run_name": parsed_config.get("run_name", "")
                     })
                 
-                # Create outputs JSON (what the task produces)
-                # All tasks have adaptor
-                outputs = {"adaptor": parsed_config["adaptor"]}
 
                 if task_type == "EVAL":
                     outputs["eval_results"] = {}
