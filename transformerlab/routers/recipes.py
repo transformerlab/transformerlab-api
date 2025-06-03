@@ -272,13 +272,13 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                 for key, value in parsed_config.items():
                     if key != "script_parameters" and isinstance(value, (list, dict)):
                         parsed_config[key] = json.dumps(value)
-                        
+                
                 # Convert list/dict values inside script_parameters to strings
                 if "script_parameters" in parsed_config and isinstance(parsed_config["script_parameters"], dict):
                     for param_key, param_value in parsed_config["script_parameters"].items():
                         if isinstance(param_value, (list, dict)):
                             parsed_config["script_parameters"][param_key] = json.dumps(param_value)
-            
+
                 # Generate simple task name that helps user follow order of tasks
                 task_name = f"Task_{i+1}"
                 
