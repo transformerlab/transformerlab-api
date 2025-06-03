@@ -3,9 +3,9 @@
         "name": "exaone",
         "description": "Multimodal foundation, designed for enterprise-scale reasoning across language, vision, and code domains.",
         "tags": [
-            "multimodal",
-            "multilingual",
-            "reasoning"
+            "Multimodal",
+            "Multilingual",
+            "Reasoning"
         ],
         "models": [
             {
@@ -16,6 +16,9 @@
                 "context": "32768",
                 "architecture": "ExaoneForCausalLM",
                 "added": "2025-03-18",
+                "tags": [
+                    "Reasoning"
+                ],
                 "formats": [
                     "Safetensors"
                 ],
@@ -45,6 +48,9 @@
                 "context": "32768",
                 "architecture": "ExaoneForCausalLM",
                 "added": "2025-03-18",
+                "tags": [
+                    "Reasoning"
+                ],
                 "formats": [
                     "Safetensors"
                 ],
@@ -74,6 +80,9 @@
                 "context": "32768",
                 "architecture": "ExaoneForCausalLM",
                 "added": "2025-03-18",
+                "tags": [
+                    "Reasoning"
+                ],
                 "formats": [
                     "Safetensors"
                 ],
@@ -100,11 +109,7 @@
     {
         "name": "vicuna",
         "description": "Fine-tuned and conversational. Derived from the Alpaca and LLaMA line.",
-        "tags": [
-            "chat",
-            "instruction-tuned",
-            "alpaca-derivative"
-        ],
+        "tags": [],
         "models": [
             {
                 "uniqueID": "lmsys/vicuna-7b-v1.5",
@@ -196,9 +201,7 @@
         "name": "watt",
         "description": "Specialized for tool use and dynamic plugin-based reasoning tasks.",
         "tags": [
-            "tool-use",
-            "inference",
-            "plugins"
+            "Tool Use"
         ],
         "models": [
             {
@@ -239,9 +242,7 @@
         "name": "aya",
         "description": "Instruction-tuned and multilingual, supporting 23 languages with strong general-purpose capabilities.",
         "tags": [
-            "multilingual",
-            "instruction-tuned",
-            "general-purpose"
+            "Multilingual"
         ],
         "models": [
             {
@@ -267,10 +268,7 @@
     {
         "name": "openllama",
         "description": "Community-built open version of the LLaMA architecture for research and development.",
-        "tags": [
-            "open-weight",
-            "llama-compatible"
-        ],
+        "tags": [],
         "models": [
             {
                 "uniqueID": "openlm-research/open_llama_3b_v2",
@@ -335,23 +333,21 @@
     {
         "name": "gemma",
         "description": "Compact, research-focused language model developed for experimental scalability.",
-        "tags": [
-            "google",
-            "compact",
-            "research"
-        ],
+        "tags": [],
         "models": [
             {
                 "uniqueID": "unsloth/gemma-3-1b-it-GGUF",
                 "name": "Gemma 3 1B Instruct (GGUF Q8_0)",
                 "description": "GGUF-formatted 8-bit quantization of Google's Gemma 3 1B instruction-tuned model.",
                 "added": "2025-03-25",
-                "tags": [],
                 "parameters": "1B",
                 "context": "32768",
                 "architecture": "GGUF",
                 "formats": [
                     "GGUF"
+                ],
+                "tags": [
+                    "Tool Use"
                 ],
                 "huggingface_repo": "unsloth/gemma-3-1b-it-GGUF",
                 "huggingface_filename": "gemma-3-1b-it-Q8_0.gguf",
@@ -377,7 +373,9 @@
                 "name": "Gemma 3 27B Instruct (GGUF Q4_K_M)",
                 "description": "GGUF-formatted 4-bit quantization of Google's Gemma 3 27B instruction-tuned model.",
                 "added": "2025-03-25",
-                "tags": [],
+                "tags": [
+                    "Tool Use"
+                ],
                 "parameters": "27B",
                 "context": "2048",
                 "architecture": "GGUF",
@@ -617,6 +615,9 @@
                 "formats": [
                     "Safetensors"
                 ],
+                "tags": [
+                    "Tool Use"
+                ],
                 "huggingface_repo": "mlx-community/gemma-3-1b-it-4bit",
                 "transformers_version": "4.50.0.dev0",
                 "gated": "manual",
@@ -645,6 +646,9 @@
                 "architecture": "Gemma3ForConditionalGeneration",
                 "formats": [
                     "Safetensors"
+                ],
+                "tags": [
+                    "Tool Use"
                 ],
                 "huggingface_repo": "mlx-community/gemma-3-12b-it-4bit",
                 "transformers_version": "4.50.0.dev0",
@@ -675,6 +679,9 @@
                 "formats": [
                     "Safetensors"
                 ],
+                "tags": [
+                    "Tool Use"
+                ],
                 "huggingface_repo": "google/gemma-3-1b-pt",
                 "transformers_version": "4.50.0.dev0",
                 "gated": "manual",
@@ -703,6 +710,9 @@
                 "architecture": "Gemma3ForCausalLM",
                 "formats": [
                     "Safetensors"
+                ],
+                "tags": [
+                    "Tool Use"
                 ],
                 "huggingface_repo": "google/gemma-3-1b-it",
                 "transformers_version": "4.50.0.dev0",
@@ -733,6 +743,9 @@
                 "formats": [
                     "Safetensors"
                 ],
+                "tags": [
+                    "Tool Use"
+                ],
                 "huggingface_repo": "google/gemma-3-4b-pt",
                 "transformers_version": "4.50.0.dev0",
                 "gated": "manual",
@@ -761,6 +774,9 @@
                 "architecture": "Gemma3ForConditionalGeneration",
                 "formats": [
                     "Safetensors"
+                ],
+                "tags": [
+                    "Tool Use"
                 ],
                 "huggingface_repo": "google/gemma-3-4b-it",
                 "transformers_version": "4.50.0.dev0",
@@ -791,6 +807,9 @@
                 "formats": [
                     "Safetensors"
                 ],
+                "tags": [
+                    "Tool Use"
+                ],
                 "huggingface_repo": "google/gemma-3-12b-pt",
                 "transformers_version": "4.50.0.dev0",
                 "gated": "manual",
@@ -819,6 +838,9 @@
                 "architecture": "Gemma3ForConditionalGeneration",
                 "formats": [
                     "Safetensors"
+                ],
+                "tags": [
+                    "Tool Use"
                 ],
                 "huggingface_repo": "google/gemma-3-12b-it",
                 "transformers_version": "4.50.0.dev0",
@@ -849,6 +871,9 @@
                 "formats": [
                     "Safetensors"
                 ],
+                "tags": [
+                    "Tool Use"
+                ],
                 "huggingface_repo": "google/gemma-3-27b-pt",
                 "transformers_version": "4.50.0.dev0",
                 "gated": "manual",
@@ -878,6 +903,9 @@
                 "formats": [
                     "Safetensors"
                 ],
+                "tags": [
+                    "Tool Use"
+                ],
                 "huggingface_repo": "google/gemma-3-27b-it",
                 "transformers_version": "4.50.0.dev0",
                 "gated": "manual",
@@ -906,6 +934,9 @@
                 "architecture": "ShieldGemmaForImageClassification",
                 "formats": [
                     "Safetensors"
+                ],
+                "tags": [
+                    "Tool Use"
                 ],
                 "huggingface_repo": "google/shieldgemma-2-4b-it",
                 "transformers_version": "4.50.0.dev0",
@@ -1051,11 +1082,7 @@
     {
         "name": "llama",
         "description": "Foundational language models known for versatility and strong pretraining baseline by Meta.",
-        "tags": [
-            "meta",
-            "base-model",
-            "general-purpose"
-        ],
+        "tags": [],
         "models": [
             {
                 "uniqueID": "mlx-community/Llama-2-7b-mlx",
@@ -1699,11 +1726,7 @@
         "name": "llava",
         "description": "Vision-language model capable of multimodal understanding and visual question answering.",
         "tags": [
-            "multimodal",
-            "vision-language",
-            "vqa",
-            "image-captioning",
-            "chat"
+            "Multimodal"
         ],
         "models": [
             {
@@ -1713,6 +1736,9 @@
                 "parameters": "1.41B",
                 "context": "4k",
                 "architecture": "LlavaForConditionalGeneration",
+                "tags": [
+                    "Multimodal"
+                ],
                 "formats": [
                     "Safetensors",
                     "PyTorch"
@@ -1742,6 +1768,9 @@
                 "parameters": "7B",
                 "context": "4k",
                 "architecture": "LlavaForConditionalGeneration",
+                "tags": [
+                    "Multimodal"
+                ],
                 "formats": [
                     "Safetensors",
                     "PyTorch"
@@ -1770,8 +1799,7 @@
         "name": "intellect",
         "description": "Reasoning-focused. Designed for analytical and structured language tasks.",
         "tags": [
-            "reasoning",
-            "research"
+            "Reasoning"
         ],
         "models": [
             {
@@ -1807,12 +1835,20 @@
         ]
     },
     {
+        "name": "nemotron",
+        "description": "Reasoning models that are post trained for reasoning, human chat preferences, and tasks, such as RAG and tool calling.",
+        "tags": [
+            "reasoning",
+            "chat",
+            "rag"
+        ],
+        "models": []
+    },
+    {
         "name": "smollm",
         "description": "Tiny instruct models designed for experimentation and lightweight tasks.",
         "tags": [
-            "tiny-model",
-            "instruct",
-            "experimentation"
+            "Tiny"
         ],
         "models": [
             {
@@ -1908,9 +1944,7 @@
         "name": "cogito",
         "description": "Hybrid reasoning capability. Outperforming peers across standard benchmarks in its size class.",
         "tags": [
-            "reasoning",
-            "hybrid",
-            "performance"
+            "Reasoning"
         ],
         "models": [
             {
@@ -2068,11 +2102,7 @@
     {
         "name": "mistral",
         "description": "Fast, open-weight transformer optimized for low-latency inference.",
-        "tags": [
-            "open-weight",
-            "fast-inference",
-            "efficient"
-        ],
+        "tags": [],
         "models": [
             {
                 "uniqueID": "mlx-community/Mistral-7B-Instruct-v0.1-4bit-mlx",
@@ -2167,8 +2197,7 @@
                 "description": "Agentic LLM for software engineering tasks",
                 "added": "2025-05-21",
                 "tags": [
-                    "coding",
-                    "lightweight"
+                    "Coding"
                 ],
                 "parameters": "",
                 "context": "131072",
@@ -2581,10 +2610,7 @@
     {
         "name": "falcon",
         "description": "Open-weight transformer with competitive performance across diverse language tasks.",
-        "tags": [
-            "general-purpose",
-            "open-weight"
-        ],
+        "tags": [],
         "models": [
             {
                 "uniqueID": "tiiuae/falcon-7b",
@@ -2649,11 +2675,7 @@
     {
         "name": "flan",
         "description": "Versatile instruction-tuned variant of T5 excelling across multitask benchmarks.",
-        "tags": [
-            "instruction-tuned",
-            "versatile",
-            "t5"
-        ],
+        "tags": [],
         "models": [
             {
                 "uniqueID": "google/flan-t5-small",
@@ -2690,9 +2712,8 @@
         "name": "qwen",
         "description": "Multilingual, high-accuracy transformer excelling in reasoning and benchmark tasks.",
         "tags": [
-            "performance",
-            "reasoning",
-            "multilingual"
+            "Reasoning",
+            "Multilingual"
         ],
         "models": [
             {
@@ -3780,11 +3801,7 @@
     {
         "name": "starling",
         "description": "General-purpose, designed for engaging instruction-following dialogues.",
-        "tags": [
-            "chat",
-            "instruct",
-            "research"
-        ],
+        "tags": [],
         "models": [
             {
                 "uniqueID": "berkeley-nest/Starling-LM-7B-alpha",
@@ -3819,11 +3836,7 @@
     {
         "name": "fastchat-t5",
         "description": "Lightweight chatbot model optimized for fast response generation using the T5 architecture.",
-        "tags": [
-            "chatbot",
-            "fast-inference",
-            "t5"
-        ],
+        "tags": [],
         "models": [
             {
                 "uniqueID": "lmsys/fastchat-t5-3b-v1.0",
@@ -3859,9 +3872,8 @@
         "name": "bytedance",
         "description": "Parameter efficient family for reasoning and coding",
         "tags": [
-            "programming",
-            "reasoning",
-            "efficient"
+            "Coding",
+            "Reasoning"
         ],
         "models": [
             {
@@ -3870,8 +3882,8 @@
                 "description": "A powerful, transparent, and parameter-efficient open-source code model",
                 "added": "2025-05-21",
                 "tags": [
-                    "reasoning",
-                    "programming"
+                    "Reasoning",
+                    "Coding"
                 ],
                 "parameters": "8B",
                 "context": "65536",
@@ -3903,9 +3915,7 @@
         "name": "command",
         "description": "Robust and instruction-following. Designed for enterprise-scale NLP tasks.",
         "tags": [
-            "instruction-tuned",
-            "enterprise",
-            "cohere"
+            "Enterprise Focus"
         ],
         "models": [
             {
@@ -4024,11 +4034,11 @@
     },
     {
         "name": "zyphra",
-        "description": "small yet powerful, excelling in code and math reasoning with high token efficiency.",
+        "description": "Small yet powerful, excelling in code and math reasoning with high token efficiency.",
         "tags": [
-            "reasoning",
-            "math",
-            "code-generation"
+            "Reasoning",
+            "Math",
+            "Coding"
         ],
         "models": [
             {
@@ -4066,11 +4076,7 @@
     {
         "name": "phi",
         "description": "Small and efficient. Ideal for edge deployment and low-resource inference.",
-        "tags": [
-            "small-model",
-            "efficient",
-            "microsoft"
-        ],
+        "tags": [],
         "models": [
             {
                 "uniqueID": "microsoft/Phi-3-mini-128k-instruct",
@@ -4191,7 +4197,9 @@
                 "name": "Phi-4-reasoning",
                 "description": "Phi-4-reasoning is a state-of-the-art open-weight reasoning model finetuned from Phi-4 using supervised fine-tuning on a dataset of chain-of-thought traces and reinforcement learning. The supervised fine-tuning dataset includes a blend of synthetic prompts and high-quality filtered data from public domain websites, focused on math, science, and coding skills as well as alignment data for safety and Responsible AI. The goal of this approach was to ensure that small capable models were trained with data focused on high quality and advanced reasoning.",
                 "added": "2025-05-01",
-                "tags": [],
+                "tags": [
+                    "Reasoning"
+                ],
                 "parameters": "",
                 "context": "32768",
                 "architecture": "Phi3ForCausalLM",
@@ -4221,7 +4229,9 @@
                 "name": "Phi-4-reasoning-plus",
                 "description": "On top of Phi-4-reasoning, Phi-4-reasoning-plus has been trained additionally with Reinforcement Learning, hence, it has higher accuracy but generates on average 50% more tokens, thus having higher latency.",
                 "added": "2025-05-01",
-                "tags": [],
+                "tags": [
+                    "Reasoning"
+                ],
                 "parameters": "",
                 "context": "32768",
                 "architecture": "Phi3ForCausalLM",
@@ -4310,9 +4320,7 @@
         "name": "nous-hermes",
         "description": "Refined instruction-tuned, capable of high-quality chat and reasoning outputs.",
         "tags": [
-            "instruction-tuned",
-            "reasoning",
-            "chat"
+            "Reasoning"
         ],
         "models": [
             {
@@ -4377,9 +4385,7 @@
         "name": "tinydolphin",
         "description": "Experimental and compact, trained on curated instruction datasets.",
         "tags": [
-            "tiny-model",
-            "experimental",
-            "dolphin-dataset"
+            "Tiny"
         ],
         "models": [
             {
@@ -4415,12 +4421,72 @@
     {
         "name": "deepseek",
         "description": "General-purpose language models focused on strong downstream task performance.",
-        "tags": [
-            "general-purpose",
-            "performance",
-            "chat"
-        ],
+        "tags": [],
         "models": [
+            {
+                "uniqueID": "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
+                "name": "DeepSeek-R1-0528-Qwen3-8B",
+                "description": "The DeepSeek R1 model has undergone a minor version upgrade, with the current version being DeepSeek-R1-0528.",
+                "added": "2025-05-30",
+                "tags": [
+                    "Reasoning"
+                ],
+                "parameters": "8B",
+                "context": "131072",
+                "architecture": "Qwen3ForCausalLM",
+                "formats": [
+                    "Safetensors"
+                ],
+                "huggingface_repo": "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
+                "transformers_version": "4.51.0",
+                "gated": false,
+                "license": "mit",
+                "logo": "https://www.deepseek.com/favicon.ico",
+                "size_of_model_in_mb": 15629.375182151794,
+                "author": {
+                    "name": "deepseek-ai",
+                    "url": "https://huggingface.co/deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
+                    "blurb": ""
+                },
+                "resources": {
+                    "canonicalUrl": "https://huggingface.co/deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
+                    "downloadUrl": "https://huggingface.co/deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
+                    "paperUrl": "?"
+                },
+                "model_group": "deepseek"
+            },
+            {
+                "uniqueID": "deepseek-ai/DeepSeek-R1-0528",
+                "name": "DeepSeek-R1-0528",
+                "description": "The DeepSeek R1 model has undergone a minor version upgrade, with the current version being DeepSeek-R1-0528.",
+                "added": "2025-05-30",
+                "tags": [
+                    "Reasoning"
+                ],
+                "parameters": "",
+                "context": "163840",
+                "architecture": "DeepseekV3ForCausalLM",
+                "formats": [
+                    "Safetensors"
+                ],
+                "huggingface_repo": "deepseek-ai/DeepSeek-R1-0528",
+                "transformers_version": "4.46.3",
+                "gated": false,
+                "license": "mit",
+                "logo": "https://www.deepseek.com/favicon.ico",
+                "size_of_model_in_mb": 656703.5342264175,
+                "author": {
+                    "name": "deepseek-ai",
+                    "url": "https://huggingface.co/deepseek-ai/DeepSeek-R1-0528",
+                    "blurb": ""
+                },
+                "resources": {
+                    "canonicalUrl": "https://huggingface.co/deepseek-ai/DeepSeek-R1-0528",
+                    "downloadUrl": "https://huggingface.co/deepseek-ai/DeepSeek-R1-0528",
+                    "paperUrl": "?"
+                },
+                "model_group": "deepseek"
+            },
             {
                 "uniqueID": "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B",
                 "name": "DeepSeek R1 Distill Qwen 1.5B",
@@ -4521,6 +4587,7 @@
             {
                 "uniqueID": "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
                 "name": "DeepSeek R1 Distill Qwen 7B",
+                "archived": true,
                 "description": "Qwen distillation of DeepSeek chain-of-thought model.",
                 "added": "2025-01-27",
                 "parameters": "7B",
@@ -4553,6 +4620,7 @@
             {
                 "uniqueID": "deepseek-ai/DeepSeek-R1",
                 "name": "DeepSeek R1",
+                "archived": true,
                 "description": "Full version of DeepSeek's flagship Chain-of-Thought model.",
                 "added": "2025-01-27",
                 "parameters": "671B",
@@ -4618,9 +4686,7 @@
         "name": "starcoder",
         "description": "Leading in code-generation. Trained on open-source repositories for development tasks.",
         "tags": [
-            "code-generation",
-            "github",
-            "bigcode"
+            "Coding"
         ],
         "models": [
             {
@@ -4661,9 +4727,7 @@
         "name": "deepcoder",
         "description": "Neural program synthesis model built to generate and complete code efficiently.",
         "tags": [
-            "code-generation",
-            "microsoft",
-            "programming"
+            "Coding"
         ],
         "models": [
             {
@@ -4801,9 +4865,7 @@
         "name": "apriel",
         "description": "Compact and high-performance reasoning. Optimized for efficiency and low memory usage.",
         "tags": [
-            "reasoning",
-            "inference",
-            "efficient"
+            "Reasoning"
         ],
         "models": [
             {
@@ -4899,13 +4961,82 @@
         ]
     },
     {
+        "name": "others",
+        "description": "",
+        "tags": [],
+        "models": [
+            {
+                "uniqueID": "nvidia/Llama-3.1-Nemotron-Nano-4B-v1.1",
+                "name": "Llama-3.1-Nemotron-Nano-4B-v1.1",
+                "description": "Offers a great tradeoff between model accuracy and efficiency. The model fits on a single RTX GPU and can be used locally",
+                "added": "2025-05-24",
+                "tags": [
+                    "Reasoning",
+                    "RAG"
+                ],
+                "parameters": "4B",
+                "context": "131072",
+                "architecture": "LlamaForCausalLM",
+                "formats": [
+                    "Safetensors"
+                ],
+                "huggingface_repo": "nvidia/Llama-3.1-Nemotron-Nano-4B-v1.1",
+                "transformers_version": "4.47.1",
+                "gated": false,
+                "license": "other",
+                "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
+                "size_of_model_in_mb": 8623.903450965881,
+                "author": {
+                    "name": "nvidia",
+                    "url": "https://huggingface.co/nvidia/Llama-3.1-Nemotron-Nano-4B-v1.1",
+                    "blurb": ""
+                },
+                "resources": {
+                    "canonicalUrl": "https://huggingface.co/nvidia/Llama-3.1-Nemotron-Nano-4B-v1.1",
+                    "downloadUrl": "https://huggingface.co/nvidia/Llama-3.1-Nemotron-Nano-4B-v1.1",
+                    "paperUrl": "?"
+                },
+                "model_group": "nvidia"
+            },
+            {
+                "uniqueID": "nvidia/Llama-3.1-Nemotron-Nano-8B-v1",
+                "name": "Llama-3.1-Nemotron-Nano-8B-v1",
+                "description": "Offers a great tradeoff between model accuracy and efficiency. The model fits on a single RTX GPU and can be used locally",
+                "added": "2025-05-24",
+                "tags": [
+                    "Reasoning",
+                    "RAG"
+                ],
+                "parameters": "8B",
+                "context": "131072",
+                "architecture": "LlamaForCausalLM",
+                "formats": [
+                    "Safetensors"
+                ],
+                "huggingface_repo": "nvidia/Llama-3.1-Nemotron-Nano-8B-v1",
+                "transformers_version": "4.47.1",
+                "gated": false,
+                "license": "other",
+                "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
+                "size_of_model_in_mb": 15333.027109146118,
+                "author": {
+                    "name": "nvidia",
+                    "url": "https://huggingface.co/nvidia/Llama-3.1-Nemotron-Nano-8B-v1",
+                    "blurb": ""
+                },
+                "resources": {
+                    "canonicalUrl": "https://huggingface.co/nvidia/Llama-3.1-Nemotron-Nano-8B-v1",
+                    "downloadUrl": "https://huggingface.co/nvidia/Llama-3.1-Nemotron-Nano-8B-v1",
+                    "paperUrl": "?"
+                },
+                "model_group": "nvidia"
+            }
+        ]
+    },
+    {
         "name": "zephyr",
         "description": "Hugging Face instruction-tuned model known for clean chat behavior and fast performance.",
-        "tags": [
-            "instruction-tuned",
-            "huggingface",
-            "chat"
-        ],
+        "tags": [],
         "models": [
             {
                 "uniqueID": "HuggingFaceH4/zephyr-7b-alpha",
@@ -4944,9 +5075,7 @@
         "name": "reflection",
         "description": "Large-scale, optimized for self-improvement and reflective reasoning.",
         "tags": [
-            "meta",
-            "reasoning",
-            "self-improvement"
+            "Reasoning"
         ],
         "models": [
             {
@@ -4983,9 +5112,8 @@
         "name": "opencoder",
         "description": "Reasoning-enabled code generators optimized for programming assistance.",
         "tags": [
-            "code-generation",
-            "reasoning",
-            "code-generation"
+            "Coding",
+            "Reasoning"
         ],
         "models": [
             {
@@ -5026,9 +5154,7 @@
         "name": "granite",
         "description": "Enterprise-grade. Tailored for secure, reliable, and general-purpose deployments.",
         "tags": [
-            "ibm",
-            "enterprise",
-            "general-purpose"
+            "Enterprise"
         ],
         "models": [
             {
@@ -5157,8 +5283,7 @@
         "name": "tinyllama",
         "description": "Miniature variant of LLaMA suitable for testing and fast inference scenarios.",
         "tags": [
-            "tiny-model",
-            "llama-compatible"
+            "Tiny"
         ],
         "models": [
             {
