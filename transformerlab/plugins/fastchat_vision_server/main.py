@@ -25,7 +25,7 @@ from fastchat.modules.awq import AWQConfig
 from fastchat.modules.exllama import ExllamaConfig
 from fastchat.modules.gptq import GptqConfig
 from fastchat.modules.xfastertransformer import XftConfig
-from fastchat.utils import get_context_length, build_logger
+from fastchat.utils import get_context_length
 from PIL import Image
 from transformers import AutoModelForPreTraining, AutoProcessor, AutoTokenizer, set_seed
 from transformers.generation.logits_process import (
@@ -35,16 +35,12 @@ from transformers.generation.logits_process import (
     TopKLogitsWarper,
     TopPLogitsWarper,
 )
+from transformerlab.plugin import setup_model_worker_logger
+
 
 worker_id = str(uuid.uuid4())[:8]
-logfile_path = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "logs")
-if not os.path.exists(logfile_path):
-    os.makedirs(logfile_path)
-logger = build_logger("model_worker", os.path.join(logfile_path, "model_worker.log"))
+logger = setup_model_worker_logger()
 
-import fastchat.serve.base_model_worker  # noqa
-
-fastchat.serve.base_model_worker.logger = logger
 from fastchat.serve.base_model_worker import BaseModelWorker  # noqa
 
 

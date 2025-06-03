@@ -3,6 +3,8 @@ import json
 import sqlite3
 import itertools
 import sys
+from pathlib import Path
+import logging
 
 
 # useful constants
@@ -382,3 +384,31 @@ def generate_model_json(
         json.dump(model_description, outfile)
 
     return model_description
+
+
+def setup_model_worker_logger(name: str = "transformerlab") -> logging.Logger:
+    """
+    Configure and assign a dedicated logger for the FastChat model worker.
+
+    This function initializes a logger that writes to the global TransformerLab log file
+    and assigns it to FastChat's base_model_worker, enabling centralized logging.
+
+    Args:
+        name (str): The name of the logger to initialize.
+
+    Returns:
+        logging.Logger: A configured logger instance bound to FastChat's model worker.
+    """
+
+    from fastchat.utils import build_logger
+    import fastchat.serve.base_model_worker
+
+    log_dir: Path = Path.home() / ".transformerlab"
+    log_file: Path = log_dir / "transformerlab.log"
+
+    logger: logging.Logger = build_logger(name, str(log_file))
+
+    # Patch FastChat's base model worker logger
+    fastchat.serve.base_model_worker.logger = logger
+
+    return logger

@@ -26,17 +26,11 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastchat.utils import build_logger, get_context_length
 from huggingface_hub import snapshot_download
-
+from transformerlab.plugin import setup_model_worker_logger
 
 worker_id = str(uuid.uuid4())[:8]
-logfile_path = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "logs")
-if not os.path.exists(logfile_path):
-    os.makedirs(logfile_path)
-logger = build_logger("model_worker", os.path.join(logfile_path, "model_worker.log"))
+logger = setup_model_worker_logger()
 
-import fastchat.serve.base_model_worker  # noqa
-
-fastchat.serve.base_model_worker.logger = logger
 from contextlib import asynccontextmanager  # noqa
 
 import mlx.core as mx  # noqa
