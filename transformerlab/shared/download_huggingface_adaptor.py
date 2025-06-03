@@ -20,6 +20,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--peft", type=str, required=True)
 parser.add_argument("--local_model_id", type=str, required=True)
 parser.add_argument("--job_id", type=str, required=True)
+parser.add_argument("--total_size_of_model_in_mb", type=float, required=True)
 args, other = parser.parse_known_args()
 
 peft = args.peft
@@ -32,6 +33,9 @@ safe_peft = secure_filename(peft)
 
 # Always set target_dir to WORKSPACE_DIR/adaptors/local_model_id
 target_dir = os.path.join(WORKSPACE_DIR, "adaptors", safe_model_id, safe_peft)
+if not os.path.commonpath([target_dir, WORKSPACE_DIR]) == os.path.abspath(WORKSPACE_DIR):
+    raise ValueError("Invalid path after sanitization. Potential security risk.")
+
 os.makedirs(target_dir, exist_ok=True)
 
 
@@ -48,33 +52,56 @@ def get_dir_size(path):
     return total
 
 
-def check_disk_size(adapter_is_downloaded: Event):
-    starting_size = get_dir_size(target_dir) / 1024 / 1024
+total_size_of_model_in_mb = args.total_size_of_model_in_mb
+
+
+def check_disk_size(model_is_downloaded: Event):
+    # Recursively checks the size of the huggingface cache
+    # which is stored at ~/.cache/huggingface/hub
+
+    starting_size_of_huggingface_cache_in_mb = get_dir_size(target_dir) / 1024 / 1024
+    starting_size_of_model_dir_in_mb = get_dir_size(str(WORKSPACE_DIR) + "/models") / 1024 / 1024
+    starting_size_of_cache = starting_size_of_huggingface_cache_in_mb + starting_size_of_model_dir_in_mb
+
     counter = 0
 
     while True:
-        current_size = get_dir_size(target_dir) / 1024 / 1024
-        cache_size_growth = current_size - starting_size
-        progress = min(100.0, cache_size_growth * 10)
+        hf_size = get_dir_size(path=target_dir) / 1024 / 1024
+        model_dir_size = get_dir_size(str(WORKSPACE_DIR) + "/models") / 1024 / 1024
+        cache_size_growth = (hf_size + model_dir_size) - starting_size_of_cache
+        adjusted_total_size = total_size_of_model_in_mb if total_size_of_model_in_mb > 0 else 7000
+        progress = cache_size_growth / adjusted_total_size * 100
+        print(f"\nModel Download Progress: {progress:.2f}%\n")
 
+        # Need to set these PRAGMAs every time as they get reset per connection
+        # Not sure if we should reconnect over and over in the loop like this
+        # But leaving it to reduce the chance of leaving a connection open if this
+        # thread gets interrupted?
         db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
         db.execute("PRAGMA journal_mode=WAL")
         db.execute("PRAGMA synchronous=normal")
         db.execute("PRAGMA busy_timeout=5000")
+
         try:
             db.execute(
-                "UPDATE job SET job_data=json_set(job_data, '$.downloaded', ?), progress=? WHERE id=?",
+                "UPDATE job SET job_data=json_set(job_data, '$.downloaded', ?),  progress=? WHERE id=?",
                 (cache_size_growth, progress, job_id),
             )
         except sqlite3.OperationalError:
-            print(f"Failed to update progress: {progress}%")
+            # Bit of a hack: We were having DB lock errors and this update isn't crucial
+            # So for now just skip if something goes wrong.
+            print(f"Failed to update download progress in DB ({progress}%). Skipping.")
         db.close()
 
-        if adapter_is_downloaded.is_set():
+        print(f"flag:  {model_is_downloaded.is_set()}")
+
+        if model_is_downloaded.is_set():
+            print("Model is downloaded, exiting check_disk_size thread")
             break
 
         counter += 1
-        if counter > 5000:
+        if counter > 5000:  # around 3 hours
+            print("Model is not yet downloaded, but check disk size thread is exiting after running for 3 hours.")
             break
 
         sleep(2)
@@ -82,11 +109,21 @@ def check_disk_size(adapter_is_downloaded: Event):
 
 def download_blocking(adapter_is_downloaded):
     global error_msg, returncode
+
+    job_data = json.dumps(
+        {
+            "downloaded": 0,
+            "model": peft,
+            "total_size_in_mb": total_size_of_model_in_mb,
+            "total_size_of_model_in_mb": total_size_of_model_in_mb,
+        }
+    )
+
     db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
     db.execute("PRAGMA journal_mode=WAL")
     db.execute("PRAGMA synchronous=normal")
     db.execute("PRAGMA busy_timeout=5000")
-    db.execute("UPDATE job SET progress=?, job_data=json(?) WHERE id=?", (0, json.dumps({"downloaded": 0}), job_id))
+    db.execute("UPDATE job SET progress=?, job_data=json(?) WHERE id=?", (0, job_data, job_id))
     db.close()
 
     try:

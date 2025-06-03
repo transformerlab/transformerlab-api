@@ -250,7 +250,6 @@ ALLOWED_JOB_TYPES = [
     "TRAIN",
     "EXPORT_MODEL",
     "DOWNLOAD_MODEL",
-    "INSTALL_PEFT",
     "LOAD_MODEL",
     "TASK",
     "EVAL",
