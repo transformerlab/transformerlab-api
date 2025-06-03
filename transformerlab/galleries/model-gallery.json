@@ -1,5 +1,69 @@
 [
     {
+        "uniqueID": "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
+        "name": "DeepSeek-R1-0528-Qwen3-8B",
+        "description": "The DeepSeek R1 model has undergone a minor version upgrade, with the current version being DeepSeek-R1-0528.",
+        "added": "2025-05-30",
+        "tags": [
+            "Reasoning"
+        ],
+        "parameters": "8B",
+        "context": "131072",
+        "architecture": "Qwen3ForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
+        "transformers_version": "4.51.0",
+        "gated": false,
+        "license": "mit",
+        "logo": "https://www.deepseek.com/favicon.ico",
+        "size_of_model_in_mb": 15629.375182151794,
+        "author": {
+            "name": "deepseek-ai",
+            "url": "https://huggingface.co/deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
+            "downloadUrl": "https://huggingface.co/deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
+            "paperUrl": "?"
+        },
+        "model_group": "deepseek"
+    },
+    {
+        "uniqueID": "deepseek-ai/DeepSeek-R1-0528",
+        "name": "DeepSeek-R1-0528",
+        "description": "The DeepSeek R1 model has undergone a minor version upgrade, with the current version being DeepSeek-R1-0528.",
+        "added": "2025-05-30",
+        "tags": [
+            "Reasoning"
+        ],
+        "parameters": "",
+        "context": "163840",
+        "architecture": "DeepseekV3ForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "deepseek-ai/DeepSeek-R1-0528",
+        "transformers_version": "4.46.3",
+        "gated": false,
+        "license": "mit",
+        "logo": "https://www.deepseek.com/favicon.ico",
+        "size_of_model_in_mb": 656703.5342264175,
+        "author": {
+            "name": "deepseek-ai",
+            "url": "https://huggingface.co/deepseek-ai/DeepSeek-R1-0528",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/deepseek-ai/DeepSeek-R1-0528",
+            "downloadUrl": "https://huggingface.co/deepseek-ai/DeepSeek-R1-0528",
+            "paperUrl": "?"
+        },
+        "model_group": "deepseek"
+    },
+    {
         "uniqueID": "PrimeIntellect/INTELLECT-2",
         "name": "INTELLECT-2",
         "description": "INTELLECT-2 is a 32 billion parameter language model trained through a reinforcement learning run leveraging globally distributed, permissionless GPU resources contributed by the community.",
@@ -316,8 +380,8 @@
         "description": "A powerful, transparent, and parameter-efficient open-source code model",
         "added": "2025-05-21",
         "tags": [
-            "reasoning",
-            "programming"
+            "Reasoning",
+            "Coding"
         ],
         "parameters": "8B",
         "context": "65536",
@@ -834,6 +898,7 @@
     {
         "uniqueID": "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
         "name": "DeepSeek R1 Distill Qwen 7B",
+        "archived": true,
         "description": "Qwen distillation of DeepSeek chain-of-thought model.",
         "added": "2025-01-27",
         "parameters": "7B",
@@ -866,6 +931,7 @@
     {
         "uniqueID": "deepseek-ai/DeepSeek-R1",
         "name": "DeepSeek R1",
+        "archived": true,
         "description": "Full version of DeepSeek's flagship Chain-of-Thought model.",
         "added": "2025-01-27",
         "parameters": "671B",
@@ -931,8 +997,7 @@
         "description": "Agentic LLM for software engineering tasks",
         "added": "2025-05-21",
         "tags": [
-            "coding",
-            "lightweight"
+            "Coding"
         ],
         "parameters": "",
         "context": "131072",
@@ -966,6 +1031,9 @@
         "context": "32768",
         "architecture": "ExaoneForCausalLM",
         "added": "2025-03-18",
+        "tags": [
+            "Reasoning"
+        ],
         "formats": [
             "Safetensors"
         ],
@@ -995,6 +1063,9 @@
         "context": "32768",
         "architecture": "ExaoneForCausalLM",
         "added": "2025-03-18",
+        "tags": [
+            "Reasoning"
+        ],
         "formats": [
             "Safetensors"
         ],
@@ -1024,6 +1095,9 @@
         "context": "32768",
         "architecture": "ExaoneForCausalLM",
         "added": "2025-03-18",
+        "tags": [
+            "Reasoning"
+        ],
         "formats": [
             "Safetensors"
         ],
@@ -1165,12 +1239,14 @@
         "name": "Gemma 3 1B Instruct (GGUF Q8_0)",
         "description": "GGUF-formatted 8-bit quantization of Google's Gemma 3 1B instruction-tuned model.",
         "added": "2025-03-25",
-        "tags": [],
         "parameters": "1B",
         "context": "32768",
         "architecture": "GGUF",
         "formats": [
             "GGUF"
+        ],
+        "tags": [
+            "Tool Use"
         ],
         "huggingface_repo": "unsloth/gemma-3-1b-it-GGUF",
         "huggingface_filename": "gemma-3-1b-it-Q8_0.gguf",
@@ -1196,7 +1272,9 @@
         "name": "Gemma 3 27B Instruct (GGUF Q4_K_M)",
         "description": "GGUF-formatted 4-bit quantization of Google's Gemma 3 27B instruction-tuned model.",
         "added": "2025-03-25",
-        "tags": [],
+        "tags": [
+            "Tool Use"
+        ],
         "parameters": "27B",
         "context": "2048",
         "architecture": "GGUF",
@@ -1436,6 +1514,9 @@
         "formats": [
             "Safetensors"
         ],
+        "tags": [
+            "Tool Use"
+        ],
         "huggingface_repo": "mlx-community/gemma-3-1b-it-4bit",
         "transformers_version": "4.50.0.dev0",
         "gated": "manual",
@@ -1464,6 +1545,9 @@
         "architecture": "Gemma3ForConditionalGeneration",
         "formats": [
             "Safetensors"
+        ],
+        "tags": [
+            "Tool Use"
         ],
         "huggingface_repo": "mlx-community/gemma-3-12b-it-4bit",
         "transformers_version": "4.50.0.dev0",
@@ -1494,6 +1578,9 @@
         "formats": [
             "Safetensors"
         ],
+        "tags": [
+            "Tool Use"
+        ],
         "huggingface_repo": "google/gemma-3-1b-pt",
         "transformers_version": "4.50.0.dev0",
         "gated": "manual",
@@ -1522,6 +1609,9 @@
         "architecture": "Gemma3ForCausalLM",
         "formats": [
             "Safetensors"
+        ],
+        "tags": [
+            "Tool Use"
         ],
         "huggingface_repo": "google/gemma-3-1b-it",
         "transformers_version": "4.50.0.dev0",
@@ -1552,6 +1642,9 @@
         "formats": [
             "Safetensors"
         ],
+        "tags": [
+            "Tool Use"
+        ],
         "huggingface_repo": "google/gemma-3-4b-pt",
         "transformers_version": "4.50.0.dev0",
         "gated": "manual",
@@ -1580,6 +1673,9 @@
         "architecture": "Gemma3ForConditionalGeneration",
         "formats": [
             "Safetensors"
+        ],
+        "tags": [
+            "Tool Use"
         ],
         "huggingface_repo": "google/gemma-3-4b-it",
         "transformers_version": "4.50.0.dev0",
@@ -1610,6 +1706,9 @@
         "formats": [
             "Safetensors"
         ],
+        "tags": [
+            "Tool Use"
+        ],
         "huggingface_repo": "google/gemma-3-12b-pt",
         "transformers_version": "4.50.0.dev0",
         "gated": "manual",
@@ -1638,6 +1737,9 @@
         "architecture": "Gemma3ForConditionalGeneration",
         "formats": [
             "Safetensors"
+        ],
+        "tags": [
+            "Tool Use"
         ],
         "huggingface_repo": "google/gemma-3-12b-it",
         "transformers_version": "4.50.0.dev0",
@@ -1668,6 +1770,9 @@
         "formats": [
             "Safetensors"
         ],
+        "tags": [
+            "Tool Use"
+        ],
         "huggingface_repo": "google/gemma-3-27b-pt",
         "transformers_version": "4.50.0.dev0",
         "gated": "manual",
@@ -1697,6 +1802,9 @@
         "formats": [
             "Safetensors"
         ],
+        "tags": [
+            "Tool Use"
+        ],
         "huggingface_repo": "google/gemma-3-27b-it",
         "transformers_version": "4.50.0.dev0",
         "gated": "manual",
@@ -1725,6 +1833,9 @@
         "architecture": "ShieldGemmaForImageClassification",
         "formats": [
             "Safetensors"
+        ],
+        "tags": [
+            "Tool Use"
         ],
         "huggingface_repo": "google/shieldgemma-2-4b-it",
         "transformers_version": "4.50.0.dev0",
@@ -2570,6 +2681,9 @@
         "parameters": "1.41B",
         "context": "4k",
         "architecture": "LlavaForConditionalGeneration",
+        "tags": [
+            "Multimodal"
+        ],
         "formats": [
             "Safetensors",
             "PyTorch"
@@ -2599,6 +2713,9 @@
         "parameters": "7B",
         "context": "4k",
         "architecture": "LlavaForConditionalGeneration",
+        "tags": [
+            "Multimodal"
+        ],
         "formats": [
             "Safetensors",
             "PyTorch"
@@ -3004,6 +3121,72 @@
         "model_group": "mistral"
     },
     {
+        "uniqueID": "nvidia/Llama-3.1-Nemotron-Nano-4B-v1.1",
+        "name": "Llama-3.1-Nemotron-Nano-4B-v1.1",
+        "description": "Offers a great tradeoff between model accuracy and efficiency. The model fits on a single RTX GPU and can be used locally",
+        "added": "2025-05-24",
+        "tags": [
+            "Reasoning",
+            "RAG"
+        ],
+        "parameters": "4B",
+        "context": "131072",
+        "architecture": "LlamaForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "nvidia/Llama-3.1-Nemotron-Nano-4B-v1.1",
+        "transformers_version": "4.47.1",
+        "gated": false,
+        "license": "other",
+        "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
+        "size_of_model_in_mb": 8623.903450965881,
+        "author": {
+            "name": "nvidia",
+            "url": "https://huggingface.co/nvidia/Llama-3.1-Nemotron-Nano-4B-v1.1",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/nvidia/Llama-3.1-Nemotron-Nano-4B-v1.1",
+            "downloadUrl": "https://huggingface.co/nvidia/Llama-3.1-Nemotron-Nano-4B-v1.1",
+            "paperUrl": "?"
+        },
+        "model_group": "nvidia"
+    },
+    {
+        "uniqueID": "nvidia/Llama-3.1-Nemotron-Nano-8B-v1",
+        "name": "Llama-3.1-Nemotron-Nano-8B-v1",
+        "description": "Offers a great tradeoff between model accuracy and efficiency. The model fits on a single RTX GPU and can be used locally",
+        "added": "2025-05-24",
+        "tags": [
+            "Reasoning",
+            "RAG"
+        ],
+        "parameters": "8B",
+        "context": "131072",
+        "architecture": "LlamaForCausalLM",
+        "formats": [
+            "Safetensors"
+        ],
+        "huggingface_repo": "nvidia/Llama-3.1-Nemotron-Nano-8B-v1",
+        "transformers_version": "4.47.1",
+        "gated": false,
+        "license": "other",
+        "logo": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Meta-Logo.png",
+        "size_of_model_in_mb": 15333.027109146118,
+        "author": {
+            "name": "nvidia",
+            "url": "https://huggingface.co/nvidia/Llama-3.1-Nemotron-Nano-8B-v1",
+            "blurb": ""
+        },
+        "resources": {
+            "canonicalUrl": "https://huggingface.co/nvidia/Llama-3.1-Nemotron-Nano-8B-v1",
+            "downloadUrl": "https://huggingface.co/nvidia/Llama-3.1-Nemotron-Nano-8B-v1",
+            "paperUrl": "?"
+        },
+        "model_group": "nvidia"
+    },
+    {
         "uniqueID": "Nous-Hermes-13b",
         "name": "Nous Hermes 13b",
         "description": "Extremely good model. Instruction based. Gives long responses. Curated with 300,000 uncensored instructions. Trained by Nous Research. Cannot be used commercially",
@@ -3268,7 +3451,9 @@
         "name": "Phi-4-reasoning",
         "description": "Phi-4-reasoning is a state-of-the-art open-weight reasoning model finetuned from Phi-4 using supervised fine-tuning on a dataset of chain-of-thought traces and reinforcement learning. The supervised fine-tuning dataset includes a blend of synthetic prompts and high-quality filtered data from public domain websites, focused on math, science, and coding skills as well as alignment data for safety and Responsible AI. The goal of this approach was to ensure that small capable models were trained with data focused on high quality and advanced reasoning.",
         "added": "2025-05-01",
-        "tags": [],
+        "tags": [
+            "Reasoning"
+        ],
         "parameters": "",
         "context": "32768",
         "architecture": "Phi3ForCausalLM",
@@ -3298,7 +3483,9 @@
         "name": "Phi-4-reasoning-plus",
         "description": "On top of Phi-4-reasoning, Phi-4-reasoning-plus has been trained additionally with Reinforcement Learning, hence, it has higher accuracy but generates on average 50% more tokens, thus having higher latency.",
         "added": "2025-05-01",
-        "tags": [],
+        "tags": [
+            "Reasoning"
+        ],
         "parameters": "",
         "context": "32768",
         "architecture": "Phi3ForCausalLM",
