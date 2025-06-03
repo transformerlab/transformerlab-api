@@ -4,7 +4,7 @@
   "description": "Generate synthetic question-answer pairs from documents for RAG system evaluation.",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
@@ -32,7 +32,6 @@
       "type": "integer",
       "default": 200,
       "minimum": 0,
-      "maximum": 1000,
       "required": true
     },
     "n_generations": {
@@ -40,7 +39,6 @@
       "type": "integer",
       "default": 10,
       "minimum": 1,
-      "maximum": 500,
       "required": true
     }
   },

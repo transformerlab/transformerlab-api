@@ -4,7 +4,7 @@
   "description": "A training script for vision-language models (VLMs) using Huggingface TRL and PeFT. Supports models like Qwen2-VL.",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "model_architectures": [
     "Qwen2ForVision2Seq",
     "Qwen2VLForVision2Seq",
@@ -35,8 +35,7 @@
       "title": "Batch Size",
       "type": "integer",
       "default": 4,
-      "minimum": 1,
-      "maximum": 64
+      "minimum": 1
     },
     "learning_rate_schedule": {
       "title": "Learning Rate Schedule",

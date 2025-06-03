@@ -4,6 +4,8 @@ import os
 import sqlite3
 
 import aiosqlite
+from sqlalchemy import select
+from sqlalchemy.dialects.sqlite import insert  # Correct import for SQLite upsert
 
 # from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
@@ -14,6 +16,7 @@ from sqlalchemy.orm import sessionmaker
 
 from transformerlab.shared import dirs
 from transformerlab.shared.models import models  # noqa: F401
+from transformerlab.shared.models.models import Config
 
 db = None
 DATABASE_FILE_NAME = f"{dirs.WORKSPACE_DIR}/llmlab.sqlite3"
@@ -45,10 +48,13 @@ async def init():
     print("✅ Database initialized")
 
     print("✅ SEED DATA")
-    await db.execute("INSERT OR IGNORE INTO experiment(name, config) VALUES (?, ?)", ("alpha", "{}"))
-    await db.execute("INSERT OR IGNORE INTO experiment(name, config) VALUES (?, ?)", ("beta", "{}"))
-    await db.execute("INSERT OR IGNORE INTO experiment(name, config) VALUES (?, ?)", ("gamma", "{}"))
-    await db.commit()
+    async with async_session() as session:
+        for name in ["alpha", "beta", "gamma"]:
+            # Check if experiment already exists
+            exists = await session.execute(select(models.Experiment).where(models.Experiment.name == name))
+            if not exists.scalar_one_or_none():
+                session.add(models.Experiment(name=name, config={}))
+        await session.commit()
 
     # On startup, look for any jobs that are in the RUNNING state and set them to CANCELLED instead:
     # This is to handle the case where the server is restarted while a job is running.
@@ -1133,16 +1139,16 @@ async def save_plugin(name: str, type: str):
 
 
 async def config_get(key: str):
-    cursor = await db.execute("SELECT value FROM config WHERE key = ?", (key,))
-    row = await cursor.fetchone()
-    await cursor.close()
-    if row:
-        return row[0]
-    else:
-        return None
+    async with async_session() as session:
+        result = await session.execute(select(Config.value).where(Config.key == key))
+        row = result.scalar_one_or_none()
+        return row
 
 
 async def config_set(key: str, value: str):
-    await db.execute("INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)", (key, value))
-    await db.commit()
+    stmt = insert(Config).values(key=key, value=value)
+    stmt = stmt.on_conflict_do_update(index_elements=["key"], set_={"value": value})
+    async with async_session() as session:
+        await session.execute(stmt)
+        await session.commit()
     return
