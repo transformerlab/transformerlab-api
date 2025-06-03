@@ -35,17 +35,14 @@ def setup_device_map(config):
     if not torch.cuda.is_available():
         return "cpu"
 
-    # # Set PyTorch memory allocation settings to reduce fragmentation and improve stability
-    # os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True,roundup_power2_divisions:1"
+    # Set PyTorch memory allocation settings to reduce fragmentation and improve stability
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True,roundup_power2_divisions:1"
 
     # Enable CUDA debugging for better error reporting
     os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
     num_gpus = torch.cuda.device_count()
     print(f"Detected {num_gpus} GPU(s)")
-    if config.get("num_gpus") is not None:
-        num_gpus = min(num_gpus, config["num_gpus"])
-        print(f"Using up to {num_gpus} GPU(s) as per config")
 
     # Check memory usage on each GPU and avoid heavily used ones
     available_gpus = []
@@ -98,6 +95,14 @@ def setup_device_map(config):
 def load_pipeline_with_device_map(model_path, adaptor_path, is_img2img, is_inpainting, device):
     """Load pipeline with proper device mapping for multi-GPU"""
 
+    # Clean up any existing CUDA cache before loading
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        import gc
+
+        gc.collect()
+        print("Cleared CUDA cache before loading pipeline")
+
     # Common pipeline kwargs
     pipeline_kwargs = {
         "torch_dtype": torch.float16 if device != "cpu" else torch.float32,
@@ -106,9 +111,9 @@ def load_pipeline_with_device_map(model_path, adaptor_path, is_img2img, is_inpai
         "use_safetensors": True,  # Use safetensors format for better memory efficiency
     }
 
-    # Add memory-efficient attention for large models
-    if device != "cpu":
-        pipeline_kwargs["enable_xformers_memory_efficient_attention"] = True
+    # # Add memory-efficient attention for large models
+    # if device != "cpu":
+    #     pipeline_kwargs["enable_xformers_memory_efficient_attention"] = True
 
     # For multi-GPU setups, use device_map
     if device == "auto":
@@ -555,11 +560,11 @@ def main():
             # Clean up any remaining GPU state
             if torch.cuda.is_available():
                 try:
-                    torch.cuda.empty_cache()
-                    torch.cuda.ipc_collect()
                     import gc
 
                     gc.collect()
+                    torch.cuda.empty_cache()
+                    torch.cuda.ipc_collect()
                     print("Attempted CUDA cleanup")
                 except Exception as cleanup_e:
                     print(f"CUDA cleanup failed: {cleanup_e}")
@@ -629,10 +634,11 @@ def main():
 
         # Clean up any remaining GPU memory
         if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+            
             import gc
 
             gc.collect()
+            torch.cuda.empty_cache()
 
         # Save error result
         result_data = {
