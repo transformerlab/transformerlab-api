@@ -140,6 +140,8 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
     """Load pipeline using model sharding for large models like FLUX"""
 
     print("Loading pipeline with model sharding...")
+    import torch
+
 
     # Flush memory before starting
     flush_memory()
@@ -147,7 +149,6 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
     # Check if we should use sharding
     use_sharding = (
         device == "auto"
-        and torch.cuda.device_count() >= 2
         and is_flux_model(model_path)
         and config.get("enable_sharding", True)
     )
@@ -157,9 +158,18 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
         return load_pipeline_with_device_map(model_path, adaptor_path, is_img2img, is_inpainting, device)
 
     print("Using FLUX model sharding for memory efficiency")
+    
+    # Check for unsupported features in sharding mode
+    if config.get("adaptor") and config.get("adaptor").strip():
+        print("Warning: LoRA adaptors are not currently supported with FLUX model sharding")
+    if is_img2img:
+        print("Warning: Image-to-image is not currently supported with FLUX model sharding")
+    if is_inpainting:
+        print("Warning: Inpainting is not currently supported with FLUX model sharding")
 
     # Extract config parameters for sharding
     prompt = config.get("prompt", "")
+    negative_prompt = config.get("negative_prompt", "")
     # Use default FLUX dimensions if height/width are 0 or not specified
     height = config.get("height", 768)
     width = config.get("width", 768)
@@ -171,8 +181,17 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
         width = 768
     num_inference_steps = config.get("num_inference_steps", 50)
     guidance_scale = config.get("guidance_scale", 3.5)
+    guidance_rescale = config.get("guidance_rescale", 0.0)
     max_sequence_length = config.get("max_sequence_length", 512)
     num_images = config.get("num_images", 1)
+    seed = config.get("seed")
+    eta = config.get("eta", 0.0)
+    clip_skip = config.get("clip_skip", 0)
+    
+    # Set up generator for reproducible results
+    generator = None
+    if seed is not None and seed >= 0:
+        generator = torch.manual_seed(seed)
 
     # Step 1: Load text encoders for prompt encoding
     print("Step 1: Loading text encoders...")
@@ -204,11 +223,28 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
 
     print("Encoding prompts...")
     with torch.no_grad():
+        # For FLUX, negative prompts are handled separately if supported
         prompt_embeds, pooled_prompt_embeds, text_ids = text_encoder_pipeline.encode_prompt(
             prompt=prompt,
             prompt_2=None,
             max_sequence_length=max_sequence_length,
         )
+        
+        # Handle negative prompts if provided (FLUX may not support this the same way)
+        negative_prompt_embeds = None
+        negative_pooled_prompt_embeds = None
+        if negative_prompt:
+            try:
+                negative_prompt_embeds, negative_pooled_prompt_embeds, _ = text_encoder_pipeline.encode_prompt(
+                    prompt=negative_prompt,
+                    prompt_2=None,
+                    max_sequence_length=max_sequence_length,
+                )
+                print("Encoded negative prompts for FLUX")
+            except Exception as e:
+                print(f"Warning: Could not encode negative prompts for FLUX: {e}")
+                negative_prompt_embeds = None
+                negative_pooled_prompt_embeds = None
 
     print(f"Prompt embeddings shape: {prompt_embeds.shape}")
     print(f"Pooled prompt embeddings shape: {pooled_prompt_embeds.shape}")
@@ -249,16 +285,33 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
 
     print("Running denoising...")
     with torch.no_grad():
-        latents = denoising_pipeline(
-            prompt_embeds=prompt_embeds,
-            pooled_prompt_embeds=pooled_prompt_embeds,
-            num_inference_steps=num_inference_steps,
-            guidance_scale=guidance_scale,
-            height=height,
-            width=width,
-            num_images_per_prompt=num_images,
-            output_type="latent",
-        ).images
+        # Prepare generation kwargs
+        generation_kwargs = {
+            "prompt_embeds": prompt_embeds,
+            "pooled_prompt_embeds": pooled_prompt_embeds,
+            "num_inference_steps": num_inference_steps,
+            "guidance_scale": guidance_scale,
+            "height": height,
+            "width": width,
+            "num_images_per_prompt": num_images,
+            "output_type": "latent",
+        }
+        
+        # Add negative prompts if available
+        if negative_prompt_embeds is not None:
+            generation_kwargs["negative_prompt_embeds"] = negative_prompt_embeds
+        if negative_pooled_prompt_embeds is not None:
+            generation_kwargs["negative_pooled_prompt_embeds"] = negative_pooled_prompt_embeds
+        
+        # Add optional parameters
+        if generator is not None:
+            generation_kwargs["generator"] = generator
+        if eta > 0.0:
+            generation_kwargs["eta"] = eta
+        if guidance_rescale > 0.0:
+            generation_kwargs["guidance_rescale"] = guidance_rescale
+            
+        latents = denoising_pipeline(**generation_kwargs).images
 
     print(f"Generated latents shape: {latents.shape}")
 
