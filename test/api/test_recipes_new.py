@@ -19,7 +19,7 @@ TEST_EXP_RECIPES = [
                 "name": "test-model"
             },
             {
-                "type": "dataset",
+                "type": "dataset", 
                 "name": "test-dataset"
             }
         ]
@@ -76,7 +76,7 @@ TEST_EXP_RECIPES = [
     {
         "id": 4,
         "title": "Test Recipe - With Adaptor Name",
-        "description": "A test recipe that includes adaptor in config to test line 295",
+        "description": "A test recipe that includes adaptor_name in config to test line 281",
         "dependencies": [
             {
                 "type": "model",
@@ -93,7 +93,7 @@ TEST_EXP_RECIPES = [
                 "type": "LoRA",
                 "plugin": "test_trainer",
                 "formatting_template": "{{prompt}}\n{{completion}}",
-                "config_json": "{\"template_name\":\"AdaptorTest\",\"plugin_name\":\"test_trainer\",\"model_name\":\"test-model-4\",\"dataset_name\":\"test-dataset-4\",\"adaptor\":\"test_adaptor\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\"}"
+                "config_json": "{\"template_name\":\"AdaptorTest\",\"plugin_name\":\"test_trainer\",\"model_name\":\"test-model-4\",\"dataset_name\":\"test-dataset-4\",\"adaptor_name\":\"test_adaptor\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\"}"
             }
         ]
     },
