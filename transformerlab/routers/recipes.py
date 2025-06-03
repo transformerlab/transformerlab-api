@@ -226,9 +226,6 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
             }
             break  # Only set the first model dependency
 
-    # Ensure experiment always has an adaptor field to prevent KeyError in generation/eval scripts
-    await experiment_router.experiments_update_config(experiment_id, "adaptor", "")
-
     workflow_results = []
     for dep in recipe.get("dependencies", []):
         if dep.get("type") == "workflow":
@@ -293,6 +290,8 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                         "run_name": parsed_config.get("run_name", "")
                     })
                 
+                # Create outputs JSON (what the task produces)
+                outputs = {}
 
                 if task_type == "EVAL":
                     outputs["eval_results"] = {}
