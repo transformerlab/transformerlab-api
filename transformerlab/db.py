@@ -54,7 +54,7 @@ async def init():
             # Check if experiment already exists
             exists = await session.execute(select(models.Experiment).where(models.Experiment.name == name))
             if not exists.scalar_one_or_none():
-                session.add(models.Experiment(name=name, config="{}"))
+                session.add(models.Experiment(name=name, config={}))
         await session.commit()
 
     # On startup, look for any jobs that are in the RUNNING state and set them to CANCELLED instead:
