@@ -1,5 +1,4 @@
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, patch
 from api import app
 import pytest
 
