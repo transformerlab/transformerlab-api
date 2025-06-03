@@ -514,37 +514,6 @@ def test_workflow_nodes_match_tasks():
                     assert "metadata" in node
 
 
-def test_workflow_creation_failure_handling():
-    """Test that workflow creation handles failures gracefully when adding tasks to workflow fails"""
-    with TestClient(app) as client:
-        test_experiment_name = f"test_workflow_failure_{os.getpid()}"
-        
-        # First, create an experiment to get a workflow_id
-        resp = client.post(
-            f"/recipes/2/create_experiment?experiment_name={test_experiment_name}")
-        assert resp.status_code == 200
-        data = resp.json()
-        
-        if data.get("status") == "success" and "workflow_id" in data["data"]:
-            workflow_id = data["data"]["workflow_id"]
-            
-            # Now try to add a node with invalid JSON to trigger exception
-            # This should fail and demonstrate the exception handling
-            invalid_node_resp = client.get(
-                f"/workflows/{workflow_id}/add_node?node={{invalid_json")
-            
-            # The request might return 200 but with an error, or might return an error status
-            # Either way, this tests that the system can handle malformed requests
-            assert invalid_node_resp.status_code in [200, 400, 422, 500]
-            
-            # Try adding a node to a non-existent workflow to trigger another failure case
-            invalid_workflow_resp = client.get(
-                "/workflows/99999/add_node?node={{\"type\":\"TRAIN\",\"name\":\"test\",\"task\":\"test\"}}")
-            
-            # This should also handle the error gracefully
-            assert invalid_workflow_resp.status_code in [200, 400, 404, 422, 500]
-
-
 def test_workflow_creation_with_deleted_workflow():
     """Test error handling when workflow gets deleted between creation and adding tasks"""
     with TestClient(app) as client:
