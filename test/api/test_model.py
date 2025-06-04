@@ -90,20 +90,6 @@ async def test_install_peft_base_model_adaptor_not_found(mock_run_script, mock_g
     assert "adapter not found" in data["message"]
 
 
-def make_mock_adapter_info(overrides={}):
-    return MagicMock(
-        modelId="mock/model",
-        tags=["tag1", "tag2"],
-        cardData={
-            "description": "mock desc",
-            "base_model": "unsloth/Llama-3.2-1B-Instruct",
-            **overrides.get("cardData", {}),
-        },
-        config={"architectures": "MockArch", "model_type": "MockType", **overrides.get("config", {})},
-        downloads=123,
-    )
-
-
 def test_install_peft_success():
     adapter_id = "tcotter/Llama-3.2-1B-Instruct-Mojo-Adapter"
     model_id = "unsloth/Llama-3.2-1B-Instruct"
