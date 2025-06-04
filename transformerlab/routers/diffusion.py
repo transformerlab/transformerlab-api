@@ -29,6 +29,8 @@ import shutil
 import transformerlab.db as db
 from transformerlab.shared import dirs
 from transformerlab.shared.shared import slugify
+import logging
+from datetime import datetime as dt
 import subprocess
 import sys
 
@@ -159,6 +161,82 @@ UPSCALE_MODEL_STANDARD = "stabilityai/stable-diffusion-x4-upscaler"
 UPSCALE_MODEL_LATENT = "stabilityai/sd-x2-latent-upscaler"
 
 
+# === Setup logging for diffusion router ===
+def _setup_diffusion_logger():
+    """Setup logging for the diffusion router that logs to both console and file"""
+    logger = logging.getLogger("diffusion")
+    
+    # Avoid adding handlers multiple times
+    if logger.handlers:
+        return logger
+    
+    logger.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(asctime)s [DIFFUSION] [%(levelname)s] %(message)s")
+    
+    # File handler
+    try:
+        file_handler = logging.FileHandler(dirs.GLOBAL_LOG_PATH, encoding='utf-8')
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    except Exception:
+        pass  # Continue without file logging if there's an issue
+    
+    # Console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+    
+    # Prevent propagation to root logger to avoid affecting other routes
+    logger.propagate = False
+    
+    return logger
+
+# Initialize the diffusion logger
+diffusion_logger = _setup_diffusion_logger()
+
+def log_print(*args, **kwargs):
+    """Enhanced logging function for diffusion router"""
+    message = ' '.join(str(arg) for arg in args)
+    diffusion_logger.info(message)
+
+class DiffusionOutputCapture:
+    """Context manager to capture all stdout/stderr and redirect to diffusion logger"""
+    
+    def __init__(self):
+        self.original_stdout = None
+        self.original_stderr = None
+        
+    def __enter__(self):
+        # Store original stdout/stderr
+        self.original_stdout = sys.stdout
+        self.original_stderr = sys.stderr
+        
+        # Redirect to our logger
+        sys.stdout = LoggerWriter(diffusion_logger.info)
+        sys.stderr = LoggerWriter(diffusion_logger.info)
+        
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Restore original stdout/stderr
+        sys.stdout = self.original_stdout
+        sys.stderr = self.original_stderr
+
+class LoggerWriter:
+    """Writer class that redirects output to logger"""
+    def __init__(self, level):
+        self.level = level
+        self.buffer = ""
+
+    def write(self, message):
+        message = message.strip()
+        if message and not "📝 File changed:" in message:
+            self.level(message)
+
+    def flush(self):
+        pass  # Needed for compatibility with some tools that use flush()
+
+
 # Request schema for image generation
 class DiffusionRequest(BaseModel):
     model: str
@@ -261,7 +339,7 @@ def cleanup_pipeline(pipe=None):
             torch.cuda.synchronize()
 
     except Exception as e:
-        print(f"Warning: Failed to cleanup pipeline: {str(e)}")
+        log_print(f"Warning: Failed to cleanup pipeline: {str(e)}")
 
 
 def get_diffusion_dir():
@@ -388,7 +466,7 @@ def get_pipeline(
                 safety_checker=None,
                 requires_safety_checker=False,
             )
-            print(f"Loaded inpainting pipeline for model: {model}")
+            log_print(f"Loaded inpainting pipeline for model: {model}")
         elif is_img2img:
             pipe = AutoPipelineForImage2Image.from_pretrained(
                 model,
@@ -396,7 +474,7 @@ def get_pipeline(
                 safety_checker=None,
                 requires_safety_checker=False,
             )
-            print(f"Loaded image-to-image pipeline for model: {model}")
+            log_print(f"Loaded image-to-image pipeline for model: {model}")
         else:
             pipe = AutoPipelineForText2Image.from_pretrained(
                 model,
@@ -404,7 +482,7 @@ def get_pipeline(
                 safety_checker=None,
                 requires_safety_checker=False,
             )
-            print(f"Loaded text-to-image pipeline for model: {model} with dtype {pipe.dtype}")
+            log_print(f"Loaded text-to-image pipeline for model: {model} with dtype {pipe.dtype}")
         pipe = pipe.to(device)
 
         # Load LoRA adaptor if provided - same code for local and HF Hub!
@@ -419,13 +497,13 @@ def get_pipeline(
                         # Only for SDXL Pipelines because they use a different kind of UNet
                         state_dict, network_alphas = pipe.lora_state_dict(adaptor_path, prefix=None)
                         pipe.load_lora_into_unet(state_dict, network_alphas=network_alphas, unet=pipe.unet)
-                    print(f"Loaded LoRA adaptor: {adaptor}")
+                    log_print(f"Loaded LoRA adaptor: {adaptor}")
                 else:
-                    print(f"Error: Adaptor file not found at {adaptor_path}")
+                    log_print(f"Error: Adaptor file not found at {adaptor_path}")
                     raise FileNotFoundError(f"Adaptor file not found: {adaptor_path}")
             except Exception as e:
-                print(f"Warning: Failed to load LoRA adaptor '{adaptor}'")
-                print(f"Error: {str(e)}")
+                log_print(f"Warning: Failed to load LoRA adaptor '{adaptor}'")
+                log_print(f"Error: {str(e)}")
                 # Continue without LoRA rather than failing
 
         # _PIPELINES[cache_key] = pipe
@@ -534,7 +612,7 @@ async def generate_image(request: DiffusionRequest):
                 input_image_filename = f"input_{str(uuid.uuid4())}.png"
                 input_image_path = os.path.join(get_images_dir(), input_image_filename)
                 input_image_obj.save(input_image_path, format="PNG")
-                print(f"Input image saved: {input_image_path}")
+                log_print(f"Input image saved: {input_image_path}")
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Invalid input image: {str(e)}")
 
@@ -549,13 +627,13 @@ async def generate_image(request: DiffusionRequest):
                 mask_image_filename = f"mask_{str(uuid.uuid4())}.png"
                 mask_image_path = os.path.join(get_images_dir(), mask_image_filename)
                 mask_image_obj.save(mask_image_path, format="PNG")
-                print(f"Mask image saved: {mask_image_path}")
+                log_print(f"Mask image saved: {mask_image_path}")
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Invalid mask image: {str(e)}")
 
         # Check if we should use multi-GPU approach
         if should_use_diffusion_worker(request.model):
-            print(f"Using Diffusion Worker subprocess approach for model: {request.model}")
+            log_print(f"Using Diffusion Worker subprocess approach for model: {request.model}")
             use_single_gpu = False
             try:
                 result = await run_multi_gpu_generation(
@@ -575,7 +653,7 @@ async def generate_image(request: DiffusionRequest):
                 actual_width = request.width if request.width > 0 else first_image.width
 
             except Exception as e:
-                print(f"Multi-GPU generation failed, falling back to single GPU: {str(e)}")
+                log_print(f"Multi-GPU generation failed, falling back to single GPU: {str(e)}")
                 # Fall back to single GPU approach
                 device = "cuda" if torch.cuda.is_available() else "cpu"
                 cleanup_pipeline()
@@ -619,54 +697,56 @@ async def generate_image(request: DiffusionRequest):
 
             # Run in thread to avoid blocking event loop
             def run_pipe():
-                generation_kwargs = {
-                    "prompt": request.prompt,
-                    "num_inference_steps": request.num_inference_steps,
-                    "guidance_scale": request.guidance_scale,
-                    "generator": generator,
-                    "num_images_per_prompt": request.num_images,  # Generate multiple images
-                }
+                # Capture all output during generation
+                with DiffusionOutputCapture():
+                    generation_kwargs = {
+                        "prompt": request.prompt,
+                        "num_inference_steps": request.num_inference_steps,
+                        "guidance_scale": request.guidance_scale,
+                        "generator": generator,
+                        "num_images_per_prompt": request.num_images,  # Generate multiple images
+                    }
 
-                # Add image and mask for inpainting
-                if is_inpainting:
-                    generation_kwargs["image"] = input_image_obj
-                    generation_kwargs["mask_image"] = mask_image_obj
-                    generation_kwargs["strength"] = request.strength
-                # Add image and strength for img2img
-                elif is_img2img:
-                    generation_kwargs["image"] = input_image_obj
-                    generation_kwargs["strength"] = request.strength
+                    # Add image and mask for inpainting
+                    if is_inpainting:
+                        generation_kwargs["image"] = input_image_obj
+                        generation_kwargs["mask_image"] = mask_image_obj
+                        generation_kwargs["strength"] = request.strength
+                    # Add image and strength for img2img
+                    elif is_img2img:
+                        generation_kwargs["image"] = input_image_obj
+                        generation_kwargs["strength"] = request.strength
 
-                # Add negative prompt if provided
-                if request.negative_prompt:
-                    generation_kwargs["negative_prompt"] = request.negative_prompt
+                    # Add negative prompt if provided
+                    if request.negative_prompt:
+                        generation_kwargs["negative_prompt"] = request.negative_prompt
 
-                if request.eta > 0.0:
-                    generation_kwargs["eta"] = request.eta
+                    if request.eta > 0.0:
+                        generation_kwargs["eta"] = request.eta
 
-                # Add guidance rescale if provided
-                if request.guidance_rescale > 0.0:
-                    generation_kwargs["guidance_rescale"] = request.guidance_rescale
+                    # Add guidance rescale if provided
+                    if request.guidance_rescale > 0.0:
+                        generation_kwargs["guidance_rescale"] = request.guidance_rescale
 
-                # Add clip skip if provided (requires scheduler support)
-                if request.clip_skip > 0:
-                    generation_kwargs["clip_skip"] = request.clip_skip
+                    # Add clip skip if provided (requires scheduler support)
+                    if request.clip_skip > 0:
+                        generation_kwargs["clip_skip"] = request.clip_skip
 
-                # Set height and width if specified
-                if request.height > 0 and request.width > 0:
-                    generation_kwargs["height"] = request.height
-                    generation_kwargs["width"] = request.width
+                    # Set height and width if specified
+                    if request.height > 0 and request.width > 0:
+                        generation_kwargs["height"] = request.height
+                        generation_kwargs["width"] = request.width
 
-                # Add LoRA scale if adaptor is being used
-                if request.adaptor and request.adaptor.strip():
-                    generation_kwargs["cross_attention_kwargs"] = {"scale": request.adaptor_scale}
+                    # Add LoRA scale if adaptor is being used
+                    if request.adaptor and request.adaptor.strip():
+                        generation_kwargs["cross_attention_kwargs"] = {"scale": request.adaptor_scale}
 
-                result = pipe(**generation_kwargs)
-                return result.images  # Return all images
+                    result = pipe(**generation_kwargs)
+                    return result.images  # Return all images
 
             # Time the main generation
             generation_start = time.time()
-            print("Starting image generation...")
+            log_print("Starting image generation...")
             images = await asyncio.get_event_loop().run_in_executor(None, run_pipe)
             generation_time = time.time() - generation_start
 
@@ -682,26 +762,28 @@ async def generate_image(request: DiffusionRequest):
 
         # Apply upscaling if requested (for both paths)
         if request.upscale:
-            print(f"Upscaling {len(images)} images with factor {request.upscale_factor}x")
+            log_print(f"Upscaling {len(images)} images with factor {request.upscale_factor}x")
 
             def run_upscale():
-                upscaled_images = []
-                device = "cuda" if torch.cuda.is_available() else "cpu"
-                for i, image in enumerate(images):
-                    print(f"Upscaling image {i + 1}/{len(images)}")
-                    upscaled_image = upscale_image(image, request.prompt, request.upscale_factor, device)
-                    upscaled_images.append(upscaled_image)
-                return upscaled_images
+                # Capture all output during upscaling
+                with DiffusionOutputCapture():
+                    upscaled_images = []
+                    device = "cuda" if torch.cuda.is_available() else "cpu"
+                    for i, image in enumerate(images):
+                        log_print(f"Upscaling image {i + 1}/{len(images)}")
+                        upscaled_image = upscale_image(image, request.prompt, request.upscale_factor, device)
+                        upscaled_images.append(upscaled_image)
+                    return upscaled_images
 
             upscale_start = time.time()
             images = await asyncio.get_event_loop().run_in_executor(None, run_upscale)
             upscale_time = time.time() - upscale_start
             total_generation_time += upscale_time
-            print(
+            log_print(
                 f"Generation took {total_generation_time - upscale_time:.2f}s, upscaling took {upscale_time:.2f}s, total: {total_generation_time:.2f}s"
             )
         else:
-            print(f"Generation took {total_generation_time:.2f}s")
+            log_print(f"Generation took {total_generation_time:.2f}s")
 
         # Save images to the folder (for single GPU path, multi-GPU already saved)
         if use_single_gpu:
@@ -762,7 +844,7 @@ async def generate_image(request: DiffusionRequest):
             }
         )
     except Exception as e:
-        print(f"Error during image generation: {str(e)}")
+        log_print(f"Error during image generation: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")
 
 
@@ -1234,7 +1316,7 @@ async def create_dataset_from_history(request: CreateDatasetRequest):
                     if os.path.exists(src_image_path):
                         shutil.copy2(src_image_path, dest_image_path)
                     else:
-                        print(f"Warning: Image file not found at {src_image_path}")
+                        log_print(f"Warning: Image file not found at {src_image_path}")
                         continue
 
                     # Create record with essential fields
@@ -1281,7 +1363,7 @@ async def create_dataset_from_history(request: CreateDatasetRequest):
                 if os.path.exists(image_item.image_path):
                     shutil.copy2(image_item.image_path, dest_image_path)
                 else:
-                    print(f"Warning: Image file not found at {image_item.image_path}")
+                    log_print(f"Warning: Image file not found at {image_item.image_path}")
                     continue
 
                 # Create record with essential fields
@@ -1317,7 +1399,7 @@ async def create_dataset_from_history(request: CreateDatasetRequest):
                 file_counter += 1
 
         except Exception as e:
-            print(f"Warning: Failed to process image {image_item.id}: {str(e)}")
+            log_print(f"Warning: Failed to process image {image_item.id}: {str(e)}")
             continue
 
     if not dataset_records:
@@ -1450,10 +1532,10 @@ async def run_multi_gpu_generation(
             "--output-dir",
             images_folder,
             "--worker-id",
-            generation_id,
+            generation_id
         ]
 
-        print(f"Running multi-GPU generation with command: {' '.join(cmd)}")
+        log_print(f"Running multi-GPU generation with command: {' '.join(cmd)}")
 
         # Start the process asynchronously
         process = await asyncio.create_subprocess_exec(
@@ -1469,7 +1551,7 @@ async def run_multi_gpu_generation(
             line = await process.stdout.readline()
             if line:
                 line_text = line.decode('utf-8').rstrip()
-                print(line_text)  # Print to console in real-time
+                log_print(line_text)  # Print to console in real-time
                 output_lines.append(line_text + '\n')
             else:
                 break
@@ -1481,8 +1563,8 @@ async def run_multi_gpu_generation(
         combined_output = "".join(output_lines)
 
         if return_code != 0:
-            print(f"Worker subprocess failed with return code {return_code}")
-            print(f"Combined output: {combined_output}")
+            log_print(f"Worker subprocess failed with return code {return_code}")
+            log_print(f"Combined output: {combined_output}")
 
             # Check if it's an OOM error (exitcode -9 indicates process was killed)
             if return_code == -9 or "CUDA out of memory" in combined_output or "OutOfMemoryError" in combined_output:
@@ -1539,7 +1621,7 @@ async def run_multi_gpu_generation(
         }
 
     except subprocess.TimeoutExpired:
-        print("Multi-GPU generation timed out")
+        log_print("Multi-GPU generation timed out")
         raise RuntimeError("Generation timed out after 10 minutes")
     except Exception as e:
         # Clean up config file on error
