@@ -154,6 +154,124 @@ TEST_EXP_RECIPES = [
                 "config_json": "{\"template_name\":\"TestGen\",\"plugin_name\":\"test_generator\",\"model_name\":\"test-model-6\",\"prompt_template\":\"Generate a response: {{input}}\",\"generation_params\":{\"max_length\":100,\"temperature\":0.7}}"
             }
         ]
+    },
+    {
+        "id": 7,
+        "title": "Test Recipe - With Multiple Workflows",
+        "description": "A test recipe that includes multiple workflows",
+        "dependencies": [
+            {
+                "type": "model",
+                "name": "test-model-8"
+            },
+            {
+                "type": "dataset",
+                "name": "test-dataset-8"
+            }
+        ],
+        "tasks": [
+            {
+                "task_type": "TRAIN",
+                "type": "LoRA",
+                "plugin": "test_trainer",
+                "formatting_template": "{{prompt}}\n{{completion}}",
+                "config_json": "{\"template_name\":\"MultiWorkflowTrain\",\"plugin_name\":\"test_trainer\",\"model_name\":\"test-model-8\",\"dataset_name\":\"test-dataset-8\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\"}"
+            },
+            {
+                "task_type": "EVAL",
+                "plugin": "test_evaluator", 
+                "config_json": "{\"template_name\":\"MultiWorkflowEval\",\"plugin_name\":\"test_evaluator\",\"model_name\":\"test-model-8\",\"tasks\":\"mmlu\",\"limit\":\"0.5\",\"run_name\":\"MultiWorkflowEval\"}"
+            }
+        ],
+        "workflows": [
+            {
+                "name": "Train_Only_Workflow",
+                "config": {
+                    "nodes": [
+                        {
+                            "id": "node_train",
+                            "type": "TRAIN",
+                            "task": "Task_1",
+                            "name": "Training Task",
+                            "out": []
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "Train_Eval_Workflow",
+                "config": {
+                    "nodes": [
+                        {
+                            "id": "node_train",
+                            "type": "TRAIN", 
+                            "task": "Task_1",
+                            "name": "Training Task",
+                            "out": ["node_eval"]
+                        },
+                        {
+                            "id": "node_eval",
+                            "type": "EVAL",
+                            "task": "Task_2", 
+                            "name": "Evaluation Task",
+                            "out": []
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    {
+        "id": 8,
+        "title": "Test Recipe - With Invalid Workflow Config",
+        "description": "A test recipe with invalid workflow config to test error handling",
+        "dependencies": [
+            {
+                "type": "model",
+                "name": "test-model-9"
+            },
+            {
+                "type": "dataset",
+                "name": "test-dataset-9"
+            }
+        ],
+        "tasks": [
+            {
+                "task_type": "TRAIN",
+                "type": "LoRA",
+                "plugin": "test_trainer",
+                "formatting_template": "{{prompt}}\n{{completion}}",
+                "config_json": "{\"template_name\":\"InvalidWorkflowTrain\",\"plugin_name\":\"test_trainer\",\"model_name\":\"test-model-9\",\"dataset_name\":\"test-dataset-9\",\"batch_size\":\"4\",\"learning_rate\":\"0.0001\"}"
+            }
+        ],
+        "workflows": [
+            {
+                "name": "Invalid_Workflow",
+                "config": "invalid_config_format"
+            }
+        ]
+    },
+    {
+        "id": 9,
+        "title": "Test Recipe - Script Parameters List Dict",
+        "description": "A test recipe with list and dict values in script_parameters",
+        "dependencies": [
+            {
+                "type": "model",
+                "name": "test-model-10"
+            },
+            {
+                "type": "dataset",
+                "name": "test-dataset-10"
+            }
+        ],
+        "tasks": [
+            {
+                "task_type": "EVAL",
+                "plugin": "test_evaluator",
+                "config_json": "{\"template_name\":\"ScriptParamsTest\",\"plugin_name\":\"test_evaluator\",\"model_name\":\"test-model-10\",\"eval_type\":\"advanced\",\"script_parameters\":{\"tasks\":[\"mmlu\",\"hellaswag\"],\"limit\":0.5,\"device_map\":{\"model\":\"auto\",\"tensor_parallel\":true}},\"eval_dataset\":\"test-eval-dataset\"}"
+            }
+        ]
     }
 ]
 
@@ -192,7 +310,7 @@ def test_recipes_list():
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data, list)
-        assert len(data) >= 3  # Should have our 3 test recipes
+        assert len(data) >= 6  # Should have our test recipes (updated count)
 
 
 def test_recipes_get_by_id_with_notes():
@@ -360,7 +478,7 @@ def test_create_experiment_with_script_parameters_list_dict():
     with TestClient(app) as client:
         test_experiment_name = f"test_script_params_{os.getpid()}"
         resp = client.post(
-            f"/recipes/7/create_experiment?experiment_name={test_experiment_name}")
+            f"/recipes/10/create_experiment?experiment_name={test_experiment_name}")
         assert resp.status_code == 200
         data = resp.json()
         # Should either succeed or have a reasonable response
@@ -377,3 +495,126 @@ def test_create_experiment_with_script_parameters_list_dict():
             assert task_result.get("action") == "create_task"
             # This test exercises the code path where list/dict values in script_parameters
             # get converted to JSON strings on line 276
+
+
+def test_recipes_get_by_id_with_workflows():
+    """Test that a recipe with workflows is handled correctly"""
+    with TestClient(app) as client:
+        resp = client.get("/recipes/7")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["id"] == 7
+        assert "workflows" in data
+        assert len(data["workflows"]) == 2  # Recipe 7 has 2 workflows
+        workflow_names = [wf["name"] for wf in data["workflows"]]
+        assert "Train_Only_Workflow" in workflow_names
+        assert "Train_Eval_Workflow" in workflow_names
+        # Check that both workflows have valid config structures
+        for workflow in data["workflows"]:
+            assert "config" in workflow
+            assert "nodes" in workflow["config"]
+            assert len(workflow["config"]["nodes"]) > 0
+
+
+def test_create_experiment_with_workflows():
+    """Test creating an experiment with workflows"""
+    with TestClient(app) as client:
+        test_experiment_name = f"test_workflows_{os.getpid()}"
+        resp = client.post(
+            f"/recipes/7/create_experiment?experiment_name={test_experiment_name}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "status" in data
+        if data.get("status") == "success":
+            assert "data" in data
+            assert "workflow_creation_results" in data["data"]
+            workflow_results = data["data"]["workflow_creation_results"]
+            assert len(workflow_results) == 2  # Recipe 7 has 2 workflows
+            workflow_names = [result.get("workflow_name") for result in workflow_results]
+            assert "Train_Only_Workflow" in workflow_names
+            assert "Train_Eval_Workflow" in workflow_names
+            # All workflows should be created successfully
+            for result in workflow_results:
+                assert result.get("action") == "create_workflow"
+                assert result.get("status") == "success"
+                assert "workflow_id" in result
+
+
+def test_create_experiment_with_multiple_workflows():
+    """Test creating an experiment with multiple workflows"""
+    with TestClient(app) as client:
+        test_experiment_name = f"test_multi_workflows_{os.getpid()}"
+        resp = client.post(
+            f"/recipes/7/create_experiment?experiment_name={test_experiment_name}")  # Changed to recipe 7 which has 2 workflows
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "status" in data
+        if data.get("status") == "success":
+            assert "data" in data
+            assert "workflow_creation_results" in data["data"]
+            workflow_results = data["data"]["workflow_creation_results"]
+            assert len(workflow_results) == 2  # Recipe 7 has 2 workflows
+            workflow_names = [result.get("workflow_name") for result in workflow_results]
+            assert "Train_Only_Workflow" in workflow_names
+            assert "Train_Eval_Workflow" in workflow_names
+            # All workflows should be created successfully
+            for result in workflow_results:
+                assert result.get("action") == "create_workflow"
+                assert result.get("status") == "success"
+                assert "workflow_id" in result
+
+
+def test_create_experiment_with_invalid_workflow_config():
+    """Test creating experiment with invalid workflow config to test error handling"""
+    with TestClient(app) as client:
+        test_experiment_name = f"test_invalid_workflow_{os.getpid()}"
+        resp = client.post(
+            f"/recipes/8/create_experiment?experiment_name={test_experiment_name}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "status" in data
+        if data.get("status") == "success":
+            assert "data" in data
+            assert "workflow_creation_results" in data["data"]
+            workflow_results = data["data"]["workflow_creation_results"]
+            assert len(workflow_results) == 1  # Recipe 8 has 1 invalid workflow
+            workflow_result = workflow_results[0]
+            assert workflow_result.get("workflow_name") == "Invalid_Workflow"
+            assert workflow_result.get("action") == "create_workflow"
+            assert "error" in workflow_result.get("status", "")
+
+
+def test_create_experiment_without_workflows():
+    """Test creating an experiment from a recipe without workflows"""
+    with TestClient(app) as client:
+        test_experiment_name = f"test_no_workflows_{os.getpid()}"
+        resp = client.post(
+            f"/recipes/6/create_experiment?experiment_name={test_experiment_name}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "status" in data
+        if data.get("status") == "success":
+            assert "data" in data
+            # Should have workflow_creation_results but it should be empty
+            assert "workflow_creation_results" in data["data"]
+            workflow_results = data["data"]["workflow_creation_results"]
+            assert len(workflow_results) == 0
+
+
+def test_recipes_get_by_id_with_multiple_workflows():
+    """Test that a recipe with multiple workflows is handled correctly"""
+    with TestClient(app) as client:
+        resp = client.get("/recipes/7")  # Changed to recipe 7 which has 2 workflows
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["id"] == 7
+        assert "workflows" in data
+        assert len(data["workflows"]) == 2  # Recipe 7 has 2 workflows
+        workflow_names = [wf["name"] for wf in data["workflows"]]
+        assert "Train_Only_Workflow" in workflow_names
+        assert "Train_Eval_Workflow" in workflow_names
+        # Check that both workflows have valid config structures
+        for workflow in data["workflows"]:
+            assert "config" in workflow
+            assert "nodes" in workflow["config"]
+            assert len(workflow["config"]["nodes"]) > 0
