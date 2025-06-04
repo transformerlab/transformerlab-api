@@ -407,7 +407,7 @@ def setup_model_worker_logger(name: str = "transformerlab") -> logging.Logger:
         HOME_DIR = os.environ["TFL_HOME_DIR"]
         if not os.path.exists(HOME_DIR):
             print(f"Error: Home directory {HOME_DIR} does not exist")
-            exit(1)
+            os.makedirs(HOME_DIR, exist_ok=True)
         print(f"Home directory is set to: {HOME_DIR}")
     else:
         HOME_DIR = Path.home() / ".transformerlab"
