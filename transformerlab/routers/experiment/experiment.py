@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Body
+from fastapi.responses import FileResponse
 
 import transformerlab.db as db
 from transformerlab.shared import shared
@@ -184,3 +185,79 @@ async def experiment_get_file_contents(id: str | int, filename: str):
         return ""
 
     return file_contents
+
+
+@router.get("/{id}/export", summary="Export experiment to JSON format", tags=["experiment"])
+async def export_experiment_to_json(id: str | int):
+    """Export an experiment to JSON format that matches the recipe gallery structure."""
+    id = await convert_experiment_name_to_id_if_needed(id)
+    
+    # Get experiment data
+    data = await db.experiment_get(id)
+    if data is None:
+        return {"status": "error", "message": f"Experiment {id} does not exist"}
+    
+    # Get experiment config
+    config = json.loads(data["config"])
+    
+    # Initialize the export structure
+    export_data = {
+        "title": data["name"],
+        "description": config.get("description", ""),
+        "dependencies": [],
+        "tasks": [],
+        "workflows": []
+    }
+    
+    # Add model dependencies
+    if "model" in config:
+        export_data["dependencies"].append({
+            "type": "model",
+            "name": config["model"]
+        })
+    
+    # Add dataset dependencies
+    if "dataset" in config:
+        export_data["dependencies"].append({
+            "type": "dataset",
+            "name": config["dataset"]
+        })
+    
+    # Get tasks for each type (TRAIN, EVAL, GENERATE)
+    task_types = ["TRAIN", "EVAL", "GENERATE"]
+    for task_type in task_types:
+        tasks = await db.tasks_get_by_type_in_experiment(task_type, id)
+        for task in tasks:
+            task_config = json.loads(task["config"])
+            plugin_name = task_config.get("plugin_name")
+            if plugin_name:
+                # Only add plugin if not already in dependencies
+                if not any(d for d in export_data["dependencies"] if d["type"] == "plugin" and d["name"] == plugin_name):
+                    export_data["dependencies"].append({
+                        "type": "plugin",
+                        "name": plugin_name
+                    })
+            
+            # Add task to tasks list with its configuration
+            export_data["tasks"].append({
+                "name": task["name"],
+                "task_type": task["type"],
+                "plugin": task["plugin"],
+                "config_json": task["config"]
+            })
+    
+    # Add workflows
+    workflows = await db.workflows_get_from_experiment(id)
+    for workflow in workflows:
+        if workflow["status"] != "DELETED":  # Only include active workflows
+            export_data["workflows"].append({
+                "name": workflow["name"],
+                "config": json.loads(workflow["config"])
+            })
+    
+    # Write to file in the workspace directory
+    output_file = f"experiment_{data['name']}_export.json"
+    with open(output_file, "w") as f:
+        json.dump(export_data, f, indent=2)
+    
+    return FileResponse(output_file, filename=output_file)
