@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, patch
 from api import app
 import pytest
-from unittest.mock import MagicMock, mock_open
+from unittest.mock import MagicMock
 
 
 def test_model_gallery():
