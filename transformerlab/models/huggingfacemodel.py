@@ -211,7 +211,7 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
             "gated": getattr(hf_model_info, "gated", False),
             "architecture": architectures[0],
             "huggingface_repo": hugging_face_id,
-            "model_type": "stable-diffusion",
+            "model_type": "diffusion",
             "size_of_model_in_mb": get_huggingface_download_size(hugging_face_id, sd_patterns) / (1024 * 1024),
             "tags": model_tags,
             "license": model_card_data.get("license", ""),
