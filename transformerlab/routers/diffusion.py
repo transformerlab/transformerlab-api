@@ -161,7 +161,6 @@ UPSCALE_MODEL_STANDARD = "stabilityai/stable-diffusion-x4-upscaler"
 UPSCALE_MODEL_LATENT = "stabilityai/sd-x2-latent-upscaler"
 
 
-# === Setup logging for diffusion router ===
 def _setup_diffusion_logger():
     """Setup logging for the diffusion router that logs to both console and file"""
     logger = logging.getLogger("diffusion")
