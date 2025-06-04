@@ -2,6 +2,8 @@ from typing import Optional
 from sqlalchemy import String, JSON, DateTime, func, Integer, Index
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+from fastapi_users.db import SQLAlchemyBaseUserTableUUID
+
 
 class Base(DeclarativeBase):
     pass
@@ -27,6 +29,16 @@ class Plugin(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     type: Mapped[str] = mapped_column(String, index=True, nullable=False)
+
+
+class User(SQLAlchemyBaseUserTableUUID, Base):
+    """
+    This builds a standard FastAPI-Users User model
+    plus any additional fields we want.
+    (By default you only get id, email and password and some statuses)
+    """
+
+    name: Mapped[str] = mapped_column(String(64), nullable=False, server_default="")
 
 
 class Experiment(Base):
@@ -118,6 +130,7 @@ class Workflow(Base):
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
+
 class WorkflowRun(Base):
     """Run of a workflow"""
 
@@ -135,6 +148,7 @@ class WorkflowRun(Base):
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
+
 
 class Task(Base):
     """Task model."""
