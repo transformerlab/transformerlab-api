@@ -809,7 +809,7 @@ async def get_history(limit: int = 50, offset: int = 0):
         HistoryResponse with list of images and total count
     """
     if limit <= 0:
-        raise HTTPException(status_code=400, detail="Limit must be between 1 and 100")
+        raise HTTPException(status_code=400, detail="Limit must be greater than 1")
     if offset < 0:
         raise HTTPException(status_code=400, detail="Offset must be non-negative")
 
