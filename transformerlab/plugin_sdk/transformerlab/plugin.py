@@ -3,8 +3,8 @@ import json
 import sqlite3
 import itertools
 import sys
-from pathlib import Path
 import logging
+from pathlib import Path
 
 
 # useful constants
@@ -403,10 +403,20 @@ def setup_model_worker_logger(name: str = "transformerlab") -> logging.Logger:
     from fastchat.utils import build_logger
     import fastchat.serve.base_model_worker
 
-    log_dir: Path = Path.home() / ".transformerlab"
-    log_file: Path = log_dir / "transformerlab.log"
+    if "TFL_HOME_DIR" in os.environ:
+        HOME_DIR = os.environ["TFL_HOME_DIR"]
+        if not os.path.exists(HOME_DIR):
+            print(f"Error: Home directory {HOME_DIR} does not exist")
+            exit(1)
+        print(f"Home directory is set to: {HOME_DIR}")
+    else:
+        HOME_DIR = Path.home() / ".transformerlab"
+        os.makedirs(name=HOME_DIR, exist_ok=True)
+        print(f"Using default home directory: {HOME_DIR}")
+    
+    GLOBAL_LOG_PATH = os.path.join(HOME_DIR, "transformerlab.log")
 
-    logger: logging.Logger = build_logger(name, str(log_file))
+    logger: logging.Logger = build_logger(name, GLOBAL_LOG_PATH)
 
     # Patch FastChat's base model worker logger
     fastchat.serve.base_model_worker.logger = logger
