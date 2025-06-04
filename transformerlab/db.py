@@ -14,6 +14,11 @@ from sqlalchemy.orm import sessionmaker
 # Make sure SQLAlchemy is installed using pip install sqlalchemy[asyncio] as
 # described here https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html
 
+# FastAPI Users
+from typing import AsyncGenerator
+from fastapi import Depends
+from fastapi_users.db import SQLAlchemyUserDatabase
+
 from transformerlab.shared import dirs
 from transformerlab.shared.models import models  # noqa: F401
 from transformerlab.shared.models.models import Config
@@ -78,6 +83,21 @@ async def close():
     await async_engine.dispose()
     print("✅ Database closed")
     return
+
+
+###############################################
+# Dependencies for FastAPI Users
+# It wants specific types for session and DB.
+###############################################
+
+
+async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
+    async with async_session() as session:
+        yield session
+
+
+async def get_user_db(session: AsyncSession = Depends(get_async_session)):
+    yield SQLAlchemyUserDatabase(session, models.User)
 
 
 # async def init_sql_model():

@@ -28,18 +28,13 @@ from fastchat.modules.awq import AWQConfig
 from fastchat.modules.exllama import ExllamaConfig
 from fastchat.modules.gptq import GptqConfig
 from fastchat.modules.xfastertransformer import XftConfig
-from fastchat.utils import build_logger, get_context_length, str_to_torch_dtype
+from fastchat.utils import get_context_length, str_to_torch_dtype
+from transformerlab.plugin import setup_model_worker_logger
+
 from transformers import set_seed
 
 worker_id = str(uuid.uuid4())[:8]
-logfile_path = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "logs")
-if not os.path.exists(logfile_path):
-    os.makedirs(logfile_path)
-logger = build_logger("model_worker", os.path.join(logfile_path, "model_worker.log"))
-
-import fastchat.serve.base_model_worker  # noqa
-
-fastchat.serve.base_model_worker.logger = logger
+logger = setup_model_worker_logger()
 
 from fastchat.serve.base_model_worker import BaseModelWorker, app  # noqa
 
