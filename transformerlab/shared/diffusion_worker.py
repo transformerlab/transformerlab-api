@@ -10,7 +10,6 @@ import os
 import sys
 import time
 import gc
-import traceback
 from PIL import Image
 import torch
 import random
@@ -186,7 +185,7 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
     num_images = config.get("num_images", 1)
     seed = config.get("seed")
     eta = config.get("eta", 0.0)
-    clip_skip = config.get("clip_skip", 0)
+    # clip_skip = config.get("clip_skip", 0)
     
     # Set up generator for reproducible results
     generator = None
