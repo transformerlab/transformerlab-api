@@ -87,6 +87,19 @@ ALLOWED_TEXT2IMG_ARCHITECTURES = [
     "FluxImg2ImgPipeline",
     "FluxControlNetImg2ImgPipeline",
     "FluxControlImg2ImgPipeline",
+    "StableDiffusionInpaintPipeline",
+    "StableDiffusionXLInpaintPipeline",
+    "StableDiffusion3InpaintPipeline",
+    "StableDiffusionPipeline",
+    "StableDiffusion3Pipeline",
+    "StableDiffusionXLPipeline",
+    "KandinskyInpaintPipeline",
+    "KandinskyV22InpaintPipeline",
+    "Kandinsky3Pipeline",
+    "StableDiffusionControlNetInpaintPipeline",
+    "StableDiffusionXLControlNetInpaintPipeline",
+    "IFInpaintingPipeline",
+    "IFPipeline",
 ]
 
 # Allowed architectures for img2img pipelines
@@ -787,7 +800,6 @@ async def is_valid_diffusion(request: DiffusionRequest):
             if any(a in ALLOWED_IMG2IMG_ARCHITECTURES for a in architectures):
                 return {"is_valid_diffusion_model": True, "reason": "Architecture matches allowed SD img2img"}
         else:
-            # Check architectures
             if any(a in ALLOWED_TEXT2IMG_ARCHITECTURES for a in architectures):
                 return {"is_valid_diffusion_model": True, "reason": "Architecture matches allowed SD"}
 
