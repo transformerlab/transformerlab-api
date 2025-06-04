@@ -7,13 +7,12 @@ from typing import Annotated
 import transformerlab.db as db
 from fastapi import APIRouter, Body
 from fastchat.model.model_adapter import get_conversation_template
-from huggingface_hub import snapshot_download, hf_hub_download, create_repo, upload_folder, HfApi
+from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi
 from huggingface_hub import ModelCard, ModelCardData
 from huggingface_hub.utils import HfHubHTTPError, GatedRepoError, EntryNotFoundError
 import os
 from pathlib import Path
 import logging
-import re
 
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
@@ -655,6 +654,12 @@ async def model_gets_pefts(
     adaptors = []
     if os.path.exists(adaptors_dir):
         adaptors = os.listdir(adaptors_dir)
+
+    adaptors = [
+        name
+        for name in os.listdir(adaptors_dir)
+        if os.path.isdir(os.path.join(adaptors_dir, name)) and not name.startswith(".")
+    ]
     return adaptors
 
 
@@ -686,7 +691,12 @@ async def install_peft(peft: str, model_id: str, job_id: int | None = None):
             base_config = json.load(f)
     except Exception as e:
         logging.warning(f"Failed to load {model_id} config: {e}")
-        return [{"adapter_id": peft, "check_status": {"error": "Failed to load local base model config"}}]
+        return {
+            "status": "error",
+            "message": "Failed to load local base model config",
+            "adapter_id": peft,
+            "check_status": {"error": "not found"},
+        }
 
     try:
         adapter_info = api.model_info(peft)
@@ -718,7 +728,12 @@ async def install_peft(peft: str, model_id: str, job_id: int | None = None):
 
     except Exception as e:
         logging.error(f"[ERROR] Failed to fetch adapter info for '{peft}: {e}'")
-        return [{"adapter_id": peft, "check_status": {"error": "not found"}}]
+        return {
+            "status": "error",
+            "message": "adapter not found",
+            "adapter_id": peft,
+            "check_status": {"error": "not found"},
+        }
 
     try:
         model_details = await huggingfacemodel.get_model_details_from_huggingface(peft)
