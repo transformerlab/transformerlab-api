@@ -5,6 +5,7 @@ datasets
 einops
 evaluate
 fastapi
+fastapi-users[sqlalchemy]
 nvidia-ml-py
 packaging
 psutil
