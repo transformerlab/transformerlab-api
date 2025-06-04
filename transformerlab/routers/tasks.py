@@ -131,7 +131,7 @@ async def convert_training_template_to_task(template_id: int, experiment_id: int
 
     outputs = {}
     if "adaptor_name" in template_config.keys():
-        outputs = {"adaptor_name": template_config["adaptor_name"]}
+        outputs = {"adaptor_name": template_config.get("adaptor_name", "adaptor")}
     try:
         await db.add_task(
             template["name"],
