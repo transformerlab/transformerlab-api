@@ -677,6 +677,49 @@ async def model_delete_peft(model_id: str, peft: str):
 
 @router.post("/model/install_peft")
 async def install_peft(peft: str, model_id: str, job_id: int | None = None):
+    api = HfApi()
+
+    try:
+        local_file = snapshot_download(model_id, local_files_only=True)
+        config_path = os.path.join(local_file, "config.json")
+        with open(config_path, "r") as f:
+            base_config = json.load(f)
+    except Exception as e:
+        logging.warning(f"Failed to load {model_id} config: {e}")
+        return [{"adapter_id": peft, "check_status": {"error": "Failed to load local base model config"}}]
+
+    try:
+        adapter_info = api.model_info(peft)
+        card_data = adapter_info.cardData or {}
+        adapter_config = adapter_info.config or {}
+        adapter_base_model = card_data.get("base_model") or adapter_config.get("base_model") or ""
+
+        model_name_part = model_id.split("/")[-1].lower()
+        adapter_base_model_lower = adapter_base_model.split("/")[-1].lower()
+
+        # Initialize status tracking
+        check_status = {}
+
+        # Base model name check
+        if model_name_part in adapter_base_model_lower:
+            check_status["base_model_name"] = "success"
+        else:
+            check_status["base_model_name"] = "fail"
+
+        # Field checks
+        for field in ["architectures", "model_type"]:
+            if field in adapter_config and field in base_config:
+                if adapter_config[field] == base_config[field]:
+                    check_status[f"{field}_status"] = "success"
+                else:
+                    check_status[f"{field}_status"] = "fail"
+            else:
+                check_status[f"{field}_status"] = "unknown"
+
+    except Exception as e:
+        logging.error(f"[ERROR] Failed to fetch adapter info for '{peft}: {e}'")
+        return [{"adapter_id": peft, "check_status": {"error": "not found"}}]
+
     try:
         model_details = await huggingfacemodel.get_model_details_from_huggingface(peft)
     except EntryNotFoundError:
@@ -704,7 +747,9 @@ async def install_peft(peft: str, model_id: str, job_id: int | None = None):
     model_size = str(model_details.get("size_of_model_in_mb", -1))
     # Prepare script args
     args = [
-        f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_adaptor.py",
+        f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
+        "--mode",
+        "adaptor",
         "--peft",
         peft,
         "--local_model_id",
@@ -722,112 +767,7 @@ async def install_peft(peft: str, model_id: str, job_id: int | None = None):
         )
     )
 
-    return {"status": "started", "job_id": job_id}
-
-
-def detect_adapter_architecture(adapter_info, peft):
-    ARCHITECTURE_KEYWORDS = {
-        "cuda": ["cuda", "nvidia", "gpu", "cudnn", "nv"],
-        "mps": ["mps", "mlx", "metal", "apple", "mac"],
-        "rocm": ["rocm", "amd", "radeon", "hip"],
-        "cpu": ["cpu", "x86", "intel", "arm", "power"],
-    }
-    text_to_search = []
-    text_to_search.append(adapter_info.modelId.lower())
-    text_to_search.extend((adapter_info.tags or []))
-    text_to_search.append((adapter_info.cardData or {}).get("description", "").lower())
-    text_to_search.append((adapter_info.cardData or {}).get("summary", "").lower())
-    text_to_search.append((adapter_info.config or {}).get("base_model", "").lower())
-
-    # Try to download ONLY the README.md
-    try:
-        readme_path = hf_hub_download(repo_id=peft, filename="README.md")
-        with open(readme_path, "r") as f:
-            readme_content = f.read().lower()
-            text_to_search.append(readme_content)
-    except Exception as e:
-        logging.warning(f"[WARN] Could not download or read README.md for '{peft}': {e}")
-
-    # Tokenize and check
-    scores = {arch: 0 for arch in ARCHITECTURE_KEYWORDS}
-    for text in text_to_search:
-        tokens = re.split(r"[-_ ./]", text)
-        for token in tokens:
-            for arch, keywords in ARCHITECTURE_KEYWORDS.items():
-                if token in keywords:
-                    scores[arch] += 1
-
-    max_arch = max(scores, key=scores.get)
-    if scores[max_arch] > 0:
-        return max_arch
-    return "unknown"
-
-
-@router.get("/model/search_peft")
-async def search_peft(peft: str, model_id: str, device: str):
-    api = HfApi()
-
-    try:
-        local_file = snapshot_download(model_id, local_files_only=True)
-        config_path = os.path.join(local_file, "config.json")
-        with open(config_path, "r") as f:
-            base_config = json.load(f)
-    except Exception as e:
-        logging.warning(f"Failed to load {model_id} config: {e}")
-        return [{"adapter_id": peft, "check_status": {"error": "Failed to load local base model config"}}]
-
-    try:
-        adapter_info = api.model_info(peft)
-        card_data = adapter_info.cardData or {}
-        adapter_config = adapter_info.config or {}
-        adapter_base_model = card_data.get("base_model") or adapter_config.get("base_model") or ""
-
-        model_name_part = model_id.split("/")[-1].lower()
-        adapter_base_model_lower = adapter_base_model.split("/")[-1].lower()
-
-        # Initialize status tracking
-        status = {}
-
-        # Base model name check
-        if model_name_part in adapter_base_model_lower:
-            status["base_model_name"] = "success"
-        else:
-            status["base_model_name"] = "fail"
-
-        # Field checks
-        for field in ["architectures", "model_type"]:
-            if field in adapter_config and field in base_config:
-                if adapter_config[field] == base_config[field]:
-                    status[f"{field}_status"] = "success"
-                else:
-                    status[f"{field}_status"] = "fail"
-            else:
-                status[f"{field}_status"] = "unknown"
-
-        # Architecture compatibility check
-        detected_arch = detect_adapter_architecture(adapter_info, peft)
-
-        if detected_arch == "unknown":
-            status["arch_status"] = "unknown"
-        elif detected_arch == device:
-            status["arch_status"] = "success"
-        else:
-            status["arch_status"] = "fail"
-
-        result = {
-            "adapter_id": peft,
-            "description": card_data.get("description", ""),
-            "downloads": adapter_info.downloads,
-            "size": card_data.get("size", "N/A"),
-            "tags": adapter_info.tags,
-            "check_status": status,
-        }
-
-        return [result]
-
-    except Exception as e:
-        logging.error(f"[ERROR] Failed to fetch adapter info for '{peft}: {e}'")
-        return [{"adapter_id": peft, "check_status": {"error": "not found"}}]
+    return {"status": "started", "job_id": job_id, "check_status": check_status}
 
 
 @router.get(path="/model/get_local_hfconfig")
