@@ -97,10 +97,20 @@ async def dataset_info(dataset_id: str):
         split = list(dataset.keys())[0]
         r["features"] = dataset[split].features
 
-        # Add image column check
+        # Try the first example in the split
+        try:
+            sample = dataset[split][0]
+        except IndexError:
+            sample = {}
+
+        # Determine if the dataset is image-like
         is_image = any(
-            f._type.lower() == "image" or str(f).lower() == "image" for f in dataset[split].features.values()
+            getattr(f, "_type", "").lower() == "image"
+            or (col in sample and isinstance(sample[col], str) and sample[col].startswith("data:image/"))
+            or (col in sample and getattr(type(sample[col]), "__name__", "").lower() == "image")
+            for col, f in dataset[split].features.items()
         )
+
         r["is_image"] = is_image
 
     else:
@@ -349,14 +359,11 @@ async def dataset_edit_with_template(
                         logging.error(f"Failed to process image {image_path}: {e}")
                         return {"status": "error", "message": "Failed to process images!"}
 
-                    row = {
-                        "__index__": index,
-                        "file_name": str(image_rel_path),
-                        "image": image_data_url,
-                        "text": entry.get("text") or entry.get("caption") or entry.get("description", ""),
-                        "label": entry.get("label", ""),
-                        "split": split,
-                    }
+                    row = dict(entry)  # Start with all metadata fields
+                    row["file_name"] = str(image_rel_path)
+                    row["split"] = split
+                    row["image"] = image_data_url
+
                     if template:
                         try:
                             jinja_template = sandboxed_jinja2_evironment.from_string(template)
@@ -458,9 +465,8 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
 
     for row in updates:
         file_name = row.get("file_name")
-        final_split = row.get("split") if row.get("split") != "" else row.get("previous_split")
-        final_label = row.get("label") if row.get("label") != "" else row.get("previous_label")
-        final_caption = row.get("caption") if row.get("caption") != "" else row.get("previous_caption")
+        final_split = row.get("split", "")
+        final_label = row.get("label", "")
         if final_split not in ["train", "test"]:
             final_split = "train"
         source_info = source_map.get(file_name)
@@ -474,7 +480,10 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
             log(f"Warning: Source image file not found {source_path}, skipping")
             continue
 
-        dest_folder = Path(new_dataset_dir) / final_split / final_label
+        if final_label == "":
+            dest_folder = Path(new_dataset_dir) / final_split
+        else:
+            dest_folder = Path(new_dataset_dir) / final_split / final_label
         os.makedirs(dest_folder, exist_ok=True)
         dest_path = dest_folder / Path(file_name).name
         try:
@@ -484,12 +493,14 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
             return {"status": "error", "message": "Failed to copy from source to destination"}
 
         key = (final_split, final_label)
-        metadata_entry = {
-            "file_name": Path(file_name).name,
-            "caption": final_caption,
-            "label": final_label,
-            "split": final_split,
-        }
+        # Start from the updated row
+        metadata_entry = dict(row)
+
+        # Ensure file_name and split are updated (canonicalized)
+        metadata_entry["file_name"] = Path(file_name).name
+        metadata_entry["split"] = final_split
+        metadata_entry["label"] = final_label
+
         metadata_accumulator.setdefault(key, []).append(metadata_entry)
 
     for (split, label), entries in metadata_accumulator.items():
