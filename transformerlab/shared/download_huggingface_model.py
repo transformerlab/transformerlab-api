@@ -44,6 +44,7 @@ parser.add_argument("--local_model_id", type=str)
 
 args, other = parser.parse_known_args()
 mode = args.mode
+print(f"MODE IS: {mode}")
 
 if mode == "adaptor":
     peft = args.peft
@@ -58,7 +59,7 @@ if mode == "adaptor":
     target_dir = os.path.join(WORKSPACE_DIR, "adaptors", safe_model_id, safe_peft)
     if not os.path.commonpath([target_dir, WORKSPACE_DIR]) == os.path.abspath(WORKSPACE_DIR):
         raise ValueError("Invalid path after sanitization. Potential security risk.")
-
+    print(f"DOWNLOADING TO: {target_dir}")
     os.makedirs(target_dir, exist_ok=True)
 
     print(f"Downloading adaptor {peft} with job_id {job_id}")
@@ -84,12 +85,12 @@ else:
     print(f"Downloading model {model} with job_id {job_id}")
 
 
-def do_download(repo_id, queue, allow_patterns=None, mode="model", local_dir=None):
+def do_download(repo_id, queue, allow_patterns=None, mode="model"):
     try:
         if mode == "model":
             snapshot_download(repo_id, allow_patterns=allow_patterns)
         else:
-            snapshot_download(repo_id=peft, local_dir=local_dir, repo_type="model")
+            snapshot_download(repo_id=peft, local_dir=target_dir, repo_type="model")
         queue.put("done")
     except Exception as e:
         queue.put(f"error: {str(e)}")
@@ -112,12 +113,12 @@ def cancel_check():
     return False
 
 
-def launch_snapshot_with_cancel(repo_id, allow_patterns=None, mode="model", local_dir=None):
+def launch_snapshot_with_cancel(repo_id, allow_patterns=None):
     queue = Queue()
     if mode == "model":
-        p = Process(target=do_download, args=(repo_id, queue, allow_patterns))
+        p = Process(target=do_download, args=(repo_id, queue, allow_patterns, "model"))
     else:
-        p = Process(target=do_download, args=(repo_id, queue, None, local_dir))
+        p = Process(target=do_download, args=(repo_id, queue, None, "adaptor"))
     p.start()
 
     while p.is_alive():
@@ -196,7 +197,7 @@ def download_blocking(model_is_downloaded):
 
     if mode == "adaptor":
         try:
-            launch_snapshot_with_cancel(repo_id=peft, local_dir=target_dir)
+            launch_snapshot_with_cancel(repo_id=peft)
             model_is_downloaded.set()
         except GatedRepoError:
             returncode = 77

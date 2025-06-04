@@ -650,17 +650,17 @@ async def model_gets_pefts(
 ):
     workspace_dir = dirs.WORKSPACE_DIR
     model_id = secure_filename(model_id)
-    adaptors_dir = f"{workspace_dir}/adaptors/{model_id}"
-    adaptors = []
-    if os.path.exists(adaptors_dir):
-        adaptors = os.listdir(adaptors_dir)
+    adaptors_dir = os.path.join(workspace_dir, "adaptors", model_id)
+
+    if not os.path.exists(adaptors_dir):
+        return []
 
     adaptors = [
         name
         for name in os.listdir(adaptors_dir)
         if os.path.isdir(os.path.join(adaptors_dir, name)) and not name.startswith(".")
     ]
-    return adaptors
+    return sorted(adaptors)
 
 
 @router.get("/model/delete_peft")
@@ -686,9 +686,13 @@ async def install_peft(peft: str, model_id: str, job_id: int | None = None):
 
     try:
         local_file = snapshot_download(model_id, local_files_only=True)
-        config_path = os.path.join(local_file, "config.json")
-        with open(config_path, "r") as f:
-            base_config = json.load(f)
+        base_config = {}
+        for config_name in ["config.json", "model_index.json"]:
+            config_path = os.path.join(local_file, config_name)
+            if os.path.exists(config_path):
+                with open(config_path, "r") as f:
+                    base_config = json.load(f)
+                break
     except Exception as e:
         logging.warning(f"Failed to load {model_id} config: {e}")
         return {
@@ -717,12 +721,21 @@ async def install_peft(peft: str, model_id: str, job_id: int | None = None):
             check_status["base_model_name"] = "fail"
 
         # Field checks
+        def compare_field(a_cfg, b_cfg, key, fallback_keys=None):
+            if key in a_cfg and key in b_cfg:
+                return a_cfg[key] == b_cfg[key]
+            if fallback_keys:
+                for fk in fallback_keys:
+                    if fk in a_cfg and fk in b_cfg:
+                        return a_cfg[fk] == b_cfg[fk]
+            return None
+
         for field in ["architectures", "model_type"]:
-            if field in adapter_config and field in base_config:
-                if adapter_config[field] == base_config[field]:
-                    check_status[f"{field}_status"] = "success"
-                else:
-                    check_status[f"{field}_status"] = "fail"
+            match = compare_field(adapter_config, base_config, field, fallback_keys=["_class_name"])
+            if match is True:
+                check_status[f"{field}_status"] = "success"
+            elif match is False:
+                check_status[f"{field}_status"] = "fail"
             else:
                 check_status[f"{field}_status"] = "unknown"
 
