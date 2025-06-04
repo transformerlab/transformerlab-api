@@ -209,19 +209,18 @@ async def export_experiment_to_json(id: str | int):
         "workflows": []
     }
     
-    # Add model dependencies
-    if "model" in config:
-        export_data["dependencies"].append({
-            "type": "model",
-            "name": config["model"]
-        })
+    # Track unique dependencies to avoid duplicates
+    added_dependencies = set()
     
-    # Add dataset dependencies
-    if "dataset" in config:
-        export_data["dependencies"].append({
-            "type": "dataset",
-            "name": config["dataset"]
-        })
+    def add_dependency(dep_type: str, dep_name: str):
+        """Helper function to add a dependency if it's not already added"""
+        dep_key = f"{dep_type}:{dep_name}"
+        if dep_key not in added_dependencies and dep_name:
+            export_data["dependencies"].append({
+                "type": dep_type,
+                "name": dep_name
+            })
+            added_dependencies.add(dep_key)
     
     # Get tasks for each type (TRAIN, EVAL, GENERATE)
     task_types = ["TRAIN", "EVAL", "GENERATE"]
@@ -229,14 +228,21 @@ async def export_experiment_to_json(id: str | int):
         tasks = await db.tasks_get_by_type_in_experiment(task_type, id)
         for task in tasks:
             task_config = json.loads(task["config"])
+            
+            # Add model dependency from task
+            model_name = task_config.get("model_name")
+            if model_name:
+                add_dependency("model", model_name)
+            
+            # Add dataset dependency from task
+            dataset_name = task_config.get("dataset_name")
+            if dataset_name:
+                add_dependency("dataset", dataset_name)
+            
+            # Add plugin dependency
             plugin_name = task_config.get("plugin_name")
             if plugin_name:
-                # Only add plugin if not already in dependencies
-                if not any(d for d in export_data["dependencies"] if d["type"] == "plugin" and d["name"] == plugin_name):
-                    export_data["dependencies"].append({
-                        "type": "plugin",
-                        "name": plugin_name
-                    })
+                add_dependency("plugin", plugin_name)
             
             # Add task to tasks list with its configuration
             export_data["tasks"].append({
@@ -256,7 +262,7 @@ async def export_experiment_to_json(id: str | int):
             })
     
     # Write to file in the workspace directory
-    output_file = f"experiment_{data['name']}_export.json"
+    output_file = os.path.join(dirs.WORKSPACE_DIR, f"{data['name']}_export.json")
     with open(output_file, "w") as f:
         json.dump(export_data, f, indent=2)
     
