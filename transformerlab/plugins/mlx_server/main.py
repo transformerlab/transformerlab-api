@@ -29,22 +29,17 @@ from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from fastchat.utils import build_logger, get_context_length
+from fastchat.utils import get_context_length
 from huggingface_hub import snapshot_download
 from mlx_embedding_models.embedding import EmbeddingModel
 from mlx_lm import load
 from mlx_lm.generate import generate_step
 from mlx_lm.sample_utils import make_logits_processors, make_sampler
+from transformerlab.plugin import setup_model_worker_logger
 
 worker_id = str(uuid.uuid4())[:8]
-logfile_path = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "logs")
-if not os.path.exists(logfile_path):
-    os.makedirs(logfile_path)
-logger = build_logger("model_worker", os.path.join(logfile_path, "model_worker.log"))
+logger = setup_model_worker_logger()
 
-import fastchat.serve.base_model_worker  # noqa
-
-fastchat.serve.base_model_worker.logger = logger
 from fastchat.serve.base_model_worker import BaseModelWorker  # noqa
 
 
