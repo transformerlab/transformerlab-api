@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 import pytest
+import json
 from unittest.mock import patch, MagicMock, mock_open
 from api import app
 
@@ -421,3 +422,440 @@ def test_is_valid_diffusion_model_img2img_detection(img2img_flag):
                 assert "img2img" in data["reason"]
             else:
                 assert "Architecture matches allowed SD" in data["reason"]
+
+
+def test_is_valid_diffusion_model_inpainting_specific_architecture():
+    """Test that specific inpainting architectures are correctly identified"""
+    with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
+        mock_info = MagicMock()
+        mock_info.config = {"diffusers": {"_class_name": "StableDiffusionInpaintPipeline"}}
+        mock_model_info.return_value = mock_info
+
+        payload = {"model": "fake-model", "is_inpainting": True}
+        with TestClient(app) as client:
+            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["is_valid_diffusion_model"] is True
+            assert "Architecture matches allowed SD inpainting" in data["reason"]
+
+
+def test_is_valid_diffusion_model_inpainting_xl_architecture():
+    """Test that StableDiffusionXLInpaintPipeline is correctly identified for inpainting"""
+    with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
+        mock_info = MagicMock()
+        mock_info.config = {"diffusers": {"_class_name": "StableDiffusionXLInpaintPipeline"}}
+        mock_model_info.return_value = mock_info
+
+        payload = {"model": "fake-model", "is_inpainting": True}
+        with TestClient(app) as client:
+            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["is_valid_diffusion_model"] is True
+            assert "Architecture matches allowed SD inpainting" in data["reason"]
+
+
+def test_is_valid_diffusion_model_inpainting_from_text2img():
+    """Test that text2img architectures can be used for inpainting"""
+    with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
+        mock_info = MagicMock()
+        mock_info.config = {"diffusers": {"_class_name": "StableDiffusionPipeline"}}
+        mock_model_info.return_value = mock_info
+
+        payload = {"model": "fake-model", "is_inpainting": True}
+        with TestClient(app) as client:
+            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["is_valid_diffusion_model"] is True
+            assert "Architecture matches allowed SD inpainting" in data["reason"]
+
+
+def test_is_valid_diffusion_model_inpainting_from_sdxl():
+    """Test that StableDiffusionXL can be used for inpainting"""
+    with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
+        mock_info = MagicMock()
+        mock_info.config = {"diffusers": {"_class_name": "StableDiffusionXLPipeline"}}
+        mock_model_info.return_value = mock_info
+
+        payload = {"model": "fake-model", "is_inpainting": True}
+        with TestClient(app) as client:
+            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["is_valid_diffusion_model"] is True
+            assert "Architecture matches allowed SD inpainting" in data["reason"]
+
+
+def test_is_valid_diffusion_model_inpainting_flux_not_supported():
+    """Test that FLUX models cannot be used for inpainting"""
+    with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
+        mock_info = MagicMock()
+        mock_info.config = {"diffusers": {"_class_name": "FluxPipeline"}}
+        mock_model_info.return_value = mock_info
+
+        payload = {"model": "fake-model", "is_inpainting": True}
+        with TestClient(app) as client:
+            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["is_valid_diffusion_model"] is False
+            assert "No SD indicators found" in data["reason"]
+
+
+def test_is_valid_diffusion_model_inpainting_unsupported_architecture():
+    """Test that unsupported architectures are not valid for inpainting"""
+    with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
+        mock_info = MagicMock()
+        mock_info.config = {"diffusers": {"_class_name": "SomeUnsupportedPipeline"}}
+        mock_model_info.return_value = mock_info
+
+        payload = {"model": "fake-model", "is_inpainting": True}
+        with TestClient(app) as client:
+            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["is_valid_diffusion_model"] is False
+            assert "No SD indicators found" in data["reason"]
+
+
+def test_is_valid_diffusion_model_inpainting_list_architectures():
+    """Test that inpainting works with list of architectures containing supported ones"""
+    with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
+        mock_info = MagicMock()
+        mock_info.config = {"diffusers": {"_class_name": ["SomeOtherPipeline", "StableDiffusionInpaintPipeline"]}}
+        mock_model_info.return_value = mock_info
+
+        payload = {"model": "fake-model", "is_inpainting": True}
+        with TestClient(app) as client:
+            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["is_valid_diffusion_model"] is True
+            assert "Architecture matches allowed SD inpainting" in data["reason"]
+
+
+@pytest.mark.parametrize("inpainting_flag", [True, False])
+def test_is_valid_diffusion_model_inpainting_detection(inpainting_flag):
+    """Test that is_valid_diffusion_model correctly handles is_inpainting flag"""
+    with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
+        mock_info = MagicMock()
+        # Use an architecture that's in both text2img and inpainting lists
+        mock_info.config = {"diffusers": {"_class_name": "StableDiffusionPipeline"}}
+        mock_model_info.return_value = mock_info
+
+        payload = {"model": "fake-model", "is_inpainting": inpainting_flag}
+        with TestClient(app) as client:
+            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["is_valid_diffusion_model"] is True
+            if inpainting_flag:
+                assert "Architecture matches allowed SD inpainting" in data["reason"]
+            else:
+                assert "Architecture matches allowed SD" in data["reason"]
+
+
+def test_load_history_success():
+    """Test loading history with valid data"""
+    with (
+        patch("transformerlab.routers.diffusion.get_history_file_path", return_value="/fake/history.json"),
+        patch("os.path.exists", return_value=True),
+        patch("builtins.open", mock_open(read_data='[{"id": "test-id", "model": "test-model", "prompt": "test prompt", "adaptor": "", "adaptor_scale": 1.0, "num_inference_steps": 20, "guidance_scale": 7.5, "seed": 42, "image_path": "/fake/path.png", "timestamp": "2023-01-01T00:00:00", "upscaled": false, "upscale_factor": 1, "negative_prompt": "", "eta": 0.0, "clip_skip": 0, "guidance_rescale": 0.0, "height": 512, "width": 512, "generation_time": 5.0, "num_images": 1, "input_image_path": "", "strength": 0.8, "is_img2img": false, "mask_image_path": "", "is_inpainting": false}]')),
+    ):
+        from transformerlab.routers.diffusion import load_history
+        
+        result = load_history(limit=50, offset=0)
+        
+        assert result.total == 1
+        assert len(result.images) == 1
+        assert result.images[0].id == "test-id"
+        assert result.images[0].model == "test-model"
+        assert result.images[0].prompt == "test prompt"
+
+
+def test_load_history_with_pagination():
+    """Test loading history with pagination parameters"""
+    history_data = []
+    for i in range(10):
+        history_data.append({
+            "id": f"test-id-{i}",
+            "model": "test-model",
+            "prompt": f"test prompt {i}",
+            "adaptor": "",
+            "adaptor_scale": 1.0,
+            "num_inference_steps": 20,
+            "guidance_scale": 7.5,
+            "seed": 42,
+            "image_path": f"/fake/path{i}.png",
+            "timestamp": "2023-01-01T00:00:00",
+            "upscaled": False,
+            "upscale_factor": 1,
+            "negative_prompt": "",
+            "eta": 0.0,
+            "clip_skip": 0,
+            "guidance_rescale": 0.0,
+            "height": 512,
+            "width": 512,
+            "generation_time": 5.0,
+            "num_images": 1,
+            "input_image_path": "",
+            "strength": 0.8,
+            "is_img2img": False,
+            "mask_image_path": "",
+            "is_inpainting": False
+        })
+    
+    with (
+        patch("transformerlab.routers.diffusion.get_history_file_path", return_value="/fake/history.json"),
+        patch("os.path.exists", return_value=True),
+        patch("builtins.open", mock_open(read_data=json.dumps(history_data))),
+    ):
+        from transformerlab.routers.diffusion import load_history
+        
+        result = load_history(limit=3, offset=2)
+        
+        assert result.total == 10
+        assert len(result.images) == 3
+        assert result.images[0].id == "test-id-2"
+        assert result.images[1].id == "test-id-3"
+        assert result.images[2].id == "test-id-4"
+
+
+def test_load_history_no_file():
+    """Test loading history when history file doesn't exist"""
+    with (
+        patch("transformerlab.routers.diffusion.get_history_file_path", return_value="/fake/history.json"),
+        patch("os.path.exists", return_value=False),
+    ):
+        from transformerlab.routers.diffusion import load_history
+        
+        result = load_history()
+        
+        assert result.total == 0
+        assert len(result.images) == 0
+
+
+def test_load_history_invalid_json():
+    """Test loading history with corrupted JSON file"""
+    with (
+        patch("transformerlab.routers.diffusion.get_history_file_path", return_value="/fake/history.json"),
+        patch("os.path.exists", return_value=True),
+        patch("builtins.open", mock_open(read_data='invalid json')),
+    ):
+        from transformerlab.routers.diffusion import load_history
+        
+        result = load_history()
+        
+        assert result.total == 0
+        assert len(result.images) == 0
+
+
+def test_find_image_by_id_success():
+    """Test finding an image by ID successfully"""
+    history_data = [
+        {
+            "id": "test-id-1",
+            "model": "test-model-1",
+            "prompt": "test prompt 1",
+            "adaptor": "",
+            "adaptor_scale": 1.0,
+            "num_inference_steps": 20,
+            "guidance_scale": 7.5,
+            "seed": 42,
+            "image_path": "/fake/path1.png",
+            "timestamp": "2023-01-01T00:00:00",
+            "upscaled": False,
+            "upscale_factor": 1,
+            "negative_prompt": "",
+            "eta": 0.0,
+            "clip_skip": 0,
+            "guidance_rescale": 0.0,
+            "height": 512,
+            "width": 512,
+            "generation_time": 5.0,
+            "num_images": 1,
+            "input_image_path": "",
+            "strength": 0.8,
+            "is_img2img": False,
+            "mask_image_path": "",
+            "is_inpainting": False
+        },
+        {
+            "id": "test-id-2",
+            "model": "test-model-2",
+            "prompt": "test prompt 2",
+            "adaptor": "",
+            "adaptor_scale": 1.0,
+            "num_inference_steps": 20,
+            "guidance_scale": 7.5,
+            "seed": 42,
+            "image_path": "/fake/path2.png",
+            "timestamp": "2023-01-01T00:00:00",
+            "upscaled": False,
+            "upscale_factor": 1,
+            "negative_prompt": "",
+            "eta": 0.0,
+            "clip_skip": 0,
+            "guidance_rescale": 0.0,
+            "height": 512,
+            "width": 512,
+            "generation_time": 5.0,
+            "num_images": 1,
+            "input_image_path": "",
+            "strength": 0.8,
+            "is_img2img": False,
+            "mask_image_path": "",
+            "is_inpainting": False
+        }
+    ]
+    
+    with (
+        patch("transformerlab.routers.diffusion.get_history_file_path", return_value="/fake/history.json"),
+        patch("os.path.exists", return_value=True),
+        patch("builtins.open", mock_open(read_data=json.dumps(history_data))),
+    ):
+        from transformerlab.routers.diffusion import find_image_by_id
+        
+        result = find_image_by_id("test-id-2")
+        
+        assert result is not None
+        assert result.id == "test-id-2"
+        assert result.model == "test-model-2"
+        assert result.prompt == "test prompt 2"
+
+
+def test_find_image_by_id_not_found():
+    """Test finding an image by ID when it doesn't exist"""
+    history_data = [
+        {
+            "id": "test-id-1",
+            "model": "test-model-1",
+            "prompt": "test prompt 1",
+            "adaptor": "",
+            "adaptor_scale": 1.0,
+            "num_inference_steps": 20,
+            "guidance_scale": 7.5,
+            "seed": 42,
+            "image_path": "/fake/path1.png",
+            "timestamp": "2023-01-01T00:00:00",
+            "upscaled": False,
+            "upscale_factor": 1,
+            "negative_prompt": "",
+            "eta": 0.0,
+            "clip_skip": 0,
+            "guidance_rescale": 0.0,
+            "height": 512,
+            "width": 512,
+            "generation_time": 5.0,
+            "num_images": 1,
+            "input_image_path": "",
+            "strength": 0.8,
+            "is_img2img": False,
+            "mask_image_path": "",
+            "is_inpainting": False
+        }
+    ]
+    
+    with (
+        patch("transformerlab.routers.diffusion.get_history_file_path", return_value="/fake/history.json"),
+        patch("os.path.exists", return_value=True),
+        patch("builtins.open", mock_open(read_data=json.dumps(history_data))),
+    ):
+        from transformerlab.routers.diffusion import find_image_by_id
+        
+        result = find_image_by_id("non-existent-id")
+        
+        assert result is None
+
+
+def test_find_image_by_id_no_file():
+    """Test finding an image by ID when history file doesn't exist"""
+    with (
+        patch("transformerlab.routers.diffusion.get_history_file_path", return_value="/fake/history.json"),
+        patch("os.path.exists", return_value=False),
+    ):
+        from transformerlab.routers.diffusion import find_image_by_id
+        
+        result = find_image_by_id("test-id")
+        
+        assert result is None
+
+
+def test_find_image_by_id_invalid_json():
+    """Test finding an image by ID with corrupted JSON file"""
+    with (
+        patch("transformerlab.routers.diffusion.get_history_file_path", return_value="/fake/history.json"),
+        patch("os.path.exists", return_value=True),
+        patch("builtins.open", mock_open(read_data='invalid json')),
+    ):
+        from transformerlab.routers.diffusion import find_image_by_id
+        
+        result = find_image_by_id("test-id")
+        
+        assert result is None
+
+
+def test_get_pipeline_key_txt2img():
+    """Test get_pipeline_key for text-to-image pipeline"""
+    from transformerlab.routers.diffusion import get_pipeline_key
+    
+    key = get_pipeline_key("test-model", "", is_img2img=False, is_inpainting=False)
+    
+    assert key == "test-model::txt2img"
+
+
+def test_get_pipeline_key_img2img():
+    """Test get_pipeline_key for image-to-image pipeline"""
+    from transformerlab.routers.diffusion import get_pipeline_key
+    
+    key = get_pipeline_key("test-model", "", is_img2img=True, is_inpainting=False)
+    
+    assert key == "test-model::img2img"
+
+
+def test_get_pipeline_key_inpainting():
+    """Test get_pipeline_key for inpainting pipeline"""
+    from transformerlab.routers.diffusion import get_pipeline_key
+    
+    key = get_pipeline_key("test-model", "", is_img2img=False, is_inpainting=True)
+    
+    assert key == "test-model::inpainting"
+
+
+def test_get_pipeline_key_with_adaptor():
+    """Test get_pipeline_key with adaptor"""
+    from transformerlab.routers.diffusion import get_pipeline_key
+    
+    key = get_pipeline_key("test-model", "test-adaptor", is_img2img=False, is_inpainting=False)
+    
+    assert key == "test-model::test-adaptor::txt2img"
+
+
+def test_get_pipeline_key_inpainting_priority():
+    """Test get_pipeline_key prioritizes inpainting over img2img"""
+    from transformerlab.routers.diffusion import get_pipeline_key
+    
+    key = get_pipeline_key("test-model", "", is_img2img=True, is_inpainting=True)
+    
+    assert key == "test-model::inpainting"
+
+
+def test_get_pipeline_key_no_adaptor():
+    """Test get_pipeline_key with empty adaptor string"""
+    from transformerlab.routers.diffusion import get_pipeline_key
+    
+    key = get_pipeline_key("test-model", "", is_img2img=False, is_inpainting=False)
+    
+    assert key == "test-model::txt2img"
+
+
+def test_get_pipeline_key_whitespace_adaptor():
+    """Test get_pipeline_key with whitespace-only adaptor"""
+    from transformerlab.routers.diffusion import get_pipeline_key
+    
+    key = get_pipeline_key("test-model", "   ", is_img2img=False, is_inpainting=False)
+    
+    # Should treat whitespace-only adaptor as no adaptor
+    assert key == "test-model::   ::txt2img"
