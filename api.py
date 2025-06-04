@@ -46,12 +46,15 @@ from transformerlab.routers import (
     tools,
     batched_prompts,
     recipes,
+    users,
 )
 import torch
+
 try:
     from pynvml import nvmlShutdown
 except Exception:
     from pyrsmi import rocml
+
     HAS_AMD = True
 from transformerlab import fastchat_openai_api
 from transformerlab.routers.experiment import experiment
@@ -181,6 +184,10 @@ app.include_router(batched_prompts.router)
 app.include_router(fastchat_openai_api.router)
 app.include_router(get_xmlrpc_router())
 app.include_router(get_trainer_xmlrpc_router())
+
+# This includes the FastAPI Users routers
+app.include_router(users.router)
+
 
 controller_process = None
 worker_process = None
