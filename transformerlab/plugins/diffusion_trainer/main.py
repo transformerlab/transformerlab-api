@@ -16,12 +16,10 @@ from diffusers import AutoPipelineForText2Image, StableDiffusionPipeline
 # SD3 and FLUX pipelines will be imported as needed during save process
 from diffusers.optimization import get_scheduler
 from diffusers.training_utils import cast_training_params, compute_snr
-from diffusers.utils import check_min_version, convert_state_dict_to_diffusers
+from diffusers.utils import convert_state_dict_to_diffusers
 
 from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import WORKSPACE_DIR
-
-check_min_version("0.34.0.dev0")
 
 
 def cleanup_pipeline():
@@ -282,13 +280,19 @@ def train_diffusion_lora():
     revision = args.get("revision", None)
     variant = args.get("variant", None)
 
+    model_architecture = args.get("model_architecture")
+
     # Load pipeline to auto-detect architecture and get correct components
     print(f"Loading pipeline to detect model architecture: {pretrained_model_name_or_path}")
+    pipeline_kwargs = {
+        "torch_dtype": torch.float16,  
+        "safety_checker": None,
+        "requires_safety_checker": False,
+    }
+
     temp_pipeline = AutoPipelineForText2Image.from_pretrained(
         pretrained_model_name_or_path,
-        revision=revision,
-        variant=variant,
-        torch_dtype=torch.float32,  # Load in float32 initially for training
+        **pipeline_kwargs
     )
 
     # Extract components from the loaded pipeline
@@ -340,16 +344,11 @@ def train_diffusion_lora():
     )
 
     # Detect architecture based on multiple indicators
-    is_sdxl = (
-        text_encoder_2 is not None
-        or "sdxl" in pretrained_model_name_or_path.lower()
-        or "stable-diffusion-xl" in pretrained_model_name_or_path.lower()
-        or hasattr(unet.config, "addition_embed_type")
-    )
+    is_sdxl = "StableDiffusionXLPipeline" in model_architecture
 
-    is_sd3 = "SD3" in unet_type or "MMDiT" in unet_type or "sd3" in pretrained_model_name_or_path.lower()
+    is_sd3 = "StableDiffusion3Pipeline" in model_architecture
 
-    is_flux = "Flux" in unet_type or "FluxTransformer" in unet_type or "flux" in pretrained_model_name_or_path.lower()
+    is_flux = "FluxPipeline" in model_architecture
 
     print(f"Architecture detection - SDXL: {is_sdxl}, SD3: {is_sd3}, Flux: {is_flux}")
 
