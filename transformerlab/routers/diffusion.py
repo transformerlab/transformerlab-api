@@ -1356,7 +1356,7 @@ def should_use_diffusion_worker(model) -> bool:
                 return True
 
         return False
-    except Exception as e:
+    except Exception:
         return False
 
 
