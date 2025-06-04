@@ -275,8 +275,8 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                         if isinstance(param_value, (list, dict)):
                             parsed_config["script_parameters"][param_key] = json.dumps(param_value)
 
-                # Generate simple task name that helps user follow order of tasks
-                task_name = f"Task_{i+1}"
+                # Extract task name from recipe
+                task_name = task.get("name")
                 
                 # Create inputs JSON (what the task needs as inputs)
                 inputs = {
