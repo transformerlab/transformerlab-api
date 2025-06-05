@@ -139,6 +139,7 @@ class WorkflowRun(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     workflow_id: Mapped[int] = mapped_column(Integer, nullable=True)
     workflow_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    experiment_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     job_ids: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     node_ids: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     status: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True)

@@ -30,6 +30,11 @@ async def workflow_runs_get_all():
     workflow_runs = await db.workflow_run_get_all()
     return workflow_runs
 
+@router.get("/list_runs_in_experiment", summary="get all workflow runs in an experiment")
+async def workflow_runs_get_in_experiment(experiment_id: str = "1"):
+    workflow_runs = await db.workflow_runs_get_from_experiment(experiment_id)
+    return workflow_runs
+
 @router.get("/runs/{workflow_run_id}", summary="get a specific workflow run by id")
 async def workflow_runs_get_by_id(workflow_run_id: str):
     workflow_run = await db.workflow_run_get_by_id(workflow_run_id)
