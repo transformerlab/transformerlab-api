@@ -1,8 +1,10 @@
 import json
 import yaml
 import uuid
-from fastapi import APIRouter, UploadFile, Body
+from fastapi import APIRouter, UploadFile, Body, HTTPException
+from typing import List
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 import transformerlab.db as db
 import transformerlab.routers.tasks as tsks
@@ -10,8 +12,22 @@ import transformerlab.routers.tasks as tsks
 from transformerlab.shared import dirs
 from transformerlab.shared.shared import slugify
 
+
+class TriggerConfigUpdateItem(BaseModel):
+    trigger_type: str
+    is_enabled: bool
+
+
+class WorkflowTriggerConfigsUpdateRequest(BaseModel):
+    configs: List[TriggerConfigUpdateItem]
+
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
+
+@router.get("/predefined_triggers", summary="Get predefined triggers (frontend compatibility)")
+async def get_predefined_triggers():
+    """Get the list of predefined trigger types with their descriptions. Frontend-compatible endpoint."""
+    return db.PREDEFINED_TRIGGER_BLUEPRINTS
 
 @router.get("/list", summary="get all workflows")
 async def workflows_get_all():
@@ -82,6 +98,12 @@ async def workflow_create_empty(name: str, experiment_id="1"):
     print(experiment_id)
     return workflow_id
 
+@router.get("/{workflow_id}", summary="get a specific workflow by id")
+async def workflow_get_by_id(workflow_id: int):
+    workflow = await db.workflows_get_by_id(workflow_id)
+    if workflow is None:
+        return {"error": "Workflow not found"}
+    return workflow
 
 @router.get("/{workflow_id}/{node_id}/edit_node_metadata", summary="Edit metadata of a node in a workflow")
 async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: str):
@@ -235,6 +257,25 @@ async def workflow_import_from_yaml(file: UploadFile, experiment_id="1"):
 async def start_workflow(workflow_id):
     await db.workflow_queue(workflow_id)
     return {"message": "OK"}
+
+
+@router.put("/{workflow_id}/trigger_configs", summary="Update workflow trigger configurations")
+async def update_workflow_trigger_configs(workflow_id: int, update_request: WorkflowTriggerConfigsUpdateRequest):
+    """Update the trigger configurations for a specific workflow."""
+    try:
+        # Convert Pydantic models to dictionaries
+        configs_list = [config.dict() for config in update_request.configs]
+        
+        # Call the database function
+        updated_workflow = await db.workflow_update_trigger_configs(workflow_id, configs_list)
+        
+        return updated_workflow
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 
 @router.get("/runs/get_currently_running", summary="Get the currently running workflow run and run a queued run if there is no currently running workflow run")
 async def get_active_workflow_run():
