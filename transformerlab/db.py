@@ -56,8 +56,9 @@ async def init():
     has_experiment_id = any(column[1] == "experiment_id" for column in columns)
     
     if not has_experiment_id:
-        print("Adding experiment_id column to workflow_runs table...")
+        # Add experiment_id column
         await db.execute("ALTER TABLE workflow_runs ADD COLUMN experiment_id INTEGER")
+        
         # Update existing workflow runs with experiment_id from their workflows
         await db.execute("""
             UPDATE workflow_runs 
@@ -68,7 +69,6 @@ async def init():
             )
         """)
         await db.commit()
-        print("✅ Added experiment_id column to workflow_runs table")
 
     print("✅ Database initialized")
 
@@ -1122,16 +1122,11 @@ async def workflow_runs_delete_all():
 
 
 async def workflow_queue(workflow_id):
-    workflow = await workflows_get_by_id(workflow_id)
-    workflow_name = workflow["name"]
-    experiment_id = workflow["experiment_id"]
+    workflow_name = (await workflows_get_by_id(workflow_id))["name"]
     await db.execute(
-        "INSERT INTO workflow_runs(workflow_id, workflow_name, experiment_id, job_ids, node_ids, status, current_tasks, current_job_ids) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (workflow_id, workflow_name, experiment_id, "[]", "[]", "QUEUED", "[]", "[]"),
+        "INSERT INTO workflow_runs(workflow_id, workflow_name, job_ids, node_ids, status, current_tasks, current_job_ids) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (workflow_id, workflow_name, "[]", "[]", "QUEUED", "[]", "[]"),
     )
-    await db.commit()
-    return
-
 
 async def workflow_runs_get_from_experiment(experiment_id):
     cursor = await db.execute(

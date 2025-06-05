@@ -611,14 +611,21 @@ class TestWorkflows:
         assert len(workflows) == 0
 
     @pytest.mark.asyncio
-    async def test_workflow_runs_get_from_experiment(self, test_experiment):
-        # Create a workflow
+    async def test_experiment_workflow_routes(self, test_experiment):
+        # Create a workflow in the experiment
         workflow_id = await workflow_create("test_workflow", "{}", test_experiment)
         
         # Queue the workflow to create a workflow run
         await workflow_queue(workflow_id)
         
-        # Get workflow runs for the experiment
+        # Test getting workflows in experiment
+        workflows = await workflows_get_from_experiment(test_experiment)
+        assert isinstance(workflows, list)
+        assert len(workflows) > 0
+        assert workflows[0]["experiment_id"] == test_experiment
+        assert workflows[0]["id"] == workflow_id
+        
+        # Test getting workflow runs in experiment
         workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
         assert isinstance(workflow_runs, list)
         assert len(workflow_runs) > 0
