@@ -813,7 +813,10 @@ async def experiment_get_all():
         return [e.__dict__ for e in experiments]
 
 
-async def experiment_create(name, config):
+async def experiment_create(name: str, config: dict) -> int:
+    # test to see if config is a valid dict:
+    if not isinstance(config, dict):
+        raise ValueError("Config must be a dictionary")
     async with async_session() as session:
         experiment = models.Experiment(name=name, config=config)
         session.add(experiment)

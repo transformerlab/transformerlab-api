@@ -328,7 +328,7 @@ async def test_dataset():
 @pytest.fixture
 async def test_experiment():
     # Setup code to create test_experiment
-    experiment_id = await db.experiment_create("test_experiment", "{}")
+    experiment_id = await db.experiment_create("test_experiment", {})
     yield experiment_id
     # Teardown code to delete test_experiment
     await db.experiment_delete(experiment_id)
@@ -461,6 +461,9 @@ class TestExperiments:
         experiment = await experiment_get_by_name("alpha")
         assert experiment is not None
         assert experiment["name"] == "alpha"
+        # Try to create an experiment with a string instead of a dict for the config:
+        with pytest.raises(Exception):
+            await experiment_create("test_experiment_invalid_config", "not_a_dict")
 
     @pytest.mark.asyncio
     async def test_experiment_get_all(self):
@@ -469,7 +472,7 @@ class TestExperiments:
 
     @pytest.mark.asyncio
     async def test_experiment_delete(self):
-        experiment_id = await experiment_create("test_experiment_delete", "{}")
+        experiment_id = await experiment_create("test_experiment_delete", {})
         await experiment_delete(experiment_id)
         experiment = await experiment_get(experiment_id)
         assert experiment is None
@@ -615,7 +618,7 @@ async def test_experiment_get_by_name(setup_db):
     """Test the experiment_get_by_name function."""
     # Create a test experiment
     experiment_name = "test_experiment_by_name"
-    config = "{}"
+    config = {}
     # Delete the experiment if it already exists
     existing = await db.experiment_get_by_name(experiment_name)
     if existing:
