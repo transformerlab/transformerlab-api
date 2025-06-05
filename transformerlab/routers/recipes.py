@@ -273,9 +273,9 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                         if isinstance(param_value, (list, dict)):
                             parsed_config["script_parameters"][param_key] = json.dumps(param_value)
 
-                # Generate simple task name that helps user follow order of tasks
-                task_name = f"Task_{i + 1}"
-
+                # Extract task name from recipe
+                task_name = task.get("name")
+                
                 # Create inputs JSON (what the task needs as inputs)
                 inputs = {
                     "model_name": parsed_config.get("model_name", ""),
@@ -307,9 +307,9 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                 outputs = {}
 
                 if task_type == "EVAL":
-                    outputs["eval_results"] = {}
+                    outputs["eval_results"] = "{}"
                 elif task_type == "GENERATE":
-                    outputs["generated_outputs"] = []
+                    outputs["generated_outputs"] = "[]"
 
                 # Get plugin name
                 plugin_name = parsed_config.get("plugin_name", "")
@@ -346,6 +346,37 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
                     }
                 )
 
+    # Process workflows and create workflows in database
+    workflow_creation_results = []
+    workflows = recipe.get("workflows", [])
+    
+    for workflow_def in workflows:
+        try:
+            workflow_name = workflow_def.get("name", "")
+            workflow_config = workflow_def.get("config", {"nodes": []})
+            
+            # Create workflow in database using the workflow_create function
+            workflow_id = await workflows_router.workflow_create(
+                name=workflow_name,
+                config=json.dumps(workflow_config),
+                experiment_id=experiment_id
+            )
+            
+            # Log the workflow creation results
+            workflow_creation_results.append({
+                "workflow_name": workflow_name,
+                "action": "create_workflow",
+                "status": "success",
+                "workflow_id": workflow_id
+            })
+            
+        except Exception:
+            workflow_creation_results.append({
+                "workflow_name": workflow_def.get("name", "Unknown"),
+                "action": "create_workflow",
+                "status": "error: Failed to create workflow."
+            })
+
     return {
         "status": "success",
         "message": "",
@@ -355,6 +386,7 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
             "model_set_result": model_set_result,
             "workflow_results": workflow_results,
             "task_results": task_results,
+            "workflow_creation_results": workflow_creation_results,
             "notes_result": notes_result,
         },
     }
