@@ -836,6 +836,22 @@ def train_diffusion_lora():
     # Try architecture-specific save methods first, then fall back to universal methods
     saved_successfully = False
 
+    # Save a json file in the save directory with model architecture and LoRA config and a flag which says tlab_trainer
+    # was used to train this LoRA
+    import json
+    print("Saving LoRA configuration information...")
+    save_info = {
+        "model_architecture": model_architecture,
+        "lora_config": {
+            "r": str(unet_lora_config.r),
+            "lora_alpha": str(unet_lora_config.lora_alpha),
+            "target_modules": str(unet_lora_config.target_modules),
+        },
+        "tlab_trainer_used": True,
+    }
+    with open(os.path.join(save_directory, "tlab_adaptor_info.json"), "w") as f:
+        json.dump(save_info, f, indent=4)
+
     # Method 1: Try the original SD 1.x approach that worked perfectly
     if not is_sdxl and not is_sd3 and not is_flux:
         try:
