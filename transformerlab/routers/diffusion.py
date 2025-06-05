@@ -353,7 +353,6 @@ def create_decode_callback(images_folder):
             image = latents_to_rgb(latents[0])
             step_image_path = os.path.join(images_folder, "step.png")
             image.save(step_image_path)
-            log_print(f"Saved intermediate image for step {step}")
         except Exception as e:
             log_print(f"Warning: Failed to save intermediate image for step {step}: {str(e)}")
         
