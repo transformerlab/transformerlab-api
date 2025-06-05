@@ -330,7 +330,7 @@ async def dataset_edit_with_template(
                     return {"status": "error", "message": "Failed to read metadata file!"}
 
                 for entry in data:
-                    split = entry.get("split")
+                    split = entry.get("split", "train")
                     if not split:
                         path_parts = Path(root).parts
                         split = next(
@@ -469,13 +469,13 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
         final_label = row.get("label", "")
         if final_split not in ["train", "test"]:
             final_split = "train"
+
         source_info = source_map.get(file_name)
         if not source_info:
             log(f"Warning: Source info not found for {file_name}, skipping")
             continue
 
         source_path = Path(source_info["metadata_root"]) / file_name
-
         if not source_path.exists():
             log(f"Warning: Source image file not found {source_path}, skipping")
             continue
@@ -486,21 +486,24 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
             dest_folder = Path(new_dataset_dir) / final_split / final_label
         os.makedirs(dest_folder, exist_ok=True)
         dest_path = dest_folder / Path(file_name).name
+
         try:
             shutil.copy2(source_path, dest_path)
         except Exception as e:
             logging.error(f"Failed to copy {source_path} to {dest_path}: {e}")
             return {"status": "error", "message": "Failed to copy from source to destination"}
 
+        # Prepare metadata entry
+        metadata_entry = {}
+        for k, v in row.items():
+            if k in {"__index__", "__formatted__", "split"}:
+                continue
+            if k == "file_name":
+                metadata_entry[k] = Path(file_name).name
+            elif v not in [None, "", [], {}]:
+                metadata_entry[k] = v
+
         key = (final_split, final_label)
-        # Start from the updated row
-        metadata_entry = dict(row)
-
-        # Ensure file_name and split are updated (canonicalized)
-        metadata_entry["file_name"] = Path(file_name).name
-        metadata_entry["split"] = final_split
-        metadata_entry["label"] = final_label
-
         metadata_accumulator.setdefault(key, []).append(metadata_entry)
 
     for (split, label), entries in metadata_accumulator.items():
