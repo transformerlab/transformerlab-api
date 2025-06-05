@@ -271,7 +271,7 @@ async def get_pytorch_collect_env():
 GLOBAL_LOG_PATH = dirs.GLOBAL_LOG_PATH
 
 
-async def watch_file(filename: str, start_from_beginning=False, force_polling=False) -> AsyncGenerator[str, None]:
+async def watch_file(filename: str, start_from_beginning=False, force_polling=True) -> AsyncGenerator[str, None]:
     print(f"👀 Watching file: {filename}")
 
     # create the file if it doesn't already exist:
@@ -295,7 +295,7 @@ async def watch_file(filename: str, start_from_beginning=False, force_polling=Fa
         except Exception as e:
             print(f"Error seeking to end of file: {e}")
 
-    async for changes in awatch(filename, force_polling=force_polling):
+    async for changes in awatch(filename, force_polling=force_polling, poll_delay_ms=100):
         print(f"📝 File changed: {filename}")
         with open(filename, "r") as f:
             f.seek(last_position)

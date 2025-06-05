@@ -5,6 +5,7 @@ datasets
 einops
 evaluate
 fastapi
+fastapi-users[sqlalchemy]
 packaging
 psutil
 python-multipart
