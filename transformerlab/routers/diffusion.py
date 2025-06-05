@@ -30,7 +30,6 @@ import transformerlab.db as db
 from transformerlab.shared import dirs
 from transformerlab.shared.shared import slugify
 import logging
-from datetime import datetime as dt
 import subprocess
 import sys
 
@@ -229,7 +228,7 @@ class LoggerWriter:
 
     def write(self, message):
         message = message.strip()
-        if message and not "📝 File changed:" in message:
+        if message and "📝 File changed:" not in message:
             self.level(message)
 
     def flush(self):
@@ -554,7 +553,7 @@ def get_pipeline(
                         if os.path.exists(json_file_path):
                             with open(json_file_path, 'r') as f:
                                 adaptor_info = json.load(f)
-                            if adaptor_info.get('tlab_trainer_used') is not None and adaptor_info['tlab_trainer_used'] == True:
+                            if adaptor_info.get('tlab_trainer_used') is not None and adaptor_info['tlab_trainer_used']:
                                 # Load LoRA weights
                                 state_dict, network_alphas = pipe.lora_state_dict(adaptor_path, prefix=None)
                                 pipe.load_lora_into_unet(state_dict, network_alphas=network_alphas, unet=pipe.unet)
