@@ -655,10 +655,15 @@ async def generate_image(request: DiffusionRequest):
         generation_id = request.generation_id if request.generation_id else str(uuid.uuid4())
         print(f"Generation ID: {generation_id}")
         timestamp = datetime.now().isoformat()
+         # Validate generation_id to ensure it matches UUID format
+        if not generation_id.isalnum() or len(generation_id) != 36:
+            raise HTTPException(status_code=400, detail="Invalid generation_id format")
 
         # Create folder for images
         ensure_directories()
-        images_folder = os.path.join(get_images_dir(), generation_id)
+        images_folder = os.path.normpath(os.path.join(get_images_dir(), generation_id))
+        if not images_folder.startswith(get_images_dir()):
+            raise HTTPException(status_code=400, detail="Invalid path for images_folder")
         os.makedirs(images_folder, exist_ok=True)
 
         # Determine pipeline type based on flags and provided images
@@ -1048,14 +1053,21 @@ async def get_image_by_id(image_id: str, index: int = 0, input_image: bool = Fal
     if step:
         # If step is requested, we need to check if intermediate images were saved
         images_dir = get_images_dir()
-        image_dir_based_on_id = os.path.join(images_dir, image_id)
+        image_dir_based_on_id = os.path.normpath(os.path.join(images_dir, image_id))
+
+        # Ensure the constructed path is within the intended base directory
+        if not image_dir_based_on_id.startswith(images_dir):
+            raise HTTPException(status_code=400, detail="Invalid image ID or path traversal attempt detected")
 
         # Check if the image path is a directory (new format)
         if not os.path.isdir(image_dir_based_on_id):
             raise HTTPException(status_code=404, detail=f"Image path is not a directory for image ID {image_id}")
 
         # Construct the path for the step image
-        step_image_path = os.path.join(image_dir_based_on_id, "step.png")
+        step_image_path = os.path.normpath(os.path.join(image_dir_based_on_id, "step.png"))
+        if not step_image_path.startswith(images_dir):
+            raise HTTPException(status_code=400, detail="Invalid path traversal attempt detected")
+            
         if not os.path.exists(step_image_path):
             raise HTTPException(status_code=404, detail=f"Step image file not found at {step_image_path}")
 
