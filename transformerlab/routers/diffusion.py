@@ -493,15 +493,31 @@ def get_pipeline(
                     if not isinstance(pipe, StableDiffusionXLPipeline):
                         pipe.load_lora_weights(adaptor_path)
                     else:
-                        # Only for SDXL Pipelines because they use a different kind of UNet
-                        state_dict, network_alphas = pipe.lora_state_dict(adaptor_path, prefix=None)
-                        pipe.load_lora_into_unet(state_dict, network_alphas=network_alphas, unet=pipe.unet)
+                        # pipe.load_lora_weights('Norod78/sdxl-humeow-lora-r16')
+                        json_file_path = os.path.join(adaptor_path,'tlab_adaptor_info.json')
+                        if os.path.exists(json_file_path):
+                            with open(json_file_path, 'r') as f:
+                                adaptor_info = json.load(f)
+                            if adaptor_info.get('tlab_trainer_used') is not None and adaptor_info['tlab_trainer_used'] == True:
+                                # Load LoRA weights
+                                state_dict, network_alphas = pipe.lora_state_dict(adaptor_path, prefix=None)
+                                pipe.load_lora_into_unet(state_dict, network_alphas=network_alphas, unet=pipe.unet)
+                            else:
+                                # Load LoRA weights for non-TFLab adaptors
+                                pipe.load_lora_weights(adaptor_path)
+                        else:
+                            # If no JSON file, assume it's a standard LoRA adaptor
+                            log_print(f"No TFLab adaptor info found for {adaptor}, loading as standard LoRA")
+                            pipe.load_lora_weights(adaptor_path)                               
+                    # pipe.load_lora_weights(adaptor_path)
                     log_print(f"Loaded LoRA adaptor: {adaptor}")
                 else:
-                    log_print(f"Error: Adaptor file not found at {adaptor_path}")
-                    raise FileNotFoundError(f"Adaptor file not found: {adaptor_path}")
+                    log_print(f"Warning: No LoRA adaptor found at {adaptor_path}, trying to load as standard LoRA from Huggingface")
+                    pipe.load_lora_weights(adaptor_path)
             except Exception as e:
                 log_print(f"Warning: Failed to load LoRA adaptor '{adaptor}'")
+                log_print(f"Adaptor path: {adaptor_path}")
+                log_print("Try checking if the adaptor and model are compatible in terms of shapes. Some adaptors may not work with all models even if it is the same architecture.")
                 log_print(f"Error: {str(e)}")
                 # Continue without LoRA rather than failing
 
