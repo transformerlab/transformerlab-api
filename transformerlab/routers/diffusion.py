@@ -1657,7 +1657,7 @@ async def run_multi_gpu_generation(
 
     # Save config to temporary file
     ensure_directories()
-    config_path = os.path.join(get_diffusion_dir(), f"config_{generation_id}.json")
+    config_path = os.path.join(get_diffusion_dir(), secure_filename(f"config_{generation_id}.json"))
     with open(config_path, "w") as f:
         json.dump(config, f, indent=2)
 
