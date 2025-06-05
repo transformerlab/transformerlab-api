@@ -656,7 +656,9 @@ async def generate_image(request: DiffusionRequest):
         print(f"Generation ID: {generation_id}")
         timestamp = datetime.now().isoformat()
          # Validate generation_id to ensure it matches UUID format
-        if not generation_id.isalnum() or len(generation_id) != 36:
+        print("GENERATION ID: ", generation_id.isalnum())
+        print("GENERATION ID LENGTH: ", len(generation_id))
+        if not generation_id.replace("-", "").isalnum() or len(generation_id) != 36:
             raise HTTPException(status_code=400, detail="Invalid generation_id format")
 
         # Create folder for images
@@ -1067,7 +1069,7 @@ async def get_image_by_id(image_id: str, index: int = 0, input_image: bool = Fal
         step_image_path = os.path.normpath(os.path.join(image_dir_based_on_id, "step.png"))
         if not step_image_path.startswith(images_dir):
             raise HTTPException(status_code=400, detail="Invalid path traversal attempt detected")
-            
+
         if not os.path.exists(step_image_path):
             raise HTTPException(status_code=404, detail=f"Step image file not found at {step_image_path}")
 
