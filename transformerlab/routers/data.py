@@ -462,6 +462,7 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
                     return {"status": "error", "message": "Failed to read metadata!"}
 
     metadata_accumulator = {}
+    all_columns = set()
 
     for row in updates:
         file_name = row.get("file_name")
@@ -500,8 +501,10 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
                 continue
             if k == "file_name":
                 metadata_entry[k] = Path(file_name).name
+                all_columns.add("file_name")
             elif v not in [None, "", [], {}]:
                 metadata_entry[k] = v
+                all_columns.add(k)
 
         key = (final_split, final_label)
         metadata_accumulator.setdefault(key, []).append(metadata_entry)
@@ -512,7 +515,8 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
         try:
             with open(metadata_file, "w", encoding="utf-8") as f:
                 for entry in entries:
-                    f.write(json.dumps(entry) + "\n")
+                    full_entry = {col: entry.get(col, "") for col in all_columns}
+                    f.write(json.dumps(full_entry) + "\n")
         except Exception as e:
             logging.error(f"Failed to write metadata file {metadata_file}: {e}")
             return {"status": "error", "message": "Failed to write metadata file!"}
