@@ -9,12 +9,11 @@ from fastapi import APIRouter, Body
 import transformerlab.db as db
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
-from transformerlab.routers.experiment import rag, documents, plugins, conversations, export, evals, generations
-from . import workflows
+from transformerlab.routers.experiment import rag, documents, plugins, conversations, export, evals, generations, workflows
 
 from werkzeug.utils import secure_filename
 
-router = APIRouter(prefix="/experiment", tags=["experiment"])
+router = APIRouter(prefix="/experiment")
 
 router.include_router(router=rag.router, prefix="/{experimentId}", tags=["rag"])
 router.include_router(router=documents.router, prefix="/{experimentId}", tags=["documents"])
