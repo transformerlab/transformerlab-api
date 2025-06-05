@@ -3,12 +3,13 @@ import sqlite3
 from threading import Thread, Event
 from time import sleep
 from huggingface_hub import hf_hub_download, snapshot_download
-from huggingface_hub.utils import GatedRepoError
+from huggingface_hub.utils import GatedRepoError, EntryNotFoundError
 import argparse
 import os
 import sys
 from pathlib import Path
 from multiprocessing import Process, Queue
+from werkzeug.utils import secure_filename
 
 # If there is an error set returncode and error_msg
 # returncode is used by API to know about errors and
@@ -23,42 +24,73 @@ error_msg = False
 
 
 WORKSPACE_DIR = os.environ.get("_TFL_WORKSPACE_DIR")
-
 if WORKSPACE_DIR is None:
-    WORKSPACE_DIR = Path.home() / ".transformerlab" / "workspace"
-    print(f"Using default workspace directory: {WORKSPACE_DIR}")
+    raise EnvironmentError("Environment variable _TFL_WORKSPACE_DIR is not set!")
 
+# Parse arguments
 parser = argparse.ArgumentParser()
-parser.add_argument("--model_name", type=str, required=True)
-parser.add_argument("--model_filename", type=str, required=False)
-parser.add_argument("--allow_patterns", type=str, required=False)
+parser.add_argument("--mode", type=str, choices=["model", "adaptor"], default="model")
 parser.add_argument("--job_id", type=str, required=True)
 parser.add_argument("--total_size_of_model_in_mb", type=float, required=True)
 
+# Args for mode=model
+parser.add_argument("--model_name", type=str)
+parser.add_argument("--model_filename", type=str, required=False)
+parser.add_argument("--allow_patterns", type=str, required=False)
+
+# Args for mode=adaptor
+parser.add_argument("--peft", type=str)
+parser.add_argument("--local_model_id", type=str)
+
 args, other = parser.parse_known_args()
-model = args.model_name
-model_filename = args.model_filename
-job_id = args.job_id
+mode = args.mode
+print(f"MODE IS: {mode}")
 
-# Models can have custom allow_patterns filters
-# Start with a default set of allow_patterns
-# but if we are able to read a list from the passed parameter use that instead
-allow_patterns = ["*.json", "*.safetensors", "*.py", "tokenizer.model", "*.tiktoken", "*.npz", "*.bin"]
-if args.allow_patterns:
-    allow_patterns_json = args.allow_patterns
+if mode == "adaptor":
+    peft = args.peft
+    local_model_id = args.local_model_id
+    job_id = args.job_id
+
+    # Sanitize both model_id and peft
+    safe_model_id = secure_filename(local_model_id)
+    safe_peft = secure_filename(peft)
+
+    # Always set target_dir to WORKSPACE_DIR/adaptors/local_model_id
+    target_dir = os.path.join(WORKSPACE_DIR, "adaptors", safe_model_id, safe_peft)
+    if not os.path.commonpath([target_dir, WORKSPACE_DIR]) == os.path.abspath(WORKSPACE_DIR):
+        raise ValueError("Invalid path after sanitization. Potential security risk.")
+    print(f"DOWNLOADING TO: {target_dir}")
+    os.makedirs(target_dir, exist_ok=True)
+
+    print(f"Downloading adaptor {peft} with job_id {job_id}")
+
+else:
+    model = args.model_name
+    model_filename = args.model_filename
+    job_id = args.job_id
+
+    # Models can have custom allow_patterns filters
+    # Start with a default set of allow_patterns
+    # but if we are able to read a list from the passed parameter use that instead
+    allow_patterns = ["*.json", "*.safetensors", "*.py", "tokenizer.model", "*.tiktoken", "*.npz", "*.bin"]
+    if args.allow_patterns:
+        allow_patterns_json = args.allow_patterns
+        try:
+            converted_json = json.loads(allow_patterns_json)
+            if isinstance(converted_json, list):
+                allow_patterns = converted_json
+        except Exception:
+            pass
+
+    print(f"Downloading model {model} with job_id {job_id}")
+
+
+def do_download(repo_id, queue, allow_patterns=None, mode="model"):
     try:
-        converted_json = json.loads(allow_patterns_json)
-        if isinstance(converted_json, list):
-            allow_patterns = converted_json
-    except Exception:
-        pass
-
-print(f"Downloading model {model} with job_id {job_id}")
-
-
-def do_download(repo_id, allow_patterns, queue):
-    try:
-        snapshot_download(repo_id, allow_patterns=allow_patterns)
+        if mode == "model":
+            snapshot_download(repo_id, allow_patterns=allow_patterns)
+        else:
+            snapshot_download(repo_id=peft, local_dir=target_dir, repo_type="model")
         queue.put("done")
     except Exception as e:
         queue.put(f"error: {str(e)}")
@@ -81,9 +113,12 @@ def cancel_check():
     return False
 
 
-def launch_snapshot_with_cancel(repo_id, allow_patterns):
+def launch_snapshot_with_cancel(repo_id, allow_patterns=None):
     queue = Queue()
-    p = Process(target=do_download, args=(repo_id, allow_patterns, queue))
+    if mode == "model":
+        p = Process(target=do_download, args=(repo_id, queue, allow_patterns, "model"))
+    else:
+        p = Process(target=do_download, args=(repo_id, queue, None, "adaptor"))
     p.start()
 
     while p.is_alive():
@@ -124,50 +159,31 @@ else:
 print("starting script with progressbar updater")
 
 
-# This was an attempt to override tqdm. This works BUT huggingface doesn't pass
-# the tqdm_class to the secondary progress bars and if the file is one big file
-# then the progress bar doesn't report any progress.
-# I leave the code here in case we want to try to override a different
-# tqdm class in the future.
-# class tqdm_transformerlab_database(tqdm):
-#     def __init__(self, *args, **kwargs):
-#         if not kwargs.get('disable'):
-#             kwargs = kwargs.copy()
-#             logging.getLogger("HTTPClient").setLevel(logging.WARNING)
-#             kwargs['mininterval'] = max(1.5, kwargs.get('mininterval', 1.5))
-#         super(tqdm_transformerlab_database, self).__init__(*args, **kwargs)
-
-#     def display(self, **kwargs):
-#         super(tqdm_transformerlab_database, self).display(**kwargs)
-#         fmt = self.format_dict
-#         print("Status:")
-#         print(f"{fmt['n']} of {fmt['total']}")
-#         print(fmt['n'] / fmt['total'] * 100)
-
-#     def clear(self, *args, **kwargs):
-#         super(tqdm_transformerlab_database, self).clear(*args, **kwargs)
-#         if not self.disable:
-#             self.sio.write("")
-
-#     def tsrange(*args, **kwargs):
-#         """Shortcut for `tqdm.contrib.slack.tqdm(range(*args), **kwargs)`."""
-#         return tqdm_transformerlab_database(range(*args), **kwargs)
-
-
 def download_blocking(model_is_downloaded):
     global error_msg, returncode
-    print("Downloading model")
+    print("Downloading")
 
     # NOTE: For now storing size in two fields.
     # Will remove total_size_of_model_in_mb in the future.
-    job_data = json.dumps(
-        {
-            "downloaded": 0,
-            "model": model,
-            "total_size_in_mb": total_size_of_model_in_mb,
-            "total_size_of_model_in_mb": total_size_of_model_in_mb,
-        }
-    )
+    if mode == "adaptor":
+        job_data = json.dumps(
+            {
+                "downloaded": 0,
+                "model": peft,
+                "total_size_in_mb": total_size_of_model_in_mb,
+                "total_size_of_model_in_mb": total_size_of_model_in_mb,
+            }
+        )
+    else:
+        job_data = json.dumps(
+            {
+                "downloaded": 0,
+                "model": model,
+                "total_size_in_mb": total_size_of_model_in_mb,
+                "total_size_of_model_in_mb": total_size_of_model_in_mb,
+            }
+        )
+
     print(job_data)
 
     # Connect to the DB to start the job and then close
@@ -179,57 +195,71 @@ def download_blocking(model_is_downloaded):
     db.execute("UPDATE job SET progress=?, job_data=json(?) WHERE id=?", (0, job_data, job_id))
     db.close()
 
-    if model_filename is not None:
-        # Filename mode means we download just one file from the repo, not the whole repo
-        # This is useful for downloading GGUF repos which contain multiple versions of the model
-        # make the directory if it doesn't exist
-        # Right now the logo is hard coded to assuming if you are downloading one file, you are looking
-        # at GGUF
-        print("downloading model to workspace/models using filename mode")
-        location = f"{WORKSPACE_DIR}/models/{model_filename}"
-        os.makedirs(location, exist_ok=True)
-        hf_hub_download(
-            repo_id=model,
-            filename=model_filename,
-            local_dir=location,
-            local_dir_use_symlinks=True,
-        )
-        # create a file in that same directory called info.json:
-        info = [
-            {
-                "model_id": model_filename,
-                "model_filename": model_filename,
-                "name": model_filename,
-                "stored_in_filesystem": True,
-                "json_data": {
-                    "uniqueId": f"gguf/{model_filename}",
-                    "name": model_filename,
-                    "description": "A GGUF model downloaded from the HuggingFace Hub",
-                    "architecture": "GGUF",
-                    "huggingface_repo": model,
-                    "logo": "https://user-images.githubusercontent.com/1991296/230134379-7181e485-c521-4d23-a0d6-f7b3b61ba524.png",
-                },
-            }
-        ]
-        with open(f"{location}/info.json", "w") as f:
-            f.write(json.dumps(info, indent=2))
-    else:
+    if mode == "adaptor":
         try:
-            # snapshot_download(repo_id=model, allow_patterns=allow_patterns)
-            launch_snapshot_with_cancel(repo_id=model, allow_patterns=allow_patterns)
-
+            launch_snapshot_with_cancel(repo_id=peft)
+            model_is_downloaded.set()
         except GatedRepoError:
             returncode = 77
-            error_msg = f"{model} is a gated HuggingFace model. \
-To continue downloading, you must agree to the terms \
-on the model's Huggingface page."
-
+            error_msg = f"{peft} is a gated adapter. Please accept the license."
+        except EntryNotFoundError:
+            returncode = 1
+            error_msg = f"{peft} does not contain a config.json or is not available."
         except Exception as e:
             returncode = 1
             error_msg = f"{type(e).__name__}: {e}"
+    else:
+        if model_filename is not None:
+            # Filename mode means we download just one file from the repo, not the whole repo
+            # This is useful for downloading GGUF repos which contain multiple versions of the model
+            # make the directory if it doesn't exist
+            # Right now the logo is hard coded to assuming if you are downloading one file, you are looking
+            # at GGUF
+            print("downloading model to workspace/models using filename mode")
+            location = f"{WORKSPACE_DIR}/models/{model_filename}"
+            os.makedirs(location, exist_ok=True)
+            hf_hub_download(
+                repo_id=model,
+                filename=model_filename,
+                local_dir=location,
+                local_dir_use_symlinks=True,
+            )
+            # create a file in that same directory called info.json:
+            info = [
+                {
+                    "model_id": model_filename,
+                    "model_filename": model_filename,
+                    "name": model_filename,
+                    "stored_in_filesystem": True,
+                    "json_data": {
+                        "uniqueId": f"gguf/{model_filename}",
+                        "name": model_filename,
+                        "description": "A GGUF model downloaded from the HuggingFace Hub",
+                        "architecture": "GGUF",
+                        "huggingface_repo": model,
+                        "logo": "https://user-images.githubusercontent.com/1991296/230134379-7181e485-c521-4d23-a0d6-f7b3b61ba524.png",
+                    },
+                }
+            ]
+            with open(f"{location}/info.json", "w") as f:
+                f.write(json.dumps(info, indent=2))
+        else:
+            try:
+                # snapshot_download(repo_id=model, allow_patterns=allow_patterns)
+                launch_snapshot_with_cancel(repo_id=model, allow_patterns=allow_patterns)
 
-    model_is_downloaded.set()
-    print("Downloaded model")
+            except GatedRepoError:
+                returncode = 77
+                error_msg = f"{model} is a gated HuggingFace model. \
+    To continue downloading, you must agree to the terms \
+    on the model's Huggingface page."
+
+            except Exception as e:
+                returncode = 1
+                error_msg = f"{type(e).__name__}: {e}"
+
+        model_is_downloaded.set()
+    print("Download complete")
 
 
 def check_disk_size(model_is_downloaded: Event):
@@ -298,7 +328,7 @@ def main():
     p2.join()
 
     if error_msg:
-        print(f"Error downloading model: {error_msg}")
+        print(f"Error downloading: {error_msg}")
 
         # save to job database
         job_data = json.dumps({"error_msg": str(error_msg)})
