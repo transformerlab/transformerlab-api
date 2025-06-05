@@ -328,14 +328,31 @@ def cleanup_pipeline(pipe=None):
     """Clean up pipeline to free VRAM"""
     try:
         if pipe is not None:
+            # Clean up pipeline components explicitly
+            if hasattr(pipe, 'unet') and pipe.unet is not None:
+                del pipe.unet
+            if hasattr(pipe, 'transformer') and pipe.transformer is not None:
+                del pipe.transformer
+            if hasattr(pipe, 'vae') and pipe.vae is not None:
+                del pipe.vae
+            if hasattr(pipe, 'text_encoder') and pipe.text_encoder is not None:
+                del pipe.text_encoder
+            if hasattr(pipe, 'text_encoder_2') and pipe.text_encoder_2 is not None:
+                del pipe.text_encoder_2
+            if hasattr(pipe, 'scheduler') and pipe.scheduler is not None:
+                del pipe.scheduler
             del pipe
 
-        # Force garbage collection and clear CUDA cache
+        # Force garbage collection multiple times
         gc.collect()
+        gc.collect()  # Second call often helps
 
         if torch.cuda.is_available():
+            # Clear CUDA cache and synchronize multiple times for better cleanup
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
+            torch.cuda.ipc_collect()  # Clean up inter-process communication
+            torch.cuda.empty_cache()  # Second empty_cache call
 
     except Exception as e:
         log_print(f"Warning: Failed to cleanup pipeline: {str(e)}")
@@ -712,61 +729,105 @@ async def generate_image(request: DiffusionRequest):
 
             # Run in thread to avoid blocking event loop
             def run_pipe():
-                # Capture all output during generation
-                with DiffusionOutputCapture():
-                    generation_kwargs = {
-                        "prompt": request.prompt,
-                        "num_inference_steps": request.num_inference_steps,
-                        "guidance_scale": request.guidance_scale,
-                        "generator": generator,
-                        "num_images_per_prompt": request.num_images,  # Generate multiple images
-                    }
+                try:
+                    # Capture all output during generation
+                    with DiffusionOutputCapture():
+                        generation_kwargs = {
+                            "prompt": request.prompt,
+                            "num_inference_steps": request.num_inference_steps,
+                            "guidance_scale": request.guidance_scale,
+                            "generator": generator,
+                            "num_images_per_prompt": request.num_images,  # Generate multiple images
+                        }
 
-                    # Add image and mask for inpainting
-                    if is_inpainting:
-                        generation_kwargs["image"] = input_image_obj
-                        generation_kwargs["mask_image"] = mask_image_obj
-                        generation_kwargs["strength"] = request.strength
-                    # Add image and strength for img2img
-                    elif is_img2img:
-                        generation_kwargs["image"] = input_image_obj
-                        generation_kwargs["strength"] = request.strength
+                        # Add image and mask for inpainting
+                        if is_inpainting:
+                            generation_kwargs["image"] = input_image_obj
+                            generation_kwargs["mask_image"] = mask_image_obj
+                            generation_kwargs["strength"] = request.strength
+                        # Add image and strength for img2img
+                        elif is_img2img:
+                            generation_kwargs["image"] = input_image_obj
+                            generation_kwargs["strength"] = request.strength
 
-                    # Add negative prompt if provided
-                    if request.negative_prompt:
-                        generation_kwargs["negative_prompt"] = request.negative_prompt
+                        # Add negative prompt if provided
+                        if request.negative_prompt:
+                            generation_kwargs["negative_prompt"] = request.negative_prompt
 
-                    if request.eta > 0.0:
-                        generation_kwargs["eta"] = request.eta
+                        if request.eta > 0.0:
+                            generation_kwargs["eta"] = request.eta
 
-                    # Add guidance rescale if provided
-                    if request.guidance_rescale > 0.0:
-                        generation_kwargs["guidance_rescale"] = request.guidance_rescale
+                        # Add guidance rescale if provided
+                        if request.guidance_rescale > 0.0:
+                            generation_kwargs["guidance_rescale"] = request.guidance_rescale
 
-                    # Add clip skip if provided (requires scheduler support)
-                    if request.clip_skip > 0:
-                        generation_kwargs["clip_skip"] = request.clip_skip
+                        # Add clip skip if provided (requires scheduler support)
+                        if request.clip_skip > 0:
+                            generation_kwargs["clip_skip"] = request.clip_skip
 
-                    # Set height and width if specified
-                    if request.height > 0 and request.width > 0:
-                        generation_kwargs["height"] = request.height
-                        generation_kwargs["width"] = request.width
+                        # Set height and width if specified
+                        if request.height > 0 and request.width > 0:
+                            generation_kwargs["height"] = request.height
+                            generation_kwargs["width"] = request.width
 
-                    # Add LoRA scale if adaptor is being used
-                    if request.adaptor and request.adaptor.strip():
-                        generation_kwargs["cross_attention_kwargs"] = {"scale": request.adaptor_scale}
+                        # Add LoRA scale if adaptor is being used
+                        if request.adaptor and request.adaptor.strip():
+                            generation_kwargs["cross_attention_kwargs"] = {"scale": request.adaptor_scale}
 
-                    result = pipe(**generation_kwargs)
-                    return result.images  # Return all images
+                        result = pipe(**generation_kwargs)
+                        images = result.images  # Get all images
+                        
+                        # Clean up result object to free references
+                        del result
+                        del generation_kwargs
+                        
+                        # Force cleanup within the executor thread
+                        import gc
+                        gc.collect()
+                        if torch.cuda.is_available():
+                            torch.cuda.empty_cache()
+                            
+                        return images
+                except Exception as e:
+                    # Ensure cleanup even if generation fails
+                    log_print(f"Error during image generation: {str(e)}")
+                    import gc
+                    gc.collect()
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                    raise e
 
             # Time the main generation
             generation_start = time.time()
             log_print("Starting image generation...")
+            
             images = await asyncio.get_event_loop().run_in_executor(None, run_pipe)
             generation_time = time.time() - generation_start
-
+            
+            # Aggressive cleanup immediately after generation
+            log_print("Starting aggressive memory cleanup...")
+            
             # Clean up the main pipeline to free VRAM
             cleanup_pipeline(pipe)
+            
+            # Additional cleanup: clear any remaining references
+            pipe = None
+            input_image_obj = None
+            mask_image_obj = None
+            generator = None
+            
+            # Force multiple garbage collection cycles
+            import gc
+            for _ in range(3):  # Multiple GC cycles can help
+                gc.collect()
+                
+            # Additional CUDA cleanup
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                torch.cuda.ipc_collect()
+                torch.cuda.empty_cache()  # Second call
+                
+            log_print("Memory cleanup completed")
 
             # Get dimensions from the first image
             first_image = images[0]
