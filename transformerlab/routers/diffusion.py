@@ -250,6 +250,7 @@ class DiffusionRequest(BaseModel):
     upscale: bool = False
     upscale_factor: int = 4
     num_images: int = 1
+    generation_id: str | None = None
 
     @property
     def validated_num_images(self) -> int:
@@ -271,6 +272,8 @@ class DiffusionRequest(BaseModel):
     # Inpainting specific fields
     mask_image: str = ""  # Base64 encoded mask image for inpainting
     is_inpainting: bool = False  # Whether this is an inpainting generation
+    # Intermediate image saving
+    save_intermediate_images: bool = True  # Whether to save intermediate images during generation
 
 
 # Response schema for history
@@ -302,6 +305,8 @@ class ImageHistoryItem(BaseModel):
     # Inpainting specific fields
     mask_image_path: str = ""  # Path to mask image (for inpainting)
     is_inpainting: bool = False  # Whether this was an inpainting generation
+    # Intermediate image saving
+    saved_intermediate_images: bool = True  # Whether intermediate images were saved
 
 
 class HistoryResponse(BaseModel):
@@ -322,6 +327,40 @@ _PIPELINES_LOCK = threading.Lock()
 
 # History file path
 HISTORY_FILE = "history.json"
+
+
+def latents_to_rgb(latents):
+    """Convert SDXL latents (4 channels) to RGB tensors (3 channels)"""
+    weights = (
+        (60, -60, 25, -70),
+        (60,  -5, 15, -50),
+        (60,  10, -5, -35),
+    )
+
+    weights_tensor = torch.t(torch.tensor(weights, dtype=latents.dtype).to(latents.device))
+    biases_tensor = torch.tensor((150, 140, 130), dtype=latents.dtype).to(latents.device)
+    rgb_tensor = torch.einsum("...lxy,lr -> ...rxy", latents, weights_tensor) + biases_tensor.unsqueeze(-1).unsqueeze(-1)
+    image_array = rgb_tensor.clamp(0, 255).byte().cpu().numpy().transpose(1, 2, 0)
+
+    return Image.fromarray(image_array)
+
+
+def create_decode_callback(images_folder):
+    """Create a callback function to decode and save latents at each step"""
+    def decode_tensors(pipe, step, timestep, callback_kwargs):
+        try:
+            latents = callback_kwargs["latents"]
+            # Use the first latent in the batch for preview
+            image = latents_to_rgb(latents[0])
+            step_image_path = os.path.join(images_folder, "step.png")
+            image.save(step_image_path)
+            log_print(f"Saved intermediate image for step {step}")
+        except Exception as e:
+            log_print(f"Warning: Failed to save intermediate image for step {step}: {str(e)}")
+        
+        return callback_kwargs
+    
+    return decode_tensors
 
 
 def cleanup_pipeline(pipe=None):
@@ -612,8 +651,9 @@ async def generate_image(request: DiffusionRequest):
         if request.num_images < 1 or request.num_images > 10:
             raise HTTPException(status_code=400, detail="num_images must be between 1 and 10")
 
-        # Generate unique ID and timestamp
-        generation_id = str(uuid.uuid4())
+        # Use provided generation_id if present, otherwise generate a new one
+        generation_id = request.generation_id if request.generation_id else str(uuid.uuid4())
+        print(f"Generation ID: {generation_id}")
         timestamp = datetime.now().isoformat()
 
         # Create folder for images
@@ -774,6 +814,12 @@ async def generate_image(request: DiffusionRequest):
                         if request.adaptor and request.adaptor.strip():
                             generation_kwargs["cross_attention_kwargs"] = {"scale": request.adaptor_scale}
 
+                        # Add intermediate image saving callback if enabled
+                        if request.save_intermediate_images:
+                            decode_callback = create_decode_callback(images_folder)
+                            generation_kwargs["callback_on_step_end"] = decode_callback
+                            generation_kwargs["callback_on_step_end_tensor_inputs"] = ["latents"]
+
                         result = pipe(**generation_kwargs)
                         images = result.images  # Get all images
                         
@@ -902,10 +948,12 @@ async def generate_image(request: DiffusionRequest):
             # Inpainting specific fields
             mask_image_path=mask_image_path,
             is_inpainting=is_inpainting,
+            # Intermediate image saving
+            saved_intermediate_images=request.save_intermediate_images,
         )
         save_to_history(history_item)
 
-        # Return metadata (no more base64 images)
+        # Return metadata
         return JSONResponse(
             content={
                 "id": generation_id,
@@ -987,7 +1035,7 @@ async def get_history(limit: int = 50, offset: int = 0):
 
 
 @router.get("/history/{image_id}", summary="Get the actual image by ID")
-async def get_image_by_id(image_id: str, index: int = 0, input_image: bool = False, mask_image: bool = False):
+async def get_image_by_id(image_id: str, index: int = 0, input_image: bool = False, mask_image: bool = False, step: bool = False):
     """
     Get an image from history by ID and index
 
@@ -997,6 +1045,22 @@ async def get_image_by_id(image_id: str, index: int = 0, input_image: bool = Fal
         input_image: Whether to return the input image instead of generated image
         mask_image: Whether to return the mask image instead of generated image
     """
+    if step:
+        # If step is requested, we need to check if intermediate images were saved
+        images_dir = get_images_dir()
+        image_dir_based_on_id = os.path.join(images_dir, image_id)
+
+        # Check if the image path is a directory (new format)
+        if not os.path.isdir(image_dir_based_on_id):
+            raise HTTPException(status_code=404, detail=f"Image path is not a directory for image ID {image_id}")
+
+        # Construct the path for the step image
+        step_image_path = os.path.join(image_dir_based_on_id, "step.png")
+        if not os.path.exists(step_image_path):
+            raise HTTPException(status_code=404, detail=f"Step image file not found at {step_image_path}")
+
+        return FileResponse(step_image_path)
+
     # Use the efficient function to find the specific image
     image_item = find_image_by_id(image_id)
 
@@ -1706,3 +1770,15 @@ async def run_multi_gpu_generation(
         except Exception:
             pass
         raise e
+
+
+@router.post("/generate_id", summary="Get a new generation ID for image generation")
+async def get_new_generation_id():
+    """
+    Returns a new unique generation ID and creates the images folder for it.
+    """
+    generation_id = str(uuid.uuid4())
+    ensure_directories()
+    images_folder = os.path.join(get_images_dir(), generation_id)
+    os.makedirs(images_folder, exist_ok=True)
+    return {"generation_id": generation_id, "images_folder": images_folder}

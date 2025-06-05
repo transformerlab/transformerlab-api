@@ -40,6 +40,40 @@ except ImportError:
     VaeImageProcessor = None
 
 
+def latents_to_rgb(latents):
+    """Convert SDXL latents (4 channels) to RGB tensors (3 channels)"""
+    weights = (
+        (60, -60, 25, -70),
+        (60,  -5, 15, -50),
+        (60,  10, -5, -35),
+    )
+
+    weights_tensor = torch.t(torch.tensor(weights, dtype=latents.dtype).to(latents.device))
+    biases_tensor = torch.tensor((150, 140, 130), dtype=latents.dtype).to(latents.device)
+    rgb_tensor = torch.einsum("...lxy,lr -> ...rxy", latents, weights_tensor) + biases_tensor.unsqueeze(-1).unsqueeze(-1)
+    image_array = rgb_tensor.clamp(0, 255).byte().cpu().numpy().transpose(1, 2, 0)
+
+    return Image.fromarray(image_array)
+
+
+def create_decode_callback(output_dir):
+    """Create a callback function to decode and save latents at each step"""
+    def decode_tensors(pipe, step, timestep, callback_kwargs):
+        try:
+            latents = callback_kwargs["latents"]
+            # Use the first latent in the batch for preview
+            image = latents_to_rgb(latents[0])
+            step_image_path = os.path.join(output_dir, "step.png")
+            image.save(step_image_path)
+            print(f"Saved intermediate image for step {step}")
+        except Exception as e:
+            print(f"Warning: Failed to save intermediate image for step {step}: {str(e)}")
+        
+        return callback_kwargs
+    
+    return decode_tensors
+
+
 def setup_device_map(config):
     """Setup device mapping for multi-GPU usage"""
     if not torch.cuda.is_available():
@@ -690,6 +724,14 @@ def main():
         # Add LoRA scale if adaptor is being used
         if adaptor_path and adaptor_path.strip():
             generation_kwargs["cross_attention_kwargs"] = {"scale": adaptor_scale}
+
+        # Add intermediate image saving callback if enabled
+        save_intermediate_images = config.get("save_intermediate_images", False)
+        if save_intermediate_images:
+            decode_callback = create_decode_callback(args.output_dir)
+            generation_kwargs["callback_on_step_end"] = decode_callback
+            generation_kwargs["callback_on_step_end_tensor_inputs"] = ["latents"]
+            print("Enabled intermediate image saving")
 
         # Generate images
         print("Starting image generation...")
