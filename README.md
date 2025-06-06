@@ -58,7 +58,7 @@ Once conda and dependencies are installed, run the following:
 
 ## Updating Requirements
 
-Dependencies are managed with uv (installed separately). Add new requirements to `requirements.in` and regenerate their corresponding `requirements-uv.txt` variations by running the following commands:
+Dependencies are managed with uv (installed separately). Add new requirements to `requirements.in` and to `requirements-rocm.in` (if you want to enable support for AMD GPUs as well) and regenerate their corresponding `requirements-uv.txt` variations by running the following commands:
 
 ```bash
 # GPU enabled requirements for CUDA
