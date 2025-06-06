@@ -1,6 +1,6 @@
 services:
   transformerlab-api:
-    image: transformerlab/api:${VERSION}
+    image: transformerlab/api:v${VERSION}
     container_name: transformerlab-api
     ports:
       - "8338:8338"
