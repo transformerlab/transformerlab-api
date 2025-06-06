@@ -538,8 +538,7 @@ on the model's Huggingface page."
         return {"status": "unauthorized", "message": error_msg}
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
-        # Log the detailed error message
-        print(error_msg)  # Replace with appropriate logging mechanism
+        print(error_msg)
         if job_id:
             await db.job_update_status(job_id, "FAILED", error_msg)
         return {"status": "error", "message": "An internal error has occurred."}
@@ -549,6 +548,34 @@ on the model's Huggingface page."
         if job_id:
             await db.job_update_status(job_id, "FAILED", error_msg)
         return {"status": "error", "message": error_msg}
+
+    # --- Stable Diffusion detection and allow_patterns logic ---
+    # If the model is a Stable Diffusion model, set allow_patterns for SD files
+    sd_patterns = [
+        "*.ckpt",
+        "*.safetensors",
+        "*.pt",
+        "*.bin",
+        "config.json",
+        "model_index.json",
+        "vocab.json",
+        "merges.txt",
+        "tokenizer.json",
+        "*.yaml",
+        "*.yml",
+    ]
+    is_sd = False
+    # Heuristic: check tags or config for 'stable-diffusion' or 'diffusers' or common SD files
+    tags = model_details.get("tags", [])
+    if any("stable-diffusion" in t or "diffusers" in t for t in tags):
+        is_sd = True
+    # Or check for model_index.json or config.json with SD structure
+    files = model_details.get("siblings", [])
+    if any(f.get("rfilename", "").endswith("model_index.json") for f in files):
+        is_sd = True
+    # If detected, set allow_patterns
+    if is_sd:
+        model_details["allow_patterns"] = sd_patterns
 
     return await download_huggingface_model(model, model_details, job_id)
 

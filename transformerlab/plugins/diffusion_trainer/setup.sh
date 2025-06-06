@@ -1,0 +1,1 @@
+uv pip install "peft>=0.15.0"
