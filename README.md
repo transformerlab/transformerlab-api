@@ -66,12 +66,15 @@ uv pip compile requirements.in -o requirements-uv.txt --index=https://download.p
 sed -i 's/\+cu128//g' requirements-uv.txt
 
 # GPU enabled requirements for ROCm
-uv pip compile requirements.in -o requirements-rocm-uv.txt --index=https://download.pytorch.org/whl/rocm6.3
+uv pip compile requirements-rocm.in -o requirements-rocm-uv.txt --index=https://download.pytorch.org/whl/rocm6.3
 sed -i 's/\+rocm6\.3//g' requirements-rocm-uv.txt
 
-# requirements for systems without GPU support
-uv pip compile requirements.in -o requirements-no-gpu-uv.txt --extra-index-url=https://download.pytorch.org/whl/cpu
+# requirements for systems without GPU support (e.g. CPU only, NOT on MacOS)
+uv pip compile requirements.in -o requirements-no-gpu-uv.txt --index=https://download.pytorch.org/whl/cpu
 sed -i 's/\+cpu//g' requirements-no-gpu-uv.txt
+
+# requirements for systems on MacOS (e.g. MacOS only)
+uv pip compile requirements.in -o requirements-no-gpu-uv.txt
 ```
 
 ### NOTES:
