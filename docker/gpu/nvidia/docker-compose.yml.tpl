@@ -1,6 +1,6 @@
 services:
   transformerlab-api:
-    image: transformerlab/api:${VERSION}-cuda
+    image: transformerlab/api:v${VERSION}-cuda
     container_name: transformerlab-api
     ports:
       - "8338:8338"
