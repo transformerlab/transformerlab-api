@@ -12,8 +12,6 @@ from torchvision import transforms
 
 from diffusers import AutoPipelineForText2Image, StableDiffusionPipeline
 
-# Additional pipeline imports will be done conditionally in the save section to avoid import errors
-# SD3 and FLUX pipelines will be imported as needed during save process
 from diffusers.optimization import get_scheduler
 from diffusers.training_utils import cast_training_params, compute_snr
 from diffusers.utils import convert_state_dict_to_diffusers
@@ -28,17 +26,23 @@ def cleanup_pipeline():
         # Force garbage collection and clear CUDA cache
         import gc
 
+       # Force garbage collection multiple times
         gc.collect()
+        gc.collect()  # Second call often helps
 
         if torch.cuda.is_available():
+            # Clear CUDA cache and synchronize multiple times for better cleanup
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
-
+            torch.cuda.ipc_collect()  # Clean up inter-process communication
+            torch.cuda.empty_cache()  # Second empty_cache call
+            
     except Exception as e:
         print(f"Warning: Failed to cleanup pipeline: {str(e)}")
 
 
 cleanup_pipeline()
+
 
 
 def encode_prompt(
@@ -260,6 +264,11 @@ def train_diffusion_lora():
     eval_images_dir = None
     eval_prompt = args.get("eval_prompt", "").strip()
     eval_steps = int(args.get("eval_steps", 1))
+
+    if args.get("model_architecture", "").strip() == "FluxPipeline":
+        print("Disabling evaluation for FluxPipeline as we don't support sharding based inference in the plugin yet.")
+        eval_prompt = None
+        args["eval_prompt"] = None
 
     if eval_prompt:
         eval_images_dir = Path(WORKSPACE_DIR) / "temp" / f"eval_images_{job_id}"
@@ -817,10 +826,10 @@ def train_diffusion_lora():
         if global_step >= max_train_steps:
             break
 
-    # Final evaluation image
-    if eval_prompt:
-        unet.eval()
-        generate_eval_image("final")
+    # # Final evaluation image
+    # if eval_prompt:
+    #     unet.eval()
+    #     generate_eval_image("final")
 
     # Save LoRA weights using the proven working method that worked perfectly with SD 1.5
     unet = unet.to(torch.float32)
