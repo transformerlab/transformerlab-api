@@ -372,8 +372,6 @@ pyjwt==2.10.1
     # via
     #   fastapi-users
     #   msal
-pyrsmi==0.2.0
-    # via -r requirements.in
 python-dateutil==2.9.0.post0
     # via pandas
 python-dotenv==1.0.1
