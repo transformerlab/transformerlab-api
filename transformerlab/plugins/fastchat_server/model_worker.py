@@ -38,6 +38,7 @@ from transformers import set_seed
 worker_id = str(uuid.uuid4())[:8]
 
 
+# Duplicated from transformerlab/plugin_sdk/transformerlab/plugin.py for a temporary import fix
 def setup_model_worker_logger(name: str = "transformerlab") -> logging.Logger:
     """
     Configure and assign a dedicated logger for the FastChat model worker.
