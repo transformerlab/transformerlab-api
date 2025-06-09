@@ -16,7 +16,6 @@ from pathlib import Path
 import traceback
 import uuid
 from typing import List, Optional
-import logging
 
 import numpy as np
 import torch
@@ -31,6 +30,7 @@ from fastchat.modules.exllama import ExllamaConfig
 from fastchat.modules.gptq import GptqConfig
 from fastchat.modules.xfastertransformer import XftConfig
 from fastchat.utils import get_context_length, str_to_torch_dtype
+from transformerlab.plugin import setup_model_worker_logger
 
 from transformers import set_seed
 
