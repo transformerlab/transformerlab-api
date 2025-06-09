@@ -330,11 +330,12 @@ async def dataset_edit_with_template(
                     return {"status": "error", "message": "Failed to read metadata file!"}
 
                 for entry in data:
-                    split = entry.get("split", "train")
+                    split = entry.get("split")
                     if not split:
                         path_parts = Path(root).parts
                         split = next(
-                            (part for part in reversed(path_parts) if part.lower() in ("train", "test")), "train"
+                            (part for part in reversed(path_parts) if part.lower() in ("train", "test", "valid")),
+                            "train",
                         )
 
                     image_rel_path = entry.get("file_name")
@@ -448,7 +449,9 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
                         split = entry.get("split")
                         if not split:
                             path_parts = Path(root).parts
-                            split = next((p for p in reversed(path_parts) if p.lower() in ("train", "test")), "train")
+                            split = next(
+                                (p for p in reversed(path_parts) if p.lower() in ("train", "test", "valid")), "train"
+                            )
                         label = entry.get("label", "")
                         key = file_name
                         source_map[key] = {
@@ -468,7 +471,7 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
         file_name = row.get("file_name")
         final_split = row.get("split", "")
         final_label = row.get("label", "")
-        if final_split not in ["train", "test"]:
+        if final_split not in ["train", "test", "valid"]:
             final_split = "train"
 
         source_info = source_map.get(file_name)
