@@ -70,7 +70,7 @@ async def test_export_experiment():
         )
 
         # Call the export endpoint
-        response = client.get(f"/experiment/{experiment_id}/export")
+        response = client.get(f"/experiment/{experiment_id}/export_to_recipe")
         assert response.status_code == 200
         
         # The response should be a JSON file
