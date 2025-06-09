@@ -104,8 +104,7 @@ if four_bit:
 
 
 print(popen_args)
-env = os.environ.copy()
-proc = subprocess.Popen(popen_args, stderr=subprocess.PIPE, stdout=None, env=env)
+proc = subprocess.Popen(popen_args, stderr=subprocess.PIPE, stdout=None)
 
 # save worker process id to file
 # this will allow transformer lab to kill it later
