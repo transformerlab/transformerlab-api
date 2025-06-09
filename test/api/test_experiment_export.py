@@ -13,7 +13,7 @@ async def test_export_experiment():
     with TestClient(app) as client:
         # Create a test experiment
         test_experiment_name = f"test_export_{os.getpid()}"
-        config = json.dumps({"description": "Test experiment"})
+        config = {"description": "Test experiment"}
         experiment_id = await db.experiment_create(test_experiment_name, config)
 
         # Add a training task
