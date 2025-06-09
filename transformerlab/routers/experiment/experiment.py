@@ -61,7 +61,7 @@ async def experiments_get_all():
 
 @router.get("/create", summary="Create Experiment", tags=["experiment"])
 async def experiments_create(name: str):
-    newid = await db.experiment_create(name, "{}")
+    newid = await db.experiment_create(name, {})
     return newid
 
 
