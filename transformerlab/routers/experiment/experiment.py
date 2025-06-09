@@ -187,8 +187,8 @@ async def experiment_get_file_contents(id: str | int, filename: str):
     return file_contents
 
 
-@router.get("/{id}/export", summary="Export experiment to JSON format", tags=["experiment"])
-async def export_experiment_to_json(id: str | int):
+@router.get("/{id}/export_to_recipe", summary="Export experiment to recipe format", tags=["experiment"])
+async def export_experiment_to_recipe(id: str | int):
     """Export an experiment to JSON format that matches the recipe gallery structure."""
     id = await convert_experiment_name_to_id_if_needed(id)
     
@@ -204,10 +204,21 @@ async def export_experiment_to_json(id: str | int):
     export_data = {
         "title": data["name"],
         "description": config.get("description", ""),
+        "notes": "",
         "dependencies": [],
         "tasks": [],
         "workflows": []
     }
+    
+    # Get the notes content from readme.md if it exists
+    experiment_dir = dirs.experiment_dir_by_name(data["name"])
+    notes_path = os.path.join(experiment_dir, "readme.md")
+    try:
+        with open(notes_path, "r") as f:
+            export_data["notes"] = f.read()
+    except FileNotFoundError:
+        # If no notes file exists, leave it as empty string
+        pass
     
     # Track unique dependencies to avoid duplicates
     added_dependencies = set()
