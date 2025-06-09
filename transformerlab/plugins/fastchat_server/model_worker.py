@@ -12,7 +12,6 @@ import gc
 import json
 import os
 import re
-import sys
 from pathlib import Path
 import traceback
 import uuid
@@ -36,8 +35,8 @@ from fastchat.utils import get_context_length, str_to_torch_dtype
 from transformers import set_seed
 
 
-
 worker_id = str(uuid.uuid4())[:8]
+
 
 def setup_model_worker_logger(name: str = "transformerlab") -> logging.Logger:
     """
@@ -66,7 +65,7 @@ def setup_model_worker_logger(name: str = "transformerlab") -> logging.Logger:
         HOME_DIR = Path.home() / ".transformerlab"
         os.makedirs(name=HOME_DIR, exist_ok=True)
         print(f"Using default home directory: {HOME_DIR}")
-    
+
     GLOBAL_LOG_PATH = os.path.join(HOME_DIR, "transformerlab.log")
 
     logger: logging.Logger = build_logger(name, GLOBAL_LOG_PATH)
@@ -76,10 +75,10 @@ def setup_model_worker_logger(name: str = "transformerlab") -> logging.Logger:
 
     return logger
 
+
 logger = setup_model_worker_logger()
 
 from fastchat.serve.base_model_worker import BaseModelWorker, app  # noqa
-
 
 
 class ModelWorker(BaseModelWorker):
