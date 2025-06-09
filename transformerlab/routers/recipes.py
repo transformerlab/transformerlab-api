@@ -3,6 +3,23 @@ from transformerlab.shared import galleries
 import transformerlab.db as db
 from transformerlab.models import model_helper
 import json
+from transformerlab.routers import (
+    data,
+    model,
+    serverinfo,
+    train,
+    plugins,
+    evals,
+    config,
+    jobs,
+    tasks,
+    prompts,
+    tools,
+    batched_prompts,
+    recipes,
+    users,
+)
+from transformerlab.routers.experiment import workflows as experiment_workflows
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 
@@ -232,10 +249,10 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
             result = {"name": dep_name, "action": "install_workflow"}
             if workflow_config is not None:
                 try:
-                    workflow_id = await workflows_router.workflow_create(
+                    workflow_id = await experiment_workflows.workflow_create(
                         name=dep_name,
                         config=json.dumps(workflow_config),
-                        experiment_id=experiment_id,
+                        experimentId=experiment_id,
                     )
                     result["status"] = f"success: {workflow_id}"
                 except Exception as e:
@@ -356,10 +373,10 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
             workflow_config = workflow_def.get("config", {"nodes": []})
             
             # Create workflow in database using the workflow_create function
-            workflow_id = await workflows_router.workflow_create(
+            workflow_id = await experiment_workflows.workflow_create(
                 name=workflow_name,
                 config=json.dumps(workflow_config),
-                experiment_id=experiment_id
+                experimentId=experiment_id
             )
             
             # Log the workflow creation results

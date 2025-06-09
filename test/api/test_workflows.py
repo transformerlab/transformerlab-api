@@ -5,20 +5,38 @@ from api import app
 
 def test_workflows_list():
     with TestClient(app) as client:
-        resp = client.get("/workflows/list")
+        # First create an experiment
+        exp_name = f"test_exp_{os.getpid()}"
+        exp_resp = client.get(f"/experiment/create?name={exp_name}")
+        assert exp_resp.status_code == 200
+        exp_id = exp_resp.json()
+
+        resp = client.get(f"/experiment/{exp_id}/workflows/list")
         assert resp.status_code == 200
         assert isinstance(resp.json(), list) or isinstance(resp.json(), dict)
 
 
 def test_workflows_delete():
     with TestClient(app) as client:
-        resp = client.get("/workflows/delete/dummy_workflow")
+        # First create an experiment
+        exp_name = f"test_exp_{os.getpid()}"
+        exp_resp = client.get(f"/experiment/create?name={exp_name}")
+        assert exp_resp.status_code == 200
+        exp_id = exp_resp.json()
+
+        resp = client.get(f"/experiment/{exp_id}/workflows/delete/dummy_workflow")
         assert resp.status_code in (200, 404)
 
 
 def test_workflows_create():
     with TestClient(app) as client:
-        resp = client.get("/workflows/create?name=test_workflow")
+        # First create an experiment
+        exp_name = f"test_exp_{os.getpid()}"
+        exp_resp = client.get(f"/experiment/create?name={exp_name}")
+        assert exp_resp.status_code == 200
+        exp_id = exp_resp.json()
+
+        resp = client.get(f"/experiment/{exp_id}/workflows/create?name=test_workflow")
         assert resp.status_code in (200, 400, 404)
 
 
@@ -32,7 +50,7 @@ def test_experiment_workflows_list():
         exp_id = exp_resp.json()
 
         # Create a workflow in the experiment
-        workflow_resp = client.get(f"/workflows/create?name=test_workflow&experiment_id={exp_id}")
+        workflow_resp = client.get(f"/experiment/{exp_id}/workflows/create?name=test_workflow")
         assert workflow_resp.status_code == 200
 
         # Test the new experiment workflows list endpoint
@@ -54,12 +72,12 @@ def test_experiment_workflow_runs():
         exp_id = exp_resp.json()
 
         # Create a workflow in the experiment
-        workflow_resp = client.get(f"/workflows/create?name=test_workflow&experiment_id={exp_id}")
+        workflow_resp = client.get(f"/experiment/{exp_id}/workflows/create?name=test_workflow")
         assert workflow_resp.status_code == 200
         workflow_id = workflow_resp.json()
 
         # Queue the workflow to create a run
-        queue_resp = client.get(f"/workflows/{workflow_id}/start")
+        queue_resp = client.get(f"/experiment/{exp_id}/workflows/{workflow_id}/start")
         assert queue_resp.status_code == 200
 
         # Test the new experiment workflow runs endpoint
