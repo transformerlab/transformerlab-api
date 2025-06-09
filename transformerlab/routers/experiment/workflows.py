@@ -1,4 +1,5 @@
 from fastapi import APIRouter, UploadFile, Body
+from fastapi.responses import FileResponse
 import transformerlab.db as db
 import transformerlab.routers.tasks as tsks
 import json
@@ -24,8 +25,12 @@ async def workflow_runs_get_in_experiment(experimentId: int):
 async def workflow_delete(workflow_id: str, experimentId: int):
     # Verify workflow belongs to experiment before deleting
     workflow = await db.workflows_get_by_id(workflow_id)
+    if not workflow:
+        return {"message": "Workflow not found"}
+        
     if str(workflow["experiment_id"]) != str(experimentId):
         return {"error": "Workflow does not belong to this experiment"}
+        
     await db.workflow_delete_by_id(workflow_id)
     return {"message": "OK"}
 
