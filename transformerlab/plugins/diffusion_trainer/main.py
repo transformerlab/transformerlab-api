@@ -611,26 +611,35 @@ def train_diffusion_lora():
         caption_column = args.get("caption_column", "text")
         trigger_word = args.get("trigger_word", "").strip()
         caption_dropout_rate = float(args.get("caption_dropout_rate", 0.0))
+        
+        # Check if caption column exists in the dataset
+        if caption_column not in examples:
+            print(f"Warning: Caption column '{caption_column}' not found in dataset. Training on images only (caption dropout = 1.0)")
+            # Create empty captions for all examples and force caption dropout
+            num_examples = len(next(iter(examples.values())))  # Get number of examples from any column
+            captions = [""] * num_examples
+            caption_dropout_rate = 1.0  # Force complete caption dropout
+        else:
+            # Process captions normally
+            for caption in examples[caption_column]:
+                if isinstance(caption, str):
+                    processed_caption = caption
+                elif isinstance(caption, (list, np.ndarray)):
+                    processed_caption = random.choice(caption) if is_train else caption[0]
+                else:
+                    raise ValueError(
+                        f"Caption column `{caption_column}` should contain either strings or lists of strings."
+                    )
 
-        for caption in examples[caption_column]:
-            if isinstance(caption, str):
-                processed_caption = caption
-            elif isinstance(caption, (list, np.ndarray)):
-                processed_caption = random.choice(caption) if is_train else caption[0]
-            else:
-                raise ValueError(
-                    f"Caption column `{caption_column}` should contain either strings or lists of strings."
-                )
+                # Add caption dropout for better unconditional generation
+                if is_train and caption_dropout_rate > 0 and random.random() < caption_dropout_rate:
+                    processed_caption = ""  # Drop caption to train unconditional
+                else:
+                    # Add trigger word to the beginning of the caption if specified
+                    if trigger_word:
+                        processed_caption = f"{trigger_word}, {processed_caption}"
 
-            # Add caption dropout for better unconditional generation
-            if is_train and caption_dropout_rate > 0 and random.random() < caption_dropout_rate:
-                processed_caption = ""  # Drop caption to train unconditional
-            else:
-                # Add trigger word to the beginning of the caption if specified
-                if trigger_word:
-                    processed_caption = f"{trigger_word}, {processed_caption}"
-
-            captions.append(processed_caption)
+                captions.append(processed_caption)
 
         # Primary tokenizer (always present)
         inputs = tokenizer(
