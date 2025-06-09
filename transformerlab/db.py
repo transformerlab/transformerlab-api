@@ -51,6 +51,26 @@ async def init():
     async with async_engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
 
+    # Check if experiment_id column exists in workflow_runs table
+    cursor = await db.execute("PRAGMA table_info(workflow_runs)")
+    columns = await cursor.fetchall()
+    has_experiment_id = any(column[1] == "experiment_id" for column in columns)
+    
+    if not has_experiment_id:
+        # Add experiment_id column
+        await db.execute("ALTER TABLE workflow_runs ADD COLUMN experiment_id INTEGER")
+        
+        # Update existing workflow runs with experiment_id from their workflows
+        await db.execute("""
+            UPDATE workflow_runs 
+            SET experiment_id = (
+                SELECT experiment_id 
+                FROM workflows 
+                WHERE workflows.id = workflow_runs.workflow_id
+            )
+        """)
+        await db.commit()
+
     print("✅ Database initialized")
 
     print("✅ SEED DATA")
@@ -1097,11 +1117,25 @@ async def workflow_runs_delete_all():
 
 
 async def workflow_queue(workflow_id):
-    workflow_name = (await workflows_get_by_id(workflow_id))["name"]
+    workflow = await workflows_get_by_id(workflow_id)
+    workflow_name = workflow["name"]
+    experiment_id = workflow["experiment_id"]
     await db.execute(
-        "INSERT INTO workflow_runs(workflow_id, workflow_name, job_ids, node_ids, status, current_tasks, current_job_ids) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (workflow_id, workflow_name, "[]", "[]", "QUEUED", "[]", "[]"),
+        "INSERT INTO workflow_runs(workflow_id, workflow_name, job_ids, node_ids, status, current_tasks, current_job_ids, experiment_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (workflow_id, workflow_name, "[]", "[]", "QUEUED", "[]", "[]", experiment_id),
     )
+
+async def workflow_runs_get_from_experiment(experiment_id):
+    cursor = await db.execute(
+        "SELECT * FROM workflow_runs WHERE experiment_id = ? AND status != 'DELETED' ORDER BY created_at desc",
+        (experiment_id,),
+    )
+    rows = await cursor.fetchall()
+    desc = cursor.description
+    column_names = [col[0] for col in desc]
+    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
+    await cursor.close()
+    return data
 
 
 ###############

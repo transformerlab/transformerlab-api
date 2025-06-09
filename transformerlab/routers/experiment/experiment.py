@@ -9,7 +9,7 @@ from fastapi import APIRouter, Body
 import transformerlab.db as db
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
-from transformerlab.routers.experiment import rag, documents, plugins, conversations, export, evals, generations
+from transformerlab.routers.experiment import rag, documents, plugins, conversations, export, evals, generations, workflows
 
 from werkzeug.utils import secure_filename
 
@@ -22,6 +22,7 @@ router.include_router(router=conversations.router, prefix="/{experimentId}", tag
 router.include_router(router=export.router, prefix="/{id}", tags=["export"])
 router.include_router(router=evals.router, prefix="/{experimentId}", tags=["evals"])
 router.include_router(router=generations.router, prefix="/{experimentId}", tags=["generations"])
+router.include_router(router=workflows.router, prefix="/{experimentId}", tags=["workflows"])
 
 
 EXPERIMENTS_DIR: str = dirs.EXPERIMENTS_DIR

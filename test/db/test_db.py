@@ -76,6 +76,7 @@ from transformerlab.db import (
     update_training_template,
     delete_training_template,
     export_job_create,
+    workflow_runs_get_from_experiment,
 )
 
 import pytest
@@ -610,6 +611,28 @@ class TestWorkflows:
         await workflow_delete_all()
         workflows = await workflows_get_all()
         assert len(workflows) == 0
+
+    @pytest.mark.asyncio
+    async def test_experiment_workflow_routes(self, test_experiment):
+        # Create a workflow in the experiment
+        workflow_id = await workflow_create("test_workflow", "{}", test_experiment)
+        
+        # Queue the workflow to create a workflow run
+        await workflow_queue(workflow_id)
+        
+        # Test getting workflows in experiment
+        workflows = await workflows_get_from_experiment(test_experiment)
+        assert isinstance(workflows, list)
+        assert len(workflows) > 0
+        assert workflows[0]["experiment_id"] == test_experiment
+        assert workflows[0]["id"] == workflow_id
+        
+        # Test getting workflow runs in experiment
+        workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
+        assert isinstance(workflow_runs, list)
+        assert len(workflow_runs) > 0
+        assert workflow_runs[0]["experiment_id"] == test_experiment
+        assert workflow_runs[0]["workflow_id"] == workflow_id
 
 
 # Additional test for experiment_get_by_name which has partial coverage
