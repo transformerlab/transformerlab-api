@@ -150,7 +150,7 @@ app = fastapi.FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -445,6 +445,8 @@ def run():
     args = parse_args()
 
     print(f"args: {args}")
+    if args.allowed_origins == ["*"]:
+        args.allowed_credentials = False
 
     app.add_middleware(
         CORSMiddleware,
