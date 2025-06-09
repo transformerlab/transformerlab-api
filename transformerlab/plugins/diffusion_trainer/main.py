@@ -1,5 +1,8 @@
 import math
 import random
+import json
+import os
+import gc
 from pathlib import Path
 
 import numpy as np
@@ -16,6 +19,13 @@ from diffusers.optimization import get_scheduler
 from diffusers.training_utils import cast_training_params, compute_snr
 from diffusers.utils import convert_state_dict_to_diffusers
 
+# Try to import xformers for memory optimization
+try:
+    import xformers
+    xformers_available = True
+except ImportError:
+    xformers_available = False
+
 from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import WORKSPACE_DIR
 
@@ -23,10 +33,7 @@ from transformerlab.plugin import WORKSPACE_DIR
 def cleanup_pipeline():
     """Clean up pipeline to free VRAM"""
     try:
-        # Force garbage collection and clear CUDA cache
-        import gc
-
-       # Force garbage collection multiple times
+        # Force garbage collection multiple times
         gc.collect()
         gc.collect()  # Second call often helps
 
@@ -43,6 +50,68 @@ def cleanup_pipeline():
 
 cleanup_pipeline()
 
+
+def compute_loss_weighting(args, timesteps, noise_scheduler):
+    """
+    Compute loss weighting for improved training stability.
+    Supports min-SNR weighting similar to Kohya's implementation.
+    """
+    if args.get("min_snr_gamma") is not None and args.get("min_snr_gamma") != "":
+        snr = compute_snr(noise_scheduler, timesteps)
+        min_snr_gamma = float(args.get("min_snr_gamma"))
+        snr_weight = torch.stack([snr, min_snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0] / snr
+        return snr_weight
+    elif args.get("snr_gamma") is not None and args.get("snr_gamma") != "":
+        snr = compute_snr(noise_scheduler, timesteps)
+        mse_loss_weights = torch.stack([snr, float(args["snr_gamma"]) * torch.ones_like(timesteps)], dim=1).min(dim=1)[0]
+        if noise_scheduler.config.prediction_type == "epsilon":
+            mse_loss_weights = mse_loss_weights / snr
+        elif noise_scheduler.config.prediction_type == "v_prediction":
+            mse_loss_weights = mse_loss_weights / (snr + 1)
+        return mse_loss_weights
+    return None
+
+
+def compute_loss(model_pred, target, timesteps, noise_scheduler, args):
+    """
+    Compute loss with support for different loss types and weighting schemes.
+    """
+    loss_type = args.get("loss_type", "l2")
+    
+    if loss_type == "l2":
+        loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
+    elif loss_type == "huber":
+        loss = F.smooth_l1_loss(
+            model_pred.float(), 
+            target.float(), 
+            reduction="none", 
+            beta=args.get("huber_c", 0.1)
+        )
+    else:
+        loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
+    
+    # Apply loss weighting if specified
+    loss_weights = compute_loss_weighting(args, timesteps, noise_scheduler)
+    print(f"Loss type: {loss_type}, Loss shape: {loss.shape}, Loss weights: {loss_weights}, Loss: {loss.mean()}")
+
+    if loss_weights is not None and not torch.all(loss_weights == 0):
+        loss = loss.mean(dim=list(range(1, len(loss.shape)))) * loss_weights
+        return loss.mean()
+    else:
+        return loss.mean()
+
+
+def compute_time_ids(original_size, crops_coords_top_left, target_size, dtype, device, weight_dtype=None):
+    """
+    Compute time IDs for SDXL conditioning.
+    """
+    if weight_dtype is None:
+        weight_dtype = dtype
+
+    # Adapted from pipeline.StableDiffusionXLPipeline._get_add_time_ids
+    add_time_ids = list(original_size + crops_coords_top_left + target_size)
+    add_time_ids = torch.tensor([add_time_ids], dtype=weight_dtype, device=device)
+    return add_time_ids
 
 
 def encode_prompt(
@@ -333,6 +402,25 @@ def train_diffusion_lora():
     if text_encoder_2 is not None:
         text_encoder_2.requires_grad_(False)
 
+    # Enable xFormers memory efficient attention if available
+    if args.get("enable_xformers_memory_efficient_attention", False) and xformers_available:
+        try:
+            unet.enable_xformers_memory_efficient_attention()
+            if hasattr(vae, "enable_xformers_memory_efficient_attention"):
+                vae.enable_xformers_memory_efficient_attention()
+            print("xFormers memory efficient attention enabled")
+        except Exception as e:
+            print(f"Failed to enable xFormers: {e}")
+
+    # Enable gradient checkpointing for memory savings
+    if args.get("gradient_checkpointing", False):
+        unet.enable_gradient_checkpointing()
+        if hasattr(text_encoder, "gradient_checkpointing_enable"):
+            text_encoder.gradient_checkpointing_enable()
+        if text_encoder_2 is not None and hasattr(text_encoder_2, "gradient_checkpointing_enable"):
+            text_encoder_2.gradient_checkpointing_enable()
+        print("Gradient checkpointing enabled")
+
     # Mixed precision
     weight_dtype = torch.float32
     mixed_precision = args.get("mixed_precision", None)
@@ -401,12 +489,46 @@ def train_diffusion_lora():
 
     lora_layers = filter(lambda p: p.requires_grad, unet.parameters())
 
+    # EMA (Exponential Moving Average) for more stable training - Memory optimized for LoRA
+    ema_unet = None
+    if args.get("use_ema", False):
+        try:
+            from diffusers.training_utils import EMAModel
+            # Only apply EMA to LoRA parameters to save memory
+            lora_parameters = [p for p in unet.parameters() if p.requires_grad]
+            if lora_parameters:
+                # Calculate memory usage before EMA
+                if torch.cuda.is_available():
+                    memory_before_ema = torch.cuda.memory_allocated() / (1024**3)
+                    print(f"GPU memory before EMA: {memory_before_ema:.2f}GB")
+                
+                ema_unet = EMAModel(lora_parameters, decay=args.get("ema_decay", 0.9999))
+                
+                # Calculate memory usage after EMA
+                if torch.cuda.is_available():
+                    memory_after_ema = torch.cuda.memory_allocated() / (1024**3)
+                    memory_increase = memory_after_ema - memory_before_ema
+                    print(f"GPU memory after EMA: {memory_after_ema:.2f}GB (increase: {memory_increase:.2f}GB)")
+                
+                print(f"EMA enabled for LoRA parameters only ({len(lora_parameters)} parameters) - Memory optimized")
+            else:
+                print("Warning: No trainable LoRA parameters found for EMA")
+        except ImportError:
+            print("Warning: EMA requested but diffusers.training_utils.EMAModel not available")
+        except Exception as e:
+            print(f"Warning: EMA initialization failed: {e}")
+            print("Continuing training without EMA to avoid memory issues")
+            ema_unet = None
+
     # Create evaluation pipeline function
     def generate_eval_image(epoch):
         if not eval_prompt or not eval_images_dir:
             return
 
         print(f"Generating evaluation image for epoch {epoch}...")
+
+        # Set UNet to evaluation mode
+        unet.eval()
 
         # Create pipeline with current model state using AutoPipelineForText2Image
         pipeline = AutoPipelineForText2Image.from_pretrained(
@@ -426,8 +548,8 @@ def train_diffusion_lora():
         with torch.no_grad():
             image = pipeline(
                 eval_prompt,
-                num_inference_steps=50,
-                guidance_scale=7.5,
+                num_inference_steps=int(args.get("eval_num_inference_steps", 50)),
+                guidance_scale= float(args.get("eval_guidance_scale", 7.5)),
                 height=int(args.get("resolution", 512)),
                 width=int(args.get("resolution", 512)),
             ).images[0]
@@ -438,25 +560,57 @@ def train_diffusion_lora():
 
         print(f"Evaluation image saved to: {image_path}")
 
-    # Data transforms
+    # Data transforms with enhanced augmentation (similar to Kohya)
     interpolation = getattr(transforms.InterpolationMode, args.get("image_interpolation_mode", "lanczos").upper(), None)
     args["resolution"] = int(args.get("resolution", 512))
-    train_transforms = transforms.Compose(
-        [
-            transforms.Resize(args.get("resolution", 512), interpolation=interpolation),
-            transforms.CenterCrop(args.get("resolution", 512))
-            if args.get("center_crop", False)
-            else transforms.RandomCrop(args.get("resolution", 512)),
-            transforms.RandomHorizontalFlip() if args.get("random_flip", False) else transforms.Lambda(lambda x: x),
-            transforms.ToTensor(),
-            transforms.Normalize([0.5], [0.5]),
-        ]
-    )
+    
+    # Build transforms list conditionally
+    transform_list = [
+        transforms.Resize(args.get("resolution", 512), interpolation=interpolation),
+    ]
+    
+    # Add cropping
+    if args.get("center_crop", False):
+        transform_list.append(transforms.CenterCrop(args.get("resolution", 512)))
+    else:
+        transform_list.append(transforms.RandomCrop(args.get("resolution", 512)))
+    
+    # Add augmentations
+    if args.get("random_flip", False):
+        transform_list.append(transforms.RandomHorizontalFlip())
+    
+    # Add color augmentations if enabled
+    if args.get("color_jitter", False):
+        transform_list.append(
+            transforms.ColorJitter(
+                brightness=args.get("color_jitter_brightness", 0.1),
+                contrast=args.get("color_jitter_contrast", 0.1),
+                saturation=args.get("color_jitter_saturation", 0.1),
+                hue=args.get("color_jitter_hue", 0.05)
+            )
+        )
+    
+    # Add rotation if enabled
+    if args.get("random_rotation", False):
+        transform_list.append(
+            transforms.RandomApply([
+                transforms.RandomRotation(args.get("rotation_degrees", 5))
+            ], p=args.get("rotation_prob", 0.3))
+        )
+    
+    # Final transforms
+    transform_list.extend([
+        transforms.ToTensor(),
+        transforms.Normalize([0.5], [0.5]),
+    ])
+    
+    train_transforms = transforms.Compose(transform_list)
 
     def tokenize_captions(examples, is_train=True):
         captions = []
         caption_column = args.get("caption_column", "text")
         trigger_word = args.get("trigger_word", "").strip()
+        caption_dropout_rate = float(args.get("caption_dropout_rate", 0.0))
 
         for caption in examples[caption_column]:
             if isinstance(caption, str):
@@ -468,9 +622,13 @@ def train_diffusion_lora():
                     f"Caption column `{caption_column}` should contain either strings or lists of strings."
                 )
 
-            # Add trigger word to the beginning of the caption if specified
-            if trigger_word:
-                processed_caption = f"{trigger_word}, {processed_caption}"
+            # Add caption dropout for better unconditional generation
+            if is_train and caption_dropout_rate > 0 and random.random() < caption_dropout_rate:
+                processed_caption = ""  # Drop caption to train unconditional
+            else:
+                # Add trigger word to the beginning of the caption if specified
+                if trigger_word:
+                    processed_caption = f"{trigger_word}, {processed_caption}"
 
             captions.append(processed_caption)
 
@@ -785,27 +943,34 @@ def train_diffusion_lora():
 
             model_pred = unet(noisy_latents, **unet_kwargs)[0]
 
-            if args.get("snr_gamma", None) is None or args["snr_gamma"] == "":
-                loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
-            else:
-                snr = compute_snr(noise_scheduler, timesteps)
-                mse_loss_weights = torch.stack([snr, args["snr_gamma"] * torch.ones_like(timesteps)], dim=1).min(dim=1)[
-                    0
-                ]
-                if noise_scheduler.config.prediction_type == "epsilon":
-                    mse_loss_weights = mse_loss_weights / snr
-                elif noise_scheduler.config.prediction_type == "v_prediction":
-                    mse_loss_weights = mse_loss_weights / (snr + 1)
-                loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
-                loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
-                loss = loss.mean()
+            # Use improved loss computation with support for different loss types and weighting
+            loss = compute_loss(model_pred, target, timesteps, noise_scheduler, args)
+            print(f"Step {step + 1}/{len(train_dataloader)} - Loss: {loss.item()}")
 
             loss.backward()
-            if (step + 1) % gradient_accumulation_steps == 0:
+
+            if (step + 1) % gradient_accumulation_steps == 0 or (step + 1) == len(train_dataloader):
                 torch.nn.utils.clip_grad_norm_(list(lora_layers), float(args.get("max_grad_norm", 1.0)))
                 optimizer.step()
                 lr_scheduler.step()
                 optimizer.zero_grad()
+                
+                # Update EMA if enabled (only for LoRA parameters)
+                if ema_unet is not None:
+                    try:
+                        # Only step EMA with LoRA parameters to match initialization
+                        lora_parameters_for_ema = [p for p in unet.parameters() if p.requires_grad]
+                        if lora_parameters_for_ema:
+                            ema_unet.step(lora_parameters_for_ema)
+                    except Exception as e:
+                        print(f"Warning: EMA step failed: {e}")
+                        print("Disabling EMA for the rest of training to prevent memory issues")
+                        ema_unet = None
+                
+                # Memory cleanup after gradient accumulation to prevent OOM
+                if torch.cuda.is_available() and global_step % 10 == 0:  # Every 10 steps
+                    torch.cuda.empty_cache()
+                
                 global_step += 1
 
                 # Progress reporting
@@ -813,6 +978,20 @@ def train_diffusion_lora():
                 tlab_trainer.progress_update(percent_complete)
                 tlab_trainer.log_metric("train/loss", loss.item(), global_step)
                 tlab_trainer.log_metric("train/lr", lr_scheduler.get_last_lr()[0], global_step)
+                
+                # Log memory usage periodically when EMA is enabled
+                if torch.cuda.is_available() and ema_unet is not None and global_step % 50 == 0:
+                    memory_used = torch.cuda.memory_allocated() / (1024**3)
+                    memory_reserved = torch.cuda.memory_reserved() / (1024**3)
+                    tlab_trainer.log_metric("train/gpu_memory_used_gb", memory_used, global_step)
+                    tlab_trainer.log_metric("train/gpu_memory_reserved_gb", memory_reserved, global_step)
+                    print(f"Step {global_step}: GPU memory used: {memory_used:.2f}GB, reserved: {memory_reserved:.2f}GB")
+                
+                # Log additional metrics for monitoring
+                if global_step % 10 == 0:  # Log every 10 steps to avoid spam
+                    tlab_trainer.log_metric("train/epoch", epoch, global_step)
+                    if args.get("snr_gamma") is not None or args.get("min_snr_gamma") is not None:
+                        tlab_trainer.log_metric("train/snr_weighted_loss", loss.item(), global_step)
 
                 if global_step >= max_train_steps:
                     break
