@@ -117,7 +117,7 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
         setup_script_name = plugin_index["setup-script"]
         # Use bash -c to properly source the activation script before running setup script
         proc = await asyncio.create_subprocess_shell(
-            f"bash -c 'source {venv_path}/bin/activate && bash {setup_script_name}'",
+            f"source {venv_path}/bin/activate; bash {setup_script_name}",
             cwd=new_directory,
             stdout=log_file,
             stderr=log_file,
@@ -199,16 +199,11 @@ async def install_plugin(plugin_id: str):
             additional_flags = "--index 'https://download.pytorch.org/whl/cpu'"
 
         print(f"Using requirements file: {requirements_file_path}")
-        env = os.environ.copy()
-        env["VIRTUAL_ENV"] = venv_path
-        env["PATH"] = f"{venv_path}/bin:" + env["PATH"]
-        cmd = f"uv pip sync {requirements_file_path} {additional_flags}"
         proc = await asyncio.create_subprocess_shell(
-            cmd,
+            f"source {venv_path}/bin/activate; uv pip sync {requirements_file_path} {additional_flags}",
             cwd=new_directory,
             stdout=log_file,
             stderr=log_file,
-            env=env,
         )
         returncode = await proc.wait()
         if returncode == 0:
