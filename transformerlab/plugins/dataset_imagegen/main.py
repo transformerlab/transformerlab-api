@@ -85,23 +85,8 @@ def run_generation():
 
     # Save full metadata
     df = pd.DataFrame(final_outputs)
-    output_path, dataset_name = tlab_gen.save_generated_dataset(df)
+    output_path, dataset_name = tlab_gen.save_generated_dataset(df, is_image=True)
     print(f"Dataset saved to {output_path}")
-
-    # Write simplified metadata.jsonl for UI
-    jsonl_path = os.path.join(output_dir, "metadata.jsonl")
-    columns = ["file_name", "prompt"] + (["negative_prompt"] if negative_column else [])
-    df[columns].to_json(jsonl_path, orient="records", lines=True)
-    print(f"metadata.jsonl written to: {jsonl_path}")
-
-    # Delete the original auto-saved .json
-    auto_json = os.path.join(output_dir, f"{tlab_gen.params.run_name}_{tlab_gen.params.job_id}.json")
-    if os.path.exists(auto_json):
-        try:
-            os.remove(auto_json)
-            print(f"Deleted auto-generated file: {auto_json}")
-        except Exception as e:
-            print(f"Failed to delete auto-generated file: {e}")
 
     return True
 

@@ -43,7 +43,7 @@ class GenTLabPlugin(TLabPlugin):
                 self.params[key] = arg
                 key = None
 
-    def save_generated_dataset(self, df, additional_metadata=None, dataset_id=None, suffix=None):
+    def save_generated_dataset(self, df, additional_metadata=None, dataset_id=None, suffix=None, is_image=False):
         """Save generated data to file and create dataset in TransformerLab
 
         Args:
@@ -59,33 +59,39 @@ class GenTLabPlugin(TLabPlugin):
         output_dir = self.get_output_file_path(dir_only=True)
         os.makedirs(output_dir, exist_ok=True)
 
-        # Save to file
-        if suffix is not None:
-            output_file = os.path.join(output_dir, f"{self.params.run_name}_{self.params.job_id}_{suffix}.json")
+        if is_image:
+            lines = True
+            output_file = os.path.join(output_dir, "metadata.jsonl")
+            if dataset_id is None:
+                dataset_id = f"{self.params.run_name}_{self.params.job_id}".lower()
         else:
-            output_file = os.path.join(output_dir, f"{self.params.run_name}_{self.params.job_id}.json")
+            lines = False
+            if suffix is not None:
+                output_file = os.path.join(output_dir, f"{self.params.run_name}_{self.params.job_id}_{suffix}.json")
+            else:
+                output_file = os.path.join(output_dir, f"{self.params.run_name}_{self.params.job_id}.json")
 
-        if dataset_id is None:
-            # Makes /Users/xx/yy.json to yy
-            dataset_id = Path(output_file).stem
-        df.to_json(output_file, orient="records", lines=False)
+            if dataset_id is None:
+                # Makes /Users/xx/yy.json to yy
+                dataset_id = Path(output_file).stem
+            # Store metadata
+            metadata = {
+                "generation_model": self.params.generation_model,
+                "generation_type": getattr(self, "generation_type", "scratch"),
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "sample_count": len(df),
+            }
+
+            if additional_metadata:
+                metadata.update(additional_metadata)
+
+            # Save metadata
+            metadata_file = os.path.join(output_dir, f"{self.params.run_name}_{self.params.job_id}_metadata.json")
+            with open(metadata_file, "w") as f:
+                json.dump(metadata, f, indent=2)
+
+        df.to_json(output_file, orient="records", lines=lines)
         print(f"Generated data saved to {output_file}")
-
-        # Store metadata
-        metadata = {
-            "generation_model": self.params.generation_model,
-            "generation_type": getattr(self, "generation_type", "scratch"),
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "sample_count": len(df),
-        }
-
-        if additional_metadata:
-            metadata.update(additional_metadata)
-
-        # Save metadata
-        metadata_file = os.path.join(output_dir, f"{self.params.run_name}_{self.params.job_id}_metadata.json")
-        with open(metadata_file, "w") as f:
-            json.dump(metadata, f, indent=2)
 
         # Upload to TransformerLab as a dataset
         try:
