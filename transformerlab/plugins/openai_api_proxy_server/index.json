@@ -6,6 +6,7 @@
   "type": "loader",
   "version": "1.0.11",
   "model_architectures": [
+    "LlamaForCausalLM"
   ],
   "supported_hardware_architectures": ["cpu"],
   "files": ["main.py", "setup.sh"],
@@ -15,12 +16,12 @@
       "title": "Maximum Model Length",
       "type": "integer"
     },
-    "proxy_url": {
+    "proxy-url": {
       "title": "Set Proxy URL",
       "type": "string",
-      "default": "http://localhost:8000/v1/chat/completions"
+      "default": "http://localhost:11434/v1/chat/completions"
     },
-    "api_key": {
+    "api-key": {
       "title": "Set API Key",
       "type": "string"
     }

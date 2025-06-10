@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-uv pip install openai
+uv pip install vllm

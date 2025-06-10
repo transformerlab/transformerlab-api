@@ -25,6 +25,20 @@ parameters = json.loads(parameters)
 
 print("Starting OpenAI API Proxy Server", file=sys.stderr)
 
+# Now go through the parameters object and remove the key that is equal to "inferenceEngine":
+if "inferenceEngine" in parameters:
+    del parameters["inferenceEngine"]
+
+if "max-model-len" in parameters:
+    if parameters["max-model-len"] == "":
+        del parameters["max-model-len"]
+
+if "inferenceEngineFriendlyName" in parameters:
+    del parameters["inferenceEngineFriendlyName"]
+
+if "num_gpus" in parameters:
+    del parameters["num_gpus"]
+
 
 # Get plugin directory
 real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
