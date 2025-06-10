@@ -434,6 +434,12 @@
         "name": "synthesizer_scratch"
       }
     ],
+    "documents": [
+      {
+        "url": "https://sample-files.com/downloads/compressed/zip/basic-text.zip",
+        "folder": "test_text_date"
+      }
+    ],
     "tasks": [
       {
         "name": "fine_tune_touch_rugby",
