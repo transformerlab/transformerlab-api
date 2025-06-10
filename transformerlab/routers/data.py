@@ -3,14 +3,15 @@ import os
 import shutil
 import json
 import aiofiles
-import base64
-from io import BytesIO
-from PIL.Image import Image as PILImage
+from PIL import Image as PILImage
 from datasets import load_dataset, load_dataset_builder
 from fastapi import APIRouter, HTTPException, UploadFile, Query
+import csv
 from pydantic import BaseModel
 from typing import Dict, Any
-
+from io import BytesIO
+import base64
+from pathlib import Path
 import transformerlab.db as db
 from transformerlab.shared import dirs
 from datasets.data_files import EmptyDatasetError
@@ -23,6 +24,7 @@ from werkzeug.utils import secure_filename
 from jinja2 import Environment
 from jinja2.sandbox import SandboxedEnvironment
 import logging
+
 
 jinja_environment = Environment()
 sandboxed_jinja2_evironment = SandboxedEnvironment()
@@ -80,9 +82,6 @@ async def dataset_gallery() -> Any:
     return {"status": "success", "data": gallery}
 
 
-# Get info on dataset from huggingface
-
-
 @router.get("/info", summary="Fetch the details of a particular dataset.")
 async def dataset_info(dataset_id: str):
     d = await db.get_dataset(dataset_id)
@@ -97,6 +96,23 @@ async def dataset_info(dataset_id: str):
             return {"status": "error", "message": "The dataset is empty."}
         split = list(dataset.keys())[0]
         r["features"] = dataset[split].features
+
+        # Try the first example in the split
+        try:
+            sample = dataset[split][0]
+        except IndexError:
+            sample = {}
+
+        # Determine if the dataset is image-like
+        is_image = any(
+            getattr(f, "_type", "").lower() == "image"
+            or (col in sample and isinstance(sample[col], str) and sample[col].startswith("data:image/"))
+            or (col in sample and getattr(type(sample[col]), "__name__", "").lower() == "image")
+            for col, f in dataset[split].features.items()
+        )
+
+        r["is_image"] = is_image
+
     else:
         dataset_config = d.get("json_data", {}).get("dataset_config", None)
         config_name = d.get("json_data", {}).get("config_name", None)
@@ -196,7 +212,7 @@ def serialize_row(row):
         return {k: serialize_row(v) for k, v in row.items()}
     elif isinstance(row, list):
         return [serialize_row(v) for v in row]
-    elif isinstance(row, PILImage):
+    elif isinstance(row, PILImage.Image):
         buffered = BytesIO()
         row.save(buffered, format="JPEG")
         img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
@@ -270,6 +286,252 @@ async def dataset_preview_with_template(
     return {
         "status": "success",
         "data": {"columns": column_names, "rows": rows, "len": dataset_len, "offset": offset, "limit": limit},
+    }
+
+
+@router.get(
+    "/edit_with_template",
+    summary="Preview and edit dataset with template, loading from metadata files and local images.",
+)
+async def dataset_edit_with_template(
+    dataset_id: str = Query(..., description="Dataset ID"),
+    template: str = Query("", description="Optional Jinja template"),
+    offset: int = Query(0, ge=0, description="Starting index"),
+    limit: int = Query(10, ge=1, le=1000, description="Max items to fetch"),
+):
+    dataset_dir = dirs.dataset_dir_by_id(slugify(dataset_id))
+    if not os.path.exists(dataset_dir):
+        return {"status": "error", "message": "Dataset directory not found"}
+
+    rows = []
+    index = 0
+
+    for root, _, files in os.walk(dataset_dir, followlinks=False):
+        for file in files:
+            if file.lower().endswith((".json", ".jsonl", ".csv")):
+                metadata_path = Path(root) / file
+                try:
+                    if file.endswith(".jsonl"):
+                        with open(metadata_path, "r", encoding="utf-8") as f:
+                            data = [json.loads(line) for line in f]
+                    elif file.endswith(".json"):
+                        with open(metadata_path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                            if isinstance(data, dict):
+                                data = [data]
+                    elif file.endswith(".csv"):
+                        with open(metadata_path, "r", encoding="utf-8") as f:
+                            reader = csv.DictReader(f)
+                            data = [row for row in reader]
+                    else:
+                        continue
+                except Exception as e:
+                    logging.error(f"Failed to read metadata from {metadata_path}: {e}")
+                    return {"status": "error", "message": "Failed to read metadata file!"}
+
+                for entry in data:
+                    split = entry.get("split")
+                    if not split:
+                        path_parts = Path(root).parts
+                        split = next(
+                            (part for part in reversed(path_parts) if part.lower() in ("train", "test", "valid")),
+                            "train",
+                        )
+
+                    image_rel_path = entry.get("file_name")
+                    if not image_rel_path:
+                        continue
+
+                    image_path = (Path(root) / image_rel_path).resolve()
+                    if not str(image_path).startswith(str(dataset_dir)):
+                        continue
+
+                    if not image_path.exists():
+                        log(f"Image not found: {image_path}")
+                        continue
+
+                    try:
+                        with PILImage.open(image_path) as img:
+                            buffer = BytesIO()
+                            img.save(buffer, format="JPEG")
+                            encoded_img = base64.b64encode(buffer.getvalue()).decode("utf-8")
+                            image_data_url = f"data:image/jpeg;base64,{encoded_img}"
+                    except Exception as e:
+                        logging.error(f"Failed to process image {image_path}: {e}")
+                        return {"status": "error", "message": "Failed to process images!"}
+
+                    row = dict(entry)  # Start with all metadata fields
+                    row["file_name"] = str(image_rel_path)
+                    row["split"] = split
+                    row["image"] = image_data_url
+
+                    if template:
+                        try:
+                            jinja_template = sandboxed_jinja2_evironment.from_string(template)
+                            row["__formatted__"] = jinja_template.render(row)
+                        except Exception as e:
+                            row["__formatted__"] = f"Template Error: {e}"
+
+                    rows.append(row)
+                    index += 1
+
+                    if len(rows) >= offset + limit:
+                        break
+        if len(rows) >= offset + limit:
+            break
+
+    paginated_rows = rows[offset : offset + limit]
+    column_names = list(paginated_rows[0].keys()) if paginated_rows else []
+
+    return {
+        "status": "success",
+        "data": {
+            "columns": column_names,
+            "rows": paginated_rows,
+            "len": len(rows),
+            "offset": offset,
+            "limit": limit,
+        },
+    }
+
+
+@router.post(
+    "/save_metadata",
+    summary="Save edited metadata and create a new dataset with reorganized files and updated metadata.",
+)
+async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
+    old_dataset_dir = dirs.dataset_dir_by_id(slugify(dataset_id))
+    if not os.path.exists(old_dataset_dir):
+        return {"status": "error", "message": "Source dataset not found"}
+
+    new_dataset_id = slugify(new_dataset_id)
+    new_dataset_dir = dirs.dataset_dir_by_id(new_dataset_id)
+
+    if os.path.exists(new_dataset_dir):
+        return {"status": "error", "message": "New dataset already exists"}
+
+    os.makedirs(new_dataset_dir, exist_ok=True)
+
+    # Read updates
+    updates_raw = await file.read()
+    try:
+        updates = json.loads(updates_raw.decode("utf-8"))
+    except Exception as e:
+        logging.error(f"Invalid JSON file: {e}")
+        return {"status": "error", "message": "Invalid JSON file!"}
+
+    # Scan source metadata
+    source_map = {}
+    for root, _, files in os.walk(old_dataset_dir, followlinks=False):
+        for f in files:
+            if f.lower().endswith((".json", ".jsonl", ".csv")):
+                metadata_path = Path(root) / f
+                try:
+                    if f.endswith(".jsonl"):
+                        with open(metadata_path, "r", encoding="utf-8") as meta_file:
+                            data = [json.loads(line) for line in meta_file]
+                    elif f.endswith(".json"):
+                        with open(metadata_path, "r", encoding="utf-8") as meta_file:
+                            data = json.load(meta_file)
+                            if isinstance(data, dict):
+                                data = [data]
+                    elif f.endswith(".csv"):
+                        with open(metadata_path, "r", encoding="utf-8") as meta_file:
+                            reader = csv.DictReader(meta_file)
+                            data = [row for row in reader]
+                    else:
+                        continue
+
+                    for entry in data:
+                        file_name = entry.get("file_name")
+                        if not file_name:
+                            continue
+                        split = entry.get("split")
+                        if not split:
+                            path_parts = Path(root).parts
+                            split = next(
+                                (p for p in reversed(path_parts) if p.lower() in ("train", "test", "valid")), "train"
+                            )
+                        label = entry.get("label", "")
+                        key = file_name
+                        source_map[key] = {
+                            "file_name": file_name,
+                            "split": split,
+                            "label": label,
+                            "metadata_root": root,
+                        }
+                except Exception as e:
+                    logging.error(f"Error reading metadata {metadata_path}: {e}")
+                    return {"status": "error", "message": "Failed to read metadata!"}
+
+    metadata_accumulator = {}
+    all_columns = set()
+
+    for row in updates:
+        file_name = row.get("file_name")
+        final_split = row.get("split", "")
+        final_label = row.get("label", "")
+        if final_split not in ["train", "test", "valid"]:
+            final_split = "train"
+
+        source_info = source_map.get(file_name)
+        if not source_info:
+            log(f"Warning: Source info not found for {file_name}, skipping")
+            continue
+
+        source_path = Path(source_info["metadata_root"]) / file_name
+        if not source_path.exists():
+            log(f"Warning: Source image file not found {source_path}, skipping")
+            continue
+
+        if final_label == "":
+            dest_folder = Path(new_dataset_dir) / final_split
+        else:
+            dest_folder = Path(new_dataset_dir) / final_split / final_label
+        os.makedirs(dest_folder, exist_ok=True)
+        dest_path = dest_folder / Path(file_name).name
+
+        try:
+            shutil.copy2(source_path, dest_path)
+        except Exception as e:
+            logging.error(f"Failed to copy {source_path} to {dest_path}: {e}")
+            return {"status": "error", "message": "Failed to copy from source to destination"}
+
+        # Prepare metadata entry
+        metadata_entry = {}
+        for k, v in row.items():
+            if k in {"__index__", "__formatted__", "split"}:
+                continue
+            if k == "file_name":
+                metadata_entry[k] = Path(file_name).name
+                all_columns.add("file_name")
+            elif v not in [None, "", [], {}]:
+                metadata_entry[k] = v
+                all_columns.add(k)
+
+        key = (final_split, final_label)
+        metadata_accumulator.setdefault(key, []).append(metadata_entry)
+
+    for (split, label), entries in metadata_accumulator.items():
+        folder = Path(new_dataset_dir) / split / label
+        metadata_file = folder / "metadata.jsonl"
+        try:
+            with open(metadata_file, "w", encoding="utf-8") as f:
+                for entry in entries:
+                    full_entry = {col: entry.get(col, "") for col in all_columns}
+                    f.write(json.dumps(full_entry) + "\n")
+        except Exception as e:
+            logging.error(f"Failed to write metadata file {metadata_file}: {e}")
+            return {"status": "error", "message": "Failed to write metadata file!"}
+
+    result = await dataset_new(dataset_id=new_dataset_id, generated=False)
+    if result.get("status") != "success":
+        return {"status": "error", "message": "Failed to register new dataset"}
+
+    return {
+        "status": "success",
+        "message": f"Dataset '{new_dataset_id}' created with updated metadata and files",
+        "dataset_id": new_dataset_id,
     }
 
 
@@ -448,11 +710,11 @@ async def create_upload_file(dataset_id: str, files: list[UploadFile]):
 
         dataset_id = slugify(dataset_id)
 
-        # Save the file to the dataset directory
         try:
             content = await file.read()
-            newfilename = os.path.join(dirs.dataset_dir_by_id(dataset_id), str(file.filename))
-            async with aiofiles.open(newfilename, "wb") as out_file:
+            target_path = os.path.join(dirs.dataset_dir_by_id(dataset_id), str(file.filename))
+            os.makedirs(os.path.dirname(target_path), exist_ok=True)
+            async with aiofiles.open(target_path, "wb") as out_file:
                 await out_file.write(content)
         except Exception:
             raise HTTPException(status_code=403, detail="There was a problem uploading the file")
