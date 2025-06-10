@@ -13,7 +13,6 @@ from diffusers import (
     AutoPipelineForText2Image,
     AutoPipelineForImage2Image,
     AutoPipelineForInpainting,
-    StableDiffusionXLPipeline,
 )
 import threading
 import os
@@ -544,28 +543,34 @@ def get_pipeline(
                 adaptor_dir = os.path.join(os.environ.get("_TFL_WORKSPACE_DIR"), "adaptors", secure_filename(model))
                 adaptor_path = os.path.join(adaptor_dir, secure_filename(adaptor))
                 if os.path.exists(adaptor_path):
-                    if not isinstance(pipe, StableDiffusionXLPipeline):
-                        pipe.load_lora_weights(adaptor_path)
-                    else:
-                        # pipe.load_lora_weights('Norod78/sdxl-humeow-lora-r16')
-                        json_file_path = os.path.join(adaptor_path,'tlab_adaptor_info.json')
-                        if os.path.exists(json_file_path):
-                            with open(json_file_path, 'r') as f:
-                                adaptor_info = json.load(f)
-                            if adaptor_info.get('tlab_trainer_used') is not None and adaptor_info['tlab_trainer_used']:
-                                try:
-                                    pipe.load_lora_weights(adaptor_path)
-                                except Exception as e:
-                                    # Load LoRA weights
-                                    state_dict, network_alphas = pipe.lora_state_dict(adaptor_path, prefix=None)
-                                    pipe.load_lora_into_unet(state_dict, network_alphas=network_alphas, unet=pipe.unet)
-                            else:
-                                # Load LoRA weights for non-TFLab adaptors
-                                pipe.load_lora_weights(adaptor_path)
-                        else:
-                            # If no JSON file, assume it's a standard LoRA adaptor
-                            log_print(f"No TFLab adaptor info found for {adaptor}, loading as standard LoRA")
-                            pipe.load_lora_weights(adaptor_path)                               
+                    pipe.load_lora_weights(adaptor_path)
+                    # if not isinstance(pipe, StableDiffusionXLPipeline):
+                    #     pipe.load_lora_weights(adaptor_path)
+                    # else:
+                    #     # pipe.load_lora_weights('Norod78/sdxl-humeow-lora-r16')
+                    #     json_file_path = os.path.join(adaptor_path,'tlab_adaptor_info.json')
+                    #     if os.path.exists(json_file_path):
+                    #         with open(json_file_path, 'r') as f:
+                    #             adaptor_info = json.load(f)
+                    #         if adaptor_info.get('tlab_trainer_used') is not None and adaptor_info['tlab_trainer_used']:
+                    #             try:
+                    #                 pipe.load_lora_weights(adaptor_path)
+                    #             except Exception as e:
+                    #                 try:
+                    #                     # Load LoRA weights
+                    #                     state_dict, network_alphas = pipe.lora_state_dict(adaptor_path, prefix=None)
+                    #                     pipe.load_lora_into_unet(state_dict, network_alphas=network_alphas, unet=pipe.unet)
+                    #                 except Exception as e2:
+                    #                     log_print(f"Warning: Failed to load LoRA adaptor '{adaptor}' with TFLab trainer info")
+                    #                     log_print(f"Adaptor path: {adaptor_path}")
+                    #                     log_print(f"Error: {str(e2)}")
+                    #         else:
+                    #             # Load LoRA weights for non-TFLab adaptors
+                    #             pipe.load_lora_weights(adaptor_path)
+                    #     else:
+                    #         # If no JSON file, assume it's a standard LoRA adaptor
+                    #         log_print(f"No TFLab adaptor info found for {adaptor}, loading as standard LoRA")
+                    #         pipe.load_lora_weights(adaptor_path)                               
                     # pipe.load_lora_weights(adaptor_path)
                     log_print(f"Loaded LoRA adaptor: {adaptor}")
                 else:
