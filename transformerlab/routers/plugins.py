@@ -173,6 +173,11 @@ async def install_plugin(plugin_id: str):
         )
         await proc.wait()
 
+        proc = await asyncio.create_subprocess_exec(
+            f"{venv_path}/bin/pip", "install", "uv", cwd=new_directory, stdout=log_file, stderr=log_file
+        )
+        await proc.wait()
+
         # Run uv sync after setup script, also with environment activated
         print("Running uv sync to install dependencies...")
         await log_file.write(f"## Running uv sync for {plugin_id}...\n")
@@ -199,8 +204,12 @@ async def install_plugin(plugin_id: str):
             additional_flags = "--index 'https://download.pytorch.org/whl/cpu'"
 
         print(f"Using requirements file: {requirements_file_path}")
-        proc = await asyncio.create_subprocess_shell(
-            f"bash -c 'source {venv_path}/bin/activate && uv pip sync {requirements_file_path} {additional_flags}'",
+        uv_bin = f"{venv_path}/bin/uv"
+        sync_cmd = [uv_bin, "pip", "sync", requirements_file_path]
+        if additional_flags:
+            sync_cmd += additional_flags.split()
+        proc = await asyncio.create_subprocess_exec(
+            *sync_cmd,
             cwd=new_directory,
             stdout=log_file,
             stderr=log_file,
