@@ -1025,7 +1025,6 @@ def train_diffusion_lora():
     save_directory = args.get("adaptor_output_dir", output_dir)
 
     print(f"Saving LoRA weights to {save_directory}")
-    import os
 
     os.makedirs(save_directory, exist_ok=True)
 
@@ -1035,7 +1034,6 @@ def train_diffusion_lora():
 
     # Save a json file in the save directory with model architecture and LoRA config and a flag which says tlab_trainer
     # was used to train this LoRA
-    import json
     print("Saving LoRA configuration information...")
     save_info = {
         "model_architecture": model_architecture,
