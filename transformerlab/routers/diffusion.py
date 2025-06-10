@@ -553,9 +553,12 @@ def get_pipeline(
                             with open(json_file_path, 'r') as f:
                                 adaptor_info = json.load(f)
                             if adaptor_info.get('tlab_trainer_used') is not None and adaptor_info['tlab_trainer_used']:
-                                # Load LoRA weights
-                                state_dict, network_alphas = pipe.lora_state_dict(adaptor_path, prefix=None)
-                                pipe.load_lora_into_unet(state_dict, network_alphas=network_alphas, unet=pipe.unet)
+                                try:
+                                    pipe.load_lora_weights(adaptor_path)
+                                except Exception as e:
+                                    # Load LoRA weights
+                                    state_dict, network_alphas = pipe.lora_state_dict(adaptor_path, prefix=None)
+                                    pipe.load_lora_into_unet(state_dict, network_alphas=network_alphas, unet=pipe.unet)
                             else:
                                 # Load LoRA weights for non-TFLab adaptors
                                 pipe.load_lora_weights(adaptor_path)

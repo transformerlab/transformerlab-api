@@ -439,7 +439,7 @@ def train_diffusion_lora():
     # Define target modules based on detected architecture
     if is_sdxl:
         # SDXL typically uses these modules
-        target_modules = ["to_k", "to_q", "to_v", "to_out.0", "proj_in", "proj_out"]
+        target_modules = ["to_k", "to_q", "to_v", "to_out.0"]
         architecture_name = "SDXL"
     elif is_sd3:
         # SD3 uses Multi-Modal DiT architecture
@@ -1009,6 +1009,17 @@ def train_diffusion_lora():
     # Save LoRA weights using the proven working method that worked perfectly with SD 1.5
     unet = unet.to(torch.float32)
     unet_lora_state_dict = convert_state_dict_to_diffusers(get_peft_model_state_dict(unet))
+    # # Fix LoRA key naming for SDXL compatibility
+    # fixed_state_dict = {}
+    # for key, tensor in unet_lora_state_dict.items():
+    #     if key.endswith(".lora.down.weight"):
+    #         new_key = key.replace(".lora.down.weight", ".lora_A.default_0.weight")
+    #     elif key.endswith(".lora.up.weight"):
+    #         new_key = key.replace(".lora.up.weight", ".lora_B.default_0.weight")
+    #     else:
+    #         new_key = key
+    #     fixed_state_dict[new_key] = tensor
+    # unet_lora_state_dict = fixed_state_dict
     save_directory = args.get("adaptor_output_dir", output_dir)
 
     print(f"Saving LoRA weights to {save_directory}")
@@ -1052,15 +1063,20 @@ def train_diffusion_lora():
         try:
             from diffusers import StableDiffusionXLPipeline
 
+            # For SDXL, we need to handle the dual text encoders properly
+            # Only save UNet LoRA layers as we're not training text encoders in this config
             StableDiffusionXLPipeline.save_lora_weights(
                 save_directory=save_directory,
                 unet_lora_layers=unet_lora_state_dict,
+                text_encoder_lora_layers=None,  # Explicitly set to None for UNet-only training
+                text_encoder_2_lora_layers=None,  # Explicitly set to None for UNet-only training
                 safe_serialization=True,
             )
             print(f"LoRA weights saved to {save_directory} using StableDiffusionXLPipeline.save_lora_weights (SDXL)")
             saved_successfully = True
         except Exception as e:
             print(f"Error with StableDiffusionXLPipeline.save_lora_weights: {e}")
+            print(f"Detailed error: {str(e)}")
 
     # Method 3: Try SD3-specific save method
     if not saved_successfully and is_sd3:
