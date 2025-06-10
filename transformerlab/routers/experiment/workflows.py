@@ -197,13 +197,16 @@ async def workflow_export_to_yaml(workflow_id: str, experimentId: int):
     if str(workflow["experiment_id"]) != str(experimentId):
         return {"error": "Workflow does not belong to this experiment"}
     
-    del workflow["current_job_id"]
-    del workflow["current_task"]
-    del workflow["experiment_id"]
-    del workflow["created_at"]
-    del workflow["updated_at"]
-    del workflow["status"]
-    del workflow["id"]
+    for field in (
+        "current_job_id",
+        "current_task",
+        "experiment_id",
+        "created_at",
+        "updated_at",
+        "status",
+        "id",
+    ):
+        workflow.pop(field, None) 
 
     workflow["config"] = json.loads(workflow["config"])
 
