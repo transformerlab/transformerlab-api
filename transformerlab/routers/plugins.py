@@ -117,7 +117,7 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
         setup_script_name = plugin_index["setup-script"]
         # Use bash -c to properly source the activation script before running setup script
         proc = await asyncio.create_subprocess_shell(
-            f"source {venv_path}/bin/activate; bash {setup_script_name}",
+            f"bash -c 'source {venv_path}/bin/activate; bash {setup_script_name}'",
             cwd=new_directory,
             stdout=log_file,
             stderr=log_file,
@@ -200,7 +200,7 @@ async def install_plugin(plugin_id: str):
 
         print(f"Using requirements file: {requirements_file_path}")
         proc = await asyncio.create_subprocess_shell(
-            f"source {venv_path}/bin/activate; uv pip sync {requirements_file_path} {additional_flags}",
+            f"bash -c 'source {venv_path}/bin/activate; uv pip sync {requirements_file_path} {additional_flags}'",
             cwd=new_directory,
             stdout=log_file,
             stderr=log_file,
