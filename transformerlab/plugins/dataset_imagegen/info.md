@@ -1,6 +1,8 @@
 # Image Generation from Prompts
 
-This plugin generates an image dataset using a text-to-image diffusion model (e.g., Stable Diffusion) based on user-provided prompts.
+This plugin generates an image dataset using a text-to-image diffusion model (e.g., Stable Diffusion) based on user-provided prompts. 
+
+The plugin will use the local diffusion model.
 
 ## Input
 
@@ -12,7 +14,6 @@ If your dataset includes a negative prompt column, you must also specify its col
 
 | Name | Description |
 |------|-------------|
-| `Generation Model` | Must be set to `local` – only local models are supported. |
 | `Prompt Dataset` | The dataset containing prompts.
 | `Prompt Column Name` | The name of the column containing the main prompts. Required. |
 | `Negative Prompt Column Name` | Optional. If provided, this column will be passed as the `negative_prompt`. Leave empty if not applicable. |
