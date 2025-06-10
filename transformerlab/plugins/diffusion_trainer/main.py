@@ -21,7 +21,7 @@ from diffusers.utils import convert_state_dict_to_diffusers
 
 # Try to import xformers for memory optimization
 try:
-    import xformers
+    import xformers # noqa: F401
     xformers_available = True
 except ImportError:
     xformers_available = False
@@ -303,19 +303,6 @@ def encode_prompt_sdxl(
         negative_pooled_prompt_embeds = negative_pooled_prompt_embeds.to(dtype=text_encoders[-1].dtype, device=device)
 
     return prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
-
-
-def compute_time_ids(original_size, crops_coords_top_left, target_size, dtype, device, weight_dtype=None):
-    """
-    Compute time IDs for SDXL conditioning.
-    """
-    if weight_dtype is None:
-        weight_dtype = dtype
-
-    # Adapted from pipeline.StableDiffusionXLPipeline._get_add_time_ids
-    add_time_ids = list(original_size + crops_coords_top_left + target_size)
-    add_time_ids = torch.tensor([add_time_ids], dtype=weight_dtype, device=device)
-    return add_time_ids
 
 
 @tlab_trainer.job_wrapper(wandb_project_name="TLab_Training", manual_logging=True)
