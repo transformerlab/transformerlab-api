@@ -76,6 +76,7 @@ from transformerlab.db import (
     update_training_template,
     delete_training_template,
     export_job_create,
+    workflow_runs_get_from_experiment,
 )
 
 import pytest
@@ -328,7 +329,7 @@ async def test_dataset():
 @pytest.fixture
 async def test_experiment():
     # Setup code to create test_experiment
-    experiment_id = await db.experiment_create("test_experiment", "{}")
+    experiment_id = await db.experiment_create("test_experiment", {})
     yield experiment_id
     # Teardown code to delete test_experiment
     await db.experiment_delete(experiment_id)
@@ -379,7 +380,6 @@ class TestModels:
             job_id = await job_create("TRAIN", "QUEUED")
             await job_delete(job_id)
             job = await job_get(job_id)
-            print(job)
             assert job["status"] == "DELETED"
 
         @pytest.mark.asyncio
@@ -462,6 +462,9 @@ class TestExperiments:
         experiment = await experiment_get_by_name("alpha")
         assert experiment is not None
         assert experiment["name"] == "alpha"
+        # Try to create an experiment with a string instead of a dict for the config:
+        with pytest.raises(Exception):
+            await experiment_create("test_experiment_invalid_config", "not_a_dict")
 
     @pytest.mark.asyncio
     async def test_experiment_get_all(self):
@@ -470,7 +473,7 @@ class TestExperiments:
 
     @pytest.mark.asyncio
     async def test_experiment_delete(self):
-        experiment_id = await experiment_create("test_experiment_delete", "{}")
+        experiment_id = await experiment_create("test_experiment_delete", {})
         await experiment_delete(experiment_id)
         experiment = await experiment_get(experiment_id)
         assert experiment is None
@@ -609,6 +612,28 @@ class TestWorkflows:
         workflows = await workflows_get_all()
         assert len(workflows) == 0
 
+    @pytest.mark.asyncio
+    async def test_experiment_workflow_routes(self, test_experiment):
+        # Create a workflow in the experiment
+        workflow_id = await workflow_create("test_workflow", "{}", test_experiment)
+        
+        # Queue the workflow to create a workflow run
+        await workflow_queue(workflow_id)
+        
+        # Test getting workflows in experiment
+        workflows = await workflows_get_from_experiment(test_experiment)
+        assert isinstance(workflows, list)
+        assert len(workflows) > 0
+        assert workflows[0]["experiment_id"] == test_experiment
+        assert workflows[0]["id"] == workflow_id
+        
+        # Test getting workflow runs in experiment
+        workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
+        assert isinstance(workflow_runs, list)
+        assert len(workflow_runs) > 0
+        assert workflow_runs[0]["experiment_id"] == test_experiment
+        assert workflow_runs[0]["workflow_id"] == workflow_id
+
 
 # Additional test for experiment_get_by_name which has partial coverage
 @pytest.mark.asyncio
@@ -616,7 +641,7 @@ async def test_experiment_get_by_name(setup_db):
     """Test the experiment_get_by_name function."""
     # Create a test experiment
     experiment_name = "test_experiment_by_name"
-    config = "{}"
+    config = {}
     # Delete the experiment if it already exists
     existing = await db.experiment_get_by_name(experiment_name)
     if existing:
