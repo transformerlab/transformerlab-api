@@ -1,6 +1,4 @@
 import os
-import json
-import random
 import shutil
 import requests
 import pandas as pd
