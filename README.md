@@ -69,11 +69,11 @@ sed -i 's/\+cu128//g' requirements-uv.txt
 uv pip compile requirements-rocm.in -o requirements-rocm-uv.txt --index=https://download.pytorch.org/whl/rocm6.3
 sed -i 's/\+rocm6\.3//g' requirements-rocm-uv.txt
 
-# requirements for systems without GPU support (e.g. CPU only, NOT on MacOS)
+# On a Linux or Windows (non-Mac) system without GPU support (CPU only), run:
 uv pip compile requirements.in -o requirements-no-gpu-uv.txt --index=https://download.pytorch.org/whl/cpu
 sed -i 's/\+cpu//g' requirements-no-gpu-uv.txt
 
-# requirements for systems on MacOS (e.g. MacOS only)
+# On a MacOS system (Apple Silicon), run:
 uv pip compile requirements.in -o requirements-no-gpu-uv.txt
 ```
 
