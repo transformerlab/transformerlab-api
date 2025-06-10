@@ -1,7 +1,8 @@
 from fastapi.testclient import TestClient
 import json
 from api import app
-
+from transformerlab.routers.experiment import workflows as wf
+import pytest
 
 def test_workflows_list():
     with TestClient(app) as client:
@@ -357,3 +358,78 @@ def test_workflow_name_update_invalid():
         # Just test that the endpoint exists and doesn't crash
         resp = client.get(f"/experiment/{exp_id}/workflows/{workflow_id}/update_name?new_name=new_name")
         assert resp.status_code == 200
+
+
+def test_find_nodes_by_ids_helper():
+    """Basic sanity check for find_nodes_by_ids."""
+    nodes = [{"id": "a"}, {"id": "b"}, {"id": "c"}]
+    assert wf.find_nodes_by_ids(["b"], nodes) == [nodes[1]]
+    # Empty lookup should return empty list
+    assert wf.find_nodes_by_ids([], nodes) == []
+
+
+@pytest.mark.asyncio
+async def test_determine_next_and_start_skip_helpers():
+    """Cover determine_next_tasks + handle_start_node_skip edge cases."""
+    start_id = "start"
+    task1_id = "t1"
+    task2_id = "t2"
+
+    workflow_cfg = {
+        "nodes": [
+            {"id": start_id, "type": "START", "out": [task1_id]},
+            {"id": task1_id, "type": "TASK", "task": "foo", "out": [task2_id]},
+            {"id": task2_id, "type": "TASK", "task": "bar", "out": []},
+        ]
+    }
+
+    # No current tasks → should yield the first node (START)
+    nxt = await wf.determine_next_tasks([], workflow_cfg, workflow_run_id=0)
+    assert nxt == [start_id]
+
+    # Skip the START node and land on task1
+    actual_ids, next_nodes = await wf.handle_start_node_skip(nxt, workflow_cfg, workflow_run_id=0)
+    assert actual_ids == [task1_id]
+    assert next_nodes and next_nodes[0]["id"] == task1_id
+
+    # From task1 we should advance to task2
+    nxt2 = await wf.determine_next_tasks([task1_id], workflow_cfg, workflow_run_id=0)
+    assert nxt2 == [task2_id]
+
+
+def test_extract_previous_job_outputs_and_prepare_io():
+    """Cover TRAIN / GENERATE branches in extract & prepare helpers."""
+    # ---- TRAIN branch ----
+    prev_job_train = {
+        "job_data": {
+            "config": {
+                "model_name": "repo/Model-A",
+                "model_architecture": "Llama",
+            }
+        },
+        "type": "TRAIN",
+    }
+    outputs_train = wf.extract_previous_job_outputs(prev_job_train)
+    assert outputs_train["model_name"] == "repo/Model-A"
+    assert outputs_train["model_architecture"] == "Llama"
+
+    # Ensure prepare_next_task_io maps TRAIN outputs into EVAL inputs correctly
+    task_def_eval = {"type": "EVAL", "inputs": "{}", "outputs": "{}"}
+    inputs_json, _ = wf.prepare_next_task_io(task_def_eval, outputs_train)
+    mapped_inputs = json.loads(inputs_json)
+    assert mapped_inputs["model_name"] == "repo/Model-A"
+    assert mapped_inputs["model_architecture"] == "Llama"
+
+    # ---- GENERATE branch ----
+    prev_job_gen = {
+        "job_data": {"dataset_id": "MyDataSet"},
+        "type": "GENERATE",
+    }
+    outputs_gen = wf.extract_previous_job_outputs(prev_job_gen)
+    assert outputs_gen == {"dataset_name": "mydataset"}  # lower-cased & slug-ified
+
+    task_def_gen = {"type": "GENERATE", "inputs": "{}", "outputs": "{}"}
+    _, outputs_json = wf.prepare_next_task_io(task_def_gen, {})
+    gen_outputs = json.loads(outputs_json)
+    # Newly created dataset_id should be a 32-char UUID without dashes
+    assert "dataset_id" in gen_outputs and len(gen_outputs["dataset_id"]) == 32
