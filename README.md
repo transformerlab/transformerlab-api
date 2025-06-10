@@ -58,7 +58,7 @@ Once conda and dependencies are installed, run the following:
 
 ## Updating Requirements
 
-Dependencies are managed with uv (installed separately). Add new requirements to `requirements.in` and regenerate their corresponding `requirements-uv.txt` variations by running the following commands:
+Dependencies are managed with uv (installed separately). Add new requirements to `requirements.in` and to `requirements-rocm.in` (if you want to enable support for AMD GPUs as well) and regenerate their corresponding `requirements-uv.txt` variations by running the following commands:
 
 ```bash
 # GPU enabled requirements for CUDA
@@ -66,12 +66,15 @@ uv pip compile requirements.in -o requirements-uv.txt --index=https://download.p
 sed -i 's/\+cu128//g' requirements-uv.txt
 
 # GPU enabled requirements for ROCm
-uv pip compile requirements.in -o requirements-rocm-uv.txt --index=https://download.pytorch.org/whl/rocm6.3
+uv pip compile requirements-rocm.in -o requirements-rocm-uv.txt --index=https://download.pytorch.org/whl/rocm6.3
 sed -i 's/\+rocm6\.3//g' requirements-rocm-uv.txt
 
-# requirements for systems without GPU support
-uv pip compile requirements.in -o requirements-no-gpu-uv.txt --extra-index-url=https://download.pytorch.org/whl/cpu
+# On a Linux or Windows (non-Mac) system without GPU support (CPU only), run:
+uv pip compile requirements.in -o requirements-no-gpu-uv.txt --index=https://download.pytorch.org/whl/cpu
 sed -i 's/\+cpu//g' requirements-no-gpu-uv.txt
+
+# On a MacOS system (Apple Silicon), run:
+uv pip compile requirements.in -o requirements-no-gpu-uv.txt
 ```
 
 ### NOTES:
