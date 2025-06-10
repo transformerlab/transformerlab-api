@@ -268,17 +268,7 @@ async def document_upload_links(experimentId: str, folder: str = None, data: dic
 
 @router.post("/download_zip", summary="Download and extract a ZIP file from a URL.")
 async def document_download_zip(experimentId: str, folder: str = None, data: dict = Body(...)):
-    """
-    Download a ZIP file from a URL and extract its contents to the documents folder.
-    
-    Args:
-        experimentId: The experiment ID
-        folder: Optional folder to extract files into
-        data: Dict containing 'url' and optional 'extract_folder_name'
-    
-    Returns:
-        Dict with status and list of extracted files
-    """
+    """Download a ZIP file from a URL and extract its contents to the documents folder."""
     url = data.get("url")
     extract_folder_name = data.get("extract_folder_name", "")
     
@@ -405,14 +395,14 @@ async def document_download_zip(experimentId: str, folder: str = None, data: dic
             "extraction_path": extract_folder_name or folder or "documents"
         }
         
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=400, detail=f"Failed to download ZIP file: HTTP {e.response.status_code}")
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=400, detail=f"Failed to download ZIP file: {str(e)}")
+    except httpx.HTTPStatusError:
+        raise HTTPException(status_code=400, detail="Failed to download ZIP file: HTTP error.")
+    except httpx.RequestError:
+        raise HTTPException(status_code=400, detail="Failed to download ZIP file.")
     except zipfile.BadZipFile:
         raise HTTPException(status_code=400, detail="Downloaded file is not a valid ZIP archive")
-    except Exception as e:
+    except Exception:
         # Clean up temp file if it exists
         if 'temp_zip_path' in locals() and os.path.exists(temp_zip_path):
             os.remove(temp_zip_path)
-        raise HTTPException(status_code=500, detail=f"Error processing ZIP file: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error processing ZIP file.")

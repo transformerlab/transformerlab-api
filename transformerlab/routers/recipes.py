@@ -63,7 +63,6 @@ async def check_recipe_dependencies(id: int):
             status["installed"] = dep_name in local_dataset_ids
         elif dep_type == "plugin":
             status["installed"] = dep_name in installed_plugins
-
         results.append(status)
     return {"dependencies": results}
 
@@ -120,7 +119,6 @@ async def _install_recipe_dependencies_job(job_id, id):
                     install_result = await plugins_router.install_plugin(plugin_id=dep_name)
                     result["action"] = "install_plugin"
                     result["status"] = install_result.get("status", "unknown")
-
             except Exception as e:
                 result["action"] = "error"
                 result["status"] = str(e)
