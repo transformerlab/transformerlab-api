@@ -1,7 +1,7 @@
 {
   "name": "Diffusion Trainer",
   "uniqueId": "diffusion_trainer",
-  "description": "A plugin for fine-tuning Stable Diffusion using LoRA adapters with Accelerate multi-GPU support.",
+  "description": "A plugin for fine-tuning Stable Diffusion using LoRA adapters.",
   "plugin-format": "python",
   "type": "trainer",
   "version": "0.1.1",
