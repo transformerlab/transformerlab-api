@@ -257,8 +257,7 @@ TEST_EXP_RECIPES = [
         ],
         "documents": [
             {
-                "url": "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-zip-file.zip",
-                "folder": "test_docs"
+                "url": "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-zip-file.zip"
             }
         ],
         "tasks": [
@@ -665,7 +664,7 @@ def test_recipes_get_by_id_with_documents():
         assert "documents" in data
         assert len(data["documents"]) == 1
         assert data["documents"][0]["url"] == "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-zip-file.zip"
-        assert data["documents"][0]["folder"] == "test_docs"
+        assert "folder" not in data["documents"][0]
 
 
 def test_create_experiment_with_documents():

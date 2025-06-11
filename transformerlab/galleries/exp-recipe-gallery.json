@@ -436,8 +436,7 @@
     ],
     "documents": [
       {
-        "url": "https://sample-files.com/downloads/compressed/zip/basic-text.zip",
-        "folder": "test_text_date"
+        "url": "https://sample-files.com/downloads/compressed/zip/basic-text.zip"
       }
     ],
     "tasks": [

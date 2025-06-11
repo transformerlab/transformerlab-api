@@ -346,6 +346,13 @@ async def document_download_zip(experimentId: str, folder: str = None, data: dic
                 
                 # Extract file
                 try:
+                    # Create any necessary subdirectories to preserve structure
+                    target_path = os.path.join(documents_dir, zip_file)
+                    target_dir = os.path.dirname(target_path)
+                    if not os.path.exists(target_dir):
+                        os.makedirs(target_dir)
+                    
+                    # Extract the file
                     zip_ref.extract(zip_file, documents_dir)
                     extracted_file_path = os.path.join(documents_dir, zip_file)
                     

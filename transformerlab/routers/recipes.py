@@ -248,9 +248,10 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
     document_results = []
     for doc in recipe.get("documents", []):
         url = doc.get("url")
-        folder = doc.get("folder", f"recipe_documents_{id}")
+        # Extract directly to documents directory
+        folder = ""
         
-        result = {"url": url, "folder": folder, "action": "download_documents"}
+        result = {"url": url, "action": "download_documents"}
         try:
             from transformerlab.routers.experiment import documents as documents_router
             
