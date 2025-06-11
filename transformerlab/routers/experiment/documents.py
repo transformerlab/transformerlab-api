@@ -267,149 +267,51 @@ async def document_upload_links(experimentId: str, folder: str = None, data: dic
 
 
 @router.post("/download_zip", summary="Download and extract a ZIP file from a URL.")
-async def document_download_zip(experimentId: str, folder: str = None, data: dict = Body(...)):
+async def document_download_zip(experimentId: str, data: dict = Body(...)):
     """Download a ZIP file from a URL and extract its contents to the documents folder."""
     url = data.get("url")
-    extract_folder_name = data.get("extract_folder_name", "")
     
     if not url:
         raise HTTPException(status_code=400, detail="URL is required")
     
-    # Validate URL
-    try:
-        parsed_url = urlparse(url)
-        if not parsed_url.scheme or not parsed_url.netloc:
-            raise HTTPException(status_code=400, detail="Invalid URL provided")
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid URL provided")
-    
-    # Secure folder names
-    folder = secure_filename(folder) if folder else ""
-    extract_folder_name = secure_filename(extract_folder_name) if extract_folder_name else ""
-    
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
     
-    # Handle target folder
-    if folder and folder != "":
-        if os.path.exists(os.path.join(documents_dir, folder)):
-            documents_dir = os.path.join(documents_dir, folder)
-        else:
-            print(f"Creating directory as it doesn't exist: {os.path.join(documents_dir, folder)}")
-            os.makedirs(os.path.join(documents_dir, folder))
-            documents_dir = os.path.join(documents_dir, folder)
-    
-    # If extract_folder_name is provided, create subdirectory
-    if extract_folder_name:
-        extraction_dir = os.path.join(documents_dir, extract_folder_name)
-        if not os.path.exists(extraction_dir):
-            os.makedirs(extraction_dir)
-        documents_dir = extraction_dir
-    
-    markitdown_dir = os.path.join(documents_dir, ".tlab_markitdown")
-    if not os.path.exists(markitdown_dir):
-        os.makedirs(markitdown_dir)
-    
-    extracted_files = []
-    
     try:
-        # Download the ZIP file
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            print(f"Downloading ZIP file from: {url}")
+        # Download ZIP file
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
             response = await client.get(url)
             response.raise_for_status()
             
-            # Check if response is actually a ZIP file
-            content_type = response.headers.get("content-type", "")
-            if not (content_type.startswith("application/zip") or 
-                    content_type.startswith("application/x-zip") or
-                    url.lower().endswith(".zip")):
-                print(f"Warning: Content-Type is {content_type}, proceeding anyway...")
-            
-            # Save ZIP to temporary file
+            # Save to temporary file and extract
             with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as temp_zip:
                 temp_zip.write(response.content)
                 temp_zip_path = temp_zip.name
-                print(f"ZIP file saved to temporary location: {temp_zip_path}")
         
         # Extract ZIP file
         with zipfile.ZipFile(temp_zip_path, 'r') as zip_ref:
-            print(f"Extracting ZIP file to: {documents_dir}")
-            
-            # Get list of files in ZIP
-            zip_files = zip_ref.namelist()
-            
-            for zip_file in zip_files:
-                # Skip directories and hidden files
-                if zip_file.endswith('/') or zip_file.startswith('.'):
-                    continue
-                
-                # Extract file
-                try:
-                    # Create any necessary subdirectories to preserve structure
-                    target_path = os.path.join(documents_dir, zip_file)
-                    target_dir = os.path.dirname(target_path)
-                    if not os.path.exists(target_dir):
-                        os.makedirs(target_dir)
-                    
-                    # Extract the file
-                    zip_ref.extract(zip_file, documents_dir)
-                    extracted_file_path = os.path.join(documents_dir, zip_file)
-                    
-                    # Ensure the file was actually extracted
-                    if os.path.exists(extracted_file_path) and os.path.isfile(extracted_file_path):
-                        print(f"Extracted: {zip_file}")
-                        extracted_files.append(zip_file)
-                        
-                        # Convert to markdown using MarkItDown
-                        file_ext = os.path.splitext(zip_file)[1].lower()
-                        if file_ext in [".txt", ".pdf", ".docx", ".pptx", ".xlsx", ".html", ".htm", ".csv"]:
-                            try:
-                                md = MarkItDown(enable_plugins=False)
-                                result = md.convert(extracted_file_path)
-                                
-                                # Save converted markdown
-                                md_filename = os.path.join(markitdown_dir, zip_file.replace(file_ext, ".md"))
-                                
-                                # Create directory structure in markitdown folder if needed
-                                md_dir = os.path.dirname(md_filename)
-                                if md_dir and not os.path.exists(md_dir):
-                                    os.makedirs(md_dir)
-                                
-                                async with aiofiles.open(md_filename, "w", encoding="utf-8") as out_file:
-                                    await out_file.write(result.markdown)
-                                
-                                print(f"Converted to markdown: {md_filename}")
-                            except Exception as e:
-                                print(f"Error converting {zip_file} to markdown: {e}")
-                        
-                except Exception as e:
-                    print(f"Error extracting {zip_file}: {e}")
-                    continue
+            zip_ref.extractall(documents_dir)
+            extracted_files = [f for f in zip_ref.namelist() if not f.endswith('/') and not f.startswith('.')]
         
-        # Clean up temporary ZIP file
+        # Clean up
         os.remove(temp_zip_path)
-        print(f"Cleaned up temporary file: {temp_zip_path}")
         
-        # Reindex RAG if files were added to rag folder
-        if folder == "rag" and extracted_files:
+        # Reindex RAG if any files were extracted to a 'rag' folder
+        rag_files = [f for f in extracted_files if f.startswith('rag/')]
+        if rag_files:
             await rag.reindex(experimentId)
         
         return {
             "status": "success", 
             "extracted_files": extracted_files,
-            "total_files": len(extracted_files),
-            "extraction_path": extract_folder_name or folder or "documents"
+            "total_files": len(extracted_files)
         }
         
     except httpx.HTTPStatusError:
         raise HTTPException(status_code=400, detail="Failed to download ZIP file: HTTP error.")
-    except httpx.RequestError:
-        raise HTTPException(status_code=400, detail="Failed to download ZIP file.")
     except zipfile.BadZipFile:
         raise HTTPException(status_code=400, detail="Downloaded file is not a valid ZIP archive")
     except Exception:
-        # Clean up temp file if it exists
         if 'temp_zip_path' in locals() and os.path.exists(temp_zip_path):
             os.remove(temp_zip_path)
         raise HTTPException(status_code=500, detail="Error processing ZIP file.")

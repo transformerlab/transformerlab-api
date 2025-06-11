@@ -640,10 +640,10 @@ def test_create_experiment_with_named_tasks():
         if data.get("status") == "success":
             assert "data" in data
             assert "task_results" in data["data"]
-            task_results = data["data"]["task_results"]
-            assert len(task_results) == 2
-            
-            # Check if task names match those specified in recipe
+        task_results = data["data"]["task_results"]
+        assert len(task_results) == 2
+        
+        # Check if task names match those specified in recipe
             task_names = [result["task_name"] for result in task_results]
             assert "custom_train_task" in task_names
             assert "custom_eval_task" in task_names

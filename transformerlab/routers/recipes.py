@@ -248,8 +248,6 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
     document_results = []
     for doc in recipe.get("documents", []):
         url = doc.get("url")
-        # Extract directly to documents directory
-        folder = ""
         
         result = {"url": url, "action": "download_documents"}
         try:
@@ -258,8 +256,7 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
             # Download and extract the ZIP file
             download_result = await documents_router.document_download_zip(
                 experimentId=experiment_id,
-                folder=folder,
-                data={"url": url, "extract_folder_name": ""}
+                data={"url": url}
             )
             
             result["status"] = download_result.get("status", "unknown")
