@@ -92,7 +92,6 @@ def compute_loss(model_pred, target, timesteps, noise_scheduler, args):
     
     # Apply loss weighting if specified
     loss_weights = compute_loss_weighting(args, timesteps, noise_scheduler)
-    print(f"Loss type: {loss_type}, Loss shape: {loss.shape}, Loss weights: {loss_weights}, Loss: {loss.mean()}")
 
     if loss_weights is not None and not torch.all(loss_weights == 0):
         loss = loss.mean(dim=list(range(1, len(loss.shape)))) * loss_weights
