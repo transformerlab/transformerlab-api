@@ -12,14 +12,10 @@
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
-    "max-model-len": {
-      "title": "Maximum Model Length",
-      "type": "integer"
-    },
     "proxy-url": {
       "title": "Set Proxy URL",
       "type": "string",
-      "default": "http://localhost:11434/v1/chat/completions"
+      "default": "http://localhost:11434/v1"
     },
     "api-key": {
       "title": "Set API Key",
