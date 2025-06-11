@@ -324,6 +324,12 @@ def train_diffusion_lora():
         print("Disabling evaluation for FluxPipeline as we don't support sharding based inference in the plugin yet.")
         eval_prompt = None
         args["eval_prompt"] = None
+        args["eval_steps"] = 0
+    elif eval_prompt and eval_steps <= 0:
+        print("Warning: eval_steps is set to 0, evaluation will not be performed.")
+        eval_prompt = None
+        args["eval_prompt"] = None
+        args["eval_steps"] = 0
 
     if eval_prompt:
         eval_images_dir = Path(WORKSPACE_DIR) / "temp" / f"eval_images_{job_id}"
