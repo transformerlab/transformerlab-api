@@ -62,7 +62,7 @@ def test_download_zip_invalid_url(client):
     assert response.status_code == 400
     response_data = response.json()
     assert "detail" in response_data
-    assert "Invalid URL provided" in response_data["detail"]
+    assert "Invalid or unauthorized URL" in response_data["detail"]
 
 
 def test_download_zip_malformed_request(client):
