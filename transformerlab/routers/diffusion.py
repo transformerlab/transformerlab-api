@@ -162,65 +162,70 @@ UPSCALE_MODEL_LATENT = "stabilityai/sd-x2-latent-upscaler"
 def _setup_diffusion_logger():
     """Setup logging for the diffusion router that logs to both console and file"""
     logger = logging.getLogger("diffusion")
-    
+
     # Avoid adding handlers multiple times
     if logger.handlers:
         return logger
-    
+
     logger.setLevel(logging.INFO)
     formatter = logging.Formatter("%(asctime)s [DIFFUSION] [%(levelname)s] %(message)s")
-    
+
     # File handler
     try:
-        file_handler = logging.FileHandler(dirs.GLOBAL_LOG_PATH, encoding='utf-8')
+        file_handler = logging.FileHandler(dirs.GLOBAL_LOG_PATH, encoding="utf-8")
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
     except Exception:
         pass  # Continue without file logging if there's an issue
-    
+
     # Console handler
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
-    
+
     # Prevent propagation to root logger to avoid affecting other routes
     logger.propagate = False
-    
+
     return logger
+
 
 # Initialize the diffusion logger
 diffusion_logger = _setup_diffusion_logger()
 
+
 def log_print(*args, **kwargs):
     """Enhanced logging function for diffusion router"""
-    message = ' '.join(str(arg) for arg in args)
+    message = " ".join(str(arg) for arg in args)
     diffusion_logger.info(message)
+
 
 class DiffusionOutputCapture:
     """Context manager to capture all stdout/stderr and redirect to diffusion logger"""
-    
+
     def __init__(self):
         self.original_stdout = None
         self.original_stderr = None
-        
+
     def __enter__(self):
         # Store original stdout/stderr
         self.original_stdout = sys.stdout
         self.original_stderr = sys.stderr
-        
+
         # Redirect to our logger
         sys.stdout = LoggerWriter(diffusion_logger.info)
         sys.stderr = LoggerWriter(diffusion_logger.info)
-        
+
         return self
-        
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         # Restore original stdout/stderr
         sys.stdout = self.original_stdout
         sys.stderr = self.original_stderr
 
+
 class LoggerWriter:
     """Writer class that redirects output to logger"""
+
     def __init__(self, level):
         self.level = level
         self.buffer = ""
@@ -331,13 +336,15 @@ def latents_to_rgb(latents):
     """Convert SDXL latents (4 channels) to RGB tensors (3 channels)"""
     weights = (
         (60, -60, 25, -70),
-        (60,  -5, 15, -50),
-        (60,  10, -5, -35),
+        (60, -5, 15, -50),
+        (60, 10, -5, -35),
     )
 
     weights_tensor = torch.t(torch.tensor(weights, dtype=latents.dtype).to(latents.device))
     biases_tensor = torch.tensor((150, 140, 130), dtype=latents.dtype).to(latents.device)
-    rgb_tensor = torch.einsum("...lxy,lr -> ...rxy", latents, weights_tensor) + biases_tensor.unsqueeze(-1).unsqueeze(-1)
+    rgb_tensor = torch.einsum("...lxy,lr -> ...rxy", latents, weights_tensor) + biases_tensor.unsqueeze(-1).unsqueeze(
+        -1
+    )
     image_array = rgb_tensor.clamp(0, 255).byte().cpu().numpy().transpose(1, 2, 0)
 
     return Image.fromarray(image_array)
@@ -345,6 +352,7 @@ def latents_to_rgb(latents):
 
 def create_decode_callback(images_folder):
     """Create a callback function to decode and save latents at each step"""
+
     def decode_tensors(pipe, step, timestep, callback_kwargs):
         try:
             latents = callback_kwargs["latents"]
@@ -354,9 +362,9 @@ def create_decode_callback(images_folder):
             image.save(step_image_path)
         except Exception as e:
             log_print(f"Warning: Failed to save intermediate image for step {step}: {str(e)}")
-        
+
         return callback_kwargs
-    
+
     return decode_tensors
 
 
@@ -365,17 +373,17 @@ def cleanup_pipeline(pipe=None):
     try:
         if pipe is not None:
             # Clean up pipeline components explicitly
-            if hasattr(pipe, 'unet') and pipe.unet is not None:
+            if hasattr(pipe, "unet") and pipe.unet is not None:
                 del pipe.unet
-            if hasattr(pipe, 'transformer') and pipe.transformer is not None:
+            if hasattr(pipe, "transformer") and pipe.transformer is not None:
                 del pipe.transformer
-            if hasattr(pipe, 'vae') and pipe.vae is not None:
+            if hasattr(pipe, "vae") and pipe.vae is not None:
                 del pipe.vae
-            if hasattr(pipe, 'text_encoder') and pipe.text_encoder is not None:
+            if hasattr(pipe, "text_encoder") and pipe.text_encoder is not None:
                 del pipe.text_encoder
-            if hasattr(pipe, 'text_encoder_2') and pipe.text_encoder_2 is not None:
+            if hasattr(pipe, "text_encoder_2") and pipe.text_encoder_2 is not None:
                 del pipe.text_encoder_2
-            if hasattr(pipe, 'scheduler') and pipe.scheduler is not None:
+            if hasattr(pipe, "scheduler") and pipe.scheduler is not None:
                 del pipe.scheduler
             del pipe
 
@@ -514,7 +522,7 @@ def get_pipeline(
         if is_inpainting:
             pipe = AutoPipelineForInpainting.from_pretrained(
                 model,
-                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                torch_dtype=torch.float16 if device != "cpu" else torch.float32,
                 safety_checker=None,
                 requires_safety_checker=False,
             )
@@ -522,7 +530,7 @@ def get_pipeline(
         elif is_img2img:
             pipe = AutoPipelineForImage2Image.from_pretrained(
                 model,
-                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                torch_dtype=torch.float16 if device != "cpu" else torch.float32,
                 safety_checker=None,
                 requires_safety_checker=False,
             )
@@ -530,7 +538,7 @@ def get_pipeline(
         else:
             pipe = AutoPipelineForText2Image.from_pretrained(
                 model,
-                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                torch_dtype=torch.float16 if device != "cpu" else torch.float32,
                 safety_checker=None,
                 requires_safety_checker=False,
             )
@@ -570,16 +578,20 @@ def get_pipeline(
                     #     else:
                     #         # If no JSON file, assume it's a standard LoRA adaptor
                     #         log_print(f"No TFLab adaptor info found for {adaptor}, loading as standard LoRA")
-                    #         pipe.load_lora_weights(adaptor_path)                               
+                    #         pipe.load_lora_weights(adaptor_path)
                     # pipe.load_lora_weights(adaptor_path)
                     log_print(f"Loaded LoRA adaptor: {adaptor}")
                 else:
-                    log_print(f"Warning: No LoRA adaptor found at {adaptor_path}, trying to load as standard LoRA from Huggingface")
+                    log_print(
+                        f"Warning: No LoRA adaptor found at {adaptor_path}, trying to load as standard LoRA from Huggingface"
+                    )
                     pipe.load_lora_weights(adaptor_path)
             except Exception as e:
                 log_print(f"Warning: Failed to load LoRA adaptor '{adaptor}'")
                 log_print(f"Adaptor path: {adaptor_path}")
-                log_print("Try checking if the adaptor and model are compatible in terms of shapes. Some adaptors may not work with all models even if it is the same architecture.")
+                log_print(
+                    "Try checking if the adaptor and model are compatible in terms of shapes. Some adaptors may not work with all models even if it is the same architecture."
+                )
                 log_print(f"Error: {str(e)}")
                 # Continue without LoRA rather than failing
 
@@ -599,7 +611,7 @@ def get_upscale_pipeline(upscale_factor: int = 4, device: str = "cuda"):
             # Use latent upscaler for 2x
             pipe = StableDiffusionLatentUpscalePipeline.from_pretrained(
                 UPSCALE_MODEL_LATENT,
-                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                torch_dtype=torch.float16 if device != "cpu" else torch.float32,
                 safety_checker=None,
                 requires_safety_checker=False,
             )
@@ -607,7 +619,7 @@ def get_upscale_pipeline(upscale_factor: int = 4, device: str = "cuda"):
             # Use standard upscaler for 4x (default)
             pipe = StableDiffusionUpscalePipeline.from_pretrained(
                 UPSCALE_MODEL_STANDARD,
-                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                torch_dtype=torch.float16 if device != "cpu" else torch.float32,
                 safety_checker=None,
                 requires_safety_checker=False,
             )
@@ -661,9 +673,7 @@ async def generate_image(request: DiffusionRequest):
         generation_id = request.generation_id if request.generation_id else str(uuid.uuid4())
         print(f"Generation ID: {generation_id}")
         timestamp = datetime.now().isoformat()
-         # Validate generation_id to ensure it matches UUID format
-        print("GENERATION ID: ", generation_id.isalnum())
-        print("GENERATION ID LENGTH: ", len(generation_id))
+        # Validate generation_id to ensure it matches UUID format
         if not generation_id.replace("-", "").isalnum() or len(generation_id) != 36:
             raise HTTPException(status_code=400, detail="Invalid generation_id format")
 
@@ -740,7 +750,8 @@ async def generate_image(request: DiffusionRequest):
             except Exception as e:
                 log_print(f"Multi-GPU generation failed, falling back to single GPU: {str(e)}")
                 # Fall back to single GPU approach
-                device = "cuda" if torch.cuda.is_available() else "cpu"
+                use_single_gpu = True
+
                 cleanup_pipeline()
 
         else:
@@ -748,6 +759,8 @@ async def generate_image(request: DiffusionRequest):
 
         if use_single_gpu:
             device = "cuda" if torch.cuda.is_available() else "cpu"
+            if device == "cpu":
+                device = "mps" if torch.backends.mps.is_available() else "cpu"
             cleanup_pipeline()  # Clean up any previous pipelines
             pipe = get_pipeline(
                 request.model, request.adaptor, device=device, is_img2img=is_img2img, is_inpainting=is_inpainting
@@ -835,22 +848,24 @@ async def generate_image(request: DiffusionRequest):
 
                         result = pipe(**generation_kwargs)
                         images = result.images  # Get all images
-                        
+
                         # Clean up result object to free references
                         del result
                         del generation_kwargs
-                        
+
                         # Force cleanup within the executor thread
                         import gc
+
                         gc.collect()
                         if torch.cuda.is_available():
                             torch.cuda.empty_cache()
-                            
+
                         return images
                 except Exception as e:
                     # Ensure cleanup even if generation fails
                     log_print(f"Error during image generation: {str(e)}")
                     import gc
+
                     gc.collect()
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()
@@ -859,33 +874,37 @@ async def generate_image(request: DiffusionRequest):
             # Time the main generation
             generation_start = time.time()
             log_print("Starting image generation...")
-            
+
             images = await asyncio.get_event_loop().run_in_executor(None, run_pipe)
             generation_time = time.time() - generation_start
-            
+
             # Aggressive cleanup immediately after generation
             log_print("Starting aggressive memory cleanup...")
-            
+
             # Clean up the main pipeline to free VRAM
             cleanup_pipeline(pipe)
-            
+
             # Additional cleanup: clear any remaining references
             pipe = None
             input_image_obj = None
             mask_image_obj = None
             generator = None
-            
+
             # Force multiple garbage collection cycles
             import gc
+
             for _ in range(3):  # Multiple GC cycles can help
                 gc.collect()
-                
+
             # Additional CUDA cleanup
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
                 torch.cuda.ipc_collect()
                 torch.cuda.empty_cache()  # Second call
-                
+            # MPS cleanup if available
+            if torch.backends.mps.is_available():
+                torch.mps.empty_cache()
+
             log_print("Memory cleanup completed")
 
             # Get dimensions from the first image
@@ -904,6 +923,8 @@ async def generate_image(request: DiffusionRequest):
                 with DiffusionOutputCapture():
                     upscaled_images = []
                     device = "cuda" if torch.cuda.is_available() else "cpu"
+                    if device == "cpu":
+                        device = "mps" if torch.backends.mps.is_available() else "cpu"
                     for i, image in enumerate(images):
                         log_print(f"Upscaling image {i + 1}/{len(images)}")
                         upscaled_image = upscale_image(image, request.prompt, request.upscale_factor, device)
@@ -1009,7 +1030,7 @@ async def is_valid_diffusion(request: DiffusionRequest):
             # Then check if we can derive an inpainting pipeline from a text2img architecture
             # This follows the same logic as diffusers AutoPipelineForInpainting
             for arch in architectures:
-                if arch in ALLOWED_TEXT2IMG_ARCHITECTURES and 'flux' not in arch.lower():
+                if arch in ALLOWED_TEXT2IMG_ARCHITECTURES and "flux" not in arch.lower():
                     return {
                         "is_valid_diffusion_model": True,
                         "reason": f"Text2img architecture {arch} can be used for inpainting",
@@ -1048,7 +1069,9 @@ async def get_history(limit: int = 50, offset: int = 0):
 
 
 @router.get("/history/{image_id}", summary="Get the actual image by ID")
-async def get_image_by_id(image_id: str, index: int = 0, input_image: bool = False, mask_image: bool = False, step: bool = False):
+async def get_image_by_id(
+    image_id: str, index: int = 0, input_image: bool = False, mask_image: bool = False, step: bool = False
+):
     """
     Get an image from history by ID and index
 
@@ -1599,6 +1622,7 @@ def should_use_diffusion_worker(model) -> bool:
     try:
         # Check if model has FLUX components by looking for config
         from huggingface_hub import model_info
+
         info = model_info(model)
         config = getattr(info, "config", {})
         diffusers_config = config.get("diffusers", {})
@@ -1692,7 +1716,7 @@ async def run_multi_gpu_generation(
             "--output-dir",
             images_folder,
             "--worker-id",
-            generation_id
+            generation_id,
         ]
 
         log_print(f"Running multi-GPU generation with command: {' '.join(cmd)}")
@@ -1710,9 +1734,9 @@ async def run_multi_gpu_generation(
         while True:
             line = await process.stdout.readline()
             if line:
-                line_text = line.decode('utf-8').rstrip()
+                line_text = line.decode("utf-8").rstrip()
                 log_print(line_text)  # Print to console in real-time
-                output_lines.append(line_text + '\n')
+                output_lines.append(line_text + "\n")
             else:
                 break
 
