@@ -39,6 +39,14 @@ if "inferenceEngineFriendlyName" in parameters:
 if "num_gpus" in parameters:
     del parameters["num_gpus"]
 
+# TODO: why do we have these in the parameters?
+if "proxy_url" in parameters:
+    del parameters["proxy_url"]
+
+if "api_key" in parameters:
+    del parameters["api_key"]
+
+
 
 # Get plugin directory
 real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
