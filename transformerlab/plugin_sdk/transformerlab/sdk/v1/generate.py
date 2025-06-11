@@ -74,6 +74,8 @@ class GenTLabPlugin(TLabPlugin):
             if dataset_id is None:
                 # Makes /Users/xx/yy.json to yy
                 dataset_id = Path(output_file).stem
+
+            dataset_id = dataset_id.lower()
             # Store metadata
             metadata = {
                 "generation_model": self.params.generation_model,
