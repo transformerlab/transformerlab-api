@@ -3,7 +3,6 @@ import os
 import shutil
 import tempfile
 import zipfile
-from urllib.parse import urlparse
 
 import aiofiles
 import httpx
