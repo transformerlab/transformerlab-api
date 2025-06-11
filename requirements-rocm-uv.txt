@@ -185,7 +185,7 @@ latex2mathml==3.77.0
 lxml==5.4.0
     # via python-pptx
 macmon-python==0.1.2
-    # via -r requirements.in
+    # via -r requirements-rocm.in
 magika==0.6.1
     # via markitdown
 makefun==1.16.0
