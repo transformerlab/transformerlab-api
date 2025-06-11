@@ -177,4 +177,61 @@ def test_download_zip_optional_fields(client):
     assert response.status_code != 422  # Not a validation error  
     assert response.status_code != 404  # Not a routing error
     # Should be either success (200) or server error (500) during processing
-    assert response.status_code in [200, 500] 
+    assert response.status_code in [200, 500]
+
+
+def test_download_zip_unauthorized_domain(client):
+    """Test download_zip with URL from unauthorized domain"""
+    test_data = {
+        "url": "https://example.com/malicious-file.zip",
+        "extract_folder_name": "test_folder"
+    }
+    
+    response = client.post(
+        "/experiment/test_exp_id/documents/download_zip",
+        json=test_data
+    )
+    
+    assert response.status_code == 400
+    response_data = response.json()
+    assert "detail" in response_data
+    assert "Invalid or unauthorized URL" in response_data["detail"]
+
+
+def test_download_zip_download_error(client):
+    """Test download_zip with URL that causes download error"""
+    # Create a test experiment first
+    unique_name = f"test_download_zip_download_error_{int(time.time() * 1000)}"
+    exp_response = client.get(f"/experiment/create?name={unique_name}")
+    assert exp_response.status_code == 200
+    experiment_id = exp_response.json()
+    
+    test_data = {
+        "url": "https://filebin.net/x2ubmjsmicr6sz7b/archive.zip",
+        "extract_folder_name": "test_folder" 
+    }
+    
+    # Add filebin.net to allowed domains temporarily for this test
+    from transformerlab.routers.experiment.documents import ALLOWED_DOMAINS
+    original_domains = ALLOWED_DOMAINS.copy()
+    ALLOWED_DOMAINS.add("filebin.net")
+    
+    try:
+        response = client.post(
+            f"/experiment/{experiment_id}/documents/download_zip",
+            json=test_data
+        )
+        
+        # Should get a server error due to download/processing failure
+        # filebin.net serves HTML warning page instead of ZIP file
+        assert response.status_code in [400, 500]
+        if response.status_code == 400:
+            response_data = response.json()
+            assert "detail" in response_data
+            # Should indicate either ZIP processing error or download failure
+            assert any(keyword in response_data["detail"].lower() for keyword in 
+                      ["zip", "download", "archive", "valid"])
+    finally:
+        # Restore original allowed domains
+        ALLOWED_DOMAINS.clear()
+        ALLOWED_DOMAINS.update(original_domains) 
