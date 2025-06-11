@@ -31,7 +31,6 @@ hf_xet
 macmon-python
 transformerlab-inference
 diffusers==0.33.1
-pyrsmi
 nvidia-ml-py
 transformerlab-inference
 mcp[cli]
