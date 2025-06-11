@@ -45,6 +45,7 @@ from transformerlab.routers import (
     prompts,
     tools,
     batched_prompts,
+    diffusion,
     recipes,
     users,
 )
@@ -52,6 +53,7 @@ import torch
 
 try:
     from pynvml import nvmlShutdown
+    HAS_AMD = False
 except Exception:
     from pyrsmi import rocml
 
@@ -148,7 +150,7 @@ app = fastapi.FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -182,6 +184,7 @@ app.include_router(tools.router)
 app.include_router(recipes.router)
 app.include_router(batched_prompts.router)
 app.include_router(fastchat_openai_api.router)
+app.include_router(diffusion.router)
 app.include_router(get_xmlrpc_router())
 app.include_router(get_trainer_xmlrpc_router())
 
@@ -442,6 +445,8 @@ def run():
     args = parse_args()
 
     print(f"args: {args}")
+    if args.allowed_origins == ["*"]:
+        args.allowed_credentials = False
 
     app.add_middleware(
         CORSMiddleware,
