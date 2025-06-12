@@ -25,6 +25,8 @@ jobs:
         id: get_version
         run: |
           # Remove the 'v' prefix if it exists, e.g., v1.2.3 -> 1.2.3
+          echo "GITHUB_REF=${GITHUB_REF}"
+          echo ""VERSION=${GITHUB_REF#refs/tags/}""
           echo "VERSION=${GITHUB_REF#refs/tags/}" | sed 's/^v//' >> $GITHUB_ENV
 
       - name: Build CPU image
