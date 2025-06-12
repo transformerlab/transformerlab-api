@@ -326,6 +326,12 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
         requires_safety_checker=False,
     )
 
+    scheduler_name = config.get("scheduler", "default")
+    if scheduler_name != "default":
+        scheduler_class = scheduler_map[scheduler_name]
+        denoising_pipeline.scheduler = scheduler_class.from_config(denoising_pipeline.scheduler.config)
+        print(f"[Sharding] Scheduler set to: {scheduler_name}")
+
     print("Running denoising...")
     with torch.no_grad():
         # Prepare generation kwargs
