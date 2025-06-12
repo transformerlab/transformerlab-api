@@ -618,7 +618,7 @@ def get_pipeline(
                 scheduler_class = scheduler_map[scheduler]
                 pipe.scheduler = scheduler_class.from_config(pipe.scheduler.config)
                 log_print(f"[DEBUG] Set scheduler to: {type(pipe.scheduler).__name__}")
-        except KeyError as e:
+        except KeyError:
             log_print(f"[ERROR] Unknown scheduler: {scheduler}")
             raise
         except Exception as e:
