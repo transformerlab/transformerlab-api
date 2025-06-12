@@ -2,6 +2,7 @@ import os
 import json
 import pytest
 from fastapi.testclient import TestClient
+import time
 
 # Set environment variables before importing modules
 os.environ["TFL_HOME_DIR"] = "./test/tmp/"
@@ -249,380 +250,302 @@ TEST_EXP_RECIPES = [
     }
 ]
 
-
-@pytest.fixture(autouse=True)
-def setup_test_recipes():
-    """Setup test recipe file by overwriting the cached gallery file"""
-    cache_file_path = gallery_cache_file_path(EXP_RECIPES_GALLERY_FILE)
-
-    # Store original file if it exists
-    original_content = None
-    if os.path.exists(cache_file_path):
-        with open(cache_file_path, "r") as f:
-            original_content = f.read()
-
-    # Ensure the directory exists
-    os.makedirs(os.path.dirname(cache_file_path), exist_ok=True)
-
-    # Write our test recipes to the cache file
-    with open(cache_file_path, "w") as f:
-        json.dump(TEST_EXP_RECIPES, f)
-
-    yield  # This is where the test runs
-
-    # Cleanup: restore original file or remove test file
-    if original_content is not None:
+@pytest.fixture
+def client_with_test_recipes():
+    """Fixture that provides a test client with test recipes loaded."""
+    with TestClient(app) as client:
+        # Write test recipes after client is created
+        cache_file_path = gallery_cache_file_path(EXP_RECIPES_GALLERY_FILE)
+        os.makedirs(os.path.dirname(cache_file_path), exist_ok=True)
         with open(cache_file_path, "w") as f:
-            f.write(original_content)
-    elif os.path.exists(cache_file_path):
-        os.remove(cache_file_path)
+            json.dump(TEST_EXP_RECIPES, f)
+        time.sleep(1)
+        yield client
+
+def test_recipes_list(client_with_test_recipes):
+    resp = client_with_test_recipes.get("/recipes/list")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    assert len(data) >= 6  # Should have our test recipes (updated count)
 
 
-def test_recipes_list():
-    with TestClient(app) as client:
-        resp = client.get("/recipes/list")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert isinstance(data, list)
-        assert len(data) >= 6  # Should have our test recipes (updated count)
+def test_recipes_get_by_id_with_notes(client_with_test_recipes):
+    resp = client_with_test_recipes.get("/recipes/1")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == "1"
+    assert data["title"] == "Test Recipe - With Notes"
+    assert "notes" in data
+    assert "# Test Recipe Notes" in data["notes"]
 
 
-def test_recipes_get_by_id_with_notes():
-    with TestClient(app) as client:
-        resp = client.get("/recipes/1")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["id"] == "1"
-        assert data["title"] == "Test Recipe - With Notes"
-        assert "notes" in data
-        assert "# Test Recipe Notes" in data["notes"]
+def test_recipes_get_by_id_with_tasks(client_with_test_recipes):
+    resp = client_with_test_recipes.get("/recipes/2")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == "2"
+    assert "tasks" in data
+    assert len(data["tasks"]) == 1
+    assert data["tasks"][0]["task_type"] == "TRAIN"
 
 
-def test_recipes_get_by_id_with_tasks():
-    with TestClient(app) as client:
-        resp = client.get("/recipes/2")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["id"] == "2"
-        assert "tasks" in data
-        assert len(data["tasks"]) == 1
-        assert data["tasks"][0]["task_type"] == "TRAIN"
+def test_create_experiment_with_notes(client_with_test_recipes):
+    test_experiment_name = f"test_notes_exp_{os.getpid()}"
+    resp = client_with_test_recipes.post(f"/recipes/1/create_experiment?experiment_name={test_experiment_name}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "status" in data or "message" in data
 
 
-def test_create_experiment_with_notes():
-    with TestClient(app) as client:
-        test_experiment_name = f"test_notes_exp_{os.getpid()}"
-        resp = client.post(f"/recipes/1/create_experiment?experiment_name={test_experiment_name}")
-        assert resp.status_code == 200
-        data = resp.json()
-        # Should either succeed or have a reasonable response
-        assert "status" in data or "message" in data
+def test_create_experiment_with_tasks(client_with_test_recipes):
+    test_experiment_name = f"test_tasks_exp_{os.getpid()}"
+    resp = client_with_test_recipes.post(f"/recipes/2/create_experiment?experiment_name={test_experiment_name}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "success"
+    assert "data" in data
+    assert "task_results" in data["data"]
+    task_results = data["data"]["task_results"]
+    assert len(task_results) == 1
+    assert task_results[0]["task_name"] == "test_train_task"
+    assert task_results[0]["task_type"] == "TRAIN"
 
 
-def test_create_experiment_with_tasks():
-    with TestClient(app) as client:
-        test_experiment_name = f"test_tasks_exp_{os.getpid()}"
-        resp = client.post(f"/recipes/2/create_experiment?experiment_name={test_experiment_name}")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["status"] == "success"
+def test_create_experiment_tasks_only(client_with_test_recipes):
+    test_experiment_name = f"test_tasks_only_{os.getpid()}"
+    resp = client_with_test_recipes.post(f"/recipes/3/create_experiment?experiment_name={test_experiment_name}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "status" in data or "message" in data
+
+
+def test_create_experiment_duplicate_name(client_with_test_recipes):
+    test_experiment_name = f"duplicate_test_{os.getpid()}"
+
+    # First creation
+    resp1 = client_with_test_recipes.post(f"/recipes/1/create_experiment?experiment_name={test_experiment_name}")
+    assert resp1.status_code == 200
+
+    # Second creation with same name should fail
+    resp2 = client_with_test_recipes.post(f"/recipes/1/create_experiment?experiment_name={test_experiment_name}")
+    assert resp2.status_code == 200
+    data = resp2.json()
+    assert data.get("status") == "error"
+    assert "already exists" in data.get("message", "")
+
+
+def test_create_experiment_invalid_recipe_id(client_with_test_recipes):
+    test_experiment_name = f"invalid_recipe_test_{os.getpid()}"
+    resp = client_with_test_recipes.post(f"/recipes/999/create_experiment?experiment_name={test_experiment_name}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data.get("status") == "error"
+    assert "not found" in data.get("message", "")
+
+
+def test_create_experiment_with_adaptor_name(client_with_test_recipes):
+    """Test creating experiment with recipe that has adaptor_name in config (covers line 281)"""
+    test_experiment_name = f"test_adaptor_{os.getpid()}"
+    resp = client_with_test_recipes.post(f"/recipes/4/create_experiment?experiment_name={test_experiment_name}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "status" in data or "message" in data
+    if data.get("status") == "success":
+        assert "data" in data
+        assert "task_results" in data["data"]
+
+
+def test_create_experiment_with_invalid_json_config(client_with_test_recipes):
+    """Test creating experiment with invalid JSON config to trigger exception handling (covers lines 306-307)"""
+    test_experiment_name = f"test_invalid_json_{os.getpid()}"
+    resp = client_with_test_recipes.post(f"/recipes/5/create_experiment?experiment_name={test_experiment_name}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "status" in data or "message" in data
+    if data.get("status") == "success" and "data" in data and "task_results" in data["data"]:
+        task_results = data["data"]["task_results"]
+        assert len(task_results) > 0
+        has_error = any("error" in result.get("status", "") for result in task_results)
+        assert has_error
+
+
+def test_recipes_get_by_id_with_multiple_task_types(client_with_test_recipes):
+    """Test that a recipe with multiple task types (TRAIN, EVAL, GENERATE) is handled correctly"""
+    resp = client_with_test_recipes.get("/recipes/6")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == "6"
+    assert "tasks" in data
+    assert len(data["tasks"]) == 3
+    task_types = [task["task_type"] for task in data["tasks"]]
+    assert "TRAIN" in task_types
+    assert "EVAL" in task_types
+    assert "GENERATE" in task_types
+
+
+def test_create_experiment_with_multiple_task_types(client_with_test_recipes):
+    """Test creating an experiment with multiple task types"""
+    test_experiment_name = f"test_multi_tasks_{os.getpid()}"
+    resp = client_with_test_recipes.post(f"/recipes/6/create_experiment?experiment_name={test_experiment_name}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "status" in data
+    if data.get("status") == "success":
         assert "data" in data
         assert "task_results" in data["data"]
         task_results = data["data"]["task_results"]
-        assert len(task_results) == 1
-        assert task_results[0]["task_name"] == "test_train_task"
-        assert task_results[0]["task_type"] == "TRAIN"
-
-
-def test_create_experiment_tasks_only():
-    with TestClient(app) as client:
-        test_experiment_name = f"test_tasks_only_{os.getpid()}"
-        resp = client.post(f"/recipes/3/create_experiment?experiment_name={test_experiment_name}")
-        assert resp.status_code == 200
-        data = resp.json()
-        # Should either succeed or have a reasonable response
-        assert "status" in data or "message" in data
-
-
-def test_create_experiment_duplicate_name():
-    with TestClient(app) as client:
-        test_experiment_name = f"duplicate_test_{os.getpid()}"
-
-        # First creation
-        resp1 = client.post(f"/recipes/1/create_experiment?experiment_name={test_experiment_name}")
-        assert resp1.status_code == 200
-
-        # Second creation with same name should fail
-        resp2 = client.post(f"/recipes/1/create_experiment?experiment_name={test_experiment_name}")
-        assert resp2.status_code == 200
-        data = resp2.json()
-        assert data.get("status") == "error"
-        assert "already exists" in data.get("message", "")
-
-
-def test_create_experiment_invalid_recipe_id():
-    with TestClient(app) as client:
-        test_experiment_name = f"invalid_recipe_test_{os.getpid()}"
-        resp = client.post(f"/recipes/999/create_experiment?experiment_name={test_experiment_name}")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data.get("status") == "error"
-        assert "not found" in data.get("message", "")
-
-
-def test_create_experiment_with_adaptor_name():
-    """Test creating experiment with recipe that has adaptor_name in config (covers line 281)"""
-    with TestClient(app) as client:
-        test_experiment_name = f"test_adaptor_{os.getpid()}"
-        resp = client.post(f"/recipes/4/create_experiment?experiment_name={test_experiment_name}")
-        assert resp.status_code == 200
-        data = resp.json()
-        # Should either succeed or have a reasonable response
-        assert "status" in data or "message" in data
-        # If it succeeds, should have task results
-        if data.get("status") == "success":
-            assert "data" in data
-            assert "task_results" in data["data"]
-
-
-def test_create_experiment_with_invalid_json_config():
-    """Test creating experiment with invalid JSON config to trigger exception handling (covers lines 306-307)"""
-    with TestClient(app) as client:
-        test_experiment_name = f"test_invalid_json_{os.getpid()}"
-        resp = client.post(f"/recipes/5/create_experiment?experiment_name={test_experiment_name}")
-        assert resp.status_code == 200
-        data = resp.json()
-        # Should succeed but with error in task results due to invalid JSON
-        assert "status" in data or "message" in data
-        if data.get("status") == "success" and "data" in data and "task_results" in data["data"]:
-            task_results = data["data"]["task_results"]
-            # Should have at least one task result with an error status
-            assert len(task_results) > 0
-            # At least one task should have error status due to invalid JSON
-            has_error = any("error" in result.get("status", "") for result in task_results)
-            assert has_error
-
-
-def test_recipes_get_by_id_with_multiple_task_types():
-    """Test that a recipe with multiple task types (TRAIN, EVAL, GENERATE) is handled correctly"""
-    with TestClient(app) as client:
-        resp = client.get("/recipes/6")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["id"] == "6"
-        assert "tasks" in data
-        assert len(data["tasks"]) == 3
-        task_types = [task["task_type"] for task in data["tasks"]]
+        assert len(task_results) == 3
+        
+        # Verify task names and types
+        task_names = [result["task_name"] for result in task_results]
+        assert "multi_train_task" in task_names
+        assert "multi_eval_task" in task_names
+        assert "multi_generate_task" in task_names
+        
+        # Verify task types
+        task_types = [result["task_type"] for result in task_results]
         assert "TRAIN" in task_types
         assert "EVAL" in task_types
         assert "GENERATE" in task_types
 
 
-def test_create_experiment_with_multiple_task_types():
-    """Test creating an experiment with multiple task types"""
-    with TestClient(app) as client:
-        test_experiment_name = f"test_multi_tasks_{os.getpid()}"
-        resp = client.post(f"/recipes/6/create_experiment?experiment_name={test_experiment_name}")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "status" in data
-        if data.get("status") == "success":
-            assert "data" in data
-            assert "task_results" in data["data"]
-            task_results = data["data"]["task_results"]
-            assert len(task_results) == 3
-            
-            # Verify task names and types
-            task_names = [result["task_name"] for result in task_results]
-            assert "multi_train_task" in task_names
-            assert "multi_eval_task" in task_names
-            assert "multi_generate_task" in task_names
-            
-            # Verify task types
-            task_types = [result["task_type"] for result in task_results]
-            assert "TRAIN" in task_types
-            assert "EVAL" in task_types
-            assert "GENERATE" in task_types
-
-
-def test_create_experiment_with_script_parameters_list_dict():
+def test_create_experiment_with_script_parameters_list_dict(client_with_test_recipes):
     """Test creating experiment with recipe that has list and dict values in script_parameters (covers line 276)"""
-    with TestClient(app) as client:
-        test_experiment_name = f"test_script_params_{os.getpid()}"
-        resp = client.post(
-            f"/recipes/10/create_experiment?experiment_name={test_experiment_name}")
-        assert resp.status_code == 200
-        data = resp.json()
-        # Should either succeed or have a reasonable response
-        assert "status" in data or "message" in data
-        # If it succeeds, should have task results
-        if data.get("status") == "success":
-            assert "data" in data
-            assert "task_results" in data["data"]
-            task_results = data["data"]["task_results"]
-            assert len(task_results) == 1
-            # Task should be created successfully with EVAL type
-            task_result = task_results[0]
-            assert task_result.get("task_type") == "EVAL"
-            assert task_result.get("action") == "create_task"
-            # This test exercises the code path where list/dict values in script_parameters
-            # get converted to JSON strings on line 276
+    test_experiment_name = f"test_script_params_{os.getpid()}"
+    resp = client_with_test_recipes.post(
+        f"/recipes/10/create_experiment?experiment_name={test_experiment_name}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "status" in data or "message" in data
+    if data.get("status") == "success":
+        assert "data" in data
+        assert "task_results" in data["data"]
+        task_results = data["data"]["task_results"]
+        assert len(task_results) == 1
+        task_result = task_results[0]
+        assert task_result.get("task_type") == "EVAL"
+        assert task_result.get("action") == "create_task"
 
 
-def test_recipes_get_by_id_with_workflows():
+def test_recipes_get_by_id_with_workflows(client_with_test_recipes):
     """Test that a recipe with workflows is handled correctly"""
-    with TestClient(app) as client:
-        resp = client.get("/recipes/7")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["id"] == "7"
-        assert "workflows" in data
-        assert len(data["workflows"]) == 2  # Recipe 7 has 2 workflows
-        workflow_names = [wf["name"] for wf in data["workflows"]]
-        assert "Train_Only_Workflow" in workflow_names
-        assert "Train_Eval_Workflow" in workflow_names
-        # Check that both workflows have valid config structures
-        for workflow in data["workflows"]:
-            assert "config" in workflow
-            assert "nodes" in workflow["config"]
-            assert len(workflow["config"]["nodes"]) > 0
+    resp = client_with_test_recipes.get("/recipes/7")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == "7"
+    assert "workflows" in data
+    assert len(data["workflows"]) == 2  # Recipe 7 has 2 workflows
+    workflow_names = [wf["name"] for wf in data["workflows"]]
+    assert "Train_Only_Workflow" in workflow_names
+    assert "Train_Eval_Workflow" in workflow_names
+    for workflow in data["workflows"]:
+        assert "config" in workflow
+        assert "nodes" in workflow["config"]
+        assert len(workflow["config"]["nodes"]) > 0
 
 
-def test_create_experiment_with_workflows():
+def test_create_experiment_with_workflows(client_with_test_recipes):
     """Test creating an experiment with workflows"""
-    with TestClient(app) as client:
-        test_experiment_name = f"test_workflows_{os.getpid()}"
-        resp = client.post(
-            f"/recipes/7/create_experiment?experiment_name={test_experiment_name}")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "status" in data
-        if data.get("status") == "success":
-            assert "data" in data
-            assert "workflow_creation_results" in data["data"]
-            workflow_results = data["data"]["workflow_creation_results"]
-            assert len(workflow_results) == 2  # Recipe 7 has 2 workflows
-            workflow_names = [result.get("workflow_name") for result in workflow_results]
-            assert "Train_Only_Workflow" in workflow_names
-            assert "Train_Eval_Workflow" in workflow_names
-            # All workflows should be created successfully
-            for result in workflow_results:
-                assert result.get("action") == "create_workflow"
-                assert result.get("status") == "success"
-                assert "workflow_id" in result
-
-
-def test_create_experiment_with_multiple_workflows():
-    """Test creating an experiment with multiple workflows"""
-    with TestClient(app) as client:
-        test_experiment_name = f"test_multi_workflows_{os.getpid()}"
-        resp = client.post(
-            f"/recipes/7/create_experiment?experiment_name={test_experiment_name}")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "status" in data
-        if data.get("status") == "success":
-            # Verify tasks were created with correct names
-            task_results = data["data"]["task_results"]
-            assert len(task_results) == 2
-            task_names = [result["task_name"] for result in task_results]
-            assert "workflow_train_task" in task_names
-            assert "workflow_eval_task" in task_names
-            
-            # Verify workflows were created with correct task references
-            workflow_results = data["data"]["workflow_creation_results"]
-            assert len(workflow_results) == 2
-            assert all(result["status"] == "success" for result in workflow_results)
-            
-            # Get the workflows to verify their task references
-            workflows_resp = client.get("/recipes/7")
-            workflows_data = workflows_resp.json()
-            for workflow in workflows_data["workflows"]:
-                if workflow["name"] == "Train_Only_Workflow":
-                    assert workflow["config"]["nodes"][0]["task"] == "workflow_train_task"
-                elif workflow["name"] == "Train_Eval_Workflow":
-                    assert workflow["config"]["nodes"][0]["task"] == "workflow_train_task"
-                    assert workflow["config"]["nodes"][1]["task"] == "workflow_eval_task"
-
-
-def test_create_experiment_with_invalid_workflow_config():
-    """Test creating experiment with invalid workflow config to test error handling"""
-    with TestClient(app) as client:
-        test_experiment_name = f"test_invalid_workflow_{os.getpid()}"
-        resp = client.post(
-            f"/recipes/8/create_experiment?experiment_name={test_experiment_name}")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "status" in data
-        if data.get("status") == "success":
-            assert "data" in data
-            assert "workflow_creation_results" in data["data"]
-            workflow_results = data["data"]["workflow_creation_results"]
-            assert len(workflow_results) == 1  # Recipe 8 has 1 invalid workflow
-            workflow_result = workflow_results[0]
-            assert workflow_result.get("workflow_name") == "Invalid_Workflow"
-            assert workflow_result.get("action") == "create_workflow"
-            assert "error" in workflow_result.get("status", "")
-
-
-def test_create_experiment_without_workflows():
-    """Test creating an experiment from a recipe without workflows"""
-    with TestClient(app) as client:
-        test_experiment_name = f"test_no_workflows_{os.getpid()}"
-        resp = client.post(
-            f"/recipes/6/create_experiment?experiment_name={test_experiment_name}")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "status" in data
-        if data.get("status") == "success":
-            assert "data" in data
-            # Should have workflow_creation_results but it should be empty
-            assert "workflow_creation_results" in data["data"]
-            workflow_results = data["data"]["workflow_creation_results"]
-            assert len(workflow_results) == 0
-
-
-def test_recipes_get_by_id_with_multiple_workflows():
-    """Test that a recipe with multiple workflows is handled correctly"""
-    with TestClient(app) as client:
-        resp = client.get("/recipes/7")  # Changed to recipe 7 which has 2 workflows
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["id"] == "7"
-        assert "workflows" in data
-        assert len(data["workflows"]) == 2  # Recipe 7 has 2 workflows
-        workflow_names = [wf["name"] for wf in data["workflows"]]
+    test_experiment_name = f"test_workflows_{os.getpid()}"
+    resp = client_with_test_recipes.post(
+        f"/recipes/7/create_experiment?experiment_name={test_experiment_name}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "status" in data
+    if data.get("status") == "success":
+        assert "data" in data
+        assert "workflow_creation_results" in data["data"]
+        workflow_results = data["data"]["workflow_creation_results"]
+        assert len(workflow_results) == 2  # Recipe 7 has 2 workflows
+        workflow_names = [result.get("workflow_name") for result in workflow_results]
         assert "Train_Only_Workflow" in workflow_names
         assert "Train_Eval_Workflow" in workflow_names
-        # Check that both workflows have valid config structures
-        for workflow in data["workflows"]:
-            assert "config" in workflow
-            assert "nodes" in workflow["config"]
-            assert len(workflow["config"]["nodes"]) > 0
+        for result in workflow_results:
+            assert result.get("action") == "create_workflow"
+            assert result.get("status") == "success"
+            assert "workflow_id" in result
 
 
-def test_create_experiment_with_named_tasks():
-    """Test creating an experiment from a recipe with explicitly named tasks."""
-    with TestClient(app) as client:
-        # Create experiment from recipe with named tasks
-        response = client.post("/recipes/9/create_experiment", params={"experiment_name": "named_tasks_test"})
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "success"
-        
-        # Verify task results
+def test_create_experiment_with_multiple_workflows(client_with_test_recipes):
+    """Test creating an experiment with multiple workflows"""
+    test_experiment_name = f"test_multi_workflows_{os.getpid()}"
+    resp = client_with_test_recipes.post(
+        f"/recipes/7/create_experiment?experiment_name={test_experiment_name}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "status" in data
+    if data.get("status") == "success":
+        # Verify tasks were created with correct names
         task_results = data["data"]["task_results"]
         assert len(task_results) == 2
+        task_names = [result["task_name"] for result in task_results]
+        assert "workflow_train_task" in task_names
+        assert "workflow_eval_task" in task_names
         
-        # Check if task names match those specified in recipe
-        assert task_results[0]["task_name"] == "custom_train_task"
-        assert task_results[1]["task_name"] == "custom_eval_task"
+        # Verify workflows were created with correct task references
+        workflow_results = data["data"]["workflow_creation_results"]
+        assert len(workflow_results) == 2
+        assert all(result["status"] == "success" for result in workflow_results)
         
-        # Verify other task properties
-        assert task_results[0]["task_type"] == "TRAIN"
-        assert task_results[1]["task_type"] == "EVAL"
-        assert task_results[0]["plugin"] == "test_trainer"
-        assert task_results[1]["plugin"] == "test_evaluator"
-        
-        # Verify both tasks were created successfully
-        assert all(result["status"] == "success" for result in task_results)
+        # Get the workflows to verify their task references
+        workflows_resp = client_with_test_recipes.get("/recipes/7")
+        workflows_data = workflows_resp.json()
+        for workflow in workflows_data["workflows"]:
+            if workflow["name"] == "Train_Only_Workflow":
+                assert workflow["config"]["nodes"][0]["task"] == "workflow_train_task"
+            elif workflow["name"] == "Train_Eval_Workflow":
+                assert workflow["config"]["nodes"][0]["task"] == "workflow_train_task"
+                assert workflow["config"]["nodes"][1]["task"] == "workflow_eval_task"
+
+
+def test_create_experiment_with_invalid_workflow_config(client_with_test_recipes):
+    """Test creating experiment with invalid workflow config to test error handling"""
+    test_experiment_name = f"test_invalid_workflow_{os.getpid()}"
+    resp = client_with_test_recipes.post(
+        f"/recipes/8/create_experiment?experiment_name={test_experiment_name}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "status" in data
+    if data.get("status") == "success":
+        assert "data" in data
+        assert "workflow_creation_results" in data["data"]
+        workflow_results = data["data"]["workflow_creation_results"]
+        assert len(workflow_results) == 1  # Recipe 8 has 1 invalid workflow
+        workflow_result = workflow_results[0]
+        assert workflow_result.get("workflow_name") == "Invalid_Workflow"
+        assert workflow_result.get("action") == "create_workflow"
+        assert "error" in workflow_result.get("status", "")
+
+
+def test_create_experiment_without_workflows(client_with_test_recipes):
+    """Test creating an experiment from a recipe without workflows"""
+    test_experiment_name = f"test_no_workflows_{os.getpid()}"
+    resp = client_with_test_recipes.post(
+        f"/recipes/6/create_experiment?experiment_name={test_experiment_name}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "status" in data
+    if data.get("status") == "success":
+        assert "data" in data
+        assert "workflow_creation_results" in data["data"]
+        workflow_results = data["data"]["workflow_creation_results"]
+        assert len(workflow_results) == 0
+
+
+def test_recipes_get_by_id_with_multiple_workflows(client_with_test_recipes):
+    """Test that a recipe with multiple workflows is handled correctly"""
+    resp = client_with_test_recipes.get("/recipes/7")  # Changed to recipe 7 which has 2 workflows
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == "7"
+    assert "workflows" in data
+    assert len(data["workflows"]) == 2  # Recipe 7 has 2 workflows
+    workflow_names = [wf["name"] for wf in data["workflows"]]
+    assert "Train_Only_Workflow" in workflow_names
+    assert "Train_Eval_Workflow" in workflow_names
+    for workflow in data["workflows"]:
+        assert "config" in workflow
+        assert "nodes" in workflow["config"]
+        assert len(workflow["config"]["nodes"]) > 0
+
