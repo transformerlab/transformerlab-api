@@ -621,10 +621,8 @@ def get_pipeline(
                 log_print(f"[DEBUG] Set scheduler to: {type(pipe.scheduler).__name__}")
         except KeyError:
             log_print(f"[ERROR] Unknown scheduler: {scheduler}")
-            raise
         except Exception as e:
             log_print(f"[ERROR] Failed to apply scheduler {scheduler}: {e}")
-            raise
 
         log_print(f"Using scheduler: {type(pipe.scheduler).__name__}")
 
