@@ -15,7 +15,7 @@ async def list_recipes():
 
 
 @router.get("/{id}")
-async def get_recipe_by_id(id: int):
+async def get_recipe_by_id(id: str):
     """Fetch a recipe by its ID from the experiment recipe gallery."""
     recipes_gallery = galleries.get_exp_recipe_gallery()
     for recipe in recipes_gallery:
@@ -25,7 +25,7 @@ async def get_recipe_by_id(id: int):
 
 
 @router.get("/{id}/check_dependencies")
-async def check_recipe_dependencies(id: int):
+async def check_recipe_dependencies(id: str):
     """Check if the dependencies for a recipe are installed for a given environment."""
     # Get the recipe
     recipes_gallery = galleries.get_exp_recipe_gallery()
@@ -132,7 +132,7 @@ async def _install_recipe_dependencies_job(job_id, id):
 
 
 @router.get("/{id}/install_dependencies")
-async def bg_install_recipe_dependencies(id: int, background_tasks: BackgroundTasks):
+async def bg_install_recipe_dependencies(id: str, background_tasks: BackgroundTasks):
     """Install dependencies for a recipe in the background and track progress."""
 
     job_id = await db.job_create(
@@ -162,7 +162,7 @@ async def get_install_job_status(job_id: int):
 
 
 @router.post("/{id}/create_experiment")
-async def create_experiment_for_recipe(id: int, experiment_name: str):
+async def create_experiment_for_recipe(id: str, experiment_name: str):
     """Create a new experiment with the given name and blank config, and install workflow dependencies."""
     from transformerlab.routers import workflows as workflows_router
     from transformerlab.routers.experiment import experiment as experiment_router
