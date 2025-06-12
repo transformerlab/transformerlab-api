@@ -187,7 +187,7 @@ TEST_EXP_RECIPES = [
     },
     {
         "id": "8",
-        "title": "Test Recipe - With Invalid Workflow",
+        "title": "Test Recipe - With Invalid Workflow Config",
         "description": "A test recipe with invalid workflow config to test error handling",
         "dependencies": [
             {
