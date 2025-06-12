@@ -29,14 +29,14 @@ jobs:
           echo "VERSION=$(echo ${GITHUB_REF#refs/tags/} | sed 's/^v//')" >> $GITHUB_ENV
           echo "VERSION is now: $VERSION"
 
-      - name: Build CPU image
-        run: docker build -f docker/cpu/Dockerfile.cpu -t transformerlab/api:${VERSION} .
+      # - name: Build CPU image
+      #   run: docker build -f docker/cpu/Dockerfile.cpu -t transformerlab/api:${VERSION} .
 
-      - name: Build GPU image
-        run: docker build -f docker/gpu/nvidia/Dockerfile.cuda -t transformerlab/api:${VERSION}-cuda .
+      # - name: Build GPU image
+      #   run: docker build -f docker/gpu/nvidia/Dockerfile.cuda -t transformerlab/api:${VERSION}-cuda .
 
-      - name: Push CPU image
-        run: docker push transformerlab/api:${VERSION}
+      # - name: Push CPU image
+      #   run: docker push transformerlab/api:${VERSION}
 
-      - name: Push GPU image
-        run: docker push transformerlab/api:${VERSION}-cuda
+      # - name: Push GPU image
+      #   run: docker push transformerlab/api:${VERSION}-cuda
