@@ -2,7 +2,6 @@ import os
 import json
 import pytest
 from fastapi.testclient import TestClient
-import time
 
 # Set environment variables before importing modules
 os.environ["TFL_HOME_DIR"] = "./test/tmp/"
@@ -253,14 +252,26 @@ TEST_EXP_RECIPES = [
 @pytest.fixture
 def client_with_test_recipes():
     """Fixture that provides a test client with test recipes loaded."""
-    with TestClient(app) as client:
-        # Write test recipes after client is created
-        cache_file_path = gallery_cache_file_path(EXP_RECIPES_GALLERY_FILE)
-        os.makedirs(os.path.dirname(cache_file_path), exist_ok=True)
-        with open(cache_file_path, "w") as f:
-            json.dump(TEST_EXP_RECIPES, f)
-        time.sleep(1)
+    cache_file_path = gallery_cache_file_path(EXP_RECIPES_GALLERY_FILE)
+    os.makedirs(os.path.dirname(cache_file_path), exist_ok=True)
+    
+    # Backup existing content if it exists
+    original_content = None
+    if os.path.exists(cache_file_path):
+        with open(cache_file_path, 'r') as f:
+            original_content = f.read()
+    
+    # Write test recipes
+    with open(cache_file_path, "w") as f:
+        json.dump(TEST_EXP_RECIPES, f)
+    
+    with TestClient(app) as client:  # Give the server a moment to pick up the changes
         yield client
+    
+    # Restore original content if it existed
+    if original_content is not None:
+        with open(cache_file_path, "w") as f:
+            f.write(original_content)
 
 def test_recipes_list(client_with_test_recipes):
     resp = client_with_test_recipes.get("/recipes/list")
