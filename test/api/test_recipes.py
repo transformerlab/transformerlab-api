@@ -5,7 +5,7 @@ from api import app
 
 RECIPES = [
     {
-        "id": 1,
+        "id": "1",
         "title": "Test Recipe",
         "dependencies": [
             {"type": "model", "name": "model-a"},
@@ -15,7 +15,7 @@ RECIPES = [
         ],
     },
     {
-        "id": 2,
+        "id": "2",
         "title": "No Deps",
         "dependencies": [],
     },
@@ -40,7 +40,7 @@ def test_check_dependencies_all_installed(client):
             "transformerlab.shared.galleries.get_exp_recipe_gallery",
             return_value=[
                 {
-                    "id": 1,
+                    "id": "1",
                     "dependencies": [
                         {"type": "model", "name": "mlx-community/Llama-3.2-1B-Instruct-4bit"},
                         {"type": "plugin", "name": "llama-trainer"},
@@ -79,7 +79,7 @@ def test_check_dependencies_some_missing(client):
             "transformerlab.shared.galleries.get_exp_recipe_gallery",
             return_value=[
                 {
-                    "id": 1,
+                    "id": "1",
                     "dependencies": [
                         {"type": "model", "name": "mlx-community/Llama-3.2-1B-Instruct-4bit"},
                         {"type": "plugin", "name": "llama-trainer"},
@@ -107,7 +107,7 @@ def test_check_dependencies_some_missing(client):
 
 
 def test_check_dependencies_no_deps(client):
-    with patch("transformerlab.shared.galleries.get_exp_recipe_gallery", return_value=[{"id": 2, "dependencies": []}]):
+    with patch("transformerlab.shared.galleries.get_exp_recipe_gallery", return_value=[{"id": "2", "dependencies": []}]):
         resp = client.get("/recipes/2/check_dependencies")
         assert resp.status_code == 200
         data = resp.json()
