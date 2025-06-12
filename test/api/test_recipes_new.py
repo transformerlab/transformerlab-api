@@ -15,14 +15,14 @@ from transformerlab.shared.galleries import gallery_cache_file_path, EXP_RECIPES
 # Test recipe data focused on new functionality: notes and tasks
 TEST_EXP_RECIPES = [
     {
-        "id": 1,
+        "id": "1",
         "title": "Test Recipe - With Notes",
         "description": "A test recipe with notes to test notes creation",
         "notes": "# Test Recipe Notes\n\nThis is a test recipe for unit testing.\n\n## Features\n- Notes creation\n- Task generation\n\n## Usage\nThis should create a readme.md file in the experiment.",
         "dependencies": [{"type": "model", "name": "test-model"}, {"type": "dataset", "name": "test-dataset"}],
     },
     {
-        "id": 2,
+        "id": "2",
         "title": "Test Recipe - With Tasks and Notes",
         "description": "A test recipe that includes both notes and tasks",
         "notes": "# Training Recipe\n\nThis recipe includes training tasks.\n\n## Training Configuration\n- Uses LoRA training\n- Batch size: 4\n- Learning rate: 0.0001",
@@ -42,7 +42,7 @@ TEST_EXP_RECIPES = [
         ],
     },
     {
-        "id": 3,
+        "id": "3",
         "title": "Test Recipe - Tasks Only",
         "description": "A test recipe with only tasks, no notes",
         "dependencies": [{"type": "model", "name": "test-model-3"}, {"type": "dataset", "name": "test-dataset-3"}],
@@ -58,7 +58,7 @@ TEST_EXP_RECIPES = [
         ],
     },
     {
-        "id": 4,
+        "id": "4",
         "title": "Test Recipe - With Adaptor Name",
         "description": "A test recipe that includes adaptor_name in config to test line 281",
         "dependencies": [{"type": "model", "name": "test-model-4"}, {"type": "dataset", "name": "test-dataset-4"}],
@@ -74,7 +74,7 @@ TEST_EXP_RECIPES = [
         ],
     },
     {
-        "id": 5,
+        "id": "5",
         "title": "Test Recipe - Invalid JSON Config",
         "description": "A test recipe with invalid JSON to test exception handling",
         "dependencies": [{"type": "model", "name": "test-model-5"}, {"type": "dataset", "name": "test-dataset-5"}],
@@ -90,7 +90,7 @@ TEST_EXP_RECIPES = [
         ],
     },
     {
-        "id": 6,
+        "id": "6",
         "title": "Test Recipe - With Multiple Task Types",
         "description": "A test recipe that includes training, evaluation and generation tasks",
         "dependencies": [{"type": "model", "name": "test-model-6"}, {"type": "dataset", "name": "test-dataset-6"}],
@@ -118,7 +118,7 @@ TEST_EXP_RECIPES = [
         ]
     },
     {
-        "id": 7,
+        "id": "7",
         "title": "Test Recipe - With Multiple Workflows",
         "description": "A test recipe that includes multiple workflows",
         "dependencies": [
@@ -186,8 +186,8 @@ TEST_EXP_RECIPES = [
         ]
     },
     {
-        "id": 8,
-        "title": "Test Recipe - With Invalid Workflow Config",
+        "id": "8",
+        "title": "Test Recipe - With Invalid Workflow",
         "description": "A test recipe with invalid workflow config to test error handling",
         "dependencies": [
             {
@@ -292,7 +292,7 @@ def test_recipes_get_by_id_with_notes():
         resp = client.get("/recipes/1")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["id"] == 1
+        assert data["id"] == "1"
         assert data["title"] == "Test Recipe - With Notes"
         assert "notes" in data
         assert "# Test Recipe Notes" in data["notes"]
@@ -303,7 +303,7 @@ def test_recipes_get_by_id_with_tasks():
         resp = client.get("/recipes/2")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["id"] == 2
+        assert data["id"] == "2"
         assert "tasks" in data
         assert len(data["tasks"]) == 1
         assert data["tasks"][0]["task_type"] == "TRAIN"
@@ -409,7 +409,7 @@ def test_recipes_get_by_id_with_multiple_task_types():
         resp = client.get("/recipes/6")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["id"] == 6
+        assert data["id"] == "6"
         assert "tasks" in data
         assert len(data["tasks"]) == 3
         task_types = [task["task_type"] for task in data["tasks"]]
@@ -475,7 +475,7 @@ def test_recipes_get_by_id_with_workflows():
         resp = client.get("/recipes/7")
         assert resp.status_code == 200
         data = resp.json()
-        assert data["id"] == 7
+        assert data["id"] == "7"
         assert "workflows" in data
         assert len(data["workflows"]) == 2  # Recipe 7 has 2 workflows
         workflow_names = [wf["name"] for wf in data["workflows"]]
@@ -588,7 +588,7 @@ def test_recipes_get_by_id_with_multiple_workflows():
         resp = client.get("/recipes/7")  # Changed to recipe 7 which has 2 workflows
         assert resp.status_code == 200
         data = resp.json()
-        assert data["id"] == 7
+        assert data["id"] == "7"
         assert "workflows" in data
         assert len(data["workflows"]) == 2  # Recipe 7 has 2 workflows
         workflow_names = [wf["name"] for wf in data["workflows"]]
