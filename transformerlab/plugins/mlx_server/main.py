@@ -244,11 +244,6 @@ class MLXWorker(BaseModelWorker):
 
             for s in stop:
                 if s in tokens_decoded:
-                    # print("tokens:")
-                    # print(tokens_decoded)
-                    # print("Partial stop found")
-                    # print("stop tokens: ")
-                    # print(stop)
                     partial_stop = True
                     break
 
