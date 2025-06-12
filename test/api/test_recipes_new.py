@@ -217,7 +217,7 @@ TEST_EXP_RECIPES = [
         ]
     },
     {
-        "id": 9,
+        "id": "9",
         "title": "Test Recipe - With Named Tasks",
         "description": "A test recipe with explicitly named tasks",
         "dependencies": [
