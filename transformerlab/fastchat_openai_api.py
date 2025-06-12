@@ -382,6 +382,7 @@ async def get_gen_params(
         "echo": echo,
         "stream": stream,
         "logprobs": logprobs,
+        "messages": messages,
     }
     if images is not None and len(images) > 0:
         gen_params["images"] = images
@@ -899,7 +900,6 @@ async def generate_completion_stream(payload: Dict[str, Any]):
                         continue
                     data = None
                     try:
-                        print(f"hiiiiii{chunk.decode()}")
                         data = json.loads(chunk.decode())
                         print("🔹 Raw chunk received:", data)
                     except Exception as e:
