@@ -319,6 +319,7 @@ class ImageHistoryItem(BaseModel):
     # Inpainting specific fields
     mask_image_path: str = ""  # Path to mask image (for inpainting)
     is_inpainting: bool = False  # Whether this was an inpainting generation
+    scheduler: str = "default"
     # Intermediate image saving
     saved_intermediate_images: bool = True  # Whether intermediate images were saved
 
@@ -1023,6 +1024,7 @@ async def generate_image(request: DiffusionRequest):
             # Inpainting specific fields
             mask_image_path=mask_image_path,
             is_inpainting=is_inpainting,
+            scheduler=request.scheduler,
             # Intermediate image saving
             saved_intermediate_images=request.save_intermediate_images,
         )
