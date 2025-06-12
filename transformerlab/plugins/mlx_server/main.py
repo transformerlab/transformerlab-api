@@ -163,7 +163,6 @@ class MLXWorker(BaseModelWorker):
         include_logprobs = params.get("logprobs", None)
 
         print("logprobs: ", include_logprobs)
-        print("min_p: ", min_p)
 
         # Handle stop_str
         stop = set()
