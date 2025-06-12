@@ -13,6 +13,10 @@ from diffusers import (
     AutoPipelineForText2Image,
     AutoPipelineForImage2Image,
     AutoPipelineForInpainting,
+    EulerDiscreteScheduler,
+    LMSDiscreteScheduler,
+    EulerAncestralDiscreteScheduler,
+    DPMSolverMultistepScheduler,
 )
 import threading
 import os
@@ -153,6 +157,12 @@ ALLOWED_INPAINTING_ARCHITECTURES = [
     "IFPipeline",
 ]
 
+scheduler_map = {
+    "EulerDiscreteScheduler": EulerDiscreteScheduler,
+    "LMSDiscreteScheduler": LMSDiscreteScheduler,
+    "EulerAncestralDiscreteScheduler": EulerAncestralDiscreteScheduler,
+    "DPMSolverMultistepScheduler": DPMSolverMultistepScheduler,
+}
 
 # Fixed upscaling models
 UPSCALE_MODEL_STANDARD = "stabilityai/stable-diffusion-x4-upscaler"
@@ -254,6 +264,7 @@ class DiffusionRequest(BaseModel):
     upscale_factor: int = 4
     num_images: int = 1
     generation_id: str | None = None
+    scheduler: str = "default"
 
     @property
     def validated_num_images(self) -> int:
@@ -510,7 +521,12 @@ def get_pipeline_key(model: str, adaptor: str = "", is_img2img: bool = False, is
 
 
 def get_pipeline(
-    model: str, adaptor: str = "", device: str = "cuda", is_img2img: bool = False, is_inpainting: bool = False
+    model: str,
+    adaptor: str = "",
+    device: str = "cuda",
+    is_img2img: bool = False,
+    is_inpainting: bool = False,
+    scheduler="default",
 ):
     # cache_key = get_pipeline_key(model, adaptor, is_img2img, is_inpainting)
 
@@ -594,6 +610,22 @@ def get_pipeline(
                 )
                 log_print(f"Error: {str(e)}")
                 # Continue without LoRA rather than failing
+        log_print(f"[DEBUG] Received scheduler value: {scheduler}")
+
+        # This will trap missing keys
+        try:
+            if scheduler != "default":
+                scheduler_class = scheduler_map[scheduler]
+                pipe.scheduler = scheduler_class.from_config(pipe.scheduler.config)
+                log_print(f"[DEBUG] Set scheduler to: {type(pipe.scheduler).__name__}")
+        except KeyError as e:
+            log_print(f"[ERROR] Unknown scheduler: {scheduler}")
+            raise
+        except Exception as e:
+            log_print(f"[ERROR] Failed to apply scheduler {scheduler}: {e}")
+            raise
+
+        log_print(f"Using scheduler: {type(pipe.scheduler).__name__}")
 
         # _PIPELINES[cache_key] = pipe
         return pipe
@@ -763,7 +795,12 @@ async def generate_image(request: DiffusionRequest):
                 device = "mps" if torch.backends.mps.is_available() else "cpu"
             cleanup_pipeline()  # Clean up any previous pipelines
             pipe = get_pipeline(
-                request.model, request.adaptor, device=device, is_img2img=is_img2img, is_inpainting=is_inpainting
+                request.model,
+                request.adaptor,
+                device=device,
+                is_img2img=is_img2img,
+                is_inpainting=is_inpainting,
+                scheduler=request.scheduler,
             )
 
             # Set seed - use provided seed or generate a random one
@@ -805,6 +842,10 @@ async def generate_image(request: DiffusionRequest):
                             "generator": generator,
                             "num_images_per_prompt": request.num_images,  # Generate multiple images
                         }
+
+                        # Set scheduler
+                        if request.scheduler != "default":
+                            generation_kwargs["scheduler"] = request.scheduler
 
                         # Add image and mask for inpainting
                         if is_inpainting:
@@ -1684,6 +1725,7 @@ async def run_multi_gpu_generation(
         "upscale": request.upscale,
         "upscale_factor": request.upscale_factor,
         "enable_sharding": request.enable_sharding,
+        "scheduler": request.scheduler,
     }
 
     # Save config to temporary file

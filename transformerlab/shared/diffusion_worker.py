@@ -31,6 +31,10 @@ from diffusers import (  # noqa: E402
     FluxPipeline,
     FluxTransformer2DModel,
     AutoencoderKL,
+    EulerDiscreteScheduler,
+    LMSDiscreteScheduler,
+    EulerAncestralDiscreteScheduler,
+    DPMSolverMultistepScheduler,
 )
 
 try:
@@ -39,18 +43,27 @@ except ImportError:
     # Fallback for older diffusers versions
     VaeImageProcessor = None
 
+scheduler_map = {
+    "EulerDiscreteScheduler": EulerDiscreteScheduler,
+    "LMSDiscreteScheduler": LMSDiscreteScheduler,
+    "EulerAncestralDiscreteScheduler": EulerAncestralDiscreteScheduler,
+    "DPMSolverMultistepScheduler": DPMSolverMultistepScheduler,
+}
+
 
 def latents_to_rgb(latents):
     """Convert SDXL latents (4 channels) to RGB tensors (3 channels)"""
     weights = (
         (60, -60, 25, -70),
-        (60,  -5, 15, -50),
-        (60,  10, -5, -35),
+        (60, -5, 15, -50),
+        (60, 10, -5, -35),
     )
 
     weights_tensor = torch.t(torch.tensor(weights, dtype=latents.dtype).to(latents.device))
     biases_tensor = torch.tensor((150, 140, 130), dtype=latents.dtype).to(latents.device)
-    rgb_tensor = torch.einsum("...lxy,lr -> ...rxy", latents, weights_tensor) + biases_tensor.unsqueeze(-1).unsqueeze(-1)
+    rgb_tensor = torch.einsum("...lxy,lr -> ...rxy", latents, weights_tensor) + biases_tensor.unsqueeze(-1).unsqueeze(
+        -1
+    )
     image_array = rgb_tensor.clamp(0, 255).byte().cpu().numpy().transpose(1, 2, 0)
 
     return Image.fromarray(image_array)
@@ -58,6 +71,7 @@ def latents_to_rgb(latents):
 
 def create_decode_callback(output_dir):
     """Create a callback function to decode and save latents at each step"""
+
     def decode_tensors(pipe, step, timestep, callback_kwargs):
         try:
             latents = callback_kwargs["latents"]
@@ -68,9 +82,9 @@ def create_decode_callback(output_dir):
             print(f"Saved intermediate image for step {step}")
         except Exception as e:
             print(f"Warning: Failed to save intermediate image for step {step}: {str(e)}")
-        
+
         return callback_kwargs
-    
+
     return decode_tensors
 
 
@@ -152,6 +166,7 @@ def is_flux_model(model_path):
     try:
         # Check if model has FLUX components by looking for config
         from huggingface_hub import model_info
+
         info = model_info(model_path)
         config = getattr(info, "config", {})
         diffusers_config = config.get("diffusers", {})
@@ -175,23 +190,18 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
     print("Loading pipeline with model sharding...")
     import torch
 
-
     # Flush memory before starting
     flush_memory()
 
     # Check if we should use sharding
-    use_sharding = (
-        device == "auto"
-        and is_flux_model(model_path)
-        and config.get("enable_sharding", True)
-    )
+    use_sharding = device == "auto" and is_flux_model(model_path) and config.get("enable_sharding", True)
 
     if not use_sharding:
         print("Using standard pipeline loading (sharding disabled or not applicable)")
         return load_pipeline_with_device_map(model_path, adaptor_path, is_img2img, is_inpainting, device)
 
     print("Using FLUX model sharding for memory efficiency")
-    
+
     # Check for unsupported features in sharding mode
     if config.get("adaptor") and config.get("adaptor").strip():
         print("Warning: LoRA adaptors are not currently supported with FLUX model sharding")
@@ -206,7 +216,7 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
     # Use default FLUX dimensions if height/width are 0 or not specified
     height = config.get("height", 768)
     width = config.get("width", 768)
-    
+
     # Handle case where height/width are 0 (use FLUX defaults)
     if height <= 0:
         height = 768
@@ -220,7 +230,7 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
     seed = config.get("seed")
     eta = config.get("eta", 0.0)
     # clip_skip = config.get("clip_skip", 0)
-    
+
     # Set up generator for reproducible results
     generator = None
     if seed is not None and seed >= 0:
@@ -246,7 +256,7 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
     text_encoder_pipeline = FluxPipeline.from_pretrained(
         model_path,
         transformer=None,  # Don't load transformer yet
-        vae=None,          # Don't load VAE yet
+        vae=None,  # Don't load VAE yet
         device_map="balanced",
         max_memory=max_memory,
         torch_dtype=torch.bfloat16,
@@ -262,7 +272,7 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
             prompt_2=None,
             max_sequence_length=max_sequence_length,
         )
-        
+
         # Handle negative prompts if provided (FLUX may not support this the same way)
         negative_prompt_embeds = None
         negative_pooled_prompt_embeds = None
@@ -329,13 +339,13 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
             "num_images_per_prompt": num_images,
             "output_type": "latent",
         }
-        
+
         # Add negative prompts if available
         if negative_prompt_embeds is not None:
             generation_kwargs["negative_prompt_embeds"] = negative_prompt_embeds
         if negative_pooled_prompt_embeds is not None:
             generation_kwargs["negative_pooled_prompt_embeds"] = negative_pooled_prompt_embeds
-        
+
         # Add optional parameters
         if generator is not None:
             generation_kwargs["generator"] = generator
@@ -343,7 +353,7 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
             generation_kwargs["eta"] = eta
         if guidance_rescale > 0.0:
             generation_kwargs["guidance_rescale"] = guidance_rescale
-            
+
         latents = denoising_pipeline(**generation_kwargs).images
 
     print(f"Generated latents shape: {latents.shape}")
@@ -380,7 +390,7 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
     ).to(vae_device)
 
     # Setup image processor
-    vae_scale_factor = 2 ** (len(vae.config.block_out_channels) - 1) if hasattr(vae.config, 'block_out_channels') else 8
+    vae_scale_factor = 2 ** (len(vae.config.block_out_channels) - 1) if hasattr(vae.config, "block_out_channels") else 8
 
     if VaeImageProcessor:
         image_processor = VaeImageProcessor(vae_scale_factor=vae_scale_factor)
@@ -672,6 +682,15 @@ def main():
         else:
             # Default to device map loading
             pipe = load_pipeline_with_device_map(model_path, adaptor_path, is_img2img, is_inpainting, device)
+
+        scheduler_name = config.get("scheduler", "default")
+        if scheduler_name != "default":
+            scheduler_class = scheduler_map[scheduler_name]
+            pipe.scheduler = scheduler_class.from_config(pipe.scheduler.config)
+            print(f"Using scheduler: {type(pipe.scheduler).__name__}")
+        else:
+            print(f"Using default scheduler: {type(pipe.scheduler).__name__}")
+
         load_time = time.time() - start_time
         print(f"Pipeline loaded in {load_time:.2f}s")
 
@@ -782,7 +801,7 @@ def main():
         try:
             with torch.inference_mode():
                 # Check if this is a ShardedResult (from model sharding)
-                if hasattr(pipe, 'images') and not callable(pipe):
+                if hasattr(pipe, "images") and not callable(pipe):
                     # This is already a ShardedResult with generated images
                     images = pipe.images
                     print(f"Using pre-generated images from sharding: {len(images)} images")
