@@ -36,7 +36,7 @@ def test_workflows_delete():
         # Try to delete a non-existent workflow
         resp = client.get(f"/experiment/{exp_id}/workflows/delete/non_existent_workflow")
         assert resp.status_code == 200
-        assert resp.json() == {"message": "Workflow not found"}
+        assert resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
 
 
 def test_workflows_create():
@@ -457,54 +457,54 @@ def test_workflow_security_checks():
         # Try to delete workflow from experiment 1 using experiment 2's context
         delete_resp = client.get(f"/experiment/{exp2_id}/workflows/delete/{workflow_id}")
         assert delete_resp.status_code == 200
-        assert delete_resp.json() == {"error": "Workflow does not belong to this experiment"}
+        assert delete_resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
 
         # Try to edit node metadata from wrong experiment
         metadata_resp = client.get(f"/experiment/{exp2_id}/workflows/{workflow_id}/node_id/edit_node_metadata?metadata={{}}")
         assert metadata_resp.status_code == 200
-        assert metadata_resp.json() == {"error": "Workflow does not belong to this experiment"}
+        assert metadata_resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
 
         # Try to update name from wrong experiment
         name_resp = client.get(f"/experiment/{exp2_id}/workflows/{workflow_id}/update_name?new_name=new_name")
         assert name_resp.status_code == 200
-        assert name_resp.json() == {"error": "Workflow does not belong to this experiment"}
+        assert name_resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
 
         # Try to add node from wrong experiment
         node_data = {"type": "TASK", "name": "Test Task", "task": "test_task", "out": []}
         add_node_resp = client.get(f"/experiment/{exp2_id}/workflows/{workflow_id}/add_node?node={json.dumps(node_data)}")
         assert add_node_resp.status_code == 200
-        assert add_node_resp.json() == {"error": "Workflow does not belong to this experiment"}
+        assert add_node_resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
 
         # Try to update node from wrong experiment
         new_node = {"id": "test", "type": "TASK", "name": "Updated Task", "task": "test_task", "out": []}
         update_resp = client.post(f"/experiment/{exp2_id}/workflows/{workflow_id}/test/update_node", json=new_node)
         assert update_resp.status_code == 200
-        assert update_resp.json() == {"error": "Workflow does not belong to this experiment"}
+        assert update_resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
 
         # Try to remove edge from wrong experiment
         remove_edge_resp = client.post(f"/experiment/{exp2_id}/workflows/{workflow_id}/start/remove_edge?end_node_id=test")
         assert remove_edge_resp.status_code == 200
-        assert remove_edge_resp.json() == {"error": "Workflow does not belong to this experiment"}
+        assert remove_edge_resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
 
         # Try to add edge from wrong experiment
         add_edge_resp = client.post(f"/experiment/{exp2_id}/workflows/{workflow_id}/start/add_edge?end_node_id=test")
         assert add_edge_resp.status_code == 200
-        assert add_edge_resp.json() == {"error": "Workflow does not belong to this experiment"}
+        assert add_edge_resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
 
         # Try to delete node from wrong experiment
         delete_node_resp = client.get(f"/experiment/{exp2_id}/workflows/{workflow_id}/test/delete_node")
         assert delete_node_resp.status_code == 200
-        assert delete_node_resp.json() == {"error": "Workflow does not belong to this experiment"}
+        assert delete_node_resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
 
         # Try to export YAML from wrong experiment
         export_resp = client.get(f"/experiment/{exp2_id}/workflows/{workflow_id}/export_to_yaml")
         assert export_resp.status_code == 200
-        assert export_resp.json() == {"error": "Workflow does not belong to this experiment"}
+        assert export_resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
 
         # Try to start workflow from wrong experiment
         start_resp = client.get(f"/experiment/{exp2_id}/workflows/{workflow_id}/start")
         assert start_resp.status_code == 200
-        assert start_resp.json() == {"error": "Workflow does not belong to this experiment"}
+        assert start_resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
 
 
 def test_workflow_start_node_deletion():
@@ -892,7 +892,7 @@ def test_workflow_run_security_checks():
         run_resp = client.get(f"/experiment/{exp2_id}/workflows/runs/{run_id}")
         assert run_resp.status_code == 200
         response_data = run_resp.json()
-        assert response_data == {"error": "Workflow run does not belong to this experiment"}
+        assert response_data == {"error": "Associated workflow not found or does not belong to this experiment"}
 
 
 @pytest.mark.asyncio
