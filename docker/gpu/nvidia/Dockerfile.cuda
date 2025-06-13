@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
     python-is-python3
 
 # Download and run the install.sh script from GitHub.
-RUN curl -fsSL https://raw.githubusercontent.com/transformerlab/transformerlab-api/refs/heads/main/install.sh | bash
+RUN curl -fsSL https://raw.githubusercontent.com/transformerlab/transformerlab-api/refs/heads/main/install.sh | bash -s download_transformer_lab install_conda create_conda_environment
 
 EXPOSE 8338
 
@@ -25,4 +25,4 @@ WORKDIR /root/.transformerlab/src/
 RUN chmod +x ./run.sh
 
 # The entrypoint is set to run the Transformer Lab launcher script.
-ENTRYPOINT ["/root/.transformerlab/src/run.sh"]
+ENTRYPOINT ["/bin/bash", "-c", "/root/.transformerlab/src/install.sh install_dependencies && exec /root/.transformerlab/src/run.sh"]
