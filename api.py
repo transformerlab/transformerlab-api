@@ -52,6 +52,7 @@ import torch
 
 try:
     from pynvml import nvmlShutdown
+
     HAS_AMD = False
 except Exception:
     from pyrsmi import rocml
@@ -59,7 +60,7 @@ except Exception:
     HAS_AMD = True
 from transformerlab import fastchat_openai_api
 from transformerlab.routers.experiment import experiment
-from transformerlab.routers.experiment import workflows as experiment_workflows
+from transformerlab.routers.experiment import workflows
 from transformerlab.shared import dirs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
@@ -111,15 +112,9 @@ async def run_over_and_over():
     while True:
         await asyncio.sleep(3)
         await jobs.start_next_job()
-        
-        # Get the next active workflow run
-        active_run = await experiment_workflows.get_active_workflow_run()
-        if active_run:
-            # Get the workflow to find its experiment
-            workflow = await db.workflows_get_by_id(active_run["workflow_id"])
-            if workflow:
-                # Call start_next_step with the workflow's experiment ID
-                await experiment_workflows.start_next_step_in_workflow(int(workflow["experiment_id"]))
+
+        # Process any active workflow runs
+        await workflows.process_active_workflow()
 
 
 description = "Transformerlab API helps you do awesome stuff. 🚀"
