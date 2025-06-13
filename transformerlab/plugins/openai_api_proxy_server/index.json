@@ -1,0 +1,30 @@
+{
+  "name": "OpenAI API Proxy Server",
+  "uniqueId": "openai_api_proxy_server",
+  "description": "A server that provides OpenAI-compatible RESTful APIs.",
+  "plugin-format": "python",
+  "type": "loader",
+  "version": "1.0.11",
+  "model_architectures": [
+    "LlamaForCausalLM"
+  ],
+  "supported_hardware_architectures": ["cpu"],
+  "files": ["main.py", "setup.sh"],
+  "setup-script": "setup.sh",
+  "parameters": {
+    "proxy-url": {
+      "title": "Set Proxy URL",
+      "type": "string",
+      "default": "http://localhost:11434/v1"
+    },
+    "model": {
+      "title": "Model Name",
+      "type": "string",
+      "default": "llama3.2"
+    },
+    "api-key": {
+      "title": "Set API Key",
+      "type": "string"
+    }
+  }
+}

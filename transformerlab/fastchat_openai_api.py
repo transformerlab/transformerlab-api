@@ -382,6 +382,7 @@ async def get_gen_params(
         "echo": echo,
         "stream": stream,
         "logprobs": logprobs,
+        "messages": messages,
     }
     if images is not None and len(images) > 0:
         gen_params["images"] = images
@@ -514,6 +515,7 @@ async def chat_completion_stream_generator(
     https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format
     """
     id = f"chatcmpl-{shortuuid.random()}"
+    gen_params["type"] = "chat_completion"
     finish_stream_events = []
     for i in range(n):
         # First chunk with role
@@ -780,7 +782,6 @@ def convert_group_of_logprobs_to_openai_format(logprobs: List[Dict[str, Any]]) -
 
 
 async def generate_completion_stream_generator(request: ModifiedCompletionRequest, n: int):
-    model_name = request.model
     id = f"cmpl-{shortuuid.random()}"
     finish_stream_events = []
     for text in request.prompt:
@@ -797,6 +798,9 @@ async def generate_completion_stream_generator(request: ModifiedCompletionReques
                 stop=request.stop,
                 logprobs=request.logprobs,
             )
+
+            gen_params["model"] = model_name
+            gen_params["type"] = "completion"
 
             log_prompt(gen_params)
 
@@ -876,8 +880,9 @@ async def generate_completion_stream_generator(request: ModifiedCompletionReques
 
 async def generate_completion_stream(payload: Dict[str, Any]):
     async with httpx.AsyncClient() as client:
-        worker_addr = await get_worker_address(payload["model"], client)
+        worker_addr = await get_worker_address("TinyLlama-1.1B-Chat-v1.0", client)
         delimiter = b"\0"
+        print(payload)
         async with client.stream(
             "POST",
             worker_addr + "/worker_generate_stream",
@@ -887,13 +892,14 @@ async def generate_completion_stream(payload: Dict[str, Any]):
         ) as response:
             # content = await response.aread()
             async for raw_chunk in response.aiter_raw():
+                print("Received raw_chunk:", raw_chunk)
                 for chunk in raw_chunk.split(delimiter):
                     if not chunk:
                         continue
-                    # print(chunk.decode())
                     data = None
                     try:
                         data = json.loads(chunk.decode())
+                        print("🔹 Raw chunk received:", data)
                     except Exception as e:
                         # Catching this exception is a hack -- we do it because with log probs turned on,
                         # the response gets really long, more than 63892 bytes, and the stream gets cut off.
@@ -902,6 +908,7 @@ async def generate_completion_stream(payload: Dict[str, Any]):
                         print("Caught Exception in OpenAI API: ", e)
                         continue
                     yield data
+                
 
 
 async def generate_completion(payload: Dict[str, Any]):
