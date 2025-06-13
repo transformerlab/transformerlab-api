@@ -26,6 +26,7 @@ def test_diffusion_generate_success():
             "eta": 0.0,
             "clip_skip": 0,
             "guidance_rescale": 0.0,
+            "scheduler": "EulerDiscreteScheduler",
         }
         with TestClient(app) as client:
             resp = client.post("/diffusion/generate", json=payload)
@@ -58,7 +59,6 @@ def test_is_valid_diffusion_model_true_stable_diffusion_pipeline():
             data = resp.json()
             assert data["is_valid_diffusion_model"] is True
             assert "Architecture matches allowed SD" in data["reason"]
-
 
 
 def test_is_valid_diffusion_model_true_stable_diffusion_xl():
@@ -562,12 +562,17 @@ def test_load_history_success():
     with (
         patch("transformerlab.routers.diffusion.get_history_file_path", return_value="/fake/history.json"),
         patch("os.path.exists", return_value=True),
-        patch("builtins.open", mock_open(read_data='[{"id": "test-id", "model": "test-model", "prompt": "test prompt", "adaptor": "", "adaptor_scale": 1.0, "num_inference_steps": 20, "guidance_scale": 7.5, "seed": 42, "image_path": "/fake/path.png", "timestamp": "2023-01-01T00:00:00", "upscaled": false, "upscale_factor": 1, "negative_prompt": "", "eta": 0.0, "clip_skip": 0, "guidance_rescale": 0.0, "height": 512, "width": 512, "generation_time": 5.0, "num_images": 1, "input_image_path": "", "strength": 0.8, "is_img2img": false, "mask_image_path": "", "is_inpainting": false}]')),
+        patch(
+            "builtins.open",
+            mock_open(
+                read_data='[{"id": "test-id", "model": "test-model", "prompt": "test prompt", "adaptor": "", "adaptor_scale": 1.0, "num_inference_steps": 20, "guidance_scale": 7.5, "seed": 42, "image_path": "/fake/path.png", "timestamp": "2023-01-01T00:00:00", "upscaled": false, "upscale_factor": 1, "negative_prompt": "", "eta": 0.0, "clip_skip": 0, "guidance_rescale": 0.0, "height": 512, "width": 512, "generation_time": 5.0, "num_images": 1, "input_image_path": "", "strength": 0.8, "is_img2img": false, "mask_image_path": "", "is_inpainting": false}]'
+            ),
+        ),
     ):
         from transformerlab.routers.diffusion import load_history
-        
+
         result = load_history(limit=50, offset=0)
-        
+
         assert result.total == 1
         assert len(result.images) == 1
         assert result.images[0].id == "test-id"
@@ -579,43 +584,45 @@ def test_load_history_with_pagination():
     """Test loading history with pagination parameters"""
     history_data = []
     for i in range(10):
-        history_data.append({
-            "id": f"test-id-{i}",
-            "model": "test-model",
-            "prompt": f"test prompt {i}",
-            "adaptor": "",
-            "adaptor_scale": 1.0,
-            "num_inference_steps": 20,
-            "guidance_scale": 7.5,
-            "seed": 42,
-            "image_path": f"/fake/path{i}.png",
-            "timestamp": "2023-01-01T00:00:00",
-            "upscaled": False,
-            "upscale_factor": 1,
-            "negative_prompt": "",
-            "eta": 0.0,
-            "clip_skip": 0,
-            "guidance_rescale": 0.0,
-            "height": 512,
-            "width": 512,
-            "generation_time": 5.0,
-            "num_images": 1,
-            "input_image_path": "",
-            "strength": 0.8,
-            "is_img2img": False,
-            "mask_image_path": "",
-            "is_inpainting": False
-        })
-    
+        history_data.append(
+            {
+                "id": f"test-id-{i}",
+                "model": "test-model",
+                "prompt": f"test prompt {i}",
+                "adaptor": "",
+                "adaptor_scale": 1.0,
+                "num_inference_steps": 20,
+                "guidance_scale": 7.5,
+                "seed": 42,
+                "image_path": f"/fake/path{i}.png",
+                "timestamp": "2023-01-01T00:00:00",
+                "upscaled": False,
+                "upscale_factor": 1,
+                "negative_prompt": "",
+                "eta": 0.0,
+                "clip_skip": 0,
+                "guidance_rescale": 0.0,
+                "height": 512,
+                "width": 512,
+                "generation_time": 5.0,
+                "num_images": 1,
+                "input_image_path": "",
+                "strength": 0.8,
+                "is_img2img": False,
+                "mask_image_path": "",
+                "is_inpainting": False,
+            }
+        )
+
     with (
         patch("transformerlab.routers.diffusion.get_history_file_path", return_value="/fake/history.json"),
         patch("os.path.exists", return_value=True),
         patch("builtins.open", mock_open(read_data=json.dumps(history_data))),
     ):
         from transformerlab.routers.diffusion import load_history
-        
+
         result = load_history(limit=3, offset=2)
-        
+
         assert result.total == 10
         assert len(result.images) == 3
         assert result.images[0].id == "test-id-2"
@@ -630,9 +637,9 @@ def test_load_history_no_file():
         patch("os.path.exists", return_value=False),
     ):
         from transformerlab.routers.diffusion import load_history
-        
+
         result = load_history()
-        
+
         assert result.total == 0
         assert len(result.images) == 0
 
@@ -642,12 +649,12 @@ def test_load_history_invalid_json():
     with (
         patch("transformerlab.routers.diffusion.get_history_file_path", return_value="/fake/history.json"),
         patch("os.path.exists", return_value=True),
-        patch("builtins.open", mock_open(read_data='invalid json')),
+        patch("builtins.open", mock_open(read_data="invalid json")),
     ):
         from transformerlab.routers.diffusion import load_history
-        
+
         result = load_history()
-        
+
         assert result.total == 0
         assert len(result.images) == 0
 
@@ -680,7 +687,7 @@ def test_find_image_by_id_success():
             "strength": 0.8,
             "is_img2img": False,
             "mask_image_path": "",
-            "is_inpainting": False
+            "is_inpainting": False,
         },
         {
             "id": "test-id-2",
@@ -707,19 +714,19 @@ def test_find_image_by_id_success():
             "strength": 0.8,
             "is_img2img": False,
             "mask_image_path": "",
-            "is_inpainting": False
-        }
+            "is_inpainting": False,
+        },
     ]
-    
+
     with (
         patch("transformerlab.routers.diffusion.get_history_file_path", return_value="/fake/history.json"),
         patch("os.path.exists", return_value=True),
         patch("builtins.open", mock_open(read_data=json.dumps(history_data))),
     ):
         from transformerlab.routers.diffusion import find_image_by_id
-        
+
         result = find_image_by_id("test-id-2")
-        
+
         assert result is not None
         assert result.id == "test-id-2"
         assert result.model == "test-model-2"
@@ -754,19 +761,19 @@ def test_find_image_by_id_not_found():
             "strength": 0.8,
             "is_img2img": False,
             "mask_image_path": "",
-            "is_inpainting": False
+            "is_inpainting": False,
         }
     ]
-    
+
     with (
         patch("transformerlab.routers.diffusion.get_history_file_path", return_value="/fake/history.json"),
         patch("os.path.exists", return_value=True),
         patch("builtins.open", mock_open(read_data=json.dumps(history_data))),
     ):
         from transformerlab.routers.diffusion import find_image_by_id
-        
+
         result = find_image_by_id("non-existent-id")
-        
+
         assert result is None
 
 
@@ -777,9 +784,9 @@ def test_find_image_by_id_no_file():
         patch("os.path.exists", return_value=False),
     ):
         from transformerlab.routers.diffusion import find_image_by_id
-        
+
         result = find_image_by_id("test-id")
-        
+
         assert result is None
 
 
@@ -788,74 +795,74 @@ def test_find_image_by_id_invalid_json():
     with (
         patch("transformerlab.routers.diffusion.get_history_file_path", return_value="/fake/history.json"),
         patch("os.path.exists", return_value=True),
-        patch("builtins.open", mock_open(read_data='invalid json')),
+        patch("builtins.open", mock_open(read_data="invalid json")),
     ):
         from transformerlab.routers.diffusion import find_image_by_id
-        
+
         result = find_image_by_id("test-id")
-        
+
         assert result is None
 
 
 def test_get_pipeline_key_txt2img():
     """Test get_pipeline_key for text-to-image pipeline"""
     from transformerlab.routers.diffusion import get_pipeline_key
-    
+
     key = get_pipeline_key("test-model", "", is_img2img=False, is_inpainting=False)
-    
+
     assert key == "test-model::txt2img"
 
 
 def test_get_pipeline_key_img2img():
     """Test get_pipeline_key for image-to-image pipeline"""
     from transformerlab.routers.diffusion import get_pipeline_key
-    
+
     key = get_pipeline_key("test-model", "", is_img2img=True, is_inpainting=False)
-    
+
     assert key == "test-model::img2img"
 
 
 def test_get_pipeline_key_inpainting():
     """Test get_pipeline_key for inpainting pipeline"""
     from transformerlab.routers.diffusion import get_pipeline_key
-    
+
     key = get_pipeline_key("test-model", "", is_img2img=False, is_inpainting=True)
-    
+
     assert key == "test-model::inpainting"
 
 
 def test_get_pipeline_key_with_adaptor():
     """Test get_pipeline_key with adaptor"""
     from transformerlab.routers.diffusion import get_pipeline_key
-    
+
     key = get_pipeline_key("test-model", "test-adaptor", is_img2img=False, is_inpainting=False)
-    
+
     assert key == "test-model::test-adaptor::txt2img"
 
 
 def test_get_pipeline_key_inpainting_priority():
     """Test get_pipeline_key prioritizes inpainting over img2img"""
     from transformerlab.routers.diffusion import get_pipeline_key
-    
+
     key = get_pipeline_key("test-model", "", is_img2img=True, is_inpainting=True)
-    
+
     assert key == "test-model::inpainting"
 
 
 def test_get_pipeline_key_no_adaptor():
     """Test get_pipeline_key with empty adaptor string"""
     from transformerlab.routers.diffusion import get_pipeline_key
-    
+
     key = get_pipeline_key("test-model", "", is_img2img=False, is_inpainting=False)
-    
+
     assert key == "test-model::txt2img"
 
 
 def test_get_pipeline_key_whitespace_adaptor():
     """Test get_pipeline_key with whitespace-only adaptor"""
     from transformerlab.routers.diffusion import get_pipeline_key
-    
+
     key = get_pipeline_key("test-model", "   ", is_img2img=False, is_inpainting=False)
-    
+
     # Should treat whitespace-only adaptor as no adaptor
     assert key == "test-model::   ::txt2img"
