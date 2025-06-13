@@ -199,7 +199,8 @@ def train_model():
             load_best_model_at_end=True,
             metric_for_best_model="loss",
             greater_is_better=False,
-            eval_strategy="epoch"
+            eval_strategy="epoch",
+            completion_only_loss=False
         )
     else:
         # Setup training configuration
@@ -226,6 +227,7 @@ def train_model():
             load_best_model_at_end=True,
             metric_for_best_model="loss",
             greater_is_better=False,
+            completion_only_loss=False
         )
 
     # Create progress callback
