@@ -17,6 +17,11 @@
       "type": "string",
       "default": "http://localhost:11434/v1"
     },
+    "model": {
+      "title": "Model Name",
+      "type": "string",
+      "default": "llama3.2"
+    },
     "api-key": {
       "title": "Set API Key",
       "type": "string"

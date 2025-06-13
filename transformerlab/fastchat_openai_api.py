@@ -516,7 +516,6 @@ async def chat_completion_stream_generator(
     """
     id = f"chatcmpl-{shortuuid.random()}"
     gen_params["type"] = "chat_completion"
-    gen_params["model"] = "llama2"
     finish_stream_events = []
     for i in range(n):
         # First chunk with role
@@ -783,7 +782,6 @@ def convert_group_of_logprobs_to_openai_format(logprobs: List[Dict[str, Any]]) -
 
 
 async def generate_completion_stream_generator(request: ModifiedCompletionRequest, n: int):
-    model_name = "llama2"
     id = f"cmpl-{shortuuid.random()}"
     finish_stream_events = []
     for text in request.prompt:
