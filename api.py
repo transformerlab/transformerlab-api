@@ -40,7 +40,6 @@ from transformerlab.routers import (
     evals,
     config,
     jobs,
-    workflows,
     tasks,
     prompts,
     tools,
@@ -60,6 +59,7 @@ except Exception:
     HAS_AMD = True
 from transformerlab import fastchat_openai_api
 from transformerlab.routers.experiment import experiment
+from transformerlab.routers.experiment import workflows
 from transformerlab.shared import dirs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
@@ -111,7 +111,7 @@ async def run_over_and_over():
     while True:
         await asyncio.sleep(3)
         await jobs.start_next_job()
-        await workflows.start_next_step_in_workflow()
+        await workflows.process_active_workflow()
 
 
 description = "Transformerlab API helps you do awesome stuff. 🚀"
@@ -176,7 +176,6 @@ app.include_router(experiment.router)
 app.include_router(plugins.router)
 app.include_router(evals.router)
 app.include_router(jobs.router)
-app.include_router(workflows.router)
 app.include_router(tasks.router)
 app.include_router(config.router)
 app.include_router(prompts.router)

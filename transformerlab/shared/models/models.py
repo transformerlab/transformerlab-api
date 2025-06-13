@@ -130,6 +130,8 @@ class Workflow(Base):
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
+    __table_args__ = (Index("idx_workflow_id_experiment", "id", "experiment_id"),)
+
 
 class WorkflowRun(Base):
     """Run of a workflow"""
