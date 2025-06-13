@@ -35,6 +35,8 @@ from diffusers import (  # noqa: E402
     LMSDiscreteScheduler,
     EulerAncestralDiscreteScheduler,
     DPMSolverMultistepScheduler,
+    ControlNetModel,
+    StableDiffusionXLControlNetPipeline,    
 )
 
 try:
@@ -49,7 +51,6 @@ scheduler_map = {
     "EulerAncestralDiscreteScheduler": EulerAncestralDiscreteScheduler,
     "DPMSolverMultistepScheduler": DPMSolverMultistepScheduler,
 }
-
 
 def latents_to_rgb(latents):
     """Convert SDXL latents (4 channels) to RGB tensors (3 channels)"""
@@ -184,7 +185,7 @@ def is_flux_model(model_path):
         return False
 
 
-def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpainting, device, config):
+def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpainting, device, config, is_controlnet=False, controlnet_type="off")
     """Load pipeline using model sharding for large models like FLUX"""
 
     print("Loading pipeline with model sharding...")
@@ -198,7 +199,7 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
 
     if not use_sharding:
         print("Using standard pipeline loading (sharding disabled or not applicable)")
-        return load_pipeline_with_device_map(model_path, adaptor_path, is_img2img, is_inpainting, device)
+        return load_pipeline_with_device_map(model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet, controlnet_type)
 
     print("Using FLUX model sharding for memory efficiency")
 
@@ -437,7 +438,7 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
     return ShardedResult(images)
 
 
-def load_pipeline_with_device_map(model_path, adaptor_path, is_img2img, is_inpainting, device):
+def load_pipeline_with_device_map(model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet=False, controlnet_type="off")
     """Load pipeline with proper device mapping for multi-GPU"""
 
     # Clean up any existing CUDA cache before loading
@@ -511,7 +512,27 @@ def load_pipeline_with_device_map(model_path, adaptor_path, is_img2img, is_inpai
             torch.cuda.empty_cache()
 
     # Load appropriate pipeline
-    if is_inpainting:
+    if is_controlnet:
+        CONTROLNET_MODELS = {
+            "canny": ControlNetModel.from_pretrained(
+                "diffusers/controlnet-canny-sdxl-1.0", torch_dtype=torch.float16, use_safetensors=True
+            ),
+            "openpose": ControlNetModel.from_pretrained(
+                "thibaud/controlnet-openpose-sdxl-1.0", torch_dtype=torch.float16
+            ),
+        }        
+        controlnet_model = CONTROLNET_MODELS.get(controlnet_type)
+        if controlnet_model is None:
+            raise ValueError(f"Unknown ControlNet type: {controlnet_type}")
+
+        print(f"Loading ControlNet pipeline for type: {controlnet_type}")
+        pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
+            model_path,
+            controlnet=controlnet_model,
+            **pipeline_kwargs
+        )
+
+    elif is_inpainting:
         pipe = AutoPipelineForInpainting.from_pretrained(model_path, **pipeline_kwargs)
         print(f"Loaded inpainting pipeline for model: {model_path}")
     elif is_img2img:
@@ -638,6 +659,8 @@ def main():
         mask_image_data = config.get("mask_image", "")
         upscale = config.get("upscale", False)
         upscale_factor = config.get("upscale_factor", 4)
+        controlnet_type = config.get("is_controlnet", "off")  # it's a string now
+        is_controlnet = controlnet_type != "off"
 
         # Set seed
         if seed is None or seed < 0:
@@ -650,7 +673,7 @@ def main():
         input_image_obj = None
         mask_image_obj = None
 
-        if (is_img2img or is_inpainting) and input_image_data:
+        if (is_img2img or is_inpainting or is_controlnet) and input_image_data:
             image_data = base64.b64decode(input_image_data)
             input_image_obj = Image.open(BytesIO(image_data)).convert("RGB")
             print("Loaded input image for img2img/inpainting")
@@ -678,10 +701,14 @@ def main():
             # Use model sharding for FLUX models if enabled in config
             gen_start_time = time.time()
 
-            pipe = load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpainting, device, config)
+            pipe = load_pipeline_with_sharding(
+                model_path, adaptor_path, is_img2img, is_inpainting, device, config, is_controlnet, controlnet_type
+            )
         else:
             # Default to device map loading
-            pipe = load_pipeline_with_device_map(model_path, adaptor_path, is_img2img, is_inpainting, device)
+            pipe = load_pipeline_with_device_map(
+                model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet, controlnet_type
+            )
 
         scheduler_name = config.get("scheduler", "default")
         if scheduler_name != "default":
@@ -722,6 +749,9 @@ def main():
         elif is_img2img and input_image_obj:
             generation_kwargs["image"] = input_image_obj
             generation_kwargs["strength"] = strength
+        elif is_controlnet and input_image_obj:
+            generation_kwargs["image"] = input_image_obj
+        
 
         if eta > 0.0:
             generation_kwargs["eta"] = eta
