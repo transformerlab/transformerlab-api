@@ -36,7 +36,7 @@ from diffusers import (  # noqa: E402
     EulerAncestralDiscreteScheduler,
     DPMSolverMultistepScheduler,
     ControlNetModel,
-    StableDiffusionXLControlNetPipeline,    
+    StableDiffusionXLControlNetPipeline,
 )
 
 try:
@@ -51,6 +51,7 @@ scheduler_map = {
     "EulerAncestralDiscreteScheduler": EulerAncestralDiscreteScheduler,
     "DPMSolverMultistepScheduler": DPMSolverMultistepScheduler,
 }
+
 
 def latents_to_rgb(latents):
     """Convert SDXL latents (4 channels) to RGB tensors (3 channels)"""
@@ -185,7 +186,9 @@ def is_flux_model(model_path):
         return False
 
 
-def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpainting, device, config, is_controlnet=False, controlnet_type="off")
+def load_pipeline_with_sharding(
+    model_path, adaptor_path, is_img2img, is_inpainting, device, config, is_controlnet=False, controlnet_type="off"
+):
     """Load pipeline using model sharding for large models like FLUX"""
 
     print("Loading pipeline with model sharding...")
@@ -199,7 +202,9 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
 
     if not use_sharding:
         print("Using standard pipeline loading (sharding disabled or not applicable)")
-        return load_pipeline_with_device_map(model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet, controlnet_type)
+        return load_pipeline_with_device_map(
+            model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet, controlnet_type
+        )
 
     print("Using FLUX model sharding for memory efficiency")
 
@@ -438,7 +443,9 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
     return ShardedResult(images)
 
 
-def load_pipeline_with_device_map(model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet=False, controlnet_type="off")
+def load_pipeline_with_device_map(
+    model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet=False, controlnet_type="off"
+):
     """Load pipeline with proper device mapping for multi-GPU"""
 
     # Clean up any existing CUDA cache before loading
@@ -520,16 +527,14 @@ def load_pipeline_with_device_map(model_path, adaptor_path, is_img2img, is_inpai
             "openpose": ControlNetModel.from_pretrained(
                 "thibaud/controlnet-openpose-sdxl-1.0", torch_dtype=torch.float16
             ),
-        }        
+        }
         controlnet_model = CONTROLNET_MODELS.get(controlnet_type)
         if controlnet_model is None:
             raise ValueError(f"Unknown ControlNet type: {controlnet_type}")
 
         print(f"Loading ControlNet pipeline for type: {controlnet_type}")
         pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
-            model_path,
-            controlnet=controlnet_model,
-            **pipeline_kwargs
+            model_path, controlnet=controlnet_model, **pipeline_kwargs
         )
 
     elif is_inpainting:
@@ -751,7 +756,6 @@ def main():
             generation_kwargs["strength"] = strength
         elif is_controlnet and input_image_obj:
             generation_kwargs["image"] = input_image_obj
-        
 
         if eta > 0.0:
             generation_kwargs["eta"] = eta
