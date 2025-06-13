@@ -22,6 +22,7 @@ class BatchChatCompletionRequest(BaseModel):
     temperature: float = 0.01
     max_tokens: int = 1024
     top_p: float = 1.0
+    min_p: float = 0.0
     batch_size: int = 128
     inference_url: str = "http://localhost:8338/v1/chat/completions"
     messages: list[list[dict]]
@@ -91,6 +92,7 @@ async def batch_chat_completion(request: BatchChatCompletionRequest):
     temperature = request.temperature
     max_tokens = request.max_tokens
     top_p = request.top_p
+    min_p = request.min_p
     inference_url = request.inference_url
     batch_size = request.batch_size
 
@@ -103,6 +105,7 @@ async def batch_chat_completion(request: BatchChatCompletionRequest):
         temperature=temperature,
         max_tokens=max_tokens,
         top_p=top_p,
+        min_p=min_p,
         inference_url=inference_url,
     )
 

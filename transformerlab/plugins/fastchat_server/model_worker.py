@@ -450,6 +450,7 @@ async def api_generate_with_visualization(request: Request):
             prompt = params["prompt"]
             temperature = float(params.get("temperature", 0.7))
             top_p = float(params.get("top_p", 1.0))
+            min_p = float(params.get("min_p", 0.0))  # Add min_p parameter
             max_tokens = int(params.get("max_tokens", 100))
             stream = params.get("stream", False)
 
@@ -519,6 +520,12 @@ async def api_generate_with_visualization(request: Request):
                         sorted_indices_to_remove[..., 0] = 0
                         indices_to_remove = sorted_indices[sorted_indices_to_remove]
                         next_token_logits[0, indices_to_remove] = -float("Inf")
+
+                    # Apply min_p sampling (remove tokens with prob < min_p)
+                    if min_p > 0.0:
+                        probs = F.softmax(next_token_logits, dim=-1)
+                        low_prob_indices = (probs < min_p).nonzero(as_tuple=True)
+                        next_token_logits[low_prob_indices] = -float("Inf")
 
                     # Sample next token
                     next_token_probs = F.softmax(next_token_logits, dim=-1)

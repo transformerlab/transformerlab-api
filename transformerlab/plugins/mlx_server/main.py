@@ -149,6 +149,7 @@ class MLXWorker(BaseModelWorker):
         temperature = float(params.get("temperature", 1.0))
         top_p = float(params.get("top_p", 1.0))
         top_k = int(params.get("top_k", 10))
+        min_p = float(params.get("min_p", 0.0))  # Add min_p parameter
         # presence_penalty = float(params.get("presence_penalty", 0.0))
         frequency_penalty = float(params.get("frequency_penalty", 0.0))
         max_new_tokens = params.get("max_new_tokens", 256)
@@ -189,10 +190,8 @@ class MLXWorker(BaseModelWorker):
 
         finish_reason = "length"
 
-        # MLX makes you build a sampler to set temperature and top_p
-        # NOTE: We could also pass in top_k and min_p here
-        # but they aren't getting set in UI
-        sampler = make_sampler(temperature, top_p=top_p)
+        # MLX makes you build a sampler to set temperature, top_p, and min_p
+        sampler = make_sampler(temperature, top_p=top_p, min_p=min_p)
 
         logits_processors = make_logits_processors(repetition_penalty=frequency_penalty)
 
@@ -245,11 +244,6 @@ class MLXWorker(BaseModelWorker):
 
             for s in stop:
                 if s in tokens_decoded:
-                    # print("tokens:")
-                    # print(tokens_decoded)
-                    # print("Partial stop found")
-                    # print("stop tokens: ")
-                    # print(stop)
                     partial_stop = True
                     break
 
@@ -394,6 +388,7 @@ async def api_generate_with_visualization(request: Request):
             prompt = params.get("prompt")
             temperature = float(params.get("temperature", 0.7))
             top_p = float(params.get("top_p", 1.0))
+            min_p = float(params.get("min_p", 0.0))  # Expose min_p
             max_new_tokens = int(params.get("max_tokens", 100))
             top_k = int(params.get("top_k", 10))
             frequency_penalty = float(params.get("frequency_penalty", 0.0))
@@ -403,7 +398,7 @@ async def api_generate_with_visualization(request: Request):
             input_tokens = worker.tokenizer.encode(prompt)
 
             # Create sampler with specified parameters
-            sampler = make_sampler(temperature, top_p=top_p)
+            sampler = make_sampler(temperature, top_p=top_p, min_p=min_p)
 
             logits_processors = make_logits_processors(repetition_penalty=frequency_penalty)
 
