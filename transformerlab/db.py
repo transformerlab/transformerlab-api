@@ -55,11 +55,11 @@ async def init():
     cursor = await db.execute("PRAGMA table_info(workflow_runs)")
     columns = await cursor.fetchall()
     has_experiment_id = any(column[1] == "experiment_id" for column in columns)
-    
+
     if not has_experiment_id:
         # Add experiment_id column
         await db.execute("ALTER TABLE workflow_runs ADD COLUMN experiment_id INTEGER")
-        
+
         # Update existing workflow runs with experiment_id from their workflows
         await db.execute("""
             UPDATE workflow_runs 
@@ -964,8 +964,19 @@ async def workflow_run_get_all():
     return data
 
 
-async def workflows_get_by_id(workflow_id):
-    cursor = await db.execute("SELECT * FROM workflows WHERE id = ? ORDER BY created_at desc LIMIT 1", (workflow_id,))
+async def workflows_get_by_id(workflow_id, experiment_id=None):
+    if experiment_id is not None:
+        # Query with both workflow_id and experiment_id to enforce relationship at DB level
+        cursor = await db.execute(
+            "SELECT * FROM workflows WHERE id = ? AND experiment_id = ? ORDER BY created_at desc LIMIT 1",
+            (workflow_id, experiment_id),
+        )
+    else:
+        # Fallback for cases where only workflow_id is provided
+        cursor = await db.execute(
+            "SELECT * FROM workflows WHERE id = ? ORDER BY created_at desc LIMIT 1", (workflow_id,)
+        )
+
     row = await cursor.fetchone()
     if row is None:
         return None
@@ -990,13 +1001,23 @@ async def workflow_run_get_by_id(workflow_run_id):
     return row
 
 
-async def workflow_delete_by_id(workflow_id: str):
+async def workflow_delete_by_id(workflow_id: str, experiment_id=None):
     print("Deleting workflow: " + str(workflow_id))
-    await db.execute(
-        "UPDATE workflows SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE id = ?", (workflow_id,)
-    )
+    if experiment_id is not None:
+        # Delete with experiment_id check to enforce relationship at DB level
+        result = await db.execute(
+            "UPDATE workflows SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND experiment_id = ?",
+            (workflow_id, experiment_id),
+        )
+        if result.rowcount == 0:
+            return False  # Workflow not found or doesn't belong to experiment
+    else:
+        # Fallback for cases where only workflow_id is provided
+        await db.execute(
+            "UPDATE workflows SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE id = ?", (workflow_id,)
+        )
     await db.commit()
-    return
+    return True
 
 
 async def workflow_delete_by_name(workflow_name):
@@ -1094,16 +1115,40 @@ async def workflow_create(name, config, experiment_id):
     return row[0]
 
 
-async def workflow_update_config(workflow_id, config):
-    await db.execute(
-        "UPDATE workflows SET config = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (config, workflow_id)
-    )
+async def workflow_update_config(workflow_id, config, experiment_id=None):
+    if experiment_id is not None:
+        # Update with experiment_id check to enforce relationship at DB level
+        result = await db.execute(
+            "UPDATE workflows SET config = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND experiment_id = ?",
+            (config, workflow_id, experiment_id),
+        )
+        if result.rowcount == 0:
+            return False  # Workflow not found or doesn't belong to experiment
+    else:
+        # Fallback for cases where only workflow_id is provided
+        await db.execute(
+            "UPDATE workflows SET config = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (config, workflow_id)
+        )
     await db.commit()
+    return True
 
 
-async def workflow_update_name(workflow_id, name):
-    await db.execute("UPDATE workflows SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (name, workflow_id))
+async def workflow_update_name(workflow_id, name, experiment_id=None):
+    if experiment_id is not None:
+        # Update with experiment_id check to enforce relationship at DB level
+        result = await db.execute(
+            "UPDATE workflows SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND experiment_id = ?",
+            (name, workflow_id, experiment_id),
+        )
+        if result.rowcount == 0:
+            return False  # Workflow not found or doesn't belong to experiment
+    else:
+        # Fallback for cases where only workflow_id is provided
+        await db.execute(
+            "UPDATE workflows SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (name, workflow_id)
+        )
     await db.commit()
+    return True
 
 
 async def workflow_delete_all():
@@ -1124,6 +1169,7 @@ async def workflow_queue(workflow_id):
         "INSERT INTO workflow_runs(workflow_id, workflow_name, job_ids, node_ids, status, current_tasks, current_job_ids, experiment_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         (workflow_id, workflow_name, "[]", "[]", "QUEUED", "[]", "[]", experiment_id),
     )
+
 
 async def workflow_runs_get_from_experiment(experiment_id):
     cursor = await db.execute(
