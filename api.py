@@ -52,7 +52,6 @@ import torch
 
 try:
     from pynvml import nvmlShutdown
-
     HAS_AMD = False
 except Exception:
     from pyrsmi import rocml
@@ -112,8 +111,6 @@ async def run_over_and_over():
     while True:
         await asyncio.sleep(3)
         await jobs.start_next_job()
-
-        # Process any active workflow runs
         await workflows.process_active_workflow()
 
 
