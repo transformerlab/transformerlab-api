@@ -177,6 +177,7 @@ def train_model():
         # Setup training configuration
         training_args = SFTConfig(
             output_dir=output_dir,
+            logging_dir=os.path.join(output_dir, f"job_{tlab_trainer.params.job_id}_{run_suffix}"),
             num_train_epochs=num_train_epochs,
             per_device_train_batch_size=batch_size,
             gradient_accumulation_steps=2,
@@ -199,7 +200,8 @@ def train_model():
             load_best_model_at_end=True,
             metric_for_best_model="loss",
             greater_is_better=False,
-            eval_strategy="epoch"
+            eval_strategy="epoch",
+            completion_only_loss=False
         )
     else:
         # Setup training configuration
@@ -226,6 +228,7 @@ def train_model():
             load_best_model_at_end=True,
             metric_for_best_model="loss",
             greater_is_better=False,
+            completion_only_loss=False
         )
 
     # Create progress callback

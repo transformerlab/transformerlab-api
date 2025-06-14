@@ -230,6 +230,7 @@ def train_model():
         metric_for_best_model="loss",
         greater_is_better=False,
         eval_strategy="epoch",
+        completion_only_loss=False
     )
 
 
