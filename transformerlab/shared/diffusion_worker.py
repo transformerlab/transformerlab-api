@@ -53,6 +53,24 @@ scheduler_map = {
 }
 
 
+def load_controlnet_model(controlnet_id: str, device: str = "cuda") -> ControlNetModel:
+    WORKSPACE_DIR = os.environ.get("_TFL_WORKSPACE_DIR")
+    if not WORKSPACE_DIR:
+        raise RuntimeError("Environment variable _TFL_WORKSPACE_DIR not set")
+
+    controlnet_path = os.path.join(WORKSPACE_DIR, "controlnets", controlnet_id)
+    config_path = os.path.join(controlnet_path, "config.json")
+
+    if not os.path.exists(config_path):
+        raise ValueError(f"ControlNet config not found for {controlnet_id}")
+
+    # Load the model dynamically
+    controlnet_model = ControlNetModel.from_pretrained(
+        controlnet_path, torch_dtype=torch.float16 if device != "cpu" else torch.float32
+    )
+    return controlnet_model
+
+
 def latents_to_rgb(latents):
     """Convert SDXL latents (4 channels) to RGB tensors (3 channels)"""
     weights = (
@@ -187,7 +205,7 @@ def is_flux_model(model_path):
 
 
 def load_pipeline_with_sharding(
-    model_path, adaptor_path, is_img2img, is_inpainting, device, config, is_controlnet=False, controlnet_type="off"
+    model_path, adaptor_path, is_img2img, is_inpainting, device, config, is_controlnet=False, controlnet_id="off"
 ):
     """Load pipeline using model sharding for large models like FLUX"""
 
@@ -203,7 +221,7 @@ def load_pipeline_with_sharding(
     if not use_sharding:
         print("Using standard pipeline loading (sharding disabled or not applicable)")
         return load_pipeline_with_device_map(
-            model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet, controlnet_type
+            model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet, controlnet_id
         )
 
     print("Using FLUX model sharding for memory efficiency")
@@ -444,7 +462,7 @@ def load_pipeline_with_sharding(
 
 
 def load_pipeline_with_device_map(
-    model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet=False, controlnet_type="off"
+    model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet=False, controlnet_id="off"
 ):
     """Load pipeline with proper device mapping for multi-GPU"""
 
@@ -520,19 +538,11 @@ def load_pipeline_with_device_map(
 
     # Load appropriate pipeline
     if is_controlnet:
-        CONTROLNET_MODELS = {
-            "canny": ControlNetModel.from_pretrained(
-                "diffusers/controlnet-canny-sdxl-1.0", torch_dtype=torch.float16, use_safetensors=True
-            ),
-            "openpose": ControlNetModel.from_pretrained(
-                "thibaud/controlnet-openpose-sdxl-1.0", torch_dtype=torch.float16
-            ),
-        }
-        controlnet_model = CONTROLNET_MODELS.get(controlnet_type)
+        controlnet_model = load_controlnet_model(controlnet_id, device)
         if controlnet_model is None:
-            raise ValueError(f"Unknown ControlNet type: {controlnet_type}")
+            raise ValueError(f"Unknown ControlNet type: {controlnet_id}")
 
-        print(f"Loading ControlNet pipeline for type: {controlnet_type}")
+        print(f"Loading ControlNet pipeline for type: {controlnet_id}")
         pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
             model_path, controlnet=controlnet_model, **pipeline_kwargs
         )
@@ -664,8 +674,8 @@ def main():
         mask_image_data = config.get("mask_image", "")
         upscale = config.get("upscale", False)
         upscale_factor = config.get("upscale_factor", 4)
-        controlnet_type = config.get("is_controlnet", "off")  # it's a string now
-        is_controlnet = controlnet_type != "off"
+        controlnet_id = config.get("is_controlnet", "off")  # it's a string now
+        is_controlnet = controlnet_id != "off"
 
         # Set seed
         if seed is None or seed < 0:
@@ -707,12 +717,12 @@ def main():
             gen_start_time = time.time()
 
             pipe = load_pipeline_with_sharding(
-                model_path, adaptor_path, is_img2img, is_inpainting, device, config, is_controlnet, controlnet_type
+                model_path, adaptor_path, is_img2img, is_inpainting, device, config, is_controlnet, controlnet_id
             )
         else:
             # Default to device map loading
             pipe = load_pipeline_with_device_map(
-                model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet, controlnet_type
+                model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet, controlnet_id
             )
 
         scheduler_name = config.get("scheduler", "default")

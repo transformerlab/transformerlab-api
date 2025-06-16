@@ -29,7 +29,7 @@ if WORKSPACE_DIR is None:
 
 # Parse arguments
 parser = argparse.ArgumentParser()
-parser.add_argument("--mode", type=str, choices=["model", "adaptor"], default="model")
+parser.add_argument("--mode", type=str, choices=["model", "adaptor", "controlnet"], default="model")
 parser.add_argument("--job_id", type=str, required=True)
 parser.add_argument("--total_size_of_model_in_mb", type=float, required=True)
 
@@ -41,6 +41,8 @@ parser.add_argument("--allow_patterns", type=str, required=False)
 # Args for mode=adaptor
 parser.add_argument("--peft", type=str)
 parser.add_argument("--local_model_id", type=str)
+
+parser.add_argument("--controlnet", type=str)
 
 args, other = parser.parse_known_args()
 mode = args.mode
@@ -64,6 +66,22 @@ if mode == "adaptor":
 
     print(f"Downloading adaptor {peft} with job_id {job_id}")
 
+elif mode == "controlnet":
+    controlnet = args.controlnet
+    job_id = args.job_id
+
+    # Sanitize controlnet
+    safe_controlnet_id = secure_filename(controlnet)
+
+    # Store in WORKSPACE_DIR/controlnets/<sanitized_id>
+    target_dir = os.path.join(WORKSPACE_DIR, "controlnets", safe_controlnet_id)
+    if not os.path.commonpath([target_dir, WORKSPACE_DIR]) == os.path.abspath(WORKSPACE_DIR):
+        raise ValueError("Invalid path after sanitization. Potential security risk.")
+    print(f"DOWNLOADING CONTROLNET TO: {target_dir}")
+    os.makedirs(target_dir, exist_ok=True)
+
+    print(f"Downloading controlnet {controlnet} with job_id {job_id}")
+
 else:
     model = args.model_name
     model_filename = args.model_filename
@@ -85,12 +103,15 @@ else:
     print(f"Downloading model {model} with job_id {job_id}")
 
 
+
 def do_download(repo_id, queue, allow_patterns=None, mode="model"):
     try:
         if mode == "model":
             snapshot_download(repo_id, allow_patterns=allow_patterns)
-        else:
+        elif mode == "adaptor":
             snapshot_download(repo_id=peft, local_dir=target_dir, repo_type="model")
+        else:
+            snapshot_download(repo_id=controlnet, local_dir=target_dir, repo_type="model")
         queue.put("done")
     except Exception as e:
         queue.put(f"error: {str(e)}")
@@ -117,8 +138,10 @@ def launch_snapshot_with_cancel(repo_id, allow_patterns=None):
     queue = Queue()
     if mode == "model":
         p = Process(target=do_download, args=(repo_id, queue, allow_patterns, "model"))
-    else:
+    elif mode == "adaptor":
         p = Process(target=do_download, args=(repo_id, queue, None, "adaptor"))
+    else:
+        p = Process(target=do_download, args=(repo_id, queue, None, "controlnet"))
     p.start()
 
     while p.is_alive():
@@ -174,6 +197,15 @@ def download_blocking(model_is_downloaded):
                 "total_size_of_model_in_mb": total_size_of_model_in_mb,
             }
         )
+    elif mode == "controlnet":
+        job_data = json.dumps(
+            {
+                "downloaded": 0,
+                "model": controlnet,
+                "total_size_in_mb": total_size_of_model_in_mb,
+                "total_size_of_model_in_mb": total_size_of_model_in_mb,
+            }
+        )
     else:
         job_data = json.dumps(
             {
@@ -208,6 +240,19 @@ def download_blocking(model_is_downloaded):
         except Exception as e:
             returncode = 1
             error_msg = f"{type(e).__name__}: {e}"
+    elif mode == "controlnet":
+        try:
+            launch_snapshot_with_cancel(repo_id=controlnet)
+            model_is_downloaded.set()
+        except GatedRepoError:
+            returncode = 77
+            error_msg = f"{controlnet} is a gated ControlNet model. Please accept the license."
+        except EntryNotFoundError:
+            returncode = 1
+            error_msg = f"{controlnet} does not contain a config.json or is not available."
+        except Exception as e:
+            returncode = 1
+            error_msg = f"{type(e).__name__}: {e}"            
     else:
         if model_filename is not None:
             # Filename mode means we download just one file from the repo, not the whole repo

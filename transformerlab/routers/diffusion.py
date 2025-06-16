@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from huggingface_hub import model_info
+from huggingface_hub import model_info, snapshot_download, HfApi
 import base64
 from fastapi.responses import FileResponse, JSONResponse
 from io import BytesIO
@@ -32,12 +32,21 @@ from typing import List
 from PIL import Image
 import shutil
 import transformerlab.db as db
+from transformerlab.shared import shared
 from transformerlab.shared import dirs
 from transformerlab.shared.shared import slugify
 import logging
 import subprocess
 import sys
-from controlnet_aux import OpenposeDetector
+from controlnet_aux import (
+    OpenposeDetector,
+    HEDdetector,
+    MidasDetector,
+    LineartDetector,
+    NormalBaeDetector,
+    SamDetector,
+    ZoeDetector,
+)
 import cv2
 import numpy as np
 
@@ -174,30 +183,89 @@ UPSCALE_MODEL_STANDARD = "stabilityai/stable-diffusion-x4-upscaler"
 UPSCALE_MODEL_LATENT = "stabilityai/sd-x2-latent-upscaler"
 
 
-def preprocess_for_controlnet(input_pil: Image.Image, controlnet_type: str) -> Image.Image:
+def preprocess_for_controlnet(input_pil: Image.Image, controlnet_id: str) -> Image.Image:
     """
-    Preprocess the input image depending on the controlnet_type.
+    Preprocess the input image depending on the controlnet_id (repo name or alias).
     Returns a PIL image suitable as ControlNet reference.
-    Releases memory aggressively after use.
+    Releases memory aggressively after detector use.
     """
-    if controlnet_type == "canny":
-        np_image = np.array(input_pil.convert("RGB"))
-        edges = cv2.Canny(np_image, 100, 200)
-        edges_rgb = cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB)
-        return Image.fromarray(edges_rgb)
+    name = controlnet_id.lower()
 
-    elif controlnet_type == "openpose":
-        try:
-            detector = OpenposeDetector.from_pretrained("lllyasviel/ControlNet")
+    try:
+        if "canny" in name:
+            np_image = np.array(input_pil.convert("RGB"))
+            edges = cv2.Canny(np_image, 100, 200)
+            edges_rgb = cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB)
+            return Image.fromarray(edges_rgb)
+
+        elif "openpose" in name:
+            detector = OpenposeDetector.from_pretrained("lllyasviel/Annotators")
             output = detector(input_pil)
-        finally:
-            # Force cleanup of OpenPose detector and Torch CUDA memory
             del detector
-            gc.collect()
-        return output
+            return output
 
-    else:
-        raise ValueError(f"Unsupported controlnet_type: {controlnet_type}")
+        elif "depth" in name and "zoe" in name:
+            detector = ZoeDetector.from_pretrained("lllyasviel/Annotators")
+            output = detector(input_pil)
+            del detector
+            return output
+
+        elif "depth" in name:
+            detector = MidasDetector.from_pretrained("lllyasviel/Annotators")
+            output = detector(input_pil)
+            del detector
+            return output
+
+        elif "hed" in name or "scribble" in name or "softedge" in name:
+            detector = HEDdetector.from_pretrained("lllyasviel/Annotators")
+            output = detector(input_pil)
+            del detector
+            return output
+
+        elif "seg" in name:
+            detector = SamDetector.from_pretrained("lllyasviel/Annotators")
+            output = detector(input_pil)
+            del detector
+            return output
+
+        elif "normal" in name:
+            detector = NormalBaeDetector.from_pretrained("lllyasviel/Annotators")
+            output = detector(input_pil)
+            del detector
+            return output
+
+        elif "lineart" in name:
+            detector = LineartDetector.from_pretrained("lllyasviel/Annotators")
+            output = detector(input_pil)
+            del detector
+            return output
+
+        else:
+            raise ValueError(f"No preprocessing rule found for ControlNet: {controlnet_id}")
+
+    finally:
+        # Force cleanup regardless of detector path
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+
+def load_controlnet_model(controlnet_id: str, device: str = "cuda") -> ControlNetModel:
+    WORKSPACE_DIR = os.environ.get("_TFL_WORKSPACE_DIR")
+    if not WORKSPACE_DIR:
+        raise RuntimeError("Environment variable _TFL_WORKSPACE_DIR not set")
+
+    safe_controlnet_id = secure_filename(controlnet_id)
+    controlnet_path = os.path.join(WORKSPACE_DIR, "controlnets", safe_controlnet_id)
+    config_path = os.path.join(controlnet_path, "config.json")
+
+    if not os.path.exists(config_path):
+        raise ValueError(f"ControlNet config not found for {controlnet_id}")
+
+    controlnet_model = ControlNetModel.from_pretrained(
+        controlnet_path, torch_dtype=torch.float16 if device != "cpu" else torch.float32
+    )
+    return controlnet_model
 
 
 def _setup_diffusion_logger():
@@ -352,7 +420,7 @@ class ImageHistoryItem(BaseModel):
     # Inpainting specific fields
     mask_image_path: str = ""  # Path to mask image (for inpainting)
     is_inpainting: bool = False  # Whether this was an inpainting generation
-    is_controlnet: bool = False
+    is_controlnet: str = ""
     scheduler: str = "default"
     # Intermediate image saving
     saved_intermediate_images: bool = True  # Whether intermediate images were saved
@@ -565,7 +633,7 @@ def get_pipeline(
     is_inpainting: bool = False,
     is_controlnet: bool = False,
     scheduler="default",
-    controlnet_type="off",
+    controlnet_id="off",
 ):
     # cache_key = get_pipeline_key(model, adaptor, is_img2img, is_inpainting)
 
@@ -575,18 +643,10 @@ def get_pipeline(
 
         # Load appropriate pipeline based on type
         if is_controlnet:
-            CONTROLNET_MODELS = {
-                "canny": ControlNetModel.from_pretrained(
-                    "diffusers/controlnet-canny-sdxl-1.0", torch_dtype=torch.float16, use_safetensors=True
-                ),
-                "openpose": ControlNetModel.from_pretrained(
-                    "thibaud/controlnet-openpose-sdxl-1.0", torch_dtype=torch.float16
-                ),
-            }
-            log_print(f"Loading ControlNet pipeline ({controlnet_type}) for model: {model}")
-            controlnet_model = CONTROLNET_MODELS.get(controlnet_type)
+            log_print(f"Loading ControlNet pipeline ({controlnet_id}) for model: {model}")
+            controlnet_model = load_controlnet_model(controlnet_id, device)
             if controlnet_model is None:
-                raise ValueError(f"Unknown ControlNet type: {controlnet_type}")
+                raise ValueError(f"Unknown ControlNet type: {controlnet_id}")
             pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
                 model,
                 controlnet=controlnet_model,
@@ -775,8 +835,8 @@ async def generate_image(request: DiffusionRequest):
         os.makedirs(images_folder, exist_ok=True)
 
         # Determine pipeline type based on flags and provided images
-        controlnet_type = request.is_controlnet or "off"
-        is_controlnet = controlnet_type != "off"
+        controlnet_id = request.is_controlnet or "off"
+        is_controlnet = controlnet_id != "off"
 
         if is_controlnet:
             is_img2img = False
@@ -806,9 +866,9 @@ async def generate_image(request: DiffusionRequest):
                 input_image_obj.save(input_image_path, format="PNG")
                 log_print(f"Input image saved: {input_image_path}")
                 if is_controlnet and input_image_obj:
-                    log_print(f"Running preprocessing for controlnet_type={controlnet_type}")
+                    log_print(f"Running preprocessing for controlnet_id={controlnet_id}")
                     try:
-                        input_image_obj = preprocess_for_controlnet(input_image_obj, controlnet_type)
+                        input_image_obj = preprocess_for_controlnet(input_image_obj, controlnet_id)
 
                         # Save preprocessed image
                         preprocessed_image_filename = f"preprocessed_{str(uuid.uuid4())}.png"
@@ -879,7 +939,7 @@ async def generate_image(request: DiffusionRequest):
                 is_inpainting=is_inpainting,
                 is_controlnet=is_controlnet,
                 scheduler=request.scheduler,
-                controlnet_type=controlnet_type,
+                controlnet_id=controlnet_id,
             )
 
             # Set seed - use provided seed or generate a random one
@@ -1107,7 +1167,7 @@ async def generate_image(request: DiffusionRequest):
             # Inpainting specific fields
             mask_image_path=mask_image_path,
             is_inpainting=is_inpainting,
-            is_controlnet=is_controlnet,
+            is_controlnet=request.is_controlnet,
             scheduler=request.scheduler,
             # Intermediate image saving
             saved_intermediate_images=request.save_intermediate_images,
@@ -1780,6 +1840,148 @@ def should_use_diffusion_worker(model) -> bool:
         return False
     except Exception:
         return False
+
+
+@router.get("/controlnets", summary="List available ControlNet models")
+async def list_controlnets():
+    """
+    Lists all downloaded ControlNet models by reading the controlnets directory
+    and extracting `_class_name` from their config.json.
+    """
+    models = []
+
+    WORKSPACE_DIR = os.environ.get("_TFL_WORKSPACE_DIR")
+    if WORKSPACE_DIR is None:
+        raise EnvironmentError("Environment variable _TFL_WORKSPACE_DIR is not set!")
+
+    CONTROLNETS_DIR = os.path.join(WORKSPACE_DIR, "controlnets")
+
+    if not os.path.exists(CONTROLNETS_DIR):
+        return {"controlnets": []}
+
+    for subdir in os.listdir(CONTROLNETS_DIR):
+        model_dir = os.path.join(CONTROLNETS_DIR, subdir)
+        config_path = os.path.join(model_dir, "config.json")
+
+        if os.path.isdir(model_dir) and os.path.exists(config_path):
+            try:
+                with open(config_path, "r") as f:
+                    config_data = json.load(f)
+                class_name = config_data.get("_class_name", "UnknownControlNet")
+                models.append(
+                    {
+                        "id": subdir,
+                        "name": subdir,
+                        "architecture": class_name,
+                    }
+                )
+            except Exception as e:
+                models.append(
+                    {
+                        "id": subdir,
+                        "name": subdir,
+                        "architecture": "Invalid or unreadable config",
+                        "error": str(e),
+                    }
+                )
+
+    return {"controlnets": models}
+
+
+@router.get("/delete_controlnet")
+async def delete_controlnet(controlnet: str):
+    """
+    Delete a downloaded ControlNet by name (safe directory name).
+    """
+    WORKSPACE_DIR = os.environ.get("_TFL_WORKSPACE_DIR")
+    if WORKSPACE_DIR is None:
+        raise EnvironmentError("Environment variable _TFL_WORKSPACE_DIR is not set!")
+
+    CONTROLNETS_DIR = os.path.join(WORKSPACE_DIR, "controlnets")
+
+    secure_name = secure_filename(controlnet)
+    target_path = os.path.join(CONTROLNETS_DIR, secure_name)
+
+    if not os.path.exists(target_path):
+        raise HTTPException(status_code=404, detail=f"ControlNet '{secure_name}' not found.")
+
+    try:
+        shutil.rmtree(target_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete ControlNet: {str(e)}")
+
+    return {"message": "ControlNet deleted successfully", "name": secure_name}
+
+
+@router.post("/install_controlnet")
+async def install_controlnet(
+    controlnet_id: str,
+    job_id: int | None = None,
+):
+    """
+    Download and register a ControlNet model from Hugging Face
+    """
+    api = HfApi()
+
+    # Try to load the config.json locally
+    try:
+        local_file = snapshot_download(controlnet_id, local_files_only=True)
+        config_path = os.path.join(local_file, "config.json")
+        if not os.path.exists(config_path):
+            raise FileNotFoundError("config.json not found for controlnet")
+
+        with open(config_path, "r") as f:
+            config_data = json.load(f)
+            architecture = config_data.get("_class_name", "UnknownControlNet")
+    except Exception as e:
+        logging.warning(f"Failed to load local config.json for {controlnet_id}: {e}")
+        try:
+            hf_config = HfApi().model_info(controlnet_id).config
+            architecture = hf_config.get("_class_name", "UnknownControlNet")
+        except Exception as e:
+            logging.error(f"[ERROR] ControlNet Architecture Not Detected: {e}")
+            raise
+    try:
+        model_info = api.model_info(controlnet_id)
+        model_details = model_info.cardData or {}
+    except Exception as e:
+        logging.error(f"[ERROR] Failed to fetch controlnet info from Hugging Face: {e}")
+        model_details = {}
+
+    # Start a download job
+    if job_id is None:
+        job_id = await db.job_create(type="DOWNLOAD_MODEL", status="STARTED", job_data="{}")
+    else:
+        await db.job_update(job_id=job_id, type="DOWNLOAD_MODEL", status="STARTED")
+
+    model_size = str(model_details.get("size_of_model_in_mb", -1))
+
+    args = [
+        f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
+        "--mode",
+        "controlnet",
+        "--controlnet",
+        controlnet_id,
+        "--job_id",
+        str(job_id),
+        "--total_size_of_model_in_mb",
+        model_size,
+    ]
+
+    asyncio.create_task(
+        shared.async_run_python_script_and_update_status(
+            python_script=args, job_id=job_id, begin_string="Fetching ControlNet"
+        )
+    )
+
+    # Register model metadata in DB
+    await db.model_local_create(
+        model_id=controlnet_id,
+        name=controlnet_id.split("/")[-1],
+        json_data={"architecture": architecture, "is_controlnet": True},
+    )
+
+    return {"status": "started", "job_id": job_id, "architecture": architecture}
 
 
 def get_python_executable():
