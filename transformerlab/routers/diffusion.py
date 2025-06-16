@@ -1876,12 +1876,13 @@ async def list_controlnets():
                     }
                 )
             except Exception as e:
+                logging.error(f"Invalid or unreadable config: {e}")
                 models.append(
                     {
                         "id": subdir,
                         "name": subdir,
                         "architecture": "Invalid or unreadable config",
-                        "error": str(e),
+                        "error": "An error occurred while reading the ControlNet config file.",
                     }
                 )
 
