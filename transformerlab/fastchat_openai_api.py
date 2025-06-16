@@ -799,7 +799,6 @@ async def generate_completion_stream_generator(request: ModifiedCompletionReques
                 logprobs=request.logprobs,
             )
 
-            gen_params["model"] = model_name
             gen_params["type"] = "completion"
 
             log_prompt(gen_params)
