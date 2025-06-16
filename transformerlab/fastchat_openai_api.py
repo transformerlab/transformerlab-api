@@ -801,7 +801,6 @@ async def generate_completion_stream_generator(request: ModifiedCompletionReques
             )
 
             gen_params["type"] = "completion"
-
             log_prompt(gen_params)
 
             async for content in generate_completion_stream(gen_params):
@@ -882,7 +881,6 @@ async def generate_completion_stream(payload: Dict[str, Any]):
     async with httpx.AsyncClient() as client:
         worker_addr = await get_worker_address(payload["model"], client)
         delimiter = b"\0"
-        print(payload)
         async with client.stream(
             "POST",
             worker_addr + "/worker_generate_stream",
