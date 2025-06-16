@@ -880,7 +880,7 @@ async def generate_completion_stream_generator(request: ModifiedCompletionReques
 
 async def generate_completion_stream(payload: Dict[str, Any]):
     async with httpx.AsyncClient() as client:
-        worker_addr = await get_worker_address("TinyLlama-1.1B-Chat-v1.0", client)
+        worker_addr = await get_worker_address(payload["model"], client)
         delimiter = b"\0"
         print(payload)
         async with client.stream(
@@ -892,14 +892,12 @@ async def generate_completion_stream(payload: Dict[str, Any]):
         ) as response:
             # content = await response.aread()
             async for raw_chunk in response.aiter_raw():
-                print("Received raw_chunk:", raw_chunk)
                 for chunk in raw_chunk.split(delimiter):
                     if not chunk:
                         continue
                     data = None
                     try:
                         data = json.loads(chunk.decode())
-                        print("🔹 Raw chunk received:", data)
                     except Exception as e:
                         # Catching this exception is a hack -- we do it because with log probs turned on,
                         # the response gets really long, more than 63892 bytes, and the stream gets cut off.
@@ -909,7 +907,6 @@ async def generate_completion_stream(payload: Dict[str, Any]):
                         continue
                     yield data
                 
-
 
 async def generate_completion(payload: Dict[str, Any]):
     async with httpx.AsyncClient() as client:
