@@ -29,24 +29,8 @@ print("Starting OpenAI API Proxy Server", file=sys.stderr)
 if "inferenceEngine" in parameters:
     del parameters["inferenceEngine"]
 
-if "max-model-len" in parameters:
-    if parameters["max-model-len"] == "":
-        del parameters["max-model-len"]
-
 if "inferenceEngineFriendlyName" in parameters:
     del parameters["inferenceEngineFriendlyName"]
-
-if "num_gpus" in parameters:
-    del parameters["num_gpus"]
-
-# TODO: why do we have these in the parameters?
-if "proxy_url" in parameters:
-    del parameters["proxy_url"]
-
-if "api_key" in parameters:
-    del parameters["api_key"]
-
-
 
 # Get plugin directory
 real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
