@@ -782,6 +782,7 @@ def convert_group_of_logprobs_to_openai_format(logprobs: List[Dict[str, Any]]) -
 
 
 async def generate_completion_stream_generator(request: ModifiedCompletionRequest, n: int):
+    model_name = request.model
     id = f"cmpl-{shortuuid.random()}"
     finish_stream_events = []
     for text in request.prompt:
@@ -847,6 +848,7 @@ async def generate_completion_stream_generator(request: ModifiedCompletionReques
                     "id": id,
                     "object": "text_completion",
                     "choices": [choice_data],
+                    "model": model_name,
                 }
                 if len(delta_text) == 0:
                     # print("delta_text", delta_text)
@@ -878,8 +880,9 @@ async def generate_completion_stream_generator(request: ModifiedCompletionReques
 
 async def generate_completion_stream(payload: Dict[str, Any]):
     async with httpx.AsyncClient() as client:
-        worker_addr = await get_worker_address(payload["model"], client)
+        worker_addr = await get_worker_address("TinyLlama-1.1B-Chat-v1.0", client)
         delimiter = b"\0"
+        print(payload)
         async with client.stream(
             "POST",
             worker_addr + "/worker_generate_stream",
@@ -889,12 +892,14 @@ async def generate_completion_stream(payload: Dict[str, Any]):
         ) as response:
             # content = await response.aread()
             async for raw_chunk in response.aiter_raw():
+                print("Received raw_chunk:", raw_chunk)
                 for chunk in raw_chunk.split(delimiter):
                     if not chunk:
                         continue
                     data = None
                     try:
                         data = json.loads(chunk.decode())
+                        print("🔹 Raw chunk received:", data)
                     except Exception as e:
                         # Catching this exception is a hack -- we do it because with log probs turned on,
                         # the response gets really long, more than 63892 bytes, and the stream gets cut off.
