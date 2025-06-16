@@ -847,7 +847,6 @@ async def generate_completion_stream_generator(request: ModifiedCompletionReques
                     "id": id,
                     "object": "text_completion",
                     "choices": [choice_data],
-                    "model": model_name,
                 }
                 if len(delta_text) == 0:
                     # print("delta_text", delta_text)
