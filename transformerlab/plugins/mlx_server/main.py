@@ -61,6 +61,7 @@ class MLXWorker(BaseModelWorker):
         worker_id: str,
         model_path: str,
         model_names: List[str],
+        model_architecture: str,
         limit_worker_concurrency: int,
         no_register: bool,
         conv_template: str,
@@ -78,9 +79,18 @@ class MLXWorker(BaseModelWorker):
         )
 
         logger.info(f"Loading the model {self.model_names} on worker" + f"{worker_id}, worker type: MLX worker...")
+        logger.info(f"Model architecture: {model_architecture}")
 
         self.model_name = model_path
-        self.mlx_model, self.mlx_tokenizer = load(model_path, adapter_path=adaptor_path)
+        # Recommended MLX hack for Qwen models to specify EOS token
+        if "qwen" in model_architecture.lower():
+            self.mlx_model, self.mlx_tokenizer = load(
+                model_path,
+                adapter_path=adaptor_path,
+                tokenizer_config={"eos_token": "<|endoftext|>", "trust_remote_code": True},
+            )
+        else:
+            self.mlx_model, self.mlx_tokenizer = load(model_path, adapter_path=adaptor_path)
 
         self.tokenizer = self.mlx_tokenizer._tokenizer
         self.manual_context_len = context_len
@@ -889,6 +899,7 @@ def main():
     parser.add_argument("--worker-address", type=str, default="http://localhost:21002")
     parser.add_argument("--controller-address", type=str, default="http://localhost:21001")
     parser.add_argument("--model-path", type=str, default="microsoft/phi-2")
+    parser.add_argument("--model-architecture", type=str, default="MLX")
     parser.add_argument("--adaptor-path", type=str, default=None)
     parser.add_argument(
         "--model-names",
@@ -924,6 +935,7 @@ def main():
         worker_id,
         args.model_path,
         args.model_names,
+        args.model_architecture,
         1024,
         False,
         args.conv_template,
