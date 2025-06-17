@@ -23,13 +23,14 @@ allowed_file_types = [".txt", ".jsonl", ".pdf", ".csv", ".epub", ".ipynb", ".md"
 # Whitelist of allowed domains for URL validation
 ALLOWED_DOMAINS = {"recipes.transformerlab.net", "www.learningcontainer.com"}
 
+
 def is_valid_url(url: str) -> bool:
     """Validate the URL to ensure it points to an allowed domain."""
     try:
         parsed_url = urlparse(url)
         if parsed_url.scheme not in {"http", "https"}:
             return False
-        domain = parsed_url.netloc.split(':')[0]  # Extract domain without port
+        domain = parsed_url.netloc.split(":")[0]  # Extract domain without port
         return domain in ALLOWED_DOMAINS
     except Exception:
         return False
@@ -300,7 +301,7 @@ async def document_download_zip(experimentId: str, data: dict = Body(...)):
         async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
             response = await client.get(url)
             response.raise_for_status()
-            
+
             # Save to temporary file and extract
             with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as temp_zip:
                 temp_zip.write(response.content)
@@ -326,10 +327,14 @@ async def document_download_zip(experimentId: str, data: dict = Body(...)):
         }
         
     except httpx.HTTPStatusError:
+        if "temp_zip_path" in locals() and os.path.exists(temp_zip_path):
+            os.remove(temp_zip_path)
         raise HTTPException(status_code=400, detail="Failed to download ZIP file: HTTP error.")
     except zipfile.BadZipFile:
+        if "temp_zip_path" in locals() and os.path.exists(temp_zip_path):
+            os.remove(temp_zip_path)
         raise HTTPException(status_code=400, detail="Downloaded file is not a valid ZIP archive")
     except Exception:
-        if 'temp_zip_path' in locals() and os.path.exists(temp_zip_path):
+        if "temp_zip_path" in locals() and os.path.exists(temp_zip_path):
             os.remove(temp_zip_path)
         raise HTTPException(status_code=500, detail="Error processing ZIP file.")
