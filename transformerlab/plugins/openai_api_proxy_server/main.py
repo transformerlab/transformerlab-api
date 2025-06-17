@@ -12,11 +12,11 @@ except ImportError:
 
 # Get all arguments provided to this script using argparse
 parser = argparse.ArgumentParser()
-# parser.add_argument("--model-path", type=str)
+parser.add_argument("--model-path", type=str)
 parser.add_argument("--parameters", type=str, default="{}")
 args, unknown = parser.parse_known_args()
 
-# model = args.model_path
+model = args.model_path
 
 llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
 
@@ -38,7 +38,7 @@ real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
 # Get Python executable (from venv if available)
 python_executable = get_python_executable(real_plugin_dir)
 
-popen_args = [python_executable, "-m", "fastchat.serve.openai_api_proxy_worker"]
+popen_args = [python_executable, "-m", "fastchat.serve.openai_api_proxy_worker", "--model-path", model]
 
 
 # Add all parameters to the command
