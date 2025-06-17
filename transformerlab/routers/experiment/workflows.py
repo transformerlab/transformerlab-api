@@ -385,7 +385,8 @@ async def get_active_workflow_run():
 async def load_workflow_context(active_run):
     workflow_run_id = active_run["id"]
     workflow_id = active_run["workflow_id"]
-    workflow = await db.workflows_get_by_id(workflow_id)  # Keep fallback since this is a helper function
+    experiment_id = active_run["experiment_id"]  # Get experiment_id from active_run
+    workflow = await db.workflows_get_by_id(workflow_id, experiment_id)
     workflow_config = json.loads(workflow["config"])
     current_tasks = json.loads(active_run["current_tasks"])  # List of task IDs (node IDs)
     current_job_ids = json.loads(active_run["current_job_ids"])  # List of job IDs
@@ -632,6 +633,9 @@ async def queue_job_for_node(node: dict, workflow_run: dict, workflow_config: di
         await db.workflow_run_update_status(workflow_run["id"], "FAILED")
         return None
 
+###############
+# Internal Functions
+###############
 
 async def process_active_workflow():
     """
