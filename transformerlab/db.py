@@ -1002,10 +1002,8 @@ async def workflow_delete_by_id(workflow_id: str, experiment_id):
         "UPDATE workflows SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND experiment_id = ?",
         (workflow_id, experiment_id),
     )
-    if result.rowcount == 0:
-        return False  # Workflow not found or doesn't belong to experiment
     await db.commit()
-    return True
+    return result.rowcount > 0
 
 
 async def workflow_delete_by_name(workflow_name):
@@ -1109,10 +1107,8 @@ async def workflow_update_config(workflow_id, config, experiment_id):
         "UPDATE workflows SET config = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND experiment_id = ?",
         (config, workflow_id, experiment_id),
     )
-    if result.rowcount == 0:
-        return False  # Workflow not found or doesn't belong to experiment
     await db.commit()
-    return True
+    return result.rowcount > 0
 
 
 async def workflow_update_name(workflow_id, name, experiment_id):
@@ -1121,10 +1117,8 @@ async def workflow_update_name(workflow_id, name, experiment_id):
         "UPDATE workflows SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND experiment_id = ?",
         (name, workflow_id, experiment_id),
     )
-    if result.rowcount == 0:
-        return False  # Workflow not found or doesn't belong to experiment
     await db.commit()
-    return True
+    return result.rowcount > 0
 
 
 async def workflow_delete_all():

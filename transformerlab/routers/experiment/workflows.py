@@ -255,17 +255,11 @@ async def start_workflow(workflow_id: str, experimentId: int):
     return {"message": "OK"}
 
 
-@router.get("/start_next_step", summary="Start the next step in the active workflow")
-async def start_next_step_in_workflow(experimentId: int):
+async def start_next_step_in_workflow():
     # 1. Find the active workflow run (Running or next Queued)
     active_run = await get_active_workflow_run()
     if not active_run:
         return {"message": "No workflow is running or queued."}
-
-    # Verify workflow belongs to experiment
-    workflow = await db.workflows_get_by_id(active_run["workflow_id"], experimentId)
-    if not workflow:
-        return {"error": "Active workflow does not belong to this experiment"}
 
     # 2. Load context for the active run
     workflow_run_id, workflow_id, workflow_config, current_tasks, current_job_ids = await load_workflow_context(
@@ -632,17 +626,3 @@ async def queue_job_for_node(node: dict, workflow_run: dict, workflow_config: di
         print(f"Error queueing task {task_name}: {e}")
         await db.workflow_run_update_status(workflow_run["id"], "FAILED")
         return None
-
-###############
-# Internal Functions
-###############
-
-async def process_active_workflow():
-    """
-    Check for active workflow runs and process the next step if available.
-    Uses the experiment_id directly from the workflow_run table to avoid an extra database lookup.
-    """
-    active_run = await get_active_workflow_run()
-    if active_run and active_run.get("experiment_id"):
-        # Use experiment_id directly from the workflow run (no need to lookup workflow)
-        await start_next_step_in_workflow(int(active_run["experiment_id"]))
