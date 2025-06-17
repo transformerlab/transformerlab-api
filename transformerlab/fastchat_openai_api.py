@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.security.http import HTTPAuthorizationCredentials, HTTPBearer
 from fastchat.constants import WORKER_API_EMBEDDING_BATCH_SIZE, ErrorCode
-from fastchat.conversation import Conversation, SeparatorStyle
+from fastchat.conversation import Conversation, SeparatorStyle, get_conv_template
 from fastchat.protocol.api_protocol import (
     APITokenCheckRequest,
     APITokenCheckResponse,
@@ -454,6 +454,7 @@ async def show_available_models():
     for m in models:
         model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
     return ModelList(data=model_cards)
+
 
 
 @router.post("/v1/chat/completions", dependencies=[Depends(check_api_key)], tags=["chat"])
@@ -1408,3 +1409,10 @@ async def get_layer_details(request: Request):
             timeout=WORKER_API_TIMEOUT,
         )
         return response.json()
+
+
+@router.get("/api/model/{model_name}/chat-template", tags=["chat"])
+async def get_chat_template(model_name: str):
+    conv = get_conv_template(model_name)
+    return conv
+    
