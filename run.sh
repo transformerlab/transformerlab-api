@@ -93,13 +93,15 @@ echo "▶️ Starting the API server:"
 
 if [ "$HOST_MACHINE" = true ]; then
     echo "🌐 Running as HOST MACHINE for distributed computing"
+    export TLAB_HOST_MACHINE=true
     if [ "$RELOAD" = true ]; then
         echo "🔁 Reload the server on file changes"
-        uv run -v uvicorn api:app --reload --port ${PORT} --host ${TLABHOST} --host-machine
+        uv run -v uvicorn api:app --reload --port ${PORT} --host ${TLABHOST}
     else
-        uv run -v uvicorn api:app --port ${PORT} --host ${TLABHOST} --no-access-log --host-machine
+        uv run -v uvicorn api:app --port ${PORT} --host ${TLABHOST} --no-access-log
     fi
 else
+    export TLAB_HOST_MACHINE=false
     if [ "$RELOAD" = true ]; then
         echo "🔁 Reload the server on file changes"
         uv run -v uvicorn api:app --reload --port ${PORT} --host ${TLABHOST}

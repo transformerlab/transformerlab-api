@@ -90,6 +90,10 @@ async def lifespan(app: FastAPI):
     spawn_fastchat_controller_subprocess()
     await db.init()
 
+    # Check for host machine status from environment variable
+    global IS_HOST_MACHINE
+    IS_HOST_MACHINE = os.getenv("TLAB_HOST_MACHINE", "false").lower() == "true"
+
     # Store host machine status in database
     await db.config_set("IS_HOST_MACHINE", str(IS_HOST_MACHINE))
     if IS_HOST_MACHINE:
@@ -451,7 +455,6 @@ def parse_args():
     parser.add_argument("--allowed-methods", type=json.loads, default=["*"], help="allowed methods")
     parser.add_argument("--allowed-headers", type=json.loads, default=["*"], help="allowed headers")
     parser.add_argument("auto_reinstall_plugins", type=bool, default=False, help="auto reinstall plugins")
-    parser.add_argument("--host-machine", action="store_true", help="run as host machine for distributed computing")
 
     return parser.parse_args()
 
@@ -465,11 +468,7 @@ def print_launch_message():
 
 
 def run():
-    global IS_HOST_MACHINE
     args = parse_args()
-
-    # Set the global host machine flag
-    IS_HOST_MACHINE = args.host_machine
 
     print(f"args: {args}")
     if args.allowed_origins == ["*"]:
