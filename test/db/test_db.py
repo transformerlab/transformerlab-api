@@ -565,10 +565,17 @@ class TestWorkflows:
     @pytest.mark.asyncio
     async def test_workflow_queue(self, test_experiment):
         workflow_id = await workflow_create("test_workflow_queue", "{}", test_experiment)
-        await workflow_queue(workflow_id)
-        # Assuming queuing updates the status or similar
+        result = await workflow_queue(workflow_id)
+        assert result is True
+        # Verify workflow exists
         workflow = await workflows_get_by_id(workflow_id, test_experiment)
         assert workflow is not None
+
+    @pytest.mark.asyncio
+    async def test_workflow_queue_nonexistent(self):
+        # Test queueing a workflow that doesn't exist
+        result = await workflow_queue(999999)  # Using a workflow ID that shouldn't exist
+        assert result is False
 
     @pytest.mark.asyncio
     async def test_workflow_run_get_all(self):
