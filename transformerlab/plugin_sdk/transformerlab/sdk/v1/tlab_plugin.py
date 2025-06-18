@@ -258,7 +258,7 @@ class TLabPlugin:
                     "WARNING: No train split found in dataset, we will use the first available split as train.\n Training a model on non-train splits is not recommended."
                 )
                 dataset_splits["train"] = available_splits[0]
-                print(f"Using {dataset_splits['train']} as train split.")
+                print(f"Using `{dataset_splits['train']}` for the training split.")
 
             if "validation" in available_splits and "valid" in dataset_splits:
                 dataset_splits["valid"] = "validation"
@@ -266,6 +266,15 @@ class TLabPlugin:
                 print("No validation slice found in dataset, using train split as 80-20 for training and validation")
                 dataset_splits["train"] = dataset_splits["train"] + "[:80%]"
                 dataset_splits["valid"] = dataset_splits["train"] + "[-10%:]"
+
+            # If dataset_splits for train is same as any other split, make it a 80:20 thing to not have same data in train and test/valid
+            for expected_split, actual_split in dataset_splits.items():
+                if expected_split != "train" and actual_split == dataset_splits["train"]:
+                    dataset_splits[expected_split] = dataset_splits["train"] + "[-20%:]"
+                    dataset_splits["train"] = dataset_splits["train"] + "[:80%]"
+                    print(
+                        f"Using `{dataset_splits[expected_split]}` for the {expected_split} split as its same as train split."
+                    )
 
             # Load each dataset split
             datasets = {}
