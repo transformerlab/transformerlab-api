@@ -54,19 +54,8 @@ scheduler_map = {
 
 
 def load_controlnet_model(controlnet_id: str, device: str = "cuda") -> ControlNetModel:
-    WORKSPACE_DIR = os.environ.get("_TFL_WORKSPACE_DIR")
-    if not WORKSPACE_DIR:
-        raise RuntimeError("Environment variable _TFL_WORKSPACE_DIR not set")
-
-    controlnet_path = os.path.join(WORKSPACE_DIR, "controlnets", controlnet_id)
-    config_path = os.path.join(controlnet_path, "config.json")
-
-    if not os.path.exists(config_path):
-        raise ValueError(f"ControlNet config not found for {controlnet_id}")
-
-    # Load the model dynamically
     controlnet_model = ControlNetModel.from_pretrained(
-        controlnet_path, torch_dtype=torch.float16 if device != "cpu" else torch.float32
+        controlnet_id, torch_dtype=torch.float16 if device != "cpu" else torch.float32
     )
     return controlnet_model
 

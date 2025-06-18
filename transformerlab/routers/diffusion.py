@@ -32,6 +32,7 @@ from typing import List
 from PIL import Image
 import shutil
 import transformerlab.db as db
+from transformerlab.models import model_helper
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
 from transformerlab.shared.shared import slugify
@@ -251,19 +252,8 @@ def preprocess_for_controlnet(input_pil: Image.Image, controlnet_id: str) -> Ima
 
 
 def load_controlnet_model(controlnet_id: str, device: str = "cuda") -> ControlNetModel:
-    WORKSPACE_DIR = os.environ.get("_TFL_WORKSPACE_DIR")
-    if not WORKSPACE_DIR:
-        raise RuntimeError("Environment variable _TFL_WORKSPACE_DIR not set")
-
-    safe_controlnet_id = secure_filename(controlnet_id)
-    controlnet_path = os.path.join(WORKSPACE_DIR, "controlnets", safe_controlnet_id)
-    config_path = os.path.join(controlnet_path, "config.json")
-
-    if not os.path.exists(config_path):
-        raise ValueError(f"ControlNet config not found for {controlnet_id}")
-
     controlnet_model = ControlNetModel.from_pretrained(
-        controlnet_path, torch_dtype=torch.float16 if device != "cpu" else torch.float32
+        controlnet_id, torch_dtype=torch.float16 if device != "cpu" else torch.float32
     )
     return controlnet_model
 
@@ -1848,70 +1838,26 @@ async def list_controlnets():
     Lists all downloaded ControlNet models by reading the controlnets directory
     and extracting `_class_name` from their config.json.
     """
+    all_models = await model_helper.list_installed_models(embedding=False)
     models = []
 
-    WORKSPACE_DIR = os.environ.get("_TFL_WORKSPACE_DIR")
-    if WORKSPACE_DIR is None:
-        raise EnvironmentError("Environment variable _TFL_WORKSPACE_DIR is not set!")
+    for model in all_models:
+        json_data = model.get("json_data", {})
 
-    CONTROLNETS_DIR = os.path.join(WORKSPACE_DIR, "controlnets")
+        # Check common locations
+        arch = json_data.get("architecture")
+        if not arch:
+            # Try model_index fallback
+            model_index = json_data.get("model_index", {})
+            arch = model_index.get("_class_name")
 
-    if not os.path.exists(CONTROLNETS_DIR):
-        return {"controlnets": []}
+        # Final fallback: rely on explicit controlnet flag
+        is_controlnet = json_data.get("is_controlnet", False)
 
-    for subdir in os.listdir(CONTROLNETS_DIR):
-        model_dir = os.path.join(CONTROLNETS_DIR, subdir)
-        config_path = os.path.join(model_dir, "config.json")
-
-        if os.path.isdir(model_dir) and os.path.exists(config_path):
-            try:
-                with open(config_path, "r") as f:
-                    config_data = json.load(f)
-                class_name = config_data.get("_class_name", "UnknownControlNet")
-                models.append(
-                    {
-                        "id": subdir,
-                        "name": subdir,
-                        "architecture": class_name,
-                    }
-                )
-            except Exception as e:
-                logging.error(f"Invalid or unreadable config: {e}")
-                models.append(
-                    {
-                        "id": subdir,
-                        "name": subdir,
-                        "architecture": "Invalid or unreadable config",
-                        "error": "An error occurred while reading the ControlNet config file.",
-                    }
-                )
+        if (arch and "controlnet" in arch.lower()) or is_controlnet:
+            models.append(model)
 
     return {"controlnets": models}
-
-
-@router.get("/delete_controlnet")
-async def delete_controlnet(controlnet: str):
-    """
-    Delete a downloaded ControlNet by name (safe directory name).
-    """
-    WORKSPACE_DIR = os.environ.get("_TFL_WORKSPACE_DIR")
-    if WORKSPACE_DIR is None:
-        raise EnvironmentError("Environment variable _TFL_WORKSPACE_DIR is not set!")
-
-    CONTROLNETS_DIR = os.path.join(WORKSPACE_DIR, "controlnets")
-
-    secure_name = secure_filename(controlnet)
-    target_path = os.path.join(CONTROLNETS_DIR, secure_name)
-
-    if not os.path.exists(target_path):
-        raise HTTPException(status_code=404, detail=f"ControlNet '{secure_name}' not found.")
-
-    try:
-        shutil.rmtree(target_path)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete ControlNet: {str(e)}")
-
-    return {"message": "ControlNet deleted successfully", "name": secure_name}
 
 
 @router.post("/install_controlnet")
@@ -1960,8 +1906,8 @@ async def install_controlnet(
     args = [
         f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
         "--mode",
-        "controlnet",
-        "--controlnet",
+        "model",
+        "--model_name",
         controlnet_id,
         "--job_id",
         str(job_id),
