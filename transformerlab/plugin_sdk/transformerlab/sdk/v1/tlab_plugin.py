@@ -255,7 +255,7 @@ class TLabPlugin:
             # Check if train split is available and handle it if not available
             if "train" in dataset_types and "train" not in available_splits:
                 print(
-                    "WARNING: No train split found in dataset, we will use the first available split as train but training a model on non-train splits is not recommended."
+                    "WARNING: No train split found in dataset, we will use the first available split as train.\n Training a model on non-train splits is not recommended."
                 )
                 dataset_splits["train"] = available_splits[0]
                 print(f"Using {dataset_splits['train']} as train split.")
@@ -264,8 +264,8 @@ class TLabPlugin:
                 dataset_splits["valid"] = "validation"
             elif "valid" in dataset_types and "valid" not in available_splits:
                 print("No validation slice found in dataset, using train split as 80-20 for training and validation")
-                dataset_splits["valid"] = "train[-10%:]"
-                dataset_splits["train"] = "train[:80%]"
+                dataset_splits["train"] = dataset_splits["train"] + "[:80%]"
+                dataset_splits["valid"] = dataset_splits["train"] + "[-10%:]"
 
             # Load each dataset split
             datasets = {}
