@@ -77,6 +77,14 @@ from transformerlab.db import (
     delete_training_template,
     export_job_create,
     workflow_runs_get_from_experiment,
+    network_machine_create,
+    network_machine_get_all,
+    network_machine_get,
+    network_machine_get_by_name,
+    network_machine_update_status,
+    network_machine_update_metadata,
+    network_machine_delete,
+    network_machine_delete_by_name,
 )
 
 import pytest
@@ -616,17 +624,17 @@ class TestWorkflows:
     async def test_experiment_workflow_routes(self, test_experiment):
         # Create a workflow in the experiment
         workflow_id = await workflow_create("test_workflow", "{}", test_experiment)
-        
+
         # Queue the workflow to create a workflow run
         await workflow_queue(workflow_id)
-        
+
         # Test getting workflows in experiment
         workflows = await workflows_get_from_experiment(test_experiment)
         assert isinstance(workflows, list)
         assert len(workflows) > 0
         assert workflows[0]["experiment_id"] == test_experiment
         assert workflows[0]["id"] == workflow_id
-        
+
         # Test getting workflow runs in experiment
         workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
         assert isinstance(workflow_runs, list)
@@ -858,3 +866,303 @@ async def test_job_update(setup_db):
     assert updated_job["status"] == new_status
     assert updated_job["id"] == job_id
     assert updated_job["experiment_id"] == "test_experiment"
+
+
+###################
+# NETWORK MACHINES TESTS
+###################
+
+
+@pytest.mark.asyncio
+async def test_network_machine_create_and_get():
+    """Test creating and retrieving a network machine."""
+    # Create a machine
+    machine_id = await network_machine_create(
+        name="test_machine",
+        host="192.168.1.100",
+        port=8338,
+        api_token="test-token",
+        metadata={"type": "gpu", "region": "us-west"},
+    )
+
+    assert machine_id is not None
+    assert isinstance(machine_id, int)
+
+    # Retrieve the machine
+    machine = await network_machine_get(machine_id)
+    assert machine is not None
+    assert machine["name"] == "test_machine"
+    assert machine["host"] == "192.168.1.100"
+    assert machine["port"] == 8338
+    assert machine["api_token"] == "test-token"
+    assert machine["status"] == "offline"  # Default status
+    assert machine["machine_metadata"]["type"] == "gpu"
+    assert machine["machine_metadata"]["region"] == "us-west"
+
+    # Clean up
+    await network_machine_delete(machine_id)
+
+
+@pytest.mark.asyncio
+async def test_network_machine_create_minimal():
+    """Test creating a network machine with minimal parameters."""
+    machine_id = await network_machine_create(name="minimal_machine", host="10.0.0.1")
+
+    assert machine_id is not None
+
+    machine = await network_machine_get(machine_id)
+    assert machine["name"] == "minimal_machine"
+    assert machine["host"] == "10.0.0.1"
+    assert machine["port"] == 8338  # Default port
+    assert machine["api_token"] is None
+    assert machine["status"] == "offline"
+    assert machine["machine_metadata"] == {}
+
+    # Clean up
+    await network_machine_delete(machine_id)
+
+
+@pytest.mark.asyncio
+async def test_network_machine_get_nonexistent():
+    """Test retrieving a non-existent network machine."""
+    machine = await network_machine_get(99999)
+    assert machine is None
+
+
+@pytest.mark.asyncio
+async def test_network_machine_get_by_name():
+    """Test retrieving a network machine by name."""
+    # Create a machine
+    machine_id = await network_machine_create(name="named_machine", host="192.168.1.50")
+
+    # Retrieve by name
+    machine = await network_machine_get_by_name("named_machine")
+    assert machine is not None
+    assert machine["id"] == machine_id
+    assert machine["name"] == "named_machine"
+    assert machine["host"] == "192.168.1.50"
+
+    # Clean up
+    await network_machine_delete(machine_id)
+
+
+@pytest.mark.asyncio
+async def test_network_machine_get_by_name_nonexistent():
+    """Test retrieving a non-existent network machine by name."""
+    machine = await network_machine_get_by_name("nonexistent_machine")
+    assert machine is None
+
+
+@pytest.mark.asyncio
+async def test_network_machine_get_all():
+    """Test retrieving all network machines."""
+    # Create multiple machines
+    machine_id1 = await network_machine_create(name="machine1", host="192.168.1.10")
+    machine_id2 = await network_machine_create(name="machine2", host="192.168.1.20")
+
+    # Get all machines
+    machines = await network_machine_get_all()
+
+    # Should contain at least our 2 machines
+    machine_names = [m["name"] for m in machines]
+    assert "machine1" in machine_names
+    assert "machine2" in machine_names
+
+    # Clean up
+    await network_machine_delete(machine_id1)
+    await network_machine_delete(machine_id2)
+
+
+@pytest.mark.asyncio
+async def test_network_machine_get_all_empty():
+    """Test retrieving all network machines when none exist."""
+    # First delete any existing machines
+    machines = await network_machine_get_all()
+    for machine in machines:
+        await network_machine_delete(machine["id"])
+
+    # Now check empty list
+    machines = await network_machine_get_all()
+    assert machines == []
+
+
+@pytest.mark.asyncio
+async def test_network_machine_update_status():
+    """Test updating the status of a network machine."""
+    # Create a machine
+    machine_id = await network_machine_create(name="status_test_machine", host="192.168.1.30")
+
+    # Update status to online
+    await network_machine_update_status(machine_id, "online")
+
+    # Verify status update
+    machine = await network_machine_get(machine_id)
+    assert machine["status"] == "online"
+    assert machine["last_seen"] is not None
+
+    # Update status to offline
+    await network_machine_update_status(machine_id, "offline")
+
+    # Verify status update
+    machine = await network_machine_get(machine_id)
+    assert machine["status"] == "offline"
+
+    # Clean up
+    await network_machine_delete(machine_id)
+
+
+@pytest.mark.asyncio
+async def test_network_machine_update_status_with_custom_timestamp():
+    """Test updating the status with a custom last_seen timestamp."""
+    # Create a machine
+    machine_id = await network_machine_create(name="timestamp_test_machine", host="192.168.1.40")
+
+    # Update status with custom timestamp
+    custom_timestamp = "2024-06-01T12:00:00"
+    await network_machine_update_status(machine_id, "online", custom_timestamp)
+
+    # Verify status and timestamp
+    machine = await network_machine_get(machine_id)
+    assert machine["status"] == "online"
+    # The timestamp should be parsed and stored
+    assert machine["last_seen"] is not None
+
+    # Clean up
+    await network_machine_delete(machine_id)
+
+
+@pytest.mark.asyncio
+async def test_network_machine_update_metadata():
+    """Test updating the metadata of a network machine."""
+    # Create a machine
+    machine_id = await network_machine_create(
+        name="metadata_test_machine", host="192.168.1.60", metadata={"initial": "data"}
+    )
+
+    # Update metadata
+    new_metadata = {"gpu_count": 4, "memory": "32GB", "region": "us-east", "last_health_check": "2024-06-01T10:00:00"}
+    await network_machine_update_metadata(machine_id, new_metadata)
+
+    # Verify metadata update
+    machine = await network_machine_get(machine_id)
+    assert machine["machine_metadata"] == new_metadata
+    assert "initial" not in machine["machine_metadata"]  # Should be replaced, not merged
+
+    # Clean up
+    await network_machine_delete(machine_id)
+
+
+@pytest.mark.asyncio
+async def test_network_machine_delete():
+    """Test deleting a network machine."""
+    # Create a machine
+    machine_id = await network_machine_create(name="delete_test_machine", host="192.168.1.70")
+
+    # Verify it exists
+    machine = await network_machine_get(machine_id)
+    assert machine is not None
+
+    # Delete the machine
+    result = await network_machine_delete(machine_id)
+    assert result is True
+
+    # Verify it's deleted
+    machine = await network_machine_get(machine_id)
+    assert machine is None
+
+
+@pytest.mark.asyncio
+async def test_network_machine_delete_nonexistent():
+    """Test deleting a non-existent network machine."""
+    result = await network_machine_delete(99999)
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_network_machine_delete_by_name():
+    """Test deleting a network machine by name."""
+    # Create a machine
+    machine_id = await network_machine_create(name="delete_by_name_machine", host="192.168.1.80")
+
+    # Verify it exists
+    machine = await network_machine_get_by_name("delete_by_name_machine")
+    assert machine is not None
+
+    # Delete by name
+    result = await network_machine_delete_by_name("delete_by_name_machine")
+    assert result is True
+
+    # Verify it's deleted
+    machine = await network_machine_get_by_name("delete_by_name_machine")
+    assert machine is None
+
+    # Also verify by ID
+    machine = await network_machine_get(machine_id)
+    assert machine is None
+
+
+@pytest.mark.asyncio
+async def test_network_machine_delete_by_name_nonexistent():
+    """Test deleting a non-existent network machine by name."""
+    result = await network_machine_delete_by_name("nonexistent_machine")
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_network_machine_full_lifecycle():
+    """Test the complete lifecycle of a network machine."""
+    # Create
+    machine_id = await network_machine_create(
+        name="lifecycle_machine", host="192.168.1.90", port=9000, api_token="lifecycle-token", metadata={"env": "test"}
+    )
+
+    # Verify creation
+    machine = await network_machine_get(machine_id)
+    assert machine["name"] == "lifecycle_machine"
+    assert machine["status"] == "offline"
+
+    # Update status
+    await network_machine_update_status(machine_id, "online")
+    machine = await network_machine_get(machine_id)
+    assert machine["status"] == "online"
+
+    # Update metadata
+    await network_machine_update_metadata(machine_id, {"env": "production", "version": "1.0"})
+    machine = await network_machine_get(machine_id)
+    assert machine["machine_metadata"]["env"] == "production"
+    assert machine["machine_metadata"]["version"] == "1.0"
+
+    # Check it appears in get_all
+    all_machines = await network_machine_get_all()
+    machine_ids = [m["id"] for m in all_machines]
+    assert machine_id in machine_ids
+
+    # Check get by name works
+    machine_by_name = await network_machine_get_by_name("lifecycle_machine")
+    assert machine_by_name["id"] == machine_id
+
+    # Delete
+    result = await network_machine_delete(machine_id)
+    assert result is True
+
+    # Verify deletion
+    machine = await network_machine_get(machine_id)
+    assert machine is None
+
+
+@pytest.mark.asyncio
+async def test_network_machine_multiple_status_updates():
+    """Test multiple rapid status updates on the same machine."""
+    # Create a machine
+    machine_id = await network_machine_create(name="rapid_update_machine", host="192.168.1.95")
+
+    # Perform multiple status updates
+    statuses = ["online", "offline", "error", "online", "offline"]
+
+    for status in statuses:
+        await network_machine_update_status(machine_id, status)
+        machine = await network_machine_get(machine_id)
+        assert machine["status"] == status
+
+    # Clean up
+    await network_machine_delete(machine_id)
