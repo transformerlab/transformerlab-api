@@ -14,6 +14,7 @@ TLABHOST="0.0.0.0"
 PORT="8338"
 
 RELOAD=false
+HTTPS=false
 
 # echo "Your shell is $SHELL"
 # echo "Conda's binary is at ${CONDA_BIN}"
@@ -31,11 +32,12 @@ else
     echo "✅ Conda is installed."
 fi
 
-while getopts crp:h: flag
+while getopts crsp:h: flag
 do
     case "${flag}" in
         c) CUSTOM_ENV=true;;
         r) RELOAD=true;;
+        s) HTTPS=true;;
         p) PORT=${OPTARG};;
         h) TLABHOST=${OPTARG};;
     esac
@@ -82,7 +84,15 @@ fi
 echo "▶️ Starting the API server:"
 if [ "$RELOAD" = true ]; then
     echo "🔁 Reload the server on file changes"
-    uv run -v uvicorn api:app --reload --port ${PORT} --host ${TLABHOST}
+    if [ "$HTTPS" = true ]; then
+        uv run -v python api.py --https --reload --port ${PORT} --host ${TLABHOST}
+    else
+        uv run -v python api.py --reload --port ${PORT} --host ${TLABHOST}
+    fi
 else
-    uv run -v uvicorn api:app --port ${PORT} --host ${TLABHOST} --no-access-log
+    if [ "$HTTPS" = true ]; then
+        uv run -v python api.py --https --port ${PORT} --host ${TLABHOST}
+    else
+        uv run -v python api.py --port ${PORT} --host ${TLABHOST}
+    fi
 fi

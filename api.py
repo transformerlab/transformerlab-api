@@ -31,6 +31,7 @@ from fastchat.protocol.openai_api_protocol import (
 )
 
 import transformerlab.db as db
+from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert
 from transformerlab.routers import (
     data,
     model,
@@ -434,7 +435,9 @@ def parse_args():
     parser.add_argument("--allowed-origins", type=json.loads, default=["*"], help="allowed origins")
     parser.add_argument("--allowed-methods", type=json.loads, default=["*"], help="allowed methods")
     parser.add_argument("--allowed-headers", type=json.loads, default=["*"], help="allowed headers")
-    parser.add_argument("auto_reinstall_plugins", type=bool, default=False, help="auto reinstall plugins")
+    parser.add_argument("--auto_reinstall_plugins", type=bool, default=False, help="auto reinstall plugins")
+    parser.add_argument("--https", action="store_true", help="Serve the API over HTTPS with a self-signed cert.")
+
 
     return parser.parse_args()
 
@@ -462,7 +465,12 @@ def run():
         allow_headers=args.allowed_headers,
     )
 
-    uvicorn.run("api:app", host=args.host, port=args.port, log_level="warning")
+    if args.https:
+        cert_path, key_path = ensure_persistent_self_signed_cert()
+        uvicorn.run("api:app", host=args.host, port=args.port,
+            log_level="warning", ssl_certfile=cert_path, ssl_keyfile=key_path)
+    else:
+        uvicorn.run("api:app", host=args.host, port=args.port, log_level="warning")
 
 
 if __name__ == "__main__":
