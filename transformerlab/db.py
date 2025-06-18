@@ -55,11 +55,11 @@ async def init():
     cursor = await db.execute("PRAGMA table_info(workflow_runs)")
     columns = await cursor.fetchall()
     has_experiment_id = any(column[1] == "experiment_id" for column in columns)
-    
+
     if not has_experiment_id:
         # Add experiment_id column
         await db.execute("ALTER TABLE workflow_runs ADD COLUMN experiment_id INTEGER")
-        
+
         # Update existing workflow runs with experiment_id from their workflows
         await db.execute("""
             UPDATE workflow_runs 
@@ -1125,6 +1125,7 @@ async def workflow_queue(workflow_id):
         (workflow_id, workflow_name, "[]", "[]", "QUEUED", "[]", "[]", experiment_id),
     )
 
+
 async def workflow_runs_get_from_experiment(experiment_id):
     cursor = await db.execute(
         "SELECT * FROM workflow_runs WHERE experiment_id = ? AND status != 'DELETED' ORDER BY created_at desc",
@@ -1196,3 +1197,96 @@ async def config_set(key: str, value: str):
         await session.execute(stmt)
         await session.commit()
     return
+
+
+###################
+# NETWORK MACHINES
+###################
+
+
+async def network_machine_create(
+    name: str, host: str, port: int = 8338, api_token: str = None, metadata: dict = None
+) -> int:
+    """Create a new network machine entry."""
+    if metadata is None:
+        metadata = {}
+
+    async with async_session() as session:
+        machine = models.NetworkMachine(
+            name=name, host=host, port=port, api_token=api_token, status="offline", metadata=metadata
+        )
+        session.add(machine)
+        await session.commit()
+        await session.refresh(machine)
+        return machine.id
+
+
+async def network_machine_get_all():
+    """Get all network machines."""
+    async with async_session() as session:
+        result = await session.execute(select(models.NetworkMachine).order_by(models.NetworkMachine.created_at.desc()))
+        machines = result.scalars().all()
+        return [machine.__dict__ for machine in machines]
+
+
+async def network_machine_get(machine_id: int):
+    """Get a specific network machine by ID."""
+    async with async_session() as session:
+        result = await session.execute(select(models.NetworkMachine).where(models.NetworkMachine.id == machine_id))
+        machine = result.scalar_one_or_none()
+        return machine.__dict__ if machine else None
+
+
+async def network_machine_get_by_name(name: str):
+    """Get a specific network machine by name."""
+    async with async_session() as session:
+        result = await session.execute(select(models.NetworkMachine).where(models.NetworkMachine.name == name))
+        machine = result.scalar_one_or_none()
+        return machine.__dict__ if machine else None
+
+
+async def network_machine_update_status(machine_id: int, status: str, last_seen: str = None):
+    """Update the status and last_seen timestamp of a network machine."""
+    from datetime import datetime
+
+    update_data = {"status": status}
+    if last_seen:
+        update_data["last_seen"] = datetime.fromisoformat(last_seen)
+    else:
+        update_data["last_seen"] = datetime.now()
+
+    async with async_session() as session:
+        stmt = update(models.NetworkMachine).where(models.NetworkMachine.id == machine_id).values(**update_data)
+        await session.execute(stmt)
+        await session.commit()
+
+
+async def network_machine_update_metadata(machine_id: int, metadata: dict):
+    """Update the metadata of a network machine."""
+    async with async_session() as session:
+        stmt = update(models.NetworkMachine).where(models.NetworkMachine.id == machine_id).values(metadata=metadata)
+        await session.execute(stmt)
+        await session.commit()
+
+
+async def network_machine_delete(machine_id: int):
+    """Delete a network machine."""
+    async with async_session() as session:
+        machine = await session.get(models.NetworkMachine, machine_id)
+        if machine:
+            await session.delete(machine)
+            await session.commit()
+            return True
+        return False
+
+
+async def network_machine_delete_by_name(name: str):
+    """Delete a network machine by name."""
+    async with async_session() as session:
+        result = await session.execute(select(models.NetworkMachine).where(models.NetworkMachine.name == name))
+        machine = result.scalar_one_or_none()
+        if machine:
+            await session.delete(machine)
+            await session.commit()
+            return True
+        return False

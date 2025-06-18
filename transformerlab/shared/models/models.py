@@ -168,3 +168,24 @@ class Task(Base):
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
+
+
+class NetworkMachine(Base):
+    """Network machine model for distributed computing."""
+
+    __tablename__ = "network_machines"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    host: Mapped[str] = mapped_column(String, nullable=False)
+    port: Mapped[int] = mapped_column(Integer, nullable=False, server_default="8338")
+    api_token: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    status: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True, server_default="offline")
+    last_seen: Mapped[Optional[DateTime]] = mapped_column(DateTime, nullable=True)
+    metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True, server_default="{}")
+    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    updated_at: Mapped[DateTime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    __table_args__ = (Index("idx_host_port", "host", "port"),)
