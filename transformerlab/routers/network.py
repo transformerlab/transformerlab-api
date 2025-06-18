@@ -260,14 +260,14 @@ async def ping_machine(machine_id: int) -> Dict[str, Any]:
     except httpx.TimeoutException:
         await db.network_machine_update_status(machine_id, "offline")
         return {"status": "offline", "error": "Request timeout"}
-    except (httpx.ConnectError, httpx.ConnectTimeout, ConnectionError, OSError) as e:
+    except (httpx.ConnectError, httpx.ConnectTimeout, ConnectionError, OSError):
         # Server is off/unreachable - mark as offline, not error
         await db.network_machine_update_status(machine_id, "offline")
-        return {"status": "offline", "error": f"Server unreachable: {str(e)}"}
-    except httpx.HTTPStatusError as e:
+        return {"status": "offline", "error": "Server unreachable"}
+    except httpx.HTTPStatusError:
         await db.network_machine_update_status(machine_id, "error")
-        return {"status": "error", "error": f"HTTP {e.response.status_code}: {e.response.text}"}
-    except Exception as e:
+        return {"status": "error", "error": "An internal error occurred"}
+    except Exception:
         # Only genuine errors should be marked as error status
         await db.network_machine_update_status(machine_id, "error")
-        return {"status": "error", "error": str(e)}
+        return {"status": "error", "error": "An internal error occurred"}
