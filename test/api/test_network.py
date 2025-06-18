@@ -70,7 +70,7 @@ class TestNetworkMachines:
 
     def test_list_machines_empty(self):
         """Test listing machines when none exist."""
-        with patch("transformerlab.db.network_machine_get_all") as mock_get_all:
+        with patch("transformerlab.db.network_machine_get_all", new_callable=AsyncMock) as mock_get_all:
             mock_get_all.return_value = []
 
             with TestClient(app) as client:
@@ -108,7 +108,7 @@ class TestNetworkMachines:
             },
         ]
 
-        with patch("transformerlab.db.network_machine_get_all") as mock_get_all:
+        with patch("transformerlab.db.network_machine_get_all", new_callable=AsyncMock) as mock_get_all:
             mock_get_all.return_value = mock_machines
 
             with TestClient(app) as client:
@@ -122,7 +122,7 @@ class TestNetworkMachines:
 
     def test_list_machines_error(self):
         """Test error handling in list machines endpoint."""
-        with patch("transformerlab.db.network_machine_get_all") as mock_get_all:
+        with patch("transformerlab.db.network_machine_get_all", new_callable=AsyncMock) as mock_get_all:
             mock_get_all.side_effect = Exception("Database error")
 
             with TestClient(app) as client:
@@ -142,9 +142,9 @@ class TestNetworkMachines:
         }
 
         with (
-            patch("transformerlab.db.network_machine_get_by_name") as mock_get_by_name,
-            patch("transformerlab.db.network_machine_create") as mock_create,
-            patch("transformerlab.routers.network.ping_machine") as mock_ping,
+            patch("transformerlab.db.network_machine_get_by_name", new_callable=AsyncMock) as mock_get_by_name,
+            patch("transformerlab.db.network_machine_create", new_callable=AsyncMock) as mock_create,
+            patch("transformerlab.routers.network.ping_machine", new_callable=AsyncMock) as mock_ping,
         ):
             mock_get_by_name.return_value = None  # No existing machine
             mock_create.return_value = 1  # New machine ID
@@ -174,7 +174,7 @@ class TestNetworkMachines:
         """Test adding a machine with duplicate name."""
         machine_data = {"name": "existing-machine", "host": "192.168.1.100", "port": 8338}
 
-        with patch("transformerlab.db.network_machine_get_by_name") as mock_get_by_name:
+        with patch("transformerlab.db.network_machine_get_by_name", new_callable=AsyncMock) as mock_get_by_name:
             mock_get_by_name.return_value = {"id": 1, "name": "existing-machine"}
 
             with TestClient(app) as client:
@@ -188,9 +188,9 @@ class TestNetworkMachines:
         machine_data = {"name": "minimal-machine", "host": "192.168.1.100"}
 
         with (
-            patch("transformerlab.db.network_machine_get_by_name") as mock_get_by_name,
-            patch("transformerlab.db.network_machine_create") as mock_create,
-            patch("transformerlab.routers.network.ping_machine") as mock_ping,
+            patch("transformerlab.db.network_machine_get_by_name", new_callable=AsyncMock) as mock_get_by_name,
+            patch("transformerlab.db.network_machine_create", new_callable=AsyncMock) as mock_create,
+            patch("transformerlab.routers.network.ping_machine", new_callable=AsyncMock) as mock_ping,
         ):
             mock_get_by_name.return_value = None
             mock_create.return_value = 2
@@ -244,7 +244,7 @@ class TestNetworkMachines:
             "updated_at": "2025-06-18T10:00:00",
         }
 
-        with patch("transformerlab.db.network_machine_get") as mock_get:
+        with patch("transformerlab.db.network_machine_get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = mock_machine
 
             with TestClient(app) as client:
@@ -257,7 +257,7 @@ class TestNetworkMachines:
 
     def test_get_machine_not_found(self):
         """Test getting a non-existent machine."""
-        with patch("transformerlab.db.network_machine_get") as mock_get:
+        with patch("transformerlab.db.network_machine_get", new_callable=AsyncMock) as mock_get:
             mock_get.return_value = None
 
             with TestClient(app) as client:
@@ -268,7 +268,7 @@ class TestNetworkMachines:
 
     def test_remove_machine_success(self):
         """Test successfully removing a machine."""
-        with patch("transformerlab.db.network_machine_delete") as mock_delete:
+        with patch("transformerlab.db.network_machine_delete", new_callable=AsyncMock) as mock_delete:
             mock_delete.return_value = True
 
             with TestClient(app) as client:
@@ -281,7 +281,7 @@ class TestNetworkMachines:
 
     def test_remove_machine_not_found(self):
         """Test removing a non-existent machine."""
-        with patch("transformerlab.db.network_machine_delete") as mock_delete:
+        with patch("transformerlab.db.network_machine_delete", new_callable=AsyncMock) as mock_delete:
             mock_delete.return_value = False
 
             with TestClient(app) as client:
@@ -292,7 +292,7 @@ class TestNetworkMachines:
 
     def test_remove_machine_by_name_success(self):
         """Test successfully removing a machine by name."""
-        with patch("transformerlab.db.network_machine_delete_by_name") as mock_delete:
+        with patch("transformerlab.db.network_machine_delete_by_name", new_callable=AsyncMock) as mock_delete:
             mock_delete.return_value = True
 
             with TestClient(app) as client:
@@ -305,7 +305,7 @@ class TestNetworkMachines:
 
     def test_remove_machine_by_name_not_found(self):
         """Test removing a non-existent machine by name."""
-        with patch("transformerlab.db.network_machine_delete_by_name") as mock_delete:
+        with patch("transformerlab.db.network_machine_delete_by_name", new_callable=AsyncMock) as mock_delete:
             mock_delete.return_value = False
 
             with TestClient(app) as client:
@@ -320,7 +320,7 @@ class TestNetworkStatus:
 
     def test_get_network_status_empty(self):
         """Test getting network status with no machines."""
-        with patch("transformerlab.db.network_machine_get_all") as mock_get_all:
+        with patch("transformerlab.db.network_machine_get_all", new_callable=AsyncMock) as mock_get_all:
             mock_get_all.return_value = []
 
             with TestClient(app) as client:
@@ -346,7 +346,7 @@ class TestNetworkStatus:
             {"id": 5, "name": "machine5", "status": "offline"},
         ]
 
-        with patch("transformerlab.db.network_machine_get_all") as mock_get_all:
+        with patch("transformerlab.db.network_machine_get_all", new_callable=AsyncMock) as mock_get_all:
             mock_get_all.return_value = mock_machines
 
             with TestClient(app) as client:
@@ -370,7 +370,7 @@ class TestPingMachine:
         """Test the ping machine endpoint."""
         mock_result = {"status": "online", "response_time": 0.123, "server_info": {"version": "1.0.0"}}
 
-        with patch("transformerlab.routers.network.ping_machine") as mock_ping:
+        with patch("transformerlab.routers.network.ping_machine", new_callable=AsyncMock) as mock_ping:
             mock_ping.return_value = mock_result
 
             with TestClient(app) as client:
@@ -383,7 +383,7 @@ class TestPingMachine:
 
     def test_ping_machine_endpoint_not_found(self):
         """Test pinging a non-existent machine."""
-        with patch("transformerlab.routers.network.ping_machine") as mock_ping:
+        with patch("transformerlab.routers.network.ping_machine", new_callable=AsyncMock) as mock_ping:
             from fastapi import HTTPException
 
             mock_ping.side_effect = HTTPException(status_code=404, detail="Machine not found")
@@ -395,9 +395,9 @@ class TestPingMachine:
                 assert "Machine not found" in response.json()["detail"]
 
     @patch("transformerlab.routers.network.httpx.AsyncClient")
-    @patch("transformerlab.db.network_machine_get")
-    @patch("transformerlab.db.network_machine_update_status")
-    @patch("transformerlab.db.network_machine_update_metadata")
+    @patch("transformerlab.db.network_machine_get", new_callable=AsyncMock)
+    @patch("transformerlab.db.network_machine_update_status", new_callable=AsyncMock)
+    @patch("transformerlab.db.network_machine_update_metadata", new_callable=AsyncMock)
     def test_ping_machine_function_online(self, mock_update_metadata, mock_update_status, mock_get, mock_client_class):
         """Test the ping_machine helper function when machine is online."""
         # Mock machine data
@@ -438,8 +438,8 @@ class TestPingMachine:
         asyncio.run(test_ping())
 
     @patch("transformerlab.routers.network.httpx.AsyncClient")
-    @patch("transformerlab.db.network_machine_get")
-    @patch("transformerlab.db.network_machine_update_status")
+    @patch("transformerlab.db.network_machine_get", new_callable=AsyncMock)
+    @patch("transformerlab.db.network_machine_update_status", new_callable=AsyncMock)
     def test_ping_machine_function_timeout(self, mock_update_status, mock_get, mock_client_class):
         """Test the ping_machine helper function when request times out."""
         mock_machine = {"id": 1, "host": "192.168.1.100", "port": 8338, "api_token": None}
@@ -471,8 +471,8 @@ class TestPingMachine:
         asyncio.run(test_ping())
 
     @patch("transformerlab.routers.network.httpx.AsyncClient")
-    @patch("transformerlab.db.network_machine_get")
-    @patch("transformerlab.db.network_machine_update_status")
+    @patch("transformerlab.db.network_machine_get", new_callable=AsyncMock)
+    @patch("transformerlab.db.network_machine_update_status", new_callable=AsyncMock)
     def test_ping_machine_function_connection_error(self, mock_update_status, mock_get, mock_client_class):
         """Test the ping_machine helper function when connection fails."""
         mock_machine = {"id": 1, "host": "192.168.1.100", "port": 8338, "api_token": None}
@@ -518,7 +518,7 @@ class TestHealthCheck:
 
         with (
             patch("transformerlab.db.network_machine_get_all") as mock_get_all,
-            patch("transformerlab.routers.network.ping_machine") as mock_ping,
+            patch("transformerlab.routers.network.ping_machine", new_callable=AsyncMock) as mock_ping,
         ):
             mock_get_all.return_value = mock_machines
             mock_ping.side_effect = mock_ping_results
@@ -550,7 +550,7 @@ class TestHealthCheck:
 
         with (
             patch("transformerlab.db.network_machine_get_all") as mock_get_all,
-            patch("transformerlab.routers.network.ping_machine") as mock_ping,
+            patch("transformerlab.routers.network.ping_machine", new_callable=AsyncMock) as mock_ping,
         ):
             mock_get_all.return_value = mock_machines
             mock_ping.side_effect = [{"status": "online", "response_time": 0.1}, Exception("Network error")]
@@ -601,7 +601,7 @@ class TestNetworkIntegration:
             patch("transformerlab.db.network_machine_create") as mock_create,
             patch("transformerlab.db.network_machine_get") as mock_get,
             patch("transformerlab.db.network_machine_delete") as mock_delete,
-            patch("transformerlab.routers.network.ping_machine") as mock_ping,
+            patch("transformerlab.routers.network.ping_machine", new_callable=AsyncMock) as mock_ping,
         ):
             # Setup mocks for add machine
             mock_get_by_name.return_value = None
