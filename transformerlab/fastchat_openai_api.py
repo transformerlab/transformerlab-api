@@ -1411,8 +1411,20 @@ async def get_layer_details(request: Request):
         return response.json()
 
 
-@router.get("/api/model/{model_name}/chat-template", tags=["chat"])
-async def get_chat_template(model_name: str):
+@router.post("/api/model/chat-template", tags=["chat"])
+async def get_chat_template(request: Request):
+    data = await request.json()
+    model_name = data.get("model_name")
     conv = get_conv_template(model_name)
-    return conv
+    return {
+        "template": {
+            "system_template": conv.system_template,
+            "system_message": conv.system_message,
+            "roles": conv.roles,
+            "sep": conv.sep,
+            "sep2": conv.sep2,
+            "stop_str": conv.stop_str,
+            "stop_token_ids": conv.stop_token_ids or []
+        }
+    }
     
