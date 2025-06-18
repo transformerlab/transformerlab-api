@@ -1137,16 +1137,18 @@ async def workflow_queue(workflow_id):
         "SELECT name, experiment_id FROM workflows WHERE id = ? AND status != 'DELETED' LIMIT 1", (workflow_id,)
     )
     row = await cursor.fetchone()
-    if row is None:
-        return None
-    workflow_name = row[0]
-    experiment_id = row[1]
     await cursor.close()
 
-    await db.execute(
-        "INSERT INTO workflow_runs(workflow_id, workflow_name, job_ids, node_ids, status, current_tasks, current_job_ids, experiment_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (workflow_id, workflow_name, "[]", "[]", "QUEUED", "[]", "[]", experiment_id),
-    )
+    if row:
+        workflow_name = row[0]
+        experiment_id = row[1]
+        await db.execute(
+            "INSERT INTO workflow_runs(workflow_id, workflow_name, job_ids, node_ids, status, current_tasks, current_job_ids, experiment_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (workflow_id, workflow_name, "[]", "[]", "QUEUED", "[]", "[]", experiment_id),
+        )
+        return True
+
+    return False
 
 
 async def workflow_runs_get_from_experiment(experiment_id):
