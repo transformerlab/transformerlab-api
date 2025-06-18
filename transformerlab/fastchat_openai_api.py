@@ -56,6 +56,7 @@ class APIChatCompletionRequest(BaseModel):
     temperature: Optional[float] = 0.7
     top_p: Optional[float] = 1.0
     top_k: Optional[int] = -1
+    min_p: Optional[float] = 0.0
     n: Optional[int] = 1
     max_tokens: Optional[int] = None
     stop: Optional[Union[str, List[str]]] = None
@@ -78,6 +79,7 @@ class ChatCompletionRequest(BaseModel):
     temperature: Optional[float] = 0.7
     top_p: Optional[float] = 1.0
     top_k: Optional[int] = -1
+    min_p: Optional[float] = 0.0
     n: Optional[int] = 1
     max_tokens: Optional[int] = None
     stop: Optional[Union[str, List[str]]] = None
@@ -95,6 +97,7 @@ class VisualizationRequest(PydanticBaseModel):
     max_tokens: Optional[int] = 100
     temperature: Optional[float] = 0.7
     top_p: Optional[float] = 1.0
+    min_p: Optional[float] = 0.0
     stream: Optional[bool] = True
 
 
@@ -288,6 +291,11 @@ def check_requests(request) -> Optional[JSONResponse]:
             ErrorCode.PARAM_OUT_OF_RANGE,
             f"{request.top_p} is greater than the maximum of 1 - 'top_p'",
         )
+    if request.min_p is not None and request.min_p < 0:
+        return create_error_response(
+            ErrorCode.PARAM_OUT_OF_RANGE,
+            f"{request.min_p} is less than the minimum of 0 - 'min_p'",
+        )
     if request.stop is not None and (not isinstance(request.stop, str) and not isinstance(request.stop, list)):
         return create_error_response(
             ErrorCode.PARAM_OUT_OF_RANGE,
@@ -322,6 +330,7 @@ async def get_gen_params(
     *,
     temperature: float,
     top_p: float,
+    min_p: float,
     max_tokens: Optional[int],
     echo: Optional[bool],
     stream: Optional[bool],
@@ -378,6 +387,7 @@ async def get_gen_params(
         "prompt": prompt,
         "temperature": temperature,
         "top_p": top_p,
+        "min_p": min_p,
         "max_new_tokens": max_tokens,
         "echo": echo,
         "stream": stream,
@@ -465,6 +475,7 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
         request.messages,
         temperature=request.temperature,
         top_p=request.top_p,
+        min_p=request.min_p,
         max_tokens=request.max_tokens,
         echo=False,
         stream=request.stream,
@@ -619,6 +630,7 @@ async def create_completion(request: ModifiedCompletionRequest):
                 text,
                 temperature=request.temperature,
                 top_p=request.top_p,
+                min_p=request.min_p,
                 max_tokens=request.max_tokens,
                 echo=request.echo,
                 stream=request.stream,
@@ -791,6 +803,7 @@ async def generate_completion_stream_generator(request: ModifiedCompletionReques
                 text,
                 temperature=request.temperature,
                 top_p=request.top_p,
+                min_p=request.min_p,
                 max_tokens=request.max_tokens,
                 echo=request.echo,
                 stream=request.stream,
@@ -1046,6 +1059,7 @@ async def create_chat_completion(request: APIChatCompletionRequest):
         request.messages,
         temperature=request.temperature,
         top_p=request.top_p,
+        min_p=request.min_p,
         max_tokens=request.max_tokens,
         echo=False,
         stream=request.stream,
@@ -1108,6 +1122,7 @@ async def count_chat_tokens(request: ChatCompletionRequest):
         request.messages,
         temperature=request.temperature,
         top_p=request.top_p,
+        min_p=request.min_p,
         max_tokens=request.max_tokens,
         echo=False,
         stream=request.stream,
@@ -1179,6 +1194,7 @@ async def visualize_model_generation(request: VisualizationRequest):
             max_tokens=request.max_tokens,
             temperature=request.temperature,
             top_p=request.top_p,
+            min_p=request.min_p,
         )
         return StreamingResponse(generator, media_type="text/event-stream")
     else:
@@ -1189,12 +1205,18 @@ async def visualize_model_generation(request: VisualizationRequest):
             max_tokens=request.max_tokens,
             temperature=request.temperature,
             top_p=request.top_p,
+            min_p=request.min_p,
         )
         return visualization_data
 
 
 async def visualization_stream_generator(
-    model_name: str, prompt: str, max_tokens: int = 100, temperature: float = 0.7, top_p: float = 1.0
+    model_name: str,
+    prompt: str,
+    max_tokens: int = 100,
+    temperature: float = 0.7,
+    top_p: float = 1.0,
+    min_p: float = 0.0,
 ) -> AsyncGenerator[str, None]:
     """Stream model activation and attention entropy data during generation"""
     async with httpx.AsyncClient() as client:
@@ -1231,6 +1253,7 @@ async def visualization_stream_generator(
             "prompt": prompt,
             "temperature": temperature,
             "top_p": top_p,
+            "min_p": min_p,
             "max_tokens": max_tokens,
             "stream": True,
         }
@@ -1272,7 +1295,12 @@ async def visualization_stream_generator(
 
 
 async def generate_complete_visualization(
-    model_name: str, prompt: str, max_tokens: int = 100, temperature: float = 0.7, top_p: float = 1.0
+    model_name: str,
+    prompt: str,
+    max_tokens: int = 100,
+    temperature: float = 0.7,
+    top_p: float = 1.0,
+    min_p: float = 0.0,
 ):
     """Generate complete visualization data for the entire generation process"""
     async with httpx.AsyncClient() as client:
@@ -1296,6 +1324,7 @@ async def generate_complete_visualization(
             "prompt": prompt,
             "temperature": temperature,
             "top_p": top_p,
+            "min_p": min_p,
             "max_tokens": max_tokens,
             "stream": False,
         }
