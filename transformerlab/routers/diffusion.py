@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from huggingface_hub import model_info, snapshot_download, HfApi
+from huggingface_hub import model_info
 import base64
 from fastapi.responses import FileResponse, JSONResponse
 from io import BytesIO
@@ -33,7 +33,6 @@ from PIL import Image
 import shutil
 import transformerlab.db as db
 from transformerlab.models import model_helper
-from transformerlab.shared import shared
 from transformerlab.shared import dirs
 from transformerlab.shared.shared import slugify
 import logging

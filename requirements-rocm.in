@@ -32,3 +32,4 @@ macmon-python
 mcp[cli]
 transformerlab-inference
 pyrsmi
+controlnet_aux
