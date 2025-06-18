@@ -1213,7 +1213,7 @@ async def network_machine_create(
 
     async with async_session() as session:
         machine = models.NetworkMachine(
-            name=name, host=host, port=port, api_token=api_token, status="offline", metadata=metadata
+            name=name, host=host, port=port, api_token=api_token, status="offline", machine_metadata=metadata
         )
         session.add(machine)
         await session.commit()
@@ -1264,7 +1264,7 @@ async def network_machine_update_status(machine_id: int, status: str, last_seen:
 async def network_machine_update_metadata(machine_id: int, metadata: dict):
     """Update the metadata of a network machine."""
     async with async_session() as session:
-        stmt = update(models.NetworkMachine).where(models.NetworkMachine.id == machine_id).values(metadata=metadata)
+        stmt = update(models.NetworkMachine).where(models.NetworkMachine.id == machine_id).values(machine_metadata=metadata)
         await session.execute(stmt)
         await session.commit()
 
