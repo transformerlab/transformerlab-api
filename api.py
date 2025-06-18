@@ -253,6 +253,7 @@ async def server_worker_start(
     model_name: str,
     adaptor: str = "",
     model_filename: str | None = None,
+    model_architecture: str = "",
     eight_bit: bool = False,
     cpu_offload: bool = False,
     inference_engine: str = "default",
@@ -291,6 +292,8 @@ async def server_worker_start(
 
     inference_engine = engine
 
+    model_architecture = model_architecture
+
     plugin_name = inference_engine
     plugin_location = dirs.plugin_dir_by_name(plugin_name)
 
@@ -307,6 +310,8 @@ async def server_worker_start(
         plugin_location,
         "--model-path",
         model,
+        "--model-architecture",
+        model_architecture,
         "--adaptor-path",
         adaptor,
         "--parameters",
