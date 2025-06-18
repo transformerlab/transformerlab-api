@@ -203,7 +203,7 @@ class TLabPlugin:
             if int(job_data.get("sweep_progress")) != 100:
                 self.job.update_job_data("sweep_subprogress", progress)
                 return
-        
+
         self.job.update_progress(progress)
         if self.job.should_stop:
             self.job.update_status("STOPPED")
@@ -252,12 +252,29 @@ class TLabPlugin:
             for dataset_type in dataset_types:
                 dataset_splits[dataset_type] = dataset_type
 
+            # Check if train split is available and handle it if not available
+            if "train" in dataset_types and "train" not in available_splits:
+                print(
+                    "WARNING: No train split found in dataset, we will use the first available split as train.\n Training a model on non-train splits is not recommended."
+                )
+                dataset_splits["train"] = available_splits[0]
+                print(f"Using `{dataset_splits['train']}` for the training split.")
+
             if "validation" in available_splits and "valid" in dataset_splits:
                 dataset_splits["valid"] = "validation"
             elif "valid" in dataset_types and "valid" not in available_splits:
                 print("No validation slice found in dataset, using train split as 80-20 for training and validation")
-                dataset_splits["valid"] = "train[-10%:]"
-                dataset_splits["train"] = "train[:80%]"
+                dataset_splits["train"] = dataset_splits["train"] + "[:80%]"
+                dataset_splits["valid"] = dataset_splits["train"] + "[-10%:]"
+
+            # If dataset_splits for train is same as any other split, make it a 80:20 thing to not have same data in train and test/valid
+            for expected_split, actual_split in dataset_splits.items():
+                if expected_split != "train" and actual_split == dataset_splits["train"]:
+                    dataset_splits[expected_split] = dataset_splits["train"] + "[-20%:]"
+                    dataset_splits["train"] = dataset_splits["train"] + "[:80%]"
+                    print(
+                        f"Using `{dataset_splits[expected_split]}` for the {expected_split} split as its same as train split."
+                    )
 
             # Load each dataset split
             datasets = {}
@@ -267,6 +284,8 @@ class TLabPlugin:
                 )
             if "train" in dataset_types:
                 print(f"Loaded train dataset with {len(datasets['train'])} examples.")
+            else:
+                print("WARNING: No train dataset loaded, ensure you have a train split in your dataset.")
 
             if "valid" in dataset_types:
                 print(f"Loaded valid dataset with {len(datasets['valid'])} examples.")

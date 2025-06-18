@@ -40,7 +40,6 @@ from transformerlab.routers import (
     evals,
     config,
     jobs,
-    workflows,
     tasks,
     prompts,
     tools,
@@ -53,6 +52,7 @@ import torch
 
 try:
     from pynvml import nvmlShutdown
+
     HAS_AMD = False
 except Exception:
     from pyrsmi import rocml
@@ -60,6 +60,7 @@ except Exception:
     HAS_AMD = True
 from transformerlab import fastchat_openai_api
 from transformerlab.routers.experiment import experiment
+from transformerlab.routers.experiment import workflows
 from transformerlab.shared import dirs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
@@ -176,7 +177,6 @@ app.include_router(experiment.router)
 app.include_router(plugins.router)
 app.include_router(evals.router)
 app.include_router(jobs.router)
-app.include_router(workflows.router)
 app.include_router(tasks.router)
 app.include_router(config.router)
 app.include_router(prompts.router)
@@ -253,6 +253,7 @@ async def server_worker_start(
     model_name: str,
     adaptor: str = "",
     model_filename: str | None = None,
+    model_architecture: str = "",
     eight_bit: bool = False,
     cpu_offload: bool = False,
     inference_engine: str = "default",
@@ -291,6 +292,8 @@ async def server_worker_start(
 
     inference_engine = engine
 
+    model_architecture = model_architecture
+
     plugin_name = inference_engine
     plugin_location = dirs.plugin_dir_by_name(plugin_name)
 
@@ -307,6 +310,8 @@ async def server_worker_start(
         plugin_location,
         "--model-path",
         model,
+        "--model-architecture",
+        model_architecture,
         "--adaptor-path",
         adaptor,
         "--parameters",
