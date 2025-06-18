@@ -7,7 +7,7 @@ from typing import Annotated
 import transformerlab.db as db
 from fastapi import APIRouter, Body
 from fastchat.model.model_adapter import get_conversation_template
-from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi
+from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi, hf_hub_download
 from huggingface_hub import ModelCard, ModelCardData
 from huggingface_hub.utils import HfHubHTTPError, GatedRepoError, EntryNotFoundError
 import os
@@ -525,6 +525,16 @@ async def download_model_by_huggingface_id(model: str, job_id: int | None = None
     # Or we don't have proper Hugging Face authentication setup
     try:
         model_details = await huggingfacemodel.get_model_details_from_huggingface(model)
+        try:
+            if model_details.get("architecture") == "UnknownDiffusionModel":
+                config_path = hf_hub_download(model, filename="config.json")
+                with open(config_path) as f:
+                    config_data = json.load(f)
+                    class_name = config_data.get("_class_name")
+                    if class_name:
+                        model_details["architecture"] = class_name
+        except Exception as e:
+            logging.error(f"[WARN] Unable to override architecture from config.json: {e}")
     except GatedRepoError:
         error_msg = f"{model} is a gated model. \
 To continue downloading, you need to enter a valid \
