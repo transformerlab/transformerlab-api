@@ -4,7 +4,6 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
-import logging
 
 import transformerlab.db as db
 
@@ -44,7 +43,7 @@ async def get_network_info():
             "data": {"is_host_machine": is_host_machine, "role": "host" if is_host_machine else "network_machine"},
         }
     except Exception as e:
-        logging.error(f"Error getting network info: {e}")
+        print(f"ERROR: Error getting network info: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -55,7 +54,7 @@ async def list_machines():
         machines = await db.network_machine_get_all()
         return {"status": "success", "data": machines}
     except Exception as e:
-        logging.error(f"Error listing network machines: {e}")
+        print(f"ERROR: Error listing network machines: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -88,7 +87,7 @@ async def add_machine(machine: NetworkMachineCreate):
     except HTTPException:
         raise
     except Exception as e:
-        logging.error(f"Error adding network machine: {e}")
+        print(f"ERROR: Error adding network machine: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -103,7 +102,7 @@ async def get_machine(machine_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        logging.error(f"Error getting network machine {machine_id}: {e}")
+        print(f"ERROR: Error getting network machine {machine_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -118,7 +117,7 @@ async def remove_machine(machine_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        logging.error(f"Error removing network machine {machine_id}: {e}")
+        print(f"ERROR: Error removing network machine {machine_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -133,7 +132,7 @@ async def remove_machine_by_name(machine_name: str):
     except HTTPException:
         raise
     except Exception as e:
-        logging.error(f"Error removing network machine '{machine_name}': {e}")
+        print(f"ERROR: Error removing network machine '{machine_name}': {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -159,7 +158,7 @@ async def get_network_status():
             },
         }
     except Exception as e:
-        logging.error(f"Error getting network status: {e}")
+        print(f"ERROR: Error getting network status: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -172,7 +171,7 @@ async def ping_machine_endpoint(machine_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        logging.error(f"Error pinging machine {machine_id}: {e}")
+        print(f"ERROR: Error pinging machine {machine_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -212,7 +211,7 @@ async def health_check_all():
 
         return {"status": "success", "data": results}
     except Exception as e:
-        logging.error(f"Error during health check: {e}")
+        print(f"ERROR: Error during health check: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -261,9 +260,14 @@ async def ping_machine(machine_id: int) -> Dict[str, Any]:
     except httpx.TimeoutException:
         await db.network_machine_update_status(machine_id, "offline")
         return {"status": "offline", "error": "Request timeout"}
+    except (httpx.ConnectError, httpx.ConnectTimeout, ConnectionError, OSError) as e:
+        # Server is off/unreachable - mark as offline, not error
+        await db.network_machine_update_status(machine_id, "offline")
+        return {"status": "offline", "error": f"Server unreachable: {str(e)}"}
     except httpx.HTTPStatusError as e:
         await db.network_machine_update_status(machine_id, "error")
         return {"status": "error", "error": f"HTTP {e.response.status_code}: {e.response.text}"}
     except Exception as e:
+        # Only genuine errors should be marked as error status
         await db.network_machine_update_status(machine_id, "error")
         return {"status": "error", "error": str(e)}
