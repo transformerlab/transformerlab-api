@@ -1,4 +1,12 @@
 #!/bin/bash
+# TransformerLab API Server Runner
+# Usage: ./run.sh [OPTIONS]
+# Options:
+#   -c              Use custom conda environment (don't activate default)
+#   -r              Enable reload mode for development
+#   -p PORT         Set port number (default: 8338)
+#   -h HOST         Set host address (default: 0.0.0.0)
+#   -m              Run as host machine for distributed computing
 set -e
 
 ENV_NAME="transformerlab"
@@ -14,6 +22,7 @@ TLABHOST="0.0.0.0"
 PORT="8338"
 
 RELOAD=false
+HOST_MACHINE=false
 
 # echo "Your shell is $SHELL"
 # echo "Conda's binary is at ${CONDA_BIN}"
@@ -31,13 +40,14 @@ else
     echo "✅ Conda is installed."
 fi
 
-while getopts crp:h: flag
+while getopts crp:h:m flag
 do
     case "${flag}" in
         c) CUSTOM_ENV=true;;
         r) RELOAD=true;;
         p) PORT=${OPTARG};;
         h) TLABHOST=${OPTARG};;
+        m) HOST_MACHINE=true;;
     esac
 done
 
@@ -80,9 +90,20 @@ elif command -v rocminfo &> /dev/null; then
 fi
 
 echo "▶️ Starting the API server:"
-if [ "$RELOAD" = true ]; then
-    echo "🔁 Reload the server on file changes"
-    uv run -v uvicorn api:app --reload --port ${PORT} --host ${TLABHOST}
+
+if [ "$HOST_MACHINE" = true ]; then
+    echo "🌐 Running as HOST MACHINE for distributed computing"
+    if [ "$RELOAD" = true ]; then
+        echo "🔁 Reload the server on file changes"
+        uv run -v uvicorn api:app --reload --port ${PORT} --host ${TLABHOST} --host-machine
+    else
+        uv run -v uvicorn api:app --port ${PORT} --host ${TLABHOST} --no-access-log --host-machine
+    fi
 else
-    uv run -v uvicorn api:app --port ${PORT} --host ${TLABHOST} --no-access-log
+    if [ "$RELOAD" = true ]; then
+        echo "🔁 Reload the server on file changes"
+        uv run -v uvicorn api:app --reload --port ${PORT} --host ${TLABHOST}
+    else
+        uv run -v uvicorn api:app --port ${PORT} --host ${TLABHOST} --no-access-log
+    fi
 fi

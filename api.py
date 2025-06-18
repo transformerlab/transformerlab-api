@@ -48,6 +48,7 @@ from transformerlab.routers import (
     diffusion,
     recipes,
     users,
+    network,
 )
 import torch
 
@@ -65,6 +66,8 @@ from transformerlab.shared import dirs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
 
+# Global variable to store host machine status
+IS_HOST_MACHINE = False
 
 # The following environment variable can be used by other scripts
 # who need to connect to the root DB, for example
@@ -86,6 +89,14 @@ async def lifespan(app: FastAPI):
     galleries.update_gallery_cache()
     spawn_fastchat_controller_subprocess()
     await db.init()
+
+    # Store host machine status in database
+    await db.config_set("IS_HOST_MACHINE", str(IS_HOST_MACHINE))
+    if IS_HOST_MACHINE:
+        print("🌐 Running as HOST MACHINE for distributed computing")
+    else:
+        print("🖥️  Running as network machine")
+
     if "--reload" in sys.argv:
         await install_all_plugins()
     # run the migration
@@ -131,6 +142,10 @@ tags_metadata = [
     {
         "name": "serverinfo",
         "description": "Actions for interacting with the Transformer Lab server.",
+    },
+    {
+        "name": "network",
+        "description": "Actions for managing network machines in distributed computing setup.",
     },
 ]
 
@@ -186,6 +201,7 @@ app.include_router(recipes.router)
 app.include_router(batched_prompts.router)
 app.include_router(fastchat_openai_api.router)
 app.include_router(diffusion.router)
+app.include_router(network.router)
 app.include_router(get_xmlrpc_router())
 app.include_router(get_trainer_xmlrpc_router())
 
@@ -435,6 +451,7 @@ def parse_args():
     parser.add_argument("--allowed-methods", type=json.loads, default=["*"], help="allowed methods")
     parser.add_argument("--allowed-headers", type=json.loads, default=["*"], help="allowed headers")
     parser.add_argument("auto_reinstall_plugins", type=bool, default=False, help="auto reinstall plugins")
+    parser.add_argument("--host-machine", action="store_true", help="run as host machine for distributed computing")
 
     return parser.parse_args()
 
@@ -448,7 +465,11 @@ def print_launch_message():
 
 
 def run():
+    global IS_HOST_MACHINE
     args = parse_args()
+
+    # Set the global host machine flag
+    IS_HOST_MACHINE = args.host_machine
 
     print(f"args: {args}")
     if args.allowed_origins == ["*"]:
