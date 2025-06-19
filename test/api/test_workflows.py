@@ -333,6 +333,61 @@ def test_workflow_run_cancel():
         assert "note" in cancel_data
 
 
+def test_workflow_run_cancel_with_active_jobs():
+    """Test workflow run cancellation with actual running jobs"""
+
+    with TestClient(app) as client:
+        exp_resp = client.get(f"/experiment/create?name=test_workflow_cancel_active_jobs")
+        assert exp_resp.status_code == 200
+        exp_id = exp_resp.json()
+
+        # Create workflow
+        workflow_resp = client.get(f"/experiment/{exp_id}/workflows/create?name=test_workflow_with_jobs")
+        assert workflow_resp.status_code == 200
+        workflow_id = workflow_resp.json()
+
+        # Create a job via API (more realistic)
+        job_resp = client.get(f"/jobs/create?type=TRAIN&status=RUNNING&experiment_id={exp_id}")
+        assert job_resp.status_code == 200
+        job_id = job_resp.json()
+
+        # Start workflow to create a run
+        start_resp = client.get(f"/experiment/{exp_id}/workflows/{workflow_id}/start")
+        assert start_resp.status_code == 200
+
+        # Get the workflow run
+        runs_resp = client.get(f"/experiment/{exp_id}/workflows/runs")
+        assert runs_resp.status_code == 200
+        runs = runs_resp.json()
+        assert len(runs) > 0
+        run_id = runs[0]["id"]
+
+        # Manually add job to workflow run to simulate active job
+        # This simulates what happens when a workflow step is running
+        import asyncio
+        from transformerlab import db
+
+        async def add_job_to_run():
+            await db.workflow_run_update_with_new_job(run_id, f'["{job_id}"]', f"[{job_id}]")
+
+        asyncio.run(add_job_to_run())
+
+        # Test the cancellation via API
+        cancel_resp = client.get(f"/experiment/{exp_id}/workflows/{run_id}/cancel")
+        assert cancel_resp.status_code == 200
+
+        response_data = cancel_resp.json()
+        assert "cancelled_jobs" in response_data
+        assert job_id in response_data["cancelled_jobs"]
+        assert len(response_data["cancelled_jobs"]) == 1
+
+        # Verify job was actually stopped by checking via API
+        job_resp = client.get(f"/jobs/{job_id}")
+        assert job_resp.status_code == 200
+        job_data = job_resp.json()
+        assert job_data["job_data"]["stop"] == True
+
+
 def test_workflow_run_cancel_invalid_cases():
     """Test workflow run cancellation with invalid cases"""
     with TestClient(app) as client:
