@@ -375,30 +375,6 @@ async def get_eval_image(job_id: str, filename: str):
     )
 
 
-@router.post("/create_remote")
-async def job_create_remote(
-    type: str = "UNDEFINED",
-    status: str = "CREATED",
-    data: str = "{}",
-    experiment_id: str = "-1",
-    target_machine_id: int = None,
-):
-    """Create a job with optional target machine for remote execution."""
-    job_data = json.loads(data)
-
-    # Add target machine info to job data
-    if target_machine_id:
-        job_data["target_machine_id"] = target_machine_id
-        # Get machine info for validation
-        machine = await db.network_machine_get(target_machine_id)
-        if not machine:
-            return {"error": "Target machine not found"}
-        job_data["target_machine_info"] = {"name": machine["name"], "host": machine["host"], "port": machine["port"]}
-
-    jobid = await db.job_create(type=type, status=status, job_data=json.dumps(job_data), experiment_id=experiment_id)
-    return {"job_id": jobid, "target_machine_id": target_machine_id}
-
-
 async def _dispatch_remote_job(job, job_config, target_machine_id):
     """Helper function to dispatch a job to a remote machine."""
     import httpx
@@ -418,18 +394,6 @@ async def _dispatch_remote_job(job, job_config, target_machine_id):
         plugins_required = job_config.get("plugins_required", [])
         models_required = job_config.get("models_required", [])
         datasets_required = job_config.get("datasets_required", [])
-
-        # Use the network router's dispatch endpoint
-        from transformerlab.routers.network import RemoteJobDispatch
-
-        dispatch_data = RemoteJobDispatch(
-            job_id=str(job["id"]),
-            job_data=job_config,
-            target_machine_id=target_machine_id,
-            plugins_required=plugins_required,
-            models_required=models_required,
-            datasets_required=datasets_required,
-        )
 
         # Build URL for dispatch
         base_url = f"http://{machine['host']}:{machine['port']}"
