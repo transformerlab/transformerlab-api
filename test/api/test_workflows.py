@@ -337,7 +337,7 @@ def test_workflow_run_cancel_with_active_jobs():
     """Test workflow run cancellation with actual running jobs"""
 
     with TestClient(app) as client:
-        exp_resp = client.get(f"/experiment/create?name=test_workflow_cancel_active_jobs")
+        exp_resp = client.get("/experiment/create?name=test_workflow_cancel_active_jobs")
         assert exp_resp.status_code == 200
         exp_id = exp_resp.json()
 
@@ -385,7 +385,7 @@ def test_workflow_run_cancel_with_active_jobs():
         job_resp = client.get(f"/jobs/{job_id}")
         assert job_resp.status_code == 200
         job_data = job_resp.json()
-        assert job_data["job_data"]["stop"] == True
+        assert job_data["job_data"]["stop"]
 
 
 def test_workflow_run_cancel_invalid_cases():
