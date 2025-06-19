@@ -108,6 +108,7 @@ class ModelArchitectureRequest(PydanticBaseModel):
 
 class ModifiedCompletionRequest(CompletionRequest):
     adaptor: Optional[str] = ""
+    min_p: Optional[float] = 0.0
 
 
 try:
