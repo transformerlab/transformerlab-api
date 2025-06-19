@@ -299,6 +299,157 @@ def test_workflow_create_invalid():
         assert resp.json() is not None
 
 
+def test_workflow_run_cancel():
+    """Test workflow run cancellation"""
+    with TestClient(app) as client:
+        # Create experiment
+        exp_resp = client.get("/experiment/create?name=test_workflow_run_cancel")
+        assert exp_resp.status_code == 200
+        exp_id = exp_resp.json()
+
+        # Create workflow
+        workflow_resp = client.get(f"/experiment/{exp_id}/workflows/create?name=test_workflow")
+        assert workflow_resp.status_code == 200
+        workflow_id = workflow_resp.json()
+
+        # Start workflow to create a run
+        start_resp = client.get(f"/experiment/{exp_id}/workflows/{workflow_id}/start")
+        assert start_resp.status_code == 200
+
+        # Get the workflow run
+        runs_resp = client.get(f"/experiment/{exp_id}/workflows/runs")
+        assert runs_resp.status_code == 200
+        runs = runs_resp.json()
+        assert len(runs) > 0
+        run_id = runs[0]["id"]
+
+        # Test successful cancellation
+        cancel_resp = client.get(f"/experiment/{exp_id}/workflows/{run_id}/cancel")
+        assert cancel_resp.status_code == 200
+        cancel_data = cancel_resp.json()
+        assert "message" in cancel_data
+        assert f"Workflow run {run_id} cancellation initiated" in cancel_data["message"]
+        assert "cancelled_jobs" in cancel_data
+        assert "note" in cancel_data
+
+
+def test_workflow_run_cancel_invalid_cases():
+    """Test workflow run cancellation with invalid cases"""
+    with TestClient(app) as client:
+        # Create experiment
+        exp_resp = client.get("/experiment/create?name=test_workflow_run_cancel_invalid")
+        assert exp_resp.status_code == 200
+        exp_id = exp_resp.json()
+
+        # Test cancelling non-existent workflow run
+        cancel_resp = client.get(f"/experiment/{exp_id}/workflows/non_existent_run/cancel")
+        assert cancel_resp.status_code == 200
+        assert cancel_resp.json() == {"error": "Workflow run not found"}
+
+        # Create workflow and run for testing status checks
+        workflow_resp = client.get(f"/experiment/{exp_id}/workflows/create?name=test_workflow")
+        assert workflow_resp.status_code == 200
+        workflow_id = workflow_resp.json()
+
+        # Start workflow to create a run
+        start_resp = client.get(f"/experiment/{exp_id}/workflows/{workflow_id}/start")
+        assert start_resp.status_code == 200
+
+        # Get the workflow run
+        runs_resp = client.get(f"/experiment/{exp_id}/workflows/runs")
+        assert runs_resp.status_code == 200
+        runs = runs_resp.json()
+        assert len(runs) > 0
+        run_id = runs[0]["id"]
+
+        # First cancellation should succeed
+        cancel_resp = client.get(f"/experiment/{exp_id}/workflows/{run_id}/cancel")
+        assert cancel_resp.status_code == 200
+
+
+def test_workflow_run_cancel_security():
+    """Test workflow run cancellation security checks across experiments"""
+    with TestClient(app) as client:
+        # Create two separate experiments
+        exp1_resp = client.get("/experiment/create?name=test_workflow_cancel_security_exp1")
+        assert exp1_resp.status_code == 200
+        exp1_id = exp1_resp.json()
+
+        exp2_resp = client.get("/experiment/create?name=test_workflow_cancel_security_exp2")
+        assert exp2_resp.status_code == 200
+        exp2_id = exp2_resp.json()
+
+        # Create workflow in experiment 1
+        workflow_resp = client.get(f"/experiment/{exp1_id}/workflows/create?name=test_workflow")
+        assert workflow_resp.status_code == 200
+        workflow_id = workflow_resp.json()
+
+        # Start workflow to create a run
+        start_resp = client.get(f"/experiment/{exp1_id}/workflows/{workflow_id}/start")
+        assert start_resp.status_code == 200
+
+        # Get the workflow run from experiment 1
+        runs_resp = client.get(f"/experiment/{exp1_id}/workflows/runs")
+        assert runs_resp.status_code == 200
+        runs = runs_resp.json()
+        assert len(runs) > 0
+        run_id = runs[0]["id"]
+
+        # Try to cancel the workflow run from experiment 2 (should fail)
+        cancel_resp = client.get(f"/experiment/{exp2_id}/workflows/{run_id}/cancel")
+        assert cancel_resp.status_code == 200
+        assert cancel_resp.json() == {"error": "Associated workflow not found or does not belong to this experiment"}
+
+        # Verify cancellation works from the correct experiment
+        cancel_resp = client.get(f"/experiment/{exp1_id}/workflows/{run_id}/cancel")
+        assert cancel_resp.status_code == 200
+        cancel_data = cancel_resp.json()
+        assert "message" in cancel_data
+        assert f"Workflow run {run_id} cancellation initiated" in cancel_data["message"]
+
+
+def test_workflow_run_cancel_edge_cases():
+    """Test workflow run cancellation edge cases"""
+    with TestClient(app) as client:
+        # Create experiment
+        exp_resp = client.get("/experiment/create?name=test_workflow_run_cancel_edge")
+        assert exp_resp.status_code == 200
+        exp_id = exp_resp.json()
+
+        # Create workflow with complex configuration
+        config = {
+            "nodes": [
+                {"type": "START", "id": "start", "name": "START", "out": ["task1"]},
+                {"type": "TASK", "id": "task1", "name": "Task 1", "task": "test_task", "out": []},
+            ]
+        }
+        workflow_resp = client.get(
+            f"/experiment/{exp_id}/workflows/create?name=test_complex_workflow&config={json.dumps(config)}"
+        )
+        assert workflow_resp.status_code == 200
+        workflow_id = workflow_resp.json()
+
+        # Start workflow
+        start_resp = client.get(f"/experiment/{exp_id}/workflows/{workflow_id}/start")
+        assert start_resp.status_code == 200
+
+        # Get workflow run
+        runs_resp = client.get(f"/experiment/{exp_id}/workflows/runs")
+        assert runs_resp.status_code == 200
+        runs = runs_resp.json()
+        assert len(runs) > 0
+        run_id = runs[0]["id"]
+
+        # Cancel the workflow run
+        cancel_resp = client.get(f"/experiment/{exp_id}/workflows/{run_id}/cancel")
+        assert cancel_resp.status_code == 200
+        cancel_data = cancel_resp.json()
+
+        # Verify response structure
+        assert isinstance(cancel_data.get("cancelled_jobs"), list)
+        assert cancel_data.get("note") == "Workflow status will be updated to CANCELLED automatically"
+
+
 def test_workflow_node_operations_invalid():
     """Test node operations with invalid node IDs"""
     with TestClient(app) as client:
