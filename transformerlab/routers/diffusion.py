@@ -18,7 +18,20 @@ from diffusers import (
     EulerAncestralDiscreteScheduler,
     DPMSolverMultistepScheduler,
     ControlNetModel,
+    StableDiffusionControlNetPAGPipeline,
+    StableDiffusionXLControlNetPAGPipeline,
+    FluxControlNetPipeline,
+    StableDiffusionControlNetPipeline,
     StableDiffusionXLControlNetPipeline,
+    StableDiffusionXLControlNetUnionPipeline,
+    StableDiffusion3ControlNetPipeline,
+    StableDiffusionControlNetImg2ImgPipeline,
+    StableDiffusionXLControlNetImg2ImgPipeline,
+    StableDiffusionXLControlNetUnionImg2ImgPipeline,
+    StableDiffusionXLControlNetPAGImg2ImgPipeline,
+    FluxControlNetImg2ImgPipeline,
+    StableDiffusionControlNetInpaintPipeline,
+    StableDiffusionXLControlNetInpaintPipeline,
 )
 import threading
 import os
@@ -632,11 +645,43 @@ def get_pipeline(
 
         # Load appropriate pipeline based on type
         if is_controlnet:
+            CONTROLNET_PIPELINE_MAP = {
+                "StableDiffusionPipeline": StableDiffusionControlNetPipeline,
+                "StableDiffusionImg2ImgPipeline": StableDiffusionControlNetImg2ImgPipeline,
+                "StableDiffusionInpaintPipeline": StableDiffusionControlNetInpaintPipeline,
+                "StableDiffusionXLPipeline": StableDiffusionXLControlNetPipeline,
+                "StableDiffusionXLImg2ImgPipeline": StableDiffusionXLControlNetImg2ImgPipeline,
+                "StableDiffusionXLInpaintPipeline": StableDiffusionXLControlNetInpaintPipeline,
+                "StableDiffusionXLControlNetUnionPipeline": StableDiffusionXLControlNetUnionPipeline,
+                "StableDiffusionXLControlNetUnionImg2ImgPipeline": StableDiffusionXLControlNetUnionImg2ImgPipeline,
+                "StableDiffusionControlNetPAGPipeline": StableDiffusionControlNetPAGPipeline,
+                "StableDiffusionXLControlNetPAGPipeline": StableDiffusionXLControlNetPAGPipeline,
+                "StableDiffusionXLControlNetPAGImg2ImgPipeline": StableDiffusionXLControlNetPAGImg2ImgPipeline,
+                "FluxPipeline": FluxControlNetPipeline,
+                "FluxImg2ImgPipeline": FluxControlNetImg2ImgPipeline,
+                "StableDiffusion3Pipeline": StableDiffusion3ControlNetPipeline,
+            }
+
             log_print(f"Loading ControlNet pipeline ({controlnet_id}) for model: {model}")
+
+            try:
+                info = model_info(model)
+                config = getattr(info, "config", {})
+                diffusers_config = config.get("diffusers", {})
+                architecture = diffusers_config.get("_class_name", "")
+            except Exception as e:
+                raise HTTPException(status_code=404, detail=f"Model not found or error: {str(e)}")
+
             controlnet_model = load_controlnet_model(controlnet_id, device)
             if controlnet_model is None:
                 raise ValueError(f"Unknown ControlNet type: {controlnet_id}")
-            pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
+
+            controlnet_pipeline = CONTROLNET_PIPELINE_MAP.get(architecture)
+            if not controlnet_pipeline:
+                raise ValueError("ControlNet architecture not supported")
+
+            log_print(f"Loaded ControlNet pipeline {controlnet_pipeline} for model {model}")
+            pipe = controlnet_pipeline.from_pretrained(
                 model,
                 controlnet=controlnet_model,
                 torch_dtype=torch.float16 if device != "cpu" else torch.float32,
@@ -841,7 +886,7 @@ async def generate_image(request: DiffusionRequest):
         mask_image_obj = None
         input_image_path = ""
         mask_image_path = ""
-
+        uuid_suffix = str(generation_id)
         if is_inpainting or is_img2img or is_controlnet:  # Process the input image for ControlNets as well
             try:
                 # Decode base64 input image
@@ -850,7 +895,7 @@ async def generate_image(request: DiffusionRequest):
 
                 # Save input image for history
                 ensure_directories()
-                input_image_filename = f"input_{str(uuid.uuid4())}.png"
+                input_image_filename = f"input_{uuid_suffix}.png"
                 input_image_path = os.path.join(get_images_dir(), input_image_filename)
                 input_image_obj.save(input_image_path, format="PNG")
                 log_print(f"Input image saved: {input_image_path}")
@@ -860,7 +905,7 @@ async def generate_image(request: DiffusionRequest):
                         input_image_obj = preprocess_for_controlnet(input_image_obj, controlnet_id)
 
                         # Save preprocessed image
-                        preprocessed_image_filename = f"preprocessed_{str(uuid.uuid4())}.png"
+                        preprocessed_image_filename = f"preprocessed_{uuid_suffix}.png"
                         preprocessed_image_path = os.path.join(get_images_dir(), preprocessed_image_filename)
                         input_image_obj.save(preprocessed_image_path, format="PNG")
                         log_print(f"Preprocessed image saved: {preprocessed_image_path}")
@@ -877,7 +922,7 @@ async def generate_image(request: DiffusionRequest):
 
                 # Save mask image for history
                 ensure_directories()
-                mask_image_filename = f"mask_{str(uuid.uuid4())}.png"
+                mask_image_filename = f"mask_{uuid_suffix}.png"
                 mask_image_path = os.path.join(get_images_dir(), mask_image_filename)
                 mask_image_obj.save(mask_image_path, format="PNG")
                 log_print(f"Mask image saved: {mask_image_path}")

@@ -5,6 +5,7 @@ that cause CUDA OOM on single GPU.
 """
 
 import argparse
+from fastapi import HTTPException
 import json
 import os
 import sys
@@ -14,30 +15,43 @@ from PIL import Image
 import torch
 import random
 import base64
+from huggingface_hub import model_info
 from io import BytesIO
-
-# Add the API directory to Python path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-api_dir = os.path.abspath(os.path.join(current_dir, "../.."))
-sys.path.insert(0, api_dir)
-
-from diffusers import (  # noqa: E402
+from diffusers import (
+    StableDiffusionUpscalePipeline,
+    StableDiffusionLatentUpscalePipeline,
     AutoPipelineForText2Image,
     AutoPipelineForImage2Image,
     AutoPipelineForInpainting,
-    StableDiffusionXLPipeline,
-    StableDiffusionUpscalePipeline,
-    StableDiffusionLatentUpscalePipeline,
-    FluxPipeline,
-    FluxTransformer2DModel,
-    AutoencoderKL,
     EulerDiscreteScheduler,
     LMSDiscreteScheduler,
     EulerAncestralDiscreteScheduler,
     DPMSolverMultistepScheduler,
     ControlNetModel,
+    StableDiffusionControlNetPAGPipeline,
+    StableDiffusionXLControlNetPAGPipeline,
+    FluxControlNetPipeline,
+    StableDiffusionControlNetPipeline,
     StableDiffusionXLControlNetPipeline,
+    StableDiffusionXLControlNetUnionPipeline,
+    StableDiffusion3ControlNetPipeline,
+    StableDiffusionControlNetImg2ImgPipeline,
+    StableDiffusionXLControlNetImg2ImgPipeline,
+    StableDiffusionXLControlNetUnionImg2ImgPipeline,
+    StableDiffusionXLControlNetPAGImg2ImgPipeline,
+    FluxControlNetImg2ImgPipeline,
+    StableDiffusionControlNetInpaintPipeline,
+    StableDiffusionXLControlNetInpaintPipeline,
+    StableDiffusionXLPipeline,
+    FluxPipeline,
+    FluxTransformer2DModel,
+    AutoencoderKL,
 )
+
+# Add the API directory to Python path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+api_dir = os.path.abspath(os.path.join(current_dir, "../.."))
+sys.path.insert(0, api_dir)
 
 try:
     from diffusers.image_processor import VaeImageProcessor
@@ -527,13 +541,46 @@ def load_pipeline_with_device_map(
 
     # Load appropriate pipeline
     if is_controlnet:
+        CONTROLNET_PIPELINE_MAP = {
+            "StableDiffusionPipeline": StableDiffusionControlNetPipeline,
+            "StableDiffusionImg2ImgPipeline": StableDiffusionControlNetImg2ImgPipeline,
+            "StableDiffusionInpaintPipeline": StableDiffusionControlNetInpaintPipeline,
+            "StableDiffusionXLPipeline": StableDiffusionXLControlNetPipeline,
+            "StableDiffusionXLImg2ImgPipeline": StableDiffusionXLControlNetImg2ImgPipeline,
+            "StableDiffusionXLInpaintPipeline": StableDiffusionXLControlNetInpaintPipeline,
+            "StableDiffusionXLControlNetUnionPipeline": StableDiffusionXLControlNetUnionPipeline,
+            "StableDiffusionXLControlNetUnionImg2ImgPipeline": StableDiffusionXLControlNetUnionImg2ImgPipeline,
+            "StableDiffusionControlNetPAGPipeline": StableDiffusionControlNetPAGPipeline,
+            "StableDiffusionXLControlNetPAGPipeline": StableDiffusionXLControlNetPAGPipeline,
+            "StableDiffusionXLControlNetPAGImg2ImgPipeline": StableDiffusionXLControlNetPAGImg2ImgPipeline,
+            "FluxPipeline": FluxControlNetPipeline,
+            "FluxImg2ImgPipeline": FluxControlNetImg2ImgPipeline,
+            "StableDiffusion3Pipeline": StableDiffusion3ControlNetPipeline,
+        }
+
+        try:
+            info = model_info(model_path)
+            config = getattr(info, "config", {})
+            diffusers_config = config.get("diffusers", {})
+            architecture = diffusers_config.get("_class_name", "")
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=f"Model not found or error: {str(e)}")
+
         controlnet_model = load_controlnet_model(controlnet_id, device)
         if controlnet_model is None:
             raise ValueError(f"Unknown ControlNet type: {controlnet_id}")
 
-        print(f"Loading ControlNet pipeline for type: {controlnet_id}")
-        pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
-            model_path, controlnet=controlnet_model, **pipeline_kwargs
+        controlnet_pipeline = CONTROLNET_PIPELINE_MAP.get(architecture)
+        if not controlnet_pipeline:
+            raise ValueError("ControlNet architecture not supported")
+
+        pipe = controlnet_pipeline.from_pretrained(
+            model_path,
+            controlnet=controlnet_model,
+            torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+            safety_checker=None,
+            requires_safety_checker=False,
+            use_safetensors=True,
         )
 
     elif is_inpainting:
