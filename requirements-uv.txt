@@ -152,7 +152,7 @@ h11==0.14.0
     # via
     #   httpcore
     #   uvicorn
-hf-xet==1.0.3
+hf-xet==1.1.4
     # via -r requirements.in
 httpcore==1.0.7
     # via httpx
