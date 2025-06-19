@@ -402,8 +402,11 @@ async def execute_remote_job(job_data: Dict[str, Any]):
     This creates a local job and executes it using the standard job execution flow.
     """
     try:
+        print("RECEIVED REMOTE JOB DATA:", job_data)
         job_id = job_data["job_id"]
         job_config = job_data["job_data"]
+        job_type = job_data.get("job_type", "UNDEFINED")
+        experiment_id = job_data.get("experiment_id", "1")
         origin_machine = job_data.get("origin_machine", {})
 
         # Create local job record
@@ -416,11 +419,14 @@ async def execute_remote_job(job_data: Dict[str, Any]):
 
         # Create job with remote execution flag
         local_job_id = await db.job_create(
-            type=job_config.get("type", "UNDEFINED"),
+            type=job_type,
             status="QUEUED",
             job_data=json.dumps(local_job_data),
-            experiment_id=job_config.get("experiment_id", ""),
+            experiment_id=experiment_id,
         )
+
+        # Get the job details for execution
+        job_details = await db.job_get(local_job_id)
 
         # Start job execution using existing job runner
         from transformerlab.shared import shared
@@ -432,7 +438,9 @@ async def execute_remote_job(job_data: Dict[str, Any]):
         import asyncio
 
         asyncio.create_task(
-            shared.run_job(job_id=local_job_id, job_config=local_job_data, experiment_name=experiment_name)
+            shared.run_job(
+                job_id=local_job_id, job_config=local_job_data, experiment_name=experiment_name, job_details=job_details
+            )
         )
 
         return {"status": "started", "local_job_id": local_job_id, "message": "Job execution started"}

@@ -419,6 +419,8 @@ async def _dispatch_remote_job(job, job_config, target_machine_id):
                 json={
                     "job_id": str(job["id"]),
                     "job_data": job_config,
+                    "job_type": job.get("type"),
+                    "experiment_id": str(job.get("experiment_id")),
                     "origin_machine": await _get_this_machine_info(),
                 },
                 headers=headers,
