@@ -25,16 +25,18 @@ jobs:
         id: get_version
         run: |
           # Remove the 'v' prefix if it exists, e.g., v1.2.3 -> 1.2.3
-          echo "VERSION=${GITHUB_REF#refs/tags/}" | sed 's/^v//' >> $GITHUB_ENV
+          VERSION="${GITHUB_REF#refs/tags/}"
+          VERSION="${VERSION#v}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "VERSION=${VERSION}"
+      - name: Build image
+        run: docker build -f docker/common/Dockerfile -t transformerlab/api:${VERSION} .
 
-      - name: Build CPU image
-        run: docker build -f docker/cpu/Dockerfile.cpu -t transformerlab/api:${VERSION} .
+      # - name: Build GPU image
+      #   run: docker build -f docker/gpu/nvidia/Dockerfile.cuda -t transformerlab/api:${VERSION}-cuda .
 
-      - name: Build GPU image
-        run: docker build -f docker/gpu/nvidia/Dockerfile.cuda -t transformerlab/api:${VERSION}-cuda .
-
-      - name: Push CPU image
+      - name: Push image
         run: docker push transformerlab/api:${VERSION}
 
-      - name: Push GPU image
-        run: docker push transformerlab/api:${VERSION}-cuda
+      # - name: Push GPU image
+      #   run: docker push transformerlab/api:${VERSION}-cuda

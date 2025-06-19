@@ -3,6 +3,7 @@ from transformerlab.shared import galleries
 import transformerlab.db as db
 from transformerlab.models import model_helper
 import json
+from transformerlab.routers.experiment import workflows
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 
@@ -15,7 +16,7 @@ async def list_recipes():
 
 
 @router.get("/{id}")
-async def get_recipe_by_id(id: int):
+async def get_recipe_by_id(id: str):
     """Fetch a recipe by its ID from the experiment recipe gallery."""
     recipes_gallery = galleries.get_exp_recipe_gallery()
     for recipe in recipes_gallery:
@@ -25,7 +26,7 @@ async def get_recipe_by_id(id: int):
 
 
 @router.get("/{id}/check_dependencies")
-async def check_recipe_dependencies(id: int):
+async def check_recipe_dependencies(id: str):
     """Check if the dependencies for a recipe are installed for a given environment."""
     # Get the recipe
     recipes_gallery = galleries.get_exp_recipe_gallery()
@@ -80,7 +81,6 @@ async def _install_recipe_dependencies_job(job_id, id):
             await db.job_update_status(job_id, "FAILED", error_msg=f"Recipe with id {id} not found.")
             return
         if len(recipe.get("dependencies", [])) == 0:
-            await db.job_update_job_data_insert_key_value(job_id, "results", [])
             await db.job_update_status(job_id, "COMPLETE")
             return
 
@@ -132,7 +132,7 @@ async def _install_recipe_dependencies_job(job_id, id):
 
 
 @router.get("/{id}/install_dependencies")
-async def bg_install_recipe_dependencies(id: int, background_tasks: BackgroundTasks):
+async def bg_install_recipe_dependencies(id: str, background_tasks: BackgroundTasks):
     """Install dependencies for a recipe in the background and track progress."""
 
     job_id = await db.job_create(
@@ -162,9 +162,8 @@ async def get_install_job_status(job_id: int):
 
 
 @router.post("/{id}/create_experiment")
-async def create_experiment_for_recipe(id: int, experiment_name: str):
+async def create_experiment_for_recipe(id: str, experiment_name: str):
     """Create a new experiment with the given name and blank config, and install workflow dependencies."""
-    from transformerlab.routers import workflows as workflows_router
     from transformerlab.routers.experiment import experiment as experiment_router
 
     # Check if experiment already exists
@@ -232,10 +231,10 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
             result = {"name": dep_name, "action": "install_workflow"}
             if workflow_config is not None:
                 try:
-                    workflow_id = await workflows_router.workflow_create(
+                    workflow_id = await workflows.workflow_create(
                         name=dep_name,
                         config=json.dumps(workflow_config),
-                        experiment_id=experiment_id,
+                        experimentId=experiment_id,
                     )
                     result["status"] = f"success: {workflow_id}"
                 except Exception as e:
@@ -300,7 +299,7 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
 
                 # Extract task name from recipe
                 task_name = task.get("name")
-                
+
                 # Create inputs JSON (what the task needs as inputs)
                 inputs = {
                     "model_name": parsed_config.get("model_name", ""),
@@ -373,34 +372,36 @@ async def create_experiment_for_recipe(id: int, experiment_name: str):
 
     # Process workflows and create workflows in database
     workflow_creation_results = []
-    workflows = recipe.get("workflows", [])
-    
-    for workflow_def in workflows:
+    recipe_workflows = recipe.get("workflows", [])
+
+    for workflow_def in recipe_workflows:
         try:
             workflow_name = workflow_def.get("name", "")
             workflow_config = workflow_def.get("config", {"nodes": []})
-            
+
             # Create workflow in database using the workflow_create function
-            workflow_id = await workflows_router.workflow_create(
-                name=workflow_name,
-                config=json.dumps(workflow_config),
-                experiment_id=experiment_id
+            workflow_id = await workflows.workflow_create(
+                name=workflow_name, config=json.dumps(workflow_config), experimentId=experiment_id
             )
-            
+
             # Log the workflow creation results
-            workflow_creation_results.append({
-                "workflow_name": workflow_name,
-                "action": "create_workflow",
-                "status": "success",
-                "workflow_id": workflow_id
-            })
-            
+            workflow_creation_results.append(
+                {
+                    "workflow_name": workflow_name,
+                    "action": "create_workflow",
+                    "status": "success",
+                    "workflow_id": workflow_id,
+                }
+            )
+
         except Exception:
-            workflow_creation_results.append({
-                "workflow_name": workflow_def.get("name", "Unknown"),
-                "action": "create_workflow",
-                "status": "error: Failed to create workflow."
-            })
+            workflow_creation_results.append(
+                {
+                    "workflow_name": workflow_def.get("name", "Unknown"),
+                    "action": "create_workflow",
+                    "status": "error: Failed to create workflow.",
+                }
+            )
 
     return {
         "status": "success",
