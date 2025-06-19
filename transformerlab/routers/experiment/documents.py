@@ -2,12 +2,15 @@ import datetime
 import os
 import shutil
 import tempfile
+import zipfile
 
 import aiofiles
+import httpx
 from fastapi import APIRouter, Body, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from markitdown import MarkItDown
 from werkzeug.utils import secure_filename
+from urllib.parse import urlparse
 
 from transformerlab.routers.experiment import rag
 from transformerlab.shared import dirs
@@ -15,7 +18,22 @@ from transformerlab.shared.shared import slugify
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
-allowed_file_types = [".txt", ".jsonl", ".pdf", ".csv", ".epub", ".ipynb", ".md", ".ppt"]
+allowed_file_types = [".txt", ".jsonl", ".pdf", ".csv", ".epub", ".ipynb", ".md", ".ppt", ".zip"]
+
+# Whitelist of allowed domains for URL validation
+ALLOWED_DOMAINS = {"recipes.transformerlab.net", "www.learningcontainer.com"}
+
+
+def is_valid_url(url: str) -> bool:
+    """Validate the URL to ensure it points to an allowed domain."""
+    try:
+        parsed_url = urlparse(url)
+        if parsed_url.scheme not in {"http", "https"}:
+            return False
+        domain = parsed_url.netloc.split(":")[0]  # Extract domain without port
+        return domain in ALLOWED_DOMAINS
+    except Exception:
+        return False
 
 
 # # Get info on dataset from huggingface
@@ -261,3 +279,57 @@ async def document_upload_links(experimentId: str, folder: str = None, data: dic
         if folder == "rag":
             await rag.reindex(experimentId)
     return {"status": "success", "filename": urls}
+
+
+async def document_download_zip(experimentId: str, data: dict = Body(...)):
+    """Download a ZIP file from a URL and extract its contents to the documents folder."""
+    url = data.get("url")
+
+    if not url:
+        raise HTTPException(status_code=400, detail="URL is required")
+
+    # Validate the URL
+    if not is_valid_url(url):
+        raise HTTPException(status_code=400, detail="Invalid or unauthorized URL")
+
+    experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+    documents_dir = os.path.join(experiment_dir, "documents")
+
+    try:
+        # Download ZIP file
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+
+            # Save to temporary file and extract
+            with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as temp_zip:
+                temp_zip.write(response.content)
+                temp_zip_path = temp_zip.name
+
+        # Extract ZIP file
+        with zipfile.ZipFile(temp_zip_path, "r") as zip_ref:
+            zip_ref.extractall(documents_dir)
+            extracted_files = [f for f in zip_ref.namelist() if not f.endswith("/") and not f.startswith(".")]
+
+        # Clean up
+        os.remove(temp_zip_path)
+
+        # Reindex RAG if any files were extracted to a 'rag' folder
+        rag_files = [f for f in extracted_files if f.startswith("rag/")]
+        if rag_files:
+            await rag.reindex(experimentId)
+
+        return {"status": "success", "extracted_files": extracted_files, "total_files": len(extracted_files)}
+
+    except httpx.HTTPStatusError:
+        if "temp_zip_path" in locals() and os.path.exists(temp_zip_path):
+            os.remove(temp_zip_path)
+        raise HTTPException(status_code=400, detail="Failed to download ZIP file: HTTP error.")
+    except zipfile.BadZipFile:
+        if "temp_zip_path" in locals() and os.path.exists(temp_zip_path):
+            os.remove(temp_zip_path)
+        raise HTTPException(status_code=400, detail="Downloaded file is not a valid ZIP archive")
+    except Exception:
+        if "temp_zip_path" in locals() and os.path.exists(temp_zip_path):
+            os.remove(temp_zip_path)
+        raise HTTPException(status_code=500, detail="Error processing ZIP file.")
