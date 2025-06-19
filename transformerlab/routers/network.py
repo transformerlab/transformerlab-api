@@ -431,7 +431,15 @@ async def execute_remote_job(job_data: Dict[str, Any]):
         from transformerlab.shared import shared
 
         # For now, start immediately. Later we can integrate with the job queue
-        experiment_name = job_config.get("experiment_name", "remote_job")
+        experiment_name = job_config.get("experiment_name")
+        if not experiment_name:
+            data = await db.experiment_get(experiment_id)
+            if data:
+                experiment_name = data.get("name")
+        if not experiment_name:
+            raise HTTPException(
+                status_code=400, detail="Experiment name or valid experiment id is required for remote job execution"
+            )
 
         # # Start background sync task if origin machine is provided
         # if origin_machine.get("hostname") and origin_machine.get("ip"):
