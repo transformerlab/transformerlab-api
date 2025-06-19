@@ -47,6 +47,10 @@ from diffusers import (
     FluxTransformer2DModel,
     AutoencoderKL,
 )
+from diffusers.models.controlnets.controlnet_flux import (
+    FluxControlNetModel,
+    FluxMultiControlNetModel,
+)
 
 # Add the API directory to Python path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -208,7 +212,15 @@ def is_flux_model(model_path):
 
 
 def load_pipeline_with_sharding(
-    model_path, adaptor_path, is_img2img, is_inpainting, device, config, is_controlnet=False, controlnet_id="off"
+    model_path,
+    adaptor_path,
+    is_img2img,
+    is_inpainting,
+    device,
+    config,
+    is_controlnet=False,
+    controlnet_id="off",
+    input_image_obj=None,
 ):
     """Load pipeline using model sharding for large models like FLUX"""
 
@@ -219,7 +231,7 @@ def load_pipeline_with_sharding(
     flush_memory()
 
     # Check if we should use sharding
-    use_sharding = device == "auto" and is_flux_model(model_path) and config.get("enable_sharding", True)
+    use_sharding = is_flux_model(model_path) and config.get("enable_sharding", True)
 
     if not use_sharding:
         print("Using standard pipeline loading (sharding disabled or not applicable)")
@@ -340,18 +352,61 @@ def load_pipeline_with_sharding(
     print(f"Transformer device map: {transformer.hf_device_map}")
 
     # Create pipeline with transformer for denoising
-    denoising_pipeline = FluxPipeline.from_pretrained(
-        model_path,
-        text_encoder=None,
-        text_encoder_2=None,
-        tokenizer=None,
-        tokenizer_2=None,
-        vae=None,
-        transformer=transformer,
-        torch_dtype=torch.bfloat16,
-        safety_checker=None,
-        requires_safety_checker=False,
-    )
+    if is_controlnet:
+        FLUX_CONTROLNET_CLASS_MAP = {
+            "FluxPipeline": FluxControlNetModel,
+            "FluxImg2ImgPipeline": FluxControlNetModel,
+            "FluxControlNetPipeline": FluxControlNetModel,
+            "FluxControlNetImg2ImgPipeline": FluxControlNetModel,
+            "FluxMultiControlNetPipeline": FluxMultiControlNetModel,
+            "FluxMultiControlNetImg2ImgPipeline": FluxMultiControlNetModel,
+        }
+        try:
+            info = model_info(config["model"])
+            config = getattr(info, "config", {})
+            diffusers_config = config.get("diffusers", {})
+            architecture = diffusers_config.get("_class_name", "")
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=f"Model not found or error: {str(e)}")
+
+        # Choose the right class
+        controlnet_class = FLUX_CONTROLNET_CLASS_MAP.get(architecture)
+        if not controlnet_class:
+            raise ValueError(f"ControlNet not found for {architecture}")
+
+        controlnet = controlnet_class.from_pretrained(
+            controlnet_id,
+            torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+            use_safetensors=True,
+        ).to(device)
+        print(f"Using {controlnet} as ControlNet.")
+
+        denoising_pipeline = FluxPipeline.from_pretrained(
+            model_path,
+            text_encoder=None,
+            text_encoder_2=None,
+            tokenizer=None,
+            tokenizer_2=None,
+            vae=None,
+            transformer=transformer,
+            torch_dtype=torch.bfloat16,
+            safety_checker=None,
+            requires_safety_checker=False,
+            controlnet=controlnet,
+        )
+    else:
+        denoising_pipeline = FluxPipeline.from_pretrained(
+            model_path,
+            text_encoder=None,
+            text_encoder_2=None,
+            tokenizer=None,
+            tokenizer_2=None,
+            vae=None,
+            transformer=transformer,
+            torch_dtype=torch.bfloat16,
+            safety_checker=None,
+            requires_safety_checker=False,
+        )
 
     print("Running denoising...")
     with torch.no_grad():
@@ -380,6 +435,9 @@ def load_pipeline_with_sharding(
             generation_kwargs["eta"] = eta
         if guidance_rescale > 0.0:
             generation_kwargs["guidance_rescale"] = guidance_rescale
+        if is_controlnet and input_image_obj is not None:
+            generation_kwargs["control_image"] = input_image_obj
+            print("Added control_image to generation kwargs for ControlNet.")
 
         latents = denoising_pipeline(**generation_kwargs).images
 
@@ -753,7 +811,15 @@ def main():
             gen_start_time = time.time()
 
             pipe = load_pipeline_with_sharding(
-                model_path, adaptor_path, is_img2img, is_inpainting, device, config, is_controlnet, controlnet_id
+                model_path,
+                adaptor_path,
+                is_img2img,
+                is_inpainting,
+                device,
+                config,
+                is_controlnet,
+                controlnet_id,
+                input_image_obj,
             )
         else:
             # Default to device map loading
@@ -761,13 +827,13 @@ def main():
                 model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet, controlnet_id
             )
 
-        scheduler_name = config.get("scheduler", "default")
-        if scheduler_name != "default":
-            scheduler_class = scheduler_map[scheduler_name]
-            pipe.scheduler = scheduler_class.from_config(pipe.scheduler.config)
-            print(f"Using scheduler: {type(pipe.scheduler).__name__}")
-        else:
-            print(f"Using default scheduler: {type(pipe.scheduler).__name__}")
+            scheduler_name = config.get("scheduler", "default")
+            if scheduler_name != "default":
+                scheduler_class = scheduler_map[scheduler_name]
+                pipe.scheduler = scheduler_class.from_config(pipe.scheduler.config)
+                print(f"Using scheduler: {type(pipe.scheduler).__name__}")
+            else:
+                print(f"Using default scheduler: {type(pipe.scheduler).__name__}")
 
         load_time = time.time() - start_time
         print(f"Pipeline loaded in {load_time:.2f}s")
