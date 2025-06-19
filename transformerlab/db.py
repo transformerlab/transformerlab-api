@@ -71,26 +71,6 @@ async def init():
         """)
         await db.commit()
 
-    # Check if target_machine_id and execution_host columns exist in job table
-    cursor = await db.execute("PRAGMA table_info(job)")
-    columns = await cursor.fetchall()
-    column_names = [column[1] for column in columns]
-    
-    has_target_machine_id = "target_machine_id" in column_names
-    has_execution_host = "execution_host" in column_names
-
-    if not has_target_machine_id:
-        # Add target_machine_id column for remote job execution
-        await db.execute("ALTER TABLE job ADD COLUMN target_machine_id INTEGER")
-        await db.commit()
-        print("✅ Added target_machine_id column to job table")
-
-    if not has_execution_host:
-        # Add execution_host column for tracking where jobs run
-        await db.execute("ALTER TABLE job ADD COLUMN execution_host TEXT")
-        await db.commit()
-        print("✅ Added execution_host column to job table")
-
     print("✅ Database initialized")
 
     print("✅ SEED DATA")
