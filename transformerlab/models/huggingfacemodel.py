@@ -208,7 +208,10 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
                     model_index = json.load(f)
                     class_name = model_index.get("_class_name")
                     if class_name:
-                        architectures = class_name
+                        if isinstance(class_name, str):
+                            architectures = [class_name]
+                        else:
+                            architectures = class_name
                     else:
                         architectures = ["UnknownDiffusionModel"]
             except Exception:

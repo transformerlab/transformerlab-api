@@ -416,7 +416,7 @@ class ImageHistoryItem(BaseModel):
     num_images: int = 1
     # Image-to-image specific fields
     input_image_path: str = ""  # Path to input image (for img2img)
-    processed_image: str | None  # the preprocessed image for ControlNets
+    processed_image: str | None = None  # the preprocessed image for ControlNets
     strength: float = 0.8  # Denoising strength used
     is_img2img: bool = False  # Whether this was an img2img generation
     # Inpainting specific fields
