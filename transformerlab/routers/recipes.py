@@ -243,6 +243,31 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
                 result["status"] = "error: config not provided"
             workflow_results.append(result)
 
+    # Process documents - download ZIP files
+    document_results = []
+    for doc in recipe.get("documents", []):
+        url = doc.get("url")
+        
+        result = {"url": url, "action": "download_documents"}
+        try:
+            from transformerlab.routers.experiment import documents as documents_router
+            
+            # Download and extract the ZIP file
+            download_result = await documents_router.document_download_zip(
+                experimentId=experiment_id,
+                data={"url": url}
+            )
+            
+            result["status"] = download_result.get("status", "unknown")
+            result["extracted_files"] = download_result.get("extracted_files", [])
+            result["total_files"] = download_result.get("total_files", 0)
+            result["extraction_path"] = download_result.get("extraction_path", "")
+            
+        except Exception:
+            result["status"] = "error: failed to download documents"
+        
+        document_results.append(result)
+
     # Process tasks and create tasks in database
     task_results = []
     tasks = recipe.get("tasks", [])
@@ -386,6 +411,7 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
             "name": experiment_name,
             "model_set_result": model_set_result,
             "workflow_results": workflow_results,
+            "document_results": document_results,
             "task_results": task_results,
             "workflow_creation_results": workflow_creation_results,
             "notes_result": notes_result,
