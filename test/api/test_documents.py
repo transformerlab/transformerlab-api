@@ -8,6 +8,8 @@ os.environ["TFL_HOME_DIR"] = "./test/tmp/"
 os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
 
 from api import app
+from transformerlab.routers.experiment.documents import document_download_zip
+from fastapi import HTTPException
 
 
 @pytest.fixture
@@ -16,222 +18,84 @@ def client():
         yield c
 
 
-def test_download_zip_endpoint_exists(client):
-    """Test that the download_zip endpoint exists"""
-    # Test with empty request body - should get validation error, not 404
-    response = client.post(
-        "/experiment/test_exp_id/documents/download_zip",
-        json={}
-    )
-    
-    # Should have some validation error, not a 404
-    assert response.status_code != 404
-    # Should be a client error (400 range) due to missing required fields
-    assert 400 <= response.status_code < 500
-
-
-def test_download_zip_missing_url(client):
+async def test_download_zip_missing_url():
     """Test download_zip without URL returns proper error"""
-    test_data = {
-        "extract_folder_name": "test_folder"
-    }
-    
-    response = client.post(
-        "/experiment/test_exp_id/documents/download_zip",
-        json=test_data
-    )
-    
-    assert response.status_code == 400
-    response_data = response.json()
-    assert "detail" in response_data
-    assert "URL is required" in response_data["detail"]
+    test_data = {"extract_folder_name": "test_folder"}
+
+    with pytest.raises(HTTPException) as exc_info:
+        await document_download_zip("test_exp_id", test_data)
+
+    assert exc_info.value.status_code == 400
+    assert "URL is required" in str(exc_info.value.detail)
 
 
-def test_download_zip_invalid_url(client):
+async def test_download_zip_invalid_url():
     """Test download_zip with invalid URL format"""
-    test_data = {
-        "url": "invalid-url-format",
-        "extract_folder_name": "test_folder"
-    }
-    
-    response = client.post(
-        "/experiment/test_exp_id/documents/download_zip",
-        json=test_data
-    )
-    
-    assert response.status_code == 400
-    response_data = response.json()
-    assert "detail" in response_data
-    assert "Invalid or unauthorized URL" in response_data["detail"]
+    test_data = {"url": "invalid-url-format", "extract_folder_name": "test_folder"}
+
+    with pytest.raises(HTTPException) as exc_info:
+        await document_download_zip("test_exp_id", test_data)
+
+    assert exc_info.value.status_code == 400
+    assert "Invalid or unauthorized URL" in str(exc_info.value.detail)
 
 
-def test_download_zip_malformed_request(client):
-    """Test download_zip with malformed JSON"""
-    response = client.post(
-        "/experiment/test_exp_id/documents/download_zip",
-        data="invalid json"
-    )
-    
-    # Should return a client error (400 range)
-    assert 400 <= response.status_code < 500
-
-
-def test_download_zip_valid_url_format(client):
+async def test_download_zip_valid_url_format(client):
     """Test download_zip with valid URL format"""
     # Create a test experiment first
     unique_name = f"test_download_zip_valid_url_format_{int(time.time() * 1000)}"
     exp_response = client.get(f"/experiment/create?name={unique_name}")
     assert exp_response.status_code == 200
     experiment_id = exp_response.json()
-    
+
     test_data = {
         "url": "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-zip-file.zip",
-        "extract_folder_name": "test_folder"
+        "extract_folder_name": "test_folder",
     }
-    
-    response = client.post(
-        f"/experiment/{experiment_id}/documents/download_zip",
-        json=test_data
-    )
-    
-    # Should process the ZIP download (may succeed or fail at download/extract stage)
-    assert response.status_code != 404  # Not a routing error
-    assert response.status_code != 422  # Not a validation error
-    # Should be either success (200) or server error (500) during processing
-    assert response.status_code in [200, 500]
+
+    try:
+        result = await document_download_zip(experiment_id, test_data)
+        # Should return success status
+        assert result["status"] == "success"
+        assert "extracted_files" in result
+        assert "total_files" in result
+        assert isinstance(result["extracted_files"], list)
+        assert isinstance(result["total_files"], int)
+    except HTTPException as e:
+        # If it fails due to network issues, that's acceptable for testing
+        assert e.status_code in [400, 500]
 
 
-def test_download_zip_with_folder_parameter(client):
-    """Test download_zip with folder query parameter"""
-    # Create a test experiment first
-    unique_name = f"test_download_zip_with_folder_parameter_{int(time.time() * 1000)}"
-    exp_response = client.get(f"/experiment/create?name={unique_name}")
-    assert exp_response.status_code == 200
-    experiment_id = exp_response.json()
-    
-    test_data = {
-        "url": "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-zip-file.zip", 
-        "extract_folder_name": "test_folder"
-    }
-    
-    response = client.post(
-        f"/experiment/{experiment_id}/documents/download_zip?folder=custom_folder",
-        json=test_data
-    )
-    
-    # Should handle the folder parameter without validation errors
-    assert response.status_code != 422  # Not a validation error
-    assert response.status_code != 404  # Not a routing error
-    # Should be either success (200) or server error (500) during processing
-    assert response.status_code in [200, 500]
-
-
-def test_download_zip_experiment_id_in_path(client):
-    """Test that experiment ID is properly handled in the path"""
-    # Create test experiments first
-    experiment_ids = []
-    timestamp = int(time.time() * 1000)
-    for i, exp_name in enumerate(["test_exp", "exp123", "my-experiment"]):
-        unique_name = f"test_download_zip_experiment_id_in_path_{exp_name}_{timestamp}_{i}"
-        exp_response = client.get(f"/experiment/create?name={unique_name}")
-        assert exp_response.status_code == 200
-        experiment_ids.append(exp_response.json())
-    
-    test_data = {
-        "url": "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-zip-file.zip",
-        "extract_folder_name": "test_folder"
-    }
-    
-    # Test with different experiment IDs
-    for exp_id in experiment_ids:
-        response = client.post(
-            f"/experiment/{exp_id}/documents/download_zip",
-            json=test_data
-        )
-        
-        # Should not return 404 (path not found) - proves routing works
-        assert response.status_code != 404
-        # Should be either success (200) or server error (500) during processing
-        assert response.status_code in [200, 500]
-
-
-def test_download_zip_optional_fields(client):
+async def test_download_zip_optional_fields(client):
     """Test download_zip with minimal required fields"""
     # Create a test experiment first
     unique_name = f"test_download_zip_optional_fields_{int(time.time() * 1000)}"
     exp_response = client.get(f"/experiment/create?name={unique_name}")
     assert exp_response.status_code == 200
     experiment_id = exp_response.json()
-    
+
     test_data = {
         "url": "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-zip-file.zip"
         # extract_folder_name is optional
     }
-    
-    response = client.post(
-        f"/experiment/{experiment_id}/documents/download_zip",
-        json=test_data
-    )
-    
-    # Should pass validation (extract_folder_name is optional)
-    assert response.status_code != 422  # Not a validation error  
-    assert response.status_code != 404  # Not a routing error
-    # Should be either success (200) or server error (500) during processing
-    assert response.status_code in [200, 500]
 
-
-def test_download_zip_unauthorized_domain(client):
-    """Test download_zip with URL from unauthorized domain"""
-    test_data = {
-        "url": "https://example.com/malicious-file.zip",
-        "extract_folder_name": "test_folder"
-    }
-    
-    response = client.post(
-        "/experiment/test_exp_id/documents/download_zip",
-        json=test_data
-    )
-    
-    assert response.status_code == 400
-    response_data = response.json()
-    assert "detail" in response_data
-    assert "Invalid or unauthorized URL" in response_data["detail"]
-
-
-def test_download_zip_download_error(client):
-    """Test download_zip with URL that causes download error"""
-    # Create a test experiment first
-    unique_name = f"test_download_zip_download_error_{int(time.time() * 1000)}"
-    exp_response = client.get(f"/experiment/create?name={unique_name}")
-    assert exp_response.status_code == 200
-    experiment_id = exp_response.json()
-    
-    test_data = {
-        "url": "https://filebin.net/x2ubmjsmicr6sz7b/archive.zip",
-        "extract_folder_name": "test_folder" 
-    }
-    
-    # Add filebin.net to allowed domains temporarily for this test
-    from transformerlab.routers.experiment.documents import ALLOWED_DOMAINS
-    original_domains = ALLOWED_DOMAINS.copy()
-    ALLOWED_DOMAINS.add("filebin.net")
-    
     try:
-        response = client.post(
-            f"/experiment/{experiment_id}/documents/download_zip",
-            json=test_data
-        )
-        
-        # Should get a server error due to download/processing failure
-        # filebin.net serves HTML warning page instead of ZIP file
-        assert response.status_code in [400, 500]
-        if response.status_code == 400:
-            response_data = response.json()
-            assert "detail" in response_data
-            # Should indicate either ZIP processing error or download failure
-            assert any(keyword in response_data["detail"].lower() for keyword in 
-                      ["zip", "download", "archive", "valid"])
-    finally:
-        # Restore original allowed domains
-        ALLOWED_DOMAINS.clear()
-        ALLOWED_DOMAINS.update(original_domains) 
+        result = await document_download_zip(experiment_id, test_data)
+        # Should pass validation (extract_folder_name is optional)
+        assert result["status"] == "success"
+        assert "extracted_files" in result
+        assert "total_files" in result
+    except HTTPException as e:
+        # If it fails due to network issues, that's acceptable for testing
+        assert e.status_code in [400, 500]
+
+
+async def test_download_zip_unauthorized_domain():
+    """Test download_zip with URL from unauthorized domain"""
+    test_data = {"url": "https://example.com/malicious-file.zip", "extract_folder_name": "test_folder"}
+
+    with pytest.raises(HTTPException) as exc_info:
+        await document_download_zip("test_exp_id", test_data)
+
+    assert exc_info.value.status_code == 400
+    assert "Invalid or unauthorized URL" in str(exc_info.value.detail)

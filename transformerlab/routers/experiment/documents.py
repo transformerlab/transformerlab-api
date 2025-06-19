@@ -285,17 +285,17 @@ async def document_upload_links(experimentId: str, folder: str = None, data: dic
 async def document_download_zip(experimentId: str, data: dict = Body(...)):
     """Download a ZIP file from a URL and extract its contents to the documents folder."""
     url = data.get("url")
-    
+
     if not url:
         raise HTTPException(status_code=400, detail="URL is required")
-    
+
     # Validate the URL
     if not is_valid_url(url):
         raise HTTPException(status_code=400, detail="Invalid or unauthorized URL")
 
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
-    
+
     try:
         # Download ZIP file
         async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
@@ -306,26 +306,22 @@ async def document_download_zip(experimentId: str, data: dict = Body(...)):
             with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as temp_zip:
                 temp_zip.write(response.content)
                 temp_zip_path = temp_zip.name
-        
+
         # Extract ZIP file
-        with zipfile.ZipFile(temp_zip_path, 'r') as zip_ref:
+        with zipfile.ZipFile(temp_zip_path, "r") as zip_ref:
             zip_ref.extractall(documents_dir)
-            extracted_files = [f for f in zip_ref.namelist() if not f.endswith('/') and not f.startswith('.')]
-        
+            extracted_files = [f for f in zip_ref.namelist() if not f.endswith("/") and not f.startswith(".")]
+
         # Clean up
         os.remove(temp_zip_path)
-        
+
         # Reindex RAG if any files were extracted to a 'rag' folder
-        rag_files = [f for f in extracted_files if f.startswith('rag/')]
+        rag_files = [f for f in extracted_files if f.startswith("rag/")]
         if rag_files:
             await rag.reindex(experimentId)
-        
-        return {
-            "status": "success", 
-            "extracted_files": extracted_files,
-            "total_files": len(extracted_files)
-        }
-        
+
+        return {"status": "success", "extracted_files": extracted_files, "total_files": len(extracted_files)}
+
     except httpx.HTTPStatusError:
         if "temp_zip_path" in locals() and os.path.exists(temp_zip_path):
             os.remove(temp_zip_path)
