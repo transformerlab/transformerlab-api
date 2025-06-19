@@ -264,8 +264,8 @@ class TLabPlugin:
                 dataset_splits["valid"] = "validation"
             elif "valid" in dataset_types and "valid" not in available_splits:
                 print("No validation slice found in dataset, using train split as 80-20 for training and validation")
+                dataset_splits["valid"] = dataset_splits["train"] + "[-20%:]"
                 dataset_splits["train"] = dataset_splits["train"] + "[:80%]"
-                dataset_splits["valid"] = dataset_splits["train"] + "[-10%:]"
 
             # If dataset_splits for train is same as any other split, make it a 80:20 thing to not have same data in train and test/valid
             for expected_split, actual_split in dataset_splits.items():
