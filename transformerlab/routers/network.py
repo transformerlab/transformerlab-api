@@ -436,6 +436,7 @@ async def execute_remote_job(job_data: Dict[str, Any]):
         # Start background sync task if origin machine is provided
         if origin_machine.get("hostname") and origin_machine.get("ip"):
             import asyncio
+
             asyncio.create_task(_sync_remote_job_progress(local_job_id, job_id, origin_machine))
 
         # Execute in background
@@ -707,44 +708,40 @@ async def _sync_remote_job_progress(local_job_id: str, original_job_id: str, ori
     """
     import asyncio
     import httpx
-    
+
     try:
         # Build origin machine URL (assuming same port for simplicity)
         origin_host = origin_machine.get("ip", origin_machine.get("hostname"))
         origin_url = f"http://{origin_host}:8338"  # Default port
-        
+
         while True:
             try:
                 # Get current job status and progress
                 job = await db.job_get(local_job_id)
                 if not job:
                     break
-                    
+
                 status = job.get("status")
                 progress = job.get("progress", 0)
-                
+
                 # Send progress update to origin machine
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     await client.post(
                         f"{origin_url}/network/progress_update",
-                        json={
-                            "job_id": original_job_id,
-                            "progress": progress,
-                            "status": status
-                        }
+                        json={"job_id": original_job_id, "progress": progress, "status": status},
                     )
-                
+
                 # Stop syncing if job is complete or failed
                 if status in ["COMPLETE", "FAILED", "CANCELLED"]:
                     break
-                    
+
                 # Wait before next sync
                 await asyncio.sleep(5)  # Sync every 5 seconds
-                
+
             except Exception as e:
                 print(f"Error syncing progress for job {local_job_id}: {str(e)}")
                 await asyncio.sleep(10)  # Wait longer on error
-                
+
     except Exception as e:
         print(f"Failed to start progress sync for job {local_job_id}: {str(e)}")
 
@@ -773,16 +770,16 @@ async def receive_progress_update(progress_data: Dict[str, Any]):
         job_id = progress_data["job_id"]
         progress = progress_data["progress"]
         status = progress_data.get("status")
-        
+
         # Update local job progress
         await db.job_update_progress(job_id, progress)
-        
+
         # Update status if provided
         if status:
             await db.job_update_status(job_id, status)
-            
+
         return {"status": "success", "message": "Progress updated"}
-        
+
     except Exception as e:
         print(f"Error updating remote job progress: {str(e)}")
         return {"status": "error", "message": str(e)}

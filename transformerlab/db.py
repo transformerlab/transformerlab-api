@@ -444,7 +444,7 @@ async def job_get(job_id):
 
 
 async def job_count_running():
-    cursor = await db.execute("SELECT COUNT(*) FROM job WHERE status IN ('RUNNING', 'RUNNING_REMOTE')")
+    cursor = await db.execute("SELECT COUNT(*) FROM job WHERE status IN ('RUNNING')")
     row = await cursor.fetchone()
     await cursor.close()
     return row[0]
