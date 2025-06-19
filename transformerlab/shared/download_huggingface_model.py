@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 from multiprocessing import Process, Queue
 from werkzeug.utils import secure_filename
+from contextlib import contextmanager
 
 # If there is an error set returncode and error_msg
 # returncode is used by API to know about errors and
@@ -26,6 +27,70 @@ error_msg = False
 WORKSPACE_DIR = os.environ.get("_TFL_WORKSPACE_DIR")
 if WORKSPACE_DIR is None:
     raise EnvironmentError("Environment variable _TFL_WORKSPACE_DIR is not set!")
+
+
+@contextmanager
+def get_db_connection():
+    """Context manager for database connections with proper pragma settings"""
+    db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
+    try:
+        # Set these PRAGMAs every time as they get reset per connection
+        db.execute("PRAGMA journal_mode=WAL")
+        db.execute("PRAGMA synchronous=normal")
+        db.execute("PRAGMA busy_timeout=5000")
+        yield db
+    finally:
+        db.close()
+
+
+def safe_db_update(query, params, error_message="Database update failed"):
+    """Safely execute a database update with error handling and retry logic"""
+    max_retries = 3
+    retry_delay = 0.1  # 100ms
+    
+    for attempt in range(max_retries):
+        try:
+            with get_db_connection() as db:
+                db.execute(query, params)
+                return True
+        except sqlite3.OperationalError as e:
+            if "database is locked" in str(e) and attempt < max_retries - 1:
+                print(f"Database locked, retrying in {retry_delay}s... (attempt {attempt + 1}/{max_retries})")
+                sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+                continue
+            print(f"{error_message}: {e}")
+            return False
+        except Exception as e:
+            print(f"Unexpected database error: {e}")
+            return False
+    
+    return False
+
+
+def get_job_data(job_id):
+    """Get job data from database with retry logic"""
+    max_retries = 3
+    retry_delay = 0.1  # 100ms
+    
+    for attempt in range(max_retries):
+        try:
+            with get_db_connection() as db:
+                result = db.execute("SELECT job_data FROM job WHERE id=?", (job_id,)).fetchone()
+                return json.loads(result[0]) if result else None
+        except sqlite3.OperationalError as e:
+            if "database is locked" in str(e) and attempt < max_retries - 1:
+                print(f"Database locked during job data query, retrying in {retry_delay}s... (attempt {attempt + 1}/{max_retries})")
+                sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+                continue
+            print(f"Warning: Failed to get job data: {e}", file=sys.stderr)
+            return None
+        except Exception as e:
+            print(f"Warning: Failed to get job data: {e}", file=sys.stderr)
+            return None
+    
+    return None
 
 # Parse arguments
 parser = argparse.ArgumentParser()
@@ -97,20 +162,8 @@ def do_download(repo_id, queue, allow_patterns=None, mode="model"):
 
 
 def cancel_check():
-    try:
-        db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
-        db.execute("PRAGMA journal_mode=WAL")
-        db.execute("PRAGMA synchronous=normal")
-        db.execute("PRAGMA busy_timeout=5000")
-        status = db.execute("SELECT job_data FROM job WHERE id=?", (job_id,)).fetchone()
-        db.close()
-
-        if status:
-            job_data = json.loads(status[0])
-            return job_data.get("status") == "cancelled"
-    except Exception as e:
-        print(f"Warning: cancel_check() failed: {e}", file=sys.stderr)
-    return False
+    job_data = get_job_data(job_id)
+    return job_data and job_data.get("status") == "cancelled"
 
 
 def launch_snapshot_with_cancel(repo_id, allow_patterns=None):
@@ -186,14 +239,12 @@ def download_blocking(model_is_downloaded):
 
     print(job_data)
 
-    # Connect to the DB to start the job and then close
-    # Need to set these PRAGMAs every time as they get reset per connection
-    db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
-    db.execute("PRAGMA journal_mode=WAL")
-    db.execute("PRAGMA synchronous=normal")
-    db.execute("PRAGMA busy_timeout=5000")
-    db.execute("UPDATE job SET progress=?, job_data=json(?) WHERE id=?", (0, job_data, job_id))
-    db.close()
+    # Initialize the job in the database
+    safe_db_update(
+        "UPDATE job SET progress=?, job_data=json(?) WHERE id=?",
+        (0, job_data, job_id),
+        "Failed to initialize job status"
+    )
 
     if mode == "adaptor":
         try:
@@ -271,6 +322,8 @@ def check_disk_size(model_is_downloaded: Event):
     starting_size_of_cache = starting_size_of_huggingface_cache_in_mb + starting_size_of_model_dir_in_mb
 
     counter = 0
+    last_db_update = 0
+    db_update_interval = 10  # Update database every 10 iterations (20 seconds)
 
     while True:
         hf_size = get_dir_size(path=cache_dir) / 1024 / 1024
@@ -280,30 +333,25 @@ def check_disk_size(model_is_downloaded: Event):
         progress = cache_size_growth / adjusted_total_size * 100
         print(f"\nModel Download Progress: {progress:.2f}%\n")
 
-        # Need to set these PRAGMAs every time as they get reset per connection
-        # Not sure if we should reconnect over and over in the loop like this
-        # But leaving it to reduce the chance of leaving a connection open if this
-        # thread gets interrupted?
-        db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
-        db.execute("PRAGMA journal_mode=WAL")
-        db.execute("PRAGMA synchronous=normal")
-        db.execute("PRAGMA busy_timeout=5000")
-
-        try:
-            db.execute(
-                "UPDATE job SET job_data=json_set(job_data, '$.downloaded', ?),  progress=? WHERE id=?",
+        # Only update database every 20 seconds to reduce lock contention
+        if counter - last_db_update >= db_update_interval:
+            safe_db_update(
+                "UPDATE job SET job_data=json_set(job_data, '$.downloaded', ?), progress=? WHERE id=?",
                 (cache_size_growth, progress, job_id),
+                f"Failed to update download progress ({progress:.2f}%). Skipping."
             )
-        except sqlite3.OperationalError:
-            # Bit of a hack: We were having DB lock errors and this update isn't crucial
-            # So for now just skip if something goes wrong.
-            print(f"Failed to update download progress in DB ({progress}%). Skipping.")
-        db.close()
+            last_db_update = counter
 
         print(f"flag:  {model_is_downloaded.is_set()}")
 
         if model_is_downloaded.is_set():
             print("Model is downloaded, exiting check_disk_size thread")
+            # Final database update when download completes
+            safe_db_update(
+                "UPDATE job SET job_data=json_set(job_data, '$.downloaded', ?), progress=? WHERE id=?",
+                (cache_size_growth, progress, job_id),
+                f"Failed to update final download progress ({progress:.2f}%). Skipping."
+            )
             break
 
         counter += 1
@@ -336,28 +384,17 @@ def main():
         if returncode == 77:
             status = "UNAUTHORIZED"
 
-        # Need to set these PRAGMAs every time as they get reset per connection
-        db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
-        db.execute("PRAGMA journal_mode=WAL")
-        db.execute("PRAGMA synchronous=normal")
-        db.execute("PRAGMA busy_timeout=5000")
-
-        # If the error is that the database is locked then this call might also fail
-        # for the same reason! Better catch and at least print a message.
-        try:
-            db.execute(
-                "UPDATE job SET status=?, job_data=json(?)\
-                    WHERE id=?",
-                (status, job_data, job_id),
-            )
-        except sqlite3.OperationalError:
-            # NOTE: If we fail to write to the database the app won't get
-            # the right error message. So set a different
+        # Update final job status
+        if not safe_db_update(
+            "UPDATE job SET status=?, job_data=json(?) WHERE id=?",
+            (status, job_data, job_id),
+            f"Failed to save download job status {status}"
+        ):
+            # If we fail to write to the database the app won't get the right error message
             print(f"Failed to save download job status {status}:")
             print(error_msg)
             returncode = 74  # IOERR
 
-        db.close()
         exit(returncode)
 
 
