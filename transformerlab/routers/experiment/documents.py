@@ -281,7 +281,6 @@ async def document_upload_links(experimentId: str, folder: str = None, data: dic
     return {"status": "success", "filename": urls}
 
 
-@router.post("/download_zip", summary="Download and extract a ZIP file from a URL.")
 async def document_download_zip(experimentId: str, data: dict = Body(...)):
     """Download a ZIP file from a URL and extract its contents to the documents folder."""
     url = data.get("url")
