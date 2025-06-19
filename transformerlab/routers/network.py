@@ -402,7 +402,6 @@ async def execute_remote_job(job_data: Dict[str, Any]):
     This creates a local job and executes it using the standard job execution flow.
     """
     try:
-        print("RECEIVED REMOTE JOB DATA:", job_data)
         job_id = job_data["job_id"]
         job_config = job_data["job_data"]
         job_type = job_data.get("job_type", "UNDEFINED")

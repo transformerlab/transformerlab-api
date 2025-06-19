@@ -430,8 +430,8 @@ async def _dispatch_remote_job(job, job_config, target_machine_id):
                 await db.job_update_status(job["id"], "FAILED", error_msg="Failed to start job on remote machine")
                 return {"error": "Failed to start job on remote machine"}
 
-            # Update job status and metadata
-            await db.job_update_status(job["id"], "RUNNING")
+            # Update job status to indicate it's running remotely
+            await db.job_update_status(job["id"], "RUNNING_REMOTE")
             await db.job_update_job_data_insert_key_value(
                 job["id"], "execution_host", f"{machine['host']}:{machine['port']}"
             )
