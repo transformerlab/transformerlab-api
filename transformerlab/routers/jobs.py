@@ -59,12 +59,18 @@ async def start_next_job():
         print("Starting job: " + str(nextjob["id"]))
         job_config = json.loads(nextjob["job_data"])
         experiment_id = nextjob["experiment_id"]
+
+        # Check if this job should be executed remotely
+        target_machine_id = job_config.get("target_machine_id")
+        if target_machine_id:
+            return await _dispatch_remote_job(nextjob, job_config, target_machine_id)
+
+        # Local execution (existing logic)
         data = await db.experiment_get(experiment_id)
         if data is None:
             # mark the job as failed
             await db.job_update_status(nextjob["id"], "FAILED")
-            return {"message": f"Experiment {id} does not exist"}
-        # config = json.loads(data["config"])
+            return {"message": f"Experiment {experiment_id} does not exist"}
 
         experiment_name = data["name"]
         await shared.run_job(
@@ -280,25 +286,24 @@ async def get_generated_dataset(job_id: str):
         return content
 
 
-
 @router.get("/{job_id}/get_eval_images")
 async def get_eval_images(job_id: str):
     """Get list of evaluation images for a job"""
     job = await db.job_get(job_id)
     job_data = job["job_data"]
-    
+
     # Check if the job has eval_images_dir
     if "eval_images_dir" not in job_data or not job_data["eval_images_dir"]:
         return {"images": []}
-    
+
     images_dir = job_data["eval_images_dir"]
-    
+
     if not os.path.exists(images_dir):
         return {"images": []}
-    
+
     # Supported image extensions
-    image_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg'}
-    
+    image_extensions = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".svg"}
+
     images = []
     try:
         for filename in os.listdir(images_dir):
@@ -308,19 +313,21 @@ async def get_eval_images(job_id: str):
                 if ext in image_extensions:
                     # Get file stats for additional metadata
                     stat = os.stat(file_path)
-                    images.append({
-                        "filename": filename,
-                        "path": f"/jobs/{job_id}/image/{filename}",  # API endpoint path
-                        "size": stat.st_size,
-                        "modified": stat.st_mtime
-                    })
+                    images.append(
+                        {
+                            "filename": filename,
+                            "path": f"/jobs/{job_id}/image/{filename}",  # API endpoint path
+                            "size": stat.st_size,
+                            "modified": stat.st_mtime,
+                        }
+                    )
     except OSError as e:
         logging.error(f"Error reading images directory {images_dir}: {e}")
         return {"images": []}
-    
+
     # Sort by filename for consistent ordering
     images.sort(key=lambda x: x["filename"])
-    
+
     return {"images": images}
 
 
@@ -329,44 +336,224 @@ async def get_eval_image(job_id: str, filename: str):
     """Serve individual evaluation image files"""
     job = await db.job_get(job_id)
     job_data = job["job_data"]
-    
+
     # Check if the job has eval_images_dir
     if "eval_images_dir" not in job_data or not job_data["eval_images_dir"]:
         return Response("No images directory found for this job", status_code=404)
-    
+
     images_dir = job_data["eval_images_dir"]
-    
+
     if not os.path.exists(images_dir):
         return Response("Images directory not found", status_code=404)
-    
+
     # Secure the filename to prevent directory traversal
     filename = secure_filename(filename)
     file_path = os.path.join(images_dir, filename)
-    
+
     # Ensure the file exists and is within the images directory
     if not os.path.exists(file_path) or not os.path.commonpath([images_dir, file_path]) == images_dir:
         return Response("Image not found", status_code=404)
-    
+
     # Determine media type based on file extension
     _, ext = os.path.splitext(filename.lower())
     media_type_map = {
-        '.png': 'image/png',
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.gif': 'image/gif',
-        '.bmp': 'image/bmp',
-        '.webp': 'image/webp',
-        '.svg': 'image/svg+xml'
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".bmp": "image/bmp",
+        ".webp": "image/webp",
+        ".svg": "image/svg+xml",
     }
-    
-    media_type = media_type_map.get(ext, 'application/octet-stream')
-    
+
+    media_type = media_type_map.get(ext, "application/octet-stream")
+
     return FileResponse(
         file_path,
         media_type=media_type,
-        headers={
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Pragma": "no-cache",
-            "Expires": "0"
-        }
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"},
     )
+
+
+@router.post("/create_remote")
+async def job_create_remote(
+    type: str = "UNDEFINED",
+    status: str = "CREATED",
+    data: str = "{}",
+    experiment_id: str = "-1",
+    target_machine_id: int = None,
+):
+    """Create a job with optional target machine for remote execution."""
+    job_data = json.loads(data)
+
+    # Add target machine info to job data
+    if target_machine_id:
+        job_data["target_machine_id"] = target_machine_id
+        # Get machine info for validation
+        machine = await db.network_machine_get(target_machine_id)
+        if not machine:
+            return {"error": "Target machine not found"}
+        job_data["target_machine_info"] = {"name": machine["name"], "host": machine["host"], "port": machine["port"]}
+
+    jobid = await db.job_create(type=type, status=status, job_data=json.dumps(job_data), experiment_id=experiment_id)
+    return {"job_id": jobid, "target_machine_id": target_machine_id}
+
+
+async def _dispatch_remote_job(job, job_config, target_machine_id):
+    """Helper function to dispatch a job to a remote machine."""
+    import httpx
+
+    try:
+        # Get machine details
+        machine = await db.network_machine_get(target_machine_id)
+        if not machine:
+            await db.job_update_status(job["id"], "FAILED", error_msg="Target machine not found")
+            return {"error": "Target machine not found"}
+
+        if machine["status"] != "online":
+            await db.job_update_status(job["id"], "FAILED", error_msg="Target machine is not online")
+            return {"error": "Target machine is not online"}
+
+        # Extract dependencies from job config
+        plugins_required = job_config.get("plugins_required", [])
+        models_required = job_config.get("models_required", [])
+        datasets_required = job_config.get("datasets_required", [])
+
+        # Use the network router's dispatch endpoint
+        from transformerlab.routers.network import RemoteJobDispatch
+
+        dispatch_data = RemoteJobDispatch(
+            job_id=str(job["id"]),
+            job_data=job_config,
+            target_machine_id=target_machine_id,
+            plugins_required=plugins_required,
+            models_required=models_required,
+            datasets_required=datasets_required,
+        )
+
+        # Build URL for dispatch
+        base_url = f"http://{machine['host']}:{machine['port']}"
+        headers = {}
+        if machine.get("api_token"):
+            headers["Authorization"] = f"Bearer {machine['api_token']}"
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Prepare dependencies first
+            if plugins_required or models_required or datasets_required:
+                deps_response = await client.post(
+                    f"{base_url}/network/prepare_dependencies",
+                    json={"plugins": plugins_required, "models": models_required, "datasets": datasets_required},
+                    headers=headers,
+                )
+                if deps_response.status_code != 200:
+                    await db.job_update_status(job["id"], "FAILED", error_msg="Failed to prepare dependencies")
+                    return {"error": "Failed to prepare dependencies on remote machine"}
+
+            # Dispatch the job
+            job_response = await client.post(
+                f"{base_url}/network/execute_job",
+                json={
+                    "job_id": str(job["id"]),
+                    "job_data": job_config,
+                    "origin_machine": await _get_this_machine_info(),
+                },
+                headers=headers,
+            )
+
+            if job_response.status_code != 200:
+                await db.job_update_status(job["id"], "FAILED", error_msg="Failed to start job on remote machine")
+                return {"error": "Failed to start job on remote machine"}
+
+            # Update job status and metadata
+            await db.job_update_status(job["id"], "RUNNING")
+            await db.job_update_job_data_insert_key_value(
+                job["id"], "execution_host", f"{machine['host']}:{machine['port']}"
+            )
+            await db.job_update_job_data_insert_key_value(job["id"], "remote_execution", True)
+
+            return {
+                "status": "success",
+                "message": f"Job dispatched to {machine['name']}",
+                "job_id": job["id"],
+                "target_machine": machine["name"],
+            }
+
+    except Exception as e:
+        await db.job_update_status(job["id"], "FAILED", error_msg=f"Remote dispatch failed: {str(e)}")
+        return {"error": f"Failed to dispatch remote job: {str(e)}"}
+
+
+async def _get_this_machine_info():
+    """Get information about this machine for identification purposes."""
+    import socket
+    import platform
+
+    try:
+        hostname = socket.gethostname()
+        local_ip = socket.gethostbyname(hostname)
+
+        return {"hostname": hostname, "ip": local_ip, "platform": platform.system(), "architecture": platform.machine()}
+    except Exception:
+        return {"hostname": "unknown", "ip": "unknown"}
+
+
+@router.get("/list_by_machine")
+async def jobs_get_by_machine(machine_id: int = None):
+    """Get jobs filtered by target machine."""
+    jobs = await db.jobs_get_all()
+
+    if machine_id is not None:
+        # Filter jobs that have target_machine_id in job_data
+        filtered_jobs = []
+        for job in jobs:
+            job_data = job.get("job_data", {})
+            if job_data.get("target_machine_id") == machine_id:
+                filtered_jobs.append(job)
+        return filtered_jobs
+
+    return jobs
+
+
+@router.get("/{job_id}/remote_status")
+async def get_remote_job_status(job_id: str):
+    """Get status of a job that may be running remotely."""
+    job = await db.job_get(job_id)
+    if not job:
+        return {"error": "Job not found"}
+
+    job_data = job.get("job_data", {})
+    target_machine_id = job_data.get("target_machine_id")
+
+    if not target_machine_id:
+        # Local job, return local status
+        return {"status": "success", "job_status": job, "location": "local"}
+
+    # Remote job, query the remote machine
+    try:
+        machine = await db.network_machine_get(target_machine_id)
+        if not machine:
+            return {"error": "Target machine not found"}
+
+        import httpx
+
+        base_url = f"http://{machine['host']}:{machine['port']}"
+        headers = {}
+        if machine.get("api_token"):
+            headers["Authorization"] = f"Bearer {machine['api_token']}"
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{base_url}/jobs/{job_id}", headers=headers)
+
+            if response.status_code == 200:
+                remote_job_data = response.json()
+                return {
+                    "status": "success",
+                    "job_status": remote_job_data,
+                    "location": "remote",
+                    "machine": machine["name"],
+                }
+            else:
+                return {"error": "Failed to get remote job status"}
+
+    except Exception as e:
+        return {"error": f"Failed to query remote machine: {str(e)}"}

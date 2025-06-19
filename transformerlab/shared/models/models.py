@@ -106,6 +106,8 @@ class Job(Base):
     status: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True)
     type: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True)
     experiment_id: Mapped[Optional[int]] = mapped_column(Integer, index=True, nullable=True)
+    target_machine_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
+    execution_host: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     progress: Mapped[int] = mapped_column(Integer, nullable=False, server_default="-1")
     created_at: Mapped[DateTime] = mapped_column(DateTime, index=True, server_default=func.now(), nullable=False)
     updated_at: Mapped[DateTime] = mapped_column(
