@@ -190,6 +190,9 @@ async def convert_all_to_tasks(experiment_id):
 
 @router.get("/{task_id}/queue", summary="Queue a task to run")
 async def queue_task(task_id: int, input_override: str = "{}", output_override: str = "{}"):
+    print(
+        f"Queueing\n task {task_id} with\n\n input override: {input_override}\n\n and output override: {output_override}"
+    )
     task_to_queue = await db.tasks_get_by_id(task_id)
     job_type = task_to_queue["type"]
     job_status = "QUEUED"
@@ -255,3 +258,93 @@ async def queue_task(task_id: int, input_override: str = "{}", output_override: 
         job_data["plugin"] = task_to_queue["plugin"]
     job_id = await db.job_create(job_type, job_status, json.dumps(job_data), task_to_queue["experiment_id"])
     return {"id": job_id}
+
+
+@router.get("/{task_id}/queue/{machine_id}", summary="Queue a task to run on a remote machine")
+async def queue_task_remote(task_id: int, machine_id: int, input_override: str = "{}", output_override: str = "{}"):
+    """Queue a task to run on a specific remote machine. Same as local queue but with target machine."""
+    import transformerlab.db as db
+
+    # Validate machine exists
+    machine = await db.network_machine_get(machine_id)
+    if not machine:
+        return {"error": "Target machine not found"}
+
+    # Get the task to queue (same as local queue)
+    task_to_queue = await db.tasks_get_by_id(task_id)
+    job_type = task_to_queue["type"]
+    job_status = "QUEUED"
+    job_data = {}
+
+    # these are the input and output configs from the task
+    inputs = json.loads(task_to_queue["inputs"])
+    outputs = json.loads(task_to_queue["outputs"])
+
+    # these are the in runtime changes that will override the input and output config from the task
+    input_override = json.loads(input_override)
+    output_override = json.loads(output_override)
+
+    # Build job_data exactly the same way as local queue
+    if job_type == "TRAIN":
+        job_data["config"] = json.loads(task_to_queue["config"])
+        job_data["model_name"] = inputs["model_name"]
+        job_data["dataset"] = inputs["dataset_name"]
+        if "type" not in job_data["config"].keys():
+            job_data["config"]["type"] = "LoRA"
+        # sets the inputs and outputs from the task
+        for key in inputs.keys():
+            job_data["config"][key] = inputs[key]
+        for key in outputs.keys():
+            job_data["config"][key] = outputs[key]
+
+        # overrides the inputs and outputs based on the runtime changes requested
+        for key in input_override.keys():
+            if key == "model_name":
+                job_data["model_name"] = input_override["model_name"]
+            if key == "dataset":
+                job_data["dataset"] = input_override["dataset_name"]
+            job_data["config"][key] = input_override[key]
+        for key in output_override.keys():
+            job_data["config"][key] = output_override[key]
+
+        job_data["template_id"] = task_to_queue["id"]
+        job_data["template_name"] = task_to_queue["name"]
+    elif job_type == "EVAL":
+        job_data["evaluator"] = task_to_queue["name"]
+        job_data["config"] = json.loads(task_to_queue["config"])
+        for key in inputs.keys():
+            job_data["config"][key] = inputs[key]
+            job_data["config"]["script_parameters"][key] = inputs[key]
+        for key in input_override.keys():
+            job_data["config"][key] = input_override[key]
+            job_data["config"]["script_parameters"][key] = input_override[key]
+
+        job_data["plugin"] = task_to_queue["plugin"]
+    elif job_type == "GENERATE":
+        job_data["generator"] = task_to_queue["name"]
+        job_data["config"] = json.loads(task_to_queue["config"])
+        for key in inputs.keys():
+            job_data["config"][key] = inputs[key]
+            job_data["config"]["script_parameters"][key] = inputs[key]
+        for key in input_override.keys():
+            job_data["config"][key] = input_override[key]
+            job_data["config"]["script_parameters"][key] = input_override[key]
+
+        for key in outputs.keys():
+            job_data["config"][key] = outputs[key]
+            job_data["config"]["script_parameters"][key] = outputs[key]
+        for key in output_override.keys():
+            job_data["config"][key] = output_override[key]
+            job_data["config"]["script_parameters"][key] = output_override[key]
+        job_data["plugin"] = task_to_queue["plugin"]
+
+    # Add remote execution info
+    job_data["target_machine_id"] = machine_id
+    job_data["target_machine_info"] = {
+        "name": machine["name"],
+        "host": machine["host"],
+        "port": machine["port"],
+    }
+
+    job_id = await db.job_create(job_type, job_status, json.dumps(job_data), task_to_queue["experiment_id"])
+    return {"id": job_id, "target_machine_id": machine_id, "target_machine_name": machine["name"]}

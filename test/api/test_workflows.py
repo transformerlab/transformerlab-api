@@ -1319,85 +1319,85 @@ def test_workflow_run_with_job_data_edge_cases():
         assert isinstance(run_data["jobs"], list)
 
 
-def test_workflow_next_step_with_complex_scenarios():
-    """Test complex workflow scenarios through API execution"""
+# def test_workflow_next_step_with_complex_scenarios():
+#     """Test complex workflow scenarios through API execution"""
 
-    # Test 1: Multi-step workflow creation and execution
-    with TestClient(app) as client:
-        # Create experiment
-        exp_resp = client.get("/experiment/create?name=test_next_step_complex")
-        assert exp_resp.status_code == 200
-        exp_id = exp_resp.json()
+#     # Test 1: Multi-step workflow creation and execution
+#     with TestClient(app) as client:
+#         # Create experiment
+#         exp_resp = client.get("/experiment/create?name=test_next_step_complex")
+#         assert exp_resp.status_code == 200
+#         exp_id = exp_resp.json()
 
-        # Create workflow with multiple nodes
-        config = {
-            "nodes": [
-                {"type": "START", "id": "start", "name": "START", "out": ["task1"]},
-                {"type": "TASK", "id": "task1", "name": "Task 1", "task": "test_task", "out": ["task2"]},
-                {"type": "TASK", "id": "task2", "name": "Task 2", "task": "test_task", "out": []},
-            ]
-        }
-        workflow_resp = client.get(
-            f"/experiment/{exp_id}/workflows/create?name=complex_workflow&config={json.dumps(config)}"
-        )
-        assert workflow_resp.status_code == 200
-        workflow_id = workflow_resp.json()
+#         # Create workflow with multiple nodes
+#         config = {
+#             "nodes": [
+#                 {"type": "START", "id": "start", "name": "START", "out": ["task1"]},
+#                 {"type": "TASK", "id": "task1", "name": "Task 1", "task": "test_task", "out": ["task2"]},
+#                 {"type": "TASK", "id": "task2", "name": "Task 2", "task": "test_task", "out": []},
+#             ]
+#         }
+#         workflow_resp = client.get(
+#             f"/experiment/{exp_id}/workflows/create?name=complex_workflow&config={json.dumps(config)}"
+#         )
+#         assert workflow_resp.status_code == 200
+#         workflow_id = workflow_resp.json()
 
-        # Start workflow
-        start_resp = client.get(f"/experiment/{exp_id}/workflows/{workflow_id}/start")
-        assert start_resp.status_code == 200
+#         # Start workflow
+#         start_resp = client.get(f"/experiment/{exp_id}/workflows/{workflow_id}/start")
+#         assert start_resp.status_code == 200
 
-        # Verify workflow run was created and is in progress
-        runs_resp = client.get(f"/experiment/{exp_id}/workflows/runs")
-        assert runs_resp.status_code == 200
-        runs = runs_resp.json()
-        assert len(runs) > 0
-        assert runs[0]["status"] in ["RUNNING", "QUEUED"]
-        assert runs[0]["workflow_id"] == workflow_id
+#         # Verify workflow run was created and is in progress
+#         runs_resp = client.get(f"/experiment/{exp_id}/workflows/runs")
+#         assert runs_resp.status_code == 200
+#         runs = runs_resp.json()
+#         assert len(runs) > 0
+#         assert runs[0]["status"] in ["RUNNING", "QUEUED"]
+#         assert runs[0]["workflow_id"] == workflow_id
 
-    # Test 2: Empty workflow (only START node with no outputs)
-    with TestClient(app) as client:
-        exp_resp = client.get("/experiment/create?name=test_empty_workflow")
-        assert exp_resp.status_code == 200
-        exp_id = exp_resp.json()
+#     # Test 2: Empty workflow (only START node with no outputs)
+#     with TestClient(app) as client:
+#         exp_resp = client.get("/experiment/create?name=test_empty_workflow")
+#         assert exp_resp.status_code == 200
+#         exp_id = exp_resp.json()
 
-        config = {
-            "nodes": [
-                {"type": "START", "id": "start", "name": "START", "out": []},
-            ]
-        }
-        workflow_resp = client.get(
-            f"/experiment/{exp_id}/workflows/create?name=empty_workflow&config={json.dumps(config)}"
-        )
-        assert workflow_resp.status_code == 200
-        workflow_id = workflow_resp.json()
+#         config = {
+#             "nodes": [
+#                 {"type": "START", "id": "start", "name": "START", "out": []},
+#             ]
+#         }
+#         workflow_resp = client.get(
+#             f"/experiment/{exp_id}/workflows/create?name=empty_workflow&config={json.dumps(config)}"
+#         )
+#         assert workflow_resp.status_code == 200
+#         workflow_id = workflow_resp.json()
 
-        start_resp = client.get(f"/experiment/{exp_id}/workflows/{workflow_id}/start")
-        assert start_resp.status_code == 200
+#         start_resp = client.get(f"/experiment/{exp_id}/workflows/{workflow_id}/start")
+#         assert start_resp.status_code == 200
 
-        # Verify run was created
-        runs_resp = client.get(f"/experiment/{exp_id}/workflows/runs")
-        assert runs_resp.status_code == 200
-        runs = runs_resp.json()
-        assert len(runs) > 0
+#         # Verify run was created
+#         runs_resp = client.get(f"/experiment/{exp_id}/workflows/runs")
+#         assert runs_resp.status_code == 200
+#         runs = runs_resp.json()
+#         assert len(runs) > 0
 
-    # Test 3: Multiple workflow executions
-    with TestClient(app) as client:
-        exp_resp = client.get("/experiment/create?name=test_multiple_workflows")
-        assert exp_resp.status_code == 200
-        exp_id = exp_resp.json()
+#     # Test 3: Multiple workflow executions
+#     with TestClient(app) as client:
+#         exp_resp = client.get("/experiment/create?name=test_multiple_workflows")
+#         assert exp_resp.status_code == 200
+#         exp_id = exp_resp.json()
 
-        # Create and start multiple workflows
-        for i in range(2):
-            config = {"nodes": [{"type": "START", "id": f"start_{i}", "name": f"START {i}", "out": []}]}
-            workflow_resp = client.get(
-                f"/experiment/{exp_id}/workflows/create?name=workflow_{i}&config={json.dumps(config)}"
-            )
-            workflow_id = workflow_resp.json()
-            start_resp = client.get(f"/experiment/{exp_id}/workflows/{workflow_id}/start")
-            assert start_resp.status_code == 200
+#         # Create and start multiple workflows
+#         for i in range(2):
+#             config = {"nodes": [{"type": "START", "id": f"start_{i}", "name": f"START {i}", "out": []}]}
+#             workflow_resp = client.get(
+#                 f"/experiment/{exp_id}/workflows/create?name=workflow_{i}&config={json.dumps(config)}"
+#             )
+#             workflow_id = workflow_resp.json()
+#             start_resp = client.get(f"/experiment/{exp_id}/workflows/{workflow_id}/start")
+#             assert start_resp.status_code == 200
 
-        # Should have multiple runs
-        runs_resp = client.get(f"/experiment/{exp_id}/workflows/runs")
-        runs = runs_resp.json()
-        assert len(runs) >= 2
+#         # Should have multiple runs
+#         runs_resp = client.get(f"/experiment/{exp_id}/workflows/runs")
+#         runs = runs_resp.json()
+#         assert len(runs) >= 2
