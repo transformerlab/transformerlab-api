@@ -598,11 +598,12 @@ async def _install_remote_dependencies_job(job_id: str, dependencies: Dict[str, 
     try:
         await db.job_update_status(job_id, "RUNNING")
 
-        plugins = dependencies.get("plugins", [])
+        # plugins = dependencies.get("plugins", [])
         models = dependencies.get("models", [])
         datasets = dependencies.get("datasets", [])
 
-        total_deps = len(plugins) + len(models) + len(datasets)
+        # total_deps = len(plugins) +
+        total_deps = len(models) + len(datasets)
         if total_deps == 0:
             await db.job_update_status(job_id, "COMPLETE")
             return
@@ -611,20 +612,20 @@ async def _install_remote_dependencies_job(job_id: str, dependencies: Dict[str, 
         results = []
 
         # Install plugins
-        for plugin_name in plugins:
-            result = {"type": "plugin", "name": plugin_name, "action": None, "status": None}
-            try:
-                install_result = await plugins_router.install_plugin(plugin_id=plugin_name)
-                result["action"] = "install_plugin"
-                result["status"] = install_result.get("status", "unknown")
-            except Exception as e:
-                result["action"] = "error"
-                result["status"] = str(e)
+        # for plugin_name in plugins:
+        #     result = {"type": "plugin", "name": plugin_name, "action": None, "status": None}
+        #     try:
+        #         install_result = await plugins_router.install_plugin(plugin_id=plugin_name)
+        #         result["action"] = "install_plugin"
+        #         result["status"] = install_result.get("status", "unknown")
+        #     except Exception as e:
+        #         result["action"] = "error"
+        #         result["status"] = str(e)
 
-            results.append(result)
-            progress += 1
-            await db.job_update_progress(job_id, int(progress * 100 / total_deps))
-            await db.job_update_job_data_insert_key_value(job_id, "results", results)
+        #     results.append(result)
+        #     progress += 1
+        #     await db.job_update_progress(job_id, int(progress * 100 / total_deps))
+        #     await db.job_update_job_data_insert_key_value(job_id, "results", results)
 
         # Install models
         for model_name in models:

@@ -390,10 +390,29 @@ async def _dispatch_remote_job(job, job_config, target_machine_id):
             await db.job_update_status(job["id"], "FAILED", error_msg="Target machine is not online")
             return {"error": "Target machine is not online"}
 
-        # Extract dependencies from job config
-        plugins_required = job_config.get("plugins_required", [])
-        models_required = job_config.get("models_required", [])
-        datasets_required = job_config.get("datasets_required", [])
+        # Extract dependencies from job config based on actual structure
+        plugins_required = []
+        models_required = []
+        datasets_required = []
+
+        # Extract plugin name
+        plugin_name = job_config.get("plugin") or job_config.get("config", {}).get("plugin_name")
+        if plugin_name:
+            plugins_required.append(plugin_name)
+
+        # Extract model name
+        model_name = job_config.get("model_name") or job_config.get("config", {}).get("model_name")
+        if model_name:
+            models_required.append(model_name)
+
+        # Extract dataset name
+        dataset_name = job_config.get("dataset") or job_config.get("config", {}).get("dataset_name")
+        if dataset_name:
+            datasets_required.append(dataset_name)
+
+        print(
+            f"Dependencies extracted - Plugins: {plugins_required}, Models: {models_required}, Datasets: {datasets_required}"
+        )
 
         # Build URL for dispatch
         base_url = f"http://{machine['host']}:{machine['port']}"
