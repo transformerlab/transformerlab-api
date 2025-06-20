@@ -678,7 +678,7 @@ async def test_job_create_sync(setup_db):
     job_type = "TASK"
     status = "QUEUED"
     job_data = json.dumps({"test": "data"})
-    experiment_id = 6  # Use integer instead of string
+    experiment_id = 99  # Use integer instead of string
 
     # Call the function - this creates its own connection
     job_id = db.job_create_sync(job_type, status, job_data, experiment_id)
@@ -703,7 +703,7 @@ async def test_job_create_sync(setup_db):
 async def test_job_update_status_sync(setup_db):
     """Test the job_update_status_sync function."""
     # First create a job
-    job_id = await db.job_create("TASK", "QUEUED", "{}", 6)
+    job_id = await db.job_create("TASK", "QUEUED", "{}", 99)
 
     # Update the job status
     new_status = "RUNNING"
@@ -718,7 +718,7 @@ async def test_job_update_status_sync(setup_db):
 async def test_job_update_sync(setup_db):
     """Test the job_update_sync function."""
     # First create a job
-    job_id = await db.job_create("TASK", "QUEUED", "{}", 6)
+    job_id = await db.job_create("TASK", "QUEUED", "{}", 99)
 
     # Update the job
     new_status = "RUNNING"
@@ -733,7 +733,7 @@ async def test_job_update_sync(setup_db):
 async def test_job_mark_as_complete_if_running(setup_db):
     """Test the job_mark_as_complete_if_running function."""
     # Create a running job
-    job_id = await db.job_create("TASK", "RUNNING", "{}", 6)
+    job_id = await db.job_create("TASK", "RUNNING", "{}", 99)
 
     # Mark it as complete if running
     db.job_mark_as_complete_if_running(job_id)
@@ -743,7 +743,7 @@ async def test_job_mark_as_complete_if_running(setup_db):
     assert job["status"] == "COMPLETE"
 
     # Create a non-running job
-    job_id2 = await db.job_create("TASK", "QUEUED", "{}", 6)
+    job_id2 = await db.job_create("TASK", "QUEUED", "{}", 99)
 
     # Try to mark it as complete if running (should not change)
     db.job_mark_as_complete_if_running(job_id2)
@@ -847,7 +847,7 @@ async def test_job_update(setup_db):
     # First create a job
     original_type = "TASK"
     original_status = "QUEUED"
-    job_id = await db.job_create(original_type, original_status, "{}", 6)
+    job_id = await db.job_create(original_type, original_status, "{}", 99)
 
     # Verify the job was created with correct initial values
     job = await db.job_get(job_id)
@@ -864,4 +864,4 @@ async def test_job_update(setup_db):
     assert updated_job["type"] == new_type
     assert updated_job["status"] == new_status
     assert updated_job["id"] == job_id
-    assert updated_job["experiment_id"] == 6
+    assert updated_job["experiment_id"] == 99
