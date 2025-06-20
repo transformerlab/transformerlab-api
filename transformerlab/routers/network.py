@@ -465,12 +465,6 @@ async def execute_remote_job(job_data: Dict[str, Any]):
                 status_code=400, detail="Experiment name or valid experiment id is required for remote job execution"
             )
 
-        # # Start background sync task if origin machine is provided
-        # if origin_machine.get("hostname") and origin_machine.get("ip"):
-        #     import asyncio
-
-        #     asyncio.create_task(_sync_remote_job_progress(local_job_id, job_id, origin_machine))
-
         # Execute in background
         import asyncio
 
@@ -480,7 +474,12 @@ async def execute_remote_job(job_data: Dict[str, Any]):
             )
         )
 
-        return {"status": "started", "local_job_id": local_job_id, "message": "Job execution started"}
+        return {
+            "status": "started", 
+            "local_job_id": local_job_id, 
+            "original_job_id": job_id,
+            "message": "Job execution started"
+        }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to execute remote job: {str(e)}")
@@ -775,3 +774,32 @@ async def receive_progress_update(progress_data: Dict[str, Any]):
     except Exception as e:
         print(f"Error updating remote job progress: {str(e)}")
         return {"status": "error", "message": str(e)}
+
+
+@router.get("/local_job_status/{job_id}", summary="Get status of a local job (called by remote machines)")
+async def get_local_job_status(job_id: str):
+    """
+    Endpoint for other machines to query the status of a job running on this machine.
+    Returns job status, progress, and other details for remote monitoring.
+    """
+    try:
+        job = await db.job_get(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        
+        return {
+            "status": "success",
+            "job": {
+                "id": job["id"],
+                "status": job["status"],
+                "progress": job.get("progress", 0),
+                "type": job.get("type"),
+                "created_at": job.get("created_at"),
+                "updated_at": job.get("updated_at")
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get job status: {str(e)}")
