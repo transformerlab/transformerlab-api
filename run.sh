@@ -87,12 +87,12 @@ if [ "$RELOAD" = true ]; then
     if [ "$HTTPS" = true ]; then
         uv run -v python api.py --https --reload --port ${PORT} --host ${TLABHOST}
     else
-        uv run -v python api.py --reload --port ${PORT} --host ${TLABHOST}
+        uv run -v uvicorn api:app --reload --port ${PORT} --host ${TLABHOST}
     fi
 else
     if [ "$HTTPS" = true ]; then
         uv run -v python api.py --https --port ${PORT} --host ${TLABHOST}
     else
-        uv run -v python api.py --port ${PORT} --host ${TLABHOST}
+        uv run -v uvicorn api:app --port ${PORT} --host ${TLABHOST}
     fi
 fi
