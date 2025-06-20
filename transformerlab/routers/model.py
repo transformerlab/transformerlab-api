@@ -976,7 +976,7 @@ async def model_import(model: basemodel.BaseModel):
 
     return {"status": "success", "data": model.id}
 
-@router.post("/model/chat_template")
+@router.get("/model/chat_template")
 async def chat_template(model_name: str):
 
     try:
