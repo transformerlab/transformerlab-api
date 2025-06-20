@@ -804,7 +804,7 @@ async def get_local_job_file(job_id: str):
             raise HTTPException(status_code=500, detail="Workspace directory is not configured")
 
         # Construct the output file path
-        output_file_path = os.path.join(workspace_dir, "jobs", job_id, f"output_{job_id}.txt")
+        output_file_path = os.path.join(workspace_dir, "jobs", str(job_id), f"output_{job_id}.txt")
 
         # Check if the output file exists
         if not os.path.exists(output_file_path):

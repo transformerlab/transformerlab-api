@@ -612,7 +612,7 @@ async def _poll_remote_job_progress(local_job_id: str, remote_job_id: str, machi
                                 workspace_dir = os.getenv("_TFL_WORKSPACE_DIR")
                                 if workspace_dir:
                                     # Create local job directory if it doesn't exist
-                                    local_job_dir = os.path.join(workspace_dir, "jobs", local_job_id)
+                                    local_job_dir = os.path.join(workspace_dir, "jobs", str(local_job_id))
                                     os.makedirs(local_job_dir, exist_ok=True)
                                     
                                     # Save the output file locally
