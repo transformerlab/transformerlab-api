@@ -254,7 +254,7 @@ def preprocess_for_controlnet(input_pil: Image.Image, process_type: str) -> Imag
             return output
 
         else:
-            raise ValueError(f"No preprocessing rule found for ControlNet: {controlnet_id}")
+            raise ValueError(f"No preprocessing rule found for ControlNet: {process_type}")
 
     finally:
         # Force cleanup regardless of detector path
