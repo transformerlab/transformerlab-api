@@ -796,7 +796,7 @@ async def get_local_job_status(job_id: str):
                 "type": job.get("type"),
                 "created_at": job.get("created_at"),
                 "updated_at": job.get("updated_at"),
-                "job_data": json.loads(job.get("job_data", "{}")),
+                "job_data": str(job.get("job_data", "{}")),
             },
         }
 
