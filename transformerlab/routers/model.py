@@ -973,3 +973,27 @@ async def model_import(model: basemodel.BaseModel):
     print(f"{model.id} imported successfully.")
 
     return {"status": "success", "data": model.id}
+
+@router.post("/model/chat_template")
+async def chat_template(model_name: str):
+    from transformers import AutoTokenizer
+
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_name,
+            trust_remote_code=True,
+        )
+        template = getattr(tokenizer, "chat_template", None)
+        if template:
+            return {
+                "chat_template": template,
+                "source": "tokenizer_config",
+                "error_code": 0
+            }
+    except Exception as e:
+        return {
+            "message": f"{str(e)}",
+            "chat_template": None,
+            "source": "error",
+            "error_code": 1
+        }
