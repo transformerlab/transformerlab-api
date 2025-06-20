@@ -812,4 +812,4 @@ async def get_local_job_output(job_id: str):
         raise
     except Exception as e:
         print(f"ERROR: Failed to serve output file for job {job_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to serve output file")
+        raise HTTPException(status_code=500, detail="Failed to serve output file")
