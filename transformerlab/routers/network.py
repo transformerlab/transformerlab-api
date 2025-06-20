@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 import json
+import requests
 
 import transformerlab.db as db
 
@@ -593,12 +594,12 @@ async def _install_remote_dependencies_job(job_id: str, dependencies: Dict[str, 
     """
     from transformerlab.routers import model as model_router
     from transformerlab.routers import data as data_router
-    from transformerlab.routers import plugins as plugins_router
+    # from transformerlab.routers import plugins as plugins_router
 
     try:
         await db.job_update_status(job_id, "RUNNING")
 
-        # plugins = dependencies.get("plugins", [])
+        plugins = dependencies.get("plugins", [])
         models = dependencies.get("models", [])
         datasets = dependencies.get("datasets", [])
 
@@ -612,20 +613,23 @@ async def _install_remote_dependencies_job(job_id: str, dependencies: Dict[str, 
         results = []
 
         # Install plugins
-        # for plugin_name in plugins:
-        #     result = {"type": "plugin", "name": plugin_name, "action": None, "status": None}
-        #     try:
-        #         install_result = await plugins_router.install_plugin(plugin_id=plugin_name)
-        #         result["action"] = "install_plugin"
-        #         result["status"] = install_result.get("status", "unknown")
-        #     except Exception as e:
-        #         result["action"] = "error"
-        #         result["status"] = str(e)
+        for plugin_name in plugins:
+            print(f"Installing plugin: {plugin_name}")
+            result = {"type": "plugin", "name": plugin_name, "action": None, "status": None}
+            try:
+                # install_result = await plugins_router.install_plugin(plugin_id=plugin_name)
+                install_result = await requests.get(f"http://localhost:8338/plugins/gallery/{plugin_name}/install")
+                print(f"Install result: {install_result}")
+                result["action"] = "install_plugin"
+                result["status"] = install_result.get("status", "unknown")
+            except Exception as e:
+                result["action"] = "error"
+                result["status"] = str(e)
 
-        #     results.append(result)
-        #     progress += 1
-        #     await db.job_update_progress(job_id, int(progress * 100 / total_deps))
-        #     await db.job_update_job_data_insert_key_value(job_id, "results", results)
+            results.append(result)
+            progress += 1
+            await db.job_update_progress(job_id, int(progress * 100 / total_deps))
+            await db.job_update_job_data_insert_key_value(job_id, "results", results)
 
         # Install models
         for model_name in models:
