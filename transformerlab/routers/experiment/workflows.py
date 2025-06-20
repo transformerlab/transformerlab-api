@@ -358,6 +358,46 @@ async def workflow_runs_get_by_id(workflow_run_id: str, experimentId: int):
     return returnInfo
 
 
+@router.get("/{workflow_run_id}/cancel", summary="Cancel a running workflow")
+async def cancel_workflow_run(workflow_run_id: str, experimentId: int):
+    """
+    Cancel a running workflow by stopping all its current jobs.
+    The workflow execution engine will automatically detect the stopped jobs
+    and transition the workflow to CANCELLED status.
+    """
+    # Get the workflow run
+    workflow_run = await db.workflow_run_get_by_id(workflow_run_id)
+    if not workflow_run:
+        return {"error": "Workflow run not found"}
+
+    # Verify workflow belongs to experiment
+    workflow = await db.workflows_get_by_id(workflow_run.get("workflow_id"), experimentId)
+    if not workflow:
+        return {"error": "Associated workflow not found or does not belong to this experiment"}
+
+    # Check if workflow can be cancelled
+    current_status = workflow_run.get("status")
+    if current_status not in ["RUNNING", "QUEUED"]:
+        return {"error": f"Cannot cancel workflow in {current_status} status"}
+
+    # Cancel all current jobs - this will trigger automatic workflow cancellation
+    current_job_ids = json.loads(workflow_run.get("current_job_ids", "[]"))
+    cancelled_jobs = []
+
+    for job_id in current_job_ids:
+        await db.job_stop(job_id)  # This sets stop=True in job_data
+        cancelled_jobs.append(job_id)
+
+    # The workflow execution engine will automatically detect the stopped jobs
+    # and update the workflow status to CANCELLED within the next execution cycle
+
+    return {
+        "message": f"Workflow run {workflow_run_id} cancellation initiated",
+        "cancelled_jobs": cancelled_jobs,
+        "note": "Workflow status will be updated to CANCELLED automatically",
+    }
+
+
 # Helper functions moved from old workflows.py
 async def get_active_workflow_run():
     num_running_workflows = await db.workflow_count_running()
