@@ -604,6 +604,26 @@ async def _poll_remote_job_progress(local_job_id: str, remote_job_id: str, machi
                         if job_data.get("score") is not None:
                             await db.job_update_job_data_insert_key_value(local_job_id, "score", job_data["score"])
 
+                        # Fetch and save the output file from remote machine
+                        try:
+                            output_response = await client.get(f"{base_url}/network/local_job_output/{remote_job_id}", headers=headers)
+                            if output_response.status_code == 200:
+                                # Get workspace directory
+                                workspace_dir = os.getenv("_TFL_WORKSPACE_DIR")
+                                if workspace_dir:
+                                    # Create local job directory if it doesn't exist
+                                    local_job_dir = os.path.join(workspace_dir, "jobs", local_job_id)
+                                    os.makedirs(local_job_dir, exist_ok=True)
+                                    
+                                    # Save the output file locally
+                                    local_output_file = os.path.join(local_job_dir, f"output_{local_job_id}.txt")
+                                    with open(local_output_file, "wb") as f:
+                                        f.write(output_response.content)
+                                    
+                                    print(f"Updated output file for local job {local_job_id} from remote job {remote_job_id}")
+                        except Exception as output_error:
+                            print(f"Warning: Failed to fetch output file for remote job {remote_job_id}: {str(output_error)}")
+
                         # If remote job is complete/failed, update local status
                         if remote_status in ["COMPLETE", "FAILED", "CANCELLED"]:
                             await db.job_update_status(local_job_id, remote_status)

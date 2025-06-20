@@ -785,3 +785,39 @@ async def get_local_job_file(job_id: str, key: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to serve file: {str(e)}")
+
+
+@router.get("/local_job_output/{job_id}", summary="Get the output file from job data by key")
+async def get_local_job_file(job_id: str):
+    """
+    Endpoint to serve the output.txt file for given job.
+    Returns the output.txt file stored in workspace_dir/jobs/<job_id>/output_<job_id>.txt
+    """
+    try:
+        job = await db.job_get(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+
+        # Get the workspace directory from environment variable
+        workspace_dir = os.getenv("_TFL_WORKSPACE_DIR")
+        if not workspace_dir:
+            raise HTTPException(status_code=500, detail="Workspace directory is not configured")
+
+        # Construct the output file path
+        output_file_path = os.path.join(workspace_dir, "jobs", job_id, f"output_{job_id}.txt")
+
+        # Check if the output file exists
+        if not os.path.exists(output_file_path):
+            raise HTTPException(status_code=404, detail=f"Output file not found: {output_file_path}")
+
+        return FileResponse(
+            path=output_file_path,
+            filename=f"output_{job_id}.txt",
+            media_type='text/plain'
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERROR: Failed to serve output file for job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to serve output file")
