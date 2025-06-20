@@ -18,7 +18,7 @@ import httpx
 
 # Using torch to test for CUDA and MPS support.
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends, APIRouter
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -48,6 +48,7 @@ from transformerlab.routers import (
     recipes,
     users,
 )
+from transformerlab.services.user_service import current_active_user
 import torch
 
 try:
@@ -169,27 +170,41 @@ async def validation_exception_handler(request, exc):
 ### END GENERAL API - NOT OPENAI COMPATIBLE ###
 
 
-app.include_router(model.router)
-app.include_router(serverinfo.router)
-app.include_router(train.router)
-app.include_router(data.router)
-app.include_router(experiment.router)
-app.include_router(plugins.router)
-app.include_router(evals.router)
-app.include_router(jobs.router)
-app.include_router(tasks.router)
-app.include_router(config.router)
-app.include_router(prompts.router)
-app.include_router(tools.router)
-app.include_router(recipes.router)
-app.include_router(batched_prompts.router)
-app.include_router(fastchat_openai_api.router)
-app.include_router(diffusion.router)
-app.include_router(get_xmlrpc_router())
-app.include_router(get_trainer_xmlrpc_router())
+ENABLE_AUTH = os.getenv("_TFL_ENABLE_AUTH", "").lower() in ("1", "true", "yes")
+if ENABLE_AUTH:
+    print("[Auth] Authentication is ENABLED.")
+else:
+    print("[Auth] Authentication is DISABLED.")
+
+def add_router(router: APIRouter, protected: bool = True) -> None:
+    if ENABLE_AUTH and protected:
+        app.include_router(router, dependencies=[Depends(current_active_user)])
+    else:
+        app.include_router(router)
+
+
+add_router(model.router)
+add_router(serverinfo.router)
+add_router(train.router)
+add_router(data.router)
+add_router(experiment.router)
+add_router(plugins.router)
+add_router(evals.router)
+add_router(jobs.router)
+add_router(tasks.router)
+add_router(config.router)
+add_router(prompts.router)
+add_router(tools.router)
+add_router(recipes.router)
+add_router(batched_prompts.router)
+add_router(fastchat_openai_api.router)
+add_router(diffusion.router)
+add_router(get_xmlrpc_router())
+add_router(get_trainer_xmlrpc_router())
 
 # This includes the FastAPI Users routers
-app.include_router(users.router)
+# Auth for these endpoints is handled by FastAPI, so doesn't need to be added here
+add_router(users.router, protected=False)
 
 
 controller_process = None
