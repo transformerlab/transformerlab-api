@@ -19,16 +19,10 @@ router = APIRouter(prefix="/rag", tags=["rag"])
 
 
 @router.get("/query")
-async def query(experimentId: str, query: str, settings: str = None, rag_folder: str = "rag"):
+async def query(experimentId: int, query: str, settings: str = None, rag_folder: str = "rag"):
     """Query the RAG engine"""
 
-    # Convert experimentId to integer for database calls
-    try:
-        experiment_id_int = int(experimentId)
-    except ValueError:
-        return "Error: Invalid experiment ID"
-
-    experiment_dir = await dirs.experiment_dir_by_id(experiment_id_int)
+    experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
     documents_dir = os.path.join(documents_dir, rag_folder)
     documents_dir = os.path.abspath(documents_dir)
@@ -36,7 +30,7 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
         return "Error: Invalid RAG folder path"
     if not os.path.exists(documents_dir):
         return "Error: The RAG folder does not exist in the documents directory"
-    experiment_details = await db.experiment_get(id=experiment_id_int)
+    experiment_details = await db.experiment_get(id=experimentId)
     experiment_config = json.loads(experiment_details["config"])
     model = experiment_config.get("foundation")
     embedding_model = experiment_config.get("embedding_model")
@@ -122,22 +116,16 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
 
 
 @router.get("/reindex")
-async def reindex(experimentId: str, rag_folder: str = "rag"):
+async def reindex(experimentId: int, rag_folder: str = "rag"):
     """Reindex the RAG engine"""
 
-    # Convert experimentId to integer for database calls
-    try:
-        experiment_id_int = int(experimentId)
-    except ValueError:
-        return "Error: Invalid experiment ID"
-
-    experiment_dir = await dirs.experiment_dir_by_id(experiment_id_int)
+    experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
     documents_dir = os.path.join(documents_dir, rag_folder)
     if not os.path.exists(documents_dir):
         return "Error: The RAG folder does not exist in the documents directory."
 
-    experiment_details = await db.experiment_get(id=experiment_id_int)
+    experiment_details = await db.experiment_get(id=experimentId)
     experiment_config = json.loads(experiment_details["config"])
     model = experiment_config.get("foundation")
     embedding_model = experiment_config.get("embedding_model")
