@@ -1,4 +1,5 @@
 import asyncio
+import os
 import httpx
 from datetime import datetime
 from fastapi import APIRouter, HTTPException
@@ -797,6 +798,7 @@ async def get_local_job_status(job_id: str):
                 "created_at": job.get("created_at"),
                 "updated_at": job.get("updated_at"),
                 "job_data": str(job.get("job_data", "{}")),
+                "workspace_dir": os.getenv("_TFL_WORKSPACE_DIR", ""),
             },
         }
 
