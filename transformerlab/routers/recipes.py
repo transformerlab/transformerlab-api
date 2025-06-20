@@ -192,7 +192,7 @@ async def install_recipe_dependencies(id: str, background_tasks: BackgroundTasks
         type="INSTALL_RECIPE_DEPS",
         status="QUEUED",
         job_data=json.dumps({"recipe_id": id, "results": [], "progress": 0}),
-        experiment_id="",
+        experiment_id=None,
     )
     # Start background task
     background_tasks.add_task(_install_recipe_dependencies_job, job_id, id)

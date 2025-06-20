@@ -36,12 +36,13 @@ async def job_delete(job_id: str):
 
 
 @router.get("/create")
-async def job_create(type: str = "UNDEFINED", status: str = "CREATED", data: str = "{}", experiment_id: str = "-1"):
+async def job_create(type: str = "UNDEFINED", status: str = "CREATED", data: str = "{}", experiment_id: int = -1):
     jobid = await db_jobs.job_create(type=type, status=status, job_data=data, experiment_id=experiment_id)
     return jobid
 
 
-async def job_create_task(script: str, job_data: str = "{}", experiment_id: str = "-1"):
+@router.get("/create_task")
+async def job_create_task(script: str, job_data: str = "{}", experiment_id: int = -1):
     jobid = await db_jobs.job_create(type="UNDEFINED", status="CREATED", job_data=job_data, experiment_id=experiment_id)
     return jobid
 
