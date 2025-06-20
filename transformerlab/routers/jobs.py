@@ -589,8 +589,14 @@ async def _poll_remote_job_progress(local_job_id: str, remote_job_id: str, machi
                         remote_status = remote_job.get("status")
                         remote_progress = remote_job.get("progress", 0)
                         job_data = remote_job.get("job_data", {})
-                        print("JOB DATA:", job_data)
 
+                        if isinstance(job_data, str):
+                            try:
+                                job_data = json.loads(job_data)
+                            except JSONDecodeError:
+                                job_data = {}
+                                print(f"Failed to decode job_data for remote job {remote_job_id}: {job_data}")
+                        
                         # Update local job with remote progress
                         await db.job_update_progress(local_job_id, remote_progress)
 
@@ -598,6 +604,17 @@ async def _poll_remote_job_progress(local_job_id: str, remote_job_id: str, machi
                         if remote_status in ["COMPLETE", "FAILED", "CANCELLED"]:
                             await db.job_update_status(local_job_id, remote_status)
                             print(f"Remote job {remote_job_id} completed with status: {remote_status}")
+                            if job_data.get('completion_status') is not None:
+                                await db.job_update_job_data_insert_key_value(
+                                    local_job_id, "completion_status", job_data['completion_status']
+                                )
+                                await db.job_update_job_data_insert_key_value(
+                                    local_job_id, "completion_details", job_data.get('completion_details', "")
+                                )
+                            if job_data.get('end_time') is not None:
+                                await db.job_update_job_data_insert_key_value(
+                                    local_job_id, "end_time", job_data['end_time']
+                                )
                             break
 
                         print(
