@@ -300,7 +300,7 @@ ALLOWED_JOB_TYPES = [
 ]
 
 
-async def job_create(type, status, job_data="{}", experiment_id=""):
+async def job_create(type, status, job_data="{}", experiment_id: int = None):
     # check if type is allowed
     if type not in ALLOWED_JOB_TYPES:
         raise ValueError(f"Job type {type} is not allowed")
@@ -312,7 +312,7 @@ async def job_create(type, status, job_data="{}", experiment_id=""):
     return row[0]
 
 
-def job_create_sync(type, status, job_data="{}", experiment_id=""):
+def job_create_sync(type, status, job_data="{}", experiment_id: int = None):
     """
     Synchronous version of job_create function for use with XML-RPC.
     """

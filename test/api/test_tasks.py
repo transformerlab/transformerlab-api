@@ -30,7 +30,7 @@ def test_add_task():
             "config": "{}",
             "plugin": "test_plugin",
             "outputs": "{}",
-            "experiment_id": 1,
+            "experiment_id": 6,
         }
         resp = client.put("/tasks/new_task", json=new_task)
         assert resp.status_code == 200
@@ -47,7 +47,7 @@ def test_update_task():
 
 def test_list_by_type_in_experiment():
     with TestClient(app) as client:
-        resp = client.get("/tasks/list_by_type_in_experiment?type=TRAIN&experiment_id=1")
+        resp = client.get("/tasks/list_by_type_in_experiment?type=TRAIN&experiment_id=6")
         assert resp.status_code in (200, 404)
 
 

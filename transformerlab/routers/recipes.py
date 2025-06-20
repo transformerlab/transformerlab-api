@@ -139,7 +139,7 @@ async def bg_install_recipe_dependencies(id: str, background_tasks: BackgroundTa
         type="INSTALL_RECIPE_DEPS",
         status="QUEUED",
         job_data=json.dumps({"recipe_id": id, "results": [], "progress": 0}),
-        experiment_id="",
+        experiment_id=None,
     )
     # Start background task
     background_tasks.add_task(_install_recipe_dependencies_job, job_id, id)
@@ -247,25 +247,24 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
     document_results = []
     for doc in recipe.get("documents", []):
         url = doc.get("url")
-        
+
         result = {"url": url, "action": "download_documents"}
         try:
             from transformerlab.routers.experiment import documents as documents_router
-            
+
             # Download and extract the ZIP file
             download_result = await documents_router.document_download_zip(
-                experimentId=experiment_id,
-                data={"url": url}
+                experimentId=experiment_id, data={"url": url}
             )
-            
+
             result["status"] = download_result.get("status", "unknown")
             result["extracted_files"] = download_result.get("extracted_files", [])
             result["total_files"] = download_result.get("total_files", 0)
             result["extraction_path"] = download_result.get("extraction_path", "")
-            
+
         except Exception:
             result["status"] = "error: failed to download documents"
-        
+
         document_results.append(result)
 
     # Process tasks and create tasks in database
