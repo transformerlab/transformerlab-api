@@ -10,6 +10,8 @@ from fastchat.model.model_adapter import get_conversation_template
 from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi
 from huggingface_hub import ModelCard, ModelCardData
 from huggingface_hub.utils import HfHubHTTPError, GatedRepoError, EntryNotFoundError
+from transformers import AutoTokenizer
+
 import os
 from pathlib import Path
 import logging
@@ -976,7 +978,6 @@ async def model_import(model: basemodel.BaseModel):
 
 @router.post("/model/chat_template")
 async def chat_template(model_name: str):
-    from transformers import AutoTokenizer
 
     try:
         tokenizer = AutoTokenizer.from_pretrained(
