@@ -349,8 +349,6 @@ def load_pipeline_with_sharding(
         torch_dtype=torch.bfloat16,
     )
 
-    print(f"Transformer device map: {transformer.hf_device_map}")
-
     # Create pipeline with transformer for denoising
     if is_controlnet:
         FLUX_CONTROLNET_CLASS_MAP = {

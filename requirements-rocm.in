@@ -32,4 +32,4 @@ macmon-python
 mcp[cli]
 transformerlab-inference
 pyrsmi
-controlnet_aux
+controlnet_aux==0.0.9
