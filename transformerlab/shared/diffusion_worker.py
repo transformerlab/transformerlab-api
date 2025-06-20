@@ -374,11 +374,14 @@ def load_pipeline_with_sharding(
         if not controlnet_class:
             raise ValueError(f"ControlNet not found for {architecture}")
 
+        # Handle 'auto' device safely by falling back to cuda:0 for controlnet
+        safe_device = "cuda:0" if device == "auto" else device
+
         controlnet = controlnet_class.from_pretrained(
             controlnet_id,
-            torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+            torch_dtype=torch.float16 if safe_device != "cpu" else torch.float32,
             use_safetensors=True,
-        ).to(device)
+        ).to(safe_device)
         print(f"Using {controlnet} as ControlNet.")
 
         denoising_pipeline = FluxPipeline.from_pretrained(
