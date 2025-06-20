@@ -388,31 +388,31 @@ async def prepare_dependencies(dependencies: Dict[str, list[str]]):
 
         # Execute dependency installation synchronously
         await _install_remote_dependencies_job(job_id, dependencies)
-        
+
         # Wait for job to complete and get final status
         job = await db.job_get(job_id)
-        
+
         if job["status"] == "COMPLETE":
             return {
-                "status": "success", 
-                "job_id": job_id, 
+                "status": "success",
+                "job_id": job_id,
                 "message": "Dependency installation completed successfully",
-                "results": job["job_data"].get("results", [])
+                "results": job["job_data"].get("results", []),
             }
         elif job["status"] == "FAILED":
             error_msg = job["job_data"].get("error_msg", "Unknown error")
             return {
-                "status": "failed", 
-                "job_id": job_id, 
+                "status": "failed",
+                "job_id": job_id,
                 "message": f"Dependency installation failed: {error_msg}",
-                "results": job["job_data"].get("results", [])
+                "results": job["job_data"].get("results", []),
             }
         else:
             return {
-                "status": "error", 
-                "job_id": job_id, 
+                "status": "error",
+                "job_id": job_id,
                 "message": f"Unexpected job status: {job['status']}",
-                "results": job["job_data"].get("results", [])
+                "results": job["job_data"].get("results", []),
             }
 
     except Exception as e:
@@ -615,11 +615,6 @@ async def _install_remote_dependencies_job(job_id: str, dependencies: Dict[str, 
     Background job to install dependencies for remote job execution.
     Similar to _install_recipe_dependencies_job but for remote job deps.
     """
-
-    
-    
-    # 
-
     try:
         await db.job_update_status(job_id, "RUNNING")
 
@@ -639,6 +634,7 @@ async def _install_remote_dependencies_job(job_id: str, dependencies: Dict[str, 
         # Install plugins
         for plugin_name in plugins:
             from transformerlab.routers import plugins as plugins_router
+
             print(f"Installing plugin: {plugin_name}")
             result = {"type": "plugin", "name": plugin_name, "action": None, "status": None}
             try:
@@ -658,6 +654,7 @@ async def _install_remote_dependencies_job(job_id: str, dependencies: Dict[str, 
         # Install models
         for model_name in models:
             from transformerlab.routers import model as model_router
+
             result = {"type": "model", "name": model_name, "action": None, "status": None}
             try:
                 download_result = await model_router.download_model_by_huggingface_id(model=model_name)
@@ -675,6 +672,7 @@ async def _install_remote_dependencies_job(job_id: str, dependencies: Dict[str, 
         # Install datasets
         for dataset_name in datasets:
             from transformerlab.routers import data as data_router
+
             result = {"type": "dataset", "name": dataset_name, "action": None, "status": None}
             try:
                 download_result = await data_router.dataset_download(dataset_id=dataset_name)
