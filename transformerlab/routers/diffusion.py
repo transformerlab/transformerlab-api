@@ -196,13 +196,13 @@ UPSCALE_MODEL_STANDARD = "stabilityai/stable-diffusion-x4-upscaler"
 UPSCALE_MODEL_LATENT = "stabilityai/sd-x2-latent-upscaler"
 
 
-def preprocess_for_controlnet(input_pil: Image.Image, controlnet_id: str) -> Image.Image:
+def preprocess_for_controlnet(input_pil: Image.Image, process_type: str) -> Image.Image:
     """
     Preprocess the input image depending on the controlnet_id (repo name or alias).
     Returns a PIL image suitable as ControlNet reference.
     Releases memory aggressively after detector use.
     """
-    name = controlnet_id.lower()
+    name = process_type.lower()
 
     try:
         if "canny" in name:
@@ -366,6 +366,7 @@ class DiffusionRequest(BaseModel):
     num_images: int = 1
     generation_id: str | None = None
     scheduler: str = "default"
+    process_type: str | None = None
 
     @property
     def validated_num_images(self) -> int:
@@ -871,6 +872,7 @@ async def generate_image(request: DiffusionRequest):
         # Determine pipeline type based on flags and provided images
         controlnet_id = request.is_controlnet or "off"
         is_controlnet = controlnet_id != "off"
+        process_type = request.process_type
 
         if is_controlnet:
             is_img2img = False
@@ -902,7 +904,10 @@ async def generate_image(request: DiffusionRequest):
                 if is_controlnet and input_image_obj:
                     log_print(f"Running preprocessing for controlnet_id={controlnet_id}")
                     try:
-                        input_image_obj = preprocess_for_controlnet(input_image_obj, controlnet_id)
+                        if process_type is not None:
+                            input_image_obj = preprocess_for_controlnet(input_image_obj, process_type)
+                        else:
+                            logging.error("You must select a image preprocessing type for the ControlNet.")
 
                         # Save preprocessed image
                         preprocessed_image_filename = f"preprocessed_{uuid_suffix}.png"
