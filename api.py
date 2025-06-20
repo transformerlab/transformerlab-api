@@ -257,7 +257,7 @@ async def server_worker_start(
     eight_bit: bool = False,
     cpu_offload: bool = False,
     inference_engine: str = "default",
-    experiment_id: str = None,
+    experiment_id: int = None,
     inference_params: str = "",
 ):
     global worker_process
