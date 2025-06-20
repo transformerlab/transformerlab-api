@@ -763,7 +763,7 @@ async def get_local_job_file(job_id: str, key: str):
             raise HTTPException(status_code=404, detail=f"Key '{key}' not found in job data")
 
         file_path = job_data[key]
-        
+
         # Ensure the file path is a string
         if not isinstance(file_path, str):
             raise HTTPException(status_code=400, detail=f"Value for key '{key}' is not a valid file path")
@@ -774,12 +774,8 @@ async def get_local_job_file(job_id: str, key: str):
 
         # Get the filename for the response
         filename = os.path.basename(file_path)
-        
-        return FileResponse(
-            path=file_path,
-            filename=filename,
-            media_type='application/octet-stream'
-        )
+
+        return FileResponse(path=file_path, filename=filename, media_type="application/octet-stream")
 
     except HTTPException:
         raise
@@ -788,7 +784,7 @@ async def get_local_job_file(job_id: str, key: str):
 
 
 @router.get("/local_job_output/{job_id}", summary="Get the output file from job data by key")
-async def get_local_job_file(job_id: str):
+async def get_local_job_output(job_id: str):
     """
     Endpoint to serve the output.txt file for given job.
     Returns the output.txt file stored in workspace_dir/jobs/<job_id>/output_<job_id>.txt
@@ -810,11 +806,7 @@ async def get_local_job_file(job_id: str):
         if not os.path.exists(output_file_path):
             raise HTTPException(status_code=404, detail=f"Output file not found: {output_file_path}")
 
-        return FileResponse(
-            path=output_file_path,
-            filename=f"output_{job_id}.txt",
-            media_type='text/plain'
-        )
+        return FileResponse(path=output_file_path, filename=f"output_{job_id}.txt", media_type="text/plain")
 
     except HTTPException:
         raise

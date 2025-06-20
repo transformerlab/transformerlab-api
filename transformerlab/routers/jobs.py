@@ -561,6 +561,7 @@ async def _poll_remote_job_progress(local_job_id: str, remote_job_id: str, machi
     """
     import asyncio
     import httpx
+    import os
 
     base_url = f"http://{machine['host']}:{machine['port']}"
     headers = {}
@@ -589,6 +590,7 @@ async def _poll_remote_job_progress(local_job_id: str, remote_job_id: str, machi
                         remote_status = remote_job.get("status")
                         remote_progress = remote_job.get("progress", 0)
                         job_data = remote_job.get("job_data", {})
+                        remote_workspace_dir = remote_job.get("workspace_dir", "")
 
                         if isinstance(job_data, str):
                             try:
@@ -600,13 +602,11 @@ async def _poll_remote_job_progress(local_job_id: str, remote_job_id: str, machi
                         # Update local job with remote progress
                         await db.job_update_progress(local_job_id, remote_progress)
 
-                        # EVAL SPECIFIC
-                        if job_data.get("score") is not None:
-                            await db.job_update_job_data_insert_key_value(local_job_id, "score", job_data["score"])
-
                         # Fetch and save the output file from remote machine
                         try:
-                            output_response = await client.get(f"{base_url}/network/local_job_output/{remote_job_id}", headers=headers)
+                            output_response = await client.get(
+                                f"{base_url}/network/local_job_output/{remote_job_id}", headers=headers
+                            )
                             if output_response.status_code == 200:
                                 # Get workspace directory
                                 workspace_dir = os.getenv("_TFL_WORKSPACE_DIR")
@@ -614,15 +614,34 @@ async def _poll_remote_job_progress(local_job_id: str, remote_job_id: str, machi
                                     # Create local job directory if it doesn't exist
                                     local_job_dir = os.path.join(workspace_dir, "jobs", str(local_job_id))
                                     os.makedirs(local_job_dir, exist_ok=True)
-                                    
+
                                     # Save the output file locally
                                     local_output_file = os.path.join(local_job_dir, f"output_{local_job_id}.txt")
                                     with open(local_output_file, "wb") as f:
                                         f.write(output_response.content)
-                                    
-                                    print(f"Updated output file for local job {local_job_id} from remote job {remote_job_id}")
+
+                                    # print(
+                                    #     f"Updated output file for local job {local_job_id} from remote job {remote_job_id}"
+                                    # )
                         except Exception as output_error:
-                            print(f"Warning: Failed to fetch output file for remote job {remote_job_id}: {str(output_error)}")
+                            print(
+                                f"Warning: Failed to fetch output file for remote job {remote_job_id}: {str(output_error)}"
+                            )
+
+                        # EVAL SPECIFIC
+                        if job_data.get("score") is not None:
+                            await db.job_update_job_data_insert_key_value(local_job_id, "score", job_data["score"])
+
+                        # Sync additional output file using the dedicated function
+                        if job_data.get("additional_output_path"):
+                            await sync_files_from_remote_function(
+                                local_job_id, remote_job_id, "additional_output_path", machine, remote_workspace_dir
+                            )
+
+                        if job_data.get("plot_data_path"):
+                            await sync_files_from_remote_function(
+                                local_job_id, remote_job_id, "plot_data_path", machine, remote_workspace_dir
+                            )
 
                         # If remote job is complete/failed, update local status
                         if remote_status in ["COMPLETE", "FAILED", "CANCELLED"]:
@@ -645,9 +664,9 @@ async def _poll_remote_job_progress(local_job_id: str, remote_job_id: str, machi
                                 )
                             break
 
-                        print(
-                            f"Updated local job {local_job_id} progress: {remote_progress}% (remote status: {remote_status})"
-                        )
+                        # print(
+                        #     f"Updated local job {local_job_id} progress: {remote_progress}% (remote status: {remote_status})"
+                        # )
 
                     else:
                         print(f"Failed to get remote job status: {response.status_code}")
@@ -666,3 +685,80 @@ async def _poll_remote_job_progress(local_job_id: str, remote_job_id: str, machi
             await db.job_update_status(local_job_id, "FAILED", error_msg=f"Lost connection to remote machine: {str(e)}")
         except Exception:
             pass
+
+
+async def sync_files_from_remote_function(
+    local_job_id: str, remote_job_id: str, key: str, machine: dict, remote_workspace_dir: str
+):
+    """
+    Sync a specific file from remote machine to local machine using job_data key.
+    Uses the /network/local_job_file/{job_id}/{key} endpoint to fetch files.
+    """
+    import httpx
+    import os
+
+    base_url = f"http://{machine['host']}:{machine['port']}"
+    headers = {}
+    if machine.get("api_token"):
+        headers["Authorization"] = f"Bearer {machine['api_token']}"
+
+    try:
+        # First get the remote job data to find the file path
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            status_response = await client.get(f"{base_url}/network/local_job_status/{remote_job_id}", headers=headers)
+
+            if status_response.status_code != 200:
+                print(f"Failed to get remote job status for file sync: {status_response.status_code}")
+                return False
+
+            remote_data = status_response.json()
+            remote_job = remote_data.get("job", {})
+            job_data = remote_job.get("job_data", {})
+
+            if isinstance(job_data, str):
+                try:
+                    job_data = eval(str(job_data).strip())  # Convert string to dict if needed
+                except Exception:
+                    print(f"Failed to decode job_data for remote job {remote_job_id}")
+                    return False
+
+            # Check if the key exists in job_data
+            if not job_data.get(key):
+                print(f"No file path found for key '{key}' in remote job {remote_job_id}")
+                return False
+
+            remote_file_path = job_data[key]
+
+            # Fetch the file using the local_job_file endpoint
+            file_response = await client.get(
+                f"{base_url}/network/local_job_file/{remote_job_id}/{key}", headers=headers
+            )
+
+            if file_response.status_code == 200:
+                # Create local equivalent path by replacing remote_job_id with local_job_id
+                local_file_path = remote_file_path.replace(str(remote_job_id), str(local_job_id))
+
+                if remote_workspace_dir:
+                    # If remote_workspace_dir is provided, prepend it to the local file path
+                    local_file_path = remote_file_path.replace(remote_workspace_dir, dirs.WORKSPACE_DIR)
+
+                # Ensure the directory exists
+                local_file_dir = os.path.dirname(local_file_path)
+                os.makedirs(local_file_dir, exist_ok=True)
+
+                # Save the file locally
+                with open(local_file_path, "wb") as f:
+                    f.write(file_response.content)
+
+                # Update the local job's file path to point to the local file
+                await db.job_update_job_data_insert_key_value(local_job_id, key, local_file_path)
+
+                # print(f"Synced file '{key}' from {remote_file_path} to {local_file_path}")
+                return True
+            else:
+                print(f"Failed to fetch file '{key}' from remote job {remote_job_id}: {file_response.status_code}")
+                return False
+
+    except Exception as e:
+        print(f"Error syncing file '{key}' for remote job {remote_job_id}: {str(e)}")
+        return False
