@@ -985,15 +985,13 @@ async def chat_template(model_name: str):
         )
         template = getattr(tokenizer, "chat_template", None)
         if template:
-            return {
-                "chat_template": template,
-                "source": "tokenizer_config",
-                "error_code": 0
+            return {    
+                "status": "success",
+                "data": template
             }
-    except Exception as e:
-        return {
-            "message": f"{str(e)}",
-            "chat_template": None,
-            "source": "error",
-            "error_code": 1
+    except Exception:
+        return{
+            "status": "error",
+            "message": f"Invalid model name: {model_name}",
+            "data": None
         }
