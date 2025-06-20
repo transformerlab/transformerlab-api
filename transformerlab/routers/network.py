@@ -1,11 +1,10 @@
 import asyncio
 import httpx
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 import json
-import requests
 
 import transformerlab.db as db
 
@@ -367,7 +366,7 @@ async def dispatch_job_to_machine(machine_id: int, job_dispatch: RemoteJobDispat
 
 
 @router.post("/prepare_dependencies", summary="Prepare dependencies for incoming remote job")
-async def prepare_dependencies(dependencies: Dict[str, list[str]], background_tasks: BackgroundTasks):
+async def prepare_dependencies(dependencies: Dict[str, list[str]]):
     """
     Endpoint called by other machines to prepare dependencies before job execution.
     Similar to recipe dependency installation but for remote job requirements.
@@ -387,10 +386,34 @@ async def prepare_dependencies(dependencies: Dict[str, list[str]], background_ta
             type="INSTALL_REMOTE_DEPS", status="QUEUED", job_data=json.dumps(job_data), experiment_id=""
         )
 
-        # Start background installation
-        background_tasks.add_task(_install_remote_dependencies_job, job_id, dependencies)
-
-        return {"status": "started", "job_id": job_id, "message": "Dependency installation started"}
+        # Execute dependency installation synchronously
+        await _install_remote_dependencies_job(job_id, dependencies)
+        
+        # Wait for job to complete and get final status
+        job = await db.job_get(job_id)
+        
+        if job["status"] == "COMPLETE":
+            return {
+                "status": "success", 
+                "job_id": job_id, 
+                "message": "Dependency installation completed successfully",
+                "results": job["job_data"].get("results", [])
+            }
+        elif job["status"] == "FAILED":
+            error_msg = job["job_data"].get("error_msg", "Unknown error")
+            return {
+                "status": "failed", 
+                "job_id": job_id, 
+                "message": f"Dependency installation failed: {error_msg}",
+                "results": job["job_data"].get("results", [])
+            }
+        else:
+            return {
+                "status": "error", 
+                "job_id": job_id, 
+                "message": f"Unexpected job status: {job['status']}",
+                "results": job["job_data"].get("results", [])
+            }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to prepare dependencies: {str(e)}")
@@ -592,9 +615,10 @@ async def _install_remote_dependencies_job(job_id: str, dependencies: Dict[str, 
     Background job to install dependencies for remote job execution.
     Similar to _install_recipe_dependencies_job but for remote job deps.
     """
-    from transformerlab.routers import model as model_router
-    from transformerlab.routers import data as data_router
-    # from transformerlab.routers import plugins as plugins_router
+
+    
+    
+    # 
 
     try:
         await db.job_update_status(job_id, "RUNNING")
@@ -604,7 +628,7 @@ async def _install_remote_dependencies_job(job_id: str, dependencies: Dict[str, 
         datasets = dependencies.get("datasets", [])
 
         # total_deps = len(plugins) +
-        total_deps = len(models) + len(datasets)
+        total_deps = len(plugins) + len(models) + len(datasets)
         if total_deps == 0:
             await db.job_update_status(job_id, "COMPLETE")
             return
@@ -614,11 +638,11 @@ async def _install_remote_dependencies_job(job_id: str, dependencies: Dict[str, 
 
         # Install plugins
         for plugin_name in plugins:
+            from transformerlab.routers import plugins as plugins_router
             print(f"Installing plugin: {plugin_name}")
             result = {"type": "plugin", "name": plugin_name, "action": None, "status": None}
             try:
-                # install_result = await plugins_router.install_plugin(plugin_id=plugin_name)
-                install_result = await requests.get(f"http://localhost:8338/plugins/gallery/{plugin_name}/install")
+                install_result = await plugins_router.install_plugin(plugin_id=plugin_name)
                 print(f"Install result: {install_result}")
                 result["action"] = "install_plugin"
                 result["status"] = install_result.get("status", "unknown")
@@ -633,6 +657,7 @@ async def _install_remote_dependencies_job(job_id: str, dependencies: Dict[str, 
 
         # Install models
         for model_name in models:
+            from transformerlab.routers import model as model_router
             result = {"type": "model", "name": model_name, "action": None, "status": None}
             try:
                 download_result = await model_router.download_model_by_huggingface_id(model=model_name)
@@ -649,6 +674,7 @@ async def _install_remote_dependencies_job(job_id: str, dependencies: Dict[str, 
 
         # Install datasets
         for dataset_name in datasets:
+            from transformerlab.routers import data as data_router
             result = {"type": "dataset", "name": dataset_name, "action": None, "status": None}
             try:
                 download_result = await data_router.dataset_download(dataset_id=dataset_name)
