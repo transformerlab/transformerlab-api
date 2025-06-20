@@ -1,0 +1,52 @@
+# Auto-Caption Images with WD14 Tagger (`wd14_captioner`)
+
+This plugin uses the WD14 tagger (from the kohya-ss/sd-scripts) to automatically generate Danbooru-style tags for image datasets. It is ideal for preparing high-quality captions for datasets used in fine-tuning Stable Diffusion or similar models.
+
+## Step 1: Prepare Your Image Dataset
+
+Upload a dataset containing image files. The dataset must include an image column (default: `"image"`). You can configure the name of this column via the **Image Field** parameter.
+
+> The model supports `.jpg`, `.jpeg`, `.png`, and `.webp` formats.
+
+## Step 2: Configure Plugin Parameters
+
+Use the parameters panel to control the tag generation behavior:
+
+| Parameter | Description |
+|----------|-------------|
+| `Image Field` | Dataset column that contains the image files |
+| `Tag Confidence Threshold` | Minimum confidence score for a tag to be included |
+| `General Threshold` | Optional threshold specifically for general (non-character) tags |
+| `Character Threshold` | Optional threshold specifically for character tags |
+| `ONNX Model Variant` | Choose between ConvNeXt or ViT variants of WD14 |
+| `Batch Size` | Number of images to process at once |
+| `Image Resize` | Resize shorter side of image before inference |
+| `Caption Separator` | Character(s) used to join multiple tags |
+| `Remove Underscores` | If true, converts `tag_name` → `tag name` |
+| `Include Confidence Scores` | Append scores to tags (e.g., `1girl:0.98`) |
+
+## Step 3: Run the Plugin
+
+When executed, the plugin will:
+
+- Load your image dataset
+- Run the selected WD14 model on each image
+- Generate tags/captions based on your thresholds
+- Save the results as a new dataset with two columns:
+  - `image` (original file path)
+  - `caption` (generated tags)
+
+## Output Example
+
+| image | caption |
+|-------|---------|
+| `dog.png` | `1girl, dog, outdoors, tail wagging` |
+| `cat.jpg` | `cat, lying down, looking at viewer` |
+
+## Model Variants
+
+- `wd-v1-4-convnext-tagger-v2.onnx`: More accurate, but larger
+- `wd-v1-4-vit-tagger-v2.onnx`: Lightweight alternative
+
+These models will be automatically downloaded and cached if not already present.
+
