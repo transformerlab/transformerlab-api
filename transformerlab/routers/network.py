@@ -3,6 +3,7 @@ import os
 import httpx
 from datetime import datetime
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 import json
@@ -806,3 +807,51 @@ async def get_local_job_status(job_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get job status: {str(e)}")
+
+
+@router.get("/local_job_file/{job_id}/{key}", summary="Get a file from job data by key")
+async def get_local_job_file(job_id: str, key: str):
+    """
+    Endpoint to serve files from job_data using a specified key.
+    Returns the file specified by the key in the job's job_data as a FileResponse.
+    """
+    try:
+        job = await db.job_get(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+
+        # Parse job_data if it's a string
+        job_data = job.get("job_data", {})
+        if isinstance(job_data, str):
+            try:
+                job_data = json.loads(job_data)
+            except json.JSONDecodeError:
+                raise HTTPException(status_code=400, detail="Invalid job_data format")
+
+        # Check if the key exists in job_data
+        if key not in job_data:
+            raise HTTPException(status_code=404, detail=f"Key '{key}' not found in job data")
+
+        file_path = job_data[key]
+        
+        # Ensure the file path is a string
+        if not isinstance(file_path, str):
+            raise HTTPException(status_code=400, detail=f"Value for key '{key}' is not a valid file path")
+
+        # Check if file exists
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
+
+        # Get the filename for the response
+        filename = os.path.basename(file_path)
+        
+        return FileResponse(
+            path=file_path,
+            filename=filename,
+            media_type='application/octet-stream'
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to serve file: {str(e)}")
