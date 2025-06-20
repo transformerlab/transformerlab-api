@@ -452,7 +452,7 @@ async def _dispatch_remote_job(job, job_config, target_machine_id):
             # Get the remote job ID for polling
             remote_response = job_response.json()
             remote_job_id = remote_response.get("local_job_id")
-            
+
             # Update job status to indicate it's running remotely
             await db.job_update_status(job["id"], "RUNNING_REMOTE")
             await db.job_update_job_data_insert_key_value(
@@ -463,6 +463,7 @@ async def _dispatch_remote_job(job, job_config, target_machine_id):
 
             # Start polling task to sync progress from remote machine
             import asyncio
+
             asyncio.create_task(_poll_remote_job_progress(job["id"], remote_job_id, machine))
 
             return {
@@ -560,56 +561,59 @@ async def _poll_remote_job_progress(local_job_id: str, remote_job_id: str, machi
     """
     import asyncio
     import httpx
-    
+
     base_url = f"http://{machine['host']}:{machine['port']}"
     headers = {}
     if machine.get("api_token"):
         headers["Authorization"] = f"Bearer {machine['api_token']}"
-    
+
     try:
         while True:
             try:
                 # Check if local job still exists and is in a state that should be polled
                 local_job = await db.job_get(local_job_id)
                 if not local_job or local_job.get("status") not in ["RUNNING_REMOTE"]:
-                    print(f"Stopping remote polling for job {local_job_id} - local status: {local_job.get('status') if local_job else 'NOT_FOUND'}")
+                    print(
+                        f"Stopping remote polling for job {local_job_id} - local status: {local_job.get('status') if local_job else 'NOT_FOUND'}"
+                    )
                     break
-                
+
                 # Poll remote machine for job status
                 async with httpx.AsyncClient(timeout=10.0) as client:
-                    response = await client.get(
-                        f"{base_url}/network/local_job_status/{remote_job_id}",
-                        headers=headers
-                    )
-                    
+                    response = await client.get(f"{base_url}/network/local_job_status/{remote_job_id}", headers=headers)
+
                     if response.status_code == 200:
                         remote_data = response.json()
                         remote_job = remote_data.get("job", {})
-                        
+
                         remote_status = remote_job.get("status")
                         remote_progress = remote_job.get("progress", 0)
-                        
+                        job_data = remote_job.get("job_data", {})
+                        print("JOB DATA:", job_data)
+
                         # Update local job with remote progress
                         await db.job_update_progress(local_job_id, remote_progress)
-                        
+
                         # If remote job is complete/failed, update local status
                         if remote_status in ["COMPLETE", "FAILED", "CANCELLED"]:
                             await db.job_update_status(local_job_id, remote_status)
                             print(f"Remote job {remote_job_id} completed with status: {remote_status}")
                             break
-                            
-                        print(f"Updated local job {local_job_id} progress: {remote_progress}% (remote status: {remote_status})")
-                    
+
+                        print(
+                            f"Updated local job {local_job_id} progress: {remote_progress}% (remote status: {remote_status})"
+                        )
+
                     else:
                         print(f"Failed to get remote job status: {response.status_code}")
-                
+
                 # Wait before next poll
                 await asyncio.sleep(5)  # Poll every 5 seconds
-                
+
             except Exception as e:
                 print(f"Error polling remote job progress for {local_job_id}: {str(e)}")
                 await asyncio.sleep(10)  # Wait longer on error
-                
+
     except Exception as e:
         print(f"Failed to poll remote job progress for {local_job_id}: {str(e)}")
         # Mark local job as failed if polling completely fails

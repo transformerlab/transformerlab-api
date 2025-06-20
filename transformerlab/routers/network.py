@@ -475,10 +475,10 @@ async def execute_remote_job(job_data: Dict[str, Any]):
         )
 
         return {
-            "status": "started", 
-            "local_job_id": local_job_id, 
+            "status": "started",
+            "local_job_id": local_job_id,
             "original_job_id": job_id,
-            "message": "Job execution started"
+            "message": "Job execution started",
         }
 
     except Exception as e:
@@ -786,7 +786,7 @@ async def get_local_job_status(job_id: str):
         job = await db.job_get(job_id)
         if not job:
             raise HTTPException(status_code=404, detail="Job not found")
-        
+
         return {
             "status": "success",
             "job": {
@@ -795,10 +795,11 @@ async def get_local_job_status(job_id: str):
                 "progress": job.get("progress", 0),
                 "type": job.get("type"),
                 "created_at": job.get("created_at"),
-                "updated_at": job.get("updated_at")
-            }
+                "updated_at": job.get("updated_at"),
+                "job_data": json.loads(job.get("job_data", "{}")),
+            },
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
