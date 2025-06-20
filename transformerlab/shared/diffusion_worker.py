@@ -380,7 +380,6 @@ def load_pipeline_with_sharding(
             torch_dtype=torch.float16 if safe_device != "cpu" else torch.float32,
             use_safetensors=True,
         ).to(safe_device)
-        print(f"Using {controlnet} as ControlNet.")
 
         denoising_pipeline = FluxPipeline.from_pretrained(
             model_path,
