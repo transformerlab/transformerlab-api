@@ -74,6 +74,8 @@ cobble==0.1.4
     # via mammoth
 coloredlogs==15.0.1
     # via onnxruntime
+controlnet-aux==0.0.9
+    # via -r requirements-rocm.in
 cryptography==44.0.2
     # via
     #   azure-identity
@@ -86,8 +88,6 @@ datasets==2.19.1
     #   evaluate
 defusedxml==0.7.1
     # via youtube-transcript-api
-diffusers==0.33.1
-    # via -r requirements.in
 dill==0.3.8
     # via
     #   datasets
@@ -98,7 +98,9 @@ dnspython==2.7.0
 docker-pycreds==0.4.0
     # via wandb
 einops==0.8.1
-    # via -r requirements-rocm.in
+    # via
+    #   -r requirements-rocm.in
+    #   controlnet-aux
 email-validator==2.2.0
     # via fastapi-users
 et-xmlfile==2.0.0
@@ -118,8 +120,8 @@ fastapi-users-db-sqlalchemy==7.0.0
     # via fastapi-users
 filelock==3.13.1
     # via
+    #   controlnet-aux
     #   datasets
-    #   diffusers
     #   huggingface-hub
     #   torch
     #   transformers
@@ -160,8 +162,8 @@ httpx-sse==0.4.0
 huggingface-hub==0.30.2
     # via
     #   accelerate
+    #   controlnet-aux
     #   datasets
-    #   diffusers
     #   evaluate
     #   peft
     #   sentence-transformers
@@ -176,8 +178,10 @@ idna==3.4
     #   httpx
     #   requests
     #   yarl
+imageio==2.37.0
+    # via scikit-image
 importlib-metadata==8.7.0
-    # via diffusers
+    # via controlnet-aux
 isodate==0.7.2
     # via azure-ai-documentintelligence
 jinja2==3.1.4
@@ -188,6 +192,8 @@ joblib==1.4.2
     #   scikit-learn
 latex2mathml==3.77.0
     # via markdown2
+lazy-loader==0.4
+    # via scikit-image
 lxml==5.4.0
     # via python-pptx
 macmon-python==0.1.2
@@ -233,7 +239,9 @@ multiprocess==0.70.16
     #   datasets
     #   evaluate
 networkx==3.3
-    # via torch
+    # via
+    #   scikit-image
+    #   torch
 nh3==0.2.21
     # via transformerlab-inference
 nltk==3.9.1
@@ -241,17 +249,21 @@ nltk==3.9.1
 numpy==2.1.2
     # via
     #   accelerate
+    #   controlnet-aux
     #   datasets
-    #   diffusers
     #   evaluate
+    #   imageio
     #   magika
     #   onnxruntime
+    #   opencv-python-headless
     #   pandas
     #   peft
+    #   scikit-image
     #   scikit-learn
     #   scipy
     #   tensorboard
     #   tensorboardx
+    #   tifffile
     #   torchvision
     #   transformerlab-inference
     #   transformers
@@ -259,6 +271,8 @@ olefile==0.47
     # via markitdown
 onnxruntime==1.21.1
     # via magika
+opencv-python-headless==4.11.0.86
+    # via controlnet-aux
 openpyxl==3.1.5
     # via markitdown
 packaging==24.1
@@ -268,8 +282,10 @@ packaging==24.1
     #   datasets
     #   evaluate
     #   huggingface-hub
+    #   lazy-loader
     #   onnxruntime
     #   peft
+    #   scikit-image
     #   tensorboard
     #   tensorboardx
     #   transformers
@@ -284,8 +300,10 @@ peft==0.15.2
     # via -r requirements-rocm.in
 pillow==11.0.0
     # via
-    #   diffusers
+    #   controlnet-aux
+    #   imageio
     #   python-pptx
+    #   scikit-image
     #   sentence-transformers
     #   torchvision
 platformdirs==4.3.7
@@ -372,7 +390,6 @@ pyyaml==6.0.2
     #   wavedrom
 regex==2024.11.6
     # via
-    #   diffusers
     #   nltk
     #   tiktoken
     #   transformers
@@ -380,7 +397,6 @@ requests==2.28.1
     # via
     #   azure-core
     #   datasets
-    #   diffusers
     #   evaluate
     #   huggingface-hub
     #   markitdown
@@ -397,14 +413,17 @@ rich==14.0.0
 safetensors==0.5.3
     # via
     #   accelerate
-    #   diffusers
     #   peft
     #   transformers
+scikit-image==0.25.2
+    # via controlnet-aux
 scikit-learn==1.6.1
     # via sentence-transformers
 scipy==1.15.2
     # via
     #   -r requirements-rocm.in
+    #   controlnet-aux
+    #   scikit-image
     #   scikit-learn
     #   sentence-transformers
 sentence-transformers==4.1.0
@@ -465,24 +484,33 @@ tensorboardx==2.6.2.2
     # via -r requirements-rocm.in
 threadpoolctl==3.6.0
     # via scikit-learn
+tifffile==2025.6.11
+    # via scikit-image
 tiktoken==0.9.0
     # via
     #   -r requirements-rocm.in
     #   transformerlab-inference
+timm==0.6.7
+    # via controlnet-aux
 tokenizers==0.21.1
     # via transformers
 torch==2.7.0
     # via
     #   -r requirements-rocm.in
     #   accelerate
+    #   controlnet-aux
     #   peft
     #   sentence-transformers
+    #   timm
     #   torchaudio
     #   torchvision
 torchaudio==2.7.0
     # via -r requirements-rocm.in
 torchvision==0.22.0
-    # via -r requirements-rocm.in
+    # via
+    #   -r requirements-rocm.in
+    #   controlnet-aux
+    #   timm
 tqdm==4.66.5
     # via
     #   datasets
