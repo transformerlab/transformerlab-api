@@ -15,6 +15,8 @@ from werkzeug.utils import secure_filename
 
 from fastapi import APIRouter
 
+from transformerlab.services.gradio_server.gradio_server_manager import get_gradio_server_manager
+
 
 router = APIRouter(prefix="/plugins", tags=["plugins"])
 
@@ -219,7 +221,15 @@ async def install_plugin(plugin_id: str):
                     await log_file.write(f"## {error_msg}\n")
                     return {"status": "error", "message": error_msg}
 
-        return await run_installer_for_plugin(plugin_id, log_file)
+        install_status = await run_installer_for_plugin(plugin_id, log_file)
+
+        # Call the gradio server at localhost:8339 and just restart it, this will
+        # force it to reload any new gradio UIs from the new plugin:
+        print("Restarting Gradio server...")
+        await log_file.write("## Restarting Gradio server...\n")
+        get_gradio_server_manager().restart()
+
+        return install_status
 
     return {"status": "error", "message": f"Failed to open log file: {global_log_file_name}"}
 
