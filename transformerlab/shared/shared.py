@@ -880,6 +880,240 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     return
 
 
+async def run_distributed_job(job_id: str, job_config, experiment_name: str = "default", job_details: dict = None):
+    """
+    Run a distributed training job using the universal distributed training wrapper.
+    This function coordinates the distributed training across multiple machines using Accelerate.
+    """
+    print(f"Running distributed job: {job_id}")
+
+    try:
+        distributed_config = job_config.get("distributed_config", {})
+        rank = distributed_config.get("rank", 0)
+        world_size = distributed_config.get("world_size", 1)
+        master_addr = distributed_config.get("master_addr", "localhost")
+        master_port = distributed_config.get("master_port", 29500)
+
+        print(f"Distributed config: rank={rank}, world_size={world_size}, master={master_addr}:{master_port}")
+
+        # Get the original plugin name from the job config
+        template_config = job_config["config"]
+        original_plugin = template_config.get("plugin_name", "llama_trainer")
+
+        # Get job details
+        job_details = await db.job_get(job_id)
+        experiment_id = job_details["experiment_id"]
+        experiment_details = await db.experiment_get(experiment_id)
+        experiment_name = experiment_details["name"]
+
+        # Setup output directories
+        WORKSPACE_DIR = dirs.WORKSPACE_DIR
+        output_temp_file_dir = os.path.join(WORKSPACE_DIR, "jobs", str(job_id))
+        if not os.path.exists(output_temp_file_dir):
+            os.makedirs(output_temp_file_dir)
+        output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
+
+        # Prepare configuration for the original plugin
+        model_name = job_config["model_name"]
+        model_name = secure_filename(model_name)
+        adaptor_name = job_config.get("adaptor_name", "adaptor")
+
+        # Update job config for distributed training
+        template_config["job_id"] = job_id
+        template_config["distributed_training"] = True
+        template_config["rank"] = rank
+        template_config["world_size"] = world_size
+        template_config["master_addr"] = master_addr
+        template_config["master_port"] = master_port
+
+        # Set output directories
+        experiment_dir = dirs.experiment_dir_by_name(experiment_name)
+        template_config["adaptor_output_dir"] = os.path.join(dirs.WORKSPACE_DIR, "adaptors", model_name, adaptor_name)
+        template_config["output_dir"] = os.path.join(
+            experiment_dir, "tensorboards", template_config.get("template_name", "distributed_training")
+        )
+
+        await db.job_update_status(job_id, "RUNNING")
+        start_time = time.strftime("%Y-%m-%d %H:%M:%S")
+        await db.job_update_job_data_insert_key_value(job_id, "start_time", start_time)
+
+        def on_distributed_train_complete():
+            print(f"Distributed Training Job (rank {rank}): The process has finished")
+            db.job_mark_as_complete_if_running(job_id)
+            end_time = time.strftime("%Y-%m-%d %H:%M:%S")
+            asyncio.run(db.job_update_job_data_insert_key_value(job_id, "end_time", end_time))
+
+        # Find the plugin harness and original plugin
+        plugin_harness_dir = os.path.dirname(__file__) + "/../plugin_sdk"
+        plugin_harness_path = os.path.join(plugin_harness_dir, "plugin_harness.py")
+
+        if not os.path.exists(plugin_harness_path):
+            raise Exception(f"Plugin harness not found at {plugin_harness_path}")
+
+        # Find the original plugin directory
+        plugins_dir = os.path.dirname(__file__) + "/../plugins"
+        original_plugin_dir = os.path.join(plugins_dir, original_plugin)
+
+        if not os.path.exists(original_plugin_dir):
+            raise Exception(f"Original plugin not found at {original_plugin_dir}")
+
+        # Write the configuration to a temporary file
+        tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
+        if not os.path.exists(tempdir):
+            os.makedirs(tempdir)
+
+        config_file = os.path.join(tempdir, f"distributed_config_{job_id}_rank_{rank}.json")
+
+        # Modify config for distributed training
+        distributed_config = template_config.copy()
+
+        # Adjust batch size for distributed training (divide by world size)
+        if "batch_size" in distributed_config:
+            original_batch_size = int(distributed_config["batch_size"])
+            per_device_batch_size = max(1, original_batch_size // world_size)
+            distributed_config["batch_size"] = per_device_batch_size
+            print(f"Adjusted batch size from {original_batch_size} to {per_device_batch_size} per device")
+
+        # Adjust learning rate for distributed training (linear scaling)
+        if "learning_rate" in distributed_config:
+            original_lr = float(distributed_config["learning_rate"])
+            scaled_lr = original_lr * world_size
+            distributed_config["learning_rate"] = scaled_lr
+            print(f"Scaled learning rate from {original_lr} to {scaled_lr} for {world_size} processes")
+
+        # Adjust output directories for distributed training
+        if "output_dir" in distributed_config and rank != 0:
+            # Only rank 0 saves to the main output directory
+            original_output = distributed_config["output_dir"]
+            distributed_config["output_dir"] = f"{original_output}_temp_rank_{rank}"
+
+        if "adaptor_output_dir" in distributed_config and rank != 0:
+            # Only rank 0 saves the final adaptor
+            original_adaptor = distributed_config["adaptor_output_dir"]
+            distributed_config["adaptor_output_dir"] = f"{original_adaptor}_temp_rank_{rank}"
+
+        # Add distributed training metadata
+        distributed_config["distributed_training"] = True
+        distributed_config["world_size"] = world_size
+        distributed_config["rank"] = rank
+        distributed_config["master_addr"] = master_addr
+        distributed_config["master_port"] = master_port
+
+        with open(config_file, "w") as f:
+            json.dump(distributed_config, f, indent=2)
+
+        # Create accelerate configuration
+        accelerate_config = {
+            "world_size": world_size,
+            "rank": rank,
+            "master_addr": master_addr,
+            "master_port": master_port,
+        }
+
+        # Check if original plugin has a virtual environment
+        venv_path = os.path.join(original_plugin_dir, "venv")
+
+        if os.path.exists(venv_path) and os.path.isdir(venv_path):
+            accelerate_cmd = os.path.join(venv_path, "bin", "accelerate")
+        else:
+            accelerate_cmd = "accelerate"
+
+        # Build the accelerate launch command for distributed training via plugin harness
+        if world_size > 1:
+            # Multi-machine distributed training
+            accelerate_launch_cmd = [
+                accelerate_cmd,
+                "launch",
+                "--multi_node",
+                "--num_machines",
+                str(world_size),
+                "--machine_rank",
+                str(rank),
+                "--main_process_ip",
+                master_addr,
+                "--main_process_port",
+                str(master_port),
+                plugin_harness_path,
+                "--plugin_dir",
+                original_plugin_dir,
+                "--distributed_mode",
+                "--accelerate_config",
+                json.dumps(accelerate_config),
+                "--config_file",
+                config_file,
+            ]
+        else:
+            # Single machine multi-GPU training
+            accelerate_launch_cmd = [
+                accelerate_cmd,
+                "launch",
+                "--multi_gpu",
+                plugin_harness_path,
+                "--plugin_dir",
+                original_plugin_dir,
+                "--distributed_mode",
+                "--accelerate_config",
+                json.dumps(accelerate_config),
+                "--config_file",
+                config_file,
+            ]
+
+        print(f"Starting distributed training command: {' '.join(accelerate_launch_cmd)}")
+
+        # Run the distributed training
+        popen_and_call(on_distributed_train_complete, output_file=output_file, *accelerate_launch_cmd)
+
+        return {
+            "status": "started",
+            "job_id": job_id,
+            "rank": rank,
+            "world_size": world_size,
+            "original_plugin": original_plugin,
+            "message": f"Distributed training started on rank {rank} using plugin {original_plugin}",
+        }
+
+    except Exception as e:
+        print(f"ERROR: Failed to start distributed training job {job_id}: {e}")
+        await db.job_update_status(job_id, "FAILED")
+        return {"status": "error", "job_id": job_id, "message": f"Failed to start distributed training: {str(e)}"}
+
+
+def _create_accelerate_config(distributed_config, job_id):
+    """Create an accelerate config file for this distributed job."""
+    tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
+    config_path = os.path.join(tempdir, f"accelerate_config_{job_id}.yaml")
+
+    rank = distributed_config.get("rank", 0)
+    world_size = distributed_config.get("world_size", 1)
+    master_addr = distributed_config.get("master_addr", "localhost")
+    master_port = distributed_config.get("master_port", 29500)
+
+    # Create accelerate config content
+    config_content = f"""compute_environment: LOCAL_MACHINE
+debug: false
+distributed_type: MULTI_GPU
+downcast_bf16: 'no'
+machine_rank: {rank}
+main_training_function: main
+mixed_precision: bf16
+num_machines: {world_size}
+num_processes: {world_size}
+rdzv_backend: static
+same_network: true
+tpu_env: []
+tpu_use_cluster: false
+tpu_use_sudo: false
+use_cpu: false
+main_process_ip: {master_addr}
+main_process_port: {master_port}
+"""
+
+    with open(config_path, "w") as f:
+        f.write(config_content)
+
+    return config_path
+
+
 rainbow = [
     "\033[38;5;196m",
     "\033[38;5;202m",

@@ -5,7 +5,8 @@ import pandas as pd
 import logging
 import zipfile
 import tempfile
-from fastapi import APIRouter, Body, Response
+import httpx
+from fastapi import APIRouter, Body, Response, HTTPException
 from fastapi.responses import StreamingResponse, FileResponse
 
 import transformerlab.db as db
@@ -66,6 +67,10 @@ async def start_next_job():
         target_machine_id = job_config.get("target_machine_id")
         if target_machine_id:
             return await _dispatch_remote_job(nextjob, job_config, target_machine_id)
+
+        # Check if this is a distributed training job
+        if job_config.get("distributed_training") or nextjob["type"] == "DISTRIBUTED_TRAIN":
+            return await _dispatch_distributed_job(nextjob, job_config)
 
         # Local execution (existing logic)
         data = await db.experiment_get(experiment_id)
@@ -822,3 +827,205 @@ async def sync_files_from_remote(
     except Exception as e:
         print(f"Error syncing file '{key}' for remote job {remote_job_id}: {str(e)}")
         return False
+
+
+async def _dispatch_distributed_job(job, job_config):
+    """Helper function to dispatch a distributed training job."""
+    from transformerlab.routers.network import DistributedJobCreate
+
+    try:
+        distributed_config = job_config.get("distributed_config", {})
+        target_machine_ids = distributed_config.get("target_machine_ids", [])
+        master_machine_id = distributed_config.get("master_machine_id")
+
+        if not target_machine_ids or not master_machine_id:
+            await db.job_update_status(job["id"], "FAILED", error_msg="Invalid distributed configuration")
+            return {"error": "Invalid distributed configuration"}
+
+        # Validate all machines are online
+        for machine_id in target_machine_ids:
+            machine = await db.network_machine_get(machine_id)
+            if not machine or machine["status"] != "online":
+                await db.job_update_status(job["id"], "FAILED", error_msg=f"Machine {machine_id} not available")
+                return {"error": f"Machine {machine_id} not available"}
+
+        # Update job status to running
+        await db.job_update_status(job["id"], "RUNNING")
+
+        # Create distributed job dispatch
+        distributed_job = DistributedJobCreate(
+            job_id=job["id"],
+            job_data=job_config,
+            target_machine_ids=target_machine_ids,
+            master_machine_id=master_machine_id,
+            distributed_config=distributed_config,
+            plugins_required=job_config.get("plugins_required", []),
+            models_required=job_config.get("models_required", []),
+            datasets_required=job_config.get("datasets_required", []),
+        )
+
+        # Use the network router's dispatch function
+        from transformerlab.routers.network import dispatch_distributed_training
+
+        result = await dispatch_distributed_training(distributed_job)
+
+        if result.get("status") == "success":
+            return {
+                "status": "success",
+                "message": "Distributed training started successfully",
+                "distributed_info": result,
+            }
+        else:
+            await db.job_update_status(job["id"], "FAILED", error_msg="Failed to start distributed training")
+            return {"error": "Failed to start distributed training"}
+
+    except Exception as e:
+        print(f"ERROR: Failed to dispatch distributed job: {e}")
+        await db.job_update_status(job["id"], "FAILED", error_msg=str(e))
+        return {"error": f"Failed to dispatch distributed job: {str(e)}"}
+
+
+@router.get("/distributed/status", summary="Get status of all distributed training jobs")
+async def get_distributed_jobs_status():
+    """Get status overview of all distributed training jobs."""
+    try:
+        # Get all distributed training jobs
+        distributed_jobs = await db.jobs_get_all(type="DISTRIBUTED_TRAIN")
+
+        job_statuses = []
+        for job in distributed_jobs:
+            job_data = json.loads(job.get("job_data", "{}"))
+            distributed_config = job_data.get("distributed_config", {})
+
+            job_status = {
+                "job_id": job["id"],
+                "status": job["status"],
+                "created_at": job.get("created_at"),
+                "updated_at": job.get("updated_at"),
+                "experiment_id": job.get("experiment_id"),
+                "master_machine_id": distributed_config.get("master_machine_id"),
+                "target_machines": distributed_config.get("target_machine_ids", []),
+                "world_size": distributed_config.get("world_size", 0),
+            }
+
+            # Get detailed status if job is running
+            if job["status"] == "RUNNING":
+                try:
+                    from transformerlab.routers.network import get_distributed_training_status
+
+                    detailed_status = await get_distributed_training_status(job["id"])
+                    if detailed_status.get("status") == "success":
+                        job_status["detailed_status"] = detailed_status
+                except Exception as e:
+                    job_status["detailed_status_error"] = str(e)
+
+            job_statuses.append(job_status)
+
+        return {"status": "success", "distributed_jobs": job_statuses, "total_jobs": len(job_statuses)}
+
+    except Exception as e:
+        print(f"ERROR: Failed to get distributed jobs status: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get distributed jobs status")
+
+
+@router.post("/distributed/stop/{job_id}", summary="Stop a distributed training job")
+async def stop_distributed_job(job_id: str):
+    """Stop a distributed training job across all machines."""
+    try:
+        job = await db.job_get(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+
+        job_data = json.loads(job.get("job_data", "{}"))
+
+        if not job_data.get("distributed_training"):
+            raise HTTPException(status_code=400, detail="Job is not a distributed training job")
+
+        # Use the network router's stop function
+        from transformerlab.routers.network import stop_distributed_training
+
+        result = await stop_distributed_training(job_id)
+
+        if result.get("status") == "success":
+            # Also update local job status
+            await db.job_update_status(job_id, "STOPPED")
+            return {"status": "success", "message": "Distributed training job stopped"}
+        else:
+            return {"status": "error", "message": "Failed to stop distributed training job"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERROR: Failed to stop distributed job: {e}")
+        raise HTTPException(status_code=500, detail="Failed to stop distributed job")
+
+
+@router.get("/distributed/logs/{job_id}", summary="Get aggregated logs from distributed training")
+async def get_distributed_training_logs(job_id: str):
+    """Get aggregated logs from all machines involved in distributed training."""
+    try:
+        job = await db.job_get(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+
+        job_data = json.loads(job.get("job_data", "{}"))
+        distributed_config = job_data.get("distributed_config", {})
+
+        if not job_data.get("distributed_training"):
+            raise HTTPException(status_code=400, detail="Job is not a distributed training job")
+
+        target_machine_ids = distributed_config.get("target_machine_ids", [])
+        master_machine_id = distributed_config.get("master_machine_id")
+
+        logs = {"master": None, "workers": {}}
+
+        # Get master logs
+        if master_machine_id:
+            try:
+                machine = await db.network_machine_get(master_machine_id)
+                if machine:
+                    base_url = f"http://{machine['host']}:{machine['port']}"
+                    headers = {}
+                    if machine.get("api_token"):
+                        headers["Authorization"] = f"Bearer {machine['api_token']}"
+
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        response = await client.get(f"{base_url}/network/local_job_output/{job_id}", headers=headers)
+                        if response.status_code == 200:
+                            logs["master"] = response.text
+            except Exception as e:
+                logs["master"] = f"Error getting master logs: {str(e)}"
+
+        # Get worker logs
+        worker_rank = 1
+        for machine_id in target_machine_ids:
+            if machine_id != master_machine_id:
+                try:
+                    machine = await db.network_machine_get(machine_id)
+                    if machine:
+                        worker_job_id = f"{job_id}_worker_{worker_rank}"
+                        base_url = f"http://{machine['host']}:{machine['port']}"
+                        headers = {}
+                        if machine.get("api_token"):
+                            headers["Authorization"] = f"Bearer {machine['api_token']}"
+
+                        async with httpx.AsyncClient(timeout=10.0) as client:
+                            response = await client.get(
+                                f"{base_url}/network/local_job_output/{worker_job_id}", headers=headers
+                            )
+                            if response.status_code == 200:
+                                logs["workers"][f"worker_{worker_rank}"] = response.text
+                            else:
+                                logs["workers"][f"worker_{worker_rank}"] = "No logs available"
+                except Exception as e:
+                    logs["workers"][f"worker_{worker_rank}"] = f"Error getting logs: {str(e)}"
+
+                worker_rank += 1
+
+        return {"status": "success", "job_id": job_id, "logs": logs}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERROR: Failed to get distributed training logs: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get distributed training logs")

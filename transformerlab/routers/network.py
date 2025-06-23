@@ -3,12 +3,14 @@ import os
 import httpx
 import zipfile
 import tempfile
+import time
 from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 import json
+from enum import Enum
 
 import transformerlab.db as db
 
@@ -52,6 +54,50 @@ class RemoteJobStatus(BaseModel):
     progress: int = 0
     machine_id: int
     error_message: Optional[str] = None
+
+
+class DistributedTrainingRole(str, Enum):
+    MASTER = "master"
+    WORKER = "worker"
+
+
+class DistributedJobCreate(BaseModel):
+    job_id: str
+    job_data: Dict[str, Any]
+    target_machine_ids: list[int]  # Multiple machines
+    master_machine_id: int  # Which machine acts as coordinator
+    distributed_config: Dict[str, Any]  # Contains world_size, backend, etc.
+    plugins_required: Optional[list[str]] = []
+    models_required: Optional[list[str]] = []
+    datasets_required: Optional[list[str]] = []
+
+
+class DistributedJobStatus(BaseModel):
+    job_id: str
+    status: str
+    progress: int = 0
+    master_machine_id: int
+    worker_statuses: Dict[int, Dict[str, Any]]  # machine_id -> status info
+    error_message: Optional[str] = None
+    distributed_info: Optional[Dict[str, Any]] = None
+
+
+class MachineCapabilities(BaseModel):
+    machine_id: int
+    gpu_count: int
+    gpu_memory_total: int
+    cpu_count: int
+    memory_total: int
+    network_bandwidth: Optional[float] = None
+    current_load: Dict[str, Any]
+
+
+class DistributedPlanRequest(BaseModel):
+    required_gpus: Optional[int] = None
+    model_size_gb: Optional[float] = None
+    dataset_size_gb: Optional[float] = None
+    preferred_machines: Optional[list[int]] = None
+    exclude_host: bool = True
 
 
 @router.get("/info", summary="Get network configuration info")
@@ -489,6 +535,71 @@ async def execute_remote_job(job_data: Dict[str, Any]):
         raise HTTPException(status_code=500, detail=f"Failed to execute remote job: {str(e)}")
 
 
+@router.post("/execute_distributed_job", summary="Execute a distributed training job on this machine")
+async def execute_distributed_job(job_request: Dict[str, Any]):
+    """
+    Execute a distributed training job on this machine as part of a distributed setup.
+    This endpoint is called by the network orchestrator to start training on each machine.
+    """
+    try:
+        job_id = job_request.get("job_id")
+        job_data = job_request.get("job_data", {})
+        origin_machine = job_request.get("origin_machine", {})
+
+        if not job_id:
+            raise HTTPException(status_code=400, detail="job_id is required")
+
+        # Create a local job record for tracking
+        local_job_id = await db.job_create(
+            type="DISTRIBUTED_TRAIN_LOCAL",
+            status="QUEUED",
+            job_data=json.dumps(job_data),
+            experiment_id=job_data.get("experiment_id", ""),
+        )
+
+        # Store reference to original job and origin machine
+        await db.job_update_job_data_insert_key_value(local_job_id, "original_job_id", job_id)
+        await db.job_update_job_data_insert_key_value(local_job_id, "origin_machine", json.dumps(origin_machine))
+
+        # Check if this is a distributed training job
+        if job_data.get("distributed_training") or job_data.get("distributed_config"):
+            # Use the distributed training runner
+            from transformerlab.shared.shared import run_distributed_job
+
+            # Start the job asynchronously
+            asyncio.create_task(
+                run_distributed_job(
+                    job_id=local_job_id,
+                    job_config=job_data,
+                    experiment_name="default",  # Will be determined from job_data
+                    job_details={"id": local_job_id, "type": "DISTRIBUTED_TRAIN_LOCAL"},
+                )
+            )
+        else:
+            # Fallback to regular job execution
+            from transformerlab.shared.shared import run_job
+
+            asyncio.create_task(
+                run_job(
+                    job_id=local_job_id,
+                    job_config=job_data,
+                    experiment_name="default",
+                    job_details={"id": local_job_id, "type": "TRAIN"},
+                )
+            )
+
+        return {
+            "status": "success",
+            "message": "Distributed training job started",
+            "local_job_id": local_job_id,
+            "original_job_id": job_id,
+        }
+
+    except Exception as e:
+        print(f"ERROR: Failed to execute distributed job: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to execute distributed job: {str(e)}")
+
+
 @router.get("/machines/{machine_id}/job_status/{job_id}", summary="Get status of a job running on remote machine")
 async def get_remote_job_status(machine_id: int, job_id: str):
     """Get the status of a job running on a remote machine."""
@@ -601,6 +712,7 @@ async def get_machine_capabilities():
 
         installed_plugins = await plugins_router.list_plugins()
         capabilities["installed_plugins"] = [p["uniqueId"] for p in installed_plugins]
+        print("RETURNING CAPABILITIES", capabilities)
 
         return {"status": "success", "capabilities": capabilities}
 
@@ -843,3 +955,602 @@ async def get_local_job_output(job_id: str):
     except Exception as e:
         print(f"ERROR: Failed to serve output file for job {job_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to serve output file")
+
+
+# =============================================================================
+# DISTRIBUTED TRAINING ENDPOINTS
+# =============================================================================
+
+
+@router.post("/distributed/plan", summary="Plan a distributed training job")
+async def plan_distributed_training(request: DistributedPlanRequest):
+    """
+    Analyze available machines and create an optimal plan for distributed training.
+    Returns suggested machine allocation and configuration.
+
+    Args:
+        request: DistributedPlanRequest containing planning parameters
+    """
+    print("=== DISTRIBUTED TRAINING PLAN REQUEST RECEIVED ===")
+    print(f"Request data: {request}")
+
+    try:
+        # Set default values for null parameters
+        required_gpus = request.required_gpus if request.required_gpus is not None else 2
+        model_size_gb = request.model_size_gb if request.model_size_gb is not None else 1.0
+        dataset_size_gb = request.dataset_size_gb if request.dataset_size_gb is not None else 0.1
+        preferred_machines = request.preferred_machines
+        exclude_host = request.exclude_host
+
+        # Get all online machines
+        print("GETTING REQUEST TO PLAN DISTRIBUTED TRAINING")
+        print(
+            f"Parameters: required_gpus={required_gpus}, model_size_gb={model_size_gb}, dataset_size_gb={dataset_size_gb}"
+        )
+
+        all_machines = await db.network_machine_get_all()
+        print(f"Total machines in database: {len(all_machines)}")
+
+        online_machines = [m for m in all_machines if m.get("status") == "online"]
+        print(f"Online machines: {len(online_machines)}")
+
+        # Filter out host machine if requested (useful for Apple MLX hosts)
+        if exclude_host:
+            import socket
+
+            host_ip = socket.gethostbyname(socket.gethostname())
+            online_machines = [
+                m
+                for m in online_machines
+                if m.get("host") != "localhost" and m.get("host") != "127.0.0.1" and m.get("host") != host_ip
+            ]
+            print(f"Excluding host machine (IP: {host_ip}). Remaining machines: {len(online_machines)}")
+
+        if len(online_machines) < 1:
+            error_msg = "At least 1 online machine required for distributed training"
+            print(f"ERROR: {error_msg}")
+            print("Available machines:")
+            for m in all_machines:
+                print(
+                    f"  - {m.get('name', 'Unknown')} ({m.get('host', 'Unknown')}:{m.get('port', 'Unknown')}) - Status: {m.get('status', 'Unknown')}"
+                )
+            raise HTTPException(status_code=500, detail=error_msg)
+
+        # For single machine testing, allow distributed training across multiple GPUs on that machine
+        if len(online_machines) == 1:
+            print("Single machine detected - will use multi-GPU distributed training on remote machine")
+
+        # Get capabilities for each machine
+        machine_capabilities = []
+        for machine in online_machines:
+            try:
+                base_url = f"http://{machine['host']}:{machine['port']}"
+                headers = {}
+                if machine.get("api_token"):
+                    headers["Authorization"] = f"Bearer {machine['api_token']}"
+
+                print(f"Getting capabilities from machine {machine['id']} at {base_url}")
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    response = await client.get(f"{base_url}/network/capabilities", headers=headers)
+                    if response.status_code == 200:
+                        caps = response.json()
+                        machine_capabilities.append(
+                            {"machine_id": machine["id"], "machine_info": machine, "capabilities": caps}
+                        )
+                        print(f"Successfully got capabilities from machine {machine['id']}")
+                    else:
+                        print(f"Failed to get capabilities from machine {machine['id']}: HTTP {response.status_code}")
+            except Exception as e:
+                print(f"Failed to get capabilities for machine {machine['id']}: {e}")
+                continue
+
+        if len(machine_capabilities) == 0:
+            error_msg = "No machines available with accessible capabilities"
+            print(f"ERROR: {error_msg}")
+            raise HTTPException(status_code=500, detail=error_msg)
+
+        print(f"Successfully got capabilities from {len(machine_capabilities)} machines")
+
+        print("Machine capabilities:", machine_capabilities)
+
+        # Plan the distribution
+        try:
+            plan = _create_distribution_plan(
+                machine_capabilities, required_gpus, model_size_gb, dataset_size_gb, preferred_machines
+            )
+            print("Distribution plan created successfully")
+        except Exception as e:
+            print(f"ERROR in _create_distribution_plan: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to create distribution plan: {str(e)}")
+
+        return {
+            "status": "success",
+            "plan": plan,
+            "total_machines": len(plan["machines"]),
+            "total_gpus": sum(m["allocated_gpus"] for m in plan["machines"]),
+            "estimated_memory_usage": plan["distributed_config"],
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERROR: Error planning distributed training: {e}")
+        raise HTTPException(status_code=500, detail="Failed to plan distributed training")
+
+
+@router.post("/distributed/dispatch", summary="Dispatch a distributed training job")
+async def dispatch_distributed_training(distributed_job: DistributedJobCreate):
+    """
+    Dispatch a distributed training job across multiple machines.
+    This coordinates the setup and execution across all target machines.
+    """
+    try:
+        # Validate all target machines are online
+        for machine_id in distributed_job.target_machine_ids:
+            machine = await db.network_machine_get(machine_id)
+            if not machine or machine["status"] != "online":
+                raise HTTPException(status_code=400, detail=f"Machine {machine_id} is not available")
+
+        master_machine = await db.network_machine_get(distributed_job.master_machine_id)
+        if not master_machine:
+            raise HTTPException(status_code=400, detail="Master machine not found")
+
+        # Store distributed job info in database
+        distributed_info = {
+            "type": "DISTRIBUTED_TRAIN",
+            "master_machine_id": distributed_job.master_machine_id,
+            "worker_machine_ids": [
+                mid for mid in distributed_job.target_machine_ids if mid != distributed_job.master_machine_id
+            ],
+            "distributed_config": distributed_job.distributed_config,
+            "status": "INITIALIZING",
+        }
+
+        await db.job_update_job_data_insert_key_value(
+            distributed_job.job_id, "distributed_info", json.dumps(distributed_info)
+        )
+
+        # Step 1: Prepare dependencies on all machines
+        dependency_tasks = []
+        for machine_id in distributed_job.target_machine_ids:
+            dependency_tasks.append(
+                _prepare_machine_dependencies(
+                    machine_id,
+                    distributed_job.plugins_required,
+                    distributed_job.models_required,
+                    distributed_job.datasets_required,
+                )
+            )
+
+        # Wait for all dependency installations
+        dependency_results = await asyncio.gather(*dependency_tasks, return_exceptions=True)
+        failed_machines = []
+        for i, result in enumerate(dependency_results):
+            if isinstance(result, Exception):
+                failed_machines.append(distributed_job.target_machine_ids[i])
+
+        if failed_machines:
+            raise HTTPException(
+                status_code=500, detail=f"Failed to prepare dependencies on machines: {failed_machines}"
+            )
+
+        # Step 2: Set up distributed training environment
+        world_size = len(distributed_job.target_machine_ids)
+        distributed_config = distributed_job.distributed_config
+        distributed_config.update(
+            {
+                "world_size": world_size,
+                "master_addr": master_machine["host"],
+                "master_port": distributed_config.get("master_port", 29500),
+                "backend": distributed_config.get("backend", "nccl"),
+            }
+        )
+
+        # Step 3: Start training on all machines
+        training_tasks = []
+
+        # Start master first
+        master_job_data = distributed_job.job_data.copy()
+        master_job_data.update(
+            {"distributed_role": "master", "rank": 0, "local_rank": 0, "distributed_config": distributed_config}
+        )
+
+        training_tasks.append(
+            _start_distributed_training_on_machine(
+                distributed_job.master_machine_id, distributed_job.job_id, master_job_data
+            )
+        )
+
+        # Start workers
+        worker_rank = 1
+        for machine_id in distributed_job.target_machine_ids:
+            if machine_id != distributed_job.master_machine_id:
+                worker_job_data = distributed_job.job_data.copy()
+                worker_job_data.update(
+                    {
+                        "distributed_role": "worker",
+                        "rank": worker_rank,
+                        "local_rank": 0,  # Assuming single GPU per machine for now
+                        "distributed_config": distributed_config,
+                    }
+                )
+
+                training_tasks.append(
+                    _start_distributed_training_on_machine(
+                        machine_id, f"{distributed_job.job_id}_worker_{worker_rank}", worker_job_data
+                    )
+                )
+                worker_rank += 1
+
+        # Start all training processes
+        await asyncio.gather(*training_tasks, return_exceptions=True)
+
+        # Update job status
+        await db.job_update_status(distributed_job.job_id, "RUNNING")
+        await db.job_update_job_data_insert_key_value(distributed_job.job_id, "distributed_status", "RUNNING")
+
+        return {
+            "status": "success",
+            "message": "Distributed training job started successfully",
+            "job_id": distributed_job.job_id,
+            "master_machine_id": distributed_job.master_machine_id,
+            "worker_machines": [
+                mid for mid in distributed_job.target_machine_ids if mid != distributed_job.master_machine_id
+            ],
+            "world_size": world_size,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERROR: Failed to dispatch distributed training: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to dispatch distributed training: {str(e)}")
+
+
+@router.get("/distributed/status/{job_id}", summary="Get distributed training job status")
+async def get_distributed_training_status(job_id: str):
+    """Get comprehensive status of a distributed training job across all machines."""
+    try:
+        # Get main job info
+        job = await db.job_get(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+
+        job_data = json.loads(job.get("job_data", "{}"))
+        distributed_info = json.loads(job_data.get("distributed_info", "{}"))
+
+        if distributed_info.get("type") != "DISTRIBUTED_TRAIN":
+            raise HTTPException(status_code=400, detail="Job is not a distributed training job")
+
+        master_machine_id = distributed_info["master_machine_id"]
+        worker_machine_ids = distributed_info["worker_machine_ids"]
+
+        # Get status from master machine
+        master_status = await _get_machine_job_status(master_machine_id, job_id)
+
+        # Get status from all worker machines
+        worker_statuses = {}
+        for i, machine_id in enumerate(worker_machine_ids):
+            worker_job_id = f"{job_id}_worker_{i + 1}"
+            worker_statuses[machine_id] = await _get_machine_job_status(machine_id, worker_job_id)
+
+        # Aggregate status
+        all_statuses = [master_status["status"]] + [ws["status"] for ws in worker_statuses.values()]
+
+        if all(s == "COMPLETE" for s in all_statuses):
+            overall_status = "COMPLETE"
+        elif any(s == "FAILED" for s in all_statuses):
+            overall_status = "FAILED"
+        elif any(s == "RUNNING" for s in all_statuses):
+            overall_status = "RUNNING"
+        else:
+            overall_status = "INITIALIZING"
+
+        return {
+            "status": "success",
+            "job_id": job_id,
+            "overall_status": overall_status,
+            "master_status": master_status,
+            "worker_statuses": worker_statuses,
+            "distributed_info": distributed_info,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERROR: Failed to get distributed training status: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get distributed training status")
+
+
+@router.post("/distributed/stop/{job_id}", summary="Stop distributed training job")
+async def stop_distributed_training(job_id: str):
+    """Stop a distributed training job on all machines."""
+    try:
+        # Get job info
+        job = await db.job_get(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+
+        job_data = json.loads(job.get("job_data", "{}"))
+        distributed_info = json.loads(job_data.get("distributed_info", "{}"))
+
+        master_machine_id = distributed_info["master_machine_id"]
+        worker_machine_ids = distributed_info["worker_machine_ids"]
+
+        # Stop master
+        stop_tasks = [_stop_machine_job(master_machine_id, job_id)]
+
+        # Stop all workers
+        for i, machine_id in enumerate(worker_machine_ids):
+            worker_job_id = f"{job_id}_worker_{i + 1}"
+            stop_tasks.append(_stop_machine_job(machine_id, worker_job_id))
+
+        # Execute all stop commands
+        await asyncio.gather(*stop_tasks, return_exceptions=True)
+
+        # Update local job status
+        await db.job_update_status(job_id, "STOPPED")
+
+        return {"status": "success", "message": "Distributed training job stop signals sent to all machines"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERROR: Failed to stop distributed training: {e}")
+        raise HTTPException(status_code=500, detail="Failed to stop distributed training")
+
+
+# =============================================================================
+# DISTRIBUTED TRAINING HELPER FUNCTIONS
+# =============================================================================
+
+
+def _create_distribution_plan(
+    machine_capabilities, required_gpus, model_size_gb, dataset_size_gb, preferred_machines=None
+):
+    """
+    Create an optimal distribution plan for training across machines.
+    """
+    print("=== CREATING DISTRIBUTION PLAN ===")
+    print(f"Required GPUs: {required_gpus}")
+    print(f"Model size: {model_size_gb}GB")
+    print(f"Dataset size: {dataset_size_gb}GB")
+    print(f"Preferred machines: {preferred_machines}")
+    print(f"Number of machine capabilities: {len(machine_capabilities)}")
+
+    available_machines = []
+
+    for machine_cap in machine_capabilities:
+        caps_wrapper = machine_cap["capabilities"]
+        # The actual capabilities are nested under capabilities.capabilities
+        caps = caps_wrapper.get("capabilities", caps_wrapper)
+        print(f"Processing machine {machine_cap['machine_id']}")
+
+        # Extract GPU and memory info
+        gpu_count = caps.get("ml_frameworks", {}).get("cuda_device_count", 0)
+        gpu_info = caps.get("gpu", [])
+        total_gpu_memory = sum(gpu.get("memory_total_mb", 0) for gpu in gpu_info) if gpu_info else 0
+
+        memory_available = caps.get("resources", {}).get("memory_available_gb", 0)
+        current_load = caps.get("current_load", {})
+
+        print(f"  GPU count: {gpu_count}")
+        print(f"  Total GPU memory: {total_gpu_memory}MB")
+        print(f"  Available memory: {memory_available}GB")
+        print(f"  Current load: {current_load}")
+
+        # Calculate suitability score
+        load_factor = 1.0 - (current_load.get("cpu_percent", 0) / 100.0)
+        memory_factor = 1.0 - (current_load.get("memory_percent", 0) / 100.0)
+
+        suitability_score = (gpu_count * 10) + (total_gpu_memory / 1000) + (load_factor * 5) + (memory_factor * 5)
+
+        print(f"  Suitability score: {suitability_score}")
+
+        available_machines.append(
+            {
+                "machine_id": machine_cap["machine_id"],
+                "machine_info": machine_cap["machine_info"],
+                "gpu_count": gpu_count,
+                "gpu_memory_mb": total_gpu_memory,
+                "memory_available_gb": memory_available,
+                "suitability_score": suitability_score,
+                "current_load": current_load,
+            }
+        )
+
+    # Sort by suitability score (highest first)
+    available_machines.sort(key=lambda x: x["suitability_score"], reverse=True)
+
+    print(f"Available machines after sorting: {len(available_machines)}")
+    for i, machine in enumerate(available_machines):
+        print(
+            f"  {i + 1}. Machine {machine['machine_id']}: {machine['gpu_count']} GPUs, score: {machine['suitability_score']}"
+        )
+
+    # Select machines for the plan
+    selected_machines = []
+    total_allocated_gpus = 0
+
+    # Prefer specific machines if provided
+    if preferred_machines:
+        print(f"Using preferred machines: {preferred_machines}")
+        for machine_id in preferred_machines:
+            machine = next((m for m in available_machines if m["machine_id"] == machine_id), None)
+            if machine and total_allocated_gpus < required_gpus:
+                allocated_gpus = min(machine["gpu_count"], required_gpus - total_allocated_gpus)
+                if allocated_gpus > 0:
+                    print(f"  Selected preferred machine {machine_id}: {allocated_gpus} GPUs")
+                    selected_machines.append(
+                        {
+                            **machine,
+                            "allocated_gpus": allocated_gpus,
+                            "role": "master" if len(selected_machines) == 0 else "worker",
+                        }
+                    )
+                    total_allocated_gpus += allocated_gpus
+
+    print(f"After preferred machines: {total_allocated_gpus}/{required_gpus} GPUs allocated")
+
+    # Fill remaining GPU requirements with best available machines
+    for machine in available_machines:
+        if total_allocated_gpus >= required_gpus:
+            print(f"GPU requirement met: {total_allocated_gpus}/{required_gpus}")
+            break
+
+        # Skip if already selected
+        if any(sm["machine_id"] == machine["machine_id"] for sm in selected_machines):
+            print(f"  Skipping already selected machine {machine['machine_id']}")
+            continue
+
+        allocated_gpus = min(machine["gpu_count"], required_gpus - total_allocated_gpus)
+        if allocated_gpus > 0:
+            print(f"  Selecting machine {machine['machine_id']}: {allocated_gpus} GPUs")
+            selected_machines.append(
+                {
+                    **machine,
+                    "allocated_gpus": allocated_gpus,
+                    "role": "master" if len(selected_machines) == 0 else "worker",
+                }
+            )
+            total_allocated_gpus += allocated_gpus
+        else:
+            print(f"  Machine {machine['machine_id']} has no available GPUs")
+
+    print(f"Final selection: {len(selected_machines)} machines, {total_allocated_gpus} total GPUs")
+    for machine in selected_machines:
+        print(f"  - Machine {machine['machine_id']}: {machine['allocated_gpus']} GPUs, role: {machine['role']}")
+
+    # Calculate estimated memory usage
+    estimated_memory_per_gpu = (model_size_gb * 1.5) + (dataset_size_gb * 0.1)  # Rough estimate
+    estimated_total_memory = estimated_memory_per_gpu * total_allocated_gpus
+
+    # Recommended distributed configuration
+    distributed_config = {
+        "backend": "nccl" if any(m["gpu_count"] > 0 for m in selected_machines) else "gloo",
+        "init_method": "tcp",
+        "master_port": 29500,
+        "world_size": len(selected_machines),
+        "gradient_compression": total_allocated_gpus > 4,  # Enable compression for larger setups
+        "bucket_size_mb": 25 if total_allocated_gpus <= 4 else 50,
+    }
+
+    return {
+        "machines": selected_machines,
+        "total_gpus_allocated": total_allocated_gpus,
+        "estimated_memory_usage": estimated_total_memory,
+        "distributed_config": distributed_config,
+        "master_machine_id": selected_machines[0]["machine_id"] if selected_machines else None,
+    }
+
+
+async def _prepare_machine_dependencies(machine_id, plugins_required, models_required, datasets_required):
+    """Prepare dependencies on a specific machine."""
+    try:
+        machine = await db.network_machine_get(machine_id)
+        if not machine:
+            raise Exception(f"Machine {machine_id} not found")
+
+        base_url = f"http://{machine['host']}:{machine['port']}"
+        headers = {}
+        if machine.get("api_token"):
+            headers["Authorization"] = f"Bearer {machine['api_token']}"
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                f"{base_url}/network/prepare_dependencies",
+                json={
+                    "plugins": plugins_required or [],
+                    "models": models_required or [],
+                    "datasets": datasets_required or [],
+                },
+                headers=headers,
+            )
+
+            if response.status_code != 200:
+                raise Exception(f"Failed to prepare dependencies on machine {machine_id}")
+
+            return {"machine_id": machine_id, "status": "success"}
+
+    except Exception as e:
+        raise Exception(f"Dependency preparation failed for machine {machine_id}: {str(e)}")
+
+
+async def _start_distributed_training_on_machine(machine_id, job_id, job_data):
+    """Start distributed training on a specific machine."""
+    try:
+        machine = await db.network_machine_get(machine_id)
+        if not machine:
+            raise Exception(f"Machine {machine_id} not found")
+
+        base_url = f"http://{machine['host']}:{machine['port']}"
+        headers = {}
+        if machine.get("api_token"):
+            headers["Authorization"] = f"Bearer {machine['api_token']}"
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{base_url}/network/execute_distributed_job",
+                json={
+                    "job_id": job_id,
+                    "job_data": job_data,
+                    "origin_machine": await _get_this_machine_info(),
+                },
+                headers=headers,
+            )
+
+            if response.status_code != 200:
+                raise Exception(f"Failed to start training on machine {machine_id}")
+
+            return {"machine_id": machine_id, "job_id": job_id, "status": "started"}
+
+    except Exception as e:
+        raise Exception(f"Training start failed for machine {machine_id}: {str(e)}")
+
+
+async def _get_machine_job_status(machine_id, job_id):
+    """Get job status from a specific machine."""
+    try:
+        machine = await db.network_machine_get(machine_id)
+        if not machine:
+            return {"status": "ERROR", "message": "Machine not found"}
+
+        base_url = f"http://{machine['host']}:{machine['port']}"
+        headers = {}
+        if machine.get("api_token"):
+            headers["Authorization"] = f"Bearer {machine['api_token']}"
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{base_url}/jobs/{job_id}", headers=headers)
+
+            if response.status_code == 200:
+                return response.json()
+            else:
+                return {"status": "ERROR", "message": "Failed to get status"}
+
+    except Exception as e:
+        return {"status": "ERROR", "message": str(e)}
+
+
+async def _stop_machine_job(machine_id, job_id):
+    """Stop a job on a specific machine."""
+    try:
+        machine = await db.network_machine_get(machine_id)
+        if not machine:
+            return {"status": "ERROR", "message": "Machine not found"}
+
+        base_url = f"http://{machine['host']}:{machine['port']}"
+        headers = {}
+        if machine.get("api_token"):
+            headers["Authorization"] = f"Bearer {machine['api_token']}"
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{base_url}/jobs/{job_id}/stop", headers=headers)
+
+            if response.status_code == 200:
+                return {"status": "success"}
+            else:
+                return {"status": "error", "message": "Failed to stop job"}
+
+    except Exception as e:
+        return {"status": "error", "message": str(e)}

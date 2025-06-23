@@ -348,3 +348,253 @@ async def queue_task_remote(task_id: int, machine_id: int, input_override: str =
 
     job_id = await db.job_create(job_type, job_status, json.dumps(job_data), task_to_queue["experiment_id"])
     return {"id": job_id, "target_machine_id": machine_id, "target_machine_name": machine["name"]}
+
+
+@router.get("/{task_id}/queue_distributed", summary="Queue a distributed training task across multiple machines")
+async def queue_distributed_training_task(
+    task_id: int,
+    machine_ids: str,  # Comma-separated machine IDs
+    master_machine_id: int,
+    input_override: str = "{}",
+    output_override: str = "{}",
+    distributed_config: str = "{}",
+):
+    """
+    Queue a training task to run distributed across multiple machines.
+
+    Args:
+        task_id: The training task to execute
+        machine_ids: Comma-separated list of machine IDs to use
+        master_machine_id: Which machine should coordinate the training
+        input_override: JSON string with input parameter overrides
+        output_override: JSON string with output parameter overrides
+        distributed_config: JSON string with distributed training configuration
+    """
+    import transformerlab.db as db
+
+    try:
+        print("RECEIVING DISTRIBUTED QUEUE REQUEST with parameters:")
+        print(f"  task_id: {task_id}")
+        print(f"  machine_ids: {machine_ids}")
+        print(f"  master_machine_id: {master_machine_id}")
+        print(f"  input_override: {input_override}")
+        print(f"  output_override: {output_override}")
+        print(f"  distributed_config: {distributed_config}")
+        # Parse machine IDs
+        target_machine_ids = [int(mid.strip()) for mid in machine_ids.split(",")]
+
+        if len(target_machine_ids) < 2:
+            return {"error": "At least 2 machines required for distributed training"}
+
+        if master_machine_id not in target_machine_ids:
+            return {"error": "Master machine must be included in target machines"}
+
+        # Validate all machines exist and are online
+        for machine_id in target_machine_ids:
+            machine = await db.network_machine_get(machine_id)
+            if not machine:
+                return {"error": f"Machine {machine_id} not found"}
+            if machine["status"] != "online":
+                return {"error": f"Machine {machine_id} is not online"}
+
+        # Get the task to queue
+        task_to_queue = await db.tasks_get_by_id(task_id)
+        if not task_to_queue:
+            return {"error": "Task not found"}
+
+        if task_to_queue["type"] != "TRAIN":
+            return {"error": "Only training tasks can be distributed"}
+
+        # Parse overrides and config
+        input_override = json.loads(input_override)
+        output_override = json.loads(output_override)
+        distributed_config = json.loads(distributed_config)
+
+        # Build job data (similar to regular queue but with distributed info)
+        job_data = {}
+        inputs = json.loads(task_to_queue["inputs"])
+        outputs = json.loads(task_to_queue["outputs"])
+
+        job_data["config"] = json.loads(task_to_queue["config"])
+        job_data["model_name"] = inputs["model_name"]
+        job_data["dataset"] = inputs["dataset_name"]
+
+        if "type" not in job_data["config"].keys():
+            job_data["config"]["type"] = "LoRA"
+
+        # Apply inputs and outputs from task
+        for key in inputs.keys():
+            job_data["config"][key] = inputs[key]
+        for key in outputs.keys():
+            job_data["config"][key] = outputs[key]
+
+        # Apply runtime overrides
+        for key in input_override.keys():
+            if key == "model_name":
+                job_data["model_name"] = input_override["model_name"]
+            if key == "dataset":
+                job_data["dataset"] = input_override["dataset_name"]
+            job_data["config"][key] = input_override[key]
+        for key in output_override.keys():
+            job_data["config"][key] = output_override[key]
+
+        job_data["template_id"] = task_to_queue["id"]
+        job_data["template_name"] = task_to_queue["name"]
+
+        # Add distributed training specific configuration
+        job_data["distributed_training"] = True
+        job_data["distributed_config"] = {
+            "world_size": len(target_machine_ids),
+            "master_machine_id": master_machine_id,
+            "target_machine_ids": target_machine_ids,
+            "backend": distributed_config.get("backend", "nccl"),
+            "master_port": distributed_config.get("master_port", 29500),
+            **distributed_config,
+        }
+
+        # Extract required dependencies (stored in job_data for later use by orchestrator)
+        job_data["plugins_required"] = [task_to_queue["plugin"]] if task_to_queue.get("plugin") else []
+        job_data["models_required"] = [job_data["model_name"]] if job_data.get("model_name") else []
+        job_data["datasets_required"] = [job_data["dataset"]] if job_data.get("dataset") else []
+
+        # Create the job with distributed type
+        job_id = await db.job_create(
+            type="DISTRIBUTED_TRAIN",
+            status="QUEUED",
+            job_data=json.dumps(job_data),
+            experiment_id=task_to_queue["experiment_id"],
+        )
+
+        return {
+            "id": job_id,
+            "type": "DISTRIBUTED_TRAIN",
+            "target_machines": target_machine_ids,
+            "master_machine_id": master_machine_id,
+            "world_size": len(target_machine_ids),
+            "message": f"Distributed training job queued across {len(target_machine_ids)} machines",
+        }
+
+    except ValueError as e:
+        return {"error": f"Invalid machine IDs format: {str(e)}"}
+    except json.JSONDecodeError as e:
+        return {"error": f"Invalid JSON in parameters: {str(e)}"}
+    except Exception as e:
+        return {"error": f"Failed to queue distributed training task: {str(e)}"}
+
+
+@router.get("/distributed/suggest_machines", summary="Get machine suggestions for distributed training")
+async def suggest_machines_for_distributed_training(
+    required_gpus: int = 4, model_size_gb: float = 7.0, dataset_size_gb: float = 1.0
+):
+    """
+    Suggest optimal machine combinations for distributed training based on requirements.
+    """
+    try:
+        import httpx
+
+        # Get all online machines
+        machines = await db.network_machine_get_all()
+        online_machines = [m for m in machines if m.get("status") == "online"]
+
+        if len(online_machines) < 1:
+            return {"suggestions": [], "message": "At least 1 online machines required for distributed training"}
+
+        # Get capabilities for each machine
+        machine_capabilities = []
+        for machine in online_machines:
+            try:
+                base_url = f"http://{machine['host']}:{machine['port']}"
+                headers = {}
+                if machine.get("api_token"):
+                    headers["Authorization"] = f"Bearer {machine['api_token']}"
+
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    response = await client.get(f"{base_url}/network/capabilities", headers=headers)
+                    if response.status_code == 200:
+                        caps = response.json()
+                        gpu_count = caps.get("ml_frameworks", {}).get("cuda_device_count", 0)
+                        gpu_info = caps.get("gpu", [])
+
+                        machine_capabilities.append(
+                            {
+                                "machine_id": machine["id"],
+                                "machine_name": machine["name"],
+                                "host": f"{machine['host']}:{machine['port']}",
+                                "gpu_count": gpu_count,
+                                "gpu_info": gpu_info,
+                                "memory_gb": caps.get("resources", {}).get("memory_total_gb", 0),
+                                "current_load": caps.get("current_load", {}),
+                                "suitable": gpu_count > 0,  # Basic suitability check
+                            }
+                        )
+            except Exception as e:
+                print(f"Failed to get capabilities for machine {machine['id']}: {e}")
+                continue
+
+        # Generate suggestions
+        suggestions = []
+
+        # Sort machines by GPU count (descending)
+        suitable_machines = [m for m in machine_capabilities if m["suitable"]]
+        suitable_machines.sort(key=lambda x: x["gpu_count"], reverse=True)
+
+        # Suggestion 1: Best 2 machines
+        if len(suitable_machines) >= 2:
+            best_two = suitable_machines[:2]
+            total_gpus = sum(m["gpu_count"] for m in best_two)
+            suggestions.append(
+                {
+                    "name": "High Performance (2 machines)",
+                    "machines": best_two,
+                    "total_gpus": total_gpus,
+                    "estimated_speedup": min(total_gpus / 2, 1.8),  # Diminishing returns
+                    "recommended": total_gpus >= required_gpus,
+                    "master_suggestion": best_two[0]["machine_id"],
+                }
+            )
+
+        # Suggestion 2: Best 4 machines (if available)
+        if len(suitable_machines) >= 4:
+            best_four = suitable_machines[:4]
+            total_gpus = sum(m["gpu_count"] for m in best_four)
+            suggestions.append(
+                {
+                    "name": "Maximum Parallelism (4 machines)",
+                    "machines": best_four,
+                    "total_gpus": total_gpus,
+                    "estimated_speedup": min(total_gpus / 2, 3.5),  # Diminishing returns
+                    "recommended": total_gpus >= required_gpus * 1.5,
+                    "master_suggestion": best_four[0]["machine_id"],
+                }
+            )
+
+        # Suggestion 3: All available machines
+        if len(suitable_machines) > 4:
+            total_gpus = sum(m["gpu_count"] for m in suitable_machines)
+            suggestions.append(
+                {
+                    "name": f"All Available ({len(suitable_machines)} machines)",
+                    "machines": suitable_machines,
+                    "total_gpus": total_gpus,
+                    "estimated_speedup": min(total_gpus / 2, 6.0),  # Heavy diminishing returns
+                    "recommended": False,  # Usually not recommended due to communication overhead
+                    "master_suggestion": suitable_machines[0]["machine_id"],
+                }
+            )
+
+        print("AVAILABLE MACHINES: ", len(suitable_machines))
+        print("TOTAL AVAILABLE GPUS: ", sum(m["gpu_count"] for m in suitable_machines))
+
+        return {
+            "suggestions": suggestions,
+            "requirements": {
+                "required_gpus": required_gpus,
+                "model_size_gb": model_size_gb,
+                "dataset_size_gb": dataset_size_gb,
+            },
+            "available_machines": len(suitable_machines),
+            "total_available_gpus": sum(m["gpu_count"] for m in suitable_machines),
+        }
+
+    except Exception as e:
+        return {"error": f"Failed to generate suggestions: {str(e)}"}
