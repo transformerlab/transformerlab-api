@@ -630,7 +630,6 @@ async def _poll_remote_job_progress(local_job_id: str, remote_job_id: str, machi
                                 f"Warning: Failed to fetch output file for remote job {remote_job_id}: {str(output_error)}"
                             )
 
-                        # EVAL SPECIFIC
                         if job_data.get("score") is not None:
                             await db.job_update_job_data_insert_key_value(local_job_id, "score", job_data["score"])
 
@@ -652,6 +651,18 @@ async def _poll_remote_job_progress(local_job_id: str, remote_job_id: str, machi
                         if job_data.get("template_name"):
                             await db.job_update_job_data_insert_key_value(
                                 local_job_id, "template_name", job_data["template_name"]
+                            )
+                        if job_data.get("template_id"):
+                            await db.job_update_job_data_insert_key_value(
+                                local_job_id, "template_id", job_data["template_id"]
+                            )
+                        if job_data.get("eval_images_dir"):
+                            await sync_files_from_remote(
+                                local_job_id, remote_job_id, "eval_images_dir", machine, remote_workspace_dir
+                            )
+                        if job_data.get("model_adaptor"):
+                            await db.job_update_job_data_insert_key_value(
+                                local_job_id, "model_adaptor", job_data["model_adaptor"]
                             )
 
                         # If remote job is complete/failed, update local status
