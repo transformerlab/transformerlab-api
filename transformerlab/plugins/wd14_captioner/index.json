@@ -49,12 +49,6 @@
       ],
       "default": "SmilingWolf/wd-v1-4-convnext-tagger-v2"
     },
-    "batch_size": {
-      "title": "Batch Size",
-      "type": "integer",
-      "default": 8,
-      "minimum": 1
-    },
     "image_size": {
       "title": "Image Resize (shorter side)",
       "type": "integer",
@@ -66,15 +60,11 @@
       "type": "string",
       "default": ", "
     },
-    "remove_underscore": {
-      "title": "Remove Underscores",
-      "type": "boolean",
-      "default": true
-    },
-    "include_ranks": {
-      "title": "Include Confidence Scores",
-      "type": "boolean",
-      "default": false
+    "max_data_loader_n_workers": {
+      "title": "Max DataLoader Workers",
+      "type": "integer",
+      "default": 1,
+      "minimum": 0
     }
   },
   "parameters_ui": {
@@ -96,20 +86,14 @@
     "repo_id": {
       "ui:help": "Choose which WD14 ONNX model variant to use for tagging."
     },
-    "batch_size": {
-      "ui:help": "Number of images to process at once (larger is faster but uses more VRAM)."
-    },
     "image_size": {
       "ui:help": "Resize shorter side of image to this size before tagging."
     },
     "caption_separator": {
       "ui:help": "String used to join multiple tags into a single caption."
     },
-    "remove_underscore": {
-      "ui:help": "If true, underscores in tags will be replaced with spaces."
-    },
-    "include_ranks": {
-      "ui:help": "If true, captions will include tag confidence scores."
+    "max_data_loader_n_workers": {
+      "ui:help": "Max number of workers to load images during tagging (set 1–2 if tagging is slow)."
     }
   }
 }

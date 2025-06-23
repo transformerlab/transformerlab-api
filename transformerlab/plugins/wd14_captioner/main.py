@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 from tqdm import tqdm
+from PIL import Image
 
 from transformerlab.sdk.v1.generate import tlab_gen
 from huggingface_hub import snapshot_download
@@ -20,10 +21,8 @@ def run_generation():
     TMP_DATASET_DIR = Path(f"{workspace}/plugins/wd14_captioner/tmp_dataset")
 
     repo_id = tlab_gen.params.repo_id
-    batch_size = str(tlab_gen.params.batch_size)
     caption_separator = tlab_gen.params.caption_separator
-    remove_underscore = tlab_gen.params.remove_underscore
-    include_ranks = tlab_gen.params.include_ranks
+    max_workers = str(tlab_gen.params.get("max_data_loader_n_workers", 1))
     model_dir = (
         Path(workspace)
         / "plugins"
@@ -46,23 +45,28 @@ def run_generation():
             f"❌ Field '{tlab_gen.params.image_field}' not found in dataset. Available fields: {list(df.columns)}"
         )
 
-    image_paths = df[tlab_gen.params.image_field].tolist()
-
-    if not image_paths:
-        raise RuntimeError("❌ No images found in dataset.")
-
     if TMP_DATASET_DIR.exists():
         shutil.rmtree(TMP_DATASET_DIR)
     TMP_DATASET_DIR.mkdir(parents=True)
 
     local_paths = []
-    for idx, src_path in enumerate(tqdm(image_paths)):
-        real_path = src_path["path"] if isinstance(src_path, dict) else src_path
+    image_paths = []
+
+    image_column = tlab_gen.params.image_field
+    image_series = df[image_column]
+
+    for idx, img_entry in enumerate(tqdm(image_series)):
+        real_path = img_entry["path"]
         ext = Path(real_path).suffix
-        dst = TMP_DATASET_DIR / f"{idx:06d}{ext}"
+        if ext == "":
+            dst = TMP_DATASET_DIR / f"{idx:06d}.jpg"
+        else:
+            dst = TMP_DATASET_DIR / f"{idx:06d}.{ext}"
         shutil.copy(real_path, dst)
+        image_paths.append(img_entry)
+
         local_paths.append(dst)
-        tlab_gen.progress_update(5 + (idx + 1) / len(image_paths) * 15)
+        tlab_gen.progress_update(5 + (idx + 1) / len(image_series) * 15)
 
     # Build subprocess command
     command = [
@@ -72,16 +76,14 @@ def run_generation():
         "--repo_id",
         repo_id,
         "--batch_size",
-        str(batch_size),
+        "1",
         "--caption_separator",
         caption_separator,
         str(TMP_DATASET_DIR),
+        "--max_data_loader_n_workers",
+        max_workers,
+        "--recursive",
     ]
-
-    if remove_underscore:
-        command.append("--remove_underscore")
-    if include_ranks:
-        command.append("--include_ranks")
 
     env = os.environ.copy()
     env["PYTHONPATH"] = str(REPO_ROOT)
@@ -115,7 +117,7 @@ def run_generation():
 
     df_output = pd.DataFrame(
         {
-            "file_name": [Path(p).name if isinstance(p, str) else Path(p["path"]).name for p in image_paths],
+            "file_name": [p.name for p in local_paths],
             "caption": captions,
         }
     )
@@ -125,10 +127,9 @@ def run_generation():
     output_path, dataset_name = tlab_gen.save_generated_dataset(df_output, is_image=True)
     dataset_id = f"{tlab_gen.params.run_name}_{tlab_gen.params.job_id}".lower()
     output_dir = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "datasets", dataset_id)
-    for src_path in image_paths:
-        real_path = src_path["path"] if isinstance(src_path, dict) else src_path
-        dst_path = os.path.join(output_dir, Path(real_path).name)
-        shutil.copy2(real_path, dst_path)
+    for src, dst in zip(local_paths, df_output["file_name"]):
+        final_dst = os.path.join(output_dir, dst)
+        shutil.copy2(src, final_dst)
 
     tlab_gen.progress_update(95)
 
