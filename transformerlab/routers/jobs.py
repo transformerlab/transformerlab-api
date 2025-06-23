@@ -3,6 +3,8 @@ import os
 import csv
 import pandas as pd
 import logging
+import zipfile
+import tempfile
 from fastapi import APIRouter, Body, Response
 from fastapi.responses import StreamingResponse, FileResponse
 
@@ -642,6 +644,15 @@ async def _poll_remote_job_progress(local_job_id: str, remote_job_id: str, machi
                             await sync_files_from_remote_function(
                                 local_job_id, remote_job_id, "plot_data_path", machine, remote_workspace_dir
                             )
+                        if job_data.get("tensorboard_output_dir"):
+                            await sync_files_from_remote_function(
+                                local_job_id, remote_job_id, "tensorboard_output_dir", machine, remote_workspace_dir
+                            )
+
+                        if job_data.get("template_name"):
+                            await db.job_update_job_data_insert_key_value(
+                                local_job_id, "template_name", job_data["template_name"]
+                            )
 
                         # If remote job is complete/failed, update local status
                         if remote_status in ["COMPLETE", "FAILED", "CANCELLED"]:
@@ -742,19 +753,57 @@ async def sync_files_from_remote_function(
                     # If remote_workspace_dir is provided, prepend it to the local file path
                     local_file_path = remote_file_path.replace(remote_workspace_dir, dirs.WORKSPACE_DIR)
 
-                # Ensure the directory exists
-                local_file_dir = os.path.dirname(local_file_path)
-                os.makedirs(local_file_dir, exist_ok=True)
+                # Check if the response is a zip file (indicating a directory was requested)
+                content_type = file_response.headers.get("content-type", "")
+                content_disposition = file_response.headers.get("content-disposition", "")
 
-                # Save the file locally
-                with open(local_file_path, "wb") as f:
-                    f.write(file_response.content)
+                if content_type == "application/zip" or ".zip" in content_disposition:
+                    # Handle directory sync: extract zip to local directory
+                    # Create a temporary file to save the zip
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as temp_zip:
+                        temp_zip.write(file_response.content)
+                        temp_zip_path = temp_zip.name
 
-                # Update the local job's file path to point to the local file
-                await db.job_update_job_data_insert_key_value(local_job_id, key, local_file_path)
+                    try:
+                        # Extract the zip file to the target directory
+                        # Remove .zip from local_file_path since it should be a directory
+                        if local_file_path.endswith(".zip"):
+                            local_dir_path = local_file_path[:-4]  # Remove .zip extension
+                        else:
+                            local_dir_path = local_file_path
 
-                # print(f"Synced file '{key}' from {remote_file_path} to {local_file_path}")
-                return True
+                        # Ensure the parent directory exists
+                        os.makedirs(os.path.dirname(local_dir_path), exist_ok=True)
+
+                        # Extract the zip file
+                        with zipfile.ZipFile(temp_zip_path, "r") as zip_ref:
+                            zip_ref.extractall(local_dir_path)
+
+                        # Update the local job's data to point to the local directory
+                        await db.job_update_job_data_insert_key_value(local_job_id, key, local_dir_path)
+
+                        print(f"Synced directory '{key}' from {remote_file_path} to {local_dir_path}")
+                        return True
+
+                    finally:
+                        # Clean up the temporary zip file
+                        if os.path.exists(temp_zip_path):
+                            os.remove(temp_zip_path)
+                else:
+                    # Handle regular file sync
+                    # Ensure the directory exists
+                    local_file_dir = os.path.dirname(local_file_path)
+                    os.makedirs(local_file_dir, exist_ok=True)
+
+                    # Save the file locally
+                    with open(local_file_path, "wb") as f:
+                        f.write(file_response.content)
+
+                    # Update the local job's file path to point to the local file
+                    await db.job_update_job_data_insert_key_value(local_job_id, key, local_file_path)
+
+                    print(f"Synced file '{key}' from {remote_file_path} to {local_file_path}")
+                    return True
             else:
                 print(f"Failed to fetch file '{key}' from remote job {remote_job_id}: {file_response.status_code}")
                 return False

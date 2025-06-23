@@ -1,6 +1,8 @@
 import asyncio
 import os
 import httpx
+import zipfile
+import tempfile
 from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
@@ -772,7 +774,35 @@ async def get_local_job_file(job_id: str, key: str):
         if not os.path.exists(file_path):
             raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
 
-        # Get the filename for the response
+        # Handle directories by creating a zip file
+        if os.path.isdir(file_path):
+            # Create a temporary zip file
+            temp_dir = tempfile.gettempdir()
+            dir_name = os.path.basename(file_path.rstrip("/"))
+            zip_filename = f"{dir_name}.zip"
+            zip_path = os.path.join(temp_dir, f"job_{job_id}_{key}_{zip_filename}")
+
+            try:
+                with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+                    for root, dirs, files in os.walk(file_path):
+                        for file in files:
+                            file_path_in_zip = os.path.join(root, file)
+                            arcname = os.path.relpath(file_path_in_zip, file_path)
+                            zipf.write(file_path_in_zip, arcname)
+
+                return FileResponse(
+                    path=zip_path,
+                    filename=zip_filename,
+                    media_type="application/zip",
+                    headers={"Content-Disposition": f"attachment; filename={zip_filename}"},
+                )
+            except Exception as e:
+                # Clean up the temp file if something went wrong
+                if os.path.exists(zip_path):
+                    os.remove(zip_path)
+                raise HTTPException(status_code=500, detail=f"Failed to create zip file: {str(e)}")
+
+        # Get the filename for the response (for regular files)
         filename = os.path.basename(file_path)
 
         return FileResponse(path=file_path, filename=filename, media_type="application/octet-stream")
