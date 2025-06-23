@@ -636,16 +636,16 @@ async def _poll_remote_job_progress(local_job_id: str, remote_job_id: str, machi
 
                         # Sync additional output file using the dedicated function
                         if job_data.get("additional_output_path"):
-                            await sync_files_from_remote_function(
+                            await sync_files_from_remote(
                                 local_job_id, remote_job_id, "additional_output_path", machine, remote_workspace_dir
                             )
 
                         if job_data.get("plot_data_path"):
-                            await sync_files_from_remote_function(
+                            await sync_files_from_remote(
                                 local_job_id, remote_job_id, "plot_data_path", machine, remote_workspace_dir
                             )
                         if job_data.get("tensorboard_output_dir"):
-                            await sync_files_from_remote_function(
+                            await sync_files_from_remote(
                                 local_job_id, remote_job_id, "tensorboard_output_dir", machine, remote_workspace_dir
                             )
 
@@ -698,7 +698,7 @@ async def _poll_remote_job_progress(local_job_id: str, remote_job_id: str, machi
             pass
 
 
-async def sync_files_from_remote_function(
+async def sync_files_from_remote(
     local_job_id: str, remote_job_id: str, key: str, machine: dict, remote_workspace_dir: str
 ):
     """
