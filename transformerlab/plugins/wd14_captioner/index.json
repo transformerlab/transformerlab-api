@@ -40,7 +40,7 @@
       "minimum": 0.0,
       "maximum": 1.0
     },
-    "repo_id": {
+    "generation_model": {
       "title": "Hugging Face Model Repo ID",
       "type": "string",
       "enum": [
@@ -83,7 +83,7 @@
     "character_threshold": {
       "ui:help": "Separate threshold for character tags."
     },
-    "repo_id": {
+    "generation_model": {
       "ui:help": "Choose which WD14 ONNX model variant to use for tagging."
     },
     "image_size": {

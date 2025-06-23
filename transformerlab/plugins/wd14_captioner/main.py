@@ -19,7 +19,7 @@ def run_generation():
     SCRIPT_PATH = f"{workspace}/plugins/wd14_captioner/sd-caption-wd14/sd-scripts/finetune/tag_images_by_wd14_tagger.py"
     TMP_DATASET_DIR = Path(f"{workspace}/plugins/wd14_captioner/tmp_dataset")
 
-    repo_id = tlab_gen.params.repo_id
+    repo_id = tlab_gen.params.generation_model
     caption_separator = tlab_gen.params.caption_separator
     max_workers = str(tlab_gen.params.get("max_data_loader_n_workers", 1))
     model_dir = (
