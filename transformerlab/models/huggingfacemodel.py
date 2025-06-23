@@ -12,7 +12,7 @@ from transformerlab.models import basemodel
 
 import huggingface_hub
 from huggingface_hub.hf_api import RepoFile
-from huggingface_hub import scan_cache_dir
+from huggingface_hub import scan_cache_dir, hf_hub_download
 
 
 async def list_models():
@@ -202,8 +202,21 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
                     else:
                         architectures = class_name
         except Exception:
-            model_index = None
-            architectures = ["UnknownDiffusionModel"]
+            try:
+                config_path = hf_hub_download(hugging_face_id, filename="config.json")
+                with open(config_path) as f:
+                    model_index = json.load(f)
+                    class_name = model_index.get("_class_name")
+                    if class_name:
+                        if isinstance(class_name, str):
+                            architectures = [class_name]
+                        else:
+                            architectures = class_name
+                    else:
+                        architectures = ["UnknownDiffusionModel"]
+            except Exception:
+                model_index = None
+                architectures = ["UnknownDiffusionModel"]
         config = {
             "uniqueID": hugging_face_id,
             "name": getattr(hf_model_info, "modelId", hugging_face_id),
