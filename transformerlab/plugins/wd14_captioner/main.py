@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pandas as pd
 from tqdm import tqdm
-from PIL import Image
 
 from transformerlab.sdk.v1.generate import tlab_gen
 from huggingface_hub import snapshot_download
