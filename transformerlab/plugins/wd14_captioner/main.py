@@ -135,7 +135,6 @@ def run_generation():
     print(f"✅ Saved captioned dataset as '{dataset_name}' at: {output_path}")
 
     shutil.rmtree(TMP_DATASET_DIR)
-    shutil.rmtree(f"{workspace}/temp")
     tlab_gen.progress_update(100)
 
 
