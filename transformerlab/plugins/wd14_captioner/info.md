@@ -22,8 +22,7 @@ Use the parameters panel to control the tag generation behavior:
 | `Batch Size` | Number of images to process at once |
 | `Image Resize` | Resize shorter side of image before inference |
 | `Caption Separator` | Character(s) used to join multiple tags |
-| `Remove Underscores` | If true, converts `tag_name` → `tag name` |
-| `Include Confidence Scores` | Append scores to tags (e.g., `1girl:0.98`) |
+| `Max Dataloader Workers` | Max number of workers to load images during tagging |
 
 ## Step 3: Run the Plugin
 
