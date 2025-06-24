@@ -34,4 +34,4 @@ diffusers==0.33.1
 nvidia-ml-py
 transformerlab-inference
 mcp[cli]
-
+controlnet_aux==0.0.9
