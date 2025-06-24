@@ -17,6 +17,8 @@ from transformerlab.shared import dirs
 from datasets.data_files import EmptyDatasetError
 from transformerlab.shared.shared import slugify
 from transformerlab.shared import galleries
+from transformers import AutoTokenizer
+
 
 
 from werkzeug.utils import secure_filename
@@ -27,7 +29,7 @@ import logging
 
 
 jinja_environment = Environment()
-sandboxed_jinja2_evironment = SandboxedEnvironment()
+sandboxed_jinja2_environment = SandboxedEnvironment()
 
 logging.basicConfig(level=logging.ERROR)
 
@@ -239,6 +241,7 @@ async def dataset_preview_with_template(
     template: str = "",
     offset: int = Query(0, description="The starting index from where to fetch the data.", ge=0),
     limit: int = Query(10, description="The maximum number of data items to fetch.", ge=1, le=1000),
+    model_name: str = ''
 ) -> Any:
     d = await db.get_dataset(dataset_id)
     dataset_len = 0
@@ -265,9 +268,12 @@ async def dataset_preview_with_template(
         result["columns"] = dataset["train"][offset : min(offset + limit, dataset_len)]
     result["len"] = dataset_len
 
-    jinja_template = sandboxed_jinja2_evironment.from_string(template)
-
     column_names = list(result["columns"].keys())
+
+    if model_name:
+        tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+    else:
+        jinja_template = sandboxed_jinja2_environment.from_string(template)
 
     rows = []
     # now iterate over all columns and rows, do not use offset or len because we've already
@@ -277,9 +283,15 @@ async def dataset_preview_with_template(
         row["__index__"] = i + offset
         for key in result["columns"].keys():
             row[key] = serialize_row(result["columns"][key][i])
-
-        # Apply the template to a new key in row called __formatted__
-        row["__formatted__"] = jinja_template.render(row)
+        
+        if model_name:
+            row["__formatted__"] = tokenizer.apply_chat_template(
+                    row["messages"],
+                    tokenize=False,
+                )
+        else:
+            # Apply the template to a new key in row called __formatted__
+            row["__formatted__"] = jinja_template.render(row)
         # row['__template__'] = template
         rows.append(row)
 
@@ -367,7 +379,7 @@ async def dataset_edit_with_template(
 
                     if template:
                         try:
-                            jinja_template = sandboxed_jinja2_evironment.from_string(template)
+                            jinja_template = sandboxed_jinja2_environment.from_string(template)
                             row["__formatted__"] = jinja_template.render(row)
                         except Exception as e:
                             row["__formatted__"] = f"Template Error: {e}"
