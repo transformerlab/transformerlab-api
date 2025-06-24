@@ -51,16 +51,6 @@ from transformerlab.shared.shared import slugify
 import logging
 import subprocess
 import sys
-from controlnet_aux import (
-    OpenposeDetector,
-    HEDdetector,
-    MidasDetector,
-    LineartDetector,
-    NormalBaeDetector,
-    SamDetector,
-    ZoeDetector,
-)
-import cv2
 import numpy as np
 
 
@@ -202,6 +192,17 @@ def preprocess_for_controlnet(input_pil: Image.Image, process_type: str) -> Imag
     Returns a PIL image suitable as ControlNet reference.
     Releases memory aggressively after detector use.
     """
+    from controlnet_aux import (
+        OpenposeDetector,
+        HEDdetector,
+        MidasDetector,
+        LineartDetector,
+        NormalBaeDetector,
+        SamDetector,
+        ZoeDetector,
+    )
+    import cv2
+
     name = process_type.lower()
 
     try:
