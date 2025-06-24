@@ -42,7 +42,7 @@ async def workflow_create(name: str, config: str = '{"nodes":[]}', experimentId:
         ] + config["nodes"]
     else:
         config["nodes"] = [{"type": "START", "id": str(uuid.uuid4()), "name": "START", "out": []}]
-    workflow_id = await db.workflow_create(name, json.dumps(config), str(experimentId))
+    workflow_id = await db.workflow_create(name, json.dumps(config), experimentId)
     return workflow_id
 
 
@@ -50,7 +50,7 @@ async def workflow_create(name: str, config: str = '{"nodes":[]}', experimentId:
 async def workflow_create_empty(name: str, experimentId: int = 1):
     name = slugify(name)
     config = {"nodes": [{"type": "START", "id": str(uuid.uuid4()), "name": "START", "out": []}]}
-    workflow_id = await db.workflow_create(name, json.dumps(config), str(experimentId))
+    workflow_id = await db.workflow_create(name, json.dumps(config), experimentId)
     return workflow_id
 
 
@@ -240,7 +240,7 @@ async def workflow_export_to_yaml(workflow_id: str, experimentId: int):
 async def workflow_import_from_yaml(file: UploadFile, experimentId: int = 1):
     with open(file.filename, "r") as fileStream:
         workflow = yaml.load(fileStream, Loader=yaml.BaseLoader)
-    await db.workflow_create(workflow["name"], json.dumps(workflow["config"]), str(experimentId))
+    await db.workflow_create(workflow["name"], json.dumps(workflow["config"]), experimentId)
     return {"message": "OK"}
 
 
