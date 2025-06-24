@@ -47,6 +47,7 @@ from transformerlab.routers import (
     diffusion,
     recipes,
     users,
+    plugin_ui_proxy,
 )
 import torch
 
@@ -189,6 +190,7 @@ app.include_router(recipes.router)
 app.include_router(batched_prompts.router)
 app.include_router(fastchat_openai_api.router)
 app.include_router(diffusion.router)
+app.include_router(plugin_ui_proxy.router)
 app.include_router(get_xmlrpc_router())
 app.include_router(get_trainer_xmlrpc_router())
 
