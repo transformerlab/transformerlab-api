@@ -80,40 +80,99 @@ async def migrate_workflows_experiment_id_to_integer():
         columns_info = await cursor.fetchall()
         await cursor.close()
 
-        # Build new schema with INTEGER experiment_id
+        # Build new schema with INTEGER experiment_id and only expected columns
+        expected_columns = {
+            "id": "INTEGER PRIMARY KEY",
+            "name": "TEXT",
+            "config": "TEXT",
+            "status": "TEXT",
+            "experiment_id": "INTEGER",
+            "created_at": "TEXT DEFAULT (datetime('now'))",
+            "updated_at": "TEXT DEFAULT (datetime('now'))",
+        }
+
+        # Create schema with only expected columns
         column_definitions = []
-        for col in columns_info:
-            col_name, col_type, not_null, default_val, primary_key = col[1], col[2], col[3], col[4], col[5]
+        existing_columns = {col[1]: col for col in columns_info}
 
-            if col_name == "experiment_id":
-                col_type = "INTEGER"
+        for col_name, default_def in expected_columns.items():
+            if col_name in existing_columns:
+                # Use existing column definition but update experiment_id type
+                col = existing_columns[col_name]
+                col_name_db, col_type, not_null, default_val, primary_key = col[1], col[2], col[3], col[4], col[5]
 
-            col_def = f"{col_name} {col_type}"
-            if not_null:
-                col_def += " NOT NULL"
-            if default_val is not None:
-                col_def += f" DEFAULT {default_val}"
-            if primary_key:
-                col_def += " PRIMARY KEY"
+                if col_name == "experiment_id":
+                    col_type = "INTEGER"
 
-            column_definitions.append(col_def)
+                col_def = f"{col_name_db} {col_type}"
+                if not_null:
+                    col_def += " NOT NULL"
+                if default_val is not None:
+                    col_def += f" DEFAULT {default_val}"
+                if primary_key:
+                    col_def += " PRIMARY KEY"
+
+                column_definitions.append(col_def)
+            else:
+                # Use default definition for missing columns
+                column_definitions.append(f"{col_name} {default_def}")
 
         # Recreate table with correct schema
         await db.execute("DROP TABLE workflows")
         await db.execute(f"CREATE TABLE workflows ({', '.join(column_definitions)})")
 
-        # Copy data with type conversion
-        await db.execute("""
-            INSERT INTO workflows 
-            SELECT 
-                id, name, description,
+        # Get column names from backup table to handle missing columns
+        cursor = await db.execute("PRAGMA table_info(workflows_backup)")
+        backup_columns_info = await cursor.fetchall()
+        await cursor.close()
+
+        backup_column_names = [col[1] for col in backup_columns_info]
+
+        # Copy data with type conversion, handling missing columns
+        select_fields = []
+        select_fields.append("id")
+        
+        # Handle name column
+        if "name" in backup_column_names:
+            select_fields.append("name")
+        else:
+            select_fields.append("NULL as name")
+
+        # Handle config column
+        if "config" in backup_column_names:
+            select_fields.append("config")
+        else:
+            select_fields.append("'{}' as config")
+
+        # Handle status column
+        if "status" in backup_column_names:
+            select_fields.append("status")
+        else:
+            select_fields.append("NULL as status")
+
+        # Handle experiment_id with type conversion
+        if "experiment_id" in backup_column_names:
+            select_fields.append("""
                 CASE 
                     WHEN experiment_id IS NULL OR experiment_id = '' THEN NULL
                     WHEN experiment_id GLOB '*[!0-9]*' THEN NULL
                     ELSE CAST(experiment_id AS INTEGER)
-                END as experiment_id,
-                created_at, updated_at, config, status
-            FROM workflows_backup
+                END as experiment_id""")
+        else:
+            select_fields.append("NULL as experiment_id")
+
+        # Handle timestamps
+        for col_name in ["created_at", "updated_at"]:
+            if col_name in backup_column_names:
+                select_fields.append(col_name)
+            else:
+                select_fields.append("datetime('now') as " + col_name)
+
+        select_query = f"SELECT {', '.join(select_fields)} FROM workflows_backup"
+
+        await db.execute(f"""
+            INSERT INTO workflows 
+            {select_query}
         """)
 
         # Clean up backup
@@ -125,13 +184,6 @@ async def migrate_workflows_experiment_id_to_integer():
     except Exception as e:
         print(f"Failed to migrate workflows.experiment_id: {e}")
         # Try to restore from backup
-        try:
-            await db.execute("DROP TABLE IF EXISTS workflows")
-            await db.execute("ALTER TABLE workflows_backup RENAME TO workflows")
-            await db.commit()
-            print("Restored workflows table from backup")
-        except Exception:
-            pass
         raise e
 
 
