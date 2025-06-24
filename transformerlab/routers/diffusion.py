@@ -17,6 +17,21 @@ from diffusers import (
     LMSDiscreteScheduler,
     EulerAncestralDiscreteScheduler,
     DPMSolverMultistepScheduler,
+    ControlNetModel,
+    StableDiffusionControlNetPAGPipeline,
+    StableDiffusionXLControlNetPAGPipeline,
+    FluxControlNetPipeline,
+    StableDiffusionControlNetPipeline,
+    StableDiffusionXLControlNetPipeline,
+    StableDiffusionXLControlNetUnionPipeline,
+    StableDiffusion3ControlNetPipeline,
+    StableDiffusionControlNetImg2ImgPipeline,
+    StableDiffusionXLControlNetImg2ImgPipeline,
+    StableDiffusionXLControlNetUnionImg2ImgPipeline,
+    StableDiffusionXLControlNetPAGImg2ImgPipeline,
+    FluxControlNetImg2ImgPipeline,
+    StableDiffusionControlNetInpaintPipeline,
+    StableDiffusionXLControlNetInpaintPipeline,
 )
 import threading
 import os
@@ -30,11 +45,23 @@ from typing import List
 from PIL import Image
 import shutil
 import transformerlab.db as db
+from transformerlab.models import model_helper
 from transformerlab.shared import dirs
 from transformerlab.shared.shared import slugify
 import logging
 import subprocess
 import sys
+from controlnet_aux import (
+    OpenposeDetector,
+    HEDdetector,
+    MidasDetector,
+    LineartDetector,
+    NormalBaeDetector,
+    SamDetector,
+    ZoeDetector,
+)
+import cv2
+import numpy as np
 
 
 router = APIRouter(prefix="/diffusion", tags=["diffusion"])
@@ -169,6 +196,80 @@ UPSCALE_MODEL_STANDARD = "stabilityai/stable-diffusion-x4-upscaler"
 UPSCALE_MODEL_LATENT = "stabilityai/sd-x2-latent-upscaler"
 
 
+def preprocess_for_controlnet(input_pil: Image.Image, process_type: str) -> Image.Image:
+    """
+    Preprocess the input image depending on the controlnet_id (repo name or alias).
+    Returns a PIL image suitable as ControlNet reference.
+    Releases memory aggressively after detector use.
+    """
+    name = process_type.lower()
+
+    try:
+        if "canny" in name:
+            np_image = np.array(input_pil.convert("RGB"))
+            edges = cv2.Canny(np_image, 100, 200)
+            edges_rgb = cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB)
+            return Image.fromarray(edges_rgb)
+
+        elif "openpose" in name:
+            detector = OpenposeDetector.from_pretrained("lllyasviel/Annotators")
+            output = detector(input_pil)
+            del detector
+            return output
+
+        elif "depth" in name and "zoe" in name:
+            detector = ZoeDetector.from_pretrained("lllyasviel/Annotators")
+            output = detector(input_pil)
+            del detector
+            return output
+
+        elif "depth" in name:
+            detector = MidasDetector.from_pretrained("lllyasviel/Annotators")
+            output = detector(input_pil)
+            del detector
+            return output
+
+        elif "hed" in name or "scribble" in name or "softedge" in name:
+            detector = HEDdetector.from_pretrained("lllyasviel/Annotators")
+            output = detector(input_pil)
+            del detector
+            return output
+
+        elif "seg" in name:
+            detector = SamDetector.from_pretrained("lllyasviel/Annotators")
+            output = detector(input_pil)
+            del detector
+            return output
+
+        elif "normal" in name:
+            detector = NormalBaeDetector.from_pretrained("lllyasviel/Annotators")
+            output = detector(input_pil)
+            del detector
+            return output
+
+        elif "lineart" in name:
+            detector = LineartDetector.from_pretrained("lllyasviel/Annotators")
+            output = detector(input_pil)
+            del detector
+            return output
+
+        else:
+            raise ValueError(f"No preprocessing rule found for ControlNet: {process_type}")
+
+    finally:
+        # Force cleanup regardless of detector path
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+
+def load_controlnet_model(controlnet_id: str, device: str = "cuda") -> ControlNetModel:
+    controlnet_model = ControlNetModel.from_pretrained(
+        controlnet_id, torch_dtype=torch.float16 if device != "cpu" else torch.float32
+    )
+    return controlnet_model
+
+
 def _setup_diffusion_logger():
     """Setup logging for the diffusion router that logs to both console and file"""
     logger = logging.getLogger("diffusion")
@@ -265,6 +366,7 @@ class DiffusionRequest(BaseModel):
     num_images: int = 1
     generation_id: str | None = None
     scheduler: str = "default"
+    process_type: str | None = None
 
     @property
     def validated_num_images(self) -> int:
@@ -286,6 +388,7 @@ class DiffusionRequest(BaseModel):
     # Inpainting specific fields
     mask_image: str = ""  # Base64 encoded mask image for inpainting
     is_inpainting: bool = False  # Whether this is an inpainting generation
+    is_controlnet: str = ""  # Check if using ControlNet
     # Intermediate image saving
     save_intermediate_images: bool = True  # Whether to save intermediate images during generation
 
@@ -314,11 +417,13 @@ class ImageHistoryItem(BaseModel):
     num_images: int = 1
     # Image-to-image specific fields
     input_image_path: str = ""  # Path to input image (for img2img)
+    processed_image: str | None = None  # the preprocessed image for ControlNets
     strength: float = 0.8  # Denoising strength used
     is_img2img: bool = False  # Whether this was an img2img generation
     # Inpainting specific fields
     mask_image_path: str = ""  # Path to mask image (for inpainting)
     is_inpainting: bool = False  # Whether this was an inpainting generation
+    is_controlnet: str = ""
     scheduler: str = "default"
     # Intermediate image saving
     saved_intermediate_images: bool = True  # Whether intermediate images were saved
@@ -397,6 +502,8 @@ def cleanup_pipeline(pipe=None):
                 del pipe.text_encoder_2
             if hasattr(pipe, "scheduler") and pipe.scheduler is not None:
                 del pipe.scheduler
+            if hasattr(pipe, "controlnet") and pipe.controlnet is not None:
+                del pipe.controlnet
             del pipe
 
         # Force garbage collection multiple times
@@ -527,7 +634,9 @@ def get_pipeline(
     device: str = "cuda",
     is_img2img: bool = False,
     is_inpainting: bool = False,
+    is_controlnet: bool = False,
     scheduler="default",
+    controlnet_id="off",
 ):
     # cache_key = get_pipeline_key(model, adaptor, is_img2img, is_inpainting)
 
@@ -536,7 +645,52 @@ def get_pipeline(
         #     return _PIPELINES[cache_key]
 
         # Load appropriate pipeline based on type
-        if is_inpainting:
+        if is_controlnet:
+            CONTROLNET_PIPELINE_MAP = {
+                "StableDiffusionPipeline": StableDiffusionControlNetPipeline,
+                "StableDiffusionImg2ImgPipeline": StableDiffusionControlNetImg2ImgPipeline,
+                "StableDiffusionInpaintPipeline": StableDiffusionControlNetInpaintPipeline,
+                "StableDiffusionXLPipeline": StableDiffusionXLControlNetPipeline,
+                "StableDiffusionXLImg2ImgPipeline": StableDiffusionXLControlNetImg2ImgPipeline,
+                "StableDiffusionXLInpaintPipeline": StableDiffusionXLControlNetInpaintPipeline,
+                "StableDiffusionXLControlNetUnionPipeline": StableDiffusionXLControlNetUnionPipeline,
+                "StableDiffusionXLControlNetUnionImg2ImgPipeline": StableDiffusionXLControlNetUnionImg2ImgPipeline,
+                "StableDiffusionControlNetPAGPipeline": StableDiffusionControlNetPAGPipeline,
+                "StableDiffusionXLControlNetPAGPipeline": StableDiffusionXLControlNetPAGPipeline,
+                "StableDiffusionXLControlNetPAGImg2ImgPipeline": StableDiffusionXLControlNetPAGImg2ImgPipeline,
+                "FluxPipeline": FluxControlNetPipeline,
+                "FluxImg2ImgPipeline": FluxControlNetImg2ImgPipeline,
+                "StableDiffusion3Pipeline": StableDiffusion3ControlNetPipeline,
+            }
+
+            log_print(f"Loading ControlNet pipeline ({controlnet_id}) for model: {model}")
+
+            try:
+                info = model_info(model)
+                config = getattr(info, "config", {})
+                diffusers_config = config.get("diffusers", {})
+                architecture = diffusers_config.get("_class_name", "")
+            except Exception as e:
+                raise HTTPException(status_code=404, detail=f"Model not found or error: {str(e)}")
+
+            controlnet_model = load_controlnet_model(controlnet_id, device)
+            if controlnet_model is None:
+                raise ValueError(f"Unknown ControlNet type: {controlnet_id}")
+
+            controlnet_pipeline = CONTROLNET_PIPELINE_MAP.get(architecture)
+            if not controlnet_pipeline:
+                raise ValueError("ControlNet architecture not supported")
+
+            log_print(f"Loaded ControlNet pipeline {controlnet_pipeline} for model {model}")
+            pipe = controlnet_pipeline.from_pretrained(
+                model,
+                controlnet=controlnet_model,
+                torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+                safety_checker=None,
+                requires_safety_checker=False,
+                use_safetensors=True,
+            )
+        elif is_inpainting:
             pipe = AutoPipelineForInpainting.from_pretrained(
                 model,
                 torch_dtype=torch.float16 if device != "cpu" else torch.float32,
@@ -716,18 +870,26 @@ async def generate_image(request: DiffusionRequest):
         os.makedirs(images_folder, exist_ok=True)
 
         # Determine pipeline type based on flags and provided images
-        is_inpainting = request.is_inpainting or (
-            bool(request.input_image.strip()) and bool(request.mask_image.strip())
-        )
-        is_img2img = request.is_img2img or (bool(request.input_image.strip()) and not is_inpainting)
+        controlnet_id = request.is_controlnet or "off"
+        is_controlnet = controlnet_id != "off"
+        process_type = request.process_type
+
+        if is_controlnet:
+            is_img2img = False
+            is_inpainting = False
+        else:
+            is_inpainting = request.is_inpainting or (
+                bool(request.input_image.strip()) and bool(request.mask_image.strip())
+            )
+            is_img2img = request.is_img2img or (bool(request.input_image.strip()) and not is_inpainting)
 
         # Process input image and mask if provided
         input_image_obj = None
         mask_image_obj = None
         input_image_path = ""
         mask_image_path = ""
-
-        if is_inpainting or is_img2img:
+        uuid_suffix = str(generation_id)
+        if is_inpainting or is_img2img or is_controlnet:  # Process the input image for ControlNets as well
             try:
                 # Decode base64 input image
                 image_data = base64.b64decode(request.input_image)
@@ -735,10 +897,25 @@ async def generate_image(request: DiffusionRequest):
 
                 # Save input image for history
                 ensure_directories()
-                input_image_filename = f"input_{str(uuid.uuid4())}.png"
+                input_image_filename = f"input_{uuid_suffix}.png"
                 input_image_path = os.path.join(get_images_dir(), input_image_filename)
                 input_image_obj.save(input_image_path, format="PNG")
                 log_print(f"Input image saved: {input_image_path}")
+                if is_controlnet and input_image_obj:
+                    log_print(f"Running preprocessing for controlnet_id={controlnet_id}")
+                    try:
+                        if process_type is not None:
+                            input_image_obj = preprocess_for_controlnet(input_image_obj, process_type)
+                        else:
+                            logging.error("You must select a image preprocessing type for the ControlNet.")
+
+                        # Save preprocessed image
+                        preprocessed_image_filename = f"preprocessed_{uuid_suffix}.png"
+                        preprocessed_image_path = os.path.join(get_images_dir(), preprocessed_image_filename)
+                        input_image_obj.save(preprocessed_image_path, format="PNG")
+                        log_print(f"Preprocessed image saved: {preprocessed_image_path}")
+                    except Exception as e:
+                        raise HTTPException(status_code=400, detail=f"Preprocessing failed: {str(e)}")
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Invalid input image: {str(e)}")
 
@@ -750,7 +927,7 @@ async def generate_image(request: DiffusionRequest):
 
                 # Save mask image for history
                 ensure_directories()
-                mask_image_filename = f"mask_{str(uuid.uuid4())}.png"
+                mask_image_filename = f"mask_{uuid_suffix}.png"
                 mask_image_path = os.path.join(get_images_dir(), mask_image_filename)
                 mask_image_obj.save(mask_image_path, format="PNG")
                 log_print(f"Mask image saved: {mask_image_path}")
@@ -799,7 +976,9 @@ async def generate_image(request: DiffusionRequest):
                 device=device,
                 is_img2img=is_img2img,
                 is_inpainting=is_inpainting,
+                is_controlnet=is_controlnet,
                 scheduler=request.scheduler,
+                controlnet_id=controlnet_id,
             )
 
             # Set seed - use provided seed or generate a random one
@@ -813,7 +992,7 @@ async def generate_image(request: DiffusionRequest):
             # Process input image and mask for single GPU path
             input_image_obj = None
             mask_image_obj = None
-            if is_inpainting or is_img2img:
+            if is_inpainting or is_img2img or is_controlnet:
                 try:
                     # Decode base64 input image
                     image_data = base64.b64decode(request.input_image)
@@ -855,6 +1034,8 @@ async def generate_image(request: DiffusionRequest):
                         elif is_img2img:
                             generation_kwargs["image"] = input_image_obj
                             generation_kwargs["strength"] = request.strength
+                        elif is_controlnet:
+                            generation_kwargs["image"] = input_image_obj
 
                         # Add negative prompt if provided
                         if request.negative_prompt:
@@ -993,6 +1174,8 @@ async def generate_image(request: DiffusionRequest):
         actual_height = request.height if request.height > 0 else first_image.height
         actual_width = request.width if request.width > 0 else first_image.width
 
+        processed_image_path = preprocessed_image_path if is_controlnet else None
+
         # Save to history
         history_item = ImageHistoryItem(
             id=generation_id,
@@ -1017,11 +1200,13 @@ async def generate_image(request: DiffusionRequest):
             num_images=len(images),  # Store the number of images generated
             # Image-to-image specific fields
             input_image_path=input_image_path,
+            processed_image=processed_image_path,
             strength=request.strength if (is_img2img or is_inpainting) else 0.8,
             is_img2img=is_img2img,
             # Inpainting specific fields
             mask_image_path=mask_image_path,
             is_inpainting=is_inpainting,
+            is_controlnet=request.is_controlnet,
             scheduler=request.scheduler,
             # Intermediate image saving
             saved_intermediate_images=request.save_intermediate_images,
@@ -1111,7 +1296,12 @@ async def get_history(limit: int = 50, offset: int = 0):
 
 @router.get("/history/{image_id}", summary="Get the actual image by ID")
 async def get_image_by_id(
-    image_id: str, index: int = 0, input_image: bool = False, mask_image: bool = False, step: bool = False
+    image_id: str,
+    index: int = 0,
+    input_image: bool = False,
+    mask_image: bool = False,
+    step: bool = False,
+    preprocessed: bool = False,
 ):
     """
     Get an image from history by ID and index
@@ -1167,6 +1357,12 @@ async def get_image_by_id(
         image_path = image_item.input_image_path
         if not os.path.exists(image_path):
             raise HTTPException(status_code=404, detail=f"Input image file not found at {image_path}")
+    elif preprocessed:
+        if not image_item.processed_image or not image_item.processed_image.strip():
+            raise HTTPException(status_code=404, detail=f"No preprocessed image found for image ID {image_id}")
+        image_path = image_item.processed_image
+        if not os.path.exists(image_path):
+            raise HTTPException(status_code=404, detail=f"Preprocessed image file not found at {image_path}")
     else:
         # Return the generated output image (default behavior)
         # Check if image_path is a folder (new format) or a file (old format)
@@ -1378,6 +1574,9 @@ async def delete_image_from_history(image_id: str):
         # Remove input image if it exists
         if item_to_remove.get("input_image_path") and os.path.exists(item_to_remove["input_image_path"]):
             os.remove(item_to_remove["input_image_path"])
+        # Remove processed image if it exists
+        if item_to_remove.get("processed_image") and os.path.exists(item_to_remove["processed_image"]):
+            os.remove(item_to_remove["processed_image"])
 
         # Save updated history
         with open(history_file, "w") as f:
@@ -1422,6 +1621,9 @@ async def clear_history():
                 # Remove input image if it exists
                 if item.get("input_image_path") and os.path.exists(item["input_image_path"]):
                     os.remove(item["input_image_path"])
+                # Remove processed image if it exists
+                if item.get("processed_image") and os.path.exists(item["processed_image"]):
+                    os.remove(item["processed_image"])
 
             # Clear history file
             with open(history_file, "w") as f:
@@ -1679,6 +1881,34 @@ def should_use_diffusion_worker(model) -> bool:
         return False
 
 
+@router.get("/controlnets", summary="List available ControlNet models")
+async def list_controlnets():
+    """
+    Lists all downloaded ControlNet models by reading the controlnets directory
+    and extracting `_class_name` from their config.json.
+    """
+    all_models = await model_helper.list_installed_models(embedding=False)
+    models = []
+
+    for model in all_models:
+        json_data = model.get("json_data", {})
+
+        # Check common locations
+        arch = json_data.get("architecture")
+        if not arch:
+            # Try model_index fallback
+            model_index = json_data.get("model_index", {})
+            arch = model_index.get("_class_name")
+
+        # Final fallback: rely on explicit controlnet flag
+        is_controlnet = json_data.get("is_controlnet", False)
+
+        if (arch and "controlnet" in arch.lower()) or is_controlnet:
+            models.append(model)
+
+    return {"controlnets": models}
+
+
 def get_python_executable():
     """Get the Python executable path"""
     return sys.executable
@@ -1725,6 +1955,7 @@ async def run_multi_gpu_generation(
         "upscale": request.upscale,
         "upscale_factor": request.upscale_factor,
         "enable_sharding": request.enable_sharding,
+        "is_controlnet": request.is_controlnet,
         "scheduler": request.scheduler,
     }
 
