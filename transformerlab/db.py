@@ -36,6 +36,105 @@ async_engine = create_async_engine(DATABASE_URL, echo=False)
 async_session = sessionmaker(async_engine, expire_on_commit=False, class_=AsyncSession)
 
 
+async def migrate_workflows_experiment_id_to_integer():
+    """
+    Migration function to convert workflows.experiment_id column to integer format
+    """
+
+    try:
+        # Check if workflows table exists
+        cursor = await db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='workflows'")
+        table_exists = await cursor.fetchone()
+        await cursor.close()
+
+        if not table_exists:
+            print("Workflows table does not exist. Skipping experiment_id migration.")
+            return
+
+        # Check current column type
+        cursor = await db.execute("PRAGMA table_info(workflows)")
+        columns = await cursor.fetchall()
+        await cursor.close()
+
+        experiment_id_type = None
+        for column in columns:
+            if column[1] == "experiment_id":
+                experiment_id_type = column[2].upper()
+                break
+
+        if experiment_id_type is None:
+            print("experiment_id column does not exist in workflows table.")
+            return
+
+        if experiment_id_type == "INTEGER":
+            # print("experiment_id column is already INTEGER type. No migration needed.")
+            return
+
+        print(f"Migrating workflows.experiment_id from {experiment_id_type} to INTEGER...")
+
+        # Create backup and migrate
+        await db.execute("CREATE TABLE workflows_backup AS SELECT * FROM workflows")
+
+        # Get original table schema
+        cursor = await db.execute("PRAGMA table_info(workflows)")
+        columns_info = await cursor.fetchall()
+        await cursor.close()
+
+        # Build new schema with INTEGER experiment_id
+        column_definitions = []
+        for col in columns_info:
+            col_name, col_type, not_null, default_val, primary_key = col[1], col[2], col[3], col[4], col[5]
+
+            if col_name == "experiment_id":
+                col_type = "INTEGER"
+
+            col_def = f"{col_name} {col_type}"
+            if not_null:
+                col_def += " NOT NULL"
+            if default_val is not None:
+                col_def += f" DEFAULT {default_val}"
+            if primary_key:
+                col_def += " PRIMARY KEY"
+
+            column_definitions.append(col_def)
+
+        # Recreate table with correct schema
+        await db.execute("DROP TABLE workflows")
+        await db.execute(f"CREATE TABLE workflows ({', '.join(column_definitions)})")
+
+        # Copy data with type conversion
+        await db.execute("""
+            INSERT INTO workflows 
+            SELECT 
+                id, name, description,
+                CASE 
+                    WHEN experiment_id IS NULL OR experiment_id = '' THEN NULL
+                    WHEN experiment_id GLOB '*[!0-9]*' THEN NULL
+                    ELSE CAST(experiment_id AS INTEGER)
+                END as experiment_id,
+                created_at, updated_at, config, status
+            FROM workflows_backup
+        """)
+
+        # Clean up backup
+        await db.execute("DROP TABLE workflows_backup")
+
+        await db.commit()
+        print("Successfully migrated workflows.experiment_id to INTEGER type")
+
+    except Exception as e:
+        print(f"Failed to migrate workflows.experiment_id: {e}")
+        # Try to restore from backup
+        try:
+            await db.execute("DROP TABLE IF EXISTS workflows")
+            await db.execute("ALTER TABLE workflows_backup RENAME TO workflows")
+            await db.commit()
+            print("Restored workflows table from backup")
+        except Exception:
+            pass
+        raise e
+
+
 async def init():
     """
     Create the database, tables, and workspace folder if they don't exist.
@@ -85,6 +184,8 @@ async def init():
     # On startup, look for any jobs that are in the RUNNING state and set them to CANCELLED instead:
     # This is to handle the case where the server is restarted while a job is running.
     await job_cancel_in_progress_jobs()
+    # Run migrations
+    await migrate_workflows_experiment_id_to_integer()
     # await init_sql_model()
 
     return
