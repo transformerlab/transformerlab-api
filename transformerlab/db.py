@@ -131,7 +131,7 @@ async_session = sessionmaker(async_engine, expire_on_commit=False, class_=AsyncS
 #         # Copy data with type conversion, handling missing columns
 #         select_fields = []
 #         select_fields.append("id")
-        
+
 #         # Handle name column
 #         if "name" in backup_column_names:
 #             select_fields.append("name")
@@ -153,7 +153,7 @@ async_session = sessionmaker(async_engine, expire_on_commit=False, class_=AsyncS
 #         # Handle experiment_id with type conversion
 #         if "experiment_id" in backup_column_names:
 #             select_fields.append("""
-#                 CASE 
+#                 CASE
 #                     WHEN experiment_id IS NULL OR experiment_id = '' THEN NULL
 #                     WHEN experiment_id GLOB '*[!0-9]*' THEN NULL
 #                     ELSE CAST(experiment_id AS INTEGER)
@@ -171,7 +171,7 @@ async_session = sessionmaker(async_engine, expire_on_commit=False, class_=AsyncS
 #         select_query = f"SELECT {', '.join(select_fields)} FROM workflows_backup"
 
 #         await db.execute(f"""
-#             INSERT INTO workflows 
+#             INSERT INTO workflows
 #             {select_query}
 #         """)
 
@@ -210,31 +210,33 @@ async def migrate_workflows_non_preserving():
 
         experiment_id_type = None
         config_type = None
-        
+
         for column in columns_info:
             column_name = column[1]
             column_type = column[2].upper()
-            
-            if column_name == 'experiment_id':
+
+            if column_name == "experiment_id":
                 experiment_id_type = column_type
-            elif column_name == 'config':
+            elif column_name == "config":
                 config_type = column_type
 
         # Check if migration is needed based on column types
         needs_migration = False
         migration_reasons = []
 
-        if experiment_id_type and experiment_id_type != 'INTEGER':
+        if experiment_id_type and experiment_id_type != "INTEGER":
             needs_migration = True
             migration_reasons.append(f"experiment_id column type is {experiment_id_type}, expected INTEGER")
 
         # SQLAlchemy JSON type maps to TEXT in SQLite, so we accept both
-        if config_type and config_type not in ['JSON', 'TEXT']:
+        if config_type and config_type not in ["JSON", "TEXT"]:
             needs_migration = True
-            migration_reasons.append(f"config column type is {config_type}, expected JSON/TEXT (SQLAlchemy creates JSON as TEXT in SQLite)")
+            migration_reasons.append(
+                f"config column type is {config_type}, expected JSON/TEXT (SQLAlchemy creates JSON as TEXT in SQLite)"
+            )
 
         if not needs_migration:
-            print("Column types are correct. No migration needed.")
+            # print("Column types are correct. No migration needed.")
             return
 
         print("Migration needed due to:")
