@@ -65,6 +65,9 @@ from transformerlab.shared import dirs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
 
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # The following environment variable can be used by other scripts
 # who need to connect to the root DB, for example
