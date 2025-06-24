@@ -49,6 +49,12 @@ async def workflow_create(name: str, config: str = '{"nodes":[]}', experimentId:
 @router.get("/create_empty", summary="Create an empty workflow")
 async def workflow_create_empty(name: str, experimentId: int = 1):
     name = slugify(name)
+    # Check if workflow name already exists in this experiment
+    existing_workflows = await db.workflows_get_from_experiment(experimentId)
+    for workflow in existing_workflows:
+        if workflow.get("name") == name:
+            return {"error": f"Workflow with name '{name}' already exists in this experiment"}
+
     config = {"nodes": [{"type": "START", "id": str(uuid.uuid4()), "name": "START", "out": []}]}
     workflow_id = await db.workflow_create(name, json.dumps(config), str(experimentId))
     return workflow_id
@@ -76,6 +82,12 @@ async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: 
 async def workflow_update_name(workflow_id: str, new_name: str, experimentId: int):
     new_name = slugify(new_name)
     # Update workflow name with experiment enforcement at database level
+    # Check if workflow name already exists in this experiment
+    existing_workflows = await db.workflows_get_from_experiment(experimentId)
+    for workflow in existing_workflows:
+        if workflow.get("name") == new_name:
+            return {"error": f"Workflow with name '{new_name}' already exists in this experiment"}
+
     success = await db.workflow_update_name(workflow_id, new_name, experimentId)
     if not success:
         return {"error": "Workflow not found or does not belong to this experiment"}
