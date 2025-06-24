@@ -3,7 +3,7 @@ import json
 import os
 import subprocess
 import sys
-import logging
+import time
 import signal
 import psutil
 import torch
@@ -14,6 +14,7 @@ try:
     from transformerlab.plugin import get_python_executable
 except ImportError:
     from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
+
 
 def kill_sglang_subprocesses():
     print(">>> [main] Checking for lingering sglang scheduler subprocesses...")
@@ -42,6 +43,7 @@ def kill_existing_workers():
         except Exception as e:
             print(f">>> [main] Failed to inspect or kill process: {e}")
 
+
 # Clear CUDA memory (if CUDA is available)
 def clear_vram():
     gc.collect()
@@ -49,6 +51,7 @@ def clear_vram():
         print(">>> [main] Emptying CUDA memory cache and collecting garbage...")
         torch.cuda.empty_cache()
         torch.cuda.ipc_collect()
+
 
 def isnum(s):
     return s.strip().isdigit()
@@ -188,4 +191,3 @@ finally:
 
 print("SGLang Worker exited", file=sys.stderr)
 sys.exit(1)
-

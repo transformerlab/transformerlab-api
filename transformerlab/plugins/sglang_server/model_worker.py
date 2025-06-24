@@ -8,30 +8,13 @@ python3 -m fastchat.serve.sglang_worker --model-path liuhaotian/llava-v1.5-7b --
 import logging
 import sys
 
-def safe_configure_logger(server_args, prefix=""):
-    print(">>> [safe_configure_logger] Overriding broken configure_logger")
-    try:
-        logging.basicConfig(
-            level=logging.ERROR,
-            format=f"[%(asctime)s{prefix}] %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-        print(">>> [safe_configure_logger] Logging configured safely")
-    except Exception as e:
-        print(f">>> [safe_configure_logger] Failed to configure logging: {e}")
-
 import sglang.srt.utils
-sglang.srt.utils.configure_logger = safe_configure_logger
-
 import sglang.srt.entrypoints.engine as engine
-engine.configure_logger = safe_configure_logger
-
 
 import argparse
 import asyncio
 import json
 import os
-import sys
 import multiprocessing
 from typing import List
 
@@ -46,33 +29,38 @@ from fastchat.conversation import IMAGE_PLACEHOLDER_STR
 from fastchat.model.model_adapter import get_conversation_template
 from fastchat.constants import ErrorCode, SERVER_ERROR_MSG
 from fastchat.serve.base_model_worker import BaseModelWorker
-from fastchat.serve.model_worker import (
-    logger,
-    worker_id,
-)
+from fastchat.serve.model_worker import logger
 
-from fastchat.model.model_adapter import add_model_args
-from fastchat.modules.awq import AWQConfig
-from fastchat.modules.exllama import ExllamaConfig
-from fastchat.modules.gptq import GptqConfig
-from fastchat.modules.xfastertransformer import XftConfig
-from fastchat.utils import get_context_length, str_to_torch_dtype, is_partial_stop
+from fastchat.utils import get_context_length, is_partial_stop
 
-import argparse
-import multiprocessing
-import sglang as sgl
 import traceback
 import torch
 import psutil
 import signal
-import time
 import gc
 import atexit
 
 app = FastAPI()
 
-
 sys.setrecursionlimit(8000)
+
+
+def safe_configure_logger(server_args, prefix=""):
+    print(">>> [safe_configure_logger] Overriding broken configure_logger")
+    try:
+        logging.basicConfig(
+            level=logging.ERROR,
+            format=f"[%(asctime)s{prefix}] %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+        print(">>> [safe_configure_logger] Logging configured safely")
+    except Exception as e:
+        print(f">>> [safe_configure_logger] Failed to configure logging: {e}")
+
+
+sglang.srt.utils.configure_logger = safe_configure_logger
+engine.configure_logger = safe_configure_logger
+
 
 def kill_sglang_subprocesses():
     print(">>> [main] Checking for lingering sglang scheduler subprocesses...")
@@ -89,6 +77,7 @@ def kill_sglang_subprocesses():
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             continue
 
+
 # Clear CUDA memory (if CUDA is available)
 def clear_vram():
     gc.collect()
@@ -96,6 +85,7 @@ def clear_vram():
         print(">>> [main] Emptying CUDA memory cache and collecting garbage...")
         torch.cuda.empty_cache()
         torch.cuda.ipc_collect()
+
 
 def create_model_worker():
     print("Inside Create Model Worker")
@@ -118,7 +108,7 @@ def create_model_worker():
     parser.add_argument("--device", type=str, default="cuda", help="Device to use")
     parser.add_argument("--gpus", type=str, default="", help="Comma-separated list of GPU IDs")
 
-    args = parser.parse_args()    
+    args = parser.parse_args()
     # Set defaults
     args.tp_size = args.num_gpus if args.num_gpus > 1 else 1
     if not args.tokenizer_path:
@@ -135,16 +125,10 @@ def create_model_worker():
         attention_backend = "flashinfer"
         print(f">>> [create_model_worker] Forcing attention_backend={attention_backend} for model {args.model_path}")
 
-
     # Initialize runtime
     try:
         print(">>> Creating SGLang Runtime")
         sys.stdout.flush()
-
-        os.environ["EPLB_DISABLE"] = "1"
-        # Patch built-in deleter temporarily to prevent crash
-        import sglang.lang.backend.runtime_endpoint as runtime_endpoint
-        runtime_endpoint.Runtime.__del__ = lambda self: None        
 
         runtime = sgl.Runtime(
             model_path=args.model_path,
@@ -158,7 +142,7 @@ def create_model_worker():
         print(">>> Runtime created successfully")
         sys.stdout.flush()
 
-    except Exception as e:
+    except Exception:
         print(">>> Exception during Runtime init:")
         traceback.print_exc()
         sys.stdout.flush()
@@ -166,11 +150,9 @@ def create_model_worker():
 
     print(">>> Runtime created successfully")
 
-
     sgl.set_default_backend(runtime)
     conv_template = get_conversation_template(args.model_path).name
     print(f">>> [create_model_worker] Using conv_template: {conv_template}")
-
 
     # Instantiate worker
     worker = SGLWorker(
@@ -197,6 +179,7 @@ def check_if_multimodal(model_path: str) -> bool:
     with open(config_file, "r") as f:
         config = json.load(f)
     return "image_token_index" in config or config.get("_from_multimodal", False)
+
 
 @sgl.function
 def pipeline(s, prompt, max_tokens):
@@ -234,9 +217,7 @@ class SGLWorker(BaseModelWorker):
             check_if_multimodal(model_path),
         )
 
-        logger.info(
-            f"Loading the model {self.model_names} on worker {worker_id}, worker type: SGLang worker..."
-        )
+        logger.info(f"Loading the model {self.model_names} on worker {worker_id}, worker type: SGLang worker...")
 
         self.tokenizer = get_tokenizer(tokenizer_path)
         config = get_config(model_path, trust_remote_code=trust_remote_code)
@@ -246,13 +227,17 @@ class SGLWorker(BaseModelWorker):
             print(f"!!! [SGLWorker] get_context_length failed: {e}. Falling back to config.max_position_embeddings")
             self.context_len = getattr(config, "max_position_embeddings", 2048)  # Safe default
 
-
-
         if not no_register:
             self.init_heart_beat()
 
     async def generate_stream(self, params):
         self.call_ct += 1
+
+        if params.get("stop") is True:
+            print(">>> [generate_stream] Stop flag detected in params. Performing cleanup...")
+            clear_vram()
+            kill_sglang_subprocesses()
+            raise RuntimeError("Job stopped by user.")
 
         prompt = params.pop("prompt")
         images = params.get("images", [])
@@ -310,9 +295,7 @@ class SGLWorker(BaseModelWorker):
         )
 
         entire_output = prompt if echo else ""
-        async for out, meta_info in state.text_async_iter(
-            var_name="response", return_meta_data=True
-        ):
+        async for out, meta_info in state.text_async_iter(var_name="response", return_meta_data=True):
             partial_stop = any(is_partial_stop(out, i) for i in stop)
 
             # prevent yielding partial stop sequence
@@ -405,10 +388,12 @@ async def api_get_conv(request: Request):
 async def api_model_details(request: Request):
     return {"context_length": worker.context_len}
 
+
 def cleanup_on_exit():
     print(">>> [model_worker] Cleanup on exit triggered.")
     kill_sglang_subprocesses()
     clear_vram()
+
 
 if __name__ == "__main__":
     print("Inside Main Worker, Calling Create Model Worker")
