@@ -383,26 +383,32 @@ async def queue_distributed_training_task(
         # Parse machine IDs
         target_machine_ids = [int(mid.strip()) for mid in machine_ids.split(",")]
 
-        if len(target_machine_ids) < 2:
-            return {"error": "At least 2 machines required for distributed training"}
+        if len(target_machine_ids) < 1:
+            print("No target machines provided")
+            return {"error": "At least 1 machine required for distributed training"}
 
         if master_machine_id not in target_machine_ids:
+            print("Master machine not in target machines")
             return {"error": "Master machine must be included in target machines"}
 
         # Validate all machines exist and are online
         for machine_id in target_machine_ids:
             machine = await db.network_machine_get(machine_id)
             if not machine:
+                print(f"Machine {machine_id} not found")
                 return {"error": f"Machine {machine_id} not found"}
             if machine["status"] != "online":
+                print(f"Machine {machine_id} is not online")
                 return {"error": f"Machine {machine_id} is not online"}
 
         # Get the task to queue
         task_to_queue = await db.tasks_get_by_id(task_id)
         if not task_to_queue:
+            print(f"Task {task_id} not found")
             return {"error": "Task not found"}
 
         if task_to_queue["type"] != "TRAIN":
+            print("Only training tasks can be distributed")
             return {"error": "Only training tasks can be distributed"}
 
         # Parse overrides and config
@@ -475,10 +481,13 @@ async def queue_distributed_training_task(
         }
 
     except ValueError as e:
+        print(f"Invalid machine IDs format: {str(e)}")
         return {"error": f"Invalid machine IDs format: {str(e)}"}
     except json.JSONDecodeError as e:
+        print(f"Invalid JSON in parameters: {str(e)}")
         return {"error": f"Invalid JSON in parameters: {str(e)}"}
     except Exception as e:
+        print(f"Failed to queue distributed training task: {str(e)}")
         return {"error": f"Failed to queue distributed training task: {str(e)}"}
 
 

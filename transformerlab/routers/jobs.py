@@ -854,7 +854,7 @@ async def _dispatch_distributed_job(job, job_config):
 
         # Create distributed job dispatch
         distributed_job = DistributedJobCreate(
-            job_id=job["id"],
+            job_id=str(job["id"]),
             job_data=job_config,
             target_machine_ids=target_machine_ids,
             master_machine_id=master_machine_id,

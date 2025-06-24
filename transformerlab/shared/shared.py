@@ -4,6 +4,7 @@ import os
 import re
 import shutil
 import subprocess
+import shlex
 import sys
 import threading
 import time
@@ -903,6 +904,8 @@ async def run_distributed_job(job_id: str, job_config, experiment_name: str = "d
         # Get job details
         job_details = await db.job_get(job_id)
         experiment_id = job_details["experiment_id"]
+        if experiment_id is None or experiment_id == "":
+            experiment_id = 1
         experiment_details = await db.experiment_get(experiment_id)
         experiment_name = experiment_details["name"]
 
@@ -1014,15 +1017,20 @@ async def run_distributed_job(job_id: str, job_config, experiment_name: str = "d
         venv_path = os.path.join(original_plugin_dir, "venv")
 
         if os.path.exists(venv_path) and os.path.isdir(venv_path):
-            accelerate_cmd = os.path.join(venv_path, "bin", "accelerate")
+            print(f">Plugin has virtual environment, using venv from {venv_path}")
+            # Use bash to activate venv and run accelerate to ensure full environment activation
+            venv_activate = os.path.join(venv_path, "bin", "activate")
+            accelerate_cmd_base = f"source {venv_activate} && accelerate"
         else:
-            accelerate_cmd = "accelerate"
+            print(">Using system Python interpreter")
+            accelerate_cmd_base = "accelerate"
+
+        print(f"Using accelerate command base: {accelerate_cmd_base}")
 
         # Build the accelerate launch command for distributed training via plugin harness
         if world_size > 1:
             # Multi-machine distributed training
-            accelerate_launch_cmd = [
-                accelerate_cmd,
+            accelerate_args = [
                 "launch",
                 "--multi_node",
                 "--num_machines",
@@ -1038,14 +1046,13 @@ async def run_distributed_job(job_id: str, job_config, experiment_name: str = "d
                 original_plugin_dir,
                 "--distributed_mode",
                 "--accelerate_config",
-                json.dumps(accelerate_config),
+                shlex.quote(json.dumps(accelerate_config)),
                 "--config_file",
                 config_file,
             ]
         else:
             # Single machine multi-GPU training
-            accelerate_launch_cmd = [
-                accelerate_cmd,
+            accelerate_args = [
                 "launch",
                 "--multi_gpu",
                 plugin_harness_path,
@@ -1053,15 +1060,19 @@ async def run_distributed_job(job_id: str, job_config, experiment_name: str = "d
                 original_plugin_dir,
                 "--distributed_mode",
                 "--accelerate_config",
-                json.dumps(accelerate_config),
+                shlex.quote(json.dumps(accelerate_config)),
                 "--config_file",
                 config_file,
             ]
 
+        # Build the full command with proper venv activation
+        full_command = f"{accelerate_cmd_base} {' '.join(accelerate_args)}"
+        accelerate_launch_cmd = ["bash", "-c", full_command]
+
         print(f"Starting distributed training command: {' '.join(accelerate_launch_cmd)}")
 
         # Run the distributed training
-        popen_and_call(on_distributed_train_complete, output_file=output_file, *accelerate_launch_cmd)
+        popen_and_call(on_distributed_train_complete, "", output_file, accelerate_launch_cmd)
 
         return {
             "status": "started",
@@ -1076,61 +1087,3 @@ async def run_distributed_job(job_id: str, job_config, experiment_name: str = "d
         print(f"ERROR: Failed to start distributed training job {job_id}: {e}")
         await db.job_update_status(job_id, "FAILED")
         return {"status": "error", "job_id": job_id, "message": f"Failed to start distributed training: {str(e)}"}
-
-
-def _create_accelerate_config(distributed_config, job_id):
-    """Create an accelerate config file for this distributed job."""
-    tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
-    config_path = os.path.join(tempdir, f"accelerate_config_{job_id}.yaml")
-
-    rank = distributed_config.get("rank", 0)
-    world_size = distributed_config.get("world_size", 1)
-    master_addr = distributed_config.get("master_addr", "localhost")
-    master_port = distributed_config.get("master_port", 29500)
-
-    # Create accelerate config content
-    config_content = f"""compute_environment: LOCAL_MACHINE
-debug: false
-distributed_type: MULTI_GPU
-downcast_bf16: 'no'
-machine_rank: {rank}
-main_training_function: main
-mixed_precision: bf16
-num_machines: {world_size}
-num_processes: {world_size}
-rdzv_backend: static
-same_network: true
-tpu_env: []
-tpu_use_cluster: false
-tpu_use_sudo: false
-use_cpu: false
-main_process_ip: {master_addr}
-main_process_port: {master_port}
-"""
-
-    with open(config_path, "w") as f:
-        f.write(config_content)
-
-    return config_path
-
-
-rainbow = [
-    "\033[38;5;196m",
-    "\033[38;5;202m",
-    "\033[38;5;226m",
-    "\033[38;5;082m",
-    "\033[38;5;021m",
-    "\033[38;5;093m",
-    "\033[38;5;163m",
-]
-reset = "\033[0m"
-
-
-def print_in_rainbow(text):
-    for i, line in enumerate(text.split("\n")):
-        chunks = [line[i : i + 6] for i in range(0, len(line), 6)]
-        for j, chunk in enumerate(chunks):
-            print(rainbow[j % len(rainbow)], end="")
-            print(chunk, end="")
-            print(reset, end="")
-        print("", flush=True)
