@@ -1320,3 +1320,160 @@ async def network_machine_delete_by_name(name: str):
             await session.commit()
             return True
         return False
+
+
+async def network_machine_reserve(
+    machine_id: int, host_identifier: str, duration_minutes: int = None, metadata: dict = None
+):
+    """Reserve a network machine for a specific host."""
+    from datetime import datetime
+
+    if metadata is None:
+        metadata = {}
+
+    async with async_session() as session:
+        # Check if machine exists and is not already reserved
+        result = await session.execute(select(models.NetworkMachine).where(models.NetworkMachine.id == machine_id))
+        machine = result.scalar_one_or_none()
+
+        if not machine:
+            return False, "Machine not found"
+
+        if machine.is_reserved:
+            return False, f"Machine is already reserved by {machine.reserved_by_host}"
+
+        # Reserve the machine
+        stmt = (
+            update(models.NetworkMachine)
+            .where(models.NetworkMachine.id == machine_id)
+            .values(
+                is_reserved=True,
+                reserved_by_host=host_identifier,
+                reserved_at=datetime.now(),
+                reservation_duration_minutes=duration_minutes,
+                reservation_metadata=metadata,
+            )
+        )
+        await session.execute(stmt)
+        await session.commit()
+        return True, "Machine reserved successfully"
+
+
+async def network_machine_release(machine_id: int, host_identifier: str = None):
+    """Release a reserved network machine."""
+    async with async_session() as session:
+        # Get the machine
+        result = await session.execute(select(models.NetworkMachine).where(models.NetworkMachine.id == machine_id))
+        machine = result.scalar_one_or_none()
+
+        if not machine:
+            return False, "Machine not found"
+
+        if not machine.is_reserved:
+            return False, "Machine is not reserved"
+
+        # If host_identifier is provided, verify it matches
+        if host_identifier and machine.reserved_by_host != host_identifier:
+            return False, "Machine is reserved by a different host"
+
+        # Release the machine
+        stmt = (
+            update(models.NetworkMachine)
+            .where(models.NetworkMachine.id == machine_id)
+            .values(
+                is_reserved=False,
+                reserved_by_host=None,
+                reserved_at=None,
+                reservation_duration_minutes=None,
+                reservation_metadata={},
+            )
+        )
+        await session.execute(stmt)
+        await session.commit()
+        return True, "Machine released successfully"
+
+
+async def network_machine_release_by_name(name: str, host_identifier: str = None):
+    """Release a reserved network machine by name."""
+    async with async_session() as session:
+        # Get the machine by name
+        result = await session.execute(select(models.NetworkMachine).where(models.NetworkMachine.name == name))
+        machine = result.scalar_one_or_none()
+
+        if not machine:
+            return False, "Machine not found"
+
+        return await network_machine_release(machine.id, host_identifier)
+
+
+async def network_machine_get_reservations_by_host(host_identifier: str):
+    """Get all machines reserved by a specific host."""
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.NetworkMachine)
+            .where(models.NetworkMachine.reserved_by_host == host_identifier)
+            .order_by(models.NetworkMachine.reserved_at.desc())
+        )
+        machines = result.scalars().all()
+        return [machine.__dict__ for machine in machines]
+
+
+async def network_machine_get_all_reservations():
+    """Get all machine reservations across all hosts."""
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.NetworkMachine)
+            .where(models.NetworkMachine.is_reserved.is_(True))
+            .order_by(models.NetworkMachine.reserved_at.desc())
+        )
+        machines = result.scalars().all()
+        return [machine.__dict__ for machine in machines]
+
+
+async def network_machine_check_reservation_expired(machine_id: int):
+    """Check if a machine's reservation has expired and auto-release if needed."""
+    from datetime import datetime, timedelta
+
+    async with async_session() as session:
+        result = await session.execute(select(models.NetworkMachine).where(models.NetworkMachine.id == machine_id))
+        machine = result.scalar_one_or_none()
+
+        if not machine or not machine.is_reserved:
+            return False, "Machine not found or not reserved"
+
+        # If no duration specified, reservation doesn't expire
+        if not machine.reservation_duration_minutes:
+            return False, "Reservation has no expiration"
+
+        # Check if reservation has expired
+        expiry_time = machine.reserved_at + timedelta(minutes=machine.reservation_duration_minutes)
+        if datetime.now() > expiry_time:
+            # Auto-release expired reservation
+            await network_machine_release(machine_id)
+            return True, "Reservation expired and released"
+
+        return False, "Reservation still active"
+
+
+async def network_machine_cleanup_expired_reservations():
+    """Clean up all expired reservations across all machines."""
+    from datetime import datetime, timedelta
+
+    async with async_session() as session:
+        # Get all reserved machines with expiration times
+        result = await session.execute(
+            select(models.NetworkMachine).where(
+                models.NetworkMachine.is_reserved.is_(True),
+                models.NetworkMachine.reservation_duration_minutes.isnot(None),
+            )
+        )
+        machines = result.scalars().all()
+
+        expired_count = 0
+        for machine in machines:
+            expiry_time = machine.reserved_at + timedelta(minutes=machine.reservation_duration_minutes)
+            if datetime.now() > expiry_time:
+                await network_machine_release(machine.id)
+                expired_count += 1
+
+        return expired_count

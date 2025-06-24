@@ -185,6 +185,12 @@ class NetworkMachine(Base):
     status: Mapped[Optional[str]] = mapped_column(String, index=True, nullable=True, server_default="offline")
     last_seen: Mapped[Optional[DateTime]] = mapped_column(DateTime, nullable=True)
     machine_metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True, server_default="{}")
+    # Reservation fields
+    is_reserved: Mapped[bool] = mapped_column(nullable=False, server_default="0")
+    reserved_by_host: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    reserved_at: Mapped[Optional[DateTime]] = mapped_column(DateTime, nullable=True)
+    reservation_duration_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    reservation_metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True, server_default="{}")
     created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
