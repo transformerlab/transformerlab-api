@@ -319,7 +319,12 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
             config["model_index"] = model_index
         return config
 
-    # Try to download config.json, but handle GGUF repositories gracefully
+    # Check if this is a GGUF repository first, before processing config.json
+    is_gguf_repo = _is_gguf_repository(hugging_face_id, hf_model_info)
+    if is_gguf_repo:
+        return _create_gguf_repo_config(hugging_face_id, hf_model_info, model_card_data)
+
+    # Try to download config.json for non-GGUF repositories
     try:
         huggingface_hub.hf_hub_download(repo_id=hugging_face_id, filename="config.json")
         fs = huggingface_hub.HfFileSystem()
@@ -327,13 +332,8 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
         with fs.open(filename) as f:
             filedata = json.load(f)
     except huggingface_hub.utils.EntryNotFoundError:
-        # No config.json found - check if this is a GGUF repository
-        is_gguf_repo = _is_gguf_repository(hugging_face_id, hf_model_info)
-        if is_gguf_repo:
-            return _create_gguf_repo_config(hugging_face_id, hf_model_info, model_card_data)
-        else:
-            # Re-raise the error for non-GGUF repositories that require config.json
-            raise
+        # No config.json found for non-GGUF repository - this is an error
+        raise
 
         # config.json stores a list of architectures but we only store one so just take the first!
         architecture_list = filedata.get("architectures", [])
