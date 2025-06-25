@@ -5,7 +5,7 @@ import zipfile
 import tempfile
 import socket
 import platform
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -71,6 +71,40 @@ class RemoteJobStatus(BaseModel):
     progress: int = 0
     machine_id: int
     error_message: Optional[str] = None
+
+
+# Quota system models
+class QuotaConfig(BaseModel):
+    host_identifier: str
+    time_period: str  # 'daily', 'weekly', 'monthly', 'yearly'
+    minutes_limit: int
+    warning_threshold_percent: int = 80
+    is_active: bool = True
+
+
+class QuotaUsage(BaseModel):
+    host_identifier: str
+    time_period: str
+    period_start_date: str
+    minutes_used: int
+    minutes_limit: int
+    usage_percent: float
+    remaining_minutes: int
+    is_warning: bool
+    is_exceeded: bool
+
+
+class QuotaCheck(BaseModel):
+    can_reserve: bool
+    requested_minutes: int
+    quota_status: Dict[str, QuotaUsage]
+    warnings: list[str] = []
+    errors: list[str] = []
+
+
+class QuotaReservationRequest(BaseModel):
+    duration_minutes: int
+    machine_id: Optional[int] = None
 
 
 @router.get("/info", summary="Get network configuration info")
@@ -966,8 +1000,336 @@ async def get_local_job_output(job_id: str):
         raise HTTPException(status_code=500, detail="Failed to serve output file")
 
 
+# Default quota configurations
+DEFAULT_QUOTAS = {
+    "daily": 480,  # 8 hours per day
+    "weekly": 2400,  # 40 hours per week
+    "monthly": 9600,  # 160 hours per month
+    "yearly": 115200,  # 1920 hours per year
+}
+
+WARNING_THRESHOLDS = {
+    "daily": 80,  # Warn at 80%
+    "weekly": 80,  # Warn at 80%
+    "monthly": 85,  # Warn at 85%
+    "yearly": 90,  # Warn at 90%
+}
+
+
+@router.get("/quota/config", summary="Get quota configuration for current host")
+async def get_quota_config():
+    """Get quota limits and configuration for the current host."""
+    try:
+        host_identifier = await _get_host_identifier()
+        quota_configs = await db.network_quota_get_config(host_identifier)
+
+        # If no config exists, return defaults
+        if not quota_configs:
+            await _create_default_quota_config(host_identifier)
+            quota_configs = await db.network_quota_get_config(host_identifier)
+
+        return {"status": "success", "data": quota_configs, "host": host_identifier}
+    except Exception as e:
+        print(f"ERROR: Error getting quota config: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/quota/config", summary="Set quota configuration (admin)")
+async def set_quota_config(configs: list[QuotaConfig]):
+    """Set quota limits for hosts. Admin endpoint."""
+    try:
+        results = []
+        for config in configs:
+            success = await db.network_quota_set_config(
+                host_identifier=config.host_identifier,
+                time_period=config.time_period,
+                minutes_limit=config.minutes_limit,
+                warning_threshold_percent=config.warning_threshold_percent,
+                is_active=config.is_active,
+            )
+            results.append({"host": config.host_identifier, "period": config.time_period, "success": success})
+
+        return {"status": "success", "results": results}
+    except Exception as e:
+        print(f"ERROR: Error setting quota config: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/quota/usage", summary="Get current quota usage for this host")
+async def get_quota_usage():
+    """Get current quota usage across all time periods for this host."""
+    try:
+        host_identifier = await _get_host_identifier()
+        usage_data = await _get_host_quota_usage(host_identifier)
+
+        return {"status": "success", "data": usage_data, "host": host_identifier}
+    except Exception as e:
+        print(f"ERROR: Error getting quota usage: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/quota/usage/{time_period}", summary="Get quota usage for specific time period")
+async def get_quota_usage_period(time_period: str):
+    """Get quota usage for a specific time period (daily, weekly, monthly, yearly)."""
+    try:
+        host_identifier = await _get_host_identifier()
+        usage = await _get_period_quota_usage(host_identifier, time_period)
+
+        if not usage:
+            raise HTTPException(status_code=404, detail=f"No quota configured for period: {time_period}")
+
+        return {"status": "success", "data": usage, "host": host_identifier}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERROR: Error getting quota usage for {time_period}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/quota/remaining", summary="Get remaining quota time for this host")
+async def get_quota_remaining():
+    """Get remaining quota time across all periods for this host."""
+    try:
+        host_identifier = await _get_host_identifier()
+        usage_data = await _get_host_quota_usage(host_identifier)
+
+        remaining_data = {}
+        for period, usage in usage_data.items():
+            remaining_data[period] = {
+                "remaining_minutes": usage.remaining_minutes,
+                "remaining_hours": round(usage.remaining_minutes / 60, 2),
+                "usage_percent": usage.usage_percent,
+                "is_warning": usage.is_warning,
+                "is_exceeded": usage.is_exceeded,
+            }
+
+        return {"status": "success", "data": remaining_data, "host": host_identifier}
+    except Exception as e:
+        print(f"ERROR: Error getting remaining quota: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/quota/check", summary="Check if quota allows a reservation")
+async def check_quota_availability(request: QuotaReservationRequest):
+    """
+    Check if current quota allows for a reservation of specified duration.
+    Returns warnings and errors if quota would be exceeded.
+    """
+    try:
+        host_identifier = await _get_host_identifier()
+        quota_check = await _check_quota_for_reservation(host_identifier, request.duration_minutes)
+
+        return {"status": "success", "data": quota_check}
+    except Exception as e:
+        print(f"ERROR: Error checking quota: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/quota/status/{machine_id}", summary="Check quota status for specific machine reservation")
+async def check_machine_quota_status(machine_id: int, duration_minutes: int = 60):
+    """Check if current quota allows reserving a specific machine for given duration."""
+    try:
+        machine = await db.network_machine_get(machine_id)
+        if not machine:
+            raise HTTPException(status_code=404, detail="Machine not found")
+
+        host_identifier = await _get_host_identifier()
+        quota_check = await _check_quota_for_reservation(host_identifier, duration_minutes)
+
+        # Add machine-specific information
+        quota_check_data = quota_check.dict()
+        quota_check_data["target_machine"] = {
+            "id": machine["id"],
+            "name": machine["name"],
+            "host": machine["host"],
+            "port": machine["port"],
+        }
+
+        return {"status": "success", "data": quota_check_data}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERROR: Error checking machine quota status: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# Admin endpoints for quota management
+@router.get("/quota/admin/hosts", summary="Get quota info for all hosts (admin)")
+async def get_all_hosts_quota():
+    """Get quota configuration and usage for all hosts. Admin endpoint."""
+    try:
+        all_quota_data = await db.network_quota_get_all_hosts_usage()
+        return {"status": "success", "data": all_quota_data}
+    except Exception as e:
+        print(f"ERROR: Error getting all hosts quota: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/quota/admin/reset/{host_identifier}", summary="Reset quota usage for host (admin)")
+async def reset_host_quota(host_identifier: str, time_periods: Optional[list[str]] = None):
+    """Reset quota usage for a specific host. Admin endpoint."""
+    try:
+        periods_to_reset = time_periods or ["daily", "weekly", "monthly", "yearly"]
+        reset_results = []
+
+        for period in periods_to_reset:
+            success = await db.network_quota_reset_usage(host_identifier, period)
+            reset_results.append({"period": period, "success": success})
+
+        return {"status": "success", "host": host_identifier, "results": reset_results}
+    except Exception as e:
+        print(f"ERROR: Error resetting quota for {host_identifier}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 # =============================================================================
-# MACHINE RESERVATION ENDPOINTS
+# QUOTA HELPER FUNCTIONS
+# =============================================================================
+
+
+async def _create_default_quota_config(host_identifier: str):
+    """Create default quota configuration for a new host."""
+    for period, limit in DEFAULT_QUOTAS.items():
+        warning_threshold = WARNING_THRESHOLDS.get(period, 80)
+        await db.network_quota_set_config(
+            host_identifier=host_identifier,
+            time_period=period,
+            minutes_limit=limit,
+            warning_threshold_percent=warning_threshold,
+            is_active=True,
+        )
+
+
+async def _get_host_quota_usage(host_identifier: str) -> Dict[str, QuotaUsage]:
+    """Get quota usage for all time periods for a host."""
+    usage_data = {}
+
+    # Get all configured periods for this host
+    configs = await db.network_quota_get_config(host_identifier)
+
+    for config in configs:
+        if not config.get("is_active", True):
+            continue
+
+        period = config["time_period"]
+        usage = await _get_period_quota_usage(host_identifier, period)
+        if usage:
+            usage_data[period] = usage
+
+    return usage_data
+
+
+async def _get_period_quota_usage(host_identifier: str, time_period: str) -> Optional[QuotaUsage]:
+    """Get quota usage for a specific time period."""
+    try:
+        # Get quota config
+        config = await db.network_quota_get_period_config(host_identifier, time_period)
+        if not config:
+            return None
+
+        # Get current usage
+        period_start = _get_period_start_date(time_period)
+        usage_record = await db.network_quota_get_usage(host_identifier, time_period, period_start)
+
+        minutes_used = usage_record.get("minutes_used", 0) if usage_record else 0
+        minutes_limit = config["minutes_limit"]
+        usage_percent = (minutes_used / minutes_limit * 100) if minutes_limit > 0 else 0
+        remaining_minutes = max(0, minutes_limit - minutes_used)
+        warning_threshold = config.get("warning_threshold_percent", 80)
+
+        return QuotaUsage(
+            host_identifier=host_identifier,
+            time_period=time_period,
+            period_start_date=period_start,
+            minutes_used=minutes_used,
+            minutes_limit=minutes_limit,
+            usage_percent=round(usage_percent, 2),
+            remaining_minutes=remaining_minutes,
+            is_warning=usage_percent >= warning_threshold,
+            is_exceeded=usage_percent >= 100,
+        )
+    except Exception as e:
+        print(f"ERROR: Error getting period quota usage: {e}")
+        return None
+
+
+async def _check_quota_for_reservation(host_identifier: str, duration_minutes: int) -> QuotaCheck:
+    """Check if a reservation would exceed quota limits."""
+    usage_data = await _get_host_quota_usage(host_identifier)
+
+    can_reserve = True
+    warnings = []
+    errors = []
+
+    for period, usage in usage_data.items():
+        # Check if adding duration would exceed limit
+        new_usage_minutes = usage.minutes_used + duration_minutes
+        new_usage_percent = (new_usage_minutes / usage.minutes_limit * 100) if usage.minutes_limit > 0 else 0
+
+        if new_usage_percent >= 100:
+            can_reserve = False
+            over_limit = new_usage_minutes - usage.minutes_limit
+            errors.append(f"{period.title()} quota exceeded: would use {over_limit} minutes over limit")
+        elif new_usage_percent >= usage.warning_threshold_percent:
+            warnings.append(f"{period.title()} quota warning: would reach {new_usage_percent:.1f}% usage")
+
+    return QuotaCheck(
+        can_reserve=can_reserve,
+        requested_minutes=duration_minutes,
+        quota_status=usage_data,
+        warnings=warnings,
+        errors=errors,
+    )
+
+
+def _get_period_start_date(time_period: str) -> str:
+    """Get the start date for a given time period."""
+    now = datetime.now()
+
+    if time_period == "daily":
+        return now.strftime("%Y-%m-%d")
+    elif time_period == "weekly":
+        # Start of week (Monday)
+        days_since_monday = now.weekday()
+        monday = now - timedelta(days=days_since_monday)
+        return monday.strftime("%Y-%m-%d")
+    elif time_period == "monthly":
+        # Start of month
+        return now.strftime("%Y-%m-01")
+    elif time_period == "yearly":
+        # Start of year
+        return now.strftime("%Y-01-01")
+    else:
+        # Default to daily
+        return now.strftime("%Y-%m-%d")
+
+
+async def _record_quota_usage(host_identifier: str, duration_minutes: int, machine_id: int):
+    """Record quota usage when a reservation is completed."""
+    try:
+        # Record in history
+        await db.network_quota_record_history(
+            host_identifier=host_identifier, machine_id=machine_id, minutes_used=duration_minutes
+        )
+
+        # Update usage for all active periods
+        configs = await db.network_quota_get_config(host_identifier)
+
+        for config in configs:
+            if not config.get("is_active", True):
+                continue
+
+            period = config["time_period"]
+            period_start = _get_period_start_date(period)
+
+            await db.network_quota_add_usage(host_identifier, period, period_start, duration_minutes)
+
+    except Exception as e:
+        print(f"ERROR: Error recording quota usage: {e}")
+
+
+# =============================================================================
+# MACHINE RESERVATION ENDPOINTS WITH QUOTA CHECKING
 # =============================================================================
 
 
@@ -1002,7 +1364,7 @@ async def get_reservation_config():
 
 @router.post("/machines/{machine_id}/reserve", summary="Reserve a network machine")
 async def reserve_machine(machine_id: int, reservation: NetworkMachineReservationRequest):
-    """Reserve a network machine for this host."""
+    """Reserve a network machine for this host with quota checking."""
     try:
         # Get the machine to check if it exists and is reservable
         machine = await db.network_machine_get(machine_id)
@@ -1017,6 +1379,19 @@ async def reserve_machine(machine_id: int, reservation: NetworkMachineReservatio
         # Get our host identifier
         host_identifier = await _get_host_identifier()
 
+        # Check quota before making reservation
+        duration_minutes = reservation.duration_minutes or 60  # Default to 1 hour if not specified
+        quota_check = await _check_quota_for_reservation(host_identifier, duration_minutes)
+
+        if not quota_check.can_reserve:
+            error_msg = f"Quota exceeded: {'; '.join(quota_check.errors)}"
+            raise HTTPException(status_code=400, detail=error_msg)
+
+        # Show warnings if any (but still allow reservation)
+        warnings = quota_check.warnings
+        if warnings:
+            print(f"QUOTA WARNING for {host_identifier}: {'; '.join(warnings)}")
+
         # Check for expired reservations first
         await db.network_machine_check_reservation_expired(machine_id)
 
@@ -1024,7 +1399,7 @@ async def reserve_machine(machine_id: int, reservation: NetworkMachineReservatio
         success, message = await db.network_machine_reserve(
             machine_id=machine_id,
             host_identifier=host_identifier,
-            duration_minutes=reservation.duration_minutes,
+            duration_minutes=duration_minutes,
             metadata=reservation.metadata or {},
         )
 
@@ -1034,7 +1409,22 @@ async def reserve_machine(machine_id: int, reservation: NetworkMachineReservatio
         # Get updated machine info
         updated_machine = await db.network_machine_get(machine_id)
 
-        return {"status": "success", "message": message, "machine": updated_machine, "reserved_by": host_identifier}
+        # Record quota usage for this reservation
+        await _record_quota_usage(host_identifier, duration_minutes, machine_id)
+
+        response_data = {
+            "status": "success",
+            "message": message,
+            "machine": updated_machine,
+            "reserved_by": host_identifier,
+            "quota_info": {
+                "duration_minutes": duration_minutes,
+                "warnings": warnings,
+                "quota_status": {k: v.dict() for k, v in quota_check.quota_status.items()},
+            },
+        }
+
+        return response_data
 
     except HTTPException:
         raise

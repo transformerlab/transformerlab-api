@@ -1477,3 +1477,236 @@ async def network_machine_cleanup_expired_reservations():
                 expired_count += 1
 
         return expired_count
+
+
+# =============================================================================
+# QUOTA MANAGEMENT FUNCTIONS
+# =============================================================================
+
+
+async def network_quota_get_config(host_identifier: str):
+    """Get quota configuration for a specific host."""
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.NetworkQuotaConfig).where(
+                models.NetworkQuotaConfig.host_identifier == host_identifier,
+                models.NetworkQuotaConfig.is_active.is_(True),
+            )
+        )
+        configs = result.scalars().all()
+        return [
+            {
+                "host_identifier": config.host_identifier,
+                "time_period": config.time_period,
+                "minutes_limit": config.minutes_limit,
+                "warning_threshold_percent": config.warning_threshold_percent,
+                "is_active": config.is_active,
+                "created_at": config.created_at,
+                "updated_at": config.updated_at,
+            }
+            for config in configs
+        ]
+
+
+async def network_quota_get_period_config(host_identifier: str, time_period: str):
+    """Get quota configuration for a specific host and time period."""
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.NetworkQuotaConfig).where(
+                models.NetworkQuotaConfig.host_identifier == host_identifier,
+                models.NetworkQuotaConfig.time_period == time_period,
+                models.NetworkQuotaConfig.is_active.is_(True),
+            )
+        )
+        config = result.scalar_one_or_none()
+        if config:
+            return {
+                "host_identifier": config.host_identifier,
+                "time_period": config.time_period,
+                "minutes_limit": config.minutes_limit,
+                "warning_threshold_percent": config.warning_threshold_percent,
+                "is_active": config.is_active,
+                "created_at": config.created_at,
+                "updated_at": config.updated_at,
+            }
+        return None
+
+
+async def network_quota_set_config(
+    host_identifier: str,
+    time_period: str,
+    minutes_limit: int,
+    warning_threshold_percent: int = 80,
+    is_active: bool = True,
+):
+    """Set or update quota configuration for a host and time period."""
+    async with async_session() as session:
+        try:
+            # Use SQLAlchemy upsert for better handling
+            stmt = insert(models.NetworkQuotaConfig).values(
+                host_identifier=host_identifier,
+                time_period=time_period,
+                minutes_limit=minutes_limit,
+                warning_threshold_percent=warning_threshold_percent,
+                is_active=is_active,
+            )
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["host_identifier", "time_period"],
+                set_=dict(
+                    minutes_limit=stmt.excluded.minutes_limit,
+                    warning_threshold_percent=stmt.excluded.warning_threshold_percent,
+                    is_active=stmt.excluded.is_active,
+                    updated_at=stmt.excluded.updated_at,
+                ),
+            )
+            await session.execute(stmt)
+            await session.commit()
+            return True
+        except Exception as e:
+            await session.rollback()
+            print(f"ERROR: Failed to set quota config: {e}")
+            return False
+
+
+async def network_quota_get_usage(host_identifier: str, time_period: str, period_start_date: str):
+    """Get quota usage for a specific host, time period, and period start date."""
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.NetworkQuotaUsage).where(
+                models.NetworkQuotaUsage.host_identifier == host_identifier,
+                models.NetworkQuotaUsage.time_period == time_period,
+                models.NetworkQuotaUsage.period_start_date == period_start_date,
+            )
+        )
+        usage = result.scalar_one_or_none()
+        if usage:
+            return {
+                "host_identifier": usage.host_identifier,
+                "time_period": usage.time_period,
+                "period_start_date": usage.period_start_date,
+                "minutes_used": usage.minutes_used,
+                "last_updated": usage.last_updated,
+                "created_at": usage.created_at,
+            }
+        return None
+
+
+async def network_quota_add_usage(host_identifier: str, time_period: str, period_start_date: str, minutes_to_add: int):
+    """Add minutes to quota usage for a specific period."""
+    async with async_session() as session:
+        try:
+            # Use upsert to either create new record or update existing one
+            stmt = insert(models.NetworkQuotaUsage).values(
+                host_identifier=host_identifier,
+                time_period=time_period,
+                period_start_date=period_start_date,
+                minutes_used=minutes_to_add,
+            )
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["host_identifier", "time_period", "period_start_date"],
+                set_=dict(
+                    minutes_used=models.NetworkQuotaUsage.minutes_used + stmt.excluded.minutes_used,
+                    last_updated=stmt.excluded.last_updated,
+                ),
+            )
+            await session.execute(stmt)
+            await session.commit()
+            return True
+        except Exception as e:
+            await session.rollback()
+            print(f"ERROR: Failed to add quota usage: {e}")
+            return False
+
+
+async def network_quota_reset_usage(host_identifier: str, time_period: str):
+    """Reset quota usage for a specific host and time period."""
+    async with async_session() as session:
+        try:
+            await session.execute(
+                models.NetworkQuotaUsage.__table__.delete().where(
+                    models.NetworkQuotaUsage.host_identifier == host_identifier,
+                    models.NetworkQuotaUsage.time_period == time_period,
+                )
+            )
+            await session.commit()
+            return True
+        except Exception as e:
+            await session.rollback()
+            print(f"ERROR: Failed to reset quota usage: {e}")
+            return False
+
+
+async def network_quota_record_history(host_identifier: str, machine_id: int, minutes_used: int):
+    """Record quota usage history for audit purposes."""
+    from datetime import datetime
+
+    async with async_session() as session:
+        try:
+            history = models.NetworkQuotaHistory(
+                host_identifier=host_identifier,
+                machine_id=machine_id,
+                reservation_start=datetime.now(),
+                reservation_end=datetime.now(),  # Will be updated when reservation ends
+                minutes_used=minutes_used,
+            )
+            session.add(history)
+            await session.commit()
+            return True
+        except Exception as e:
+            await session.rollback()
+            print(f"ERROR: Failed to record quota history: {e}")
+            return False
+
+
+async def network_quota_get_all_hosts_usage():
+    """Get quota usage for all hosts (admin function)."""
+    async with async_session() as session:
+        # Get all quota configurations
+        config_result = await session.execute(select(models.NetworkQuotaConfig))
+        configs = config_result.scalars().all()
+
+        # Get all quota usage
+        usage_result = await session.execute(select(models.NetworkQuotaUsage))
+        usages = usage_result.scalars().all()
+
+        # Organize by host
+        hosts_data = {}
+        for config in configs:
+            if config.host_identifier not in hosts_data:
+                hosts_data[config.host_identifier] = {"configs": [], "usage": []}
+            hosts_data[config.host_identifier]["configs"].append(
+                {
+                    "time_period": config.time_period,
+                    "minutes_limit": config.minutes_limit,
+                    "warning_threshold_percent": config.warning_threshold_percent,
+                    "is_active": config.is_active,
+                }
+            )
+
+        for usage in usages:
+            if usage.host_identifier not in hosts_data:
+                hosts_data[usage.host_identifier] = {"configs": [], "usage": []}
+            hosts_data[usage.host_identifier]["usage"].append(
+                {
+                    "time_period": usage.time_period,
+                    "period_start_date": usage.period_start_date,
+                    "minutes_used": usage.minutes_used,
+                    "last_updated": usage.last_updated,
+                }
+            )
+
+        return hosts_data
+
+
+async def network_quota_init_tables():
+    """Initialize quota tables if they don't exist."""
+    try:
+        # Create all tables defined in the models
+        from transformerlab.shared.models.models import Base
+
+        async with async_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        return True
+    except Exception as e:
+        print(f"ERROR: Failed to initialize quota tables: {e}")
+        return False
