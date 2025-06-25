@@ -8,6 +8,10 @@ from transformerlab.shared.shared import slugify
 import shutil
 from pathlib import Path
 from PIL import Image
+from unittest.mock import MagicMock, patch
+from datasets import DatasetDict, Dataset
+
+
 
 
 def cleanup_dataset(dataset_id):
@@ -144,3 +148,44 @@ def test_edit_with_template():
         assert "split" in row
 
     cleanup_dataset(dataset_id)
+
+def test_dataset_preview_with_chat_template_mocked():
+    dataset_dict = DatasetDict({
+        "train": Dataset.from_dict({
+            "message": [
+                [{"role": "user", "content": "Hello!"}],
+                [{"role": "user", "content": "What is AI?"}],
+            ]
+        })
+    })
+
+    mock_tokenizer = MagicMock()
+    mock_tokenizer.apply_chat_template.side_effect = (
+        lambda messages, tokenize=False: f"<formatted>{messages[0]['content']}</formatted>"
+    )
+
+    with (
+        TestClient(app) as client,
+        patch("api.routes.data.load_dataset", return_value=dataset_dict),
+        patch("transformers.AutoTokenizer.from_pretrained", return_value=mock_tokenizer),
+    ):
+        resp = client.get(
+            "/data/preview_with_chat_template",
+            params={
+                "model_name": "test-model",
+                "chat_column": "message",
+                "dataset_id": "mock-dataset",
+                "template": "",
+                "offset": 0,
+                "limit": 2
+            }
+        )
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body.get("status") == "success"
+        rows = body["data"]["rows"]
+        assert len(rows) == 2
+        
+        assert rows[0]["__formatted__"] == "<formatted>Hello!</formatted>", "Formatted output mismatch"
+        

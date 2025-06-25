@@ -222,7 +222,7 @@ def serialize_row(row):
     else:
         return row
 
-async def _load_and_slice_dataset(dataset_id: str, offset: int, limit: int):
+async def load_and_slice_dataset(dataset_id: str, offset: int, limit: int):
     d = await db.get_dataset(dataset_id)
     dataset_len = 0
     result = {}
@@ -268,7 +268,7 @@ async def dataset_preview_with_template(
     offset: int = Query(0, description="The starting index from where to fetch the data.", ge=0),
     limit: int = Query(10, description="The maximum number of data items to fetch.", ge=1, le=1000),
 ) -> Any:
-    result, dataset_len = await _load_and_slice_dataset(dataset_id, offset, limit)
+    result, dataset_len = await load_and_slice_dataset(dataset_id, offset, limit)
     column_names = list(result["columns"].keys())
 
     jinja_template = sandboxed_jinja2_environment.from_string(template)
@@ -313,7 +313,7 @@ async def dataset_preview_with_chat_template(
     offset: int = Query(0, description="The starting index from where to fetch the data.", ge=0),
     limit: int = Query(10, description="The maximum number of data items to fetch.", ge=1, le=1000),
 ) -> Any:
-    result, dataset_len = await _load_and_slice_dataset(dataset_id, offset, limit)
+    result, dataset_len = await load_and_slice_dataset(dataset_id, offset, limit)
     column_names = list(result["columns"].keys())
 
     tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
