@@ -365,6 +365,7 @@ python-dateutil==2.9.0.post0
     # via pandas
 python-dotenv==1.1.0
     # via
+    #   -r requirements.in
     #   magika
     #   mcp
     #   pydantic-settings

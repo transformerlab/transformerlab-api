@@ -2,54 +2,50 @@
 The Entrypoint File for Transformer Lab's API Server.
 """
 
-import os
 import argparse
 import asyncio
-
 import json
+import os
 import signal
 import subprocess
-from contextlib import asynccontextmanager
 import sys
-from werkzeug.utils import secure_filename
+from contextlib import asynccontextmanager
 
 import fastapi
 import httpx
+import torch
 
 # Using torch to test for CUDA and MPS support.
 import uvicorn
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
-from fastchat.constants import (
-    ErrorCode,
-)
-from fastchat.protocol.openai_api_protocol import (
-    ErrorResponse,
-)
+from fastapi.staticfiles import StaticFiles
+from fastchat.constants import ErrorCode
+from fastchat.protocol.openai_api_protocol import ErrorResponse
+from werkzeug.utils import secure_filename
 
 import transformerlab.db as db
 from transformerlab.routers import (
-    data,
-    model,
-    serverinfo,
-    train,
-    plugins,
-    evals,
-    config,
-    jobs,
-    tasks,
-    prompts,
-    tools,
     batched_prompts,
+    config,
+    data,
     diffusion,
-    recipes,
-    users,
+    evals,
+    jobs,
+    model,
     network,
+    plugins,
+    prompts,
+    recipes,
+    serverinfo,
+    tasks,
+    tools,
+    train,
+    users,
 )
-import torch
 
 try:
     from pynvml import nvmlShutdown
@@ -60,14 +56,13 @@ except Exception:
 
     HAS_AMD = True
 from transformerlab import fastchat_openai_api
-from transformerlab.routers.experiment import experiment
-from transformerlab.routers.experiment import workflows
-from transformerlab.shared import dirs
-from transformerlab.shared import shared
-from transformerlab.shared import galleries
+from transformerlab.routers.experiment import experiment, workflows
+from transformerlab.shared import dirs, galleries, shared
 
 # Global variable to store host machine status
 IS_HOST_MACHINE = False
+
+load_dotenv()
 
 # The following environment variable can be used by other scripts
 # who need to connect to the root DB, for example
@@ -78,7 +73,10 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 os.environ["_TFL_WORKSPACE_DIR"] = dirs.WORKSPACE_DIR
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 
-from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router  # noqa: E402
+from transformerlab.routers.job_sdk import (  # noqa: E402
+    get_trainer_xmlrpc_router,
+    get_xmlrpc_router,
+)
 
 
 @asynccontextmanager
