@@ -3,12 +3,13 @@ import json
 import os
 import subprocess
 import sys
-import time
 import signal
 import psutil
 import torch
-import select
 import gc
+import threading
+
+shutdown_event = threading.Event()
 
 try:
     from transformerlab.plugin import get_python_executable
@@ -17,31 +18,22 @@ except ImportError:
 
 
 def kill_sglang_subprocesses():
-    print(">>> [main] Checking for lingering sglang scheduler subprocesses...")
+    print(">>> [main] Checking for lingering sglang scheduler subprocesses...", file=sys.stderr)
+    current_pid = os.getpid()
     for proc in psutil.process_iter(attrs=["pid", "name", "cmdline"]):
         try:
+            if proc.pid == current_pid:
+                continue  # Skip self
+
             cmdline_list = proc.info.get("cmdline")
             if not cmdline_list:  # Handles None or empty list
                 continue
 
             cmdline = " ".join(cmdline_list)
             if "sglang" in cmdline or "sglang::scheduler" in cmdline:
-                print(f">>> [main] Killing lingering sglang process: PID {proc.pid}")
                 proc.kill()
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             continue
-
-
-def kill_existing_workers():
-    print(">>> [main] Checking for existing model_worker.py processes...")
-    for proc in psutil.process_iter(attrs=["pid", "cmdline"]):
-        try:
-            cmdline = " ".join(proc.info["cmdline"])
-            if "model_worker.py" in cmdline:
-                print(f">>> [main] Terminating model_worker PID={proc.info['pid']}")
-                os.kill(proc.info["pid"], signal.SIGKILL)
-        except Exception as e:
-            print(f">>> [main] Failed to inspect or kill process: {e}")
 
 
 # Clear CUDA memory (if CUDA is available)
@@ -57,6 +49,15 @@ def isnum(s):
     return s.strip().isdigit()
 
 
+# Register signal handler
+def handle_sigterm(signum, frame):
+    print(">>> [main] Received SIGTERM — setting shutdown_event...", file=sys.stderr)
+    shutdown_event.set()
+
+
+signal.signal(signal.SIGTERM, handle_sigterm)
+signal.signal(signal.SIGINT, handle_sigterm)
+
 # Get all arguments provided to this script using argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--model-path", type=str)
@@ -66,7 +67,10 @@ parser.add_argument("--plugin_dir", type=str)
 
 args, unknown = parser.parse_known_args()
 
+llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
+print(f"LLMLAB ROOT: {llmlab_root_dir}", file=sys.stderr)
 print("Starting SGLang Worker", file=sys.stderr)
+print(f">>> [main] PID of this process: {os.getpid()}", file=sys.stderr)
 
 model = args.model_path
 adaptor = args.adaptor_path
@@ -120,7 +124,6 @@ if device is None or device == "":
         num_gpus = 0
 
 
-llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
 PLUGIN_DIR = args.plugin_dir
 
 # Get plugin directory
@@ -144,7 +147,7 @@ if four_bit:
     popen_args.append("--load-4bit")
 
 free_mem = torch.cuda.mem_get_info()[0] / (1024**2)  # in MiB
-print(f">>> [main] Free GPU memory: {free_mem:.2f} MiB")
+print(f">>> [main] Free GPU memory: {free_mem:.2f} MiB", file=sys.stderr)
 if free_mem < 1000:
     print("⚠️ Warning: Less than 1 GB GPU memory free before starting model. Might fail with OOM.")
 
@@ -152,41 +155,27 @@ proc = subprocess.Popen(popen_args, stderr=subprocess.PIPE, stdout=None)
 
 # save worker process id to file
 # this will allow transformer lab to kill it later
+print(f">>> [main] Saving worker PID to: {llmlab_root_dir}/worker.pid", file=sys.stderr)
+
 with open(f"{llmlab_root_dir}/worker.pid", "w") as f:
     f.write(str(proc.pid))
 
-# read output:
+# Simple loop to block on stderr
 try:
-    stderr_fd = proc.stderr.fileno()
-    poller = select.poll()
-    poller.register(stderr_fd, select.POLLIN)
-
-    while True:
-        if poller.poll(1000):  # Wait max 1 second
-            line = proc.stderr.readline()
-            if not line:
-                break  # EOF
-            decoded = line.decode("utf-8")
-            print(decoded, file=sys.stderr)
-            if "torch.cuda.OutOfMemoryError" in decoded:
-                print("CUDA Out of memory error", file=sys.stderr)
-                proc.kill()
-                kill_existing_workers()
-                clear_vram()
-                kill_sglang_subprocesses()
-                sys.exit(99)
-        elif proc.poll() is not None:
-            # Process has exited
-            break
+    for line in proc.stderr:
+        decoded = line.decode("utf-8", errors="replace")
+        print(decoded, file=sys.stderr)
+        if "torch.cuda.OutOfMemoryError" in decoded:
+            print("CUDA Out of memory error", file=sys.stderr)
+            clear_vram()
+            kill_sglang_subprocesses()
+            sys.exit(99)
 finally:
-    print(">>> [main] Waiting for model_worker to terminate completely...")
-    proc.wait()
-    print(">>> [main] Model worker terminated. Proceeding with cleanup.")
-    kill_existing_workers()
-    kill_sglang_subprocesses()
-    time.sleep(1)
+    print(">>> [main] model_worker exited. Cleaning up...", file=sys.stderr)
     clear_vram()
-    print(">>> [main] Cleanup completed.")
+    kill_sglang_subprocesses()
+    print(">>> [main] Cleanup done.", file=sys.stderr)
+    sys.exit(1)
 
 
 print("SGLang Worker exited", file=sys.stderr)

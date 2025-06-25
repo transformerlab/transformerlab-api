@@ -28,15 +28,6 @@ from fastchat.serve.model_worker import logger
 from fastchat.utils import get_context_length, is_partial_stop
 
 import traceback
-import torch
-import psutil
-import signal
-import gc
-import atexit
-
-app = FastAPI()
-
-sys.setrecursionlimit(8000)
 
 
 def safe_configure_logger(server_args, prefix=""):
@@ -48,8 +39,8 @@ def safe_configure_logger(server_args, prefix=""):
             datefmt="%Y-%m-%d %H:%M:%S",
         )
         print(">>> [safe_configure_logger] Logging configured safely")
-    except Exception as e:
-        print(f">>> [safe_configure_logger] Failed to configure logging: {e}")
+    except Exception:
+        print(">>> [safe_configure_logger] Failed to configure logging")
 
 
 import sglang.srt.utils  # noqa: E402
@@ -62,34 +53,10 @@ import sglang as sgl  # noqa: E402
 from sglang.srt.utils import load_image  # noqa: E402
 from sglang.srt.hf_transformers_utils import get_tokenizer, get_config  # noqa: E402
 
-
-def kill_sglang_subprocesses():
-    print(">>> [main] Checking for lingering sglang scheduler subprocesses...")
-    for proc in psutil.process_iter(attrs=["pid", "name", "cmdline"]):
-        try:
-            cmdline_list = proc.info.get("cmdline")
-            if not cmdline_list:  # Handles None or empty list
-                continue
-
-            cmdline = " ".join(cmdline_list)
-            if "sglang" in cmdline or "sglang::scheduler" in cmdline:
-                print(f">>> [main] Killing lingering sglang process: PID {proc.pid}")
-                proc.kill()
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            continue
-
-
-# Clear CUDA memory (if CUDA is available)
-def clear_vram():
-    gc.collect()
-    if torch.cuda.is_available():
-        print(">>> [main] Emptying CUDA memory cache and collecting garbage...")
-        torch.cuda.empty_cache()
-        torch.cuda.ipc_collect()
+app = FastAPI()
 
 
 def create_model_worker():
-    print("Inside Create Model Worker")
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", type=str, default="localhost")
     parser.add_argument("--port", type=int, default=21002)
@@ -114,21 +81,18 @@ def create_model_worker():
     args.tp_size = args.num_gpus if args.num_gpus > 1 else 1
     if not args.tokenizer_path:
         args.tokenizer_path = args.model_path
-    print("Args Parsed")
+
     # Safety for multiprocessing
     multiprocessing.set_start_method("spawn", force=True)
-    print("MultiProcessing Done")
 
     # Dynamically select attention backend for specific models
     attention_backend = None
     lower_model_path = args.model_path.lower()
     if "llama-3.2" in lower_model_path or "vision" in lower_model_path:
         attention_backend = "flashinfer"
-        print(f">>> [create_model_worker] Forcing attention_backend={attention_backend} for model {args.model_path}")
 
     # Initialize runtime
     try:
-        print(">>> Creating SGLang Runtime")
         sys.stdout.flush()
 
         runtime = sgl.Runtime(
@@ -140,20 +104,15 @@ def create_model_worker():
             attention_backend=attention_backend,
         )
 
-        print(">>> Runtime created successfully")
         sys.stdout.flush()
 
     except Exception:
-        print(">>> Exception during Runtime init:")
         traceback.print_exc()
         sys.stdout.flush()
         raise
 
-    print(">>> Runtime created successfully")
-
     sgl.set_default_backend(runtime)
     conv_template = get_conversation_template(args.model_path).name
-    print(f">>> [create_model_worker] Using conv_template: {conv_template}")
 
     # Instantiate worker
     worker = SGLWorker(
@@ -224,8 +183,7 @@ class SGLWorker(BaseModelWorker):
         config = get_config(model_path, trust_remote_code=trust_remote_code)
         try:
             self.context_len = get_context_length(config)
-        except (KeyError, AttributeError, TypeError) as e:
-            print(f"!!! [SGLWorker] get_context_length failed: {e}. Falling back to config.max_position_embeddings")
+        except (KeyError, AttributeError, TypeError):
             self.context_len = getattr(config, "max_position_embeddings", 2048)  # Safe default
 
         if not no_register:
@@ -233,12 +191,6 @@ class SGLWorker(BaseModelWorker):
 
     async def generate_stream(self, params):
         self.call_ct += 1
-
-        if params.get("stop") is True:
-            print(">>> [generate_stream] Stop flag detected in params. Performing cleanup...")
-            clear_vram()
-            kill_sglang_subprocesses()
-            raise RuntimeError("Job stopped by user.")
 
         prompt = params.pop("prompt")
         images = params.get("images", [])
@@ -390,27 +342,8 @@ async def api_model_details(request: Request):
     return {"context_length": worker.context_len}
 
 
-def cleanup_on_exit():
-    print(">>> [model_worker] Cleanup on exit triggered.")
-    kill_sglang_subprocesses()
-    clear_vram()
-
-
 if __name__ == "__main__":
-    print("Inside Main Worker, Calling Create Model Worker")
     args, worker = create_model_worker()
 
-    # Register atexit hook BEFORE long-running uvicorn call
-    atexit.register(cleanup_on_exit)
-
-    # Register cleanup signal handlers
-    def handle_exit(signum, frame):
-        print(f">>> [model_worker] Caught signal {signum}, cleaning up...")
-        cleanup_on_exit()
-        sys.exit(0)
-
-    signal.signal(signal.SIGINT, handle_exit)
-    signal.signal(signal.SIGTERM, handle_exit)
-
-    # Start the server (this blocks until shutdown)
+    # run uvicorn directly
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")
