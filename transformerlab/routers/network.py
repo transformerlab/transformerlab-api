@@ -1038,8 +1038,6 @@ async def get_quota_config():
 async def set_quota_config(configs: list[QuotaConfig]):
     """Set quota limits for hosts. Admin endpoint."""
     try:
-        print("GETTING REQUEST FOR QUOTA CONFIG")
-        print("CONFIGS", configs)
         results = []
         for config in configs:
             success = await db.network_quota_set_config(
@@ -1173,7 +1171,6 @@ async def reset_host_quota(host_identifier: str, time_periods: Optional[list[str
     try:
         periods_to_reset = time_periods or ["daily", "weekly", "monthly", "yearly"]
         reset_results = []
-        print(f"Resetting quota for host: {host_identifier} for periods: {periods_to_reset}")
 
         for period in periods_to_reset:
             success = await db.network_quota_reset_usage(host_identifier, period)
