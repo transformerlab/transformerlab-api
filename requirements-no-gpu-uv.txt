@@ -499,7 +499,7 @@ tiktoken==0.8.0
     # via
     #   -r requirements.in
     #   transformerlab-inference
-timm==0.6.7
+timm==1.0.15
     # via controlnet-aux
 tokenizers==0.21.1
     # via transformers
