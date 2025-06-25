@@ -166,7 +166,8 @@ def test_dataset_preview_with_chat_template_mocked():
 
     with (
         TestClient(app) as client,
-        patch("api.routes.data.load_dataset", return_value=dataset_dict),
+        patch("transformerlab.routers.data.db.get_dataset", return_value={"location": "local"}),
+        patch("transformerlab.routers.data.load_dataset", return_value=dataset_dict),
         patch("transformers.AutoTokenizer.from_pretrained", return_value=mock_tokenizer),
     ):
         resp = client.get(
