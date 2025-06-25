@@ -393,6 +393,7 @@ async def get_gen_params(
         "echo": echo,
         "stream": stream,
         "logprobs": logprobs,
+        "messages": messages,
     }
     if images is not None and len(images) > 0:
         gen_params["images"] = images
@@ -526,6 +527,7 @@ async def chat_completion_stream_generator(
     https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events#event_stream_format
     """
     id = f"chatcmpl-{shortuuid.random()}"
+    gen_params["type"] = "chat_completion"
     finish_stream_events = []
     for i in range(n):
         # First chunk with role
@@ -812,6 +814,7 @@ async def generate_completion_stream_generator(request: ModifiedCompletionReques
                 logprobs=request.logprobs,
             )
 
+            gen_params["type"] = "completion"
             log_prompt(gen_params)
 
             async for content in generate_completion_stream(gen_params):
@@ -904,7 +907,6 @@ async def generate_completion_stream(payload: Dict[str, Any]):
                 for chunk in raw_chunk.split(delimiter):
                     if not chunk:
                         continue
-                    # print(chunk.decode())
                     data = None
                     try:
                         data = json.loads(chunk.decode())
@@ -916,7 +918,7 @@ async def generate_completion_stream(payload: Dict[str, Any]):
                         print("Caught Exception in OpenAI API: ", e)
                         continue
                     yield data
-
+                
 
 async def generate_completion(payload: Dict[str, Any]):
     async with httpx.AsyncClient() as client:
