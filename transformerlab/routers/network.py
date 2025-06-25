@@ -1038,6 +1038,8 @@ async def get_quota_config():
 async def set_quota_config(configs: list[QuotaConfig]):
     """Set quota limits for hosts. Admin endpoint."""
     try:
+        print("GETTING REQUEST FOR QUOTA CONFIG")
+        print("CONFIGS", configs)
         results = []
         for config in configs:
             success = await db.network_quota_set_config(
@@ -1137,7 +1139,7 @@ async def check_machine_quota_status(machine_id: int, duration_minutes: int = 60
         quota_check = await _check_quota_for_reservation(host_identifier, duration_minutes)
 
         # Add machine-specific information
-        quota_check_data = quota_check.dict()
+        quota_check_data = quota_check.model_dump()
         quota_check_data["target_machine"] = {
             "id": machine["id"],
             "name": machine["name"],
@@ -1171,6 +1173,7 @@ async def reset_host_quota(host_identifier: str, time_periods: Optional[list[str
     try:
         periods_to_reset = time_periods or ["daily", "weekly", "monthly", "yearly"]
         reset_results = []
+        print(f"Resetting quota for host: {host_identifier} for periods: {periods_to_reset}")
 
         for period in periods_to_reset:
             success = await db.network_quota_reset_usage(host_identifier, period)
@@ -1262,6 +1265,10 @@ async def _check_quota_for_reservation(host_identifier: str, duration_minutes: i
     errors = []
 
     for period, usage in usage_data.items():
+        # Fetch config for this period to get warning threshold
+        config = await db.network_quota_get_period_config(host_identifier, period)
+        warning_threshold_percent = config.get("warning_threshold_percent", 80) if config else 80
+
         # Check if adding duration would exceed limit
         new_usage_minutes = usage.minutes_used + duration_minutes
         new_usage_percent = (new_usage_minutes / usage.minutes_limit * 100) if usage.minutes_limit > 0 else 0
@@ -1270,7 +1277,7 @@ async def _check_quota_for_reservation(host_identifier: str, duration_minutes: i
             can_reserve = False
             over_limit = new_usage_minutes - usage.minutes_limit
             errors.append(f"{period.title()} quota exceeded: would use {over_limit} minutes over limit")
-        elif new_usage_percent >= usage.warning_threshold_percent:
+        elif new_usage_percent >= warning_threshold_percent:
             warnings.append(f"{period.title()} quota warning: would reach {new_usage_percent:.1f}% usage")
 
     return QuotaCheck(
@@ -1420,7 +1427,7 @@ async def reserve_machine(machine_id: int, reservation: NetworkMachineReservatio
             "quota_info": {
                 "duration_minutes": duration_minutes,
                 "warnings": warnings,
-                "quota_status": {k: v.dict() for k, v in quota_check.quota_status.items()},
+                "quota_status": {k: v.model_dump() for k, v in quota_check.quota_status.items()},
             },
         }
 
@@ -1435,10 +1442,34 @@ async def reserve_machine(machine_id: int, reservation: NetworkMachineReservatio
 
 @router.post("/machines/{machine_id}/release", summary="Release a reserved network machine")
 async def release_machine(machine_id: int):
-    """Release a network machine reservation."""
+    """Release a network machine reservation and update quota usage if released early."""
     try:
         # Get our host identifier
         host_identifier = await _get_host_identifier()
+
+        # Get the machine info before releasing
+        machine = await db.network_machine_get(machine_id)
+        if not machine:
+            raise HTTPException(status_code=404, detail="Machine not found")
+        if not machine.get("is_reserved"):
+            raise HTTPException(status_code=400, detail="Machine is not reserved")
+        if machine.get("reserved_by_host") != host_identifier:
+            raise HTTPException(status_code=403, detail="Machine is reserved by a different host")
+
+        reserved_at = machine.get("reserved_at")
+        reserved_minutes = machine.get("reservation_duration_minutes")
+        if reserved_at and reserved_minutes:
+            # Calculate actual usage in minutes
+            from datetime import datetime
+
+            reserved_at_dt = reserved_at if isinstance(reserved_at, datetime) else datetime.fromisoformat(reserved_at)
+            now = datetime.now()
+            actual_minutes = int((now - reserved_at_dt).total_seconds() // 60)
+            if actual_minutes < 1:
+                actual_minutes = 1  # Minimum 1 minute
+            # Only adjust if released early
+            if actual_minutes < reserved_minutes:
+                await _adjust_quota_usage_for_actual_time(host_identifier, machine_id, reserved_minutes, actual_minutes)
 
         # Attempt to release the machine
         success, message = await db.network_machine_release(machine_id=machine_id, host_identifier=host_identifier)
@@ -1453,6 +1484,27 @@ async def release_machine(machine_id: int):
     except Exception as e:
         print(f"ERROR: Error releasing machine {machine_id}: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+async def _adjust_quota_usage_for_actual_time(
+    host_identifier: str, machine_id: int, reserved_minutes: int, actual_minutes: int
+):
+    """Adjust quota usage for all periods to reflect actual usage instead of reserved duration."""
+    try:
+        configs = await db.network_quota_get_config(host_identifier)
+        for config in configs:
+            if not config.get("is_active", True):
+                continue
+            period = config["time_period"]
+            period_start = _get_period_start_date(period)
+            # Subtract reserved, add actual
+            # Subtract reserved
+            await db.network_quota_add_usage(host_identifier, period, period_start, -reserved_minutes)
+            # Add actual
+            await db.network_quota_add_usage(host_identifier, period, period_start, actual_minutes)
+        # Optionally, update quota history (not implemented here)
+    except Exception as e:
+        print(f"ERROR: Error adjusting quota usage for early release: {e}")
 
 
 @router.post("/machines/by-name/{machine_name}/reserve", summary="Reserve a network machine by name")
