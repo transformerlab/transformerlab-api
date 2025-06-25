@@ -8,9 +8,6 @@ python3 -m fastchat.serve.sglang_worker --model-path liuhaotian/llava-v1.5-7b --
 import logging
 import sys
 
-import sglang.srt.utils
-import sglang.srt.entrypoints.engine as engine
-
 import argparse
 import asyncio
 import json
@@ -21,9 +18,6 @@ from typing import List
 from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.responses import StreamingResponse, JSONResponse
 import uvicorn
-import sglang as sgl
-from sglang.srt.utils import load_image
-from sglang.srt.hf_transformers_utils import get_tokenizer, get_config
 
 from fastchat.conversation import IMAGE_PLACEHOLDER_STR
 from fastchat.model.model_adapter import get_conversation_template
@@ -58,8 +52,15 @@ def safe_configure_logger(server_args, prefix=""):
         print(f">>> [safe_configure_logger] Failed to configure logging: {e}")
 
 
+import sglang.srt.utils  # noqa: E402
+
 sglang.srt.utils.configure_logger = safe_configure_logger
+import sglang.srt.entrypoints.engine as engine  # noqa: E402
+
 engine.configure_logger = safe_configure_logger
+import sglang as sgl  # noqa: E402
+from sglang.srt.utils import load_image  # noqa: E402
+from sglang.srt.hf_transformers_utils import get_tokenizer, get_config  # noqa: E402
 
 
 def kill_sglang_subprocesses():
