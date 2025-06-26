@@ -10,6 +10,8 @@ from fastchat.model.model_adapter import get_conversation_template
 from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi
 from huggingface_hub import ModelCard, ModelCardData
 from huggingface_hub.utils import HfHubHTTPError, GatedRepoError, EntryNotFoundError
+from transformers import AutoTokenizer
+
 import os
 from pathlib import Path
 import logging
@@ -973,3 +975,24 @@ async def model_import(model: basemodel.BaseModel):
     print(f"{model.id} imported successfully.")
 
     return {"status": "success", "data": model.id}
+
+@router.get("/model/chat_template")
+async def chat_template(model_name: str):
+
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_name,
+            trust_remote_code=True,
+        )
+        template = getattr(tokenizer, "chat_template", None)
+        if template:
+            return {    
+                "status": "success",
+                "data": template
+            }
+    except Exception:
+        return{
+            "status": "error",
+            "message": f"Invalid model name: {model_name}",
+            "data": None
+        }
