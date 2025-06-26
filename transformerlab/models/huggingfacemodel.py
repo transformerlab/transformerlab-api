@@ -142,9 +142,10 @@ def _is_gguf_repository(hugging_face_id: str, hf_model_info):
     3. Most files are .gguf files
     4. Repository name contains 'GGUF'
     """
-    # Check tags
+    # Check tags - only consider GGUF if it has gguf tag but not safetensors tag
     model_tags = getattr(hf_model_info, "tags", [])
-    if "gguf" in [tag.lower() for tag in model_tags]:
+    model_tags_lower = [tag.lower() for tag in model_tags]
+    if "gguf" in model_tags_lower and "safetensors" not in model_tags_lower:
         return True
 
     # Check library name
@@ -331,9 +332,6 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
         filename = os.path.join(hugging_face_id, "config.json")
         with fs.open(filename) as f:
             filedata = json.load(f)
-    except huggingface_hub.utils.EntryNotFoundError:
-        # No config.json found for non-GGUF repository - this is an error
-        raise
 
         # config.json stores a list of architectures but we only store one so just take the first!
         architecture_list = filedata.get("architectures", [])
@@ -405,6 +403,21 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
             "license": model_card_data.get("license", ""),
         }
         return config
+    except huggingface_hub.utils.EntryNotFoundError as e:
+        print(f"ERROR: config.json not found for {hugging_face_id}: {e}")
+        raise
+    except huggingface_hub.utils.GatedRepoError as e:
+        print(f"ERROR: Model {hugging_face_id} is gated and requires authentication: {e}")
+        raise
+    except huggingface_hub.utils.RepositoryNotFoundError as e:
+        print(f"ERROR: Repository {hugging_face_id} not found: {e}")
+        raise
+    except json.JSONDecodeError as e:
+        print(f"ERROR: Invalid JSON in config.json for {hugging_face_id}: {e}")
+        raise
+    except Exception as e:
+        print(f"ERROR: Unexpected error processing {hugging_face_id}: {type(e).__name__}: {e}")
+        raise
 
     # Something did not go to plan
     return None
