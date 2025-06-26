@@ -107,6 +107,42 @@ class QuotaReservationRequest(BaseModel):
     machine_id: Optional[int] = None
 
 
+# Dashboard analytics models
+class DashboardAnalyticsRequest(BaseModel):
+    time_range: int = 30  # days
+
+
+class ReservationByHost(BaseModel):
+    host: str
+    reservations: int
+    totalMinutes: int
+    activeReservations: int
+
+
+class ReservationByMachine(BaseModel):
+    machine: str
+    reservations: int
+    totalMinutes: int
+    avgDuration: float
+
+
+class UsageOverTime(BaseModel):
+    date: str
+    reservations: int
+    minutes: int
+
+
+class QuotaUtilization(BaseModel):
+    host: str
+    daily: float
+    weekly: float
+    monthly: float
+
+
+class DashboardAnalyticsResponse(BaseModel):
+    data: Dict[str, Any]
+
+
 @router.get("/info", summary="Get network configuration info")
 async def get_network_info():
     """Get information about this machine's network role."""
@@ -1829,3 +1865,367 @@ async def _get_remote_machine_info(machine: Dict[str, Any]) -> Optional[Dict[str
                 return None
     except Exception:
         return None
+
+
+# =============================================================================
+# DASHBOARD ANALYTICS ENDPOINTS
+# =============================================================================
+
+
+@router.post("/analytics/reservations/by-host", summary="Get reservation statistics by host")
+async def analytics_reservations_by_host(request: DashboardAnalyticsRequest):
+    """Get reservation count and total minutes reserved, grouped by host."""
+    try:
+        time_range_days = request.time_range
+
+        # Get the start date for the query
+        start_date = (datetime.now() - timedelta(days=time_range_days)).strftime("%Y-%m-%d")
+
+        # Query the database for reservation data
+        reservations = await db.network_quota_get_reservations_by_host(start_date)
+
+        # Calculate totals for each host
+        host_totals = {}
+        for reservation in reservations:
+            host = reservation["host_identifier"]
+            if host not in host_totals:
+                host_totals[host] = {"reservations": 0, "totalMinutes": 0, "activeReservations": 0}
+
+            host_totals[host]["reservations"] += 1
+            host_totals[host]["totalMinutes"] += reservation["minutes_used"]
+
+            # Check if the reservation is active (not expired)
+            if reservation.get("is_active"):
+                host_totals[host]["activeReservations"] += 1
+
+        # Prepare the response data
+        response_data = {"data": []}
+        for host, totals in host_totals.items():
+            response_data["data"].append({"host": host, **totals})  # Merge host identifier with the totals
+
+        return {"status": "success", "data": response_data["data"]}
+
+    except Exception as e:
+        print(f"ERROR: Error getting reservation analytics by host: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/analytics/reservations/by-machine", summary="Get reservation statistics by machine")
+async def analytics_reservations_by_machine(request: DashboardAnalyticsRequest):
+    """Get reservation count and total minutes reserved, grouped by machine."""
+    try:
+        time_range_days = request.time_range
+
+        # Get the start date for the query
+        start_date = (datetime.now() - timedelta(days=time_range_days)).strftime("%Y-%m-%d")
+
+        # Query the database for reservation data
+        reservations = await db.network_quota_get_reservations_by_machine(start_date)
+
+        # Calculate totals for each machine
+        machine_totals = {}
+        for reservation in reservations:
+            machine_name = reservation["machine_name"]
+            if machine_name not in machine_totals:
+                machine_totals[machine_name] = {"reservations": 0, "totalMinutes": 0}
+
+            machine_totals[machine_name]["reservations"] += 1
+            machine_totals[machine_name]["totalMinutes"] += reservation["minutes_used"]
+
+        # Calculate average duration for each machine
+        for machine_name, totals in machine_totals.items():
+            totals["avgDuration"] = totals["totalMinutes"] / totals["reservations"] if totals["reservations"] > 0 else 0
+
+        # Prepare the response data
+        response_data = {"data": []}
+        for machine, totals in machine_totals.items():
+            response_data["data"].append({"machine": machine, **totals})  # Merge machine name with the totals
+
+        return {"status": "success", "data": response_data["data"]}
+
+    except Exception as e:
+        print(f"ERROR: Error getting reservation analytics by machine: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/analytics/usage/over-time", summary="Get usage statistics over time")
+async def analytics_usage_over_time(request: DashboardAnalyticsRequest):
+    """Get usage statistics (reservations and minutes) aggregated by day over the past X days."""
+    try:
+        time_range_days = request.time_range
+
+        # Get the start date for the query
+        start_date = (datetime.now() - timedelta(days=time_range_days)).strftime("%Y-%m-%d")
+
+        # Query the database for daily usage data
+        daily_usage = await db.network_quota_get_usage_over_time(start_date)
+
+        # Prepare the response data
+        response_data = {"data": []}
+        for record in daily_usage:
+            response_data["data"].append(
+                {"date": record["date"], "reservations": record["reservations"], "minutes": record["minutes_used"]}
+            )
+
+        return {"status": "success", "data": response_data["data"]}
+
+    except Exception as e:
+        print(f"ERROR: Error getting usage analytics over time: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/analytics/quota/utilization", summary="Get quota utilization statistics")
+async def analytics_quota_utilization(request: DashboardAnalyticsRequest):
+    """Get quota utilization (percentage used) for each host over the past X days."""
+    try:
+        time_range_days = request.time_range
+
+        # Get the start date for the query
+        start_date = (datetime.now() - timedelta(days=time_range_days)).strftime("%Y-%m-%d")
+
+        # Query the database for quota utilization data
+        quota_utilization = await db.network_quota_get_utilization(start_date)
+
+        # Prepare the response data
+        response_data = {"data": []}
+        for record in quota_utilization:
+            response_data["data"].append(
+                {
+                    "host": record["host_identifier"],
+                    "daily": record["daily_usage_percent"],
+                    "weekly": record["weekly_usage_percent"],
+                    "monthly": record["monthly_usage_percent"],
+                }
+            )
+
+        return {"status": "success", "data": response_data["data"]}
+
+    except Exception as e:
+        print(f"ERROR: Error getting quota utilization analytics: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/dashboardAnalytics", summary="Get dashboard analytics data")
+async def get_dashboard_analytics(request: DashboardAnalyticsRequest):
+    """
+    Get comprehensive dashboard analytics data including reservations by host/machine,
+    usage over time, and quota utilization.
+    """
+    try:
+        time_range_days = request.time_range
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=time_range_days)
+
+        # Get all relevant data
+        reservations_by_host = await _get_reservations_by_host(start_date, end_date)
+        reservations_by_machine = await _get_reservations_by_machine(start_date, end_date)
+        usage_over_time = await _get_usage_over_time(start_date, end_date)
+        quota_utilization = await _get_quota_utilization()
+
+        return {
+            "status": "success",
+            "data": {
+                "reservationsByHost": reservations_by_host,
+                "reservationsByMachine": reservations_by_machine,
+                "usageOverTime": usage_over_time,
+                "quotaUtilization": quota_utilization,
+            },
+        }
+
+    except Exception as e:
+        print(f"ERROR: Error getting dashboard analytics: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# =============================================================================
+# DASHBOARD ANALYTICS HELPER FUNCTIONS
+# =============================================================================
+
+
+async def _get_reservations_by_host(start_date: datetime, end_date: datetime) -> list[Dict[str, Any]]:
+    """Get reservation statistics grouped by host."""
+    try:
+        # Get reservation history data from database
+        reservation_history = await db.network_quota_get_reservation_history(start_date, end_date)
+
+        # Get currently active reservations
+        current_reservations = await db.network_machine_get_all_reservations()
+
+        # Group by host
+        host_stats = {}
+
+        # Process historical reservations
+        for reservation in reservation_history:
+            host = reservation.get("host_identifier", "unknown")
+            if host not in host_stats:
+                host_stats[host] = {"host": host, "reservations": 0, "totalMinutes": 0, "activeReservations": 0}
+
+            host_stats[host]["reservations"] += 1
+            host_stats[host]["totalMinutes"] += reservation.get("minutes_used", 0)
+
+        # Count active reservations
+        for machine in current_reservations:
+            host = machine.get("reserved_by_host")
+            if host:
+                if host not in host_stats:
+                    host_stats[host] = {"host": host, "reservations": 0, "totalMinutes": 0, "activeReservations": 0}
+                host_stats[host]["activeReservations"] += 1
+
+        return list(host_stats.values())
+
+    except Exception as e:
+        print(f"ERROR: Error getting reservations by host: {e}")
+        return []
+
+
+async def _get_reservations_by_machine(start_date: datetime, end_date: datetime) -> list[Dict[str, Any]]:
+    """Get reservation statistics grouped by machine."""
+    try:
+        # Get reservation history data from database
+        reservation_history = await db.network_quota_get_reservation_history(start_date, end_date)
+
+        # Get machine names mapping
+        machines = await db.network_machine_get_all()
+        machine_name_map = {m["id"]: m["name"] for m in machines}
+
+        # Group by machine
+        machine_stats = {}
+
+        for reservation in reservation_history:
+            machine_id = reservation.get("machine_id")
+            machine_name = machine_name_map.get(machine_id, f"Machine-{machine_id}")
+            minutes_used = reservation.get("minutes_used", 0)
+
+            if machine_name not in machine_stats:
+                machine_stats[machine_name] = {
+                    "machine": machine_name,
+                    "reservations": 0,
+                    "totalMinutes": 0,
+                    "total_duration_for_avg": 0,
+                }
+
+            machine_stats[machine_name]["reservations"] += 1
+            machine_stats[machine_name]["totalMinutes"] += minutes_used
+            machine_stats[machine_name]["total_duration_for_avg"] += minutes_used
+
+        # Calculate averages
+        result = []
+        for stats in machine_stats.values():
+            avg_duration = (stats["total_duration_for_avg"] / stats["reservations"]) if stats["reservations"] > 0 else 0
+            result.append(
+                {
+                    "machine": stats["machine"],
+                    "reservations": stats["reservations"],
+                    "totalMinutes": stats["totalMinutes"],
+                    "avgDuration": round(avg_duration, 1),
+                }
+            )
+
+        return result
+
+    except Exception as e:
+        print(f"ERROR: Error getting reservations by machine: {e}")
+        return []
+
+
+async def _get_usage_over_time(start_date: datetime, end_date: datetime) -> list[Dict[str, Any]]:
+    """Get daily usage statistics over the specified time range."""
+    try:
+        # Get reservation history data
+        reservation_history = await db.network_quota_get_reservation_history(start_date, end_date)
+
+        # Create daily buckets
+        usage_by_date = {}
+        current_date = start_date.date()
+        end_date_only = end_date.date()
+
+        # Initialize all dates with zero values
+        while current_date <= end_date_only:
+            date_str = current_date.strftime("%Y-%m-%d")
+            usage_by_date[date_str] = {"date": date_str, "reservations": 0, "minutes": 0}
+            current_date += timedelta(days=1)
+
+        # Process reservations and group by date
+        for reservation in reservation_history:
+            # Use created_at or reservation date from the history
+            reservation_date = reservation.get("created_at")
+            if reservation_date:
+                if isinstance(reservation_date, str):
+                    # Parse string date
+                    try:
+                        reservation_datetime = datetime.fromisoformat(reservation_date.replace("Z", "+00:00"))
+                    except (ValueError, TypeError):
+                        reservation_datetime = datetime.strptime(reservation_date, "%Y-%m-%d %H:%M:%S")
+                else:
+                    reservation_datetime = reservation_date
+
+                date_str = reservation_datetime.strftime("%Y-%m-%d")
+
+                if date_str in usage_by_date:
+                    usage_by_date[date_str]["reservations"] += 1
+                    usage_by_date[date_str]["minutes"] += reservation.get("minutes_used", 0)
+
+        # Return sorted by date
+        return sorted(usage_by_date.values(), key=lambda x: x["date"])
+
+    except Exception as e:
+        print(f"ERROR: Error getting usage over time: {e}")
+        return []
+
+
+async def _get_quota_utilization() -> list[Dict[str, Any]]:
+    """Get quota utilization percentages for all hosts."""
+    try:
+        # Get all hosts with quota configurations
+        all_quota_data = await db.network_quota_get_all_hosts_usage()
+
+        utilization_data = []
+
+        # The data structure is {host_identifier: {configs: [...], usage: [...]}}
+        for host_identifier, host_data in all_quota_data.items():
+            # Extract usage data for each period
+            usage_by_period = {}
+            for usage_record in host_data.get("usage", []):
+                period = usage_record.get("time_period")
+                usage_by_period[period] = usage_record
+
+            # Extract config data for each period
+            config_by_period = {}
+            for config_record in host_data.get("configs", []):
+                period = config_record.get("time_period")
+                config_by_period[period] = config_record
+
+            # Calculate utilization percentages
+            daily_percent = 0.0
+            weekly_percent = 0.0
+            monthly_percent = 0.0
+
+            if "daily" in usage_by_period and "daily" in config_by_period:
+                daily_usage = usage_by_period["daily"].get("minutes_used", 0)
+                daily_limit = config_by_period["daily"].get("minutes_limit", 1)
+                daily_percent = (daily_usage / daily_limit * 100) if daily_limit > 0 else 0.0
+
+            if "weekly" in usage_by_period and "weekly" in config_by_period:
+                weekly_usage = usage_by_period["weekly"].get("minutes_used", 0)
+                weekly_limit = config_by_period["weekly"].get("minutes_limit", 1)
+                weekly_percent = (weekly_usage / weekly_limit * 100) if weekly_limit > 0 else 0.0
+
+            if "monthly" in usage_by_period and "monthly" in config_by_period:
+                monthly_usage = usage_by_period["monthly"].get("minutes_used", 0)
+                monthly_limit = config_by_period["monthly"].get("minutes_limit", 1)
+                monthly_percent = (monthly_usage / monthly_limit * 100) if monthly_limit > 0 else 0.0
+
+            utilization_data.append(
+                {
+                    "host": host_identifier,
+                    "daily": round(daily_percent, 1),
+                    "weekly": round(weekly_percent, 1),
+                    "monthly": round(monthly_percent, 1),
+                }
+            )
+
+        return utilization_data
+
+    except Exception as e:
+        print(f"ERROR: Error getting quota utilization: {e}")
+        return []

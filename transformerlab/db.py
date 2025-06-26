@@ -1791,3 +1791,63 @@ async def network_quota_init_tables():
     except Exception as e:
         print(f"ERROR: Failed to initialize quota tables: {e}")
         return False
+
+
+async def network_quota_get_reservation_history(start_date, end_date):
+    """Get reservation history data for analytics within the specified date range."""
+    try:
+        async with AsyncSession(async_engine) as session:
+            # Query quota history records within the date range
+            stmt = (
+                select(models.NetworkQuotaHistory)
+                .where(models.NetworkQuotaHistory.created_at >= start_date)
+                .where(models.NetworkQuotaHistory.created_at <= end_date)
+                .order_by(models.NetworkQuotaHistory.created_at.desc())
+            )
+            result = await session.execute(stmt)
+            histories = result.scalars().all()
+
+            # Convert to dictionaries
+            history_data = []
+            for history in histories:
+                history_data.append(
+                    {
+                        "id": history.id,
+                        "host_identifier": history.host_identifier,
+                        "machine_id": history.machine_id,
+                        "reservation_start": history.reservation_start,
+                        "reservation_end": history.reservation_end,
+                        "minutes_used": history.minutes_used,
+                        "created_at": history.created_at,
+                    }
+                )
+
+            return history_data
+
+    except Exception as e:
+        print(f"ERROR: Failed to get reservation history: {e}")
+        return []
+
+
+async def network_quota_get_host_list():
+    """Get list of all hosts that have quota configurations or usage."""
+    try:
+        async with AsyncSession(async_engine) as session:
+            # Get unique hosts from both config and usage tables
+            config_hosts = select(models.NetworkQuotaConfig.host_identifier).distinct()
+            usage_hosts = select(models.NetworkQuotaUsage.host_identifier).distinct()
+            history_hosts = select(models.NetworkQuotaHistory.host_identifier).distinct()
+
+            all_hosts = set()
+
+            # Execute queries
+            for query in [config_hosts, usage_hosts, history_hosts]:
+                result = await session.execute(query)
+                hosts = result.scalars().all()
+                all_hosts.update(hosts)
+
+            return list(all_hosts)
+
+    except Exception as e:
+        print(f"ERROR: Failed to get host list: {e}")
+        return []
