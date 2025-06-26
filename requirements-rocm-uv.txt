@@ -74,7 +74,7 @@ cobble==0.1.4
     # via mammoth
 coloredlogs==15.0.1
     # via onnxruntime
-controlnet-aux==0.0.9
+controlnet-aux==0.0.10
     # via -r requirements-rocm.in
 cryptography==44.0.2
     # via
@@ -167,6 +167,7 @@ huggingface-hub==0.30.2
     #   evaluate
     #   peft
     #   sentence-transformers
+    #   timm
     #   tokenizers
     #   transformers
 humanfriendly==10.0
@@ -365,7 +366,7 @@ python-dateutil==2.9.0.post0
     # via pandas
 python-dotenv==1.1.0
     # via
-    #   -r requirements.in
+    #   -r requirements-rocm.in
     #   magika
     #   mcp
     #   pydantic-settings
@@ -386,6 +387,7 @@ pyyaml==6.0.2
     #   datasets
     #   huggingface-hub
     #   peft
+    #   timm
     #   transformers
     #   wandb
     #   wavedrom
@@ -415,6 +417,7 @@ safetensors==0.5.3
     # via
     #   accelerate
     #   peft
+    #   timm
     #   transformers
 scikit-image==0.25.2
     # via controlnet-aux
@@ -492,7 +495,9 @@ tiktoken==0.9.0
     #   -r requirements-rocm.in
     #   transformerlab-inference
 timm==1.0.15
-    # via controlnet-aux
+    # via
+    #   -r requirements-rocm.in
+    #   controlnet-aux
 tokenizers==0.21.1
     # via transformers
 torch==2.7.0
