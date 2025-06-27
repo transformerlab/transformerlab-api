@@ -2,6 +2,7 @@ import datetime
 import os
 import shutil
 import tempfile
+import time
 import zipfile
 
 import aiofiles
@@ -186,7 +187,12 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
                 # Check if the file is an image
                 if file_ext not in [".jpeg", ".jpg", ".png", ".gif", ".webp"]:
                     try:
+                        markitdown_start_time = time.time()
                         result = md.convert(newfilename)
+                        markitdown_end_time = time.time()
+                        markitdown_duration = markitdown_end_time - markitdown_start_time
+                        print(f"MarkItDown conversion took {markitdown_duration:.2f} seconds")
+
                         # Save the converted file
                         newfilename = os.path.join(markitdown_dir, str(file_name).replace(file_ext, ".md"))
                         print(f"Saving converted file to {markitdown_dir}")
@@ -210,8 +216,14 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
                     temp_file.write(content)
                     temp_file_path = temp_file.name
                     print(f"Temporary file created at {temp_file_path}")
-                    # Convert the file to .md format using MarkitDown
+
+                    # Convert the file to .md format using MarkItDown
+                    markitdown_start_time = time.time()
                     result = md.convert(temp_file_path)
+                    markitdown_end_time = time.time()
+                    markitdown_duration = markitdown_end_time - markitdown_start_time
+                    print(f"MarkItDown conversion took {markitdown_duration:.2f} seconds")
+
                     # Save the converted file
                     newfilename = os.path.join(documents_dir, str(file_name).replace(file_ext, ".md"))
                     newfilename_md = os.path.join(markitdown_dir, str(file_name).replace(file_ext, ".md"))
@@ -229,7 +241,11 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
 
         # reindex the vector store on every file upload
         if folder == "rag":
+            rag_reindex_start_time = time.time()
             await rag.reindex(experimentId)
+            rag_reindex_end_time = time.time()
+            rag_reindex_duration = rag_reindex_end_time - rag_reindex_start_time
+            print(f"RAG reindex took {rag_reindex_duration:.2f} seconds")
 
     return {"status": "success", "filename": fileNames}
 
@@ -266,7 +282,12 @@ async def document_upload_links(experimentId: str, folder: str = None, data: dic
 
     md = MarkItDown(enable_plugins=False)
     for i, url in enumerate(urls):
+        markitdown_start_time = time.time()
         result = md.convert(url)
+        markitdown_end_time = time.time()
+        markitdown_duration = markitdown_end_time - markitdown_start_time
+        print(f"MarkItDown conversion of URL {url} took {markitdown_duration:.2f} seconds")
+
         # Save the converted file
         filename = os.path.join(documents_dir, f"link_{i + 1}.md")
         filename_md = os.path.join(markitdown_dir, f"link_{i + 1}.md")
@@ -277,7 +298,11 @@ async def document_upload_links(experimentId: str, folder: str = None, data: dic
             await out_file.write(result.markdown)
         # reindex the vector store on every file upload
         if folder == "rag":
+            rag_reindex_start_time = time.time()
             await rag.reindex(experimentId)
+            rag_reindex_end_time = time.time()
+            rag_reindex_duration = rag_reindex_end_time - rag_reindex_start_time
+            print(f"RAG reindex took {rag_reindex_duration:.2f} seconds")
     return {"status": "success", "filename": urls}
 
 
@@ -317,7 +342,11 @@ async def document_download_zip(experimentId: str, data: dict = Body(...)):
         # Reindex RAG if any files were extracted to a 'rag' folder
         rag_files = [f for f in extracted_files if f.startswith("rag/")]
         if rag_files:
+            rag_reindex_start_time = time.time()
             await rag.reindex(experimentId)
+            rag_reindex_end_time = time.time()
+            rag_reindex_duration = rag_reindex_end_time - rag_reindex_start_time
+            print(f"RAG reindex took {rag_reindex_duration:.2f} seconds")
 
         return {"status": "success", "extracted_files": extracted_files, "total_files": len(extracted_files)}
 

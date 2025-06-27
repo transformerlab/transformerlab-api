@@ -124,6 +124,7 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
             stdout=log_file,
             stderr=log_file,
         )
+
         return_code = await proc.wait()
 
         # If installation failed, return an error
@@ -132,6 +133,55 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
             print(error_msg)
             await log_file.write(f"## {error_msg}\n")
             return {"status": "error", "message": error_msg}
+
+        # Perform python -m compileall to compile the plugin files with optimization
+        print("Compiling plugin files with optimization...")
+        await log_file.write(f"## Compiling plugin files for {plugin_id} with optimization...\n")
+        venv_python = os.path.join(venv_path, "bin", "python")
+
+        compile_proc = await asyncio.create_subprocess_exec(
+            venv_python,
+            "-m",
+            "compileall",
+            "-f",  # Force compilation even if .pyc files exist
+            "-q",  # Quiet mode (less verbose output)
+            ".",
+            cwd=new_directory,
+            stdout=log_file,
+            stderr=log_file,
+        )
+        compile_return_code = await compile_proc.wait()
+        print(f"Compilation return code: {compile_return_code}")
+        # if compile_return_code != 0:
+        #     error_msg = f"Compilation of plugin files for {plugin_id} failed with exit code {compile_return_code}."
+        #     print(error_msg)
+        #     await log_file.write(f"## {error_msg}\n")
+        #     return {"status": "error", "message": error_msg}
+
+        # Also compile site-packages for faster imports
+        print("Pre-compiling site-packages for faster imports...")
+        await log_file.write(f"## Pre-compiling site-packages for {plugin_id}...\n")
+        site_packages_path = os.path.join(venv_path, "lib", "python3.11", "site-packages")
+        if os.path.exists(site_packages_path):
+            site_compile_proc = await asyncio.create_subprocess_exec(
+                venv_python,
+                "-m",
+                "compileall",
+                "-f",
+                "-q",
+                "-b",
+                site_packages_path,
+                cwd=new_directory,
+                stdout=log_file,
+                stderr=log_file,
+            )
+            await site_compile_proc.wait()
+            print("Site-packages compilation completed.")
+
+        # # Optimize the virtual environment for faster startup
+        # print("Optimizing virtual environment for faster startup...")
+        # await optimize_plugin_venv_for_startup(plugin_id, venv_path, log_file)
+
     else:
         error_msg = f"No setup script found for {plugin_id}."
         print(error_msg)

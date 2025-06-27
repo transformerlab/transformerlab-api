@@ -58,6 +58,7 @@ def index_documents(documents_dir, persistency_dir, embedding_model="BAAI/bge-sm
 def main():
     # Redirect all stdout to stderr to prevent any accidental prints from interfering with JSON output
     with RedirectStdoutToStderr():
+        main_start_time = time.time()
         parser = argparse.ArgumentParser()
         parser.add_argument("--model_name", type=str, required=True)
         parser.add_argument("--embedding_model", default="BAAI/bge-small-en-v1.5", type=str, required=False)
@@ -84,8 +85,13 @@ def main():
             start_time = time.time()
             index_documents(documents_dir, persistency_dir, args.embedding_model)
             elapsed_time = time.time() - start_time
+            main_end_time = time.time()
 
-            result = {"status": "success", "elapsed_time": elapsed_time}
+            result = {
+                "status": "success",
+                "elapsed_time": elapsed_time,
+                "main_elapsed_time": main_end_time - main_start_time,
+            }
             sys.stderr.write(json.dumps(result))
             if not continue_after_index:
                 sys.stderr.write("Indexing complete. Exiting.")

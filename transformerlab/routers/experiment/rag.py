@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import subprocess
+import time
 import sys
 import transformerlab.db as db
 from fastapi import APIRouter
@@ -119,6 +120,8 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
 async def reindex(experimentId: str, rag_folder: str = "rag"):
     """Reindex the RAG engine"""
 
+    reindex_start_time = time.time()
+
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
     documents_dir = os.path.join(documents_dir, rag_folder)
@@ -167,10 +170,12 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
     venv_path = os.path.join(plugin_path, "venv")
     if os.path.exists(venv_path) and os.path.isdir(venv_path):
         print(f">Plugin has virtual environment, activating venv from {venv_path}")
+        reindex_process_time = time.time()
         venv_python = os.path.join(venv_path, "bin", "python")
         command = [venv_python, *params]
     else:
         print(">Using system python interpreter")
+        reindex_process_time = time.time()
         command = [sys.executable, *params]
     process = await asyncio.create_subprocess_exec(
         *command,
@@ -180,6 +185,10 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
     stdout, stderr = await process.communicate()
     print(stderr)
 
+    reindex_end_time = time.time()
+
+    print(f"Reindexing took {reindex_end_time - reindex_start_time} seconds")
+    print(f"Reindexing process took {reindex_end_time - reindex_process_time} seconds")
     # if the process is erroring, return the error message
     if process.returncode != 0:
         output = stderr.decode()
