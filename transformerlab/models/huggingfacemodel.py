@@ -325,7 +325,7 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
             "license": model_card_data.get("license", ""),
         }
         return config
-    except Exception:
+    except Exception as e:
         print(f"Error processing model {hugging_face_id}: {e}")
         # Something did not go to plan
         return None
