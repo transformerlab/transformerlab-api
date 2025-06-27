@@ -136,46 +136,13 @@ class HuggingFaceModel(basemodel.BaseModel):
 
 def _is_gguf_repository(hugging_face_id: str, hf_model_info):
     """
-    Determine if a repository is primarily a GGUF repository by checking:
-    1. Repository tags for 'gguf'
-    2. Library name is 'gguf'
-    3. Most files are .gguf files
-    4. Repository name contains 'GGUF'
+    Determine if a repository is primarily a GGUF repository by checking the repository tags for 'gguf'
     """
     # Check tags - only consider GGUF if it has gguf tag but not safetensors tag
     model_tags = getattr(hf_model_info, "tags", [])
     model_tags_lower = [tag.lower() for tag in model_tags]
     if "gguf" in model_tags_lower and "safetensors" not in model_tags_lower:
         return True
-
-    # Check library name
-    library_name = getattr(hf_model_info, "library_name", "")
-    if library_name and library_name.lower() == "gguf":
-        return True
-
-    # Check if repository name contains GGUF (common pattern)
-    if "gguf" in hugging_face_id.lower():
-        # Verify by checking for actual GGUF files
-        try:
-            repo_files = huggingface_hub.list_repo_files(hugging_face_id)
-            gguf_files = [f for f in repo_files if f.endswith(".gguf")]
-            if len(gguf_files) > 0:
-                return True
-        except Exception:
-            pass
-
-    # Check file extensions in the repository
-    try:
-        repo_files = huggingface_hub.list_repo_files(hugging_face_id)
-        gguf_files = [f for f in repo_files if f.endswith(".gguf")]
-        total_model_files = [f for f in repo_files if f.endswith((".gguf", ".bin", ".safetensors", ".pt"))]
-
-        # If GGUF files make up majority of model files, consider it a GGUF repo
-        if len(gguf_files) > 0 and len(gguf_files) >= len(total_model_files) * 0.5:
-            return True
-    except Exception:
-        pass
-
     return False
 
 
