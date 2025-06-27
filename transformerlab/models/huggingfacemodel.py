@@ -242,7 +242,7 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
         # Read from the local downloaded file
         with open(local_config_path, 'r') as f:
             filedata = json.load(f)
-    except Exception as e:
+    except Exception:
         try:
             # Fallback to HfFileSystem approach
             fs = huggingface_hub.HfFileSystem()
@@ -325,8 +325,8 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
             "license": model_card_data.get("license", ""),
         }
         return config
-    except Exception as e:
-
+    except Exception:
+        print(f"Error processing model {hugging_face_id}: {e}")
         # Something did not go to plan
         return None
 
