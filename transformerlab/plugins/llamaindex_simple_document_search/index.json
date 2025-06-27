@@ -4,7 +4,7 @@
   "description": "",
   "plugin-format": "python",
   "type": "rag",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "model_architectures": [],
   "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
   "files": ["main.py", "setup.sh"],
@@ -60,7 +60,7 @@
     "use_reranker": {
       "title": "Use Reranker",
       "type": "boolean",
-      "default": true
+      "default": false
     },
     "reranker_model": {
       "title": "Reranker Model",
