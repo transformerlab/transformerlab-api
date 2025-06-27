@@ -103,6 +103,7 @@ def test_install_peft_success():
         patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", return_value={}),
         patch("transformerlab.routers.model.db.job_create", return_value=123),
         patch("transformerlab.routers.model.asyncio.create_task"),
+        patch("transformerlab.routers.model.shared.async_run_python_script_and_update_status", new_callable=AsyncMock),
     ):
         response = client.post("/model/install_peft", params={"peft": adapter_id, "model_id": model_id})
         assert response.status_code == 200
@@ -129,6 +130,7 @@ def test_install_peft_adapter_info_fail():
         patch("builtins.open", mock_open(read_data="{}")),
         patch("json.load", return_value={}),
         patch("huggingface_hub.HfApi.model_info", side_effect=RuntimeError("not found")),
+        patch("transformerlab.routers.model.shared.async_run_python_script_and_update_status", new_callable=AsyncMock),
     ):
         response = client.post("/model/install_peft", params={"peft": "dummy", "model_id": "valid_model"})
         assert response.status_code == 200
@@ -146,6 +148,7 @@ def test_install_peft_architecture_detection_unknown():
         patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", return_value={}),
         patch("transformerlab.routers.model.db.job_create", return_value=123),
         patch("transformerlab.routers.model.asyncio.create_task"),
+        patch("transformerlab.routers.model.shared.async_run_python_script_and_update_status", new_callable=AsyncMock),
     ):
         response = client.post("/model/install_peft", params={"peft": "dummy", "model_id": "valid_model"})
         assert response.status_code == 200
@@ -163,6 +166,7 @@ def test_install_peft_unknown_field_status():
         patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", return_value={}),
         patch("transformerlab.routers.model.db.job_create", return_value=123),
         patch("transformerlab.routers.model.asyncio.create_task"),
+        patch("transformerlab.routers.model.shared.async_run_python_script_and_update_status", new_callable=AsyncMock),
     ):
         response = client.post("/model/install_peft", params={"peft": "dummy", "model_id": "valid_model"})
         status = response.json()["check_status"]
