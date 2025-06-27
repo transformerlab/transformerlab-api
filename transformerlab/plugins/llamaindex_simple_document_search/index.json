@@ -60,7 +60,7 @@
     "use_reranker": {
       "title": "Use Reranker",
       "type": "boolean",
-      "default": true
+      "default": false
     },
     "reranker_model": {
       "title": "Reranker Model",
