@@ -2,10 +2,8 @@
 
 import os
 from pathlib import Path
-import transformerlab.db as db
 
 from werkzeug.utils import secure_filename
-
 
 """
 TFL_HOME_DIR is the directory that is the parent of the src and workspace directories.
@@ -95,6 +93,7 @@ def experiment_dir_by_name(experiment_name: str) -> str:
 
 
 async def experiment_dir_by_id(experiment_id: str) -> str:
+    from transformerlab import db
     if experiment_id is not None and experiment_id != "undefined":
         experiment = await db.experiment_get(experiment_id)
     else:
