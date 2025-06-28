@@ -14,6 +14,11 @@ import json
 import os
 import multiprocessing
 from typing import List
+from pathlib import Path
+import base64
+from uuid import uuid4
+import shutil
+import re
 
 from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.responses import StreamingResponse, JSONResponse
@@ -25,7 +30,7 @@ from fastchat.constants import ErrorCode, SERVER_ERROR_MSG
 from fastchat.serve.base_model_worker import BaseModelWorker
 from fastchat.serve.model_worker import logger
 
-from fastchat.utils import get_context_length
+from fastchat.utils import get_context_length, is_partial_stop
 
 import traceback
 
@@ -54,30 +59,10 @@ from sglang.srt.hf_transformers_utils import get_tokenizer, get_config  # noqa: 
 
 app = FastAPI()
 
+workspace = os.environ["_TFL_WORKSPACE_DIR"]
+TMP_IMG_DIR = Path(f"{workspace}/plugins/sglang_server/tmp_img")
 
-class EngineWithChatTemplate:
-    def __init__(self, engine, template_name):
-        self._engine = engine
-        self._chat_template = template_name
-
-    def __getattr__(self, key):
-        return getattr(self._engine, key)
-
-    def get_chat_template(self):
-        return self._chat_template
-
-
-def run_generate_in_thread(engine, prompt, image_data, sampling_params):
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        return engine.generate(
-            prompt=prompt,
-            image_data=image_data,
-            sampling_params=sampling_params,
-        )
-    finally:
-        loop.close()
+LAST_ASSISTANT_RE = re.compile(r"<\|im_start\|>assistant\s*(.*?)<\|im_end\|>", re.S)
 
 
 def create_model_worker():
@@ -126,7 +111,7 @@ def create_model_worker():
 
         is_multimodal_model = check_if_multimodal(args.model_path)
 
-        engine_kwargs = dict(
+        runtime_kwargs = dict(
             model_path=args.model_path,
             tokenizer_path=args.tokenizer_path,
             trust_remote_code=args.trust_remote_code,
@@ -137,9 +122,9 @@ def create_model_worker():
         )
 
         if is_multimodal_model:
-            engine_kwargs["load_image"] = True  # only pass this if supported
+            runtime_kwargs["load_image"] = True  # only pass this if supported
 
-        runtime = EngineWithChatTemplate(sgl.Engine(**engine_kwargs), conv_template)
+        runtime = sgl.Runtime(**runtime_kwargs)
 
     except Exception:
         traceback.print_exc()
@@ -187,7 +172,7 @@ class SGLWorker(BaseModelWorker):
         limit_worker_concurrency: int,
         no_register: bool,
         conv_template: str,
-        runtime: sgl.Engine,
+        runtime: sgl.Runtime,
         trust_remote_code: bool,
     ):
         super().__init__(
@@ -222,6 +207,22 @@ class SGLWorker(BaseModelWorker):
             prompt: str = params.pop("prompt")
             images = params.get("images", [])
 
+            # echo = params.get("echo", True)
+            image_paths = []
+            if len(images) > 0:
+                if os.path.exists(TMP_IMG_DIR):
+                    shutil.rmtree(TMP_IMG_DIR)
+                os.makedirs(TMP_IMG_DIR, exist_ok=True)
+
+                for i, b64_img in enumerate(images):
+                    header, encoded = b64_img.split(",", 1)
+                    ext = header.split("/")[1].split(";")[0]
+                    img_data = base64.b64decode(encoded)
+                    img_path = os.path.join(TMP_IMG_DIR, f"{uuid4()}-image_{i}.{ext}")
+                    with open(img_path, "wb") as f:
+                        f.write(img_data)
+                    image_paths.append(img_path)
+
             if prompt.count(IMAGE_PLACEHOLDER_STR) != len(images):
                 raise ValueError("Mismatched <image> tokens vs. images")
 
@@ -253,40 +254,66 @@ class SGLWorker(BaseModelWorker):
             if temperature <= 1e-5:
                 top_p = 1.0
 
-            sampling_params = {
-                "temperature": temperature,
-                "top_p": top_p,
-                "top_k": top_k,
-                "frequency_penalty": frequency_penalty,
-                "presence_penalty": presence_penalty,
-                "max_new_tokens": max_new_tokens,
-                "stop": stop,
-            }
-
             # split prompt by image token
             split_prompt = prompt.split(IMAGE_PLACEHOLDER_STR)
             if prompt.count(IMAGE_PLACEHOLDER_STR) != len(images):
                 raise ValueError(
                     "The number of images passed in does not match the number of <image> tokens in the prompt!"
                 )
-            prompt = IMAGE_PLACEHOLDER_STR.join(split_prompt)
+            prompt = []
 
-            # SGLang VLM only supports one image currently
-            if len(images) > 1:
-                raise ValueError("Multiple images not supported in current VLM mode.")
-            image_data = images[0] if images else None
+            for i in range(len(split_prompt)):
+                text_part = split_prompt[i].strip()
+                if text_part:
+                    prompt.append(text_part)
 
-            loop = asyncio.get_running_loop()
-            output = await loop.run_in_executor(
-                None, lambda: run_generate_in_thread(self.runtime, prompt, image_data, sampling_params)
+                if i < len(image_paths):
+                    prompt.append(image_paths[i])  # actual path, not "<image>"
+
+            @sgl.function
+            def pipeline(s, prompt_parts, max_tokens):
+                user_msg = ""
+                for part in prompt_parts:
+                    if os.path.isfile(part):
+                        user_msg = sgl.image(str(part))  # Registers image + returns token
+                    else:
+                        user_msg += str(part)
+                s += sgl.user(user_msg)
+                s += sgl.assistant(sgl.gen())
+
+            state = pipeline.run(
+                prompt,
+                max_new_tokens,
+                stop=stop,
+                temperature=temperature,
+                top_p=top_p,
+                top_k=top_k,
+                frequency_penalty=frequency_penalty,
+                presence_penalty=presence_penalty,
+                stream=True,
             )
 
+            entire_output = ""
+            stream_iter = state.text_async_iter()
+
+            async for out in stream_iter:
+                partial_stop = any(is_partial_stop(out, i) for i in stop)
+                if partial_stop:
+                    continue
+                entire_output += out
+
+            match = LAST_ASSISTANT_RE.findall(entire_output)
+            last_assistant_response = match[-1].strip() if match else entire_output.strip()
+
+            prompt_tokens = 0
+            completion_tokens = 0
+
             ret = {
-                "text": output["text"],
+                "text": last_assistant_response,
                 "usage": {
-                    "prompt_tokens": 0,
-                    "completion_tokens": 0,
-                    "total_tokens": 0,
+                    "prompt_tokens": prompt_tokens,
+                    "completion_tokens": completion_tokens,
+                    "total_tokens": prompt_tokens + completion_tokens,
                 },
                 "error_code": 0,
             }
