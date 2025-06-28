@@ -32,6 +32,7 @@ hf_xet
 macmon-python
 mcp[cli]
 transformerlab-inference
+diffusers==0.33.1
 pyrsmi
 controlnet_aux==0.0.10
 timm==1.0.15
