@@ -25,7 +25,7 @@ from fastchat.constants import ErrorCode, SERVER_ERROR_MSG
 from fastchat.serve.base_model_worker import BaseModelWorker
 from fastchat.serve.model_worker import logger
 
-from fastchat.utils import get_context_length, is_partial_stop
+from fastchat.utils import get_context_length
 
 import traceback
 
@@ -50,10 +50,34 @@ import sglang.srt.entrypoints.engine as engine  # noqa: E402
 
 engine.configure_logger = safe_configure_logger
 import sglang as sgl  # noqa: E402
-from sglang.srt.utils import load_image  # noqa: E402
 from sglang.srt.hf_transformers_utils import get_tokenizer, get_config  # noqa: E402
 
 app = FastAPI()
+
+
+class EngineWithChatTemplate:
+    def __init__(self, engine, template_name):
+        self._engine = engine
+        self._chat_template = template_name
+
+    def __getattr__(self, key):
+        return getattr(self._engine, key)
+
+    def get_chat_template(self):
+        return self._chat_template
+
+
+def run_generate_in_thread(engine, prompt, image_data, sampling_params):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return engine.generate(
+            prompt=prompt,
+            image_data=image_data,
+            sampling_params=sampling_params,
+        )
+    finally:
+        loop.close()
 
 
 def create_model_worker():
@@ -86,25 +110,36 @@ def create_model_worker():
     multiprocessing.set_start_method("spawn", force=True)
 
     # Dynamically select attention backend for specific models
-    attention_backend = None
     lower_model_path = args.model_path.lower()
-    if "llama-3.2" in lower_model_path or "vision" in lower_model_path:
-        attention_backend = "flashinfer"
 
+    if "gemma" in lower_model_path or "google" in lower_model_path:
+        attention_backend = None
+    elif "llama-3.2" in lower_model_path or "vision" in lower_model_path:
+        attention_backend = "flashinfer"
+    else:
+        attention_backend = None
+
+    conv_template = get_conversation_template(args.model_path).name
     # Initialize runtime
     try:
         sys.stdout.flush()
 
-        runtime = sgl.Runtime(
+        is_multimodal_model = check_if_multimodal(args.model_path)
+
+        engine_kwargs = dict(
             model_path=args.model_path,
             tokenizer_path=args.tokenizer_path,
             trust_remote_code=args.trust_remote_code,
             mem_fraction_static=args.mem_fraction_static,
             tp_size=args.tp_size,
             attention_backend=attention_backend,
+            enable_multimodal=True,
         )
 
-        sys.stdout.flush()
+        if is_multimodal_model:
+            engine_kwargs["load_image"] = True  # only pass this if supported
+
+        runtime = EngineWithChatTemplate(sgl.Engine(**engine_kwargs), conv_template)
 
     except Exception:
         traceback.print_exc()
@@ -112,7 +147,6 @@ def create_model_worker():
         raise
 
     sgl.set_default_backend(runtime)
-    conv_template = get_conversation_template(args.model_path).name
 
     # Instantiate worker
     worker = SGLWorker(
@@ -141,16 +175,6 @@ def check_if_multimodal(model_path: str) -> bool:
     return "image_token_index" in config or config.get("_from_multimodal", False)
 
 
-@sgl.function
-def pipeline(s, prompt, max_tokens):
-    for p in prompt:
-        if isinstance(p, str):
-            s += p
-        else:
-            s += sgl.image(p)
-    s += sgl.gen("response", max_tokens=max_tokens)
-
-
 class SGLWorker(BaseModelWorker):
     def __init__(
         self,
@@ -163,7 +187,7 @@ class SGLWorker(BaseModelWorker):
         limit_worker_concurrency: int,
         no_register: bool,
         conv_template: str,
-        runtime: sgl.Runtime,
+        runtime: sgl.Engine,
         trust_remote_code: bool,
     ):
         super().__init__(
@@ -186,89 +210,90 @@ class SGLWorker(BaseModelWorker):
         except (KeyError, AttributeError, TypeError):
             self.context_len = getattr(config, "max_position_embeddings", 2048)  # Safe default
 
+        self.runtime = runtime
+
         if not no_register:
             self.init_heart_beat()
 
     async def generate_stream(self, params):
-        self.call_ct += 1
+        try:
+            self.call_ct += 1
 
-        prompt = params.pop("prompt")
-        images = params.get("images", [])
-        temperature = float(params.get("temperature", 1.0))
-        top_p = float(params.get("top_p", 1.0))
-        top_k = params.get("top_k", -1.0)
-        frequency_penalty = float(params.get("frequency_penalty", 0.0))
-        presence_penalty = float(params.get("presence_penalty", 0.0))
-        max_new_tokens = params.get("max_new_tokens", 256)
-        stop_str = params.get("stop", None)
-        stop_token_ids = params.get("stop_token_ids", None) or []
-        echo = params.get("echo", True)
+            prompt: str = params.pop("prompt")
+            images = params.get("images", [])
 
-        # Handle stop_str
-        stop = []
-        if isinstance(stop_str, str) and stop_str != "":
-            stop.append(stop_str)
-        elif isinstance(stop_str, list) and stop_str != []:
-            stop.extend(stop_str)
+            if prompt.count(IMAGE_PLACEHOLDER_STR) != len(images):
+                raise ValueError("Mismatched <image> tokens vs. images")
 
-        for tid in stop_token_ids:
-            if tid is not None:
-                s = self.tokenizer.decode(tid)
-                if s != "":
-                    stop.append(s)
+            temperature = float(params.get("temperature", 1.0))
+            top_p = float(params.get("top_p", 1.0))
+            top_k = params.get("top_k", -1.0)
+            frequency_penalty = float(params.get("frequency_penalty", 0.0))
+            presence_penalty = float(params.get("presence_penalty", 0.0))
+            max_new_tokens = int(params.get("max_new_tokens", 256))
+            stop_str = params.get("stop", None)
+            stop_token_ids = params.get("stop_token_ids", None) or []
+            # echo = params.get("echo", True)
 
-        # make sampling params for sgl.gen
-        top_p = max(top_p, 1e-5)
-        if temperature <= 1e-5:
-            top_p = 1.0
+            # Collect stop sequences
+            stop = []
+            if isinstance(stop_str, str) and stop_str.strip():
+                stop.append(stop_str)
+            elif isinstance(stop_str, list):
+                stop.extend([s for s in stop_str if isinstance(s, str) and s.strip()])
 
-        # split prompt by image token
-        split_prompt = prompt.split(IMAGE_PLACEHOLDER_STR)
-        if prompt.count(IMAGE_PLACEHOLDER_STR) != len(images):
-            raise ValueError(
-                "The number of images passed in does not match the number of <image> tokens in the prompt!"
+            for tid in stop_token_ids:
+                if tid is not None:
+                    s = self.tokenizer.decode(tid)
+                    if s:
+                        stop.append(s)
+
+            # Prepare sampling params
+            top_p = max(top_p, 1e-5)
+            if temperature <= 1e-5:
+                top_p = 1.0
+
+            sampling_params = {
+                "temperature": temperature,
+                "top_p": top_p,
+                "top_k": top_k,
+                "frequency_penalty": frequency_penalty,
+                "presence_penalty": presence_penalty,
+                "max_new_tokens": max_new_tokens,
+                "stop": stop,
+            }
+
+            # split prompt by image token
+            split_prompt = prompt.split(IMAGE_PLACEHOLDER_STR)
+            if prompt.count(IMAGE_PLACEHOLDER_STR) != len(images):
+                raise ValueError(
+                    "The number of images passed in does not match the number of <image> tokens in the prompt!"
+                )
+            prompt = IMAGE_PLACEHOLDER_STR.join(split_prompt)
+
+            # SGLang VLM only supports one image currently
+            if len(images) > 1:
+                raise ValueError("Multiple images not supported in current VLM mode.")
+            image_data = images[0] if images else None
+
+            loop = asyncio.get_running_loop()
+            output = await loop.run_in_executor(
+                None, lambda: run_generate_in_thread(self.runtime, prompt, image_data, sampling_params)
             )
-        prompt = []
-        for i in range(len(split_prompt)):
-            prompt.append(split_prompt[i])
-            if i < len(images):
-                prompt[-1] = prompt[-1].strip()
-                prompt.append(load_image(images[i]))
-
-        state = pipeline.run(
-            prompt,
-            max_new_tokens,
-            stop=stop,
-            temperature=temperature,
-            top_p=top_p,
-            top_k=top_k,
-            frequency_penalty=frequency_penalty,
-            presence_penalty=presence_penalty,
-            stream=True,
-        )
-
-        entire_output = prompt if echo else ""
-        async for out, meta_info in state.text_async_iter(var_name="response", return_meta_data=True):
-            partial_stop = any(is_partial_stop(out, i) for i in stop)
-
-            # prevent yielding partial stop sequence
-            if partial_stop:
-                continue
-
-            entire_output += out
-            prompt_tokens = meta_info["prompt_tokens"]
-            completion_tokens = meta_info["completion_tokens"]
 
             ret = {
-                "text": entire_output,
+                "text": output["text"],
                 "usage": {
-                    "prompt_tokens": prompt_tokens,
-                    "completion_tokens": completion_tokens,
-                    "total_tokens": prompt_tokens + completion_tokens,
+                    "prompt_tokens": 0,
+                    "completion_tokens": 0,
+                    "total_tokens": 0,
                 },
                 "error_code": 0,
             }
             yield ret
+
+        except Exception as e:
+            raise ValueError(f"Failed: {e}")
 
     async def generate_stream_gate(self, params):
         try:

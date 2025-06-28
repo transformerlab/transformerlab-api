@@ -16,11 +16,15 @@
     "embeddings",
     "tokenize",
     "logprobs",
-    "batched"
+    "batched",
+    "multimodal"
   ],
   "model_architectures": [
     "MllamaForConditionalGeneration",
-    "Qwen2_5_VLForConditionalGeneration"
+    "Qwen2_5_VLForConditionalGeneration",
+    "Qwen2VLForConditionalGeneration",
+    "Gemma3ForConditionalGeneration",
+    "PaliGemmaForConditionalGeneration"
   ],
   "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
   "files": ["main.py", "setup.sh"],
