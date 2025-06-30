@@ -7,6 +7,7 @@ os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
 from transformerlab import db
 from transformerlab.db import (
     create_huggingface_dataset,
+    delete_plugin,
     experiment_get_by_name,
     get_dataset,
     get_datasets,
@@ -486,6 +487,8 @@ class TestPlugins:
         plugin = await get_plugin("test_plugin")
         assert plugin is not None
         assert plugin["name"] == "test_plugin"
+        # now delete the plugin
+        await delete_plugin("test_plugin")
 
     @pytest.mark.asyncio
     async def test_get_plugins(self):
