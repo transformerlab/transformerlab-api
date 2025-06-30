@@ -96,7 +96,7 @@ async def delete_plugin_files_from_workspace(plugin_id: str):
     plugin_id = secure_filename(plugin_id)
 
     plugin_path = os.path.join(dirs.PLUGIN_DIR, plugin_id)
-    # create the directory if it doesn't exist
+    # return if the directory doesn't exist
     if not os.path.exists(plugin_path):
         print(f"Plugin {plugin_path} not found in workspace.")
         return
