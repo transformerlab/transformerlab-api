@@ -1,7 +1,6 @@
 import os
 import json
 import transformerlab.db as db
-import pytest
 from transformerlab.shared import dirs
 
 
