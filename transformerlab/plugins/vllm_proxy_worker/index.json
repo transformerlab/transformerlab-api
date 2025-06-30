@@ -21,7 +21,7 @@
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
-    "max-model-len": {
+    "max_model_len": {
       "title": "Maximum Model Length",
       "type": "integer"
     },
@@ -36,11 +36,6 @@
       "title": "Select a specific data type for the model",
       "type": "string",
       "enum": ["auto", "float16", "bfloat16", "float32"]
-    }
-  },
-  "parameters_ui": {
-    "model_dtype": {
-      "ui:help": "Select a specific data type for the model. This might help with older GPUs that do not support bfloat16"
     },
     "port": {
       "title": "Port on which the vLLM server will run",
@@ -48,4 +43,4 @@
       "default": 8000
     }
   }
-}
+  }
