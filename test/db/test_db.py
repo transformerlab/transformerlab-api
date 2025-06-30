@@ -1,8 +1,7 @@
 import json
 import os
-
-os.environ["TFL_HOME_DIR"] = "./test/tmp/"
-os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
+import tempfile
+import pytest
 
 from transformerlab import db
 from transformerlab.db import (
@@ -79,7 +78,11 @@ from transformerlab.db import (
     workflow_runs_get_from_experiment,
 )
 
-import pytest
+# Create unique test directory for this test session
+# This needs to be set before db.init() is called in fixtures
+TEST_TMP_DIR = tempfile.mkdtemp(prefix="transformerlab_test_")
+os.environ["TFL_HOME_DIR"] = TEST_TMP_DIR
+os.environ["TFL_WORKSPACE_DIR"] = TEST_TMP_DIR
 
 
 @pytest.mark.asyncio
@@ -301,14 +304,18 @@ async def test_export_job_create(test_experiment):
 
 @pytest.fixture(scope="session", autouse=True)
 def manage_test_tmp_dir():
-    yield
-    # delete the database:
-    db_path = os.path.join("./test/tmp", "llmlab.sqlite3")
-    if os.path.exists(db_path):
-        os.remove(db_path)
+    import shutil
+    
+    yield TEST_TMP_DIR
+    
+    # Clean up the temporary directory
+    try:
+        shutil.rmtree(TEST_TMP_DIR)
+    except Exception:
+        pass  # Ignore cleanup errors
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="session", autouse=True)
 async def setup_db():
     await db.init()
     yield
