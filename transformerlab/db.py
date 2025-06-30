@@ -949,19 +949,12 @@ async def experiment_create(name: str, config: dict) -> int:
 async def experiment_get(id):
     if id is None or id == "undefined":
         return None
-    cursor = await db.execute("SELECT * FROM experiment WHERE id = ?", (id,))
-    row = await cursor.fetchone()
-
-    if row is None:
-        return None
-
-    # Convert the SQLite row into a JSON object with keys
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
-
-    await cursor.close()
-    return row
+    async with async_session() as session:
+        result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
+        experiment = result.scalar_one_or_none()
+        if experiment is None:
+            return None
+        return experiment.__dict__
 
 
 async def experiment_get_by_name(name):
@@ -974,14 +967,22 @@ async def experiment_get_by_name(name):
 
 
 async def experiment_delete(id):
-    await db.execute("DELETE FROM experiment WHERE id = ?", (id,))
-    await db.commit()
+    async with async_session() as session:
+        result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
+        experiment = result.scalar_one_or_none()
+        if experiment:
+            await session.delete(experiment)
+            await session.commit()
     return
 
 
 async def experiment_update(id, config):
-    await db.execute("UPDATE experiment SET config = ? WHERE id = ?", (config, id))
-    await db.commit()
+    async with async_session() as session:
+        result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
+        experiment = result.scalar_one_or_none()
+        if experiment:
+            experiment.config = config
+            await session.commit()
     return
 
 
