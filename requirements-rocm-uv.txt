@@ -88,6 +88,8 @@ datasets==2.19.1
     #   evaluate
 defusedxml==0.7.1
     # via youtube-transcript-api
+diffusers==0.33.1
+    # via -r requirements-rocm.in
 dill==0.3.8
     # via
     #   datasets
@@ -122,6 +124,7 @@ filelock==3.13.1
     # via
     #   controlnet-aux
     #   datasets
+    #   diffusers
     #   huggingface-hub
     #   torch
     #   transformers
@@ -164,6 +167,7 @@ huggingface-hub==0.30.2
     #   accelerate
     #   controlnet-aux
     #   datasets
+    #   diffusers
     #   evaluate
     #   peft
     #   sentence-transformers
@@ -182,7 +186,9 @@ idna==3.4
 imageio==2.37.0
     # via scikit-image
 importlib-metadata==8.7.0
-    # via controlnet-aux
+    # via
+    #   controlnet-aux
+    #   diffusers
 isodate==0.7.2
     # via azure-ai-documentintelligence
 jinja2==3.1.4
@@ -252,6 +258,7 @@ numpy==2.1.2
     #   accelerate
     #   controlnet-aux
     #   datasets
+    #   diffusers
     #   evaluate
     #   imageio
     #   magika
@@ -302,6 +309,7 @@ peft==0.15.2
 pillow==11.0.0
     # via
     #   controlnet-aux
+    #   diffusers
     #   imageio
     #   python-pptx
     #   scikit-image
@@ -393,6 +401,7 @@ pyyaml==6.0.2
     #   wavedrom
 regex==2024.11.6
     # via
+    #   diffusers
     #   nltk
     #   tiktoken
     #   transformers
@@ -400,6 +409,7 @@ requests==2.28.1
     # via
     #   azure-core
     #   datasets
+    #   diffusers
     #   evaluate
     #   huggingface-hub
     #   markitdown
@@ -416,6 +426,7 @@ rich==14.0.0
 safetensors==0.5.3
     # via
     #   accelerate
+    #   diffusers
     #   peft
     #   timm
     #   transformers
