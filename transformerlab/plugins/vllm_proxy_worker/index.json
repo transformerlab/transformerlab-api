@@ -23,7 +23,9 @@
   "parameters": {
     "max-model-len": {
       "title": "Maximum Model Length",
-      "type": "integer"
+      "type": "integer",
+      "default": 2048,
+      "minimum": 128
     },
     "gpu-memory-utilization": {
       "title": "GPU Memory Utilization",
@@ -33,14 +35,17 @@
       "maximum": 1.0
     },
     "model-dtype": {
-      "title": "Select a specific data type for the model",
+      "title": "Model Data Type",
       "type": "string",
-      "enum": ["auto", "float16", "bfloat16", "float32"]
+      "enum": ["auto", "float16", "bfloat16", "float32"],
+      "default": "auto"
     },
     "port": {
-      "title": "Port on which the vLLM server will run",
+      "title": "Server Port",
       "type": "integer",
-      "default": 8000
+      "default": 8000,
+      "minimum": 1024,
+      "maximum": 65535
     }
-    }
+  }
   }
