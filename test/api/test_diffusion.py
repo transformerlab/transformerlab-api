@@ -5,8 +5,10 @@ from unittest.mock import patch, MagicMock, mock_open
 from api import app
 
 
-def test_diffusion_generate_success():
+def test_diffusion_generate_success(client):
     # Patch get_pipeline to return a mock pipeline
+    from unittest.mock import patch, MagicMock
+
     with patch("transformerlab.routers.diffusion.get_pipeline") as mock_get_pipeline:
         mock_pipe = MagicMock()
         # Mock the output of the pipeline call
@@ -28,22 +30,20 @@ def test_diffusion_generate_success():
             "guidance_rescale": 0.0,
             "scheduler": "EulerDiscreteScheduler",
         }
-        with TestClient(app) as client:
-            resp = client.post("/diffusion/generate", json=payload)
-            assert resp.status_code == 200
-            data = resp.json()
-            assert data["prompt"] == payload["prompt"]
-            assert data["error_code"] == 0
+        resp = client.post("/diffusion/generate", json=payload)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["prompt"] == payload["prompt"]
+        assert data["error_code"] == 0
 
 
 @pytest.mark.parametrize("missing_field", ["model"])
-def test_diffusion_generate_missing_fields(missing_field):
+def test_diffusion_generate_missing_fields(missing_field, client):
     payload = {"model": "fake-model", "prompt": "a cat"}
     del payload[missing_field]
-    with TestClient(app) as client:
-        resp = client.post("/diffusion/generate", json=payload)
-        # Accept both 400 and 422 as valid for missing fields
-        assert resp.status_code in (400, 422)
+    resp = client.post("/diffusion/generate", json=payload)
+    # Accept both 400 and 422 as valid for missing fields
+    assert resp.status_code in (400, 422)
 
 
 def test_is_valid_diffusion_model_true_stable_diffusion_pipeline():

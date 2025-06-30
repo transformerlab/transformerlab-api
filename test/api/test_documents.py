@@ -12,12 +12,6 @@ from transformerlab.routers.experiment.documents import document_download_zip
 from fastapi import HTTPException
 
 
-@pytest.fixture
-def client():
-    with TestClient(app) as c:
-        yield c
-
-
 async def test_download_zip_missing_url():
     """Test download_zip without URL returns proper error"""
     test_data = {"extract_folder_name": "test_folder"}

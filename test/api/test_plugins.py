@@ -6,83 +6,75 @@ from unittest.mock import patch, Mock, AsyncMock
 import pytest
 
 
-def test_plugins_gallery():
-    with TestClient(app) as client:
-        resp = client.get("/plugins/gallery")
-        assert resp.status_code == 200
+def test_plugins_gallery(client):
+    resp = client.get("/plugins/gallery")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    if data:
+        plugin = data[0]
+        assert "name" in plugin or "description" in plugin
+
+
+def test_plugins_list(client):
+    resp = client.get("/plugins/list")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
+    if data:
+        plugin = data[0]
+        assert "name" in plugin or "description" in plugin
+
+
+def test_plugins_install(client):
+    resp = client.get("/plugins/gallery/fastchat_server/install")
+    assert resp.status_code in (200, 404)
+    if resp.status_code == 200:
         data = resp.json()
-        assert isinstance(data, list)
-        if data:
-            plugin = data[0]
-            assert "name" in plugin or "description" in plugin
+        assert "message" in data or "status" in data
 
 
-def test_plugins_list():
-    with TestClient(app) as client:
-        resp = client.get("/plugins/list")
-        assert resp.status_code == 200
+def test_run_installer_script(client):
+    resp = client.get("/plugins/fastchat_server/run_installer_script")
+    # Installer may not exist, so allow 200 or 404
+    assert resp.status_code in (200, 404)
+    if resp.status_code == 200:
         data = resp.json()
-        assert isinstance(data, list)
-        if data:
-            plugin = data[0]
-            assert "name" in plugin or "description" in plugin
+        assert "message" in data or "status" in data
 
 
-def test_plugins_install():
-    with TestClient(app) as client:
-        resp = client.get("/plugins/gallery/fastchat_server/install")
-        assert resp.status_code in (200, 404)
-        if resp.status_code == 200:
-            data = resp.json()
-            assert "message" in data or "status" in data
+def test_list_missing_plugins_for_current_platform(client):
+    resp = client.get("/plugins/list_missing_plugins_for_current_platform")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
 
 
-def test_run_installer_script():
-    with TestClient(app) as client:
-        resp = client.get("/plugins/fastchat_server/run_installer_script")
-        # Installer may not exist, so allow 200 or 404
-        assert resp.status_code in (200, 404)
-        if resp.status_code == 200:
-            data = resp.json()
-            assert "message" in data or "status" in data
+def test_install_missing_plugins_for_current_platform(client):
+    resp = client.get("/plugins/install_missing_plugins_for_current_platform")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert isinstance(data, list)
 
 
-def test_list_missing_plugins_for_current_platform():
-    with TestClient(app) as client:
-        resp = client.get("/plugins/list_missing_plugins_for_current_platform")
-        assert resp.status_code == 200
+def test_autoupdate_all_plugins(client):
+    resp = client.get("/plugins/autoupdate_all_plugins")
+    assert resp.status_code in (200, 404)
+    if resp.status_code == 200:
         data = resp.json()
-        assert isinstance(data, list)
+        assert "message" in data or "status" in data
 
 
-def test_install_missing_plugins_for_current_platform():
-    with TestClient(app) as client:
-        resp = client.get("/plugins/install_missing_plugins_for_current_platform")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert isinstance(data, list)
-
-
-def test_autoupdate_all_plugins():
-    with TestClient(app) as client:
-        resp = client.get("/plugins/autoupdate_all_plugins")
-        assert resp.status_code in (200, 404)
-        if resp.status_code == 200:
-            data = resp.json()
-            assert "message" in data or "status" in data
-
-
-def test_plugin_install_with_nonexistent_plugin():
+def test_plugin_install_with_nonexistent_plugin(client):
     """Test that installing a non-existent plugin returns appropriate error"""
-    with TestClient(app) as client:
-        resp = client.get("/plugins/gallery/nonexistent_plugin_12345/install")
-        assert resp.status_code in (200, 404)
-        if resp.status_code == 200:
-            data = resp.json()
-            # Should return an error status for non-existent plugin
-            assert "status" in data
-            if data.get("status") == "error":
-                assert "message" in data
+    resp = client.get("/plugins/gallery/nonexistent_plugin_12345/install")
+    assert resp.status_code in (200, 404)
+    if resp.status_code == 200:
+        data = resp.json()
+        # Should return an error status for non-existent plugin
+        assert "status" in data
+        if data.get("status") == "error":
+            assert "message" in data
 
 
 @pytest.mark.asyncio
@@ -245,7 +237,7 @@ async def test_run_installer_for_plugin_setup_script_failure():
             # Mock subprocess to return failure
             mock_stdout = Mock()
             mock_stdout.readline = AsyncMock(side_effect=[b"", b""])  # Empty lines to end the loop
-            
+
             mock_process = Mock()
             mock_process.stdout = mock_stdout
             mock_process.wait = AsyncMock(return_value=1)  # Non-zero exit code indicates failure
@@ -261,19 +253,18 @@ async def test_run_installer_for_plugin_setup_script_failure():
             mock_delete.assert_called_once_with(test_plugin_id)
 
 
-def test_plugin_installation_error_cleanup():
+def test_plugin_installation_error_cleanup(client):
     """Test that plugin installation properly handles errors and cleans up"""
-    with TestClient(app) as client:
-        # Test with a plugin that likely doesn't exist in the gallery
-        resp = client.get("/plugins/gallery/invalid_plugin_name_xyz/install")
+    # Test with a plugin that likely doesn't exist in the gallery
+    resp = client.get("/plugins/gallery/invalid_plugin_name_xyz/install")
 
-        # Should either return 404 (not found) or 200 with error status
-        assert resp.status_code in (200, 404)
+    # Should either return 404 (not found) or 200 with error status
+    assert resp.status_code in (200, 404)
 
-        if resp.status_code == 200:
-            data = resp.json()
-            assert "status" in data
-            # If it's an error, verify the error message is present
-            if data.get("status") == "error":
-                assert "message" in data
-                assert len(data["message"]) > 0
+    if resp.status_code == 200:
+        data = resp.json()
+        assert "status" in data
+        # If it's an error, verify the error message is present
+        if data.get("status") == "error":
+            assert "message" in data
+            assert len(data["message"]) > 0

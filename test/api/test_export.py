@@ -7,17 +7,15 @@ from transformerlab.routers.experiment.export import get_output_file_name
 import asyncio
 
 
-def test_export_jobs():
-    with TestClient(app) as client:
-        resp = client.get("/experiment/1/export/jobs")
-        assert resp.status_code == 200
-        assert isinstance(resp.json(), list)
+def test_export_jobs(client):
+    resp = client.get("/experiment/1/export/jobs")
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
 
 
-def test_export_job():
-    with TestClient(app) as client:
-        resp = client.get("/experiment/1/export/job?jobId=job123")
-        assert resp.status_code == 200
+def test_export_job(client):
+    resp = client.get("/experiment/1/export/job?jobId=job123")
+    assert resp.status_code == 200
 
 
 @patch("transformerlab.db.experiment_get")
