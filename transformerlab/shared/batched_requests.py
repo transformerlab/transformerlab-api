@@ -23,6 +23,7 @@ async def predict(
     max_tokens=1024,
     temperature=0.01,
     top_p=1.0,
+    min_p=0.0,
 ):
     # If prompt is already a list (i.e. a conversation), use it as the messages payload.
     if isinstance(prompt, list):
@@ -38,6 +39,7 @@ async def predict(
             "max_tokens": max_tokens,
             "temperature": temperature,
             "top_p": top_p,
+            "min_p": min_p,  # Minimum probability for sampling
         }
     )
 
@@ -64,6 +66,7 @@ async def process_batch(
     max_tokens=1024,
     top_p=1.0,
     max_concurrent=1,  # Limit concurrent requests
+    min_p=0.0,  # Minimum probability for sampling
 ):
     results = []
     # Process in smaller groups with limited concurrency
@@ -80,6 +83,7 @@ async def process_batch(
                 temperature=temperature,
                 max_tokens=max_tokens,
                 top_p=top_p,
+                min_p=min_p,
             )
             for conversation in sub_batch
         ]
@@ -104,6 +108,7 @@ async def process_dataset(
     top_p=1.0,
     min_idx=0,
     max_idx=None,
+    min_p = 0.0,
 ):
     """
     Process a list of conversations that each contain messages.
@@ -132,6 +137,7 @@ async def process_dataset(
                 temperature=temperature,
                 max_tokens=max_tokens,
                 top_p=top_p,
+                min_p=min_p,
             )
             for idx, assistant_response in enumerate(results):
                 global_idx = start + idx
