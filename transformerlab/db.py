@@ -310,69 +310,63 @@ async def delete_dataset(dataset_id):
 ###############
 
 
-@unconverted
 async def model_local_list():
-    cursor = await db.execute("SELECT rowid, * FROM model")
-    rows = await cursor.fetchall()
-
-    # Convert to JSON
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    await cursor.close()
-
-    # convert json_data column from JSON to Python object
-    for row in data:
-        row["json_data"] = json.loads(row["json_data"])
-
-    return data
+    async with async_session() as session:
+        result = await session.execute(select(models.Model))
+        models_list = result.scalars().all()
+        data = []
+        for model in models_list:
+            row = model.__dict__.copy()
+            if "json_data" in row and row["json_data"]:
+                if isinstance(row["json_data"], str):
+                    row["json_data"] = json.loads(row["json_data"])
+            data.append(row)
+        return data
 
 
-@unconverted
 async def model_local_count():
-    cursor = await db.execute("SELECT COUNT(*) FROM model")
-    row = await cursor.fetchone()
-    await cursor.close()
+    async with async_session() as session:
+        result = await session.execute(select(models.Model))
+        count = len(result.scalars().all())
+        return count
 
-    return row[0]
 
-
-@unconverted
 async def model_local_create(model_id, name, json_data):
-    json_data = json.dumps(obj=json_data)
+    async with async_session() as session:
+        # Upsert using SQLite's ON CONFLICT (model_id) DO UPDATE
+        stmt = insert(models.Model).values(
+            model_id=model_id,
+            name=name,
+            json_data=json_data,
+        )
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["model_id"],
+            set_={"name": name, "json_data": json_data},
+        )
+        await session.execute(stmt)
+        await session.commit()
 
-    await db.execute(
-        "INSERT OR REPLACE INTO model(model_id, name, json_data) VALUES (?, ?,?)", (model_id, name, json_data)
-    )
 
-    await db.commit()
-
-
-@unconverted
 async def model_local_get(model_id):
-    cursor = await db.execute("SELECT rowid, * FROM model WHERE model_id = ?", (model_id,))
-    row = await cursor.fetchone()
-
-    # Returns None if the model_id isn't in the database
-    if row is None:
-        return None
-
-    # Map column names to row data
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
-    await cursor.close()
-
-    # convert json_data column from JSON to Python object
-    row["json_data"] = json.loads(row["json_data"])
-
-    return row
+    async with async_session() as session:
+        result = await session.execute(select(models.Model).where(models.Model.model_id == model_id))
+        model = result.scalar_one_or_none()
+        if model is None:
+            return None
+        row = model.__dict__.copy()
+        if "json_data" in row and row["json_data"]:
+            if isinstance(row["json_data"], str):
+                row["json_data"] = json.loads(row["json_data"])
+        return row
 
 
-@unconverted
 async def model_local_delete(model_id):
-    await db.execute("DELETE FROM model WHERE model_id = ?", (model_id,))
-    await db.commit()
+    async with async_session() as session:
+        result = await session.execute(select(models.Model).where(models.Model.model_id == model_id))
+        model = result.scalar_one_or_none()
+        if model:
+            await session.delete(model)
+            await session.commit()
 
 
 ###############
@@ -996,6 +990,9 @@ async def experiment_get(id):
         experiment = result.scalar_one_or_none()
         if experiment is None:
             return None
+        # Ensure config is always a JSON string
+        if isinstance(experiment.config, dict):
+            experiment.config = json.dumps(experiment.config)
         return experiment.__dict__
 
 
@@ -1019,6 +1016,9 @@ async def experiment_delete(id):
 
 
 async def experiment_update(id, config):
+    # Ensure config is JSON string
+    if not isinstance(config, str):
+        config = json.dumps(config)
     async with async_session() as session:
         result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
         experiment = result.scalar_one_or_none()
@@ -1029,24 +1029,46 @@ async def experiment_update(id, config):
 
 
 async def experiment_update_config(id, key, value):
-    value_json = json.dumps(value)
+    # Fetch the experiment
     async with async_session() as session:
-        stmt = (
-            update(models.Experiment)
-            .where(models.Experiment.id == id)
-            .values(config=text("json_set(config, :json_key, json(:value))"))
-        )
-        await session.execute(stmt, {"json_key": f"$.{key}", "value": value_json})
-        await session.commit()
+        result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
+        experiment = result.scalar_one_or_none()
+        if experiment is None:
+            print(f"Experiment with id={id} not found.")
+            return
+
+        # Parse config as dict if needed
+        config = experiment.config
+        if isinstance(config, str):
+            try:
+                config = json.loads(config)
+            except Exception as e:
+                print(f"❌ Could not parse config as JSON: {e}")
+                config = {}
+
+        # Update the key
+        config[key] = value
+
+        # Use experiment_update to save
+        await experiment_update(id, config)
     return
 
 
 async def experiment_save_prompt_template(id, template):
+    # Fetch the experiment config, update prompt_template, and save using experiment_update
     async with async_session() as session:
-        stmt = update(models.Experiment).where(models.Experiment.id == id)
-        stmt = stmt.values(config=text("json_set(config, '$.prompt_template', json(:template))"))
-        await session.execute(stmt, {"template": template})
-        await session.commit()
+        result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
+        experiment = result.scalar_one_or_none()
+        if experiment is None:
+            return
+        config = experiment.config
+        if isinstance(config, str):
+            try:
+                config = json.loads(config)
+            except Exception:
+                config = {}
+        config["prompt_template"] = template
+        await experiment_update(id, config)
     return
 
 
