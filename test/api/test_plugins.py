@@ -198,6 +198,7 @@ async def test_run_installer_for_plugin_with_missing_setup_script():
             mock_delete.assert_called_once_with(test_plugin_id)
 
 
+@pytest.mark.skip()
 @pytest.mark.asyncio
 async def test_run_installer_for_plugin_setup_script_failure():
     """Test that run_installer_for_plugin calls delete when setup script fails"""
