@@ -310,7 +310,7 @@ def manage_test_tmp_dir():
         os.remove(db_path)
 
 
-@pytest.fixture(scope="module", autouse=True)
+@pytest.fixture(scope="session", autouse=True)
 async def setup_db():
     await db.init()
     yield
@@ -644,7 +644,7 @@ class TestWorkflows:
 
 # Additional test for experiment_get_by_name which has partial coverage
 @pytest.mark.asyncio
-async def test_experiment_get_by_name(setup_db):
+async def test_experiment_get_by_name():
     """Test the experiment_get_by_name function."""
     # Create a test experiment
     experiment_name = "test_experiment_by_name"
@@ -669,7 +669,7 @@ async def test_experiment_get_by_name(setup_db):
 
 
 @pytest.mark.asyncio
-async def test_job_create_sync(setup_db):
+async def test_job_create_sync():
     """Test the job_create_sync function."""
     # Make sure any pending transactions are committed
     await db.db.commit()
@@ -700,7 +700,7 @@ async def test_job_create_sync(setup_db):
 
 
 @pytest.mark.asyncio
-async def test_job_update_status_sync(setup_db):
+async def test_job_update_status_sync():
     """Test the job_update_status_sync function."""
     # First create a job
     job_id = await db.job_create("TASK", "QUEUED", "{}", "test_experiment")
@@ -715,7 +715,7 @@ async def test_job_update_status_sync(setup_db):
 
 
 @pytest.mark.asyncio
-async def test_job_update_sync(setup_db):
+async def test_job_update_sync():
     """Test the job_update_sync function."""
     # First create a job
     job_id = await db.job_create("TASK", "QUEUED", "{}", "test_experiment")
@@ -730,7 +730,7 @@ async def test_job_update_sync(setup_db):
 
 
 @pytest.mark.asyncio
-async def test_job_mark_as_complete_if_running(setup_db):
+async def test_job_mark_as_complete_if_running():
     """Test the job_mark_as_complete_if_running function."""
     # Create a running job
     job_id = await db.job_create("TASK", "RUNNING", "{}", "test_experiment")
@@ -842,7 +842,7 @@ async def test_job_mark_as_complete_if_running(setup_db):
 
 
 @pytest.mark.asyncio
-async def test_job_update(setup_db):
+async def test_job_update():
     """Test the job_update function that updates both type and status of a job."""
     # First create a job
     original_type = "TASK"
