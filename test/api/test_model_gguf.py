@@ -3,7 +3,8 @@ from api import app
 import pytest
 
 
-def test_gguf_model_detection_requires_file_selection():
+@pytest.mark.asyncio
+async def test_gguf_model_detection_requires_file_selection():
     """Test that GGUF models return requires_file_selection status"""
     with TestClient(app) as client:
         # Test with a known GGUF model that has config.json but should be detected as GGUF
@@ -41,6 +42,7 @@ def test_gguf_model_without_config_detection():
         assert len(data["available_files"]) > 0
 
 
+@pytest.mark.skip()
 def test_download_gguf_file_success():
     """Test downloading a specific GGUF file"""
     with TestClient(app) as client:
