@@ -1284,6 +1284,16 @@ async def save_plugin(name: str, type: str):
     return
 
 
+async def delete_plugin(name: str):
+    async with async_session() as session:
+        plugin = await session.get(Plugin, name)
+        if plugin:
+            await session.delete(plugin)
+            await session.commit()
+            return True
+    return False
+
+
 ###############
 # Config MODEL
 ###############
