@@ -2,53 +2,50 @@
 The Entrypoint File for Transformer Lab's API Server.
 """
 
-import os
 import argparse
 import asyncio
-
 import json
+import os
 import signal
 import subprocess
-from contextlib import asynccontextmanager
 import sys
-from werkzeug.utils import secure_filename
+from contextlib import asynccontextmanager
 
 import fastapi
 import httpx
+import torch
 
 # Using torch to test for CUDA and MPS support.
 import uvicorn
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
-from fastchat.constants import (
-    ErrorCode,
-)
-from fastchat.protocol.openai_api_protocol import (
-    ErrorResponse,
-)
+from fastapi.staticfiles import StaticFiles
+from fastchat.constants import ErrorCode
+from fastchat.protocol.openai_api_protocol import ErrorResponse
+from werkzeug.utils import secure_filename
 
 import transformerlab.db as db
 from transformerlab.routers import (
-    data,
-    model,
-    serverinfo,
-    train,
-    plugins,
-    evals,
-    config,
-    jobs,
-    tasks,
-    prompts,
-    tools,
     batched_prompts,
+    config,
+    data,
     diffusion,
+    evals,
+    jobs,
+    model,
+    network,
+    plugins,
+    prompts,
     recipes,
+    serverinfo,
+    tasks,
+    tools,
+    train,
     users,
 )
-import torch
 
 try:
     from pynvml import nvmlShutdown
@@ -59,13 +56,11 @@ except Exception:
 
     HAS_AMD = True
 from transformerlab import fastchat_openai_api
-from transformerlab.routers.experiment import experiment
-from transformerlab.routers.experiment import workflows
-from transformerlab.shared import dirs
-from transformerlab.shared import shared
-from transformerlab.shared import galleries
+from transformerlab.routers.experiment import experiment, workflows
+from transformerlab.shared import dirs, galleries, shared
 
-from dotenv import load_dotenv
+# Global variable to store host machine status
+IS_HOST_MACHINE = False
 
 load_dotenv()
 
@@ -78,7 +73,10 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 os.environ["_TFL_WORKSPACE_DIR"] = dirs.WORKSPACE_DIR
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 
-from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router  # noqa: E402
+from transformerlab.routers.job_sdk import (  # noqa: E402
+    get_trainer_xmlrpc_router,
+    get_xmlrpc_router,
+)
 
 
 @asynccontextmanager
@@ -89,6 +87,18 @@ async def lifespan(app: FastAPI):
     galleries.update_gallery_cache()
     spawn_fastchat_controller_subprocess()
     await db.init()
+
+    # Check for host machine status from environment variable
+    global IS_HOST_MACHINE
+    IS_HOST_MACHINE = os.getenv("TLAB_HOST_MACHINE", "false").lower() == "true"
+
+    # Store host machine status in database
+    await db.config_set("IS_HOST_MACHINE", str(IS_HOST_MACHINE))
+    if IS_HOST_MACHINE:
+        print("🌐 Running as HOST MACHINE for distributed computing")
+    else:
+        print("🖥️  Running as network machine")
+
     if "--reload" in sys.argv:
         await install_all_plugins()
     # run the migration
@@ -134,6 +144,10 @@ tags_metadata = [
     {
         "name": "serverinfo",
         "description": "Actions for interacting with the Transformer Lab server.",
+    },
+    {
+        "name": "network",
+        "description": "Actions for managing network machines in distributed computing setup.",
     },
 ]
 
@@ -188,6 +202,7 @@ app.include_router(recipes.router)
 app.include_router(batched_prompts.router)
 app.include_router(fastchat_openai_api.router)
 app.include_router(diffusion.router)
+app.include_router(network.router)
 app.include_router(get_xmlrpc_router())
 app.include_router(get_trainer_xmlrpc_router())
 

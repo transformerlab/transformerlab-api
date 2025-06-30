@@ -378,6 +378,7 @@ ALLOWED_JOB_TYPES = [
     "UNDEFINED",
     "GENERATE",
     "INSTALL_RECIPE_DEPS",
+    "INSTALL_REMOTE_DEPS",
 ]
 
 
@@ -524,7 +525,7 @@ async def job_get(job_id):
 
 
 async def job_count_running():
-    cursor = await db.execute("SELECT COUNT(*) FROM job WHERE status = 'RUNNING'")
+    cursor = await db.execute("SELECT COUNT(*) FROM job WHERE status IN ('RUNNING')")
     row = await cursor.fetchone()
     await cursor.close()
     return row[0]
@@ -1313,3 +1314,550 @@ async def config_set(key: str, value: str):
         await session.execute(stmt)
         await session.commit()
     return
+
+
+###################
+# NETWORK MACHINES
+###################
+
+
+async def network_machine_create(
+    name: str, host: str, port: int = 8338, api_token: str = None, metadata: dict = None
+) -> int:
+    """Create a new network machine entry."""
+    if metadata is None:
+        metadata = {}
+
+    async with async_session() as session:
+        machine = models.NetworkMachine(
+            name=name, host=host, port=port, api_token=api_token, status="offline", machine_metadata=metadata
+        )
+        session.add(machine)
+        await session.commit()
+        await session.refresh(machine)
+        return machine.id
+
+
+async def network_machine_get_all():
+    """Get all network machines."""
+    async with async_session() as session:
+        result = await session.execute(select(models.NetworkMachine).order_by(models.NetworkMachine.created_at.desc()))
+        machines = result.scalars().all()
+        return [machine.__dict__ for machine in machines]
+
+
+async def network_machine_get(machine_id: int):
+    """Get a specific network machine by ID."""
+    async with async_session() as session:
+        result = await session.execute(select(models.NetworkMachine).where(models.NetworkMachine.id == machine_id))
+        machine = result.scalar_one_or_none()
+        return machine.__dict__ if machine else None
+
+
+async def network_machine_get_by_name(name: str):
+    """Get a specific network machine by name."""
+    async with async_session() as session:
+        result = await session.execute(select(models.NetworkMachine).where(models.NetworkMachine.name == name))
+        machine = result.scalar_one_or_none()
+        return machine.__dict__ if machine else None
+
+
+async def network_machine_update_status(machine_id: int, status: str, last_seen: str = None):
+    """Update the status and last_seen timestamp of a network machine."""
+    from datetime import datetime
+
+    update_data = {"status": status}
+    if last_seen:
+        update_data["last_seen"] = datetime.fromisoformat(last_seen)
+    else:
+        update_data["last_seen"] = datetime.now()
+
+    async with async_session() as session:
+        stmt = update(models.NetworkMachine).where(models.NetworkMachine.id == machine_id).values(**update_data)
+        await session.execute(stmt)
+        await session.commit()
+
+
+async def network_machine_update_metadata(machine_id: int, metadata: dict):
+    """Update the metadata of a network machine."""
+    async with async_session() as session:
+        stmt = (
+            update(models.NetworkMachine)
+            .where(models.NetworkMachine.id == machine_id)
+            .values(machine_metadata=metadata)
+        )
+        await session.execute(stmt)
+        await session.commit()
+
+
+async def network_machine_delete(machine_id: int):
+    """Delete a network machine."""
+    async with async_session() as session:
+        machine = await session.get(models.NetworkMachine, machine_id)
+        if machine:
+            await session.delete(machine)
+            await session.commit()
+            return True
+        return False
+
+
+async def network_machine_delete_by_name(name: str):
+    """Delete a network machine by name."""
+    async with async_session() as session:
+        result = await session.execute(select(models.NetworkMachine).where(models.NetworkMachine.name == name))
+        machine = result.scalar_one_or_none()
+        if machine:
+            await session.delete(machine)
+            await session.commit()
+            return True
+        return False
+
+
+async def network_machine_reserve(
+    machine_id: int, host_identifier: str, duration_minutes: int = None, metadata: dict = None
+):
+    """Reserve a network machine for a specific host."""
+    from datetime import datetime
+
+    if metadata is None:
+        metadata = {}
+
+    async with async_session() as session:
+        # Check if machine exists and is not already reserved
+        result = await session.execute(select(models.NetworkMachine).where(models.NetworkMachine.id == machine_id))
+        machine = result.scalar_one_or_none()
+
+        if not machine:
+            return False, "Machine not found"
+
+        if machine.is_reserved:
+            return False, f"Machine is already reserved by {machine.reserved_by_host}"
+
+        # Reserve the machine
+        stmt = (
+            update(models.NetworkMachine)
+            .where(models.NetworkMachine.id == machine_id)
+            .values(
+                is_reserved=True,
+                reserved_by_host=host_identifier,
+                reserved_at=datetime.now(),
+                reservation_duration_minutes=duration_minutes,
+                reservation_metadata=metadata,
+            )
+        )
+        await session.execute(stmt)
+        await session.commit()
+        return True, "Machine reserved successfully"
+
+
+async def network_machine_release(machine_id: int, host_identifier: str = None):
+    """Release a reserved network machine."""
+    async with async_session() as session:
+        # Get the machine
+        result = await session.execute(select(models.NetworkMachine).where(models.NetworkMachine.id == machine_id))
+        machine = result.scalar_one_or_none()
+
+        if not machine:
+            return False, "Machine not found"
+
+        if not machine.is_reserved:
+            return False, "Machine is not reserved"
+
+        # If host_identifier is provided, verify it matches
+        if host_identifier and machine.reserved_by_host != host_identifier:
+            return False, "Machine is reserved by a different host"
+
+        # Release the machine
+        stmt = (
+            update(models.NetworkMachine)
+            .where(models.NetworkMachine.id == machine_id)
+            .values(
+                is_reserved=False,
+                reserved_by_host=None,
+                reserved_at=None,
+                reservation_duration_minutes=None,
+                reservation_metadata={},
+            )
+        )
+        await session.execute(stmt)
+        await session.commit()
+        return True, "Machine released successfully"
+
+
+async def network_machine_release_by_name(name: str, host_identifier: str = None):
+    """Release a reserved network machine by name."""
+    async with async_session() as session:
+        # Get the machine by name
+        result = await session.execute(select(models.NetworkMachine).where(models.NetworkMachine.name == name))
+        machine = result.scalar_one_or_none()
+
+        if not machine:
+            return False, "Machine not found"
+
+        return await network_machine_release(machine.id, host_identifier)
+
+
+async def network_machine_get_reservations_by_host(host_identifier: str):
+    """Get all machines reserved by a specific host."""
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.NetworkMachine)
+            .where(models.NetworkMachine.reserved_by_host == host_identifier)
+            .order_by(models.NetworkMachine.reserved_at.desc())
+        )
+        machines = result.scalars().all()
+        return [machine.__dict__ for machine in machines]
+
+
+async def network_machine_get_all_reservations():
+    """Get all machine reservations across all hosts."""
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.NetworkMachine)
+            .where(models.NetworkMachine.is_reserved.is_(True))
+            .order_by(models.NetworkMachine.reserved_at.desc())
+        )
+        machines = result.scalars().all()
+        return [machine.__dict__ for machine in machines]
+
+
+async def network_machine_check_reservation_expired(machine_id: int):
+    """Check if a machine's reservation has expired and auto-release if needed."""
+    from datetime import datetime, timedelta
+
+    async with async_session() as session:
+        result = await session.execute(select(models.NetworkMachine).where(models.NetworkMachine.id == machine_id))
+        machine = result.scalar_one_or_none()
+
+        if not machine or not machine.is_reserved:
+            return False, "Machine not found or not reserved"
+
+        # If no duration specified, reservation doesn't expire
+        if not machine.reservation_duration_minutes:
+            return False, "Reservation has no expiration"
+
+        # Check if reservation has expired
+        expiry_time = machine.reserved_at + timedelta(minutes=machine.reservation_duration_minutes)
+        if datetime.now() > expiry_time:
+            # Auto-release expired reservation
+            await network_machine_release(machine_id)
+            return True, "Reservation expired and released"
+
+        return False, "Reservation still active"
+
+
+async def network_machine_cleanup_expired_reservations():
+    """Clean up all expired reservations across all machines."""
+    from datetime import datetime, timedelta
+
+    async with async_session() as session:
+        # Get all reserved machines with expiration times
+        result = await session.execute(
+            select(models.NetworkMachine).where(
+                models.NetworkMachine.is_reserved.is_(True),
+                models.NetworkMachine.reservation_duration_minutes.isnot(None),
+            )
+        )
+        machines = result.scalars().all()
+
+        expired_count = 0
+        for machine in machines:
+            expiry_time = machine.reserved_at + timedelta(minutes=machine.reservation_duration_minutes)
+            if datetime.now() > expiry_time:
+                await network_machine_release(machine.id)
+                expired_count += 1
+
+        return expired_count
+
+
+# =============================================================================
+# QUOTA MANAGEMENT FUNCTIONS
+# =============================================================================
+
+
+async def network_quota_get_config(host_identifier: str):
+    """Get quota configuration for a specific host."""
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.NetworkQuotaConfig).where(
+                models.NetworkQuotaConfig.host_identifier == host_identifier,
+                models.NetworkQuotaConfig.is_active.is_(True),
+            )
+        )
+        configs = result.scalars().all()
+        return [
+            {
+                "host_identifier": config.host_identifier,
+                "time_period": config.time_period,
+                "minutes_limit": config.minutes_limit,
+                "warning_threshold_percent": config.warning_threshold_percent,
+                "is_active": config.is_active,
+                "created_at": config.created_at,
+                "updated_at": config.updated_at,
+            }
+            for config in configs
+        ]
+
+
+async def network_quota_get_period_config(host_identifier: str, time_period: str):
+    """Get quota configuration for a specific host and time period."""
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.NetworkQuotaConfig).where(
+                models.NetworkQuotaConfig.host_identifier == host_identifier,
+                models.NetworkQuotaConfig.time_period == time_period,
+                models.NetworkQuotaConfig.is_active.is_(True),
+            )
+        )
+        config = result.scalar_one_or_none()
+        if config:
+            return {
+                "host_identifier": config.host_identifier,
+                "time_period": config.time_period,
+                "minutes_limit": config.minutes_limit,
+                "warning_threshold_percent": config.warning_threshold_percent,
+                "is_active": config.is_active,
+                "created_at": config.created_at,
+                "updated_at": config.updated_at,
+            }
+        return None
+
+
+async def network_quota_set_config(
+    host_identifier: str,
+    time_period: str,
+    minutes_limit: int,
+    warning_threshold_percent: int = 80,
+    is_active: bool = True,
+):
+    """Set or update quota configuration for a host and time period."""
+    async with async_session() as session:
+        try:
+            # Use SQLAlchemy upsert for better handling
+            stmt = insert(models.NetworkQuotaConfig).values(
+                host_identifier=host_identifier,
+                time_period=time_period,
+                minutes_limit=minutes_limit,
+                warning_threshold_percent=warning_threshold_percent,
+                is_active=is_active,
+            )
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["host_identifier", "time_period"],
+                set_=dict(
+                    minutes_limit=stmt.excluded.minutes_limit,
+                    warning_threshold_percent=stmt.excluded.warning_threshold_percent,
+                    is_active=stmt.excluded.is_active,
+                    updated_at=stmt.excluded.updated_at,
+                ),
+            )
+            await session.execute(stmt)
+            await session.commit()
+            return True
+        except Exception as e:
+            await session.rollback()
+            print(f"ERROR: Failed to set quota config: {e}")
+            return False
+
+
+async def network_quota_get_usage(host_identifier: str, time_period: str, period_start_date: str):
+    """Get quota usage for a specific host, time period, and period start date."""
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.NetworkQuotaUsage).where(
+                models.NetworkQuotaUsage.host_identifier == host_identifier,
+                models.NetworkQuotaUsage.time_period == time_period,
+                models.NetworkQuotaUsage.period_start_date == period_start_date,
+            )
+        )
+        usage = result.scalar_one_or_none()
+        if usage:
+            return {
+                "host_identifier": usage.host_identifier,
+                "time_period": usage.time_period,
+                "period_start_date": usage.period_start_date,
+                "minutes_used": usage.minutes_used,
+                "last_updated": usage.last_updated,
+                "created_at": usage.created_at,
+            }
+        return None
+
+
+async def network_quota_add_usage(host_identifier: str, time_period: str, period_start_date: str, minutes_to_add: int):
+    """Add minutes to quota usage for a specific period."""
+    async with async_session() as session:
+        try:
+            # Use upsert to either create new record or update existing one
+            stmt = insert(models.NetworkQuotaUsage).values(
+                host_identifier=host_identifier,
+                time_period=time_period,
+                period_start_date=period_start_date,
+                minutes_used=minutes_to_add,
+            )
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["host_identifier", "time_period", "period_start_date"],
+                set_=dict(
+                    minutes_used=models.NetworkQuotaUsage.minutes_used + stmt.excluded.minutes_used,
+                    last_updated=stmt.excluded.last_updated,
+                ),
+            )
+            await session.execute(stmt)
+            await session.commit()
+            return True
+        except Exception as e:
+            await session.rollback()
+            print(f"ERROR: Failed to add quota usage: {e}")
+            return False
+
+
+async def network_quota_reset_usage(host_identifier: str, time_period: str):
+    """Reset quota usage for a specific host and time period."""
+    async with async_session() as session:
+        try:
+            await session.execute(
+                models.NetworkQuotaUsage.__table__.delete().where(
+                    models.NetworkQuotaUsage.host_identifier == host_identifier,
+                    models.NetworkQuotaUsage.time_period == time_period,
+                )
+            )
+            await session.commit()
+            return True
+        except Exception as e:
+            await session.rollback()
+            print(f"ERROR: Failed to reset quota usage: {e}")
+            return False
+
+
+async def network_quota_record_history(host_identifier: str, machine_id: int, minutes_used: int):
+    """Record quota usage history for audit purposes."""
+    from datetime import datetime
+
+    async with async_session() as session:
+        try:
+            history = models.NetworkQuotaHistory(
+                host_identifier=host_identifier,
+                machine_id=machine_id,
+                reservation_start=datetime.now(),
+                reservation_end=datetime.now(),  # Will be updated when reservation ends
+                minutes_used=minutes_used,
+            )
+            session.add(history)
+            await session.commit()
+            return True
+        except Exception as e:
+            await session.rollback()
+            print(f"ERROR: Failed to record quota history: {e}")
+            return False
+
+
+async def network_quota_get_all_hosts_usage():
+    """Get quota usage for all hosts (admin function)."""
+    async with async_session() as session:
+        # Get all quota configurations
+        config_result = await session.execute(select(models.NetworkQuotaConfig))
+        configs = config_result.scalars().all()
+
+        # Get all quota usage
+        usage_result = await session.execute(select(models.NetworkQuotaUsage))
+        usages = usage_result.scalars().all()
+
+        # Organize by host
+        hosts_data = {}
+        for config in configs:
+            if config.host_identifier not in hosts_data:
+                hosts_data[config.host_identifier] = {"configs": [], "usage": []}
+            hosts_data[config.host_identifier]["configs"].append(
+                {
+                    "time_period": config.time_period,
+                    "minutes_limit": config.minutes_limit,
+                    "warning_threshold_percent": config.warning_threshold_percent,
+                    "is_active": config.is_active,
+                }
+            )
+
+        for usage in usages:
+            if usage.host_identifier not in hosts_data:
+                hosts_data[usage.host_identifier] = {"configs": [], "usage": []}
+            hosts_data[usage.host_identifier]["usage"].append(
+                {
+                    "time_period": usage.time_period,
+                    "period_start_date": usage.period_start_date,
+                    "minutes_used": usage.minutes_used,
+                    "last_updated": usage.last_updated,
+                }
+            )
+
+        return hosts_data
+
+
+async def network_quota_init_tables():
+    """Initialize quota tables if they don't exist."""
+    try:
+        # Create all tables defined in the models
+        from transformerlab.shared.models.models import Base
+
+        async with async_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        return True
+    except Exception as e:
+        print(f"ERROR: Failed to initialize quota tables: {e}")
+        return False
+
+
+async def network_quota_get_reservation_history(start_date, end_date):
+    """Get reservation history data for analytics within the specified date range."""
+    try:
+        async with AsyncSession(async_engine) as session:
+            # Query quota history records within the date range
+            stmt = (
+                select(models.NetworkQuotaHistory)
+                .where(models.NetworkQuotaHistory.created_at >= start_date)
+                .where(models.NetworkQuotaHistory.created_at <= end_date)
+                .order_by(models.NetworkQuotaHistory.created_at.desc())
+            )
+            result = await session.execute(stmt)
+            histories = result.scalars().all()
+
+            # Convert to dictionaries
+            history_data = []
+            for history in histories:
+                history_data.append(
+                    {
+                        "id": history.id,
+                        "host_identifier": history.host_identifier,
+                        "machine_id": history.machine_id,
+                        "reservation_start": history.reservation_start,
+                        "reservation_end": history.reservation_end,
+                        "minutes_used": history.minutes_used,
+                        "created_at": history.created_at,
+                    }
+                )
+
+            return history_data
+
+    except Exception as e:
+        print(f"ERROR: Failed to get reservation history: {e}")
+        return []
+
+
+async def network_quota_get_host_list():
+    """Get list of all hosts that have quota configurations or usage."""
+    try:
+        async with AsyncSession(async_engine) as session:
+            # Get unique hosts from both config and usage tables
+            config_hosts = select(models.NetworkQuotaConfig.host_identifier).distinct()
+            usage_hosts = select(models.NetworkQuotaUsage.host_identifier).distinct()
+            history_hosts = select(models.NetworkQuotaHistory.host_identifier).distinct()
+
+            all_hosts = set()
+
+            # Execute queries
+            for query in [config_hosts, usage_hosts, history_hosts]:
+                result = await session.execute(query)
+                hosts = result.scalars().all()
+                all_hosts.update(hosts)
+
+            return list(all_hosts)
+
+    except Exception as e:
+        print(f"ERROR: Failed to get host list: {e}")
+        return []
