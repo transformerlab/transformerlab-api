@@ -193,8 +193,6 @@ async def test_config_get_returns_none_for_missing():
 
 
 pytest_plugins = ("pytest_asyncio",)
-
-
 @pytest.mark.asyncio
 async def test_model_local_list_and_count():
     await model_local_create("model1", "Model 1", {})
@@ -298,23 +296,47 @@ async def test_export_job_create(test_experiment):
     assert job["type"] == "EXPORT_MODEL"
 
 
-pytest_plugins = ("pytest_asyncio",)
-
-
 @pytest.fixture(scope="session", autouse=True)
-def manage_test_tmp_dir():
-    yield
-    # delete the database:
+async def manage_test_db():
+    # Ensure test directory exists
+    os.makedirs("./test/tmp", exist_ok=True)
+    
+    # Delete any existing database file before starting
     db_path = os.path.join("./test/tmp", "llmlab.sqlite3")
+    if os.path.exists(db_path):
+        os.remove(db_path)
+    
+    # Initialize database once for the entire session
+    await db.init()
+    
+    yield
+    
+    # Clean up: close database and remove file
+    try:
+        await db.close()
+    except Exception:
+        pass  # Ignore errors during cleanup
+    
     if os.path.exists(db_path):
         os.remove(db_path)
 
 
-@pytest.fixture(scope="module", autouse=True)
-async def setup_db():
-    await db.init()
+@pytest.fixture(autouse=True)
+async def cleanup_test_data():
+    # This runs before each test to ensure clean state
     yield
-    await db.close()
+    # Clean up after each test - delete test data but keep database structure
+    try:
+        # Clean up jobs
+        await job_delete_all()
+        # Clean up workflows
+        await workflow_delete_all()
+        await workflow_runs_delete_all()
+        # Clean up tasks  
+        await tasks_delete_all()
+        # Don't clean up experiments as some tests depend on the default ones
+    except Exception:
+        pass  # Ignore cleanup errors
 
 
 @pytest.fixture
@@ -644,19 +666,19 @@ class TestWorkflows:
 
 # Additional test for experiment_get_by_name which has partial coverage
 @pytest.mark.asyncio
-async def test_experiment_get_by_name(setup_db):
+async def test_experiment_get_by_name():
     """Test the experiment_get_by_name function."""
     # Create a test experiment
     experiment_name = "test_experiment_by_name"
     config = {}
     # Delete the experiment if it already exists
-    existing = await db.experiment_get_by_name(experiment_name)
+    existing = await experiment_get_by_name(experiment_name)
     if existing:
-        await db.experiment_delete(existing["id"])
-    experiment_id = await db.experiment_create(experiment_name, config)
+        await experiment_delete(existing["id"])
+    experiment_id = await experiment_create(experiment_name, config)
 
     # Test the function
-    experiment = await db.experiment_get_by_name(experiment_name)
+    experiment = await experiment_get_by_name(experiment_name)
 
     # Verify results
     assert experiment is not None
@@ -664,12 +686,12 @@ async def test_experiment_get_by_name(setup_db):
     assert experiment["id"] == experiment_id
 
     # Test with non-existent name
-    non_existent = await db.experiment_get_by_name("non_existent_experiment")
+    non_existent = await experiment_get_by_name("non_existent_experiment")
     assert non_existent is None
 
 
 @pytest.mark.asyncio
-async def test_job_create_sync(setup_db):
+async def test_job_create_sync():
     """Test the job_create_sync function."""
     # Make sure any pending transactions are committed
     await db.db.commit()
@@ -690,7 +712,7 @@ async def test_job_create_sync(setup_db):
     # First refresh the connection to ensure we see the latest data
     await db.db.execute("PRAGMA wal_checkpoint;")
 
-    job = await db.job_get(job_id)
+    job = await job_get(job_id)
     assert job is not None
     assert job["type"] == job_type
     assert job["status"] == status
@@ -700,56 +722,56 @@ async def test_job_create_sync(setup_db):
 
 
 @pytest.mark.asyncio
-async def test_job_update_status_sync(setup_db):
+async def test_job_update_status_sync():
     """Test the job_update_status_sync function."""
     # First create a job
-    job_id = await db.job_create("TASK", "QUEUED", "{}", "test_experiment")
+    job_id = await job_create("TASK", "QUEUED", "{}", "test_experiment")
 
     # Update the job status
     new_status = "RUNNING"
     db.job_update_status_sync(job_id, new_status)
 
     # Verify the status was updated
-    job = await db.job_get(job_id)
+    job = await job_get(job_id)
     assert job["status"] == new_status
 
 
 @pytest.mark.asyncio
-async def test_job_update_sync(setup_db):
+async def test_job_update_sync():
     """Test the job_update_sync function."""
     # First create a job
-    job_id = await db.job_create("TASK", "QUEUED", "{}", "test_experiment")
+    job_id = await job_create("TASK", "QUEUED", "{}", "test_experiment")
 
     # Update the job
     new_status = "RUNNING"
     db.job_update_sync(job_id, new_status)
 
     # Verify the job was updated
-    job = await db.job_get(job_id)
+    job = await job_get(job_id)
     assert job["status"] == new_status
 
 
 @pytest.mark.asyncio
-async def test_job_mark_as_complete_if_running(setup_db):
+async def test_job_mark_as_complete_if_running():
     """Test the job_mark_as_complete_if_running function."""
     # Create a running job
-    job_id = await db.job_create("TASK", "RUNNING", "{}", "test_experiment")
+    job_id = await job_create("TASK", "RUNNING", "{}", "test_experiment")
 
     # Mark it as complete if running
     db.job_mark_as_complete_if_running(job_id)
 
     # Verify the job status was updated
-    job = await db.job_get(job_id)
+    job = await job_get(job_id)
     assert job["status"] == "COMPLETE"
 
     # Create a non-running job
-    job_id2 = await db.job_create("TASK", "QUEUED", "{}", "test_experiment")
+    job_id2 = await job_create("TASK", "QUEUED", "{}", "test_experiment")
 
     # Try to mark it as complete if running (should not change)
     db.job_mark_as_complete_if_running(job_id2)
 
     # Verify the job status was not updated
-    job2 = await db.job_get(job_id2)
+    job2 = await job_get(job_id2)
     assert job2["status"] == "QUEUED"
 
 
@@ -842,15 +864,15 @@ async def test_job_mark_as_complete_if_running(setup_db):
 
 
 @pytest.mark.asyncio
-async def test_job_update(setup_db):
+async def test_job_update():
     """Test the job_update function that updates both type and status of a job."""
     # First create a job
     original_type = "TASK"
     original_status = "QUEUED"
-    job_id = await db.job_create(original_type, original_status, "{}", "test_experiment")
+    job_id = await job_create(original_type, original_status, "{}", "test_experiment")
 
     # Verify the job was created with correct initial values
-    job = await db.job_get(job_id)
+    job = await job_get(job_id)
     assert job["type"] == original_type
     assert job["status"] == original_status
 
@@ -860,7 +882,7 @@ async def test_job_update(setup_db):
     await db.job_update(job_id, new_type, new_status)
 
     # Verify the job was updated correctly
-    updated_job = await db.job_get(job_id)
+    updated_job = await job_get(job_id)
     assert updated_job["type"] == new_type
     assert updated_job["status"] == new_status
     assert updated_job["id"] == job_id

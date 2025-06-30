@@ -1525,7 +1525,6 @@ def test_workflow_run_with_job_data_edge_cases():
         assert isinstance(run_data["jobs"], list)
 
 
-@pytest.mark.skip(reason="Temporarily skipping complex workflow test to avoid db lock errors")
 def test_workflow_next_step_with_complex_scenarios():
     """Test complex workflow scenarios through API execution"""
 
