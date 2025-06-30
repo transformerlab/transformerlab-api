@@ -194,6 +194,14 @@ async def test_config_get_returns_none_for_missing():
 
 pytest_plugins = ("pytest_asyncio",)
 
+# Configure pytest-asyncio to use session-scoped event loop
+@pytest.fixture(scope="session")
+def event_loop():
+    import asyncio
+    loop = asyncio.new_event_loop()
+    yield loop
+    loop.close()
+
 
 @pytest.mark.asyncio
 async def test_model_local_list_and_count():
