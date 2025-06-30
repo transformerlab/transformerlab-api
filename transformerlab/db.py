@@ -988,7 +988,6 @@ async def experiment_create(name: str, config: dict) -> int:
         return experiment.id
 
 
-@unconverted
 async def experiment_get(id):
     if id is None or id == "undefined":
         return None
@@ -1000,7 +999,6 @@ async def experiment_get(id):
         return experiment.__dict__
 
 
-@unconverted
 async def experiment_get_by_name(name):
     async with async_session() as session:
         result = await session.execute(select(models.Experiment).where(models.Experiment.name == name))
@@ -1010,7 +1008,6 @@ async def experiment_get_by_name(name):
         return experiment.__dict__
 
 
-@unconverted
 async def experiment_delete(id):
     async with async_session() as session:
         result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
@@ -1021,7 +1018,6 @@ async def experiment_delete(id):
     return
 
 
-@unconverted
 async def experiment_update(id, config):
     async with async_session() as session:
         result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
@@ -1032,7 +1028,6 @@ async def experiment_update(id, config):
     return
 
 
-@unconverted
 async def experiment_update_config(id, key, value):
     value_json = json.dumps(value)
     async with async_session() as session:
@@ -1046,7 +1041,6 @@ async def experiment_update_config(id, key, value):
     return
 
 
-@unconverted
 async def experiment_save_prompt_template(id, template):
     async with async_session() as session:
         stmt = update(models.Experiment).where(models.Experiment.id == id)
