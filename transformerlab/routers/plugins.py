@@ -92,6 +92,18 @@ async def copy_plugin_files_to_workspace(plugin_id: str):
     copy_tree(plugin_path, dirs.plugin_dir_by_name(plugin_id))
 
 
+async def delete_plugin_files_from_workspace(plugin_id: str):
+    plugin_id = secure_filename(plugin_id)
+
+    plugin_path = os.path.join(dirs.PLUGIN_DIR, plugin_id)
+    # return if the directory doesn't exist
+    if not os.path.exists(plugin_path):
+        print(f"Plugin {plugin_path} not found in workspace.")
+        return
+    # Now delete it from the workspace:
+    shutil.rmtree(plugin_path, ignore_errors=True)
+
+
 async def run_installer_for_plugin(plugin_id: str, log_file):
     plugin_id = secure_filename(plugin_id)
     new_directory = os.path.join(dirs.PLUGIN_DIR, plugin_id)
@@ -131,11 +143,15 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
             error_msg = f"Setup script {setup_script_name} for {plugin_id} failed with exit code {return_code}."
             print(error_msg)
             await log_file.write(f"## {error_msg}\n")
+            # Delete the plugin files from the workspace
+            await delete_plugin_files_from_workspace(plugin_id)
             return {"status": "error", "message": error_msg}
     else:
         error_msg = f"No setup script found for {plugin_id}."
         print(error_msg)
         await log_file.write(f"## {error_msg}\n")
+        # Delete the plugin files from the workspace
+        await delete_plugin_files_from_workspace(plugin_id)
         return {"status": "error", "message": error_msg}
 
     return_msg = f"Plugin {plugin_id} installed successfully."
@@ -217,10 +233,15 @@ async def install_plugin(plugin_id: str):
                     error_msg = response["message"]
                     print(error_msg)
                     await log_file.write(f"## {error_msg}\n")
+                    # Delete the plugin files from the workspace
+                    await delete_plugin_files_from_workspace(plugin_id)
                     return {"status": "error", "message": error_msg}
 
         return await run_installer_for_plugin(plugin_id, log_file)
 
+    # If we reach here, it means the plugin was not installed successfully
+    # Delete the plugin files from the workspace
+    await delete_plugin_files_from_workspace(plugin_id)
     return {"status": "error", "message": f"Failed to open log file: {global_log_file_name}"}
 
 
