@@ -291,15 +291,27 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
     is_gguf_repo = _is_gguf_repository(hugging_face_id, hf_model_info)
     if is_gguf_repo:
         return _create_gguf_repo_config(hugging_face_id, hf_model_info, model_card_data)
-
-    # Try to download config.json for non-GGUF repositories
+    # Non-SD models: require config.json
     try:
-        huggingface_hub.hf_hub_download(repo_id=hugging_face_id, filename="config.json")
-        fs = huggingface_hub.HfFileSystem()
-        filename = os.path.join(hugging_face_id, "config.json")
-        with fs.open(filename) as f:
+        # First try to download the config.json file to local cache
+        local_config_path = huggingface_hub.hf_hub_download(repo_id=hugging_face_id, filename="config.json")
+        
+        # Read from the local downloaded file
+        with open(local_config_path, 'r') as f:
             filedata = json.load(f)
+    except Exception:
+        try:
+            # Fallback to HfFileSystem approach
+            fs = huggingface_hub.HfFileSystem()
+            filename = os.path.join(hugging_face_id, "config.json")
+            with fs.open(filename) as f:
+                filedata = json.load(f)
+        except Exception as e:
+            # If we can't read the config.json file, return None
+            print(f"Error reading config.json for {hugging_face_id}: {e}")
+            return None
 
+    try:
         # config.json stores a list of architectures but we only store one so just take the first!
         architecture_list = filedata.get("architectures", [])
         architecture = architecture_list[0] if architecture_list else ""
