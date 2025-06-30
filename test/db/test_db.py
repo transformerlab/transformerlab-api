@@ -192,15 +192,8 @@ async def test_config_get_returns_none_for_missing():
     assert value is None
 
 
+# Configure pytest-asyncio
 pytest_plugins = ("pytest_asyncio",)
-
-# Configure pytest-asyncio to use session-scoped event loop
-@pytest.fixture(scope="session")
-def event_loop():
-    import asyncio
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest.mark.asyncio
@@ -306,9 +299,6 @@ async def test_export_job_create(test_experiment):
     assert job["type"] == "EXPORT_MODEL"
 
 
-pytest_plugins = ("pytest_asyncio",)
-
-
 @pytest.fixture(scope="session", autouse=True)
 def manage_test_tmp_dir():
     yield
@@ -318,7 +308,7 @@ def manage_test_tmp_dir():
         os.remove(db_path)
 
 
-@pytest.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="module", autouse=True)
 async def setup_db():
     await db.init()
     yield
