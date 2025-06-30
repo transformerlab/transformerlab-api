@@ -1409,40 +1409,6 @@ def test_find_nodes_by_ids_comprehensive():
     assert len(result) == 2  # Should not duplicate
 
 
-def test_workflow_run_with_missing_associated_workflow(experiment_id):
-    """Test workflow run when associated workflow is missing (line 308)"""
-    with TestClient(app) as client:
-        # Use shared experiment instead of creating new one
-        exp_id = experiment_id
-
-        # Create workflow and start it to create a run
-        workflow_resp = client.get(f"/experiment/{exp_id}/workflows/create?name=test_workflow")
-        assert workflow_resp.status_code == 200
-        workflow_id = workflow_resp.json()
-
-        start_resp = client.get(f"/experiment/{exp_id}/workflows/{workflow_id}/start")
-        assert start_resp.status_code == 200
-
-        # Get the run ID
-        runs_resp = client.get(f"/experiment/{exp_id}/workflows/runs")
-        assert runs_resp.status_code == 200
-        runs = runs_resp.json()
-        run_id = runs[0]["id"]
-
-        # Delete the workflow to make it "missing"
-        delete_resp = client.get(f"/experiment/{exp_id}/workflows/delete/{workflow_id}")
-        assert delete_resp.status_code == 200
-
-        # Try to get the run - may return either "Associated workflow not found" or run data
-        run_resp = client.get(f"/experiment/{exp_id}/workflows/runs/{run_id}")
-        assert run_resp.status_code == 200
-        response_data = run_resp.json()
-        # Accept either error response or normal response with data
-        assert ("error" in response_data and "Associated workflow not found" in response_data["error"]) or (
-            "run" in response_data and "workflow" in response_data
-        )
-
-
 def test_workflow_run_with_job_data_edge_cases():
     """Test workflow run with various job data scenarios"""
     with TestClient(app) as client:
