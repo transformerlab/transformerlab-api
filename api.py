@@ -67,6 +67,9 @@ from transformerlab.shared import shared
 from transformerlab.shared import galleries
 from transformerlab.services.gradio_server.gradio_server_manager import get_gradio_server_manager
 
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # The following environment variable can be used by other scripts
 # who need to connect to the root DB, for example
@@ -77,7 +80,7 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 os.environ["_TFL_WORKSPACE_DIR"] = dirs.WORKSPACE_DIR
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 
-from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router
+from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router  # noqa: E402
 
 
 @asynccontextmanager

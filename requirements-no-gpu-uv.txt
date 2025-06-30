@@ -74,6 +74,8 @@ cobble==0.1.4
     # via mammoth
 coloredlogs==15.0.1
     # via onnxruntime
+controlnet-aux==0.0.10
+    # via -r requirements.in
 cryptography==44.0.2
     # via
     #   azure-identity
@@ -98,7 +100,9 @@ dnspython==2.7.0
 docker-pycreds==0.4.0
     # via wandb
 einops==0.8.0
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   controlnet-aux
 email-validator==2.2.0
     # via fastapi-users
 et-xmlfile==2.0.0
@@ -118,6 +122,7 @@ fastapi-users-db-sqlalchemy==7.0.0
     # via fastapi-users
 filelock==3.13.1
     # via
+    #   controlnet-aux
     #   datasets
     #   diffusers
     #   huggingface-hub
@@ -160,11 +165,13 @@ httpx-sse==0.4.0
 huggingface-hub==0.30.2
     # via
     #   accelerate
+    #   controlnet-aux
     #   datasets
     #   diffusers
     #   evaluate
     #   peft
     #   sentence-transformers
+    #   timm
     #   tokenizers
     #   transformers
 humanfriendly==10.0
@@ -176,8 +183,12 @@ idna==3.4
     #   httpx
     #   requests
     #   yarl
+imageio==2.37.0
+    # via scikit-image
 importlib-metadata==8.7.0
-    # via diffusers
+    # via
+    #   controlnet-aux
+    #   diffusers
 isodate==0.7.2
     # via azure-ai-documentintelligence
 jinja2==3.1.4
@@ -188,6 +199,8 @@ joblib==1.4.2
     #   scikit-learn
 latex2mathml==3.77.0
     # via markdown2
+lazy-loader==0.4
+    # via scikit-image
 lxml==5.3.2
     # via python-pptx
 macmon-python==0.1.2
@@ -233,7 +246,9 @@ multiprocess==0.70.16
     #   datasets
     #   evaluate
 networkx==3.3
-    # via torch
+    # via
+    #   scikit-image
+    #   torch
 nh3==0.2.20
     # via transformerlab-inference
 nltk==3.9.1
@@ -241,17 +256,22 @@ nltk==3.9.1
 numpy==2.1.2
     # via
     #   accelerate
+    #   controlnet-aux
     #   datasets
     #   diffusers
     #   evaluate
+    #   imageio
     #   magika
     #   onnxruntime
+    #   opencv-python-headless
     #   pandas
     #   peft
+    #   scikit-image
     #   scikit-learn
     #   scipy
     #   tensorboard
     #   tensorboardx
+    #   tifffile
     #   torchvision
     #   transformerlab-inference
     #   transformers
@@ -261,6 +281,8 @@ olefile==0.47
     # via markitdown
 onnxruntime==1.21.0
     # via magika
+opencv-python-headless==4.11.0.86
+    # via controlnet-aux
 openpyxl==3.1.5
     # via markitdown
 packaging==24.1
@@ -270,8 +292,10 @@ packaging==24.1
     #   datasets
     #   evaluate
     #   huggingface-hub
+    #   lazy-loader
     #   onnxruntime
     #   peft
+    #   scikit-image
     #   tensorboard
     #   tensorboardx
     #   transformers
@@ -286,8 +310,11 @@ peft==0.14.0
     # via -r requirements.in
 pillow==11.0.0
     # via
+    #   controlnet-aux
     #   diffusers
+    #   imageio
     #   python-pptx
+    #   scikit-image
     #   sentence-transformers
     #   torchvision
 platformdirs==4.3.6
@@ -347,6 +374,7 @@ python-dateutil==2.9.0.post0
     # via pandas
 python-dotenv==1.0.1
     # via
+    #   -r requirements.in
     #   magika
     #   mcp
     #   pydantic-settings
@@ -365,6 +393,7 @@ pyyaml==6.0.2
     #   datasets
     #   huggingface-hub
     #   peft
+    #   timm
     #   transformers
     #   wandb
     #   wavedrom
@@ -397,12 +426,17 @@ safetensors==0.5.3
     #   accelerate
     #   diffusers
     #   peft
+    #   timm
     #   transformers
+scikit-image==0.25.2
+    # via controlnet-aux
 scikit-learn==1.6.1
     # via sentence-transformers
 scipy==1.15.1
     # via
     #   -r requirements.in
+    #   controlnet-aux
+    #   scikit-image
     #   scikit-learn
     #   sentence-transformers
 sentence-transformers==3.4.1
@@ -462,24 +496,35 @@ tensorboardx==2.6.2.2
     # via -r requirements.in
 threadpoolctl==3.6.0
     # via scikit-learn
+tifffile==2025.6.11
+    # via scikit-image
 tiktoken==0.8.0
     # via
     #   -r requirements.in
     #   transformerlab-inference
+timm==1.0.15
+    # via
+    #   -r requirements.in
+    #   controlnet-aux
 tokenizers==0.21.1
     # via transformers
 torch==2.7.0
     # via
     #   -r requirements.in
     #   accelerate
+    #   controlnet-aux
     #   peft
     #   sentence-transformers
+    #   timm
     #   torchaudio
     #   torchvision
 torchaudio==2.7.0
     # via -r requirements.in
 torchvision==0.22.0
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   controlnet-aux
+    #   timm
 tqdm==4.66.5
     # via
     #   datasets

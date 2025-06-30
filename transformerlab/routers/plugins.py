@@ -94,6 +94,18 @@ async def copy_plugin_files_to_workspace(plugin_id: str):
     copy_tree(plugin_path, dirs.plugin_dir_by_name(plugin_id))
 
 
+async def delete_plugin_files_from_workspace(plugin_id: str):
+    plugin_id = secure_filename(plugin_id)
+
+    plugin_path = os.path.join(dirs.PLUGIN_DIR, plugin_id)
+    # return if the directory doesn't exist
+    if not os.path.exists(plugin_path):
+        print(f"Plugin {plugin_path} not found in workspace.")
+        return
+    # Now delete it from the workspace:
+    shutil.rmtree(plugin_path, ignore_errors=True)
+
+
 async def run_installer_for_plugin(plugin_id: str, log_file):
     plugin_id = secure_filename(plugin_id)
     new_directory = os.path.join(dirs.PLUGIN_DIR, plugin_id)
@@ -123,9 +135,16 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
             "-c",
             f"source {venv_path}/bin/activate && bash {setup_script_name}",
             cwd=new_directory,
-            stdout=log_file,
-            stderr=log_file,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
         )
+        # Stream output to log_file in real time
+        while True:
+            line = await proc.stdout.readline()
+            if not line:
+                break
+            await log_file.write(line.decode())
+            await log_file.flush()
         return_code = await proc.wait()
 
         # If installation failed, return an error
@@ -133,11 +152,15 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
             error_msg = f"Setup script {setup_script_name} for {plugin_id} failed with exit code {return_code}."
             print(error_msg)
             await log_file.write(f"## {error_msg}\n")
+            # Delete the plugin files from the workspace
+            await delete_plugin_files_from_workspace(plugin_id)
             return {"status": "error", "message": error_msg}
     else:
         error_msg = f"No setup script found for {plugin_id}."
         print(error_msg)
         await log_file.write(f"## {error_msg}\n")
+        # Delete the plugin files from the workspace
+        await delete_plugin_files_from_workspace(plugin_id)
         return {"status": "error", "message": error_msg}
 
     return_msg = f"Plugin {plugin_id} installed successfully."
@@ -208,10 +231,19 @@ async def install_plugin(plugin_id: str):
             "-c",
             f"source {venv_path}/bin/activate && uv pip sync {requirements_file_path} {additional_flags}",
             cwd=new_directory,
-            stdout=log_file,
-            stderr=log_file,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
         )
+
+        # Stream output to log_file in real time
+        while True:
+            line = await proc.stdout.readline()
+            if not line:
+                break
+            await log_file.write(line.decode())
+            await log_file.flush()
         returncode = await proc.wait()
+        await log_file.write(f"## uv pip sync completed with return code {returncode}\n")
         if returncode == 0:
             if is_wsl() and check_amd_gpu():
                 response = patch_rocm_runtime_for_venv(venv_path=venv_path)
@@ -219,6 +251,8 @@ async def install_plugin(plugin_id: str):
                     error_msg = response["message"]
                     print(error_msg)
                     await log_file.write(f"## {error_msg}\n")
+                    # Delete the plugin files from the workspace
+                    await delete_plugin_files_from_workspace(plugin_id)
                     return {"status": "error", "message": error_msg}
 
         install_status = await run_installer_for_plugin(plugin_id, log_file)
@@ -231,6 +265,9 @@ async def install_plugin(plugin_id: str):
 
         return install_status
 
+    # If we reach here, it means the plugin was not installed successfully
+    # Delete the plugin files from the workspace
+    await delete_plugin_files_from_workspace(plugin_id)
     return {"status": "error", "message": f"Failed to open log file: {global_log_file_name}"}
 
 

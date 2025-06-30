@@ -7,9 +7,11 @@ from typing import Annotated
 import transformerlab.db as db
 from fastapi import APIRouter, Body
 from fastchat.model.model_adapter import get_conversation_template
-from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi
+from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi, list_repo_tree
 from huggingface_hub import ModelCard, ModelCardData
 from huggingface_hub.utils import HfHubHTTPError, GatedRepoError, EntryNotFoundError
+from transformers import AutoTokenizer
+
 import os
 from pathlib import Path
 import logging
@@ -504,7 +506,6 @@ async def download_huggingface_model(hugging_face_id: str, model_details: str = 
     except asyncio.CancelledError:
         error_msg = "Download cancelled"
         await db.job_update_status(job_id, "CANCELLED", error_msg)
-        huggingfacemodel.delete_model_from_hf_cache(hugging_face_id)
         return {"status": "error", "message": error_msg}
 
     if hugging_face_filename is None:
@@ -549,6 +550,17 @@ on the model's Huggingface page."
             await db.job_update_status(job_id, "FAILED", error_msg)
         return {"status": "error", "message": error_msg}
 
+        # Check if this is a GGUF repository that requires file selection
+    if model_details.get("requires_file_selection", False):
+        available_files = model_details.get("available_gguf_files", [])
+        return {
+            "status": "requires_file_selection",
+            "message": "This is a GGUF repository with multiple files. Please specify which file to download.",
+            "model_id": model,
+            "available_files": available_files,
+            "model_details": model_details,
+        }
+
     # --- Stable Diffusion detection and allow_patterns logic ---
     # If the model is a Stable Diffusion model, set allow_patterns for SD files
     sd_patterns = [
@@ -576,6 +588,50 @@ on the model's Huggingface page."
     # If detected, set allow_patterns
     if is_sd:
         model_details["allow_patterns"] = sd_patterns
+
+    return await download_huggingface_model(model, model_details, job_id)
+
+
+@router.get(path="/model/download_gguf_file")
+async def download_gguf_file_from_repo(model: str, filename: str, job_id: int | None = None):
+    """Download a specific GGUF file from a GGUF repository"""
+
+    # First get the model details to validate this is a GGUF repo
+    try:
+        model_details = await huggingfacemodel.get_model_details_from_huggingface(model)
+    except Exception as e:
+        error_msg = f"Error accessing model repository: {type(e).__name__}: {e}"
+        if job_id:
+            await db.job_update_status(job_id, "FAILED", error_msg)
+        return {"status": "error", "message": error_msg}
+
+    if model_details is None:
+        error_msg = f"Error reading config for model with ID {model}"
+        if job_id:
+            await db.job_update_status(job_id, "FAILED", error_msg)
+        return {"status": "error", "message": error_msg}
+
+    # Validate the requested filename exists in the repository
+    available_files = model_details.get("available_gguf_files", [])
+    if filename not in available_files:
+        error_msg = f"File '{filename}' not found in repository. Available files: {available_files}"
+        if job_id:
+            await db.job_update_status(job_id, "FAILED", error_msg)
+        return {"status": "error", "message": error_msg}
+
+    # Update model details for specific file download
+    model_details["huggingface_filename"] = filename
+    model_details["name"] = f"{model_details['name']} ({filename})"
+
+    # Calculate size of specific file
+    try:
+        repo_tree = list_repo_tree(model, recursive=True)
+        for file in repo_tree:
+            if hasattr(file, "path") and file.path == filename:
+                model_details["size_of_model_in_mb"] = file.size / (1024 * 1024)
+                break
+    except Exception:
+        pass  # Use existing size if we can't get specific file size
 
     return await download_huggingface_model(model, model_details, job_id)
 
@@ -973,3 +1029,17 @@ async def model_import(model: basemodel.BaseModel):
     print(f"{model.id} imported successfully.")
 
     return {"status": "success", "data": model.id}
+
+
+@router.get("/model/chat_template")
+async def chat_template(model_name: str):
+    try:
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_name,
+            trust_remote_code=True,
+        )
+        template = getattr(tokenizer, "chat_template", None)
+        if template:
+            return {"status": "success", "data": template}
+    except Exception:
+        return {"status": "error", "message": f"Invalid model name: {model_name}", "data": None}
