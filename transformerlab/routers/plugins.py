@@ -133,9 +133,16 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
             "-c",
             f"source {venv_path}/bin/activate && bash {setup_script_name}",
             cwd=new_directory,
-            stdout=log_file,
-            stderr=log_file,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
         )
+        # Stream output to log_file in real time
+        while True:
+            line = await proc.stdout.readline()
+            if not line:
+                break
+            await log_file.write(line.decode())
+            await log_file.flush()
         return_code = await proc.wait()
 
         # If installation failed, return an error
@@ -222,10 +229,19 @@ async def install_plugin(plugin_id: str):
             "-c",
             f"source {venv_path}/bin/activate && uv pip sync {requirements_file_path} {additional_flags}",
             cwd=new_directory,
-            stdout=log_file,
-            stderr=log_file,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
         )
+
+        # Stream output to log_file in real time
+        while True:
+            line = await proc.stdout.readline()
+            if not line:
+                break
+            await log_file.write(line.decode())
+            await log_file.flush()
         returncode = await proc.wait()
+        await log_file.write(f"## uv pip sync completed with return code {returncode}\n")
         if returncode == 0:
             if is_wsl() and check_amd_gpu():
                 response = patch_rocm_runtime_for_venv(venv_path=venv_path)
