@@ -4,7 +4,7 @@ import os
 import sqlite3
 
 import aiosqlite
-from sqlalchemy import select, update, delete, text
+from sqlalchemy import select, delete, text
 from sqlalchemy.dialects.sqlite import insert  # Correct import for SQLite upsert
 
 # from sqlalchemy import create_engine
