@@ -21,18 +21,18 @@
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
-    "max_model_len": {
+    "max-model-len": {
       "title": "Maximum Model Length",
       "type": "integer"
     },
-    "gpu_memory_utilization": {
+    "gpu-memory-utilization": {
       "title": "GPU Memory Utilization",
       "type": "number",
       "default": 0.9,
       "minimum": 0.0,
       "maximum": 1.0
     },
-    "model_dtype": {
+    "model-dtype": {
       "title": "Select a specific data type for the model",
       "type": "string",
       "enum": ["auto", "float16", "bfloat16", "float32"]
@@ -42,15 +42,5 @@
       "type": "integer",
       "default": 8000
     }
-    },
-    "parameters_ui": {
-    "max_model_len": {
-    },
-    "gpu_memory_utilization": {
-    },
-    "model_dtype": {
-    },
-    "port": {
-    }   
-  }
+    }
   }
