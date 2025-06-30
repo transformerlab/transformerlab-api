@@ -2,8 +2,6 @@ import os
 import json
 import transformerlab.db as db
 import pytest
-from fastapi.testclient import TestClient
-from api import app
 from transformerlab.shared import dirs
 
 

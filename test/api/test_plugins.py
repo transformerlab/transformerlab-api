@@ -1,5 +1,3 @@
-from fastapi.testclient import TestClient
-from api import app
 import os
 import tempfile
 from unittest.mock import patch, Mock, AsyncMock
