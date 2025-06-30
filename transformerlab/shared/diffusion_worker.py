@@ -5,6 +5,7 @@ that cause CUDA OOM on single GPU.
 """
 
 import argparse
+from fastapi import HTTPException
 import json
 import os
 import sys
@@ -14,28 +15,47 @@ from PIL import Image
 import torch
 import random
 import base64
+from huggingface_hub import model_info
 from io import BytesIO
+from diffusers import (
+    StableDiffusionUpscalePipeline,
+    StableDiffusionLatentUpscalePipeline,
+    AutoPipelineForText2Image,
+    AutoPipelineForImage2Image,
+    AutoPipelineForInpainting,
+    EulerDiscreteScheduler,
+    LMSDiscreteScheduler,
+    EulerAncestralDiscreteScheduler,
+    DPMSolverMultistepScheduler,
+    ControlNetModel,
+    StableDiffusionControlNetPAGPipeline,
+    StableDiffusionXLControlNetPAGPipeline,
+    FluxControlNetPipeline,
+    StableDiffusionControlNetPipeline,
+    StableDiffusionXLControlNetPipeline,
+    StableDiffusionXLControlNetUnionPipeline,
+    StableDiffusion3ControlNetPipeline,
+    StableDiffusionControlNetImg2ImgPipeline,
+    StableDiffusionXLControlNetImg2ImgPipeline,
+    StableDiffusionXLControlNetUnionImg2ImgPipeline,
+    StableDiffusionXLControlNetPAGImg2ImgPipeline,
+    FluxControlNetImg2ImgPipeline,
+    StableDiffusionControlNetInpaintPipeline,
+    StableDiffusionXLControlNetInpaintPipeline,
+    StableDiffusionXLPipeline,
+    FluxPipeline,
+    FluxTransformer2DModel,
+    AutoencoderKL,
+)
+from diffusers.models.controlnets.controlnet_flux import (
+    FluxControlNetModel,
+    FluxMultiControlNetModel,
+)
 
 # Add the API directory to Python path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 api_dir = os.path.abspath(os.path.join(current_dir, "../.."))
 sys.path.insert(0, api_dir)
-
-from diffusers import (  # noqa: E402
-    AutoPipelineForText2Image,
-    AutoPipelineForImage2Image,
-    AutoPipelineForInpainting,
-    StableDiffusionXLPipeline,
-    StableDiffusionUpscalePipeline,
-    StableDiffusionLatentUpscalePipeline,
-    FluxPipeline,
-    FluxTransformer2DModel,
-    AutoencoderKL,
-    EulerDiscreteScheduler,
-    LMSDiscreteScheduler,
-    EulerAncestralDiscreteScheduler,
-    DPMSolverMultistepScheduler,
-)
 
 try:
     from diffusers.image_processor import VaeImageProcessor
@@ -49,6 +69,13 @@ scheduler_map = {
     "EulerAncestralDiscreteScheduler": EulerAncestralDiscreteScheduler,
     "DPMSolverMultistepScheduler": DPMSolverMultistepScheduler,
 }
+
+
+def load_controlnet_model(controlnet_id: str, device: str = "cuda") -> ControlNetModel:
+    controlnet_model = ControlNetModel.from_pretrained(
+        controlnet_id, torch_dtype=torch.float16 if device != "cpu" else torch.float32
+    )
+    return controlnet_model
 
 
 def latents_to_rgb(latents):
@@ -184,7 +211,17 @@ def is_flux_model(model_path):
         return False
 
 
-def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpainting, device, config):
+def load_pipeline_with_sharding(
+    model_path,
+    adaptor_path,
+    is_img2img,
+    is_inpainting,
+    device,
+    config,
+    is_controlnet=False,
+    controlnet_id="off",
+    input_image_obj=None,
+):
     """Load pipeline using model sharding for large models like FLUX"""
 
     print("Loading pipeline with model sharding...")
@@ -194,11 +231,13 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
     flush_memory()
 
     # Check if we should use sharding
-    use_sharding = device == "auto" and is_flux_model(model_path) and config.get("enable_sharding", True)
+    use_sharding = is_flux_model(model_path) and config.get("enable_sharding", True)
 
     if not use_sharding:
         print("Using standard pipeline loading (sharding disabled or not applicable)")
-        return load_pipeline_with_device_map(model_path, adaptor_path, is_img2img, is_inpainting, device)
+        return load_pipeline_with_device_map(
+            model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet, controlnet_id
+        )
 
     print("Using FLUX model sharding for memory efficiency")
 
@@ -310,21 +349,64 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
         torch_dtype=torch.bfloat16,
     )
 
-    print(f"Transformer device map: {transformer.hf_device_map}")
-
     # Create pipeline with transformer for denoising
-    denoising_pipeline = FluxPipeline.from_pretrained(
-        model_path,
-        text_encoder=None,
-        text_encoder_2=None,
-        tokenizer=None,
-        tokenizer_2=None,
-        vae=None,
-        transformer=transformer,
-        torch_dtype=torch.bfloat16,
-        safety_checker=None,
-        requires_safety_checker=False,
-    )
+    if is_controlnet:
+        FLUX_CONTROLNET_CLASS_MAP = {
+            "FluxPipeline": FluxControlNetModel,
+            "FluxImg2ImgPipeline": FluxControlNetModel,
+            "FluxControlNetPipeline": FluxControlNetModel,
+            "FluxControlNetImg2ImgPipeline": FluxControlNetModel,
+            "FluxMultiControlNetPipeline": FluxMultiControlNetModel,
+            "FluxMultiControlNetImg2ImgPipeline": FluxMultiControlNetModel,
+        }
+        try:
+            info = model_info(config["model"])
+            config = getattr(info, "config", {})
+            diffusers_config = config.get("diffusers", {})
+            architecture = diffusers_config.get("_class_name", "")
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=f"Model not found or error: {str(e)}")
+
+        # Choose the right class
+        controlnet_class = FLUX_CONTROLNET_CLASS_MAP.get(architecture)
+        if not controlnet_class:
+            raise ValueError(f"ControlNet not found for {architecture}")
+
+        # Handle 'auto' device safely by falling back to cuda:0 for controlnet
+        safe_device = "cuda:0" if device == "auto" else device
+
+        controlnet = controlnet_class.from_pretrained(
+            controlnet_id,
+            torch_dtype=torch.float16 if safe_device != "cpu" else torch.float32,
+            use_safetensors=True,
+        ).to(safe_device)
+
+        denoising_pipeline = FluxPipeline.from_pretrained(
+            model_path,
+            text_encoder=None,
+            text_encoder_2=None,
+            tokenizer=None,
+            tokenizer_2=None,
+            vae=None,
+            transformer=transformer,
+            torch_dtype=torch.bfloat16,
+            safety_checker=None,
+            requires_safety_checker=False,
+            controlnet=controlnet,
+        )
+    else:
+        denoising_pipeline = FluxPipeline.from_pretrained(
+            model_path,
+            text_encoder=None,
+            text_encoder_2=None,
+            tokenizer=None,
+            tokenizer_2=None,
+            vae=None,
+            transformer=transformer,
+            torch_dtype=torch.bfloat16,
+            safety_checker=None,
+            requires_safety_checker=False,
+        )
 
     print("Running denoising...")
     with torch.no_grad():
@@ -353,6 +435,9 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
             generation_kwargs["eta"] = eta
         if guidance_rescale > 0.0:
             generation_kwargs["guidance_rescale"] = guidance_rescale
+        if is_controlnet and input_image_obj is not None:
+            generation_kwargs["control_image"] = input_image_obj
+            print("Added control_image to generation kwargs for ControlNet.")
 
         latents = denoising_pipeline(**generation_kwargs).images
 
@@ -437,7 +522,9 @@ def load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpaint
     return ShardedResult(images)
 
 
-def load_pipeline_with_device_map(model_path, adaptor_path, is_img2img, is_inpainting, device):
+def load_pipeline_with_device_map(
+    model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet=False, controlnet_id="off"
+):
     """Load pipeline with proper device mapping for multi-GPU"""
 
     # Clean up any existing CUDA cache before loading
@@ -511,7 +598,50 @@ def load_pipeline_with_device_map(model_path, adaptor_path, is_img2img, is_inpai
             torch.cuda.empty_cache()
 
     # Load appropriate pipeline
-    if is_inpainting:
+    if is_controlnet:
+        CONTROLNET_PIPELINE_MAP = {
+            "StableDiffusionPipeline": StableDiffusionControlNetPipeline,
+            "StableDiffusionImg2ImgPipeline": StableDiffusionControlNetImg2ImgPipeline,
+            "StableDiffusionInpaintPipeline": StableDiffusionControlNetInpaintPipeline,
+            "StableDiffusionXLPipeline": StableDiffusionXLControlNetPipeline,
+            "StableDiffusionXLImg2ImgPipeline": StableDiffusionXLControlNetImg2ImgPipeline,
+            "StableDiffusionXLInpaintPipeline": StableDiffusionXLControlNetInpaintPipeline,
+            "StableDiffusionXLControlNetUnionPipeline": StableDiffusionXLControlNetUnionPipeline,
+            "StableDiffusionXLControlNetUnionImg2ImgPipeline": StableDiffusionXLControlNetUnionImg2ImgPipeline,
+            "StableDiffusionControlNetPAGPipeline": StableDiffusionControlNetPAGPipeline,
+            "StableDiffusionXLControlNetPAGPipeline": StableDiffusionXLControlNetPAGPipeline,
+            "StableDiffusionXLControlNetPAGImg2ImgPipeline": StableDiffusionXLControlNetPAGImg2ImgPipeline,
+            "FluxPipeline": FluxControlNetPipeline,
+            "FluxImg2ImgPipeline": FluxControlNetImg2ImgPipeline,
+            "StableDiffusion3Pipeline": StableDiffusion3ControlNetPipeline,
+        }
+
+        try:
+            info = model_info(model_path)
+            config = getattr(info, "config", {})
+            diffusers_config = config.get("diffusers", {})
+            architecture = diffusers_config.get("_class_name", "")
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=f"Model not found or error: {str(e)}")
+
+        controlnet_model = load_controlnet_model(controlnet_id, device)
+        if controlnet_model is None:
+            raise ValueError(f"Unknown ControlNet type: {controlnet_id}")
+
+        controlnet_pipeline = CONTROLNET_PIPELINE_MAP.get(architecture)
+        if not controlnet_pipeline:
+            raise ValueError("ControlNet architecture not supported")
+
+        pipe = controlnet_pipeline.from_pretrained(
+            model_path,
+            controlnet=controlnet_model,
+            torch_dtype=torch.float16 if device != "cpu" else torch.float32,
+            safety_checker=None,
+            requires_safety_checker=False,
+            use_safetensors=True,
+        )
+
+    elif is_inpainting:
         pipe = AutoPipelineForInpainting.from_pretrained(model_path, **pipeline_kwargs)
         print(f"Loaded inpainting pipeline for model: {model_path}")
     elif is_img2img:
@@ -638,6 +768,8 @@ def main():
         mask_image_data = config.get("mask_image", "")
         upscale = config.get("upscale", False)
         upscale_factor = config.get("upscale_factor", 4)
+        controlnet_id = config.get("is_controlnet", "off")  # it's a string now
+        is_controlnet = controlnet_id != "off"
 
         # Set seed
         if seed is None or seed < 0:
@@ -650,7 +782,7 @@ def main():
         input_image_obj = None
         mask_image_obj = None
 
-        if (is_img2img or is_inpainting) and input_image_data:
+        if (is_img2img or is_inpainting or is_controlnet) and input_image_data:
             image_data = base64.b64decode(input_image_data)
             input_image_obj = Image.open(BytesIO(image_data)).convert("RGB")
             print("Loaded input image for img2img/inpainting")
@@ -678,18 +810,30 @@ def main():
             # Use model sharding for FLUX models if enabled in config
             gen_start_time = time.time()
 
-            pipe = load_pipeline_with_sharding(model_path, adaptor_path, is_img2img, is_inpainting, device, config)
+            pipe = load_pipeline_with_sharding(
+                model_path,
+                adaptor_path,
+                is_img2img,
+                is_inpainting,
+                device,
+                config,
+                is_controlnet,
+                controlnet_id,
+                input_image_obj,
+            )
         else:
             # Default to device map loading
-            pipe = load_pipeline_with_device_map(model_path, adaptor_path, is_img2img, is_inpainting, device)
+            pipe = load_pipeline_with_device_map(
+                model_path, adaptor_path, is_img2img, is_inpainting, device, is_controlnet, controlnet_id
+            )
 
-        scheduler_name = config.get("scheduler", "default")
-        if scheduler_name != "default":
-            scheduler_class = scheduler_map[scheduler_name]
-            pipe.scheduler = scheduler_class.from_config(pipe.scheduler.config)
-            print(f"Using scheduler: {type(pipe.scheduler).__name__}")
-        else:
-            print(f"Using default scheduler: {type(pipe.scheduler).__name__}")
+            scheduler_name = config.get("scheduler", "default")
+            if scheduler_name != "default":
+                scheduler_class = scheduler_map[scheduler_name]
+                pipe.scheduler = scheduler_class.from_config(pipe.scheduler.config)
+                print(f"Using scheduler: {type(pipe.scheduler).__name__}")
+            else:
+                print(f"Using default scheduler: {type(pipe.scheduler).__name__}")
 
         load_time = time.time() - start_time
         print(f"Pipeline loaded in {load_time:.2f}s")
@@ -722,6 +866,8 @@ def main():
         elif is_img2img and input_image_obj:
             generation_kwargs["image"] = input_image_obj
             generation_kwargs["strength"] = strength
+        elif is_controlnet and input_image_obj:
+            generation_kwargs["image"] = input_image_obj
 
         if eta > 0.0:
             generation_kwargs["eta"] = eta
