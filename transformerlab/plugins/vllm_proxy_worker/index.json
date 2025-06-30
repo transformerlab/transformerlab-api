@@ -26,6 +26,26 @@
       "type": "integer",
       "default": 2048,
       "minimum": 128
+    },
+    "gpu-memory-utilization": {
+      "title": "GPU Memory Utilization",
+      "type": "number",
+      "default": 0.9,
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "model-dtype": {
+      "title": "Model Data Type",
+      "type": "string",
+      "enum": ["auto", "float16", "bfloat16", "float32"],
+      "default": "auto"
+    },
+    "port": {
+      "title": "Server Port",
+      "type": "integer",
+      "default": 8000,
+      "minimum": 1024,
+      "maximum": 65535
     }
   }
   }
