@@ -5,9 +5,6 @@ import pytest
 from transformerlab.shared import dirs
 
 
-@pytest.mark.skip(
-    reason="Doesn't use TestClient, requires db setup. This should use TestClient or should not be run in this suite."
-)
 async def test_export_experiment(client):
     """Test exporting an experiment to JSON format"""
     # Create a test experiment
