@@ -124,7 +124,7 @@ async def init():
     db = await aiosqlite.connect(DATABASE_FILE_NAME)
     await db.execute("PRAGMA journal_mode=WAL")
     await db.execute("PRAGMA synchronous=normal")
-    await db.execute("PRAGMA busy_timeout = 5000")
+    await db.execute("PRAGMA busy_timeout = 30000")
 
     # Create the tables if they don't exist
     async with async_engine.begin() as conn:
@@ -1283,6 +1283,16 @@ async def save_plugin(name: str, type: str):
             session.add(plugin)
         await session.commit()
     return
+
+
+async def delete_plugin(name: str):
+    async with async_session() as session:
+        plugin = await session.get(Plugin, name)
+        if plugin:
+            await session.delete(plugin)
+            await session.commit()
+            return True
+    return False
 
 
 ###############
