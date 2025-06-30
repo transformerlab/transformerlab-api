@@ -37,7 +37,6 @@
     "model-dtype": {
       "title": "Model Data Type",
       "type": "string",
-      "enum": ["auto", "float16", "bfloat16", "float32"],
       "default": "auto"
     },
     "port": {
