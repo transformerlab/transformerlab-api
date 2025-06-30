@@ -124,7 +124,7 @@ async def init():
     db = await aiosqlite.connect(DATABASE_FILE_NAME)
     await db.execute("PRAGMA journal_mode=WAL")
     await db.execute("PRAGMA synchronous=normal")
-    await db.execute("PRAGMA busy_timeout = 5000")
+    await db.execute("PRAGMA busy_timeout = 30000")
 
     # Create the tables if they don't exist
     async with async_engine.begin() as conn:
