@@ -7,6 +7,7 @@ os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
 from transformerlab import db
 from transformerlab.db import (
     create_huggingface_dataset,
+    delete_plugin,
     experiment_get_by_name,
     get_dataset,
     get_datasets,
@@ -239,12 +240,14 @@ async def test_jobs_get_all_and_by_experiment_and_type(test_experiment):
 
 @pytest.mark.asyncio
 async def test_experiment_update_and_update_config_and_save_prompt_template(test_experiment):
-    await experiment_update(test_experiment, '{"foo": "bar"}')
+    await experiment_update(test_experiment, {"foo": "bar"})
     exp = await experiment_get(test_experiment)
     assert exp["config"] == '{"foo": "bar"}'
     await experiment_update_config(test_experiment, "baz", 123)
     exp = await experiment_get(test_experiment)
-    assert '"baz":123' in exp["config"]
+    print(exp["config"])
+    config_dict = json.loads(exp["config"])
+    assert config_dict.get("baz") == 123
     await experiment_save_prompt_template(test_experiment, '"prompt"')
     exp = await experiment_get(test_experiment)
     assert "prompt_template" in exp["config"]
@@ -486,6 +489,8 @@ class TestPlugins:
         plugin = await get_plugin("test_plugin")
         assert plugin is not None
         assert plugin["name"] == "test_plugin"
+        # now delete the plugin
+        await delete_plugin("test_plugin")
 
     @pytest.mark.asyncio
     async def test_get_plugins(self):

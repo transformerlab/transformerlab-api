@@ -4,7 +4,7 @@ import os
 import sqlite3
 
 import aiosqlite
-from sqlalchemy import select, update, text
+from sqlalchemy import select, delete, text
 from sqlalchemy.dialects.sqlite import insert  # Correct import for SQLite upsert
 
 # from sqlalchemy import create_engine
@@ -36,6 +36,15 @@ async_engine = create_async_engine(DATABASE_URL, echo=False)
 async_session = sessionmaker(async_engine, expire_on_commit=False, class_=AsyncSession)
 
 
+def unconverted(func):
+    """
+    Decorator to mark a function as not yet converted to SQLAlchemy.
+    """
+    func._unconverted = True
+    return func
+
+
+@unconverted
 async def migrate_workflows_non_preserving():
     """
     Migration function that renames workflows table as backup and creates new table
@@ -115,6 +124,7 @@ async def migrate_workflows_non_preserving():
         raise e
 
 
+@unconverted
 async def init():
     """
     Create the database, tables, and workspace folder if they don't exist.
@@ -171,6 +181,7 @@ async def init():
     return
 
 
+@unconverted
 def get_sync_db_connection():
     global DATABASE_FILE_NAME
     db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
@@ -217,85 +228,81 @@ async def get_user_db(session: AsyncSession = Depends(get_async_session)):
 
 
 async def get_dataset(dataset_id):
-    cursor = await db.execute("SELECT * FROM dataset WHERE dataset_id = ?", (dataset_id,))
-    row = await cursor.fetchone()
-
-    # Make sure the dataset exists before formatting repsonse
-    if row is None:
-        return None
-
-    # convert to json
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
-    if "json_data" in row and row["json_data"]:
-        row["json_data"] = json.loads(row["json_data"])
-
-    await cursor.close()
-    return row
+    async with async_session() as session:
+        result = await session.execute(select(models.Dataset).where(models.Dataset.dataset_id == dataset_id))
+        dataset = result.scalar_one_or_none()
+        if dataset is None:
+            return None
+        row = dataset.__dict__.copy()
+        if "json_data" in row and row["json_data"]:
+            # If json_data is a string, parse it
+            if isinstance(row["json_data"], str):
+                row["json_data"] = json.loads(row["json_data"])
+        return row
 
 
 async def get_datasets():
-    cursor = await db.execute("SELECT rowid, * FROM dataset")
-    rows = await cursor.fetchall()
-
-    # convert to json:
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    await cursor.close()
-
-    return data
+    async with async_session() as session:
+        result = await session.execute(select(models.Dataset))
+        datasets = result.scalars().all()
+        data = []
+        for dataset in datasets:
+            row = dataset.__dict__.copy()
+            if "json_data" in row and row["json_data"]:
+                if isinstance(row["json_data"], str):
+                    row["json_data"] = json.loads(row["json_data"])
+            data.append(row)
+        return data
 
 
 async def get_generated_datasets():
-    # Get all datasets that have the value `generated` as True in the json_data column
-    cursor = await db.execute("SELECT rowid, * FROM dataset WHERE json_extract(json_data, '$.generated') = true")
-    rows = await cursor.fetchall()
-
-    # convert to json:
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    await cursor.close()
-
-    return data
+    async with async_session() as session:
+        # Use SQLAlchemy's JSON path query for SQLite
+        stmt = select(models.Dataset).where(text("json_extract(json_data, '$.generated') = 1"))
+        result = await session.execute(stmt)
+        datasets = result.scalars().all()
+        data = []
+        for dataset in datasets:
+            row = dataset.__dict__.copy()
+            if "json_data" in row and row["json_data"]:
+                if isinstance(row["json_data"], str):
+                    row["json_data"] = json.loads(row["json_data"])
+            data.append(row)
+        return data
 
 
 async def create_huggingface_dataset(dataset_id, description, size, json_data):
-    await db.execute(
-        """
-        INSERT INTO dataset (dataset_id, location, description, size, json_data)
-        VALUES (?, ?, ?, ?, json(?))
-        """,
-        (dataset_id, "huggingfacehub", description, size, json.dumps(json_data)),
-    )
-    await db.commit()
+    async with async_session() as session:
+        stmt = insert(models.Dataset).values(
+            dataset_id=dataset_id,
+            location="huggingfacehub",
+            description=description,
+            size=size,
+            json_data=json_data,
+        )
+        await session.execute(stmt)
+        await session.commit()
 
 
 async def create_local_dataset(dataset_id, json_data=None):
-    if json_data is None:
-        await db.execute(
-            """
-            INSERT INTO dataset (dataset_id, location, description, size, json_data)
-            VALUES (?, ?, ?, ?, json(?))
-            """,
-            (dataset_id, "local", "", -1, "{}"),
+    async with async_session() as session:
+        values = dict(
+            dataset_id=dataset_id,
+            location="local",
+            description="",
+            size=-1,
+            json_data=json_data if json_data is not None else {},
         )
-    else:
-        await db.execute(
-            """
-            INSERT INTO dataset (dataset_id, location, description, size, json_data)
-            VALUES (?, ?, ?, ?, json(?))
-            """,
-            (dataset_id, "local", "", -1, json.dumps(json_data)),
-        )
-    await db.commit()
+        stmt = insert(models.Dataset).values(**values)
+        await session.execute(stmt)
+        await session.commit()
 
 
 async def delete_dataset(dataset_id):
-    await db.execute("DELETE FROM dataset WHERE dataset_id = ?", (dataset_id,))
-    await db.commit()
+    async with async_session() as session:
+        stmt = delete(models.Dataset).where(models.Dataset.dataset_id == dataset_id)
+        await session.execute(stmt)
+        await session.commit()
 
 
 ###############
@@ -304,63 +311,62 @@ async def delete_dataset(dataset_id):
 
 
 async def model_local_list():
-    cursor = await db.execute("SELECT rowid, * FROM model")
-    rows = await cursor.fetchall()
-
-    # Convert to JSON
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    await cursor.close()
-
-    # convert json_data column from JSON to Python object
-    for row in data:
-        row["json_data"] = json.loads(row["json_data"])
-
-    return data
+    async with async_session() as session:
+        result = await session.execute(select(models.Model))
+        models_list = result.scalars().all()
+        data = []
+        for model in models_list:
+            row = model.__dict__.copy()
+            if "json_data" in row and row["json_data"]:
+                if isinstance(row["json_data"], str):
+                    row["json_data"] = json.loads(row["json_data"])
+            data.append(row)
+        return data
 
 
 async def model_local_count():
-    cursor = await db.execute("SELECT COUNT(*) FROM model")
-    row = await cursor.fetchone()
-    await cursor.close()
-
-    return row[0]
+    async with async_session() as session:
+        result = await session.execute(select(models.Model))
+        count = len(result.scalars().all())
+        return count
 
 
 async def model_local_create(model_id, name, json_data):
-    json_data = json.dumps(obj=json_data)
-
-    await db.execute(
-        "INSERT OR REPLACE INTO model(model_id, name, json_data) VALUES (?, ?,?)", (model_id, name, json_data)
-    )
-
-    await db.commit()
+    async with async_session() as session:
+        # Upsert using SQLite's ON CONFLICT (model_id) DO UPDATE
+        stmt = insert(models.Model).values(
+            model_id=model_id,
+            name=name,
+            json_data=json_data,
+        )
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["model_id"],
+            set_={"name": name, "json_data": json_data},
+        )
+        await session.execute(stmt)
+        await session.commit()
 
 
 async def model_local_get(model_id):
-    cursor = await db.execute("SELECT rowid, * FROM model WHERE model_id = ?", (model_id,))
-    row = await cursor.fetchone()
-
-    # Returns None if the model_id isn't in the database
-    if row is None:
-        return None
-
-    # Map column names to row data
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
-    await cursor.close()
-
-    # convert json_data column from JSON to Python object
-    row["json_data"] = json.loads(row["json_data"])
-
-    return row
+    async with async_session() as session:
+        result = await session.execute(select(models.Model).where(models.Model.model_id == model_id))
+        model = result.scalar_one_or_none()
+        if model is None:
+            return None
+        row = model.__dict__.copy()
+        if "json_data" in row and row["json_data"]:
+            if isinstance(row["json_data"], str):
+                row["json_data"] = json.loads(row["json_data"])
+        return row
 
 
 async def model_local_delete(model_id):
-    await db.execute("DELETE FROM model WHERE model_id = ?", (model_id,))
-    await db.commit()
+    async with async_session() as session:
+        result = await session.execute(select(models.Model).where(models.Model.model_id == model_id))
+        model = result.scalar_one_or_none()
+        if model:
+            await session.delete(model)
+            await session.commit()
 
 
 ###############
@@ -381,6 +387,7 @@ ALLOWED_JOB_TYPES = [
 ]
 
 
+@unconverted
 async def job_create(type, status, job_data="{}", experiment_id=""):
     # check if type is allowed
     if type not in ALLOWED_JOB_TYPES:
@@ -393,6 +400,7 @@ async def job_create(type, status, job_data="{}", experiment_id=""):
     return row[0]
 
 
+@unconverted
 def job_create_sync(type, status, job_data="{}", experiment_id=""):
     """
     Synchronous version of job_create function for use with XML-RPC.
@@ -434,6 +442,7 @@ def job_create_sync(type, status, job_data="{}", experiment_id=""):
             db_sync.close()
 
 
+@unconverted
 async def jobs_get_all(type="", status=""):
     base_query = "SELECT * FROM job"
     if type != "":
@@ -465,6 +474,7 @@ async def jobs_get_all(type="", status=""):
     return data
 
 
+@unconverted
 async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
     cursor = await db.execute(
         "SELECT * FROM job \
@@ -490,6 +500,7 @@ async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
     return data
 
 
+@unconverted
 async def job_get_status(job_id):
     cursor = await db.execute("SELECT status FROM job WHERE id = ?", (job_id,))
     row = await cursor.fetchone()
@@ -497,6 +508,7 @@ async def job_get_status(job_id):
     return row[0]
 
 
+@unconverted
 async def job_get_error_msg(job_id):
     cursor = await db.execute("SELECT job_data FROM job WHERE id = ?", (job_id,))
     row = await cursor.fetchone()
@@ -505,6 +517,7 @@ async def job_get_error_msg(job_id):
     return job_data.get("error_msg", None)
 
 
+@unconverted
 async def job_get(job_id):
     cursor = await db.execute("SELECT * FROM job WHERE id = ?", (job_id,))
     row = await cursor.fetchone()
@@ -523,6 +536,7 @@ async def job_get(job_id):
     return row
 
 
+@unconverted
 async def job_count_running():
     cursor = await db.execute("SELECT COUNT(*) FROM job WHERE status = 'RUNNING'")
     row = await cursor.fetchone()
@@ -530,6 +544,7 @@ async def job_count_running():
     return row[0]
 
 
+@unconverted
 async def jobs_get_next_queued_job():
     cursor = await db.execute("SELECT * FROM job WHERE status = 'QUEUED' ORDER BY created_at ASC LIMIT 1")
     row = await cursor.fetchone()
@@ -547,6 +562,7 @@ async def jobs_get_next_queued_job():
     return row
 
 
+@unconverted
 async def job_update_status(job_id, status, error_msg=None):
     await db.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
     await db.commit()
@@ -557,6 +573,7 @@ async def job_update_status(job_id, status, error_msg=None):
     return
 
 
+@unconverted
 def job_update_status_sync(job_id, status, error_msg=None):
     db_sync = None
     cursor = None
@@ -577,6 +594,7 @@ def job_update_status_sync(job_id, status, error_msg=None):
             db_sync.close()
 
 
+@unconverted
 async def job_update(job_id, type, status):
     await db.execute(
         "UPDATE job SET type = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (type, status, job_id)
@@ -585,6 +603,7 @@ async def job_update(job_id, type, status):
     return
 
 
+@unconverted
 def job_update_sync(job_id, status):
     # This is a synchronous version of job_update
     # It is used by popen_and_call function
@@ -609,6 +628,7 @@ def job_update_sync(job_id, status):
             db_sync.close()
 
 
+@unconverted
 def job_mark_as_complete_if_running(job_id):
     # This synchronous update to jobs
     # only marks a job as "COMPLETE" if it is currenty "RUNNING"
@@ -634,6 +654,7 @@ def job_mark_as_complete_if_running(job_id):
             db_sync.close()
 
 
+@unconverted
 async def job_delete_all():
     # await db.execute("DELETE FROM job")
     await db.execute("UPDATE job SET status = 'DELETED'")
@@ -641,6 +662,7 @@ async def job_delete_all():
     return
 
 
+@unconverted
 async def job_delete(job_id):
     print("Deleting job: " + str(job_id))
     # await db.execute("DELETE FROM job WHERE id = ?", (job_id,))
@@ -650,12 +672,14 @@ async def job_delete(job_id):
     return
 
 
+@unconverted
 async def job_cancel_in_progress_jobs():
     await db.execute("UPDATE job SET status = 'CANCELLED' WHERE status = 'RUNNING'")
     await db.commit()
     return
 
 
+@unconverted
 async def job_update_job_data_insert_key_value(job_id, key, value):
     value = json.dumps(value)
 
@@ -667,12 +691,14 @@ async def job_update_job_data_insert_key_value(job_id, key, value):
     return
 
 
+@unconverted
 async def job_stop(job_id):
     print("Stopping job: " + str(job_id))
     await job_update_job_data_insert_key_value(job_id, "stop", True)
     return
 
 
+@unconverted
 async def job_update_progress(job_id, progress):
     """
     Update the percent complete for this job.
@@ -685,6 +711,7 @@ async def job_update_progress(job_id, progress):
     )
 
 
+@unconverted
 async def job_update_sweep_progress(job_id, value):
     value = json.dumps(value)
 
@@ -701,6 +728,7 @@ async def job_update_sweep_progress(job_id, value):
 ###############
 
 
+@unconverted
 async def add_task(name, Type, inputs, config, plugin, outputs, experiment_id):
     await db.execute(
         "INSERT INTO tasks(name, type, inputs, config, plugin, outputs, experiment_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -710,6 +738,7 @@ async def add_task(name, Type, inputs, config, plugin, outputs, experiment_id):
     return
 
 
+@unconverted
 async def update_task(task_id, new_task):
     await db.execute(
         "UPDATE tasks SET inputs = ? WHERE id = ?",
@@ -732,6 +761,7 @@ async def update_task(task_id, new_task):
     return
 
 
+@unconverted
 async def tasks_get_all():
     cursor = await db.execute("SELECT * FROM tasks ORDER BY created_at desc")
     rows = await cursor.fetchall()
@@ -742,6 +772,7 @@ async def tasks_get_all():
     return data
 
 
+@unconverted
 async def tasks_get_by_type(Type):
     cursor = await db.execute("SELECT * FROM tasks WHERE type = ? ORDER BY created_at desc", (Type,))
     rows = await cursor.fetchall()
@@ -752,6 +783,7 @@ async def tasks_get_by_type(Type):
     return data
 
 
+@unconverted
 async def tasks_get_by_type_in_experiment(Type, experiment_id):
     cursor = await db.execute(
         "SELECT * FROM tasks WHERE type = ? AND experiment_id = ? ORDER BY created_at desc",
@@ -768,18 +800,21 @@ async def tasks_get_by_type_in_experiment(Type, experiment_id):
     return data
 
 
+@unconverted
 async def delete_task(task_id):
     await db.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
     await db.commit()
     return
 
 
+@unconverted
 async def tasks_delete_all():
     await db.execute("DELETE FROM tasks")
     await db.commit()
     return
 
 
+@unconverted
 async def tasks_get_by_id(task_id):
     cursor = await db.execute("SELECT * FROM tasks WHERE id = ? ORDER BY created_at desc LIMIT 1", (task_id,))
     row = await cursor.fetchone()
@@ -792,11 +827,7 @@ async def tasks_get_by_id(task_id):
     return row
 
 
-###############
-# TRAINING and TRAINING JOBS MODELS
-###############
-
-
+@unconverted
 async def get_training_template(id):
     cursor = await db.execute("SELECT * FROM training_template WHERE id = ?", (id,))
     row = await cursor.fetchone()
@@ -812,6 +843,7 @@ async def get_training_template(id):
     return row
 
 
+@unconverted
 async def get_training_template_by_name(name):
     cursor = await db.execute("SELECT * FROM training_template WHERE name = ?", (name,))
     row = await cursor.fetchone()
@@ -827,6 +859,7 @@ async def get_training_template_by_name(name):
     return row
 
 
+@unconverted
 async def get_training_templates():
     cursor = await db.execute("SELECT * FROM training_template ORDER BY created_at DESC")
     rows = await cursor.fetchall()
@@ -834,6 +867,7 @@ async def get_training_templates():
     return rows
 
 
+@unconverted
 async def create_training_template(name, description, type, datasets, config):
     await db.execute(
         "INSERT INTO training_template(name, description, type, datasets, config) VALUES (?, ?, ?, ?, ?)",
@@ -843,6 +877,7 @@ async def create_training_template(name, description, type, datasets, config):
     return
 
 
+@unconverted
 async def update_training_template(id, name, description, type, datasets, config):
     await db.execute(
         "UPDATE training_template SET name = ?, description = ?, type = ?, datasets = ?, config = ? WHERE id = ?",
@@ -852,13 +887,14 @@ async def update_training_template(id, name, description, type, datasets, config
     return
 
 
+@unconverted
 async def delete_training_template(id):
     await db.execute("DELETE FROM training_template WHERE id = ?", (id,))
     await db.commit()
     return
 
 
-# Because this joins on training template it only returns training jobs
+@unconverted
 async def training_jobs_get_all():
     # Join on the nested JSON value "template_id"
     # #in the job_data column
@@ -954,6 +990,9 @@ async def experiment_get(id):
         experiment = result.scalar_one_or_none()
         if experiment is None:
             return None
+        # Ensure config is always a JSON string
+        if isinstance(experiment.config, dict):
+            experiment.config = json.dumps(experiment.config)
         return experiment.__dict__
 
 
@@ -977,6 +1016,9 @@ async def experiment_delete(id):
 
 
 async def experiment_update(id, config):
+    # Ensure config is JSON string
+    if not isinstance(config, str):
+        config = json.dumps(config)
     async with async_session() as session:
         result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
         experiment = result.scalar_one_or_none()
@@ -987,24 +1029,46 @@ async def experiment_update(id, config):
 
 
 async def experiment_update_config(id, key, value):
-    value_json = json.dumps(value)
+    # Fetch the experiment
     async with async_session() as session:
-        stmt = (
-            update(models.Experiment)
-            .where(models.Experiment.id == id)
-            .values(config=text("json_set(config, :json_key, json(:value))"))
-        )
-        await session.execute(stmt, {"json_key": f"$.{key}", "value": value_json})
-        await session.commit()
+        result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
+        experiment = result.scalar_one_or_none()
+        if experiment is None:
+            print(f"Experiment with id={id} not found.")
+            return
+
+        # Parse config as dict if needed
+        config = experiment.config
+        if isinstance(config, str):
+            try:
+                config = json.loads(config)
+            except Exception as e:
+                print(f"❌ Could not parse config as JSON: {e}")
+                config = {}
+
+        # Update the key
+        config[key] = value
+
+        # Use experiment_update to save
+        await experiment_update(id, config)
     return
 
 
 async def experiment_save_prompt_template(id, template):
+    # Fetch the experiment config, update prompt_template, and save using experiment_update
     async with async_session() as session:
-        stmt = update(models.Experiment).where(models.Experiment.id == id)
-        stmt = stmt.values(config=text("json_set(config, '$.prompt_template', json(:template))"))
-        await session.execute(stmt, {"template": template})
-        await session.commit()
+        result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
+        experiment = result.scalar_one_or_none()
+        if experiment is None:
+            return
+        config = experiment.config
+        if isinstance(config, str):
+            try:
+                config = json.loads(config)
+            except Exception:
+                config = {}
+        config["prompt_template"] = template
+        await experiment_update(id, config)
     return
 
 
@@ -1013,6 +1077,7 @@ async def experiment_save_prompt_template(id, template):
 #################
 
 
+@unconverted
 async def workflows_get_all():
     cursor = await db.execute("SELECT * FROM workflows WHERE status != 'DELETED' ORDER BY created_at desc")
     rows = await cursor.fetchall()
@@ -1023,6 +1088,7 @@ async def workflows_get_all():
     return data
 
 
+@unconverted
 async def workflows_get_from_experiment(experiment_id):
     cursor = await db.execute(
         "SELECT * FROM workflows WHERE experiment_id = ? AND status != 'DELETED' ORDER BY created_at desc",
@@ -1036,6 +1102,7 @@ async def workflows_get_from_experiment(experiment_id):
     return data
 
 
+@unconverted
 async def workflow_run_get_all():
     cursor = await db.execute("SELECT * FROM workflow_runs WHERE status != 'DELETED' ORDER BY created_at desc")
     rows = await cursor.fetchall()
@@ -1046,6 +1113,7 @@ async def workflow_run_get_all():
     return data
 
 
+@unconverted
 async def workflows_get_by_id(workflow_id, experiment_id):
     # Query with both workflow_id and experiment_id to enforce relationship at DB level
     cursor = await db.execute(
@@ -1063,6 +1131,7 @@ async def workflows_get_by_id(workflow_id, experiment_id):
     return row
 
 
+@unconverted
 async def workflow_run_get_by_id(workflow_run_id):
     cursor = await db.execute(
         "SELECT * FROM workflow_runs WHERE id = ? ORDER BY created_at desc LIMIT 1", (workflow_run_id,)
@@ -1077,6 +1146,7 @@ async def workflow_run_get_by_id(workflow_run_id):
     return row
 
 
+@unconverted
 async def workflow_delete_by_id(workflow_id: str, experiment_id):
     print("Deleting workflow: " + str(workflow_id))
     # Delete with experiment_id check to enforce relationship at DB level
@@ -1088,6 +1158,7 @@ async def workflow_delete_by_id(workflow_id: str, experiment_id):
     return result.rowcount > 0
 
 
+@unconverted
 async def workflow_delete_by_name(workflow_name):
     print("Deleting workflow: " + workflow_name)
     await db.execute(
@@ -1097,6 +1168,7 @@ async def workflow_delete_by_name(workflow_name):
     return
 
 
+@unconverted
 async def workflow_count_running():
     cursor = await db.execute("SELECT COUNT(*) FROM workflow_runs WHERE status = 'RUNNING'")
     row = await cursor.fetchone()
@@ -1104,6 +1176,7 @@ async def workflow_count_running():
     return row[0]
 
 
+@unconverted
 async def workflow_count_queued():
     cursor = await db.execute("SELECT COUNT(*) FROM workflow_runs WHERE status = 'QUEUED'")
     row = await cursor.fetchone()
@@ -1111,6 +1184,7 @@ async def workflow_count_queued():
     return row[0]
 
 
+@unconverted
 async def workflow_run_get_running():
     cursor = await db.execute("SELECT * FROM workflow_runs WHERE status = 'RUNNING' LIMIT 1")
     row = await cursor.fetchone()
@@ -1123,6 +1197,7 @@ async def workflow_run_get_running():
     return row
 
 
+@unconverted
 async def workflow_run_get_queued():
     cursor = await db.execute("SELECT * FROM workflow_runs WHERE status = 'QUEUED' LIMIT 1")
     row = await cursor.fetchone()
@@ -1135,6 +1210,7 @@ async def workflow_run_get_queued():
     return row
 
 
+@unconverted
 async def workflow_run_update_status(workflow_run_id, status):
     await db.execute(
         "UPDATE workflow_runs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, workflow_run_id)
@@ -1143,6 +1219,7 @@ async def workflow_run_update_status(workflow_run_id, status):
     return
 
 
+@unconverted
 async def workflow_run_update_with_new_job(workflow_run_id, current_task, current_job_id):
     await db.execute(
         "UPDATE workflow_runs SET current_tasks = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
@@ -1173,6 +1250,7 @@ async def workflow_run_update_with_new_job(workflow_run_id, current_task, curren
     return
 
 
+@unconverted
 async def workflow_create(name, config, experiment_id):
     # check if type is allowed
     row = await db.execute_insert(
@@ -1183,6 +1261,7 @@ async def workflow_create(name, config, experiment_id):
     return row[0]
 
 
+@unconverted
 async def workflow_update_config(workflow_id, config, experiment_id):
     # Update with experiment_id check to enforce relationship at DB level
     result = await db.execute(
@@ -1193,6 +1272,7 @@ async def workflow_update_config(workflow_id, config, experiment_id):
     return result.rowcount > 0
 
 
+@unconverted
 async def workflow_update_name(workflow_id, name, experiment_id):
     # Update with experiment_id check to enforce relationship at DB level
     result = await db.execute(
@@ -1203,16 +1283,19 @@ async def workflow_update_name(workflow_id, name, experiment_id):
     return result.rowcount > 0
 
 
+@unconverted
 async def workflow_delete_all():
     await db.execute("DELETE FROM workflows")
     await db.commit()
 
 
+@unconverted
 async def workflow_runs_delete_all():
     await db.execute("DELETE FROM workflow_runs")
     await db.commit()
 
 
+@unconverted
 async def workflow_queue(workflow_id):
     # Get workflow data directly instead of using workflows_get_by_id which now requires experiment_id
     cursor = await db.execute(
@@ -1233,6 +1316,7 @@ async def workflow_queue(workflow_id):
     return False
 
 
+@unconverted
 async def workflow_runs_get_from_experiment(experiment_id):
     cursor = await db.execute(
         "SELECT * FROM workflow_runs WHERE experiment_id = ? AND status != 'DELETED' ORDER BY created_at desc",
