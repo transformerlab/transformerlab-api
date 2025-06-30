@@ -1,6 +1,6 @@
 {
   "name": "vLLM Proxy Server",
-  "uniqueId": "vllm_proxy_server",
+  "uniqueId": "vllm_proxy_worker",
   "description": "vLLM is a fast and easy-to-use library for LLM inference and serving.",
   "plugin-format": "python",
   "type": "loader",
