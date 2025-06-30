@@ -243,7 +243,11 @@ async def test_run_installer_for_plugin_setup_script_failure():
             patch("transformerlab.routers.plugins.delete_plugin_files_from_workspace") as mock_delete,
         ):
             # Mock subprocess to return failure
+            mock_stdout = Mock()
+            mock_stdout.readline = AsyncMock(side_effect=[b"", b""])  # Empty lines to end the loop
+            
             mock_process = Mock()
+            mock_process.stdout = mock_stdout
             mock_process.wait = AsyncMock(return_value=1)  # Non-zero exit code indicates failure
             mock_subprocess.return_value = mock_process
             mock_delete.return_value = None
