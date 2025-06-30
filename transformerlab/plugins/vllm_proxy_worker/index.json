@@ -42,5 +42,15 @@
       "type": "integer",
       "default": 8000
     }
+    },
+    "parameters_ui": {
+    "max_model_len": {
+    },
+    "gpu_memory_utilization": {
+    },
+    "model_dtype": {
+    },
+    "port": {
+    }   
   }
   }
