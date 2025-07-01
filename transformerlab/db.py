@@ -503,7 +503,18 @@ async def job_get_status(job_id):
 async def job_get_error_msg(job_id):
     async with async_session() as session:
         result = await session.execute(select(models.Job.job_data).where(models.Job.id == job_id))
-        job_data = result.scalar_one_or_none() or {}
+        job_data_raw = result.scalar_one_or_none()
+        # If no job_data, return None
+        if not job_data_raw:
+            return None
+        # Parse JSON string if necessary
+        if isinstance(job_data_raw, str):
+            try:
+                job_data = json.loads(job_data_raw)
+            except Exception:
+                return None
+        else:
+            job_data = job_data_raw
         return job_data.get("error_msg", None)
 
 
@@ -550,14 +561,29 @@ async def jobs_get_next_queued_job():
         return row
 
 
-@unconverted
 async def job_update_status(job_id, status, error_msg=None):
-    await db.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
-    await db.commit()
-    if error_msg:
-        job_data = json.dumps({"error_msg": str(error_msg)})
-        await db.execute("UPDATE job SET job_data = ? WHERE id = ?", (job_data, job_id))
-        await db.commit()
+    async with async_session() as session:
+        await session.execute(
+            update(models.Job)
+            .where(models.Job.id == job_id)
+            .values(status=status, updated_at=text("CURRENT_TIMESTAMP"))
+        )
+        if error_msg:
+            # Fetch current job_data
+            result = await session.execute(select(models.Job.job_data).where(models.Job.id == job_id))
+            job_data = result.scalar_one_or_none()
+            if isinstance(job_data, str):
+                try:
+                    job_data = json.loads(job_data)
+                except Exception:
+                    job_data = {}
+            elif not job_data:
+                job_data = {}
+            job_data["error_msg"] = str(error_msg)
+            await session.execute(
+                update(models.Job).where(models.Job.id == job_id).values(job_data=json.dumps(job_data))
+            )
+        await session.commit()
     return
 
 
@@ -664,15 +690,23 @@ async def job_cancel_in_progress_jobs():
     return
 
 
-@unconverted
 async def job_update_job_data_insert_key_value(job_id, key, value):
-    value = json.dumps(value)
-
-    await db.execute(
-        "UPDATE job SET job_data = " + f"json_set(job_data,'$.{key}', json(?))  WHERE id = ?",
-        (value, job_id),
-    )
-    await db.commit()
+    async with async_session() as session:
+        # Fetch current job_data
+        result = await session.execute(select(models.Job.job_data).where(models.Job.id == job_id))
+        job_data = result.scalar_one_or_none()
+        if isinstance(job_data, str):
+            try:
+                job_data = json.loads(job_data)
+            except Exception:
+                job_data = {}
+        elif not job_data:
+            job_data = {}
+        # Update the key
+        job_data[key] = value
+        # Save back as JSON string
+        await session.execute(update(models.Job).where(models.Job.id == job_id).values(job_data=json.dumps(job_data)))
+        await session.commit()
     return
 
 
@@ -693,15 +727,31 @@ async def job_update_progress(job_id, progress):
         await session.commit()
 
 
-@unconverted
 async def job_update_sweep_progress(job_id, value):
-    value = json.dumps(value)
+    """
+    Update the 'sweep_progress' key in the job_data JSON column for a given job.
+    """
+    async with async_session() as session:
+        # Fetch the job
+        result = await session.execute(select(models.Job).where(models.Job.id == job_id))
+        job = result.scalar_one_or_none()
+        if job is None:
+            return
 
-    await db.execute(
-        "UPDATE job SET job_data = " + "json_set(job_data,'$.sweep_progress', json(?))  WHERE id = ?",
-        (value, job_id),
-    )
-    await db.commit()
+        # Parse job_data as dict if needed
+        job_data = job.job_data
+        if isinstance(job_data, str):
+            try:
+                job_data = json.loads(job_data)
+            except Exception:
+                job_data = {}
+
+        # Update the sweep_progress key
+        job_data["sweep_progress"] = value
+
+        # Save back as JSON string
+        await session.execute(update(models.Job).where(models.Job.id == job_id).values(job_data=json.dumps(job_data)))
+        await session.commit()
     return
 
 
@@ -1245,15 +1295,18 @@ async def workflow_run_update_with_new_job(workflow_run_id, current_task, curren
     return
 
 
-@unconverted
 async def workflow_create(name, config, experiment_id):
-    # check if type is allowed
-    row = await db.execute_insert(
-        "INSERT INTO workflows(name, config, status, experiment_id) VALUES (?, json(?), ?, ?)",
-        (name, config, "CREATED", experiment_id),
-    )
-    await db.commit()
-    return row[0]
+    async with async_session() as session:
+        workflow = models.Workflow(
+            name=name,
+            config=config,
+            status="CREATED",
+            experiment_id=experiment_id,
+        )
+        session.add(workflow)
+        await session.commit()
+        await session.refresh(workflow)
+        return workflow.id
 
 
 async def workflow_update_config(workflow_id, config, experiment_id):
