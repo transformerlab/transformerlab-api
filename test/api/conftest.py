@@ -1,13 +1,14 @@
 import pytest
 from fastapi.testclient import TestClient
+import os
+
+os.environ["TFL_HOME_DIR"] = "./test/tmp/"
+os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
+
 from api import app
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def client():
-    with TestClient(app) as c:
-        yield c
-
-
-# No longer needed: live_server fixture for external server. All tests now use TestClient in-process.
-# This file can be deleted or left empty.
+    c = TestClient(app)
+    yield c

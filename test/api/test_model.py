@@ -1,6 +1,4 @@
-from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, patch
-from api import app
 import pytest
 import os
 from unittest.mock import MagicMock, mock_open
@@ -51,49 +49,44 @@ def make_mock_adapter_info(overrides={}):
 @pytest.mark.asyncio
 @patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", new_callable=AsyncMock)
 @patch("transformerlab.routers.model.shared.async_run_python_script_and_update_status", new_callable=AsyncMock)
-async def test_install_peft_mock(mock_run_script, mock_get_details):
-    with TestClient(app) as client:
-        # Mock get_model_details to return a dummy config
-        mock_get_details.return_value = {"name": "dummy_adapter"}
+async def test_install_peft_mock(mock_run_script, mock_get_details, client):
+    mock_get_details.return_value = {"name": "dummy_adapter"}
+    mock_process = AsyncMock()
+    mock_process.returncode = 0
+    mock_run_script.return_value = mock_process
 
-        # Mock run_script to simulate a subprocess with success
-        mock_process = AsyncMock()
-        mock_process.returncode = 0
-        mock_run_script.return_value = mock_process
+    test_model_id = "unsloth_Llama-3.2-1B-Instruct"
+    test_peft_id = "dummy_adapter"
 
-        test_model_id = "unsloth_Llama-3.2-1B-Instruct"
-        test_peft_id = "dummy_adapter"
-
-        response = client.post(f"/model/install_peft?model_id={test_model_id}&peft={test_peft_id}")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "error"  # As install_peft now returns 'started' after starting the async task
+    response = client.post(f"/model/install_peft?model_id={test_model_id}&peft={test_peft_id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "error"  # As install_peft now returns 'started' after starting the async task
 
 
 @pytest.mark.asyncio
 @patch("transformerlab.routers.model.snapshot_download")
 @patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", new_callable=AsyncMock)
 @patch("transformerlab.routers.model.shared.async_run_python_script_and_update_status", new_callable=AsyncMock)
-async def test_install_peft_base_model_adaptor_not_found(mock_run_script, mock_get_details, mock_snapshot):
+async def test_install_peft_base_model_adaptor_not_found(mock_run_script, mock_get_details, mock_snapshot, client):
     mock_snapshot.return_value = "/tmp/empty_folder"
     os.makedirs("/tmp/empty_folder", exist_ok=True)
 
     mock_get_details.return_value = {"name": "dummy_adapter"}
     mock_run_script.return_value = AsyncMock()
 
-    response = TestClient(app).post("/model/install_peft?model_id=broken_model&peft=dummy_adapter")
+    response = client.post("/model/install_peft?model_id=broken_model&peft=dummy_adapter")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "error"
     assert "adapter not found" in data["message"]
 
 
-def test_install_peft_success():
+def test_install_peft_success(client):
     adapter_id = "tcotter/Llama-3.2-1B-Instruct-Mojo-Adapter"
     model_id = "unsloth/Llama-3.2-1B-Instruct"
 
     with (
-        TestClient(app) as client,
         patch("transformerlab.routers.model.snapshot_download", return_value="/tmp/mock"),
         patch("builtins.open", mock_open(read_data='{"architectures": "MockArch", "model_type": "MockType"}')),
         patch("json.load", return_value={"architectures": "MockArch", "model_type": "MockType"}),
@@ -110,9 +103,8 @@ def test_install_peft_success():
         assert result["check_status"]["architectures_status"] in ["success", "fail", "unknown"]
 
 
-def test_install_peft_model_config_fail():
+def test_install_peft_model_config_fail(client):
     with (
-        TestClient(app) as client,
         patch("transformerlab.routers.model.snapshot_download", side_effect=FileNotFoundError()),
     ):
         response = client.post("/model/install_peft", params={"peft": "dummy", "model_id": "invalid-model"})
@@ -120,9 +112,8 @@ def test_install_peft_model_config_fail():
         assert response.json()["check_status"]["error"] == "not found"
 
 
-def test_install_peft_adapter_info_fail():
+def test_install_peft_adapter_info_fail(client):
     with (
-        TestClient(app) as client,
         patch("transformerlab.routers.model.snapshot_download", return_value="/tmp/mock"),
         patch("builtins.open", mock_open(read_data="{}")),
         patch("json.load", return_value={}),
@@ -133,10 +124,9 @@ def test_install_peft_adapter_info_fail():
         assert response.json()["check_status"]["error"] == "not found"
 
 
-def test_install_peft_architecture_detection_unknown():
+def test_install_peft_architecture_detection_unknown(client):
     adapter_info = make_mock_adapter_info()
     with (
-        TestClient(app) as client,
         patch("transformerlab.routers.model.snapshot_download", return_value="/tmp/mock"),
         patch("builtins.open", mock_open(read_data="{}")),
         patch("json.load", return_value={"architectures": "A", "model_type": "B"}),
@@ -150,10 +140,9 @@ def test_install_peft_architecture_detection_unknown():
         assert response.json()["check_status"]["architectures_status"] == "unknown"
 
 
-def test_install_peft_unknown_field_status():
+def test_install_peft_unknown_field_status(client):
     adapter_info = make_mock_adapter_info(overrides={"config": {}})
     with (
-        TestClient(app) as client,
         patch("transformerlab.routers.model.snapshot_download", return_value="/tmp/mock"),
         patch("builtins.open", mock_open(read_data="{}")),
         patch("json.load", return_value={}),
@@ -168,12 +157,11 @@ def test_install_peft_unknown_field_status():
         assert status["model_type_status"] == "unknown"
 
 
-def test_chat_template_success():
+def test_chat_template_success(client):
     mock_tokenizer = MagicMock()
     mock_tokenizer.chat_template = "<|user|>{{ message }}<|/user|>"
 
     with (
-        TestClient(app) as client,
         patch("transformers.AutoTokenizer.from_pretrained", return_value=mock_tokenizer),
     ):
         response = client.get("/model/chat_template", params={"model_name": "valid_model"})
@@ -183,9 +171,8 @@ def test_chat_template_success():
         assert data["data"] == mock_tokenizer.chat_template
 
 
-def test_chat_template_invalid_model():
+def test_chat_template_invalid_model(client):
     with (
-        TestClient(app) as client,
         patch("transformers.AutoTokenizer.from_pretrained", side_effect=OSError("model not found")),
     ):
         response = client.get("/model/chat_template", params={"model_name": "invalid_model"})
