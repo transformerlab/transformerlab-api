@@ -1346,25 +1346,34 @@ async def workflow_runs_delete_all():
         await session.commit()
 
 
-@unconverted
 async def workflow_queue(workflow_id):
-    # Get workflow data directly instead of using workflows_get_by_id which now requires experiment_id
-    cursor = await db.execute(
-        "SELECT name, experiment_id FROM workflows WHERE id = ? AND status != 'DELETED' LIMIT 1", (workflow_id,)
-    )
-    row = await cursor.fetchone()
-    await cursor.close()
-
-    if row:
-        workflow_name = row[0]
-        experiment_id = row[1]
-        await db.execute(
-            "INSERT INTO workflow_runs(workflow_id, workflow_name, job_ids, node_ids, status, current_tasks, current_job_ids, experiment_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (workflow_id, workflow_name, "[]", "[]", "QUEUED", "[]", "[]", experiment_id),
+    async with async_session() as session:
+        # Get workflow data using SQLAlchemy
+        result = await session.execute(
+            select(models.Workflow)
+            .where(models.Workflow.id == workflow_id, models.Workflow.status != "DELETED")
+            .limit(1)
         )
-        return True
+        workflow = result.scalar_one_or_none()
 
-    return False
+        if workflow:
+            workflow_name = workflow.name
+            experiment_id = workflow.experiment_id
+            workflow_run = models.WorkflowRun(
+                workflow_id=workflow_id,
+                workflow_name=workflow_name,
+                job_ids="[]",
+                node_ids="[]",
+                status="QUEUED",
+                current_tasks="[]",
+                current_job_ids="[]",
+                experiment_id=experiment_id,
+            )
+            session.add(workflow_run)
+            await session.commit()
+            return True
+
+        return False
 
 
 async def workflow_runs_get_from_experiment(experiment_id):
