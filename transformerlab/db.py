@@ -187,7 +187,7 @@ def get_sync_db_connection():
     db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
     db_sync.execute("PRAGMA journal_mode=WAL")
     db_sync.execute("PRAGMA synchronous=normal")
-    db_sync.execute("PRAGMA busy_timeout = 5000")
+    db_sync.execute("PRAGMA busy_timeout = 30000")
     return db_sync
 
 
