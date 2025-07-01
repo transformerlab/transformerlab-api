@@ -754,32 +754,32 @@ async def tasks_get_all():
         return data
 
 
-@unconverted
 async def tasks_get_by_type(Type):
-    cursor = await db.execute("SELECT * FROM tasks WHERE type = ? ORDER BY created_at desc", (Type,))
-    rows = await cursor.fetchall()
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    await cursor.close()
-    return data
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.Task).where(models.Task.type == Type).order_by(models.Task.created_at.desc())
+        )
+        tasks = result.scalars().all()
+        data = []
+        for task in tasks:
+            row = task.__dict__.copy()
+            data.append(row)
+        return data
 
 
-@unconverted
 async def tasks_get_by_type_in_experiment(Type, experiment_id):
-    cursor = await db.execute(
-        "SELECT * FROM tasks WHERE type = ? AND experiment_id = ? ORDER BY created_at desc",
-        (
-            Type,
-            experiment_id,
-        ),
-    )
-    rows = await cursor.fetchall()
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    await cursor.close()
-    return data
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.Task)
+            .where(models.Task.type == Type, models.Task.experiment_id == experiment_id)
+            .order_by(models.Task.created_at.desc())
+        )
+        tasks = result.scalars().all()
+        data = []
+        for task in tasks:
+            row = task.__dict__.copy()
+            data.append(row)
+        return data
 
 
 async def delete_task(task_id):
@@ -796,49 +796,35 @@ async def tasks_delete_all():
     return
 
 
-@unconverted
 async def tasks_get_by_id(task_id):
-    cursor = await db.execute("SELECT * FROM tasks WHERE id = ? ORDER BY created_at desc LIMIT 1", (task_id,))
-    row = await cursor.fetchone()
-    if row is None:
-        return None
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
-    await cursor.close()
-    return row
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.Task).where(models.Task.id == task_id).order_by(models.Task.created_at.desc()).limit(1)
+        )
+        task = result.scalar_one_or_none()
+        if task is None:
+            return None
+        return task.__dict__
 
 
-@unconverted
 async def get_training_template(id):
-    cursor = await db.execute("SELECT * FROM training_template WHERE id = ?", (id,))
-    row = await cursor.fetchone()
-    if row is None:
-        return None
-    # convert to json:
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
-
-    await cursor.close()
-
-    return row
+    async with async_session() as session:
+        result = await session.execute(select(models.TrainingTemplate).where(models.TrainingTemplate.id == id))
+        template = result.scalar_one_or_none()
+        if template is None:
+            return None
+        # Convert ORM object to dict
+        return template.__dict__
 
 
-@unconverted
 async def get_training_template_by_name(name):
-    cursor = await db.execute("SELECT * FROM training_template WHERE name = ?", (name,))
-    row = await cursor.fetchone()
-    if row is None:
-        return None
-    # convert to json:
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
-
-    await cursor.close()
-
-    return row
+    async with async_session() as session:
+        result = await session.execute(select(models.TrainingTemplate).where(models.TrainingTemplate.name == name))
+        template = result.scalar_one_or_none()
+        if template is None:
+            return None
+        # Convert ORM object to dict
+        return template.__dict__
 
 
 async def get_training_templates():
@@ -889,31 +875,43 @@ async def delete_training_template(id):
     return
 
 
-@unconverted
 async def training_jobs_get_all():
-    # Join on the nested JSON value "template_id"
-    # #in the job_data column
-    cursor = await db.execute(
-        "SELECT j.*, tt.id as tt_id, tt.config from job as j \
-            JOIN training_template as tt \
-            ON  json_extract(j.job_data, '$.template_id') = tt.id \
-            "
-    )
-    rows = await cursor.fetchall()
+    async with async_session() as session:
+        # Select jobs of type "TRAIN" and join with TrainingTemplate using the template_id from job_data JSON
+        stmt = (
+            select(
+                models.Job,
+                models.TrainingTemplate.id.label("tt_id"),
+                models.TrainingTemplate.config,
+            )
+            .join(
+                models.TrainingTemplate,
+                text("json_extract(job.job_data, '$.template_id') = training_template.id"),
+            )
+            .where(models.Job.type == "TRAIN")
+        )
+        result = await session.execute(stmt)
+        rows = result.all()
 
-    # Convert to JSON
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    await cursor.close()
-
-    # for each row in data, convert the job_data
-    # and config column from JSON to a Python object
-    for row in data:
-        row["job_data"] = json.loads(row["job_data"])
-        row["config"] = json.loads(row["config"])
-
-    return data
+        data = []
+        for job, tt_id, config in rows:
+            row = job.__dict__.copy()
+            row["tt_id"] = tt_id
+            # Convert job_data and config from JSON string to Python object
+            if "job_data" in row and row["job_data"]:
+                try:
+                    row["job_data"] = json.loads(row["job_data"])
+                except Exception:
+                    pass
+            if config:
+                try:
+                    row["config"] = json.loads(config)
+                except Exception:
+                    row["config"] = config
+            else:
+                row["config"] = None
+            data.append(row)
+        return data
 
 
 # async def training_job_create(template_id, description, experiment_id):
@@ -1313,18 +1311,19 @@ async def workflow_queue(workflow_id):
     return False
 
 
-@unconverted
 async def workflow_runs_get_from_experiment(experiment_id):
-    cursor = await db.execute(
-        "SELECT * FROM workflow_runs WHERE experiment_id = ? AND status != 'DELETED' ORDER BY created_at desc",
-        (experiment_id,),
-    )
-    rows = await cursor.fetchall()
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    await cursor.close()
-    return data
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.WorkflowRun)
+            .where(
+                models.WorkflowRun.experiment_id == experiment_id,
+                models.WorkflowRun.status != "DELETED",
+            )
+            .order_by(models.WorkflowRun.created_at.desc())
+        )
+        workflow_runs = result.scalars().all()
+        # Convert ORM objects to dicts
+        return [wr.__dict__ for wr in workflow_runs]
 
 
 ###############
