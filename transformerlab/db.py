@@ -1242,25 +1242,28 @@ async def workflow_run_get_running():
         return workflow_run.__dict__
 
 
-@unconverted
 async def workflow_run_get_queued():
-    cursor = await db.execute("SELECT * FROM workflow_runs WHERE status = 'QUEUED' LIMIT 1")
-    row = await cursor.fetchone()
-    if row is None:
-        return None
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
-    await cursor.close()
-    return row
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.WorkflowRun)
+            .where(models.WorkflowRun.status == "QUEUED")
+            .order_by(models.WorkflowRun.created_at.asc())
+            .limit(1)
+        )
+        workflow_run = result.scalar_one_or_none()
+        if workflow_run is None:
+            return None
+        return workflow_run.__dict__
 
 
-@unconverted
 async def workflow_run_update_status(workflow_run_id, status):
-    await db.execute(
-        "UPDATE workflow_runs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, workflow_run_id)
-    )
-    await db.commit()
+    async with async_session() as session:
+        await session.execute(
+            update(models.WorkflowRun)
+            .where(models.WorkflowRun.id == workflow_run_id)
+            .values(status=status, updated_at=text("CURRENT_TIMESTAMP"))
+        )
+        await session.commit()
     return
 
 
