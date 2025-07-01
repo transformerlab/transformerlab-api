@@ -442,62 +442,55 @@ def job_create_sync(type, status, job_data="{}", experiment_id=""):
             db_sync.close()
 
 
-@unconverted
 async def jobs_get_all(type="", status=""):
-    base_query = "SELECT * FROM job"
-    if type != "":
-        base_query += " WHERE type = ?"
-    else:
-        base_query += " WHERE ? != 'x'"
-
-    if status != "":
-        base_query += " AND status = ?"
-    else:
-        base_query += " AND ? != 'x'"
-
-    base_query += " AND status != 'DELETED' ORDER BY created_at DESC"
-
-    cursor = await db.execute(base_query, (type, status))
-    rows = await cursor.fetchall()
-
-    # Add column names to output
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    await cursor.close()
-
-    # for each row in data, convert the job_data
-    # column from JSON to a Python object
-    for i in range(len(data)):
-        data[i]["job_data"] = json.loads(data[i]["job_data"])
-
-    return data
+    async with async_session() as session:
+        stmt = select(models.Job).where(models.Job.status != "DELETED")
+        if type != "":
+            stmt = stmt.where(models.Job.type == type)
+        if status != "":
+            stmt = stmt.where(models.Job.status == status)
+        stmt = stmt.order_by(models.Job.created_at.desc())
+        result = await session.execute(stmt)
+        jobs = result.scalars().all()
+        data = []
+        for job in jobs:
+            row = job.__dict__.copy()
+            # Convert job_data from JSON string to dict if needed
+            if "job_data" in row and row["job_data"]:
+                if isinstance(row["job_data"], str):
+                    try:
+                        row["job_data"] = json.loads(row["job_data"])
+                    except Exception:
+                        pass
+            data.append(row)
+        return data
 
 
-@unconverted
 async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
-    cursor = await db.execute(
-        "SELECT * FROM job \
-        WHERE experiment_id = ? \
-        AND type = ? \
-        AND status != 'DELETED' \
-        ORDER BY created_at DESC",
-        (experiment_id, job_type),
-    )
-    rows = await cursor.fetchall()
-
-    # Add column names to output
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    await cursor.close()
-
-    # for each row in data, convert the job_data
-    # column from JSON to a Python object
-    for row in data:
-        row["job_data"] = json.loads(row["job_data"])
-
-    return data
+    async with async_session() as session:
+        stmt = (
+            select(models.Job)
+            .where(
+                models.Job.experiment_id == experiment_id,
+                models.Job.type == job_type,
+                models.Job.status != "DELETED",
+            )
+            .order_by(models.Job.created_at.desc())
+        )
+        result = await session.execute(stmt)
+        jobs = result.scalars().all()
+        data = []
+        for job in jobs:
+            row = job.__dict__.copy()
+            # Convert job_data from JSON string to dict if needed
+            if "job_data" in row and row["job_data"]:
+                if isinstance(row["job_data"], str):
+                    try:
+                        row["job_data"] = json.loads(row["job_data"])
+                    except Exception:
+                        pass
+            data.append(row)
+        return data
 
 
 async def job_get_status(job_id):
@@ -514,23 +507,21 @@ async def job_get_error_msg(job_id):
         return job_data.get("error_msg", None)
 
 
-@unconverted
 async def job_get(job_id):
-    cursor = await db.execute("SELECT * FROM job WHERE id = ?", (job_id,))
-    row = await cursor.fetchone()
-
-    # if no results, return None
-    if row is None:
-        return None
-
-    # convert to json:
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
-    await cursor.close()
-
-    row["job_data"] = json.loads(row["job_data"])
-    return row
+    async with async_session() as session:
+        result = await session.execute(select(models.Job).where(models.Job.id == job_id))
+        job = result.scalar_one_or_none()
+        if job is None:
+            return None
+        row = job.__dict__.copy()
+        # Convert job_data from JSON string to dict if needed
+        if "job_data" in row and row["job_data"]:
+            if isinstance(row["job_data"], str):
+                try:
+                    row["job_data"] = json.loads(row["job_data"])
+                except Exception:
+                    pass
+        return row
 
 
 async def job_count_running():
@@ -735,26 +726,20 @@ async def add_task(name, Type, inputs, config, plugin, outputs, experiment_id):
     return
 
 
-@unconverted
 async def update_task(task_id, new_task):
-    await db.execute(
-        "UPDATE tasks SET inputs = ? WHERE id = ?",
-        (new_task["inputs"], task_id),
-    )
-    await db.execute(
-        "UPDATE tasks SET config = ? WHERE id = ?",
-        (new_task["config"], task_id),
-    )
-    await db.execute(
-        "UPDATE tasks SET outputs = ? WHERE id = ?",
-        (new_task["outputs"], task_id),
-    )
-    if "name" in new_task and new_task["name"] != "":
-        await db.execute(
-            "UPDATE tasks SET name = ? WHERE id = ?",
-            (new_task["name"], task_id),
-        )
-    await db.commit()
+    async with async_session() as session:
+        values = {}
+        if "inputs" in new_task:
+            values["inputs"] = new_task["inputs"]
+        if "config" in new_task:
+            values["config"] = new_task["config"]
+        if "outputs" in new_task:
+            values["outputs"] = new_task["outputs"]
+        if "name" in new_task and new_task["name"] != "":
+            values["name"] = new_task["name"]
+        if values:
+            await session.execute(update(models.Task).where(models.Task.id == task_id).values(**values))
+            await session.commit()
     return
 
 
@@ -866,23 +851,34 @@ async def get_training_templates():
         return [t.__dict__ for t in templates]
 
 
-@unconverted
 async def create_training_template(name, description, type, datasets, config):
-    await db.execute(
-        "INSERT INTO training_template(name, description, type, datasets, config) VALUES (?, ?, ?, ?, ?)",
-        (name, description, type, datasets, config),
-    )
-    await db.commit()
+    async with async_session() as session:
+        template = models.TrainingTemplate(
+            name=name,
+            description=description,
+            type=type,
+            datasets=datasets,
+            config=config,
+        )
+        session.add(template)
+        await session.commit()
     return
 
 
-@unconverted
 async def update_training_template(id, name, description, type, datasets, config):
-    await db.execute(
-        "UPDATE training_template SET name = ?, description = ?, type = ?, datasets = ?, config = ? WHERE id = ?",
-        (name, description, type, datasets, config, id),
-    )
-    await db.commit()
+    async with async_session() as session:
+        await session.execute(
+            update(models.TrainingTemplate)
+            .where(models.TrainingTemplate.id == id)
+            .values(
+                name=name,
+                description=description,
+                type=type,
+                datasets=datasets,
+                config=config,
+            )
+        )
+        await session.commit()
     return
 
 
