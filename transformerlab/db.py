@@ -4,7 +4,7 @@ import os
 import sqlite3
 
 import aiosqlite
-from sqlalchemy import select, delete, text
+from sqlalchemy import select, delete, text, update
 from sqlalchemy.dialects.sqlite import insert  # Correct import for SQLite upsert
 
 # from sqlalchemy import create_engine
@@ -500,21 +500,18 @@ async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
     return data
 
 
-@unconverted
 async def job_get_status(job_id):
-    cursor = await db.execute("SELECT status FROM job WHERE id = ?", (job_id,))
-    row = await cursor.fetchone()
-    await cursor.close()
-    return row[0]
+    async with async_session() as session:
+        result = await session.execute(select(models.Job.status).where(models.Job.id == job_id))
+        status = result.scalar_one_or_none()
+        return status
 
 
-@unconverted
 async def job_get_error_msg(job_id):
-    cursor = await db.execute("SELECT job_data FROM job WHERE id = ?", (job_id,))
-    row = await cursor.fetchone()
-    await cursor.close()
-    job_data = json.loads(row[0])
-    return job_data.get("error_msg", None)
+    async with async_session() as session:
+        result = await session.execute(select(models.Job.job_data).where(models.Job.id == job_id))
+        job_data = result.scalar_one_or_none() or {}
+        return job_data.get("error_msg", None)
 
 
 @unconverted
@@ -536,30 +533,30 @@ async def job_get(job_id):
     return row
 
 
-@unconverted
 async def job_count_running():
-    cursor = await db.execute("SELECT COUNT(*) FROM job WHERE status = 'RUNNING'")
-    row = await cursor.fetchone()
-    await cursor.close()
-    return row[0]
+    async with async_session() as session:
+        result = await session.execute(select(models.Job).where(models.Job.status == "RUNNING"))
+        count = len(result.scalars().all())
+        return count
 
 
-@unconverted
 async def jobs_get_next_queued_job():
-    cursor = await db.execute("SELECT * FROM job WHERE status = 'QUEUED' ORDER BY created_at ASC LIMIT 1")
-    row = await cursor.fetchone()
-
-    # if no results, return None
-    if row is None:
-        return None
-
-    # convert to json:
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
-
-    await cursor.close()
-    return row
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.Job).where(models.Job.status == "QUEUED").order_by(models.Job.created_at.asc()).limit(1)
+        )
+        job = result.scalar_one_or_none()
+        if job is None:
+            return None
+        row = job.__dict__.copy()
+        # Convert job_data from JSON string to dict if needed
+        if "job_data" in row and row["job_data"]:
+            if isinstance(row["job_data"], str):
+                try:
+                    row["job_data"] = json.loads(row["job_data"])
+                except Exception:
+                    pass
+        return row
 
 
 @unconverted
@@ -594,12 +591,10 @@ def job_update_status_sync(job_id, status, error_msg=None):
             db_sync.close()
 
 
-@unconverted
 async def job_update(job_id, type, status):
-    await db.execute(
-        "UPDATE job SET type = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (type, status, job_id)
-    )
-    await db.commit()
+    async with async_session() as session:
+        await session.execute(update(models.Job).where(models.Job.id == job_id).values(type=type, status=status))
+        await session.commit()
     return
 
 
@@ -654,28 +649,27 @@ def job_mark_as_complete_if_running(job_id):
             db_sync.close()
 
 
-@unconverted
 async def job_delete_all():
-    # await db.execute("DELETE FROM job")
-    await db.execute("UPDATE job SET status = 'DELETED'")
-    await db.commit()
+    async with async_session() as session:
+        # Instead of deleting, set status to 'DELETED' for all jobs
+        await session.execute(update(models.Job).values(status="DELETED"))
+        await session.commit()
     return
 
 
-@unconverted
 async def job_delete(job_id):
     print("Deleting job: " + str(job_id))
-    # await db.execute("DELETE FROM job WHERE id = ?", (job_id,))
-    # instead of deleting, set status of job to deleted:
-    await db.execute("UPDATE job SET status = 'DELETED' WHERE id = ?", (job_id,))
-    await db.commit()
+    async with async_session() as session:
+        # Instead of deleting, set status to 'DELETED' for the job
+        await session.execute(update(models.Job).where(models.Job.id == job_id).values(status="DELETED"))
+        await session.commit()
     return
 
 
-@unconverted
 async def job_cancel_in_progress_jobs():
-    await db.execute("UPDATE job SET status = 'CANCELLED' WHERE status = 'RUNNING'")
-    await db.commit()
+    async with async_session() as session:
+        await session.execute(update(models.Job).where(models.Job.status == "RUNNING").values(status="CANCELLED"))
+        await session.commit()
     return
 
 
@@ -691,24 +685,21 @@ async def job_update_job_data_insert_key_value(job_id, key, value):
     return
 
 
-@unconverted
 async def job_stop(job_id):
     print("Stopping job: " + str(job_id))
     await job_update_job_data_insert_key_value(job_id, "stop", True)
     return
 
 
-@unconverted
 async def job_update_progress(job_id, progress):
     """
     Update the percent complete for this job.
 
     progress: int representing percent complete
     """
-    await db.execute(
-        "UPDATE job SET progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        (progress, job_id),
-    )
+    async with async_session() as session:
+        await session.execute(update(models.Job).where(models.Job.id == job_id).values(progress=progress))
+        await session.commit()
 
 
 @unconverted
@@ -728,13 +719,19 @@ async def job_update_sweep_progress(job_id, value):
 ###############
 
 
-@unconverted
 async def add_task(name, Type, inputs, config, plugin, outputs, experiment_id):
-    await db.execute(
-        "INSERT INTO tasks(name, type, inputs, config, plugin, outputs, experiment_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (name, Type, inputs, config, plugin, outputs, experiment_id),
-    )
-    await db.commit()
+    async with async_session() as session:
+        stmt = insert(models.Task).values(
+            name=name,
+            type=Type,
+            inputs=inputs,
+            config=config,
+            plugin=plugin,
+            outputs=outputs,
+            experiment_id=experiment_id,
+        )
+        await session.execute(stmt)
+        await session.commit()
     return
 
 
@@ -761,15 +758,15 @@ async def update_task(task_id, new_task):
     return
 
 
-@unconverted
 async def tasks_get_all():
-    cursor = await db.execute("SELECT * FROM tasks ORDER BY created_at desc")
-    rows = await cursor.fetchall()
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    await cursor.close()
-    return data
+    async with async_session() as session:
+        result = await session.execute(select(models.Task).order_by(models.Task.created_at.desc()))
+        tasks = result.scalars().all()
+        data = []
+        for task in tasks:
+            row = task.__dict__.copy()
+            data.append(row)
+        return data
 
 
 @unconverted
@@ -800,17 +797,17 @@ async def tasks_get_by_type_in_experiment(Type, experiment_id):
     return data
 
 
-@unconverted
 async def delete_task(task_id):
-    await db.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
-    await db.commit()
+    async with async_session() as session:
+        await session.execute(delete(models.Task).where(models.Task.id == task_id))
+        await session.commit()
     return
 
 
-@unconverted
 async def tasks_delete_all():
-    await db.execute("DELETE FROM tasks")
-    await db.commit()
+    async with async_session() as session:
+        await session.execute(delete(models.Task))
+        await session.commit()
     return
 
 
@@ -859,12 +856,14 @@ async def get_training_template_by_name(name):
     return row
 
 
-@unconverted
 async def get_training_templates():
-    cursor = await db.execute("SELECT * FROM training_template ORDER BY created_at DESC")
-    rows = await cursor.fetchall()
-    await cursor.close()
-    return rows
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.TrainingTemplate).order_by(models.TrainingTemplate.created_at.desc())
+        )
+        templates = result.scalars().all()
+        # Convert ORM objects to dicts if needed
+        return [t.__dict__ for t in templates]
 
 
 @unconverted
@@ -887,10 +886,10 @@ async def update_training_template(id, name, description, type, datasets, config
     return
 
 
-@unconverted
 async def delete_training_template(id):
-    await db.execute("DELETE FROM training_template WHERE id = ?", (id,))
-    await db.commit()
+    async with async_session() as session:
+        await session.execute(delete(models.TrainingTemplate).where(models.TrainingTemplate.id == id))
+        await session.commit()
     return
 
 

@@ -98,10 +98,10 @@ async def test_model_local_delete_nonexistent():
 @pytest.mark.asyncio
 async def test_job_get_status_and_error_msg_for_nonexistent():
     # Should raise or return None for missing job
-    with pytest.raises(Exception):
-        await job_get_status(999999)
-    with pytest.raises(Exception):
-        await job_get_error_msg(999999)
+    status = await job_get_status(999999)
+    assert status is None
+    error_msg = await job_get_error_msg(999999)
+    assert error_msg is None
 
 
 @pytest.mark.asyncio
@@ -283,8 +283,8 @@ async def test_tasks_get_by_type_and_in_experiment(test_experiment):
 async def test_training_template_crud():
     await create_training_template("tmpl", "desc", "type", "[]", "{}")
     templates = await get_training_templates()
-    assert any(t[1] == "tmpl" for t in templates)
-    tmpl_id = templates[0][0]
+    assert any(t.get("name") == "tmpl" for t in templates)
+    tmpl_id = templates[0].get("id")
     await update_training_template(tmpl_id, "tmpl2", "desc2", "type2", "[]", "{}")
     tmpl = await get_training_template(tmpl_id)
     assert tmpl["name"] == "tmpl2"
