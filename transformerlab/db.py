@@ -1146,55 +1146,56 @@ async def workflow_run_get_by_id(workflow_run_id):
         return workflow_run.__dict__
 
 
-@unconverted
 async def workflow_delete_by_id(workflow_id: str, experiment_id):
     print("Deleting workflow: " + str(workflow_id))
-    # Delete with experiment_id check to enforce relationship at DB level
-    result = await db.execute(
-        "UPDATE workflows SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND experiment_id = ?",
-        (workflow_id, experiment_id),
-    )
-    await db.commit()
-    return result.rowcount > 0
+    async with async_session() as session:
+        result = await session.execute(
+            update(models.Workflow)
+            .where(models.Workflow.id == workflow_id, models.Workflow.experiment_id == experiment_id)
+            .values(status="DELETED", updated_at=text("CURRENT_TIMESTAMP"))
+        )
+        await session.commit()
+        return result.rowcount > 0
 
 
-@unconverted
 async def workflow_delete_by_name(workflow_name):
     print("Deleting workflow: " + workflow_name)
-    await db.execute(
-        "UPDATE workflows SET status = 'DELETED', updated_at = CURRENT_TIMESTAMP WHERE name = ?", (workflow_name,)
-    )
-    await db.commit()
-    return
+    async with async_session() as session:
+        result = await session.execute(
+            update(models.Workflow)
+            .where(models.Workflow.name == workflow_name)
+            .values(status="DELETED", updated_at=text("CURRENT_TIMESTAMP"))
+        )
+        await session.commit()
+        return result.rowcount > 0
 
 
-@unconverted
 async def workflow_count_running():
-    cursor = await db.execute("SELECT COUNT(*) FROM workflow_runs WHERE status = 'RUNNING'")
-    row = await cursor.fetchone()
-    await cursor.close()
-    return row[0]
+    async with async_session() as session:
+        result = await session.execute(select(models.WorkflowRun).where(models.WorkflowRun.status == "RUNNING"))
+        count = len(result.scalars().all())
+        return count
 
 
-@unconverted
 async def workflow_count_queued():
-    cursor = await db.execute("SELECT COUNT(*) FROM workflow_runs WHERE status = 'QUEUED'")
-    row = await cursor.fetchone()
-    await cursor.close()
-    return row[0]
+    async with async_session() as session:
+        result = await session.execute(select(models.WorkflowRun).where(models.WorkflowRun.status == "QUEUED"))
+        count = len(result.scalars().all())
+        return count
 
 
-@unconverted
 async def workflow_run_get_running():
-    cursor = await db.execute("SELECT * FROM workflow_runs WHERE status = 'RUNNING' LIMIT 1")
-    row = await cursor.fetchone()
-    if row is None:
-        return None
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
-    await cursor.close()
-    return row
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.WorkflowRun)
+            .where(models.WorkflowRun.status == "RUNNING")
+            .order_by(models.WorkflowRun.created_at.asc())
+            .limit(1)
+        )
+        workflow_run = result.scalar_one_or_none()
+        if workflow_run is None:
+            return None
+        return workflow_run.__dict__
 
 
 @unconverted
