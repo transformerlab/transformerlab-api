@@ -332,6 +332,9 @@ async def test_dataset():
 @pytest.fixture
 async def test_experiment():
     # Setup code to create test_experiment
+    existing = await db.experiment_get_by_name("test_experiment")
+    if existing:
+        await db.experiment_delete(existing["id"])
     experiment_id = await db.experiment_create("test_experiment", {})
     yield experiment_id
     # Teardown code to delete test_experiment
@@ -481,6 +484,33 @@ class TestExperiments:
         experiment = await experiment_get(experiment_id)
         assert experiment is None
 
+        # Additional test for experiment_get_by_name which has partial coverage
+
+    @pytest.mark.asyncio
+    @pytest.mark.serial
+    async def test_experiment_get_by_name(setup_db):
+        """Test the experiment_get_by_name function."""
+        # Create a test experiment
+        experiment_name = "test_experiment_by_name"
+        config = {}
+        # Delete the experiment if it already exists
+        existing = await db.experiment_get_by_name(experiment_name)
+        if existing:
+            await db.experiment_delete(existing["id"])
+        experiment_id = await db.experiment_create(experiment_name, config)
+
+        # Test the function
+        experiment = await db.experiment_get_by_name(experiment_name)
+
+        # Verify results
+        assert experiment is not None
+        assert experiment["name"] == experiment_name
+        assert experiment["id"] == experiment_id
+
+        # Test with non-existent name
+        non_existent = await db.experiment_get_by_name("non_existent_experiment")
+        assert non_existent is None
+
 
 class TestPlugins:
     @pytest.mark.asyncio
@@ -626,6 +656,10 @@ class TestWorkflows:
 
     @pytest.mark.skip(reason="Skipping as it causes db lock issues")
     async def test_experiment_workflow_routes(self, test_experiment):
+        # Ensure no duplicate experiment name exists
+        existing = await experiment_get_by_name("test_experiment")
+        if existing:
+            await experiment_delete(existing["id"])
         # Create a workflow in the experiment
         workflow_id = await workflow_create("test_workflow", "{}", test_experiment)
 
@@ -645,32 +679,6 @@ class TestWorkflows:
         assert len(workflow_runs) > 0
         assert workflow_runs[0]["experiment_id"] == test_experiment
         assert workflow_runs[0]["workflow_id"] == workflow_id
-
-
-# Additional test for experiment_get_by_name which has partial coverage
-@pytest.mark.asyncio
-async def test_experiment_get_by_name(setup_db):
-    """Test the experiment_get_by_name function."""
-    # Create a test experiment
-    experiment_name = "test_experiment_by_name"
-    config = {}
-    # Delete the experiment if it already exists
-    existing = await db.experiment_get_by_name(experiment_name)
-    if existing:
-        await db.experiment_delete(existing["id"])
-    experiment_id = await db.experiment_create(experiment_name, config)
-
-    # Test the function
-    experiment = await db.experiment_get_by_name(experiment_name)
-
-    # Verify results
-    assert experiment is not None
-    assert experiment["name"] == experiment_name
-    assert experiment["id"] == experiment_id
-
-    # Test with non-existent name
-    non_existent = await db.experiment_get_by_name("non_existent_experiment")
-    assert non_existent is None
 
 
 @pytest.mark.asyncio
