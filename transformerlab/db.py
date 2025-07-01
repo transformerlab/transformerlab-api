@@ -1076,73 +1076,74 @@ async def experiment_save_prompt_template(id, template):
 #################
 
 
-@unconverted
 async def workflows_get_all():
-    cursor = await db.execute("SELECT * FROM workflows WHERE status != 'DELETED' ORDER BY created_at desc")
-    rows = await cursor.fetchall()
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    await cursor.close()
-    return data
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.Workflow)
+            .where(models.Workflow.status != "DELETED")
+            .order_by(models.Workflow.created_at.desc())
+        )
+        workflows = result.scalars().all()
+        # Convert ORM objects to dicts
+        return [w.__dict__ for w in workflows]
 
 
-@unconverted
 async def workflows_get_from_experiment(experiment_id):
-    cursor = await db.execute(
-        "SELECT * FROM workflows WHERE experiment_id = ? AND status != 'DELETED' ORDER BY created_at desc",
-        (experiment_id,),
-    )
-    rows = await cursor.fetchall()
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    await cursor.close()
-    return data
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.Workflow)
+            .where(
+                models.Workflow.experiment_id == experiment_id,
+                models.Workflow.status != "DELETED",
+            )
+            .order_by(models.Workflow.created_at.desc())
+        )
+        workflows = result.scalars().all()
+        return [w.__dict__ for w in workflows]
 
 
-@unconverted
 async def workflow_run_get_all():
-    cursor = await db.execute("SELECT * FROM workflow_runs WHERE status != 'DELETED' ORDER BY created_at desc")
-    rows = await cursor.fetchall()
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    data = [dict(itertools.zip_longest(column_names, row)) for row in rows]
-    await cursor.close()
-    return data
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.WorkflowRun)
+            .where(models.WorkflowRun.status != "DELETED")
+            .order_by(models.WorkflowRun.created_at.desc())
+        )
+        workflow_runs = result.scalars().all()
+        # Convert ORM objects to dicts
+        return [wr.__dict__ for wr in workflow_runs]
 
 
-@unconverted
 async def workflows_get_by_id(workflow_id, experiment_id):
-    # Query with both workflow_id and experiment_id to enforce relationship at DB level
-    cursor = await db.execute(
-        "SELECT * FROM workflows WHERE id = ? AND experiment_id = ? AND status != 'DELETED' ORDER BY created_at desc LIMIT 1",
-        (workflow_id, experiment_id),
-    )
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.Workflow)
+            .where(
+                models.Workflow.id == workflow_id,
+                models.Workflow.experiment_id == experiment_id,
+                models.Workflow.status != "DELETED",
+            )
+            .order_by(models.Workflow.created_at.desc())
+            .limit(1)
+        )
+        workflow = result.scalar_one_or_none()
+        if workflow is None:
+            return None
+        return workflow.__dict__
 
-    row = await cursor.fetchone()
-    if row is None:
-        return None
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
-    await cursor.close()
-    return row
 
-
-@unconverted
 async def workflow_run_get_by_id(workflow_run_id):
-    cursor = await db.execute(
-        "SELECT * FROM workflow_runs WHERE id = ? ORDER BY created_at desc LIMIT 1", (workflow_run_id,)
-    )
-    row = await cursor.fetchone()
-    if row is None:
-        return None
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
-    await cursor.close()
-    return row
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.WorkflowRun)
+            .where(models.WorkflowRun.id == workflow_run_id)
+            .order_by(models.WorkflowRun.created_at.desc())
+            .limit(1)
+        )
+        workflow_run = result.scalar_one_or_none()
+        if workflow_run is None:
+            return None
+        return workflow_run.__dict__
 
 
 @unconverted
@@ -1260,38 +1261,38 @@ async def workflow_create(name, config, experiment_id):
     return row[0]
 
 
-@unconverted
 async def workflow_update_config(workflow_id, config, experiment_id):
-    # Update with experiment_id check to enforce relationship at DB level
-    result = await db.execute(
-        "UPDATE workflows SET config = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND experiment_id = ?",
-        (config, workflow_id, experiment_id),
-    )
-    await db.commit()
-    return result.rowcount > 0
+    async with async_session() as session:
+        result = await session.execute(
+            update(models.Workflow)
+            .where(models.Workflow.id == workflow_id, models.Workflow.experiment_id == experiment_id)
+            .values(config=config, updated_at=text("CURRENT_TIMESTAMP"))
+        )
+        await session.commit()
+        return result.rowcount > 0
 
 
-@unconverted
 async def workflow_update_name(workflow_id, name, experiment_id):
-    # Update with experiment_id check to enforce relationship at DB level
-    result = await db.execute(
-        "UPDATE workflows SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND experiment_id = ?",
-        (name, workflow_id, experiment_id),
-    )
-    await db.commit()
-    return result.rowcount > 0
+    async with async_session() as session:
+        result = await session.execute(
+            update(models.Workflow)
+            .where(models.Workflow.id == workflow_id, models.Workflow.experiment_id == experiment_id)
+            .values(name=name, updated_at=text("CURRENT_TIMESTAMP"))
+        )
+        await session.commit()
+        return result.rowcount > 0
 
 
-@unconverted
 async def workflow_delete_all():
-    await db.execute("DELETE FROM workflows")
-    await db.commit()
+    async with async_session() as session:
+        await session.execute(delete(models.Workflow))
+        await session.commit()
 
 
-@unconverted
 async def workflow_runs_delete_all():
-    await db.execute("DELETE FROM workflow_runs")
-    await db.commit()
+    async with async_session() as session:
+        await session.execute(delete(models.WorkflowRun))
+        await session.commit()
 
 
 @unconverted
