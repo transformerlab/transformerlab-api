@@ -174,7 +174,11 @@ async def convert_all_to_tasks(experiment_id):
     train_templates = await db.get_training_templates()
     for template in train_templates:
         await convert_training_template_to_task(template[0], experiment_id)
-    experiment_config = json.loads((await db.experiment_get(experiment_id))["config"])
+    exp = await db.experiment_get(experiment_id)
+    if not isinstance(exp["config"], dict):
+        experiment_config = json.loads((await db.experiment_get(experiment_id))["config"])
+    else:
+        experiment_config = exp["config"]
     # evals
     if "evaluations" in experiment_config.keys():
         experiment_evaluations = json.loads(experiment_config["evaluations"])

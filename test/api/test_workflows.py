@@ -22,78 +22,73 @@ def experiment_id():
         # Don't assert on the delete response as it might fail if experiment is already gone
 
 
-def test_workflows_list(experiment_id):
-    with TestClient(app) as client:
-        resp = client.get(f"/experiment/{experiment_id}/workflows/list")
-        assert resp.status_code == 200
-        assert isinstance(resp.json(), list) or isinstance(resp.json(), dict)
+def test_workflows_list(client, experiment_id):
+    resp = client.get(f"/experiment/{experiment_id}/workflows/list")
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list) or isinstance(resp.json(), dict)
 
 
-def test_workflows_delete(experiment_id):
-    with TestClient(app) as client:
-        # Create a workflow to delete
-        create_resp = client.get(f"/experiment/{experiment_id}/workflows/create?name=workflow_to_delete")
-        assert create_resp.status_code == 200
-        workflow_id = create_resp.json()
+def test_workflows_delete(client, experiment_id):
+    # Create a workflow to delete
+    create_resp = client.get(f"/experiment/{experiment_id}/workflows/create?name=workflow_to_delete")
+    assert create_resp.status_code == 200
+    workflow_id = create_resp.json()
 
-        # Try to delete the workflow
-        resp = client.get(f"/experiment/{experiment_id}/workflows/delete/{workflow_id}")
-        assert resp.status_code == 200
-        assert resp.json() == {"message": "OK"}
+    # Try to delete the workflow
+    resp = client.get(f"/experiment/{experiment_id}/workflows/delete/{workflow_id}")
+    assert resp.status_code == 200
+    assert resp.json() == {"message": "OK"}
 
-        # Try to delete a non-existent workflow
-        resp = client.get(f"/experiment/{experiment_id}/workflows/delete/non_existent_workflow")
-        assert resp.status_code == 200
-        assert resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
-
-
-def test_workflows_create(experiment_id):
-    with TestClient(app) as client:
-        # Create workflow with required fields
-        config = {"nodes": [{"type": "START", "id": "start", "name": "START", "out": []}], "status": "CREATED"}
-        resp = client.get(
-            f"/experiment/{experiment_id}/workflows/create?name=test_workflow&config={json.dumps(config)}"
-        )
-        assert resp.status_code == 200
-        assert resp.json() is not None  # Just check that we get a valid response
+    # Try to delete a non-existent workflow
+    resp = client.get(f"/experiment/{experiment_id}/workflows/delete/non_existent_workflow")
+    assert resp.status_code == 200
+    assert resp.json() == {"error": "Workflow not found or does not belong to this experiment"}
 
 
-def test_experiment_workflows_list(experiment_id):
+def test_workflows_create(client, experiment_id):
+    import json
+
+    # Create workflow with required fields
+    config = {"nodes": [{"type": "START", "id": "start", "name": "START", "out": []}], "status": "CREATED"}
+    resp = client.get(f"/experiment/{experiment_id}/workflows/create?name=test_workflow&config={json.dumps(config)}")
+    assert resp.status_code == 200
+    assert resp.json() is not None  # Just check that we get a valid response
+
+
+def test_experiment_workflows_list(client, experiment_id):
     """Test the new experiment workflows list endpoint"""
-    with TestClient(app) as client:
-        # Create a workflow in the experiment
-        workflow_resp = client.get(f"/experiment/{experiment_id}/workflows/create?name=test_workflow")
-        assert workflow_resp.status_code == 200
+    # Create a workflow in the experiment
+    workflow_resp = client.get(f"/experiment/{experiment_id}/workflows/create?name=test_workflow")
+    assert workflow_resp.status_code == 200
 
-        # Test the new experiment workflows list endpoint
-        resp = client.get(f"/experiment/{experiment_id}/workflows/list")
-        assert resp.status_code == 200
-        workflows = resp.json()
-        assert isinstance(workflows, list)
-        assert len(workflows) > 0
-        assert workflows[0]["experiment_id"] == experiment_id
+    # Test the new experiment workflows list endpoint
+    resp = client.get(f"/experiment/{experiment_id}/workflows/list")
+    assert resp.status_code == 200
+    workflows = resp.json()
+    assert isinstance(workflows, list)
+    assert len(workflows) > 0
+    assert workflows[0]["experiment_id"] == experiment_id
 
 
-def test_experiment_workflow_runs(experiment_id):
+def test_experiment_workflow_runs(client, experiment_id):
     """Test the new experiment workflow runs endpoint"""
-    with TestClient(app) as client:
-        # Create a workflow in the experiment
-        workflow_resp = client.get(f"/experiment/{experiment_id}/workflows/create?name=test_workflow")
-        assert workflow_resp.status_code == 200
-        workflow_id = workflow_resp.json()
+    # Create a workflow in the experiment
+    workflow_resp = client.get(f"/experiment/{experiment_id}/workflows/create?name=test_workflow")
+    assert workflow_resp.status_code == 200
+    workflow_id = workflow_resp.json()
 
-        # Queue the workflow to create a run
-        queue_resp = client.get(f"/experiment/{experiment_id}/workflows/{workflow_id}/start")
-        assert queue_resp.status_code == 200
+    # Queue the workflow to create a run
+    queue_resp = client.get(f"/experiment/{experiment_id}/workflows/{workflow_id}/start")
+    assert queue_resp.status_code == 200
 
-        # Test the new experiment workflow runs endpoint
-        resp = client.get(f"/experiment/{experiment_id}/workflows/runs")
-        assert resp.status_code == 200
-        runs = resp.json()
-        assert isinstance(runs, list)
-        assert len(runs) > 0
-        assert runs[0]["experiment_id"] == experiment_id
-        assert runs[0]["workflow_id"] == workflow_id
+    # Test the new experiment workflow runs endpoint
+    resp = client.get(f"/experiment/{experiment_id}/workflows/runs")
+    assert resp.status_code == 200
+    runs = resp.json()
+    assert isinstance(runs, list)
+    assert len(runs) > 0
+    assert runs[0]["experiment_id"] == experiment_id
+    assert runs[0]["workflow_id"] == workflow_id
 
 
 def test_workflow_node_operations(experiment_id):
