@@ -150,7 +150,11 @@ def get_experiment_config(name: str):
         data = experiment_get(experiment_id)
         if data is None:
             return None, experiment_id
-        return json.loads(data["config"]), experiment_id
+        if not isinstance(data["config"], dict):
+            return json.loads(data["config"]), experiment_id
+        else:
+            return data["config"], experiment_id
+
     return None, experiment_id
 
 
@@ -413,7 +417,7 @@ def setup_model_worker_logger(name: str = "transformerlab") -> logging.Logger:
         HOME_DIR = Path.home() / ".transformerlab"
         os.makedirs(name=HOME_DIR, exist_ok=True)
         print(f"Using default home directory: {HOME_DIR}")
-    
+
     GLOBAL_LOG_PATH = os.path.join(HOME_DIR, "transformerlab.log")
 
     logger: logging.Logger = build_logger(name, GLOBAL_LOG_PATH)

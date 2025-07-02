@@ -106,8 +106,14 @@ async def get_training_job(job_id: str):
 async def get_training_job_output(job_id: str, sweeps: bool = False):
     # First get the template Id from this job:
     job = await db_jobs.job_get(job_id)
+    job_data = job["job_data"]
 
-    job_data = json.loads(job["job_data"])
+    if not isinstance(job_data, dict):
+        try:
+            job_data = json.loads(job_data)
+        except JSONDecodeError:
+            print(f"Error decoding job_data for job {job_id}. Using empty job_data.")
+            job_data = {}
 
     if sweeps:
         output_file = job_data.get("sweep_output_file", None)
@@ -123,8 +129,10 @@ async def get_training_job_output(job_id: str, sweeps: bool = False):
     # Then get the template:
     template = await get_training_template(template_id)
     # Then get the plugin name from the template:
-
-    template_config = json.loads(template["config"])
+    if not isinstance(template["config"], dict):
+        template_config = json.loads(template["config"])
+    else:
+        template_config = template["config"]
     if "plugin_name" not in template_config:
         return {"error": "true"}
 
