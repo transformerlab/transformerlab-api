@@ -5,9 +5,10 @@ import subprocess
 import sys
 from typing import Any
 
-import transformerlab.db as db
+import transformerlab.db.db as db
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
+from transformerlab.db.jobs import job_get
 from transformerlab.shared import dirs
 
 from werkzeug.utils import secure_filename
@@ -154,7 +155,7 @@ async def get_evaluation_plugin_file_contents(experimentId: int, plugin_name: st
 
 @router.get("/run_evaluation_script")
 async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: str, job_id: str):
-    job_config = (await db.job_get(job_id))["job_data"]
+    job_config = (await job_get(job_id))["job_data"]
     eval_config = job_config.get("config", {})
     print(eval_config)
     experiment_details = await db.experiment_get(id=experimentId)

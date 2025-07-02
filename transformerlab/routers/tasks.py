@@ -1,7 +1,9 @@
 import json
 from fastapi import APIRouter, Body
 
-import transformerlab.db as db
+from transformerlab.db.datasets import get_datasets
+import transformerlab.db.db as db
+from transformerlab.db.jobs import job_create
 from transformerlab.models import model_helper
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -78,7 +80,7 @@ async def add_task(new_task: dict = Body()):
 
         # Repeat for dataset
         dataset_downloaded = False
-        local_datasets = await db.get_datasets()
+        local_datasets = await get_datasets()
         for dataset in local_datasets:
             if dataset["dataset_id"] == datasets:
                 dataset_downloaded = True
@@ -174,7 +176,11 @@ async def convert_all_to_tasks(experiment_id):
     train_templates = await db.get_training_templates()
     for template in train_templates:
         await convert_training_template_to_task(template[0], experiment_id)
-    experiment_config = json.loads((await db.experiment_get(experiment_id))["config"])
+    exp = await db.experiment_get(experiment_id)
+    if not isinstance(exp["config"], dict):
+        experiment_config = json.loads((await db.experiment_get(experiment_id))["config"])
+    else:
+        experiment_config = exp["config"]
     # evals
     if "evaluations" in experiment_config.keys():
         experiment_evaluations = json.loads(experiment_config["evaluations"])
@@ -253,5 +259,5 @@ async def queue_task(task_id: int, input_override: str = "{}", output_override: 
             job_data["config"][key] = output_override[key]
             job_data["config"]["script_parameters"][key] = output_override[key]
         job_data["plugin"] = task_to_queue["plugin"]
-    job_id = await db.job_create(job_type, job_status, json.dumps(job_data), task_to_queue["experiment_id"])
+    job_id = await job_create(job_type, job_status, json.dumps(job_data), task_to_queue["experiment_id"])
     return {"id": job_id}
