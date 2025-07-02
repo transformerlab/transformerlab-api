@@ -329,27 +329,29 @@ class SGLWorker(BaseModelWorker):
             assistant_text = ""
 
             async for out in stream_iter:
-                partial_stop = any(is_partial_stop(out, i) for i in stop)
-                if partial_stop:
+                if any(is_partial_stop(out, i) for i in stop):
                     continue
-                if not assistant_started:
-                    # Wait until the assistant block begins
-                    idx = out.find(start_token)
-                    if idx == -1:
-                        continue  # still preamble tokens
-                    assistant_started = True
-                    out = out[idx + len(start_token) :]
 
-                # Drop any start and end-tags that may arrive
-                out = out.replace(start_token, "")
-                out = out.replace(end_token, "")
-                assistant_text += out
-                ret = {
+                if not assistant_started:
+                    matches = LAST_ASSISTANT_RE.findall(out)
+                    if matches:
+                        assistant_started = True
+                        chunk = matches[-1]
+                        assistant_text += chunk
+                        yield {
+                            "text": assistant_text,
+                            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                            "error_code": 0,
+                        }
+                    continue
+
+                # If assistant has started, just keep appending normally
+                assistant_text += out.replace(start_token, "").replace(end_token, "")
+                yield {
                     "text": assistant_text,
                     "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
                     "error_code": 0,
                 }
-                yield ret
 
         except Exception as e:
             raise ValueError(f"Failed: {e}")

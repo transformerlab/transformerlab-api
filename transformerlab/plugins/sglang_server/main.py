@@ -47,22 +47,24 @@ def clear_vram():
         torch.cuda.ipc_collect()
 
 
-# Try to find pip-installed ninja binary
 def inject_ninja_into_path():
-    # Find pip-installed ninja binary
-    paths_to_check = [
-        os.path.join(site.USER_BASE, "bin", "ninja"),
+    venv_bin = os.path.join(sys.prefix, "bin")
+    user_bin = os.path.join(site.USER_BASE, "bin")
+
+    candidate_paths = [
+        os.path.join(venv_bin, "ninja"),
+        os.path.join(user_bin, "ninja"),
         shutil.which("ninja"),
     ]
 
-    for path in paths_to_check:
+    for path in candidate_paths:
         if path and os.path.isfile(path):
             ninja_dir = os.path.dirname(path)
             os.environ["PATH"] = ninja_dir + os.pathsep + os.environ["PATH"]
             print(f"[bootstrap] Injected ninja into PATH: {ninja_dir}")
             return
 
-    print("[bootstrap] Warning: ninja binary not found in expected locations.")
+    print("[bootstrap] ERROR: ninja binary not found in venv or user path", file=sys.stderr)
 
 
 def isnum(s):
@@ -74,13 +76,6 @@ def handle_sigterm(signum, frame):
     print(">>> [main] Received SIGTERM — setting shutdown_event...", file=sys.stderr)
     shutdown_event.set()
 
-
-ninja_check = shutil.which("ninja")
-
-if ninja_check is None:
-    raise RuntimeError("ninja is required but was not found. Try `pip install ninja` or install it system-wide.")
-else:
-    print(f"Ninja found at: {ninja_check}, binding...")
 
 inject_ninja_into_path()
 
