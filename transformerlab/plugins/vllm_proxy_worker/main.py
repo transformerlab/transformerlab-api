@@ -114,10 +114,10 @@ except Exception as e:
     print(f"Warning: Could not write worker PID file: {e}", file=sys.stderr)
  
 # If proxy worker exits, also terminate vLLM server
-if vllm_proc.poll() is None:
-    print("Terminating vLLM server...", file=sys.stderr)
-    vllm_proc.terminate()
-    vllm_proc.wait()
+# if vllm_proc.poll() is None:
+#     print("Terminating vLLM server...", file=sys.stderr)
+#     vllm_proc.terminate()
+#     vllm_proc.wait()
 
 print("OpenAI API Proxy Server exited", file=sys.stderr)
 sys.exit(1)  # 99 is our code for CUDA OOM
