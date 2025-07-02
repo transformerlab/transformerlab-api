@@ -10,7 +10,7 @@ from fastapi import APIRouter, Request, Response
 from fastapi.responses import PlainTextResponse
 
 import transformerlab.plugin_sdk.transformerlab.plugin as tlab_core
-from transformerlab.db import job_create_sync, job_update_status_sync
+from transformerlab.db.db import job_create_sync, job_update_status_sync
 
 
 class XMLRPCRouter:

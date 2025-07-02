@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-import transformerlab.db as db
+import transformerlab.db.db as db
 
 
 router = APIRouter(prefix="/config", tags=["config"])

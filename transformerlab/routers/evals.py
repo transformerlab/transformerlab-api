@@ -1,9 +1,10 @@
 import json
 import os
-import transformerlab.db as db
+import transformerlab.db.db as db
 import pandas as pd
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
+from transformerlab.db.jobs import job_get
 from transformerlab.shared import dirs
 
 
@@ -47,7 +48,7 @@ async def compare_eval(job_list: str = ""):
         job_list = job_list.split(",")
 
         for job_id in job_list:
-            job = await db.job_get(job_id)
+            job = await job_get(job_id)
             job_data = job.get("job_data", {})
             evaluator_name = job_data.get("evaluator", "")
             plugin_name = job_data.get("plugin", "")

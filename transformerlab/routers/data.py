@@ -12,11 +12,19 @@ from typing import Dict, Any
 from io import BytesIO
 import base64
 from pathlib import Path
-import transformerlab.db as db
 from transformerlab.shared import dirs
 from datasets.data_files import EmptyDatasetError
 from transformerlab.shared.shared import slugify
 from transformerlab.shared import galleries
+
+from transformerlab.db.datasets import (
+    create_huggingface_dataset,
+    get_dataset,
+    get_datasets,
+    create_local_dataset,
+    delete_dataset,
+    get_generated_datasets,
+)
 
 
 from werkzeug.utils import secure_filename
@@ -74,7 +82,7 @@ class ErrorResponse(BaseModel):
 async def dataset_gallery() -> Any:
     gallery = galleries.get_data_gallery()
 
-    local_datasets = await db.get_datasets()
+    local_datasets = await get_datasets()
 
     local_dataset_names = set(str(dataset["dataset_id"]) for dataset in local_datasets)
     for dataset in gallery:
@@ -84,7 +92,7 @@ async def dataset_gallery() -> Any:
 
 @router.get("/info", summary="Fetch the details of a particular dataset.")
 async def dataset_info(dataset_id: str):
-    d = await db.get_dataset(dataset_id)
+    d = await get_dataset(dataset_id)
     if d is None:
         return {}
     r = {}
@@ -157,7 +165,7 @@ async def dataset_preview(
     limit: int = Query(10, description="The maximum number of data items to fetch.", ge=1, le=1000),
     streaming: bool = False,
 ) -> Any:
-    d = await db.get_dataset(dataset_id)
+    d = await get_dataset(dataset_id)
     dataset_len = 0
     result = {}
 
@@ -240,7 +248,7 @@ async def dataset_preview_with_template(
     offset: int = Query(0, description="The starting index from where to fetch the data.", ge=0),
     limit: int = Query(10, description="The maximum number of data items to fetch.", ge=1, le=1000),
 ) -> Any:
-    d = await db.get_dataset(dataset_id)
+    d = await get_dataset(dataset_id)
     dataset_len = 0
     result = {}
     # This means it is a custom dataset the user uploaded
@@ -539,7 +547,7 @@ async def save_metadata(dataset_id: str, new_dataset_id: str, file: UploadFile):
 async def dataset_download(dataset_id: str, config_name: str = None):
     # Check to make sure we don't have a dataset with this name
     # Possibly we want to allow redownloading in the future but for we can't add duplicate dataset_id to the DB
-    row = await db.get_dataset(dataset_id)
+    row = await get_dataset(dataset_id)
     if row is not None:
         return {"status": "error", "message": f"A dataset with the name {dataset_id} already exists"}
 
@@ -590,7 +598,7 @@ async def dataset_download(dataset_id: str, config_name: str = None):
             "version": str(ds_builder.info.version),
         }
 
-    await db.create_huggingface_dataset(dataset_id, ds_builder.info.description, dataset_size, json_data)
+    await create_huggingface_dataset(dataset_id, ds_builder.info.description, dataset_size, json_data)
     log(f"Dataset created in database for dataset_id: {dataset_id}")
 
     # Download the dataset
@@ -636,7 +644,7 @@ async def dataset_download(dataset_id: str, config_name: str = None):
 
 @router.get("/list", summary="List available datasets.")
 async def dataset_list(generated: bool = True):
-    dataset_list = await db.get_datasets()
+    dataset_list = await get_datasets()
     if generated:
         return dataset_list
 
@@ -651,7 +659,7 @@ async def dataset_list(generated: bool = True):
 
 @router.get("/generated_datasets_list", summary="List available generated datasets.")
 async def generated_datasets_list():
-    list = await db.get_generated_datasets()
+    list = await get_generated_datasets()
     return list
 
 
@@ -660,7 +668,7 @@ async def dataset_new(dataset_id: str, generated: bool = False):
     dataset_id = slugify(dataset_id)
 
     # Check to make sure we don't have a dataset with this name
-    row = await db.get_dataset(dataset_id)
+    row = await get_dataset(dataset_id)
     if generated:
         json_data = {"generated": True}
     else:
@@ -669,9 +677,9 @@ async def dataset_new(dataset_id: str, generated: bool = False):
         return {"status": "error", "message": f"A dataset with the name {dataset_id} already exists"}
     if json_data is None:
         # Create a new dataset in the database
-        await db.create_local_dataset(dataset_id)
+        await create_local_dataset(dataset_id)
     else:
-        await db.create_local_dataset(dataset_id, json_data=json_data)
+        await create_local_dataset(dataset_id, json_data=json_data)
 
     # Now make a directory that maps to the above dataset_id
     # Check if the directory already exists
@@ -682,7 +690,7 @@ async def dataset_new(dataset_id: str, generated: bool = False):
 
 @router.get("/delete", summary="Delete a dataset.")
 async def dataset_delete(dataset_id: str):
-    await db.delete_dataset(dataset_id)
+    await delete_dataset(dataset_id)
 
     dataset_id = secure_filename(dataset_id)
 

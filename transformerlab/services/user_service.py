@@ -11,7 +11,7 @@ from fastapi_users.authentication import (
 
 from fastapi_users.db import SQLAlchemyUserDatabase
 
-from transformerlab.db import get_user_db
+from transformerlab.db.db import get_user_db
 from transformerlab.shared.models.models import User
 
 SECRET = "TEMPSECRET"
