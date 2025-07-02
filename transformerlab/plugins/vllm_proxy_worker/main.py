@@ -119,5 +119,5 @@ except Exception as e:
 #     vllm_proc.terminate()
 #     vllm_proc.wait()
 
-print("OpenAI API Proxy Server exited", file=sys.stderr)
-sys.exit(1)  # 99 is our code for CUDA OOM
+# print("OpenAI API Proxy Server exited", file=sys.stderr)
+# sys.exit(1)  # 99 is our code for CUDA OOM
