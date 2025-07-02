@@ -9,7 +9,8 @@ import sys
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
-import transformerlab.db as db
+import transformerlab.db.db as db
+import transformerlab.db.jobs as db_jobs
 from transformerlab.shared import dirs
 from transformerlab.routers.serverinfo import watch_file
 
@@ -141,7 +142,7 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
                 f.write(f"\nError:\n{stderr_str}")
 
             if process.returncode != 0:
-                await db.job_update_status(job_id=job_id, status="FAILED")
+                await db_jobs.job_update_status(job_id=job_id, status="FAILED")
                 return {
                     "status": "error",
                     "message": "Export failed due to an internal error. Please check the output file for more details.",
@@ -151,7 +152,7 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
         import logging
 
         logging.error(f"Failed to export model. Exception: {e}")
-        await db.job_update_status(job_id=job_id, status="FAILED")
+        await db_jobs.job_update_status(job_id=job_id, status="FAILED")
         return {"message": "Failed to export model due to an internal error."}
 
     # Model create was successful!
@@ -179,19 +180,19 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
     json.dump(model_description, model_description_file)
     model_description_file.close()
 
-    await db.job_update_status(job_id=job_id, status="COMPLETE")
+    await db_jobs.job_update_status(job_id=job_id, status="COMPLETE")
     return {"status": "success", "job_id": job_id}
 
 
 @router.get("/jobs")
 async def get_export_jobs(id: int):
-    jobs = await db.jobs_get_all_by_experiment_and_type(id, "EXPORT_MODEL")
+    jobs = await db_jobs.jobs_get_all_by_experiment_and_type(id, "EXPORT_MODEL")
     return jobs
 
 
 @router.get("/job")
 async def get_export_job(id: int, jobId: str):
-    job = await db.job_get(jobId)
+    job = await db_jobs.job_get(jobId)
     return job
 
 
@@ -201,7 +202,7 @@ async def get_output_file_name(job_id: str):
         job_id = str(job_id)
 
         # Get job data
-        job = await db.job_get(job_id)
+        job = await db_jobs.job_get(job_id)
         job_data = job["job_data"]
 
         # Check if it has a custom output file path
