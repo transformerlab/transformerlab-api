@@ -7,7 +7,6 @@ os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
 
 from api import app
 
-import transformerlab.db as db
 
 
 @pytest.fixture(scope="session")

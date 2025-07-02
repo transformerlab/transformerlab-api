@@ -157,7 +157,7 @@ def test_workflow_name_update(client, experiment_id):
     assert update_resp.json() == {"message": "OK"}
 
 
-def test_workflow_yaml_operations(experiment_id):
+def test_workflow_yaml_operations(client, experiment_id):
     """Test YAML import/export operations"""
     # Create workflow with required fields
     config = {"nodes": [{"type": "START", "id": "start", "name": "START", "out": []}], "status": "CREATED"}
@@ -179,7 +179,7 @@ def test_workflow_yaml_operations(experiment_id):
     assert export_resp.headers.get("content-disposition") == 'attachment; filename="test_workflow.yaml"'
 
 
-def test_workflow_run_operations(experiment_id):
+def test_workflow_run_operations(client, experiment_id):
     """Test workflow run operations"""
     # Create workflow
     workflow_resp = client.get(f"/experiment/{experiment_id}/workflows/create?name=test_workflow")
@@ -207,7 +207,7 @@ def test_workflow_run_operations(experiment_id):
     assert "jobs" in run_data
 
 
-def test_workflow_next_step(experiment_id):
+def test_workflow_next_step(client, experiment_id):
     """Test workflow progression through complete workflow execution"""
     # Create workflow with simple configuration that can complete quickly
     config = {
@@ -242,7 +242,7 @@ def test_workflow_next_step(experiment_id):
     assert "jobs" in run_data
 
 
-def test_workflow_create_invalid(experiment_id):
+def test_workflow_create_invalid(client, experiment_id):
     """Test workflow creation with invalid config"""
     # Test workflow creation without config (should still work)
     resp = client.get(f"/experiment/{experiment_id}/workflows/create?name=test_workflow_no_config")
@@ -251,7 +251,7 @@ def test_workflow_create_invalid(experiment_id):
     assert resp.json() is not None
 
 
-def test_workflow_run_cancel(experiment_id):
+def test_workflow_run_cancel(client, experiment_id):
     """Test workflow run cancellation"""
     # Create workflow
     workflow_resp = client.get(f"/experiment/{experiment_id}/workflows/create?name=test_workflow")
@@ -279,7 +279,7 @@ def test_workflow_run_cancel(experiment_id):
     assert "note" in cancel_data
 
 
-def test_workflow_run_cancel_with_active_jobs(experiment_id):
+def test_workflow_run_cancel_with_active_jobs(client, experiment_id):
     """Test workflow run cancellation with actual running jobs"""
 
     # Create workflow
@@ -329,7 +329,7 @@ def test_workflow_run_cancel_with_active_jobs(experiment_id):
     assert job_data["job_data"]["stop"]
 
 
-def test_workflow_run_cancel_invalid_cases(experiment_id):
+def test_workflow_run_cancel_invalid_cases(client, experiment_id):
     """Test workflow run cancellation with invalid cases"""
     # Test cancelling non-existent workflow run
     cancel_resp = client.get(f"/experiment/{experiment_id}/workflows/non_existent_run/cancel")
@@ -357,7 +357,7 @@ def test_workflow_run_cancel_invalid_cases(experiment_id):
     assert cancel_resp.status_code == 200
 
 
-def test_workflow_run_cancel_security(experiment_id):
+def test_workflow_run_cancel_security(client, experiment_id):
     """Test workflow run cancellation security checks across experiments"""
     # Create a second experiment for security testing
     exp2_resp = client.get("/experiment/create?name=test_workflow_cancel_security_exp2")
@@ -397,7 +397,7 @@ def test_workflow_run_cancel_security(experiment_id):
         client.get(f"/experiment/delete/{exp2_id}")
 
 
-def test_workflow_run_cancel_edge_cases(experiment_id):
+def test_workflow_run_cancel_edge_cases(client, experiment_id):
     """Test workflow run cancellation edge cases"""
     # Create workflow with complex configuration
     config = {
@@ -434,7 +434,7 @@ def test_workflow_run_cancel_edge_cases(experiment_id):
     assert cancel_data.get("note") == "Workflow status will be updated to CANCELLED automatically"
 
 
-def test_workflow_node_operations_invalid(experiment_id):
+def test_workflow_node_operations_invalid(client, experiment_id):
     """Test node operations with invalid node IDs"""
     # Use shared experiment instead of creating new one
     workflow_resp = client.get(f"/experiment/{experiment_id}/workflows/create?name=test_workflow")
@@ -445,7 +445,7 @@ def test_workflow_node_operations_invalid(experiment_id):
     assert resp.status_code == 200
 
 
-def test_workflow_edge_operations_invalid(experiment_id):
+def test_workflow_edge_operations_invalid(client, experiment_id):
     """Test edge operations with invalid node IDs"""
     # Use shared experiment instead of creating new one
     config = {"nodes": [{"type": "START", "id": "start", "name": "START", "out": []}], "status": "CREATED"}
@@ -461,7 +461,7 @@ def test_workflow_edge_operations_invalid(experiment_id):
     assert resp.status_code == 200
 
 
-def test_workflow_run_operations_invalid(experiment_id):
+def test_workflow_run_operations_invalid(client, experiment_id):
     """Test workflow run operations with invalid run IDs"""
     # Try to get non-existent run using shared experiment
     resp = client.get(f"/experiment/{experiment_id}/workflows/runs/non_existent_run")
@@ -469,7 +469,7 @@ def test_workflow_run_operations_invalid(experiment_id):
     assert resp.json() == {"error": "Workflow run not found"}
 
 
-def test_workflow_name_update_invalid(experiment_id):
+def test_workflow_name_update_invalid(client, experiment_id):
     """Test invalid workflow name updates"""
     # Use shared experiment instead of creating new one
     config = {"nodes": [{"type": "START", "id": "start", "name": "START", "out": []}], "status": "CREATED"}
@@ -485,7 +485,7 @@ def test_workflow_name_update_invalid(experiment_id):
     assert resp.status_code == 200
 
 
-def test_find_nodes_by_ids_helper():
+def test_find_nodes_by_ids_helper(client):
     # Use shared experiment instead of creating new one
     workflow_resp = client.get(f"/experiment/{experiment_id}/workflows/create?name=test_workflow")
     assert workflow_resp.status_code == 200
@@ -595,7 +595,7 @@ def test_extract_previous_job_outputs_and_prepare_io():
     assert "dataset_name" not in inputs
 
 
-def test_workflow_security_checks():
+def test_workflow_security_checks(client):
     """Test security checks for workflow operations across different experiments"""
     # Create two separate experiments for security testing
     exp1_resp = client.get("/experiment/create?name=test_workflow_security_exp1")
@@ -675,7 +675,7 @@ def test_workflow_security_checks():
         client.get(f"/experiment/delete/{exp2_id}")
 
 
-def test_workflow_start_node_deletion(experiment_id):
+def test_workflow_start_node_deletion(client, experiment_id):
     """Test that START nodes cannot be deleted"""
     exp_id = experiment_id
 
@@ -701,7 +701,7 @@ def test_workflow_start_node_deletion(experiment_id):
     client.get(f"/experiment/{exp_id}/workflows/delete/{workflow_id}")
 
 
-def test_workflow_no_active_workflow(experiment_id):
+def test_workflow_no_active_workflow(client, experiment_id):
     """Test workflow system when no workflow is active"""
     exp_id = experiment_id
 
@@ -721,7 +721,7 @@ def test_workflow_no_active_workflow(experiment_id):
     assert fake_run_resp.json() == {"error": "Workflow run not found"}
 
 
-def test_workflow_run_with_missing_associated_workflow(experiment_id):
+def test_workflow_run_with_missing_associated_workflow(client, experiment_id):
     """Test workflow run when associated workflow is missing (line 308)"""
     exp_id = experiment_id
 
@@ -753,7 +753,7 @@ def test_workflow_run_with_missing_associated_workflow(experiment_id):
     )
 
 
-def test_yaml_import(experiment_id):
+def test_yaml_import(client, experiment_id):
     """Test YAML import functionality"""
     exp_id = experiment_id
 
@@ -896,7 +896,7 @@ async def test_handle_start_node_skip_edge_cases():
     assert len(next_nodes) == 2
 
 
-def test_find_previous_node_and_job_logic():
+def test_find_previous_node_and_job_logic(client):
     """Test find_previous_node and queue_job_for_node logic"""
     # Create workflow
     workflow_resp = client.get(f"/experiment/{experiment_id}/workflows/create?name=test_workflow")
@@ -920,7 +920,7 @@ def test_find_previous_node_and_job_logic():
     assert job_id is not None
 
 
-def test_workflow_active_run_security():
+def test_workflow_active_run_security(client):
     """Test workflow execution security and isolation across experiments"""
     # Create two experiments for this specific test
     exp1_resp = client.get("/experiment/create?name=test_active_run_security1")
@@ -974,7 +974,7 @@ def test_workflow_active_run_security():
         client.get(f"/experiment/delete/{exp2_id}")
 
 
-def test_workflow_run_security_checks():
+def test_workflow_run_security_checks(client):
     """Test security checks for workflow run operations"""
     # Create two experiments for this specific test
     exp1_resp = client.get("/experiment/create?name=test_workflow_run_security1")
@@ -1167,7 +1167,7 @@ async def test_handle_start_node_skip_multiple_starts():
     assert len(next_nodes) == 2
 
 
-def test_workflow_create_with_existing_nodes(experiment_id):
+def test_workflow_create_with_existing_nodes(client, experiment_id):
     """Test workflow creation with existing nodes in config"""
     # Create workflow with existing nodes
     config = {"nodes": [{"type": "TASK", "id": "existing_task", "name": "Existing Task", "out": []}]}
@@ -1190,7 +1190,7 @@ def test_workflow_create_with_existing_nodes(experiment_id):
     assert len(task_nodes) >= 1
 
 
-def test_workflow_node_edge_operations(experiment_id):
+def test_workflow_node_edge_operations(client, experiment_id):
     """Test edge addition and removal with various scenarios"""
     # Create workflow
     workflow_resp = client.get(f"/experiment/{experiment_id}/workflows/create?name=test_workflow245")
@@ -1235,7 +1235,7 @@ def test_workflow_node_edge_operations(experiment_id):
     client.get(f"/experiment/{experiment_id}/workflows/delete/{workflow_id}")
 
 
-def test_workflow_node_deletion_with_connections(experiment_id):
+def test_workflow_node_deletion_with_connections(client, experiment_id):
     """Test node deletion when node has connections"""
     # Create workflow
     workflow_resp = client.get(f"/experiment/{experiment_id}/workflows/create?name=test_workflow897")
@@ -1282,7 +1282,7 @@ def test_workflow_node_deletion_with_connections(experiment_id):
     assert node3_id in node1["out"]
 
 
-def test_workflow_empty_node_operations():
+def test_workflow_empty_node_operations(client):
     """Test operations on workflows with empty or minimal nodes"""
     # Create experiment for this specific test
     exp_resp = client.get("/experiment/create?name=test_workflow_empty_ops")
@@ -1354,7 +1354,7 @@ def test_find_nodes_by_ids_comprehensive():
     assert len(result) == 2  # Should not duplicate
 
 
-def test_workflow_run_with_job_data_edge_cases():
+def test_workflow_run_with_job_data_edge_cases(client):
     """Test workflow run with various job data scenarios"""
     # Create experiment for this specific test
     exp_resp = client.get("/experiment/create?name=test_job_data_edges")
@@ -1392,7 +1392,7 @@ def test_workflow_run_with_job_data_edge_cases():
 
 
 @pytest.mark.skip(reason="Skipping complex workflow test because it doesn't always work")
-def test_workflow_next_step_with_complex_scenarios():
+def test_workflow_next_step_with_complex_scenarios(client):
     """Test complex workflow scenarios through API execution"""
 
     # Test 1: Multi-step workflow creation and execution

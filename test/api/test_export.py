@@ -28,6 +28,7 @@ def test_export_job(client):
 @patch("json.dump")
 @patch("builtins.open")
 def test_run_exporter_script_success(
+    client,
     mock_open,
     mock_json_dump,
     mock_path_join,
@@ -71,7 +72,7 @@ def test_run_exporter_script_success(
 
 
 @patch("transformerlab.db.experiment_get")
-def test_run_exporter_script_invalid_experiment(mock_experiment_get):
+def test_run_exporter_script_invalid_experiment(client, mock_experiment_get):
     # Setup mock to simulate experiment not found
     mock_experiment_get.return_value = None
 
@@ -88,7 +89,7 @@ def test_run_exporter_script_invalid_experiment(mock_experiment_get):
 @patch("transformerlab.db.job_update_status")
 @patch("os.makedirs")
 def test_run_exporter_script_process_error(
-    mock_makedirs, mock_job_update, mock_get_output_file, mock_subprocess, mock_job_create, mock_experiment_get
+    client, mock_makedirs, mock_job_update, mock_get_output_file, mock_subprocess, mock_job_create, mock_experiment_get
 ):
     # Setup mocks
     mock_experiment_get.return_value = {
@@ -119,7 +120,7 @@ def test_run_exporter_script_process_error(
 @patch("transformerlab.db.job_update_status")
 @patch("os.makedirs")
 def test_run_exporter_script_stderr_decode_error(
-    mock_makedirs, mock_job_update, mock_get_output_file, mock_subprocess, mock_job_create, mock_experiment_get
+    client, mock_makedirs, mock_job_update, mock_get_output_file, mock_subprocess, mock_job_create, mock_experiment_get
 ):
     # Setup mocks
     mock_experiment_get.return_value = {
@@ -183,7 +184,7 @@ def test_get_output_file_name_with_plugin(mock_exists, mock_plugin_dir, mock_job
 
 
 @patch("transformerlab.routers.experiment.export.get_output_file_name")
-def test_watch_export_log_value_error(mock_get_output_file):
+def test_watch_export_log_value_error(client, mock_get_output_file):
     mock_get_output_file.side_effect = ValueError("File not found for job")
 
     resp = client.get("/experiment/1/export/job/job123/stream_output")
@@ -193,7 +194,7 @@ def test_watch_export_log_value_error(mock_get_output_file):
 
 
 @patch("transformerlab.routers.experiment.export.get_output_file_name")
-def test_watch_export_log_other_error(mock_get_output_file):
+def test_watch_export_log_other_error(client, mock_get_output_file):
     # Setup mock to raise a different ValueError
     mock_get_output_file.side_effect = ValueError("Some other error")
 
@@ -206,7 +207,7 @@ def test_watch_export_log_other_error(mock_get_output_file):
 @patch("transformerlab.db.job_get")
 @patch("transformerlab.routers.experiment.export.dirs.plugin_dir_by_name")
 @patch("os.path.exists")
-def test_get_output_file_name_no_existing_file(mock_exists, mock_plugin_dir, mock_job_get):
+def test_get_output_file_name_no_existing_file(client, mock_exists, mock_plugin_dir, mock_job_get):
     """
     When the job has a plugin but no bespoke output_file_path and
     the file doesn't exist yet, export.get_output_file_name should
@@ -223,7 +224,7 @@ def test_get_output_file_name_no_existing_file(mock_exists, mock_plugin_dir, moc
 @patch("transformerlab.routers.experiment.export.watch_file")
 @patch("transformerlab.routers.experiment.export.asyncio.sleep")
 @patch("transformerlab.routers.experiment.export.get_output_file_name")
-def test_watch_export_log_retry_success(mock_get_output_file, mock_sleep, mock_watch_file):
+def test_watch_export_log_retry_success(client, mock_get_output_file, mock_sleep, mock_watch_file):
     """
     First call to get_output_file_name raises the special ValueError.
     async sleep is awaited, then the second call succeeds and the route
@@ -258,7 +259,7 @@ def test_watch_export_log_retry_success(mock_get_output_file, mock_sleep, mock_w
 @patch("asyncio.create_subprocess_exec")
 @patch("transformerlab.routers.experiment.export.get_output_file_name")
 @patch("builtins.open")
-def test_stderr_decode_fallback(mock_open, mock_get_outfile, mock_subproc, mock_job_create, mock_exp_get):
+def test_stderr_decode_fallback(client, mock_open, mock_get_outfile, mock_subproc, mock_job_create, mock_exp_get):
     # minimal fixtures
     mock_exp_get.return_value = {"config": '{"foundation":"hf/x","foundation_model_architecture":"pt"}'}
     mock_job_create.return_value = "j1"
