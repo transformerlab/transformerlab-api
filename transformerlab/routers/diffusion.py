@@ -45,7 +45,6 @@ from typing import List
 from PIL import Image
 import shutil
 from transformerlab.db.datasets import get_dataset, create_local_dataset, delete_dataset
-import transformerlab.db.db as db
 from transformerlab.models import model_helper
 from transformerlab.shared import dirs
 from transformerlab.shared.shared import slugify
