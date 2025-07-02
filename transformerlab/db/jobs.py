@@ -5,6 +5,7 @@ import json
 from sqlalchemy import insert, select, text, update
 from transformerlab.db.session import async_session
 from transformerlab.shared.models import models
+from transformerlab.db.utils import sqlalchemy_to_dict, sqlalchemy_list_to_dict
 
 # Allowed job types:
 ALLOWED_JOB_TYPES = [
@@ -54,7 +55,7 @@ async def jobs_get_all(type="", status=""):
         jobs = result.scalars().all()
         data = []
         for job in jobs:
-            row = job.__dict__.copy()
+            row = sqlalchemy_to_dict(job)
             # Convert job_data from JSON string to dict if needed
             if "job_data" in row and row["job_data"]:
                 if isinstance(row["job_data"], str):
@@ -81,7 +82,7 @@ async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
         jobs = result.scalars().all()
         data = []
         for job in jobs:
-            row = job.__dict__.copy()
+            row = sqlalchemy_to_dict(job)
             # Convert job_data from JSON string to dict if needed
             if "job_data" in row and row["job_data"]:
                 if isinstance(row["job_data"], str):
@@ -124,7 +125,7 @@ async def job_get(job_id):
         job = result.scalar_one_or_none()
         if job is None:
             return None
-        row = job.__dict__.copy()
+        row = sqlalchemy_to_dict(job)
         # Convert job_data from JSON string to dict if needed
         if "job_data" in row and row["job_data"]:
             if isinstance(row["job_data"], str):
@@ -150,7 +151,7 @@ async def jobs_get_next_queued_job():
         job = result.scalar_one_or_none()
         if job is None:
             return None
-        row = job.__dict__.copy()
+        row = sqlalchemy_to_dict(job)
         # Convert job_data from JSON string to dict if needed
         if "job_data" in row and row["job_data"]:
             if isinstance(row["job_data"], str):

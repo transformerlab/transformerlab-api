@@ -365,6 +365,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     experiment_id = job_details["experiment_id"]
     # Get the experiment details from the database:
     experiment_details = await experiment_get(experiment_id)
+    print("Experiment Details: " ,experiment_details)
     experiment_details_as_string = json.dumps(experiment_details)
     experiment_name = experiment_details["name"]
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
