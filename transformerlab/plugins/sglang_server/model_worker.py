@@ -24,7 +24,7 @@ from fastapi import FastAPI, Request, BackgroundTasks
 from fastapi.responses import StreamingResponse, JSONResponse
 import uvicorn
 
-from fastchat.conversation import IMAGE_PLACEHOLDER_STR
+from fastchat.conversation import IMAGE_PLACEHOLDER_STR, SeparatorStyle
 from fastchat.model.model_adapter import get_conversation_template
 from fastchat.constants import ErrorCode, SERVER_ERROR_MSG
 from fastchat.serve.base_model_worker import BaseModelWorker
@@ -62,7 +62,35 @@ app = FastAPI()
 workspace = os.environ["_TFL_WORKSPACE_DIR"]
 TMP_IMG_DIR = Path(f"{workspace}/plugins/sglang_server/tmp_img")
 
-LAST_ASSISTANT_RE = re.compile(r"<\|im_start\|>assistant\s*(.*?)<\|im_end\|>", re.S)
+
+def get_assistant_tokens(conv):
+    sep_style = conv.sep_style
+    sep = conv.sep
+
+    if sep_style == SeparatorStyle.CHATML:
+        start_token = "<|im_start|>assistant"
+        end_token = "<|im_end|>"
+        last_assistant_re = re.compile(r"<\|im_start\|>assistant\s*(.*?)<\|im_end\|>", re.S)
+
+    elif sep_style == SeparatorStyle.LLAMA_2:
+        start_token = "Assistant:"
+        end_token = sep
+        last_assistant_re = re.compile(r"Assistant:\s*(.*?)" + re.escape(sep), re.S)
+
+    elif sep_style == SeparatorStyle.ALPACA:
+        start_token = "### Assistant:"
+        end_token = sep
+        last_assistant_re = re.compile(r"### Assistant:\s*(.*?)" + re.escape(sep), re.S)
+
+    elif sep_style == SeparatorStyle.PLAIN:
+        start_token = "Assistant:"
+        end_token = None
+        last_assistant_re = re.compile(r"Assistant:\s*(.*)", re.S)
+
+    else:
+        raise NotImplementedError(f"Unsupported separator style: {sep_style}")
+
+    return start_token, end_token, last_assistant_re
 
 
 def create_model_worker():
@@ -195,6 +223,7 @@ class SGLWorker(BaseModelWorker):
         except (KeyError, AttributeError, TypeError):
             self.context_len = getattr(config, "max_position_embeddings", 2048)  # Safe default
 
+        self.model_path = model_path
         self.runtime = runtime
 
         if not no_register:
@@ -204,6 +233,7 @@ class SGLWorker(BaseModelWorker):
         try:
             self.call_ct += 1
 
+            start_token, end_token, LAST_ASSISTANT_RE = get_assistant_tokens(get_conversation_template(self.model_path))
             prompt: str = params.pop("prompt")
             images = params.get("images", [])
 
@@ -293,31 +323,33 @@ class SGLWorker(BaseModelWorker):
                 stream=True,
             )
 
-            entire_output = ""
             stream_iter = state.text_async_iter()
+
+            assistant_started = False
+            assistant_text = ""
 
             async for out in stream_iter:
                 partial_stop = any(is_partial_stop(out, i) for i in stop)
                 if partial_stop:
                     continue
-                entire_output += out
+                if not assistant_started:
+                    # Wait until the assistant block begins
+                    idx = out.find(start_token)
+                    if idx == -1:
+                        continue  # still preamble tokens
+                    assistant_started = True
+                    out = out[idx + len(start_token) :]
 
-            match = LAST_ASSISTANT_RE.findall(entire_output)
-            last_assistant_response = match[-1].strip() if match else entire_output.strip()
-
-            prompt_tokens = 0
-            completion_tokens = 0
-
-            ret = {
-                "text": last_assistant_response,
-                "usage": {
-                    "prompt_tokens": prompt_tokens,
-                    "completion_tokens": completion_tokens,
-                    "total_tokens": prompt_tokens + completion_tokens,
-                },
-                "error_code": 0,
-            }
-            yield ret
+                # Drop any start and end-tags that may arrive
+                out = out.replace(start_token, "")
+                out = out.replace(end_token, "")
+                assistant_text += out
+                ret = {
+                    "text": assistant_text,
+                    "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                    "error_code": 0,
+                }
+                yield ret
 
         except Exception as e:
             raise ValueError(f"Failed: {e}")
@@ -326,9 +358,9 @@ class SGLWorker(BaseModelWorker):
         try:
             async for ret in self.generate_stream(params):
                 yield json.dumps(ret).encode() + b"\0"
-        except (ValueError, RuntimeError) as e:
+        except (ValueError, RuntimeError):
             ret = {
-                "text": f"{SERVER_ERROR_MSG}\n\n({e})",
+                "text": f"{SERVER_ERROR_MSG})",
                 "error_code": ErrorCode.INTERNAL_ERROR,
             }
             yield json.dumps(ret).encode() + b"\0"
