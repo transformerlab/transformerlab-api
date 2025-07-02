@@ -4,6 +4,7 @@ import sqlite3
 import itertools
 import sys
 import logging
+import asyncio
 from pathlib import Path
 
 
@@ -13,6 +14,38 @@ if WORKSPACE_DIR is None:
     print("Plugin Harness Error: Environment variable _TFL_WORKSPACE_DIR is not set. Quitting.")
     exit(1)
 TEMP_DIR = os.path.join(WORKSPACE_DIR, "temp")
+
+
+def clean_sqlite_row_dict(row_dict):
+    """
+    Clean a SQLite row dictionary by excluding unwanted fields.
+    Excludes: created_at, updated_at, and any SQLAlchemy internal fields.
+    Also recursively cleans nested dictionaries and lists.
+    """
+    if row_dict is None:
+        return None
+    
+    if not isinstance(row_dict, dict):
+        return row_dict
+        
+    excluded_fields = {'created_at', 'updated_at', '_sa_instance_state'}
+    
+    result = {}
+    for k, v in row_dict.items():
+        # Skip excluded fields and any fields starting with '_sa_'
+        if k in excluded_fields or k.startswith('_sa_'):
+            continue
+            
+        # Recursively clean nested dictionaries
+        if isinstance(v, dict):
+            result[k] = clean_sqlite_row_dict(v)
+        # Clean lists that might contain dictionaries
+        elif isinstance(v, list):
+            result[k] = [clean_sqlite_row_dict(item) if isinstance(item, dict) else item for item in v]
+        else:
+            result[k] = v
+    
+    return result
 
 # Maintain a singleton database connection
 db = None
@@ -47,10 +80,11 @@ def get_dataset_path(dataset_id: str):
     if row is None:
         raise Exception(f"No dataset named {dataset_id} installed.")
 
+    dataset_location = row[0]
+    
     # dataset_location will be either "local" or "huggingface"
     # (and if it's something else we're going to treat "huggingface" as default)
     # if it's local then pass it the path to the dataset directory
-    dataset_location = row[0]
     if dataset_location == "local":
         return os.path.join(WORKSPACE_DIR, "datasets", dataset_id)
 
@@ -67,10 +101,10 @@ def get_db_config_value(key: str):
     cursor = db.execute("SELECT value FROM config WHERE key = ?", (key,))
     row = cursor.fetchone()
     cursor.close()
-
-    if row is None:
-        return None
-    return row[0]
+    
+    if row is not None:
+        return row[0]
+    return None
 
 
 def test_wandb_login(project_name: str = "TFL_Training"):
@@ -104,10 +138,13 @@ def experiment_get_by_name(name):
     # Convert the SQLite row into a JSON object with keys
     desc = cursor.description
     column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
+    row_dict = dict(itertools.zip_longest(column_names, row))
+    
+    # Clean the row dictionary to exclude unwanted fields
+    result = clean_sqlite_row_dict(row_dict)
 
     cursor.close()
-    return row
+    return result
 
 
 def experiment_get(id):
@@ -123,10 +160,13 @@ def experiment_get(id):
     # Convert the SQLite row into a JSON object with keys
     desc = cursor.description
     column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
+    row_dict = dict(itertools.zip_longest(column_names, row))
+    
+    # Clean the row dictionary to exclude unwanted fields
+    result = clean_sqlite_row_dict(row_dict)
 
     cursor.close()
-    return row
+    return result
 
 
 def get_experiment_id_from_name(name: str):
@@ -203,10 +243,21 @@ class Job:
         row = cursor.fetchone()
         cursor.close()
 
-        if row is not None:
-            job_data = json.loads(row[0])
-            if job_data.get("stop", False):
-                self.should_stop = True
+        if row is not None and row[0] is not None:
+            try:
+                job_data = json.loads(row[0])
+                
+                # If the result is still a string (double-encoded JSON), parse again
+                if isinstance(job_data, str):
+                    job_data = json.loads(job_data)
+                
+                # Clean the job_data to ensure no unwanted fields are processed
+                clean_job_data = clean_sqlite_row_dict(job_data) if isinstance(job_data, dict) else job_data
+                if clean_job_data and clean_job_data.get("stop", False):
+                    self.should_stop = True
+            except json.JSONDecodeError:
+                # If JSON parsing fails, just continue without setting stop flag
+                pass
 
     def update_status(self, status: str):
         """
@@ -251,11 +302,29 @@ class Job:
         row = cursor.fetchone()
         cursor.close()
 
-        if row is not None:
-            if isinstance(row[0], str):
-                return json.loads(row[0])
+        if row is not None and row[0] is not None:
+            raw_data = row[0]
+            
+            # Handle different storage formats
+            if isinstance(raw_data, str):
+                try:
+                    # First, try to parse as JSON
+                    job_data = json.loads(raw_data)
+                    
+                    # If the result is still a string (double-encoded JSON), parse again
+                    if isinstance(job_data, str):
+                        job_data = json.loads(job_data)
+                    
+                    # Clean the job_data dictionary to exclude unwanted fields
+                    return clean_sqlite_row_dict(job_data) if isinstance(job_data, dict) else job_data
+                    
+                except json.JSONDecodeError as e:
+                    print(f"Error parsing job_data JSON: {e}")
+                    print(f"Raw data: {raw_data}")
+                    return None
             else:
-                return row[0]
+                # If it's already a dict, clean it directly
+                return clean_sqlite_row_dict(raw_data) if isinstance(raw_data, dict) else raw_data
         return None
 
     def set_tensorboard_output_dir(self, tensorboard_dir: str):
