@@ -43,10 +43,10 @@ popen_args = [
     "-m",
     "vllm.entrypoints.openai.api_server",
     "--model", model,
-    "--dtype", args.model_dtype,
-    "--port", args.port,
-    "--max-model-len", args.max_model_len,
-    "--gpu-memory-utilization", args.gpu_memory_utilization,
+    "--dtype", parameters.get("model_dtype", "auto"),
+    "--port", parameters.get("port", 8000),
+    "--max-model-len", parameters.get("max_model_len", 2048),
+    "--gpu-memory-utilization", parameters.get("gpu_memory_utilization", 0.9),
 ]
 
 process = subprocess.Popen(popen_args)
@@ -58,7 +58,7 @@ popen_args = [
     "--model-path", model,
     "--proxy-url", f"http://localhost:{args.port}/v1",
     "--model", model.split("/")[-1],
-    "--model-names", [args.model],
+    "--model-names", [model],
     ]
 
 
