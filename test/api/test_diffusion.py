@@ -291,8 +291,8 @@ def test_create_dataset_from_history_success(client):
     """Test creating a dataset from history images"""
     with (
         patch("transformerlab.routers.diffusion.find_image_by_id") as mock_find_image,
-        patch("transformerlab.db.datasets.get_dataset", return_value=None),
-        patch("transformerlab.db.datasets.create_local_dataset") as mock_create_dataset,
+        patch("transformerlab.routers.diffusion.get_dataset", return_value=None),
+        patch("transformerlab.routers.diffusion.create_local_dataset") as mock_create_dataset,
         patch("transformerlab.shared.dirs.dataset_dir_by_id", return_value="/fake/dataset"),
         patch("os.makedirs"),
         patch("os.path.exists", return_value=True),
@@ -358,7 +358,7 @@ def test_create_dataset_invalid_image_ids(client):
 def test_create_dataset_existing_dataset(client):
     """Test creating dataset with name that already exists"""
     with (
-        patch("transformerlab.db.datasets.get_dataset", return_value={"id": "existing"}),
+        patch("transformerlab.routers.diffusion.get_dataset", return_value={"id": "existing"}),
         patch("transformerlab.routers.diffusion.find_image_by_id") as mock_find_image,
     ):
         mock_image = MagicMock()
@@ -382,7 +382,7 @@ def test_create_dataset_no_images_found(client):
     """Test creating dataset when no images are found for given IDs"""
     with (
         patch("transformerlab.routers.diffusion.find_image_by_id") as mock_find_image,
-        patch("transformerlab.db.datasets.get_dataset", return_value=None),
+        patch("transformerlab.routers.diffusion.get_dataset", return_value=None),
     ):
         mock_find_image.return_value = None
 
