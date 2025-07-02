@@ -48,6 +48,7 @@ from transformerlab.routers import (
     diffusion,
     recipes,
     users,
+    plugin_ui_proxy,
 )
 import torch
 
@@ -65,6 +66,7 @@ from transformerlab.routers.experiment import workflows
 from transformerlab.shared import dirs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
+from transformerlab.services.gradio_server.gradio_server_manager import get_gradio_server_manager
 
 from dotenv import load_dotenv
 
@@ -95,10 +97,13 @@ async def lifespan(app: FastAPI):
     # run the migration
     asyncio.create_task(migrate())
     asyncio.create_task(run_over_and_over())
+
+    get_gradio_server_manager().start()
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
     # Do the following at API Shutdown:
     await db.close()
+    get_gradio_server_manager().stop()
     # Run the clean up function
     cleanup_at_exit()
     print("FastAPI LIFESPAN: Complete")
@@ -189,6 +194,7 @@ app.include_router(recipes.router)
 app.include_router(batched_prompts.router)
 app.include_router(fastchat_openai_api.router)
 app.include_router(diffusion.router)
+app.include_router(plugin_ui_proxy.router)
 app.include_router(get_xmlrpc_router())
 app.include_router(get_trainer_xmlrpc_router())
 
