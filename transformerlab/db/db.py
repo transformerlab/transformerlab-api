@@ -16,6 +16,7 @@ from typing import AsyncGenerator
 from fastapi import Depends
 from fastapi_users.db import SQLAlchemyUserDatabase
 
+from transformerlab.db.jobs import ALLOWED_JOB_TYPES, job_create
 from transformerlab.shared.models import models  # noqa: F401
 from transformerlab.shared.models.models import Config, Plugin
 
