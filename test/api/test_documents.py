@@ -1,21 +1,13 @@
 import os
 import pytest
 import time
-from fastapi.testclient import TestClient
 
 # Set environment variables before importing modules
 os.environ["TFL_HOME_DIR"] = "./test/tmp/"
 os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
 
-from api import app
 from transformerlab.routers.experiment.documents import document_download_zip
 from fastapi import HTTPException
-
-
-@pytest.fixture
-def client():
-    with TestClient(app) as c:
-        yield c
 
 
 async def test_download_zip_missing_url():

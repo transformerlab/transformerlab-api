@@ -6,7 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body
 
-import transformerlab.db as db
+import transformerlab.db.db as db
 
 from transformerlab.shared import dirs
 

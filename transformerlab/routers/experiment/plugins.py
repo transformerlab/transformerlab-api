@@ -8,7 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Body
 import httpx
 
-import transformerlab.db as db
+import transformerlab.db.db as db
 
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
