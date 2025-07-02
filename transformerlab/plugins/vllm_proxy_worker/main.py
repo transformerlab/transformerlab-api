@@ -70,6 +70,7 @@ vllm_args = [
     "--port", str(port),
     "--max-model-len", str(parameters.get("max_model_len", 2048)),
     "--gpu-memory-utilization", str(parameters.get("gpu_memory_utilization", 0.9)),
+    "--enforce-eager",
 ]
 print("Starting vLLM OpenAI API server...", file=sys.stderr)
 vllm_proc = subprocess.Popen(vllm_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -80,7 +81,7 @@ threading.Thread(target=stream_output, args=(vllm_proc.stdout, "vLLM-stdout"), d
 threading.Thread(target=stream_output, args=(vllm_proc.stderr, "vLLM-stderr"), daemon=True).start()
 
 # Wait for vLLM server to be ready (port open)
-if not wait_for_port(host, port, timeout=30):
+if not wait_for_port(host, port, timeout=120):
     print(f"Error: vLLM server did not start listening on {host}:{port} within timeout.", file=sys.stderr)
     vllm_proc.terminate()
     vllm_proc.wait()
