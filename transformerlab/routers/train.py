@@ -8,7 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Body
 from fastapi.responses import PlainTextResponse, StreamingResponse
 import logging
-import transformerlab.db as db
+import transformerlab.db.db as db
 from transformerlab.routers.serverinfo import watch_file
 from transformerlab.shared import dirs
 from transformerlab.shared import galleries

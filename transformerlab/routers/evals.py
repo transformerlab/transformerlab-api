@@ -1,6 +1,6 @@
 import json
 import os
-import transformerlab.db as db
+import transformerlab.db.db as db
 import pandas as pd
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse

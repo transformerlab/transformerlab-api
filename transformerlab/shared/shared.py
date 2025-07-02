@@ -13,7 +13,7 @@ from anyio import open_process
 from anyio.streams.text import TextReceiveStream
 from werkzeug.utils import secure_filename
 
-import transformerlab.db as db
+import transformerlab.db.db as db
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
 from transformerlab.shared import dirs

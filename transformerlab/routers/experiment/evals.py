@@ -5,7 +5,7 @@ import subprocess
 import sys
 from typing import Any
 
-import transformerlab.db as db
+import transformerlab.db.db as db
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
 from transformerlab.shared import dirs

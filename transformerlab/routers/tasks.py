@@ -1,7 +1,7 @@
 import json
 from fastapi import APIRouter, Body
 
-import transformerlab.db as db
+import transformerlab.db.db as db
 from transformerlab.models import model_helper
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])

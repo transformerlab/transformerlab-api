@@ -3,7 +3,7 @@ import json
 import os
 import subprocess
 import sys
-import transformerlab.db as db
+import transformerlab.db.db as db
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from transformerlab.shared import dirs

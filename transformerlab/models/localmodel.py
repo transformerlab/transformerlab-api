@@ -9,7 +9,7 @@ import os
 import json
 from huggingface_hub import hf_hub_download
 from transformerlab.models import modelstore
-import transformerlab.db as db
+import transformerlab.db.db as db
 from transformerlab.shared import dirs
 
 
@@ -255,11 +255,18 @@ class LocalModelStore(modelstore.ModelStore):
         models_added_to_provenance = 0
         # Iterate through models and check if they have provenance data and if they exist already in provenance
         for model_dict in models:
-            if model_dict.get('model_id', "") not in provenance.keys() or model_dict.get('model_name', "") not in provenance.keys():
+            if (
+                model_dict.get("model_id", "") not in provenance.keys()
+                or model_dict.get("model_name", "") not in provenance.keys()
+            ):
                 # Check if the model_source is local
-                if model_dict.get('json_data', {}).get("source", "") == 'local' and os.path.exists(model_dict.get('json_data', {}).get("source_id_or_path", "")):
+                if model_dict.get("json_data", {}).get("source", "") == "local" and os.path.exists(
+                    model_dict.get("json_data", {}).get("source_id_or_path", "")
+                ):
                     # Check if the model has a _tlab_provenance.json file
-                    provenance_file = os.path.join(model_dict['json_data']['source_id_or_path'], "_tlab_provenance.json")
+                    provenance_file = os.path.join(
+                        model_dict["json_data"]["source_id_or_path"], "_tlab_provenance.json"
+                    )
                     if os.path.exists(provenance_file):
                         # Load the provenance file
                         with open(provenance_file, "r") as f:
@@ -278,10 +285,8 @@ class LocalModelStore(modelstore.ModelStore):
                             # Add to provenance mapping
                             provenance[output_model] = prov_data
                             models_added_to_provenance += 1
-        
+
         return provenance, models_added_to_provenance
-
-
 
     async def trace_provenance(self, latest_model, provenance_mapping):
         """

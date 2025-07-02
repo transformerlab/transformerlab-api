@@ -306,7 +306,7 @@ def test_workflow_run_cancel_with_active_jobs(client, experiment_id):
     # Manually add job to workflow run to simulate active job
     # This simulates what happens when a workflow step is running
     import asyncio
-    from transformerlab import db
+    from transformerlab.db import db
 
     async def add_job_to_run():
         await db.workflow_run_update_with_new_job(run_id, f'["{job_id}"]', f"[{job_id}]")

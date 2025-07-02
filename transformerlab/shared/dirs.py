@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-import transformerlab.db as db
+import transformerlab.db.db as db
 
 from werkzeug.utils import secure_filename
 

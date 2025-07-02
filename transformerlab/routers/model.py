@@ -4,7 +4,7 @@ import shutil
 import datetime
 import dateutil.relativedelta
 from typing import Annotated
-import transformerlab.db as db
+import transformerlab.db.db as db
 from fastapi import APIRouter, Body
 from fastchat.model.model_adapter import get_conversation_template
 from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi, list_repo_tree

@@ -44,7 +44,7 @@ import time
 from typing import List
 from PIL import Image
 import shutil
-import transformerlab.db as db
+import transformerlab.db.db as db
 from transformerlab.models import model_helper
 from transformerlab.shared import dirs
 from transformerlab.shared.shared import slugify

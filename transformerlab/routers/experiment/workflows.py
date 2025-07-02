@@ -1,6 +1,6 @@
 from fastapi import APIRouter, UploadFile, Body
 from fastapi.responses import FileResponse
-import transformerlab.db as db
+import transformerlab.db.db as db
 import transformerlab.routers.tasks as tsks
 import json
 import yaml
