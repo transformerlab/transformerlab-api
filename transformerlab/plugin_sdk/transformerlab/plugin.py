@@ -30,7 +30,7 @@ def get_db_connection():
         # Need to set these every time we open a connection
         db.execute("PRAGMA journal_mode=WAL")
         db.execute("PRAGMA synchronous=normal")
-        db.execute("PRAGMA busy_timeout=5000")
+        db.execute("PRAGMA busy_timeout=30000")
     return db
 
 
