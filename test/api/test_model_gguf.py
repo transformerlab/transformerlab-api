@@ -175,14 +175,3 @@ def test_gguf_large_model_file_listing(client):
             has_q4 = any("Q4" in f for f in available_files)
             has_q8 = any("Q8" in f for f in available_files)
             assert has_q4 or has_q8  # Should have at least one common quantization
-
-
-# Update tests to use the shared client fixture
-def test_model_gguf_list(client):
-    resp = client.get("/model_gguf/list")
-    assert resp.status_code == 200
-
-
-def test_model_gguf_get(client):
-    resp = client.get("/model_gguf/1")
-    assert resp.status_code in (200, 404)

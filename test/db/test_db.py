@@ -265,7 +265,11 @@ async def test_experiment_update_and_update_config_and_save_prompt_template(test
     await experiment_update_config(test_experiment, "baz", 123)
     exp = await experiment_get(test_experiment)
     print(exp["config"])
-    config_dict = json.loads(exp["config"])
+    if not isinstance(exp["config"], dict):
+        exp_config = json.loads(exp["config"])
+    else:
+        exp_config = exp["config"]
+    config_dict = exp_config
     assert config_dict.get("baz") == 123
     await experiment_save_prompt_template(test_experiment, '"prompt"')
     exp = await experiment_get(test_experiment)

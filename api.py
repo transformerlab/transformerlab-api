@@ -31,6 +31,7 @@ from fastchat.protocol.openai_api_protocol import (
 )
 
 from transformerlab.db.jobs import job_create, job_get_error_msg, job_update_status
+from transformerlab.db.db import experiment_get
 import transformerlab.db.session as db
 from transformerlab.routers import (
     data,
@@ -276,11 +277,14 @@ async def server_worker_start(
     # then we check to see if we are an experiment
     elif experiment_id is not None:
         try:
-            experiment = await db.experiment_get(experiment_id)
+            experiment = await experiment_get(experiment_id)
             experiment_config = experiment["config"]
-            experiment_config = json.loads(experiment_config)
+            if not isinstance(experiment_config, dict):
+                experiment_config = json.loads(experiment_config)
             inference_params = experiment_config["inferenceParams"]
-            inference_params = json.loads(inference_params)
+            if not isinstance(inference_params, dict):
+                # if inference_params is a string, we need to parse it as JSON
+                inference_params = json.loads(inference_params)
         except json.JSONDecodeError:
             return {"status": "error", "message": "malformed inference params passed"}
     # if neither are true, then we have an issue

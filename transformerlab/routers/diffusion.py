@@ -44,8 +44,7 @@ import time
 from typing import List
 from PIL import Image
 import shutil
-from transformerlab.db.datasets import get_dataset
-import transformerlab.db.db as db
+from transformerlab.db.datasets import get_dataset, create_local_dataset, delete_dataset
 from transformerlab.models import model_helper
 from transformerlab.shared import dirs
 from transformerlab.shared.shared import slugify
@@ -1707,7 +1706,7 @@ async def create_dataset_from_history(request: CreateDatasetRequest):
             "image_count": total_image_count,
             "created_from_image_ids": image_ids,
         }
-        await db.create_local_dataset(dataset_id, json_data=json_data)
+        await create_local_dataset(dataset_id, json_data=json_data)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to create dataset in database: {str(e)}")
 
@@ -1832,7 +1831,7 @@ async def create_dataset_from_history(request: CreateDatasetRequest):
 
     if not dataset_records:
         # Clean up if no images were successfully processed
-        await db.delete_dataset(dataset_id)
+        await delete_dataset(dataset_id)
         shutil.rmtree(dataset_dir, ignore_errors=True)
         raise HTTPException(status_code=500, detail="Failed to process any images")
 
@@ -1846,7 +1845,7 @@ async def create_dataset_from_history(request: CreateDatasetRequest):
                 f.write(json.dumps(record) + "\n")
     except Exception as e:
         # Clean up on failure
-        await db.delete_dataset(dataset_id)
+        await delete_dataset(dataset_id)
         shutil.rmtree(dataset_dir, ignore_errors=True)
         raise HTTPException(status_code=500, detail=f"Failed to save dataset: {str(e)}")
 

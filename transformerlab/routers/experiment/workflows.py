@@ -1,6 +1,6 @@
 from fastapi import APIRouter, UploadFile, Body
 from fastapi.responses import FileResponse
-import transformerlab.db.db as db
+from transformerlab.db.db import tasks_get_all
 import transformerlab.db.jobs as db_jobs
 from transformerlab.db.workflows import (
     workflow_count_queued,
@@ -556,7 +556,7 @@ async def handle_start_node_skip(next_task_ids, workflow_config, workflow_run_id
 
 async def find_task_definition(task_name: str, workflow_run_id: int):
     """Finds the task definition from the database by name."""
-    tasks = await db.tasks_get_all()
+    tasks = await tasks_get_all()
     for task in tasks:
         if task.get("name") == task_name:
             return task

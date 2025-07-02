@@ -27,6 +27,12 @@ def test_diffusion_generate_success(client):
             "clip_skip": 0,
             "guidance_rescale": 0.0,
             "scheduler": "EulerDiscreteScheduler",
+            "num_images": 1,  # REQUIRED
+            "is_img2img": False,
+            "is_inpainting": False,
+            "is_controlnet": "",  # or "off"
+            "input_image": "",
+            "mask_image": "",
         }
         resp = client.post("/diffusion/generate", json=payload)
         assert resp.status_code == 200
@@ -285,8 +291,8 @@ def test_create_dataset_from_history_success(client):
     """Test creating a dataset from history images"""
     with (
         patch("transformerlab.routers.diffusion.find_image_by_id") as mock_find_image,
-        patch("transformerlab.db.get_dataset", return_value=None),
-        patch("transformerlab.db.create_local_dataset") as mock_create_dataset,
+        patch("transformerlab.routers.diffusion.get_dataset", return_value=None),
+        patch("transformerlab.routers.diffusion.create_local_dataset") as mock_create_dataset,
         patch("transformerlab.shared.dirs.dataset_dir_by_id", return_value="/fake/dataset"),
         patch("os.makedirs"),
         patch("os.path.exists", return_value=True),
@@ -326,8 +332,8 @@ def test_create_dataset_from_history_success(client):
         }
 
         resp = client.post("/diffusion/dataset/create", json=payload)
-        assert resp.status_code == 200
         data = resp.json()
+        assert resp.status_code == 200
         assert data["status"] == "success"
         assert "test-dataset" in data["message"]
         mock_create_dataset.assert_called_once()
@@ -347,9 +353,17 @@ def test_create_dataset_invalid_image_ids(client):
     assert "Invalid image IDs list" in resp.json()["detail"]
 
 
+# @pytest.mark.skip(reason="Skipping test as it uses unnecessary patching")
 def test_create_dataset_existing_dataset(client):
     """Test creating dataset with name that already exists"""
-    with patch("transformerlab.db.get_dataset", return_value={"id": "existing"}):
+    with (
+        patch("transformerlab.routers.diffusion.get_dataset", return_value={"id": "existing"}),
+        patch("transformerlab.routers.diffusion.find_image_by_id") as mock_find_image,
+    ):
+        mock_image = MagicMock()
+        mock_image.id = "test-id"
+        mock_find_image.return_value = mock_image
+
         payload = {
             "dataset_name": "existing-dataset",
             "image_ids": ["test-id"],
@@ -366,7 +380,7 @@ def test_create_dataset_no_images_found(client):
     """Test creating dataset when no images are found for given IDs"""
     with (
         patch("transformerlab.routers.diffusion.find_image_by_id") as mock_find_image,
-        patch("transformerlab.db.get_dataset", return_value=None),
+        patch("transformerlab.routers.diffusion.get_dataset", return_value=None),
     ):
         mock_find_image.return_value = None
 
