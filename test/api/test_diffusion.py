@@ -27,6 +27,12 @@ def test_diffusion_generate_success(client):
             "clip_skip": 0,
             "guidance_rescale": 0.0,
             "scheduler": "EulerDiscreteScheduler",
+            "num_images": 1,  # REQUIRED
+            "is_img2img": False,
+            "is_inpainting": False,
+            "is_controlnet": "",  # or "off"
+            "input_image": "",
+            "mask_image": "",
         }
         resp = client.post("/diffusion/generate", json=payload)
         assert resp.status_code == 200
