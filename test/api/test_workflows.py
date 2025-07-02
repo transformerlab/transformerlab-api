@@ -112,7 +112,11 @@ def test_workflow_node_operations(client, experiment_id):
     assert workflow_resp.status_code == 200
     workflows = workflow_resp.json()
     workflow = next(w for w in workflows if w["id"] == workflow_id)
-    nodes = json.loads(workflow["config"])["nodes"]
+    workflow_config = workflow["config"]
+    if not isinstance(workflow_config, dict):
+        workflow_config = json.loads(workflow_config)
+
+    nodes = workflow_config["nodes"]
     node_id = next(n["id"] for n in nodes if n["type"] == "TASK")
 
     # Update node metadata

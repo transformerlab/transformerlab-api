@@ -17,7 +17,7 @@ from fastapi import Depends
 from fastapi_users.db import SQLAlchemyUserDatabase
 
 from transformerlab.db.jobs import ALLOWED_JOB_TYPES, job_create
-from transformerlab.shared.models import models  # noqa: F401
+from transformerlab.shared.models import models
 from transformerlab.shared.models.models import Config, Plugin
 
 from transformerlab.db.constants import DATABASE_FILE_NAME
@@ -437,7 +437,7 @@ async def experiment_update(id, config):
 
 
 async def experiment_update_config(id, key, value):
-    # Fetch the experiment
+    # Fetch and update the experiment config in a single transaction
     async with async_session() as session:
         result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
         experiment = result.scalar_one_or_none()
@@ -457,13 +457,14 @@ async def experiment_update_config(id, key, value):
         # Update the key
         config[key] = value
 
-        # Use experiment_update to save
-        await experiment_update(id, config)
+        # Save updated config directly
+        experiment.config = json.dumps(config)
+        await session.commit()
     return
 
 
 async def experiment_save_prompt_template(id, template):
-    # Fetch the experiment config, update prompt_template, and save using experiment_update
+    # Fetch and update the experiment config in a single transaction
     async with async_session() as session:
         result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
         experiment = result.scalar_one_or_none()
@@ -475,8 +476,9 @@ async def experiment_save_prompt_template(id, template):
                 config = json.loads(config)
             except Exception:
                 config = {}
-        config["prompt_template"] = template
-        await experiment_update(id, config)
+        config["prompt_template"] = str(template)
+        experiment.config = json.dumps(config)
+        await session.commit()
     return
 
 

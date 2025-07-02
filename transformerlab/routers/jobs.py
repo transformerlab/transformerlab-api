@@ -15,6 +15,9 @@ from werkzeug.utils import secure_filename
 
 from transformerlab.routers.serverinfo import watch_file
 
+from transformerlab.db.db import get_training_template
+from transformerlab.db.db import experiment_get
+
 import transformerlab.db.jobs as db_jobs
 
 router = APIRouter(prefix="/jobs", tags=["train"])
@@ -58,9 +61,13 @@ async def start_next_job():
     if nextjob:
         print(f"Starting Next Job in Queue: {nextjob}")
         print("Starting job: " + str(nextjob["id"]))
-        job_config = json.loads(nextjob["job_data"])
+        nextjob_data = nextjob["job_data"]
+        if not isinstance(nextjob_data, dict):
+            job_config = json.loads(nextjob["job_data"])
+        else:
+            job_config = nextjob_data
         experiment_id = nextjob["experiment_id"]
-        data = await db_jobs.experiment_get(experiment_id)
+        data = await experiment_get(experiment_id)
         if data is None:
             # mark the job as failed
             await db_jobs.job_update_status(nextjob["id"], "FAILED")
@@ -99,8 +106,14 @@ async def get_training_job(job_id: str):
 async def get_training_job_output(job_id: str, sweeps: bool = False):
     # First get the template Id from this job:
     job = await db_jobs.job_get(job_id)
+    job_data = job["job_data"]
 
-    job_data = json.loads(job["job_data"])
+    if not isinstance(job_data, dict):
+        try:
+            job_data = json.loads(job_data)
+        except JSONDecodeError:
+            print(f"Error decoding job_data for job {job_id}. Using empty job_data.")
+            job_data = {}
 
     if sweeps:
         output_file = job_data.get("sweep_output_file", None)
@@ -114,10 +127,12 @@ async def get_training_job_output(job_id: str, sweeps: bool = False):
 
     template_id = job_data["template_id"]
     # Then get the template:
-    template = await db_jobs.get_training_template(template_id)
+    template = await get_training_template(template_id)
     # Then get the plugin name from the template:
-
-    template_config = json.loads(template["config"])
+    if not isinstance(template["config"], dict):
+        template_config = json.loads(template["config"])
+    else:
+        template_config = template["config"]
     if "plugin_name" not in template_config:
         return {"error": "true"}
 
@@ -141,8 +156,8 @@ async def get_training_job_output(job_id: str, sweeps: bool = False):
 
 
 @router.get("/template/{template_id}")
-async def get_training_template(template_id: str):
-    return await db_jobs.get_training_template(template_id)
+async def get_train_template(template_id: str):
+    return await get_training_template(template_id)
 
 
 @router.put("/template/update")
