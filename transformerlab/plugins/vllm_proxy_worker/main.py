@@ -58,7 +58,7 @@ popen_args = [
     "--model-path", model,
     "--proxy-url", f"http://localhost:{parameters.get('port', 8000)}/v1",
     "--model", model.split("/")[-1],
-    "--model-names", [model.split("/")[-1]],
+    ["--model-names", model.split("/")[-1]],
     ]
 
 
