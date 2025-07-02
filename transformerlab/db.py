@@ -1276,46 +1276,38 @@ async def workflow_run_update_status(workflow_run_id, status):
     return
 
 
-@unconverted
 async def workflow_run_update_with_new_job(workflow_run_id, current_task, current_job_id):
-    # Update the current_tasks field for the workflow run
-    await db.execute(
-        "UPDATE workflow_runs SET current_tasks = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        (current_task, workflow_run_id),
-    )
-    # Update the current_job_ids field for the workflow run
-    await db.execute(
-        "UPDATE workflow_runs SET current_job_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        (current_job_id, workflow_run_id),
-    )
+    """
+    Update the workflow run with new current_task and current_job_id,
+    and append them to node_ids and job_ids lists.
+    """
+    async with async_session() as session:
+        # Fetch the workflow run
+        result = await session.execute(select(models.WorkflowRun).where(models.WorkflowRun.id == workflow_run_id))
+        workflow_run = result.scalar_one_or_none()
+        if workflow_run is None:
+            return
 
-    # Fetch the current workflow run as a dict
-    current_workflow_run = await workflow_run_get_by_id(workflow_run_id)
+        # Update current_tasks and current_job_ids
+        workflow_run.current_tasks = current_task
+        workflow_run.current_job_ids = current_job_id
 
-    # Update the job_ids list by appending the new job_id(s)
-    existing_job_ids = json.loads(current_workflow_run["job_ids"])
-    new_job_ids = json.loads(current_job_id)
-    updated_job_ids = existing_job_ids + new_job_ids
-    current_workflow_run["job_ids"] = json.dumps(updated_job_ids)
+        # Update job_ids list
+        existing_job_ids = json.loads(workflow_run.job_ids or "[]")
+        new_job_ids = json.loads(current_job_id or "[]")
+        updated_job_ids = existing_job_ids + new_job_ids
+        workflow_run.job_ids = json.dumps(updated_job_ids)
 
-    # Update the node_ids list by appending the new task(s)
-    existing_node_ids = json.loads(current_workflow_run["node_ids"])
-    new_node_ids = json.loads(current_task)
-    updated_node_ids = existing_node_ids + new_node_ids
-    current_workflow_run["node_ids"] = json.dumps(updated_node_ids)
+        # Update node_ids list
+        existing_node_ids = json.loads(workflow_run.node_ids or "[]")
+        new_node_ids = json.loads(current_task or "[]")
+        updated_node_ids = existing_node_ids + new_node_ids
+        workflow_run.node_ids = json.dumps(updated_node_ids)
 
-    # Save the updated node_ids back to the database
-    await db.execute(
-        "UPDATE workflow_runs SET node_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        (current_workflow_run["node_ids"], workflow_run_id),
-    )
-    # Save the updated job_ids back to the database
-    await db.execute(
-        "UPDATE workflow_runs SET job_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        (current_workflow_run["job_ids"], workflow_run_id),
-    )
-    # Commit the transaction
-    await db.commit()
+        # Update the updated_at timestamp
+        workflow_run.updated_at = None  # Let the DB set CURRENT_TIMESTAMP
+
+        await session.commit()
     return
 
 
