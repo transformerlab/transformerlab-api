@@ -14,8 +14,8 @@ except ImportError:
 
 def stream_output(pipe, label):
     """Continuously read from pipe and print lines with label."""
-    for line in iter(pipe.readline, b''):
-        print(f"[{label}]", line.decode(errors='replace').rstrip(), file=sys.stderr)
+    for line in iter(pipe.readline, ''):
+        print(f"[{label}]", line.rstrip(), file=sys.stderr)
     pipe.close()
 
 def wait_for_port(host, port, timeout=30):
