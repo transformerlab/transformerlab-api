@@ -333,7 +333,6 @@ def test_create_dataset_from_history_success(client):
 
         resp = client.post("/diffusion/dataset/create", json=payload)
         data = resp.json()
-        print(data)  # Debugging output
         assert resp.status_code == 200
         assert data["status"] == "success"
         assert "test-dataset" in data["message"]
@@ -373,7 +372,6 @@ def test_create_dataset_existing_dataset(client):
         }
 
         resp = client.post("/diffusion/dataset/create", json=payload)
-        print(resp.json())  # Debugging output
         assert resp.status_code == 400
         assert "already exists" in resp.json()["detail"]
 
@@ -394,7 +392,6 @@ def test_create_dataset_no_images_found(client):
         }
 
         resp = client.post("/diffusion/dataset/create", json=payload)
-        print(resp.json())  # Debugging output
         assert resp.status_code == 404
         assert "No images found for the given IDs" in resp.json()["detail"]
 
