@@ -30,7 +30,7 @@ from fastchat.protocol.openai_api_protocol import (
     ErrorResponse,
 )
 
-import transformerlab.db.db as db
+import transformerlab.db.session as db
 from transformerlab.routers import (
     data,
     model,

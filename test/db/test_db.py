@@ -1,10 +1,11 @@
 import json
 import os
 
+
 os.environ["TFL_HOME_DIR"] = "./test/tmp/"
 os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
 
-from transformerlab.db import db
+
 from transformerlab.db.db import (
     create_huggingface_dataset,
     delete_plugin,
@@ -17,8 +18,13 @@ from transformerlab.db.db import (
     get_plugins_of_type,
     get_training_template_by_name,
     job_count_running,
+    job_create_sync,
     job_delete,
     job_get_error_msg,
+    job_mark_as_complete_if_running,
+    job_update,
+    job_update_status_sync,
+    job_update_sync,
     jobs_get_next_queued_job,
     model_local_create,
     model_local_get,
@@ -30,7 +36,6 @@ from transformerlab.db.db import (
     job_get,
     job_update_status,
     job_delete_all,
-    job_cancel_in_progress_jobs,
     job_update_job_data_insert_key_value,
     job_stop,
     jobs_get_all,
@@ -79,6 +84,10 @@ from transformerlab.db.db import (
     export_job_create,
     workflow_runs_get_from_experiment,
 )
+
+from transformerlab.db.session import job_cancel_in_progress_jobs
+import transformerlab.db.session as db
+
 
 import pytest
 
@@ -323,22 +332,22 @@ async def setup_db():
 @pytest.fixture
 async def test_dataset():
     # Setup code to create test_dataset
-    dataset = await db.create_local_dataset("test_dataset")
+    dataset = await create_local_dataset("test_dataset")
     yield dataset
     # Teardown code to delete test_dataset
-    await db.delete_dataset("test_dataset")
+    await delete_dataset("test_dataset")
 
 
 @pytest.fixture
 async def test_experiment():
     # Setup code to create test_experiment
-    existing = await db.experiment_get_by_name("test_experiment")
+    existing = await experiment_get_by_name("test_experiment")
     if existing:
-        await db.experiment_delete(existing["id"])
-    experiment_id = await db.experiment_create("test_experiment", {})
+        await experiment_delete(existing["id"])
+    experiment_id = await experiment_create("test_experiment", {})
     yield experiment_id
     # Teardown code to delete test_experiment
-    await db.experiment_delete(experiment_id)
+    await experiment_delete(experiment_id)
 
 
 # content of test_sample.py
@@ -494,13 +503,13 @@ class TestExperiments:
         experiment_name = "test_experiment_by_name"
         config = {}
         # Delete the experiment if it already exists
-        existing = await db.experiment_get_by_name(experiment_name)
+        existing = await experiment_get_by_name(experiment_name)
         if existing:
-            await db.experiment_delete(existing["id"])
-        experiment_id = await db.experiment_create(experiment_name, config)
+            await experiment_delete(existing["id"])
+        experiment_id = await experiment_create(experiment_name, config)
 
         # Test the function
-        experiment = await db.experiment_get_by_name(experiment_name)
+        experiment = await experiment_get_by_name(experiment_name)
 
         # Verify results
         assert experiment is not None
@@ -508,7 +517,7 @@ class TestExperiments:
         assert experiment["id"] == experiment_id
 
         # Test with non-existent name
-        non_existent = await db.experiment_get_by_name("non_existent_experiment")
+        non_existent = await experiment_get_by_name("non_existent_experiment")
         assert non_existent is None
 
 
@@ -694,7 +703,7 @@ async def test_job_create_sync(setup_db):
     experiment_id = "test_experiment"
 
     # Call the function - this creates its own connection
-    job_id = db.job_create_sync(job_type, status, job_data, experiment_id)
+    job_id = job_create_sync(job_type, status, job_data, experiment_id)
 
     # Verify job was created
     assert job_id is not None
@@ -703,7 +712,7 @@ async def test_job_create_sync(setup_db):
     # First refresh the connection to ensure we see the latest data
     await db.db.execute("PRAGMA wal_checkpoint;")
 
-    job = await db.job_get(job_id)
+    job = await job_get(job_id)
     assert job is not None
     assert job["type"] == job_type
     assert job["status"] == status
@@ -716,14 +725,14 @@ async def test_job_create_sync(setup_db):
 async def test_job_update_status_sync(setup_db):
     """Test the job_update_status_sync function."""
     # First create a job
-    job_id = await db.job_create("TASK", "QUEUED", "{}", "test_experiment")
+    job_id = await job_create("TASK", "QUEUED", "{}", "test_experiment")
 
     # Update the job status
     new_status = "RUNNING"
-    db.job_update_status_sync(job_id, new_status)
+    job_update_status_sync(job_id, new_status)
 
     # Verify the status was updated
-    job = await db.job_get(job_id)
+    job = await job_get(job_id)
     assert job["status"] == new_status
 
 
@@ -731,14 +740,14 @@ async def test_job_update_status_sync(setup_db):
 async def test_job_update_sync(setup_db):
     """Test the job_update_sync function."""
     # First create a job
-    job_id = await db.job_create("TASK", "QUEUED", "{}", "test_experiment")
+    job_id = await job_create("TASK", "QUEUED", "{}", "test_experiment")
 
     # Update the job
     new_status = "RUNNING"
-    db.job_update_sync(job_id, new_status)
+    job_update_sync(job_id, new_status)
 
     # Verify the job was updated
-    job = await db.job_get(job_id)
+    job = await job_get(job_id)
     assert job["status"] == new_status
 
 
@@ -746,23 +755,23 @@ async def test_job_update_sync(setup_db):
 async def test_job_mark_as_complete_if_running(setup_db):
     """Test the job_mark_as_complete_if_running function."""
     # Create a running job
-    job_id = await db.job_create("TASK", "RUNNING", "{}", "test_experiment")
+    job_id = await job_create("TASK", "RUNNING", "{}", "test_experiment")
 
     # Mark it as complete if running
-    db.job_mark_as_complete_if_running(job_id)
+    job_mark_as_complete_if_running(job_id)
 
     # Verify the job status was updated
-    job = await db.job_get(job_id)
+    job = await job_get(job_id)
     assert job["status"] == "COMPLETE"
 
     # Create a non-running job
-    job_id2 = await db.job_create("TASK", "QUEUED", "{}", "test_experiment")
+    job_id2 = await job_create("TASK", "QUEUED", "{}", "test_experiment")
 
     # Try to mark it as complete if running (should not change)
-    db.job_mark_as_complete_if_running(job_id2)
+    job_mark_as_complete_if_running(job_id2)
 
     # Verify the job status was not updated
-    job2 = await db.job_get(job_id2)
+    job2 = await job_get(job_id2)
     assert job2["status"] == "QUEUED"
 
 
@@ -860,20 +869,20 @@ async def test_job_update(setup_db):
     # First create a job
     original_type = "TASK"
     original_status = "QUEUED"
-    job_id = await db.job_create(original_type, original_status, "{}", "test_experiment")
+    job_id = await job_create(original_type, original_status, "{}", "test_experiment")
 
     # Verify the job was created with correct initial values
-    job = await db.job_get(job_id)
+    job = await job_get(job_id)
     assert job["type"] == original_type
     assert job["status"] == original_status
 
     # Update the job with new type and status
     new_type = "EVAL"
     new_status = "RUNNING"
-    await db.job_update(job_id, new_type, new_status)
+    await job_update(job_id, new_type, new_status)
 
     # Verify the job was updated correctly
-    updated_job = await db.job_get(job_id)
+    updated_job = await job_get(job_id)
     assert updated_job["type"] == new_type
     assert updated_job["status"] == new_status
     assert updated_job["id"] == job_id
