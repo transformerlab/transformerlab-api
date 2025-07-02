@@ -387,17 +387,26 @@ ALLOWED_JOB_TYPES = [
 ]
 
 
-@unconverted
 async def job_create(type, status, job_data="{}", experiment_id=""):
     # check if type is allowed
     if type not in ALLOWED_JOB_TYPES:
         raise ValueError(f"Job type {type} is not allowed")
-    row = await db.execute_insert(
-        "INSERT INTO job(type, status, experiment_id, job_data) VALUES (?, ?, ?, json(?))",
-        (type, status, experiment_id, job_data),
-    )
-    await db.commit()  # is this necessary?
-    return row[0]
+    # Ensure job_data is a dict for SQLAlchemy JSON field
+    if isinstance(job_data, str):
+        try:
+            job_data = json.loads(job_data)
+        except Exception:
+            job_data = {}
+    async with async_session() as session:
+        stmt = insert(models.Job).values(
+            type=type,
+            status=status,
+            experiment_id=experiment_id,
+            job_data=job_data,
+        )
+        result = await session.execute(stmt)
+        await session.commit()
+        return result.inserted_primary_key[0]
 
 
 @unconverted
@@ -1269,31 +1278,43 @@ async def workflow_run_update_status(workflow_run_id, status):
 
 @unconverted
 async def workflow_run_update_with_new_job(workflow_run_id, current_task, current_job_id):
+    # Update the current_tasks field for the workflow run
     await db.execute(
         "UPDATE workflow_runs SET current_tasks = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         (current_task, workflow_run_id),
     )
+    # Update the current_job_ids field for the workflow run
     await db.execute(
         "UPDATE workflow_runs SET current_job_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         (current_job_id, workflow_run_id),
     )
 
+    # Fetch the current workflow run as a dict
     current_workflow_run = await workflow_run_get_by_id(workflow_run_id)
-    current_workflow_run["job_ids"] = json.loads(current_workflow_run["job_ids"])
-    current_workflow_run["job_ids"] += json.loads(current_job_id)
-    current_workflow_run["job_ids"] = json.dumps(current_workflow_run["job_ids"])
-    current_workflow_run["node_ids"] = json.loads(current_workflow_run["node_ids"])
-    current_workflow_run["node_ids"] += json.loads(current_task)
-    current_workflow_run["node_ids"] = json.dumps(current_workflow_run["node_ids"])
 
+    # Update the job_ids list by appending the new job_id(s)
+    existing_job_ids = json.loads(current_workflow_run["job_ids"])
+    new_job_ids = json.loads(current_job_id)
+    updated_job_ids = existing_job_ids + new_job_ids
+    current_workflow_run["job_ids"] = json.dumps(updated_job_ids)
+
+    # Update the node_ids list by appending the new task(s)
+    existing_node_ids = json.loads(current_workflow_run["node_ids"])
+    new_node_ids = json.loads(current_task)
+    updated_node_ids = existing_node_ids + new_node_ids
+    current_workflow_run["node_ids"] = json.dumps(updated_node_ids)
+
+    # Save the updated node_ids back to the database
     await db.execute(
         "UPDATE workflow_runs SET node_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         (current_workflow_run["node_ids"], workflow_run_id),
     )
+    # Save the updated job_ids back to the database
     await db.execute(
         "UPDATE workflow_runs SET job_ids = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         (current_workflow_run["job_ids"], workflow_run_id),
     )
+    # Commit the transaction
     await db.commit()
     return
 
