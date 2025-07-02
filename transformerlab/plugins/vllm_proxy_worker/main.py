@@ -56,7 +56,7 @@ popen_args = [
     "-m", 
     "fastchat.serve.openai_api_proxy_worker",
     "--model-path", model,
-    "--proxy-url", f"http://localhost:{parameters.get("port", 8000)}/v1",
+    "--proxy-url", f"http://localhost:{parameters.get('port', 8000)}/v1",
     "--model", model.split("/")[-1],
     "--model-names", [model.split("/")[-1]],
     ]
