@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sudo apt-get install -y ninja-build
+uv pip install ninja
 # Install transformerlab-inference from local path
 uv pip install "sglang[all]==0.4.8.post1"
 
