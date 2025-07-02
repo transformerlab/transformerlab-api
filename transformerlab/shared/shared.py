@@ -13,7 +13,7 @@ from anyio import open_process
 from anyio.streams.text import TextReceiveStream
 from werkzeug.utils import secure_filename
 
-import transformerlab.db.db as db
+from transformerlab.db.db import experiment_get, experiment_get_by_name, job_mark_as_complete_if_running
 import transformerlab.db.jobs as db_jobs
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
@@ -292,7 +292,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         # implement rest later
         return {"status": "complete", "job_id": job_id, "message": "Task job completed successfully"}
     elif master_job_type == "EVAL":
-        experiment = await db.experiment_get_by_name(experiment_name)
+        experiment = await experiment_get_by_name(experiment_name)
         experiment_id = experiment["id"]
         plugin_name = job_config["plugin"]
         eval_name = job_config.get("evaluator", "")
@@ -323,7 +323,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             await db_jobs.job_update_status(job_id, "COMPLETE")
             return {"status": "complete", "job_id": job_id, "message": "Evaluation job completed successfully"}
     elif master_job_type == "GENERATE":
-        experiment = await db.experiment_get_by_name(experiment_name)
+        experiment = await experiment_get_by_name(experiment_name)
         experiment_id = experiment["id"]
         plugin_name = job_config["plugin"]
         generation_name = job_config["generator"]
@@ -364,7 +364,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     job_details = await db_jobs.job_get(job_id)
     experiment_id = job_details["experiment_id"]
     # Get the experiment details from the database:
-    experiment_details = await db.experiment_get(experiment_id)
+    experiment_details = await experiment_get(experiment_id)
     experiment_details_as_string = json.dumps(experiment_details)
     experiment_name = experiment_details["name"]
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
@@ -380,7 +380,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
     def on_train_complete():
         print("Training Job: The process has finished")
-        db.job_mark_as_complete_if_running(job_id)
+        job_mark_as_complete_if_running(job_id)
         end_time = time.strftime("%Y-%m-%d %H:%M:%S")
         asyncio.run(db_jobs.job_update_job_data_insert_key_value(job_id, "end_time", end_time))
 
