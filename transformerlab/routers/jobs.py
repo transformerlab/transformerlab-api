@@ -15,6 +15,8 @@ from werkzeug.utils import secure_filename
 
 from transformerlab.routers.serverinfo import watch_file
 
+from transformerlab.db.db import get_training_template as db_get_training_template
+
 import transformerlab.db.jobs as db_jobs
 
 router = APIRouter(prefix="/jobs", tags=["train"])
@@ -114,7 +116,7 @@ async def get_training_job_output(job_id: str, sweeps: bool = False):
 
     template_id = job_data["template_id"]
     # Then get the template:
-    template = await db_jobs.get_training_template(template_id)
+    template = await db_get_training_template(template_id)
     # Then get the plugin name from the template:
 
     template_config = json.loads(template["config"])
@@ -142,7 +144,7 @@ async def get_training_job_output(job_id: str, sweeps: bool = False):
 
 @router.get("/template/{template_id}")
 async def get_training_template(template_id: str):
-    return await db_jobs.get_training_template(template_id)
+    return await db_get_training_template(template_id)
 
 
 @router.put("/template/update")
