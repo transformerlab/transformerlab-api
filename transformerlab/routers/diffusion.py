@@ -44,6 +44,7 @@ import time
 from typing import List
 from PIL import Image
 import shutil
+from transformerlab.db.datasets import get_dataset
 import transformerlab.db.db as db
 from transformerlab.models import model_helper
 from transformerlab.shared import dirs
@@ -1670,7 +1671,7 @@ async def create_dataset_from_history(request: CreateDatasetRequest):
         raise HTTPException(status_code=400, detail="Invalid dataset name")
 
     # Check if dataset already exists
-    existing_dataset = await db.get_dataset(dataset_id)
+    existing_dataset = await get_dataset(dataset_id)
     if existing_dataset:
         raise HTTPException(status_code=400, detail=f"Dataset '{dataset_id}' already exists")
 

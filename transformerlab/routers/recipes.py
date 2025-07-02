@@ -1,4 +1,5 @@
 from fastapi import APIRouter, BackgroundTasks
+from transformerlab.db.datasets import get_datasets
 from transformerlab.shared import galleries
 import transformerlab.db.db as db
 from transformerlab.models import model_helper
@@ -40,7 +41,7 @@ async def check_recipe_dependencies(id: str):
     # Get local models and datasets
     local_models = await model_helper.list_installed_models()
     local_model_names = set(model["model_id"] for model in local_models)
-    local_datasets = await db.get_datasets()
+    local_datasets = await get_datasets()
     local_dataset_ids = set(ds["dataset_id"] for ds in local_datasets)
 
     # Get installed plugins using the same logic as /plugins/gallery
@@ -86,7 +87,7 @@ async def _install_recipe_dependencies_job(job_id, id):
 
         local_models = await model_helper.list_installed_models()
         local_model_names = set(model["model_id"] for model in local_models)
-        local_datasets = await db.get_datasets()
+        local_datasets = await get_datasets()
         local_dataset_ids = set(ds["dataset_id"] for ds in local_datasets)
         total = len(recipe.get("dependencies", []))
         progress = 0
@@ -438,7 +439,7 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
 #     # Get local models and datasets
 #     local_models = await model_helper.list_installed_models()
 #     local_model_names = set(model["model_id"] for model in local_models)
-#     local_datasets = await db.get_datasets()
+#     local_datasets = await get_datasets()
 #     local_dataset_ids = set(ds["dataset_id"] for ds in local_datasets)
 
 #     install_results = []

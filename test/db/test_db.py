@@ -7,14 +7,8 @@ os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
 
 
 from transformerlab.db.db import (
-    create_huggingface_dataset,
     delete_plugin,
     experiment_get_by_name,
-    get_dataset,
-    get_datasets,
-    create_local_dataset,
-    delete_dataset,
-    get_generated_datasets,
     get_plugins_of_type,
     get_training_template_by_name,
     job_count_running,
@@ -83,6 +77,15 @@ from transformerlab.db.db import (
     delete_training_template,
     export_job_create,
     workflow_runs_get_from_experiment,
+)
+
+from transformerlab.db.datasets import (
+    create_huggingface_dataset,
+    get_dataset,
+    get_datasets,
+    create_local_dataset,
+    delete_dataset,
+    get_generated_datasets,
 )
 
 from transformerlab.db.session import job_cancel_in_progress_jobs

@@ -1,6 +1,7 @@
 import json
 from fastapi import APIRouter, Body
 
+from transformerlab.db.datasets import get_datasets
 import transformerlab.db.db as db
 from transformerlab.models import model_helper
 
@@ -78,7 +79,7 @@ async def add_task(new_task: dict = Body()):
 
         # Repeat for dataset
         dataset_downloaded = False
-        local_datasets = await db.get_datasets()
+        local_datasets = await get_datasets()
         for dataset in local_datasets:
             if dataset["dataset_id"] == datasets:
                 dataset_downloaded = True

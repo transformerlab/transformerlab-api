@@ -8,6 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Body
 from fastapi.responses import PlainTextResponse, StreamingResponse
 import logging
+from transformerlab.db.datasets import get_datasets
 import transformerlab.db.db as db
 from transformerlab.routers.serverinfo import watch_file
 from transformerlab.shared import dirs
@@ -108,7 +109,7 @@ async def import_recipe(name: str, recipe_yaml: str = Body(...)):
 
     # Repeat for dataset
     dataset_downloaded = False
-    local_datasets = await db.get_datasets()
+    local_datasets = await get_datasets()
     for dataset in local_datasets:
         if dataset["dataset_id"] == datasets:
             dataset_downloaded = True
