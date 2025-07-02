@@ -3,6 +3,7 @@ from fastapi import APIRouter, Body
 
 from transformerlab.db.datasets import get_datasets
 import transformerlab.db.db as db
+from transformerlab.db.jobs import job_create
 from transformerlab.models import model_helper
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -258,5 +259,5 @@ async def queue_task(task_id: int, input_override: str = "{}", output_override: 
             job_data["config"][key] = output_override[key]
             job_data["config"]["script_parameters"][key] = output_override[key]
         job_data["plugin"] = task_to_queue["plugin"]
-    job_id = await db.job_create(job_type, job_status, json.dumps(job_data), task_to_queue["experiment_id"])
+    job_id = await job_create(job_type, job_status, json.dumps(job_data), task_to_queue["experiment_id"])
     return {"id": job_id}

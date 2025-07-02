@@ -120,394 +120,6 @@ async def model_local_delete(model_id):
 
 
 ###############
-# GENERIC JOBS MODEL
-###############
-
-# Allowed job types:
-ALLOWED_JOB_TYPES = [
-    "TRAIN",
-    "EXPORT_MODEL",
-    "DOWNLOAD_MODEL",
-    "LOAD_MODEL",
-    "TASK",
-    "EVAL",
-    "UNDEFINED",
-    "GENERATE",
-    "INSTALL_RECIPE_DEPS",
-]
-
-
-async def job_create(type, status, job_data="{}", experiment_id=""):
-    # check if type is allowed
-    if type not in ALLOWED_JOB_TYPES:
-        raise ValueError(f"Job type {type} is not allowed")
-    # Ensure job_data is a dict for SQLAlchemy JSON field
-    if isinstance(job_data, str):
-        try:
-            job_data = json.loads(job_data)
-        except Exception:
-            job_data = {}
-    async with async_session() as session:
-        stmt = insert(models.Job).values(
-            type=type,
-            status=status,
-            experiment_id=experiment_id,
-            job_data=job_data,
-        )
-        result = await session.execute(stmt)
-        await session.commit()
-        return result.inserted_primary_key[0]
-
-
-@unconverted
-def job_create_sync(type, status, job_data="{}", experiment_id=""):
-    """
-    Synchronous version of job_create function for use with XML-RPC.
-    """
-    db_sync = None
-    cursor = None
-    try:
-        global DATABASE_FILE_NAME
-        # check if type is allowed
-        if type not in ALLOWED_JOB_TYPES:
-            raise ValueError(f"Job type {type} is not allowed")
-
-        # Use SQLite directly in synchronous mode
-        db_sync = get_sync_db_connection()
-
-        cursor = db_sync.cursor()
-
-        # Execute insert
-        cursor.execute(
-            "INSERT INTO job(type, status, experiment_id, job_data) VALUES (?, ?, ?, json(?))",
-            (type, status, experiment_id, job_data),
-        )
-
-        # Get the row ID
-        row_id = cursor.lastrowid
-
-        # Commit and close
-        db_sync.commit()
-        cursor.close()
-
-        return row_id
-    except Exception as e:
-        print("Error creating job: " + str(e))
-        return None
-    finally:
-        if cursor:
-            cursor.close()
-        if db_sync:
-            db_sync.close()
-
-
-async def jobs_get_all(type="", status=""):
-    async with async_session() as session:
-        stmt = select(models.Job).where(models.Job.status != "DELETED")
-        if type != "":
-            stmt = stmt.where(models.Job.type == type)
-        if status != "":
-            stmt = stmt.where(models.Job.status == status)
-        stmt = stmt.order_by(models.Job.created_at.desc())
-        result = await session.execute(stmt)
-        jobs = result.scalars().all()
-        data = []
-        for job in jobs:
-            row = job.__dict__.copy()
-            # Convert job_data from JSON string to dict if needed
-            if "job_data" in row and row["job_data"]:
-                if isinstance(row["job_data"], str):
-                    try:
-                        row["job_data"] = json.loads(row["job_data"])
-                    except Exception:
-                        pass
-            data.append(row)
-        return data
-
-
-async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
-    async with async_session() as session:
-        stmt = (
-            select(models.Job)
-            .where(
-                models.Job.experiment_id == experiment_id,
-                models.Job.type == job_type,
-                models.Job.status != "DELETED",
-            )
-            .order_by(models.Job.created_at.desc())
-        )
-        result = await session.execute(stmt)
-        jobs = result.scalars().all()
-        data = []
-        for job in jobs:
-            row = job.__dict__.copy()
-            # Convert job_data from JSON string to dict if needed
-            if "job_data" in row and row["job_data"]:
-                if isinstance(row["job_data"], str):
-                    try:
-                        row["job_data"] = json.loads(row["job_data"])
-                    except Exception:
-                        pass
-            data.append(row)
-        return data
-
-
-async def job_get_status(job_id):
-    async with async_session() as session:
-        result = await session.execute(select(models.Job.status).where(models.Job.id == job_id))
-        status = result.scalar_one_or_none()
-        return status
-
-
-async def job_get_error_msg(job_id):
-    async with async_session() as session:
-        result = await session.execute(select(models.Job.job_data).where(models.Job.id == job_id))
-        job_data_raw = result.scalar_one_or_none()
-        # If no job_data, return None
-        if not job_data_raw:
-            return None
-        # Parse JSON string if necessary
-        if isinstance(job_data_raw, str):
-            try:
-                job_data = json.loads(job_data_raw)
-            except Exception:
-                return None
-        else:
-            job_data = job_data_raw
-        return job_data.get("error_msg", None)
-
-
-async def job_get(job_id):
-    async with async_session() as session:
-        result = await session.execute(select(models.Job).where(models.Job.id == job_id))
-        job = result.scalar_one_or_none()
-        if job is None:
-            return None
-        row = job.__dict__.copy()
-        # Convert job_data from JSON string to dict if needed
-        if "job_data" in row and row["job_data"]:
-            if isinstance(row["job_data"], str):
-                try:
-                    row["job_data"] = json.loads(row["job_data"])
-                except Exception:
-                    pass
-        return row
-
-
-async def job_count_running():
-    async with async_session() as session:
-        result = await session.execute(select(models.Job).where(models.Job.status == "RUNNING"))
-        count = len(result.scalars().all())
-        return count
-
-
-async def jobs_get_next_queued_job():
-    async with async_session() as session:
-        result = await session.execute(
-            select(models.Job).where(models.Job.status == "QUEUED").order_by(models.Job.created_at.asc()).limit(1)
-        )
-        job = result.scalar_one_or_none()
-        if job is None:
-            return None
-        row = job.__dict__.copy()
-        # Convert job_data from JSON string to dict if needed
-        if "job_data" in row and row["job_data"]:
-            if isinstance(row["job_data"], str):
-                try:
-                    row["job_data"] = json.loads(row["job_data"])
-                except Exception:
-                    pass
-        return row
-
-
-async def job_update_status(job_id, status, error_msg=None):
-    async with async_session() as session:
-        await session.execute(
-            update(models.Job)
-            .where(models.Job.id == job_id)
-            .values(status=status, updated_at=text("CURRENT_TIMESTAMP"))
-        )
-        if error_msg:
-            # Fetch current job_data
-            result = await session.execute(select(models.Job.job_data).where(models.Job.id == job_id))
-            job_data = result.scalar_one_or_none()
-            if isinstance(job_data, str):
-                try:
-                    job_data = json.loads(job_data)
-                except Exception:
-                    job_data = {}
-            elif not job_data:
-                job_data = {}
-            job_data["error_msg"] = str(error_msg)
-            await session.execute(
-                update(models.Job).where(models.Job.id == job_id).values(job_data=json.dumps(job_data))
-            )
-        await session.commit()
-    return
-
-
-@unconverted
-def job_update_status_sync(job_id, status, error_msg=None):
-    db_sync = None
-    cursor = None
-    try:
-        db_sync = get_sync_db_connection()
-        cursor = db_sync.cursor()
-
-        cursor.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
-        db_sync.commit()
-        return
-    except Exception as e:
-        print("Error updating job status: " + str(e))
-        return
-    finally:
-        if cursor:
-            cursor.close()
-        if db_sync:
-            db_sync.close()
-
-
-async def job_update(job_id, type, status):
-    async with async_session() as session:
-        await session.execute(update(models.Job).where(models.Job.id == job_id).values(type=type, status=status))
-        await session.commit()
-    return
-
-
-@unconverted
-def job_update_sync(job_id, status):
-    # This is a synchronous version of job_update
-    # It is used by popen_and_call function
-    # which can only support sychronous functions
-    # This is a hack to get around that limitation
-    db_sync = None
-    cursor = None
-    try:
-        db_sync = get_sync_db_connection()
-        cursor = db_sync.cursor()
-
-        cursor.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
-        db_sync.commit()
-        return
-    except Exception as e:
-        print("Error updating job status: " + str(e))
-        return
-    finally:
-        if cursor:
-            cursor.close()
-        if db_sync:
-            db_sync.close()
-
-
-@unconverted
-def job_mark_as_complete_if_running(job_id):
-    # This synchronous update to jobs
-    # only marks a job as "COMPLETE" if it is currenty "RUNNING"
-    # This avoids updating "stopped" jobs and marking them as complete
-    db_sync = None
-    cursor = None
-    try:
-        db_sync = get_sync_db_connection()
-        cursor = db_sync.cursor()
-        cursor.execute(
-            "UPDATE job SET status = 'COMPLETE', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'RUNNING'",
-            (job_id,),
-        )
-        db_sync.commit()
-        return
-    except Exception as e:
-        print("Error updating job status: " + str(e))
-        return
-    finally:
-        if cursor:
-            cursor.close()
-        if db_sync:
-            db_sync.close()
-
-
-async def job_delete_all():
-    async with async_session() as session:
-        # Instead of deleting, set status to 'DELETED' for all jobs
-        await session.execute(update(models.Job).values(status="DELETED"))
-        await session.commit()
-    return
-
-
-async def job_delete(job_id):
-    print("Deleting job: " + str(job_id))
-    async with async_session() as session:
-        # Instead of deleting, set status to 'DELETED' for the job
-        await session.execute(update(models.Job).where(models.Job.id == job_id).values(status="DELETED"))
-        await session.commit()
-    return
-
-
-async def job_update_job_data_insert_key_value(job_id, key, value):
-    async with async_session() as session:
-        # Fetch current job_data
-        result = await session.execute(select(models.Job.job_data).where(models.Job.id == job_id))
-        job_data = result.scalar_one_or_none()
-        if isinstance(job_data, str):
-            try:
-                job_data = json.loads(job_data)
-            except Exception:
-                job_data = {}
-        elif not job_data:
-            job_data = {}
-        # Update the key
-        job_data[key] = value
-        # Save back as JSON string
-        await session.execute(update(models.Job).where(models.Job.id == job_id).values(job_data=json.dumps(job_data)))
-        await session.commit()
-    return
-
-
-async def job_stop(job_id):
-    print("Stopping job: " + str(job_id))
-    await job_update_job_data_insert_key_value(job_id, "stop", True)
-    return
-
-
-async def job_update_progress(job_id, progress):
-    """
-    Update the percent complete for this job.
-
-    progress: int representing percent complete
-    """
-    async with async_session() as session:
-        await session.execute(update(models.Job).where(models.Job.id == job_id).values(progress=progress))
-        await session.commit()
-
-
-async def job_update_sweep_progress(job_id, value):
-    """
-    Update the 'sweep_progress' key in the job_data JSON column for a given job.
-    """
-    async with async_session() as session:
-        # Fetch the job
-        result = await session.execute(select(models.Job).where(models.Job.id == job_id))
-        job = result.scalar_one_or_none()
-        if job is None:
-            return
-
-        # Parse job_data as dict if needed
-        job_data = job.job_data
-        if isinstance(job_data, str):
-            try:
-                job_data = json.loads(job_data)
-            except Exception:
-                job_data = {}
-
-        # Update the sweep_progress key
-        job_data["sweep_progress"] = value
-
-        # Save back as JSON string
-        await session.execute(update(models.Job).where(models.Job.id == job_id).values(job_data=json.dumps(job_data)))
-        await session.commit()
-    return
-
-
-###############
 # TASKS MODEL
 ###############
 
@@ -935,3 +547,120 @@ async def config_set(key: str, value: str):
         await session.execute(stmt)
         await session.commit()
     return
+
+
+# Synchronous functions:
+
+
+@unconverted
+def job_create_sync(type, status, job_data="{}", experiment_id=""):
+    """
+    Synchronous version of job_create function for use with XML-RPC.
+    """
+    db_sync = None
+    cursor = None
+    try:
+        global DATABASE_FILE_NAME
+        # check if type is allowed
+        if type not in ALLOWED_JOB_TYPES:
+            raise ValueError(f"Job type {type} is not allowed")
+
+        # Use SQLite directly in synchronous mode
+        db_sync = get_sync_db_connection()
+
+        cursor = db_sync.cursor()
+
+        # Execute insert
+        cursor.execute(
+            "INSERT INTO job(type, status, experiment_id, job_data) VALUES (?, ?, ?, json(?))",
+            (type, status, experiment_id, job_data),
+        )
+
+        # Get the row ID
+        row_id = cursor.lastrowid
+
+        # Commit and close
+        db_sync.commit()
+        cursor.close()
+
+        return row_id
+    except Exception as e:
+        print("Error creating job: " + str(e))
+        return None
+    finally:
+        if cursor:
+            cursor.close()
+        if db_sync:
+            db_sync.close()
+
+
+@unconverted
+def job_update_status_sync(job_id, status, error_msg=None):
+    db_sync = None
+    cursor = None
+    try:
+        db_sync = get_sync_db_connection()
+        cursor = db_sync.cursor()
+
+        cursor.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
+        db_sync.commit()
+        return
+    except Exception as e:
+        print("Error updating job status: " + str(e))
+        return
+    finally:
+        if cursor:
+            cursor.close()
+        if db_sync:
+            db_sync.close()
+
+
+@unconverted
+def job_update_sync(job_id, status):
+    # This is a synchronous version of job_update
+    # It is used by popen_and_call function
+    # which can only support sychronous functions
+    # This is a hack to get around that limitation
+    db_sync = None
+    cursor = None
+    try:
+        db_sync = get_sync_db_connection()
+        cursor = db_sync.cursor()
+
+        cursor.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
+        db_sync.commit()
+        return
+    except Exception as e:
+        print("Error updating job status: " + str(e))
+        return
+    finally:
+        if cursor:
+            cursor.close()
+        if db_sync:
+            db_sync.close()
+
+
+@unconverted
+def job_mark_as_complete_if_running(job_id):
+    # This synchronous update to jobs
+    # only marks a job as "COMPLETE" if it is currenty "RUNNING"
+    # This avoids updating "stopped" jobs and marking them as complete
+    db_sync = None
+    cursor = None
+    try:
+        db_sync = get_sync_db_connection()
+        cursor = db_sync.cursor()
+        cursor.execute(
+            "UPDATE job SET status = 'COMPLETE', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'RUNNING'",
+            (job_id,),
+        )
+        db_sync.commit()
+        return
+    except Exception as e:
+        print("Error updating job status: " + str(e))
+        return
+    finally:
+        if cursor:
+            cursor.close()
+        if db_sync:
+            db_sync.close()

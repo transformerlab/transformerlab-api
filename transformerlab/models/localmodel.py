@@ -8,6 +8,7 @@ There are functions in model_helper to make it easier to work with.
 import os
 import json
 from huggingface_hub import hf_hub_download
+from transformerlab.db.jobs import jobs_get_all
 from transformerlab.models import modelstore
 import transformerlab.db.db as db
 from transformerlab.shared import dirs
@@ -316,7 +317,7 @@ class LocalModelStore(modelstore.ModelStore):
         For each eval, remove keys we want to ignore (i.e., additional_output_path,
         completion_status, and completion_details) and attach the job_id.
         """
-        eval_jobs = await db.jobs_get_all(type="EVAL", status="COMPLETE")
+        eval_jobs = await jobs_get_all(type="EVAL", status="COMPLETE")
         evals_by_model = {}
         for job in eval_jobs:
             eval_data = job["job_data"]

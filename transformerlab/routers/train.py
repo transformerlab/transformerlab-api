@@ -10,6 +10,7 @@ from fastapi.responses import PlainTextResponse, StreamingResponse
 import logging
 from transformerlab.db.datasets import get_datasets
 import transformerlab.db.db as db
+import transformerlab.db.jobs as db_jobs
 from transformerlab.routers.serverinfo import watch_file
 from transformerlab.shared import dirs
 from transformerlab.shared import galleries
@@ -205,16 +206,16 @@ async def recipe_gallery_get_all():
 
 # @router.get("/job/update/{job_id}")
 # async def job_update(job_id: str, status: str):
-#     await db.job_update_status(job_id, status)
+#     await db_jobs.job_update_status(job_id, status)
 #     return {"message": "OK"}
 
 
 # @router.get("/job/start_next")
 # async def start_next_job():
-#     num_running_jobs = await db.job_count_running()
+#     num_running_jobs = await db_jobs.job_count_running()
 #     if num_running_jobs > 0:
 #         return {"message": "A job is already running"}
-#     nextjob = await db.jobs_get_next_queued_job()
+#     nextjob = await db_jobs.jobs_get_next_queued_job()
 #     if nextjob:
 #         print(nextjob)
 #         print("Starting job: " + str(nextjob['id']))
@@ -236,19 +237,19 @@ async def recipe_gallery_get_all():
 
 # @router.get("/job/delete_all")
 # async def job_delete_all():
-#     await db.job_delete_all()
+#     await db_jobs.job_delete_all()
 #     return {"message": "OK"}
 
 
 @router.get("/job/{job_id}")
 async def get_training_job(job_id: str):
-    return await db.job_get(job_id)
+    return await db_jobs.job_get(job_id)
 
 
 async def get_output_file_name(job_id: str):
     try:
         # First get the template Id from this job:
-        job = await db.job_get(job_id)
+        job = await db_jobs.job_get(job_id)
 
         job_data = job["job_data"]
         if "template_id" not in job_data:
@@ -291,7 +292,7 @@ async def get_output_file_name(job_id: str):
 async def get_training_job_output(job_id: str, sweeps: bool = False):
     try:
         if sweeps:
-            job = await db.job_get(job_id)
+            job = await db_jobs.job_get(job_id)
             job_data = json.loads(job["job_data"])
             output_file = job_data.get("sweep_output_file", None)
             if output_file is not None and os.path.exists(output_file):
@@ -322,7 +323,7 @@ async def watch_log(job_id: str, sweeps: bool = False):
     try:
         job_id = secure_filename(job_id)
 
-        job = await db.job_get(job_id)
+        job = await db_jobs.job_get(job_id)
         job_data = job["job_data"]
         if sweeps:
             output_file = job_data.get("sweep_output_file", None)
@@ -380,7 +381,7 @@ async def spawn_tensorboard(job_id: str):
 
     print("Starting tensorboard")
 
-    job = await db.job_get(job_id)
+    job = await db_jobs.job_get(job_id)
     # First get the experiment name from the job
     experiment_id = job["experiment_id"]
     data = await db.experiment_get(experiment_id)
