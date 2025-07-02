@@ -16,6 +16,7 @@ from werkzeug.utils import secure_filename
 from transformerlab.routers.serverinfo import watch_file
 
 from transformerlab.db.db import get_training_template as db_get_training_template
+from transformerlab.db.db import experiment_get
 
 import transformerlab.db.jobs as db_jobs
 
@@ -60,9 +61,13 @@ async def start_next_job():
     if nextjob:
         print(f"Starting Next Job in Queue: {nextjob}")
         print("Starting job: " + str(nextjob["id"]))
-        job_config = json.loads(nextjob["job_data"])
+        nextjob_data = nextjob["job_data"]
+        if not isinstance(nextjob_data, dict):
+            job_config = json.loads(nextjob["job_data"])
+        else:
+            job_config = nextjob_data
         experiment_id = nextjob["experiment_id"]
-        data = await db_jobs.experiment_get(experiment_id)
+        data = await experiment_get(experiment_id)
         if data is None:
             # mark the job as failed
             await db_jobs.job_update_status(nextjob["id"], "FAILED")
