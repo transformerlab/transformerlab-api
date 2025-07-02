@@ -279,10 +279,10 @@ async def server_worker_start(
         try:
             experiment = await experiment_get(experiment_id)
             experiment_config = experiment["config"]
-            if isinstance(experiment_config, dict):
+            if not isinstance(experiment_config, dict):
                 experiment_config = json.loads(experiment_config)
             inference_params = experiment_config["inferenceParams"]
-            if isinstance(inference_params, str):
+            if not isinstance(inference_params, dict):
                 # if inference_params is a string, we need to parse it as JSON
                 inference_params = json.loads(inference_params)
         except json.JSONDecodeError:
