@@ -8,6 +8,7 @@ from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
 
 import transformerlab.db.db as db
+from transformerlab.db.workflows import workflows_get_from_experiment
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
 from transformerlab.routers.experiment import (
@@ -272,7 +273,7 @@ async def export_experiment_to_recipe(id: str | int):
             )
 
     # Add workflows
-    workflows = await db.workflows_get_from_experiment(id)
+    workflows = await workflows_get_from_experiment(id)
     for workflow in workflows:
         if workflow["status"] != "DELETED":  # Only include active workflows
             export_data["workflows"].append({"name": workflow["name"], "config": json.loads(workflow["config"])})

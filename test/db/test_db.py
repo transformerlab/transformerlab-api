@@ -46,22 +46,6 @@ from transformerlab.db.db import (
     save_plugin,
     config_get,
     config_set,
-    workflow_count_queued,
-    workflow_count_running,
-    workflow_create,
-    workflow_delete_all,
-    workflow_delete_by_id,
-    workflow_delete_by_name,
-    workflow_queue,
-    workflow_run_get_all,
-    workflow_run_get_by_id,
-    workflow_run_update_status,
-    workflow_runs_delete_all,
-    workflow_update_config,
-    workflow_update_name,
-    workflows_get_all,
-    workflows_get_by_id,
-    workflows_get_from_experiment,
     add_task,
     update_task,
     tasks_get_all,
@@ -76,7 +60,6 @@ from transformerlab.db.db import (
     update_training_template,
     delete_training_template,
     export_job_create,
-    workflow_runs_get_from_experiment,
 )
 
 from transformerlab.db.datasets import (
@@ -86,6 +69,26 @@ from transformerlab.db.datasets import (
     create_local_dataset,
     delete_dataset,
     get_generated_datasets,
+)
+
+from transformerlab.db.workflows import (
+    workflow_count_queued,
+    workflow_count_running,
+    workflow_create,
+    workflow_delete_all,
+    workflow_delete_by_id,
+    workflow_delete_by_name,
+    workflow_queue,
+    workflow_run_get_all,
+    workflow_run_get_by_id,
+    workflow_run_update_status,
+    workflow_runs_delete_all,
+    workflow_update_config,
+    workflow_update_name,
+    workflows_get_all,
+    workflows_get_from_experiment,
+    workflows_get_by_id,
+    workflows_get_from_experiment,
 )
 
 from transformerlab.db.session import job_cancel_in_progress_jobs
