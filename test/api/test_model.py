@@ -92,7 +92,7 @@ def test_install_peft_success(client):
         patch("json.load", return_value={"architectures": "MockArch", "model_type": "MockType"}),
         patch("huggingface_hub.HfApi.model_info", return_value=make_mock_adapter_info()),
         patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", return_value={}),
-        patch("transformerlab.routers.model.db.job_create", return_value=123),
+        patch("transformerlab.routers.model.db_jobs.job_create", return_value=123),
         patch("transformerlab.routers.model.asyncio.create_task"),
     ):
         response = client.post("/model/install_peft", params={"peft": adapter_id, "model_id": model_id})
@@ -132,7 +132,7 @@ def test_install_peft_architecture_detection_unknown(client):
         patch("json.load", return_value={"architectures": "A", "model_type": "B"}),
         patch("huggingface_hub.HfApi.model_info", return_value=adapter_info),
         patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", return_value={}),
-        patch("transformerlab.routers.model.db.job_create", return_value=123),
+        patch("transformerlab.routers.model.db_jobs.job_create", return_value=123),
         patch("transformerlab.routers.model.asyncio.create_task"),
     ):
         response = client.post("/model/install_peft", params={"peft": "dummy", "model_id": "valid_model"})
@@ -148,7 +148,7 @@ def test_install_peft_unknown_field_status(client):
         patch("json.load", return_value={}),
         patch("huggingface_hub.HfApi.model_info", return_value=adapter_info),
         patch("transformerlab.routers.model.huggingfacemodel.get_model_details_from_huggingface", return_value={}),
-        patch("transformerlab.routers.model.db.job_create", return_value=123),
+        patch("transformerlab.routers.model.db_jobs.job_create", return_value=123),
         patch("transformerlab.routers.model.asyncio.create_task"),
     ):
         response = client.post("/model/install_peft", params={"peft": "dummy", "model_id": "valid_model"})
