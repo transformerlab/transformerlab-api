@@ -96,7 +96,8 @@ proxy_args = [
     "--model-path", model,
     "--proxy-url", f"http://localhost:{parameters.get('port', 8000)}/v1",
     "--model", model,
-    "--model-names", str(model.split("/")[-1]),
+    #"--model-names", str(model.split("/")[-1]),
+    "--model-names", "TinyLlama-1.1B-Chat-v1.0"
     ]
 
 print(f"!!!!!!!{proxy_args}")
@@ -121,5 +122,5 @@ except Exception as e:
 # #     vllm_proc.terminate()
 # #     vllm_proc.wait()
 
-print("OpenAI API Proxy Server exited", file=sys.stderr)
-sys.exit(1)  # 99 is our code for CUDA OOM
+# print("OpenAI API Proxy Server exited", file=sys.stderr)
+# sys.exit(1)  # 99 is our code for CUDA OOM
