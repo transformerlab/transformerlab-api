@@ -180,11 +180,6 @@ def train_model():
     num_train_epochs = int(tlab_trainer.params.get("num_train_epochs", 3))
     batch_size = int(tlab_trainer.params.get("batch_size", 4))
 
-    # Reduce batch size for AMD GPU to avoid memory issues
-    if HAS_AMD and batch_size > 2:
-        batch_size = min(batch_size, 2)
-        print(f"Reduced batch size to {batch_size} for AMD GPU compatibility")
-
     learning_rate = float(tlab_trainer.params.get("learning_rate", 2e-4))
     lr_scheduler = tlab_trainer.params.get("learning_rate_schedule", "constant")
 
