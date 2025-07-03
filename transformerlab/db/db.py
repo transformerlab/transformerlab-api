@@ -19,6 +19,7 @@ from fastapi_users.db import SQLAlchemyUserDatabase
 from transformerlab.db.jobs import ALLOWED_JOB_TYPES, job_create
 from transformerlab.shared.models import models
 from transformerlab.shared.models.models import Config, Plugin
+from transformerlab.db.utils import sqlalchemy_to_dict, sqlalchemy_list_to_dict
 
 from transformerlab.db.constants import DATABASE_FILE_NAME
 from transformerlab.db.session import async_session
@@ -67,7 +68,7 @@ async def model_local_list():
         models_list = result.scalars().all()
         data = []
         for model in models_list:
-            row = model.__dict__.copy()
+            row = sqlalchemy_to_dict(model)
             if "json_data" in row and row["json_data"]:
                 if isinstance(row["json_data"], str):
                     row["json_data"] = json.loads(row["json_data"])
@@ -104,7 +105,7 @@ async def model_local_get(model_id):
         model = result.scalar_one_or_none()
         if model is None:
             return None
-        row = model.__dict__.copy()
+        row = sqlalchemy_to_dict(model)
         if "json_data" in row and row["json_data"]:
             if isinstance(row["json_data"], str):
                 row["json_data"] = json.loads(row["json_data"])
@@ -164,7 +165,7 @@ async def tasks_get_all():
         tasks = result.scalars().all()
         data = []
         for task in tasks:
-            row = task.__dict__.copy()
+            row = sqlalchemy_to_dict(task)
             data.append(row)
         return data
 
@@ -177,7 +178,7 @@ async def tasks_get_by_type(Type):
         tasks = result.scalars().all()
         data = []
         for task in tasks:
-            row = task.__dict__.copy()
+            row = sqlalchemy_to_dict(task)
             data.append(row)
         return data
 
@@ -192,7 +193,7 @@ async def tasks_get_by_type_in_experiment(Type, experiment_id):
         tasks = result.scalars().all()
         data = []
         for task in tasks:
-            row = task.__dict__.copy()
+            row = sqlalchemy_to_dict(task)
             data.append(row)
         return data
 
@@ -219,7 +220,7 @@ async def tasks_get_by_id(task_id):
         task = result.scalar_one_or_none()
         if task is None:
             return None
-        return task.__dict__
+        return sqlalchemy_to_dict(task)
 
 
 async def get_training_template(id):
@@ -229,7 +230,7 @@ async def get_training_template(id):
         if template is None:
             return None
         # Convert ORM object to dict
-        return template.__dict__
+        return sqlalchemy_to_dict(template)
 
 
 async def get_training_template_by_name(name):
@@ -239,7 +240,7 @@ async def get_training_template_by_name(name):
         if template is None:
             return None
         # Convert ORM object to dict
-        return template.__dict__
+        return sqlalchemy_to_dict(template)
 
 
 async def get_training_templates():
@@ -249,7 +250,7 @@ async def get_training_templates():
         )
         templates = result.scalars().all()
         # Convert ORM objects to dicts if needed
-        return [t.__dict__ for t in templates]
+        return sqlalchemy_list_to_dict(templates)
 
 
 async def create_training_template(name, description, type, datasets, config):
@@ -310,7 +311,7 @@ async def training_jobs_get_all():
 
         data = []
         for job, tt_id, config in rows:
-            row = job.__dict__.copy()
+            row = sqlalchemy_to_dict(job)
             row["tt_id"] = tt_id
             # Convert job_data and config from JSON string to Python object
             if "job_data" in row and row["job_data"]:
@@ -375,7 +376,7 @@ async def experiment_get_all():
         result = await session.execute(select(models.Experiment).order_by(models.Experiment.created_at.desc()))
         experiments = result.scalars().all()
         # Convert ORM objects to dicts
-        return [e.__dict__ for e in experiments]
+        return sqlalchemy_list_to_dict(experiments)
 
 
 async def experiment_create(name: str, config: dict) -> int:
@@ -401,7 +402,7 @@ async def experiment_get(id):
         # Ensure config is always a JSON string
         if isinstance(experiment.config, dict):
             experiment.config = json.dumps(experiment.config)
-        return experiment.__dict__
+        return sqlalchemy_to_dict(experiment)
 
 
 async def experiment_get_by_name(name):
@@ -410,7 +411,7 @@ async def experiment_get_by_name(name):
         experiment = result.scalar_one_or_none()
         if experiment is None:
             return None
-        return experiment.__dict__
+        return sqlalchemy_to_dict(experiment)
 
 
 async def experiment_delete(id):
@@ -492,21 +493,21 @@ async def get_plugins():
         result = await session.execute(select(Plugin))
         plugins = result.scalars().all()
         # Convert ORM objects to dicts
-        return [p.__dict__ for p in plugins]
+        return sqlalchemy_list_to_dict(plugins)
 
 
 async def get_plugins_of_type(type: str):
     async with async_session() as session:
         result = await session.execute(select(Plugin).where(Plugin.type == type))
         plugins = result.scalars().all()
-        return [p.__dict__ for p in plugins]
+        return sqlalchemy_list_to_dict(plugins)
 
 
 async def get_plugin(slug: str):
     async with async_session() as session:
         result = await session.execute(select(Plugin).where(Plugin.name == slug))
         plugin = result.scalar_one_or_none()
-        return plugin.__dict__ if plugin else None
+        return sqlalchemy_to_dict(plugin) if plugin else None
 
 
 async def save_plugin(name: str, type: str):
