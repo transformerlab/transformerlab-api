@@ -3,6 +3,8 @@ import json
 import os
 import subprocess
 import sys
+import time
+import requests
 
 try:
     from transformerlab.plugin import get_python_executable
@@ -53,6 +55,23 @@ vllm_args = [
 print("Starting vLLM OpenAI API server...", file=sys.stderr)
 # TODO: Handle logging properly for vllm
 vllm_proc = subprocess.Popen(vllm_args, stdout=None, stderr=subprocess.PIPE)
+
+# Wait for vLLM server to be ready
+vllm_url = f"http://localhost:{port}/v1/models"
+timeout = 120  # seconds
+start_time = time.time()
+while True:
+    try:
+        resp = requests.get(vllm_url, timeout=3)
+        if resp.status_code == 200:
+            print("vLLM server is ready", file=sys.stderr)
+            break
+    except Exception as e:
+        pass
+    if time.time() - start_time > timeout:
+        print("Timeout waiting for vLLM server to be ready", file=sys.stderr)
+        sys.exit(1)
+    time.sleep(1)
 
 proxy_args = [
     python_executable, 
