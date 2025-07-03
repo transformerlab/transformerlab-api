@@ -686,10 +686,10 @@ def prepare_next_task_io(task_def: dict, previous_outputs: dict):
         inputs = task_def.get("inputs", {})
 
     if not isinstance(task_def.get("outputs", "{}"), dict):
-        inputs = json.loads(task_def.get("outputs", "{}"))
+        outputs = json.loads(task_def.get("outputs", "{}"))
     else:
-        inputs = task_def.get("outputs", {})
-        
+        outputs = task_def.get("outputs", {})
+
     task_type = task_def.get("type")
 
     # Map previous outputs to next inputs
