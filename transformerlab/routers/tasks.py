@@ -62,7 +62,9 @@ async def add_task(new_task: dict = Body()):
         new_task["experiment_id"],
     )
     if new_task["type"] == "TRAIN":
-        config = json.loads(new_task["config"])
+        if not isinstance(new_task["config"], dict):
+            new_task["config"] = json.loads(new_task["config"])
+        config = new_task["config"]
         # Get the dataset info from the config
         datasets = config.get("_tlab_recipe_datasets", {})
         datasets = datasets.get("path", "")
@@ -201,14 +203,26 @@ async def queue_task(task_id: int, input_override: str = "{}", output_override: 
     job_status = "QUEUED"
     job_data = {}
     # these are the input and output configs from the task
-    inputs = json.loads(task_to_queue["inputs"])
-    outputs = json.loads(task_to_queue["outputs"])
+    if not isinstance(task_to_queue["inputs"], dict):
+        task_to_queue["inputs"] = json.loads(task_to_queue["inputs"])
+    if not isinstance(task_to_queue["outputs"], dict):
+        task_to_queue["outputs"] = json.loads(task_to_queue["outputs"])
+    
+
+    inputs = task_to_queue["inputs"]
+    outputs = task_to_queue["outputs"]
 
     # these are the in runtime changes that will override the input and output config from the task
-    input_override = json.loads(input_override)
-    output_override = json.loads(output_override)
+    if not isinstance(input_override, dict):
+        input_override = json.loads(input_override)
+    if not isinstance(output_override, dict):
+        output_override = json.loads(output_override)
+
+    if not isinstance(task_to_queue["config"], dict):
+        task_to_queue["config"] = json.loads(task_to_queue["config"])
+
     if job_type == "TRAIN":
-        job_data["config"] = json.loads(task_to_queue["config"])
+        job_data["config"] = task_to_queue["config"]
         job_data["model_name"] = inputs["model_name"]
         job_data["dataset"] = inputs["dataset_name"]
         if "type" not in job_data["config"].keys():
@@ -233,7 +247,7 @@ async def queue_task(task_id: int, input_override: str = "{}", output_override: 
         job_data["template_name"] = task_to_queue["name"]
     elif job_type == "EVAL":
         job_data["evaluator"] = task_to_queue["name"]
-        job_data["config"] = json.loads(task_to_queue["config"])
+        job_data["config"] = task_to_queue["config"]
         for key in inputs.keys():
             job_data["config"][key] = inputs[key]
             job_data["config"]["script_parameters"][key] = inputs[key]
@@ -244,7 +258,7 @@ async def queue_task(task_id: int, input_override: str = "{}", output_override: 
         job_data["plugin"] = task_to_queue["plugin"]
     elif job_type == "GENERATE":
         job_data["generator"] = task_to_queue["name"]
-        job_data["config"] = json.loads(task_to_queue["config"])
+        job_data["config"] = task_to_queue["config"]
         for key in inputs.keys():
             job_data["config"][key] = inputs[key]
             job_data["config"]["script_parameters"][key] = inputs[key]

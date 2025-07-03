@@ -6,6 +6,7 @@ import json
 from sqlalchemy import select, insert, delete, text
 from transformerlab.db.session import async_session
 from transformerlab.shared.models import models
+from transformerlab.db.utils import sqlalchemy_to_dict
 
 
 async def get_dataset(dataset_id):
@@ -14,7 +15,7 @@ async def get_dataset(dataset_id):
         dataset = result.scalar_one_or_none()
         if dataset is None:
             return None
-        row = dataset.__dict__.copy()
+        row = sqlalchemy_to_dict(dataset)
         if "json_data" in row and row["json_data"]:
             # If json_data is a string, parse it
             if isinstance(row["json_data"], str):
@@ -28,7 +29,7 @@ async def get_datasets():
         datasets = result.scalars().all()
         data = []
         for dataset in datasets:
-            row = dataset.__dict__.copy()
+            row = sqlalchemy_to_dict(dataset)
             if "json_data" in row and row["json_data"]:
                 if isinstance(row["json_data"], str):
                     row["json_data"] = json.loads(row["json_data"])
@@ -44,7 +45,7 @@ async def get_generated_datasets():
         datasets = result.scalars().all()
         data = []
         for dataset in datasets:
-            row = dataset.__dict__.copy()
+            row = sqlalchemy_to_dict(dataset)
             if "json_data" in row and row["json_data"]:
                 if isinstance(row["json_data"], str):
                     row["json_data"] = json.loads(row["json_data"])

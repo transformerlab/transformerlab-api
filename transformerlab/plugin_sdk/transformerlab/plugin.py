@@ -104,10 +104,14 @@ def experiment_get_by_name(name):
     # Convert the SQLite row into a JSON object with keys
     desc = cursor.description
     column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
+    row_dict = dict(itertools.zip_longest(column_names, row))
+
+    # Exclude created_at and updated_at fields to match our SQLAlchemy utility
+    excluded_fields = {"created_at", "updated_at"}
+    result = {k: v for k, v in row_dict.items() if k not in excluded_fields}
 
     cursor.close()
-    return row
+    return result
 
 
 def experiment_get(id):
@@ -123,10 +127,14 @@ def experiment_get(id):
     # Convert the SQLite row into a JSON object with keys
     desc = cursor.description
     column_names = [col[0] for col in desc]
-    row = dict(itertools.zip_longest(column_names, row))
+    row_dict = dict(itertools.zip_longest(column_names, row))
+
+    # Exclude created_at and updated_at fields to match our SQLAlchemy utility
+    excluded_fields = {"created_at", "updated_at"}
+    result = {k: v for k, v in row_dict.items() if k not in excluded_fields}
 
     cursor.close()
-    return row
+    return result
 
 
 def get_experiment_id_from_name(name: str):
@@ -192,8 +200,9 @@ class Job:
 
         progress: int representing percent complete
         """
+        # Remove manual updated_at - SQLAlchemy handles this automatically
         self.db.execute(
-            "UPDATE job SET progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            "UPDATE job SET progress = ? WHERE id = ?",
             (progress, self.id),
         )
 
@@ -203,10 +212,32 @@ class Job:
         row = cursor.fetchone()
         cursor.close()
 
-        if row is not None:
-            job_data = json.loads(row[0])
-            if job_data.get("stop", False):
-                self.should_stop = True
+        if row is not None and row[0] is not None:
+            try:
+                data = row[0]
+
+                # Handle different data types that might come from SQLite/SQLAlchemy
+                if isinstance(data, str):
+                    # Try to parse as JSON
+                    job_data = json.loads(data)
+
+                    # Check if the result is still a string (double-encoded JSON)
+                    if isinstance(job_data, str):
+                        # Try to parse again
+                        job_data = json.loads(job_data)
+                elif isinstance(data, dict):
+                    # Already a dictionary
+                    job_data = data
+                else:
+                    # Some other type, skip stop check
+                    return
+
+                if job_data.get("stop", False):
+                    self.should_stop = True
+
+            except (json.JSONDecodeError, TypeError, ValueError):
+                # If job_data is malformed, just continue
+                pass
 
     def update_status(self, status: str):
         """
@@ -214,8 +245,9 @@ class Job:
 
         status: str representing the status of the job
         """
+        # Remove manual updated_at - SQLAlchemy handles this automatically
         self.db.execute(
-            "UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            "UPDATE job SET status = ? WHERE id = ?",
             (status, self.id),
         )
 
@@ -251,46 +283,139 @@ class Job:
         row = cursor.fetchone()
         cursor.close()
 
-        if row is not None:
-            if isinstance(row[0], str):
-                return json.loads(row[0])
-            else:
-                return row[0]
-        return None
+        if row is not None and row[0] is not None:
+            try:
+                data = row[0]
+
+                # Handle different data types that might come from SQLite/SQLAlchemy
+                if isinstance(data, str):
+                    # Try to parse as JSON
+                    parsed = json.loads(data)
+
+                    # Check if the result is still a string (double-encoded JSON)
+                    if isinstance(parsed, str):
+                        # Try to parse again
+                        return json.loads(parsed)
+                    else:
+                        return parsed
+                elif isinstance(data, dict):
+                    # Already a dictionary
+                    return data
+                else:
+                    # Some other type, try to convert to dict
+                    return dict(data) if data else {}
+
+            except (json.JSONDecodeError, TypeError, ValueError):
+                # If job_data is malformed, return empty dict
+                print(f"Warning: Malformed job_data for job {self.id}: {row[0]}")
+                return {}
+        return {}
 
     def set_tensorboard_output_dir(self, tensorboard_dir: str):
         """
         Sets the directory that tensorboard output is stored.
         """
-        self.db.execute(
-            "UPDATE job SET job_data = json_insert(job_data, '$.tensorboard_output_dir', ?) WHERE id = ?",
-            (tensorboard_dir, self.id),
-        )
+        self.add_to_job_data("tensorboard_output_dir", tensorboard_dir)
 
-    def add_to_job_data(self, key: str, value: str):
+    def add_to_job_data(self, key: str, value):
         """
         Adds a key-value pair to the job_data JSON object.
         """
         try:
+            # Fetch current job_data
+            cursor = self.db.execute("SELECT job_data FROM job WHERE id = ?", (self.id,))
+            row = cursor.fetchone()
+            cursor.close()
+            
+            job_data = {}
+            if row and row[0] is not None:
+                data = row[0]
+                # Handle different data types that might come from SQLite/SQLAlchemy
+                if isinstance(data, str):
+                    try:
+                        # Try to parse as JSON
+                        job_data = json.loads(data)
+                        
+                        # Check if the result is still a string (double-encoded JSON)
+                        if isinstance(job_data, str):
+                            # Try to parse again
+                            job_data = json.loads(job_data)
+                    except Exception:
+                        job_data = {}
+                elif isinstance(data, dict):
+                    # Already a dictionary
+                    job_data = data
+                else:
+                    job_data = {}
+            
+            # Update the key - handle different value types
+            # if isinstance(value, str):
+            #     # Try to parse as JSON, if that fails store as string
+            #     try:
+            #         job_data[key] = json.loads(value)
+                # except (json.JSONDecodeError, TypeError):
+                #     job_data[key] = value
+            # else:
+            # Store value as-is (dict, list, number, bool, etc.)
+            job_data[key] = value
+            
+            # Save back as JSON
             self.db.execute(
-                "UPDATE job SET job_data = json_insert(job_data, '$." + key + "', ?) WHERE id = ?",
-                (value, self.id),
+                "UPDATE job SET job_data = ? WHERE id = ?",
+                (json.dumps(job_data), self.id),
             )
         except Exception as e:
             print(f"Error adding to job data: {e}")
 
-    def update_job_data(self, key: str, value: str):
+    def update_job_data(self, key: str, value):
         """
-        Adds a key-value pair to the job_data JSON object.
+        Updates a key-value pair in the job_data JSON object.
         """
         try:
+            # Fetch current job_data
+            cursor = self.db.execute("SELECT job_data FROM job WHERE id = ?", (self.id,))
+            row = cursor.fetchone()
+            cursor.close()
+            
+            job_data = {}
+            if row and row[0] is not None:
+                data = row[0]
+                # Handle different data types that might come from SQLite/SQLAlchemy
+                if isinstance(data, str):
+                    try:
+                        # Try to parse as JSON
+                        job_data = json.loads(data)
+                        
+                        # Check if the result is still a string (double-encoded JSON)
+                        if isinstance(job_data, str):
+                            # Try to parse again
+                            job_data = json.loads(job_data)
+                    except Exception:
+                        job_data = {}
+                elif isinstance(data, dict):
+                    # Already a dictionary
+                    job_data = data
+                else:
+                    job_data = {}
+            
+            # Update the key - handle different value types
+            if isinstance(value, str):
+                # Try to parse as JSON, if that fails store as string
+                try:
+                    job_data[key] = json.loads(value)
+                except (json.JSONDecodeError, TypeError):
+                    job_data[key] = value
+            else:
+                # Store value as-is (dict, list, number, bool, etc.)
+                job_data[key] = value
+            
+            # Save back as JSON
             self.db.execute(
-                "UPDATE job SET job_data = " + f"json_set(job_data,'$.{key}', json(?))  WHERE id = ?",
-                (value, self.id),
+                "UPDATE job SET job_data = ? WHERE id = ?",
+                (json.dumps(job_data), self.id),
             )
-            self.db.commit()
         except Exception as e:
-            print(f"Error adding to job data: {e}")
+            print(f"Error updating job data: {e}")
 
     def set_job_completion_status(
         self,
@@ -311,6 +436,15 @@ class Job:
             if completion_status not in ("success", "failed"):
                 raise ValueError("completion_status must be either 'success' or 'failed'")
 
+            # Add to job data completion_status and completion_details
+            self.add_to_job_data("completion_status", completion_status)
+            self.add_to_job_data("completion_details", completion_details)
+
+            # # Initialize job_data as empty JSON object if it's NULL
+            # self.db.execute(
+            #     "UPDATE job SET job_data = COALESCE(job_data, '{}') WHERE id = ? AND job_data IS NULL", (self.id,)
+            # )
+
             # Determine if additional_output_path is valid
             valid_output_path = (
                 additional_output_path if additional_output_path and additional_output_path.strip() != "" else None
@@ -318,27 +452,23 @@ class Job:
 
             valid_plot_data_path = plot_data_path if plot_data_path and plot_data_path.strip() != "" else None
 
-            # Build the SQL query and parameters dynamically.
-            sql = "UPDATE job SET job_data = json_insert(job_data, '$.completion_status', ?, '$.completion_details', ?"
-            params = [completion_status, completion_details]
+            # # Build the SQL query and parameters dynamically using json_set
+            # sql = "UPDATE job SET job_data = json_set(job_data, '$.completion_status', ?, '$.completion_details', ?"
+            # params = [completion_status, completion_details]
 
             if score is not None:
-                score = json.dumps(score)
-                sql += ", '$.score', ?"
-                params.append(score)
+                self.add_to_job_data("score", score)
 
             if valid_output_path is not None:
-                sql += ", '$.additional_output_path', ?"
-                params.append(valid_output_path)
+                self.add_to_job_data("additional_output_path", valid_output_path)
 
             if valid_plot_data_path is not None:
-                sql += ", '$.plot_data_path', ?"
-                params.append(valid_plot_data_path)
+                self.add_to_job_data("plot_data_path", valid_plot_data_path)
 
-            sql += ") WHERE id = ?"
-            params.append(self.id)
+            # sql += ") WHERE id = ?"
+            # params.append(self.id)
 
-            self.db.execute(sql, tuple(params))
+            # self.db.execute(sql, tuple(params))
         except Exception as e:
             print(f"Error setting job completion status: {e}")
 
