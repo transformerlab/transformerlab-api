@@ -6,7 +6,7 @@ import json
 from sqlalchemy import select, insert, delete, text
 from transformerlab.db.session import async_session
 from transformerlab.shared.models import models
-from transformerlab.db.utils import sqlalchemy_to_dict, sqlalchemy_list_to_dict
+from transformerlab.db.utils import sqlalchemy_to_dict
 
 
 async def get_dataset(dataset_id):
