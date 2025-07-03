@@ -66,7 +66,7 @@ while True:
         if resp.status_code == 200:
             print("vLLM server is ready", file=sys.stderr)
             break
-    except Exception as e:
+    except Exception:
         pass
     if time.time() - start_time > timeout:
         print("Timeout waiting for vLLM server to be ready", file=sys.stderr)
