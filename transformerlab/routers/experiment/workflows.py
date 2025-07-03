@@ -7,6 +7,7 @@ from transformerlab.db.workflows import (
     workflow_count_running,
     workflow_delete_by_id,
     workflow_queue,
+    workflow_update_name,
     workflow_run_get_by_id,
     workflow_run_get_queued,
     workflow_run_get_running,
@@ -16,6 +17,7 @@ from transformerlab.db.workflows import (
     workflow_update_config,
     workflows_get_by_id,
     workflows_get_from_experiment,
+    workflow_create,
 )
 import transformerlab.routers.tasks as tsks
 import json
@@ -50,7 +52,7 @@ async def workflow_delete(workflow_id: str, experimentId: int):
 
 
 @router.get("/create", summary="Create a workflow from config")
-async def workflow_create(name: str, config: str = '{"nodes":[]}', experimentId: int = 1):
+async def workflow_create_func(name: str, config: str = '{"nodes":[]}', experimentId: int = 1):
     config = json.loads(config)
     if len(config["nodes"]) > 0:
         config["nodes"] = [
@@ -82,11 +84,16 @@ async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: 
     workflow = await workflows_get_by_id(workflow_id, experimentId)
     if not workflow:
         return {"error": "Workflow not found or does not belong to this experiment"}
+    if workflow.get('config') is not None and not isinstance(workflow['config'], dict):
+        workflow["config"] = json.loads(workflow["config"])
 
-    config = json.loads(workflow["config"])
+    config = workflow["config"]
     for node in config["nodes"]:
         if node["id"] == node_id:
-            node["metadata"] = json.loads(metadata)
+            if not isinstance(metadata, dict):
+                node["metadata"] = json.loads(metadata)
+            else:
+                node["metadata"] = metadata
 
     success = await workflow_update_config(workflow_id, json.dumps(config), experimentId)
     if not success:
@@ -95,7 +102,7 @@ async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: 
 
 
 @router.get("/{workflow_id}/update_name", summary="Update the name of a workflow")
-async def workflow_update_name(workflow_id: str, new_name: str, experimentId: int):
+async def workflow_update_name_func(workflow_id: str, new_name: str, experimentId: int):
     new_name = slugify(new_name)
     # Update workflow name with experiment enforcement at database level
     # Check if workflow name already exists in this experiment
@@ -117,8 +124,14 @@ async def workflow_add_node(workflow_id: str, node: str, experimentId: int):
     if not workflow:
         return {"error": "Workflow not found or does not belong to this experiment"}
 
-    new_node_json = json.loads(node)
-    config = json.loads(workflow["config"])
+    if not isinstance(node, dict):
+        node = json.loads(node)
+
+    new_node_json = node
+    if workflow.get('config') is not None and not isinstance(workflow['config'], dict):
+        workflow["config"] = json.loads(workflow["config"])
+        
+    config = workflow["config"]
 
     new_node_json["id"] = str(uuid.uuid4())
     new_node_json["out"] = []
@@ -143,7 +156,10 @@ async def workflow_update_node(workflow_id: str, node_id: str, experimentId: int
     if not workflow:
         return {"error": "Workflow not found or does not belong to this experiment"}
 
-    config = json.loads(workflow["config"])
+    if workflow.get('config') is not None and not isinstance(workflow['config'], dict):
+        workflow["config"] = json.loads(workflow["config"])
+        
+    config = workflow["config"]
     newNodes = []
 
     for node in config["nodes"]:
@@ -166,7 +182,10 @@ async def workflow_remove_edge(workflow_id: str, start_node_id: str, end_node_id
     if not workflow:
         return {"error": "Workflow not found or does not belong to this experiment"}
 
-    config = json.loads(workflow["config"])
+    if workflow.get('config') is not None and not isinstance(workflow['config'], dict):
+        workflow["config"] = json.loads(workflow["config"])
+        
+    config = workflow["config"]
     newNodes = []
 
     for node in config["nodes"]:
@@ -191,7 +210,10 @@ async def workflow_add_edge(workflow_id: str, start_node_id: str, end_node_id: s
     if not workflow:
         return {"error": "Workflow not found or does not belong to this experiment"}
 
-    config = json.loads(workflow["config"])
+    if workflow.get('config') is not None and not isinstance(workflow['config'], dict):
+        workflow["config"] = json.loads(workflow["config"])
+        
+    config = workflow["config"]
     newNodes = []
 
     for node in config["nodes"]:
@@ -215,7 +237,10 @@ async def workflow_delete_node(workflow_id: str, node_id: str, experimentId: int
     if not workflow:
         return {"error": "Workflow not found or does not belong to this experiment"}
 
-    config = json.loads(workflow["config"])
+    if workflow.get('config') is not None and not isinstance(workflow['config'], dict):
+        workflow["config"] = json.loads(workflow["config"])
+        
+    config = workflow["config"]
     newNodes = []
     removedNode = {}
     for node in config["nodes"]:
@@ -256,7 +281,9 @@ async def workflow_export_to_yaml(workflow_id: str, experimentId: int):
     ):
         workflow.pop(field, None)
 
-    workflow["config"] = json.loads(workflow["config"])
+    if workflow.get('config') is not None and not isinstance(workflow['config'], dict):
+        workflow["config"] = json.loads(workflow["config"])
+        
 
     filename = f"{workflow['name']}.yaml"
     with open(filename, "w") as yaml_file:
@@ -354,7 +381,11 @@ async def workflow_runs_get_by_id(workflow_run_id: str, experimentId: int):
     returnInfo = {"run": workflow_run, "workflow": workflow, "jobs": []}
 
     try:
-        job_ids = json.loads(workflow_run.get("job_ids", "[]"))
+        if not isinstance(workflow_run.get("job_ids", "[]"), dict) or not isinstance(workflow_run.get("job_ids", "[]"), list):
+            job_ids = json.loads(workflow_run.get("job_ids", "[]"))
+        else:
+            job_ids = workflow_run.get("job_ids", [])
+
         for job_id in job_ids:
             job = await db_jobs.job_get(job_id)
             if not job:
@@ -407,7 +438,10 @@ async def cancel_workflow_run(workflow_run_id: str, experimentId: int):
         return {"error": f"Cannot cancel workflow in {current_status} status"}
 
     # Cancel all current jobs - this will trigger automatic workflow cancellation
-    current_job_ids = json.loads(workflow_run.get("current_job_ids", "[]"))
+    if not isinstance(workflow_run.get("current_job_ids", "[]"), list) or not isinstance(workflow_run.get("current_job_ids", "[]"), dict):
+        current_job_ids = json.loads(workflow_run.get("current_job_ids", "[]"))
+    else:
+        current_job_ids = workflow_run.get("current_job_ids", [])
     cancelled_jobs = []
 
     for job_id in current_job_ids:
@@ -447,9 +481,24 @@ async def load_workflow_context(active_run):
     workflow_id = active_run["workflow_id"]
     experiment_id = active_run["experiment_id"]  # Get experiment_id from active_run
     workflow = await workflows_get_by_id(workflow_id, experiment_id)
-    workflow_config = json.loads(workflow["config"])
-    current_tasks = json.loads(active_run["current_tasks"])  # List of task IDs (node IDs)
-    current_job_ids = json.loads(active_run["current_job_ids"])  # List of job IDs
+    if not workflow:
+        raise ValueError("Workflow not found or does not belong to this experiment")
+
+    if workflow.get('config') is not None and not isinstance(workflow['config'], dict):
+        workflow["config"] = json.loads(workflow["config"])
+    workflow_config = workflow["config"]
+
+    # List of task IDs (node IDs)
+    if not isinstance(active_run.get("current_tasks", "[]"), list) or not isinstance(active_run.get("current_tasks", "[]"), dict):
+        current_tasks = json.loads(active_run.get("current_tasks", "[]"))
+    else:
+        current_tasks = active_run.get("current_tasks", [])
+
+    # List of job IDs
+    if not isinstance(active_run.get("current_job_ids", "[]"), list) or not isinstance(active_run.get("current_job_ids", "[]"), dict):
+        current_job_ids = json.loads(active_run.get("current_job_ids", "[]"))
+    else:
+        current_job_ids = active_run.get("current_job_ids", [])
 
     return workflow_run_id, workflow_id, workflow_config, current_tasks, current_job_ids
 
@@ -584,6 +633,10 @@ async def find_previous_node_and_job(current_node, workflow_run, workflow_config
         if previous_node.get("type") != "START":
             ran_nodes_str = workflow_run.get("node_ids", "[]")
             ran_jobs_str = workflow_run.get("job_ids", "[]")
+            if not isinstance(ran_nodes_str, str):
+                ran_nodes_str = json.dumps(ran_nodes_str)
+            if not isinstance(ran_jobs_str, str):
+                ran_jobs_str = json.dumps(ran_jobs_str)
             ran_nodes = json.loads(ran_nodes_str)
             ran_jobs = json.loads(ran_jobs_str)
             if previous_node["id"] in ran_nodes:
@@ -632,8 +685,16 @@ def extract_previous_job_outputs(previous_job):
 
 def prepare_next_task_io(task_def: dict, previous_outputs: dict):
     """Prepares the JSON input and output strings for the next task."""
-    inputs = json.loads(task_def.get("inputs", "{}"))
-    outputs = json.loads(task_def.get("outputs", "{}"))
+    if not isinstance(task_def.get("inputs", "{}"), dict):
+        inputs = json.loads(task_def.get("inputs", "{}"))
+    else:
+        inputs = task_def.get("inputs", {})
+
+    if not isinstance(task_def.get("outputs", "{}"), dict):
+        outputs = json.loads(task_def.get("outputs", "{}"))
+    else:
+        outputs = task_def.get("outputs", {})
+
     task_type = task_def.get("type")
 
     # Map previous outputs to next inputs
