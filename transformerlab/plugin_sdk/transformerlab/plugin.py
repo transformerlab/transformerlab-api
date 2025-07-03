@@ -349,15 +349,15 @@ class Job:
                     job_data = {}
             
             # Update the key - handle different value types
-            if isinstance(value, str):
-                # Try to parse as JSON, if that fails store as string
-                try:
-                    job_data[key] = json.loads(value)
-                except (json.JSONDecodeError, TypeError):
-                    job_data[key] = value
-            else:
-                # Store value as-is (dict, list, number, bool, etc.)
-                job_data[key] = value
+            # if isinstance(value, str):
+            #     # Try to parse as JSON, if that fails store as string
+            #     try:
+            #         job_data[key] = json.loads(value)
+                # except (json.JSONDecodeError, TypeError):
+                #     job_data[key] = value
+            # else:
+            # Store value as-is (dict, list, number, bool, etc.)
+            job_data[key] = value
             
             # Save back as JSON
             self.db.execute(

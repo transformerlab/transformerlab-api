@@ -2,6 +2,7 @@
 Utilities for working with SQLAlchemy objects
 """
 from sqlalchemy.inspection import inspect
+import json
 
 
 def sqlalchemy_to_dict(obj):
@@ -33,6 +34,12 @@ def sqlalchemy_to_dict(obj):
         if column.name not in excluded_fields:
             value = getattr(obj, column.name)
             result[column.name] = value
+
+    
+    # If the column is of type JSON, convert its value to a JSON string
+    if hasattr(column.type, "python_type") and column.type.python_type is dict:
+        if value is not None:
+            result[column.name] = json.dumps(value)
     
     return result
 
