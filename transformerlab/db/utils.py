@@ -38,7 +38,7 @@ def sqlalchemy_to_dict(obj):
 
             # If the column is of type JSON, convert its value to a JSON string
             if hasattr(column.type, "python_type") and column.type.python_type is dict:
-                if value is not None:
+                if isinstance(value, dict):
                     result[column.name] = json.dumps(value)
 
     return result
