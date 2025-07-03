@@ -3,9 +3,6 @@ import json
 import os
 import subprocess
 import sys
-import threading
-import time
-import socket
 
 try:
     from transformerlab.plugin import get_python_executable
@@ -67,12 +64,12 @@ vllm_args = [
     "--enforce-eager",
 ]
 print("Starting vLLM OpenAI API server...", file=sys.stderr)
-vllm_proc = subprocess.Popen(vllm_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+vllm_proc = subprocess.Popen(vllm_args, stdout=None, stderr=subprocess.PIPE)
 
+# read output:
+for line in iter(vllm_proc.stderr.readline, b""):
+    print(line, file=sys.stderr)
 
-# Start threads to read vLLM server output
-# threading.Thread(target=stream_output, args=(vllm_proc.stdout, "vLLM-stdout"), daemon=True).start()
-# threading.Thread(target=stream_output, args=(vllm_proc.stderr, "vLLM-stderr"), daemon=True).start()
 
 # # Wait for vLLM server to be ready (port open)
 # if not wait_for_port(host, port, timeout=120):
@@ -88,9 +85,8 @@ proxy_args = [
     "-m", 
     "fastchat.serve.openai_api_proxy_worker",
     "--model-path", model,
-   # "--proxy-url", f"http://localhost:{parameters.get('port', 8000)}/v1",
+    "--proxy-url", f"http://localhost:{parameters.get('port', 8000)}/v1",
    "--model", model,
-    # "--model-names", str(model.split("/")[-1]),
     ]
 
 # print("Starting FastChat OpenAI API Proxy worker...", file=sys.stderr)
