@@ -5,7 +5,6 @@ import subprocess
 import sys
 import time
 import requests
-import atexit
 
 
 try:
@@ -56,7 +55,6 @@ vllm_args = [
     "--trust-remote-code",
 ]
 print("Starting vLLM OpenAI API server...", file=sys.stderr)
-# TODO: Handle logging properly for vllm
 vllm_proc = subprocess.Popen(vllm_args, stdout=None, stderr=subprocess.PIPE)
 
 # Wait for vLLM server to be ready
@@ -98,11 +96,15 @@ for line in iter(proxy_proc.stderr.readline, b""):
     print(line, file=sys.stderr)
 
 
-# Wait for the proxy process to exit, then kill vLLM process
 try:
-    proxy_proc.wait()  # wait until proxy (FastChat worker) stops
+    # Poll for proxy_proc exit every 2s
+    while proxy_proc.poll() is None:
+        time.sleep(2)
+
+    print("Proxy process exited, cleaning up vLLM...", file=sys.stderr)
+
 finally:
-    if vllm_proc.poll() is None:  # if vLLM still running
+    if vllm_proc.poll() is None:
         print(f"Killing vLLM (PID {vllm_proc.pid}) because proxy exited", file=sys.stderr)
         vllm_proc.terminate()
         try:
