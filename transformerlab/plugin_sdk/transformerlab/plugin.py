@@ -382,10 +382,14 @@ class Job:
             if completion_status not in ("success", "failed"):
                 raise ValueError("completion_status must be either 'success' or 'failed'")
 
-            # Initialize job_data as empty JSON object if it's NULL
-            self.db.execute(
-                "UPDATE job SET job_data = COALESCE(job_data, '{}') WHERE id = ? AND job_data IS NULL", (self.id,)
-            )
+            # Add to job data completion_status and completion_details
+            self.add_to_job_data("completion_status", completion_status)
+            self.add_to_job_data("completion_details", completion_details)
+
+            # # Initialize job_data as empty JSON object if it's NULL
+            # self.db.execute(
+            #     "UPDATE job SET job_data = COALESCE(job_data, '{}') WHERE id = ? AND job_data IS NULL", (self.id,)
+            # )
 
             # Determine if additional_output_path is valid
             valid_output_path = (
@@ -394,27 +398,24 @@ class Job:
 
             valid_plot_data_path = plot_data_path if plot_data_path and plot_data_path.strip() != "" else None
 
-            # Build the SQL query and parameters dynamically using json_set
-            sql = "UPDATE job SET job_data = json_set(job_data, '$.completion_status', ?, '$.completion_details', ?"
-            params = [completion_status, completion_details]
+            # # Build the SQL query and parameters dynamically using json_set
+            # sql = "UPDATE job SET job_data = json_set(job_data, '$.completion_status', ?, '$.completion_details', ?"
+            # params = [completion_status, completion_details]
 
             if score is not None:
                 score_json = json.dumps(score)
-                sql += ", '$.score', json(?)"
-                params.append(score_json)
+                self.add_to_job_data("score", score_json)
 
             if valid_output_path is not None:
-                sql += ", '$.additional_output_path', ?"
-                params.append(valid_output_path)
+                self.add_to_job_data("additional_output_path", valid_output_path)
 
             if valid_plot_data_path is not None:
-                sql += ", '$.plot_data_path', ?"
-                params.append(valid_plot_data_path)
+                self.add_to_job_data("plot_data_path", valid_plot_data_path)
 
-            sql += ") WHERE id = ?"
-            params.append(self.id)
+            # sql += ") WHERE id = ?"
+            # params.append(self.id)
 
-            self.db.execute(sql, tuple(params))
+            # self.db.execute(sql, tuple(params))
         except Exception as e:
             print(f"Error setting job completion status: {e}")
 
