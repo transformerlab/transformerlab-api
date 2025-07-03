@@ -45,7 +45,7 @@ vllm_args = [
     python_executable,
     "-m",
     "vllm.entrypoints.openai.api_server",
-    #"--model", model,
+    "--model", model,
     "--dtype", parameters.get("model_dtype", "auto"),
     "--port", str(port),
     "--max-model-len", str(parameters.get("max_model_len", 2048)),
