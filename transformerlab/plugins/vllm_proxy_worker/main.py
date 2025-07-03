@@ -12,23 +12,23 @@ try:
 except ImportError:
     from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
 
-def stream_output(pipe, label):
-    """Continuously read from pipe and print lines with label."""
-    for line in iter(pipe.readline, ''):
-        print(f"[{label}]", line.rstrip(), file=sys.stderr)
-    pipe.close()
+# def stream_output(pipe, label):
+#     """Continuously read from pipe and print lines with label."""
+#     for line in iter(pipe.readline, ''):
+#         print(f"[{label}]", line.rstrip(), file=sys.stderr)
+#     pipe.close()
 
-def wait_for_port(host, port, timeout=30):
-    """Wait until a TCP port is open on host or timeout."""
-    start = time.time()
-    while True:
-        try:
-            with socket.create_connection((host, port), timeout=1):
-                return True
-        except (ConnectionRefusedError, OSError):
-            if time.time() - start > timeout:
-                return False
-            time.sleep(0.5)
+# def wait_for_port(host, port, timeout=30):
+#     """Wait until a TCP port is open on host or timeout."""
+#     start = time.time()
+#     while True:
+#         try:
+#             with socket.create_connection((host, port), timeout=1):
+#                 return True
+#         except (ConnectionRefusedError, OSError):
+#             if time.time() - start > timeout:
+#                 return False
+#             time.sleep(0.5)
 
 # Get all arguments provided to this script using argparse
 parser = argparse.ArgumentParser()
@@ -61,41 +61,41 @@ python_executable = get_python_executable(real_plugin_dir)
 port = int(parameters.get("port", 8000))
 host = "127.0.0.1"
 
-vllm_args = [
-    python_executable,
-    "-m",
-    "vllm.entrypoints.openai.api_server",
-    "--model", model,
-    "--dtype", parameters.get("model_dtype", "auto"),
-    "--port", str(port),
-    "--max-model-len", str(parameters.get("max_model_len", 2048)),
-    "--gpu-memory-utilization", str(parameters.get("gpu_memory_utilization", 0.9)),
-    "--enforce-eager",
-]
-print("Starting vLLM OpenAI API server...", file=sys.stderr)
-vllm_proc = subprocess.Popen(vllm_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+# vllm_args = [
+#     python_executable,
+#     "-m",
+#     "vllm.entrypoints.openai.api_server",
+#     "--model", model,
+#     "--dtype", parameters.get("model_dtype", "auto"),
+#     "--port", str(port),
+#     "--max-model-len", str(parameters.get("max_model_len", 2048)),
+#     "--gpu-memory-utilization", str(parameters.get("gpu_memory_utilization", 0.9)),
+#     "--enforce-eager",
+# ]
+# print("Starting vLLM OpenAI API server...", file=sys.stderr)
+# vllm_proc = subprocess.Popen(vllm_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
 
 # Start threads to read vLLM server output
-threading.Thread(target=stream_output, args=(vllm_proc.stdout, "vLLM-stdout"), daemon=True).start()
-threading.Thread(target=stream_output, args=(vllm_proc.stderr, "vLLM-stderr"), daemon=True).start()
+# threading.Thread(target=stream_output, args=(vllm_proc.stdout, "vLLM-stdout"), daemon=True).start()
+# threading.Thread(target=stream_output, args=(vllm_proc.stderr, "vLLM-stderr"), daemon=True).start()
 
-# Wait for vLLM server to be ready (port open)
-if not wait_for_port(host, port, timeout=120):
-    print(f"Error: vLLM server did not start listening on {host}:{port} within timeout.", file=sys.stderr)
-    vllm_proc.terminate()
-    vllm_proc.wait()
-    sys.exit(1)
+# # Wait for vLLM server to be ready (port open)
+# if not wait_for_port(host, port, timeout=120):
+#     print(f"Error: vLLM server did not start listening on {host}:{port} within timeout.", file=sys.stderr)
+#     vllm_proc.terminate()
+#     vllm_proc.wait()
+#     sys.exit(1)
 
-print(f"vLLM server is up and running on {host}:{port}", file=sys.stderr)
+# print(f"vLLM server is up and running on {host}:{port}", file=sys.stderr)
 
 proxy_args = [
     python_executable, 
     "-m", 
     "fastchat.serve.openai_api_proxy_worker",
     "--model-path", model,
-    "--proxy-url", f"http://localhost:{parameters.get('port', 8000)}/v1",
-    "--model", model,
+   # "--proxy-url", f"http://localhost:{parameters.get('port', 8000)}/v1",
+   # "--model", model,
     # "--model-names", str(model.split("/")[-1]),
     ]
 
@@ -105,8 +105,8 @@ print(f"!!!!!!!{proxy_args}")
 proxy_proc = subprocess.Popen(proxy_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
 # # Start threads to read proxy worker output
-threading.Thread(target=stream_output, args=(proxy_proc.stdout, "ProxyWorker-stdout"), daemon=True).start()
-threading.Thread(target=stream_output, args=(proxy_proc.stderr, "ProxyWorker-stderr"), daemon=True).start()
+# threading.Thread(target=stream_output, args=(proxy_proc.stdout, "ProxyWorker-stdout"), daemon=True).start()
+# threading.Thread(target=stream_output, args=(proxy_proc.stderr, "ProxyWorker-stderr"), daemon=True).start()
 
 # # Save proxy worker PID for external management
 try:
@@ -121,5 +121,5 @@ except Exception as e:
 # #     vllm_proc.terminate()
 # #     vllm_proc.wait()
 
-# print("OpenAI API Proxy Server exited", file=sys.stderr)
-# sys.exit(1)  # 99 is our code for CUDA OOM
+print("OpenAI API Proxy Server exited", file=sys.stderr)
+sys.exit(1)  # 99 is our code for CUDA OOM
