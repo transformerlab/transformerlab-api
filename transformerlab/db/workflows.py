@@ -31,7 +31,15 @@ async def workflows_get_from_experiment(experiment_id):
             .order_by(models.Workflow.created_at.desc())
         )
         workflows = result.scalars().all()
-        return sqlalchemy_list_to_dict(workflows)
+        workflow_list = sqlalchemy_list_to_dict(workflows)
+        # Make sure that the configs for each workflow are strings
+        for workflow in workflow_list:
+            print(workflow)
+            workflow_config = workflow.get("config", "")
+            if isinstance(workflow_config, dict):
+                workflow["config"] = json.dumps(workflow_config)
+        
+        return workflow_list
 
 
 async def workflow_run_get_all():
@@ -182,9 +190,6 @@ async def workflow_run_update_with_new_job(workflow_run_id, current_task, curren
         new_node_ids = json.loads(current_task or "[]")
         updated_node_ids = existing_node_ids + new_node_ids
         workflow_run.node_ids = json.dumps(updated_node_ids)
-
-        # Update the updated_at timestamp
-        workflow_run.updated_at = None  # Let the DB set CURRENT_TIMESTAMP
 
         await session.commit()
     return
