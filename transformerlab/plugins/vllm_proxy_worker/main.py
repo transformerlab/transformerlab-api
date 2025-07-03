@@ -109,11 +109,11 @@ proxy_proc = subprocess.Popen(proxy_args, stdout=subprocess.PIPE, stderr=subproc
 # threading.Thread(target=stream_output, args=(proxy_proc.stderr, "ProxyWorker-stderr"), daemon=True).start()
 
 # # Save proxy worker PID for external management
-# try:
-#     with open(os.path.join(llmlab_root_dir, "worker.pid"), "w") as f:
-#         f.write(str(proxy_proc.pid))
-# except Exception as e:
-#     print(f"Warning: Could not write worker PID file: {e}", file=sys.stderr)
+try:
+    with open(os.path.join(llmlab_root_dir, "worker.pid"), "w") as f:
+        f.write(str(proxy_proc.pid))
+except Exception as e:
+    print(f"Warning: Could not write worker PID file: {e}", file=sys.stderr)
  
 # # If proxy worker exits, also terminate vLLM server
 # # if vllm_proc.poll() is None:
