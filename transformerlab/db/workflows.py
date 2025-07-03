@@ -31,7 +31,15 @@ async def workflows_get_from_experiment(experiment_id):
             .order_by(models.Workflow.created_at.desc())
         )
         workflows = result.scalars().all()
-        return sqlalchemy_list_to_dict(workflows)
+        workflow_list = sqlalchemy_list_to_dict(workflows)
+        # Make sure that the configs for each workflow are strings
+        for workflow in workflow_list:
+            print(workflow)
+            workflow_config = workflow.get("config", "")
+            if isinstance(workflow_config, dict):
+                workflow["config"] = json.dumps(workflow_config)
+        
+        return workflow_list
 
 
 async def workflow_run_get_all():

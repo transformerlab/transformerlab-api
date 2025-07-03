@@ -7,6 +7,7 @@ from transformerlab.db.workflows import (
     workflow_count_running,
     workflow_delete_by_id,
     workflow_queue,
+    workflow_update_name,
     workflow_run_get_by_id,
     workflow_run_get_queued,
     workflow_run_get_running,
@@ -16,6 +17,7 @@ from transformerlab.db.workflows import (
     workflow_update_config,
     workflows_get_by_id,
     workflows_get_from_experiment,
+    workflow_create,
 )
 import transformerlab.routers.tasks as tsks
 import json
@@ -50,7 +52,7 @@ async def workflow_delete(workflow_id: str, experimentId: int):
 
 
 @router.get("/create", summary="Create a workflow from config")
-async def workflow_create(name: str, config: str = '{"nodes":[]}', experimentId: int = 1):
+async def workflow_create_func(name: str, config: str = '{"nodes":[]}', experimentId: int = 1):
     config = json.loads(config)
     if len(config["nodes"]) > 0:
         config["nodes"] = [
@@ -82,7 +84,7 @@ async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: 
     workflow = await workflows_get_by_id(workflow_id, experimentId)
     if not workflow:
         return {"error": "Workflow not found or does not belong to this experiment"}
-    if not isinstance(workflow['config'], dict):
+    if workflow.get('config') is not None and not isinstance(workflow['config'], dict):
         workflow["config"] = json.loads(workflow["config"])
 
     config = workflow["config"]
@@ -100,7 +102,7 @@ async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: 
 
 
 @router.get("/{workflow_id}/update_name", summary="Update the name of a workflow")
-async def workflow_update_name(workflow_id: str, new_name: str, experimentId: int):
+async def workflow_update_name_func(workflow_id: str, new_name: str, experimentId: int):
     new_name = slugify(new_name)
     # Update workflow name with experiment enforcement at database level
     # Check if workflow name already exists in this experiment
@@ -126,7 +128,7 @@ async def workflow_add_node(workflow_id: str, node: str, experimentId: int):
         node = json.loads(node)
 
     new_node_json = node
-    if not isinstance(workflow['config'], dict):
+    if workflow.get('config') is not None and not isinstance(workflow['config'], dict):
         workflow["config"] = json.loads(workflow["config"])
         
     config = workflow["config"]
@@ -154,7 +156,7 @@ async def workflow_update_node(workflow_id: str, node_id: str, experimentId: int
     if not workflow:
         return {"error": "Workflow not found or does not belong to this experiment"}
 
-    if not isinstance(workflow['config'], dict):
+    if workflow.get('config') is not None and not isinstance(workflow['config'], dict):
         workflow["config"] = json.loads(workflow["config"])
         
     config = workflow["config"]
@@ -180,7 +182,7 @@ async def workflow_remove_edge(workflow_id: str, start_node_id: str, end_node_id
     if not workflow:
         return {"error": "Workflow not found or does not belong to this experiment"}
 
-    if not isinstance(workflow['config'], dict):
+    if workflow.get('config') is not None and not isinstance(workflow['config'], dict):
         workflow["config"] = json.loads(workflow["config"])
         
     config = workflow["config"]
@@ -208,7 +210,7 @@ async def workflow_add_edge(workflow_id: str, start_node_id: str, end_node_id: s
     if not workflow:
         return {"error": "Workflow not found or does not belong to this experiment"}
 
-    if not isinstance(workflow['config'], dict):
+    if workflow.get('config') is not None and not isinstance(workflow['config'], dict):
         workflow["config"] = json.loads(workflow["config"])
         
     config = workflow["config"]
@@ -235,7 +237,7 @@ async def workflow_delete_node(workflow_id: str, node_id: str, experimentId: int
     if not workflow:
         return {"error": "Workflow not found or does not belong to this experiment"}
 
-    if not isinstance(workflow['config'], dict):
+    if workflow.get('config') is not None and not isinstance(workflow['config'], dict):
         workflow["config"] = json.loads(workflow["config"])
         
     config = workflow["config"]
@@ -279,7 +281,7 @@ async def workflow_export_to_yaml(workflow_id: str, experimentId: int):
     ):
         workflow.pop(field, None)
 
-    if not isinstance(workflow['config'], dict):
+    if workflow.get('config') is not None and not isinstance(workflow['config'], dict):
         workflow["config"] = json.loads(workflow["config"])
         
 
@@ -479,7 +481,10 @@ async def load_workflow_context(active_run):
     workflow_id = active_run["workflow_id"]
     experiment_id = active_run["experiment_id"]  # Get experiment_id from active_run
     workflow = await workflows_get_by_id(workflow_id, experiment_id)
-    if not isinstance(workflow['config'], dict):
+    if not workflow:
+        raise ValueError("Workflow not found or does not belong to this experiment")
+
+    if workflow.get('config') is not None and not isinstance(workflow['config'], dict):
         workflow["config"] = json.loads(workflow["config"])
     workflow_config = workflow["config"]
 
