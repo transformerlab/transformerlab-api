@@ -194,6 +194,11 @@ async def tasks_get_by_type_in_experiment(Type, experiment_id):
         data = []
         for task in tasks:
             row = sqlalchemy_to_dict(task)
+
+            row_config = row.get("config", "")
+            if isinstance(row_config, dict):
+                row["config"] = json.dumps(row_config)
+
             data.append(row)
         return data
 
