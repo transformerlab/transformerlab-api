@@ -4,7 +4,6 @@ import sqlite3
 import itertools
 import sys
 import logging
-import asyncio
 from pathlib import Path
 
 
@@ -14,38 +13,6 @@ if WORKSPACE_DIR is None:
     print("Plugin Harness Error: Environment variable _TFL_WORKSPACE_DIR is not set. Quitting.")
     exit(1)
 TEMP_DIR = os.path.join(WORKSPACE_DIR, "temp")
-
-
-def clean_sqlite_row_dict(row_dict):
-    """
-    Clean a SQLite row dictionary by excluding unwanted fields.
-    Excludes: created_at, updated_at, and any SQLAlchemy internal fields.
-    Also recursively cleans nested dictionaries and lists.
-    """
-    if row_dict is None:
-        return None
-    
-    if not isinstance(row_dict, dict):
-        return row_dict
-        
-    excluded_fields = {'created_at', 'updated_at', '_sa_instance_state'}
-    
-    result = {}
-    for k, v in row_dict.items():
-        # Skip excluded fields and any fields starting with '_sa_'
-        if k in excluded_fields or k.startswith('_sa_'):
-            continue
-            
-        # Recursively clean nested dictionaries
-        if isinstance(v, dict):
-            result[k] = clean_sqlite_row_dict(v)
-        # Clean lists that might contain dictionaries
-        elif isinstance(v, list):
-            result[k] = [clean_sqlite_row_dict(item) if isinstance(item, dict) else item for item in v]
-        else:
-            result[k] = v
-    
-    return result
 
 # Maintain a singleton database connection
 db = None
@@ -80,11 +47,10 @@ def get_dataset_path(dataset_id: str):
     if row is None:
         raise Exception(f"No dataset named {dataset_id} installed.")
 
-    dataset_location = row[0]
-    
     # dataset_location will be either "local" or "huggingface"
     # (and if it's something else we're going to treat "huggingface" as default)
     # if it's local then pass it the path to the dataset directory
+    dataset_location = row[0]
     if dataset_location == "local":
         return os.path.join(WORKSPACE_DIR, "datasets", dataset_id)
 
@@ -101,10 +67,10 @@ def get_db_config_value(key: str):
     cursor = db.execute("SELECT value FROM config WHERE key = ?", (key,))
     row = cursor.fetchone()
     cursor.close()
-    
-    if row is not None:
-        return row[0]
-    return None
+
+    if row is None:
+        return None
+    return row[0]
 
 
 def test_wandb_login(project_name: str = "TFL_Training"):
@@ -139,9 +105,10 @@ def experiment_get_by_name(name):
     desc = cursor.description
     column_names = [col[0] for col in desc]
     row_dict = dict(itertools.zip_longest(column_names, row))
-    
-    # Clean the row dictionary to exclude unwanted fields
-    result = clean_sqlite_row_dict(row_dict)
+
+    # Exclude created_at and updated_at fields to match our SQLAlchemy utility
+    excluded_fields = {"created_at", "updated_at"}
+    result = {k: v for k, v in row_dict.items() if k not in excluded_fields}
 
     cursor.close()
     return result
@@ -161,9 +128,10 @@ def experiment_get(id):
     desc = cursor.description
     column_names = [col[0] for col in desc]
     row_dict = dict(itertools.zip_longest(column_names, row))
-    
-    # Clean the row dictionary to exclude unwanted fields
-    result = clean_sqlite_row_dict(row_dict)
+
+    # Exclude created_at and updated_at fields to match our SQLAlchemy utility
+    excluded_fields = {"created_at", "updated_at"}
+    result = {k: v for k, v in row_dict.items() if k not in excluded_fields}
 
     cursor.close()
     return result
@@ -232,8 +200,9 @@ class Job:
 
         progress: int representing percent complete
         """
+        # Remove manual updated_at - SQLAlchemy handles this automatically
         self.db.execute(
-            "UPDATE job SET progress = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            "UPDATE job SET progress = ? WHERE id = ?",
             (progress, self.id),
         )
 
@@ -245,18 +214,29 @@ class Job:
 
         if row is not None and row[0] is not None:
             try:
-                job_data = json.loads(row[0])
-                
-                # If the result is still a string (double-encoded JSON), parse again
-                if isinstance(job_data, str):
-                    job_data = json.loads(job_data)
-                
-                # Clean the job_data to ensure no unwanted fields are processed
-                clean_job_data = clean_sqlite_row_dict(job_data) if isinstance(job_data, dict) else job_data
-                if clean_job_data and clean_job_data.get("stop", False):
+                data = row[0]
+
+                # Handle different data types that might come from SQLite/SQLAlchemy
+                if isinstance(data, str):
+                    # Try to parse as JSON
+                    job_data = json.loads(data)
+
+                    # Check if the result is still a string (double-encoded JSON)
+                    if isinstance(job_data, str):
+                        # Try to parse again
+                        job_data = json.loads(job_data)
+                elif isinstance(data, dict):
+                    # Already a dictionary
+                    job_data = data
+                else:
+                    # Some other type, skip stop check
+                    return
+
+                if job_data.get("stop", False):
                     self.should_stop = True
-            except json.JSONDecodeError:
-                # If JSON parsing fails, just continue without setting stop flag
+
+            except (json.JSONDecodeError, TypeError, ValueError):
+                # If job_data is malformed, just continue
                 pass
 
     def update_status(self, status: str):
@@ -265,8 +245,9 @@ class Job:
 
         status: str representing the status of the job
         """
+        # Remove manual updated_at - SQLAlchemy handles this automatically
         self.db.execute(
-            "UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            "UPDATE job SET status = ? WHERE id = ?",
             (status, self.id),
         )
 
@@ -303,63 +284,138 @@ class Job:
         cursor.close()
 
         if row is not None and row[0] is not None:
-            raw_data = row[0]
-            
-            # Handle different storage formats
-            if isinstance(raw_data, str):
-                try:
-                    # First, try to parse as JSON
-                    job_data = json.loads(raw_data)
-                    
-                    # If the result is still a string (double-encoded JSON), parse again
-                    if isinstance(job_data, str):
-                        job_data = json.loads(job_data)
-                    
-                    # Clean the job_data dictionary to exclude unwanted fields
-                    return clean_sqlite_row_dict(job_data) if isinstance(job_data, dict) else job_data
-                    
-                except json.JSONDecodeError as e:
-                    print(f"Error parsing job_data JSON: {e}")
-                    print(f"Raw data: {raw_data}")
-                    return None
-            else:
-                # If it's already a dict, clean it directly
-                return clean_sqlite_row_dict(raw_data) if isinstance(raw_data, dict) else raw_data
-        return None
+            try:
+                data = row[0]
+
+                # Handle different data types that might come from SQLite/SQLAlchemy
+                if isinstance(data, str):
+                    # Try to parse as JSON
+                    parsed = json.loads(data)
+
+                    # Check if the result is still a string (double-encoded JSON)
+                    if isinstance(parsed, str):
+                        # Try to parse again
+                        return json.loads(parsed)
+                    else:
+                        return parsed
+                elif isinstance(data, dict):
+                    # Already a dictionary
+                    return data
+                else:
+                    # Some other type, try to convert to dict
+                    return dict(data) if data else {}
+
+            except (json.JSONDecodeError, TypeError, ValueError):
+                # If job_data is malformed, return empty dict
+                print(f"Warning: Malformed job_data for job {self.id}: {row[0]}")
+                return {}
+        return {}
 
     def set_tensorboard_output_dir(self, tensorboard_dir: str):
         """
         Sets the directory that tensorboard output is stored.
         """
-        self.db.execute(
-            "UPDATE job SET job_data = json_insert(job_data, '$.tensorboard_output_dir', ?) WHERE id = ?",
-            (tensorboard_dir, self.id),
-        )
+        self.add_to_job_data("tensorboard_output_dir", tensorboard_dir)
 
-    def add_to_job_data(self, key: str, value: str):
+    def add_to_job_data(self, key: str, value):
         """
         Adds a key-value pair to the job_data JSON object.
         """
         try:
+            # Fetch current job_data
+            cursor = self.db.execute("SELECT job_data FROM job WHERE id = ?", (self.id,))
+            row = cursor.fetchone()
+            cursor.close()
+            
+            job_data = {}
+            if row and row[0] is not None:
+                data = row[0]
+                # Handle different data types that might come from SQLite/SQLAlchemy
+                if isinstance(data, str):
+                    try:
+                        # Try to parse as JSON
+                        job_data = json.loads(data)
+                        
+                        # Check if the result is still a string (double-encoded JSON)
+                        if isinstance(job_data, str):
+                            # Try to parse again
+                            job_data = json.loads(job_data)
+                    except Exception:
+                        job_data = {}
+                elif isinstance(data, dict):
+                    # Already a dictionary
+                    job_data = data
+                else:
+                    job_data = {}
+            
+            # Update the key - handle different value types
+            # if isinstance(value, str):
+            #     # Try to parse as JSON, if that fails store as string
+            #     try:
+            #         job_data[key] = json.loads(value)
+                # except (json.JSONDecodeError, TypeError):
+                #     job_data[key] = value
+            # else:
+            # Store value as-is (dict, list, number, bool, etc.)
+            job_data[key] = value
+            
+            # Save back as JSON
             self.db.execute(
-                "UPDATE job SET job_data = json_insert(job_data, '$." + key + "', ?) WHERE id = ?",
-                (value, self.id),
+                "UPDATE job SET job_data = ? WHERE id = ?",
+                (json.dumps(job_data), self.id),
             )
         except Exception as e:
             print(f"Error adding to job data: {e}")
 
-    def update_job_data(self, key: str, value: str):
+    def update_job_data(self, key: str, value):
         """
-        Adds a key-value pair to the job_data JSON object.
+        Updates a key-value pair in the job_data JSON object.
         """
         try:
+            # Fetch current job_data
+            cursor = self.db.execute("SELECT job_data FROM job WHERE id = ?", (self.id,))
+            row = cursor.fetchone()
+            cursor.close()
+            
+            job_data = {}
+            if row and row[0] is not None:
+                data = row[0]
+                # Handle different data types that might come from SQLite/SQLAlchemy
+                if isinstance(data, str):
+                    try:
+                        # Try to parse as JSON
+                        job_data = json.loads(data)
+                        
+                        # Check if the result is still a string (double-encoded JSON)
+                        if isinstance(job_data, str):
+                            # Try to parse again
+                            job_data = json.loads(job_data)
+                    except Exception:
+                        job_data = {}
+                elif isinstance(data, dict):
+                    # Already a dictionary
+                    job_data = data
+                else:
+                    job_data = {}
+            
+            # Update the key - handle different value types
+            if isinstance(value, str):
+                # Try to parse as JSON, if that fails store as string
+                try:
+                    job_data[key] = json.loads(value)
+                except (json.JSONDecodeError, TypeError):
+                    job_data[key] = value
+            else:
+                # Store value as-is (dict, list, number, bool, etc.)
+                job_data[key] = value
+            
+            # Save back as JSON
             self.db.execute(
-                "UPDATE job SET job_data = " + f"json_set(job_data,'$.{key}', json(?))  WHERE id = ?",
-                (value, self.id),
+                "UPDATE job SET job_data = ? WHERE id = ?",
+                (json.dumps(job_data), self.id),
             )
-            self.db.commit()
         except Exception as e:
-            print(f"Error adding to job data: {e}")
+            print(f"Error updating job data: {e}")
 
     def set_job_completion_status(
         self,
@@ -380,6 +436,15 @@ class Job:
             if completion_status not in ("success", "failed"):
                 raise ValueError("completion_status must be either 'success' or 'failed'")
 
+            # Add to job data completion_status and completion_details
+            self.add_to_job_data("completion_status", completion_status)
+            self.add_to_job_data("completion_details", completion_details)
+
+            # # Initialize job_data as empty JSON object if it's NULL
+            # self.db.execute(
+            #     "UPDATE job SET job_data = COALESCE(job_data, '{}') WHERE id = ? AND job_data IS NULL", (self.id,)
+            # )
+
             # Determine if additional_output_path is valid
             valid_output_path = (
                 additional_output_path if additional_output_path and additional_output_path.strip() != "" else None
@@ -387,27 +452,23 @@ class Job:
 
             valid_plot_data_path = plot_data_path if plot_data_path and plot_data_path.strip() != "" else None
 
-            # Build the SQL query and parameters dynamically.
-            sql = "UPDATE job SET job_data = json_insert(job_data, '$.completion_status', ?, '$.completion_details', ?"
-            params = [completion_status, completion_details]
+            # # Build the SQL query and parameters dynamically using json_set
+            # sql = "UPDATE job SET job_data = json_set(job_data, '$.completion_status', ?, '$.completion_details', ?"
+            # params = [completion_status, completion_details]
 
             if score is not None:
-                score = json.dumps(score)
-                sql += ", '$.score', ?"
-                params.append(score)
+                self.add_to_job_data("score", score)
 
             if valid_output_path is not None:
-                sql += ", '$.additional_output_path', ?"
-                params.append(valid_output_path)
+                self.add_to_job_data("additional_output_path", valid_output_path)
 
             if valid_plot_data_path is not None:
-                sql += ", '$.plot_data_path', ?"
-                params.append(valid_plot_data_path)
+                self.add_to_job_data("plot_data_path", valid_plot_data_path)
 
-            sql += ") WHERE id = ?"
-            params.append(self.id)
+            # sql += ") WHERE id = ?"
+            # params.append(self.id)
 
-            self.db.execute(sql, tuple(params))
+            # self.db.execute(sql, tuple(params))
         except Exception as e:
             print(f"Error setting job completion status: {e}")
 
