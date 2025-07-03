@@ -9,19 +9,6 @@ try:
 except ImportError:
     from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
 
-# def wait_for_port(host, port, timeout=30):
-#     """Wait until a TCP port is open on host or timeout."""
-#     start = time.time()
-#     while True:
-#         try:
-#             with socket.create_connection((host, port), timeout=1):
-#                 return True
-#         except (ConnectionRefusedError, OSError):
-#             if time.time() - start > timeout:
-#                 return False
-#             time.sleep(0.5)
-
-# Get all arguments provided to this script using argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--model-path", type=str)
 parser.add_argument("--parameters", type=str, default="{}")
@@ -66,20 +53,6 @@ vllm_args = [
 print("Starting vLLM OpenAI API server...", file=sys.stderr)
 vllm_proc = subprocess.Popen(vllm_args, stdout=None, stderr=subprocess.PIPE)
 
-# read output:
-# for line in iter(vllm_proc.stderr.readline, b""):
-#     print(line, file=sys.stderr)
-
-
-# # Wait for vLLM server to be ready (port open)
-# if not wait_for_port(host, port, timeout=120):
-#     print(f"Error: vLLM server did not start listening on {host}:{port} within timeout.", file=sys.stderr)
-#     vllm_proc.terminate()
-#     vllm_proc.wait()
-#     sys.exit(1)
-
-# print(f"vLLM server is up and running on {host}:{port}", file=sys.stderr)
-
 proxy_args = [
     python_executable, 
     "-m", 
@@ -91,10 +64,6 @@ proxy_args = [
 
 # print("Starting FastChat OpenAI API Proxy worker...", file=sys.stderr)
 proxy_proc = subprocess.Popen(proxy_args, stdout=None, stderr=subprocess.PIPE)
-
-# # Start threads to read proxy worker output
-# threading.Thread(target=stream_output, args=(proxy_proc.stdout, "ProxyWorker-stdout"), daemon=True).start()
-# threading.Thread(target=stream_output, args=(proxy_proc.stderr, "ProxyWorker-stderr"), daemon=True).start()
 
 # save worker process id to file
 # this will allow transformer lab to kill it later
