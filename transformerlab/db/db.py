@@ -203,6 +203,10 @@ async def tasks_get_by_type_in_experiment(Type, experiment_id):
             if isinstance(row_inputs, dict):
                 row["inputs"] = json.dumps(row_inputs)
 
+            row_outputs = row.get("outputs", "")
+            if isinstance(row_outputs, dict):
+                row["outputs"] = json.dumps(row_outputs)
+
             data.append(row)
         return data
 
