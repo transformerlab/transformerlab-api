@@ -45,12 +45,13 @@ vllm_args = [
     python_executable,
     "-m",
     "vllm.entrypoints.openai.api_server",
-    "--model", model,
+    #"--model", model,
     "--dtype", parameters.get("model_dtype", "auto"),
     "--port", str(port),
     "--max-model-len", str(parameters.get("max_model_len", 2048)),
     "--gpu-memory-utilization", str(parameters.get("gpu_memory_utilization", 0.9)),
     "--enforce-eager",
+    "--trust-remote-code",
 ]
 print("Starting vLLM OpenAI API server...", file=sys.stderr)
 # TODO: Handle logging properly for vllm
