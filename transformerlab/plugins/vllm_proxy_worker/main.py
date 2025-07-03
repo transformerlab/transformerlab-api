@@ -76,50 +76,50 @@ print("Starting vLLM OpenAI API server...", file=sys.stderr)
 vllm_proc = subprocess.Popen(vllm_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
 
-# Start threads to read vLLM server output
-threading.Thread(target=stream_output, args=(vllm_proc.stdout, "vLLM-stdout"), daemon=True).start()
-threading.Thread(target=stream_output, args=(vllm_proc.stderr, "vLLM-stderr"), daemon=True).start()
+# # Start threads to read vLLM server output
+# threading.Thread(target=stream_output, args=(vllm_proc.stdout, "vLLM-stdout"), daemon=True).start()
+# threading.Thread(target=stream_output, args=(vllm_proc.stderr, "vLLM-stderr"), daemon=True).start()
 
-# Wait for vLLM server to be ready (port open)
-# if not wait_for_port(host, port, timeout=120):
-#     print(f"Error: vLLM server did not start listening on {host}:{port} within timeout.", file=sys.stderr)
-#     vllm_proc.terminate()
-#     vllm_proc.wait()
-#     sys.exit(1)
+# # Wait for vLLM server to be ready (port open)
+# # if not wait_for_port(host, port, timeout=120):
+# #     print(f"Error: vLLM server did not start listening on {host}:{port} within timeout.", file=sys.stderr)
+# #     vllm_proc.terminate()
+# #     vllm_proc.wait()
+# #     sys.exit(1)
 
-# print(f"vLLM server is up and running on {host}:{port}", file=sys.stderr)
+# # print(f"vLLM server is up and running on {host}:{port}", file=sys.stderr)
 
-proxy_args = [
-    python_executable, 
-    "-m", 
-    "fastchat.serve.openai_api_proxy_worker",
-    "--model-path", model,
-    "--proxy-url", f"http://localhost:{parameters.get('port', 8000)}/v1",
-    "--model", model,
-    "--model-names", model.split("/")[-1],
-    ]
+# proxy_args = [
+#     python_executable, 
+#     "-m", 
+#     "fastchat.serve.openai_api_proxy_worker",
+#     "--model-path", model,
+#     "--proxy-url", f"http://localhost:{parameters.get('port', 8000)}/v1",
+#     "--model", model,
+#     "--model-names", model.split("/")[-1],
+#     ]
 
-print(f"!!!!!!!{proxy_args}")
+# print(f"!!!!!!!{proxy_args}")
 
-print("Starting FastChat OpenAI API Proxy worker...", file=sys.stderr)
-proxy_proc = subprocess.Popen(proxy_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+# print("Starting FastChat OpenAI API Proxy worker...", file=sys.stderr)
+# proxy_proc = subprocess.Popen(proxy_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-# Start threads to read proxy worker output
-threading.Thread(target=stream_output, args=(proxy_proc.stdout, "ProxyWorker-stdout"), daemon=True).start()
-threading.Thread(target=stream_output, args=(proxy_proc.stderr, "ProxyWorker-stderr"), daemon=True).start()
+# # Start threads to read proxy worker output
+# threading.Thread(target=stream_output, args=(proxy_proc.stdout, "ProxyWorker-stdout"), daemon=True).start()
+# threading.Thread(target=stream_output, args=(proxy_proc.stderr, "ProxyWorker-stderr"), daemon=True).start()
 
-# Save proxy worker PID for external management
-try:
-    with open(os.path.join(llmlab_root_dir, "worker.pid"), "w") as f:
-        f.write(str(proxy_proc.pid))
-except Exception as e:
-    print(f"Warning: Could not write worker PID file: {e}", file=sys.stderr)
+# # Save proxy worker PID for external management
+# try:
+#     with open(os.path.join(llmlab_root_dir, "worker.pid"), "w") as f:
+#         f.write(str(proxy_proc.pid))
+# except Exception as e:
+#     print(f"Warning: Could not write worker PID file: {e}", file=sys.stderr)
  
-# If proxy worker exits, also terminate vLLM server
-# if vllm_proc.poll() is None:
-#     print("Terminating vLLM server...", file=sys.stderr)
-#     vllm_proc.terminate()
-#     vllm_proc.wait()
+# # If proxy worker exits, also terminate vLLM server
+# # if vllm_proc.poll() is None:
+# #     print("Terminating vLLM server...", file=sys.stderr)
+# #     vllm_proc.terminate()
+# #     vllm_proc.wait()
 
-# print("OpenAI API Proxy Server exited", file=sys.stderr)
-# sys.exit(1)  # 99 is our code for CUDA OOM
+print("OpenAI API Proxy Server exited", file=sys.stderr)
+sys.exit(1)  # 99 is our code for CUDA OOM
