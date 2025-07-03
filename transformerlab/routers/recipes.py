@@ -1,6 +1,8 @@
 from fastapi import APIRouter, BackgroundTasks
+from transformerlab.db.datasets import get_datasets
 from transformerlab.shared import galleries
-import transformerlab.db as db
+import transformerlab.db.db as db
+import transformerlab.db.jobs as db_jobs
 from transformerlab.models import model_helper
 import json
 from transformerlab.routers.experiment import workflows
@@ -40,7 +42,7 @@ async def check_recipe_dependencies(id: str):
     # Get local models and datasets
     local_models = await model_helper.list_installed_models()
     local_model_names = set(model["model_id"] for model in local_models)
-    local_datasets = await db.get_datasets()
+    local_datasets = await get_datasets()
     local_dataset_ids = set(ds["dataset_id"] for ds in local_datasets)
 
     # Get installed plugins using the same logic as /plugins/gallery
@@ -74,19 +76,19 @@ async def _install_recipe_dependencies_job(job_id, id):
     from transformerlab.routers import plugins as plugins_router
 
     try:
-        await db.job_update_status(job_id, "RUNNING")
+        await db_jobs.job_update_status(job_id, "RUNNING")
         recipes_gallery = galleries.get_exp_recipe_gallery()
         recipe = next((r for r in recipes_gallery if r.get("id") == id), None)
         if not recipe:
-            await db.job_update_status(job_id, "FAILED", error_msg=f"Recipe with id {id} not found.")
+            await db_jobs.job_update_status(job_id, "FAILED", error_msg=f"Recipe with id {id} not found.")
             return
         if len(recipe.get("dependencies", [])) == 0:
-            await db.job_update_status(job_id, "COMPLETE")
+            await db_jobs.job_update_status(job_id, "COMPLETE")
             return
 
         local_models = await model_helper.list_installed_models()
         local_model_names = set(model["model_id"] for model in local_models)
-        local_datasets = await db.get_datasets()
+        local_datasets = await get_datasets()
         local_dataset_ids = set(ds["dataset_id"] for ds in local_datasets)
         total = len(recipe.get("dependencies", []))
         progress = 0
@@ -124,18 +126,18 @@ async def _install_recipe_dependencies_job(job_id, id):
                 result["status"] = str(e)
             results.append(result)
             progress += 1
-            await db.job_update_progress(job_id, int(progress * 100 / total))
-            await db.job_update_job_data_insert_key_value(job_id, "results", results)
-        await db.job_update_status(job_id, "COMPLETE")
+            await db_jobs.job_update_progress(job_id, int(progress * 100 / total))
+            await db_jobs.job_update_job_data_insert_key_value(job_id, "results", results)
+        await db_jobs.job_update_status(job_id, "COMPLETE")
     except Exception as e:
-        await db.job_update_status(job_id, "FAILED", error_msg=str(e))
+        await db_jobs.job_update_status(job_id, "FAILED", error_msg=str(e))
 
 
 @router.get("/{id}/install_dependencies")
 async def bg_install_recipe_dependencies(id: str, background_tasks: BackgroundTasks):
     """Install dependencies for a recipe in the background and track progress."""
 
-    job_id = await db.job_create(
+    job_id = await db_jobs.job_create(
         type="INSTALL_RECIPE_DEPS",
         status="QUEUED",
         job_data=json.dumps({"recipe_id": id, "results": [], "progress": 0}),
@@ -149,7 +151,7 @@ async def bg_install_recipe_dependencies(id: str, background_tasks: BackgroundTa
 @router.get("/jobs/{job_id}/status")
 async def get_install_job_status(job_id: int):
     """Get the status and progress of a dependency installation job."""
-    job = await db.job_get(job_id)
+    job = await db_jobs.job_get(job_id)
     if not job:
         return {"error": f"Job {job_id} not found."}
     return {
@@ -247,25 +249,24 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
     document_results = []
     for doc in recipe.get("documents", []):
         url = doc.get("url")
-        
+
         result = {"url": url, "action": "download_documents"}
         try:
             from transformerlab.routers.experiment import documents as documents_router
-            
+
             # Download and extract the ZIP file
             download_result = await documents_router.document_download_zip(
-                experimentId=experiment_id,
-                data={"url": url}
+                experimentId=experiment_id, data={"url": url}
             )
-            
+
             result["status"] = download_result.get("status", "unknown")
             result["extracted_files"] = download_result.get("extracted_files", [])
             result["total_files"] = download_result.get("total_files", 0)
             result["extraction_path"] = download_result.get("extraction_path", "")
-            
+
         except Exception:
             result["status"] = "error: failed to download documents"
-        
+
         document_results.append(result)
 
     # Process tasks and create tasks in database
@@ -439,7 +440,7 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
 #     # Get local models and datasets
 #     local_models = await model_helper.list_installed_models()
 #     local_model_names = set(model["model_id"] for model in local_models)
-#     local_datasets = await db.get_datasets()
+#     local_datasets = await get_datasets()
 #     local_dataset_ids = set(ds["dataset_id"] for ds in local_datasets)
 
 #     install_results = []
