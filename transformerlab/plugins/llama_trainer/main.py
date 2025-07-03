@@ -15,8 +15,6 @@ if shutil.which("rocminfo") is not None:
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
 if torch.cuda.is_available():
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-    if not HAS_AMD:
-        os.environ["HIP_VISIBLE_DEVICES"] = "0"
 
 from jinja2 import Environment  # noqa: E402
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel  # noqa: E402
