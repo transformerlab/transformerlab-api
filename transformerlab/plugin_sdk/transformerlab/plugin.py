@@ -315,51 +315,105 @@ class Job:
         """
         Sets the directory that tensorboard output is stored.
         """
-        try:
-            # Initialize job_data as empty JSON object if it's NULL
-            self.db.execute(
-                "UPDATE job SET job_data = COALESCE(job_data, '{}') WHERE id = ? AND job_data IS NULL", (self.id,)
-            )
-            # Now safely insert the tensorboard directory
-            self.db.execute(
-                "UPDATE job SET job_data = json_set(job_data, '$.tensorboard_output_dir', ?) WHERE id = ?",
-                (tensorboard_dir, self.id),
-            )
-        except Exception as e:
-            print(f"Error setting tensorboard output dir: {e}")
+        self.add_to_job_data("tensorboard_output_dir", tensorboard_dir)
 
-    def add_to_job_data(self, key: str, value: str):
+    def add_to_job_data(self, key: str, value):
         """
         Adds a key-value pair to the job_data JSON object.
         """
         try:
-            # Initialize job_data as empty JSON object if it's NULL
+            # Fetch current job_data
+            cursor = self.db.execute("SELECT job_data FROM job WHERE id = ?", (self.id,))
+            row = cursor.fetchone()
+            cursor.close()
+            
+            job_data = {}
+            if row and row[0] is not None:
+                data = row[0]
+                # Handle different data types that might come from SQLite/SQLAlchemy
+                if isinstance(data, str):
+                    try:
+                        # Try to parse as JSON
+                        job_data = json.loads(data)
+                        
+                        # Check if the result is still a string (double-encoded JSON)
+                        if isinstance(job_data, str):
+                            # Try to parse again
+                            job_data = json.loads(job_data)
+                    except Exception:
+                        job_data = {}
+                elif isinstance(data, dict):
+                    # Already a dictionary
+                    job_data = data
+                else:
+                    job_data = {}
+            
+            # Update the key - handle different value types
+            if isinstance(value, str):
+                # Try to parse as JSON, if that fails store as string
+                try:
+                    job_data[key] = json.loads(value)
+                except (json.JSONDecodeError, TypeError):
+                    job_data[key] = value
+            else:
+                # Store value as-is (dict, list, number, bool, etc.)
+                job_data[key] = value
+            
+            # Save back as JSON
             self.db.execute(
-                "UPDATE job SET job_data = COALESCE(job_data, '{}') WHERE id = ? AND job_data IS NULL", (self.id,)
-            )
-            # Use json_set instead of json_insert to handle existing keys
-            self.db.execute(
-                "UPDATE job SET job_data = json_set(job_data, '$." + key + "', ?) WHERE id = ?",
-                (value, self.id),
+                "UPDATE job SET job_data = ? WHERE id = ?",
+                (json.dumps(job_data), self.id),
             )
         except Exception as e:
             print(f"Error adding to job data: {e}")
 
-    def update_job_data(self, key: str, value: str):
+    def update_job_data(self, key: str, value):
         """
         Updates a key-value pair in the job_data JSON object.
         """
         try:
-            # Initialize job_data as empty JSON object if it's NULL
+            # Fetch current job_data
+            cursor = self.db.execute("SELECT job_data FROM job WHERE id = ?", (self.id,))
+            row = cursor.fetchone()
+            cursor.close()
+            
+            job_data = {}
+            if row and row[0] is not None:
+                data = row[0]
+                # Handle different data types that might come from SQLite/SQLAlchemy
+                if isinstance(data, str):
+                    try:
+                        # Try to parse as JSON
+                        job_data = json.loads(data)
+                        
+                        # Check if the result is still a string (double-encoded JSON)
+                        if isinstance(job_data, str):
+                            # Try to parse again
+                            job_data = json.loads(job_data)
+                    except Exception:
+                        job_data = {}
+                elif isinstance(data, dict):
+                    # Already a dictionary
+                    job_data = data
+                else:
+                    job_data = {}
+            
+            # Update the key - handle different value types
+            if isinstance(value, str):
+                # Try to parse as JSON, if that fails store as string
+                try:
+                    job_data[key] = json.loads(value)
+                except (json.JSONDecodeError, TypeError):
+                    job_data[key] = value
+            else:
+                # Store value as-is (dict, list, number, bool, etc.)
+                job_data[key] = value
+            
+            # Save back as JSON
             self.db.execute(
-                "UPDATE job SET job_data = COALESCE(job_data, '{}') WHERE id = ? AND job_data IS NULL", (self.id,)
+                "UPDATE job SET job_data = ? WHERE id = ?",
+                (json.dumps(job_data), self.id),
             )
-            # Use json_set to update existing or add new keys
-            self.db.execute(
-                "UPDATE job SET job_data = json_set(job_data, '$." + key + "', json(?)) WHERE id = ?",
-                (value, self.id),
-            )
-            # Commit is handled by isolation_level=None in connection
         except Exception as e:
             print(f"Error updating job data: {e}")
 
@@ -403,8 +457,7 @@ class Job:
             # params = [completion_status, completion_details]
 
             if score is not None:
-                score_json = json.dumps(score)
-                self.add_to_job_data("score", score_json)
+                self.add_to_job_data("score", score)
 
             if valid_output_path is not None:
                 self.add_to_job_data("additional_output_path", valid_output_path)
