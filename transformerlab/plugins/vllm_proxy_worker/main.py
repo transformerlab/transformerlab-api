@@ -96,7 +96,7 @@ proxy_args = [
     "--model-path", model,
     "--proxy-url", f"http://localhost:{parameters.get('port', 8000)}/v1",
     "--model", model,
-    "--model-names", str(model.split("/")[-1]),
+    # "--model-names", str(model.split("/")[-1]),
     ]
 
 print(f"!!!!!!!{proxy_args}")
