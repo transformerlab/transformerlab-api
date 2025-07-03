@@ -89,20 +89,20 @@ vllm_proc = subprocess.Popen(vllm_args, stdout=subprocess.PIPE, stderr=subproces
 
 # # print(f"vLLM server is up and running on {host}:{port}", file=sys.stderr)
 
-# proxy_args = [
-#     python_executable, 
-#     "-m", 
-#     "fastchat.serve.openai_api_proxy_worker",
-#     "--model-path", model,
-#     "--proxy-url", f"http://localhost:{parameters.get('port', 8000)}/v1",
-#     "--model", model,
-#     "--model-names", model.split("/")[-1],
-#     ]
+proxy_args = [
+    python_executable, 
+    "-m", 
+    "fastchat.serve.openai_api_proxy_worker",
+    "--model-path", model,
+    "--proxy-url", f"http://localhost:{parameters.get('port', 8000)}/v1",
+    "--model", model,
+    "--model-names", model.split("/")[-1],
+    ]
 
 # print(f"!!!!!!!{proxy_args}")
 
 # print("Starting FastChat OpenAI API Proxy worker...", file=sys.stderr)
-# proxy_proc = subprocess.Popen(proxy_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+proxy_proc = subprocess.Popen(proxy_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
 # # Start threads to read proxy worker output
 # threading.Thread(target=stream_output, args=(proxy_proc.stdout, "ProxyWorker-stdout"), daemon=True).start()
