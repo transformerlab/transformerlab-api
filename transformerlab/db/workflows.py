@@ -191,9 +191,6 @@ async def workflow_run_update_with_new_job(workflow_run_id, current_task, curren
         updated_node_ids = existing_node_ids + new_node_ids
         workflow_run.node_ids = json.dumps(updated_node_ids)
 
-        # Update the updated_at timestamp
-        workflow_run.updated_at = None  # Let the DB set CURRENT_TIMESTAMP
-
         await session.commit()
     return
 
