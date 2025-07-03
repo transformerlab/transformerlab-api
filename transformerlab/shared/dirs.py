@@ -2,7 +2,7 @@
 
 import os
 import transformerlab.shared.dirs_workspace as dirs_workspace
-import transformerlab.db.db as db
+from transformerlab.db.db import experiment_get
 
 from werkzeug.utils import secure_filename
 
@@ -74,7 +74,7 @@ def experiment_dir_by_name(experiment_name: str) -> str:
 
 async def experiment_dir_by_id(experiment_id: str) -> str:
     if experiment_id is not None and experiment_id != "undefined":
-        experiment = await db.experiment_get(experiment_id)
+        experiment = await experiment_get(experiment_id)
     else:
         print("Error: experiment_id is None or undefined")
         return os.path.join(EXPERIMENTS_DIR, "error")

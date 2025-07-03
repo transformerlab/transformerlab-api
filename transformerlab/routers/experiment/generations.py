@@ -6,7 +6,7 @@ import sys
 import urllib
 from typing import Any
 
-import transformerlab.db.db as db
+from transformerlab.db.db import experiment_get, experiment_update_config
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
 from transformerlab.db.jobs import job_get
@@ -24,7 +24,7 @@ async def experiment_add_generation(experimentId: int, plugin: Any = Body()):
     directory, we can modify the plugin code for the specific experiment without affecting
     other experiments that use the same plugin."""
 
-    experiment = await db.experiment_get(experimentId)
+    experiment = await experiment_get(experimentId)
 
     if experiment is None:
         return {"message": f"Experiment {experimentId} does not exist"}
@@ -51,7 +51,7 @@ async def experiment_add_generation(experimentId: int, plugin: Any = Body()):
 
     generations.append(generation)
 
-    await db.experiment_update_config(experimentId, "generations", json.dumps(generations))
+    await experiment_update_config(experimentId, "generations", json.dumps(generations))
 
     return {"message": f"Experiment {experimentId} updated with plugin {plugin_name}"}
 
@@ -62,7 +62,7 @@ async def experiment_delete_generation(experimentId: int, generation_name: str):
     and remove the global plugin from the specific experiment."""
     try:
         print("Deleting generation", experimentId, generation_name)
-        experiment = await db.experiment_get(experimentId)
+        experiment = await experiment_get(experimentId)
 
         if experiment is None:
             return {"message": f"Experiment {experimentId} does not exist"}
@@ -77,7 +77,7 @@ async def experiment_delete_generation(experimentId: int, generation_name: str):
         # remove the generation from the list:
         generations = [e for e in generations if e["name"] != generation_name]
 
-        await db.experiment_update_config(experimentId, "generations", json.dumps(generations))
+        await experiment_update_config(experimentId, "generations", json.dumps(generations))
 
         return {"message": f"Generation {generations} deleted from experiment {experimentId}"}
     except Exception as e:
@@ -92,7 +92,7 @@ async def experiment_delete_generation(experimentId: int, generation_name: str):
 async def edit_evaluation_generation(experimentId: int, plugin: Any = Body()):
     """Get the contents of the generation"""
     try:
-        experiment = await db.experiment_get(experimentId)
+        experiment = await experiment_get(experimentId)
 
         # if the experiment does not exist, return an error:
         if experiment is None:
@@ -125,7 +125,7 @@ async def edit_evaluation_generation(experimentId: int, plugin: Any = Body()):
                 generation["script_parameters"] = updated_json
                 generation["name"] = template_name
 
-        await db.experiment_update_config(experimentId, "generations", json.dumps(generations))
+        await experiment_update_config(experimentId, "generations", json.dumps(generations))
 
         return {"message": "OK"}
     except Exception as e:
@@ -136,7 +136,7 @@ async def edit_evaluation_generation(experimentId: int, plugin: Any = Body()):
 @router.get("/get_generation_plugin_file_contents")
 async def get_generation_plugin_file_contents(experimentId: int, plugin_name: str):
     # first get the experiment name:
-    data = await db.experiment_get(experimentId)
+    data = await experiment_get(experimentId)
 
     # if the experiment does not exist, return an error:
     if data is None:
@@ -167,7 +167,7 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
     plugin_name = secure_filename(plugin_name)
     generation_name = secure_filename(generation_name)
 
-    experiment_details = await db.experiment_get(id=experimentId)
+    experiment_details = await experiment_get(id=experimentId)
 
     if experiment_details is None:
         return {"message": f"Experiment {experimentId} does not exist"}
@@ -302,7 +302,7 @@ async def get_job_output_file_name(job_id: str, plugin_name: str):
 @router.get("/get_output")
 async def get_output(experimentId: int, generation_name: str):
     """Get the output of an generation"""
-    data = await db.experiment_get(experimentId)
+    data = await experiment_get(experimentId)
     # if the experiment does not exist, return an error:
     if data is None:
         return {"message": f"Experiment {experimentId} does not exist"}

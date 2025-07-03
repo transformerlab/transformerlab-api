@@ -101,7 +101,7 @@ def cancel_check():
         db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
         db.execute("PRAGMA journal_mode=WAL")
         db.execute("PRAGMA synchronous=normal")
-        db.execute("PRAGMA busy_timeout=5000")
+        db.execute("PRAGMA busy_timeout=30000")
         status = db.execute("SELECT job_data FROM job WHERE id=?", (job_id,)).fetchone()
         db.close()
 
@@ -191,7 +191,7 @@ def download_blocking(model_is_downloaded):
     db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
     db.execute("PRAGMA journal_mode=WAL")
     db.execute("PRAGMA synchronous=normal")
-    db.execute("PRAGMA busy_timeout=5000")
+    db.execute("PRAGMA busy_timeout=30000")
     db.execute("UPDATE job SET progress=?, job_data=json(?) WHERE id=?", (0, job_data, job_id))
     db.close()
 
@@ -286,7 +286,7 @@ def check_disk_size(model_is_downloaded: Event):
         db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
         db.execute("PRAGMA journal_mode=WAL")
         db.execute("PRAGMA synchronous=normal")
-        db.execute("PRAGMA busy_timeout=5000")
+        db.execute("PRAGMA busy_timeout=30000")
 
         try:
             db.execute(
@@ -339,7 +339,7 @@ def main():
         db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
         db.execute("PRAGMA journal_mode=WAL")
         db.execute("PRAGMA synchronous=normal")
-        db.execute("PRAGMA busy_timeout=5000")
+        db.execute("PRAGMA busy_timeout=30000")
 
         # If the error is that the database is locked then this call might also fail
         # for the same reason! Better catch and at least print a message.

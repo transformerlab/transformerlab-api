@@ -5,6 +5,7 @@ import json
 from sqlalchemy import select, delete, text, update
 from transformerlab.db.session import async_session
 from transformerlab.shared.models import models
+from transformerlab.db.utils import sqlalchemy_to_dict, sqlalchemy_list_to_dict
 
 
 async def workflows_get_all():
@@ -16,7 +17,7 @@ async def workflows_get_all():
         )
         workflows = result.scalars().all()
         # Convert ORM objects to dicts
-        return [w.__dict__ for w in workflows]
+        return sqlalchemy_list_to_dict(workflows)
 
 
 async def workflows_get_from_experiment(experiment_id):
@@ -30,7 +31,15 @@ async def workflows_get_from_experiment(experiment_id):
             .order_by(models.Workflow.created_at.desc())
         )
         workflows = result.scalars().all()
-        return [w.__dict__ for w in workflows]
+        workflow_list = sqlalchemy_list_to_dict(workflows)
+        # Make sure that the configs for each workflow are strings
+        for workflow in workflow_list:
+            print(workflow)
+            workflow_config = workflow.get("config", "")
+            if isinstance(workflow_config, dict):
+                workflow["config"] = json.dumps(workflow_config)
+        
+        return workflow_list
 
 
 async def workflow_run_get_all():
@@ -42,7 +51,7 @@ async def workflow_run_get_all():
         )
         workflow_runs = result.scalars().all()
         # Convert ORM objects to dicts
-        return [wr.__dict__ for wr in workflow_runs]
+        return sqlalchemy_list_to_dict(workflow_runs)
 
 
 async def workflows_get_by_id(workflow_id, experiment_id):
@@ -60,7 +69,7 @@ async def workflows_get_by_id(workflow_id, experiment_id):
         workflow = result.scalar_one_or_none()
         if workflow is None:
             return None
-        return workflow.__dict__
+        return sqlalchemy_to_dict(workflow)
 
 
 async def workflow_run_get_by_id(workflow_run_id):
@@ -74,7 +83,7 @@ async def workflow_run_get_by_id(workflow_run_id):
         workflow_run = result.scalar_one_or_none()
         if workflow_run is None:
             return None
-        return workflow_run.__dict__
+        return sqlalchemy_to_dict(workflow_run)
 
 
 async def workflow_delete_by_id(workflow_id: str, experiment_id):
@@ -126,7 +135,7 @@ async def workflow_run_get_running():
         workflow_run = result.scalar_one_or_none()
         if workflow_run is None:
             return None
-        return workflow_run.__dict__
+        return sqlalchemy_to_dict(workflow_run)
 
 
 async def workflow_run_get_queued():
@@ -140,7 +149,7 @@ async def workflow_run_get_queued():
         workflow_run = result.scalar_one_or_none()
         if workflow_run is None:
             return None
-        return workflow_run.__dict__
+        return sqlalchemy_to_dict(workflow_run)
 
 
 async def workflow_run_update_status(workflow_run_id, status):
@@ -181,9 +190,6 @@ async def workflow_run_update_with_new_job(workflow_run_id, current_task, curren
         new_node_ids = json.loads(current_task or "[]")
         updated_node_ids = existing_node_ids + new_node_ids
         workflow_run.node_ids = json.dumps(updated_node_ids)
-
-        # Update the updated_at timestamp
-        workflow_run.updated_at = None  # Let the DB set CURRENT_TIMESTAMP
 
         await session.commit()
     return
@@ -279,4 +285,4 @@ async def workflow_runs_get_from_experiment(experiment_id):
         )
         workflow_runs = result.scalars().all()
         # Convert ORM objects to dicts
-        return [wr.__dict__ for wr in workflow_runs]
+        return sqlalchemy_list_to_dict(workflow_runs)

@@ -1,6 +1,7 @@
 import os
 import json
 import transformerlab.db.db as db
+import transformerlab.db.workflows as db_workflows
 from transformerlab.shared import dirs
 
 
@@ -54,7 +55,9 @@ async def test_export_experiment(client):
         "nodes": [{"id": "1", "task": "test_train_task"}, {"id": "2", "task": "test_eval_task"}],
         "edges": [{"source": "1", "target": "2"}],
     }
-    await db.workflow_create(name="test_workflow", config=json.dumps(workflow_config), experiment_id=experiment_id)
+    await db_workflows.workflow_create(
+        name="test_workflow", config=json.dumps(workflow_config), experiment_id=experiment_id
+    )
 
     # Call the export endpoint
     response = client.get(f"/experiment/{experiment_id}/export_to_recipe")
