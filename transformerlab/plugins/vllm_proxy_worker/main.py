@@ -51,6 +51,7 @@ vllm_args = [
     "--enforce-eager",
 ]
 print("Starting vLLM OpenAI API server...", file=sys.stderr)
+# TODO: Handle logging properly for vllm
 vllm_proc = subprocess.Popen(vllm_args, stdout=None, stderr=subprocess.PIPE)
 
 proxy_args = [
