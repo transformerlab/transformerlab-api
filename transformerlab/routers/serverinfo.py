@@ -36,17 +36,17 @@ from transformerlab.shared import dirs
 pyTorch_version = torch.__version__
 print(f"🔥 PyTorch version: {pyTorch_version}")
 
-# Check for version of flash_attn:
-flash_attn_version = ""
-try:
-    from flash_attn import __version__ as flash_attn_version
+# # Check for version of flash_attn:
+# flash_attn_version = ""
+# try:
+#     from flash_attn import __version__ as flash_attn_version
 
-    print(f"⚡️ Flash Attention is installed, version {flash_attn_version}")
-except ImportError:
-    flash_attn_version = "n/a"
-    print(
-        "🟡 Flash Attention is not installed. If you are running on GPU, install to accelerate inference and training. https://github.com/Dao-AILab/flash-attention"
-    )
+#     print(f"⚡️ Flash Attention is installed, version {flash_attn_version}")
+# except ImportError:
+#     flash_attn_version = "n/a"
+#     print(
+#         "🟡 Flash Attention is not installed. If you are running on GPU, install to accelerate inference and training. https://github.com/Dao-AILab/flash-attention"
+#     )
 
 
 def is_wsl():
@@ -77,8 +77,8 @@ system_info = {
     "cuda_version": "n/a",
     "conda_environment": os.environ.get("CONDA_DEFAULT_ENV", "n/a"),
     "conda_prefix": os.environ.get("CONDA_PREFIX", "n/a"),
-    "flash_attn_version": flash_attn_version,
     "pytorch_version": torch.__version__,
+    # "flash_attn_version": flash_attn_version,
 }
 
 # Determine which device to use (cuda/mps/cpu)
