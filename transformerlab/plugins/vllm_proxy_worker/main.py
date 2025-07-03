@@ -5,6 +5,8 @@ import subprocess
 import sys
 import time
 import requests
+import atexit
+
 
 try:
     from transformerlab.plugin import get_python_executable
@@ -94,6 +96,20 @@ with open(f"{llmlab_root_dir}/worker.pid", "w") as f:
 # read output:
 for line in iter(proxy_proc.stderr.readline, b""):
     print(line, file=sys.stderr)
+
+
+# Wait for the proxy process to exit, then kill vLLM process
+try:
+    proxy_proc.wait()  # wait until proxy (FastChat worker) stops
+finally:
+    if vllm_proc.poll() is None:  # if vLLM still running
+        print(f"Killing vLLM (PID {vllm_proc.pid}) because proxy exited", file=sys.stderr)
+        vllm_proc.terminate()
+        try:
+            vllm_proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            vllm_proc.kill()
+
 
 print("OpenAI API Proxy Server exited", file=sys.stderr)
 sys.exit(1)  # 99 is our code for CUDA OOM
