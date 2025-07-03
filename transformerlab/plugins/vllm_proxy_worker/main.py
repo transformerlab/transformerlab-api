@@ -86,7 +86,7 @@ proxy_args = [
     "fastchat.serve.openai_api_proxy_worker",
     "--model-path", model,
     #"--proxy-url", str(f"http://localhost:{parameters.get('port', 8000)}/v1"),
-   "--model", model,
+   #"--model", model,
     ]
 
 # print("Starting FastChat OpenAI API Proxy worker...", file=sys.stderr)
