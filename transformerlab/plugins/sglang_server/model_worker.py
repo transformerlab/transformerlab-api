@@ -28,43 +28,65 @@ from fastchat.conversation import IMAGE_PLACEHOLDER_STR, SeparatorStyle
 from fastchat.model.model_adapter import get_conversation_template
 from fastchat.constants import ErrorCode, SERVER_ERROR_MSG
 from fastchat.serve.base_model_worker import BaseModelWorker
+import fastchat.serve.base_model_worker
 
 from fastchat.utils import get_context_length, is_partial_stop
 
 import traceback
 
-# Dynamically locate the plugin_sdk directory
-SOURCE_DIR = os.getenv("_TFL_SOURCE_CODE_DIR")
 
-plugin_sdk_path = Path(SOURCE_DIR) / "transformerlab" / "plugin_sdk"
-sys.path.insert(0, str(plugin_sdk_path))
+def setup_model_worker_logger(name: str = "transformerlab") -> logging.Logger:
+    """
+    Set up a clean logger for the model worker without duplicating handlers.
+    """
+    if "TFL_HOME_DIR" in os.environ:
+        HOME_DIR = os.environ["TFL_HOME_DIR"]
+        if not os.path.exists(HOME_DIR):
+            print(f"Creating home directory: {HOME_DIR}")
+            os.makedirs(HOME_DIR, exist_ok=True)
+    else:
+        HOME_DIR = Path.home() / ".transformerlab"
+        os.makedirs(HOME_DIR, exist_ok=True)
 
-from transformerlab.plugin import setup_model_worker_logger  # noqa: E402
+    log_path = os.path.join(HOME_DIR, "transformerlab.log")
+
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False  # Prevent log duplication to root logger
+
+    # Prevent adding multiple handlers
+    if not any(
+        isinstance(h, logging.FileHandler) and h.baseFilename == os.path.abspath(log_path) for h in logger.handlers
+    ):
+        file_handler = logging.FileHandler(log_path)
+        formatter = logging.Formatter(
+            fmt="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+    # Patch FastChat's logger
+    fastchat.serve.base_model_worker.logger = logger
+
+    return logger
+
+
+logger = setup_model_worker_logger()
 
 
 def safe_configure_logger(server_args, prefix=""):
     print(">>> [safe_configure_logger] Overriding broken configure_logger")
-    try:
-        logging.basicConfig(
-            level=logging.ERROR,
-            format=f"[%(asctime)s{prefix}] %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-        print(">>> [safe_configure_logger] Logging configured safely")
-    except Exception:
-        print(">>> [safe_configure_logger] Failed to configure logging")
+    pass
 
 
 import sglang.srt.utils  # noqa: E402
 
 sglang.srt.utils.configure_logger = safe_configure_logger
-import sglang.srt.entrypoints.engine as engine  # noqa: E402
 
-engine.configure_logger = safe_configure_logger
 import sglang as sgl  # noqa: E402
 from sglang.srt.hf_transformers_utils import get_tokenizer, get_config  # noqa: E402
 
-logger = setup_model_worker_logger()
 
 app = FastAPI()
 
