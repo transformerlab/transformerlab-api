@@ -76,18 +76,18 @@ print("Starting vLLM OpenAI API server...", file=sys.stderr)
 vllm_proc = subprocess.Popen(vllm_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
 
-# # Start threads to read vLLM server output
-# threading.Thread(target=stream_output, args=(vllm_proc.stdout, "vLLM-stdout"), daemon=True).start()
-# threading.Thread(target=stream_output, args=(vllm_proc.stderr, "vLLM-stderr"), daemon=True).start()
+# Start threads to read vLLM server output
+threading.Thread(target=stream_output, args=(vllm_proc.stdout, "vLLM-stdout"), daemon=True).start()
+threading.Thread(target=stream_output, args=(vllm_proc.stderr, "vLLM-stderr"), daemon=True).start()
 
-# # Wait for vLLM server to be ready (port open)
-# # if not wait_for_port(host, port, timeout=120):
-# #     print(f"Error: vLLM server did not start listening on {host}:{port} within timeout.", file=sys.stderr)
-# #     vllm_proc.terminate()
-# #     vllm_proc.wait()
-# #     sys.exit(1)
+# Wait for vLLM server to be ready (port open)
+if not wait_for_port(host, port, timeout=120):
+    print(f"Error: vLLM server did not start listening on {host}:{port} within timeout.", file=sys.stderr)
+    vllm_proc.terminate()
+    vllm_proc.wait()
+    sys.exit(1)
 
-# # print(f"vLLM server is up and running on {host}:{port}", file=sys.stderr)
+print(f"vLLM server is up and running on {host}:{port}", file=sys.stderr)
 
 proxy_args = [
     python_executable, 
@@ -105,8 +105,8 @@ print(f"!!!!!!!{proxy_args}")
 proxy_proc = subprocess.Popen(proxy_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
 # # Start threads to read proxy worker output
-# threading.Thread(target=stream_output, args=(proxy_proc.stdout, "ProxyWorker-stdout"), daemon=True).start()
-# threading.Thread(target=stream_output, args=(proxy_proc.stderr, "ProxyWorker-stderr"), daemon=True).start()
+threading.Thread(target=stream_output, args=(proxy_proc.stdout, "ProxyWorker-stdout"), daemon=True).start()
+threading.Thread(target=stream_output, args=(proxy_proc.stderr, "ProxyWorker-stderr"), daemon=True).start()
 
 # # Save proxy worker PID for external management
 try:
