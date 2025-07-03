@@ -28,11 +28,18 @@ from fastchat.conversation import IMAGE_PLACEHOLDER_STR, SeparatorStyle
 from fastchat.model.model_adapter import get_conversation_template
 from fastchat.constants import ErrorCode, SERVER_ERROR_MSG
 from fastchat.serve.base_model_worker import BaseModelWorker
-from fastchat.serve.model_worker import logger
 
 from fastchat.utils import get_context_length, is_partial_stop
 
 import traceback
+
+# Dynamically locate the plugin_sdk directory
+SOURCE_DIR = os.getenv("_TFL_SOURCE_CODE_DIR")
+
+plugin_sdk_path = Path(SOURCE_DIR) / "transformerlab" / "plugin_sdk"
+sys.path.insert(0, str(plugin_sdk_path))
+
+from transformerlab.plugin import setup_model_worker_logger  # noqa: E402
 
 
 def safe_configure_logger(server_args, prefix=""):
@@ -56,6 +63,8 @@ import sglang.srt.entrypoints.engine as engine  # noqa: E402
 engine.configure_logger = safe_configure_logger
 import sglang as sgl  # noqa: E402
 from sglang.srt.hf_transformers_utils import get_tokenizer, get_config  # noqa: E402
+
+logger = setup_model_worker_logger()
 
 app = FastAPI()
 
