@@ -67,8 +67,8 @@ print("Starting vLLM OpenAI API server...", file=sys.stderr)
 vllm_proc = subprocess.Popen(vllm_args, stdout=None, stderr=subprocess.PIPE)
 
 # read output:
-for line in iter(vllm_proc.stderr.readline, b""):
-    print(line, file=sys.stderr)
+# for line in iter(vllm_proc.stderr.readline, b""):
+#     print(line, file=sys.stderr)
 
 
 # # Wait for vLLM server to be ready (port open)
