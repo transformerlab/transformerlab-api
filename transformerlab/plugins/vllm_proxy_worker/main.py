@@ -49,7 +49,7 @@ vllm_args = [
     "--dtype", "float16",
     "--port", str(port),
     "--max-model-len", str(parameters.get("max_model_len", 2048)),
-    "--gpu-memory-utilization", 0.9,
+    "--gpu-memory-utilization", "0.9",
     "--enforce-eager",
     "--trust-remote-code",
 ]
