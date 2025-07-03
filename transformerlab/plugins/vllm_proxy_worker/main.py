@@ -100,7 +100,7 @@ proxy_args = [
     "--model-names", "TinyLlama-1.1B-Chat-v1.0"
     ]
 
-print(f"!!!!!!!{proxy_args}")
+print(f"!!!!!!!!{proxy_args}")
 
 # print("Starting FastChat OpenAI API Proxy worker...", file=sys.stderr)
 proxy_proc = subprocess.Popen(proxy_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
