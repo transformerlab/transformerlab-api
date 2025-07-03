@@ -58,8 +58,8 @@ real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
 # Get Python executable (from venv if available)
 python_executable = get_python_executable(real_plugin_dir)
 
-port = int(parameters.get("port", 8000))
-host = "127.0.0.1"
+# port = int(parameters.get("port", 8000))
+# host = "127.0.0.1"
 
 # vllm_args = [
 #     python_executable,
@@ -93,7 +93,7 @@ proxy_args = [
     python_executable, 
     "-m", 
     "fastchat.serve.openai_api_proxy_worker",
-    "--model-path", model,
+    "--model-path", model
    # "--proxy-url", f"http://localhost:{parameters.get('port', 8000)}/v1",
    # "--model", model,
     # "--model-names", str(model.split("/")[-1]),
@@ -102,24 +102,20 @@ proxy_args = [
 print(f"!!!!!!!{proxy_args}")
 
 # print("Starting FastChat OpenAI API Proxy worker...", file=sys.stderr)
-proxy_proc = subprocess.Popen(proxy_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+proxy_proc = subprocess.Popen(proxy_args, stdout=None, stderr=subprocess.PIPE)
 
 # # Start threads to read proxy worker output
 # threading.Thread(target=stream_output, args=(proxy_proc.stdout, "ProxyWorker-stdout"), daemon=True).start()
 # threading.Thread(target=stream_output, args=(proxy_proc.stderr, "ProxyWorker-stderr"), daemon=True).start()
 
-# # Save proxy worker PID for external management
-try:
-    with open(os.path.join(llmlab_root_dir, "worker.pid"), "w") as f:
-        f.write(str(proxy_proc.pid))
-except Exception as e:
-    print(f"Warning: Could not write worker PID file: {e}", file=sys.stderr)
+# save worker process id to file
+# this will allow transformer lab to kill it later
+with open(f"{llmlab_root_dir}/worker.pid", "w") as f:
+    f.write(str(proxy_proc.pid))
  
-# # If proxy worker exits, also terminate vLLM server
-# # if vllm_proc.poll() is None:
-# #     print("Terminating vLLM server...", file=sys.stderr)
-# #     vllm_proc.terminate()
-# #     vllm_proc.wait()
+# read output:
+for line in iter(proxy_proc.stderr.readline, b""):
+    print(line, file=sys.stderr)
 
 print("OpenAI API Proxy Server exited", file=sys.stderr)
 sys.exit(1)  # 99 is our code for CUDA OOM
