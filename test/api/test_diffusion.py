@@ -1,12 +1,12 @@
-from fastapi.testclient import TestClient
 import pytest
-import json
 from unittest.mock import patch, MagicMock, mock_open
-from api import app
+import json
 
 
-def test_diffusion_generate_success():
+def test_diffusion_generate_success(client):
     # Patch get_pipeline to return a mock pipeline
+    from unittest.mock import patch, MagicMock
+
     with patch("transformerlab.routers.diffusion.get_pipeline") as mock_get_pipeline:
         mock_pipe = MagicMock()
         # Mock the output of the pipeline call
@@ -27,93 +27,93 @@ def test_diffusion_generate_success():
             "clip_skip": 0,
             "guidance_rescale": 0.0,
             "scheduler": "EulerDiscreteScheduler",
+            "num_images": 1,  # REQUIRED
+            "is_img2img": False,
+            "is_inpainting": False,
+            "is_controlnet": "",  # or "off"
+            "input_image": "",
+            "mask_image": "",
         }
-        with TestClient(app) as client:
-            resp = client.post("/diffusion/generate", json=payload)
-            assert resp.status_code == 200
-            data = resp.json()
-            assert data["prompt"] == payload["prompt"]
-            assert data["error_code"] == 0
+        resp = client.post("/diffusion/generate", json=payload)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["prompt"] == payload["prompt"]
+        assert data["error_code"] == 0
 
 
 @pytest.mark.parametrize("missing_field", ["model"])
-def test_diffusion_generate_missing_fields(missing_field):
+def test_diffusion_generate_missing_fields(missing_field, client):
     payload = {"model": "fake-model", "prompt": "a cat"}
     del payload[missing_field]
-    with TestClient(app) as client:
-        resp = client.post("/diffusion/generate", json=payload)
-        # Accept both 400 and 422 as valid for missing fields
-        assert resp.status_code in (400, 422)
+    resp = client.post("/diffusion/generate", json=payload)
+    # Accept both 400 and 422 as valid for missing fields
+    assert resp.status_code in (400, 422)
 
 
-def test_is_valid_diffusion_model_true_stable_diffusion_pipeline():
+def test_is_valid_diffusion_model_true_stable_diffusion_pipeline(client):
     """Test that StableDiffusionPipeline is correctly identified as SD model"""
     with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
         mock_info = MagicMock()
         mock_info.config = {"diffusers": {"_class_name": "StableDiffusionPipeline"}}
         mock_model_info.return_value = mock_info
         payload = {"model": "fake-model"}
-        with TestClient(app) as client:
-            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
-            assert resp.status_code == 200
-            data = resp.json()
-            assert data["is_valid_diffusion_model"] is True
-            assert "Architecture matches allowed SD" in data["reason"]
+        resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["is_valid_diffusion_model"] is True
+        assert "Architecture matches allowed SD" in data["reason"]
 
 
-def test_is_valid_diffusion_model_true_stable_diffusion_xl():
+def test_is_valid_diffusion_model_true_stable_diffusion_xl(client):
     """Test that StableDiffusionXLPipeline is correctly identified as SD model"""
     with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
         mock_info = MagicMock()
         mock_info.config = {"diffusers": {"_class_name": "StableDiffusionXLPipeline"}}
         mock_model_info.return_value = mock_info
         payload = {"model": "fake-model"}
-        with TestClient(app) as client:
-            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
-            assert resp.status_code == 200
-            data = resp.json()
-            assert data["is_valid_diffusion_model"] is True
-            assert "Architecture matches allowed SD" in data["reason"]
+        resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["is_valid_diffusion_model"] is True
+        assert "Architecture matches allowed SD" in data["reason"]
 
 
-def test_is_valid_diffusion_model_true_flux_pipeline():
+def test_is_valid_diffusion_model_true_flux_pipeline(client):
     """Test that FluxPipeline is correctly identified as SD model"""
     with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
         mock_info = MagicMock()
         mock_info.config = {"diffusers": {"_class_name": "FluxPipeline"}}
         mock_model_info.return_value = mock_info
         payload = {"model": "fake-model"}
-        with TestClient(app) as client:
-            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
-            assert resp.status_code == 200
-            data = resp.json()
-            assert data["is_valid_diffusion_model"] is True
-            assert "Architecture matches allowed SD" in data["reason"]
+        resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["is_valid_diffusion_model"] is True
+        assert "Architecture matches allowed SD" in data["reason"]
 
 
-def test_is_valid_diffusion_model_true_list_architecture():
+def test_is_valid_diffusion_model_true_list_architecture(client):
     """Test that a list of architectures containing SD pipeline is identified correctly"""
     with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
         mock_info = MagicMock()
         mock_info.config = {"diffusers": {"_class_name": ["SomeOtherPipeline", "StableDiffusionPipeline"]}}
         mock_model_info.return_value = mock_info
         payload = {"model": "fake-model"}
-        with TestClient(app) as client:
-            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
-            assert resp.status_code == 200
-            data = resp.json()
-            assert data["is_valid_diffusion_model"] is True
-            assert "Architecture matches allowed SD" in data["reason"]
+        resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["is_valid_diffusion_model"] is True
+        assert "Architecture matches allowed SD" in data["reason"]
 
 
-def test_is_valid_diffusion_model_false_no_diffusers_config():
+def test_is_valid_diffusion_model_false_no_diffusers_config(client):
     """Test that models without diffusers config are not identified as SD"""
     with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
         mock_info = MagicMock()
         mock_info.config = {}
         mock_model_info.return_value = mock_info
         payload = {"model": "fake-model"}
-        with TestClient(app) as client:
+        with client:
             resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
             assert resp.status_code == 200
             data = resp.json()
@@ -121,40 +121,38 @@ def test_is_valid_diffusion_model_false_no_diffusers_config():
             assert "No SD indicators found" in data["reason"]
 
 
-def test_is_valid_diffusion_model_false_unsupported_architecture():
+def test_is_valid_diffusion_model_false_unsupported_architecture(client):
     """Test that unsupported architectures are not identified as SD"""
     with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
         mock_info = MagicMock()
         mock_info.config = {"diffusers": {"_class_name": "SomeUnsupportedPipeline"}}
         mock_model_info.return_value = mock_info
         payload = {"model": "fake-model"}
-        with TestClient(app) as client:
-            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
-            assert resp.status_code == 200
-            data = resp.json()
-            assert data["is_valid_diffusion_model"] is False
-            assert "No SD indicators found" in data["reason"]
+        resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["is_valid_diffusion_model"] is False
+        assert "No SD indicators found" in data["reason"]
 
 
-def test_is_valid_diffusion_model_model_not_found():
+def test_is_valid_diffusion_model_model_not_found(client):
     """Test that non-existent models return 404 error"""
     with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
         mock_model_info.side_effect = Exception("Model not found")
         payload = {"model": "non-existent-model"}
-        with TestClient(app) as client:
-            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
-            assert resp.status_code == 404
-            assert "Model not found or error" in resp.json()["detail"]
+        resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+        assert resp.status_code == 404
+        assert "Model not found or error" in resp.json()["detail"]
 
 
-def test_is_valid_diffusion_model_empty_class_name():
+def test_is_valid_diffusion_model_empty_class_name(client):
     """Test handling of empty _class_name in diffusers config"""
     with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
         mock_info = MagicMock()
         mock_info.config = {"diffusers": {"_class_name": ""}}
         mock_model_info.return_value = mock_info
         payload = {"model": "fake-model"}
-        with TestClient(app) as client:
+        with client:
             resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
             assert resp.status_code == 200
             data = resp.json()
@@ -162,7 +160,7 @@ def test_is_valid_diffusion_model_empty_class_name():
             assert "No SD indicators found" in data["reason"]
 
 
-def test_get_history_success():
+def test_get_history_success(client):
     """Test getting diffusion history with default parameters"""
     with patch("transformerlab.routers.diffusion.load_history") as mock_load_history:
         mock_history = MagicMock()
@@ -170,13 +168,12 @@ def test_get_history_success():
         mock_history.total = 0
         mock_load_history.return_value = mock_history
 
-        with TestClient(app) as client:
-            resp = client.get("/diffusion/history")
-            assert resp.status_code == 200
-            mock_load_history.assert_called_once_with(limit=50, offset=0)
+        resp = client.get("/diffusion/history")
+        assert resp.status_code == 200
+        mock_load_history.assert_called_once_with(limit=50, offset=0)
 
 
-def test_get_history_with_pagination():
+def test_get_history_with_pagination(client):
     """Test getting diffusion history with pagination parameters"""
     with patch("transformerlab.routers.diffusion.load_history") as mock_load_history:
         mock_history = MagicMock()
@@ -184,40 +181,36 @@ def test_get_history_with_pagination():
         mock_history.total = 0
         mock_load_history.return_value = mock_history
 
-        with TestClient(app) as client:
-            resp = client.get("/diffusion/history?limit=25&offset=10")
-            assert resp.status_code == 200
-            mock_load_history.assert_called_once_with(limit=25, offset=10)
+        resp = client.get("/diffusion/history?limit=25&offset=10")
+        assert resp.status_code == 200
+        mock_load_history.assert_called_once_with(limit=25, offset=10)
 
 
-def test_get_history_invalid_limit():
+def test_get_history_invalid_limit(client):
     """Test getting history with invalid limit parameter"""
-    with TestClient(app) as client:
-        resp = client.get("/diffusion/history?limit=0")
-        assert resp.status_code == 400
-        assert "Limit must be greater than 1" in resp.json()["detail"]
+    resp = client.get("/diffusion/history?limit=0")
+    assert resp.status_code == 400
+    assert "Limit must be greater than 1" in resp.json()["detail"]
 
 
-def test_get_history_invalid_offset():
+def test_get_history_invalid_offset(client):
     """Test getting history with invalid offset parameter"""
-    with TestClient(app) as client:
-        resp = client.get("/diffusion/history?offset=-5")
-        assert resp.status_code == 400
-        assert "Offset must be non-negative" in resp.json()["detail"]
+    resp = client.get("/diffusion/history?offset=-5")
+    assert resp.status_code == 400
+    assert "Offset must be non-negative" in resp.json()["detail"]
 
 
-def test_get_image_by_id_not_found():
+def test_get_image_by_id_not_found(client):
     """Test getting a non-existent image by ID"""
     with patch("transformerlab.routers.diffusion.find_image_by_id") as mock_find_image:
         mock_find_image.return_value = None
 
-        with TestClient(app) as client:
-            resp = client.get("/diffusion/history/non-existent-id")
-            assert resp.status_code == 404
-            assert "Image with ID non-existent-id not found" in resp.json()["detail"]
+        resp = client.get("/diffusion/history/non-existent-id")
+        assert resp.status_code == 404
+        assert "Image with ID non-existent-id not found" in resp.json()["detail"]
 
 
-def test_get_image_by_id_index_out_of_range():
+def test_get_image_by_id_index_out_of_range(client):
     """Test getting image with index out of range"""
     with (
         patch("transformerlab.routers.diffusion.find_image_by_id") as mock_find_image,
@@ -232,13 +225,12 @@ def test_get_image_by_id_index_out_of_range():
 
         mock_find_image.return_value = mock_image
 
-        with TestClient(app) as client:
-            resp = client.get("/diffusion/history/test-folder-id?index=5")
-            assert resp.status_code == 404
-            assert "Image index 5 out of range" in resp.json()["detail"]
+        resp = client.get("/diffusion/history/test-folder-id?index=5")
+        assert resp.status_code == 404
+        assert "Image index 5 out of range" in resp.json()["detail"]
 
 
-def test_get_image_info_by_id_success():
+def test_get_image_info_by_id_success(client):
     """Test getting image metadata by ID"""
     with (
         patch("transformerlab.routers.diffusion.find_image_by_id") as mock_find_image,
@@ -254,15 +246,14 @@ def test_get_image_info_by_id_success():
 
         mock_find_image.return_value = mock_image
 
-        with TestClient(app) as client:
-            resp = client.get("/diffusion/history/test-image-id/info")
-            assert resp.status_code == 200
-            data = resp.json()
-            assert data["id"] == "test-image-id"
-            assert data["metadata"]["num_images"] == 3
+        resp = client.get("/diffusion/history/test-image-id/info")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["id"] == "test-image-id"
+        assert data["metadata"]["num_images"] == 3
 
 
-def test_get_image_count_success():
+def test_get_image_count_success(client):
     """Test getting image count for an image set"""
     with (
         patch("transformerlab.routers.diffusion.find_image_by_id") as mock_find_image,
@@ -277,33 +268,31 @@ def test_get_image_count_success():
 
         mock_find_image.return_value = mock_image
 
-        with TestClient(app) as client:
-            resp = client.get("/diffusion/history/test-image-id/count")
-            assert resp.status_code == 200
-            data = resp.json()
-            assert data["id"] == "test-image-id"
-            assert data["num_images"] == 2
+        resp = client.get("/diffusion/history/test-image-id/count")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["id"] == "test-image-id"
+        assert data["num_images"] == 2
 
 
-def test_delete_image_from_history_not_found():
+def test_delete_image_from_history_not_found(client):
     """Test deleting a non-existent image from history"""
     with (
         patch("transformerlab.routers.diffusion.get_history_file_path", return_value="/fake/history.json"),
         patch("os.path.exists", return_value=True),
         patch("builtins.open", mock_open(read_data='[{"id": "other-id", "image_path": "/fake/path.png"}]')),
     ):
-        with TestClient(app) as client:
-            resp = client.delete("/diffusion/history/non-existent-id")
-            assert resp.status_code == 500
-            assert "Image with ID non-existent-id not found" in resp.json()["detail"]
+        resp = client.delete("/diffusion/history/non-existent-id")
+        assert resp.status_code == 500
+        assert "Image with ID non-existent-id not found" in resp.json()["detail"]
 
 
-def test_create_dataset_from_history_success():
+def test_create_dataset_from_history_success(client):
     """Test creating a dataset from history images"""
     with (
         patch("transformerlab.routers.diffusion.find_image_by_id") as mock_find_image,
-        patch("transformerlab.db.get_dataset", return_value=None),
-        patch("transformerlab.db.create_local_dataset") as mock_create_dataset,
+        patch("transformerlab.routers.diffusion.get_dataset", return_value=None),
+        patch("transformerlab.routers.diffusion.create_local_dataset") as mock_create_dataset,
         patch("transformerlab.shared.dirs.dataset_dir_by_id", return_value="/fake/dataset"),
         patch("os.makedirs"),
         patch("os.path.exists", return_value=True),
@@ -342,16 +331,15 @@ def test_create_dataset_from_history_success():
             "include_metadata": True,
         }
 
-        with TestClient(app) as client:
-            resp = client.post("/diffusion/dataset/create", json=payload)
-            assert resp.status_code == 200
-            data = resp.json()
-            assert data["status"] == "success"
-            assert "test-dataset" in data["message"]
-            mock_create_dataset.assert_called_once()
+        resp = client.post("/diffusion/dataset/create", json=payload)
+        data = resp.json()
+        assert resp.status_code == 200
+        assert data["status"] == "success"
+        assert "test-dataset" in data["message"]
+        mock_create_dataset.assert_called_once()
 
 
-def test_create_dataset_invalid_image_ids():
+def test_create_dataset_invalid_image_ids(client):
     """Test creating dataset with invalid image IDs"""
     payload = {
         "dataset_name": "test-dataset",
@@ -360,15 +348,22 @@ def test_create_dataset_invalid_image_ids():
         "include_metadata": False,
     }
 
-    with TestClient(app) as client:
-        resp = client.post("/diffusion/dataset/create", json=payload)
-        assert resp.status_code == 400
-        assert "Invalid image IDs list" in resp.json()["detail"]
+    resp = client.post("/diffusion/dataset/create", json=payload)
+    assert resp.status_code == 400
+    assert "Invalid image IDs list" in resp.json()["detail"]
 
 
-def test_create_dataset_existing_dataset():
+# @pytest.mark.skip(reason="Skipping test as it uses unnecessary patching")
+def test_create_dataset_existing_dataset(client):
     """Test creating dataset with name that already exists"""
-    with patch("transformerlab.db.get_dataset", return_value={"id": "existing"}):
+    with (
+        patch("transformerlab.routers.diffusion.get_dataset", return_value={"id": "existing"}),
+        patch("transformerlab.routers.diffusion.find_image_by_id") as mock_find_image,
+    ):
+        mock_image = MagicMock()
+        mock_image.id = "test-id"
+        mock_find_image.return_value = mock_image
+
         payload = {
             "dataset_name": "existing-dataset",
             "image_ids": ["test-id"],
@@ -376,17 +371,16 @@ def test_create_dataset_existing_dataset():
             "include_metadata": False,
         }
 
-        with TestClient(app) as client:
-            resp = client.post("/diffusion/dataset/create", json=payload)
-            assert resp.status_code == 400
-            assert "already exists" in resp.json()["detail"]
+        resp = client.post("/diffusion/dataset/create", json=payload)
+        assert resp.status_code == 400
+        assert "already exists" in resp.json()["detail"]
 
 
-def test_create_dataset_no_images_found():
+def test_create_dataset_no_images_found(client):
     """Test creating dataset when no images are found for given IDs"""
     with (
         patch("transformerlab.routers.diffusion.find_image_by_id") as mock_find_image,
-        patch("transformerlab.db.get_dataset", return_value=None),
+        patch("transformerlab.routers.diffusion.get_dataset", return_value=None),
     ):
         mock_find_image.return_value = None
 
@@ -397,14 +391,13 @@ def test_create_dataset_no_images_found():
             "include_metadata": False,
         }
 
-        with TestClient(app) as client:
-            resp = client.post("/diffusion/dataset/create", json=payload)
-            assert resp.status_code == 404
-            assert "No images found for the given IDs" in resp.json()["detail"]
+        resp = client.post("/diffusion/dataset/create", json=payload)
+        assert resp.status_code == 404
+        assert "No images found for the given IDs" in resp.json()["detail"]
 
 
 @pytest.mark.parametrize("img2img_flag", [True, False])
-def test_is_valid_diffusion_model_img2img_detection(img2img_flag):
+def test_is_valid_diffusion_model_img2img_detection(client, img2img_flag):
     """Test that is_valid_diffusion_model correctly handles img2img flag"""
     with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
         mock_info = MagicMock()
@@ -413,7 +406,7 @@ def test_is_valid_diffusion_model_img2img_detection(img2img_flag):
         mock_model_info.return_value = mock_info
 
         payload = {"model": "fake-model", "is_img2img": img2img_flag}
-        with TestClient(app) as client:
+        with client:
             resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
             assert resp.status_code == 200
             data = resp.json()
@@ -424,7 +417,7 @@ def test_is_valid_diffusion_model_img2img_detection(img2img_flag):
                 assert "Architecture matches allowed SD" in data["reason"]
 
 
-def test_is_valid_diffusion_model_inpainting_specific_architecture():
+def test_is_valid_diffusion_model_inpainting_specific_architecture(client):
     """Test that specific inpainting architectures are correctly identified"""
     with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
         mock_info = MagicMock()
@@ -432,7 +425,7 @@ def test_is_valid_diffusion_model_inpainting_specific_architecture():
         mock_model_info.return_value = mock_info
 
         payload = {"model": "fake-model", "is_inpainting": True}
-        with TestClient(app) as client:
+        with client:
             resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
             assert resp.status_code == 200
             data = resp.json()
@@ -440,7 +433,7 @@ def test_is_valid_diffusion_model_inpainting_specific_architecture():
             assert "Architecture matches allowed SD inpainting" in data["reason"]
 
 
-def test_is_valid_diffusion_model_inpainting_xl_architecture():
+def test_is_valid_diffusion_model_inpainting_xl_architecture(client):
     """Test that StableDiffusionXLInpaintPipeline is correctly identified for inpainting"""
     with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
         mock_info = MagicMock()
@@ -448,7 +441,7 @@ def test_is_valid_diffusion_model_inpainting_xl_architecture():
         mock_model_info.return_value = mock_info
 
         payload = {"model": "fake-model", "is_inpainting": True}
-        with TestClient(app) as client:
+        with client:
             resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
             assert resp.status_code == 200
             data = resp.json()
@@ -456,7 +449,7 @@ def test_is_valid_diffusion_model_inpainting_xl_architecture():
             assert "Architecture matches allowed SD inpainting" in data["reason"]
 
 
-def test_is_valid_diffusion_model_inpainting_from_text2img():
+def test_is_valid_diffusion_model_inpainting_from_text2img(client):
     """Test that text2img architectures can be used for inpainting"""
     with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
         mock_info = MagicMock()
@@ -464,7 +457,7 @@ def test_is_valid_diffusion_model_inpainting_from_text2img():
         mock_model_info.return_value = mock_info
 
         payload = {"model": "fake-model", "is_inpainting": True}
-        with TestClient(app) as client:
+        with client:
             resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
             assert resp.status_code == 200
             data = resp.json()
@@ -472,7 +465,7 @@ def test_is_valid_diffusion_model_inpainting_from_text2img():
             assert "Architecture matches allowed SD inpainting" in data["reason"]
 
 
-def test_is_valid_diffusion_model_inpainting_from_sdxl():
+def test_is_valid_diffusion_model_inpainting_from_sdxl(client):
     """Test that StableDiffusionXL can be used for inpainting"""
     with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
         mock_info = MagicMock()
@@ -480,7 +473,7 @@ def test_is_valid_diffusion_model_inpainting_from_sdxl():
         mock_model_info.return_value = mock_info
 
         payload = {"model": "fake-model", "is_inpainting": True}
-        with TestClient(app) as client:
+        with client:
             resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
             assert resp.status_code == 200
             data = resp.json()
@@ -488,7 +481,7 @@ def test_is_valid_diffusion_model_inpainting_from_sdxl():
             assert "Architecture matches allowed SD inpainting" in data["reason"]
 
 
-def test_is_valid_diffusion_model_inpainting_flux_not_supported():
+def test_is_valid_diffusion_model_inpainting_flux_not_supported(client):
     """Test that FLUX models cannot be used for inpainting"""
     with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
         mock_info = MagicMock()
@@ -496,7 +489,7 @@ def test_is_valid_diffusion_model_inpainting_flux_not_supported():
         mock_model_info.return_value = mock_info
 
         payload = {"model": "fake-model", "is_inpainting": True}
-        with TestClient(app) as client:
+        with client:
             resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
             assert resp.status_code == 200
             data = resp.json()
@@ -504,7 +497,7 @@ def test_is_valid_diffusion_model_inpainting_flux_not_supported():
             assert "No SD indicators found" in data["reason"]
 
 
-def test_is_valid_diffusion_model_inpainting_unsupported_architecture():
+def test_is_valid_diffusion_model_inpainting_unsupported_architecture(client):
     """Test that unsupported architectures are not valid for inpainting"""
     with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
         mock_info = MagicMock()
@@ -512,7 +505,7 @@ def test_is_valid_diffusion_model_inpainting_unsupported_architecture():
         mock_model_info.return_value = mock_info
 
         payload = {"model": "fake-model", "is_inpainting": True}
-        with TestClient(app) as client:
+        with client:
             resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
             assert resp.status_code == 200
             data = resp.json()
@@ -520,7 +513,7 @@ def test_is_valid_diffusion_model_inpainting_unsupported_architecture():
             assert "No SD indicators found" in data["reason"]
 
 
-def test_is_valid_diffusion_model_inpainting_list_architectures():
+def test_is_valid_diffusion_model_inpainting_list_architectures(client):
     """Test that inpainting works with list of architectures containing supported ones"""
     with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
         mock_info = MagicMock()
@@ -528,7 +521,7 @@ def test_is_valid_diffusion_model_inpainting_list_architectures():
         mock_model_info.return_value = mock_info
 
         payload = {"model": "fake-model", "is_inpainting": True}
-        with TestClient(app) as client:
+        with client:
             resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
             assert resp.status_code == 200
             data = resp.json()
@@ -537,7 +530,7 @@ def test_is_valid_diffusion_model_inpainting_list_architectures():
 
 
 @pytest.mark.parametrize("inpainting_flag", [True, False])
-def test_is_valid_diffusion_model_inpainting_detection(inpainting_flag):
+def test_is_valid_diffusion_model_inpainting_detection(client, inpainting_flag):
     """Test that is_valid_diffusion_model correctly handles is_inpainting flag"""
     with patch("transformerlab.routers.diffusion.model_info") as mock_model_info:
         mock_info = MagicMock()
@@ -546,7 +539,7 @@ def test_is_valid_diffusion_model_inpainting_detection(inpainting_flag):
         mock_model_info.return_value = mock_info
 
         payload = {"model": "fake-model", "is_inpainting": inpainting_flag}
-        with TestClient(app) as client:
+        with client:
             resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
             assert resp.status_code == 200
             data = resp.json()
@@ -733,7 +726,7 @@ def test_find_image_by_id_success():
         assert result.prompt == "test prompt 2"
 
 
-def test_find_image_by_id_not_found():
+def test_find_image_by_id_not_found(client):
     """Test finding an image by ID when it doesn't exist"""
     history_data = [
         {
