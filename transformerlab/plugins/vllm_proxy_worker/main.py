@@ -46,10 +46,10 @@ vllm_args = [
     "-m",
     "vllm.entrypoints.openai.api_server",
     "--model", model,
-    "--dtype", parameters.get("model_dtype", "auto"),
+    "--dtype", "float16",
     "--port", str(port),
     "--max-model-len", str(parameters.get("max_model_len", 2048)),
-    "--gpu-memory-utilization", str(parameters.get("gpu_memory_utilization", 0.9)),
+    "--gpu-memory-utilization", 0.9,
     "--enforce-eager",
     "--trust-remote-code",
 ]
