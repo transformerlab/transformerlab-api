@@ -5,7 +5,7 @@ import json
 from sqlalchemy import insert, select, text, update
 from transformerlab.db.session import async_session
 from transformerlab.shared.models import models
-from transformerlab.db.utils import sqlalchemy_to_dict, sqlalchemy_list_to_dict
+from transformerlab.db.utils import sqlalchemy_to_dict
 
 # Allowed job types:
 ALLOWED_JOB_TYPES = [
