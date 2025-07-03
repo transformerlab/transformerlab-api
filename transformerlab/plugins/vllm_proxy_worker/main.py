@@ -12,12 +12,6 @@ try:
 except ImportError:
     from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
 
-# def stream_output(pipe, label):
-#     """Continuously read from pipe and print lines with label."""
-#     for line in iter(pipe.readline, ''):
-#         print(f"[{label}]", line.rstrip(), file=sys.stderr)
-#     pipe.close()
-
 # def wait_for_port(host, port, timeout=30):
 #     """Wait until a TCP port is open on host or timeout."""
 #     start = time.time()
@@ -58,22 +52,22 @@ real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
 # Get Python executable (from venv if available)
 python_executable = get_python_executable(real_plugin_dir)
 
-# port = int(parameters.get("port", 8000))
+port = int(parameters.get("port", 8000))
 # host = "127.0.0.1"
 
-# vllm_args = [
-#     python_executable,
-#     "-m",
-#     "vllm.entrypoints.openai.api_server",
-#     "--model", model,
-#     "--dtype", parameters.get("model_dtype", "auto"),
-#     "--port", str(port),
-#     "--max-model-len", str(parameters.get("max_model_len", 2048)),
-#     "--gpu-memory-utilization", str(parameters.get("gpu_memory_utilization", 0.9)),
-#     "--enforce-eager",
-# ]
-# print("Starting vLLM OpenAI API server...", file=sys.stderr)
-# vllm_proc = subprocess.Popen(vllm_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+vllm_args = [
+    python_executable,
+    "-m",
+    "vllm.entrypoints.openai.api_server",
+    "--model", model,
+    "--dtype", parameters.get("model_dtype", "auto"),
+    "--port", str(port),
+    "--max-model-len", str(parameters.get("max_model_len", 2048)),
+    "--gpu-memory-utilization", str(parameters.get("gpu_memory_utilization", 0.9)),
+    "--enforce-eager",
+]
+print("Starting vLLM OpenAI API server...", file=sys.stderr)
+vllm_proc = subprocess.Popen(vllm_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
 
 # Start threads to read vLLM server output
@@ -93,13 +87,11 @@ proxy_args = [
     python_executable, 
     "-m", 
     "fastchat.serve.openai_api_proxy_worker",
-    "--model-path", model
+    "--model-path", model,
    # "--proxy-url", f"http://localhost:{parameters.get('port', 8000)}/v1",
-   # "--model", model,
+   "--model", model,
     # "--model-names", str(model.split("/")[-1]),
     ]
-
-print(f"!!!!!!!{proxy_args}")
 
 # print("Starting FastChat OpenAI API Proxy worker...", file=sys.stderr)
 proxy_proc = subprocess.Popen(proxy_args, stdout=None, stderr=subprocess.PIPE)
