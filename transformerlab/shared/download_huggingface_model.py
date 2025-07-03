@@ -222,7 +222,6 @@ def download_blocking(model_is_downloaded):
                 repo_id=model,
                 filename=model_filename,
                 local_dir=location,
-                local_dir_use_symlinks=True,
             )
             # create a file in that same directory called info.json:
             info = [
