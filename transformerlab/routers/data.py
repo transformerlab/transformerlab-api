@@ -281,7 +281,7 @@ async def dataset_preview_with_template(
         row["__index__"] = i + offset
         for key in result["columns"].keys():
             row[key] = serialize_row(result["columns"][key][i])
-        
+
         # Apply the template to a new key in row called __formatted__
         row["__formatted__"] = jinja_template.render(row)
         # row['__template__'] = template
