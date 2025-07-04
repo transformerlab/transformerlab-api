@@ -38,7 +38,9 @@
     "AprielForCausalLM",
     "GPTNeoXForCausalLM",
     "Qwen3ForCausalLM",
-    "Qwen3MoeForCausalLM"
+    "Qwen3MoeForCausalLM",
+    "Ernie4_5_MoeForCausalLM",
+    "Ernie4_5_ForCausalLM"
   ],
   "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
   "files": ["main.py", "setup.sh"],
