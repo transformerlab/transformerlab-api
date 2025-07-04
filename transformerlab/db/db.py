@@ -1,5 +1,4 @@
 import json
-import sqlite3
 
 from sqlalchemy import select, delete, text, update
 from sqlalchemy.dialects.sqlite import insert  # Correct import for SQLite upsert
@@ -16,30 +15,12 @@ from typing import AsyncGenerator
 from fastapi import Depends
 from fastapi_users.db import SQLAlchemyUserDatabase
 
-from transformerlab.db.jobs import ALLOWED_JOB_TYPES, job_create
+from transformerlab.db.jobs import job_create
 from transformerlab.shared.models import models
 from transformerlab.shared.models.models import Config, Plugin
 from transformerlab.db.utils import sqlalchemy_to_dict, sqlalchemy_list_to_dict
 
-from transformerlab.db.constants import DATABASE_FILE_NAME
 from transformerlab.db.session import async_session
-
-
-def unconverted(func):
-    """
-    Decorator to mark a function as not yet converted to SQLAlchemy.
-    """
-    func._unconverted = True
-    return func
-
-
-@unconverted
-def get_sync_db_connection():
-    db_sync = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
-    db_sync.execute("PRAGMA journal_mode=WAL")
-    db_sync.execute("PRAGMA synchronous=normal")
-    db_sync.execute("PRAGMA busy_timeout = 30000")
-    return db_sync
 
 
 ###############################################
@@ -551,120 +532,3 @@ async def config_set(key: str, value: str):
         await session.execute(stmt)
         await session.commit()
     return
-
-
-# Synchronous functions:
-
-
-@unconverted
-def job_create_sync(type, status, job_data="{}", experiment_id=""):
-    """
-    Synchronous version of job_create function for use with XML-RPC.
-    """
-    db_sync = None
-    cursor = None
-    try:
-        global DATABASE_FILE_NAME
-        # check if type is allowed
-        if type not in ALLOWED_JOB_TYPES:
-            raise ValueError(f"Job type {type} is not allowed")
-
-        # Use SQLite directly in synchronous mode
-        db_sync = get_sync_db_connection()
-
-        cursor = db_sync.cursor()
-
-        # Execute insert
-        cursor.execute(
-            "INSERT INTO job(type, status, experiment_id, job_data) VALUES (?, ?, ?, json(?))",
-            (type, status, experiment_id, job_data),
-        )
-
-        # Get the row ID
-        row_id = cursor.lastrowid
-
-        # Commit and close
-        db_sync.commit()
-        cursor.close()
-
-        return row_id
-    except Exception as e:
-        print("Error creating job: " + str(e))
-        return None
-    finally:
-        if cursor:
-            cursor.close()
-        if db_sync:
-            db_sync.close()
-
-
-@unconverted
-def job_update_status_sync(job_id, status, error_msg=None):
-    db_sync = None
-    cursor = None
-    try:
-        db_sync = get_sync_db_connection()
-        cursor = db_sync.cursor()
-
-        cursor.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
-        db_sync.commit()
-        return
-    except Exception as e:
-        print("Error updating job status: " + str(e))
-        return
-    finally:
-        if cursor:
-            cursor.close()
-        if db_sync:
-            db_sync.close()
-
-
-@unconverted
-def job_update_sync(job_id, status):
-    # This is a synchronous version of job_update
-    # It is used by popen_and_call function
-    # which can only support sychronous functions
-    # This is a hack to get around that limitation
-    db_sync = None
-    cursor = None
-    try:
-        db_sync = get_sync_db_connection()
-        cursor = db_sync.cursor()
-
-        cursor.execute("UPDATE job SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, job_id))
-        db_sync.commit()
-        return
-    except Exception as e:
-        print("Error updating job status: " + str(e))
-        return
-    finally:
-        if cursor:
-            cursor.close()
-        if db_sync:
-            db_sync.close()
-
-
-@unconverted
-def job_mark_as_complete_if_running(job_id):
-    # This synchronous update to jobs
-    # only marks a job as "COMPLETE" if it is currenty "RUNNING"
-    # This avoids updating "stopped" jobs and marking them as complete
-    db_sync = None
-    cursor = None
-    try:
-        db_sync = get_sync_db_connection()
-        cursor = db_sync.cursor()
-        cursor.execute(
-            "UPDATE job SET status = 'COMPLETE', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'RUNNING'",
-            (job_id,),
-        )
-        db_sync.commit()
-        return
-    except Exception as e:
-        print("Error updating job status: " + str(e))
-        return
-    finally:
-        if cursor:
-            cursor.close()
-        if db_sync:
-            db_sync.close()

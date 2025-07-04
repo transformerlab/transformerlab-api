@@ -13,7 +13,8 @@ from anyio import open_process
 from anyio.streams.text import TextReceiveStream
 from werkzeug.utils import secure_filename
 
-from transformerlab.db.db import experiment_get, experiment_get_by_name, job_mark_as_complete_if_running
+from transformerlab.db.db import experiment_get, experiment_get_by_name
+from transformerlab.db.sync import job_mark_as_complete_if_running, job_update_sync
 import transformerlab.db.jobs as db_jobs
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
@@ -386,7 +387,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         asyncio.run(db_jobs.job_update_job_data_insert_key_value(job_id, "end_time", end_time))
 
     def on_job_complete():
-        db_jobs.job_update_sync(job_id, "COMPLETE")
+        job_update_sync(job_id, "COMPLETE")
         end_time = time.strftime("%Y-%m-%d %H:%M:%S")
         asyncio.run(db_jobs.job_update_job_data_insert_key_value(job_id, "end_time", end_time))
 

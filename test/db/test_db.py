@@ -11,10 +11,6 @@ from transformerlab.db.db import (
     experiment_get_by_name,
     get_plugins_of_type,
     get_training_template_by_name,
-    job_create_sync,
-    job_mark_as_complete_if_running,
-    job_update_status_sync,
-    job_update_sync,
     model_local_create,
     model_local_get,
     model_local_list,
@@ -46,6 +42,13 @@ from transformerlab.db.db import (
     update_training_template,
     delete_training_template,
     export_job_create,
+)
+
+from transformerlab.db.sync import (
+    job_create_sync,
+    job_update_status_sync,
+    job_update_sync,
+    job_mark_as_complete_if_running,
 )
 
 from transformerlab.db.datasets import (
