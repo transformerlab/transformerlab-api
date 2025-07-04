@@ -28,7 +28,7 @@
     "Mistral3ForConditionalGeneration",
     "Phi4MMForCausalLM"
   ],
-  "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
+  "supported_hardware_architectures": ["cpu", "cuda", "amd"],
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
