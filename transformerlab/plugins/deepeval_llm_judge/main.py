@@ -85,7 +85,6 @@ def run_evaluation():
         # Use tlab_evals built-in model loading functionality
         trlab_model = tlab_evals.load_evaluation_model(field_name="generation_model")
         print("Model loaded successfully")
-        model_name = trlab_model.get_model_name()
     except Exception as e:
         print(f"An error occurred while loading the model: {e}")
         raise ValueError(f"Failed to load model: {str(e)}")
