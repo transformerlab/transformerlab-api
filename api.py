@@ -11,7 +11,6 @@ import signal
 import subprocess
 from contextlib import asynccontextmanager
 import sys
-import psutil
 from werkzeug.utils import secure_filename
 
 import fastapi
@@ -120,6 +119,7 @@ async def run_over_and_over():
         await asyncio.sleep(3)
         await jobs.start_next_job()
         await workflows.start_next_step_in_workflow()
+
 
 description = "Transformerlab API helps you do awesome stuff. 🚀"
 
