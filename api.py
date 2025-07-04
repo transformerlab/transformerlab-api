@@ -418,9 +418,10 @@ def cleanup_at_exit():
             print(f"Process {worker_process.pid} doesn't exist so nothing to kill")
     if os.path.isfile("worker.pid"):
         with open("worker.pid", "r") as f:
-            pid = f.readline()
+            pids = [line.strip() for line in f if line.strip()]
+            for pid in pids:
+                os.kill(int(pid), signal.SIGTERM)
             os.remove("worker.pid")
-            os.kill(int(pid), signal.SIGTERM)
     # Perform NVML Shutdown if CUDA is available
     if torch.cuda.is_available():
         try:
