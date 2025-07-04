@@ -340,7 +340,7 @@ class SGLWorker(BaseModelWorker):
                     else:
                         user_msg += str(part)
                 s += sgl.user(user_msg)
-                s += sgl.assistant(sgl.gen())
+                s += sgl.assistant(sgl.gen(max_tokens=max_tokens))
 
             state = pipeline.run(
                 prompt,
