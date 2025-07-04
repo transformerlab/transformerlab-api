@@ -86,32 +86,15 @@ proxy_args = [
 # print("Starting FastChat OpenAI API Proxy worker...", file=sys.stderr)
 proxy_proc = subprocess.Popen(proxy_args, stdout=None, stderr=subprocess.PIPE)
 
-# save worker process id to file
-# this will allow transformer lab to kill it later
+# save both worker process id and vllm process id to file
+# this will allow transformer lab to kill both later
 with open(f"{llmlab_root_dir}/worker.pid", "w") as f:
-    f.write(str(proxy_proc.pid))
+    f.write(f"{proxy_proc.pid}\n")
+    f.write(f"{vllm_proc.pid}\n")
  
 # read output:
 for line in iter(proxy_proc.stderr.readline, b""):
     print(line, file=sys.stderr)
 
-
-try:
-    # Poll for proxy_proc exit every 2s
-    while proxy_proc.poll() is None:
-        time.sleep(2)
-
-    print("Proxy process exited, cleaning up vLLM...", file=sys.stderr)
-
-finally:
-    if vllm_proc.poll() is None:
-        print(f"Killing vLLM (PID {vllm_proc.pid}) because proxy exited", file=sys.stderr)
-        vllm_proc.terminate()
-        try:
-            vllm_proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            vllm_proc.kill()
-
-
-print("OpenAI API Proxy Server exited", file=sys.stderr)
+print("Vllm proxy worker exited", file=sys.stderr)
 sys.exit(1)  # 99 is our code for CUDA OOM
