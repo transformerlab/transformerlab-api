@@ -92,6 +92,11 @@ with open(f"{llmlab_root_dir}/worker.pid", "w") as f:
     f.write(f"{proxy_proc.pid}\n")
     f.write(f"{vllm_proc.pid}\n")
  
+print(f"Writing worker.pid to: {llmlab_root_dir}/worker.pid")
+print("Wrote both PIDs:")
+with open(f"{llmlab_root_dir}/worker.pid") as f:
+    print(f.read())
+    
 # read output:
 for line in iter(proxy_proc.stderr.readline, b""):
     print(line, file=sys.stderr)
