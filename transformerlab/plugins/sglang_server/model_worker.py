@@ -356,6 +356,7 @@ class SGLWorker(BaseModelWorker):
 
             stream_iter = state.text_async_iter()
 
+            buffered_output = ""
             assistant_started = False
             assistant_text = ""
 
@@ -363,26 +364,51 @@ class SGLWorker(BaseModelWorker):
                 if any(is_partial_stop(out, i) for i in stop):
                     continue
 
+                buffered_output += out
+
                 if not assistant_started:
-                    matches = LAST_ASSISTANT_RE.findall(out)
-                    if matches:
+                    start_index = buffered_output.find(start_token)
+                    if start_index != -1:
                         assistant_started = True
-                        chunk = matches[-1]
+                        # Start streaming from immediately after the start_token
+                        chunk = buffered_output[start_index + len(start_token) :]
+                        # If there's also an end_token in this same chunk, trim it now
+                        if end_token and end_token in chunk:
+                            end_index = chunk.find(end_token)
+                            chunk = chunk[:end_index]
+                            buffered_output = ""  # clear buffer to avoid duplicate streaming
+                        else:
+                            buffered_output = ""  # same, since we just used it
                         assistant_text += chunk
                         yield {
                             "text": assistant_text,
                             "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
                             "error_code": 0,
                         }
-                    continue
-
-                # If assistant has started, just keep appending normally
-                assistant_text += out.replace(start_token, "").replace(end_token, "")
-                yield {
-                    "text": assistant_text,
-                    "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
-                    "error_code": 0,
-                }
+                    else:
+                        # Haven't seen start_token yet → keep buffering
+                        continue
+                else:
+                    # Assistant already started
+                    chunk = out
+                    if end_token and end_token in chunk:
+                        # Stop streaming at the end_token
+                        end_index = chunk.find(end_token)
+                        chunk = chunk[:end_index]
+                        assistant_text += chunk
+                        yield {
+                            "text": assistant_text,
+                            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                            "error_code": 0,
+                        }
+                        break
+                    else:
+                        assistant_text += chunk
+                        yield {
+                            "text": assistant_text,
+                            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                            "error_code": 0,
+                        }
 
         except Exception as e:
             raise ValueError(f"Failed: {e}")
