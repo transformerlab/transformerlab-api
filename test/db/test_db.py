@@ -604,7 +604,8 @@ class TestWorkflows:
         workflow_id = await workflow_create("test_workflow_config", "{}", test_experiment)
         await workflow_update_config(workflow_id, '{"key": "value"}', test_experiment)
         workflow = await workflows_get_by_id(workflow_id, test_experiment)
-        assert workflow["config"] == '{"key": "value"}'
+        workflow_config = json.loads(workflow["config"])  # should be a string containing JSON
+        assert workflow_config == {"key": "value"}
 
     @pytest.mark.asyncio
     async def test_workflow_delete_by_id(self, test_experiment):
