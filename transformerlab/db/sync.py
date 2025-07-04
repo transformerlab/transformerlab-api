@@ -7,7 +7,7 @@ with synchronous sessions for consistency.
 """
 
 import json
-from sqlalchemy import create_engine, select, update
+from sqlalchemy import create_engine, update
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.dialects.sqlite import insert
 
