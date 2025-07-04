@@ -7,15 +7,10 @@
   "version": "1.0.17",
   "supports": [
     "chat",
-    "completion",
-    "visualize_model",
-    "model_layers",
     "rag",
     "tools",
     "template",
     "embeddings",
-    "tokenize",
-    "logprobs",
     "batched",
     "multimodal"
   ],
@@ -24,7 +19,14 @@
     "Qwen2_5_VLForConditionalGeneration",
     "Qwen2VLForConditionalGeneration",
     "Gemma3ForConditionalGeneration",
-    "PaliGemmaForConditionalGeneration"
+    "PaliGemmaForConditionalGeneration",
+    "DeepseekV2ForCausalLM",
+    "MiniCPMV",
+    "LlavaLlamaForCausalLM",
+    "LlavaQwenForCausalLM",
+    "KimiVLForConditionalGeneration",
+    "Mistral3ForConditionalGeneration",
+    "Phi4MMForCausalLM"
   ],
   "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
   "files": ["main.py", "setup.sh"],

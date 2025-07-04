@@ -51,6 +51,7 @@ from transformerlab.routers import (
     recipes,
     users,
 )
+from transformerlab.shared.shared import kill_sglang_subprocesses
 import torch
 
 try:
@@ -119,25 +120,6 @@ async def run_over_and_over():
         await asyncio.sleep(3)
         await jobs.start_next_job()
         await workflows.start_next_step_in_workflow()
-
-
-def kill_sglang_subprocesses():
-    current_pid = os.getpid()
-    for proc in psutil.process_iter(attrs=["pid", "name", "cmdline"]):
-        try:
-            if proc.pid == current_pid:
-                continue  # Skip self
-
-            cmdline_list = proc.info.get("cmdline")
-            if not cmdline_list:  # Handles None or empty list
-                continue
-
-            cmdline = " ".join(cmdline_list)
-            if "sglang" in cmdline or "sglang::scheduler" in cmdline:
-                proc.kill()
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            continue
-
 
 description = "Transformerlab API helps you do awesome stuff. 🚀"
 
