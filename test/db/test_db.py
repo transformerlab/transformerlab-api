@@ -261,16 +261,14 @@ async def test_jobs_get_all_and_by_experiment_and_type(test_experiment):
 async def test_experiment_update_and_update_config_and_save_prompt_template(test_experiment):
     await experiment_update(test_experiment, {"foo": "bar"})
     exp = await experiment_get(test_experiment)
-    assert exp["config"] == {"foo": "bar"} or str({"foo": "bar"})
+    exp_config = json.loads(exp["config"])  # should be a string containing JSON
+    assert exp_config == {"foo": "bar"}
+
     await experiment_update_config(test_experiment, "baz", 123)
     exp = await experiment_get(test_experiment)
-    print(exp["config"])
-    if not isinstance(exp["config"], dict):
-        exp_config = json.loads(exp["config"])
-    else:
-        exp_config = exp["config"]
-    config_dict = exp_config
-    assert config_dict.get("baz") == 123
+    exp_config = json.loads(exp["config"])
+    assert exp_config.get("baz") == 123
+
     await experiment_save_prompt_template(test_experiment, '"prompt"')
     exp = await experiment_get(test_experiment)
     assert "prompt_template" in exp["config"]
