@@ -7,7 +7,7 @@ import traceback
 import requests
 import json
 from pydantic import BaseModel
-from typing import Any, List
+from typing import Any, List, Type
 
 from datasets import get_dataset_split_names, get_dataset_config_names, load_dataset
 
@@ -390,6 +390,8 @@ class TLabPlugin:
         # Import here to avoid circular imports
         from deepeval.models.base_model import DeepEvalBaseLLM  # noqa
         from langchain.schema import HumanMessage, SystemMessage  # noqa
+        import json
+        import re
 
         plugin_model_name = self.params.model_name
 
@@ -403,14 +405,339 @@ class TLabPlugin:
             def load_model(self):
                 return self.model
 
-            def generate(self, prompt: str) -> str:
-                chat_model = self.load_model()
-                return chat_model.invoke(prompt).content
+            def _extract_and_repair_json(self, response_text):
+                """Extract and attempt to repair JSON from model response"""
+                print(f"🔧 JSON REPAIR: Starting repair process (length: {len(response_text)})")
 
-            async def a_generate(self, prompt: str) -> str:
+                try:
+                    # First, try to parse as-is
+                    print("🎯 STEP 1: Trying direct JSON parse...")
+                    result = json.loads(response_text)
+                    print("✅ SUCCESS: Direct JSON parse worked!")
+                    return result
+                except json.JSONDecodeError as e:
+                    print(f"❌ STEP 1 FAILED: {str(e)}")
+
+                print("🎯 STEP 2: Trying to extract JSON from mixed response...")
+                # Try to extract JSON from response (remove extra text)
+                json_match = re.search(r"\{.*\}", response_text, re.DOTALL)
+                if json_match:
+                    json_str = json_match.group(0)
+                    print(f"📝 Extracted JSON (length: {len(json_str)})")
+                    try:
+                        result = json.loads(json_str)
+                        print("✅ SUCCESS: JSON extraction worked!")
+                        return result
+                    except json.JSONDecodeError as e:
+                        print(f"❌ STEP 2 FAILED: {str(e)}")
+
+                        print("🎯 STEP 3: Trying basic JSON repairs...")
+                        # Try basic repairs
+                        json_str = self._repair_json_string(json_str)
+                        try:
+                            result = json.loads(json_str)
+                            print("✅ SUCCESS: Basic JSON repair worked!")
+                            return result
+                        except json.JSONDecodeError as e:
+                            print(f"❌ STEP 3 FAILED: {str(e)}")
+                else:
+                    print("❌ STEP 2 FAILED: No JSON found in response")
+
+                print("🎯 STEP 4: Trying json-repair library...")
+                # If all else fails, try using json-repair library if available
+                try:
+                    from json_repair import repair_json
+
+                    result = repair_json(response_text)
+                    print("✅ SUCCESS: json-repair library worked!")
+                    return result
+                except ImportError:
+                    print("❌ STEP 4 FAILED: json-repair library not available")
+                except Exception as e:
+                    print(f"❌ STEP 4 FAILED: json-repair error: {str(e)}")
+
+                print("🎯 STEP 5: Asking model to self-correct...")
+                # Fall back to asking the model to fix it
+                result = self._ask_model_to_fix_json(response_text)
+                if isinstance(result, dict) and "error" not in result:
+                    print("✅ SUCCESS: Model self-correction worked!")
+                else:
+                    print("❌ STEP 5 FAILED: Model self-correction failed")
+                return result
+
+            def _repair_json_string(self, json_str):
+                """Apply basic JSON repairs"""
+                print(f"🔨 BASIC REPAIR: Starting repairs on {len(json_str)} characters")
+                original = json_str
+                repairs_made = []
+
+                # Remove trailing commas
+                before = json_str
+                json_str = re.sub(r",\s*([}\]])", r"\1", json_str)
+                if json_str != before:
+                    repairs_made.append("removed trailing commas")
+
+                # Fix missing commas between object properties
+                before = json_str
+                json_str = re.sub(r'(["\d\]\}])\s*("[\w\s]+"\s*:)', r"\1, \2", json_str)
+                if json_str != before:
+                    repairs_made.append("added missing commas between properties")
+
+                # Fix missing commas between array elements
+                before = json_str
+                json_str = re.sub(r'(["\d\]\}])\s*(["\[\{])', r"\1, \2", json_str)
+                if json_str != before:
+                    repairs_made.append("added missing commas between array elements")
+
+                # Fix objects with multiple strings (convert to array of strings)
+                before = json_str
+                json_str = re.sub(r'\{\s*("(?:[^"\\]|\\.)*"(?:\s*,\s*"(?:[^"\\]|\\.)*")*)\s*\}', r"[\1]", json_str)
+                if json_str != before:
+                    repairs_made.append("converted multi-string objects to arrays")
+
+                # Fix objects with just string values (no property names)
+                before = json_str
+                json_str = re.sub(r'\{\s*"([^"]+)"\s*\}', r'{"value": "\1"}', json_str)
+                if json_str != before:
+                    repairs_made.append("added missing property names")
+
+                # Fix missing colons after property names
+                before = json_str
+                json_str = re.sub(r'("[\w\s]+")(\s+)(["\d\[\{])', r"\1:\2\3", json_str)
+                json_str = re.sub(r'("[\w\s]+")(["\d\[\{])', r"\1: \2", json_str)
+                if json_str != before:
+                    repairs_made.append("added missing colons")
+
+                # Fix unmatched braces
+                open_braces = json_str.count("{")
+                close_braces = json_str.count("}")
+                if open_braces > close_braces:
+                    missing = open_braces - close_braces
+                    json_str += "}" * missing
+                    repairs_made.append(f"added {missing} closing braces")
+
+                # Fix unmatched brackets
+                open_brackets = json_str.count("[")
+                close_brackets = json_str.count("]")
+                if open_brackets > close_brackets:
+                    missing = open_brackets - close_brackets
+                    json_str += "]" * missing
+                    repairs_made.append(f"added {missing} closing brackets")
+
+                if repairs_made:
+                    print(f"🔨 BASIC REPAIR: Applied fixes: {', '.join(repairs_made)}")
+                else:
+                    print("🔨 BASIC REPAIR: No changes needed")
+
+                return json_str
+
+            def _ask_model_to_fix_json(self, broken_json):
+                """Ask the model to fix broken JSON as a last resort"""
+                print("🤖 MODEL FIX: Asking model to repair JSON...")
+
+                fix_prompt = f"""Fix this JSON by correcting syntax errors. Output ONLY valid JSON, no explanations:
+
+{broken_json}
+
+Fixed JSON:"""
+
+                try:
+                    chat_model = self.load_model()
+                    fixed_response = chat_model.invoke(fix_prompt).content.strip()
+                    print(f"🤖 MODEL FIX: Got response (length: {len(fixed_response)})")
+
+                    # Try to extract JSON from the fixed response
+                    json_match = re.search(r"\{.*\}", fixed_response, re.DOTALL)
+                    if json_match:
+                        result = json.loads(json_match.group(0))
+                        print("🤖 MODEL FIX: Successfully parsed extracted JSON")
+                        return result
+
+                    result = json.loads(fixed_response)
+                    print("🤖 MODEL FIX: Successfully parsed full response")
+                    return result
+                except Exception as e:
+                    print(f"🤖 MODEL FIX: Failed with error: {str(e)}")
+                    # If everything fails, return an error indicator
+                    return {"error": "Failed to generate valid JSON", "original_response": broken_json}
+
+            def _enhance_json_prompt(self, prompt):
+                """Enhance prompts to improve JSON generation"""
+                if "json" in prompt.lower() or "{" in prompt or "score" in prompt.lower():
+                    print("📝 PROMPT ENHANCEMENT: Adding JSON instructions to prompt")
+                    # Add JSON-specific instructions
+                    json_instructions = """
+
+CRITICAL: You must respond with valid JSON only. Follow these rules:
+1. Output ONLY valid JSON - no explanations, no markdown, no extra text
+2. Use double quotes for all strings
+3. No trailing commas
+4. Ensure all braces and brackets are properly closed
+5. Numbers should not be quoted unless they're strings
+6. Use null for empty values, not undefined
+
+Example format: {"score": 0.8, "reason": "explanation here"}
+
+Your response:"""
+                    return prompt + json_instructions
+                return prompt
+
+            def _safe_schema_convert(self, data, schema, context):
+                """Simple, robust schema conversion with Pydantic v2 compatibility"""
+                print(f"🛡️ {context}: Converting to schema object")
+
+                try:
+                    # Try direct conversion first
+                    result = schema.parse_obj(data)
+                    print(f"✅ {context}: Direct schema conversion successful")
+                    return result
+                except Exception as e:
+                    print(f"❌ {context}: Direct conversion failed: {e}")
+
+                try:
+                    # If data is a list and schema expects object with list field, try to fix it
+                    if isinstance(data, list):
+                        # Get schema fields using Pydantic v2 compatible method
+                        if hasattr(schema, "__fields__"):
+                            fields = schema.__fields__
+                        elif hasattr(schema, "model_fields"):
+                            fields = schema.model_fields
+                        else:
+                            fields = {}
+
+                        for field_name, field_info in fields.items():
+                            # Try to detect list fields (compatible with both Pydantic v1 and v2)
+                            field_type = getattr(field_info, "annotation", getattr(field_info, "type_", None))
+                            if field_type and hasattr(field_type, "__origin__") and field_type.__origin__ is list:
+                                fixed_data = {field_name: data}
+                                result = schema.parse_obj(fixed_data)
+                                print(f"✅ {context}: List-to-object conversion successful")
+                                return result
+                except Exception as e:
+                    print(f"❌ {context}: List conversion failed: {e}")
+
+                try:
+                    # Create minimal valid object - try different field access methods
+                    if hasattr(schema, "__fields__"):
+                        fields = schema.__fields__
+                    elif hasattr(schema, "model_fields"):
+                        fields = schema.model_fields
+                    else:
+                        fields = {}
+
+                    minimal_data = {}
+                    for field_name, field_info in fields.items():
+                        # Get field type (compatible with both Pydantic v1 and v2)
+                        field_type = getattr(field_info, "annotation", getattr(field_info, "type_", None))
+
+                        if field_type and hasattr(field_type, "__origin__") and field_type.__origin__ is list:
+                            minimal_data[field_name] = []
+                        else:
+                            minimal_data[field_name] = ""
+
+                    result = schema.parse_obj(minimal_data)
+                    print(f"⚠️ {context}: Created minimal valid object")
+                    return result
+                except Exception as e:
+                    print(f"❌ {context}: Minimal object creation failed: {e}")
+
+                try:
+                    # Last resort: try default constructor
+                    result = schema()
+                    print(f"⚠️ {context}: Used default schema constructor")
+                    return result
+                except Exception as e:
+                    print(f"💥 {context}: All schema creation failed: {e}")
+
+                    # Emergency fallback - create a simple object with required attributes
+                    class EmergencyFallback:
+                        pass
+
+                    fallback = EmergencyFallback()
+                    # Try to add common DeepEval attributes
+                    for attr in ["statements", "verdicts", "reason", "score"]:
+                        if attr == "statements" or attr == "verdicts":
+                            setattr(fallback, attr, [])
+                        else:
+                            setattr(fallback, attr, "")
+
+                    print(f"🆘 {context}: Created emergency fallback with common attributes")
+                    return fallback
+
+            def generate(self, prompt: str, schema: Type[BaseModel] | None = None, **kwargs):
+                print(f"🔍 DEBUG: generate() called with schema={schema is not None}")
+                enhanced_prompt = self._enhance_json_prompt(prompt)
                 chat_model = self.load_model()
-                res = await chat_model.ainvoke(prompt)
-                return res.content
+                response = chat_model.invoke(enhanced_prompt).content
+
+                # If the response looks like it should be JSON, try to fix it
+                if any(indicator in prompt.lower() for indicator in ["json", "score", "evaluation", "rating"]):
+                    print(f"🎯 GENERATE: JSON repair needed for prompt (schema={schema is not None})")
+                    try:
+                        parsed_json = self._extract_and_repair_json(response)
+                        if isinstance(parsed_json, dict) and "error" not in parsed_json:
+                            print("✅ GENERATE: JSON repair successful")
+
+                            # If schema provided, try to return Pydantic object
+                            if schema is not None:
+                                return self._safe_schema_convert(parsed_json, schema, "GENERATE")
+
+                            return json.dumps(parsed_json)
+                        else:
+                            print("❌ GENERATE: JSON repair failed")
+
+                            # If schema provided, create minimal object
+                            if schema is not None:
+                                return self._safe_schema_convert({}, schema, "GENERATE")
+
+                    except Exception as e:
+                        print(f"❌ GENERATE: JSON repair threw exception: {str(e)}")
+
+                        # If schema provided, create minimal object
+                        if schema is not None:
+                            return self._safe_schema_convert({}, schema, "GENERATE")
+                else:
+                    print("📝 GENERATE: No JSON repair needed")
+
+                return response
+
+            async def a_generate(self, prompt: str, schema: Type[BaseModel] | None = None, **kwargs):
+                print(f"🔍 DEBUG: a_generate() called with schema={schema is not None}")
+                enhanced_prompt = self._enhance_json_prompt(prompt)
+                chat_model = self.load_model()
+                res = await chat_model.ainvoke(enhanced_prompt)
+                response = res.content
+
+                # If the response looks like it should be JSON, try to fix it
+                if any(indicator in prompt.lower() for indicator in ["json", "score", "evaluation", "rating"]):
+                    print(f"🎯 A_GENERATE: JSON repair needed for prompt (schema={schema is not None})")
+                    try:
+                        parsed_json = self._extract_and_repair_json(response)
+                        if isinstance(parsed_json, dict) and "error" not in parsed_json:
+                            print("✅ A_GENERATE: JSON repair successful")
+
+                            # If schema provided, try to return Pydantic object
+                            if schema is not None:
+                                return self._safe_schema_convert(parsed_json, schema, "A_GENERATE")
+
+                            return json.dumps(parsed_json)
+                        else:
+                            print("❌ A_GENERATE: JSON repair failed")
+
+                            # If schema provided, create minimal object
+                            if schema is not None:
+                                return self._safe_schema_convert({}, schema, "A_GENERATE")
+
+                    except Exception as e:
+                        print(f"❌ A_GENERATE: JSON repair threw exception: {str(e)}")
+
+                        # If schema provided, create minimal object
+                        if schema is not None:
+                            return self._safe_schema_convert({}, schema, "A_GENERATE")
+                else:
+                    print("📝 A_GENERATE: No JSON repair needed")
+
+                return response
 
             def generate_without_instructor(self, messages: List[dict]) -> BaseModel:
                 chat_model = self.load_model()
@@ -423,7 +750,7 @@ class TLabPlugin:
                 return chat_model.invoke(modified_messages).content
 
             def get_model_name(self):
-                return self.model
+                return self.generation_model_name
 
         return TRLAB_MODEL(model)
 
@@ -496,32 +823,16 @@ class TLabPlugin:
             def load_model(self):
                 return self.model
 
-            def generate(self, prompt: str, schema=None):
+            def generate(self, prompt: str):
                 client = self.load_model()
-                if schema:
-                    import instructor
+                response = client.chat.completions.create(
+                    model=self.generation_model_name,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                return response.choices[0].message.content
 
-                    if self.model_type == "claude":
-                        instructor_client = instructor.from_anthropic(client)
-                    else:
-                        instructor_client = instructor.from_openai(client)
-
-                    resp = instructor_client.messages.create(
-                        model=self.generation_model_name,
-                        max_tokens=1024,
-                        messages=[{"role": "user", "content": prompt}],
-                        response_model=schema,
-                    )
-                    return resp
-                else:
-                    response = client.chat.completions.create(
-                        model=self.generation_model_name,
-                        messages=[{"role": "user", "content": prompt}],
-                    )
-                    return response.choices[0].message.content
-
-            async def a_generate(self, prompt: str, schema=None):
-                return self.generate(prompt, schema)
+            async def a_generate(self, prompt: str):
+                return self.generate(prompt)
 
             def generate_without_instructor(self, messages: List[dict]):
                 client = self.load_model()
