@@ -405,71 +405,27 @@ class TLabPlugin:
             def load_model(self):
                 return self.model
 
-            def _extract_and_repair_json(self, response_text):
-                """Extract and attempt to repair JSON from model response"""
-                print(f"🔧 JSON REPAIR: Starting repair process (length: {len(response_text)})")
-
-                try:
-                    # First, try to parse as-is
-                    print("🎯 STEP 1: Trying direct JSON parse...")
-                    result = json.loads(response_text)
-                    print("✅ SUCCESS: Direct JSON parse worked!")
-                    return result
-                except json.JSONDecodeError as e:
-                    print(f"❌ STEP 1 FAILED: {str(e)}")
-
-                print("🎯 STEP 2: Trying to extract JSON from mixed response...")
-                # Try to extract JSON from response (remove extra text)
-                json_match = re.search(r"\{.*\}", response_text, re.DOTALL)
-                if json_match:
-                    json_str = json_match.group(0)
-                    print(f"📝 Extracted JSON (length: {len(json_str)})")
-                    try:
-                        result = json.loads(json_str)
-                        print("✅ SUCCESS: JSON extraction worked!")
-                        return result
-                    except json.JSONDecodeError as e:
-                        print(f"❌ STEP 2 FAILED: {str(e)}")
-
-                        print("🎯 STEP 3: Trying basic JSON repairs...")
-                        # Try basic repairs
-                        json_str = self._repair_json_string(json_str)
-                        try:
-                            result = json.loads(json_str)
-                            print("✅ SUCCESS: Basic JSON repair worked!")
-                            return result
-                        except json.JSONDecodeError as e:
-                            print(f"❌ STEP 3 FAILED: {str(e)}")
-                else:
-                    print("❌ STEP 2 FAILED: No JSON found in response")
-
-                print("🎯 STEP 4: Trying json-repair library...")
-                # If all else fails, try using json-repair library if available
-                try:
-                    from json_repair import repair_json
-
-                    result = repair_json(response_text)
-                    print("✅ SUCCESS: json-repair library worked!")
-                    return result
-                except ImportError:
-                    print("❌ STEP 4 FAILED: json-repair library not available")
-                except Exception as e:
-                    print(f"❌ STEP 4 FAILED: json-repair error: {str(e)}")
-
-                print("🎯 STEP 5: Asking model to self-correct...")
-                # Fall back to asking the model to fix it
-                result = self._ask_model_to_fix_json(response_text)
-                if isinstance(result, dict) and "error" not in result:
-                    print("✅ SUCCESS: Model self-correction worked!")
-                else:
-                    print("❌ STEP 5 FAILED: Model self-correction failed")
-                return result
-
             def _repair_json_string(self, json_str):
                 """Apply basic JSON repairs"""
-                print(f"🔨 BASIC REPAIR: Starting repairs on {len(json_str)} characters")
                 original = json_str
                 repairs_made = []
+
+                # First, clean up obviously wrong escaped quotes in comma-separated lists
+                before = json_str
+                # Fix patterns like: "word","\"other\",\"word\"," -> "word","other","word",
+                json_str = re.sub(r'",\\"([^"]+)\\",', r'","\1",', json_str)
+                json_str = re.sub(r'\\",\\"', r'","', json_str)
+                if json_str != before:
+                    repairs_made.append("cleaned up malformed escaped quotes")
+
+                # Fix unescaped quotes inside string values - precise targeting
+                before = json_str
+                # Only target quotes that are clearly inside string values
+                # Look for: space/letter + " + content + " + period/letter (but not JSON structure)
+                # This specifically targets: called "Generate From Raw Text Plugin".
+                json_str = re.sub(r'(\w)\s+"([^"]+)"\s*([.\w])', r'\1 \\"\2\\" \3', json_str)
+                if json_str != before:
+                    repairs_made.append("escaped unescaped quotes in strings")
 
                 # Remove trailing commas
                 before = json_str
@@ -491,7 +447,59 @@ class TLabPlugin:
 
                 # Fix objects with multiple strings (convert to array of strings)
                 before = json_str
+                # Handle complex cases with many comma-separated strings in braces
+                # Pattern: {"string1","string2","string3",...} -> ["string1","string2","string3",...]
                 json_str = re.sub(r'\{\s*("(?:[^"\\]|\\.)*"(?:\s*,\s*"(?:[^"\\]|\\.)*")*)\s*\}', r"[\1]", json_str)
+
+                # More aggressive pattern for badly formatted objects with just strings
+                # This catches cases where strings might have various quote issues
+                if json_str == before:
+                    # Look for any objects and check if they're malformed (no colons = just comma-separated strings)
+                    pattern = r"\{[^{}]*\}"
+                    matches = list(re.finditer(pattern, json_str))
+
+                    malformed_matches = []
+                    for match in matches:
+                        obj_str = match.group(0)
+                        # Check if this object has no colons (indicates comma-separated strings, not key-value pairs)
+                        if ":" not in obj_str and "," in obj_str and '"' in obj_str:
+                            malformed_matches.append(match)
+
+                    if malformed_matches:
+                        # Process matches in reverse order to avoid offset issues
+                        for match in reversed(malformed_matches):
+                            obj_str = match.group(0)
+                            # Extract quoted strings from THIS specific object only
+                            strings = re.findall(r'"([^"]*)"', obj_str)
+                            if len(strings) > 1:  # Only if multiple strings found
+                                # Check if these are complete sentences or just words
+                                are_sentences = any(
+                                    (s.endswith(".") or s.endswith("!") or s.endswith("?")) and len(s.split()) > 3
+                                    for s in strings
+                                )
+
+                                # Check for duplicates and clean them up
+                                unique_strings = []
+                                for s in strings:
+                                    # Normalize string for comparison (remove extra whitespace, lowercase)
+                                    normalized = " ".join(s.lower().split())
+                                    if normalized not in [" ".join(us.lower().split()) for us in unique_strings]:
+                                        unique_strings.append(s)
+
+                                if are_sentences:
+                                    # These are complete sentences - convert to array
+                                    replacement = "[" + ",".join([f'"{s}"' for s in unique_strings]) + "]"
+                                    json_str = json_str[: match.start()] + replacement + json_str[match.end() :]
+                                else:
+                                    # These are words - join into one sentence
+                                    joined_text = " ".join(unique_strings).strip()
+                                    # Clean up any double spaces or odd punctuation
+                                    joined_text = re.sub(r"\s+", " ", joined_text)
+                                    joined_text = re.sub(r"\s+([.,!?;:])", r"\1", joined_text)
+                                    # Create single string replacement
+                                    replacement = f'"{joined_text}"'
+                                    json_str = json_str[: match.start()] + replacement + json_str[match.end() :]
+
                 if json_str != before:
                     repairs_made.append("converted multi-string objects to arrays")
 
@@ -524,42 +532,13 @@ class TLabPlugin:
                     json_str += "]" * missing
                     repairs_made.append(f"added {missing} closing brackets")
 
-                if repairs_made:
-                    print(f"🔨 BASIC REPAIR: Applied fixes: {', '.join(repairs_made)}")
-                else:
-                    print("🔨 BASIC REPAIR: No changes needed")
+                # Remove any trailing model tokens
+                before = json_str
+                json_str = re.sub(r"<\|im_end\|>.*?$", "", json_str, flags=re.DOTALL)
+                if json_str != before:
+                    repairs_made.append("removed trailing model tokens")
 
                 return json_str
-
-            def _ask_model_to_fix_json(self, broken_json):
-                """Ask the model to fix broken JSON as a last resort"""
-                print("🤖 MODEL FIX: Asking model to repair JSON...")
-
-                fix_prompt = f"""Fix this JSON by correcting syntax errors. Output ONLY valid JSON, no explanations:
-
-{broken_json}
-
-Fixed JSON:"""
-
-                try:
-                    chat_model = self.load_model()
-                    fixed_response = chat_model.invoke(fix_prompt).content.strip()
-                    print(f"🤖 MODEL FIX: Got response (length: {len(fixed_response)})")
-
-                    # Try to extract JSON from the fixed response
-                    json_match = re.search(r"\{.*\}", fixed_response, re.DOTALL)
-                    if json_match:
-                        result = json.loads(json_match.group(0))
-                        print("🤖 MODEL FIX: Successfully parsed extracted JSON")
-                        return result
-
-                    result = json.loads(fixed_response)
-                    print("🤖 MODEL FIX: Successfully parsed full response")
-                    return result
-                except Exception as e:
-                    print(f"🤖 MODEL FIX: Failed with error: {str(e)}")
-                    # If everything fails, return an error indicator
-                    return {"error": "Failed to generate valid JSON", "original_response": broken_json}
 
             def _enhance_json_prompt(self, prompt):
                 """Enhance prompts to improve JSON generation"""
@@ -664,45 +643,77 @@ Your response:"""
                     print(f"🆘 {context}: Created emergency fallback with common attributes")
                     return fallback
 
+            def _extract_and_repair_json(self, response_text):
+                """Extract and attempt to repair JSON from model response"""
+                try:
+                    # First, try to parse as-is
+                    result = json.loads(response_text)
+                    return result
+                except json.JSONDecodeError:
+                    pass
+
+                # Clean up model tokens and extra content first
+                clean_text = response_text.strip()
+
+                # Remove model tokens - be more aggressive about all variants
+                clean_text = re.sub(r"<\|im_end\|>.*?$", "", clean_text, flags=re.DOTALL)
+                clean_text = re.sub(r"<\|im_start\|>.*?<\|im_end\|>", "", clean_text, flags=re.DOTALL)
+                clean_text = re.sub(r"```json\s*", "", clean_text)
+                clean_text = re.sub(r"```\s*", "", clean_text)
+                clean_text = clean_text.strip()
+
+                # Extract JSON
+                json_match = re.search(r"\{.*\}", clean_text, re.DOTALL)
+                if json_match:
+                    json_str = json_match.group(0).strip()
+                    try:
+                        result = json.loads(json_str)
+                        return result
+                    except json.JSONDecodeError:
+                        # Try basic repairs
+                        json_str = self._repair_json_string(json_str)
+                        try:
+                            result = json.loads(json_str)
+                            return result
+                        except json.JSONDecodeError:
+                            pass
+
+                # All JSON repair steps failed - return error to let system crash
+                return {"error": "Failed to generate valid JSON", "original_response": response_text}
+
             def generate(self, prompt: str, schema: Type[BaseModel] | None = None, **kwargs):
-                print(f"🔍 DEBUG: generate() called with schema={schema is not None}")
                 enhanced_prompt = self._enhance_json_prompt(prompt)
                 chat_model = self.load_model()
                 response = chat_model.invoke(enhanced_prompt).content
 
                 # If the response looks like it should be JSON, try to fix it
                 if any(indicator in prompt.lower() for indicator in ["json", "score", "evaluation", "rating"]):
-                    print(f"🎯 GENERATE: JSON repair needed for prompt (schema={schema is not None})")
                     try:
                         parsed_json = self._extract_and_repair_json(response)
-                        if isinstance(parsed_json, dict) and "error" not in parsed_json:
-                            print("✅ GENERATE: JSON repair successful")
-
-                            # If schema provided, try to return Pydantic object
-                            if schema is not None:
-                                return self._safe_schema_convert(parsed_json, schema, "GENERATE")
-
-                            return json.dumps(parsed_json)
+                        if isinstance(parsed_json, dict):
+                            # Check if this is a valid empty response
+                            if "statements" in parsed_json and isinstance(parsed_json["statements"], list):
+                                if schema is not None:
+                                    return self._safe_schema_convert(parsed_json, schema, "GENERATE")
+                                return json.dumps(parsed_json)
+                            # Check if this is an error response
+                            elif "error" in parsed_json and "original_response" in parsed_json:
+                                raise ValueError(
+                                    f"JSON repair failed: {parsed_json.get('original_response', response)}"
+                                )
+                            else:
+                                if schema is not None:
+                                    return self._safe_schema_convert(parsed_json, schema, "GENERATE")
+                                return json.dumps(parsed_json)
                         else:
-                            print("❌ GENERATE: JSON repair failed")
-
-                            # If schema provided, create minimal object
-                            if schema is not None:
-                                return self._safe_schema_convert({}, schema, "GENERATE")
+                            raise ValueError(f"JSON repair failed: Invalid response type: {type(parsed_json)}")
 
                     except Exception as e:
-                        print(f"❌ GENERATE: JSON repair threw exception: {str(e)}")
-
-                        # If schema provided, create minimal object
-                        if schema is not None:
-                            return self._safe_schema_convert({}, schema, "GENERATE")
-                else:
-                    print("📝 GENERATE: No JSON repair needed")
+                        raise e
 
                 return response
 
             async def a_generate(self, prompt: str, schema: Type[BaseModel] | None = None, **kwargs):
-                print(f"🔍 DEBUG: a_generate() called with schema={schema is not None}")
                 enhanced_prompt = self._enhance_json_prompt(prompt)
                 chat_model = self.load_model()
                 res = await chat_model.ainvoke(enhanced_prompt)
@@ -710,32 +721,17 @@ Your response:"""
 
                 # If the response looks like it should be JSON, try to fix it
                 if any(indicator in prompt.lower() for indicator in ["json", "score", "evaluation", "rating"]):
-                    print(f"🎯 A_GENERATE: JSON repair needed for prompt (schema={schema is not None})")
                     try:
                         parsed_json = self._extract_and_repair_json(response)
                         if isinstance(parsed_json, dict) and "error" not in parsed_json:
-                            print("✅ A_GENERATE: JSON repair successful")
-
-                            # If schema provided, try to return Pydantic object
                             if schema is not None:
                                 return self._safe_schema_convert(parsed_json, schema, "A_GENERATE")
-
                             return json.dumps(parsed_json)
                         else:
-                            print("❌ A_GENERATE: JSON repair failed")
-
-                            # If schema provided, create minimal object
-                            if schema is not None:
-                                return self._safe_schema_convert({}, schema, "A_GENERATE")
+                            raise ValueError(f"JSON repair failed: {parsed_json.get('original_response', response)}")
 
                     except Exception as e:
-                        print(f"❌ A_GENERATE: JSON repair threw exception: {str(e)}")
-
-                        # If schema provided, create minimal object
-                        if schema is not None:
-                            return self._safe_schema_convert({}, schema, "A_GENERATE")
-                else:
-                    print("📝 A_GENERATE: No JSON repair needed")
+                        raise e
 
                 return response
 
@@ -825,11 +821,11 @@ Your response:"""
 
             def generate(self, prompt: str):
                 client = self.load_model()
-                response = client.chat.completions.create(
-                    model=self.generation_model_name,
-                    messages=[{"role": "user", "content": prompt}],
-                )
-                return response.choices[0].message.content
+                    response = client.chat.completions.create(
+                        model=self.generation_model_name,
+                        messages=[{"role": "user", "content": prompt}],
+                    )
+                    return response.choices[0].message.content
 
             async def a_generate(self, prompt: str):
                 return self.generate(prompt)
