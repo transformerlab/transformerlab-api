@@ -245,8 +245,6 @@ class SGLWorker(BaseModelWorker):
             check_if_multimodal(model_path),
         )
 
-        logger.info(f"Loading the model {self.model_names} on worker {worker_id}, worker type: SGLang worker...")
-
         self.tokenizer = get_tokenizer(tokenizer_path)
         config = get_config(model_path, trust_remote_code=trust_remote_code)
         try:
@@ -288,6 +286,7 @@ class SGLWorker(BaseModelWorker):
                 raise ValueError("Mismatched <image> tokens vs. images")
 
             temperature = float(params.get("temperature", 1.0))
+            is_chat = params.pop("_is_chat", False)
             top_p = float(params.get("top_p", 1.0))
             top_k = params.get("top_k", -1.0)
             frequency_penalty = float(params.get("frequency_penalty", 0.0))
@@ -332,19 +331,30 @@ class SGLWorker(BaseModelWorker):
                     prompt.append(image_paths[i])  # actual path, not "<image>"
 
             @sgl.function
-            def pipeline(s, prompt_parts, max_tokens):
-                user_msg = ""
-                for part in prompt_parts:
-                    if os.path.isfile(part):
-                        user_msg = sgl.image(str(part))  # Registers image + returns token
-                    else:
-                        user_msg += str(part)
-                s += sgl.user(user_msg)
-                s += sgl.assistant(sgl.gen(max_tokens=max_tokens))
+            def pipeline(s, prompt_parts, max_tokens, is_chat: bool):
+                if is_chat:
+                    user_msg = ""
+                    for part in prompt_parts:
+                        if os.path.isfile(part):
+                            user_msg = sgl.image(str(part))
+                        else:
+                            user_msg += str(part)
+                    s += sgl.user(user_msg)
+                    s += sgl.assistant(sgl.gen(max_tokens=max_tokens))
+                else:
+                    raw_prompt = ""
+                    for part in prompt_parts:
+                        if os.path.isfile(part):
+                            raw_prompt += sgl.image(str(part))  # register + embed token
+                        else:
+                            raw_prompt += str(part)
+                    s += raw_prompt
+                    s += sgl.gen(max_tokens=max_tokens)
 
             state = pipeline.run(
                 prompt,
                 max_new_tokens,
+                is_chat=is_chat,
                 stop=stop,
                 temperature=temperature,
                 top_p=top_p,
@@ -356,59 +366,58 @@ class SGLWorker(BaseModelWorker):
 
             stream_iter = state.text_async_iter()
 
-            buffered_output = ""
             assistant_started = False
             assistant_text = ""
 
-            async for out in stream_iter:
-                if any(is_partial_stop(out, i) for i in stop):
-                    continue
-
-                buffered_output += out
-
-                if not assistant_started:
-                    start_index = buffered_output.find(start_token)
-                    if start_index != -1:
-                        assistant_started = True
-                        # Start streaming from immediately after the start_token
-                        chunk = buffered_output[start_index + len(start_token) :]
-                        # If there's also an end_token in this same chunk, trim it now
-                        if end_token and end_token in chunk:
-                            end_index = chunk.find(end_token)
-                            chunk = chunk[:end_index]
-                            buffered_output = ""  # clear buffer to avoid duplicate streaming
-                        else:
-                            buffered_output = ""  # same, since we just used it
-                        assistant_text += chunk
-                        yield {
-                            "text": assistant_text,
-                            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
-                            "error_code": 0,
-                        }
-                    else:
-                        # Haven't seen start_token yet → keep buffering
+            if is_chat:
+                async for out in stream_iter:
+                    if any(is_partial_stop(out, i) for i in stop):
                         continue
-                else:
-                    # Assistant already started
-                    chunk = out
-                    if end_token and end_token in chunk:
-                        # Stop streaming at the end_token
-                        end_index = chunk.find(end_token)
-                        chunk = chunk[:end_index]
-                        assistant_text += chunk
-                        yield {
-                            "text": assistant_text,
-                            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
-                            "error_code": 0,
-                        }
-                        break
-                    else:
-                        assistant_text += chunk
-                        yield {
-                            "text": assistant_text,
-                            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
-                            "error_code": 0,
-                        }
+
+                    if not assistant_started:
+                        matches = LAST_ASSISTANT_RE.findall(out)
+                        if matches:
+                            assistant_started = True
+                            chunk = matches[-1]
+                            assistant_text += chunk
+                            yield {
+                                "text": assistant_text,
+                                "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                                "error_code": 0,
+                            }
+                        continue
+
+                    # If assistant has started, just keep appending normally
+                    assistant_text += out.replace(start_token, "").replace(end_token, "")
+                    yield {
+                        "text": assistant_text,
+                        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                        "error_code": 0,
+                    }
+            else:
+                prompt_str = "".join(part for part in prompt if isinstance(part, str)).strip().lower()
+                prompt_str_nospace = prompt_str.replace(" ", "")
+
+                assistant_started = False
+
+                async for out in stream_iter:
+                    if any(is_partial_stop(out, i) for i in stop):
+                        continue
+
+                    out_strip = out.strip().lower().replace(" ", "")
+
+                    if not assistant_started:
+                        if out_strip.startswith(prompt_str_nospace):
+                            # Skip the prompt echo
+                            out = out[len(prompt_str) :]
+                        assistant_started = True
+
+                    assistant_text += out
+                    yield {
+                        "text": assistant_text,
+                        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+                        "error_code": 0,
+                    }
 
         except Exception as e:
             raise ValueError(f"Failed: {e}")
