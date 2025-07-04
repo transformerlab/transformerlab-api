@@ -405,145 +405,9 @@ class TLabPlugin:
             def load_model(self):
                 return self.model
 
-            def _repair_json_string(self, json_str):
-                """Apply basic JSON repairs"""
-                original = json_str
-                repairs_made = []
-
-                # First, clean up obviously wrong escaped quotes in comma-separated lists
-                before = json_str
-                # Fix patterns like: "word","\"other\",\"word\"," -> "word","other","word",
-                json_str = re.sub(r'",\\"([^"]+)\\",', r'","\1",', json_str)
-                json_str = re.sub(r'\\",\\"', r'","', json_str)
-                if json_str != before:
-                    repairs_made.append("cleaned up malformed escaped quotes")
-
-                # Fix unescaped quotes inside string values - precise targeting
-                before = json_str
-                # Only target quotes that are clearly inside string values
-                # Look for: space/letter + " + content + " + period/letter (but not JSON structure)
-                # This specifically targets: called "Generate From Raw Text Plugin".
-                json_str = re.sub(r'(\w)\s+"([^"]+)"\s*([.\w])', r'\1 \\"\2\\" \3', json_str)
-                if json_str != before:
-                    repairs_made.append("escaped unescaped quotes in strings")
-
-                # Remove trailing commas
-                before = json_str
-                json_str = re.sub(r",\s*([}\]])", r"\1", json_str)
-                if json_str != before:
-                    repairs_made.append("removed trailing commas")
-
-                # Fix missing commas between object properties
-                before = json_str
-                json_str = re.sub(r'(["\d\]\}])\s*("[\w\s]+"\s*:)', r"\1, \2", json_str)
-                if json_str != before:
-                    repairs_made.append("added missing commas between properties")
-
-                # Fix missing commas between array elements
-                before = json_str
-                json_str = re.sub(r'(["\d\]\}])\s*(["\[\{])', r"\1, \2", json_str)
-                if json_str != before:
-                    repairs_made.append("added missing commas between array elements")
-
-                # Fix objects with multiple strings (convert to array of strings)
-                before = json_str
-                # Handle complex cases with many comma-separated strings in braces
-                # Pattern: {"string1","string2","string3",...} -> ["string1","string2","string3",...]
-                json_str = re.sub(r'\{\s*("(?:[^"\\]|\\.)*"(?:\s*,\s*"(?:[^"\\]|\\.)*")*)\s*\}', r"[\1]", json_str)
-
-                # More aggressive pattern for badly formatted objects with just strings
-                # This catches cases where strings might have various quote issues
-                if json_str == before:
-                    # Look for any objects and check if they're malformed (no colons = just comma-separated strings)
-                    pattern = r"\{[^{}]*\}"
-                    matches = list(re.finditer(pattern, json_str))
-
-                    malformed_matches = []
-                    for match in matches:
-                        obj_str = match.group(0)
-                        # Check if this object has no colons (indicates comma-separated strings, not key-value pairs)
-                        if ":" not in obj_str and "," in obj_str and '"' in obj_str:
-                            malformed_matches.append(match)
-
-                    if malformed_matches:
-                        # Process matches in reverse order to avoid offset issues
-                        for match in reversed(malformed_matches):
-                            obj_str = match.group(0)
-                            # Extract quoted strings from THIS specific object only
-                            strings = re.findall(r'"([^"]*)"', obj_str)
-                            if len(strings) > 1:  # Only if multiple strings found
-                                # Check if these are complete sentences or just words
-                                are_sentences = any(
-                                    (s.endswith(".") or s.endswith("!") or s.endswith("?")) and len(s.split()) > 3
-                                    for s in strings
-                                )
-
-                                # Check for duplicates and clean them up
-                                unique_strings = []
-                                for s in strings:
-                                    # Normalize string for comparison (remove extra whitespace, lowercase)
-                                    normalized = " ".join(s.lower().split())
-                                    if normalized not in [" ".join(us.lower().split()) for us in unique_strings]:
-                                        unique_strings.append(s)
-
-                                if are_sentences:
-                                    # These are complete sentences - convert to array
-                                    replacement = "[" + ",".join([f'"{s}"' for s in unique_strings]) + "]"
-                                    json_str = json_str[: match.start()] + replacement + json_str[match.end() :]
-                                else:
-                                    # These are words - join into one sentence
-                                    joined_text = " ".join(unique_strings).strip()
-                                    # Clean up any double spaces or odd punctuation
-                                    joined_text = re.sub(r"\s+", " ", joined_text)
-                                    joined_text = re.sub(r"\s+([.,!?;:])", r"\1", joined_text)
-                                    # Create single string replacement
-                                    replacement = f'"{joined_text}"'
-                                    json_str = json_str[: match.start()] + replacement + json_str[match.end() :]
-
-                if json_str != before:
-                    repairs_made.append("converted multi-string objects to arrays")
-
-                # Fix objects with just string values (no property names)
-                before = json_str
-                json_str = re.sub(r'\{\s*"([^"]+)"\s*\}', r'{"value": "\1"}', json_str)
-                if json_str != before:
-                    repairs_made.append("added missing property names")
-
-                # Fix missing colons after property names
-                before = json_str
-                json_str = re.sub(r'("[\w\s]+")(\s+)(["\d\[\{])', r"\1:\2\3", json_str)
-                json_str = re.sub(r'("[\w\s]+")(["\d\[\{])', r"\1: \2", json_str)
-                if json_str != before:
-                    repairs_made.append("added missing colons")
-
-                # Fix unmatched braces
-                open_braces = json_str.count("{")
-                close_braces = json_str.count("}")
-                if open_braces > close_braces:
-                    missing = open_braces - close_braces
-                    json_str += "}" * missing
-                    repairs_made.append(f"added {missing} closing braces")
-
-                # Fix unmatched brackets
-                open_brackets = json_str.count("[")
-                close_brackets = json_str.count("]")
-                if open_brackets > close_brackets:
-                    missing = open_brackets - close_brackets
-                    json_str += "]" * missing
-                    repairs_made.append(f"added {missing} closing brackets")
-
-                # Remove any trailing model tokens
-                before = json_str
-                json_str = re.sub(r"<\|im_end\|>.*?$", "", json_str, flags=re.DOTALL)
-                if json_str != before:
-                    repairs_made.append("removed trailing model tokens")
-
-                return json_str
-
             def _enhance_json_prompt(self, prompt):
                 """Enhance prompts to improve JSON generation"""
                 if "json" in prompt.lower() or "{" in prompt or "score" in prompt.lower():
-                    print("📝 PROMPT ENHANCEMENT: Adding JSON instructions to prompt")
                     # Add JSON-specific instructions
                     json_instructions = """
 
@@ -562,21 +426,22 @@ Your response:"""
                 return prompt
 
             def _safe_schema_convert(self, data, schema, context):
-                """Simple, robust schema conversion with Pydantic v2 compatibility"""
-                print(f"🛡️ {context}: Converting to schema object")
-
+                """Simple schema conversion"""
                 try:
-                    # Try direct conversion first
-                    result = schema.parse_obj(data)
-                    print(f"✅ {context}: Direct schema conversion successful")
-                    return result
-                except Exception as e:
-                    print(f"❌ {context}: Direct conversion failed: {e}")
-
-                try:
+                    return schema.parse_obj(data)
+                except Exception:
                     # If data is a list and schema expects object with list field, try to fix it
                     if isinstance(data, list):
-                        # Get schema fields using Pydantic v2 compatible method
+                        # Try common field names
+                        for field_name in ["statements", "verdicts", "items", "results"]:
+                            try:
+                                fixed_data = {field_name: data}
+                                return schema.parse_obj(fixed_data)
+                            except Exception:
+                                continue
+
+                    # Create minimal valid object - try different field access methods
+                    try:
                         if hasattr(schema, "__fields__"):
                             fields = schema.__fields__
                         elif hasattr(schema, "model_fields"):
@@ -584,101 +449,92 @@ Your response:"""
                         else:
                             fields = {}
 
+                        minimal_data = {}
                         for field_name, field_info in fields.items():
-                            # Try to detect list fields (compatible with both Pydantic v1 and v2)
+                            # Get field type (compatible with both Pydantic v1 and v2)
                             field_type = getattr(field_info, "annotation", getattr(field_info, "type_", None))
+
                             if field_type and hasattr(field_type, "__origin__") and field_type.__origin__ is list:
-                                fixed_data = {field_name: data}
-                                result = schema.parse_obj(fixed_data)
-                                print(f"✅ {context}: List-to-object conversion successful")
-                                return result
-                except Exception as e:
-                    print(f"❌ {context}: List conversion failed: {e}")
+                                minimal_data[field_name] = []
+                            else:
+                                minimal_data[field_name] = ""
 
-                try:
-                    # Create minimal valid object - try different field access methods
-                    if hasattr(schema, "__fields__"):
-                        fields = schema.__fields__
-                    elif hasattr(schema, "model_fields"):
-                        fields = schema.model_fields
-                    else:
-                        fields = {}
-
-                    minimal_data = {}
-                    for field_name, field_info in fields.items():
-                        # Get field type (compatible with both Pydantic v1 and v2)
-                        field_type = getattr(field_info, "annotation", getattr(field_info, "type_", None))
-
-                        if field_type and hasattr(field_type, "__origin__") and field_type.__origin__ is list:
-                            minimal_data[field_name] = []
-                        else:
-                            minimal_data[field_name] = ""
-
-                    result = schema.parse_obj(minimal_data)
-                    print(f"⚠️ {context}: Created minimal valid object")
-                    return result
-                except Exception as e:
-                    print(f"❌ {context}: Minimal object creation failed: {e}")
-
-                try:
-                    # Last resort: try default constructor
-                    result = schema()
-                    print(f"⚠️ {context}: Used default schema constructor")
-                    return result
-                except Exception as e:
-                    print(f"💥 {context}: All schema creation failed: {e}")
-
-                    # Emergency fallback - create a simple object with required attributes
-                    class EmergencyFallback:
+                        return schema.parse_obj(minimal_data)
+                    except Exception:
                         pass
 
-                    fallback = EmergencyFallback()
-                    # Try to add common DeepEval attributes
-                    for attr in ["statements", "verdicts", "reason", "score"]:
-                        if attr == "statements" or attr == "verdicts":
-                            setattr(fallback, attr, [])
-                        else:
-                            setattr(fallback, attr, "")
+                    # Simple fallback - return empty object
+                    try:
+                        return schema.parse_obj({})
+                    except Exception:
+                        # Emergency fallback
+                        class EmergencyFallback:
+                            def __init__(self):
+                                self.statements = []
+                                self.verdicts = []
+                                self.reason = ""
+                                self.score = 0.0
 
-                    print(f"🆘 {context}: Created emergency fallback with common attributes")
-                    return fallback
+                        return EmergencyFallback()
+
+            def _clean_json_string(self, text):
+                """Clean and normalize JSON string"""
+                # Remove model tokens first
+                text = re.sub(r"<\|.*?\|>.*?$", "", text, flags=re.DOTALL)
+
+                # Remove markdown code blocks - be more careful
+                # Remove ```json and ``` but keep the content between them
+                text = re.sub(r"```json\s*", "", text)
+                text = re.sub(r"```\s*$", "", text, flags=re.MULTILINE)
+                text = re.sub(r"```", "", text)
+
+                text = text.strip()
+
+                # Extract JSON if embedded in other text
+                json_match = re.search(r"\{.*\}", text, re.DOTALL)
+                if json_match:
+                    text = json_match.group(0)
+
+                # Fix common JSON issues
+                text = text.replace('""', '"')  # Fix double quotes
+                text = re.sub(r'(?<!\\)"([^"]*?)"(?!")', r'"\1"', text)  # Fix unescaped inner quotes
+                text = re.sub(r",\s*([}\]])", r"\1", text)  # Remove trailing commas
+                text = re.sub(r'(["\d\]}])\s*(["\[{])', r"\1,\2", text)  # Add missing commas
+
+                return text
 
             def _extract_and_repair_json(self, response_text):
-                """Extract and attempt to repair JSON from model response"""
+                """Extract and repair JSON from model response"""
+                # First try parsing as-is
                 try:
-                    # First, try to parse as-is
-                    result = json.loads(response_text)
-                    return result
+                    return json.loads(response_text)
                 except json.JSONDecodeError:
                     pass
 
-                # Clean up model tokens and extra content first
-                clean_text = response_text.strip()
+                # Clean and try again
+                cleaned = self._clean_json_string(response_text)
+                try:
+                    return json.loads(cleaned)
+                except json.JSONDecodeError:
+                    pass
 
-                # Remove model tokens - be more aggressive about all variants
-                clean_text = re.sub(r"<\|im_end\|>.*?$", "", clean_text, flags=re.DOTALL)
-                clean_text = re.sub(r"<\|im_start\|>.*?<\|im_end\|>", "", clean_text, flags=re.DOTALL)
-                clean_text = re.sub(r"```json\s*", "", clean_text)
-                clean_text = re.sub(r"```\s*", "", clean_text)
-                clean_text = clean_text.strip()
+                # If still failing, try to salvage statements
+                try:
+                    # Extract any text that looks like a statement
+                    statements = re.findall(r'"([^"]+?)"', cleaned)
+                    if statements:
+                        # Remove duplicates while preserving order
+                        unique_statements = []
+                        seen = set()
+                        for s in statements:
+                            normalized = " ".join(s.lower().split())
+                            if normalized not in seen:
+                                seen.add(normalized)
+                                unique_statements.append(s)
+                        return {"statements": unique_statements}
+                except Exception:
+                    pass
 
-                # Extract JSON
-                json_match = re.search(r"\{.*\}", clean_text, re.DOTALL)
-                if json_match:
-                    json_str = json_match.group(0).strip()
-                    try:
-                        result = json.loads(json_str)
-                        return result
-                    except json.JSONDecodeError:
-                        # Try basic repairs
-                        json_str = self._repair_json_string(json_str)
-                        try:
-                            result = json.loads(json_str)
-                            return result
-                        except json.JSONDecodeError:
-                            pass
-
-                # All JSON repair steps failed - return error to let system crash
                 return {"error": "Failed to generate valid JSON", "original_response": response_text}
 
             def generate(self, prompt: str, schema: Type[BaseModel] | None = None, **kwargs):
@@ -691,7 +547,7 @@ Your response:"""
                     try:
                         parsed_json = self._extract_and_repair_json(response)
                         if isinstance(parsed_json, dict):
-                            # Check if this is a valid empty response
+                            # Check if this is a valid response
                             if "statements" in parsed_json and isinstance(parsed_json["statements"], list):
                                 if schema is not None:
                                     return self._safe_schema_convert(parsed_json, schema, "GENERATE")
@@ -707,7 +563,6 @@ Your response:"""
                                 return json.dumps(parsed_json)
                         else:
                             raise ValueError(f"JSON repair failed: Invalid response type: {type(parsed_json)}")
-
                     except Exception as e:
                         raise e
 
@@ -729,7 +584,6 @@ Your response:"""
                             return json.dumps(parsed_json)
                         else:
                             raise ValueError(f"JSON repair failed: {parsed_json.get('original_response', response)}")
-
                     except Exception as e:
                         raise e
 
@@ -821,11 +675,11 @@ Your response:"""
 
             def generate(self, prompt: str):
                 client = self.load_model()
-                    response = client.chat.completions.create(
-                        model=self.generation_model_name,
-                        messages=[{"role": "user", "content": prompt}],
-                    )
-                    return response.choices[0].message.content
+                response = client.chat.completions.create(
+                    model=self.generation_model_name,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                return response.choices[0].message.content
 
             async def a_generate(self, prompt: str):
                 return self.generate(prompt)
