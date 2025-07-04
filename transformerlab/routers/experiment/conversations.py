@@ -6,7 +6,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body
 
-import transformerlab.db as db
+from transformerlab.db.db import experiment_get
 
 from transformerlab.shared import dirs
 
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/conversations", tags=["conversations"])
 @router.get(path="/list")
 async def get_conversations(experimentId: int):
     # first get the experiment name:
-    data = await db.experiment_get(experimentId)
+    data = await experiment_get(experimentId)
 
     # if the experiment does not exist, return an error:
     if data is None:
@@ -66,7 +66,7 @@ async def save_conversation(
     experimentId: int, conversation_id: Annotated[str, Body()], conversation: Annotated[str, Body()]
 ):
     # first get the experiment name:
-    data = await db.experiment_get(experimentId)
+    data = await experiment_get(experimentId)
 
     conversation_id = secure_filename(conversation_id)
 
@@ -98,7 +98,7 @@ async def save_conversation(
 @router.delete(path="/delete")
 async def delete_conversation(experimentId: int, conversation_id: str):
     # first get the experiment name:
-    data = await db.experiment_get(experimentId)
+    data = await experiment_get(experimentId)
 
     conversation_id = secure_filename(conversation_id)
 
