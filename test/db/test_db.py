@@ -269,9 +269,11 @@ async def test_experiment_update_and_update_config_and_save_prompt_template(test
     exp_config = json.loads(exp["config"])
     assert exp_config.get("baz") == 123
 
-    await experiment_save_prompt_template(test_experiment, '"prompt"')
+    test_prompt = '"prompt"'
+    await experiment_save_prompt_template(test_experiment, test_prompt)
     exp = await experiment_get(test_experiment)
-    assert "prompt_template" in exp["config"]
+    exp_config = json.loads(exp["config"])
+    assert exp_config.get("prompt_template") == test_prompt
 
 
 @pytest.mark.asyncio
