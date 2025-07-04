@@ -265,7 +265,10 @@ class SGLWorker(BaseModelWorker):
             start_token, end_token, LAST_ASSISTANT_RE = get_assistant_tokens(get_conversation_template(self.model_path))
             prompt: str = params.pop("prompt")
             images = params.get("images", [])
-
+            if start_token in prompt:
+                is_chat = True
+            else:
+                is_chat = False
             # echo = params.get("echo", True)
             image_paths = []
             if len(images) > 0:
@@ -286,7 +289,6 @@ class SGLWorker(BaseModelWorker):
                 raise ValueError("Mismatched <image> tokens vs. images")
 
             temperature = float(params.get("temperature", 1.0))
-            is_chat = params.pop("_is_chat", False)
             top_p = float(params.get("top_p", 1.0))
             top_k = params.get("top_k", -1.0)
             frequency_penalty = float(params.get("frequency_penalty", 0.0))

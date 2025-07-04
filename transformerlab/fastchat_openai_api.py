@@ -490,7 +490,7 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
         stop=request.stop,
         logprobs=request.logprobs,
     )
-    gen_params["_is_chat"] = True
+
     error_check_ret = await check_length(request, gen_params["prompt"], gen_params["max_new_tokens"])
     if error_check_ret is not None:
         return error_check_ret
