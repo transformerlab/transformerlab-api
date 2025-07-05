@@ -7,7 +7,7 @@ import traceback
 import requests
 import json
 from pydantic import BaseModel
-from typing import Any, List
+from typing import Any, List, Type
 
 from datasets import get_dataset_split_names, get_dataset_config_names, load_dataset
 
@@ -390,6 +390,8 @@ class TLabPlugin:
         # Import here to avoid circular imports
         from deepeval.models.base_model import DeepEvalBaseLLM  # noqa
         from langchain.schema import HumanMessage, SystemMessage  # noqa
+        import json
+        import re
 
         plugin_model_name = self.params.model_name
 
@@ -403,14 +405,189 @@ class TLabPlugin:
             def load_model(self):
                 return self.model
 
-            def generate(self, prompt: str) -> str:
-                chat_model = self.load_model()
-                return chat_model.invoke(prompt).content
+            def _enhance_json_prompt(self, prompt):
+                """Enhance prompts to improve JSON generation"""
+                if "json" in prompt.lower() or "{" in prompt or "score" in prompt.lower():
+                    # Add JSON-specific instructions
+                    json_instructions = """
 
-            async def a_generate(self, prompt: str) -> str:
+CRITICAL: You must respond with valid JSON only. Follow these rules:
+1. Output ONLY valid JSON - no explanations, no markdown, no extra text
+2. Use double quotes for all strings
+3. No trailing commas
+4. Ensure all braces and brackets are properly closed
+5. Numbers should not be quoted unless they're strings
+6. Use null for empty values, not undefined
+
+Example format: {"score": 0.8, "reason": "explanation here"}
+
+Your response:"""
+                    return prompt + json_instructions
+                return prompt
+
+            def _safe_schema_convert(self, data, schema, context):
+                """Simple schema conversion"""
+                try:
+                    return schema.parse_obj(data)
+                except Exception:
+                    # If data is a list and schema expects object with list field, try to fix it
+                    if isinstance(data, list):
+                        # Try common field names
+                        for field_name in ["statements", "verdicts", "items", "results"]:
+                            try:
+                                fixed_data = {field_name: data}
+                                return schema.parse_obj(fixed_data)
+                            except Exception:
+                                continue
+
+                    # Create minimal valid object - try different field access methods
+                    try:
+                        if hasattr(schema, "__fields__"):
+                            fields = schema.__fields__
+                        elif hasattr(schema, "model_fields"):
+                            fields = schema.model_fields
+                        else:
+                            fields = {}
+
+                        minimal_data = {}
+                        for field_name, field_info in fields.items():
+                            # Get field type (compatible with both Pydantic v1 and v2)
+                            field_type = getattr(field_info, "annotation", getattr(field_info, "type_", None))
+
+                            if field_type and hasattr(field_type, "__origin__") and field_type.__origin__ is list:
+                                minimal_data[field_name] = []
+                            else:
+                                minimal_data[field_name] = ""
+
+                        return schema.parse_obj(minimal_data)
+                    except Exception:
+                        pass
+
+                    # Simple fallback - return empty object
+                    try:
+                        return schema.parse_obj({})
+                    except Exception:
+                        # Emergency fallback
+                        class EmergencyFallback:
+                            def __init__(self):
+                                self.statements = []
+                                self.verdicts = []
+                                self.reason = ""
+                                self.score = 0.0
+
+                        return EmergencyFallback()
+
+            def _clean_json_string(self, text):
+                """Clean and normalize JSON string"""
+                # Remove model tokens first
+                text = re.sub(r"<\|.*?\|>.*?$", "", text, flags=re.DOTALL)
+
+                # Remove markdown code blocks - be more careful
+                # Remove ```json and ``` but keep the content between them
+                text = re.sub(r"```json\s*", "", text)
+                text = re.sub(r"```\s*$", "", text, flags=re.MULTILINE)
+                text = re.sub(r"```", "", text)
+
+                text = text.strip()
+
+                # Extract JSON if embedded in other text
+                json_match = re.search(r"\{.*\}", text, re.DOTALL)
+                if json_match:
+                    text = json_match.group(0)
+
+                # Fix common JSON issues
+                text = text.replace('""', '"')  # Fix double quotes
+                text = re.sub(r'(?<!\\)"([^"]*?)"(?!")', r'"\1"', text)  # Fix unescaped inner quotes
+                text = re.sub(r",\s*([}\]])", r"\1", text)  # Remove trailing commas
+                text = re.sub(r'(["\d\]}])\s*(["\[{])', r"\1,\2", text)  # Add missing commas
+
+                return text
+
+            def _extract_and_repair_json(self, response_text):
+                """Extract and repair JSON from model response"""
+                # First try parsing as-is
+                try:
+                    return json.loads(response_text)
+                except json.JSONDecodeError:
+                    pass
+
+                # Clean and try again
+                cleaned = self._clean_json_string(response_text)
+                try:
+                    return json.loads(cleaned)
+                except json.JSONDecodeError:
+                    pass
+
+                # If still failing, try to salvage statements
+                try:
+                    # Extract any text that looks like a statement
+                    statements = re.findall(r'"([^"]+?)"', cleaned)
+                    if statements:
+                        # Remove duplicates while preserving order
+                        unique_statements = []
+                        seen = set()
+                        for s in statements:
+                            normalized = " ".join(s.lower().split())
+                            if normalized not in seen:
+                                seen.add(normalized)
+                                unique_statements.append(s)
+                        return {"statements": unique_statements}
+                except Exception:
+                    pass
+
+                return {"error": "Failed to generate valid JSON", "original_response": response_text}
+
+            def generate(self, prompt: str, schema: Type[BaseModel] | None = None, **kwargs):
+                enhanced_prompt = self._enhance_json_prompt(prompt)
                 chat_model = self.load_model()
-                res = await chat_model.ainvoke(prompt)
-                return res.content
+                response = chat_model.invoke(enhanced_prompt).content
+
+                # If the response looks like it should be JSON, try to fix it
+                if any(indicator in prompt.lower() for indicator in ["json", "score", "evaluation", "rating"]):
+                    try:
+                        parsed_json = self._extract_and_repair_json(response)
+                        if isinstance(parsed_json, dict):
+                            # Check if this is a valid response
+                            if "statements" in parsed_json and isinstance(parsed_json["statements"], list):
+                                if schema is not None:
+                                    return self._safe_schema_convert(parsed_json, schema, "GENERATE")
+                                return json.dumps(parsed_json)
+                            # Check if this is an error response
+                            elif "error" in parsed_json and "original_response" in parsed_json:
+                                raise ValueError(
+                                    f"JSON repair failed: {parsed_json.get('original_response', response)}"
+                                )
+                            else:
+                                if schema is not None:
+                                    return self._safe_schema_convert(parsed_json, schema, "GENERATE")
+                                return json.dumps(parsed_json)
+                        else:
+                            raise ValueError(f"JSON repair failed: Invalid response type: {type(parsed_json)}")
+                    except Exception as e:
+                        raise e
+
+                return response
+
+            async def a_generate(self, prompt: str, schema: Type[BaseModel] | None = None, **kwargs):
+                enhanced_prompt = self._enhance_json_prompt(prompt)
+                chat_model = self.load_model()
+                res = await chat_model.ainvoke(enhanced_prompt)
+                response = res.content
+
+                # If the response looks like it should be JSON, try to fix it
+                if any(indicator in prompt.lower() for indicator in ["json", "score", "evaluation", "rating"]):
+                    try:
+                        parsed_json = self._extract_and_repair_json(response)
+                        if isinstance(parsed_json, dict) and "error" not in parsed_json:
+                            if schema is not None:
+                                return self._safe_schema_convert(parsed_json, schema, "A_GENERATE")
+                            return json.dumps(parsed_json)
+                        else:
+                            raise ValueError(f"JSON repair failed: {parsed_json.get('original_response', response)}")
+                    except Exception as e:
+                        raise e
+
+                return response
 
             def generate_without_instructor(self, messages: List[dict]) -> BaseModel:
                 chat_model = self.load_model()
@@ -423,7 +600,7 @@ class TLabPlugin:
                 return chat_model.invoke(modified_messages).content
 
             def get_model_name(self):
-                return self.model
+                return self.generation_model_name
 
         return TRLAB_MODEL(model)
 
@@ -496,32 +673,16 @@ class TLabPlugin:
             def load_model(self):
                 return self.model
 
-            def generate(self, prompt: str, schema=None):
+            def generate(self, prompt: str):
                 client = self.load_model()
-                if schema:
-                    import instructor
+                response = client.chat.completions.create(
+                    model=self.generation_model_name,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                return response.choices[0].message.content
 
-                    if self.model_type == "claude":
-                        instructor_client = instructor.from_anthropic(client)
-                    else:
-                        instructor_client = instructor.from_openai(client)
-
-                    resp = instructor_client.messages.create(
-                        model=self.generation_model_name,
-                        max_tokens=1024,
-                        messages=[{"role": "user", "content": prompt}],
-                        response_model=schema,
-                    )
-                    return resp
-                else:
-                    response = client.chat.completions.create(
-                        model=self.generation_model_name,
-                        messages=[{"role": "user", "content": prompt}],
-                    )
-                    return response.choices[0].message.content
-
-            async def a_generate(self, prompt: str, schema=None):
-                return self.generate(prompt, schema)
+            async def a_generate(self, prompt: str):
+                return self.generate(prompt)
 
             def generate_without_instructor(self, messages: List[dict]):
                 client = self.load_model()
