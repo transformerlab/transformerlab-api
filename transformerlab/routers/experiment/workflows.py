@@ -380,9 +380,7 @@ async def workflow_runs_get_by_id(workflow_run_id: str, experimentId: int):
     returnInfo = {"run": workflow_run, "workflow": workflow, "jobs": []}
 
     try:
-        if not isinstance(workflow_run.get("job_ids", "[]"), dict) or not isinstance(
-            workflow_run.get("job_ids", "[]"), list
-        ):
+        if isinstance(workflow_run.get("job_ids", "[]"), str):
             job_ids = json.loads(workflow_run.get("job_ids", "[]"))
         else:
             job_ids = workflow_run.get("job_ids", [])
