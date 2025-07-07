@@ -355,7 +355,7 @@ def fetch_url_as_data_uri(raw_url: str) -> str:
     # 2️⃣  Check for private domains
     try:
         private_check = ipaddress.ip_address(ip_address).is_private
-    except:
+    except Exception:
         logger.info("Invalid IP address format")
         raise ValueError("Cannot check for privacy of the IP address")
 
