@@ -181,6 +181,7 @@ def run_generation():
         "chunk_overlap": tlab_gen.params.chunk_overlap,
     }
 
+    # Save the generated data and upload to TransformerLab
     output_file, dataset_name = tlab_gen.save_generated_dataset(df, additional_metadata=additional_metadata)
 
     print(f"QA dataset generated successfully as dataset {dataset_name}")

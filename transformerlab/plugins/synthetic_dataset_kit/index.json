@@ -60,10 +60,9 @@
       "default": "http://localhost:8338/v1",
       "description": "API endpoint of the vLLM server used by synthetic-data-kit."
     },
-    "dataset_name": {
+    "output_dataset_name": {
       "title": "Dataset Name",
       "type": "string",
-      "required": true,
       "default": "generated_dataset"
     }
   },

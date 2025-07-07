@@ -26,7 +26,14 @@
     "generate_expected_output": {
       "title": "Generate Expected Output",
       "type": "string",
-      "enum": ["Yes", "No"]
+      "enum": ["Yes", "No"],
+      "default": "No",
+      "required": true
+    },
+    "output_dataset_name": {
+      "title": "Dataset Name",
+      "type": "string",
+      "default": "generated_dataset"
     },
     "scenario": {
       "title": "Scenario. Describe the scenario for which you want to generate data",
@@ -43,12 +50,6 @@
     "expected_output_format": {
       "title": "Expected Output Format. Describe the format of the output data which will be received from the model",
       "type": "string"
-    },
-    "dataset_name": {
-      "title": "Dataset Name",
-      "type": "string",
-      "required": true,
-      "default": "generated_dataset"
     }
   },
   "parameters_ui": {

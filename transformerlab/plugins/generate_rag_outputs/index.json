@@ -80,10 +80,9 @@
       "type": "integer",
       "default": 20
     },
-    "dataset_name": {
+    "output_dataset_name": {
       "title": "Dataset Name",
       "type": "string",
-      "required": true,
       "default": "generated_dataset"
     }
   },
