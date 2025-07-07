@@ -1,4 +1,5 @@
 import json
+import datetime
 
 from sqlalchemy import select, delete, text, update
 from sqlalchemy.dialects.sqlite import insert  # Correct import for SQLite upsert
@@ -458,7 +459,36 @@ async def experiment_save_prompt_template(id, template):
                 config = json.loads(config)
             except Exception:
                 config = {}
-        config["prompt_template"] = str(template)
+
+        # Parse template as JSON and process system_message field
+        if isinstance(template, str):
+            try:
+                parsed_template = json.loads(template)
+            except Exception:
+                parsed_template = template
+        else:
+            parsed_template = template
+
+        # If parsed_template is a dict and has system_message, process date replacements
+        if isinstance(parsed_template, dict) and "system_message" in parsed_template:
+            system_message = parsed_template["system_message"]
+
+            current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+            system_message = system_message.replace("{{currentDateTime}}", current_date)
+
+            current_date_v2 = datetime.datetime.now().strftime("%d %b %Y")
+            system_message = system_message.replace("{{currentDateTimev2}}", current_date_v2)
+
+            current_date_v3 = datetime.datetime.now().strftime("%B %Y")
+            system_message = system_message.replace("{{currentDateTimev3}}", current_date_v3)
+
+            parsed_template["system_message"] = system_message
+            processed_template = json.dumps(parsed_template)
+            print(f"Processed template: {processed_template}")
+        else:
+            processed_template = parsed_template
+
+        config["prompt_template"] = str(processed_template)
         experiment.config = json.dumps(config)
         await session.commit()
     return
