@@ -464,6 +464,36 @@ async def experiment_save_prompt_template(id, template):
     return
 
 
+async def experiment_update_configs(id, updates: dict):
+    """
+    Update multiple config keys for an experiment in a single transaction.
+    Args:
+        id: Experiment ID
+        updates: dict of key-value pairs to update in config
+    """
+    async with async_session() as session:
+        result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
+        experiment = result.scalar_one_or_none()
+        if experiment is None:
+            print(f"Experiment with id={id} not found.")
+            return
+
+        config = experiment.config
+        if isinstance(config, str):
+            try:
+                config = json.loads(config)
+            except Exception as e:
+                print(f"❌ Could not parse config as JSON: {e}")
+                config = {}
+
+        # Update all keys
+        config.update(updates)
+
+        experiment.config = json.dumps(config)
+        await session.commit()
+    return
+
+
 ###############
 # PLUGINS MODEL
 ###############
