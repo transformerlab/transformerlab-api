@@ -406,8 +406,21 @@ class TLabPlugin:
                 return self.model
 
             def _enhance_json_prompt(self, prompt):
-                """Enhance prompts to improve JSON generation"""
-                if "json" in prompt.lower() or "{" in prompt or "score" in prompt.lower():
+                """Enhance prompts to improve JSON generation for evaluations only"""
+                # Only apply JSON enhancement for evaluation-specific contexts
+                eval_keywords = [
+                    "evaluation",
+                    "verdict",
+                    "statement",
+                    "assess",
+                    "judge",
+                    "metric",
+                    "relevancy",
+                    "precision",
+                    "contextual",
+                ]
+
+                if any(keyword in prompt.lower() for keyword in eval_keywords):
                     # Add JSON-specific instructions
                     json_instructions = """
 
