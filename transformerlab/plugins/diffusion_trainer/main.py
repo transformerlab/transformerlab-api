@@ -795,10 +795,10 @@ def train_diffusion_lora():
             if is_sdxl:
                 # Always use encode_prompt for SDXL, regardless of text_encoder_2
                 prompts = tokenizer.batch_decode(batch["input_ids"], skip_special_tokens=True)
-                if tokenizer_2 is not None and "input_ids_2" in batch:
-                    prompts_2 = tokenizer_2.batch_decode(batch["input_ids_2"], skip_special_tokens=True)
-                else:
-                    prompts_2 = None
+                # if tokenizer_2 is not None and "input_ids_2" in batch:
+                #     prompts_2 = tokenizer_2.batch_decode(batch["input_ids_2"], skip_special_tokens=True)
+                # else:
+                #     prompts_2 = None
 
                 text_encoders = [text_encoder, text_encoder_2] if text_encoder_2 is not None else [text_encoder]
                 tokenizers = [tokenizer, tokenizer_2] if tokenizer_2 is not None else [tokenizer]
