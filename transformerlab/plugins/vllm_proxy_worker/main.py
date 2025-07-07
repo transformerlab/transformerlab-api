@@ -59,7 +59,7 @@ vllm_proc = subprocess.Popen(vllm_args, stdout=None, stderr=subprocess.PIPE)
 
 # Wait for vLLM server to be ready
 vllm_url = f"http://localhost:{port}/v1/models"
-timeout = 120  # seconds
+timeout = 180  # seconds
 start_time = time.time()
 while True:
     try:
