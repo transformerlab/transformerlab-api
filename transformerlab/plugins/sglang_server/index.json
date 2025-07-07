@@ -4,7 +4,7 @@
   "description": "SGLang Server loads models for multimodal inference using Huggingface Transformers for generation.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "1.0.17",
+  "version": "0.0.1",
   "supports": [
     "chat",
     "completion",
@@ -29,7 +29,7 @@
     "Mistral3ForConditionalGeneration",
     "Phi4MMForCausalLM"
   ],
-  "supported_hardware_architectures": ["cpu", "cuda", "amd"],
+  "supported_hardware_architectures": ["cuda", "amd"],
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {

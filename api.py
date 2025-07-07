@@ -50,7 +50,7 @@ from transformerlab.routers import (
     recipes,
     users,
 )
-from transformerlab.shared.shared import kill_sglang_subprocesses
+
 import torch
 
 try:
@@ -368,6 +368,8 @@ async def server_worker_stop():
     global worker_process
     print(f"Stopping worker process: {worker_process}")
     if worker_process is not None:
+        from transformerlab.shared.shared import kill_sglang_subprocesses
+
         worker_process.terminate()
         kill_sglang_subprocesses()
         worker_process = None

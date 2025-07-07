@@ -7,6 +7,9 @@ import json
 import logging
 import os
 import time
+import requests
+import mimetypes
+import base64
 from typing import Any, AsyncGenerator, Dict, Generator, List, Optional, Union
 
 import httpx
@@ -372,9 +375,32 @@ async def get_gen_params(
                             text_list.append(item["text"])
                         elif item["type"] == "image_url":
                             raw_url = item["image_url"]
-                            if not isinstance(raw_url, str) and raw_url.startswith("data:image"):
-                                raise ValueError("Only base64-encoded images are supported")
-                            image_list.append(raw_url)
+                            if not isinstance(raw_url, str):
+                                raise ValueError("Image URL must be a string")
+
+                            if raw_url.startswith("data:image"):  # base64-encoded
+                                image_list.append(raw_url)
+                            elif raw_url.startswith("http://") or raw_url.startswith("https://"):
+                                try:
+                                    response = requests.get(raw_url, timeout=5)
+                                    response.raise_for_status()
+
+                                    # Try to detect the MIME type (fallback to 'application/octet-stream')
+                                    content_type = response.headers.get("Content-Type")
+                                    if not content_type:
+                                        content_type, _ = mimetypes.guess_type(raw_url)
+                                        content_type = content_type or "application/octet-stream"
+
+                                    # Encode to base64
+                                    encoded = base64.b64encode(response.content).decode("utf-8")
+                                    data_url = f"data:{content_type};base64,{encoded}"
+                                    image_list.append(data_url)
+
+                                except Exception:
+                                    raise ValueError("Failed to fetch or encode image from URL")
+                            else:
+                                raise ValueError("Unsupported image format: must be base64-encoded or an image URL")
+
                     text = "\n".join(text_list).strip()
                     conv.append_message(conv.roles[0], (text, image_list))
                 else:
