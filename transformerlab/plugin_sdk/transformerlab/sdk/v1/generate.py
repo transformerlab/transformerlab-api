@@ -3,7 +3,11 @@ import os
 import time
 import requests
 from pathlib import Path
-from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
+
+try:
+    from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
+except ModuleNotFoundError:
+    from transformerlab.plugin_sdk.transformerlab.sdk.v1.tlab_plugin import TLabPlugin
 
 
 class GenTLabPlugin(TLabPlugin):
@@ -17,9 +21,6 @@ class GenTLabPlugin(TLabPlugin):
         self._parser.add_argument("--model_adapter", default=None, type=str, help="Model adapter to use")
         self._parser.add_argument("--generation_model", default="local", type=str, help="Model to use for generation")
         self._parser.add_argument("--generation_type", default="local", type=str, help="Model to use for generation")
-        self._parser.add_argument(
-            "--dataset_name", default="generated_dataset", type=str, help="Name for the output dataset"
-        )
 
         self.tlab_plugin_type = "generation"
 
@@ -59,8 +60,9 @@ class GenTLabPlugin(TLabPlugin):
         self._ensure_args_parsed()
 
         # Determine the dataset name to use - prioritize user-provided dataset_name
-        effective_dataset_name = self.params.get("dataset_name", "generated_dataset")
-        if effective_dataset_name == "generated_dataset":  # fallback to run_name if default is used
+        # If dataset_name parameter exists and is not empty, use it; otherwise fall back to run_name
+        effective_dataset_name = self.params.get("dataset_name")
+        if not effective_dataset_name:
             effective_dataset_name = self.params.get("run_name", "generated")
 
         # Create output directory
@@ -131,8 +133,8 @@ class GenTLabPlugin(TLabPlugin):
             # Create a new dataset
             if not dataset_id:
                 # Use the same naming logic as save_generated_dataset
-                effective_dataset_name = self.params.get("dataset_name", "generated_dataset")
-                if effective_dataset_name == "generated_dataset":
+                effective_dataset_name = self.params.get("dataset_name")
+                if not effective_dataset_name:
                     effective_dataset_name = self.params.get("run_name", "generated")
                 params = {"dataset_id": f"{effective_dataset_name}_{self.params.job_id}", "generated": True}
             else:
@@ -172,21 +174,26 @@ class GenTLabPlugin(TLabPlugin):
         """
         self._ensure_args_parsed()
 
+        # Use the same dataset naming logic
+        effective_dataset_name = self.params.get("dataset_name")
+        if not effective_dataset_name:
+            effective_dataset_name = self.params.get("run_name", "generated")
+
         workspace_dir = os.environ.get("_TFL_WORKSPACE_DIR", "./")
         experiment_dir = os.path.join(workspace_dir, "experiments", self.params.experiment_name)
         dataset_dir = os.path.join(experiment_dir, "datasets")
 
         # Create a specific directory for this generation job
-        gen_dir = os.path.join(dataset_dir, f"{self.params.run_name}_{self.params.job_id}")
+        gen_dir = os.path.join(dataset_dir, f"{effective_dataset_name}_{self.params.job_id}")
         os.makedirs(gen_dir, exist_ok=True)
 
         if dir_only:
             return gen_dir
 
         if suffix:
-            return os.path.join(gen_dir, f"{self.params.run_name}_{suffix}")
+            return os.path.join(gen_dir, f"{effective_dataset_name}_{suffix}")
         else:
-            return os.path.join(gen_dir, f"{self.params.run_name}.json")
+            return os.path.join(gen_dir, f"{effective_dataset_name}.json")
 
     def generate_expected_outputs(self, input_values, task=None, scenario=None, input_format=None, output_format=None):
         """Generate expected outputs for given inputs using loaded model
@@ -208,7 +215,7 @@ class GenTLabPlugin(TLabPlugin):
         output_format = output_format or self.params.get("expected_output_format", "")
 
         # Load model if not already available as instance attribute
-        if self.params.generation_model_instance is None:
+        if not hasattr(self, "generation_model_instance") or self.generation_model_instance is None:
             self.generation_model_instance = self.load_evaluation_model(field_name="generation_model")
 
         model = self.generation_model_instance
