@@ -352,6 +352,26 @@ async def watch_log(job_id: str, sweeps: bool = False):
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
     )
 
+@router.get("/job/{job_id}/sweep_config")
+async def sweep_config(job_id: str):
+    try:
+        job_id = secure_filename(job_id)
+
+        job = await db_jobs.job_get(job_id)
+        job_data = job["job_data"]
+        
+        output_file = job_data.get("sweep_results_file", None)
+        if output_file and os.path.exists(output_file):
+            with open(output_file, "r") as f:
+                output = json.load(f)
+            return output
+        else:
+            logging.warning(f"Sweep results file not found or does not exist: {output_file}")
+            return None
+        
+    except ValueError as e:
+        logging.error(f"Error loading sweep results for job {job_id}: {e}")
+        return None
 
 tensorboard_process = None
 
