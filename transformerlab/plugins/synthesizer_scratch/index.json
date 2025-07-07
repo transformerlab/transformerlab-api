@@ -26,9 +26,7 @@
     "generate_expected_output": {
       "title": "Generate Expected Output",
       "type": "string",
-      "enum": ["Yes", "No"],
-      "default": "No",
-      "required": true
+      "enum": ["Yes", "No"]
     },
     "output_dataset_name": {
       "title": "Dataset Name",

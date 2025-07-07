@@ -4,7 +4,7 @@
   "description": "Use LLMs to create synthetic data for your usecases from reference context. Paste all your reference context to generate a dataset.",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.13",
+  "version": "0.1.12",
   "git": "https://github.com/confident-ai/deepeval",
   "url": "https://github.com/confident-ai/deepeval",
   "files": ["main.py", "setup.sh"],
@@ -17,19 +17,15 @@
       "type": "string"
     },
     "num_goldens": {
-      "title": "Number of Golden Examples",
+      "title": "Number of Samples to generate",
       "type": "integer",
-      "default": 5,
-      "required": true
+      "minimum": 1,
+      "default": 10,
+      "multipleOf": 10
     },
     "tflabcustomui_context": {
       "title": "Reference Text. Paste all your reference context here",
       "type": "string"
-    },
-    "output_dataset_name": {
-      "title": "Dataset Name",
-      "type": "string",
-      "default": "generated_dataset"
     }
   },
   "parameters_ui": {
@@ -43,6 +39,11 @@
       "ui:options": {
         "multiple": false
       }
+    },
+    "output_dataset_name": {
+      "title": "Dataset Name",
+      "type": "string",
+      "default": "generated_dataset"
     }
   }
 }
