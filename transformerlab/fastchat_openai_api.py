@@ -7,12 +7,6 @@ import json
 import logging
 import os
 import time
-import mimetypes
-import base64
-from urllib.parse import urlparse
-import socket
-import ipaddress
-from io import BytesIO
 
 from typing import Any, AsyncGenerator, Dict, Generator, List, Optional, Union
 
@@ -327,93 +321,6 @@ def process_input(model_name, inp):
     return inp
 
 
-def _is_safe_ip(ip: str) -> bool:
-    """Return True if the IP is *public* (i.e. NOT private / loopback / etc.)."""
-    ip_obj = ipaddress.ip_address(ip)
-    return not (
-        ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local or ip_obj.is_reserved or ip_obj.is_multicast
-    )
-
-
-def fetch_url_as_data_uri(raw_url: str) -> str:
-    """Download an image from a *trusted* URL and return it as a data:image/...;base64 URI."""
-    MAX_IMG_SIZE_MB = 5  # hard limit for payload size
-    REQUEST_TIMEOUT = 5  # seconds
-    parsed = urlparse(raw_url)
-    hostname = parsed.hostname
-    ip_address = socket.gethostbyname(hostname)
-
-    # 1️⃣  Scheme & netloc sanity
-    if parsed.scheme not in ("http", "https") or not parsed.netloc:
-        logger.info("Unsupported or malformed URL")
-        raise ValueError("Unsupported or malformed URL")
-
-    if parsed.username or parsed.password:
-        logger.info("Credentials in URL are not allowed")
-        raise ValueError("Credentials in URL are not allowed")
-
-    # 2️⃣  Check for private domains
-    try:
-        private_check = ipaddress.ip_address(ip_address).is_private
-    except Exception:
-        logger.info("Invalid IP address format")
-        raise ValueError("Cannot check for privacy of the IP address")
-
-    if private_check:
-        logger.info("Private domains are not allowed")
-        raise ValueError("Private domains are not allowed")
-
-    # 3️⃣  Resolve DNS and make sure the IP is public
-    ip_addr = socket.gethostbyname(hostname)
-    if not _is_safe_ip(ip_addr):
-        logger.info("URL resolves to a private or blocked IP")
-        raise ValueError("URL resolves to a private or blocked IP")
-
-    # 4️⃣  (optional) Port check
-    if parsed.port not in (80, 443, None):
-        logger.info("Non-standard ports are blocked")
-        raise ValueError("Non-standard ports are blocked")
-
-    # 5️⃣  Fetch with streaming so we can enforce a size limit early
-    try:
-        with httpx.Client(timeout=REQUEST_TIMEOUT, follow_redirects=True) as client:
-            with client.stream("GET", raw_url) as response:
-                response.raise_for_status()
-
-                ctype = response.headers.get("Content-Type", "").lower()
-                if not ctype.startswith("image/"):
-                    logger.info("URL does not point to an image")
-                    raise ValueError("URL does not point to an image")
-
-                content_len = int(response.headers.get("Content-Length", 0))
-                if content_len and content_len > MAX_IMG_SIZE_MB * 1024 * 1024:
-                    logger.info("Image is too large")
-                    raise ValueError("Image is too large")
-
-                data = BytesIO()
-                for chunk in response.iter_bytes():
-                    data.write(chunk)
-                    if data.tell() > MAX_IMG_SIZE_MB * 1024 * 1024:
-                        logger.info("Image is too large")
-                        raise ValueError("Image is too large")
-
-                data_bytes = data.getvalue()
-
-    except httpx.RequestError as e:
-        logger.info(f"Request failed: {str(e)}")
-        raise ValueError(f"Request failed: {str(e)}")
-
-    # 3️⃣ Build data URI
-    if not ctype or ctype == "application/octet-stream":
-        ctype = mimetypes.guess_type(parsed.path)[0] or "image/jpeg"
-        logger.info(f"{ctype}")
-
-    encoded = base64.b64encode(data_bytes).decode("utf-8")
-    img = f"data:{ctype};base64,{encoded}"
-    logger.info(f"Returning:\n {img}")
-    return f"data:{ctype};base64,{encoded}"
-
-
 async def get_gen_params(
     model_name: str,
     messages: Union[
@@ -467,19 +374,9 @@ async def get_gen_params(
                             text_list.append(item["text"])
                         elif item["type"] == "image_url":
                             raw_url = item["image_url"]
-                            if not isinstance(raw_url, str):
-                                raise ValueError("Image URL must be a string")
-                            if raw_url.startswith("data:image"):  # base64-encoded
-                                image_list.append(raw_url)
-                            elif raw_url.startswith(("http://", "https://")):
-                                try:
-                                    data_url = fetch_url_as_data_uri(raw_url)
-                                    image_list.append(data_url)
-                                except Exception as e:
-                                    raise ValueError(f"Failed to fetch or encode image: {e}")
-                            else:
-                                raise ValueError("Unsupported image format: must be base64-encoded or an image URL")
-
+                            if not isinstance(raw_url, str) and raw_url.startswith("data:image"):
+                                raise ValueError("Only base64-encoded images are supported")
+                            image_list.append(raw_url)
                     text = "\n".join(text_list).strip()
                     conv.append_message(conv.roles[0], (text, image_list))
                 else:
