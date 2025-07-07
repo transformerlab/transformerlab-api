@@ -4,7 +4,7 @@
   "description": "Use a local or commercial LLM to generated outputs for the dataset generated.",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
@@ -63,6 +63,12 @@
       "type": "string",
       "default": "train",
       "enum": ["train", "valid", "test"]
+    },
+    "dataset_name": {
+      "title": "Dataset Name",
+      "type": "string",
+      "required": true,
+      "default": "generated_dataset"
     }
   },
   "parameters_ui": {

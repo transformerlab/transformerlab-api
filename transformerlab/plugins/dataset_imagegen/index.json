@@ -4,7 +4,7 @@
   "description": "Generate images using a text-to-image model from a set of user-provided prompts.",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
@@ -69,6 +69,12 @@
       "title": "Prompt Postfix",
       "type": "string",
       "default": ""
+    },
+    "dataset_name": {
+      "title": "Dataset Name",
+      "type": "string",
+      "required": true,
+      "default": "generated_dataset"
     }
   },
   "parameters_ui": {

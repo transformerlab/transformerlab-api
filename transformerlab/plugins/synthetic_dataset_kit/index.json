@@ -4,7 +4,7 @@
   "description": "Generates QA pairs, chain-of-thought, or summaries using Meta's synthetic-data-kit and vLLM-based or proxy-backed models.",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
@@ -59,6 +59,12 @@
       "type": "string",
       "default": "http://localhost:8338/v1",
       "description": "API endpoint of the vLLM server used by synthetic-data-kit."
+    },
+    "dataset_name": {
+      "title": "Dataset Name",
+      "type": "string",
+      "required": true,
+      "default": "generated_dataset"
     }
   },
   "parameters_ui": {
