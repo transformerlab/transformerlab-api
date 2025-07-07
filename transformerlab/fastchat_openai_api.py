@@ -10,6 +10,9 @@ import time
 import requests
 import mimetypes
 import base64
+from urllib.parse import urlparse
+import socket
+import ipaddress
 from typing import Any, AsyncGenerator, Dict, Generator, List, Optional, Union
 
 import httpx
@@ -359,6 +362,7 @@ async def get_gen_params(
     )
     image_list = []
     images = None
+
     if isinstance(messages, str):
         prompt = messages
     else:
@@ -380,18 +384,40 @@ async def get_gen_params(
 
                             if raw_url.startswith("data:image"):  # base64-encoded
                                 image_list.append(raw_url)
+
                             elif raw_url.startswith("http://") or raw_url.startswith("https://"):
+                                ALLOWED_DOMAINS = {"images.example.com", "cdn.trusted.com"}  # update as needed
                                 try:
+                                    # Parse and validate the URL
+                                    parsed_url = urlparse(raw_url)
+                                    if parsed_url.scheme not in ["http", "https"]:
+                                        raise ValueError("Unsupported URL scheme")
+
+                                    hostname = parsed_url.hostname
+                                    ip_address = socket.gethostbyname(hostname)
+
+                                    # Check domain and private IP
+                                    try:
+                                        private_check = ipaddress.ip_address(ip_address).is_private
+                                    except ValueError:
+                                        return True  # Invalid IP = unsafe
+
+                                    if private_check and hostname not in ALLOWED_DOMAINS:
+                                        raise ValueError("URL points to a private/internal IP")
+
+                                    # Optional: Check port if needed
+                                    # if parsed_url.port not in (80, 443, None):
+                                    #     raise ValueError("Only standard HTTP/HTTPS ports are allowed")
+
+                                    # Fetch and convert to base64
                                     response = requests.get(raw_url, timeout=5)
                                     response.raise_for_status()
 
-                                    # Try to detect the MIME type (fallback to 'application/octet-stream')
                                     content_type = response.headers.get("Content-Type")
                                     if not content_type:
                                         content_type, _ = mimetypes.guess_type(raw_url)
                                         content_type = content_type or "application/octet-stream"
 
-                                    # Encode to base64
                                     encoded = base64.b64encode(response.content).decode("utf-8")
                                     data_url = f"data:{content_type};base64,{encoded}"
                                     image_list.append(data_url)
