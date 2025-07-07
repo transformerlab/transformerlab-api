@@ -2,7 +2,6 @@ import json
 import os
 import time
 import requests
-from pathlib import Path
 
 try:
     from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
