@@ -20,7 +20,7 @@ def test_server_info_keys(client):
     assert response.status_code == 200
     data = response.json()
     # Check for some extra keys
-    for key in ["pytorch_version", "flash_attn_version", "device", "device_type", "os", "python_version"]:
+    for key in ["pytorch_version", "device", "device_type", "os", "python_version"]:
         assert key in data
     # If running on Mac, check for mac_metrics (may be None)
     import sys

@@ -11,10 +11,6 @@ from transformerlab.db.db import (
     experiment_get_by_name,
     get_plugins_of_type,
     get_training_template_by_name,
-    job_create_sync,
-    job_mark_as_complete_if_running,
-    job_update_status_sync,
-    job_update_sync,
     model_local_create,
     model_local_get,
     model_local_list,
@@ -46,6 +42,13 @@ from transformerlab.db.db import (
     update_training_template,
     delete_training_template,
     export_job_create,
+)
+
+from transformerlab.db.sync import (
+    job_create_sync,
+    job_update_status_sync,
+    job_update_sync,
+    job_mark_as_complete_if_running,
 )
 
 from transformerlab.db.datasets import (
@@ -261,19 +264,19 @@ async def test_jobs_get_all_and_by_experiment_and_type(test_experiment):
 async def test_experiment_update_and_update_config_and_save_prompt_template(test_experiment):
     await experiment_update(test_experiment, {"foo": "bar"})
     exp = await experiment_get(test_experiment)
-    assert exp["config"] == {"foo": "bar"} or str({"foo": "bar"})
+    exp_config = json.loads(exp["config"])  # should be a string containing JSON
+    assert exp_config == {"foo": "bar"}
+
     await experiment_update_config(test_experiment, "baz", 123)
     exp = await experiment_get(test_experiment)
-    print(exp["config"])
-    if not isinstance(exp["config"], dict):
-        exp_config = json.loads(exp["config"])
-    else:
-        exp_config = exp["config"]
-    config_dict = exp_config
-    assert config_dict.get("baz") == 123
-    await experiment_save_prompt_template(test_experiment, '"prompt"')
+    exp_config = json.loads(exp["config"])
+    assert exp_config.get("baz") == 123
+
+    test_prompt = '"prompt"'
+    await experiment_save_prompt_template(test_experiment, test_prompt)
     exp = await experiment_get(test_experiment)
-    assert "prompt_template" in exp["config"]
+    exp_config = json.loads(exp["config"])
+    assert exp_config.get("prompt_template") == test_prompt
 
 
 @pytest.mark.asyncio
@@ -604,7 +607,8 @@ class TestWorkflows:
         workflow_id = await workflow_create("test_workflow_config", "{}", test_experiment)
         await workflow_update_config(workflow_id, '{"key": "value"}', test_experiment)
         workflow = await workflows_get_by_id(workflow_id, test_experiment)
-        assert workflow["config"] == '{"key": "value"}'
+        workflow_config = json.loads(workflow["config"])  # should be a string containing JSON
+        assert workflow_config == {"key": "value"}
 
     @pytest.mark.asyncio
     async def test_workflow_delete_by_id(self, test_experiment):
