@@ -24,9 +24,7 @@
     "port": {
       "title": "Server Port",
       "type": "integer",
-      "default": 8000,
-      "minimum": 1024,
-      "maximum": 65535
+      "default": 8000
     }
   }
   }
