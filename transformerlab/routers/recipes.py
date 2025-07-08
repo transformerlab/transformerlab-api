@@ -131,6 +131,7 @@ async def _install_recipe_dependencies_job(job_id, id):
 async def install_recipe_model_dependencies(id: str):
     """Install model dependencies for a recipe as separate jobs and return job IDs."""
     from transformerlab.routers import model as model_router
+    import asyncio
 
     # Get the recipe
     recipes_gallery = galleries.get_exp_recipe_gallery()
@@ -154,13 +155,13 @@ async def install_recipe_model_dependencies(id: str):
                     job_data=json.dumps({"model_id": dep_name}),
                     experiment_id="",
                 )
-                # Start the download using the existing model router function
-                download_result = await model_router.download_model_by_huggingface_id(model=dep_name, job_id=job_id)
+                # Start the download as a background task without waiting
+                asyncio.create_task(model_router.download_model_by_huggingface_id(model=dep_name, job_id=job_id))
                 model_jobs.append(
                     {
                         "model_name": dep_name,
                         "job_id": job_id,
-                        "status": download_result.get("status", "unknown"),
+                        "status": "started",
                         "action": "download_model",
                     }
                 )
