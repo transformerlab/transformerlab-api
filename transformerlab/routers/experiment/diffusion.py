@@ -895,8 +895,14 @@ async def generate_image(experiment_id: str, request: DiffusionRequest):
             # 3. Load tmp_json.json output
             generation_id = request.generation_id if request.generation_id else UNIVERSIAL_GENERATION_ID
             images_folder = os.path.join(get_images_dir(), generation_id)
+            images_folder = os.path.normpath(images_folder)  # Normalize path
+            if not images_folder.startswith(get_images_dir()):  # Validate containment
+                raise HTTPException(status_code=400, detail="Invalid generation_id: Path traversal detected.")
             tmp_json_path = os.path.join(images_folder, "tmp_json.json")
-
+            # Normalize and validate the path
+            tmp_json_path = os.path.normpath(tmp_json_path)
+            if not tmp_json_path.startswith(os.path.normpath(images_folder)):
+                raise HTTPException(status_code=400, detail="Invalid path detected. Path traversal is not allowed.")
             try:
                 with open(tmp_json_path) as f:
                     response_data = json.load(f)
