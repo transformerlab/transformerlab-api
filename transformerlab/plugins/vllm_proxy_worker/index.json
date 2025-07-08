@@ -21,12 +21,6 @@
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
-    "max_model_len": {
-      "title": "Maximum Model Length",
-      "type": "integer",
-      "default": 2048,
-      "minimum": 128
-    },
     "port": {
       "title": "Server Port",
       "type": "integer",
