@@ -4,15 +4,12 @@ import json
 
 
 def test_diffusion_generate_success(client):
-    # Patch get_pipeline to return a mock pipeline
-    from unittest.mock import patch, MagicMock
+    experiment_id = "test-exp-id"
 
     with patch("transformerlab.routers.experiment.diffusion.get_pipeline") as mock_get_pipeline:
         mock_pipe = MagicMock()
-        # Mock the output of the pipeline call
         mock_image = MagicMock()
         mock_image.save = lambda buf, format: buf.write(b"fakepng")
-        # Correctly mock the __call__ method
         mock_pipe.__call__ = MagicMock(return_value=MagicMock(images=[mock_image]))
         mock_get_pipeline.return_value = mock_pipe
 
@@ -27,25 +24,29 @@ def test_diffusion_generate_success(client):
             "clip_skip": 0,
             "guidance_rescale": 0.0,
             "scheduler": "EulerDiscreteScheduler",
-            "num_images": 1,  # REQUIRED
+            "num_images": 1,
             "is_img2img": False,
             "is_inpainting": False,
-            "is_controlnet": "",  # or "off"
+            "is_controlnet": "",
             "input_image": "",
             "mask_image": "",
         }
-        resp = client.post("/diffusion/generate", json=payload)
-        assert resp.status_code == 200
+
+        resp = client.post(f"/experiment/{experiment_id}/diffusion/generate", json=payload)
+
+        assert resp.status_code == 202
+
         data = resp.json()
         assert data["prompt"] == payload["prompt"]
-        assert data["error_code"] == 0
+        assert data["error_code"] == 202
+        assert "job_id" in data
 
 
 @pytest.mark.parametrize("missing_field", ["model"])
 def test_diffusion_generate_missing_fields(missing_field, client):
     payload = {"model": "fake-model", "prompt": "a cat"}
     del payload[missing_field]
-    resp = client.post("/diffusion/generate", json=payload)
+    resp = client.post("/experiment/test-exp/diffusion/generate", json=payload)
     # Accept both 400 and 422 as valid for missing fields
     assert resp.status_code in (400, 422)
 
@@ -57,7 +58,7 @@ def test_is_valid_diffusion_model_true_stable_diffusion_pipeline(client):
         mock_info.config = {"diffusers": {"_class_name": "StableDiffusionPipeline"}}
         mock_model_info.return_value = mock_info
         payload = {"model": "fake-model"}
-        resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+        resp = client.post("/experiment/test-exp/diffusion/is_valid_diffusion_model", json=payload)
         assert resp.status_code == 200
         data = resp.json()
         assert data["is_valid_diffusion_model"] is True
@@ -71,7 +72,7 @@ def test_is_valid_diffusion_model_true_stable_diffusion_xl(client):
         mock_info.config = {"diffusers": {"_class_name": "StableDiffusionXLPipeline"}}
         mock_model_info.return_value = mock_info
         payload = {"model": "fake-model"}
-        resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+        resp = client.post("/experiment/test-exp/diffusion/is_valid_diffusion_model", json=payload)
         assert resp.status_code == 200
         data = resp.json()
         assert data["is_valid_diffusion_model"] is True
@@ -85,7 +86,7 @@ def test_is_valid_diffusion_model_true_flux_pipeline(client):
         mock_info.config = {"diffusers": {"_class_name": "FluxPipeline"}}
         mock_model_info.return_value = mock_info
         payload = {"model": "fake-model"}
-        resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+        resp = client.post("/experiment/test-exp/diffusion/is_valid_diffusion_model", json=payload)
         assert resp.status_code == 200
         data = resp.json()
         assert data["is_valid_diffusion_model"] is True
@@ -99,7 +100,7 @@ def test_is_valid_diffusion_model_true_list_architecture(client):
         mock_info.config = {"diffusers": {"_class_name": ["SomeOtherPipeline", "StableDiffusionPipeline"]}}
         mock_model_info.return_value = mock_info
         payload = {"model": "fake-model"}
-        resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+        resp = client.post("/experiment/test-exp//diffusion/is_valid_diffusion_model", json=payload)
         assert resp.status_code == 200
         data = resp.json()
         assert data["is_valid_diffusion_model"] is True
@@ -114,7 +115,7 @@ def test_is_valid_diffusion_model_false_no_diffusers_config(client):
         mock_model_info.return_value = mock_info
         payload = {"model": "fake-model"}
         with client:
-            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+            resp = client.post("/experiment/test-exp/diffusion/is_valid_diffusion_model", json=payload)
             assert resp.status_code == 200
             data = resp.json()
             assert data["is_valid_diffusion_model"] is False
@@ -128,7 +129,7 @@ def test_is_valid_diffusion_model_false_unsupported_architecture(client):
         mock_info.config = {"diffusers": {"_class_name": "SomeUnsupportedPipeline"}}
         mock_model_info.return_value = mock_info
         payload = {"model": "fake-model"}
-        resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+        resp = client.post("/experiment/test-exp/diffusion/is_valid_diffusion_model", json=payload)
         assert resp.status_code == 200
         data = resp.json()
         assert data["is_valid_diffusion_model"] is False
@@ -140,7 +141,7 @@ def test_is_valid_diffusion_model_model_not_found(client):
     with patch("transformerlab.routers.experiment.diffusion.model_info") as mock_model_info:
         mock_model_info.side_effect = Exception("Model not found")
         payload = {"model": "non-existent-model"}
-        resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+        resp = client.post("/experiment/test-exp/diffusion/is_valid_diffusion_model", json=payload)
         assert resp.status_code == 404
         assert "Model not found or error" in resp.json()["detail"]
 
@@ -153,7 +154,7 @@ def test_is_valid_diffusion_model_empty_class_name(client):
         mock_model_info.return_value = mock_info
         payload = {"model": "fake-model"}
         with client:
-            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+            resp = client.post("/experiment/test-exp/diffusion/is_valid_diffusion_model", json=payload)
             assert resp.status_code == 200
             data = resp.json()
             assert data["is_valid_diffusion_model"] is False
@@ -168,7 +169,7 @@ def test_get_history_success(client):
         mock_history.total = 0
         mock_load_history.return_value = mock_history
 
-        resp = client.get("/diffusion/history")
+        resp = client.get("/experiment/test-exp/diffusion/history")
         assert resp.status_code == 200
         mock_load_history.assert_called_once_with(limit=50, offset=0)
 
@@ -181,21 +182,21 @@ def test_get_history_with_pagination(client):
         mock_history.total = 0
         mock_load_history.return_value = mock_history
 
-        resp = client.get("/diffusion/history?limit=25&offset=10")
+        resp = client.get("/experiment/test-exp/diffusion/history?limit=25&offset=10")
         assert resp.status_code == 200
         mock_load_history.assert_called_once_with(limit=25, offset=10)
 
 
 def test_get_history_invalid_limit(client):
     """Test getting history with invalid limit parameter"""
-    resp = client.get("/diffusion/history?limit=0")
+    resp = client.get("/experiment/test-exp/diffusion/history?limit=0")
     assert resp.status_code == 400
     assert "Limit must be greater than 1" in resp.json()["detail"]
 
 
 def test_get_history_invalid_offset(client):
     """Test getting history with invalid offset parameter"""
-    resp = client.get("/diffusion/history?offset=-5")
+    resp = client.get("/experiment/test-exp/diffusion/history?offset=-5")
     assert resp.status_code == 400
     assert "Offset must be non-negative" in resp.json()["detail"]
 
@@ -205,7 +206,7 @@ def test_get_image_by_id_not_found(client):
     with patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image:
         mock_find_image.return_value = None
 
-        resp = client.get("/diffusion/history/non-existent-id")
+        resp = client.get("/experiment/test-exp/diffusion/history/non-existent-id")
         assert resp.status_code == 404
         assert "Image with ID non-existent-id not found" in resp.json()["detail"]
 
@@ -225,7 +226,7 @@ def test_get_image_by_id_index_out_of_range(client):
 
         mock_find_image.return_value = mock_image
 
-        resp = client.get("/diffusion/history/test-folder-id?index=5")
+        resp = client.get("/experiment/test-exp/diffusion/history/test-folder-id?index=5")
         assert resp.status_code == 404
         assert "Image index 5 out of range" in resp.json()["detail"]
 
@@ -246,7 +247,7 @@ def test_get_image_info_by_id_success(client):
 
         mock_find_image.return_value = mock_image
 
-        resp = client.get("/diffusion/history/test-image-id/info")
+        resp = client.get("/experiment/test-exp/diffusion/history/test-image-id/info")
         assert resp.status_code == 200
         data = resp.json()
         assert data["id"] == "test-image-id"
@@ -268,7 +269,7 @@ def test_get_image_count_success(client):
 
         mock_find_image.return_value = mock_image
 
-        resp = client.get("/diffusion/history/test-image-id/count")
+        resp = client.get("/experiment/test-exp/diffusion/history/test-image-id/count")
         assert resp.status_code == 200
         data = resp.json()
         assert data["id"] == "test-image-id"
@@ -282,7 +283,7 @@ def test_delete_image_from_history_not_found(client):
         patch("os.path.exists", return_value=True),
         patch("builtins.open", mock_open(read_data='[{"id": "other-id", "image_path": "/fake/path.png"}]')),
     ):
-        resp = client.delete("/diffusion/history/non-existent-id")
+        resp = client.delete("/experiment/test-exp/diffusion/history/non-existent-id")
         assert resp.status_code == 500
         assert "Image with ID non-existent-id not found" in resp.json()["detail"]
 
@@ -331,7 +332,7 @@ def test_create_dataset_from_history_success(client):
             "include_metadata": True,
         }
 
-        resp = client.post("/diffusion/dataset/create", json=payload)
+        resp = client.post("/experiment/test-exp/diffusion/dataset/create", json=payload)
         data = resp.json()
         assert resp.status_code == 200
         assert data["status"] == "success"
@@ -348,7 +349,7 @@ def test_create_dataset_invalid_image_ids(client):
         "include_metadata": False,
     }
 
-    resp = client.post("/diffusion/dataset/create", json=payload)
+    resp = client.post("/experiment/test-exp/diffusion/dataset/create", json=payload)
     assert resp.status_code == 400
     assert "Invalid image IDs list" in resp.json()["detail"]
 
@@ -371,7 +372,7 @@ def test_create_dataset_existing_dataset(client):
             "include_metadata": False,
         }
 
-        resp = client.post("/diffusion/dataset/create", json=payload)
+        resp = client.post("/experiment/test-exp/diffusion/dataset/create", json=payload)
         assert resp.status_code == 400
         assert "already exists" in resp.json()["detail"]
 
@@ -391,7 +392,7 @@ def test_create_dataset_no_images_found(client):
             "include_metadata": False,
         }
 
-        resp = client.post("/diffusion/dataset/create", json=payload)
+        resp = client.post("/experiment/test-exp/diffusion/dataset/create", json=payload)
         assert resp.status_code == 404
         assert "No images found for the given IDs" in resp.json()["detail"]
 
@@ -407,7 +408,7 @@ def test_is_valid_diffusion_model_img2img_detection(client, img2img_flag):
 
         payload = {"model": "fake-model", "is_img2img": img2img_flag}
         with client:
-            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+            resp = client.post("/experiment/test-exp/diffusion/is_valid_diffusion_model", json=payload)
             assert resp.status_code == 200
             data = resp.json()
             assert data["is_valid_diffusion_model"] is True
@@ -426,7 +427,7 @@ def test_is_valid_diffusion_model_inpainting_specific_architecture(client):
 
         payload = {"model": "fake-model", "is_inpainting": True}
         with client:
-            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+            resp = client.post("/experiment/test-exp/diffusion/is_valid_diffusion_model", json=payload)
             assert resp.status_code == 200
             data = resp.json()
             assert data["is_valid_diffusion_model"] is True
@@ -442,7 +443,7 @@ def test_is_valid_diffusion_model_inpainting_xl_architecture(client):
 
         payload = {"model": "fake-model", "is_inpainting": True}
         with client:
-            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+            resp = client.post("/experiment/test-exp/diffusion/is_valid_diffusion_model", json=payload)
             assert resp.status_code == 200
             data = resp.json()
             assert data["is_valid_diffusion_model"] is True
@@ -458,7 +459,7 @@ def test_is_valid_diffusion_model_inpainting_from_text2img(client):
 
         payload = {"model": "fake-model", "is_inpainting": True}
         with client:
-            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+            resp = client.post("/experiment/test-exp/diffusion/is_valid_diffusion_model", json=payload)
             assert resp.status_code == 200
             data = resp.json()
             assert data["is_valid_diffusion_model"] is True
@@ -474,7 +475,7 @@ def test_is_valid_diffusion_model_inpainting_from_sdxl(client):
 
         payload = {"model": "fake-model", "is_inpainting": True}
         with client:
-            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+            resp = client.post("/experiment/test-exp/diffusion/is_valid_diffusion_model", json=payload)
             assert resp.status_code == 200
             data = resp.json()
             assert data["is_valid_diffusion_model"] is True
@@ -490,7 +491,7 @@ def test_is_valid_diffusion_model_inpainting_flux_not_supported(client):
 
         payload = {"model": "fake-model", "is_inpainting": True}
         with client:
-            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+            resp = client.post("/experiment/test-exp/diffusion/is_valid_diffusion_model", json=payload)
             assert resp.status_code == 200
             data = resp.json()
             assert data["is_valid_diffusion_model"] is False
@@ -506,7 +507,7 @@ def test_is_valid_diffusion_model_inpainting_unsupported_architecture(client):
 
         payload = {"model": "fake-model", "is_inpainting": True}
         with client:
-            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+            resp = client.post("/experiment/test-exp/diffusion/is_valid_diffusion_model", json=payload)
             assert resp.status_code == 200
             data = resp.json()
             assert data["is_valid_diffusion_model"] is False
@@ -522,7 +523,7 @@ def test_is_valid_diffusion_model_inpainting_list_architectures(client):
 
         payload = {"model": "fake-model", "is_inpainting": True}
         with client:
-            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+            resp = client.post("/experiment/test-exp/diffusion/is_valid_diffusion_model", json=payload)
             assert resp.status_code == 200
             data = resp.json()
             assert data["is_valid_diffusion_model"] is True
@@ -540,7 +541,7 @@ def test_is_valid_diffusion_model_inpainting_detection(client, inpainting_flag):
 
         payload = {"model": "fake-model", "is_inpainting": inpainting_flag}
         with client:
-            resp = client.post("/diffusion/is_valid_diffusion_model", json=payload)
+            resp = client.post("/experiment/test-exp/diffusion/is_valid_diffusion_model", json=payload)
             assert resp.status_code == 200
             data = resp.json()
             assert data["is_valid_diffusion_model"] is True
