@@ -3,14 +3,15 @@ import json
 import os
 import subprocess
 import sys
+import time
+import requests
+
 
 try:
     from transformerlab.plugin import get_python_executable
 except ImportError:
     from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
 
-
-# Get all arguments provided to this script using argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--model-path", type=str)
 parser.add_argument("--parameters", type=str, default="{}")
@@ -23,48 +24,14 @@ llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
 parameters = args.parameters
 parameters = json.loads(parameters)
 
-print("Starting VLLM Server", file=sys.stderr)
-
-# Quantization is not yet supported but once it is, we need to add the following to index:
-# "quantization": {
-#     "title": "Quantization",
-#     "type": "string",
-#     "enum": [
-#             "aqlm",
-#             "awq",
-#             "deepspeedfp",
-#             "fp8",
-#             "fbgemm_fp8",
-#             "marlin",
-#             "gptq_marlin_24",
-#             "gptq_marlin",
-#             "awq_marlin",
-#             "gptq",
-#             "squeezellm",
-#             "compressed-tensors",
-#             "bitsandbytes",
-#             "None"
-#     ]
-# }
+print("Starting OpenAI API Proxy Server", file=sys.stderr)
 
 # Now go through the parameters object and remove the key that is equal to "inferenceEngine":
 if "inferenceEngine" in parameters:
     del parameters["inferenceEngine"]
 
-if "max-model-len" in parameters:
-    if parameters["max-model-len"] == "":
-        del parameters["max-model-len"]
-
 if "inferenceEngineFriendlyName" in parameters:
     del parameters["inferenceEngineFriendlyName"]
-
-if "num_gpus" in parameters:
-    del parameters["num_gpus"]
-
-# The command to run a VLLM server is:
-# python -m vllm.entrypoints.openai.api_server --model facebook/opt-125m
-# but we can also run it through FastChat's VLLM integration:
-# https://github.com/lm-sys/FastChat/blob/main/docs/vllm_integration.md
 
 # Get plugin directory
 real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
@@ -72,29 +39,61 @@ real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
 # Get Python executable (from venv if available)
 python_executable = get_python_executable(real_plugin_dir)
 
-popen_args = [python_executable, "-m", "fastchat.serve.vllm_worker", "--model-path", model]
-model_dtype = parameters.get("model_dtype")
-# Set model dtype if provided
-if model_dtype is not None and model_dtype != "":
-    popen_args.extend(["--model_dtype", model_dtype])
+port = int(parameters.get("port", 8000))
+# host = "127.0.0.1"
 
-# Add all parameters to the command
-for key, value in parameters.items():
-    if key == "model_dtype":
-        continue
-    popen_args.extend([f"--{key}", str(value)])
+vllm_args = [
+    python_executable,
+    "-m",
+    "vllm.entrypoints.openai.api_server",
+    "--model", model,
+    "--dtype", "float16",
+    "--port", str(port),
+    "--gpu-memory-utilization", "0.9",
+    "--enforce-eager",
+    "--trust-remote-code",
+]
+print("Starting vLLM OpenAI API server...", file=sys.stderr)
+vllm_proc = subprocess.Popen(vllm_args, stdout=None, stderr=subprocess.PIPE)
 
-print(popen_args)
-proc = subprocess.Popen(popen_args, stderr=subprocess.PIPE, stdout=None)
+# Wait for vLLM server to be ready
+vllm_url = f"http://localhost:{port}/v1/models"
+timeout = 180  # seconds
+start_time = time.time()
+while True:
+    try:
+        resp = requests.get(vllm_url, timeout=3)
+        if resp.status_code == 200:
+            print("vLLM server is ready", file=sys.stderr)
+            break
+    except Exception:
+        pass
+    if time.time() - start_time > timeout:
+        print("Timeout waiting for vLLM server to be ready", file=sys.stderr)
+        sys.exit(1)
+    time.sleep(1)
 
-# save worker process id to file
-# this will allow transformer lab to kill it later
+proxy_args = [
+    python_executable, 
+    "-m", 
+    "fastchat.serve.openai_api_proxy_worker",
+    "--model-path", model,
+    "--proxy-url", f"http://localhost:{port}/v1",
+   "--model", model,
+    ]
+
+# print("Starting FastChat OpenAI API Proxy worker...", file=sys.stderr)
+proxy_proc = subprocess.Popen(proxy_args, stdout=None, stderr=subprocess.PIPE)
+
+# save both worker process id and vllm process id to file
+# this will allow transformer lab to kill both later
 with open(f"{llmlab_root_dir}/worker.pid", "w") as f:
-    f.write(str(proc.pid))
+    f.write(f"{proxy_proc.pid}\n")
+    f.write(f"{vllm_proc.pid}\n")
 
 # read output:
-for line in iter(proc.stderr.readline, b""):
+for line in iter(proxy_proc.stderr.readline, b""):
     print(line, file=sys.stderr)
 
-print("VLLM Server exited", file=sys.stderr)
+print("Vllm proxy worker exited", file=sys.stderr)
 sys.exit(1)  # 99 is our code for CUDA OOM
