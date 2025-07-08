@@ -5,13 +5,28 @@ import json
 
 def test_diffusion_generate_success(client):
     experiment_id = "test-exp-id"
+    mock_output_data = {
+        "prompt": "a cat riding a bicycle",
+        "adaptor": "",
+        "adaptor_scale": 1.0,
+        "image_folder": "/tmp/test-images",
+        "num_images": 1,
+        "timestamp": "2025-07-08T00:00:00",
+        "generation_time": 1.0,
+        "error_code": 202,
+        "job_id": 1,
+    }
 
     with (
-        patch("transformerlab.shared.shared.run_job") as mock_run_job,
         patch("transformerlab.routers.experiment.diffusion.get_pipeline") as mock_get_pipeline,
+        patch("transformerlab.db.db.experiment_get", return_value={"id": experiment_id, "name": "test-exp-name"}),
+        patch("transformerlab.routers.experiment.diffusion.diffusion_generate_job", return_value=None),
+        patch("transformerlab.routers.experiment.diffusion.db_jobs.job_create", return_value=1),
+        patch("transformerlab.routers.experiment.diffusion.db_jobs.job_get", return_value={"status": "COMPLETE"}),
+        patch("transformerlab.routers.experiment.diffusion.get_images_dir", return_value="test/tmp"),
+        patch("builtins.open", mock_open(read_data=json.dumps(mock_output_data))),
+        patch("os.remove"),
     ):
-        mock_run_job.return_value = None
-
         mock_pipe = MagicMock()
         mock_image = MagicMock()
         mock_image.save = lambda buf, format: buf.write(b"fakepng")
@@ -40,7 +55,6 @@ def test_diffusion_generate_success(client):
         resp = client.post(f"/experiment/{experiment_id}/diffusion/generate", json=payload)
 
         assert resp.status_code == 202
-
         data = resp.json()
         assert data["prompt"] == payload["prompt"]
         assert data["error_code"] == 202
