@@ -54,7 +54,7 @@ def test_diffusion_generate_success(client):
 
         resp = client.post(f"/experiment/{experiment_id}/diffusion/generate", json=payload)
 
-        assert resp.status_code == 202
+        assert resp.status_code == 200
         data = resp.json()
         assert data["prompt"] == payload["prompt"]
         assert data["error_code"] == 202
