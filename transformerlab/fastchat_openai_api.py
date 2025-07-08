@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import time
+
 from typing import Any, AsyncGenerator, Dict, Generator, List, Optional, Union
 
 import httpx
@@ -354,8 +355,9 @@ async def get_gen_params(
         stop_str=conv["stop_str"],
         stop_token_ids=conv["stop_token_ids"],
     )
-    image_url = None
+    image_list = []
     images = None
+
     if isinstance(messages, str):
         prompt = messages
     else:
@@ -365,13 +367,20 @@ async def get_gen_params(
                 conv.set_system_message(message["content"])
             elif msg_role == "user":
                 if isinstance(message["content"], list):
-                    text = message["content"][0].get("text", "")
-                    # If we want to support multiple images in the future we need to change the following:
-                    # 1. Support multiple instances of image_url in the message
-                    # 2. Change the tuple to take in multiple image_url strings in the list
-                    image_url = message["content"][1].get("image_url", "")
-                    message["content"] = tuple([text, [image_url]])
-                conv.append_message(conv.roles[0], message["content"])
+                    text_list = []
+
+                    for item in message["content"]:
+                        if item["type"] == "text":
+                            text_list.append(item["text"])
+                        elif item["type"] == "image_url":
+                            raw_url = item["image_url"]
+                            if not isinstance(raw_url, str) and raw_url.startswith("data:image"):
+                                raise ValueError("Only base64-encoded images are supported")
+                            image_list.append(raw_url)
+                    text = "\n".join(text_list).strip()
+                    conv.append_message(conv.roles[0], (text, image_list))
+                else:
+                    conv.append_message(conv.roles[0], message["content"])
             elif msg_role == "assistant":
                 conv.append_message(conv.roles[1], message["content"])
             else:
@@ -380,7 +389,7 @@ async def get_gen_params(
         # Add a blank message for the assistant.
         conv.append_message(conv.roles[1], None)
         prompt = conv.get_prompt()
-        images = conv.get_images()
+        images = image_list
     if max_tokens is None:
         max_tokens = 512
     gen_params = {
@@ -484,6 +493,7 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
         stop=request.stop,
         logprobs=request.logprobs,
     )
+
     error_check_ret = await check_length(request, gen_params["prompt"], gen_params["max_new_tokens"])
     if error_check_ret is not None:
         return error_check_ret
