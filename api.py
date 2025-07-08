@@ -50,6 +50,7 @@ from transformerlab.routers import (
     recipes,
     users,
 )
+
 import torch
 
 try:
@@ -367,7 +368,10 @@ async def server_worker_stop():
     global worker_process
     print(f"Stopping worker process: {worker_process}")
     if worker_process is not None:
+        from transformerlab.shared.shared import kill_sglang_subprocesses
+
         worker_process.terminate()
+        kill_sglang_subprocesses()
         worker_process = None
     # check if there is a file called worker.pid, if so kill the related process:
     if os.path.isfile("worker.pid"):
