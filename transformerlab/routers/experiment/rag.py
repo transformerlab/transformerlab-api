@@ -30,7 +30,7 @@ async def query(experimentId: int, query: str, settings: str = None, rag_folder:
         return "Error: Invalid RAG folder path"
     if not os.path.exists(documents_dir):
         return "Error: The RAG folder does not exist in the documents directory"
-    experiment_details = await db.experiment_get(id=experimentId)
+    experiment_details = await experiment_get(id=experimentId)
     experiment_config = json.loads(experiment_details["config"])
     model = experiment_config.get("foundation")
     embedding_model = experiment_config.get("embedding_model")
@@ -125,7 +125,7 @@ async def reindex(experimentId: int, rag_folder: str = "rag"):
     if not os.path.exists(documents_dir):
         return "Error: The RAG folder does not exist in the documents directory."
 
-    experiment_details = await db.experiment_get(id=experimentId)
+    experiment_details = await experiment_get(id=experimentId)
     experiment_config = json.loads(experiment_details["config"])
     model = experiment_config.get("foundation")
     embedding_model = experiment_config.get("embedding_model")

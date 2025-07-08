@@ -296,25 +296,24 @@ async def get_generated_dataset(job_id: str):
         return content
 
 
-
 @router.get("/{job_id}/get_eval_images")
 async def get_eval_images(job_id: str):
     """Get list of evaluation images for a job"""
     job = await db_jobs.job_get(job_id)
     job_data = job["job_data"]
-    
+
     # Check if the job has eval_images_dir
     if "eval_images_dir" not in job_data or not job_data["eval_images_dir"]:
         return {"images": []}
-    
+
     images_dir = job_data["eval_images_dir"]
-    
+
     if not os.path.exists(images_dir):
         return {"images": []}
-    
+
     # Supported image extensions
-    image_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg'}
-    
+    image_extensions = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".svg"}
+
     images = []
     try:
         for filename in os.listdir(images_dir):
@@ -324,19 +323,21 @@ async def get_eval_images(job_id: str):
                 if ext in image_extensions:
                     # Get file stats for additional metadata
                     stat = os.stat(file_path)
-                    images.append({
-                        "filename": filename,
-                        "path": f"/jobs/{job_id}/image/{filename}",  # API endpoint path
-                        "size": stat.st_size,
-                        "modified": stat.st_mtime
-                    })
+                    images.append(
+                        {
+                            "filename": filename,
+                            "path": f"/jobs/{job_id}/image/{filename}",  # API endpoint path
+                            "size": stat.st_size,
+                            "modified": stat.st_mtime,
+                        }
+                    )
     except OSError as e:
         logging.error(f"Error reading images directory {images_dir}: {e}")
         return {"images": []}
-    
+
     # Sort by filename for consistent ordering
     images.sort(key=lambda x: x["filename"])
-    
+
     return {"images": images}
 
 
@@ -345,44 +346,40 @@ async def get_eval_image(job_id: str, filename: str):
     """Serve individual evaluation image files"""
     job = await db_jobs.job_get(job_id)
     job_data = job["job_data"]
-    
+
     # Check if the job has eval_images_dir
     if "eval_images_dir" not in job_data or not job_data["eval_images_dir"]:
         return Response("No images directory found for this job", status_code=404)
-    
+
     images_dir = job_data["eval_images_dir"]
-    
+
     if not os.path.exists(images_dir):
         return Response("Images directory not found", status_code=404)
-    
+
     # Secure the filename to prevent directory traversal
     filename = secure_filename(filename)
     file_path = os.path.join(images_dir, filename)
-    
+
     # Ensure the file exists and is within the images directory
     if not os.path.exists(file_path) or not os.path.commonpath([images_dir, file_path]) == images_dir:
         return Response("Image not found", status_code=404)
-    
+
     # Determine media type based on file extension
     _, ext = os.path.splitext(filename.lower())
     media_type_map = {
-        '.png': 'image/png',
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.gif': 'image/gif',
-        '.bmp': 'image/bmp',
-        '.webp': 'image/webp',
-        '.svg': 'image/svg+xml'
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".gif": "image/gif",
+        ".bmp": "image/bmp",
+        ".webp": "image/webp",
+        ".svg": "image/svg+xml",
     }
-    
-    media_type = media_type_map.get(ext, 'application/octet-stream')
-    
+
+    media_type = media_type_map.get(ext, "application/octet-stream")
+
     return FileResponse(
         file_path,
         media_type=media_type,
-        headers={
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Pragma": "no-cache",
-            "Expires": "0"
-        }
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"},
     )

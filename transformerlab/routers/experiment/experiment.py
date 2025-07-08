@@ -11,7 +11,16 @@ import transformerlab.db.db as db
 from transformerlab.db.workflows import workflows_get_from_experiment
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
-from transformerlab.routers.experiment import rag, documents, plugins, conversations, export, evals, generations, workflows
+from transformerlab.routers.experiment import (
+    rag,
+    documents,
+    plugins,
+    conversations,
+    export,
+    evals,
+    generations,
+    workflows,
+)
 
 from werkzeug.utils import secure_filename
 
@@ -101,6 +110,13 @@ async def experiments_update_config(id: int, key: str, value: str):
     id = await convert_experiment_name_to_id_if_needed(id)
     await db.experiment_update_config(id, key, value)
     return {"message": f"Experiment {id} updated"}
+
+
+@router.post("/{id}/update_configs", tags=["experiment"])
+async def experiments_update_configs(id: int, updates: Annotated[dict, Body()]):
+    id = await convert_experiment_name_to_id_if_needed(id)
+    await db.experiment_update_configs(id, updates)
+    return {"message": f"Experiment {id} configs updated"}
 
 
 @router.post("/{id}/prompt", tags=["experiment"])
@@ -197,10 +213,10 @@ async def export_experiment_to_recipe(id: int):
     data = await db.experiment_get(id)
     if data is None:
         return {"status": "error", "message": f"Experiment {id} does not exist"}
-    
+
     # Get experiment config
     config = json.loads(data["config"])
-    
+
     # Initialize the export structure
     export_data = {
         "title": data["name"],
@@ -208,9 +224,9 @@ async def export_experiment_to_recipe(id: int):
         "notes": "",
         "dependencies": [],
         "tasks": [],
-        "workflows": []
+        "workflows": [],
     }
-    
+
     # Get the notes content from readme.md if it exists
     experiment_dir = dirs.experiment_dir_by_name(data["name"])
     notes_path = os.path.join(experiment_dir, "readme.md")
@@ -220,62 +236,58 @@ async def export_experiment_to_recipe(id: int):
     except FileNotFoundError:
         # If no notes file exists, leave it as empty string
         pass
-    
+
     # Track unique dependencies to avoid duplicates
     added_dependencies = set()
-    
+
     def add_dependency(dep_type: str, dep_name: str):
         """Helper function to add a dependency if it's not already added"""
         dep_key = f"{dep_type}:{dep_name}"
         if dep_key not in added_dependencies and dep_name:
-            export_data["dependencies"].append({
-                "type": dep_type,
-                "name": dep_name
-            })
+            export_data["dependencies"].append({"type": dep_type, "name": dep_name})
             added_dependencies.add(dep_key)
-    
+
     # Get tasks for each type (TRAIN, EVAL, GENERATE)
     task_types = ["TRAIN", "EVAL", "GENERATE"]
     for task_type in task_types:
         tasks = await db.tasks_get_by_type_in_experiment(task_type, id)
         for task in tasks:
             task_config = json.loads(task["config"])
-            
+
             # Add model dependency from task
             model_name = task_config.get("model_name")
             if model_name:
                 add_dependency("model", model_name)
-            
+
             # Add dataset dependency from task
             dataset_name = task_config.get("dataset_name")
             if dataset_name:
                 add_dependency("dataset", dataset_name)
-            
+
             # Add plugin dependency
             plugin_name = task_config.get("plugin_name")
             if plugin_name:
                 add_dependency("plugin", plugin_name)
-            
+
             # Add task to tasks list with its configuration
-            export_data["tasks"].append({
-                "name": task["name"],
-                "task_type": task["type"],
-                "plugin": task["plugin"],
-                "config_json": task["config"]
-            })
-    
+            export_data["tasks"].append(
+                {
+                    "name": task["name"],
+                    "task_type": task["type"],
+                    "plugin": task["plugin"],
+                    "config_json": task["config"],
+                }
+            )
+
     # Add workflows
     workflows = await workflows_get_from_experiment(id)
     for workflow in workflows:
         if workflow["status"] != "DELETED":  # Only include active workflows
-            export_data["workflows"].append({
-                "name": workflow["name"],
-                "config": json.loads(workflow["config"])
-            })
-    
+            export_data["workflows"].append({"name": workflow["name"], "config": json.loads(workflow["config"])})
+
     # Write to file in the workspace directory
     output_file = os.path.join(dirs.WORKSPACE_DIR, f"{data['name']}_export.json")
     with open(output_file, "w") as f:
         json.dump(export_data, f, indent=2)
-    
+
     return FileResponse(output_file, filename=output_file)
