@@ -4,7 +4,7 @@
   "description": "vLLM is a fast and easy-to-use library for LLM inference and serving.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "model_architectures": [
     "CohereForCausalLM",
     "FalconForCausalLM",
@@ -21,26 +21,10 @@
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
-    "max-model-len": {
-      "title": "Maximum Model Length",
-      "type": "integer"
-    },
-    "gpu_memory_utilization": {
-      "title": "GPU Memory Utilization",
-      "type": "number",
-      "default": 0.9,
-      "minimum": 0.0,
-      "maximum": 1.0
-    },
-    "model_dtype": {
-      "title": "Select a specific data type for the model",
-      "type": "string",
-      "enum": ["auto", "float16", "bfloat16", "float32"]
-    }
-  },
-  "parameters_ui": {
-    "model_dtype": {
-      "ui:help": "Select a specific data type for the model. This might help with older GPUs that do not support bfloat16"
+    "port": {
+      "title": "Server Port",
+      "type": "integer",
+      "default": 8000
     }
   }
 }
