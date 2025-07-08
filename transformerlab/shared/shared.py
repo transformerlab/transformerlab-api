@@ -327,20 +327,32 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         experiment = await experiment_get_by_name(experiment_name)
         experiment_id = experiment["id"]
         plugin_name = job_config["plugin"]
-        generation_name = job_config["generator"]
-        await db_jobs.job_update_status(job_id, "RUNNING")
-        print("Running generation script")
-        WORKSPACE_DIR = dirs.WORKSPACE_DIR
-        # plugin_location = dirs.plugin_dir_by_name(plugin_name)
-        output_temp_file_dir = os.path.join(WORKSPACE_DIR, "jobs", str(job_id))
-        if not os.path.exists(output_temp_file_dir):
-            os.makedirs(output_temp_file_dir)
-        gen_output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
-        # Create output file if it doesn't exist
-        if not os.path.exists(gen_output_file):
-            with open(gen_output_file, "w") as f:
-                f.write("")
-        await run_generation_script(experiment_id, plugin_name, generation_name, job_id)
+        if plugin_name == "image":
+            from transformerlab.routers.experiment.diffusion import diffusion_generate_job
+
+            await db_jobs.job_update_status(job_id, "RUNNING")
+
+            try:
+                await diffusion_generate_job(job_id, job_config)
+                await db_jobs.job_update_status(job_id, "COMPLETE")
+            except Exception:
+                await db_jobs.job_update_status(job_id, "FAILED")
+                print(f"[DIFFUSION] Job {job_id} failed!")
+        else:
+            generation_name = job_config["generator"]
+            await db_jobs.job_update_status(job_id, "RUNNING")
+            print("Running generation script")
+            WORKSPACE_DIR = dirs.WORKSPACE_DIR
+            # plugin_location = dirs.plugin_dir_by_name(plugin_name)
+            output_temp_file_dir = os.path.join(WORKSPACE_DIR, "jobs", str(job_id))
+            if not os.path.exists(output_temp_file_dir):
+                os.makedirs(output_temp_file_dir)
+            gen_output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
+            # Create output file if it doesn't exist
+            if not os.path.exists(gen_output_file):
+                with open(gen_output_file, "w") as f:
+                    f.write("")
+            await run_generation_script(experiment_id, plugin_name, generation_name, job_id)
         # Check should_stop flag and update status accordingly
         job_row = await db_jobs.job_get(job_id)
         job_data = job_row.get("job_data", None)
@@ -366,7 +378,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     experiment_id = job_details["experiment_id"]
     # Get the experiment details from the database:
     experiment_details = await experiment_get(experiment_id)
-    print("Experiment Details: " ,experiment_details)
+    print("Experiment Details: ", experiment_details)
     experiment_details_as_string = json.dumps(experiment_details)
     experiment_name = experiment_details["name"]
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)

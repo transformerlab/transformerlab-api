@@ -48,13 +48,16 @@ from transformerlab.db.datasets import get_dataset, create_local_dataset, delete
 from transformerlab.models import model_helper
 from transformerlab.shared import dirs
 from transformerlab.shared.shared import slugify
+import transformerlab.db.jobs as db_jobs
 import logging
 import subprocess
 import sys
 import numpy as np
 
 
-router = APIRouter(prefix="/diffusion", tags=["diffusion"])
+router = APIRouter(prefix="/experiment/{experiment_id}/diffusion", tags=["diffusion"])
+
+UNIVERSIAL_GENERATION_ID = str(uuid.uuid4())
 
 ALLOWED_TEXT2IMG_ARCHITECTURES = [
     "StableDiffusionPipeline",
@@ -353,6 +356,7 @@ class LoggerWriter:
 
 # Request schema for image generation
 class DiffusionRequest(BaseModel):
+    plugin: str = "image"
     model: str
     prompt: str = ""
     adaptor: str = ""
@@ -849,16 +853,85 @@ def upscale_image(image: Image.Image, prompt: str, upscale_factor: int = 4, devi
 
 
 @router.post("/generate", summary="Generate image with Stable Diffusion")
-async def generate_image(request: DiffusionRequest):
+async def generate_image(experiment_id: str, request: DiffusionRequest):
     try:
         # Validate num_images parameter
         if request.num_images < 1 or request.num_images > 10:
             raise HTTPException(status_code=400, detail="num_images must be between 1 and 10")
 
+        # Validate diffusion type
+        if request.plugin == "image":
+            # Construct job_config
+            job_config = request.dict()
+
+            # 1. Create job in DB
+            job_id = await db_jobs.job_create(
+                type="GENERATE", status="QUEUED", job_data=job_config, experiment_id=experiment_id
+            )
+
+            # 2. Poll job status until it's complete (max 180s total)
+            max_wait_secs = 180
+            poll_interval = 1  # 1 second
+            total_waited = 0
+
+            while total_waited < max_wait_secs:
+                job = await db_jobs.job_get(job_id)
+                if job:
+                    if job["status"] == "COMPLETE":
+                        break
+                    elif job["status"] == "FAILED":
+                        raise HTTPException(
+                            status_code=500,
+                            detail=f"Job {job_id} failed during execution.",
+                        )
+                await asyncio.sleep(poll_interval)
+                total_waited += poll_interval
+            else:
+                raise HTTPException(
+                    status_code=202,
+                    detail="Job accepted but not yet completed. Please poll /jobs/{job_id} for result.",
+                )
+
+            # 3. Load tmp_json.json output
+            generation_id = request.generation_id if request.generation_id else UNIVERSIAL_GENERATION_ID
+            images_folder = os.path.join(get_images_dir(), generation_id)
+            tmp_json_path = os.path.join(images_folder, "tmp_json.json")
+
+            try:
+                with open(tmp_json_path) as f:
+                    response_data = json.load(f)
+                os.remove(tmp_json_path)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Job finished but failed to read result: {str(e)}",
+                )
+
+            # 4. Return metadata to frontend
+            return JSONResponse(content=response_data)
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported diffusion_type: {request.diffusion_type}",
+            )
+
+    except Exception as e:
+        log_print(f"Error during image generation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")
+
+
+async def diffusion_generate_job(job_id: str, job_config: dict):
+    try:
+        request = DiffusionRequest(**job_config)
+        # Validate num_images parameter
+        if request.num_images < 1 or request.num_images > 10:
+            raise HTTPException(status_code=400, detail="num_images must be between 1 and 10")
+
         # Use provided generation_id if present, otherwise generate a new one
-        generation_id = request.generation_id if request.generation_id else str(uuid.uuid4())
+        generation_id = request.generation_id if request.generation_id else UNIVERSIAL_GENERATION_ID
         print(f"Generation ID: {generation_id}")
         timestamp = datetime.now().isoformat()
+
         # Validate generation_id to ensure it matches UUID format
         if not generation_id.replace("-", "").isalnum() or len(generation_id) != 36:
             raise HTTPException(status_code=400, detail="Invalid generation_id format")
@@ -884,13 +957,15 @@ async def generate_image(request: DiffusionRequest):
             )
             is_img2img = request.is_img2img or (bool(request.input_image.strip()) and not is_inpainting)
 
-        # Process input image and mask if provided
+        # Process input image and mask if needed
         input_image_obj = None
         mask_image_obj = None
         input_image_path = ""
         mask_image_path = ""
+        preprocessed_image_path = None
         uuid_suffix = str(generation_id)
-        if is_inpainting or is_img2img or is_controlnet:  # Process the input image for ControlNets as well
+
+        if is_inpainting or is_img2img or is_controlnet:
             try:
                 # Decode base64 input image
                 image_data = base64.b64decode(request.input_image)
@@ -902,6 +977,7 @@ async def generate_image(request: DiffusionRequest):
                 input_image_path = os.path.join(get_images_dir(), input_image_filename)
                 input_image_obj.save(input_image_path, format="PNG")
                 log_print(f"Input image saved: {input_image_path}")
+
                 if is_controlnet and input_image_obj:
                     log_print(f"Running preprocessing for controlnet_id={controlnet_id}")
                     try:
@@ -941,7 +1017,13 @@ async def generate_image(request: DiffusionRequest):
             use_single_gpu = False
             try:
                 result = await run_multi_gpu_generation(
-                    request, generation_id, images_folder, input_image_path, mask_image_path, is_img2img, is_inpainting
+                    request,
+                    generation_id,
+                    images_folder,
+                    input_image_path,
+                    mask_image_path,
+                    is_img2img,
+                    is_inpainting,
                 )
 
                 images = []
@@ -1214,20 +1296,23 @@ async def generate_image(request: DiffusionRequest):
         )
         save_to_history(history_item)
 
-        # Return metadata
-        return JSONResponse(
-            content={
-                "id": generation_id,
-                "prompt": request.prompt,
-                "adaptor": request.adaptor,
-                "adaptor_scale": request.adaptor_scale,
-                "image_folder": images_folder,
-                "num_images": len(images),
-                "timestamp": timestamp,
-                "generation_time": total_generation_time,
-                "error_code": 0,
-            }
-        )
+        # Save output metadata to tmp_json.json
+        output_data = {
+            "id": generation_id,
+            "prompt": request.prompt,
+            "adaptor": request.adaptor,
+            "adaptor_scale": request.adaptor_scale,
+            "image_folder": images_folder,
+            "num_images": len(images),
+            "timestamp": timestamp,
+            "generation_time": total_generation_time,
+            "error_code": 0,
+        }
+
+        output_path = os.path.join(images_folder, "tmp_json.json")
+        with open(output_path, "w") as f:
+            json.dump(output_data, f, indent=2)
+
     except Exception as e:
         log_print(f"Error during image generation: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")

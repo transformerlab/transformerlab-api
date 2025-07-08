@@ -46,10 +46,10 @@ from transformerlab.routers import (
     prompts,
     tools,
     batched_prompts,
-    diffusion,
     recipes,
     users,
 )
+from transformerlab.routers.experiment import diffusion
 import torch
 
 try:
