@@ -94,7 +94,7 @@ workspace = os.environ["_TFL_WORKSPACE_DIR"]
 TMP_IMG_DIR = Path(f"{workspace}/plugins/sglang_server/tmp_img")
 
 
-def get_assistant_tokens(conv, tokenizer=None):
+def get_assistant_tokens(conv, tokenizer):
     assistant_role = conv.roles[1]
     conv.messages = []
     conv.append_message(conv.roles[0], "Hello")
@@ -107,14 +107,9 @@ def get_assistant_tokens(conv, tokenizer=None):
         raise ValueError("Could not locate assistant prompt line")
 
     start_text = assistant_lines[-1].strip()
-    end_text = None  # You can customize per template if known
 
-    if tokenizer:
-        start_token = tokenizer.convert_tokens_to_string(tokenizer.tokenize(start_text)).strip()
-        end_token = tokenizer.eos_token or tokenizer.sep_token or None
-    else:
-        start_token = start_text
-        end_token = end_text
+    start_token = tokenizer.convert_tokens_to_string(tokenizer.tokenize(start_text)).strip()
+    end_token = tokenizer.eos_token or tokenizer.sep_token or None
 
     if end_token:
         last_assistant_re = re.compile(re.escape(start_token) + r"\s*(.*?)" + re.escape(end_token), re.S)
