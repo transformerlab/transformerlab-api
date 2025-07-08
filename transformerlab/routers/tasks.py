@@ -1,8 +1,10 @@
 import json
-from fastapi import APIRouter, Body
 
-from transformerlab.db.datasets import get_datasets
+from fastapi import APIRouter, Body
+from werkzeug.utils import secure_filename
+
 import transformerlab.db.db as db
+from transformerlab.db.datasets import get_datasets
 from transformerlab.db.jobs import job_create
 from transformerlab.models import model_helper
 
@@ -40,6 +42,8 @@ async def tasks_get_by_type_in_experiment(type: str, experiment_id: int):
 
 @router.put("/{task_id}/update", summary="Updates a task with new information")
 async def update_task(task_id: int, new_task: dict = Body()):
+    # Perform secure_filename before updating the task
+    new_task["name"] = secure_filename(new_task["name"])
     await db.update_task(task_id, new_task)
     return {"message": "OK"}
 
@@ -52,6 +56,8 @@ async def delete_task(task_id: int):
 
 @router.put("/new_task", summary="Create a new task")
 async def add_task(new_task: dict = Body()):
+    # Perform secure_filename before adding the task
+    new_task["name"] = secure_filename(new_task["name"])
     await db.add_task(
         new_task["name"],
         new_task["type"],
@@ -207,7 +213,6 @@ async def queue_task(task_id: int, input_override: str = "{}", output_override: 
         task_to_queue["inputs"] = json.loads(task_to_queue["inputs"])
     if not isinstance(task_to_queue["outputs"], dict):
         task_to_queue["outputs"] = json.loads(task_to_queue["outputs"])
-    
 
     inputs = task_to_queue["inputs"]
     outputs = task_to_queue["outputs"]

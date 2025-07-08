@@ -112,6 +112,13 @@ async def experiments_update_config(id: str | int, key: str, value: str):
     return {"message": f"Experiment {id} updated"}
 
 
+@router.post("/{id}/update_configs", tags=["experiment"])
+async def experiments_update_configs(id: str | int, updates: Annotated[dict, Body()]):
+    id = await convert_experiment_name_to_id_if_needed(id)
+    await db.experiment_update_configs(id, updates)
+    return {"message": f"Experiment {id} configs updated"}
+
+
 @router.post("/{id}/prompt", tags=["experiment"])
 async def experiments_save_prompt_template(id: str | int, template: Annotated[str, Body()]):
     id = await convert_experiment_name_to_id_if_needed(id)
