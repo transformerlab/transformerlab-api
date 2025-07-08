@@ -60,7 +60,7 @@ async def workflow_create_func(name: str, config: str = '{"nodes":[]}', experime
         ] + config["nodes"]
     else:
         config["nodes"] = [{"type": "START", "id": str(uuid.uuid4()), "name": "START", "out": []}]
-    workflow_id = await workflow_create(name, json.dumps(config), str(experimentId))
+    workflow_id = await workflow_create(name, json.dumps(config), experimentId)
     return workflow_id
 
 
@@ -74,7 +74,7 @@ async def workflow_create_empty(name: str, experimentId: int = 1):
             return {"error": f"Workflow with name '{name}' already exists in this experiment"}
 
     config = {"nodes": [{"type": "START", "id": str(uuid.uuid4()), "name": "START", "out": []}]}
-    workflow_id = await workflow_create(name, json.dumps(config), str(experimentId))
+    workflow_id = await workflow_create(name, json.dumps(config), experimentId)
     return workflow_id
 
 
@@ -294,7 +294,7 @@ async def workflow_export_to_yaml(workflow_id: str, experimentId: int):
 async def workflow_import_from_yaml(file: UploadFile, experimentId: int = 1):
     with open(file.filename, "r") as fileStream:
         workflow = yaml.load(fileStream, Loader=yaml.BaseLoader)
-    await workflow_create(workflow["name"], json.dumps(workflow["config"]), str(experimentId))
+    await workflow_create(workflow["name"], json.dumps(workflow["config"]), experimentId)
     return {"message": "OK"}
 
 

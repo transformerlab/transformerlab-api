@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 
 class EmbedRequest(BaseModel):
-    experiment_id: str
+    experiment_id: int
     text: str
 
 
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/rag", tags=["rag"])
 
 
 @router.get("/query")
-async def query(experimentId: str, query: str, settings: str = None, rag_folder: str = "rag"):
+async def query(experimentId: int, query: str, settings: str = None, rag_folder: str = "rag"):
     """Query the RAG engine"""
 
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
@@ -116,7 +116,7 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
 
 
 @router.get("/reindex")
-async def reindex(experimentId: str, rag_folder: str = "rag"):
+async def reindex(experimentId: int, rag_folder: str = "rag"):
     """Reindex the RAG engine"""
 
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
