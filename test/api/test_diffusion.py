@@ -6,7 +6,12 @@ import json
 def test_diffusion_generate_success(client):
     experiment_id = "test-exp-id"
 
-    with patch("transformerlab.routers.experiment.diffusion.get_pipeline") as mock_get_pipeline:
+    with (
+        patch("transformerlab.routers.experiment.diffusion.diffusion_generate_job") as mock_gen_job,
+        patch("transformerlab.routers.experiment.diffusion.get_pipeline") as mock_get_pipeline,
+    ):
+        mock_gen_job.return_value = None
+
         mock_pipe = MagicMock()
         mock_image = MagicMock()
         mock_image.save = lambda buf, format: buf.write(b"fakepng")
@@ -100,7 +105,7 @@ def test_is_valid_diffusion_model_true_list_architecture(client):
         mock_info.config = {"diffusers": {"_class_name": ["SomeOtherPipeline", "StableDiffusionPipeline"]}}
         mock_model_info.return_value = mock_info
         payload = {"model": "fake-model"}
-        resp = client.post("/experiment/test-exp//diffusion/is_valid_diffusion_model", json=payload)
+        resp = client.post("/experiment/test-exp/diffusion/is_valid_diffusion_model", json=payload)
         assert resp.status_code == 200
         data = resp.json()
         assert data["is_valid_diffusion_model"] is True
@@ -535,20 +540,18 @@ def test_is_valid_diffusion_model_inpainting_detection(client, inpainting_flag):
     """Test that is_valid_diffusion_model correctly handles is_inpainting flag"""
     with patch("transformerlab.routers.experiment.diffusion.model_info") as mock_model_info:
         mock_info = MagicMock()
-        # Use an architecture that's in both text2img and inpainting lists
         mock_info.config = {"diffusers": {"_class_name": "StableDiffusionPipeline"}}
         mock_model_info.return_value = mock_info
 
         payload = {"model": "fake-model", "is_inpainting": inpainting_flag}
-        with client:
-            resp = client.post("/experiment/test-exp/diffusion/is_valid_diffusion_model", json=payload)
-            assert resp.status_code == 200
-            data = resp.json()
-            assert data["is_valid_diffusion_model"] is True
-            if inpainting_flag:
-                assert "Architecture matches allowed SD inpainting" in data["reason"]
-            else:
-                assert "Architecture matches allowed SD" in data["reason"]
+        resp = client.post("/experiment/test-exp/diffusion/is_valid_diffusion_model", json=payload)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["is_valid_diffusion_model"] is True
+        if inpainting_flag:
+            assert "Architecture matches allowed SD inpainting" in data["reason"]
+        else:
+            assert "Architecture matches allowed SD" in data["reason"]
 
 
 def test_load_history_success():
