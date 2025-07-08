@@ -24,8 +24,6 @@ llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
 parameters = args.parameters
 parameters = json.loads(parameters)
 
-print("Starting OpenAI API Proxy Server", file=sys.stderr)
-
 # Now go through the parameters object and remove the key that is equal to "inferenceEngine":
 if "inferenceEngine" in parameters:
     del parameters["inferenceEngine"]
@@ -41,6 +39,7 @@ python_executable = get_python_executable(real_plugin_dir)
 
 port = int(parameters.get("port", 8000))
 # host = "127.0.0.1"
+print("Starting vLLM server...", file=sys.stderr)
 
 vllm_args = [
     python_executable,
@@ -53,7 +52,6 @@ vllm_args = [
     "--enforce-eager",
     "--trust-remote-code",
 ]
-print("Starting vLLM OpenAI API server...", file=sys.stderr)
 vllm_proc = subprocess.Popen(vllm_args, stdout=None, stderr=subprocess.PIPE)
 
 # Wait for vLLM server to be ready
@@ -95,5 +93,5 @@ with open(f"{llmlab_root_dir}/worker.pid", "w") as f:
 for line in iter(proxy_proc.stderr.readline, b""):
     print(line, file=sys.stderr)
 
-print("Vllm proxy worker exited", file=sys.stderr)
+print("Vllm worker exited", file=sys.stderr)
 sys.exit(1)  # 99 is our code for CUDA OOM
