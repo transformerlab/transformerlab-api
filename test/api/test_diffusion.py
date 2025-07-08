@@ -7,10 +7,10 @@ def test_diffusion_generate_success(client):
     experiment_id = "test-exp-id"
 
     with (
-        patch("transformerlab.routers.experiment.diffusion.diffusion_generate_job") as mock_gen_job,
+        patch("transformerlab.shared.shared.run_job") as mock_run_job,
         patch("transformerlab.routers.experiment.diffusion.get_pipeline") as mock_get_pipeline,
     ):
-        mock_gen_job.return_value = None
+        mock_run_job.return_value = None
 
         mock_pipe = MagicMock()
         mock_image = MagicMock()
