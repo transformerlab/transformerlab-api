@@ -421,46 +421,94 @@ async def experiment_update(id, config):
 async def experiment_update_config(id, key, value):
     # Fetch and update the experiment config in a single transaction
     async with async_session() as session:
-        result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
-        experiment = result.scalar_one_or_none()
-        if experiment is None:
-            print(f"Experiment with id={id} not found.")
-            return
+        try:
+            result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
+            experiment = result.scalar_one_or_none()
+            if experiment is None:
+                return
 
-        # Parse config as dict if needed
-        config = experiment.config
-        if isinstance(config, str):
-            try:
-                config = json.loads(config)
-            except Exception as e:
-                print(f"❌ Could not parse config as JSON: {e}")
+            # Parse config as dict if needed
+            config = experiment.config
+            config_str = False
+            if isinstance(config, str):
+                config_str = True
+                try:
+                    config = json.loads(config)
+                except Exception as e:
+                    print(f"❌ Could not parse config as JSON: {e}")
+                    config = {}
+            elif config is None:
                 config = {}
 
-        # Update the key
-        config[key] = value
+            # Update the key
+            config[key] = value
 
-        # Save updated config directly
-        experiment.config = json.dumps(config)
-        await session.commit()
+            # Force SQLAlchemy to detect the change by creating a new dict
+            # This is crucial for proper change tracking
+            if config_str:
+                # Save back as JSON string if it was originally a string
+                experiment.config = json.dumps(config)
+            else:
+                # Create a new dict to ensure SQLAlchemy detects the change
+                experiment.config = dict(config)
+
+            # Mark the field as modified to ensure SQLAlchemy commits the change
+            from sqlalchemy.orm import attributes
+
+            attributes.flag_modified(experiment, "config")
+
+            await session.commit()
+        except Exception as e:
+            print(f"❌ Error updating experiment config: {e}")
+            await session.rollback()
+            raise e
     return
 
 
 async def experiment_save_prompt_template(id, template):
     # Fetch and update the experiment config in a single transaction
     async with async_session() as session:
-        result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
-        experiment = result.scalar_one_or_none()
-        if experiment is None:
-            return
-        config = experiment.config
-        if isinstance(config, str):
-            try:
-                config = json.loads(config)
-            except Exception:
+        try:
+            result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
+            experiment = result.scalar_one_or_none()
+            if experiment is None:
+                print(f"Experiment with id={id} not found.")
+                return
+
+            config = experiment.config
+            config_str = False
+            if isinstance(config, str):
+                config_str = True
+                try:
+                    config = json.loads(config)
+                except Exception:
+                    config = {}
+            elif config is None:
                 config = {}
-        config["prompt_template"] = str(template)
-        experiment.config = json.dumps(config)
-        await session.commit()
+
+            config["prompt_template"] = str(template)
+
+            print(f"Updated config: {config}")
+
+            # Force SQLAlchemy to detect the change by creating a new dict
+            # This is crucial for proper change tracking
+            if config_str:
+                # Save back as JSON string if it was originally a string
+                experiment.config = json.dumps(config)
+            else:
+                # Create a new dict to ensure SQLAlchemy detects the change
+                experiment.config = dict(config)
+
+            # Mark the field as modified to ensure SQLAlchemy commits the change
+            from sqlalchemy.orm import attributes
+
+            attributes.flag_modified(experiment, "config")
+
+            await session.commit()
+        except Exception as e:
+            print(f"❌ Error saving prompt template: {e}")
+            await session.rollback()
+            raise e
     return
 
 
@@ -472,25 +520,48 @@ async def experiment_update_configs(id, updates: dict):
         updates: dict of key-value pairs to update in config
     """
     async with async_session() as session:
-        result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
-        experiment = result.scalar_one_or_none()
-        if experiment is None:
-            print(f"Experiment with id={id} not found.")
-            return
+        try:
+            result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
+            experiment = result.scalar_one_or_none()
+            if experiment is None:
+                print(f"Experiment with id={id} not found.")
+                return
 
-        config = experiment.config
-        if isinstance(config, str):
-            try:
-                config = json.loads(config)
-            except Exception as e:
-                print(f"❌ Could not parse config as JSON: {e}")
+            config = experiment.config
+            config_str = False
+
+            if isinstance(config, str):
+                config_str = True
+                try:
+                    config = json.loads(config)
+                except Exception as e:
+                    print(f"❌ Could not parse config as JSON: {e}")
+                    config = {}
+            elif config is None:
                 config = {}
 
-        # Update all keys
-        config.update(updates)
+            # Update all keys
+            config.update(updates)
 
-        experiment.config = json.dumps(config)
-        await session.commit()
+            # Force SQLAlchemy to detect the change by creating a new dict
+            # This is crucial for proper change tracking
+            if config_str:
+                # Save back as JSON string if it was originally a string
+                experiment.config = json.dumps(config)
+            else:
+                # Create a new dict to ensure SQLAlchemy detects the change
+                experiment.config = dict(config)
+
+            # Mark the field as modified to ensure SQLAlchemy commits the change
+            from sqlalchemy.orm import attributes
+
+            attributes.flag_modified(experiment, "config")
+
+            await session.commit()
+        except Exception as e:
+            print(f"❌ Error updating experiment config: {e}")
+            await session.rollback()
+            raise e
     return
 
 
