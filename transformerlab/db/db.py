@@ -400,6 +400,19 @@ async def experiment_delete(id):
         result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
         experiment = result.scalar_one_or_none()
         if experiment:
+            # Delete all associated tasks first
+            await session.execute(delete(models.Task).where(models.Task.experiment_id == id))
+            
+            # Delete all associated jobs
+            await session.execute(delete(models.Job).where(models.Job.experiment_id == id))
+            
+            # Delete all associated workflow runs
+            await session.execute(delete(models.WorkflowRun).where(models.WorkflowRun.experiment_id == id))
+            
+            # Delete all associated workflows  
+            await session.execute(delete(models.Workflow).where(models.Workflow.experiment_id == id))
+            
+            # Finally delete the experiment itself
             await session.delete(experiment)
             await session.commit()
     return
