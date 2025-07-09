@@ -21,7 +21,8 @@ from diffusers.utils import convert_state_dict_to_diffusers
 
 # Try to import xformers for memory optimization
 try:
-    import xformers # noqa: F401
+    import xformers  # noqa: F401
+
     xformers_available = True
 except ImportError:
     xformers_available = False
@@ -43,7 +44,7 @@ def cleanup_pipeline():
             torch.cuda.synchronize()
             torch.cuda.ipc_collect()  # Clean up inter-process communication
             torch.cuda.empty_cache()  # Second empty_cache call
-            
+
     except Exception as e:
         print(f"Warning: Failed to cleanup pipeline: {str(e)}")
 
@@ -63,7 +64,9 @@ def compute_loss_weighting(args, timesteps, noise_scheduler):
         return snr_weight
     elif args.get("snr_gamma") is not None and args.get("snr_gamma") != "":
         snr = compute_snr(noise_scheduler, timesteps)
-        mse_loss_weights = torch.stack([snr, float(args["snr_gamma"]) * torch.ones_like(timesteps)], dim=1).min(dim=1)[0]
+        mse_loss_weights = torch.stack([snr, float(args["snr_gamma"]) * torch.ones_like(timesteps)], dim=1).min(dim=1)[
+            0
+        ]
         if noise_scheduler.config.prediction_type == "epsilon":
             mse_loss_weights = mse_loss_weights / snr
         elif noise_scheduler.config.prediction_type == "v_prediction":
@@ -77,19 +80,14 @@ def compute_loss(model_pred, target, timesteps, noise_scheduler, args):
     Compute loss with support for different loss types and weighting schemes.
     """
     loss_type = args.get("loss_type", "l2")
-    
+
     if loss_type == "l2":
         loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
     elif loss_type == "huber":
-        loss = F.smooth_l1_loss(
-            model_pred.float(), 
-            target.float(), 
-            reduction="none", 
-            beta=args.get("huber_c", 0.1)
-        )
+        loss = F.smooth_l1_loss(model_pred.float(), target.float(), reduction="none", beta=args.get("huber_c", 0.1))
     else:
         loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
-    
+
     # Apply loss weighting if specified
     loss_weights = compute_loss_weighting(args, timesteps, noise_scheduler)
 
@@ -355,15 +353,12 @@ def train_diffusion_lora():
     # Load pipeline to auto-detect architecture and get correct components
     print(f"Loading pipeline to detect model architecture: {pretrained_model_name_or_path}")
     pipeline_kwargs = {
-        "torch_dtype": torch.float16,  
+        "torch_dtype": torch.float16,
         "safety_checker": None,
         "requires_safety_checker": False,
     }
 
-    temp_pipeline = AutoPipelineForText2Image.from_pretrained(
-        pretrained_model_name_or_path,
-        **pipeline_kwargs
-    )
+    temp_pipeline = AutoPipelineForText2Image.from_pretrained(pretrained_model_name_or_path, **pipeline_kwargs)
 
     # Extract components from the loaded pipeline
     noise_scheduler = temp_pipeline.scheduler
@@ -486,6 +481,7 @@ def train_diffusion_lora():
     if args.get("use_ema", False):
         try:
             from diffusers.training_utils import EMAModel
+
             # Only apply EMA to LoRA parameters to save memory
             lora_parameters = [p for p in unet.parameters() if p.requires_grad]
             if lora_parameters:
@@ -493,15 +489,15 @@ def train_diffusion_lora():
                 if torch.cuda.is_available():
                     memory_before_ema = torch.cuda.memory_allocated() / (1024**3)
                     print(f"GPU memory before EMA: {memory_before_ema:.2f}GB")
-                
+
                 ema_unet = EMAModel(lora_parameters, decay=args.get("ema_decay", 0.9999))
-                
+
                 # Calculate memory usage after EMA
                 if torch.cuda.is_available():
                     memory_after_ema = torch.cuda.memory_allocated() / (1024**3)
                     memory_increase = memory_after_ema - memory_before_ema
                     print(f"GPU memory after EMA: {memory_after_ema:.2f}GB (increase: {memory_increase:.2f}GB)")
-                
+
                 print(f"EMA enabled for LoRA parameters only ({len(lora_parameters)} parameters) - Memory optimized")
             else:
                 print("Warning: No trainable LoRA parameters found for EMA")
@@ -541,7 +537,7 @@ def train_diffusion_lora():
             image = pipeline(
                 eval_prompt,
                 num_inference_steps=int(args.get("eval_num_inference_steps", 50)),
-                guidance_scale= float(args.get("eval_guidance_scale", 7.5)),
+                guidance_scale=float(args.get("eval_guidance_scale", 7.5)),
                 height=int(args.get("resolution", 512)),
                 width=int(args.get("resolution", 512)),
             ).images[0]
@@ -555,22 +551,22 @@ def train_diffusion_lora():
     # Data transforms with enhanced augmentation (similar to Kohya)
     interpolation = getattr(transforms.InterpolationMode, args.get("image_interpolation_mode", "lanczos").upper(), None)
     args["resolution"] = int(args.get("resolution", 512))
-    
+
     # Build transforms list conditionally
     transform_list = [
         transforms.Resize(args.get("resolution", 512), interpolation=interpolation),
     ]
-    
+
     # Add cropping
     if args.get("center_crop", False):
         transform_list.append(transforms.CenterCrop(args.get("resolution", 512)))
     else:
         transform_list.append(transforms.RandomCrop(args.get("resolution", 512)))
-    
+
     # Add augmentations
     if args.get("random_flip", False):
         transform_list.append(transforms.RandomHorizontalFlip())
-    
+
     # Add color augmentations if enabled
     if args.get("color_jitter", False):
         transform_list.append(
@@ -578,24 +574,26 @@ def train_diffusion_lora():
                 brightness=args.get("color_jitter_brightness", 0.1),
                 contrast=args.get("color_jitter_contrast", 0.1),
                 saturation=args.get("color_jitter_saturation", 0.1),
-                hue=args.get("color_jitter_hue", 0.05)
+                hue=args.get("color_jitter_hue", 0.05),
             )
         )
-    
+
     # Add rotation if enabled
     if args.get("random_rotation", False):
         transform_list.append(
-            transforms.RandomApply([
-                transforms.RandomRotation(args.get("rotation_degrees", 5))
-            ], p=args.get("rotation_prob", 0.3))
+            transforms.RandomApply(
+                [transforms.RandomRotation(args.get("rotation_degrees", 5))], p=args.get("rotation_prob", 0.3)
+            )
         )
-    
+
     # Final transforms
-    transform_list.extend([
-        transforms.ToTensor(),
-        transforms.Normalize([0.5], [0.5]),
-    ])
-    
+    transform_list.extend(
+        [
+            transforms.ToTensor(),
+            transforms.Normalize([0.5], [0.5]),
+        ]
+    )
+
     train_transforms = transforms.Compose(transform_list)
 
     def tokenize_captions(examples, is_train=True):
@@ -603,10 +601,12 @@ def train_diffusion_lora():
         caption_column = args.get("caption_column", "text")
         trigger_word = args.get("trigger_word", "").strip()
         caption_dropout_rate = float(args.get("caption_dropout_rate", 0.0))
-        
+
         # Check if caption column exists in the dataset
         if caption_column not in examples:
-            print(f"Warning: Caption column '{caption_column}' not found in dataset. Training on images only (caption dropout = 1.0)")
+            print(
+                f"Warning: Caption column '{caption_column}' not found in dataset. Training on images only (caption dropout = 1.0)"
+            )
             # Create empty captions for all examples and force caption dropout
             num_examples = len(next(iter(examples.values())))  # Get number of examples from any column
             captions = [""] * num_examples
@@ -791,11 +791,17 @@ def train_diffusion_lora():
             ).long()
             noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
 
-            # Enhanced text encoding - support both single and dual text encoders with proper SDXL handling
-            if is_sdxl and text_encoder_2 is not None and "input_ids_2" in batch:
-                # Use enhanced SDXL encode_prompt function for proper pooled embeddings
-                text_encoders = [text_encoder, text_encoder_2]
-                tokenizers = [tokenizer, tokenizer_2] if tokenizer_2 is not None else [tokenizer, tokenizer]
+            # Enhanced text encoding - always use encode_prompt for SDXL
+            if is_sdxl:
+                # Always use encode_prompt for SDXL, regardless of text_encoder_2
+                prompts = tokenizer.batch_decode(batch["input_ids"], skip_special_tokens=True)
+                # if tokenizer_2 is not None and "input_ids_2" in batch:
+                #     prompts_2 = tokenizer_2.batch_decode(batch["input_ids_2"], skip_special_tokens=True)
+                # else:
+                #     prompts_2 = None
+
+                text_encoders = [text_encoder, text_encoder_2] if text_encoder_2 is not None else [text_encoder]
+                tokenizers = [tokenizer, tokenizer_2] if tokenizer_2 is not None else [tokenizer]
 
                 # Create a temporary pipeline-like object for encode_prompt compatibility
                 class TempPipeline:
@@ -807,11 +813,6 @@ def train_diffusion_lora():
 
                 temp_pipe = TempPipeline(text_encoder, text_encoder_2, tokenizer, tokenizer_2)
 
-                # Decode input_ids back to text for encode_prompt function
-                # This is needed because encode_prompt expects text input
-                prompts = tokenizer.batch_decode(batch["input_ids"], skip_special_tokens=True)
-
-                # Use enhanced encode_prompt function
                 encoder_hidden_states, _, pooled_prompt_embeds, _ = encode_prompt(
                     temp_pipe,
                     text_encoders,
@@ -955,7 +956,7 @@ def train_diffusion_lora():
                 optimizer.step()
                 lr_scheduler.step()
                 optimizer.zero_grad()
-                
+
                 # Update EMA if enabled (only for LoRA parameters)
                 if ema_unet is not None:
                     try:
@@ -967,11 +968,11 @@ def train_diffusion_lora():
                         print(f"Warning: EMA step failed: {e}")
                         print("Disabling EMA for the rest of training to prevent memory issues")
                         ema_unet = None
-                
+
                 # Memory cleanup after gradient accumulation to prevent OOM
                 if torch.cuda.is_available() and global_step % 10 == 0:  # Every 10 steps
                     torch.cuda.empty_cache()
-                
+
                 global_step += 1
 
                 # Progress reporting
@@ -979,15 +980,17 @@ def train_diffusion_lora():
                 tlab_trainer.progress_update(percent_complete)
                 tlab_trainer.log_metric("train/loss", loss.item(), global_step)
                 tlab_trainer.log_metric("train/lr", lr_scheduler.get_last_lr()[0], global_step)
-                
+
                 # Log memory usage periodically when EMA is enabled
                 if torch.cuda.is_available() and ema_unet is not None and global_step % 50 == 0:
                     memory_used = torch.cuda.memory_allocated() / (1024**3)
                     memory_reserved = torch.cuda.memory_reserved() / (1024**3)
                     tlab_trainer.log_metric("train/gpu_memory_used_gb", memory_used, global_step)
                     tlab_trainer.log_metric("train/gpu_memory_reserved_gb", memory_reserved, global_step)
-                    print(f"Step {global_step}: GPU memory used: {memory_used:.2f}GB, reserved: {memory_reserved:.2f}GB")
-                
+                    print(
+                        f"Step {global_step}: GPU memory used: {memory_used:.2f}GB, reserved: {memory_reserved:.2f}GB"
+                    )
+
                 # Log additional metrics for monitoring
                 if global_step % 10 == 0:  # Log every 10 steps to avoid spam
                     tlab_trainer.log_metric("train/epoch", epoch, global_step)
