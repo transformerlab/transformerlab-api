@@ -68,7 +68,6 @@
     "dataset_split": {
       "title": "Dataset Split",
       "type": "string",
-      "enum": ["train", "valid", "test"],
       "default": "train"
     }
   },
@@ -102,11 +101,7 @@
       "ui:widget": "GEvalTasksWidget"
     },
     "dataset_split": {
-      "ui:help": "Select the dataset split to evaluate the model on",
-      "ui:widget": "AutoCompleteWidget",
-      "ui:options": {
-        "multiple": false
-      }
+      "ui:help": "Select the dataset split to evaluate the model on"
     }
   }
 }

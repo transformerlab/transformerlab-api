@@ -37,7 +37,6 @@
     "dataset_split": {
       "title": "Dataset Split",
       "type": "string",
-      "enum": ["train", "valid", "test"],
       "default": "train"
     }
   },
