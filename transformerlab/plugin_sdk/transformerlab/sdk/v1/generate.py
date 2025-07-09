@@ -58,13 +58,11 @@ class GenTLabPlugin(TLabPlugin):
         """
         self._ensure_args_parsed()
 
-        dataset_name = self.params.get("run_name", "generated")
-
-        # Use custom dataset_id if provided, otherwise check for user's output_dataset_name, otherwise use default naming
+        # Use dataset_id priority: explicit parameter > user input > default naming
         if dataset_id is None:
             dataset_id = self.params.get("output_dataset_name")
-            if dataset_id is None:
-                dataset_id = f"{dataset_name}_{self.params.job_id}".lower()
+        if dataset_id is None:
+            dataset_id = f"{self.params.run_name}_{self.params.job_id}".lower()
 
         # Create output directory
         output_dir = self.get_output_file_path(dir_only=True)
@@ -76,9 +74,9 @@ class GenTLabPlugin(TLabPlugin):
         else:
             lines = False
             if suffix is not None:
-                output_file = os.path.join(output_dir, f"{dataset_name}_{self.params.job_id}_{suffix}.json")
+                output_file = os.path.join(output_dir, f"{self.params.run_name}_{self.params.job_id}_{suffix}.json")
             else:
-                output_file = os.path.join(output_dir, f"{dataset_name}_{self.params.job_id}.json")
+                output_file = os.path.join(output_dir, f"{self.params.run_name}_{self.params.job_id}.json")
 
             # Store metadata
             metadata = {
@@ -92,7 +90,7 @@ class GenTLabPlugin(TLabPlugin):
                 metadata.update(additional_metadata)
 
             # Save metadata
-            metadata_file = os.path.join(output_dir, f"{dataset_name}_{self.params.job_id}_metadata.json")
+            metadata_file = os.path.join(output_dir, f"{self.params.run_name}_{self.params.job_id}_metadata.json")
             with open(metadata_file, "w") as f:
                 json.dump(metadata, f, indent=2)
 
@@ -162,23 +160,21 @@ class GenTLabPlugin(TLabPlugin):
         """
         self._ensure_args_parsed()
 
-        dataset_name = self.params.get("run_name", "generated")
-
         workspace_dir = os.environ.get("_TFL_WORKSPACE_DIR", "./")
         experiment_dir = os.path.join(workspace_dir, "experiments", self.params.experiment_name)
         dataset_dir = os.path.join(experiment_dir, "datasets")
 
         # Create a specific directory for this generation job
-        gen_dir = os.path.join(dataset_dir, f"{dataset_name}_{self.params.job_id}")
+        gen_dir = os.path.join(dataset_dir, f"{self.params.run_name}_{self.params.job_id}")
         os.makedirs(gen_dir, exist_ok=True)
 
         if dir_only:
             return gen_dir
 
         if suffix:
-            return os.path.join(gen_dir, f"{dataset_name}_{suffix}")
+            return os.path.join(gen_dir, f"{self.params.run_name}_{suffix}")
         else:
-            return os.path.join(gen_dir, f"{dataset_name}.json")
+            return os.path.join(gen_dir, f"{self.params.run_name}.json")
 
     def generate_expected_outputs(self, input_values, task=None, scenario=None, input_format=None, output_format=None):
         """Generate expected outputs for given inputs using loaded model
