@@ -1,5 +1,5 @@
 {
-  "name": "DeepEval Evaluations (LLM-as-Judge)",
+  "name": "LLM-as-Judge Evaluator",
   "uniqueId": "deepeval_llm_judge",
   "description": "Using LLMs as Judges for evaluating outputs of other LLMs",
   "plugin-format": "python",

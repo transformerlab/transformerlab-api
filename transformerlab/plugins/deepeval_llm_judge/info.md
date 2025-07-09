@@ -1,8 +1,9 @@
-# DeepEval Evaluations (LLM-as-Judge)
+# LLM-as-Judge Evaluator Plugin
 
+> Powered by [DeepEval Framework](https://github.com/confident-ai/deepeval)
 ## Overview
 
-The DeepEval Evaluations (LLM-as-Judge) plugin is designed to evaluate the outputs of other Large Language Models (LLMs) by using LLMs as judges. This plugin leverages the capabilities of advanced LLMs to assess various aspects of generated content, such as bias, toxicity, faithfulness, and more.
+The LLM-as-Judge Evaluator plugin is designed to evaluate the outputs of other Large Language Models (LLMs) by using LLMs as judges. This plugin leverages the capabilities of advanced LLMs to assess various aspects of generated content, such as bias, toxicity, faithfulness, and more.
 
 ## Dataset Requirements
 
