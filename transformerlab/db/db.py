@@ -400,19 +400,31 @@ async def experiment_delete(id):
         result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
         experiment = result.scalar_one_or_none()
         if experiment:
-            # Delete all associated tasks first
+            # Hard delete all associated tasks (tasks don't use soft delete)
             await session.execute(delete(models.Task).where(models.Task.experiment_id == id))
             
-            # Delete all associated jobs
-            await session.execute(delete(models.Job).where(models.Job.experiment_id == id))
+            # Soft delete all associated jobs (set status to "DELETED")
+            await session.execute(
+                update(models.Job)
+                .where(models.Job.experiment_id == id)
+                .values(status="DELETED")
+            )
             
-            # Delete all associated workflow runs
-            await session.execute(delete(models.WorkflowRun).where(models.WorkflowRun.experiment_id == id))
+            # Soft delete all associated workflow runs (set status to "DELETED")
+            await session.execute(
+                update(models.WorkflowRun)
+                .where(models.WorkflowRun.experiment_id == id)
+                .values(status="DELETED")
+            )
             
-            # Delete all associated workflows  
-            await session.execute(delete(models.Workflow).where(models.Workflow.experiment_id == id))
+            # Soft delete all associated workflows (set status to "DELETED")
+            await session.execute(
+                update(models.Workflow)
+                .where(models.Workflow.experiment_id == id)
+                .values(status="DELETED", updated_at=text("CURRENT_TIMESTAMP"))
+            )
             
-            # Finally delete the experiment itself
+            # Hard delete the experiment itself
             await session.delete(experiment)
             await session.commit()
     return
