@@ -54,12 +54,17 @@ async def workflow_delete(workflow_id: str, experimentId: int):
 @router.get("/create", summary="Create a workflow from config")
 async def workflow_create_func(name: str, config: str = '{"nodes":[]}', experimentId: int = 1):
     config = json.loads(config)
-    if len(config["nodes"]) > 0:
+    
+    # Check if a START node already exists
+    has_start_node = any(node.get("type") == "START" for node in config["nodes"])
+    
+    if len(config["nodes"]) > 0 and not has_start_node:
         config["nodes"] = [
             {"type": "START", "id": str(uuid.uuid4()), "name": "START", "out": [config["nodes"][0]["id"]]}
         ] + config["nodes"]
-    else:
+    elif len(config["nodes"]) == 0:
         config["nodes"] = [{"type": "START", "id": str(uuid.uuid4()), "name": "START", "out": []}]
+    
     workflow_id = await workflow_create(name, json.dumps(config), experimentId)
     return workflow_id
 

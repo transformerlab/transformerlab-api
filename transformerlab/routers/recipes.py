@@ -300,26 +300,6 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
             }
             break  # Only set the first model dependency
 
-    workflow_results = []
-    for dep in recipe.get("dependencies", []):
-        if dep.get("type") == "workflow":
-            workflow_config = dep.get("config")
-            dep_name = dep.get("name")
-            result = {"name": dep_name, "action": "install_workflow"}
-            if workflow_config is not None:
-                try:
-                    workflow_id = await workflows.workflow_create(
-                        name=dep_name,
-                        config=json.dumps(workflow_config),
-                        experimentId=experiment_id,
-                    )
-                    result["status"] = f"success: {workflow_id}"
-                except Exception as e:
-                    result["status"] = f"error: {str(e)}"
-            else:
-                result["status"] = "error: config not provided"
-            workflow_results.append(result)
-
     # Process documents - download ZIP files
     document_results = []
     for doc in recipe.get("documents", []):
@@ -456,7 +436,7 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
             workflow_config = workflow_def.get("config", {"nodes": []})
 
             # Create workflow in database using the workflow_create function
-            workflow_id = await workflows.workflow_create(
+            workflow_id = await workflows.workflow_create_func(
                 name=workflow_name, config=json.dumps(workflow_config), experimentId=experiment_id
             )
 
@@ -486,7 +466,6 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
             "experiment_id": experiment_id,
             "name": experiment_name,
             "model_set_result": model_set_result,
-            "workflow_results": workflow_results,
             "document_results": document_results,
             "task_results": task_results,
             "workflow_creation_results": workflow_creation_results,
