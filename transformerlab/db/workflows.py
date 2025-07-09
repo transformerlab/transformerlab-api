@@ -284,5 +284,16 @@ async def workflow_runs_get_from_experiment(experiment_id):
             .order_by(models.WorkflowRun.created_at.desc())
         )
         workflow_runs = result.scalars().all()
-        # Convert ORM objects to dicts
         return sqlalchemy_list_to_dict(workflow_runs)
+
+
+async def workflow_run_delete(workflow_run_id):
+    """Soft delete a workflow run by setting status to DELETED"""
+    async with async_session() as session:
+        await session.execute(
+            update(models.WorkflowRun)
+            .where(models.WorkflowRun.id == workflow_run_id)
+            .values(status="DELETED")
+        )
+        await session.commit()
+    return
