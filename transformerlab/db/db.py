@@ -15,7 +15,8 @@ from typing import AsyncGenerator
 from fastapi import Depends
 from fastapi_users.db import SQLAlchemyUserDatabase
 
-from transformerlab.db.jobs import job_create
+from transformerlab.db.jobs import job_create, job_delete, jobs_get_by_experiment
+from transformerlab.db.workflows import workflow_delete_by_id, workflows_get_from_experiment, workflow_runs_get_from_experiment, workflow_run_delete
 from transformerlab.shared.models import models
 from transformerlab.shared.models.models import Config, Plugin
 from transformerlab.db.utils import sqlalchemy_to_dict, sqlalchemy_list_to_dict
@@ -202,6 +203,18 @@ async def tasks_get_by_id(task_id):
         if task is None:
             return None
         return sqlalchemy_to_dict(task)
+
+
+async def tasks_get_by_experiment(experiment_id):
+    """Get all tasks for a specific experiment"""
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.Task)
+            .where(models.Task.experiment_id == experiment_id)
+            .order_by(models.Task.created_at.desc())
+        )
+        tasks = result.scalars().all()
+        return [sqlalchemy_to_dict(task) for task in tasks]
 
 
 async def get_training_template(id):
@@ -400,29 +413,25 @@ async def experiment_delete(id):
         result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
         experiment = result.scalar_one_or_none()
         if experiment:
-            # Hard delete all associated tasks (tasks don't use soft delete)
-            await session.execute(delete(models.Task).where(models.Task.experiment_id == id))
+            # Delete all associated tasks using the existing delete method
+            tasks = await tasks_get_by_experiment(id)
+            for task in tasks:
+                await delete_task(task["id"])
             
-            # Soft delete all associated jobs (set status to "DELETED")
-            await session.execute(
-                update(models.Job)
-                .where(models.Job.experiment_id == id)
-                .values(status="DELETED")
-            )
+            # Delete all associated jobs using the job delete method
+            jobs = await jobs_get_by_experiment(id)
+            for job in jobs:
+                await job_delete(job["id"])
             
-            # Soft delete all associated workflow runs (set status to "DELETED")
-            await session.execute(
-                update(models.WorkflowRun)
-                .where(models.WorkflowRun.experiment_id == id)
-                .values(status="DELETED")
-            )
+            # Delete all associated workflow runs using the workflow run delete method
+            workflow_runs = await workflow_runs_get_from_experiment(id)
+            for workflow_run in workflow_runs:
+                await workflow_run_delete(workflow_run["id"])
             
-            # Soft delete all associated workflows (set status to "DELETED")
-            await session.execute(
-                update(models.Workflow)
-                .where(models.Workflow.experiment_id == id)
-                .values(status="DELETED", updated_at=text("CURRENT_TIMESTAMP"))
-            )
+            # Delete all associated workflows using the workflow delete method
+            workflows = await workflows_get_from_experiment(id)
+            for workflow in workflows:
+                await workflow_delete_by_id(workflow["id"], id)
             
             # Hard delete the experiment itself
             await session.delete(experiment)

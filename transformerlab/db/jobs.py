@@ -94,6 +94,18 @@ async def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
         return data
 
 
+async def jobs_get_by_experiment(experiment_id):
+    """Get all jobs for a specific experiment"""
+    async with async_session() as session:
+        result = await session.execute(
+            select(models.Job)
+            .where(models.Job.experiment_id == experiment_id, models.Job.status != "DELETED")
+            .order_by(models.Job.created_at.desc())
+        )
+        jobs = result.scalars().all()
+        return [sqlalchemy_to_dict(job) for job in jobs]
+
+
 async def job_get_status(job_id):
     async with async_session() as session:
         result = await session.execute(select(models.Job.status).where(models.Job.id == job_id))
