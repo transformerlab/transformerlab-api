@@ -73,7 +73,10 @@ async def experiments_get_all():
 
 @router.get("/create", summary="Create Experiment", tags=["experiment"])
 async def experiments_create(name: str):
-    newid = await db.experiment_create(name, {})
+    # Apply secure filename validation to the experiment name
+    secure_name = secure_filename(name)
+    
+    newid = await db.experiment_create(secure_name, {})
     return newid
 
 
