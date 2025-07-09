@@ -20,9 +20,6 @@ class GenTLabPlugin(TLabPlugin):
         self._parser.add_argument("--model_adapter", default=None, type=str, help="Model adapter to use")
         self._parser.add_argument("--generation_model", default="local", type=str, help="Model to use for generation")
         self._parser.add_argument("--generation_type", default="local", type=str, help="Model to use for generation")
-        self._parser.add_argument(
-            "--output_dataset_name", default=None, type=str, help="Custom name for the output dataset"
-        )
 
         self.tlab_plugin_type = "generation"
 
@@ -55,23 +52,19 @@ class GenTLabPlugin(TLabPlugin):
         Args:
             df: DataFrame containing generated data
             additional_metadata: Optional dict with additional metadata to save
-            dataset_id: Optional specific dataset ID to use (overrides name logic)
-            suffix: Optional suffix for filename (e.g., "train", "test" for multiple files)
-            is_image: Whether this is an image dataset
 
         Returns:
             tuple: Paths to the saved files (output_file, dataset_name)
         """
         self._ensure_args_parsed()
 
-        # Determine the dataset name to use - prioritize user-provided output_dataset_name
-        user_provided_name = self.params.get("output_dataset_name")
-        if user_provided_name:
-            effective_dataset_name = user_provided_name
-            use_job_id_suffix = False  # Don't append job ID for user-provided names
-        else:
-            effective_dataset_name = self.params.get("run_name", "generated")
-            use_job_id_suffix = True  # Append job ID for auto-generated names
+        dataset_name = self.params.get("run_name", "generated")
+
+        # Use custom dataset_id if provided, otherwise check for user's output_dataset_name, otherwise use default naming
+        if dataset_id is None:
+            dataset_id = self.params.get("output_dataset_name")
+            if dataset_id is None:
+                dataset_id = f"{dataset_name}_{self.params.job_id}".lower()
 
         # Create output directory
         output_dir = self.get_output_file_path(dir_only=True)
@@ -80,34 +73,13 @@ class GenTLabPlugin(TLabPlugin):
         if is_image:
             lines = True
             output_file = os.path.join(output_dir, "metadata.jsonl")
-            if dataset_id is None:
-                if use_job_id_suffix:
-                    dataset_id = f"{effective_dataset_name}_{self.params.job_id}".lower()
-                else:
-                    dataset_id = effective_dataset_name.lower()
         else:
             lines = False
             if suffix is not None:
-                if use_job_id_suffix:
-                    output_file = os.path.join(
-                        output_dir, f"{effective_dataset_name}_{self.params.job_id}_{suffix}.json"
-                    )
-                else:
-                    output_file = os.path.join(output_dir, f"{effective_dataset_name}_{suffix}.json")
+                output_file = os.path.join(output_dir, f"{dataset_name}_{self.params.job_id}_{suffix}.json")
             else:
-                if use_job_id_suffix:
-                    output_file = os.path.join(output_dir, f"{effective_dataset_name}_{self.params.job_id}.json")
-                else:
-                    output_file = os.path.join(output_dir, f"{effective_dataset_name}.json")
+                output_file = os.path.join(output_dir, f"{dataset_name}_{self.params.job_id}.json")
 
-            if dataset_id is None:
-                # Use the effective dataset name with or without job ID
-                if use_job_id_suffix:
-                    dataset_id = f"{effective_dataset_name}_{self.params.job_id}"
-                else:
-                    dataset_id = effective_dataset_name
-
-            dataset_id = dataset_id.lower()
             # Store metadata
             metadata = {
                 "generation_model": self.params.generation_model,
@@ -120,10 +92,7 @@ class GenTLabPlugin(TLabPlugin):
                 metadata.update(additional_metadata)
 
             # Save metadata
-            if use_job_id_suffix:
-                metadata_file = os.path.join(output_dir, f"{effective_dataset_name}_{self.params.job_id}_metadata.json")
-            else:
-                metadata_file = os.path.join(output_dir, f"{effective_dataset_name}_metadata.json")
+            metadata_file = os.path.join(output_dir, f"{dataset_name}_{self.params.job_id}_metadata.json")
             with open(metadata_file, "w") as f:
                 json.dump(metadata, f, indent=2)
 
@@ -133,15 +102,12 @@ class GenTLabPlugin(TLabPlugin):
         # Upload to TransformerLab as a dataset
         try:
             self.upload_to_transformerlab(output_file, dataset_id)
-            if dataset_id:
-                self.add_job_data("dataset_id", dataset_id)
-            else:
-                self.add_job_data("dataset_name", effective_dataset_name)
+            self.add_job_data("dataset_id", dataset_id)
         except Exception as e:
             print(f"Error uploading to TransformerLab: {e}")
             self.add_job_data("upload_error", str(e))
 
-        return output_file, effective_dataset_name
+        return output_file, dataset_id
 
     def upload_to_transformerlab(self, output_file_path, dataset_id=None):
         """Create a dataset in TransformerLab from the generated file
@@ -155,14 +121,10 @@ class GenTLabPlugin(TLabPlugin):
         try:
             api_url = "http://localhost:8338/"
 
-            # Create a new dataset - use the dataset_id if provided, otherwise use same logic as save_generated_dataset
+            # Create a new dataset - use the dataset_id if provided, otherwise generate one from run_name
             if not dataset_id:
-                user_provided_name = self.params.get("output_dataset_name")
-                if user_provided_name:
-                    params = {"dataset_id": user_provided_name.lower(), "generated": True}
-                else:
-                    run_name = self.params.get("run_name", "generated")
-                    params = {"dataset_id": f"{run_name}_{self.params.job_id}", "generated": True}
+                run_name = self.params.get("run_name", "generated")
+                params = {"dataset_id": f"{run_name}_{self.params.job_id}", "generated": True}
             else:
                 params = {"dataset_id": dataset_id, "generated": True}
 
@@ -200,24 +162,14 @@ class GenTLabPlugin(TLabPlugin):
         """
         self._ensure_args_parsed()
 
-        # Use same logic as save_generated_dataset for consistency
-        user_provided_name = self.params.get("output_dataset_name")
-        if user_provided_name:
-            dataset_name = user_provided_name
-            use_job_id_suffix = False
-        else:
-            dataset_name = self.params.get("run_name", "generated")
-            use_job_id_suffix = True
+        dataset_name = self.params.get("run_name", "generated")
 
         workspace_dir = os.environ.get("_TFL_WORKSPACE_DIR", "./")
         experiment_dir = os.path.join(workspace_dir, "experiments", self.params.experiment_name)
         dataset_dir = os.path.join(experiment_dir, "datasets")
 
         # Create a specific directory for this generation job
-        if use_job_id_suffix:
-            gen_dir = os.path.join(dataset_dir, f"{dataset_name}_{self.params.job_id}")
-        else:
-            gen_dir = os.path.join(dataset_dir, dataset_name)
+        gen_dir = os.path.join(dataset_dir, f"{dataset_name}_{self.params.job_id}")
         os.makedirs(gen_dir, exist_ok=True)
 
         if dir_only:
