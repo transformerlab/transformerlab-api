@@ -262,7 +262,7 @@ async def server_worker_start(
     eight_bit: bool = False,
     cpu_offload: bool = False,
     inference_engine: str = "default",
-    experiment_id: str = None,
+    experiment_id: int = None,
     inference_params: str = "",
 ):
     global worker_process
@@ -375,9 +375,10 @@ async def server_worker_stop():
     # check if there is a file called worker.pid, if so kill the related process:
     if os.path.isfile("worker.pid"):
         with open("worker.pid", "r") as f:
-            pid = f.readline()
-            print(f"Killing worker process with PID: {pid}")
-            os.kill(int(pid), signal.SIGTERM)
+            pids = [line.strip() for line in f if line.strip()]
+            for pid in pids:
+                print(f"Killing worker process with PID: {pid}")
+                os.kill(int(pid), signal.SIGTERM)
         # delete the worker.pid file:
         os.remove("worker.pid")
     return {"message": "OK"}
@@ -420,9 +421,10 @@ def cleanup_at_exit():
             print(f"Process {worker_process.pid} doesn't exist so nothing to kill")
     if os.path.isfile("worker.pid"):
         with open("worker.pid", "r") as f:
-            pid = f.readline()
+            pids = [line.strip() for line in f if line.strip()]
+            for pid in pids:
+                os.kill(int(pid), signal.SIGTERM)
             os.remove("worker.pid")
-            os.kill(int(pid), signal.SIGTERM)
     # Perform NVML Shutdown if CUDA is available
     if torch.cuda.is_available():
         try:
