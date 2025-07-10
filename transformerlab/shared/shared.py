@@ -353,8 +353,18 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             await db_jobs.job_update_status(job_id, "STOPPED")
             return {"status": "stopped", "job_id": job_id, "message": "Generation job was stopped by user"}
         else:
-            await db_jobs.job_update_status(job_id, "COMPLETE")
-            return {"status": "complete", "job_id": job_id, "message": "Generation job completed successfully"}
+            # Only mark as COMPLETE if progress is 100%
+            progress = job_row.get("progress", -1)
+            if progress == 100:
+                await db_jobs.job_update_status(job_id, "COMPLETE")
+                return {"status": "complete", "job_id": job_id, "message": "Generation job completed successfully"}
+            else:
+                await db_jobs.job_update_status(job_id, "FAILED")
+                return {
+                    "status": "error",
+                    "job_id": job_id,
+                    "message": "Generation job failed",
+                }
 
     job_type = job_config["config"]["type"]
 
