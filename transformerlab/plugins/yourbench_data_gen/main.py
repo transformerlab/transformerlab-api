@@ -104,11 +104,7 @@ def save_generated_datasets(output_dir):
         df = dataset[data_split].to_pandas()
         # Save the generated data and upload to TransformerLab
         additional_metadata = {"source_docs": tlab_gen.params.documents_dir}
-        # Save the dataset using tlab_gen
-        custom_name = tlab_gen.params.get("output_dataset_name")
-        tlab_gen.save_generated_dataset(
-            df, additional_metadata=additional_metadata, suffix=data_split, dataset_id=custom_name
-        )
+        tlab_gen.save_generated_dataset(df, additional_metadata=additional_metadata, suffix=data_split)
 
 
 @tlab_gen.job_wrapper(progress_start=0, progress_end=100)
