@@ -2,7 +2,6 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from huggingface_hub import model_info
 from fastapi.responses import FileResponse, JSONResponse
-import asyncio
 import os
 from werkzeug.utils import secure_filename
 import json
@@ -1108,8 +1107,11 @@ async def get_new_generation_id():
 
 @router.get("/get_file/{generation_id}")
 async def get_file(generation_id: str):
-    file_path = os.path.join(get_images_dir(), generation_id, "tmp_json.json")
+    root_dir = get_images_dir()
+    file_path = os.path.normpath(os.path.join(root_dir, generation_id, "tmp_json.json"))
     try:
+        if not file_path.startswith(root_dir):
+            raise HTTPException(status_code=400, detail="Invalid file path")
         if not os.path.isfile(file_path):
             raise HTTPException(status_code=404, detail="File not found")
 
