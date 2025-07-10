@@ -380,10 +380,80 @@ class TLabPlugin:
             raise ValueError(f"Unsupported model type: {model_type}")
 
     def check_local_server(self):
-        """Check if the local model server is running"""
-        response = requests.get("http://localhost:8338/server/worker_healthz")
-        if response.status_code != 200 or not isinstance(response.json(), list) or len(response.json()) == 0:
-            raise RuntimeError("Local Model Server is not running. Please start it before running the evaluation.")
+        """Check if the local model server is running, and start it if not"""
+        try:
+            response = requests.get("http://localhost:8338/server/worker_healthz", timeout=5)
+            if response.status_code == 200 and isinstance(response.json(), list) and len(response.json()) > 0:
+                print("Local model server is already running")
+                return
+        except requests.exceptions.RequestException:
+            print("Local model server is not responding")
+        
+        # Server is not running, try to start it and wait for it to be ready
+        print("Starting local model server...")
+        self._start_worker_sync()
+
+    def _start_worker_sync(self):
+        """Start the local model server and wait for it to be ready"""
+        # Get experiment_id from the job
+        experiment_id = self.job.get_experiment_id() if self.job else None
+        
+        params = {
+            "model_name": self.params.model_name,
+            "inference_params": "",
+        }
+        
+        # Add experiment_id if we have one
+        if experiment_id is not None:
+            params["experiment_id"] = int(experiment_id)
+        
+        # Add optional parameters if they exist
+        if self.params.get("model_adapter"):
+            params["adaptor"] = self.params.get("model_adapter")
+        
+        if self.params.get("model_architecture"):
+            params["model_architecture"] = self.params.get("model_architecture")
+        
+        print(f"Starting worker with params: {params}")
+        
+        try:
+            # Start the worker
+            response = requests.get(
+                "http://localhost:8338/server/worker_start",
+                params=params,
+                timeout=15
+            )
+            print(f"Worker start response: {response.status_code}, {response.text}")
+            
+            if response.status_code == 200:
+                print("Worker start request sent successfully")
+                
+                # Wait for worker to be ready with retries
+                print("Waiting for worker to become ready...")
+                max_retries = 10  # Wait up to 60 seconds (10 * 6 seconds)
+                for attempt in range(max_retries):
+                    try:
+                        time.sleep(6)  # Wait 6 seconds between checks
+                        health_response = requests.get("http://localhost:8338/server/worker_healthz", timeout=5)
+                        if health_response.status_code == 200 and isinstance(health_response.json(), list) and len(health_response.json()) > 0:
+                            print("Worker is now running and healthy")
+                            return
+                    except requests.exceptions.RequestException:
+                        pass
+                    
+                    print(f"Worker not ready yet... (attempt {attempt + 1}/{max_retries})")
+                
+                raise RuntimeError("Worker started but failed to become healthy within 60 seconds")
+            else:
+                error_msg = f"Failed to start worker. Status: {response.status_code}, Response: {response.text}"
+                print(error_msg)
+                raise RuntimeError(error_msg)
+                
+        except requests.exceptions.RequestException as e:
+            error_msg = f"Failed to connect to server to start worker: {str(e)}"
+            print(error_msg)
+            raise RuntimeError(error_msg)
+            
 
     def _create_local_model_wrapper(self, model):
         """Create a wrapper for local models"""
