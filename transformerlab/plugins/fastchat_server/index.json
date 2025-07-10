@@ -40,7 +40,8 @@
     "Qwen3ForCausalLM",
     "Qwen3MoeForCausalLM",
     "Ernie4_5_MoeForCausalLM",
-    "Ernie4_5_ForCausalLM"
+    "Ernie4_5_ForCausalLM",
+    "SmolLM3ForCausalLM"
   ],
   "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
   "files": ["main.py", "setup.sh"],

@@ -574,7 +574,7 @@ tqdm==4.66.5
     #   transformers
 transformerlab-inference==0.2.39
     # via -r requirements.in
-transformers==4.53.1
+transformers @ git+https://github.com/huggingface/transformers.git
     # via
     #   -r requirements.in
     #   peft

@@ -4,7 +4,7 @@
   "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.4.14",
+  "version": "0.4.15",
   "model_architectures": [
     "MLX",
     "CohereForCausalLM",
@@ -20,7 +20,8 @@
     "Phi3ForCausalLM",
     "Qwen2ForCausalLM",
     "Qwen3ForCausalLM",
-    "Qwen3MoeForCausalLM"
+    "Qwen3MoeForCausalLM",
+    "SmolLM3ForCausalLM"
   ],
   "supported_hardware_architectures": ["mlx"],
   "supports": ["sweeps"],
