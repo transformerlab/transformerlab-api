@@ -1,11 +1,13 @@
 # Root dir is the parent of the parent of this current directory:
 
 import os
-from pathlib import Path
-import transformerlab.db as db
+import transformerlab.shared.dirs_workspace as dirs_workspace
+from transformerlab.db.db import experiment_get
 
 from werkzeug.utils import secure_filename
 
+WORKSPACE_DIR = dirs_workspace.WORKSPACE_DIR
+HOME_DIR = dirs_workspace.HOME_DIR
 
 """
 TFL_HOME_DIR is the directory that is the parent of the src and workspace directories.
@@ -24,30 +26,6 @@ You can set any of the above using environment parameters and it will override t
 ROOT_DIR is a legacy variable that we should replace with the above, eventually.
 """
 
-
-# TFL_HOME_DIR
-if "TFL_HOME_DIR" in os.environ:
-    HOME_DIR = os.environ["TFL_HOME_DIR"]
-    if not os.path.exists(HOME_DIR):
-        print(f"Error: Home directory {HOME_DIR} does not exist")
-        exit(1)
-    print(f"Home directory is set to: {HOME_DIR}")
-else:
-    HOME_DIR = Path.home() / ".transformerlab"
-    os.makedirs(name=HOME_DIR, exist_ok=True)
-    print(f"Using default home directory: {HOME_DIR}")
-
-# TFL_WORKSPACE_DIR
-if "TFL_WORKSPACE_DIR" in os.environ:
-    WORKSPACE_DIR = os.environ["TFL_WORKSPACE_DIR"]
-    if not os.path.exists(WORKSPACE_DIR):
-        print(f"Error: Workspace directory {WORKSPACE_DIR} does not exist")
-        exit(1)
-    print(f"Workspace is set to: {WORKSPACE_DIR}")
-else:
-    WORKSPACE_DIR = os.path.join(HOME_DIR, "workspace")
-    os.makedirs(name=WORKSPACE_DIR, exist_ok=True)
-    print(f"Using default workspace directory: {WORKSPACE_DIR}")
 
 FASTCHAT_LOGS_DIR = os.path.join(WORKSPACE_DIR, "logs")
 if not os.path.exists(FASTCHAT_LOGS_DIR):
@@ -94,11 +72,11 @@ def experiment_dir_by_name(experiment_name: str) -> str:
     return os.path.join(EXPERIMENTS_DIR, experiment_name)
 
 
-async def experiment_dir_by_id(experiment_id: str) -> str:
-    if experiment_id is not None and experiment_id != "undefined":
-        experiment = await db.experiment_get(experiment_id)
+async def experiment_dir_by_id(experiment_id: int) -> str:
+    if experiment_id is not None:
+        experiment = await experiment_get(experiment_id)
     else:
-        print("Error: experiment_id is None or undefined")
+        print("Error: experiment_id is None")
         return os.path.join(EXPERIMENTS_DIR, "error")
 
     experiment_name = experiment["name"]

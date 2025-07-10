@@ -3,7 +3,7 @@ import json
 import os
 import subprocess
 import sys
-import transformerlab.db as db
+from transformerlab.db.db import experiment_get
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from transformerlab.shared import dirs
@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 
 class EmbedRequest(BaseModel):
-    experiment_id: str
+    experiment_id: int
     text: str
 
 
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/rag", tags=["rag"])
 
 
 @router.get("/query")
-async def query(experimentId: str, query: str, settings: str = None, rag_folder: str = "rag"):
+async def query(experimentId: int, query: str, settings: str = None, rag_folder: str = "rag"):
     """Query the RAG engine"""
 
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
@@ -30,7 +30,7 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
         return "Error: Invalid RAG folder path"
     if not os.path.exists(documents_dir):
         return "Error: The RAG folder does not exist in the documents directory"
-    experiment_details = await db.experiment_get(id=experimentId)
+    experiment_details = await experiment_get(id=experimentId)
     experiment_config = json.loads(experiment_details["config"])
     model = experiment_config.get("foundation")
     embedding_model = experiment_config.get("embedding_model")
@@ -116,7 +116,7 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
 
 
 @router.get("/reindex")
-async def reindex(experimentId: str, rag_folder: str = "rag"):
+async def reindex(experimentId: int, rag_folder: str = "rag"):
     """Reindex the RAG engine"""
 
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
@@ -125,7 +125,7 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
     if not os.path.exists(documents_dir):
         return "Error: The RAG folder does not exist in the documents directory."
 
-    experiment_details = await db.experiment_get(id=experimentId)
+    experiment_details = await experiment_get(id=experimentId)
     experiment_config = json.loads(experiment_details["config"])
     model = experiment_config.get("foundation")
     embedding_model = experiment_config.get("embedding_model")
@@ -202,7 +202,7 @@ async def embed_text(request: EmbedRequest):
     """Embed text using the embedding model using sentence transformers"""
     from sentence_transformers import SentenceTransformer
 
-    experiment_details = await db.experiment_get(id=request.experiment_id)
+    experiment_details = await experiment_get(id=request.experiment_id)
     experiment_config = json.loads(experiment_details["config"])
     embedding_model = experiment_config.get("embedding_model")
     if embedding_model is None or embedding_model == "":

@@ -30,7 +30,9 @@ from fastchat.protocol.openai_api_protocol import (
     ErrorResponse,
 )
 
-import transformerlab.db as db
+from transformerlab.db.jobs import job_create, job_get_error_msg, job_update_status
+from transformerlab.db.db import experiment_get
+import transformerlab.db.session as db
 from transformerlab.routers import (
     data,
     model,
@@ -275,7 +277,7 @@ async def server_worker_start(
     eight_bit: bool = False,
     cpu_offload: bool = False,
     inference_engine: str = "default",
-    experiment_id: str = None,
+    experiment_id: int = None,
     inference_params: str = "",
 ):
     global worker_process
@@ -290,11 +292,14 @@ async def server_worker_start(
     # then we check to see if we are an experiment
     elif experiment_id is not None:
         try:
-            experiment = await db.experiment_get(experiment_id)
+            experiment = await experiment_get(experiment_id)
             experiment_config = experiment["config"]
-            experiment_config = json.loads(experiment_config)
+            if not isinstance(experiment_config, dict):
+                experiment_config = json.loads(experiment_config)
             inference_params = experiment_config["inferenceParams"]
-            inference_params = json.loads(inference_params)
+            if not isinstance(inference_params, dict):
+                # if inference_params is a string, we need to parse it as JSON
+                inference_params = json.loads(inference_params)
         except json.JSONDecodeError:
             return {"status": "error", "message": "malformed inference params passed"}
     # if neither are true, then we have an issue
@@ -336,7 +341,7 @@ async def server_worker_start(
         json.dumps(inference_params),
     ]
 
-    job_id = await db.job_create(type="LOAD_MODEL", status="STARTED", job_data="{}", experiment_id=experiment_id)
+    job_id = await job_create(type="LOAD_MODEL", status="STARTED", job_data="{}", experiment_id=experiment_id)
 
     print("Loading plugin loader instead of default worker")
 
@@ -362,10 +367,10 @@ async def server_worker_start(
     if exitcode is not None and exitcode != 0:
         with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
             global_log.write(f"Error loading model: {model_name} with exit code {exitcode}\n")
-        error_msg = await db.job_get_error_msg(job_id)
+        error_msg = await job_get_error_msg(job_id)
         if not error_msg:
             error_msg = f"Exit code {exitcode}"
-            await db.job_update_status(job_id, "FAILED", error_msg)
+            await job_update_status(job_id, "FAILED", error_msg)
         return {"status": "error", "message": error_msg}
     with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
         global_log.write(f"Model loaded successfully: {model_name}\n")
@@ -377,14 +382,18 @@ async def server_worker_stop():
     global worker_process
     print(f"Stopping worker process: {worker_process}")
     if worker_process is not None:
+        from transformerlab.shared.shared import kill_sglang_subprocesses
+
         worker_process.terminate()
+        kill_sglang_subprocesses()
         worker_process = None
     # check if there is a file called worker.pid, if so kill the related process:
     if os.path.isfile("worker.pid"):
         with open("worker.pid", "r") as f:
-            pid = f.readline()
-            print(f"Killing worker process with PID: {pid}")
-            os.kill(int(pid), signal.SIGTERM)
+            pids = [line.strip() for line in f if line.strip()]
+            for pid in pids:
+                print(f"Killing worker process with PID: {pid}")
+                os.kill(int(pid), signal.SIGTERM)
         # delete the worker.pid file:
         os.remove("worker.pid")
     return {"message": "OK"}
@@ -427,9 +436,10 @@ def cleanup_at_exit():
             print(f"Process {worker_process.pid} doesn't exist so nothing to kill")
     if os.path.isfile("worker.pid"):
         with open("worker.pid", "r") as f:
-            pid = f.readline()
+            pids = [line.strip() for line in f if line.strip()]
+            for pid in pids:
+                os.kill(int(pid), signal.SIGTERM)
             os.remove("worker.pid")
-            os.kill(int(pid), signal.SIGTERM)
     # Perform NVML Shutdown if CUDA is available
     if torch.cuda.is_available():
         try:
