@@ -413,6 +413,9 @@ class TLabPlugin:
         
         if self.params.get("model_architecture"):
             params["model_architecture"] = self.params.get("model_architecture")
+
+        if self.params.get("model_path"):
+            params["model_filename"] = self.params.get("model_filename")
         
         print(f"Starting worker with params: {params}")
         
@@ -453,7 +456,7 @@ class TLabPlugin:
             error_msg = f"Failed to connect to server to start worker: {str(e)}"
             print(error_msg)
             raise RuntimeError(error_msg)
-            
+
 
     def _create_local_model_wrapper(self, model):
         """Create a wrapper for local models"""
