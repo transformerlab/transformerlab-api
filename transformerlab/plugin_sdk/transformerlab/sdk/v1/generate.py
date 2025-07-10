@@ -2,11 +2,8 @@ import json
 import os
 import time
 import requests
-
-try:
-    from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
-except ModuleNotFoundError:
-    from transformerlab.plugin_sdk.transformerlab.sdk.v1.tlab_plugin import TLabPlugin
+from pathlib import Path
+from transformerlab.sdk.v1.tlab_plugin import TLabPlugin
 
 
 class GenTLabPlugin(TLabPlugin):
@@ -58,9 +55,6 @@ class GenTLabPlugin(TLabPlugin):
         """
         self._ensure_args_parsed()
 
-        if dataset_id is None:
-            dataset_id = f"{self.params.run_name}_{self.params.job_id}".lower()
-
         # Create output directory
         output_dir = self.get_output_file_path(dir_only=True)
         os.makedirs(output_dir, exist_ok=True)
@@ -68,6 +62,8 @@ class GenTLabPlugin(TLabPlugin):
         if is_image:
             lines = True
             output_file = os.path.join(output_dir, "metadata.jsonl")
+            if dataset_id is None:
+                dataset_id = f"{self.params.run_name}_{self.params.job_id}".lower()
         else:
             lines = False
             if suffix is not None:
@@ -75,6 +71,11 @@ class GenTLabPlugin(TLabPlugin):
             else:
                 output_file = os.path.join(output_dir, f"{self.params.run_name}_{self.params.job_id}.json")
 
+            if dataset_id is None:
+                # Makes /Users/xx/yy.json to yy
+                dataset_id = Path(output_file).stem
+
+            dataset_id = dataset_id.lower()
             # Store metadata
             metadata = {
                 "generation_model": self.params.generation_model,
@@ -97,7 +98,10 @@ class GenTLabPlugin(TLabPlugin):
         # Upload to TransformerLab as a dataset
         try:
             self.upload_to_transformerlab(output_file, dataset_id)
-            self.add_job_data("dataset_id", dataset_id)
+            if dataset_id:
+                self.add_job_data("dataset_id", dataset_id)
+            else:
+                self.add_job_data("dataset_name", self.params.run_name)
         except Exception as e:
             print(f"Error uploading to TransformerLab: {e}")
             self.add_job_data("upload_error", str(e))
@@ -116,10 +120,9 @@ class GenTLabPlugin(TLabPlugin):
         try:
             api_url = "http://localhost:8338/"
 
-            # Create a new dataset - use the dataset_id if provided, otherwise generate one from run_name
+            # Create a new dataset
             if not dataset_id:
-                run_name = self.params.get("run_name", "generated")
-                params = {"dataset_id": f"{run_name}_{self.params.job_id}", "generated": True}
+                params = {"dataset_id": f"{self.params.run_name}_{self.params.job_id}", "generated": True}
             else:
                 params = {"dataset_id": dataset_id, "generated": True}
 
@@ -193,7 +196,7 @@ class GenTLabPlugin(TLabPlugin):
         output_format = output_format or self.params.get("expected_output_format", "")
 
         # Load model if not already available as instance attribute
-        if not hasattr(self, "generation_model_instance") or self.generation_model_instance is None:
+        if self.params.generation_model_instance is None:
             self.generation_model_instance = self.load_evaluation_model(field_name="generation_model")
 
         model = self.generation_model_instance
