@@ -1,8 +1,11 @@
-# DeepEval Objective Metrics
+# Objective Metrics
+
+> Powered by [DeepEval Framework](https://github.com/confident-ai/deepeval)
 
 ## Overview
 
-The DeepEval Objective Metrics plugin is designed to evaluate the outputs of Large Language Models (LLMs) using objective metrics. This plugin provides a set of predefined metrics to assess various aspects of generated content.
+The Objective Metrics plugin is designed to evaluate the outputs of Large Language Models (LLMs) using objective metrics. This plugin provides a set of predefined metrics to assess various aspects of generated content.
+
 
 ## Dataset Requirements
 
@@ -25,10 +28,19 @@ A local dataset uploaded to the dataset in Transformer Lab is required. The data
   - **Quasi Contains:** Checks if the generated output contains the expected output with minor variations.
   - **BERT Score:** Uses BERT embeddings to evaluate the similarity between the generated output and the expected output.
 
-### Output Path
-
+### Dataset Split
 - **Type:** string
-- **Description:** Provide the local path where the evaluation results should be saved.
+- **Description:** Specify the dataset split to be used for evaluation. The options are:
+  - **train:** Use the training split of the dataset.
+  - **valid:** Use the validation split of the dataset.
+  - **test:** Use the test split of the dataset.
+
+### Fraction of samples
+- **Type:** number
+- **Description:** Set the fraction of samples to evaluate. This is useful for limiting the evaluation to a specific proportion of samples from the dataset.
+- **Default:** 1.0
+- **Maximum:** 1.0
+- **Multiple Of:** 0.1
 
 ## Usage
 

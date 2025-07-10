@@ -1,6 +1,24 @@
 from fastapi import APIRouter, UploadFile, Body
 from fastapi.responses import FileResponse
-import transformerlab.db as db
+from transformerlab.db.db import tasks_get_all
+import transformerlab.db.jobs as db_jobs
+from transformerlab.db.workflows import (
+    workflow_count_queued,
+    workflow_count_running,
+    workflow_delete_by_id,
+    workflow_queue,
+    workflow_update_name,
+    workflow_run_get_by_id,
+    workflow_run_get_queued,
+    workflow_run_get_running,
+    workflow_run_update_status,
+    workflow_run_update_with_new_job,
+    workflow_runs_get_from_experiment,
+    workflow_update_config,
+    workflows_get_by_id,
+    workflows_get_from_experiment,
+    workflow_create,
+)
 import transformerlab.routers.tasks as tsks
 import json
 import yaml
@@ -14,35 +32,40 @@ router = APIRouter(prefix="/workflows", tags=["workflows"])
 
 @router.get("/list", summary="get all workflows in the experiment")
 async def workflows_get_in_experiment(experimentId: int):
-    workflows = await db.workflows_get_from_experiment(experimentId)
+    workflows = await workflows_get_from_experiment(experimentId)
     return workflows
 
 
 @router.get("/runs", summary="get all workflow runs in the experiment")
 async def workflow_runs_get_in_experiment(experimentId: int):
-    workflow_runs = await db.workflow_runs_get_from_experiment(experimentId)
+    workflow_runs = await workflow_runs_get_from_experiment(experimentId)
     return workflow_runs
 
 
 @router.get("/delete/{workflow_id}", summary="delete a workflow")
 async def workflow_delete(workflow_id: str, experimentId: int):
     # Delete workflow with experiment enforcement at database level
-    success = await db.workflow_delete_by_id(workflow_id, experimentId)
+    success = await workflow_delete_by_id(workflow_id, experimentId)
     if not success:
         return {"error": "Workflow not found or does not belong to this experiment"}
     return {"message": "OK"}
 
 
 @router.get("/create", summary="Create a workflow from config")
-async def workflow_create(name: str, config: str = '{"nodes":[]}', experimentId: int = 1):
+async def workflow_create_func(name: str, config: str = '{"nodes":[]}', experimentId: int = 1):
     config = json.loads(config)
-    if len(config["nodes"]) > 0:
+    
+    # Check if a START node already exists
+    has_start_node = any(node.get("type") == "START" for node in config["nodes"])
+    
+    if len(config["nodes"]) > 0 and not has_start_node:
         config["nodes"] = [
             {"type": "START", "id": str(uuid.uuid4()), "name": "START", "out": [config["nodes"][0]["id"]]}
         ] + config["nodes"]
-    else:
+    elif len(config["nodes"]) == 0:
         config["nodes"] = [{"type": "START", "id": str(uuid.uuid4()), "name": "START", "out": []}]
-    workflow_id = await db.workflow_create(name, json.dumps(config), str(experimentId))
+    
+    workflow_id = await workflow_create(name, json.dumps(config), experimentId)
     return workflow_id
 
 
@@ -50,45 +73,50 @@ async def workflow_create(name: str, config: str = '{"nodes":[]}', experimentId:
 async def workflow_create_empty(name: str, experimentId: int = 1):
     name = slugify(name)
     # Check if workflow name already exists in this experiment
-    existing_workflows = await db.workflows_get_from_experiment(experimentId)
+    existing_workflows = await workflows_get_from_experiment(experimentId)
     for workflow in existing_workflows:
         if workflow.get("name") == name:
             return {"error": f"Workflow with name '{name}' already exists in this experiment"}
 
     config = {"nodes": [{"type": "START", "id": str(uuid.uuid4()), "name": "START", "out": []}]}
-    workflow_id = await db.workflow_create(name, json.dumps(config), str(experimentId))
+    workflow_id = await workflow_create(name, json.dumps(config), experimentId)
     return workflow_id
 
 
 @router.get("/{workflow_id}/{node_id}/edit_node_metadata", summary="Edit metadata of a node in a workflow")
 async def workflow_edit_node_metadata(workflow_id: str, node_id: str, metadata: str, experimentId: int):
     # Get workflow with experiment enforcement at database level
-    workflow = await db.workflows_get_by_id(workflow_id, experimentId)
+    workflow = await workflows_get_by_id(workflow_id, experimentId)
     if not workflow:
         return {"error": "Workflow not found or does not belong to this experiment"}
+    if workflow.get("config") is not None and not isinstance(workflow["config"], dict):
+        workflow["config"] = json.loads(workflow["config"])
 
-    config = json.loads(workflow["config"])
+    config = workflow["config"]
     for node in config["nodes"]:
         if node["id"] == node_id:
-            node["metadata"] = json.loads(metadata)
+            if not isinstance(metadata, dict):
+                node["metadata"] = json.loads(metadata)
+            else:
+                node["metadata"] = metadata
 
-    success = await db.workflow_update_config(workflow_id, json.dumps(config), experimentId)
+    success = await workflow_update_config(workflow_id, json.dumps(config), experimentId)
     if not success:
         return {"error": "Failed to update workflow"}
     return {"message": "OK"}
 
 
 @router.get("/{workflow_id}/update_name", summary="Update the name of a workflow")
-async def workflow_update_name(workflow_id: str, new_name: str, experimentId: int):
+async def workflow_update_name_func(workflow_id: str, new_name: str, experimentId: int):
     new_name = slugify(new_name)
     # Update workflow name with experiment enforcement at database level
     # Check if workflow name already exists in this experiment
-    existing_workflows = await db.workflows_get_from_experiment(experimentId)
+    existing_workflows = await workflows_get_from_experiment(experimentId)
     for workflow in existing_workflows:
         if workflow.get("name") == new_name:
             return {"error": f"Workflow with name '{new_name}' already exists in this experiment"}
 
-    success = await db.workflow_update_name(workflow_id, new_name, experimentId)
+    success = await workflow_update_name(workflow_id, new_name, experimentId)
     if not success:
         return {"error": "Workflow not found or does not belong to this experiment"}
     return {"message": "OK"}
@@ -97,12 +125,18 @@ async def workflow_update_name(workflow_id: str, new_name: str, experimentId: in
 @router.get("/{workflow_id}/add_node", summary="Add a node to a workflow")
 async def workflow_add_node(workflow_id: str, node: str, experimentId: int):
     # Get workflow with experiment enforcement at database level
-    workflow = await db.workflows_get_by_id(workflow_id, experimentId)
+    workflow = await workflows_get_by_id(workflow_id, experimentId)
     if not workflow:
         return {"error": "Workflow not found or does not belong to this experiment"}
 
-    new_node_json = json.loads(node)
-    config = json.loads(workflow["config"])
+    if not isinstance(node, dict):
+        node = json.loads(node)
+
+    new_node_json = node
+    if workflow.get("config") is not None and not isinstance(workflow["config"], dict):
+        workflow["config"] = json.loads(workflow["config"])
+
+    config = workflow["config"]
 
     new_node_json["id"] = str(uuid.uuid4())
     new_node_json["out"] = []
@@ -114,7 +148,7 @@ async def workflow_add_node(workflow_id: str, node: str, experimentId: int):
 
     config["nodes"].append(new_node_json)
 
-    success = await db.workflow_update_config(workflow_id, json.dumps(config), experimentId)
+    success = await workflow_update_config(workflow_id, json.dumps(config), experimentId)
     if not success:
         return {"error": "Failed to update workflow"}
     return {"message": "OK"}
@@ -123,11 +157,14 @@ async def workflow_add_node(workflow_id: str, node: str, experimentId: int):
 @router.post("/{workflow_id}/{node_id}/update_node", summary="Update a specific node in a workflow")
 async def workflow_update_node(workflow_id: str, node_id: str, experimentId: int, new_node: dict = Body()):
     # Get workflow with experiment enforcement at database level
-    workflow = await db.workflows_get_by_id(workflow_id, experimentId)
+    workflow = await workflows_get_by_id(workflow_id, experimentId)
     if not workflow:
         return {"error": "Workflow not found or does not belong to this experiment"}
 
-    config = json.loads(workflow["config"])
+    if workflow.get("config") is not None and not isinstance(workflow["config"], dict):
+        workflow["config"] = json.loads(workflow["config"])
+
+    config = workflow["config"]
     newNodes = []
 
     for node in config["nodes"]:
@@ -137,7 +174,7 @@ async def workflow_update_node(workflow_id: str, node_id: str, experimentId: int
             newNodes.append(node)
 
     config["nodes"] = newNodes
-    success = await db.workflow_update_config(workflow_id, json.dumps(config), experimentId)
+    success = await workflow_update_config(workflow_id, json.dumps(config), experimentId)
     if not success:
         return {"error": "Failed to update workflow"}
     return {"message": "OK"}
@@ -146,11 +183,14 @@ async def workflow_update_node(workflow_id: str, node_id: str, experimentId: int
 @router.post("/{workflow_id}/{start_node_id}/remove_edge", summary="Remove an edge between two nodes in a workflow")
 async def workflow_remove_edge(workflow_id: str, start_node_id: str, end_node_id: str, experimentId: int):
     # Get workflow with experiment enforcement at database level
-    workflow = await db.workflows_get_by_id(workflow_id, experimentId)
+    workflow = await workflows_get_by_id(workflow_id, experimentId)
     if not workflow:
         return {"error": "Workflow not found or does not belong to this experiment"}
 
-    config = json.loads(workflow["config"])
+    if workflow.get("config") is not None and not isinstance(workflow["config"], dict):
+        workflow["config"] = json.loads(workflow["config"])
+
+    config = workflow["config"]
     newNodes = []
 
     for node in config["nodes"]:
@@ -162,7 +202,7 @@ async def workflow_remove_edge(workflow_id: str, start_node_id: str, end_node_id
             newNodes.append(node)
 
     config["nodes"] = newNodes
-    success = await db.workflow_update_config(workflow_id, json.dumps(config), experimentId)
+    success = await workflow_update_config(workflow_id, json.dumps(config), experimentId)
     if not success:
         return {"error": "Failed to update workflow"}
     return {"message": "OK"}
@@ -171,11 +211,14 @@ async def workflow_remove_edge(workflow_id: str, start_node_id: str, end_node_id
 @router.post("/{workflow_id}/{start_node_id}/add_edge", summary="Add an edge between two nodes in a workflow")
 async def workflow_add_edge(workflow_id: str, start_node_id: str, end_node_id: str, experimentId: int):
     # Get workflow with experiment enforcement at database level
-    workflow = await db.workflows_get_by_id(workflow_id, experimentId)
+    workflow = await workflows_get_by_id(workflow_id, experimentId)
     if not workflow:
         return {"error": "Workflow not found or does not belong to this experiment"}
 
-    config = json.loads(workflow["config"])
+    if workflow.get("config") is not None and not isinstance(workflow["config"], dict):
+        workflow["config"] = json.loads(workflow["config"])
+
+    config = workflow["config"]
     newNodes = []
 
     for node in config["nodes"]:
@@ -186,7 +229,7 @@ async def workflow_add_edge(workflow_id: str, start_node_id: str, end_node_id: s
             newNodes.append(node)
 
     config["nodes"] = newNodes
-    success = await db.workflow_update_config(workflow_id, json.dumps(config), experimentId)
+    success = await workflow_update_config(workflow_id, json.dumps(config), experimentId)
     if not success:
         return {"error": "Failed to update workflow"}
     return {"message": "OK"}
@@ -195,11 +238,14 @@ async def workflow_add_edge(workflow_id: str, start_node_id: str, end_node_id: s
 @router.get("/{workflow_id}/{node_id}/delete_node", summary="Delete a node from a workflow")
 async def workflow_delete_node(workflow_id: str, node_id: str, experimentId: int):
     # Get workflow with experiment enforcement at database level
-    workflow = await db.workflows_get_by_id(workflow_id, experimentId)
+    workflow = await workflows_get_by_id(workflow_id, experimentId)
     if not workflow:
         return {"error": "Workflow not found or does not belong to this experiment"}
 
-    config = json.loads(workflow["config"])
+    if workflow.get("config") is not None and not isinstance(workflow["config"], dict):
+        workflow["config"] = json.loads(workflow["config"])
+
+    config = workflow["config"]
     newNodes = []
     removedNode = {}
     for node in config["nodes"]:
@@ -216,7 +262,7 @@ async def workflow_delete_node(workflow_id: str, node_id: str, experimentId: int
             node["out"] += removedNode["out"]
 
     config["nodes"] = newNodes
-    success = await db.workflow_update_config(workflow_id, json.dumps(config), experimentId)
+    success = await workflow_update_config(workflow_id, json.dumps(config), experimentId)
     if not success:
         return {"error": "Failed to update workflow"}
     return {"message": "OK"}
@@ -225,7 +271,7 @@ async def workflow_delete_node(workflow_id: str, node_id: str, experimentId: int
 @router.get("/{workflow_id}/export_to_yaml", summary="Export a workflow definition to YAML")
 async def workflow_export_to_yaml(workflow_id: str, experimentId: int):
     # Get workflow with experiment enforcement at database level
-    workflow = await db.workflows_get_by_id(workflow_id, experimentId)
+    workflow = await workflows_get_by_id(workflow_id, experimentId)
     if not workflow:
         return {"error": "Workflow not found or does not belong to this experiment"}
 
@@ -240,7 +286,8 @@ async def workflow_export_to_yaml(workflow_id: str, experimentId: int):
     ):
         workflow.pop(field, None)
 
-    workflow["config"] = json.loads(workflow["config"])
+    if workflow.get("config") is not None and not isinstance(workflow["config"], dict):
+        workflow["config"] = json.loads(workflow["config"])
 
     filename = f"{workflow['name']}.yaml"
     with open(filename, "w") as yaml_file:
@@ -252,18 +299,18 @@ async def workflow_export_to_yaml(workflow_id: str, experimentId: int):
 async def workflow_import_from_yaml(file: UploadFile, experimentId: int = 1):
     with open(file.filename, "r") as fileStream:
         workflow = yaml.load(fileStream, Loader=yaml.BaseLoader)
-    await db.workflow_create(workflow["name"], json.dumps(workflow["config"]), str(experimentId))
+    await workflow_create(workflow["name"], json.dumps(workflow["config"]), experimentId)
     return {"message": "OK"}
 
 
 @router.get("/{workflow_id}/start", summary="Queue a workflow to start execution")
 async def start_workflow(workflow_id: str, experimentId: int):
     # Verify workflow exists and belongs to experiment
-    workflow = await db.workflows_get_by_id(workflow_id, experimentId)
+    workflow = await workflows_get_by_id(workflow_id, experimentId)
     if not workflow:
         return {"error": "Workflow not found or does not belong to this experiment"}
 
-    await db.workflow_queue(workflow_id)
+    await workflow_queue(workflow_id)
     return {"message": "OK"}
 
 
@@ -293,8 +340,8 @@ async def start_next_step_in_workflow():
 
     if not next_task_ids:
         # Workflow is complete
-        await db.workflow_run_update_status(workflow_run_id, "COMPLETE")
-        await db.workflow_run_update_with_new_job(workflow_run_id, "[]", "[]")  # Clear current tasks/jobs
+        await workflow_run_update_status(workflow_run_id, "COMPLETE")
+        await workflow_run_update_with_new_job(workflow_run_id, "[]", "[]")  # Clear current tasks/jobs
         return {"message": "Workflow Complete!"}
 
     # 5. Handle START node and get the actual next nodes
@@ -304,8 +351,8 @@ async def start_next_step_in_workflow():
         return {"message": "Failed processing potential START node."}
 
     if not actual_next_task_ids:  # Can happen if START node had no output
-        await db.workflow_run_update_status(workflow_run_id, "COMPLETE")
-        await db.workflow_run_update_with_new_job(workflow_run_id, "[]", "[]")
+        await workflow_run_update_status(workflow_run_id, "COMPLETE")
+        await workflow_run_update_with_new_job(workflow_run_id, "[]", "[]")
         return {"message": "Workflow Complete (ended after START node)!"}
 
     # 6. Queue jobs for the next node(s)
@@ -319,30 +366,32 @@ async def start_next_step_in_workflow():
             return {"message": f"Failed to queue job for task '{node.get('task', 'UNKNOWN')}'."}
 
     # 7. Update workflow run state with new current tasks and job IDs
-    await db.workflow_run_update_with_new_job(
-        workflow_run_id, json.dumps(actual_next_task_ids), json.dumps(next_job_ids)
-    )
+    await workflow_run_update_with_new_job(workflow_run_id, json.dumps(actual_next_task_ids), json.dumps(next_job_ids))
 
     return {"message": f"Started next step with job(s): {next_job_ids}"}
 
 
 @router.get("/runs/{workflow_run_id}", summary="get a specific workflow run by id")
 async def workflow_runs_get_by_id(workflow_run_id: str, experimentId: int):
-    workflow_run = await db.workflow_run_get_by_id(workflow_run_id)
+    workflow_run = await workflow_run_get_by_id(workflow_run_id)
     if not workflow_run:
         return {"error": "Workflow run not found"}
 
     # Verify workflow belongs to experiment
-    workflow = await db.workflows_get_by_id(workflow_run.get("workflow_id"), experimentId)
+    workflow = await workflows_get_by_id(workflow_run.get("workflow_id"), experimentId)
     if not workflow:
         return {"error": "Associated workflow not found or does not belong to this experiment"}
 
     returnInfo = {"run": workflow_run, "workflow": workflow, "jobs": []}
 
     try:
-        job_ids = json.loads(workflow_run.get("job_ids", "[]"))
+        if isinstance(workflow_run.get("job_ids", "[]"), str):
+            job_ids = json.loads(workflow_run.get("job_ids", "[]"))
+        else:
+            job_ids = workflow_run.get("job_ids", [])
+
         for job_id in job_ids:
-            job = await db.job_get(job_id)
+            job = await db_jobs.job_get(job_id)
             if not job:
                 continue
 
@@ -378,12 +427,12 @@ async def cancel_workflow_run(workflow_run_id: str, experimentId: int):
     and transition the workflow to CANCELLED status.
     """
     # Get the workflow run
-    workflow_run = await db.workflow_run_get_by_id(workflow_run_id)
+    workflow_run = await workflow_run_get_by_id(workflow_run_id)
     if not workflow_run:
         return {"error": "Workflow run not found"}
 
     # Verify workflow belongs to experiment
-    workflow = await db.workflows_get_by_id(workflow_run.get("workflow_id"), experimentId)
+    workflow = await workflows_get_by_id(workflow_run.get("workflow_id"), experimentId)
     if not workflow:
         return {"error": "Associated workflow not found or does not belong to this experiment"}
 
@@ -393,11 +442,14 @@ async def cancel_workflow_run(workflow_run_id: str, experimentId: int):
         return {"error": f"Cannot cancel workflow in {current_status} status"}
 
     # Cancel all current jobs - this will trigger automatic workflow cancellation
-    current_job_ids = json.loads(workflow_run.get("current_job_ids", "[]"))
+    if isinstance(workflow_run.get("current_job_ids", "[]"), str):
+        current_job_ids = json.loads(workflow_run.get("current_job_ids", "[]"))
+    else:
+        current_job_ids = workflow_run.get("current_job_ids", [])
     cancelled_jobs = []
 
     for job_id in current_job_ids:
-        await db.job_stop(job_id)  # This sets stop=True in job_data
+        await db_jobs.job_stop(job_id)  # This sets stop=True in job_data
         cancelled_jobs.append(job_id)
 
     # The workflow execution engine will automatically detect the stopped jobs
@@ -412,18 +464,18 @@ async def cancel_workflow_run(workflow_run_id: str, experimentId: int):
 
 # Helper functions moved from old workflows.py
 async def get_active_workflow_run():
-    num_running_workflows = await db.workflow_count_running()
-    num_queued_workflows = await db.workflow_count_queued()
+    num_running_workflows = await workflow_count_running()
+    num_queued_workflows = await workflow_count_queued()
 
     if num_running_workflows + num_queued_workflows == 0:
         return None  # No workflows to process
 
-    active_run = await db.workflow_run_get_running()
+    active_run = await workflow_run_get_running()
     # if we have no currenlty active workflow run, then run a queued one
     if active_run is None:
-        active_run = await db.workflow_run_get_queued()
+        active_run = await workflow_run_get_queued()
         if active_run:
-            await db.workflow_run_update_status(active_run["id"], "RUNNING")
+            await workflow_run_update_status(active_run["id"], "RUNNING")
 
     return active_run
 
@@ -432,10 +484,25 @@ async def load_workflow_context(active_run):
     workflow_run_id = active_run["id"]
     workflow_id = active_run["workflow_id"]
     experiment_id = active_run["experiment_id"]  # Get experiment_id from active_run
-    workflow = await db.workflows_get_by_id(workflow_id, experiment_id)
-    workflow_config = json.loads(workflow["config"])
-    current_tasks = json.loads(active_run["current_tasks"])  # List of task IDs (node IDs)
-    current_job_ids = json.loads(active_run["current_job_ids"])  # List of job IDs
+    workflow = await workflows_get_by_id(workflow_id, experiment_id)
+    if not workflow:
+        raise ValueError("Workflow not found or does not belong to this experiment")
+
+    if workflow.get("config") is not None and not isinstance(workflow["config"], dict):
+        workflow["config"] = json.loads(workflow["config"])
+    workflow_config = workflow["config"]
+
+    # List of task IDs (node IDs)
+    if isinstance(active_run.get("current_tasks", "[]"), str):
+        current_tasks = json.loads(active_run.get("current_tasks", "[]"))
+    else:
+        current_tasks = active_run.get("current_tasks", [])
+
+    # List of job IDs
+    if isinstance(active_run.get("current_job_ids", "[]"), str):
+        current_job_ids = json.loads(active_run.get("current_job_ids", "[]"))
+    else:
+        current_job_ids = active_run.get("current_job_ids", [])
 
     return workflow_run_id, workflow_id, workflow_config, current_tasks, current_job_ids
 
@@ -450,20 +517,20 @@ async def check_current_jobs_status(workflow_run_id, current_job_ids):
         return None
 
     for job_id in current_job_ids:
-        current_job = await db.job_get(job_id)
+        current_job = await db_jobs.job_get(job_id)
         if not current_job:
-            await db.workflow_run_update_status(workflow_run_id, "FAILED")
+            await workflow_run_update_status(workflow_run_id, "FAILED")
             return f"Could not find job with ID {job_id}"
 
         status = current_job["status"]
 
         if status == "FAILED":
-            await db.workflow_run_update_status(workflow_run_id, "FAILED")
+            await workflow_run_update_status(workflow_run_id, "FAILED")
             return "The current job failed"
 
         if status in ["CANCELLED", "DELETED", "STOPPED"]:
-            await db.workflow_run_update_with_new_job(workflow_run_id, "[]", "[]")
-            await db.workflow_run_update_status(workflow_run_id, "CANCELLED")
+            await workflow_run_update_with_new_job(workflow_run_id, "[]", "[]")
+            await workflow_run_update_status(workflow_run_id, "CANCELLED")
             return "The current job was cancelled/stopped/deleted"
 
         if status != "COMPLETE":
@@ -488,7 +555,7 @@ async def determine_next_tasks(current_tasks, workflow_config, workflow_run_id):
     if current_tasks:
         current_nodes = find_nodes_by_ids(current_tasks, all_nodes)
         if not current_nodes:
-            await db.workflow_run_update_status(workflow_run_id, "FAILED")
+            await workflow_run_update_status(workflow_run_id, "FAILED")
             return None
 
         for node in current_nodes:
@@ -511,7 +578,7 @@ async def handle_start_node_skip(next_task_ids, workflow_config, workflow_run_id
     next_nodes = find_nodes_by_ids(next_task_ids, all_nodes)
 
     if not next_nodes and next_task_ids:
-        await db.workflow_run_update_status(workflow_run_id, "FAILED")
+        await workflow_run_update_status(workflow_run_id, "FAILED")
         return None, None
 
     # Handle potential multiple start nodes or parallel paths from start
@@ -533,7 +600,7 @@ async def handle_start_node_skip(next_task_ids, workflow_config, workflow_run_id
 
         next_nodes = find_nodes_by_ids(final_next_task_ids, all_nodes)
         if not next_nodes:
-            await db.workflow_run_update_status(workflow_run_id, "FAILED")
+            await workflow_run_update_status(workflow_run_id, "FAILED")
             return None, None
         return final_next_task_ids, next_nodes
     else:
@@ -542,13 +609,13 @@ async def handle_start_node_skip(next_task_ids, workflow_config, workflow_run_id
 
 async def find_task_definition(task_name: str, workflow_run_id: int):
     """Finds the task definition from the database by name."""
-    tasks = await db.tasks_get_all()
+    tasks = await tasks_get_all()
     for task in tasks:
         if task.get("name") == task_name:
             return task
 
     # if the task isnt found
-    await db.workflow_run_update_status(workflow_run_id, "FAILED")
+    await workflow_run_update_status(workflow_run_id, "FAILED")
     return None
 
 
@@ -570,11 +637,15 @@ async def find_previous_node_and_job(current_node, workflow_run, workflow_config
         if previous_node.get("type") != "START":
             ran_nodes_str = workflow_run.get("node_ids", "[]")
             ran_jobs_str = workflow_run.get("job_ids", "[]")
+            if not isinstance(ran_nodes_str, str):
+                ran_nodes_str = json.dumps(ran_nodes_str)
+            if not isinstance(ran_jobs_str, str):
+                ran_jobs_str = json.dumps(ran_jobs_str)
             ran_nodes = json.loads(ran_nodes_str)
             ran_jobs = json.loads(ran_jobs_str)
             if previous_node["id"] in ran_nodes:
                 previous_job_ID = ran_jobs[ran_nodes.index(previous_node["id"])]
-                previous_job = await db.job_get(previous_job_ID)
+                previous_job = await db_jobs.job_get(previous_job_ID)
 
     return previous_job
 
@@ -618,8 +689,16 @@ def extract_previous_job_outputs(previous_job):
 
 def prepare_next_task_io(task_def: dict, previous_outputs: dict):
     """Prepares the JSON input and output strings for the next task."""
-    inputs = json.loads(task_def.get("inputs", "{}"))
-    outputs = json.loads(task_def.get("outputs", "{}"))
+    if not isinstance(task_def.get("inputs", "{}"), dict):
+        inputs = json.loads(task_def.get("inputs", "{}"))
+    else:
+        inputs = task_def.get("inputs", {})
+
+    if not isinstance(task_def.get("outputs", "{}"), dict):
+        outputs = json.loads(task_def.get("outputs", "{}"))
+    else:
+        outputs = task_def.get("outputs", {})
+
     task_type = task_def.get("type")
 
     # Map previous outputs to next inputs
@@ -667,7 +746,7 @@ async def queue_job_for_node(node: dict, workflow_run: dict, workflow_config: di
     try:
         task_id_to_queue = task_def.get("id")
         if task_id_to_queue is None:
-            await db.workflow_run_update_status(workflow_run["id"], "FAILED")
+            await workflow_run_update_status(workflow_run["id"], "FAILED")
             return None
 
         queued_job_info = await tsks.queue_task(task_id_to_queue, inputs_json, outputs_json)
@@ -676,5 +755,5 @@ async def queue_job_for_node(node: dict, workflow_run: dict, workflow_config: di
         return queued_job_info
     except Exception as e:
         print(f"Error queueing task {task_name}: {e}")
-        await db.workflow_run_update_status(workflow_run["id"], "FAILED")
+        await workflow_run_update_status(workflow_run["id"], "FAILED")
         return None

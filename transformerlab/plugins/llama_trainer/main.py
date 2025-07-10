@@ -8,9 +8,13 @@ import shutil
 HAS_AMD = False
 if shutil.which("rocminfo") is not None:
     HAS_AMD = True
+    # AMD-specific optimizations
+    os.environ["PYTORCH_HIP_ALLOC_CONF"] = "max_split_size_mb:128"
+    os.environ["HIP_VISIBLE_DEVICES"] = "0"
+    # Disable some problematic CUDA-specific features
+    os.environ["TOKENIZERS_PARALLELISM"] = "false"
 if torch.cuda.is_available():
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-    os.environ["HIP_VISIBLE_DEVICES"] = "0"
 
 from jinja2 import Environment  # noqa: E402
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel  # noqa: E402
@@ -74,6 +78,12 @@ def train_model():
     # Load model
     model_id = tlab_trainer.params.model_name
 
+    # AMD-specific memory management
+    if HAS_AMD:
+        torch.cuda.empty_cache()
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+
     try:
         if not HAS_AMD:
             model = AutoModelForCausalLM.from_pretrained(
@@ -88,7 +98,7 @@ def train_model():
             model = AutoModelForCausalLM.from_pretrained(
                 model_id,
                 use_cache=False,
-                use_flash_attention_2=use_flash_attention,
+                torch_dtype=torch.float16,
                 device_map="auto",
                 trust_remote_code=True,
             )
@@ -112,7 +122,7 @@ def train_model():
         else:
             model = AutoModelForCausalLM.from_pretrained(
                 model_id,
-                use_flash_attention_2=use_flash_attention,
+                torch_dtype=torch.float16,
                 device_map="auto",
                 trust_remote_code=True,
             )
@@ -167,6 +177,7 @@ def train_model():
     max_seq_length = int(tlab_trainer.params.get("maximum_sequence_length", 2048))
     num_train_epochs = int(tlab_trainer.params.get("num_train_epochs", 3))
     batch_size = int(tlab_trainer.params.get("batch_size", 4))
+
     learning_rate = float(tlab_trainer.params.get("learning_rate", 2e-4))
     lr_scheduler = tlab_trainer.params.get("learning_rate_schedule", "constant")
 
@@ -201,12 +212,13 @@ def train_model():
             metric_for_best_model="loss",
             greater_is_better=False,
             eval_strategy="epoch",
-            completion_only_loss=False
+            completion_only_loss=False,
         )
     else:
-        # Setup training configuration
+        # Setup training configuration for AMD
         training_args = SFTConfig(
             output_dir=output_dir,
+            logging_dir=os.path.join(output_dir, f"job_{tlab_trainer.params.job_id}_{run_suffix}"),
             num_train_epochs=num_train_epochs,
             per_device_train_batch_size=batch_size,
             gradient_accumulation_steps=2,
@@ -220,7 +232,7 @@ def train_model():
             lr_scheduler_type=lr_scheduler,
             max_seq_length=max_seq_length,
             disable_tqdm=False,
-            packing=True,
+            packing=False,  # Disable packing for AMD compatibility
             run_name=f"job_{tlab_trainer.params.job_id}_{run_suffix}",
             report_to=tlab_trainer.report_to,
             eval_strategy="epoch",
@@ -228,7 +240,8 @@ def train_model():
             load_best_model_at_end=True,
             metric_for_best_model="loss",
             greater_is_better=False,
-            completion_only_loss=False
+            completion_only_loss=False,
+            dataloader_pin_memory=False,  # Disable pin memory for AMD
         )
 
     # Create progress callback
@@ -279,20 +292,37 @@ def train_model():
             model_architecture = model_config.architectures[0]
             # Load the base model again
             try:
-                model = AutoModelForCausalLM.from_pretrained(
-                    model_id,
-                    use_cache=False,
-                    use_flash_attention_2=use_flash_attention,
-                    device_map="auto",
-                    trust_remote_code=True,
-                )
+                if HAS_AMD:
+                    model = AutoModelForCausalLM.from_pretrained(
+                        model_id,
+                        use_cache=False,
+                        torch_dtype=torch.float16,
+                        device_map="auto",
+                        trust_remote_code=True,
+                    )
+                else:
+                    model = AutoModelForCausalLM.from_pretrained(
+                        model_id,
+                        use_cache=False,
+                        use_flash_attention_2=use_flash_attention,
+                        device_map="auto",
+                        trust_remote_code=True,
+                    )
             except TypeError:
-                model = AutoModelForCausalLM.from_pretrained(
-                    model_id,
-                    use_flash_attention_2=use_flash_attention,
-                    device_map="auto",
-                    trust_remote_code=True,
-                )
+                if HAS_AMD:
+                    model = AutoModelForCausalLM.from_pretrained(
+                        model_id,
+                        torch_dtype=torch.float16,
+                        device_map="auto",
+                        trust_remote_code=True,
+                    )
+                else:
+                    model = AutoModelForCausalLM.from_pretrained(
+                        model_id,
+                        use_flash_attention_2=use_flash_attention,
+                        device_map="auto",
+                        trust_remote_code=True,
+                    )
 
             if "/" in model_id:
                 model_id = model_id.split("/")[-1]
