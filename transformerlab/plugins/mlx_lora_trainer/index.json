@@ -20,7 +20,8 @@
     "Phi3ForCausalLM",
     "Qwen2ForCausalLM",
     "Qwen3ForCausalLM",
-    "Qwen3MoeForCausalLM"
+    "Qwen3MoeForCausalLM",
+    "SmolLM3ForCausalLM"
   ],
   "supported_hardware_architectures": ["mlx"],
   "supports": ["sweeps"],

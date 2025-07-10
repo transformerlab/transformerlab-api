@@ -35,6 +35,7 @@
     "Qwen2ForCausalLM",
     "Qwen3ForCausalLM",
     "Qwen3MoeForCausalLM",
+    "SmolLM3ForCausalLM",
     "Ernie4_5_ForCausalLM"
   ],
   "supported_hardware_architectures": ["mlx"],

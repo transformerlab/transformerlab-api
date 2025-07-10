@@ -19,7 +19,8 @@
     "Phi3ForCausalLM",
     "Qwen2ForCausalLM",
     "Qwen3ForCausalLM",
-    "Qwen3MoeForCausalLM"
+    "Qwen3MoeForCausalLM",
+    "SmolLM3ForCausalLM"
   ],
   "export_architecture": "MLX",
   "files": ["main.py", "setup.sh"],
