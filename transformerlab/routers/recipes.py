@@ -71,7 +71,6 @@ async def check_recipe_dependencies(id: str):
 
 
 async def _install_recipe_dependencies_job(job_id, id):
-    from transformerlab.routers import model as model_router
     from transformerlab.routers import data as data_router
     from transformerlab.routers import plugins as plugins_router
 
@@ -82,18 +81,21 @@ async def _install_recipe_dependencies_job(job_id, id):
         if not recipe:
             await db_jobs.job_update_status(job_id, "FAILED", error_msg=f"Recipe with id {id} not found.")
             return
-        if len(recipe.get("dependencies", [])) == 0:
+
+        # Filter out model dependencies since they're handled separately
+        non_model_deps = [dep for dep in recipe.get("dependencies", []) if dep.get("type") != "model"]
+
+        if len(non_model_deps) == 0:
             await db_jobs.job_update_status(job_id, "COMPLETE")
             return
 
-        local_models = await model_helper.list_installed_models()
-        local_model_names = set(model["model_id"] for model in local_models)
         local_datasets = await get_datasets()
         local_dataset_ids = set(ds["dataset_id"] for ds in local_datasets)
-        total = len(recipe.get("dependencies", []))
+        total = len(non_model_deps)
         progress = 0
         results = []
-        for dep in recipe.get("dependencies", []):
+
+        for dep in non_model_deps:
             dep_type = dep.get("type")
             dep_name = dep.get("name")
             if dep_type == "workflow":
@@ -101,15 +103,7 @@ async def _install_recipe_dependencies_job(job_id, id):
                 continue
             result = {"type": dep_type, "name": dep_name, "action": None, "status": None}
             try:
-                if dep_type == "model":
-                    if dep_name not in local_model_names:
-                        download_result = await model_router.download_model_by_huggingface_id(model=dep_name)
-                        result["action"] = "download_model"
-                        result["status"] = download_result.get("status", "unknown")
-                    else:
-                        result["action"] = "already_installed"
-                        result["status"] = "success"
-                elif dep_type == "dataset":
+                if dep_type == "dataset":
                     if dep_name not in local_dataset_ids:
                         download_result = await data_router.dataset_download(dataset_id=dep_name)
                         result["action"] = "download_dataset"
@@ -133,19 +127,100 @@ async def _install_recipe_dependencies_job(job_id, id):
         await db_jobs.job_update_status(job_id, "FAILED", error_msg=str(e))
 
 
-@router.get("/{id}/install_dependencies")
-async def bg_install_recipe_dependencies(id: str, background_tasks: BackgroundTasks):
-    """Install dependencies for a recipe in the background and track progress."""
+@router.get("/{id}/install_model_dependencies")
+async def install_recipe_model_dependencies(id: str):
+    """Install model dependencies for a recipe as separate jobs and return job IDs."""
+    from transformerlab.routers import model as model_router
+    import asyncio
 
+    # Get the recipe
+    recipes_gallery = galleries.get_exp_recipe_gallery()
+    recipe = next((r for r in recipes_gallery if r.get("id") == id), None)
+    if not recipe:
+        return {"error": f"Recipe with id {id} not found."}
+
+    # Get local models to check what's already installed
+    local_models = await model_helper.list_installed_models()
+    local_model_names = set(model["model_id"] for model in local_models)
+
+    model_jobs = []
+    for dep in recipe.get("dependencies", []):
+        if dep.get("type") == "model":
+            dep_name = dep.get("name")
+            if dep_name not in local_model_names:
+                # Create a DOWNLOAD_MODEL job for this model
+                job_id = await db_jobs.job_create(
+                    type="DOWNLOAD_MODEL",
+                    status="QUEUED",
+                    job_data=json.dumps({"model_id": dep_name}),
+                    experiment_id="",
+                )
+                # Start the download as a background task without waiting
+                asyncio.create_task(model_router.download_model_by_huggingface_id(model=dep_name, job_id=job_id))
+                model_jobs.append(
+                    {
+                        "model_name": dep_name,
+                        "job_id": job_id,
+                        "status": "started",
+                        "action": "download_model",
+                    }
+                )
+            else:
+                model_jobs.append(
+                    {
+                        "model_name": dep_name,
+                        "job_id": None,
+                        "status": "already_installed",
+                        "action": "already_installed",
+                    }
+                )
+
+    return {"model_jobs": model_jobs}
+
+
+@router.get("/{id}/install_dependencies")
+async def install_recipe_dependencies(id: str, background_tasks: BackgroundTasks):
+    """Install all dependencies for a recipe - models as separate jobs and others as a background job."""
+
+    # Install model dependencies as separate jobs
+    model_result = await install_recipe_model_dependencies(id)
+    if "error" in model_result:
+        return model_result
+
+    # Install other dependencies as a background job
     job_id = await db_jobs.job_create(
         type="INSTALL_RECIPE_DEPS",
         status="QUEUED",
         job_data=json.dumps({"recipe_id": id, "results": [], "progress": 0}),
-        experiment_id="",
+        experiment_id=None,
     )
     # Start background task
     background_tasks.add_task(_install_recipe_dependencies_job, job_id, id)
-    return {"job_id": job_id, "status": "started"}
+
+    # Format response with unified jobs structure
+    jobs = []
+
+    # Add model jobs
+    for model_job in model_result["model_jobs"]:
+        if model_job["job_id"] is not None:
+            jobs.append(
+                {
+                    "job_id": model_job["job_id"],
+                    "type": "DOWNLOAD_MODEL",
+                    "name": model_job["model_name"],
+                }
+            )
+
+    # Add other dependencies job
+    jobs.append(
+        {
+            "job_id": job_id,
+            "type": "INSTALL_RECIPE_DEPS",
+            "name": f"Recipe dependencies for {id}",
+        }
+    )
+
+    return {"jobs": jobs, "status": "started"}
 
 
 @router.get("/jobs/{job_id}/status")
@@ -224,26 +299,6 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
                 "foundation_filename": model_filename,
             }
             break  # Only set the first model dependency
-
-    workflow_results = []
-    for dep in recipe.get("dependencies", []):
-        if dep.get("type") == "workflow":
-            workflow_config = dep.get("config")
-            dep_name = dep.get("name")
-            result = {"name": dep_name, "action": "install_workflow"}
-            if workflow_config is not None:
-                try:
-                    workflow_id = await workflows.workflow_create(
-                        name=dep_name,
-                        config=json.dumps(workflow_config),
-                        experimentId=experiment_id,
-                    )
-                    result["status"] = f"success: {workflow_id}"
-                except Exception as e:
-                    result["status"] = f"error: {str(e)}"
-            else:
-                result["status"] = "error: config not provided"
-            workflow_results.append(result)
 
     # Process documents - download ZIP files
     document_results = []
@@ -381,7 +436,7 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
             workflow_config = workflow_def.get("config", {"nodes": []})
 
             # Create workflow in database using the workflow_create function
-            workflow_id = await workflows.workflow_create(
+            workflow_id = await workflows.workflow_create_func(
                 name=workflow_name, config=json.dumps(workflow_config), experimentId=experiment_id
             )
 
@@ -411,7 +466,6 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
             "experiment_id": experiment_id,
             "name": experiment_name,
             "model_set_result": model_set_result,
-            "workflow_results": workflow_results,
             "document_results": document_results,
             "task_results": task_results,
             "workflow_creation_results": workflow_creation_results,

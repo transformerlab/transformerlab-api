@@ -61,8 +61,7 @@
     "dataset_split": {
       "title": "Dataset Split",
       "type": "string",
-      "default": "train",
-      "enum": ["train", "valid", "test"]
+      "default": "train"
     },
     "output_dataset_name": {
       "title": "Dataset Name",
@@ -99,11 +98,7 @@
       "ui:widget": "RangeWidget"
     },
     "dataset_split": {
-      "ui:help": "Select the dataset split to be used for generation",
-      "ui:widget": "AutoCompleteWidget",
-      "ui:options": {
-        "multiple": false
-      }
+      "ui:help": "Select the dataset split to be used for generation"
     }
   }
 }

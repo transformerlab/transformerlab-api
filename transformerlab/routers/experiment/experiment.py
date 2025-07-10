@@ -73,12 +73,15 @@ async def experiments_get_all():
 
 @router.get("/create", summary="Create Experiment", tags=["experiment"])
 async def experiments_create(name: str):
-    newid = await db.experiment_create(name, {})
+    # Apply secure filename validation to the experiment name
+    secure_name = secure_filename(name)
+    
+    newid = await db.experiment_create(secure_name, {})
     return newid
 
 
 @router.get("/{id}", summary="Get Experiment by ID", tags=["experiment"])
-async def experiment_get(id: str | int):
+async def experiment_get(id: int):
     id = await convert_experiment_name_to_id_if_needed(id)
 
     data = await db.experiment_get(id)
@@ -92,35 +95,42 @@ async def experiment_get(id: str | int):
 
 
 @router.get("/{id}/delete", tags=["experiment"])
-async def experiments_delete(id: str | int):
+async def experiments_delete(id: int):
     id = await convert_experiment_name_to_id_if_needed(id)
     await db.experiment_delete(id)
     return {"message": f"Experiment {id} deleted"}
 
 
 @router.get("/{id}/update", tags=["experiment"])
-async def experiments_update(id: str | int, name: str):
+async def experiments_update(id: int, name: str):
     id = await convert_experiment_name_to_id_if_needed(id)
     await db.experiment_update(id, name)
     return {"message": f"Experiment {id} updated to {name}"}
 
 
 @router.get("/{id}/update_config", tags=["experiment"])
-async def experiments_update_config(id: str | int, key: str, value: str):
+async def experiments_update_config(id: int, key: str, value: str):
     id = await convert_experiment_name_to_id_if_needed(id)
     await db.experiment_update_config(id, key, value)
     return {"message": f"Experiment {id} updated"}
 
 
+@router.post("/{id}/update_configs", tags=["experiment"])
+async def experiments_update_configs(id: int, updates: Annotated[dict, Body()]):
+    id = await convert_experiment_name_to_id_if_needed(id)
+    await db.experiment_update_configs(id, updates)
+    return {"message": f"Experiment {id} configs updated"}
+
+
 @router.post("/{id}/prompt", tags=["experiment"])
-async def experiments_save_prompt_template(id: str | int, template: Annotated[str, Body()]):
+async def experiments_save_prompt_template(id: int, template: Annotated[str, Body()]):
     id = await convert_experiment_name_to_id_if_needed(id)
     await db.experiment_save_prompt_template(id, template)
     return {"message": f"Experiment {id} prompt template saved"}
 
 
 @router.post("/{id}/save_file_contents", tags=["experiment"])
-async def experiment_save_file_contents(id: str | int, filename: str, file_contents: Annotated[str, Body()]):
+async def experiment_save_file_contents(id: int, filename: str, file_contents: Annotated[str, Body()]):
     id = await convert_experiment_name_to_id_if_needed(id)
 
     filename = secure_filename(filename)
@@ -155,7 +165,7 @@ async def experiment_save_file_contents(id: str | int, filename: str, file_conte
 
 
 @router.get("/{id}/file_contents", tags=["experiment"])
-async def experiment_get_file_contents(id: str | int, filename: str):
+async def experiment_get_file_contents(id: int, filename: str):
     id = await convert_experiment_name_to_id_if_needed(id)
 
     filename = secure_filename(filename)
@@ -198,7 +208,7 @@ async def experiment_get_file_contents(id: str | int, filename: str):
 
 
 @router.get("/{id}/export_to_recipe", summary="Export experiment to recipe format", tags=["experiment"])
-async def export_experiment_to_recipe(id: str | int):
+async def export_experiment_to_recipe(id: int):
     """Export an experiment to JSON format that matches the recipe gallery structure."""
     id = await convert_experiment_name_to_id_if_needed(id)
 
