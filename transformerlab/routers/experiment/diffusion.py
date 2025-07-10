@@ -408,35 +408,10 @@ async def generate_image(experiment_id: str, request: DiffusionRequest):
                 "config": request_dict,
             }
 
-            # 1. Create job in DB
             job_id = await db_jobs.job_create(
                 type="DIFFUSION", status="QUEUED", job_data=job_config, experiment_id=experiment_id
             )
 
-            # 2. Poll job status until it's complete (max 180s total)
-            max_wait_secs = 180
-            poll_interval = 1  # 1 second
-            total_waited = 0
-
-            while total_waited < max_wait_secs:
-                job = await db_jobs.job_get(job_id)
-                if job:
-                    if job["status"] == "COMPLETE":
-                        break
-                    elif job["status"] == "FAILED":
-                        raise HTTPException(
-                            status_code=500,
-                            detail=f"Job {job_id} failed during execution.",
-                        )
-                await asyncio.sleep(poll_interval)
-                total_waited += poll_interval
-            else:
-                raise HTTPException(
-                    status_code=202,
-                    detail="Job accepted but not yet completed. Please poll /jobs/{job_id} for result.",
-                )
-
-            # 3. Load tmp_json.json output
             images_folder = os.path.join(get_images_dir(), generation_id)
             images_folder = os.path.normpath(images_folder)  # Normalize path
             if not images_folder.startswith(get_images_dir()):  # Validate containment
@@ -444,20 +419,15 @@ async def generate_image(experiment_id: str, request: DiffusionRequest):
             tmp_json_path = os.path.join(images_folder, "tmp_json.json")
             # Normalize and validate the path
             tmp_json_path = os.path.normpath(tmp_json_path)
-            if not tmp_json_path.startswith(os.path.normpath(images_folder)):
-                raise HTTPException(status_code=400, detail="Invalid path detected. Path traversal is not allowed.")
-            try:
-                with open(tmp_json_path) as f:
-                    response_data = json.load(f)
-                os.remove(tmp_json_path)
-            except Exception as e:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Job finished but failed to read result: {str(e)}",
-                )
 
-            # 4. Return metadata to frontend
-            return JSONResponse(content=response_data)
+            return {
+                "job_id": job_id,
+                "status": "started",
+                "generation_id": generation_id,
+                "images_folder": images_folder,
+                "json_path": tmp_json_path,
+                "message": "Diffusion job has been queued and is running in background.",
+            }
         else:
             raise HTTPException(
                 status_code=400,
@@ -1134,3 +1104,21 @@ async def get_new_generation_id():
     images_folder = os.path.join(get_images_dir(), generation_id)
     os.makedirs(images_folder, exist_ok=True)
     return {"generation_id": generation_id, "images_folder": images_folder}
+
+
+@router.get("/get_file/{generation_id}")
+async def get_file(generation_id: str):
+    file_path = os.path.join(get_images_dir(), generation_id, "tmp_json.json")
+    try:
+        if not os.path.isfile(file_path):
+            raise HTTPException(status_code=404, detail="File not found")
+
+        with open(file_path, "r") as f:
+            data = json.load(f)
+
+        return JSONResponse(content=data)
+
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON format")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
