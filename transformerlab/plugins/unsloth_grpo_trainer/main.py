@@ -11,7 +11,7 @@ from transformerlab.sdk.v1.train import tlab_trainer
 
 # Set up environment
 jinja_environment = Environment()
-use_flash_attention = False
+# use_flash_attention = False
 
 # Patch FastRL for GRPO
 PatchFastRL("GRPO", FastLanguageModel)
@@ -147,7 +147,6 @@ def train_model():
             max_lora_rank=lora_rank,
             quantization_config=bnb_config,
             use_cache=False,
-            use_flash_attention_2=use_flash_attention,
             device_map="auto",
         )
         model.config.pretraining_tp = 1

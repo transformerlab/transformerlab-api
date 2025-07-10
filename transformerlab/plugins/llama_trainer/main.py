@@ -26,7 +26,7 @@ import torch.nn as nn  # noqa: E402
 from transformerlab.plugin import WORKSPACE_DIR  # noqa: E402
 from transformerlab.sdk.v1.train import tlab_trainer  # noqa: E402
 
-use_flash_attention = False
+# use_flash_attention = False
 # Initialize Jinja environment
 jinja_environment = Environment()
 
@@ -90,7 +90,6 @@ def train_model():
                 model_id,
                 quantization_config=bnb_config,
                 use_cache=False,
-                use_flash_attention_2=use_flash_attention,
                 device_map="auto",
                 trust_remote_code=True,
             )
@@ -115,7 +114,6 @@ def train_model():
             model = AutoModelForCausalLM.from_pretrained(
                 model_id,
                 quantization_config=bnb_config,
-                use_flash_attention_2=use_flash_attention,
                 device_map="auto",
                 trust_remote_code=True,
             )
@@ -304,7 +302,6 @@ def train_model():
                     model = AutoModelForCausalLM.from_pretrained(
                         model_id,
                         use_cache=False,
-                        use_flash_attention_2=use_flash_attention,
                         device_map="auto",
                         trust_remote_code=True,
                     )
@@ -319,7 +316,6 @@ def train_model():
                 else:
                     model = AutoModelForCausalLM.from_pretrained(
                         model_id,
-                        use_flash_attention_2=use_flash_attention,
                         device_map="auto",
                         trust_remote_code=True,
                     )
