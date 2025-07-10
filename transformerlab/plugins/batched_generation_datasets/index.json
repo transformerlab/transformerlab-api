@@ -4,7 +4,7 @@
   "description": "Use a local or commercial LLM to generated outputs for the dataset generated.",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
@@ -61,8 +61,7 @@
     "dataset_split": {
       "title": "Dataset Split",
       "type": "string",
-      "default": "train",
-      "enum": ["train", "valid", "test"]
+      "default": "train"
     }
   },
   "parameters_ui": {
@@ -94,11 +93,7 @@
       "ui:widget": "RangeWidget"
     },
     "dataset_split": {
-      "ui:help": "Select the dataset split to be used for generation",
-      "ui:widget": "AutoCompleteWidget",
-      "ui:options": {
-        "multiple": false
-      }
+      "ui:help": "Select the dataset split to be used for generation"
     }
   }
 }

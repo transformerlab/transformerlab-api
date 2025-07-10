@@ -172,9 +172,16 @@ def run_evaluation():
     tasks = tlab_evals.params.tasks.split(",")
     tasks = [metric.lower().replace(" ", "_") for metric in tasks]
 
+    # Get the dataset split
+    dataset_split = tlab_evals.params.get("dataset_split", "train")
+    if dataset_split not in ["train", "valid", "test"]:
+        raise ValueError(f"Invalid dataset split: {dataset_split}. Must be one of 'train', 'valid', or 'test'.")
+
     # Load the dataset
-    dataset = tlab_evals.load_dataset()
-    df = dataset["train"].to_pandas()
+    dataset = tlab_evals.load_dataset([dataset_split])
+    df = dataset[dataset_split].to_pandas()
+
+    print(f"Loaded dataset with {len(df)} rows for split '{dataset_split}'")
 
     # Check required columns
     assert "input" in df.columns, "Input column not found in the dataset"

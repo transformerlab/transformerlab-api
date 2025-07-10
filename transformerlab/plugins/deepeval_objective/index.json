@@ -1,11 +1,11 @@
 {
-  "name": "DeepEval Objective Metrics",
+  "name": "Objective Metrics",
   "uniqueId": "deepeval_objective",
   "description": "Evaluating outputs of LLMs using objective metrics",
   "plugin-format": "python",
   "type": "evaluator",
   "evalsType": "dataset",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "git": "https://github.com/confident-ai/deepeval",
   "url": "https://github.com/confident-ai/deepeval",
   "files": ["main.py", "setup.sh"],
@@ -33,6 +33,11 @@
       "default": 1.0,
       "maximum": 1.0,
       "multipleOf": 0.1
+    },
+    "dataset_split": {
+      "title": "Dataset Split",
+      "type": "string",
+      "default": "train"
     }
   },
   "parameters_ui": {
