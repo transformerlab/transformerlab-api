@@ -19,7 +19,7 @@ tiktoken
 torch==2.7.0
 torchaudio==2.7.0
 torchvision==0.22.0
-transformers==4.53.1
+git+https://github.com/huggingface/transformers.git
 peft
 watchfiles
 wandb==0.19.10
