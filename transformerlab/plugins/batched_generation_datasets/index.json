@@ -66,7 +66,7 @@
     "output_dataset_name": {
       "title": "Dataset Name",
       "type": "string",
-      "default": "generated_dataset"
+      "default": "generated_dataset_batched"
     }
   },
   "parameters_ui": {
