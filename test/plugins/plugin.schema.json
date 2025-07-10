@@ -15,7 +15,8 @@
         "generator",
         "eval",
         "exporter",
-        "rag"
+        "rag",
+        "diffusion"
       ]
     },
     "version": { "type": "string" },
