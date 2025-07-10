@@ -6,6 +6,7 @@ from io import BytesIO
 import torch
 import asyncio
 import threading
+import queue
 import gc
 import argparse
 from diffusers import (
@@ -871,6 +872,7 @@ async def run_multi_gpu_generation(
 @tlab_diffusion.job_wrapper(progress_start=0, progress_end=100)
 async def diffusion_generate_job(job_id: str, job_config: dict):
     try:
+        tlab_diffusion.progress_update(0)
         request = DiffusionRequest(**job_config)
         # Validate num_images parameter
         if request.num_images < 1 or request.num_images > 10:
@@ -960,10 +962,15 @@ async def diffusion_generate_job(job_id: str, job_config: dict):
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Invalid mask image: {str(e)}")
 
+        tlab_diffusion.progress_update(10)
+
         # Check if we should use multi-GPU approach
         if should_use_diffusion_worker(request.model):
             log_print(f"Using Diffusion Worker subprocess approach for model: {request.model}")
             use_single_gpu = False
+
+            tlab_diffusion.progress_update(30)
+
             try:
                 result = await run_multi_gpu_generation(
                     request,
@@ -986,6 +993,8 @@ async def diffusion_generate_job(job_id: str, job_config: dict):
                 first_image = images[0]
                 actual_height = request.height if request.height > 0 else first_image.height
                 actual_width = request.width if request.width > 0 else first_image.width
+
+                tlab_diffusion.progress_update(70)
 
             except Exception as e:
                 log_print(f"Multi-GPU generation failed, falling back to single GPU: {str(e)}")
@@ -1012,6 +1021,8 @@ async def diffusion_generate_job(job_id: str, job_config: dict):
                 scheduler=request.scheduler,
                 controlnet_id=controlnet_id,
             )
+
+            tlab_diffusion.progress_update(20)
 
             # Set seed - use provided seed or generate a random one
             if request.seed is None or request.seed < 0:
@@ -1096,8 +1107,29 @@ async def diffusion_generate_job(job_id: str, job_config: dict):
                         # Add intermediate image saving callback if enabled
                         if request.save_intermediate_images:
                             decode_callback = create_decode_callback(images_folder)
-                            generation_kwargs["callback_on_step_end"] = decode_callback
-                            generation_kwargs["callback_on_step_end_tensor_inputs"] = ["latents"]
+                        else:
+                            # no-op callback to keep logic unified
+                            def decode_callback(pipe, step, timestep, callback_kwargs):
+                                return callback_kwargs
+
+                        def unified_callback(pipe, step: int, timestep: int, callback_kwargs: dict):
+                            try:
+                                # Progress update
+                                progress = 30 + int((step / request.num_inference_steps) * 60)
+                                progress = min(progress, 70)
+                                progress_queue.put(progress)
+                            except Exception as e:
+                                print(f"Failed to enqueue progress update: {e}")
+
+                            # Always call decode_callback, it's a no-op if not needed
+                            try:
+                                return decode_callback(pipe, step, timestep, callback_kwargs)
+                            except Exception as e:
+                                print(f"Warning: decode_callback failed: {e}")
+                                return callback_kwargs
+
+                        generation_kwargs["callback_on_step_end"] = unified_callback
+                        generation_kwargs["callback_on_step_end_tensor_inputs"] = ["latents"]
 
                         result = pipe(**generation_kwargs)
                         images = result.images  # Get all images
@@ -1128,7 +1160,22 @@ async def diffusion_generate_job(job_id: str, job_config: dict):
             generation_start = time.time()
             log_print("Starting image generation...")
 
+            progress_queue = queue.Queue()
+
+            async def monitor_progress():
+                while True:
+                    try:
+                        progress = progress_queue.get(timeout=5)
+                        tlab_diffusion.progress_update(progress)
+                        await asyncio.sleep(0.1)  # Avoid tight loop
+                    except queue.Empty:
+                        break  # Done updating
+
+            monitor_task = asyncio.create_task(monitor_progress())
+
             images = await asyncio.get_event_loop().run_in_executor(None, run_pipe)
+            await monitor_task
+
             generation_time = time.time() - generation_start
 
             # Aggressive cleanup immediately after generation
@@ -1159,13 +1206,14 @@ async def diffusion_generate_job(job_id: str, job_config: dict):
                 torch.mps.empty_cache()
 
             log_print("Memory cleanup completed")
-
+            tlab_diffusion.progress_update(75)
             # Get dimensions from the first image
             first_image = images[0]
             actual_height = request.height if request.height > 0 else first_image.height
             actual_width = request.width if request.width > 0 else first_image.width
 
             total_generation_time = generation_time
+            tlab_diffusion.progress_update(80)
 
         # Apply upscaling if requested (for both paths)
         if request.upscale:
@@ -1200,14 +1248,14 @@ async def diffusion_generate_job(job_id: str, job_config: dict):
                 image_filename = f"{i}.png"
                 image_path = os.path.join(images_folder, image_filename)
                 image.save(image_path, format="PNG")
-
+        tlab_diffusion.progress_update(85)
         # Get dimensions from the first image
         first_image = images[0]
         actual_height = request.height if request.height > 0 else first_image.height
         actual_width = request.width if request.width > 0 else first_image.width
 
         processed_image_path = preprocessed_image_path if is_controlnet else None
-
+        tlab_diffusion.progress_update(90)
         # Save to history
         history_item = ImageHistoryItem(
             id=generation_id,
@@ -1261,6 +1309,8 @@ async def diffusion_generate_job(job_id: str, job_config: dict):
         output_path = os.path.join(images_folder, "tmp_json.json")
         with open(output_path, "w") as f:
             json.dump(output_data, f, indent=2)
+
+        tlab_diffusion.progress_update(100)
 
     except Exception as e:
         log_print(f"Error during image generation: {str(e)}")
