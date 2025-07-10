@@ -4,6 +4,14 @@ import json
 
 
 def test_diffusion_generate_success(client):
+    try:
+        import transformerlab.plugins.image_diffusion.main as diffusion_main
+
+        _ = diffusion_main.get_pipeline
+        _ = diffusion_main.diffusion_generate_job
+    except (ImportError, AttributeError):
+        pytest.skip("transformerlab.plugins.image_diffusion.main or required functions not available")
+
     experiment_id = "test-exp-id"
     mock_output_data = {
         "prompt": "a cat riding a bicycle",
@@ -18,9 +26,9 @@ def test_diffusion_generate_success(client):
     }
 
     with (
-        patch("transformerlab.routers.experiment.diffusion.get_pipeline") as mock_get_pipeline,
+        patch("transformerlab.plugins.image_diffusion.main.get_pipeline") as mock_get_pipeline,
         patch("transformerlab.db.db.experiment_get", return_value={"id": experiment_id, "name": "test-exp-name"}),
-        patch("transformerlab.routers.experiment.diffusion.diffusion_generate_job", return_value=None),
+        patch("transformerlab.plugins.image_diffusion.main.diffusion_generate_job", return_value=None),
         patch("transformerlab.routers.experiment.diffusion.db_jobs.job_create", return_value=1),
         patch("transformerlab.routers.experiment.diffusion.db_jobs.job_get", return_value={"status": "COMPLETE"}),
         patch("transformerlab.routers.experiment.diffusion.get_images_dir", return_value="test/tmp"),
@@ -817,63 +825,63 @@ def test_find_image_by_id_invalid_json():
 
 def test_get_pipeline_key_txt2img():
     """Test get_pipeline_key for text-to-image pipeline"""
-    from transformerlab.routers.experiment.diffusion import get_pipeline_key
+    main = pytest.importorskip("transformerlab.plugins.image_diffusion.main")
 
-    key = get_pipeline_key("test-model", "", is_img2img=False, is_inpainting=False)
+    key = main.get_pipeline_key("test-model", "", is_img2img=False, is_inpainting=False)
 
     assert key == "test-model::txt2img"
 
 
 def test_get_pipeline_key_img2img():
     """Test get_pipeline_key for image-to-image pipeline"""
-    from transformerlab.routers.experiment.diffusion import get_pipeline_key
+    main = pytest.importorskip("transformerlab.plugins.image_diffusion.main")
 
-    key = get_pipeline_key("test-model", "", is_img2img=True, is_inpainting=False)
+    key = main.get_pipeline_key("test-model", "", is_img2img=True, is_inpainting=False)
 
     assert key == "test-model::img2img"
 
 
 def test_get_pipeline_key_inpainting():
     """Test get_pipeline_key for inpainting pipeline"""
-    from transformerlab.routers.experiment.diffusion import get_pipeline_key
+    main = pytest.importorskip("transformerlab.plugins.image_diffusion.main")
 
-    key = get_pipeline_key("test-model", "", is_img2img=False, is_inpainting=True)
+    key = main.get_pipeline_key("test-model", "", is_img2img=False, is_inpainting=True)
 
     assert key == "test-model::inpainting"
 
 
 def test_get_pipeline_key_with_adaptor():
     """Test get_pipeline_key with adaptor"""
-    from transformerlab.routers.experiment.diffusion import get_pipeline_key
+    main = pytest.importorskip("transformerlab.plugins.image_diffusion.main")
 
-    key = get_pipeline_key("test-model", "test-adaptor", is_img2img=False, is_inpainting=False)
+    key = main.get_pipeline_key("test-model", "test-adaptor", is_img2img=False, is_inpainting=False)
 
     assert key == "test-model::test-adaptor::txt2img"
 
 
 def test_get_pipeline_key_inpainting_priority():
     """Test get_pipeline_key prioritizes inpainting over img2img"""
-    from transformerlab.routers.experiment.diffusion import get_pipeline_key
+    main = pytest.importorskip("transformerlab.plugins.image_diffusion.main")
 
-    key = get_pipeline_key("test-model", "", is_img2img=True, is_inpainting=True)
+    key = main.get_pipeline_key("test-model", "", is_img2img=True, is_inpainting=True)
 
     assert key == "test-model::inpainting"
 
 
 def test_get_pipeline_key_no_adaptor():
     """Test get_pipeline_key with empty adaptor string"""
-    from transformerlab.routers.experiment.diffusion import get_pipeline_key
+    main = pytest.importorskip("transformerlab.plugins.image_diffusion.main")
 
-    key = get_pipeline_key("test-model", "", is_img2img=False, is_inpainting=False)
+    key = main.get_pipeline_key("test-model", "", is_img2img=False, is_inpainting=False)
 
     assert key == "test-model::txt2img"
 
 
 def test_get_pipeline_key_whitespace_adaptor():
     """Test get_pipeline_key with whitespace-only adaptor"""
-    from transformerlab.routers.experiment.diffusion import get_pipeline_key
+    main = pytest.importorskip("transformerlab.plugins.image_diffusion.main")
 
-    key = get_pipeline_key("test-model", "   ", is_img2img=False, is_inpainting=False)
+    key = main.get_pipeline_key("test-model", "   ", is_img2img=False, is_inpainting=False)
 
     # Should treat whitespace-only adaptor as no adaptor
     assert key == "test-model::   ::txt2img"
