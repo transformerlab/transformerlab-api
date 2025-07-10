@@ -360,11 +360,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 return {"status": "complete", "job_id": job_id, "message": "Generation job completed successfully"}
             else:
                 await db_jobs.job_update_status(job_id, "FAILED")
-                return {
-                    "status": "error",
-                    "job_id": job_id,
-                    "message": "Generation job failed",
-                }
+                return {"status": "error", "job_id": job_id, "message": "Generation job failed"}
 
     job_type = job_config["config"]["type"]
 
@@ -377,7 +373,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     experiment_id = job_details["experiment_id"]
     # Get the experiment details from the database:
     experiment_details = await experiment_get(experiment_id)
-    print("Experiment Details: " ,experiment_details)
+    print("Experiment Details: ", experiment_details)
     experiment_details_as_string = json.dumps(experiment_details)
     experiment_name = experiment_details["name"]
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
@@ -916,6 +912,7 @@ def print_in_rainbow(text):
             print(chunk, end="")
             print(reset, end="")
         print("", flush=True)
+
 
 def kill_sglang_subprocesses():
     current_pid = os.getpid()
