@@ -106,9 +106,6 @@ def save_generated_datasets(output_dir):
         additional_metadata = {"source_docs": tlab_gen.params.documents_dir}
         # Save the dataset using tlab_gen
         custom_name = tlab_gen.params.get("output_dataset_name")
-        if custom_name and data_split != "train":
-            # For non-train splits, append the split name to avoid conflicts
-            custom_name = f"{custom_name}_{data_split}"
         tlab_gen.save_generated_dataset(
             df, additional_metadata=additional_metadata, suffix=data_split, dataset_id=custom_name
         )

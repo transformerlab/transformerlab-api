@@ -252,8 +252,6 @@ def run_generation():
     if embedding_df is not None and len(embedding_df) > 0:
         # Save embeddings dataset
         custom_name_embeddings = tlab_gen.params.get("output_dataset_name")
-        if custom_name_embeddings:
-            custom_name_embeddings = f"{custom_name_embeddings}_embeddings"
         embedding_output_file, _ = tlab_gen.save_generated_dataset(
             embedding_df,
             {**metadata, "dataset_type": tlab_gen.params.get("embedding_dataset_type", "anchor | positive | negative")},
