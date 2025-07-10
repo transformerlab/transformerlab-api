@@ -357,7 +357,6 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             return {"status": "complete", "job_id": job_id, "message": "Generation job completed successfully"}
     elif master_job_type == "EXPORT":
         plugin_name = job_config["plugin"]
-        exporter_name = job_config.get("exporter", "")
         await db_jobs.job_update_status(job_id, "RUNNING")
         print("Running export script")
         WORKSPACE_DIR = dirs.WORKSPACE_DIR
