@@ -1,4 +1,6 @@
 import json
+import time
+import os
 
 from fastapi import APIRouter, Body
 from werkzeug.utils import secure_filename
@@ -177,6 +179,113 @@ async def convert_generate_to_task(generate_name: str, experiment_id: int):
     return {"message": "OK"}
 
 
+@router.get("/convert_export_to_task", summary="Convert export request to a task")
+async def convert_export_to_task(
+    experiment_id: int,
+    plugin_name: str,
+    plugin_architecture: str,
+    plugin_params: str = "{}",
+):
+    """
+    Create an EXPORT task that can be queued and run later.
+    This replaces the immediate execution in run_exporter_script.
+    """
+
+    # Load experiment details into config
+    experiment_details = await db.experiment_get(id=experiment_id)
+    if experiment_details is None:
+        return {"message": f"Experiment {experiment_id} does not exist"}
+
+    # Get input model parameters
+    config = json.loads(experiment_details["config"])
+    input_model_id = config["foundation"]
+    input_model_id_without_author = input_model_id.split("/")[-1]
+    input_model_architecture = config["foundation_model_architecture"]
+
+    # The exporter plugin needs to know where to find the model
+    input_model_path = config.get("foundation_filename", "")
+    if not input_model_path:
+        input_model_path = input_model_id
+
+    # Convert JSON parameters
+    params = json.loads(plugin_params)
+    q_type = ""
+    if "outtype" in params:
+        q_type = params["outtype"]
+    elif "q_bits" in params:
+        q_type = str(params["q_bits"]) + "bit"
+
+    # Generate output model details
+    conversion_time = int(time.time())
+    output_model_architecture = plugin_architecture
+    output_model_id = f"{output_model_architecture}-{input_model_id_without_author}-{conversion_time}"
+    if len(q_type) > 0:
+        output_model_id = f"{output_model_id}-{q_type}"
+    output_model_name = f"{input_model_id_without_author} - {output_model_architecture}"
+    if len(q_type) > 0:
+        output_model_name = f"{output_model_name} - {q_type}"
+    output_filename = ""
+
+    # GGUF is special: it generates a different format with only one file
+    # For everything to work we need the model ID and output filename to match
+    if output_model_architecture == "GGUF":
+        output_model_id = f"{input_model_id_without_author}-{conversion_time}.gguf"
+        if len(q_type) > 0:
+            output_model_id = f"{input_model_id_without_author}-{conversion_time}-{q_type}.gguf"
+        output_filename = output_model_id
+
+    # Figure out plugin and model output directories
+    from transformerlab.shared import dirs
+
+    script_directory = dirs.plugin_dir_by_name(plugin_name)
+    output_model_id = secure_filename(output_model_id)
+    output_path = os.path.join(dirs.MODELS_DIR, output_model_id)
+
+    # Create task inputs (what the task needs to run)
+    inputs = {
+        "input_model_id": input_model_id,
+        "input_model_path": input_model_path,
+        "input_model_architecture": input_model_architecture,
+        "plugin_name": plugin_name,
+        "plugin_architecture": plugin_architecture,
+    }
+
+    # Create task config (all the configuration needed for export)
+    task_config = {
+        "plugin_name": plugin_name,
+        "input_model_id": input_model_id,
+        "input_model_path": input_model_path,
+        "input_model_architecture": input_model_architecture,
+        "output_model_id": output_model_id,
+        "output_model_architecture": output_model_architecture,
+        "output_model_name": output_model_name,
+        "output_model_path": output_path,
+        "output_filename": output_filename,
+        "script_directory": script_directory,
+        "params": params,
+    }
+
+    # Create task outputs (what the task will produce)
+    outputs = {
+        "exported_model_path": output_path,
+        "output_model_id": output_model_id,
+        "export_status": "pending",
+    }
+
+    # Create the export task
+    await db.add_task(
+        name=f"Export {input_model_id_without_author} to {plugin_architecture}",
+        Type="EXPORT",
+        inputs=json.dumps(inputs),
+        config=json.dumps(task_config),
+        plugin=plugin_name,
+        outputs=json.dumps(outputs),
+        experiment_id=experiment_id,
+    )
+
+    return {"message": "OK"}
+
+
 # this function is the "convert all" function so that its just 1 api call
 @router.get("/{experiment_id}/convert_all_to_tasks", summary="Convert all templates to tasks")
 async def convert_all_to_tasks(experiment_id):
@@ -278,5 +387,18 @@ async def queue_task(task_id: int, input_override: str = "{}", output_override: 
             job_data["config"][key] = output_override[key]
             job_data["config"]["script_parameters"][key] = output_override[key]
         job_data["plugin"] = task_to_queue["plugin"]
-    job_id = await job_create(job_type, job_status, json.dumps(job_data), task_to_queue["experiment_id"])
+    elif job_type == "EXPORT":
+        job_data["exporter"] = task_to_queue["name"]
+        job_data["config"] = task_to_queue["config"]
+        for key in inputs.keys():
+            job_data["config"][key] = inputs[key]
+        for key in input_override.keys():
+            job_data["config"][key] = input_override[key]
+
+        for key in outputs.keys():
+            job_data["config"][key] = outputs[key]
+        for key in output_override.keys():
+            job_data["config"][key] = output_override[key]
+        job_data["plugin"] = task_to_queue["plugin"]
+    job_id = await job_create("EXPORT" if job_type == "EXPORT" else job_type, job_status, json.dumps(job_data), task_to_queue["experiment_id"])
     return {"id": job_id}

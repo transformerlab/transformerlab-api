@@ -20,11 +20,12 @@ router = APIRouter(prefix="/export", tags=["export"])
 
 
 @router.get("/run_exporter_script")
-async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: str, plugin_params: str = "{}"):
+async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: str, plugin_params: str = "{}", job_id: str = None):
     """
     plugin_name: the id of the exporter plugin to run
     plugin_architecture: A string containing the standard name of plugin architecture
     plugin_params: a string of JSON containing parameters for this plugin (found in plugins info.json)
+    job_id: optional job_id to use instead of creating a new job (for use by job system)
     """
 
     # Load experiment details into config
@@ -81,20 +82,21 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
 
     output_path = os.path.join(dirs.MODELS_DIR, output_model_id)
 
-    # Create a job in the DB with the details of this export
-    job_data = dict(
-        plugin=plugin_name,
-        input_model_id=input_model_id,
-        input_model_path=input_model_path,
-        input_model_architecture=input_model_architecture,
-        output_model_id=output_model_id,
-        output_model_architecture=output_model_architecture,
-        output_model_name=output_model_name,
-        output_model_path=output_path,
-        params=params,
-    )
-    job_data_json = json.dumps(job_data)
-    job_id = await db.export_job_create(experiment_id=id, job_data_json=job_data_json)
+    # Create a job in the DB with the details of this export (only if job_id not provided)
+    if job_id is None:
+        job_data = dict(
+            plugin=plugin_name,
+            input_model_id=input_model_id,
+            input_model_path=input_model_path,
+            input_model_architecture=input_model_architecture,
+            output_model_id=output_model_id,
+            output_model_architecture=output_model_architecture,
+            output_model_name=output_model_name,
+            output_model_path=output_path,
+            params=params,
+        )
+        job_data_json = json.dumps(job_data)
+        job_id = await db.export_job_create(experiment_id=id, job_data_json=job_data_json)
 
     # Setup arguments to pass to plugin
     args = [
@@ -186,7 +188,7 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
 
 @router.get("/jobs")
 async def get_export_jobs(id: int):
-    jobs = await db_jobs.jobs_get_all_by_experiment_and_type(id, "EXPORT_MODEL")
+    jobs = await db_jobs.jobs_get_all_by_experiment_and_type(id, "EXPORT")
     return jobs
 
 

@@ -324,7 +324,7 @@ async def test_export_job_create(test_experiment):
     job_id = await export_job_create(test_experiment, '{"plugin": "exp"}')
     job = await job_get(job_id)
     assert job is not None
-    assert job["type"] == "EXPORT_MODEL"
+    assert job["type"] == "EXPORT"
 
 
 pytest_plugins = ("pytest_asyncio",)
