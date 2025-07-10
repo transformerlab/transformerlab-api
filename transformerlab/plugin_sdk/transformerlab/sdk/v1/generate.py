@@ -58,9 +58,6 @@ class GenTLabPlugin(TLabPlugin):
         """
         self._ensure_args_parsed()
 
-        # Use dataset_id priority: explicit parameter > user input > default naming
-        if dataset_id is None:
-            dataset_id = self.params.get("output_dataset_name")
         if dataset_id is None:
             dataset_id = f"{self.params.run_name}_{self.params.job_id}".lower()
 

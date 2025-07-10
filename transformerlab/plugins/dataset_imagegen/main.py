@@ -83,7 +83,8 @@ def run_generation():
 
     # Save full metadata
     df = pd.DataFrame(final_outputs)
-    output_path, dataset_name = tlab_gen.save_generated_dataset(df, is_image=True)
+    custom_name = tlab_gen.params.get("output_dataset_name")
+    output_path, dataset_name = tlab_gen.save_generated_dataset(df, is_image=True, dataset_id=custom_name)
     print(f"Dataset saved to {output_path}")
 
     return True

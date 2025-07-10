@@ -72,13 +72,15 @@ def run_generation():
     # Generate data from context
     df = context_generation(tlab_gen.params.context, trlab_model, tlab_gen.params.get("num_goldens", 5))
 
-    # Save dataset using tlab_gen helper
+    # Save the generated outputs as a dataset
+    custom_name = tlab_gen.params.get("output_dataset_name")
     output_file, dataset_name = tlab_gen.save_generated_dataset(
         df,
         {
             "generation_method": "context",
             "num_goldens": tlab_gen.params.get("num_goldens", 5),
         },
+        dataset_id=custom_name,
     )
 
     print(f"Data generated successfully as dataset {dataset_name}")
