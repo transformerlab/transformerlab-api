@@ -1,8 +1,6 @@
 # Root dir is the parent of the parent of this current directory:
 
 import os
-from pathlib import Path
-
 import transformerlab.shared.dirs_workspace as dirs_workspace
 from transformerlab.db.db import experiment_get
 
