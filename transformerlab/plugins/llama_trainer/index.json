@@ -20,7 +20,8 @@
     "PhiForCausalLM",
     "Phi3ForCausalLM",
     "MistralForCausalLM",
-    "MixtralForCausalLM"
+    "MixtralForCausalLM",
+    "SmolLM3ForCausalLM"
   ],
   "supports": ["sweeps"],
   "git": "",

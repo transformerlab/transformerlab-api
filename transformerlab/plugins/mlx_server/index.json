@@ -4,7 +4,7 @@
   "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
   "plugin-format": "python",
   "type": "loader",
-  "version": "0.1.37",
+  "version": "0.1.38",
   "supports": [
     "chat",
     "completion",
@@ -35,6 +35,7 @@
     "Qwen2ForCausalLM",
     "Qwen3ForCausalLM",
     "Qwen3MoeForCausalLM",
+    "SmolLM3ForCausalLM",
     "Ernie4_5_ForCausalLM"
   ],
   "supported_hardware_architectures": ["mlx"],
