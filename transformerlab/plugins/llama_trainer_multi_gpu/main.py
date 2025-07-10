@@ -112,7 +112,7 @@ def train_model():
     print(f"Running with accelerate on {accelerator.num_processes} processes")
 
     jinja_environment = Environment()
-    use_flash_attention = False
+    # use_flash_attention = False
 
     # Get model info
     model_id = tlab_trainer.params.model_name
@@ -144,7 +144,6 @@ def train_model():
             model_id,
             quantization_config=bnb_config,
             use_cache=False,
-            use_flash_attention_2=use_flash_attention,
             device_map=device_map,
             trust_remote_code=True
         )
@@ -153,7 +152,6 @@ def train_model():
         model = AutoModelForCausalLM.from_pretrained(
                 model_id,
                 quantization_config=bnb_config,
-                use_flash_attention_2=use_flash_attention,
                 device_map=device_map,
                 trust_remote_code=True,
             )
@@ -276,7 +274,6 @@ def train_model():
                     model_id,
                     quantization_config=bnb_config,
                     use_cache=False,
-                    use_flash_attention_2=use_flash_attention,
                     device_map=None,
                     trust_remote_code=True,
                 )
@@ -284,7 +281,6 @@ def train_model():
                 model = AutoModelForCausalLM.from_pretrained(
                     model_id,
                     quantization_config=bnb_config,
-                    use_flash_attention_2=use_flash_attention,
                     device_map=None,
                     trust_remote_code=True,
                 )
