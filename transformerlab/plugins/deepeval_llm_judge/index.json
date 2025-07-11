@@ -73,7 +73,7 @@
   },
   "parameters_ui": {
     "predefined_tasks": {
-      "ui:help": "Select an evaluation metric from the drop-down list",
+      "ui:help": "Select one or more evaluation metrics from the drop-down list",
       "ui:widget": "AutoCompleteWidget"
     },
     "generation_model": {
