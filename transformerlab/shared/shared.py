@@ -322,7 +322,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             await db_jobs.job_update_status(job_id, "STOPPED")
             return {"status": "stopped", "job_id": job_id, "message": "Evaluation job was stopped by user"}
         else:
-            await db_jobs.job_update_status(job_id, "COMPLETE")
+            # Only set to COMPLETE if not already FAILED
+            current_status = await db_jobs.job_get_status(job_id)
+            if current_status != "FAILED":
+                await db_jobs.job_update_status(job_id, "COMPLETE")
             return {"status": "complete", "job_id": job_id, "message": "Evaluation job completed successfully"}
     elif master_job_type == "GENERATE":
         experiment = await experiment_get_by_name(experiment_name)
@@ -341,7 +344,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         if not os.path.exists(gen_output_file):
             with open(gen_output_file, "w") as f:
                 f.write("")
+                
         await run_generation_script(experiment_id, plugin_name, generation_name, job_id)
+
         # Check should_stop flag and update status accordingly
         job_row = await db_jobs.job_get(job_id)
         job_data = job_row.get("job_data", None)
@@ -353,8 +358,57 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             await db_jobs.job_update_status(job_id, "STOPPED")
             return {"status": "stopped", "job_id": job_id, "message": "Generation job was stopped by user"}
         else:
-            await db_jobs.job_update_status(job_id, "COMPLETE")
+            # Only set to COMPLETE if not already FAILED
+            current_status = await db_jobs.job_get_status(job_id)
+            if current_status != "FAILED":
+                await db_jobs.job_update_status(job_id, "COMPLETE")
             return {"status": "complete", "job_id": job_id, "message": "Generation job completed successfully"}
+    elif master_job_type == "EXPORT":
+        plugin_name = job_config["plugin"]
+        await db_jobs.job_update_status(job_id, "RUNNING")
+        print("Running export script")
+        WORKSPACE_DIR = dirs.WORKSPACE_DIR
+        output_temp_file_dir = os.path.join(WORKSPACE_DIR, "jobs", str(job_id))
+        if not os.path.exists(output_temp_file_dir):
+            os.makedirs(output_temp_file_dir)
+        export_output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
+        # Create output file if it doesn't exist
+        if not os.path.exists(export_output_file):
+            with open(export_output_file, "w") as f:
+                f.write("")
+
+        # Run the export script using the existing run_exporter_script function
+        from transformerlab.routers.experiment.export import run_exporter_script
+        
+        config = job_config["config"]
+        # Extract parameters from the job config
+        experiment_id = int(job_details["experiment_id"])
+        plugin_name = config["plugin_name"]
+        plugin_architecture = config["output_model_architecture"]
+        plugin_params = json.dumps(config["params"])
+        
+        # Call the existing run_exporter_script function with the existing job_id
+        result = await run_exporter_script(
+            id=experiment_id,
+            plugin_name=plugin_name,
+            plugin_architecture=plugin_architecture,
+            plugin_params=plugin_params,
+            job_id=job_id
+        )
+
+        # Check the result and update job status accordingly
+        if result.get("status") == "success":
+            # Only set to COMPLETE if not already FAILED
+            current_status = await db_jobs.job_get_status(job_id)
+            if current_status != "FAILED":
+                await db_jobs.job_update_status(job_id, "COMPLETE")
+                print(f"Export job {job_id} completed successfully")
+            return {"status": "complete", "job_id": job_id, "message": "Export job completed successfully"}
+            
+        else:
+            await db_jobs.job_update_status(job_id, "FAILED")
+            print(f"Export job {job_id} failed")
+            return {"status": "error", "job_id": job_id, "message": result.get("message", "Export job failed")}
 
     job_type = job_config["config"]["type"]
 
@@ -367,7 +421,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     experiment_id = job_details["experiment_id"]
     # Get the experiment details from the database:
     experiment_details = await experiment_get(experiment_id)
-    print("Experiment Details: " ,experiment_details)
+    print("Experiment Details: ", experiment_details)
     experiment_details_as_string = json.dumps(experiment_details)
     experiment_name = experiment_details["name"]
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
@@ -906,6 +960,7 @@ def print_in_rainbow(text):
             print(chunk, end="")
             print(reset, end="")
         print("", flush=True)
+
 
 def kill_sglang_subprocesses():
     current_pid = os.getpid()

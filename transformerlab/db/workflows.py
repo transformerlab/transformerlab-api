@@ -34,11 +34,10 @@ async def workflows_get_from_experiment(experiment_id):
         workflow_list = sqlalchemy_list_to_dict(workflows)
         # Make sure that the configs for each workflow are strings
         for workflow in workflow_list:
-            print(workflow)
             workflow_config = workflow.get("config", "")
             if isinstance(workflow_config, dict):
                 workflow["config"] = json.dumps(workflow_config)
-        
+
         return workflow_list
 
 
@@ -291,9 +290,7 @@ async def workflow_run_delete(workflow_run_id):
     """Soft delete a workflow run by setting status to DELETED"""
     async with async_session() as session:
         await session.execute(
-            update(models.WorkflowRun)
-            .where(models.WorkflowRun.id == workflow_run_id)
-            .values(status="DELETED")
+            update(models.WorkflowRun).where(models.WorkflowRun.id == workflow_run_id).values(status="DELETED")
         )
         await session.commit()
     return
