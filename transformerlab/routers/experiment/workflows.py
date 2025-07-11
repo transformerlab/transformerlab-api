@@ -1,6 +1,6 @@
 from fastapi import APIRouter, UploadFile, Body
 from fastapi.responses import FileResponse
-from transformerlab.db.db import tasks_get_all, tasks_get_by_type_in_experiment
+from transformerlab.db.db import tasks_get_by_type_in_experiment
 import transformerlab.db.jobs as db_jobs
 from transformerlab.db.workflows import (
     workflow_count_queued,
@@ -614,7 +614,7 @@ async def find_task_definition(task_name: str, workflow_run_id: int, experiment_
         if task.get("name") == task_name:
             return task
 
-    # if the task isnt found in this experiment
+    # if the task isnt found
     await workflow_run_update_status(workflow_run_id, "FAILED")
     return None
 
