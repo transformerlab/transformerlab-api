@@ -339,12 +339,18 @@ class TLabPlugin:
         # Load the appropriate model
         if model_type == "local":
             self.check_local_server()
+
+            verified_model_name = self.get_local_model_name()
+            if verified_model_name is not None and verified_model_name != "":
+                print(f"Using verified local model name: {verified_model_name}")
+                model_name = verified_model_name
+            
             custom_model = ChatOpenAI(
                 api_key="dummy",
                 base_url="http://localhost:8338/v1",
                 model=model_name,
             )
-            return self._create_local_model_wrapper(custom_model)
+            return self._create_local_model_wrapper(custom_model, model_name)
 
         elif model_type == "claude":
             anthropic_api_key = tlab_core.get_db_config_value("ANTHROPIC_API_KEY")
@@ -378,6 +384,32 @@ class TLabPlugin:
 
         else:
             raise ValueError(f"Unsupported model type: {model_type}")
+
+    def get_local_model_name(self):
+        """
+        Fetch model names from the local server
+        
+        Returns:
+            List of model names available on the local server, or None if error occurs
+        """
+        try:
+            response = requests.get("http://localhost:8338/v1/models", timeout=10)
+            response.raise_for_status()
+            
+            data = response.json()
+            if 'data' in data and isinstance(data['data'], list):
+                model_names = [model.get('id') for model in data['data'] if model.get('id')]
+                return model_names[0]
+            else:
+                print(f"Unexpected response format: {data}")
+                return None
+                
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching model names from local server: {str(e)}")
+            return None
+        except (KeyError, ValueError) as e:
+            print(f"Error parsing response from local server: {str(e)}")
+            return None
 
     def check_local_server(self):
         """Check if the local model server is running, and start it if not"""
@@ -458,13 +490,16 @@ class TLabPlugin:
             raise RuntimeError(error_msg)
 
 
-    def _create_local_model_wrapper(self, model):
+    def _create_local_model_wrapper(self, model, model_name = None):
         """Create a wrapper for local models"""
         # Import here to avoid circular imports
         from deepeval.models.base_model import DeepEvalBaseLLM  # noqa
         from langchain.schema import HumanMessage, SystemMessage  # noqa
 
-        plugin_model_name = self.params.model_name
+        if model_name is None:
+            plugin_model_name = self.params.model_name
+        else:
+            plugin_model_name = model_name
 
         class TRLAB_MODEL(DeepEvalBaseLLM):
             def __init__(self, model):
