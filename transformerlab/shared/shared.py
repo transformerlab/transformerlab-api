@@ -434,7 +434,6 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
         subprocess_command = [python_bin, dirs.PLUGIN_HARNESS] + extra_args
         print(f"[DIFFUSION] Running command: {subprocess_command}")
-
         try:
             with open(output_log_file, "w") as f:
                 try:
@@ -445,31 +444,29 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                         cwd=plugin_dir,
                     )
                     await process.communicate()
+
+                    if process.returncode == 0:
+                        await db_jobs.job_update_status(job_id, "COMPLETE")
+                        print(f"[DIFFUSION] Job {job_id} completed successfully")
+                        return {
+                            "status": "complete",
+                            "job_id": job_id,
+                            "message": "Diffusion job completed successfully",
+                        }
+                    else:
+                        await db_jobs.job_update_status(job_id, "FAILED")
+                        print(f"[DIFFUSION] Job {job_id} failed with return code {process.returncode}")
+                        return {"status": "error", "job_id": job_id, "message": "Diffusion job failed"}
                 except Exception as e:
-                    print(f"[DIFFUSION] Job {job_id} failed: {e}")
-
-            await db_jobs.job_update_status(job_id, "COMPLETE")
-            print(f"[DIFFUSION] Job {job_id} completed successfully")
-
+                    await db_jobs.job_update_status(job_id, "FAILED")
+                    print(f"[DIFFUSION] Job {job_id} execution error: {e}")
+                    return {"status": "error", "job_id": job_id, "message": "Diffusion job failed"}
         except Exception as e:
             await db_jobs.job_update_status(job_id, "FAILED")
-            print(f"[DIFFUSION] Job {job_id} failed: {e}")
+            print(f"[DIFFUSION] Job {job_id} failed opening log file or setup: {e}")
+            return {"status": "error", "job_id": job_id, "message": "Diffusion job failed"}
 
-        # Check should_stop flag and update status accordingly
-        job_row = await db_jobs.job_get(job_id)
-        job_data = job_row.get("job_data", None)
-        if job_data is None:
-            await db_jobs.job_update_status(job_id, "FAILED")
-            return {"status": "error", "job_id": job_id, "message": "Generation job failed: No job data found"}
-
-        if job_data.get("stop", False):
-            await db_jobs.job_update_status(job_id, "STOPPED")
-            return {"status": "stopped", "job_id": job_id, "message": "Generation job was stopped by user"}
-        else:
-            await db_jobs.job_update_status(job_id, "COMPLETE")
-            return {"status": "complete", "job_id": job_id, "message": "Generation job completed successfully"}
-
-    job_type = job_config["config"]["type"]
+    job_type = job_config["config"].get("type", "")
 
     # Get the plugin script name:
     template_config = job_config["config"]
