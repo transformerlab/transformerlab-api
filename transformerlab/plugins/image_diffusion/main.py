@@ -749,7 +749,7 @@ async def run_multi_gpu_generation(
     # current_dir = os.path.dirname(os.path.abspath(__file__))
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    worker_script = os.path.join(os.path.dirname(current_dir), "diffusion_worker.py")
+    worker_script = os.path.join(os.path.dirname(current_dir), "image_diffusion", "diffusion_worker.py")
 
     try:
         # Setup environment for accelerate
