@@ -356,7 +356,7 @@ async def training_jobs_get_all():
 
 
 async def export_job_create(experiment_id, job_data_json):
-    job_id = await job_create("EXPORT_MODEL", "Started", job_data_json, experiment_id)
+    job_id = await job_create("EXPORT", "Started", job_data_json, experiment_id)
     return job_id
 
 
