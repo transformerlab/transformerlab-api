@@ -296,7 +296,6 @@ async def watch_file(filename: str, start_from_beginning=False, force_polling=Tr
             print(f"Error seeking to end of file: {e}")
 
     async for changes in awatch(filename, force_polling=force_polling, poll_delay_ms=100):
-        print(f"📝 File changed: {filename}")
         with open(filename, "r") as f:
             f.seek(last_position)
             new_lines = f.readlines()
