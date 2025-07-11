@@ -4,7 +4,7 @@
   "description": "Generate tags/captions for image datasets using the WD14 tagger (Danbooru-style tagging via ONNX).",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
@@ -65,6 +65,11 @@
       "type": "integer",
       "default": 1,
       "minimum": 0
+    },
+    "output_dataset_name": {
+      "title": "Dataset Name",
+      "type": "string",
+      "default": "generated_dataset_captioner"
     }
   },
   "parameters_ui": {

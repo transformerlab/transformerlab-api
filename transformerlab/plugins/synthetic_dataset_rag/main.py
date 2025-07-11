@@ -181,7 +181,11 @@ def run_generation():
         "chunk_overlap": tlab_gen.params.chunk_overlap,
     }
 
-    output_file, dataset_name = tlab_gen.save_generated_dataset(df, additional_metadata=additional_metadata)
+    # Save the generated outputs as a dataset
+    custom_name = tlab_gen.params.get("output_dataset_name")
+    output_file, dataset_name = tlab_gen.save_generated_dataset(
+        df, additional_metadata=additional_metadata, dataset_id=custom_name
+    )
 
     print(f"QA dataset generated successfully as dataset {dataset_name}")
     return output_file

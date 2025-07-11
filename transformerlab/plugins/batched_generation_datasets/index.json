@@ -4,7 +4,7 @@
   "description": "Use a local or commercial LLM to generated outputs for the dataset generated.",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
@@ -62,6 +62,11 @@
       "title": "Dataset Split",
       "type": "string",
       "default": "train"
+    },
+    "output_dataset_name": {
+      "title": "Dataset Name",
+      "type": "string",
+      "default": "generated_dataset_batched"
     }
   },
   "parameters_ui": {
