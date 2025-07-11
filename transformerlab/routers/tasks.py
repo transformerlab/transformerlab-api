@@ -278,5 +278,18 @@ async def queue_task(task_id: int, input_override: str = "{}", output_override: 
             job_data["config"][key] = output_override[key]
             job_data["config"]["script_parameters"][key] = output_override[key]
         job_data["plugin"] = task_to_queue["plugin"]
-    job_id = await job_create(job_type, job_status, json.dumps(job_data), task_to_queue["experiment_id"])
+    elif job_type == "EXPORT":
+        job_data["exporter"] = task_to_queue["name"]
+        job_data["config"] = task_to_queue["config"]
+        for key in inputs.keys():
+            job_data["config"][key] = inputs[key]
+        for key in input_override.keys():
+            job_data["config"][key] = input_override[key]
+
+        for key in outputs.keys():
+            job_data["config"][key] = outputs[key]
+        for key in output_override.keys():
+            job_data["config"][key] = output_override[key]
+        job_data["plugin"] = task_to_queue["plugin"]
+    job_id = await job_create("EXPORT" if job_type == "EXPORT" else job_type, job_status, json.dumps(job_data), task_to_queue["experiment_id"])
     return {"id": job_id}
