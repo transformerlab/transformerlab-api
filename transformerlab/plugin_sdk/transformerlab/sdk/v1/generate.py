@@ -106,7 +106,7 @@ class GenTLabPlugin(TLabPlugin):
             print(f"Error uploading to TransformerLab: {e}")
             self.add_job_data("upload_error", str(e))
 
-        return output_file, self.params.run_name
+        return output_file, dataset_id
 
     def upload_to_transformerlab(self, output_file_path, dataset_id=None):
         """Create a dataset in TransformerLab from the generated file
@@ -141,7 +141,7 @@ class GenTLabPlugin(TLabPlugin):
             # Adding dataset so it can be previewed.
             self.add_job_data("additional_output_path", output_file_path)
 
-            print(f"Dataset '{self.params.run_name}_{self.params.job_id}' uploaded successfully to TransformerLab")
+            print(f"Dataset '{params['dataset_id']}' uploaded successfully to TransformerLab")
             return True
 
         except Exception as e:
