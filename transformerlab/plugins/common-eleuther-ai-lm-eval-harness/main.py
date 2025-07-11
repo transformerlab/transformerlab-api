@@ -89,11 +89,7 @@ def run_evaluation():
         # Build model args for CUDA-based evaluation
         model_args = f"pretrained={model_name},trust_remote_code=True"
 
-        if (
-            hasattr(tlab_evals, "model_adapter")
-            and tlab_evals.params.model_adapter
-            and tlab_evals.params.model_adapter.strip() != ""
-        ):
+        if tlab_evals.params.model_adapter and tlab_evals.params.model_adapter.strip() != "":
             adapter_path = os.path.join(
                 os.environ["_TFL_WORKSPACE_DIR"],
                 "adaptors",

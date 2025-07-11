@@ -185,10 +185,9 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
     model_type = config["foundation_model_architecture"]
     if "model_architecture" in generation_config.keys():
         model_type = generation_config["model_architecture"]
-
-    model_adapter = config.get("adaptor_name", "")
-    if "adaptor_name" in generation_config.keys():
-        model_adapter = generation_config["adaptor_name"]
+    model_adapter = config.get("model_adapter", "")
+    if "model_adapter" in generation_config.keys():
+        model_adapter = generation_config["model_adapter"]
 
     # @TODO: This whole thing can be re-written to use the shared function to run a plugin
 
