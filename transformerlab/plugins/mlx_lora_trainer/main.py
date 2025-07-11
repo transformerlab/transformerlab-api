@@ -4,27 +4,23 @@ Fine-Tuning with LoRA or QLoRA using MLX
 https://github.com/ml-explore/mlx-examples/blob/main/llms/mlx_lm/LORA.md
 """
 
-import json
 import yaml
 import re
 import subprocess
 import os
-from jinja2 import Environment
 
 
 # Import tlab_trainer from the SDK
 # from transformerlab.tlab_decorators import tlab_trainer
 from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import WORKSPACE_DIR
+from transformerlab.utils import prepare_dataset_files
 
 from transformerlab.plugin import get_python_executable
-
-from transformers import AutoTokenizer
 
 
 @tlab_trainer.job_wrapper(wandb_project_name="TLab_Training", manual_logging=True)
 def train_mlx_lora():
-    jinja_environment = Environment()
     plugin_dir = os.path.dirname(os.path.realpath(__file__))
     print("Plugin dir:", plugin_dir)
 
@@ -45,13 +41,10 @@ def train_mlx_lora():
     lora_rank = tlab_trainer.params.get("lora_rank", None)
     lora_alpha = tlab_trainer.params.get("lora_alpha", None)
 
-    #Check if chat template parameters are set
+    #Check if template parameters are set
     chat_template = tlab_trainer.params.get("formatting_chat_template", None)
     chat_column = tlab_trainer.params.get("chat_column", "messages")
-
-    tokenizer = None
-    if chat_template:
-        tokenizer = AutoTokenizer.from_pretrained(tlab_trainer.params.model_name, trust_remote_code=True)
+    formatting_template = tlab_trainer.params.get("formatting_template", None)
 
     if num_train_epochs is not None and num_train_epochs != "" and int(num_train_epochs) >= 0:
         if num_train_epochs == 0:
@@ -101,53 +94,15 @@ def train_mlx_lora():
     data_directory = f"{WORKSPACE_DIR}/plugins/mlx_lora_trainer/data"
     if not os.path.exists(data_directory):
         os.makedirs(data_directory)
-
-    if not chat_template:
-        # Go over each dataset split and render a new file based on the template
-        formatting_template = jinja_environment.from_string(tlab_trainer.params.formatting_template)
-
-    for split_name in datasets:
-        # Get the dataset from our loaded datasets
-        dataset_split = datasets[split_name]
-
-        print(f"Processing {split_name} dataset with {len(dataset_split)} examples.")
-
-        # Output training files in templated format into data directory
-        with open(f"{data_directory}/{split_name}.jsonl", "w") as f:
-            for i in range(len(dataset_split)):
-                example = dataset_split[i]
-                if not chat_template:
-                    data_line = dict(example)
-                    line = formatting_template.render(data_line)
-                    # Convert line breaks to "\n" so that the jsonl file is valid
-                    line = line.replace("\n", "\\n")
-                    line = line.replace("\r", "\\r")
-                    o = {"text": line}
-                    f.write(json.dumps(o) + "\n")
-                elif tokenizer:
-                    rendered = tokenizer.apply_chat_template(
-                    example[chat_column],
-                    tokenize=False,
-                    add_generation_prompt=False,
-                    chat_template=chat_template
-                )
-                    rendered = rendered.replace("\n", "\\n").replace("\r", "\\r")
-                    f.write(json.dumps({"text": rendered}) + "\n")
-                else:
-                    raise ValueError("No formatting template found.")                    
-    if not chat_template:
-        print("Example formatted training example:")
-        example = formatting_template.render(dict(datasets["train"][0]))
-        print(example)
-    else:
-        print("Example formatted training example:")
-        example = tokenizer.apply_chat_template(
-            datasets["train"][0][chat_column],
-            tokenize=False,
-            add_generation_prompt=False,
-            chat_template=chat_template
-        )
-        print(example)
+    
+    prepare_dataset_files(
+        data_directory=data_directory,
+        datasets=datasets,
+        formatting_template=formatting_template,
+        chat_template=chat_template,
+        model_name=tlab_trainer.params.model_name,
+        chat_column=chat_column
+    )
 
     # Set output directory for the adaptor
     adaptor_output_dir = tlab_trainer.params.get("adaptor_output_dir", "")
