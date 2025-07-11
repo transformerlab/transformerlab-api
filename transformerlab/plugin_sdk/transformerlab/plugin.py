@@ -451,6 +451,10 @@ class Job:
             # Add to job data completion_status and completion_details
             self.add_to_job_data("completion_status", completion_status)
             self.add_to_job_data("completion_details", completion_details)
+            
+            # Update the job status field if there's a failure
+            if completion_status == "failed":
+                self.update_status("FAILED")
 
             # # Initialize job_data as empty JSON object if it's NULL
             # self.db.execute(
