@@ -256,7 +256,6 @@ async def export_experiment_to_recipe(id: int):
         tasks = await db.tasks_get_by_type_in_experiment(task_type, id)
         for task in tasks:
             task_config = json.loads(task["config"])
-            # print("TASK CONFIG:", task_config)
 
             # Add model dependency from task
             if task_type == "EXPORT":
