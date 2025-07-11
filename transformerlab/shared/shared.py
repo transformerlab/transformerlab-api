@@ -341,7 +341,13 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         if not os.path.exists(gen_output_file):
             with open(gen_output_file, "w") as f:
                 f.write("")
-        await run_generation_script(experiment_id, plugin_name, generation_name, job_id)
+        try:
+            await run_generation_script(experiment_id, plugin_name, generation_name, job_id)
+        except Exception as e:
+            print(f"Generation script failed with error: {e}")
+            await db_jobs.job_update_status(job_id, "FAILED")
+            return {"status": "error", "job_id": job_id, "message": f"Generation job failed: {str(e)}"}
+
         # Check should_stop flag and update status accordingly
         job_row = await db_jobs.job_get(job_id)
         job_data = job_row.get("job_data", None)
@@ -367,7 +373,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     experiment_id = job_details["experiment_id"]
     # Get the experiment details from the database:
     experiment_details = await experiment_get(experiment_id)
-    print("Experiment Details: " ,experiment_details)
+    print("Experiment Details: ", experiment_details)
     experiment_details_as_string = json.dumps(experiment_details)
     experiment_name = experiment_details["name"]
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
@@ -906,6 +912,7 @@ def print_in_rainbow(text):
             print(chunk, end="")
             print(reset, end="")
         print("", flush=True)
+
 
 def kill_sglang_subprocesses():
     current_pid = os.getpid()
