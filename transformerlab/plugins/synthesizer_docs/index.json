@@ -4,7 +4,7 @@
   "description": "Use LLMs to create synthetic data for your usecases from reference documents.",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "git": "https://github.com/confident-ai/deepeval",
   "url": "https://github.com/confident-ai/deepeval",
   "files": ["main.py", "setup.sh"],
@@ -65,6 +65,11 @@
         "anchor | positive | negative_1 | negative_2 | ... | negative_n",
         "id | anchor | positive"
       ]
+    },
+    "output_dataset_name": {
+      "title": "Dataset Name",
+      "type": "string",
+      "default": "generated_dataset_docs_synth"
     }
   },
   "parameters_ui": {
