@@ -371,7 +371,7 @@ async def sweep_results(job_id: str):
             logging.warning(f"Sweep results file not found for job {job_id}: {output_file}")
             return {"status": "error", "message": "Sweep results file not found."}
         
-    except ValueError as e:
+    except Exception as e:
         logging.error(f"Error loading sweep results for job {job_id}: {e}")
         return {"status": "error", "message": "An internal error has occurred!"}
 
