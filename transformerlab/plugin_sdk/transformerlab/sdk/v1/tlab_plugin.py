@@ -42,6 +42,9 @@ class TLabPlugin:
 
         # Flag to track if args have been parsed
         self._args_parsed = False
+        
+        # Flag to track if worker was started by this SDK instance
+        self.WORKER_STARTED = False
 
     @property
     def job(self):
@@ -105,6 +108,10 @@ class TLabPlugin:
                     if manual_logging and getattr(self.params, "wandb_run") is not None:
                         self.wandb_run.finish()
 
+                    # Stop worker if it was started by this SDK instance
+                    if self.WORKER_STARTED:
+                        self.stop_worker()
+
                     return result
 
                 except Exception as e:
@@ -117,6 +124,10 @@ class TLabPlugin:
                     self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                     if manual_logging and getattr(self.params, "wandb_run") is not None:
                         self.wandb_run.finish()
+
+                    # Stop worker if it was started by this SDK instance
+                    if self.WORKER_STARTED:
+                        self.stop_worker()
 
                     # Re-raise the exception
                     raise
@@ -173,6 +184,10 @@ class TLabPlugin:
                         if manual_logging and getattr(self, "wandb_run") is not None:
                             self.wandb_run.finish()
 
+                        # Stop worker if it was started by this SDK instance
+                        if self.WORKER_STARTED:
+                            self.stop_worker()
+
                         return result
 
                     except Exception as e:
@@ -185,6 +200,10 @@ class TLabPlugin:
                         self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                         if manual_logging and getattr(self, "wandb_run") is not None:
                             self.wandb_run.finish()
+
+                        # Stop worker if it was started by this SDK instance
+                        if self.WORKER_STARTED:
+                            self.stop_worker()
 
                         # Re-raise the exception
                         raise
@@ -424,6 +443,8 @@ class TLabPlugin:
         # Server is not running, try to start it and wait for it to be ready
         print("Starting local model server...")
         self._start_worker_sync()
+        # Mark that we started the worker
+        self.WORKER_STARTED = True
 
     def _start_worker_sync(self):
         """Start the local model server and wait for it to be ready"""
@@ -472,6 +493,7 @@ class TLabPlugin:
                         health_response = requests.get("http://localhost:8338/server/worker_healthz", timeout=5)
                         if health_response.status_code == 200 and isinstance(health_response.json(), list) and len(health_response.json()) > 0:
                             print("Worker is now running and healthy")
+                            self.WORKER_STARTED = True
                             return
                     except requests.exceptions.RequestException:
                         pass
@@ -489,6 +511,22 @@ class TLabPlugin:
             print(error_msg)
             raise RuntimeError(error_msg)
 
+    def stop_worker(self):
+        """Stop the local model server worker"""
+        try:
+            print("Stopping local model server worker...")
+            response = requests.get("http://localhost:8338/server/worker_stop", timeout=10)
+            
+            if response.status_code == 200:
+                print("Worker stopped successfully")
+                self.WORKER_STARTED = False
+            else:
+                print(f"Failed to stop worker. Status: {response.status_code}, Response: {response.text}")
+                
+        except requests.exceptions.RequestException as e:
+            print(f"Error stopping worker: {str(e)}")
+            # Don't raise an exception here as this is cleanup code
+            # and we don't want to mask the original error if this is called from an exception handler
 
     def _create_local_model_wrapper(self, model, model_name = None):
         """Create a wrapper for local models"""

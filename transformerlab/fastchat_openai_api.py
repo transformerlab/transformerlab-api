@@ -522,7 +522,7 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
             )
         )
         if "usage" in content:
-            task_usage = UsageInfo.parse_obj(content["usage"])
+            task_usage = UsageInfo.model_validate(content["usage"])
             for usage_key, usage_value in task_usage.model_dump().items():
                 setattr(usage, usage_key, getattr(usage, usage_key) + usage_value)
 
@@ -687,11 +687,11 @@ async def create_completion(request: ModifiedCompletionRequest):
                 }
             )
 
-            task_usage = UsageInfo.parse_obj(content["usage"])
+            task_usage = UsageInfo.model_validate(content["usage"])
             for usage_key, usage_value in task_usage.model_dump().items():
                 setattr(usage, usage_key, getattr(usage, usage_key) + usage_value)
 
-        return CompletionResponse(model=request.model, choices=choices, usage=UsageInfo.parse_obj(usage))
+        return CompletionResponse(model=request.model, choices=choices, usage=UsageInfo.model_validate(usage))
 
 
 def convert_to_openai_format(token_data):
@@ -1111,7 +1111,7 @@ async def create_chat_completion(request: APIChatCompletionRequest):
                 finish_reason=content.get("finish_reason", "stop"),
             )
         )
-        task_usage = UsageInfo.parse_obj(content["usage"])
+        task_usage = UsageInfo.model_validate(content["usage"])
         for usage_key, usage_value in task_usage.model_dump().items():
             setattr(usage, usage_key, getattr(usage, usage_key) + usage_value)
 
