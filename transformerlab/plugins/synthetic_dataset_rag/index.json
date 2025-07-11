@@ -4,7 +4,7 @@
   "description": "Generate synthetic question-answer pairs from documents for RAG system evaluation.",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
@@ -40,6 +40,11 @@
       "default": 10,
       "minimum": 1,
       "required": true
+    },
+    "output_dataset_name": {
+      "title": "Dataset Name",
+      "type": "string",
+      "default": "generated_dataset_rag"
     }
   },
   "parameters_ui": {

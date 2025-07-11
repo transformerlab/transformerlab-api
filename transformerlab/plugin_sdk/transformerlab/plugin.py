@@ -275,6 +275,18 @@ class Job:
             return row[0]
         return None
 
+    def get_experiment_id(self):
+        """
+        Get the experiment_id of this job.
+        """
+        cursor = self.db.execute("SELECT experiment_id FROM job WHERE id = ?", (self.id,))
+        row = cursor.fetchone()
+        cursor.close()
+
+        if row is not None:
+            return row[0]
+        return None
+
     def get_job_data(self):
         """
         Get the job_data of this job.

@@ -179,7 +179,10 @@ async def run_evaluation():
             "record_count": len(results),
         }
 
-        output_file, dataset_name = tlab_gen.save_generated_dataset(results_df, additional_metadata=additional_metadata)
+        custom_name = tlab_gen.params.get("output_dataset_name")
+        output_file, dataset_name = tlab_gen.save_generated_dataset(
+            results_df, additional_metadata=additional_metadata, dataset_id=custom_name
+        )
 
         print(f"RAG evaluation completed successfully. Results saved as dataset '{dataset_name}'.")
         return output_file
