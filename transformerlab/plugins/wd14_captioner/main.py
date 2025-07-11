@@ -123,7 +123,9 @@ def run_generation():
 
     tlab_gen.progress_update(60)
 
-    output_path, dataset_name = tlab_gen.save_generated_dataset(df_output, is_image=True)
+    # Save the results as a dataset
+    custom_name = tlab_gen.params.get("output_dataset_name")
+    output_path, dataset_name = tlab_gen.save_generated_dataset(df_output, is_image=True, dataset_id=custom_name)
     dataset_id = f"{tlab_gen.params.run_name}_{tlab_gen.params.job_id}".lower()
     output_dir = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "datasets", dataset_id)
     for src, dst in zip(local_paths, df_output["file_name"]):

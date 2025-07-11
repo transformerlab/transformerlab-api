@@ -349,7 +349,9 @@ def run_generation():
         os.remove(config_path)
 
     df = pd.DataFrame(final_outputs)
-    output_path, dataset_name = tlab_gen.save_generated_dataset(df)
+    # Save the generated dataset
+    custom_name = tlab_gen.params.get("output_dataset_name")
+    output_path, dataset_name = tlab_gen.save_generated_dataset(df, dataset_id=custom_name)
     print(f"Dataset saved to {output_path}")
 
     # Clean up all synthetic-data-kit working folders created in the plugin root (if any)
