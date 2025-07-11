@@ -322,7 +322,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             await db_jobs.job_update_status(job_id, "STOPPED")
             return {"status": "stopped", "job_id": job_id, "message": "Evaluation job was stopped by user"}
         else:
-            await db_jobs.job_update_status(job_id, "COMPLETE")
+            # Only set to COMPLETE if not already FAILED
+            current_status = await db_jobs.job_get_status(job_id)
+            if current_status != "FAILED":
+                await db_jobs.job_update_status(job_id, "COMPLETE")
             return {"status": "complete", "job_id": job_id, "message": "Evaluation job completed successfully"}
     elif master_job_type == "GENERATE":
         experiment = await experiment_get_by_name(experiment_name)
@@ -342,12 +345,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         if not os.path.exists(gen_output_file):
             with open(gen_output_file, "w") as f:
                 f.write("")
-        try:
-            await run_generation_script(experiment_id, plugin_name, generation_name, job_id)
-        except Exception as e:
-            print(f"Generation script failed with error: {e}")
-            await db_jobs.job_update_status(job_id, "FAILED")
-            return {"status": "error", "job_id": job_id, "message": f"Generation job failed: {str(e)}"}
+                
+        await run_generation_script(experiment_id, plugin_name, generation_name, job_id)
 
         # Check should_stop flag and update status accordingly
         job_row = await db_jobs.job_get(job_id)
@@ -360,7 +359,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             await db_jobs.job_update_status(job_id, "STOPPED")
             return {"status": "stopped", "job_id": job_id, "message": "Generation job was stopped by user"}
         else:
-            await db_jobs.job_update_status(job_id, "COMPLETE")
+            # Only set to COMPLETE if not already FAILED
+            current_status = await db_jobs.job_get_status(job_id)
+            if current_status != "FAILED":
+                await db_jobs.job_update_status(job_id, "COMPLETE")
             return {"status": "complete", "job_id": job_id, "message": "Generation job completed successfully"}
     elif master_job_type == "EXPORT":
         plugin_name = job_config["plugin"]
@@ -397,8 +399,11 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
         # Check the result and update job status accordingly
         if result.get("status") == "success":
-            await db_jobs.job_update_status(job_id, "COMPLETE")
-            print(f"Export job {job_id} completed successfully")
+            # Only set to COMPLETE if not already FAILED
+            current_status = await db_jobs.job_get_status(job_id)
+            if current_status != "FAILED":
+                await db_jobs.job_update_status(job_id, "COMPLETE")
+                print(f"Export job {job_id} completed successfully")
             return {"status": "complete", "job_id": job_id, "message": "Export job completed successfully"}
             
         else:
