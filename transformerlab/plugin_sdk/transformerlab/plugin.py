@@ -456,10 +456,6 @@ class Job:
             if completion_status == "failed":
                 self.update_status("FAILED")
 
-            # Update the job status field if there's a failure
-            if completion_status == "failed":
-                self.update_status("FAILED")
-
             # # Initialize job_data as empty JSON object if it's NULL
             # self.db.execute(
             #     "UPDATE job SET job_data = COALESCE(job_data, '{}') WHERE id = ? AND job_data IS NULL", (self.id,)

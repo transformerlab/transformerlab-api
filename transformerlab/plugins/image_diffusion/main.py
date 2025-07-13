@@ -6,9 +6,8 @@ from io import BytesIO
 import torch
 import asyncio
 import threading
-import queue
 import gc
-import argparse
+from transformerlab.plugin import WORKSPACE_DIR
 from diffusers import (
     StableDiffusionUpscalePipeline,
     StableDiffusionLatentUpscalePipeline,
@@ -45,7 +44,6 @@ import time
 from PIL import Image
 
 from transformerlab.sdk.v1.diffusion import tlab_diffusion
-import logging
 import numpy as np
 import subprocess
 
@@ -144,7 +142,7 @@ def preprocess_for_controlnet(input_pil: Image.Image, process_type: str) -> Imag
 
 # Request schema for image generation
 class DiffusionRequest(BaseModel):
-    plugin: str = "image"
+    plugin: str = "image_diffusion"
     model: str
     prompt: str = ""
     adaptor: str = ""
@@ -184,46 +182,6 @@ class DiffusionRequest(BaseModel):
     is_controlnet: str = ""  # Check if using ControlNet
     # Intermediate image saving
     save_intermediate_images: bool = True  # Whether to save intermediate images during generation
-
-
-class DiffusionOutputCapture:
-    """Context manager to capture all stdout/stderr and redirect to diffusion logger"""
-
-    def __init__(self):
-        self.original_stdout = None
-        self.original_stderr = None
-
-    def __enter__(self):
-        # Store original stdout/stderr
-        self.original_stdout = sys.stdout
-        self.original_stderr = sys.stderr
-
-        # Redirect to our logger
-        sys.stdout = LoggerWriter(diffusion_logger.info)
-        sys.stderr = LoggerWriter(diffusion_logger.info)
-
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        # Restore original stdout/stderr
-        sys.stdout = self.original_stdout
-        sys.stderr = self.original_stderr
-
-
-class LoggerWriter:
-    """Writer class that redirects output to logger"""
-
-    def __init__(self, level):
-        self.level = level
-        self.buffer = ""
-
-    def write(self, message):
-        message = message.strip()
-        if message and "📝 File changed:" not in message:
-            self.level(message)
-
-    def flush(self):
-        pass  # Needed for compatibility with some tools that use flush()
 
 
 # Response schema for history
@@ -272,54 +230,6 @@ def load_controlnet_model(controlnet_id: str, device: str = "cuda") -> ControlNe
     return controlnet_model
 
 
-def _setup_diffusion_logger():
-    """Setup logging for the diffusion router that logs to both console and file"""
-    WORKSPACE_DIR = os.environ.get("_TFL_WORKSPACE_DIR")
-
-    if not WORKSPACE_DIR:
-        raise RuntimeError("Missing _TFL_WORKSPACE_DIR")
-
-    # Get the absolute parent directory of WORKSPACE_DIR
-    HOME_DIR = os.path.abspath(os.path.join(WORKSPACE_DIR, ".."))
-    GLOBAL_LOG_PATH = os.path.join(HOME_DIR, "transformerlab.log")
-    logger = logging.getLogger("diffusion")
-
-    # Avoid adding handlers multiple times
-    if logger.handlers:
-        return logger
-
-    logger.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(asctime)s [DIFFUSION] [%(levelname)s] %(message)s")
-
-    # File handler
-    try:
-        file_handler = logging.FileHandler(GLOBAL_LOG_PATH, encoding="utf-8")
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-    except Exception:
-        pass  # Continue without file logging if there's an issue
-
-    # Console handler
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
-
-    # Prevent propagation to root logger to avoid affecting other routes
-    logger.propagate = False
-
-    return logger
-
-
-# Initialize the diffusion logger
-diffusion_logger = _setup_diffusion_logger()
-
-
-def log_print(*args, **kwargs):
-    """Enhanced logging function for diffusion router"""
-    message = " ".join(str(arg) for arg in args)
-    diffusion_logger.info(message)
-
-
 def latents_to_rgb(latents):
     """Convert SDXL latents (4 channels) to RGB tensors (3 channels)"""
     weights = (
@@ -349,7 +259,7 @@ def create_decode_callback(images_folder):
             step_image_path = os.path.join(images_folder, "step.png")
             image.save(step_image_path)
         except Exception as e:
-            log_print(f"Warning: Failed to save intermediate image for step {step}: {str(e)}")
+            print(f"Warning: Failed to save intermediate image for step {step}: {str(e)}")
 
         return callback_kwargs
 
@@ -389,7 +299,7 @@ def cleanup_pipeline(pipe=None):
             torch.cuda.empty_cache()  # Second empty_cache call
 
     except Exception as e:
-        log_print(f"Warning: Failed to cleanup pipeline: {str(e)}")
+        print(f"Warning: Failed to cleanup pipeline: {str(e)}")
 
 
 def get_pipeline(
@@ -427,7 +337,7 @@ def get_pipeline(
                 "StableDiffusion3Pipeline": StableDiffusion3ControlNetPipeline,
             }
 
-            log_print(f"Loading ControlNet pipeline ({controlnet_id}) for model: {model}")
+            print(f"Loading ControlNet pipeline ({controlnet_id}) for model: {model}")
 
             try:
                 info = model_info(model)
@@ -445,7 +355,7 @@ def get_pipeline(
             if not controlnet_pipeline:
                 raise ValueError("ControlNet architecture not supported")
 
-            log_print(f"Loaded ControlNet pipeline {controlnet_pipeline} for model {model}")
+            print(f"Loaded ControlNet pipeline {controlnet_pipeline} for model {model}")
             pipe = controlnet_pipeline.from_pretrained(
                 model,
                 controlnet=controlnet_model,
@@ -461,7 +371,7 @@ def get_pipeline(
                 safety_checker=None,
                 requires_safety_checker=False,
             )
-            log_print(f"Loaded inpainting pipeline for model: {model}")
+            print(f"Loaded inpainting pipeline for model: {model}")
         elif is_img2img:
             pipe = AutoPipelineForImage2Image.from_pretrained(
                 model,
@@ -469,7 +379,7 @@ def get_pipeline(
                 safety_checker=None,
                 requires_safety_checker=False,
             )
-            log_print(f"Loaded image-to-image pipeline for model: {model}")
+            print(f"Loaded image-to-image pipeline for model: {model}")
         else:
             pipe = AutoPipelineForText2Image.from_pretrained(
                 model,
@@ -477,14 +387,14 @@ def get_pipeline(
                 safety_checker=None,
                 requires_safety_checker=False,
             )
-            log_print(f"Loaded text-to-image pipeline for model: {model} with dtype {pipe.dtype}")
+            print(f"Loaded text-to-image pipeline for model: {model} with dtype {pipe.dtype}")
         pipe = pipe.to(device)
 
         # Load LoRA adaptor if provided - same code for local and HF Hub!
         if adaptor and adaptor.strip():
             try:
                 adaptor_dir = os.path.join(
-                    os.environ.get("_TFL_WORKSPACE_DIR"),
+                    WORKSPACE_DIR,
                     "adaptors",
                     secure_filename(model),
                 )
@@ -508,45 +418,45 @@ def get_pipeline(
                     #                     state_dict, network_alphas = pipe.lora_state_dict(adaptor_path, prefix=None)
                     #                     pipe.load_lora_into_unet(state_dict, network_alphas=network_alphas, unet=pipe.unet)
                     #                 except Exception as e2:
-                    #                     log_print(f"Warning: Failed to load LoRA adaptor '{adaptor}' with TFLab trainer info")
-                    #                     log_print(f"Adaptor path: {adaptor_path}")
-                    #                     log_print(f"Error: {str(e2)}")
+                    #                     print(f"Warning: Failed to load LoRA adaptor '{adaptor}' with TFLab trainer info")
+                    #                     print(f"Adaptor path: {adaptor_path}")
+                    #                     print(f"Error: {str(e2)}")
                     #         else:
                     #             # Load LoRA weights for non-TFLab adaptors
                     #             pipe.load_lora_weights(adaptor_path)
                     #     else:
                     #         # If no JSON file, assume it's a standard LoRA adaptor
-                    #         log_print(f"No TFLab adaptor info found for {adaptor}, loading as standard LoRA")
+                    #         print(f"No TFLab adaptor info found for {adaptor}, loading as standard LoRA")
                     #         pipe.load_lora_weights(adaptor_path)
                     # pipe.load_lora_weights(adaptor_path)
-                    log_print(f"Loaded LoRA adaptor: {adaptor}")
+                    print(f"Loaded LoRA adaptor: {adaptor}")
                 else:
-                    log_print(
+                    print(
                         f"Warning: No LoRA adaptor found at {adaptor_path}, trying to load as standard LoRA from Huggingface"
                     )
                     pipe.load_lora_weights(adaptor_path)
             except Exception as e:
-                log_print(f"Warning: Failed to load LoRA adaptor '{adaptor}'")
-                log_print(f"Adaptor path: {adaptor_path}")
-                log_print(
+                print(f"Warning: Failed to load LoRA adaptor '{adaptor}'")
+                print(f"Adaptor path: {adaptor_path}")
+                print(
                     "Try checking if the adaptor and model are compatible in terms of shapes. Some adaptors may not work with all models even if it is the same architecture."
                 )
-                log_print(f"Error: {str(e)}")
+                print(f"Error: {str(e)}")
                 # Continue without LoRA rather than failing
-        log_print(f"[DEBUG] Received scheduler value: {scheduler}")
+        print(f"[DEBUG] Received scheduler value: {scheduler}")
 
         # This will trap missing keys
         try:
             if scheduler != "default":
                 scheduler_class = scheduler_map[scheduler]
                 pipe.scheduler = scheduler_class.from_config(pipe.scheduler.config)
-                log_print(f"[DEBUG] Set scheduler to: {type(pipe.scheduler).__name__}")
+                print(f"[DEBUG] Set scheduler to: {type(pipe.scheduler).__name__}")
         except KeyError:
-            log_print(f"[ERROR] Unknown scheduler: {scheduler}")
+            print(f"[ERROR] Unknown scheduler: {scheduler}")
         except Exception as e:
-            log_print(f"[ERROR] Failed to apply scheduler {scheduler}: {e}")
+            print(f"[ERROR] Failed to apply scheduler {scheduler}: {e}")
 
-        log_print(f"Using scheduler: {type(pipe.scheduler).__name__}")
+        print(f"Using scheduler: {type(pipe.scheduler).__name__}")
 
         # _PIPELINES[cache_key] = pipe
         return pipe
@@ -772,7 +682,7 @@ async def run_multi_gpu_generation(
             generation_id,
         ]
 
-        log_print(f"Running multi-GPU generation with command: {' '.join(cmd)}")
+        print(f"Running multi-GPU generation with command: {' '.join(cmd)}")
 
         # Start the process asynchronously
         process = await asyncio.create_subprocess_exec(
@@ -788,7 +698,7 @@ async def run_multi_gpu_generation(
             line = await process.stdout.readline()
             if line:
                 line_text = line.decode("utf-8").rstrip()
-                log_print(line_text)  # Print to console in real-time
+                print(line_text)  # Print to console in real-time
                 output_lines.append(line_text + "\n")
             else:
                 break
@@ -800,8 +710,8 @@ async def run_multi_gpu_generation(
         combined_output = "".join(output_lines)
 
         if return_code != 0:
-            log_print(f"Worker subprocess failed with return code {return_code}")
-            log_print(f"Combined output: {combined_output}")
+            print(f"Worker subprocess failed with return code {return_code}")
+            print(f"Combined output: {combined_output}")
 
             # Check if it's an OOM error (exitcode -9 indicates process was killed)
             if return_code == -9 or "CUDA out of memory" in combined_output or "OutOfMemoryError" in combined_output:
@@ -858,7 +768,7 @@ async def run_multi_gpu_generation(
         }
 
     except subprocess.TimeoutExpired:
-        log_print("Multi-GPU generation timed out")
+        print("Multi-GPU generation timed out")
         raise RuntimeError("Generation timed out after 10 minutes")
     except Exception as e:
         # Clean up config file on error
@@ -869,8 +779,57 @@ async def run_multi_gpu_generation(
         raise e
 
 
-@tlab_diffusion.job_wrapper(progress_start=0, progress_end=100)
-async def diffusion_generate_job(job_id: str, job_config: dict):
+@tlab_diffusion.async_job_wrapper(progress_start=0, progress_end=100)
+async def diffusion_generate_job():
+    job_config = {
+        "plugin": tlab_diffusion.params.get("plugin", "image_diffusion"),
+        "model": tlab_diffusion.params.get("model", ""),
+        "prompt": tlab_diffusion.params.get("prompt", ""),
+        "adaptor": tlab_diffusion.params.get("adaptor", ""),
+        "use_multi_gpu": tlab_diffusion.params.get("use_multi_gpu", False),
+        "enable_sharding": tlab_diffusion.params.get("enable_sharding", True),
+        "adaptor_scale": tlab_diffusion.params.get("adaptor_scale", 1.0),
+        "num_inference_steps": tlab_diffusion.params.get("num_inference_steps", 30),
+        "guidance_scale": tlab_diffusion.params.get("guidance_scale", 7.5),
+        "seed": tlab_diffusion.params.get("seed", None),
+        "upscale": tlab_diffusion.params.get("upscale", False),
+        "upscale_factor": tlab_diffusion.params.get("upscale_factor", 4),
+        "num_images": tlab_diffusion.params.get("num_images", 1),
+        "generation_id": tlab_diffusion.params.get("generation_id", None),
+        "scheduler": tlab_diffusion.params.get("scheduler", "default"),
+        "process_type": tlab_diffusion.params.get("process_type", None),
+        "negative_prompt": tlab_diffusion.params.get("negative_prompt", ""),
+        "eta": tlab_diffusion.params.get("eta", 0.0),
+        "clip_skip": tlab_diffusion.params.get("clip_skip", 0),
+        "guidance_rescale": tlab_diffusion.params.get("guidance_rescale", 0.0),
+        "height": tlab_diffusion.params.get("height", 0),
+        "width": tlab_diffusion.params.get("width", 0),
+        "input_image_path": tlab_diffusion.params.get("input_image_path", ""),
+        "strength": tlab_diffusion.params.get("strength", 0.8),
+        "is_img2img": tlab_diffusion.params.get("is_img2img", False),
+        "mask_image_path": tlab_diffusion.params.get("mask_image_path", ""),
+        "is_inpainting": tlab_diffusion.params.get("is_inpainting", False),
+        "is_controlnet": tlab_diffusion.params.get("is_controlnet", ""),
+        "save_intermediate_images": tlab_diffusion.params.get("save_intermediate_images", True),
+    }
+    # Convert image files back to base64 if present
+    image_path_keys = {
+        "input_image_path": "input_image",
+        "mask_image_path": "mask_image",
+    }
+
+    for path_key, base64_key in image_path_keys.items():
+        if path_key in job_config and job_config[path_key]:
+            try:
+                with open(job_config[path_key], "rb") as f:
+                    encoded = base64.b64encode(f.read()).decode("utf-8")
+                job_config[base64_key] = encoded
+            except Exception as e:
+                print(f"[main.py] Failed to encode {path_key}: {e}", flush=True)
+            finally:
+                # Remove the path key to avoid confusion downstream
+                del job_config[path_key]
+
     try:
         tlab_diffusion.progress_update(0)
         request = DiffusionRequest(**job_config)
@@ -927,21 +886,21 @@ async def diffusion_generate_job(job_id: str, job_config: dict):
                 input_image_filename = f"input_{uuid_suffix}.png"
                 input_image_path = os.path.join(get_images_dir(), input_image_filename)
                 input_image_obj.save(input_image_path, format="PNG")
-                log_print(f"Input image saved: {input_image_path}")
+                print(f"Input image saved: {input_image_path}")
 
                 if is_controlnet and input_image_obj:
-                    log_print(f"Running preprocessing for controlnet_id={controlnet_id}")
+                    print(f"Running preprocessing for controlnet_id={controlnet_id}")
                     try:
                         if process_type is not None:
                             input_image_obj = preprocess_for_controlnet(input_image_obj, process_type)
                         else:
-                            logging.error("You must select a image preprocessing type for the ControlNet.")
+                            print("You must select a image preprocessing type for the ControlNet.")
 
                         # Save preprocessed image
                         preprocessed_image_filename = f"preprocessed_{uuid_suffix}.png"
                         preprocessed_image_path = os.path.join(get_images_dir(), preprocessed_image_filename)
                         input_image_obj.save(preprocessed_image_path, format="PNG")
-                        log_print(f"Preprocessed image saved: {preprocessed_image_path}")
+                        print(f"Preprocessed image saved: {preprocessed_image_path}")
                     except Exception as e:
                         raise HTTPException(status_code=400, detail=f"Preprocessing failed: {str(e)}")
             except Exception as e:
@@ -958,7 +917,7 @@ async def diffusion_generate_job(job_id: str, job_config: dict):
                 mask_image_filename = f"mask_{uuid_suffix}.png"
                 mask_image_path = os.path.join(get_images_dir(), mask_image_filename)
                 mask_image_obj.save(mask_image_path, format="PNG")
-                log_print(f"Mask image saved: {mask_image_path}")
+                print(f"Mask image saved: {mask_image_path}")
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Invalid mask image: {str(e)}")
 
@@ -966,7 +925,7 @@ async def diffusion_generate_job(job_id: str, job_config: dict):
 
         # Check if we should use multi-GPU approach
         if should_use_diffusion_worker(request.model):
-            log_print(f"Using Diffusion Worker subprocess approach for model: {request.model}")
+            print(f"Using Diffusion Worker subprocess approach for model: {request.model}")
             use_single_gpu = False
 
             tlab_diffusion.progress_update(30)
@@ -997,7 +956,7 @@ async def diffusion_generate_job(job_id: str, job_config: dict):
                 tlab_diffusion.progress_update(70)
 
             except Exception as e:
-                log_print(f"Multi-GPU generation failed, falling back to single GPU: {str(e)}")
+                print(f"Multi-GPU generation failed, falling back to single GPU: {str(e)}")
                 # Fall back to single GPU approach
                 use_single_gpu = True
 
@@ -1054,101 +1013,99 @@ async def diffusion_generate_job(job_id: str, job_config: dict):
             # Run in thread to avoid blocking event loop
             def run_pipe():
                 try:
-                    # Capture all output during generation
-                    with DiffusionOutputCapture():
-                        generation_kwargs = {
-                            "prompt": request.prompt,
-                            "num_inference_steps": request.num_inference_steps,
-                            "guidance_scale": request.guidance_scale,
-                            "generator": generator,
-                            "num_images_per_prompt": request.num_images,  # Generate multiple images
-                        }
+                    generation_kwargs = {
+                        "prompt": request.prompt,
+                        "num_inference_steps": request.num_inference_steps,
+                        "guidance_scale": request.guidance_scale,
+                        "generator": generator,
+                        "num_images_per_prompt": request.num_images,  # Generate multiple images
+                    }
 
-                        # Set scheduler
-                        if request.scheduler != "default":
-                            generation_kwargs["scheduler"] = request.scheduler
+                    # Set scheduler
+                    if request.scheduler != "default":
+                        generation_kwargs["scheduler"] = request.scheduler
 
-                        # Add image and mask for inpainting
-                        if is_inpainting:
-                            generation_kwargs["image"] = input_image_obj
-                            generation_kwargs["mask_image"] = mask_image_obj
-                            generation_kwargs["strength"] = request.strength
-                        # Add image and strength for img2img
-                        elif is_img2img:
-                            generation_kwargs["image"] = input_image_obj
-                            generation_kwargs["strength"] = request.strength
-                        elif is_controlnet:
-                            generation_kwargs["image"] = input_image_obj
+                    # Add image and mask for inpainting
+                    if is_inpainting:
+                        generation_kwargs["image"] = input_image_obj
+                        generation_kwargs["mask_image"] = mask_image_obj
+                        generation_kwargs["strength"] = request.strength
+                    # Add image and strength for img2img
+                    elif is_img2img:
+                        generation_kwargs["image"] = input_image_obj
+                        generation_kwargs["strength"] = request.strength
+                    elif is_controlnet:
+                        generation_kwargs["image"] = input_image_obj
 
-                        # Add negative prompt if provided
-                        if request.negative_prompt:
-                            generation_kwargs["negative_prompt"] = request.negative_prompt
+                    # Add negative prompt if provided
+                    if request.negative_prompt:
+                        generation_kwargs["negative_prompt"] = request.negative_prompt
 
-                        if request.eta > 0.0:
-                            generation_kwargs["eta"] = request.eta
+                    if request.eta > 0.0:
+                        generation_kwargs["eta"] = request.eta
 
-                        # Add guidance rescale if provided
-                        if request.guidance_rescale > 0.0:
-                            generation_kwargs["guidance_rescale"] = request.guidance_rescale
+                    # Add guidance rescale if provided
+                    if request.guidance_rescale > 0.0:
+                        generation_kwargs["guidance_rescale"] = request.guidance_rescale
 
-                        # Add clip skip if provided (requires scheduler support)
-                        if request.clip_skip > 0:
-                            generation_kwargs["clip_skip"] = request.clip_skip
+                    # Add clip skip if provided (requires scheduler support)
+                    if request.clip_skip > 0:
+                        generation_kwargs["clip_skip"] = request.clip_skip
 
-                        # Set height and width if specified
-                        if request.height > 0 and request.width > 0:
-                            generation_kwargs["height"] = request.height
-                            generation_kwargs["width"] = request.width
+                    # Set height and width if specified
+                    if request.height > 0 and request.width > 0:
+                        generation_kwargs["height"] = request.height
+                        generation_kwargs["width"] = request.width
 
-                        # Add LoRA scale if adaptor is being used
-                        if request.adaptor and request.adaptor.strip():
-                            generation_kwargs["cross_attention_kwargs"] = {"scale": request.adaptor_scale}
+                    # Add LoRA scale if adaptor is being used
+                    if request.adaptor and request.adaptor.strip():
+                        generation_kwargs["cross_attention_kwargs"] = {"scale": request.adaptor_scale}
 
-                        # Add intermediate image saving callback if enabled
-                        if request.save_intermediate_images:
-                            decode_callback = create_decode_callback(images_folder)
-                        else:
-                            # no-op callback to keep logic unified
-                            def decode_callback(pipe, step, timestep, callback_kwargs):
-                                return callback_kwargs
+                    # Add intermediate image saving callback if enabled
+                    if request.save_intermediate_images:
+                        decode_callback = create_decode_callback(images_folder)
+                    else:
+                        # no-op callback to keep logic unified
+                        def decode_callback(pipe, step, timestep, callback_kwargs):
+                            return callback_kwargs
 
-                        def unified_callback(pipe, step: int, timestep: int, callback_kwargs: dict):
-                            try:
-                                # Progress update
-                                progress = 30 + int((step / request.num_inference_steps) * 60)
-                                progress = min(progress, 70)
-                                progress_queue.put(progress)
-                            except Exception as e:
-                                print(f"Failed to enqueue progress update: {e}")
+                    def unified_callback(pipe, step: int, timestep: int, callback_kwargs: dict):
+                        try:
+                            # Progress update
+                            progress = 30 + int((step / request.num_inference_steps) * 60)
+                            progress = min(progress, 70)
+                            # progress_queue.put(progress)
+                        except Exception as e:
+                            print(f"Failed to enqueue progress update: {e}")
 
-                            # Always call decode_callback, it's a no-op if not needed
-                            try:
-                                return decode_callback(pipe, step, timestep, callback_kwargs)
-                            except Exception as e:
-                                print(f"Warning: decode_callback failed: {e}")
-                                return callback_kwargs
+                        # Always call decode_callback, it's a no-op if not needed
+                        try:
+                            return decode_callback(pipe, step, timestep, callback_kwargs)
+                        except Exception as e:
+                            print(f"Warning: decode_callback failed: {e}")
+                            return callback_kwargs
 
-                        generation_kwargs["callback_on_step_end"] = unified_callback
-                        generation_kwargs["callback_on_step_end_tensor_inputs"] = ["latents"]
+                    generation_kwargs["callback_on_step_end"] = unified_callback
+                    generation_kwargs["callback_on_step_end_tensor_inputs"] = ["latents"]
 
-                        result = pipe(**generation_kwargs)
-                        images = result.images  # Get all images
+                    result = pipe(**generation_kwargs)
+                    images = result.images  # Get all images
 
-                        # Clean up result object to free references
-                        del result
-                        del generation_kwargs
+                    # Clean up result object to free references
+                    del result
+                    del generation_kwargs
 
-                        # Force cleanup within the executor thread
-                        import gc
+                    # Force cleanup within the executor thread
+                    import gc
 
-                        gc.collect()
-                        if torch.cuda.is_available():
-                            torch.cuda.empty_cache()
+                    gc.collect()
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
 
-                        return images
+                    return images
                 except Exception as e:
                     # Ensure cleanup even if generation fails
-                    log_print(f"Error during image generation: {str(e)}")
+                    print(f"Error during image generation: {str(e)}")
                     import gc
 
                     gc.collect()
@@ -1158,28 +1115,14 @@ async def diffusion_generate_job(job_id: str, job_config: dict):
 
             # Time the main generation
             generation_start = time.time()
-            log_print("Starting image generation...")
-
-            progress_queue = queue.Queue()
-
-            async def monitor_progress():
-                while True:
-                    try:
-                        progress = progress_queue.get(timeout=5)
-                        tlab_diffusion.progress_update(progress)
-                        await asyncio.sleep(0.1)  # Avoid tight loop
-                    except queue.Empty:
-                        break  # Done updating
-
-            monitor_task = asyncio.create_task(monitor_progress())
+            print("Starting image generation...")
 
             images = await asyncio.get_event_loop().run_in_executor(None, run_pipe)
-            await monitor_task
 
             generation_time = time.time() - generation_start
 
             # Aggressive cleanup immediately after generation
-            log_print("Starting aggressive memory cleanup...")
+            print("Starting aggressive memory cleanup...")
 
             # Clean up the main pipeline to free VRAM
             cleanup_pipeline(pipe)
@@ -1205,7 +1148,7 @@ async def diffusion_generate_job(job_id: str, job_config: dict):
             if torch.backends.mps.is_available():
                 torch.mps.empty_cache()
 
-            log_print("Memory cleanup completed")
+            print("Memory cleanup completed")
             tlab_diffusion.progress_update(75)
             # Get dimensions from the first image
             first_image = images[0]
@@ -1217,30 +1160,28 @@ async def diffusion_generate_job(job_id: str, job_config: dict):
 
         # Apply upscaling if requested (for both paths)
         if request.upscale:
-            log_print(f"Upscaling {len(images)} images with factor {request.upscale_factor}x")
+            print(f"Upscaling {len(images)} images with factor {request.upscale_factor}x")
 
             def run_upscale():
-                # Capture all output during upscaling
-                with DiffusionOutputCapture():
-                    upscaled_images = []
-                    device = "cuda" if torch.cuda.is_available() else "cpu"
-                    if device == "cpu":
-                        device = "mps" if torch.backends.mps.is_available() else "cpu"
-                    for i, image in enumerate(images):
-                        log_print(f"Upscaling image {i + 1}/{len(images)}")
-                        upscaled_image = upscale_image(image, request.prompt, request.upscale_factor, device)
-                        upscaled_images.append(upscaled_image)
-                    return upscaled_images
+                upscaled_images = []
+                device = "cuda" if torch.cuda.is_available() else "cpu"
+                if device == "cpu":
+                    device = "mps" if torch.backends.mps.is_available() else "cpu"
+                for i, image in enumerate(images):
+                    print(f"Upscaling image {i + 1}/{len(images)}")
+                    upscaled_image = upscale_image(image, request.prompt, request.upscale_factor, device)
+                    upscaled_images.append(upscaled_image)
+                return upscaled_images
 
             upscale_start = time.time()
             images = await asyncio.get_event_loop().run_in_executor(None, run_upscale)
             upscale_time = time.time() - upscale_start
             total_generation_time += upscale_time
-            log_print(
+            print(
                 f"Generation took {total_generation_time - upscale_time:.2f}s, upscaling took {upscale_time:.2f}s, total: {total_generation_time:.2f}s"
             )
         else:
-            log_print(f"Generation took {total_generation_time:.2f}s")
+            print(f"Generation took {total_generation_time:.2f}s")
 
         # Save images to the folder (for single GPU path, multi-GPU already saved)
         if use_single_gpu:
@@ -1313,65 +1254,8 @@ async def diffusion_generate_job(job_id: str, job_config: dict):
         tlab_diffusion.progress_update(100)
 
     except Exception as e:
-        log_print(f"Error during image generation: {str(e)}")
+        print(f"Error during image generation: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="Run Diffusion Plugin")
-
-    parser.add_argument("--plugin_dir", type=str, required=True)
-    parser.add_argument("--job_id", type=str, required=True)
-    parser.add_argument("--experiment_name", type=str, required=True)
-    parser.add_argument("--run_name", type=str, default="diffused")
-
-    # Optional dynamic CLI params (like --prompt, --model, etc.)
-    # These come from job_config["config"]
-    args, unknown_args = parser.parse_known_args()
-    config = {}
-
-    key = None
-    for arg in unknown_args:
-        if arg.startswith("--"):
-            key = arg.lstrip("-")
-            config[key] = True  # default True for flags
-        elif key:
-            config[key] = arg
-            key = None
-
-    return args, config
-
-
-def main():
-    print("Starting image diffusion...", flush=True)
-    asyncio.run(async_main())
-
-
-async def async_main():
-    args, config = parse_args()
-
-    # Convert image files back to base64 if present
-    image_path_keys = {
-        "input_image_path": "input_image",
-        "mask_image_path": "mask_image",
-    }
-
-    for path_key, base64_key in image_path_keys.items():
-        if path_key in config and config[path_key]:
-            try:
-                with open(config[path_key], "rb") as f:
-                    encoded = base64.b64encode(f.read()).decode("utf-8")
-                config[base64_key] = encoded
-            except Exception as e:
-                print(f"[main.py] Failed to encode {path_key}: {e}", flush=True)
-            finally:
-                # Remove the path key to avoid confusion downstream
-                del config[path_key]
-
-    job_config = {
-        "experiment_name": args.experiment_name,
-        "run_name": args.run_name,
-        "config": config,
-    }
-
-    await diffusion_generate_job(args.job_id, job_config["config"])
+diffusion_generate_job()

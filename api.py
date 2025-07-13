@@ -49,7 +49,6 @@ from transformerlab.routers import (
     recipes,
     users,
 )
-from transformerlab.routers.experiment import diffusion
 import torch
 
 try:
@@ -189,7 +188,6 @@ app.include_router(tools.router)
 app.include_router(recipes.router)
 app.include_router(batched_prompts.router)
 app.include_router(fastchat_openai_api.router)
-app.include_router(diffusion.router)
 app.include_router(get_xmlrpc_router())
 app.include_router(get_trainer_xmlrpc_router())
 

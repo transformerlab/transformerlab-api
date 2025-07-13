@@ -17,7 +17,7 @@ import logging
 import sys
 
 
-router = APIRouter(prefix="/experiment/{experiment_id}/diffusion", tags=["diffusion"])
+router = APIRouter(prefix="/diffusion", tags=["diffusion"])
 
 UNIVERSIAL_GENERATION_ID = str(uuid.uuid4())
 
@@ -390,7 +390,7 @@ def find_image_by_id(image_id: str) -> ImageHistoryItem | None:
 
 
 @router.post("/generate", summary="Generate image with Stable Diffusion")
-async def generate_image(experiment_id: str, request: DiffusionRequest):
+async def generate_image(experimentId: int, request: DiffusionRequest):
     try:
         # Validate num_images parameter
         if request.num_images < 1 or request.num_images > 10:
@@ -408,7 +408,7 @@ async def generate_image(experiment_id: str, request: DiffusionRequest):
             }
 
             job_id = await db_jobs.job_create(
-                type="DIFFUSION", status="QUEUED", job_data=job_config, experiment_id=experiment_id
+                type="DIFFUSION", status="QUEUED", job_data=job_config, experiment_id=experimentId
             )
 
             images_folder = os.path.join(get_images_dir(), generation_id)
