@@ -539,7 +539,7 @@ tqdm==4.66.5
     #   transformers
 transformerlab-inference==0.2.39
     # via -r requirements-rocm.in
-transformers==4.53.1
+transformers==4.53.2
     # via
     #   -r requirements-rocm.in
     #   peft
