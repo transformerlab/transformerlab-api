@@ -356,36 +356,47 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
                 # Extract task name from recipe
                 task_name = task.get("name")
 
-                # Create inputs JSON (what the task needs as inputs)
-                inputs = {
-                    "model_name": parsed_config.get("model_name", ""),
-                    "model_architecture": parsed_config.get("model_architecture", ""),
-                    "dataset_name": dataset_name,  # Using dataset from dependencies
-                }
+                # Check if the task has exported inputs_json (from export_experiment)
+                if "inputs_json" in task:
+                    # Use the exported inputs directly
+                    inputs_json = task.get("inputs_json", "{}")
+                    if isinstance(inputs_json, str):
+                        inputs = json.loads(inputs_json)
+                    else:
+                        inputs = inputs_json
+                else:
+                    # Create inputs JSON from config (for manually created recipes)
+                    inputs = {
+                        "model_name": parsed_config.get("model_name", ""),
+                        "model_architecture": parsed_config.get("model_architecture", ""),
+                        "dataset_name": dataset_name,  # From dependencies
+                    }
 
-                # For EVAL tasks, add evaluation specific inputs
-                if task_type == "EVAL":
-                    inputs.update(
-                        {
-                            "tasks": parsed_config.get("tasks", ""),
-                            "limit": parsed_config.get("limit", ""),
-                            "run_name": parsed_config.get("run_name", ""),
-                        }
-                    )
-                # For GENERATE tasks, add generation specific inputs
-                elif task_type == "GENERATE":
-                    inputs.update(
-                        {
-                            "num_goldens": parsed_config.get("num_goldens", ""),
-                            "scenario": parsed_config.get("scenario", ""),
-                            "task": parsed_config.get("task", ""),
-                            "run_name": parsed_config.get("run_name", ""),
-                        }
-                    )
+                    # For EVAL tasks, add evaluation specific inputs
+                    if task_type == "EVAL":
+                        inputs.update(
+                            {
+                                "tasks": parsed_config.get("tasks", ""),
+                                "limit": parsed_config.get("limit", ""),
+                                "run_name": parsed_config.get("run_name", ""),
+                            }
+                        )
+                    # For GENERATE tasks, add generation specific inputs
+                    elif task_type == "GENERATE":
+                        inputs.update(
+                            {
+                                "num_goldens": parsed_config.get("num_goldens", ""),
+                                "scenario": parsed_config.get("scenario", ""),
+                                "task": parsed_config.get("task", ""),
+                                "run_name": parsed_config.get("run_name", ""),
+                            }
+                        )
 
                 # Create outputs JSON (what the task produces)
                 outputs = {}
 
+
+                # TODO: Check if this is relevant and needed and if not, remove it.
                 if task_type == "EVAL":
                     outputs["eval_results"] = "{}"
                 elif task_type == "GENERATE":
