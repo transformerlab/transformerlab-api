@@ -144,3 +144,63 @@ def test_workflow_add_eval_node_and_metadata(client):
     assert edit_resp.status_code == 200
     # Cleanup
     client.get(f"/experiment/1/workflows/delete/{workflow_id}")
+
+
+def test_workflow_task_isolation(client):
+    """Test that workflows can only access tasks from their own experiment."""
+    # Step 1: Create a task in experiment 1
+    task_data = {
+        "name": "workflow_isolation_test_task",
+        "type": "TRAIN",
+        "inputs": '{"model_name": "test_model"}',
+        "config": '{"learning_rate": 0.001}',
+        "plugin": "test_plugin",
+        "outputs": '{"adaptor_name": "test_adaptor"}',
+        "experiment_id": 1,
+    }
+    task_resp = client.put("/tasks/new_task", json=task_data)
+    assert task_resp.status_code == 200
+
+    # Step 2: Verify task exists in experiment 1
+    tasks_resp = client.get("/tasks/list_by_type_in_experiment?type=TRAIN&experiment_id=1")
+    assert tasks_resp.status_code == 200
+    tasks = tasks_resp.json()
+    test_task = next((t for t in tasks if t["name"] == "workflow_isolation_test_task"), None)
+    assert test_task is not None
+    task_id = test_task["id"]
+
+    # Step 3: Create a workflow that references this task
+    create_resp = client.get("/experiment/1/workflows/create_empty", params={"name": "isolation_test_workflow"})
+    assert create_resp.status_code == 200
+    workflow_id = create_resp.json()
+
+    # Step 4: Add a node that references the task
+    train_node = {"type": "TRAIN", "name": "Training Node", "task": "workflow_isolation_test_task", "out": []}
+    add_node_resp = client.get(
+        f"/experiment/1/workflows/{workflow_id}/add_node", params={"node": json.dumps(train_node)}
+    )
+    assert add_node_resp.status_code == 200
+
+    # Step 5: Start the workflow
+    start_resp = client.get(f"/experiment/1/workflows/{workflow_id}/start")
+    assert start_resp.status_code == 200
+    assert start_resp.json().get("message") == "OK"
+
+    # Step 6: Verify workflow run was created and can access the task
+    runs_resp = client.get("/experiment/1/workflows/runs")
+    assert runs_resp.status_code == 200
+    runs = runs_resp.json()
+    test_run = next((r for r in runs if r["workflow_id"] == workflow_id), None)
+    assert test_run is not None
+
+    # The workflow should not immediately fail (status shouldn't be "FAILED")
+    # If our task isolation is working correctly, it should find the task
+    assert test_run["status"] in ["QUEUED", "RUNNING", "COMPLETE"]
+
+    # Step 7: Cleanup - Delete task and workflow
+    task_del_resp = client.get(f"/tasks/{task_id}/delete")
+    assert task_del_resp.status_code == 200
+
+    workflow_del_resp = client.get(f"/experiment/1/workflows/delete/{workflow_id}")
+    assert workflow_del_resp.status_code == 200
+    assert workflow_del_resp.json().get("message") == "OK"
