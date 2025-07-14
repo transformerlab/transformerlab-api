@@ -102,7 +102,7 @@
       "ui:help": "Select if the `context` field should be considered in the dataset. To be used only for GEval"
     },
     "tasks": {
-      "ui:help": "For each task, provide a clear introduction (what the evaluation is about) and detailed evaluation criteria (how the model should be judged). Example: Name: 'Factual Accuracy', Description: 'Evaluate if the output is factually correct based on the provided context. Consider only verifiable facts.' It is also recommended to include a step-by-step evaluation guide if needed. For more details and best practices, see: this https://www.confident-ai.com/blog/g-eval-the-definitive-guide",
+      "ui:help": "For each task, provide a clear introduction (what the evaluation is about) and either detailed evaluation criteria in the description field or step-by-step evaluation steps (or both). Example: Name: 'Factual Accuracy', Description: 'Evaluate if the output is factually correct based on the provided context. Consider only verifiable facts.' For more details and best practices, see: https://www.confident-ai.com/blog/g-eval-the-definitive-guide",
       "ui:widget": "GEvalTasksWidget"
     },
     "dataset_split": {
