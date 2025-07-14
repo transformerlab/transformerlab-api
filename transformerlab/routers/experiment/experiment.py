@@ -283,6 +283,7 @@ async def export_experiment_to_recipe(id: int):
                     "task_type": task["type"],
                     "plugin": task["plugin"],
                     "config_json": task["config"],
+                    "inputs_json": task["inputs"],
                 }
             )
 
