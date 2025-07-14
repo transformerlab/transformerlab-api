@@ -133,10 +133,10 @@ def run_generation():
 
     tlab_gen.progress_update(90)
 
-    # Save dataset
-    output_file, dataset_name = tlab_gen.save_generated_dataset(
-        df, {"styling_config": styling_config, "evolution_config": evolution_config}
-    )
+    # Save the generated outputs as a dataset
+    custom_name = tlab_gen.params.get("output_dataset_name")
+    additional_metadata = {"styling_config": styling_config, "evolution_config": evolution_config}
+    output_file, dataset_name = tlab_gen.save_generated_dataset(df, additional_metadata, dataset_id=custom_name)
 
     tlab_gen.progress_update(100)
     print(f"Data generated successfully as dataset {dataset_name}")

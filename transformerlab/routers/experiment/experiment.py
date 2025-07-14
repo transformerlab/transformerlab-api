@@ -251,14 +251,18 @@ async def export_experiment_to_recipe(id: int):
             added_dependencies.add(dep_key)
 
     # Get tasks for each type (TRAIN, EVAL, GENERATE)
-    task_types = ["TRAIN", "EVAL", "GENERATE"]
+    task_types = ["TRAIN", "EVAL", "GENERATE", "EXPORT"]
     for task_type in task_types:
         tasks = await db.tasks_get_by_type_in_experiment(task_type, id)
         for task in tasks:
             task_config = json.loads(task["config"])
 
             # Add model dependency from task
-            model_name = task_config.get("model_name")
+            if task_type == "EXPORT":
+                # For EXPORT tasks, we assume the model is already set in the experiment config
+                model_name = task_config.get("input_model_id")
+            else:
+                model_name = task_config.get("model_name")
             if model_name:
                 add_dependency("model", model_name)
 

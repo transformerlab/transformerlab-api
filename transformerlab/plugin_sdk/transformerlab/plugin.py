@@ -275,6 +275,18 @@ class Job:
             return row[0]
         return None
 
+    def get_experiment_id(self):
+        """
+        Get the experiment_id of this job.
+        """
+        cursor = self.db.execute("SELECT experiment_id FROM job WHERE id = ?", (self.id,))
+        row = cursor.fetchone()
+        cursor.close()
+
+        if row is not None:
+            return row[0]
+        return None
+
     def get_job_data(self):
         """
         Get the job_data of this job.
@@ -439,6 +451,10 @@ class Job:
             # Add to job data completion_status and completion_details
             self.add_to_job_data("completion_status", completion_status)
             self.add_to_job_data("completion_details", completion_details)
+            
+            # Update the job status field if there's a failure
+            if completion_status == "failed":
+                self.update_status("FAILED")
 
             # # Initialize job_data as empty JSON object if it's NULL
             # self.db.execute(

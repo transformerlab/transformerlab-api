@@ -70,7 +70,8 @@ async def run_generation():
         "dataset_split": tlab_gen.params.get("dataset_split", "train"),
     }
 
-    output_file, dataset_name = tlab_gen.save_generated_dataset(updated_df, metadata)
+    custom_name = tlab_gen.params.get("output_dataset_name")
+    output_file, dataset_name = tlab_gen.save_generated_dataset(updated_df, metadata, dataset_id=custom_name)
     tlab_gen.progress_update(100)
 
     print(f"Dataset processed successfully as {dataset_name}")
