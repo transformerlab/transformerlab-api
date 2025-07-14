@@ -54,17 +54,17 @@ async def workflow_delete(workflow_id: str, experimentId: int):
 @router.get("/create", summary="Create a workflow from config")
 async def workflow_create_func(name: str, config: str = '{"nodes":[]}', experimentId: int = 1):
     config = json.loads(config)
-    
+
     # Check if a START node already exists
     has_start_node = any(node.get("type") == "START" for node in config["nodes"])
-    
+
     if len(config["nodes"]) > 0 and not has_start_node:
         config["nodes"] = [
             {"type": "START", "id": str(uuid.uuid4()), "name": "START", "out": [config["nodes"][0]["id"]]}
         ] + config["nodes"]
     elif len(config["nodes"]) == 0:
         config["nodes"] = [{"type": "START", "id": str(uuid.uuid4()), "name": "START", "out": []}]
-    
+
     workflow_id = await workflow_create(name, json.dumps(config), experimentId)
     return workflow_id
 
@@ -684,6 +684,22 @@ def extract_previous_job_outputs(previous_job):
         if adaptor_name and not job_config.get("fuse_model"):
             outputs["adaptor_name"] = adaptor_name
 
+    elif job_type == "EXPORT":
+        # Extract export outputs from job config
+        output_model_id = job_config.get("output_model_id")
+        output_model_path = job_config.get("output_model_path")
+        output_model_architecture = job_config.get("output_model_architecture")
+        output_model_name = job_config.get("output_model_name")
+
+        if output_model_id:
+            outputs["exported_model_id"] = output_model_id
+        if output_model_path:
+            outputs["exported_model_path"] = output_model_path
+        if output_model_architecture:
+            outputs["exported_model_architecture"] = output_model_architecture
+        if output_model_name:
+            outputs["exported_model_name"] = output_model_name
+
     return outputs
 
 
@@ -719,6 +735,30 @@ def prepare_next_task_io(task_def: dict, previous_outputs: dict):
     elif task_type == "GENERATE":
         # Generate dynamic output fields
         outputs["dataset_id"] = str(uuid.uuid4()).replace("-", "")
+
+    elif task_type == "EXPORT":
+        # Map relevant outputs to specific input fields for export tasks
+        for key in ["model_name", "model_architecture", "exported_model_id", "exported_model_path"]:
+            if key in previous_outputs:
+                # Map exported outputs back to input model fields for chaining
+                if key == "exported_model_id":
+                    inputs["input_model_id"] = previous_outputs[key]
+                    inputs["model_name"] = previous_outputs[key]
+                elif key == "exported_model_path":
+                    inputs["input_model_path"] = previous_outputs[key]
+                    inputs["model_path"] = previous_outputs[key]
+                elif key == "exported_model_architecture":
+                    inputs["input_model_architecture"] = previous_outputs[key]
+                    inputs["model_architecture"] = previous_outputs[key]
+                else:
+                    inputs[key] = previous_outputs[key]
+
+        # Generate dynamic output fields for export tasks
+        import time
+
+        timestamp = int(time.time())
+        outputs["exported_model_id"] = f"exported_model_{timestamp}"
+        outputs["exported_model_path"] = f"/models/exported_model_{timestamp}"
 
     return json.dumps(inputs), json.dumps(outputs)
 
