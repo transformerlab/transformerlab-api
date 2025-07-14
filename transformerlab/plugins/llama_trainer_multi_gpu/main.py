@@ -6,6 +6,8 @@ import torch.nn as nn
 
 from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import WORKSPACE_DIR, get_python_executable
+from transformerlab.utils import prepare_dataset_files 
+from datasets import load_dataset 
 
 
 # Add custom arguments
@@ -58,7 +60,6 @@ def train_model():
     # Get configuration from tlab_trainer
     # Configuration is loaded automatically when tlab_trainer methods are called
     datasets = tlab_trainer.load_dataset()
-    dataset = datasets["train"]
 
     # Set up accelerate configuration
     accelerate_config = {
@@ -101,7 +102,6 @@ def train_model():
 
     # Import dependencies after the subprocess check
     import torch
-    from jinja2 import Environment
     from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, AutoConfig
     from trl import SFTConfig, SFTTrainer
@@ -111,23 +111,29 @@ def train_model():
     accelerator = Accelerator()
     print(f"Running with accelerate on {accelerator.num_processes} processes")
 
-    jinja_environment = Environment()
     # use_flash_attention = False
 
     # Get model info
     model_id = tlab_trainer.params.model_name
 
+    # Prepare datasets into JSONL files
+    data_directory = f"{WORKSPACE_DIR}/plugins/llama_trainer/data"
+    if not os.path.exists(data_directory):
+        os.makedirs(data_directory)
+
+    prepare_dataset_files(
+        data_directory=data_directory,
+        datasets=datasets,
+        formatting_template=tlab_trainer.params.get("formatting_template", None),
+        chat_template=tlab_trainer.params.get("formatting_chat_template", None),
+        chat_column=tlab_trainer.params.get("chatml_formatted_column", "messages"),
+        model_name=tlab_trainer.params.get("model_name"),
+    )
+
+    dataset = load_dataset("json", data_files=f"{data_directory}/train.jsonl", split="train")
+
     print(f"dataset size: {len(dataset)}")
     print(dataset[randrange(len(dataset))])
-    print("formatting_template: " + tlab_trainer.params.formatting_template)
-
-    template = jinja_environment.from_string(tlab_trainer.params.formatting_template)
-
-    def format_instruction(mapping):
-        return template.render(mapping)
-
-    print("formatted instruction: (example) ")
-    print(format_instruction(dataset[randrange(len(dataset))]))
 
     # Model configuration
     bnb_config = BitsAndBytesConfig(
@@ -211,7 +217,7 @@ def train_model():
         save_strategy="epoch",
         learning_rate=float(tlab_trainer.params.learning_rate),
         bf16=True,
-        tf32=True,
+        tf32=False,  # T4 GPUs do not support tf32
         max_grad_norm=0.3,
         warmup_ratio=0.03,
         lr_scheduler_type=tlab_trainer.params.learning_rate_schedule,
@@ -252,7 +258,6 @@ def train_model():
         eval_dataset=eval_data,
         peft_config=peft_config,
         processing_class=tokenizer,
-        formatting_func=format_instruction,
         args=args,
         callbacks=callbacks,
     )
