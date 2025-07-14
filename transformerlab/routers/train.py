@@ -352,6 +352,28 @@ async def watch_log(job_id: str, sweeps: bool = False):
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
     )
 
+@router.get("/job/{job_id}/sweep_results")
+async def sweep_results(job_id: str):
+    try:
+        job = await db_jobs.job_get(job_id)
+        job_data = job.get("job_data", {})
+        
+        output_file = job_data.get("sweep_results_file", None)
+        if output_file and os.path.exists(output_file):
+            try:
+                with open(output_file, "r") as f:
+                    output = json.load(f)
+                return {"status": "success", "data": output}
+            except json.JSONDecodeError as e:
+                logging.error(f"JSON decode error for job {job_id}: {e}")
+                return {"status": "error", "message": "Invalid JSON format in sweep results file."}
+        else:
+            logging.warning(f"Sweep results file not found for job {job_id}: {output_file}")
+            return {"status": "error", "message": "Sweep results file not found."}
+        
+    except Exception as e:
+        logging.error(f"Error loading sweep results for job {job_id}: {e}")
+        return {"status": "error", "message": "An internal error has occurred!"}
 
 tensorboard_process = None
 
