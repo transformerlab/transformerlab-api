@@ -33,7 +33,7 @@ def prepare_dataset_files(
                     line = line.replace("\n", "\\n").replace("\r", "\\r")
                     o = {"text": line}
                     f.write(json.dumps(o) + "\n")
-                elif tokenizer:
+                elif chat_template:
                     rendered = tokenizer.apply_chat_template(
                         example[chat_column],
                         tokenize=False,

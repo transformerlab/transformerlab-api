@@ -43,7 +43,7 @@ def train_mlx_lora():
 
     #Check if template parameters are set
     chat_template = tlab_trainer.params.get("formatting_chat_template", None)
-    chat_column = tlab_trainer.params.get("chat_column", "messages")
+    chat_column = tlab_trainer.params.get("chatml_formatted_column", "messages")
     formatting_template = tlab_trainer.params.get("formatting_template", None)
 
     if num_train_epochs is not None and num_train_epochs != "" and int(num_train_epochs) >= 0:

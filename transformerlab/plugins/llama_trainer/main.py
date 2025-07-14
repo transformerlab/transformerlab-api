@@ -15,7 +15,6 @@ if shutil.which("rocminfo") is not None:
 if torch.cuda.is_available():
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-from jinja2 import Environment  # noqa: E402
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel  # noqa: E402
 from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig  # noqa: E402
 from trl import SFTConfig, SFTTrainer  # noqa: E402
@@ -30,8 +29,6 @@ from datasets import load_dataset # noqa: E402
 
 # use_flash_attention = False
 # Initialize Jinja environment
-jinja_environment = Environment()
-
 
 def find_lora_target_modules(model, keyword="proj"):
     """
@@ -57,12 +54,14 @@ def train_model():
     if not os.path.exists(data_directory):
         os.makedirs(data_directory)
 
+    print(tlab_trainer.params)
+
     prepare_dataset_files(
         data_directory=data_directory,
         datasets=datasets,
         formatting_template=tlab_trainer.params.get("formatting_template", None),
         chat_template=tlab_trainer.params.get("formatting_chat_template", None),
-        chat_column=tlab_trainer.params.get("chat_column", "messages"),
+        chat_column=tlab_trainer.params.get("chatml_formatted_column", "messages"),
         model_name=tlab_trainer.params.get("model_name"),
     )
 
