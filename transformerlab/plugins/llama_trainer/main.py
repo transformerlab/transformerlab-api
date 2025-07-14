@@ -1,6 +1,5 @@
 import time
 import os
-from random import randrange
 
 import torch
 import shutil
@@ -25,6 +24,9 @@ import torch.nn as nn  # noqa: E402
 
 from transformerlab.plugin import WORKSPACE_DIR  # noqa: E402
 from transformerlab.sdk.v1.train import tlab_trainer  # noqa: E402
+from transformerlab.utils import prepare_dataset_files # noqa: E402
+from datasets import load_dataset # noqa: E402
+
 
 # use_flash_attention = False
 # Initialize Jinja environment
@@ -49,20 +51,22 @@ def find_lora_target_modules(model, keyword="proj"):
 def train_model():
     # Configuration is loaded automatically when tlab_trainer methods are called
     datasets = tlab_trainer.load_dataset()
-    dataset = datasets["train"]
 
-    print(f"Dataset loaded successfully with {len(dataset)} examples")
-    print(dataset[randrange(len(dataset))])
+    # Prepare datasets into JSONL files
+    data_directory = f"{WORKSPACE_DIR}/plugins/llama_trainer/data"
+    if not os.path.exists(data_directory):
+        os.makedirs(data_directory)
 
-    # Setup template for formatting
-    print("Formatting template: " + tlab_trainer.params.formatting_template)
-    template = jinja_environment.from_string(tlab_trainer.params.formatting_template)
+    prepare_dataset_files(
+        data_directory=data_directory,
+        datasets=datasets,
+        formatting_template=tlab_trainer.params.get("formatting_template", None),
+        chat_template=tlab_trainer.params.get("chat_template", None),
+        chat_column=tlab_trainer.params.get("chat_column", "messages"),
+        model_name=tlab_trainer.params.get("model_name"),
+    )
 
-    def format_instruction(mapping):
-        return template.render(mapping)
-
-    print("Formatted instruction example:")
-    print(format_instruction(dataset[randrange(len(dataset))]))
+    dataset = load_dataset("json", data_files=f"{data_directory}/train.jsonl", split="train")
 
     # Setup quantization
     if not HAS_AMD:
@@ -262,7 +266,6 @@ def train_model():
         eval_dataset=eval_data,
         peft_config=peft_config,
         processing_class=tokenizer,
-        formatting_func=format_instruction,
         args=training_args,
         callbacks=callbacks,
     )
