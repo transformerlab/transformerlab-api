@@ -54,8 +54,6 @@ def train_model():
     if not os.path.exists(data_directory):
         os.makedirs(data_directory)
 
-    print(tlab_trainer.params)
-
     prepare_dataset_files(
         data_directory=data_directory,
         datasets=datasets,
