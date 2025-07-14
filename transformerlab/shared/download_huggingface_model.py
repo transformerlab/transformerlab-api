@@ -3,7 +3,7 @@ import sqlite3
 from threading import Thread, Event
 from time import sleep
 from huggingface_hub import hf_hub_download, snapshot_download
-from huggingface_hub.utils import GatedRepoError, EntryNotFoundError
+from huggingface_hub.utils import GatedRepoError, EntryNotFoundError, RepositoryNotFoundError
 import argparse
 import os
 import sys
@@ -202,9 +202,9 @@ def download_blocking(model_is_downloaded):
         except GatedRepoError:
             returncode = 77
             error_msg = f"{peft} is a gated adapter. Please accept the license."
-        except EntryNotFoundError:
+        except (EntryNotFoundError, RepositoryNotFoundError):
             returncode = 1
-            error_msg = f"{peft} does not contain a config.json or is not available."
+            error_msg = "The model name is invalid"
         except Exception as e:
             returncode = 1
             error_msg = f"{type(e).__name__}: {e}"
@@ -252,6 +252,10 @@ def download_blocking(model_is_downloaded):
                 error_msg = f"{model} is a gated HuggingFace model. \
     To continue downloading, you must agree to the terms \
     on the model's Huggingface page."
+
+            except (EntryNotFoundError, RepositoryNotFoundError):
+                returncode = 1
+                error_msg = "The model name is invalid"
 
             except Exception as e:
                 returncode = 1

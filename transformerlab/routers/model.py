@@ -10,7 +10,7 @@ from fastapi import APIRouter, Body
 from fastchat.model.model_adapter import get_conversation_template
 from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi, list_repo_tree
 from huggingface_hub import ModelCard, ModelCardData
-from huggingface_hub.utils import HfHubHTTPError, GatedRepoError, EntryNotFoundError
+from huggingface_hub.utils import HfHubHTTPError, GatedRepoError, EntryNotFoundError, RepositoryNotFoundError
 from transformers import AutoTokenizer
 
 import os
@@ -538,6 +538,12 @@ on the model's Huggingface page."
         if job_id:
             await db_jobs.job_update_status(job_id, "UNAUTHORIZED", error_msg)
         return {"status": "unauthorized", "message": error_msg}
+    except (EntryNotFoundError, RepositoryNotFoundError):
+        error_msg = "The model name is invalid"
+        print(f"Invalid model name: {model}")  # Log the invalid model name
+        if job_id:
+            await db_jobs.job_update_status(job_id, "FAILED", error_msg)
+        return {"status": "error", "message": error_msg}
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
         print(error_msg)
@@ -600,6 +606,11 @@ async def download_gguf_file_from_repo(model: str, filename: str, job_id: int | 
     # First get the model details to validate this is a GGUF repo
     try:
         model_details = await huggingfacemodel.get_model_details_from_huggingface(model)
+    except (EntryNotFoundError, RepositoryNotFoundError):
+        error_msg = "The model name is invalid"
+        if job_id:
+            await db_jobs.job_update_status(job_id, "FAILED", error_msg)
+        return {"status": "error", "message": error_msg}
     except Exception as e:
         error_msg = f"Error accessing model repository: {type(e).__name__}: {e}"
         if job_id:
@@ -837,6 +848,10 @@ async def install_peft(peft: str, model_id: str, job_id: int | None = None):
     except EntryNotFoundError:
         logging.warning(f"Adaptor {peft} does not have a config.json. Proceeding without details.")
         model_details = {}
+    except RepositoryNotFoundError:
+        error_msg = "The model name is invalid"
+        logging.error(f"Invalid adapter name: {peft}")
+        return {"status": "error", "message": error_msg}
     except GatedRepoError:
         error_msg = f"{peft} is a gated adapter. Please log in and accept the terms on the adapter's Hugging Face page."
         logging.error(error_msg)
