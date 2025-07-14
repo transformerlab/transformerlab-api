@@ -5,7 +5,7 @@
   "plugin-format": "python",
   "evalsType": "dataset",
   "type": "evaluator",
-  "version": "0.2.11",
+  "version": "0.2.12",
   "git": "https://github.com/confident-ai/deepeval",
   "url": "https://github.com/confident-ai/deepeval",
   "files": ["main.py", "setup.sh"],
@@ -35,7 +35,7 @@
     "tasks": {
       "type": "array",
       "title": "GEval Tasks",
-      "description": "Define custom evaluation tasks for generative model assessment",
+      "description": "Define custom evaluation tasks for evaluation",
       "default": [],
       "items": {
         "type": "object",
@@ -63,7 +63,7 @@
       "minimum": 0.0,
       "default": 1.0,
       "maximum": 1.0,
-      "multipleOf": 0.1
+      "multipleOf": 0.1 
     },
     "dataset_split": {
       "title": "Dataset Split",
@@ -97,7 +97,7 @@
       "ui:help": "Select if the `context` field should be considered in the dataset. To be used only for GEval"
     },
     "tasks": {
-      "ui:help": "Define custom evaluation tasks for generative model assessment. To be used only for GEval",
+      "ui:help": "For each task, provide a clear introduction (what the evaluation is about) and detailed evaluation criteria (how the model should be judged). Example: Name: 'Factual Accuracy', Description: 'Evaluate if the output is factually correct based on the provided context. Consider only verifiable facts.' It is also recommended to include a step-by-step evaluation guide if needed. For more details and best practices, see: this https://www.confident-ai.com/blog/g-eval-the-definitive-guide",
       "ui:widget": "GEvalTasksWidget"
     },
     "dataset_split": {
