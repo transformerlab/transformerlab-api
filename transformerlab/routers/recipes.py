@@ -372,26 +372,6 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
                         "dataset_name": dataset_name,  # From dependencies
                     }
 
-                # For EVAL tasks, add evaluation specific inputs
-                if task_type == "EVAL":
-                    inputs.update(
-                        {
-                            "tasks": parsed_config.get("tasks", ""),
-                            "limit": parsed_config.get("limit", ""),
-                            "run_name": parsed_config.get("run_name", ""),
-                        }
-                    )
-                # For GENERATE tasks, add generation specific inputs
-                elif task_type == "GENERATE":
-                    inputs.update(
-                        {
-                            "num_goldens": parsed_config.get("num_goldens", ""),
-                            "scenario": parsed_config.get("scenario", ""),
-                            "task": parsed_config.get("task", ""),
-                            "run_name": parsed_config.get("run_name", ""),
-                        }
-                    )
-
                     # For EVAL tasks, add evaluation specific inputs
                     if task_type == "EVAL":
                         inputs.update(
