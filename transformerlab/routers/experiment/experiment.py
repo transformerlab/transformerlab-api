@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 
 import transformerlab.db.db as db
 from transformerlab.db.workflows import workflows_get_from_experiment
+from transformerlab.db.datasets import get_dataset
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
 from transformerlab.routers.experiment import (
@@ -77,7 +78,7 @@ async def experiments_get_all():
 async def experiments_create(name: str):
     # Apply secure filename validation to the experiment name
     secure_name = secure_filename(name)
-    
+
     newid = await db.experiment_create(secure_name, {})
     return newid
 
@@ -245,11 +246,27 @@ async def export_experiment_to_recipe(id: int):
     # Track unique dependencies to avoid duplicates
     added_dependencies = set()
 
-    def add_dependency(dep_type: str, dep_name: str):
+    async def add_dependency(dep_type: str, dep_name: str):
         """Helper function to add a dependency if it's not already added"""
         dep_key = f"{dep_type}:{dep_name}"
         if dep_key not in added_dependencies and dep_name:
-            export_data["dependencies"].append({"type": dep_type, "name": dep_name})
+            # For datasets, check if it's generated and skip if it is
+            if dep_type == "dataset":
+                try:
+                    dataset_info = await get_dataset(dep_name)
+                    if dataset_info:
+                        json_data = dataset_info.get("json_data", "{}")
+                        if not isinstance(json_data, dict):
+                            json_data = json.loads(json_data)
+                        if json_data.get("generated", False):
+                            print(f"Skipping generated dataset dependency: {dep_name}")
+                            return
+                except Exception:
+                    # If we can't determine if it's generated, proceed to add it
+                    pass
+
+            dependency_entry = {"type": dep_type, "name": dep_name}
+            export_data["dependencies"].append(dependency_entry)
             added_dependencies.add(dep_key)
 
     # Get tasks for each type (TRAIN, EVAL, GENERATE)
@@ -266,17 +283,17 @@ async def export_experiment_to_recipe(id: int):
             else:
                 model_name = task_config.get("model_name")
             if model_name:
-                add_dependency("model", model_name)
+                await add_dependency("model", model_name)
 
             # Add dataset dependency from task
             dataset_name = task_config.get("dataset_name")
             if dataset_name:
-                add_dependency("dataset", dataset_name)
+                await add_dependency("dataset", dataset_name)
 
             # Add plugin dependency
             plugin_name = task_config.get("plugin_name")
             if plugin_name:
-                add_dependency("plugin", plugin_name)
+                await add_dependency("plugin", plugin_name)
 
             # Add task to tasks list with its configuration
             export_data["tasks"].append(
@@ -285,6 +302,7 @@ async def export_experiment_to_recipe(id: int):
                     "task_type": task["type"],
                     "plugin": task["plugin"],
                     "config_json": task["config"],
+                    "inputs_json": task["inputs"],
                 }
             )
 

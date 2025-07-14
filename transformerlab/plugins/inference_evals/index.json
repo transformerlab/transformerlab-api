@@ -5,7 +5,7 @@
     "plugin-format": "python",
     "type": "evaluator",
     "evalsType": "model",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "git": "",
     "url": "",
     "files": [
@@ -31,7 +31,7 @@
         "generation_model": {
             "title": "Generation Model (Model to be used for Generation. Select `local` to use the local model running)",
             "type": "string",
-            "default": "Local"
+            "required": true
         },
         "system_prompt": {
             "title": "System Prompt",

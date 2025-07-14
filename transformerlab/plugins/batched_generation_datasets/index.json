@@ -4,7 +4,7 @@
   "description": "Use a local or commercial LLM to generated outputs for the dataset generated.",
   "plugin-format": "python",
   "type": "generator",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
@@ -16,7 +16,7 @@
     "generation_model": {
       "title": "Generation Model (Model to be used for Generation. Select `local` to use the local model running)",
       "type": "string",
-      "default": "Local"
+      "required": true
     },
     "system_prompt": {
       "title": "System Prompt",
@@ -55,8 +55,9 @@
       "title": "Max Tokens",
       "type": "integer",
       "default": 1024,
-      "minimum": 1,
-      "multipleOf": 1
+      "minimum": 16,
+      "multipleOf": 16,
+      "maximum": 8192
     },
     "dataset_split": {
       "title": "Dataset Split",
