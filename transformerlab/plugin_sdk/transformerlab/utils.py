@@ -27,7 +27,7 @@ def prepare_dataset_files(
         with open(output_file, "w") as f:
             for i in range(len(dataset_split)):
                 example = dataset_split[i]
-                if not chat_template:
+                if formatting_template:
                     data_line = dict(example)
                     line = formatting_template.render(data_line)
                     line = line.replace("\n", "\\n").replace("\r", "\\r")

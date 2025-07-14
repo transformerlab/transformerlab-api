@@ -61,7 +61,7 @@ def train_model():
         data_directory=data_directory,
         datasets=datasets,
         formatting_template=tlab_trainer.params.get("formatting_template", None),
-        chat_template=tlab_trainer.params.get("chat_template", None),
+        chat_template=tlab_trainer.params.get("formatting_chat_template", None),
         chat_column=tlab_trainer.params.get("chat_column", "messages"),
         model_name=tlab_trainer.params.get("model_name"),
     )
