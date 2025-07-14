@@ -117,7 +117,7 @@ def train_model():
     model_id = tlab_trainer.params.model_name
 
     # Prepare datasets into JSONL files
-    data_directory = f"{WORKSPACE_DIR}/plugins/llama_trainer/data"
+    data_directory = f"{WORKSPACE_DIR}/plugins/llama_trainer_multi_gpu/data"
     if not os.path.exists(data_directory):
         os.makedirs(data_directory)
 
@@ -127,7 +127,7 @@ def train_model():
         formatting_template=tlab_trainer.params.get("formatting_template", None),
         chat_template=tlab_trainer.params.get("formatting_chat_template", None),
         chat_column=tlab_trainer.params.get("chatml_formatted_column", "messages"),
-        model_name=tlab_trainer.params.get("model_name"),
+        model_name=model_id,
     )
 
     dataset = load_dataset("json", data_files=f"{data_directory}/train.jsonl", split="train")
