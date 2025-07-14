@@ -337,11 +337,19 @@ class TLabPlugin:
 
         # Use provided values or class attributes
         model_name = model_name or self.params.model_name
-        generation_model = self.params.get(field_name, "local")
+        generation_model = self.params.get(field_name, "{'provider': 'local'}")
+
+        if isinstance(generation_model, str):
+            try:
+                generation_model = json.loads(generation_model)
+            except json.JSONDecodeError:
+                print(f"Invalid JSON format for {field_name}: {generation_model}")
+                generation_model = {"provider": generation_model}
+        
 
         # Auto-detect model type if not provided
         if not model_type:
-            gen_model = generation_model.lower()
+            gen_model = generation_model.get('provider', '').lower()
             if "local" in gen_model:
                 model_type = "local"
             elif "azure" in gen_model:
@@ -357,7 +365,8 @@ class TLabPlugin:
 
         # Load the appropriate model
         if model_type == "local":
-            self.check_local_server()
+            model_server = generation_model.get("model_server")
+            self.check_local_server(model_server)
 
             verified_model_name = self.get_local_model_name()
             if verified_model_name is not None and verified_model_name != "":
@@ -430,7 +439,7 @@ class TLabPlugin:
             print(f"Error parsing response from local server: {str(e)}")
             return None
 
-    def check_local_server(self):
+    def check_local_server(self, model_server=None):
         """Check if the local model server is running, and start it if not"""
         try:
             response = requests.get("http://localhost:8338/server/worker_healthz", timeout=5)
@@ -442,11 +451,11 @@ class TLabPlugin:
         
         # Server is not running, try to start it and wait for it to be ready
         print("Starting local model server...")
-        self._start_worker_sync()
+        self._start_worker_sync(model_server=model_server)
         # Mark that we started the worker
         self.WORKER_STARTED = True
 
-    def _start_worker_sync(self):
+    def _start_worker_sync(self, model_server=None):
         """Start the local model server and wait for it to be ready"""
         # Get experiment_id from the job
         experiment_id = self.job.get_experiment_id() if self.job else None
@@ -455,6 +464,9 @@ class TLabPlugin:
             "model_name": self.params.model_name,
             "inference_params": "",
         }
+
+        if model_server is not None:
+            params["inference_engine"] = model_server
         
         # Add experiment_id if we have one
         if experiment_id is not None:
