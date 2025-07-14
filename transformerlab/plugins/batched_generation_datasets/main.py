@@ -41,10 +41,6 @@ async def run_generation():
         df["system_prompt"] = tlab_gen.params.system_prompt
         sys_prompt_col = "system_prompt"
 
-    # Check if we're using a local model and verify the server is running
-    if "local" in tlab_gen.params.generation_model.lower():
-        tlab_gen.check_local_server()
-
     # Load the model for generation
     trlab_model = tlab_gen.load_evaluation_model(field_name="generation_model")
     print("Model loaded successfully")

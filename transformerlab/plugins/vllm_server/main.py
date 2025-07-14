@@ -8,9 +8,9 @@ import requests
 
 
 try:
-    from transformerlab.plugin import get_python_executable
+    from transformerlab.plugin import get_python_executable, register_process
 except ImportError:
-    from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
+    from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable, register_process
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model-path", type=str)
@@ -85,9 +85,7 @@ proxy_proc = subprocess.Popen(proxy_args, stdout=None, stderr=subprocess.PIPE)
 
 # save both worker process id and vllm process id to file
 # this will allow transformer lab to kill both later
-with open(f"{llmlab_root_dir}/worker.pid", "w") as f:
-    f.write(f"{proxy_proc.pid}\n")
-    f.write(f"{vllm_proc.pid}\n")
+register_process([proxy_proc.pid, vllm_proc.pid])
 
 # read output:
 for line in iter(proxy_proc.stderr.readline, b""):
