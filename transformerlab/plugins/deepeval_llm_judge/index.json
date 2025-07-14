@@ -5,7 +5,7 @@
   "plugin-format": "python",
   "evalsType": "dataset",
   "type": "evaluator",
-  "version": "0.2.12",
+  "version": "0.2.13",
   "git": "https://github.com/confident-ai/deepeval",
   "url": "https://github.com/confident-ai/deepeval",
   "files": ["main.py", "setup.sh"],
@@ -47,6 +47,11 @@
           "description": {
             "type": "string",
             "title": "Text Description of the Eval providing step by step descriptions for the eval"
+          },
+          "evaluation_steps": {
+            "type": "string",
+            "title": "Evaluation Steps",
+            "description": "Detailed steps for the evaluation process"
           },
           "include_context": {
             "type": "string",
