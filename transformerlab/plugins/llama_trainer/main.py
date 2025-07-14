@@ -197,7 +197,7 @@ def train_model():
             save_strategy="epoch",
             learning_rate=learning_rate,
             bf16=True,
-            # tf32=True,
+            tf32=False, # T4 GPUs do not support tf32
             max_grad_norm=0.3,
             warmup_ratio=0.03,
             lr_scheduler_type=lr_scheduler,
