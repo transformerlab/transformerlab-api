@@ -17,6 +17,24 @@ TEMP_DIR = os.path.join(WORKSPACE_DIR, "temp")
 # Maintain a singleton database connection
 db = None
 
+def register_process(pid_or_pids):
+    """
+    Record one or many PIDs in <LLM_LAB_ROOT_PATH>/worker.pid so that
+    the 'worker_stop' endpoint can later clean them up.
+    """
+    if isinstance(pid_or_pids, int):
+        pids = [pid_or_pids]
+    else:
+        pids = list(pid_or_pids)
+    root_dir = os.getenv("LLM_LAB_ROOT_PATH")
+    if not root_dir:
+        raise EnvironmentError("LLM_LAB_ROOT_PATH is not set")
+    pid_file = os.path.join(root_dir, "worker.pid")
+    with open(pid_file, "w") as f:
+        for pid in pids:
+            f.write(f"{pid}\n")
+    return pids
+
 
 def get_db_connection():
     """

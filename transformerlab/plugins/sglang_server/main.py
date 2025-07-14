@@ -14,9 +14,9 @@ import site
 shutdown_event = threading.Event()
 
 try:
-    from transformerlab.plugin import get_python_executable
+    from transformerlab.plugin import get_python_executable, register_process
 except ImportError:
-    from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
+    from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable, register_process
 
 
 def kill_sglang_subprocesses():
@@ -179,10 +179,7 @@ proc = subprocess.Popen(popen_args, stderr=subprocess.PIPE, stdout=None)
 
 # save worker process id to file
 # this will allow transformer lab to kill it later
-print(f">>> [main] Saving worker PID to: {llmlab_root_dir}/worker.pid", file=sys.stderr)
-
-with open(f"{llmlab_root_dir}/worker.pid", "w") as f:
-    f.write(str(proc.pid))
+register_process(proc.pid)
 
 # Simple loop to block on stderr
 try:
