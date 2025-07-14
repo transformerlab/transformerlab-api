@@ -336,7 +336,7 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
 
     for i, task in enumerate(tasks):
         task_type = task.get("task_type")
-        if task_type in ["TRAIN", "EVAL", "GENERATE"]:
+        if task_type in ["TRAIN", "EVAL", "GENERATE", "EXPORT"]:
             try:
                 # Parse the config_json to extract template metadata
                 config_json = task.get("config_json", "{}")
@@ -391,6 +391,22 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
                                 "run_name": parsed_config.get("run_name", ""),
                             }
                         )
+                    # For EXPORT tasks, add export specific inputs
+                    elif task_type == "EXPORT":
+                        inputs.update(
+                            {
+                                "input_model_id": parsed_config.get("input_model_id", ""),
+                                "input_model_path": parsed_config.get("input_model_path", ""),
+                                "input_model_architecture": parsed_config.get("input_model_architecture", ""),
+                                "output_model_id": parsed_config.get("output_model_id", ""),
+                                "output_model_architecture": parsed_config.get("output_model_architecture", ""),
+                                "output_model_name": parsed_config.get("output_model_name", ""),
+                                "output_model_path": parsed_config.get("output_model_path", ""),
+                                "output_filename": parsed_config.get("output_filename", ""),
+                                "script_directory": parsed_config.get("script_directory", ""),
+                                "params": json.loads(parsed_config.get("params", {})),
+                            }
+                        )
 
                 # Create outputs JSON (what the task produces)
                 outputs = {}
@@ -401,6 +417,9 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
                     outputs["eval_results"] = "{}"
                 elif task_type == "GENERATE":
                     outputs["generated_outputs"] = "[]"
+                elif task_type == "EXPORT":
+                    outputs["exported_model_path"] = parsed_config.get("output_model_path", "")
+                    outputs["exported_model_id"] = parsed_config.get("output_model_id", "")
 
                 # Get plugin name
                 plugin_name = parsed_config.get("plugin_name", "")
