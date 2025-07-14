@@ -4,7 +4,7 @@
   "description": "A training script adapted from https://www.philschmid.de/instruction-tune-llama-2 for training Llama2 using PeFT",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "model_architectures": [
     "LlamaForCausalLM",
     "Qwen2ForCausalLM",
@@ -146,5 +146,6 @@
     "fuse_model": {
       "ui:help": "This will create a new fused model with the adaptor and the model merged. A separate entry will be created in the model zoo for the fused model."
     }
-  }
+  },
+  "supports_chat_template": true
 }
