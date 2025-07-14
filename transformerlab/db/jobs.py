@@ -10,11 +10,11 @@ from transformerlab.db.utils import sqlalchemy_to_dict
 # Allowed job types:
 ALLOWED_JOB_TYPES = [
     "TRAIN",
-    "EXPORT_MODEL",
     "DOWNLOAD_MODEL",
     "LOAD_MODEL",
     "TASK",
     "EVAL",
+    "EXPORT",
     "UNDEFINED",
     "GENERATE",
     "INSTALL_RECIPE_DEPS",
