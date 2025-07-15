@@ -122,6 +122,24 @@ async def workflow_update_name_func(workflow_id: str, new_name: str, experimentI
     return {"message": "OK"}
 
 
+@router.put("/{workflow_id}/config", summary="Update the config of a workflow")
+async def workflow_update_config_func(workflow_id: str, experimentId: int, config: dict = Body()):
+    """
+    Update the config of a workflow directly.
+    Accepts the config as a JSON object in the request body.
+    """
+    # Verify workflow exists and belongs to experiment
+    workflow = await workflows_get_by_id(workflow_id, experimentId)
+    if not workflow:
+        return {"error": "Workflow not found or does not belong to this experiment"}
+
+    # Update workflow config with experiment enforcement at database level
+    success = await workflow_update_config(workflow_id, json.dumps(config), experimentId)
+    if not success:
+        return {"error": "Failed to update workflow config"}
+    return {"message": "OK"}
+
+
 @router.get("/{workflow_id}/add_node", summary="Add a node to a workflow")
 async def workflow_add_node(workflow_id: str, node: str, experimentId: int):
     # Get workflow with experiment enforcement at database level
