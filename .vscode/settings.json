@@ -7,7 +7,12 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.formatOnSave": true
   },
-  "python.testing.pytestArgs": ["test"],
+  "python.testing.pytestArgs": ["${workspaceFolder}/test"],
   "python.testing.unittestEnabled": false,
-  "python.testing.pytestEnabled": true
+  "python.testing.pytestEnabled": true,
+  "remote.extensionKind": {
+    "charliermarsh.ruff": ["workspace"],
+    "esbenp.prettier-vscode": ["workspace"],
+    "ms-python.python": ["workspace"]
+  }
 }
