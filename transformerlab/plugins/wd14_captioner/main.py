@@ -60,7 +60,7 @@ def run_generation():
         if ext == "":
             dst = TMP_DATASET_DIR / f"{idx:06d}.jpg"
         else:
-            dst = TMP_DATASET_DIR / f"{idx:06d}.{ext}"
+            dst = TMP_DATASET_DIR / f"{idx:06d}{ext}"
         shutil.copy(real_path, dst)
         image_paths.append(img_entry)
 
@@ -126,8 +126,8 @@ def run_generation():
     # Save the results as a dataset
     custom_name = tlab_gen.params.get("output_dataset_name")
     output_path, dataset_name = tlab_gen.save_generated_dataset(df_output, is_image=True, dataset_id=custom_name)
-    dataset_id = f"{tlab_gen.params.run_name}_{tlab_gen.params.job_id}".lower()
-    output_dir = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "datasets", dataset_id)
+    output_dir = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "datasets", custom_name)
+    os.makedirs(output_dir, exist_ok=True)
     for src, dst in zip(local_paths, df_output["file_name"]):
         final_dst = os.path.join(output_dir, dst)
         shutil.copy2(src, final_dst)
