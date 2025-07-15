@@ -398,7 +398,11 @@ async def generate_image(experimentId: int, request: DiffusionRequest):
         # Validate diffusion type
         if request.plugin == "image_diffusion":
             request_dict = request.dict()
-            generation_id = request.generation_id or get_new_generation_id()
+            if request.generation_id:
+                generation_id = request.generation_id
+            else:
+                gen_info = await get_new_generation_id()
+                generation_id = gen_info["generation_id"]
             request_dict["generation_id"] = generation_id
 
             job_config = {
