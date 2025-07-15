@@ -24,7 +24,7 @@
     "SmolLM3ForCausalLM"
   ],
   "supported_hardware_architectures": ["mlx"],
-  "supports": ["sweeps"],
+  "supports": ["sweeps", "chat_template_formatting"],
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {
@@ -144,6 +144,5 @@
     "log_to_wandb": {
       "ui:help": "Log training to Weights and Biases. You must have a Weights and Biases account and API key to use this feature. You need to set the API Key in settings to use this feature."
     }
-  },
-  "supports_chat_template": true
+  }
 }

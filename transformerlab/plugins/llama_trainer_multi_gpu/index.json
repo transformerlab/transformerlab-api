@@ -24,7 +24,7 @@
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
-  "supports": ["sweeps"],
+  "supports": ["sweeps", "chat_template_formatting"],
   "supported_hardware_architectures": ["cuda"],
   "setup-script": "setup.sh",
   "parameters": {
@@ -146,6 +146,5 @@
     "fuse_model": {
       "ui:help": "This will create a new fused model with the adaptor and the model merged. A separate entry will be created in the model zoo for the fused model."
     }
-  },
-  "supports_chat_template": true
+  }
 }

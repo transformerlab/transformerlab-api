@@ -23,7 +23,7 @@
     "MixtralForCausalLM",
     "SmolLM3ForCausalLM"
   ],
-  "supports": ["sweeps"],
+  "supports": ["sweeps", "chat_template_formatting"],
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
@@ -126,6 +126,5 @@
     "fuse_model": {
       "ui:help": "This will create a new fused model with the adaptor and the model merged. A separate entry will be created in the model zoo for the fused model."
     }
-  },
-  "supports_chat_template": true
+  }
 }
