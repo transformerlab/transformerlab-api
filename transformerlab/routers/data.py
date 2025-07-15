@@ -16,6 +16,7 @@ from transformerlab.shared import dirs
 from datasets.data_files import EmptyDatasetError
 from transformerlab.shared.shared import slugify
 from transformerlab.shared import galleries
+from datasets.exceptions import DatasetNotFoundError
 
 from transformerlab.db.datasets import (
     create_huggingface_dataset,
@@ -625,7 +626,11 @@ async def dataset_download(dataset_id: str, config_name: str = None):
         if "Config name is missing" in str(e):
             return {"status": "error", "message": "Please enter the folder_name of the dataset from huggingface"}
         else:
-            return {"status": "error", "message": "An internal error has occurred!"}
+            return {"status": "error", "message": "An internal error has occurred!"}   
+    
+    except DatasetNotFoundError as e:
+        log(f"DatasetNotFoundError occurred: {e}")
+        return {"status": "error", "message": f"Dataset '{dataset_id}' not found or is private. Please check the dataset ID."}
 
     except Exception as e:
         log(f"Exception occurred: {type(e).__name__}: {e}")

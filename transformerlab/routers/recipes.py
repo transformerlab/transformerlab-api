@@ -353,6 +353,14 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
                         if isinstance(param_value, (list, dict)):
                             parsed_config["script_parameters"][param_key] = json.dumps(param_value)
 
+                # For EXPORT tasks, ensure params is a JSON
+                if task_type == "EXPORT" and "params" in parsed_config:
+                    if isinstance(parsed_config["params"], str):
+                        try:
+                            parsed_config["params"] = json.loads(parsed_config["params"])
+                        except json.JSONDecodeError:
+                            print(f"Invalid JSON for params in EXPORT task: {parsed_config['params']}")
+
                 # Extract task name from recipe
                 task_name = task.get("name")
 
@@ -410,7 +418,6 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
 
                 # Create outputs JSON (what the task produces)
                 outputs = {}
-
 
                 # TODO: Check if this is relevant and needed and if not, remove it.
                 if task_type == "EVAL":
