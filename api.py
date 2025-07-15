@@ -283,7 +283,11 @@ async def server_worker_start(
             experiment_config = experiment["config"]
             if not isinstance(experiment_config, dict):
                 experiment_config = json.loads(experiment_config)
-            inference_params = experiment_config["inferenceParams"]
+            try:
+                inference_params = experiment_config["inferenceParams"]
+            except KeyError:
+                print("No inference params found in experiment config, using empty dict")
+                inference_params = {}
             if not isinstance(inference_params, dict):
                 # if inference_params is a string, we need to parse it as JSON
                 inference_params = json.loads(inference_params)
@@ -451,7 +455,6 @@ def parse_args():
     parser.add_argument("--auto_reinstall_plugins", type=bool, default=False, help="auto reinstall plugins")
     parser.add_argument("--https", action="store_true", help="Serve the API over HTTPS with a self-signed cert.")
 
-
     return parser.parse_args()
 
 
@@ -480,8 +483,9 @@ def run():
 
     if args.https:
         cert_path, key_path = ensure_persistent_self_signed_cert()
-        uvicorn.run("api:app", host=args.host, port=args.port,
-            log_level="warning", ssl_certfile=cert_path, ssl_keyfile=key_path)
+        uvicorn.run(
+            "api:app", host=args.host, port=args.port, log_level="warning", ssl_certfile=cert_path, ssl_keyfile=key_path
+        )
     else:
         uvicorn.run("api:app", host=args.host, port=args.port, log_level="warning")
 
