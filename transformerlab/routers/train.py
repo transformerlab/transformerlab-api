@@ -41,157 +41,6 @@ router = APIRouter(prefix="/train", tags=["train"])
 #     return {"message": "OK"}
 
 
-@router.post("/template/create")
-async def create_training_template(
-    name: str,
-    description: str,
-    type: str,
-    config: Annotated[str, Body(embed=True)],
-):
-    configObject = json.loads(config)
-    datasets = configObject["dataset_name"]
-    await db.create_training_template(name, description, type, datasets, config)
-    return {"message": "OK"}
-
-
-@router.get("/templates")
-async def get_training_templates():
-    return await db.get_training_templates()
-
-
-@router.get("/template/{template_id}/delete")
-async def delete_training_template(template_id: str):
-    await db.delete_training_template(template_id)
-    return {"message": "OK"}
-
-
-@router.post("/template/import")
-async def import_recipe(name: str, recipe_yaml: str = Body(...)):
-    # Check if a template with this name exists already
-    template_check = await db.get_training_template_by_name(name)
-    if template_check is not None:
-        error_msg = f"A template named {name} already exists"
-        print("ERROR", error_msg)
-        return {"status": "error", "message": error_msg}
-
-    try:
-        recipe = yaml.safe_load(recipe_yaml)
-    except yaml.YAMLError as e:
-        print(e)
-        return {"status": "error", "message": "An error occurred while processing the recipe."}
-
-    # Get top level sections of recipe
-    # TODO: Is it an error if any of these don't exist?
-    metadata = recipe.get("metadata", {})
-    model = recipe.get("model", {})
-    datasets = recipe.get("datasets", {})
-    training = recipe.get("training", {})
-
-    # Get fields needed to save template
-    # TODO: Is it an error if any of these are missing?
-    description = metadata.get("description", "")
-    type = training.get("type", "LoRA")
-    model_path = model.get("path", "")
-    datasets = datasets.get("path", "")
-    config = training.get("config_json", {})
-
-    print("CREATING TEMPLATE")
-    print("Name:", name)
-    print("Description:", description)
-    print("Type:", type)
-    print("Datasets:", datasets)
-    print("Config:", config)
-
-    await db.create_training_template(name, description, type, datasets, config)
-
-    # Check if the model and dataset are installed
-    # For model: get a list of local models to determine what has been downloaded already
-    model_downloaded = await model_helper.is_model_installed(model_path)
-
-    # Repeat for dataset
-    dataset_downloaded = False
-    local_datasets = await get_datasets()
-    for dataset in local_datasets:
-        if dataset["dataset_id"] == datasets:
-            dataset_downloaded = True
-
-    # generate a repsonse to tell if model and dataset need to be downloaded
-    response = {}
-
-    # Dataset info - including whether it needs to be downloaded or not
-    dataset_status = {}
-    dataset_status["path"] = datasets
-    dataset_status["downloaded"] = dataset_downloaded
-    response["dataset"] = dataset_status
-
-    # Model info - including whether it needs to be downloaded or not
-    model_status = {}
-    model_status["path"] = model_path
-    model_status["downloaded"] = model_downloaded
-    response["model"] = model_status
-
-    return {"status": "OK", "data": response}
-
-
-@router.get("/template/{template_id}/export", response_class=PlainTextResponse)
-async def export_recipe(template_id: str):
-    # Read in training template from DB and parse config JSON
-    training_template = await db.get_training_template(template_id)
-    if not training_template:
-        return ""
-
-    template_config_json = training_template.get("config", {})
-    try:
-        template_config = json.loads(template_config_json)
-    except Exception as e:
-        print(f"Error reading template config: {e}")
-        print(template_config_json)
-        template_config = {}
-
-    # Construct recipe object
-    recipe = {}
-
-    metadata = {
-        "author": "",
-        "name": training_template.get("name", ""),
-        "version": training_template.get("version", "1.0"),
-        "description": training_template.get("description", ""),
-    }
-
-    model = {"name": template_config.get("model_name", ""), "path": template_config.get("model_name", "")}
-
-    datasets = {"name": training_template.get("datasets", ""), "path": training_template.get("datasets", "")}
-
-    # TODO: Read in the type from the DB!
-    training = {
-        "type": "LoRA",
-        "plugin": template_config.get("plugin_name", ""),
-        "formatting_template": template_config.get("formatting_template", ""),
-        "config_json": template_config_json,
-    }
-
-    test = {}
-
-    recipe["schemaVersion"] = "0.1"
-    recipe["metadata"] = metadata
-    recipe["model"] = model
-    recipe["datasets"] = datasets
-    recipe["training"] = training
-    recipe["test"] = test
-
-    # Convert recipe to YAML
-    recipe_yaml = yaml.dump(recipe, sort_keys=False)
-    print(recipe_yaml)
-    return recipe_yaml
-
-
-@router.get("/template/gallery")
-async def recipe_gallery_get_all():
-    gallery = galleries.get_recipes_gallery()
-
-    return gallery
-
-
 # @router.get("/jobs")
 # async def jobs_get_all():
 #     jobs = await db.training_jobs_get_all()
@@ -352,12 +201,13 @@ async def watch_log(job_id: str, sweeps: bool = False):
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
     )
 
+
 @router.get("/job/{job_id}/sweep_results")
 async def sweep_results(job_id: str):
     try:
         job = await db_jobs.job_get(job_id)
         job_data = job.get("job_data", {})
-        
+
         output_file = job_data.get("sweep_results_file", None)
         if output_file and os.path.exists(output_file):
             try:
@@ -370,10 +220,11 @@ async def sweep_results(job_id: str):
         else:
             logging.warning(f"Sweep results file not found for job {job_id}: {output_file}")
             return {"status": "error", "message": "Sweep results file not found."}
-        
+
     except Exception as e:
         logging.error(f"Error loading sweep results for job {job_id}: {e}")
         return {"status": "error", "message": "An internal error has occurred!"}
+
 
 tensorboard_process = None
 
