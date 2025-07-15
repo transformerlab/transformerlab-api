@@ -1106,8 +1106,14 @@ async def get_new_generation_id():
 
 @router.get("/get_file/{generation_id}")
 async def get_file(generation_id: str):
+    # Sanitize and validate generation_id
+    sanitized_id = secure_filename(generation_id)
+    try:
+        uuid.UUID(sanitized_id)  # Validate UUID format
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid generation ID format")
     root_dir = get_images_dir()
-    file_path = os.path.normpath(os.path.join(root_dir, generation_id, "tmp_json.json"))
+    file_path = os.path.normpath(os.path.join(root_dir, sanitized_id, "tmp_json.json"))
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail=f"Output JSON file not found at {file_path}")
     try:
