@@ -1,4 +1,3 @@
-import asyncio
 import json
 import yaml
 import os
@@ -6,12 +5,11 @@ import subprocess
 from typing import Annotated
 
 from fastapi import APIRouter, Body
-from fastapi.responses import PlainTextResponse, StreamingResponse
+from fastapi.responses import PlainTextResponse
 import logging
 from transformerlab.db.datasets import get_datasets
 import transformerlab.db.db as db
 import transformerlab.db.jobs as db_jobs
-from transformerlab.routers.serverinfo import watch_file
 from transformerlab.shared import dirs
 from transformerlab.shared import galleries
 from transformerlab.models import model_helper
