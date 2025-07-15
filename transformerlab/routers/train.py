@@ -40,13 +40,6 @@ router = APIRouter(prefix="/train", tags=["train"])
 
 #     return {"message": "OK"}
 
-
-# @router.get("/jobs")
-# async def jobs_get_all():
-#     jobs = await db.training_jobs_get_all()
-#     return jobs
-
-
 # @router.get("/job/delete/{job_id}")
 # async def job_delete(job_id: str):
 #     await db.job_delete(job_id)

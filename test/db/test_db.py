@@ -813,35 +813,6 @@ async def test_job_mark_as_complete_if_running(setup_db):
 #     assert running_workflow["workflow_name"] == "test_workflow"
 
 
-# @pytest.mark.skip(reason="Skipping because I can't get it to work")
-# @pytest.mark.asyncio
-# async def test_training_jobs_get_all(setup_db):
-#     """Test the training_jobs_get_all function."""
-#     # Create a training template using db method
-#     template_id = await db.create_training_template("test_template", "Test description", "fine-tuning", "[]", "{}")
-
-#     # Create a job that references this training template
-#     job_data = {"template_id": template_id, "description": "Test training job"}
-#     job_id = await db.job_create("TRAIN", "QUEUED", json.dumps(job_data), "test_experiment")
-
-#     # Test the function
-#     training_jobs = await db.training_jobs_get_all()
-
-#     # Verify results
-#     assert len(training_jobs) > 0
-#     found_job = False
-#     for job in training_jobs:
-#         if job["id"] == job_id:
-#             found_job = True
-#             assert job["type"] == "TRAIN"
-#             assert job["status"] == "QUEUED"
-#             assert job["job_data"]["template_id"] == template_id
-#             assert job["job_data"]["description"] == "Test training job"
-#             assert "config" in job
-
-#     assert found_job, "The created training job was not found in the results"
-
-
 # @pytest.mark.skip(reason="Skipping test_workflow_run_get_running because I can't get it to work")
 # @pytest.mark.asyncio
 # async def test_workflow_run_get_queued(setup_db):

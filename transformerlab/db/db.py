@@ -16,7 +16,12 @@ from fastapi import Depends
 from fastapi_users.db import SQLAlchemyUserDatabase
 
 from transformerlab.db.jobs import job_create, job_delete, jobs_get_by_experiment
-from transformerlab.db.workflows import workflow_delete_by_id, workflows_get_from_experiment, workflow_runs_get_from_experiment, workflow_run_delete
+from transformerlab.db.workflows import (
+    workflow_delete_by_id,
+    workflows_get_from_experiment,
+    workflow_runs_get_from_experiment,
+    workflow_run_delete,
+)
 from transformerlab.shared.models import models
 from transformerlab.shared.models.models import Config, Plugin
 from transformerlab.db.utils import sqlalchemy_to_dict, sqlalchemy_list_to_dict
@@ -217,113 +222,6 @@ async def tasks_get_by_experiment(experiment_id):
         return [sqlalchemy_to_dict(task) for task in tasks]
 
 
-async def get_training_template(id):
-    async with async_session() as session:
-        result = await session.execute(select(models.TrainingTemplate).where(models.TrainingTemplate.id == id))
-        template = result.scalar_one_or_none()
-        if template is None:
-            return None
-        # Convert ORM object to dict
-        return sqlalchemy_to_dict(template)
-
-
-async def get_training_template_by_name(name):
-    async with async_session() as session:
-        result = await session.execute(select(models.TrainingTemplate).where(models.TrainingTemplate.name == name))
-        template = result.scalar_one_or_none()
-        if template is None:
-            return None
-        # Convert ORM object to dict
-        return sqlalchemy_to_dict(template)
-
-
-async def get_training_templates():
-    async with async_session() as session:
-        result = await session.execute(
-            select(models.TrainingTemplate).order_by(models.TrainingTemplate.created_at.desc())
-        )
-        templates = result.scalars().all()
-        # Convert ORM objects to dicts if needed
-        return sqlalchemy_list_to_dict(templates)
-
-
-async def create_training_template(name, description, type, datasets, config):
-    async with async_session() as session:
-        template = models.TrainingTemplate(
-            name=name,
-            description=description,
-            type=type,
-            datasets=datasets,
-            config=config,
-        )
-        session.add(template)
-        await session.commit()
-    return
-
-
-async def update_training_template(id, name, description, type, datasets, config):
-    async with async_session() as session:
-        await session.execute(
-            update(models.TrainingTemplate)
-            .where(models.TrainingTemplate.id == id)
-            .values(
-                name=name,
-                description=description,
-                type=type,
-                datasets=datasets,
-                config=config,
-            )
-        )
-        await session.commit()
-    return
-
-
-async def delete_training_template(id):
-    async with async_session() as session:
-        await session.execute(delete(models.TrainingTemplate).where(models.TrainingTemplate.id == id))
-        await session.commit()
-    return
-
-
-async def training_jobs_get_all():
-    async with async_session() as session:
-        # Select jobs of type "TRAIN" and join with TrainingTemplate using the template_id from job_data JSON
-        stmt = (
-            select(
-                models.Job,
-                models.TrainingTemplate.id.label("tt_id"),
-                models.TrainingTemplate.config,
-            )
-            .join(
-                models.TrainingTemplate,
-                text("json_extract(job.job_data, '$.template_id') = training_template.id"),
-            )
-            .where(models.Job.type == "TRAIN")
-        )
-        result = await session.execute(stmt)
-        rows = result.all()
-
-        data = []
-        for job, tt_id, config in rows:
-            row = sqlalchemy_to_dict(job)
-            row["tt_id"] = tt_id
-            # Convert job_data and config from JSON string to Python object
-            if "job_data" in row and row["job_data"]:
-                try:
-                    row["job_data"] = json.loads(row["job_data"])
-                except Exception:
-                    pass
-            if config:
-                try:
-                    row["config"] = json.loads(config)
-                except Exception:
-                    row["config"] = config
-            else:
-                row["config"] = None
-            data.append(row)
-        return data
-
-
 # async def training_job_create(template_id, description, experiment_id):
 
 #     job_data = {
@@ -417,22 +315,22 @@ async def experiment_delete(id):
             tasks = await tasks_get_by_experiment(id)
             for task in tasks:
                 await delete_task(task["id"])
-            
+
             # Delete all associated jobs using the job delete method
             jobs = await jobs_get_by_experiment(id)
             for job in jobs:
                 await job_delete(job["id"])
-            
+
             # Delete all associated workflow runs using the workflow run delete method
             workflow_runs = await workflow_runs_get_from_experiment(id)
             for workflow_run in workflow_runs:
                 await workflow_run_delete(workflow_run["id"])
-            
+
             # Delete all associated workflows using the workflow delete method
             workflows = await workflows_get_from_experiment(id)
             for workflow in workflows:
                 await workflow_delete_by_id(workflow["id"], id)
-            
+
             # Hard delete the experiment itself
             await session.delete(experiment)
             await session.commit()
