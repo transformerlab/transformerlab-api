@@ -2,17 +2,14 @@ import json
 import os
 import time
 import asyncio
-import logging
 import subprocess
 import sys
 
 from fastapi import APIRouter
-from fastapi.responses import StreamingResponse
 
 import transformerlab.db.db as db
 import transformerlab.db.jobs as db_jobs
 from transformerlab.shared import dirs
-from transformerlab.routers.serverinfo import watch_file
 
 from werkzeug.utils import secure_filename
 
