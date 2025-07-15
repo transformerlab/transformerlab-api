@@ -14,6 +14,7 @@ import base64
 from pathlib import Path
 from transformerlab.shared import dirs
 from datasets.data_files import EmptyDatasetError
+from huggingface_hub.utils import RepositoryNotFoundError
 from transformerlab.shared.shared import slugify
 from transformerlab.shared import galleries
 
@@ -26,7 +27,6 @@ from transformerlab.db.datasets import (
     get_generated_datasets,
 )
 from transformers import AutoTokenizer
-
 
 
 from werkzeug.utils import secure_filename
@@ -183,6 +183,10 @@ async def dataset_preview(
                 dataset = load_dataset(path=dataset_id, name=config_name, trust_remote_code=True, streaming=streaming)
             else:
                 dataset = load_dataset(dataset_id, trust_remote_code=True, streaming=streaming)
+    except (FileNotFoundError, OSError, RepositoryNotFoundError) as e:
+        logging.error(f"Dataset not found: {type(e).__name__}: {e}")
+        error_message = "The dataset name is invalid"
+        return {"status": "error", "message": error_message}
     except Exception as e:
         logging.error(f"Exception occurred: {type(e).__name__}: {e}")
         return {"status": "error", "message": "An internal error has occurred."}
@@ -230,6 +234,7 @@ def serialize_row(row):
     else:
         return row
 
+
 async def load_and_slice_dataset(dataset_id: str, offset: int, limit: int):
     d = await get_dataset(dataset_id)
     dataset_len = 0
@@ -238,6 +243,10 @@ async def load_and_slice_dataset(dataset_id: str, offset: int, limit: int):
     if d["location"] == "local":
         try:
             dataset = load_dataset(path=dirs.dataset_dir_by_id(dataset_id))
+        except (FileNotFoundError, OSError, RepositoryNotFoundError) as e:
+            logging.error(f"Dataset not found: {type(e).__name__}: {e}")
+            error_message = "The dataset name is invalid"
+            return {"status": "error", "message": error_message}
         except Exception as e:
             logging.error(f"Error loading dataset: {type(e).__name__}: {e}")
             return {"status": "error", "message": "An internal error has occurred."}
@@ -256,6 +265,7 @@ async def load_and_slice_dataset(dataset_id: str, offset: int, limit: int):
         result["columns"] = dataset["train"][offset : min(offset + limit, dataset_len)]
     result["len"] = dataset_len
     return result, dataset_len
+
 
 @router.get(
     "/preview_with_template",
@@ -300,6 +310,7 @@ async def dataset_preview_with_template(
         "data": {"columns": column_names, "rows": rows, "len": dataset_len, "offset": offset, "limit": limit},
     }
 
+
 @router.get(
     "/preview_with_chat_template",
     summary="Preview the contents of a dataset after applying a jinja chat template to it.",
@@ -334,11 +345,11 @@ async def dataset_preview_with_chat_template(
         row["__index__"] = i + offset
         for key in result["columns"].keys():
             row[key] = serialize_row(result["columns"][key][i])
-        
+
         row["__formatted__"] = tokenizer.apply_chat_template(
-                row[chat_column],
-                tokenize=False,
-            )
+            row[chat_column],
+            tokenize=False,
+        )
         rows.append(row)
 
     return {
@@ -627,6 +638,12 @@ async def dataset_download(dataset_id: str, config_name: str = None):
         else:
             return {"status": "error", "message": "An internal error has occurred!"}
 
+    except (FileNotFoundError, OSError, RepositoryNotFoundError) as e:
+        log(f"Dataset not found: {type(e).__name__}: {e}")
+        # Clean up any "Error: " prefix that might come from the exception
+        error_message = "The dataset name is invalid"
+        return {"status": "error", "message": error_message}
+
     except Exception as e:
         log(f"Exception occurred: {type(e).__name__}: {e}")
         return {"status": "error", "message": "An internal error has occurred!"}
@@ -670,6 +687,10 @@ async def dataset_download(dataset_id: str, config_name: str = None):
                 print(error_msg)
                 raise ValueError(e)
 
+            except (FileNotFoundError, OSError, RepositoryNotFoundError) as e:
+                print(f"Dataset not found: {type(e).__name__}: {e}")
+                raise e
+
             except Exception as e:
                 error_msg = f"{type(e).__name__}: {e}"
                 print(error_msg)
@@ -684,6 +705,10 @@ async def dataset_download(dataset_id: str, config_name: str = None):
             return {"status": "error", "message": "Please enter the folder_name of the dataset from huggingface"}
         else:
             return {"status": "error", "message": "An internal error has occurred!"}
+
+    except (FileNotFoundError, OSError, RepositoryNotFoundError) as e:
+        log(f"Dataset not found during download: {type(e).__name__}: {e}")
+        return {"status": "error", "message": "The dataset name is invalid"}
 
     except Exception as e:
         log(f"Exception occurred while downloading dataset: {type(e).__name__}: {e}")
