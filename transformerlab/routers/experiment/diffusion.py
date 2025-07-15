@@ -19,7 +19,6 @@ import sys
 
 router = APIRouter(prefix="/diffusion", tags=["diffusion"])
 
-UNIVERSIAL_GENERATION_ID = str(uuid.uuid4())
 
 ALLOWED_TEXT2IMG_ARCHITECTURES = [
     "StableDiffusionPipeline",
@@ -399,7 +398,7 @@ async def generate_image(experimentId: int, request: DiffusionRequest):
         # Validate diffusion type
         if request.plugin == "image_diffusion":
             request_dict = request.dict()
-            generation_id = request.generation_id or UNIVERSIAL_GENERATION_ID
+            generation_id = request.generation_id or get_new_generation_id()
             request_dict["generation_id"] = generation_id
 
             job_config = {
@@ -1109,6 +1108,8 @@ async def get_new_generation_id():
 async def get_file(generation_id: str):
     root_dir = get_images_dir()
     file_path = os.path.normpath(os.path.join(root_dir, generation_id, "tmp_json.json"))
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail=f"Output JSON file not found at {file_path}")
     try:
         if not file_path.startswith(root_dir):
             raise HTTPException(status_code=400, detail="Invalid file path")

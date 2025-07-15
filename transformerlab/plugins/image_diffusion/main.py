@@ -1,5 +1,5 @@
 from fastapi import HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from huggingface_hub import model_info
 import base64
 from io import BytesIO
@@ -532,7 +532,7 @@ def get_python_executable():
 
 def get_diffusion_dir():
     """Get the diffusion directory path"""
-    return os.path.join(os.environ.get("_TFL_WORKSPACE_DIR", ""), "diffusion")
+    return os.path.join(WORKSPACE_DIR, "diffusion")
 
 
 def get_images_dir():
@@ -781,43 +781,13 @@ async def run_multi_gpu_generation(
 
 @tlab_diffusion.async_job_wrapper(progress_start=0, progress_end=100)
 async def diffusion_generate_job():
-    job_config = {
-        "plugin": tlab_diffusion.params.get("plugin", "image_diffusion"),
-        "model": tlab_diffusion.params.get("model", ""),
-        "prompt": tlab_diffusion.params.get("prompt", ""),
-        "adaptor": tlab_diffusion.params.get("adaptor", ""),
-        "use_multi_gpu": tlab_diffusion.params.get("use_multi_gpu", False),
-        "enable_sharding": tlab_diffusion.params.get("enable_sharding", True),
-        "adaptor_scale": tlab_diffusion.params.get("adaptor_scale", 1.0),
-        "num_inference_steps": tlab_diffusion.params.get("num_inference_steps", 30),
-        "guidance_scale": tlab_diffusion.params.get("guidance_scale", 7.5),
-        "seed": tlab_diffusion.params.get("seed", None),
-        "upscale": tlab_diffusion.params.get("upscale", False),
-        "upscale_factor": tlab_diffusion.params.get("upscale_factor", 4),
-        "num_images": tlab_diffusion.params.get("num_images", 1),
-        "generation_id": tlab_diffusion.params.get("generation_id", None),
-        "scheduler": tlab_diffusion.params.get("scheduler", "default"),
-        "process_type": tlab_diffusion.params.get("process_type", None),
-        "negative_prompt": tlab_diffusion.params.get("negative_prompt", ""),
-        "eta": tlab_diffusion.params.get("eta", 0.0),
-        "clip_skip": tlab_diffusion.params.get("clip_skip", 0),
-        "guidance_rescale": tlab_diffusion.params.get("guidance_rescale", 0.0),
-        "height": tlab_diffusion.params.get("height", 0),
-        "width": tlab_diffusion.params.get("width", 0),
-        "input_image_path": tlab_diffusion.params.get("input_image_path", ""),
-        "strength": tlab_diffusion.params.get("strength", 0.8),
-        "is_img2img": tlab_diffusion.params.get("is_img2img", False),
-        "mask_image_path": tlab_diffusion.params.get("mask_image_path", ""),
-        "is_inpainting": tlab_diffusion.params.get("is_inpainting", False),
-        "is_controlnet": tlab_diffusion.params.get("is_controlnet", ""),
-        "save_intermediate_images": tlab_diffusion.params.get("save_intermediate_images", True),
-    }
-    # Convert image files back to base64 if present
-    image_path_keys = {
-        "input_image_path": "input_image",
-        "mask_image_path": "mask_image",
-    }
+    # Map from file path keys to DiffusionRequest keys
+    image_path_keys = {"input_image_path": "input_image", "mask_image_path": "mask_image"}
 
+    # Make a shallow copy to avoid mutating the original
+    job_config = tlab_diffusion.params.copy()
+
+    # Convert image paths to base64 and remove original keys
     for path_key, base64_key in image_path_keys.items():
         if path_key in job_config and job_config[path_key]:
             try:
@@ -827,8 +797,18 @@ async def diffusion_generate_job():
             except Exception as e:
                 print(f"[main.py] Failed to encode {path_key}: {e}", flush=True)
             finally:
-                # Remove the path key to avoid confusion downstream
                 del job_config[path_key]
+
+    # Filter out unknown keys before constructing the Pydantic model
+    valid_keys = DiffusionRequest.model_fields.keys()
+    filtered_config = {k: v for k, v in job_config.items() if k in valid_keys}
+
+    # Instantiate the request
+    try:
+        request = DiffusionRequest(**filtered_config)
+    except ValidationError:
+        print("[DIFFUSION] Validation error while creating DiffusionRequest", flush=True)
+        raise HTTPException(status_code=422, detail="Invalid diffusion request parameters")
 
     try:
         tlab_diffusion.progress_update(0)

@@ -10,9 +10,6 @@ class DiffusionTLabPlugin(TLabPlugin):
         self._parser.add_argument("--experiment_name", default="default", type=str, help="Name of the experiment")
         self._parser.add_argument("--diffusion_model", default="local", type=str, help="Diffusion model to use")
         self._parser.add_argument("--model", type=str, default="")
-        self._parser.add_argument(
-            "--diffusion_type", default="txt2img", type=str, help="Type of diffusion task (txt2img, img2img, etc.)"
-        )
 
         self.tlab_plugin_type = "diffusion"
 
