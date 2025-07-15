@@ -629,6 +629,8 @@ async def dataset_download(dataset_id: str, config_name: str = None):
 
     except Exception as e:
         log(f"Exception occurred: {type(e).__name__}: {e}")
+        if "doesn't exist" in str(e).lower():
+            return {"status": "error", "message": f"Dataset '{dataset_id}' not found or is private. Please check the dataset ID."}
         return {"status": "error", "message": "An internal error has occurred!"}
 
     dataset_size = ds_builder.info.download_size
