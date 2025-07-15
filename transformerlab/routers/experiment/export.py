@@ -20,7 +20,9 @@ router = APIRouter(prefix="/export", tags=["export"])
 
 
 @router.get("/run_exporter_script")
-async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: str, plugin_params: str = "{}", job_id: str = None):
+async def run_exporter_script(
+    id: int, plugin_name: str, plugin_architecture: str, plugin_params: str = "{}", job_id: str = None
+):
     """
     plugin_name: the id of the exporter plugin to run
     plugin_architecture: A string containing the standard name of plugin architecture
@@ -186,18 +188,6 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
     return {"status": "success", "job_id": job_id}
 
 
-@router.get("/jobs")
-async def get_export_jobs(id: int):
-    jobs = await db_jobs.jobs_get_all_by_experiment_and_type(id, "EXPORT")
-    return jobs
-
-
-@router.get("/job")
-async def get_export_job(id: int, jobId: str):
-    job = await db_jobs.job_get(jobId)
-    return job
-
-
 async def get_output_file_name(job_id: str):
     try:
         # Ensure job_id is a string
@@ -234,27 +224,3 @@ async def get_output_file_name(job_id: str):
         return output_file
     except Exception as e:
         raise e
-
-
-@router.get("/job/{job_id}/stream_output")
-async def watch_export_log(job_id: str):
-    try:
-        job_id = secure_filename(job_id)
-        output_file_name = await get_output_file_name(job_id)
-    except ValueError as e:
-        # if the value error starts with "No output file found for job" then wait 4 seconds and try again
-        # because the file might not have been created yet
-        if str(e).startswith("No output file found for job"):
-            await asyncio.sleep(4)
-            print("Retrying to get output file in 4 seconds...")
-            output_file_name = await get_output_file_name(job_id)
-        else:
-            logging.error(f"ValueError: {e}")
-            return "An internal error has occurred!"
-
-    return StreamingResponse(
-        # we force polling because i can't get this to work otherwise -- changes aren't detected
-        watch_file(output_file_name, start_from_beginning=True, force_polling=True),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
-    )
