@@ -103,7 +103,7 @@ def job_update_sync(job_id, status):
             )
             session.execute(stmt)
             session.commit()
-
+        
         # Trigger workflows if job status is COMPLETE
         if status == "COMPLETE":
             try:
@@ -132,7 +132,7 @@ def job_mark_as_complete_if_running(job_id):
             )
             result = session.execute(stmt)
             session.commit()
-
+            
             # If a job was actually updated (was running and is now complete), trigger workflows
             if result.rowcount > 0:
                 try:
