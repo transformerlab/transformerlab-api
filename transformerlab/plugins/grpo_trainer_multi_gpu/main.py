@@ -1,7 +1,7 @@
 import os
 import time
 import re
-import subprocess
+import asyncio
 
 from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import get_python_executable
@@ -10,7 +10,6 @@ from transformerlab.plugin import get_python_executable
 tlab_trainer.add_argument(
     "--launched_with_accelerate", action="store_true", help="Flag to prevent recursive subprocess launching"
 )
-
 
 
 def setup_accelerate_environment():
@@ -61,8 +60,8 @@ def count_xml(text, start_thinking_string, end_thinking_string, start_answer_str
     return count
 
 
-@tlab_trainer.job_wrapper()
-def train_model():
+@tlab_trainer.async_job_wrapper()
+async def train_model():
     """Main training function using TrainerTLabPlugin"""
     # Get the dataset from the datasets dict loaded by the decorator
     datasets = tlab_trainer.load_dataset(dataset_types=["train"])
@@ -103,7 +102,11 @@ def train_model():
         if gpu_ids:
             cmd.extend(["--gpu_ids", gpu_ids])
 
-        result = subprocess.run(cmd, env=env)
+        result = await asyncio.create_subprocess_exec(
+            *cmd,
+            env=env,
+        )
+        await result.wait()
         print(f"Subprocess completed with return code: {result.returncode}")
         return "Training process launched"
 

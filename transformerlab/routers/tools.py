@@ -1,9 +1,9 @@
 import importlib
 import json
 import os
-import subprocess
 import sys
 from typing import Any, Dict, Optional
+import asyncio
 
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
@@ -265,21 +265,28 @@ async def install_mcp_server(server_name: str = Query(..., description="Module n
             )
     # Otherwise, try to pip install the module using uv pip
     try:
-        result = subprocess.run(
-            ["uv", "pip", "install", server_name],
-            capture_output=True,
-            text=True,
-            check=False,
+        result = await asyncio.create_subprocess_exec(
+            "uv",
+            "pip",
+            "install",
+            server_name,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
             env=env,
         )
+        stdout, stderr = await result.communicate()
+
+        stdout_text = stdout.decode()
+        stderr_text = stderr.decode()
+
         if result.returncode == 0:
             print(f"Successfully installed '{server_name}'.")
-            return {"status": "success", "message": f"Successfully installed '{server_name}'.", "output": result.stdout}
+            return {"status": "success", "message": f"Successfully installed '{server_name}'.", "output": stdout_text}
         else:
-            print(f"Failed to install '{server_name}': {result.stderr}")
+            print(f"Failed to install '{server_name}': {stderr_text}")
             return JSONResponse(
                 status_code=500,
-                content={"status": "error", "message": f"Failed to install '{server_name}'.", "output": result.stderr},
+                content={"status": "error", "message": f"Failed to install '{server_name}'.", "output": stderr_text},
             )
     except Exception as e:
         print(f"An error occurred while installing '{server_name}': {e}")

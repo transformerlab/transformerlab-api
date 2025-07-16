@@ -1,5 +1,5 @@
 import os
-import subprocess
+import asyncio
 import time
 from random import randrange
 import torch.nn as nn
@@ -23,9 +23,10 @@ def find_lora_target_modules(model, keyword="proj"):
     for name, module in model.named_modules():
         if isinstance(module, nn.Linear) and keyword in name:
             # Keep full relative module name, excluding the root prefix (e.g., "model.")
-            cleaned_name = ".".join(name.split('.')[1:]) if name.startswith("model.") else name
-            module_names.add(cleaned_name.split('.')[-1])  # Use just the relative layer name
+            cleaned_name = ".".join(name.split(".")[1:]) if name.startswith("model.") else name
+            module_names.add(cleaned_name.split(".")[-1])  # Use just the relative layer name
     return sorted(module_names)
+
 
 def setup_accelerate_environment():
     """Set up the environment for the accelerate launch subprocess"""
@@ -52,8 +53,8 @@ def setup_accelerate_environment():
     return env
 
 
-@tlab_trainer.job_wrapper()
-def train_model():
+@tlab_trainer.async_job_wrapper()
+async def train_model():
     """Main training function using TrainerTLabPlugin"""
     # Get configuration from tlab_trainer
     # Configuration is loaded automatically when tlab_trainer methods are called
@@ -95,8 +96,13 @@ def train_model():
         if gpu_ids:
             cmd.extend(["--gpu_ids", gpu_ids])
 
-        result = subprocess.run(cmd, env=env)
+        result = await asyncio.create_subprocess_exec(
+            *cmd,
+            env=env,
+        )
+        await result.wait()
         print(f"Subprocess completed with return code: {result.returncode}")
+
         return
 
     # Import dependencies after the subprocess check
@@ -141,25 +147,20 @@ def train_model():
     device_map = None if accelerator.num_processes > 1 else "auto"
     try:
         model = AutoModelForCausalLM.from_pretrained(
-            model_id,
-            quantization_config=bnb_config,
-            use_cache=False,
-            device_map=device_map,
-            trust_remote_code=True
+            model_id, quantization_config=bnb_config, use_cache=False, device_map=device_map, trust_remote_code=True
         )
         lora_target_modules = find_lora_target_modules(model)
     except TypeError:
         model = AutoModelForCausalLM.from_pretrained(
-                model_id,
-                quantization_config=bnb_config,
-                device_map=device_map,
-                trust_remote_code=True,
-            )
+            model_id,
+            quantization_config=bnb_config,
+            device_map=device_map,
+            trust_remote_code=True,
+        )
         lora_target_modules = find_lora_target_modules(model)
     except Exception as e:
         print(f"Model loading error: {str(e)}")
         raise e
-
 
     model.config.pretraining_tp = 1
     # Load tokenizer
@@ -190,7 +191,7 @@ def train_model():
             target_modules=lora_target_modules,
         )
         model = get_peft_model(model, peft_config)
-        
+
     # Training configuration
     output_dir = tlab_trainer.params.get("output_dir", "./output")
 
@@ -228,9 +229,8 @@ def train_model():
         metric_for_best_model="loss",
         greater_is_better=False,
         eval_strategy="epoch",
-        completion_only_loss=False
+        completion_only_loss=False,
     )
-
 
     # Create progress callback
     callback = tlab_trainer.create_progress_callback() if hasattr(tlab_trainer, "create_progress_callback") else None

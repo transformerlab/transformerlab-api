@@ -1,8 +1,8 @@
 import os
 import sys
 import shutil
-import subprocess
 from pathlib import Path
+import asyncio
 
 import pandas as pd
 from tqdm import tqdm
@@ -11,8 +11,8 @@ from transformerlab.sdk.v1.generate import tlab_gen
 from huggingface_hub import snapshot_download
 
 
-@tlab_gen.job_wrapper()
-def run_generation():
+@tlab_gen.async_job_wrapper()
+async def run_generation():
     # ----- Constants -----
     workspace = os.environ["_TFL_WORKSPACE_DIR"]
     REPO_ROOT = f"{workspace}/plugins/wd14_captioner/sd-caption-wd14/sd-scripts"
@@ -87,20 +87,21 @@ def run_generation():
     env = os.environ.copy()
     env["PYTHONPATH"] = str(REPO_ROOT)
 
-    result = subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
+    result = await asyncio.create_subprocess_exec(
+        *command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
         env=env,
         cwd=REPO_ROOT,
     )
+    stdout, stderr = await result.communicate()
 
     tlab_gen.progress_update(25)
 
     print("🔍 Subprocess STDOUT:")
-    print(result.stdout)
+    print(stdout.decode())
     print("🔍 Subprocess STDERR:")
-    print(result.stderr)
+    print(stderr.decode())
 
     if result.returncode != 0:
         raise RuntimeError(f"❌ WD14 tagger subprocess failed with exit code {result.returncode}")
