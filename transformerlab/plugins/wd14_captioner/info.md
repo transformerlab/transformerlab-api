@@ -39,8 +39,8 @@ When executed, the plugin will:
 
 | image | caption |
 |-------|---------|
-| `dog.png` | `1girl, dog, outdoors, tail wagging` |
-| `cat.jpg` | `cat, lying down, looking at viewer` |
+| `pokemon_1.png` | `solo, simple_background, white_background, full_body, black_eyes, pokemon_(creature), no_humans, animal_focus` |
+| `pokemon_2.jpg` | `solo, smile, open_mouth, simple_background, red_eyes, white_background, standing, full_body, pokemon_(creature), no_humans, fangs, bright_pupils, claws, white_pupils, bulbasaur` |
 
 ## Model Variants
 
