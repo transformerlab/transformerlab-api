@@ -36,7 +36,6 @@ async def workflows_get_in_experiment(experimentId: int):
     return workflows
 
 
-@router.get("/triggers/{trigger_type}", summary="get workflows by trigger type")
 async def workflows_get_by_trigger_type(experimentId: int, trigger_type: str):
     """Internal endpoint to get workflows that should be triggered by a specific trigger type"""
     workflows = await workflows_get_from_experiment(experimentId)
