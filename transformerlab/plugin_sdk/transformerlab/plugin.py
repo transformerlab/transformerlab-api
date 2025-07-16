@@ -651,6 +651,8 @@ def format_template(
 ):
     """ Formats a single example using either a Jinja2 template or a chat template."""
     if chat_template and tokenizer:
+        if tokenizer.chat_template is None:
+            raise ValueError("Tokenizer lacks a default chat template. Ensure model is instruction-tuned for chat.")
         return tokenizer.apply_chat_template(
                         example[chat_column],
                         tokenize=False,
