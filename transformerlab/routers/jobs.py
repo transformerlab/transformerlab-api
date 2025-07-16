@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import csv
@@ -177,34 +178,146 @@ async def update_training_template(
     return {"status": "success"}
 
 
+async def get_output_file_name(job_id: str):
+    """
+    Get the output file name for a job with comprehensive fallback logic.
+    Adapted from train router for better robustness.
+    """
+    try:
+        # First get the job data
+        job = await db_jobs.job_get(job_id)
+        job_data = job["job_data"]
+
+        # Handle both dict and JSON string formats
+        if not isinstance(job_data, dict):
+            try:
+                job_data = json.loads(job_data)
+            except JSONDecodeError:
+                logging.error(f"Error decoding job_data for job {job_id}. Using empty job_data.")
+                job_data = {}
+
+        # Check if job_data has an explicit output file path
+        if job_data.get("output_file_path") is not None:
+            return job_data["output_file_path"]
+
+        # Try to get plugin name from job_data directly (newer format)
+        plugin_name = job_data.get("plugin")
+
+        # If not found, try to get it from template (legacy format)
+        if not plugin_name and "template_id" in job_data:
+            template_id = job_data["template_id"]
+            template = await get_training_template(template_id)
+            if template:
+                template_config = template.get("config", {})
+                if not isinstance(template_config, dict):
+                    try:
+                        template_config = json.loads(template_config)
+                    except JSONDecodeError:
+                        template_config = {}
+                plugin_name = template_config.get("plugin_name")
+
+        # If still no plugin name and we have config in job_data
+        if not plugin_name and "config" in job_data:
+            template_config = job_data["config"]
+            if not isinstance(template_config, dict):
+                try:
+                    template_config = json.loads(template_config)
+                except JSONDecodeError:
+                    template_config = {}
+            plugin_name = template_config.get("plugin_name")
+
+        if not plugin_name:
+            raise ValueError(f"Plugin name not found in job data for job {job_id}")
+
+        plugin_dir = dirs.plugin_dir_by_name(plugin_name)
+        job_id_safe = secure_filename(str(job_id))
+
+        # Define potential output file locations in order of preference
+        jobs_dir_output_file_name = os.path.join(dirs.WORKSPACE_DIR, "jobs", job_id_safe, f"output_{job_id_safe}.txt")
+        plugin_job_output_file = os.path.join(plugin_dir, f"output_{job_id_safe}.txt")
+        plugin_legacy_output_file = os.path.join(plugin_dir, "output.txt")
+
+        # Check files in order of preference
+        if os.path.exists(jobs_dir_output_file_name):
+            return jobs_dir_output_file_name
+        elif os.path.exists(plugin_job_output_file):
+            return plugin_job_output_file
+        elif os.path.exists(plugin_legacy_output_file):
+            return plugin_legacy_output_file
+        else:
+            raise ValueError(f"No output file found for job {job_id}")
+
+    except Exception as e:
+        raise e
+
+
 @router.get("/{job_id}/stream_output")
 async def stream_job_output(job_id: str, sweeps: bool = False):
-    job = await db_jobs.job_get(job_id)
-    job_data = job["job_data"]
+    """
+    Stream job output with robust error handling and retry logic.
+    Enhanced version combining the best of both train and jobs routers.
+    """
+    try:
+        job = await db_jobs.job_get(job_id)
+        job_data = job["job_data"]
 
-    job_id = secure_filename(job_id)
+        # Handle both dict and JSON string formats
+        if not isinstance(job_data, dict):
+            try:
+                job_data = json.loads(job_data)
+            except JSONDecodeError:
+                logging.error(f"Error decoding job_data for job {job_id}. Using empty job_data.")
+                job_data = {}
 
-    plugin_name = job_data["plugin"]
-    plugin_dir = dirs.plugin_dir_by_name(plugin_name)
-    new_output_dir = os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id))
-    if not os.path.exists(new_output_dir):
-        os.makedirs(new_output_dir)
+        job_id_safe = secure_filename(str(job_id))
 
-    output_file_name = os.path.join(plugin_dir, f"output_{job_id}.txt")
-    jobs_dir_output_file_name = os.path.join(new_output_dir, f"output_{job_id}.txt")
+        # Handle sweeps case first
+        if sweeps:
+            output_file = job_data.get("sweep_output_file", None)
+            if output_file is not None and os.path.exists(output_file):
+                output_file_name = output_file
+            else:
+                # Fall back to regular output file logic
+                output_file_name = await get_output_file_name(job_id)
+        else:
+            # Try to get output file name with fallback logic
+            output_file_name = await get_output_file_name(job_id)
 
-    if sweeps:
-        output_file = job_data.get("sweep_output_file", None)
-        if output_file is not None and os.path.exists(output_file):
-            output_file_name = output_file
-
-    if os.path.exists(jobs_dir_output_file_name):
-        output_file_name = jobs_dir_output_file_name
-    elif not os.path.exists(jobs_dir_output_file_name) and not os.path.exists(output_file_name):
-        with open(jobs_dir_output_file_name, "w") as f:
-            f.write("")
-    elif not os.path.exists(jobs_dir_output_file_name) and os.path.exists(output_file_name):
-        output_file_name = output_file_name
+    except ValueError as e:
+        # If the value error starts with "No output file found for job" then wait 4 seconds and try again
+        # because the file might not have been created yet
+        if str(e).startswith("No output file found for job"):
+            logging.info(f"Output file not found for job {job_id}, retrying in 4 seconds...")
+            await asyncio.sleep(4)
+            try:
+                output_file_name = await get_output_file_name(job_id)
+            except Exception as retry_e:
+                # If still no file after retry, create an empty one in the jobs directory
+                logging.warning(
+                    f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}"
+                )
+                job_id_safe = secure_filename(str(job_id))
+                new_output_dir = os.path.join(dirs.WORKSPACE_DIR, "jobs", job_id_safe)
+                if not os.path.exists(new_output_dir):
+                    os.makedirs(new_output_dir)
+                output_file_name = os.path.join(new_output_dir, f"output_{job_id_safe}.txt")
+                with open(output_file_name, "w") as f:
+                    f.write("")
+        else:
+            logging.error(f"ValueError in stream_job_output: {e}")
+            return StreamingResponse(
+                iter(["data: Error: An internal error has occurred!\n\n"]),
+                media_type="text/event-stream",
+                headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+            )
+    except Exception as e:
+        # Handle general error
+        logging.error(f"Error in stream_job_output: {e}")
+        return StreamingResponse(
+            iter(["data: Error: An internal error has occurred!\n\n"]),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
+        )
 
     return StreamingResponse(
         # we force polling because i can't get this to work otherwise -- changes aren't detected
