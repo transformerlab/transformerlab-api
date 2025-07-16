@@ -754,7 +754,7 @@ class TestWorkflows:
     async def test_workflow_trigger_error_handling(self, test_experiment):
         """Test that workflows with malformed configs don't cause errors"""
         # Create a workflow with malformed JSON config
-        workflow_id = await workflow_create("test_malformed_config", "invalid json", test_experiment)
+        await workflow_create("test_malformed_config", "invalid json", test_experiment)
 
         # Create a TRAIN job
         job_id = await job_create("TRAIN", "RUNNING", "{}", test_experiment)

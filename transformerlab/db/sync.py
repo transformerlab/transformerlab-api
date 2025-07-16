@@ -66,7 +66,11 @@ def job_update_status_sync(job_id, status, error_msg=None):
     """
     try:
         with get_sync_session() as session:
-            stmt = update(models.Job).where(models.Job.id == job_id).values(status=status)
+            stmt = (
+                update(models.Job)
+                .where(models.Job.id == job_id)
+                .values(status=status)
+            )
             session.execute(stmt)
             session.commit()
 
@@ -92,7 +96,11 @@ def job_update_sync(job_id, status):
     """
     try:
         with get_sync_session() as session:
-            stmt = update(models.Job).where(models.Job.id == job_id).values(status=status)
+            stmt = (
+                update(models.Job)
+                .where(models.Job.id == job_id)
+                .values(status=status)
+            )
             session.execute(stmt)
             session.commit()
 
@@ -161,7 +169,7 @@ def _trigger_workflows_on_job_completion_sync(job_id: str):
             if job_type not in supported_triggers:
                 return
 
-            # 3. Get workflows with matching trigger (sync)
+            # 4. Get workflows with matching trigger (sync)
             workflows_result = session.execute(
                 select(models.Workflow.id, models.Workflow.config).where(models.Workflow.experiment_id == experiment_id)
             )
@@ -184,13 +192,13 @@ def _trigger_workflows_on_job_completion_sync(job_id: str):
                 except (json.JSONDecodeError, TypeError):
                     continue
 
-            # 4. Queue workflows (sync)
+            # 5. Queue workflows (sync)
             for workflow_id in triggered_workflow_ids:
                 # Get workflow name
                 workflow_result = session.execute(select(models.Workflow.name).where(models.Workflow.id == workflow_id))
                 workflow_name = workflow_result.scalar_one_or_none()
 
-                # Create workflow run using model object
+                # Create workflow run using model object (same as async version)
                 workflow_run = models.WorkflowRun(
                     workflow_id=workflow_id,
                     workflow_name=workflow_name,
