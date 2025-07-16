@@ -146,6 +146,41 @@ def test_workflow_add_eval_node_and_metadata(client):
     client.get(f"/experiment/1/workflows/delete/{workflow_id}")
 
 
+def test_workflow_update_config(client):
+    # Create a workflow to update config
+    create_resp = client.get("/experiment/1/workflows/create_empty", params={"name": "updateconfig"})
+    workflow_id = create_resp.json()
+
+    # Test config with a custom structure
+    new_config = {
+        "nodes": [
+            {"type": "START", "id": "start-123", "name": "START", "out": ["task-456"]},
+            {"type": "TASK", "id": "task-456", "name": "Test Task", "task": "test_task", "out": []},
+        ]
+    }
+
+    # Update config using PUT endpoint
+    resp = client.put(f"/experiment/1/workflows/{workflow_id}/config", json=new_config)
+    assert resp.status_code == 200
+    assert resp.json().get("message") == "OK"
+
+    # Verify the config was updated by fetching the workflow
+    list_resp = client.get("/experiment/1/workflows/list")
+    workflow = next(w for w in list_resp.json() if w["id"] == workflow_id)
+    config = workflow["config"]
+    if not isinstance(config, dict):
+        config = json.loads(config)
+
+    # Verify the config matches what we set
+    assert len(config["nodes"]) == 2
+    assert config["nodes"][0]["type"] == "START"
+    assert config["nodes"][1]["type"] == "TASK"
+    assert config["nodes"][0]["out"] == ["task-456"]
+
+    # Cleanup
+    client.get(f"/experiment/1/workflows/delete/{workflow_id}")
+
+    
 def test_workflow_task_isolation_success(client):
     """Test that workflows can find tasks in their own experiment with correct type."""
     # Create a TRAIN task in experiment 1

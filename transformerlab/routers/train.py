@@ -1,4 +1,3 @@
-import asyncio
 import json
 import yaml
 import os
@@ -6,12 +5,11 @@ import subprocess
 from typing import Annotated
 
 from fastapi import APIRouter, Body
-from fastapi.responses import PlainTextResponse, StreamingResponse
+from fastapi.responses import PlainTextResponse
 import logging
 from transformerlab.db.datasets import get_datasets
 import transformerlab.db.db as db
 import transformerlab.db.jobs as db_jobs
-from transformerlab.routers.serverinfo import watch_file
 from transformerlab.shared import dirs
 from transformerlab.shared import galleries
 from transformerlab.models import model_helper
@@ -192,55 +190,6 @@ async def recipe_gallery_get_all():
     return gallery
 
 
-# @router.get("/jobs")
-# async def jobs_get_all():
-#     jobs = await db.training_jobs_get_all()
-#     return jobs
-
-
-# @router.get("/job/delete/{job_id}")
-# async def job_delete(job_id: str):
-#     await db.job_delete(job_id)
-#     return {"message": "OK"}
-
-
-# @router.get("/job/update/{job_id}")
-# async def job_update(job_id: str, status: str):
-#     await db_jobs.job_update_status(job_id, status)
-#     return {"message": "OK"}
-
-
-# @router.get("/job/start_next")
-# async def start_next_job():
-#     num_running_jobs = await db_jobs.job_count_running()
-#     if num_running_jobs > 0:
-#         return {"message": "A job is already running"}
-#     nextjob = await db_jobs.jobs_get_next_queued_job()
-#     if nextjob:
-#         print(nextjob)
-#         print("Starting job: " + str(nextjob['id']))
-#         print(nextjob['job_data'])
-#         job_config = json.loads(nextjob['job_data'])
-#         print(job_config["template_id"])
-#         experiment_id = nextjob["experiment_id"]
-#         data = await db.experiment_get(experiment_id)
-#         if data is None:
-#             return {"message": f"Experiment {id} does not exist"}
-#         config = json.loads(data["config"])
-
-#         experiment_name = data["name"]
-#         await shared.run_job(job_id=nextjob['id'], job_config=job_config, experiment_name=experiment_name)
-#         return nextjob
-#     else:
-#         return {"message": "No jobs in queue"}
-
-
-# @router.get("/job/delete_all")
-# async def job_delete_all():
-#     await db_jobs.job_delete_all()
-#     return {"message": "OK"}
-
-
 @router.get("/job/{job_id}")
 async def get_training_job(job_id: str):
     return await db_jobs.job_get(job_id)
@@ -318,39 +267,28 @@ async def get_training_job_output(job_id: str, sweeps: bool = False):
         return "An internal error has occurred!"
 
 
-@router.get("/job/{job_id}/stream_output")
-async def watch_log(job_id: str, sweeps: bool = False):
+@router.get("/job/{job_id}/sweep_results")
+async def sweep_results(job_id: str):
     try:
-        job_id = secure_filename(job_id)
-
         job = await db_jobs.job_get(job_id)
-        job_data = job["job_data"]
-        if sweeps:
-            output_file = job_data.get("sweep_output_file", None)
-            if output_file is not None and os.path.exists(output_file):
-                output_file_name = output_file
+        job_data = job.get("job_data", {})
 
-            else:
-                output_file_name = await get_output_file_name(job_id)
+        output_file = job_data.get("sweep_results_file", None)
+        if output_file and os.path.exists(output_file):
+            try:
+                with open(output_file, "r") as f:
+                    output = json.load(f)
+                return {"status": "success", "data": output}
+            except json.JSONDecodeError as e:
+                logging.error(f"JSON decode error for job {job_id}: {e}")
+                return {"status": "error", "message": "Invalid JSON format in sweep results file."}
         else:
-            output_file_name = await get_output_file_name(job_id)
-    except ValueError as e:
-        # if the value error starts with "No output file found for job" then wait 4 seconds and try again
-        # because the file might not have been created yet
-        if str(e).startswith("No output file found for job"):
-            await asyncio.sleep(4)
-            print("Retrying to get output file in 4 seconds...")
-            output_file_name = await get_output_file_name(job_id)
-        else:
-            logging.error(f"ValueError: {e}")
-            return "An internal error has occurred!"
+            logging.warning(f"Sweep results file not found for job {job_id}: {output_file}")
+            return {"status": "error", "message": "Sweep results file not found."}
 
-    return StreamingResponse(
-        # we force polling because i can't get this to work otherwise -- changes aren't detected
-        watch_file(output_file_name, start_from_beginning=True, force_polling=True),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
-    )
+    except Exception as e:
+        logging.error(f"Error loading sweep results for job {job_id}: {e}")
+        return {"status": "error", "message": "An internal error has occurred!"}
 
 
 tensorboard_process = None

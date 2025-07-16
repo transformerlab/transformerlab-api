@@ -42,7 +42,7 @@ class TLabPlugin:
 
         # Flag to track if args have been parsed
         self._args_parsed = False
-        
+
         # Flag to track if worker was started by this SDK instance
         self.WORKER_STARTED = False
 
@@ -337,11 +337,18 @@ class TLabPlugin:
 
         # Use provided values or class attributes
         model_name = model_name or self.params.model_name
-        generation_model = self.params.get(field_name, "local")
+        generation_model = self.params.get(field_name, "{'provider': 'local'}")
+
+        if isinstance(generation_model, str):
+            try:
+                generation_model = json.loads(generation_model)
+            except json.JSONDecodeError:
+                print(f"Invalid JSON format for {field_name}: {generation_model}")
+                generation_model = {"provider": generation_model}
 
         # Auto-detect model type if not provided
         if not model_type:
-            gen_model = generation_model.lower()
+            gen_model = generation_model.get("provider", "").lower()
             if "local" in gen_model:
                 model_type = "local"
             elif "azure" in gen_model:
@@ -357,13 +364,14 @@ class TLabPlugin:
 
         # Load the appropriate model
         if model_type == "local":
-            self.check_local_server()
+            model_server = generation_model.get("model_server")
+            self.check_local_server(model_server)
 
             verified_model_name = self.get_local_model_name()
             if verified_model_name is not None and verified_model_name != "":
                 print(f"Using verified local model name: {verified_model_name}")
                 model_name = verified_model_name
-            
+
             custom_model = ChatOpenAI(
                 api_key="dummy",
                 base_url="http://localhost:8338/v1",
@@ -407,22 +415,22 @@ class TLabPlugin:
     def get_local_model_name(self):
         """
         Fetch model names from the local server
-        
+
         Returns:
             List of model names available on the local server, or None if error occurs
         """
         try:
             response = requests.get("http://localhost:8338/v1/models", timeout=10)
             response.raise_for_status()
-            
+
             data = response.json()
-            if 'data' in data and isinstance(data['data'], list):
-                model_names = [model.get('id') for model in data['data'] if model.get('id')]
+            if "data" in data and isinstance(data["data"], list):
+                model_names = [model.get("id") for model in data["data"] if model.get("id")]
                 return model_names[0]
             else:
                 print(f"Unexpected response format: {data}")
                 return None
-                
+
         except requests.exceptions.RequestException as e:
             print(f"Error fetching model names from local server: {str(e)}")
             return None
@@ -430,7 +438,7 @@ class TLabPlugin:
             print(f"Error parsing response from local server: {str(e)}")
             return None
 
-    def check_local_server(self):
+    def check_local_server(self, model_server=None):
         """Check if the local model server is running, and start it if not"""
         try:
             response = requests.get("http://localhost:8338/server/worker_healthz", timeout=5)
@@ -439,51 +447,50 @@ class TLabPlugin:
                 return
         except requests.exceptions.RequestException:
             print("Local model server is not responding")
-        
+
         # Server is not running, try to start it and wait for it to be ready
         print("Starting local model server...")
-        self._start_worker_sync()
+        self._start_worker_sync(model_server=model_server)
         # Mark that we started the worker
         self.WORKER_STARTED = True
 
-    def _start_worker_sync(self):
+    def _start_worker_sync(self, model_server=None):
         """Start the local model server and wait for it to be ready"""
         # Get experiment_id from the job
         experiment_id = self.job.get_experiment_id() if self.job else None
-        
+
         params = {
             "model_name": self.params.model_name,
             "inference_params": "",
         }
-        
+
+        if model_server is not None:
+            params["inference_engine"] = model_server
+
         # Add experiment_id if we have one
         if experiment_id is not None:
             params["experiment_id"] = int(experiment_id)
-        
+
         # Add optional parameters if they exist
         if self.params.get("model_adapter"):
             params["adaptor"] = self.params.get("model_adapter")
-        
+
         if self.params.get("model_architecture"):
             params["model_architecture"] = self.params.get("model_architecture")
 
         if self.params.get("model_path"):
             params["model_filename"] = self.params.get("model_filename")
-        
+
         print(f"Starting worker with params: {params}")
-        
+
         try:
             # Start the worker
-            response = requests.get(
-                "http://localhost:8338/server/worker_start",
-                params=params,
-                timeout=15
-            )
+            response = requests.get("http://localhost:8338/server/worker_start", params=params, timeout=60)
             print(f"Worker start response: {response.status_code}, {response.text}")
-            
+
             if response.status_code == 200:
                 print("Worker start request sent successfully")
-                
+
                 # Wait for worker to be ready with retries
                 print("Waiting for worker to become ready...")
                 max_retries = 10  # Wait up to 60 seconds (10 * 6 seconds)
@@ -491,21 +498,25 @@ class TLabPlugin:
                     try:
                         time.sleep(6)  # Wait 6 seconds between checks
                         health_response = requests.get("http://localhost:8338/server/worker_healthz", timeout=5)
-                        if health_response.status_code == 200 and isinstance(health_response.json(), list) and len(health_response.json()) > 0:
+                        if (
+                            health_response.status_code == 200
+                            and isinstance(health_response.json(), list)
+                            and len(health_response.json()) > 0
+                        ):
                             print("Worker is now running and healthy")
                             self.WORKER_STARTED = True
                             return
                     except requests.exceptions.RequestException:
                         pass
-                    
+
                     print(f"Worker not ready yet... (attempt {attempt + 1}/{max_retries})")
-                
+
                 raise RuntimeError("Worker started but failed to become healthy within 60 seconds")
             else:
                 error_msg = f"Failed to start worker. Status: {response.status_code}, Response: {response.text}"
                 print(error_msg)
                 raise RuntimeError(error_msg)
-                
+
         except requests.exceptions.RequestException as e:
             error_msg = f"Failed to connect to server to start worker: {str(e)}"
             print(error_msg)
@@ -516,19 +527,19 @@ class TLabPlugin:
         try:
             print("Stopping local model server worker...")
             response = requests.get("http://localhost:8338/server/worker_stop", timeout=10)
-            
+
             if response.status_code == 200:
                 print("Worker stopped successfully")
                 self.WORKER_STARTED = False
             else:
                 print(f"Failed to stop worker. Status: {response.status_code}, Response: {response.text}")
-                
+
         except requests.exceptions.RequestException as e:
             print(f"Error stopping worker: {str(e)}")
             # Don't raise an exception here as this is cleanup code
             # and we don't want to mask the original error if this is called from an exception handler
 
-    def _create_local_model_wrapper(self, model, model_name = None):
+    def _create_local_model_wrapper(self, model, model_name=None):
         """Create a wrapper for local models"""
         # Import here to avoid circular imports
         from deepeval.models.base_model import DeepEvalBaseLLM  # noqa

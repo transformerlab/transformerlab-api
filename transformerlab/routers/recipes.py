@@ -336,7 +336,7 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
 
     for i, task in enumerate(tasks):
         task_type = task.get("task_type")
-        if task_type in ["TRAIN", "EVAL", "GENERATE"]:
+        if task_type in ["TRAIN", "EVAL", "GENERATE", "EXPORT"]:
             try:
                 # Parse the config_json to extract template metadata
                 config_json = task.get("config_json", "{}")
@@ -353,43 +353,80 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
                         if isinstance(param_value, (list, dict)):
                             parsed_config["script_parameters"][param_key] = json.dumps(param_value)
 
+                # For EXPORT tasks, ensure params is a JSON
+                if task_type == "EXPORT" and "params" in parsed_config:
+                    if isinstance(parsed_config["params"], str):
+                        try:
+                            parsed_config["params"] = json.loads(parsed_config["params"])
+                        except json.JSONDecodeError:
+                            print(f"Invalid JSON for params in EXPORT task: {parsed_config['params']}")
+
                 # Extract task name from recipe
                 task_name = task.get("name")
 
-                # Create inputs JSON (what the task needs as inputs)
-                inputs = {
-                    "model_name": parsed_config.get("model_name", ""),
-                    "model_architecture": parsed_config.get("model_architecture", ""),
-                    "dataset_name": dataset_name,  # Using dataset from dependencies
-                }
+                # Check if the task has exported inputs_json (from export_experiment)
+                if "inputs_json" in task:
+                    # Use the exported inputs directly
+                    inputs_json = task.get("inputs_json", "{}")
+                    if isinstance(inputs_json, str):
+                        inputs = json.loads(inputs_json)
+                    else:
+                        inputs = inputs_json
+                else:
+                    # Create inputs JSON from config (for manually created recipes)
+                    inputs = {
+                        "model_name": parsed_config.get("model_name", ""),
+                        "model_architecture": parsed_config.get("model_architecture", ""),
+                        "dataset_name": dataset_name,  # From dependencies
+                    }
 
-                # For EVAL tasks, add evaluation specific inputs
-                if task_type == "EVAL":
-                    inputs.update(
-                        {
-                            "tasks": parsed_config.get("tasks", ""),
-                            "limit": parsed_config.get("limit", ""),
-                            "run_name": parsed_config.get("run_name", ""),
-                        }
-                    )
-                # For GENERATE tasks, add generation specific inputs
-                elif task_type == "GENERATE":
-                    inputs.update(
-                        {
-                            "num_goldens": parsed_config.get("num_goldens", ""),
-                            "scenario": parsed_config.get("scenario", ""),
-                            "task": parsed_config.get("task", ""),
-                            "run_name": parsed_config.get("run_name", ""),
-                        }
-                    )
+                    # For EVAL tasks, add evaluation specific inputs
+                    if task_type == "EVAL":
+                        inputs.update(
+                            {
+                                "tasks": parsed_config.get("tasks", ""),
+                                "limit": parsed_config.get("limit", ""),
+                                "run_name": parsed_config.get("run_name", ""),
+                            }
+                        )
+                    # For GENERATE tasks, add generation specific inputs
+                    elif task_type == "GENERATE":
+                        inputs.update(
+                            {
+                                "num_goldens": parsed_config.get("num_goldens", ""),
+                                "scenario": parsed_config.get("scenario", ""),
+                                "task": parsed_config.get("task", ""),
+                                "run_name": parsed_config.get("run_name", ""),
+                            }
+                        )
+                    # For EXPORT tasks, add export specific inputs
+                    elif task_type == "EXPORT":
+                        inputs.update(
+                            {
+                                "input_model_id": parsed_config.get("input_model_id", ""),
+                                "input_model_path": parsed_config.get("input_model_path", ""),
+                                "input_model_architecture": parsed_config.get("input_model_architecture", ""),
+                                "output_model_id": parsed_config.get("output_model_id", ""),
+                                "output_model_architecture": parsed_config.get("output_model_architecture", ""),
+                                "output_model_name": parsed_config.get("output_model_name", ""),
+                                "output_model_path": parsed_config.get("output_model_path", ""),
+                                "output_filename": parsed_config.get("output_filename", ""),
+                                "script_directory": parsed_config.get("script_directory", ""),
+                                "params": json.loads(parsed_config.get("params", {})),
+                            }
+                        )
 
                 # Create outputs JSON (what the task produces)
                 outputs = {}
 
+                # TODO: Check if this is relevant and needed and if not, remove it.
                 if task_type == "EVAL":
                     outputs["eval_results"] = "{}"
                 elif task_type == "GENERATE":
                     outputs["generated_outputs"] = "[]"
+                elif task_type == "EXPORT":
+                    outputs["exported_model_path"] = parsed_config.get("output_model_path", "")
+                    outputs["exported_model_id"] = parsed_config.get("output_model_id", "")
 
                 # Get plugin name
                 plugin_name = parsed_config.get("plugin_name", "")
