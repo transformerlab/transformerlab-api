@@ -137,7 +137,7 @@ def train_mlx_lora():
         "--model",
         tlab_trainer.params.model_name,
         "--iters",
-        iters,
+        str(iters),
         "--train",
         "--adapter-path",
         adaptor_output_dir,

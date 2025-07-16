@@ -24,45 +24,46 @@ from transformerlab.shared.dirs import GLOBAL_LOG_PATH
 
 
 def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs):
-    """
-    Runs a subprocess.Popen, and then calls the function onExit when the
-    subprocess completes.
-
-    Use it exactly the way you'd normally use subprocess.Popen, except include a
-    callable to execute as the first argument. onExit is a callable object, and
-    *popenArgs and **popenKWArgs are simply passed up to subprocess.Popen.
-
-    from https://stackoverflow.com/questions/2581817/python-subprocess-callback-when-cmd-exits
-
-    #TODO: There is an async IO way of doing this instead:
-    https://docs.python.org/3/library/asyncio-subprocess.html#asyncio.create_subprocess_exec
-    If we use the above then we can probably make onExit a coroutine and await it
-    but when I tried to implement it as above, it would not work. The subprocess
-    wouldn't work concurrently as expected.
-    """
-
     def runInThread(onExit, popenArgs, popenKWArgs):
-        if output_file is not None:
-            log = open(output_file, "a")
-            # get the current date and time as a string:
-            current_time = time.strftime("%Y-%m-%d %H:%M:%S")
-            print("Printing to file: " + output_file)
-            log.write(f"\n\n-- RUN {current_time}--\n")
-            log.flush()
-        else:
-            print("No output file specified, printing to stdout")
-            log = subprocess.PIPE
+        async def run():
+            # Normalize args: unpack if first arg is a list
+            if len(popenArgs) == 1 and isinstance(popenArgs[0], list):
+                popenArgs_flat = popenArgs[0]
+            else:
+                popenArgs_flat = popenArgs
 
-        proc = subprocess.Popen(*popenArgs, **popenKWArgs, stdin=subprocess.PIPE, stdout=log, stderr=log)
-        proc.communicate(input=input.encode("utf-8"))
-        proc.wait()
-        onExit()
-        return
+            if output_file is not None:
+                log = open(output_file, "a")
+                current_time = time.strftime("%Y-%m-%d %H:%M:%S")
+                print("Printing to file: " + output_file)
+                log.write(f"\n\n-- RUN {current_time}--\n")
+                log.flush()
+            else:
+                print("No output file specified, printing to stdout")
+                log = asyncio.subprocess.PIPE
+
+            proc = await asyncio.create_subprocess_exec(
+                *popenArgs_flat,
+                **popenKWArgs,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=log,
+                stderr=log,
+            )
+            await proc.communicate(input=input.encode("utf-8"))
+            await proc.wait()
+            if asyncio.iscoroutinefunction(onExit):
+                await onExit()
+            else:
+                onExit()
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(run())
+        loop.close()
 
     thread = threading.Thread(target=runInThread, args=(onExit, popenArgs, popenKWArgs))
     thread.start()
-
-    return thread  # returns immediately after the thread starts
+    return thread
 
 
 def slugify(value, allow_unicode=False):
@@ -344,7 +345,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         if not os.path.exists(gen_output_file):
             with open(gen_output_file, "w") as f:
                 f.write("")
-                
+
         await run_generation_script(experiment_id, plugin_name, generation_name, job_id)
 
         # Check should_stop flag and update status accordingly
@@ -379,21 +380,21 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
         # Run the export script using the existing run_exporter_script function
         from transformerlab.routers.experiment.export import run_exporter_script
-        
+
         config = job_config["config"]
         # Extract parameters from the job config
         experiment_id = int(job_details["experiment_id"])
         plugin_name = config["plugin_name"]
         plugin_architecture = config["output_model_architecture"]
         plugin_params = json.dumps(config["params"])
-        
+
         # Call the existing run_exporter_script function with the existing job_id
         result = await run_exporter_script(
             id=experiment_id,
             plugin_name=plugin_name,
             plugin_architecture=plugin_architecture,
             plugin_params=plugin_params,
-            job_id=job_id
+            job_id=job_id,
         )
 
         # Check the result and update job status accordingly
@@ -404,7 +405,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 await db_jobs.job_update_status(job_id, "COMPLETE")
                 print(f"Export job {job_id} completed successfully")
             return {"status": "complete", "job_id": job_id, "message": "Export job completed successfully"}
-            
+
         else:
             await db_jobs.job_update_status(job_id, "FAILED")
             print(f"Export job {job_id} failed")
@@ -435,11 +436,11 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         os.makedirs(output_temp_file_dir)
     output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
 
-    def on_train_complete():
+    async def on_train_complete():
         print("Training Job: The process has finished")
         job_mark_as_complete_if_running(job_id)
         end_time = time.strftime("%Y-%m-%d %H:%M:%S")
-        asyncio.run(db_jobs.job_update_job_data_insert_key_value(job_id, "end_time", end_time))
+        await db_jobs.job_update_job_data_insert_key_value(job_id, "end_time", end_time)
 
     def on_job_complete():
         job_update_sync(job_id, "COMPLETE")
