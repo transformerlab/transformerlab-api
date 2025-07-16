@@ -269,6 +269,12 @@ class Job:
             (status, self.id),
         )
 
+        # Trigger workflows if job status is COMPLETE
+        if status == "COMPLETE":
+            from transformerlab.db.sync import _trigger_workflows_on_job_completion_sync
+
+            _trigger_workflows_on_job_completion_sync(self.id)
+
     def get_status(self):
         """
         Get the status of this job.
@@ -383,8 +389,8 @@ class Job:
             #     # Try to parse as JSON, if that fails store as string
             #     try:
             #         job_data[key] = json.loads(value)
-                # except (json.JSONDecodeError, TypeError):
-                #     job_data[key] = value
+            # except (json.JSONDecodeError, TypeError):
+            #     job_data[key] = value
             # else:
             # Store value as-is (dict, list, number, bool, etc.)
             job_data[key] = value

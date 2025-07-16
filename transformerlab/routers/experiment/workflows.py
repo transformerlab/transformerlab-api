@@ -36,6 +36,31 @@ async def workflows_get_in_experiment(experimentId: int):
     return workflows
 
 
+@router.get("/triggers/{trigger_type}", summary="get workflows by trigger type")
+async def workflows_get_by_trigger_type(experimentId: int, trigger_type: str):
+    """Internal endpoint to get workflows that should be triggered by a specific trigger type"""
+    workflows = await workflows_get_from_experiment(experimentId)
+    triggered_workflows = []
+
+    for workflow in workflows:
+        config = workflow.get("config")
+
+        if config is not None:
+            if not isinstance(config, dict):
+                try:
+                    config = json.loads(config)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+
+            # Check if workflow has triggers and if trigger_type is in the triggers
+            triggers = config.get("triggers", [])
+
+            if trigger_type in triggers:
+                triggered_workflows.append(workflow["id"])
+
+    return triggered_workflows
+
+
 @router.get("/runs", summary="get all workflow runs in the experiment")
 async def workflow_runs_get_in_experiment(experimentId: int):
     workflow_runs = await workflow_runs_get_from_experiment(experimentId)
