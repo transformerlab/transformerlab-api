@@ -758,7 +758,7 @@ class TestWorkflows:
             "nodes": [{"type": "START", "id": "start", "name": "START", "out": []}],
             "triggers": ["DOWNLOAD_MODEL"],
         }
-        workflow_id = await workflow_create("test_download_model_trigger", json.dumps(workflow_config), test_experiment)
+        await workflow_create("test_download_model_trigger", json.dumps(workflow_config), test_experiment)
 
         # Create a DOWNLOAD_MODEL job
         job_id = await job_create("DOWNLOAD_MODEL", "RUNNING", "{}", test_experiment)
