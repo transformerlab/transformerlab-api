@@ -14,7 +14,6 @@ from transformerlab.shared import dirs
 from transformerlab.shared.shared import slugify
 import transformerlab.db.jobs as db_jobs
 import logging
-import sys
 
 
 router = APIRouter(prefix="/diffusion", tags=["diffusion"])
@@ -177,46 +176,6 @@ def log_print(*args, **kwargs):
     """Enhanced logging function for diffusion router"""
     message = " ".join(str(arg) for arg in args)
     diffusion_logger.info(message)
-
-
-class DiffusionOutputCapture:
-    """Context manager to capture all stdout/stderr and redirect to diffusion logger"""
-
-    def __init__(self):
-        self.original_stdout = None
-        self.original_stderr = None
-
-    def __enter__(self):
-        # Store original stdout/stderr
-        self.original_stdout = sys.stdout
-        self.original_stderr = sys.stderr
-
-        # Redirect to our logger
-        sys.stdout = LoggerWriter(diffusion_logger.info)
-        sys.stderr = LoggerWriter(diffusion_logger.info)
-
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        # Restore original stdout/stderr
-        sys.stdout = self.original_stdout
-        sys.stderr = self.original_stderr
-
-
-class LoggerWriter:
-    """Writer class that redirects output to logger"""
-
-    def __init__(self, level):
-        self.level = level
-        self.buffer = ""
-
-    def write(self, message):
-        message = message.strip()
-        if message and "📝 File changed:" not in message:
-            self.level(message)
-
-    def flush(self):
-        pass  # Needed for compatibility with some tools that use flush()
 
 
 # Request schema for image generation
@@ -396,6 +355,13 @@ async def generate_image(experimentId: int, request: DiffusionRequest):
             raise HTTPException(status_code=400, detail="num_images must be between 1 and 10")
 
         # Validate diffusion type
+        from transformerlab.routers.plugins import list_plugins
+
+        installed_plugins = await list_plugins()
+        installed_plugins_names = [plugin["uniqueId"] for plugin in installed_plugins]
+        if request.plugin not in installed_plugins_names:
+            raise HTTPException(status_code=400, detail="Plugin not installed")
+
         if request.plugin == "image_diffusion":
             request_dict = request.dict()
             if request.generation_id:
