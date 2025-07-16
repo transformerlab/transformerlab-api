@@ -1,5 +1,6 @@
 import time
 import os
+from random import randrange
 
 import torch
 import shutil
@@ -47,6 +48,9 @@ def train_model():
     # Configuration is loaded automatically when tlab_trainer methods are called
     datasets = tlab_trainer.load_dataset()
     dataset = datasets["train"]
+
+    print(f"Dataset loaded successfully with {len(dataset)} examples")
+    print(dataset[randrange(len(dataset))])
 
     formatting_template=tlab_trainer.params.get("formatting_template", None)
     chat_template=tlab_trainer.params.get("formatting_chat_template", None)
@@ -122,6 +126,7 @@ def train_model():
         print(f"Model loading error: {str(e)}")
         raise
 
+    # Setup chat template and formatting function
     formatting_func = partial(
     format_template,
     chat_template=chat_template,
@@ -129,8 +134,8 @@ def train_model():
     tokenizer=tokenizer,
     chat_column=chat_column,
 )
-
-
+    print("Formatted example:")
+    print(formatting_func(dataset[randrange(len(dataset))]))
 
     # Setup LoRA - use direct attribute access with safe defaults
     lora_alpha = int(tlab_trainer.params.get("lora_alpha", 16))

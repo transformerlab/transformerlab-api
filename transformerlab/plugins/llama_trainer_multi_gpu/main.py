@@ -163,6 +163,7 @@ def train_model():
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
 
+    # Setup chat template and formatting function
     formatting_func = partial(
     format_template,
     chat_template=chat_template,
@@ -170,6 +171,8 @@ def train_model():
     tokenizer=tokenizer,
     chat_column=chat_column,
 )
+    print("Formatted example:")
+    print(formatting_func(dataset[randrange(len(dataset))]))
     
     # LoRA config
     peft_config = LoraConfig(
