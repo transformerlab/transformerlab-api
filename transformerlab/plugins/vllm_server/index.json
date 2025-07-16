@@ -5,6 +5,16 @@
   "plugin-format": "python",
   "type": "loader",
   "version": "1.0.12",
+  "supports": [
+    "chat",
+    "completion",
+    "rag",
+    "tools",
+    "template",
+    "embeddings",
+    "batched",
+    "multimodal"
+  ],
   "model_architectures": [
     "CohereForCausalLM",
     "FalconForCausalLM",
