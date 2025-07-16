@@ -144,3 +144,128 @@ def test_workflow_add_eval_node_and_metadata(client):
     assert edit_resp.status_code == 200
     # Cleanup
     client.get(f"/experiment/1/workflows/delete/{workflow_id}")
+
+
+def test_workflow_task_isolation_success(client):
+    """Test that workflows can find tasks in their own experiment with correct type."""
+    # Create a TRAIN task in experiment 1
+    task_data = {
+        "name": "isolation_test_task",
+        "type": "TRAIN",
+        "inputs": '{"model_name": "test_model"}',
+        "config": '{"learning_rate": 0.001}',
+        "plugin": "test_plugin",
+        "outputs": '{"adaptor_name": "test_adaptor"}',
+        "experiment_id": 1,
+    }
+    task_resp = client.put("/tasks/new_task", json=task_data)
+    assert task_resp.status_code == 200
+
+    # Verify task exists in experiment 1
+    tasks_resp = client.get("/tasks/list_by_type_in_experiment?type=TRAIN&experiment_id=1")
+    assert tasks_resp.status_code == 200
+    tasks = tasks_resp.json()
+    test_task = next((t for t in tasks if t["name"] == "isolation_test_task"), None)
+    assert test_task is not None
+    task_id = test_task["id"]
+
+    # Create a workflow that references this task
+    create_resp = client.get("/experiment/1/workflows/create_empty", params={"name": "isolation_test_workflow"})
+    assert create_resp.status_code == 200
+    workflow_id = create_resp.json()
+
+    # Add TRAIN node
+    train_node = {"type": "TRAIN", "name": "Training Node", "task": "isolation_test_task", "out": []}
+    add_node_resp = client.get(
+        f"/experiment/1/workflows/{workflow_id}/add_node", params={"node": json.dumps(train_node)}
+    )
+    assert add_node_resp.status_code == 200
+
+    # Start the workflow
+    start_resp = client.get(f"/experiment/1/workflows/{workflow_id}/start")
+    assert start_resp.status_code == 200
+    assert start_resp.json().get("message") == "OK"
+
+    # Test the task isolation by triggering workflow execution
+    from transformerlab.routers.experiment import workflows
+    import asyncio
+
+    async def trigger_workflow_execution():
+        return await workflows.start_next_step_in_workflow()
+
+    # Run the workflow execution step
+    asyncio.run(trigger_workflow_execution())
+
+    # Verify workflow was processed successfully
+    runs_resp = client.get("/experiment/1/workflows/runs")
+    assert runs_resp.status_code == 200
+    runs = runs_resp.json()
+    test_run = next((r for r in runs if r["workflow_id"] == workflow_id), None)
+    assert test_run is not None
+    assert test_run["status"] in ["QUEUED", "RUNNING", "COMPLETE", "FAILED"]
+
+    # Cleanup
+    client.get(f"/tasks/{task_id}/delete")
+    client.get(f"/experiment/1/workflows/delete/{workflow_id}")
+
+
+def test_workflow_task_isolation_cross_experiment_failure(client):
+    """Test that workflows cannot access tasks from other experiments."""
+    # Create a task in experiment 2
+    task_data = {
+        "name": "cross_experiment_task",
+        "type": "TRAIN",
+        "inputs": '{"model_name": "test_model"}',
+        "config": '{"learning_rate": 0.001}',
+        "plugin": "test_plugin",
+        "outputs": '{"adaptor_name": "test_adaptor"}',
+        "experiment_id": 2,
+    }
+    task_resp = client.put("/tasks/new_task", json=task_data)
+    assert task_resp.status_code == 200
+
+    # Verify task exists in experiment 2
+    tasks_resp = client.get("/tasks/list_by_type_in_experiment?type=TRAIN&experiment_id=2")
+    assert tasks_resp.status_code == 200
+    tasks = tasks_resp.json()
+    test_task = next((t for t in tasks if t["name"] == "cross_experiment_task"), None)
+    assert test_task is not None
+    task_id = test_task["id"]
+
+    # Create a workflow in experiment 1 that tries to reference the task from experiment 2
+    create_resp = client.get("/experiment/1/workflows/create_empty", params={"name": "cross_exp_workflow"})
+    assert create_resp.status_code == 200
+    workflow_id = create_resp.json()
+
+    # Add a node that references the task from experiment 2
+    train_node = {"type": "TRAIN", "name": "Cross Exp Node", "task": "cross_experiment_task", "out": []}
+    add_node_resp = client.get(
+        f"/experiment/1/workflows/{workflow_id}/add_node", params={"node": json.dumps(train_node)}
+    )
+    assert add_node_resp.status_code == 200
+
+    # Start the workflow
+    start_resp = client.get(f"/experiment/1/workflows/{workflow_id}/start")
+    assert start_resp.status_code == 200
+
+    # Trigger workflow execution
+    from transformerlab.routers.experiment import workflows
+    import asyncio
+
+    async def trigger_workflow_execution():
+        return await workflows.start_next_step_in_workflow()
+
+    asyncio.run(trigger_workflow_execution())
+
+    # Verify workflow failed because it couldn't find the cross-experiment task
+    runs_resp = client.get("/experiment/1/workflows/runs")
+    assert runs_resp.status_code == 200
+    runs = runs_resp.json()
+    test_run = next((r for r in runs if r["workflow_id"] == workflow_id), None)
+    assert test_run is not None
+    # The workflow should fail because the task is not found in experiment 1
+    assert test_run["status"] == "FAILED"
+
+    # Cleanup
+    client.get(f"/tasks/{task_id}/delete")
+    client.get(f"/experiment/1/workflows/delete/{workflow_id}")
