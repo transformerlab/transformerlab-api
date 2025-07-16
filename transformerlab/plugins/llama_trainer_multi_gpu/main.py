@@ -3,11 +3,12 @@ import subprocess
 import time
 from random import randrange
 import torch.nn as nn
+from functools import partial
+
 
 from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import WORKSPACE_DIR, get_python_executable
-from transformerlab.utils import prepare_dataset_files 
-from datasets import load_dataset 
+from transformerlab.utils import format_template 
 
 
 # Add custom arguments
@@ -60,6 +61,11 @@ def train_model():
     # Get configuration from tlab_trainer
     # Configuration is loaded automatically when tlab_trainer methods are called
     datasets = tlab_trainer.load_dataset()
+    dataset = datasets["train"]
+
+    formatting_template=tlab_trainer.params.get("formatting_template", None)
+    chat_template=tlab_trainer.params.get("formatting_chat_template", None)
+    chat_column=tlab_trainer.params.get("chatml_formatted_column", "messages")
 
     # Set up accelerate configuration
     accelerate_config = {
@@ -116,22 +122,6 @@ def train_model():
     # Get model info
     model_id = tlab_trainer.params.model_name
 
-    # Prepare datasets into JSONL files
-    data_directory = f"{WORKSPACE_DIR}/plugins/llama_trainer_multi_gpu/data"
-    if not os.path.exists(data_directory):
-        os.makedirs(data_directory)
-
-    prepare_dataset_files(
-        data_directory=data_directory,
-        datasets=datasets,
-        formatting_template=tlab_trainer.params.get("formatting_template", None),
-        chat_template=tlab_trainer.params.get("formatting_chat_template", None),
-        chat_column=tlab_trainer.params.get("chatml_formatted_column", "messages"),
-        model_name=model_id,
-    )
-
-    dataset = load_dataset("json", data_files=f"{data_directory}/train.jsonl", split="train")
-
     print(f"dataset size: {len(dataset)}")
     print(dataset[randrange(len(dataset))])
 
@@ -172,6 +162,15 @@ def train_model():
     tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
+
+    formatting_func = partial(
+    format_template,
+    chat_template=chat_template,
+    formatting_template=formatting_template,
+    tokenizer=tokenizer,
+    chat_column=chat_column,
+)
+    
     # LoRA config
     peft_config = LoraConfig(
         lora_alpha=int(tlab_trainer.params.lora_alpha),
@@ -258,6 +257,7 @@ def train_model():
         eval_dataset=eval_data,
         peft_config=peft_config,
         processing_class=tokenizer,
+        formatting_func=formatting_func,
         args=args,
         callbacks=callbacks,
     )

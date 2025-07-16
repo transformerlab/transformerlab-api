@@ -48,9 +48,9 @@ def train_model():
     datasets = tlab_trainer.load_dataset()
     dataset = datasets["train"]
 
-    formatting_template=tlab_trainer.params.get("formatting_template", None),
-    chat_template=tlab_trainer.params.get("formatting_chat_template", None),
-    chat_column=tlab_trainer.params.get("chatml_formatted_column", "messages"),
+    formatting_template=tlab_trainer.params.get("formatting_template", None)
+    chat_template=tlab_trainer.params.get("formatting_chat_template", None)
+    chat_column=tlab_trainer.params.get("chatml_formatted_column", "messages")
 
     # Setup quantization
     if not HAS_AMD:
