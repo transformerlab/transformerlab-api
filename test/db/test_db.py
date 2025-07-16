@@ -751,6 +751,27 @@ class TestWorkflows:
         assert workflow_runs[0]["workflow_id"] == workflow_id
 
     @pytest.mark.asyncio
+    async def test_workflow_trigger_with_download_model_job(self, test_experiment):
+        """Test that DOWNLOAD_MODEL jobs trigger workflows with DOWNLOAD_MODEL trigger type"""
+        # Create a workflow with DOWNLOAD_MODEL trigger
+        workflow_config = {
+            "nodes": [{"type": "START", "id": "start", "name": "START", "out": []}],
+            "triggers": ["DOWNLOAD_MODEL"],
+        }
+        workflow_id = await workflow_create("test_download_model_trigger", json.dumps(workflow_config), test_experiment)
+
+        # Create a DOWNLOAD_MODEL job
+        job_id = await job_create("DOWNLOAD_MODEL", "RUNNING", "{}", test_experiment)
+
+        # Complete the job - this should trigger the workflow
+        await job_update_status(job_id, "COMPLETE")
+
+        # Check that workflow was triggered
+        workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
+        assert len(workflow_runs) > 0
+        assert workflow_runs[0]["workflow_id"] == workflow_id
+
+    @pytest.mark.asyncio
     async def test_workflow_trigger_error_handling(self, test_experiment):
         """Test that workflows with malformed configs don't cause errors"""
         # Create a workflow with malformed JSON config
@@ -765,12 +786,15 @@ class TestWorkflows:
         # Check that no workflow was triggered due to malformed config
         workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
         assert len(workflow_runs) == 0
-    
+
     @pytest.mark.asyncio
-    async def test_sync_job_functions_trigger_workflows(test_experiment):
+    async def test_sync_job_functions_trigger_workflows(self, test_experiment):
         """Test that sync job functions also trigger workflows when jobs complete"""
         # Create a workflow with TRAIN trigger
-        workflow_config = {"nodes": [{"type": "START", "id": "start", "name": "START", "out": []}], "triggers": ["TRAIN"]}
+        workflow_config = {
+            "nodes": [{"type": "START", "id": "start", "name": "START", "out": []}],
+            "triggers": ["TRAIN"],
+        }
         workflow_id = await workflow_create("test_sync_trigger", json.dumps(workflow_config), test_experiment)
 
         # Test job_update_status_sync
@@ -785,7 +809,9 @@ class TestWorkflows:
         # Check that workflow was triggered
         workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
         assert len(workflow_runs) > 0
-        assert workflow_runs[0]["workflow_id"] == workflow_id
+        # Check if our workflow was triggered (it might not be the first one)
+        triggered_workflow_ids = [run["workflow_id"] for run in workflow_runs]
+        assert workflow_id in triggered_workflow_ids
 
         # Test job_update_sync
         job_id2 = await job_create("TRAIN", "RUNNING", "{}", test_experiment)

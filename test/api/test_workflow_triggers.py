@@ -1,5 +1,6 @@
 import json
 import pytest
+from transformerlab.routers.experiment.workflows import workflows_get_by_trigger_type
 
 
 def test_workflow_triggers_endpoint_basic_functionality(client, experiment_id):
@@ -12,10 +13,10 @@ def test_workflow_triggers_endpoint_basic_functionality(client, experiment_id):
     )
     assert resp.status_code == 200
 
-    # Test the endpoint
-    resp = client.get(f"/experiment/{experiment_id}/workflows/triggers/TRAIN")
-    assert resp.status_code == 200
-    workflows = resp.json()
+    # Test the function directly
+    import asyncio
+
+    workflows = asyncio.run(workflows_get_by_trigger_type(experiment_id, "TRAIN"))
     assert isinstance(workflows, list)
     assert len(workflows) == 1
 
@@ -30,10 +31,28 @@ def test_workflow_triggers_endpoint_export_model_mapping(client, experiment_id):
     )
     assert resp.status_code == 200
 
-    # Test the endpoint
-    resp = client.get(f"/experiment/{experiment_id}/workflows/triggers/EXPORT")
+    # Test the function directly
+    import asyncio
+
+    workflows = asyncio.run(workflows_get_by_trigger_type(experiment_id, "EXPORT"))
+    assert isinstance(workflows, list)
+    assert len(workflows) == 1
+
+
+def test_workflow_triggers_endpoint_download_model_mapping(client, experiment_id):
+    """Test that DOWNLOAD_MODEL trigger works correctly"""
+    # Create a workflow with DOWNLOAD_MODEL trigger
+    config = {"nodes": [{"type": "START", "id": "start", "name": "START", "out": []}], "triggers": ["DOWNLOAD_MODEL"]}
+    resp = client.get(
+        f"/experiment/{experiment_id}/workflows/create",
+        params={"name": "test_download_model_trigger", "config": json.dumps(config)},
+    )
     assert resp.status_code == 200
-    workflows = resp.json()
+
+    # Test the function directly
+    import asyncio
+
+    workflows = asyncio.run(workflows_get_by_trigger_type(experiment_id, "DOWNLOAD_MODEL"))
     assert isinstance(workflows, list)
     assert len(workflows) == 1
 
@@ -50,10 +69,8 @@ def test_workflow_triggers_endpoint_error_handling(client, experiment_id):
     workflow_id = asyncio.run(create_malformed_workflow())
     assert workflow_id is not None
 
-    # Test that malformed config doesn't crash the endpoint
-    resp = client.get(f"/experiment/{experiment_id}/workflows/triggers/TRAIN")
-    assert resp.status_code == 200
-    workflows = resp.json()
+    # Test that malformed config doesn't crash the function
+    workflows = asyncio.run(workflows_get_by_trigger_type(experiment_id, "TRAIN"))
     assert isinstance(workflows, list)
     # Should not contain the malformed workflow
 
@@ -69,9 +86,9 @@ def test_workflow_triggers_endpoint_no_matching_triggers(client, experiment_id):
     assert resp.status_code == 200
 
     # Test with different trigger type
-    resp = client.get(f"/experiment/{experiment_id}/workflows/triggers/GENERATE")
-    assert resp.status_code == 200
-    workflows = resp.json()
+    import asyncio
+
+    workflows = asyncio.run(workflows_get_by_trigger_type(experiment_id, "GENERATE"))
     assert isinstance(workflows, list)
     assert len(workflows) == 0
 

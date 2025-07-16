@@ -77,10 +77,7 @@ def job_update_status_sync(job_id, status, error_msg=None):
         # Trigger workflows if job status is COMPLETE
         if status == "COMPLETE":
             try:
-                import asyncio
-                from transformerlab.db.jobs import _trigger_workflows_on_job_completion
-
-                asyncio.run(_trigger_workflows_on_job_completion(job_id))
+                _trigger_workflows_on_job_completion_sync(job_id)
             except Exception as e:
                 print(f"Error triggering workflows for job {job_id}: {e}")
 
@@ -107,10 +104,7 @@ def job_update_sync(job_id, status):
         # Trigger workflows if job status is COMPLETE
         if status == "COMPLETE":
             try:
-                import asyncio
-                from transformerlab.db.jobs import _trigger_workflows_on_job_completion
-
-                asyncio.run(_trigger_workflows_on_job_completion(job_id))
+                _trigger_workflows_on_job_completion_sync(job_id)
             except Exception as e:
                 print(f"Error triggering workflows for job {job_id}: {e}")
 
@@ -136,10 +130,7 @@ def job_mark_as_complete_if_running(job_id):
             # If a job was actually updated (was running and is now complete), trigger workflows
             if result.rowcount > 0:
                 try:
-                    import asyncio
-                    from transformerlab.db.jobs import _trigger_workflows_on_job_completion
-
-                    asyncio.run(_trigger_workflows_on_job_completion(job_id))
+                    _trigger_workflows_on_job_completion_sync(job_id)
                 except Exception as e:
                     print(f"Error triggering workflows for job {job_id}: {e}")
 
