@@ -15,10 +15,6 @@ def prepare_dataset_files(
     if chat_template:
         tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
 
-    jinja_env = Environment()
-    if formatting_template:
-        formatting_template = jinja_env.from_string(formatting_template)
-
     for split_name in datasets:
         dataset_split = datasets[split_name]
         print(f"Processing {split_name} dataset with {len(dataset_split)} examples.")
@@ -27,23 +23,19 @@ def prepare_dataset_files(
         with open(output_file, "w") as f:
             for i in range(len(dataset_split)):
                 example = dataset_split[i]
-                if formatting_template:
-                    data_line = dict(example)
-                    line = formatting_template.render(data_line)
-                    line = line.replace("\n", "\\n").replace("\r", "\\r")
-                    o = {"text": line}
-                    f.write(json.dumps(o) + "\n")
-                elif chat_template:
-                    rendered = tokenizer.apply_chat_template(
-                        example[chat_column],
-                        tokenize=False,
-                        add_generation_prompt=False,
-                        chat_template=chat_template
+                try:
+                    rendered_text = format_template(
+                        example=example,
+                        formatting_template=formatting_template,
+                        chat_template=chat_template,
+                        tokenizer=tokenizer,
+                        chat_column=chat_column
                     )
-                    rendered = rendered.replace("\n", "\\n").replace("\r", "\\r")
-                    f.write(json.dumps({"text": rendered}) + "\n")
-                else:
-                    raise ValueError("No formatting template found.")
+                    rendered_text = rendered_text.replace("\n", "\\n").replace("\r", "\\r")
+                    f.write(json.dumps({"text": rendered_text}) + "\n")
+                except Exception:
+                        print(f"Warning: Failed to process example {i} in '{split_name}'. Skipping.")
+                        continue # Skip problematic examples
 
         # Print one example from the written jsonl file
         try:
