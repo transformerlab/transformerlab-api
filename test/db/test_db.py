@@ -752,7 +752,7 @@ class TestWorkflows:
 
     @pytest.mark.asyncio
     async def test_workflow_trigger_with_download_model_job(self, test_experiment):
-        """Test that DOWNLOAD_MODEL jobs trigger workflows with DOWNLOAD_MODEL trigger type"""
+        """Test that DOWNLOAD_MODEL jobs do NOT trigger workflows (not a supported trigger type)"""
         # Create a workflow with DOWNLOAD_MODEL trigger
         workflow_config = {
             "nodes": [{"type": "START", "id": "start", "name": "START", "out": []}],
@@ -763,13 +763,12 @@ class TestWorkflows:
         # Create a DOWNLOAD_MODEL job
         job_id = await job_create("DOWNLOAD_MODEL", "RUNNING", "{}", test_experiment)
 
-        # Complete the job - this should trigger the workflow
+        # Complete the job - this should NOT trigger the workflow since DOWNLOAD_MODEL is not a supported trigger
         await job_update_status(job_id, "COMPLETE")
 
-        # Check that workflow was triggered
+        # Check that workflow was NOT triggered
         workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
-        assert len(workflow_runs) > 0
-        assert workflow_runs[0]["workflow_id"] == workflow_id
+        assert len(workflow_runs) == 0
 
     @pytest.mark.asyncio
     async def test_workflow_trigger_error_handling(self, test_experiment):

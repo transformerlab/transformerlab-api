@@ -20,9 +20,7 @@ router = APIRouter(prefix="/export", tags=["export"])
 
 
 @router.get("/run_exporter_script")
-async def run_exporter_script(
-    id: int, plugin_name: str, plugin_architecture: str, plugin_params: str = "{}", job_id: str = None
-):
+async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: str, plugin_params: str = "{}", job_id: str = None):
     """
     plugin_name: the id of the exporter plugin to run
     plugin_architecture: A string containing the standard name of plugin architecture

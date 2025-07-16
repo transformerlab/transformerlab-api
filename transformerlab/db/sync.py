@@ -54,7 +54,7 @@ def job_create_sync(type, status, job_data="{}", experiment_id=""):
             result = session.execute(stmt)
             session.commit()
             return result.inserted_primary_key[0]
-            
+
     except Exception as e:
         print("Error creating job: " + str(e))
         return None
@@ -100,7 +100,7 @@ def job_update_sync(job_id, status):
             )
             session.execute(stmt)
             session.commit()
-        
+
         # Trigger workflows if job status is COMPLETE
         if status == "COMPLETE":
             try:
@@ -126,7 +126,7 @@ def job_mark_as_complete_if_running(job_id):
             )
             result = session.execute(stmt)
             session.commit()
-            
+
             # If a job was actually updated (was running and is now complete), trigger workflows
             if result.rowcount > 0:
                 try:
@@ -156,7 +156,7 @@ def _trigger_workflows_on_job_completion_sync(job_id: str):
             experiment_id = job_row[1]
 
             # 2. Check if job type is supported
-            supported_triggers = ["TRAIN", "DOWNLOAD_MODEL", "LOAD_MODEL", "EXPORT", "EVAL", "GENERATE"]
+            supported_triggers = ["TRAIN", "LOAD_MODEL", "EXPORT", "EVAL", "GENERATE"]
             if job_type not in supported_triggers:
                 return
 

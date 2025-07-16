@@ -219,7 +219,7 @@ async def _trigger_workflows_on_job_completion(job_id: str):
         experiment_id = job.get("experiment_id")
 
         # Define supported triggers based on existing ALLOWED_JOB_TYPES
-        supported_triggers = ["TRAIN", "DOWNLOAD_MODEL", "LOAD_MODEL", "EXPORT", "EVAL", "GENERATE"]
+        supported_triggers = ["TRAIN", "LOAD_MODEL", "EXPORT", "EVAL", "GENERATE"]
 
         # Check if job type is in supported triggers
         if job_type not in supported_triggers:

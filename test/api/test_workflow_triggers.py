@@ -38,25 +38,6 @@ def test_workflow_triggers_endpoint_export_model_mapping(client, experiment_id):
     assert isinstance(workflows, list)
     assert len(workflows) == 1
 
-
-def test_workflow_triggers_endpoint_download_model_mapping(client, experiment_id):
-    """Test that DOWNLOAD_MODEL trigger works correctly"""
-    # Create a workflow with DOWNLOAD_MODEL trigger
-    config = {"nodes": [{"type": "START", "id": "start", "name": "START", "out": []}], "triggers": ["DOWNLOAD_MODEL"]}
-    resp = client.get(
-        f"/experiment/{experiment_id}/workflows/create",
-        params={"name": "test_download_model_trigger", "config": json.dumps(config)},
-    )
-    assert resp.status_code == 200
-
-    # Test the function directly
-    import asyncio
-
-    workflows = asyncio.run(workflows_get_by_trigger_type(experiment_id, "DOWNLOAD_MODEL"))
-    assert isinstance(workflows, list)
-    assert len(workflows) == 1
-
-
 def test_workflow_triggers_endpoint_error_handling(client, experiment_id):
     """Test that malformed configs are handled gracefully"""
     # Create a workflow with malformed config directly in the database
