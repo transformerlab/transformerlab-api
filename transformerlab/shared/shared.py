@@ -367,7 +367,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         if not os.path.exists(gen_output_file):
             with open(gen_output_file, "w") as f:
                 f.write("")
-
+                
         await run_generation_script(experiment_id, plugin_name, generation_name, job_id)
 
         # Check should_stop flag and update status accordingly
@@ -399,12 +399,12 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
         # Run the export script using the existing run_exporter_script function
         from transformerlab.routers.experiment.export import run_exporter_script
-
+        
         config = job_config["config"]
         # Extract parameters from the job config - note: plugin_name is already set above
         plugin_architecture = config["output_model_architecture"]
         plugin_params = json.dumps(config["params"])
-
+        
         # Call the existing run_exporter_script function with the existing job_id
         result = await run_exporter_script(
             id=experiment_id,
@@ -419,7 +419,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             # The run_exporter_script function already sets job to COMPLETE on success
             print(f"Export job {job_id} completed successfully")
             return {"status": "complete", "job_id": job_id, "message": "Export job completed successfully"}
-
+            
         else:
             await db_jobs.job_update_status(job_id, "FAILED")
             print(f"Export job {job_id} failed")
