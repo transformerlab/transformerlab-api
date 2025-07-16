@@ -54,7 +54,7 @@ def job_create_sync(type, status, job_data="{}", experiment_id=""):
             result = session.execute(stmt)
             session.commit()
             return result.inserted_primary_key[0]
-
+            
     except Exception as e:
         print("Error creating job: " + str(e))
         return None
