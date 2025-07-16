@@ -146,6 +146,7 @@ async def run_exporter_script(
                 f.write(f"\nError:\n{stderr_str}")
 
             if process.returncode != 0:
+                await db_jobs.job_update_status(job_id=job_id, status="FAILED")
                 return {
                     "status": "error",
                     "message": "Export failed due to an internal error. Please check the output file for more details.",
@@ -155,6 +156,7 @@ async def run_exporter_script(
         import logging
 
         logging.error(f"Failed to export model. Exception: {e}")
+        await db_jobs.job_update_status(job_id=job_id, status="FAILED")
         return {"message": "Failed to export model due to an internal error."}
 
     # Model create was successful!
