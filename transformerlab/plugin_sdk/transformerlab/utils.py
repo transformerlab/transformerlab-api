@@ -57,3 +57,27 @@ def prepare_dataset_files(
                     print(f"Example from {split_name} split: file is empty.")
         except Exception as e:
             print(f"Error reading example from {output_file}: {e}")
+
+def format_template(
+    example,
+    formatting_template=None,
+    chat_template=None,
+    tokenizer=None,
+    chat_column="messages"
+):
+    if chat_template and tokenizer:
+        return tokenizer.apply_chat_template(
+                        example[chat_column],
+                        tokenize=False,
+                        add_generation_prompt=False,
+                        chat_template=chat_template
+                    )
+    
+    if formatting_template:
+        jinja_env = Environment()
+        formatting_template = jinja_env.from_string(formatting_template)
+        return formatting_template.render(example)
+    raise ValueError("Either formatting_template or chat_template must be provided.")
+
+
+    

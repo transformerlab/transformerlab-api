@@ -3,6 +3,7 @@ import os
 
 import torch
 import shutil
+from functools import partial
 
 HAS_AMD = False
 if shutil.which("rocminfo") is not None:
@@ -23,12 +24,9 @@ import torch.nn as nn  # noqa: E402
 
 from transformerlab.plugin import WORKSPACE_DIR  # noqa: E402
 from transformerlab.sdk.v1.train import tlab_trainer  # noqa: E402
-from transformerlab.utils import prepare_dataset_files # noqa: E402
-from datasets import load_dataset # noqa: E402
+from transformerlab.utils import format_template # noqa: E402
 
 
-# use_flash_attention = False
-# Initialize Jinja environment
 
 def find_lora_target_modules(model, keyword="proj"):
     """
@@ -48,22 +46,11 @@ def find_lora_target_modules(model, keyword="proj"):
 def train_model():
     # Configuration is loaded automatically when tlab_trainer methods are called
     datasets = tlab_trainer.load_dataset()
+    dataset = datasets["train"]
 
-    # Prepare datasets into JSONL files
-    data_directory = f"{WORKSPACE_DIR}/plugins/llama_trainer/data"
-    if not os.path.exists(data_directory):
-        os.makedirs(data_directory)
-
-    prepare_dataset_files(
-        data_directory=data_directory,
-        datasets=datasets,
-        formatting_template=tlab_trainer.params.get("formatting_template", None),
-        chat_template=tlab_trainer.params.get("formatting_chat_template", None),
-        chat_column=tlab_trainer.params.get("chatml_formatted_column", "messages"),
-        model_name=tlab_trainer.params.get("model_name"),
-    )
-
-    dataset = load_dataset("json", data_files=f"{data_directory}/train.jsonl", split="train")
+    formatting_template=tlab_trainer.params.get("formatting_template", None),
+    chat_template=tlab_trainer.params.get("formatting_chat_template", None),
+    chat_column=tlab_trainer.params.get("chatml_formatted_column", "messages"),
 
     # Setup quantization
     if not HAS_AMD:
@@ -134,6 +121,16 @@ def train_model():
     except Exception as e:
         print(f"Model loading error: {str(e)}")
         raise
+
+    formatting_func = partial(
+    format_template,
+    chat_template=chat_template,
+    formatting_template=formatting_template,
+    tokenizer=tokenizer,
+    chat_column=chat_column,
+)
+
+
 
     # Setup LoRA - use direct attribute access with safe defaults
     lora_alpha = int(tlab_trainer.params.get("lora_alpha", 16))
@@ -263,6 +260,7 @@ def train_model():
         eval_dataset=eval_data,
         peft_config=peft_config,
         processing_class=tokenizer,
+        formatting_func=formatting_func,
         args=training_args,
         callbacks=callbacks,
     )
