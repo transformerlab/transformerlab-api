@@ -20,7 +20,9 @@ router = APIRouter(prefix="/export", tags=["export"])
 
 
 @router.get("/run_exporter_script")
-async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: str, plugin_params: str = "{}", job_id: str = None):
+async def run_exporter_script(
+    id: int, plugin_name: str, plugin_architecture: str, plugin_params: str = "{}", job_id: str = None
+):
     """
     plugin_name: the id of the exporter plugin to run
     plugin_architecture: A string containing the standard name of plugin architecture
@@ -144,7 +146,6 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
                 f.write(f"\nError:\n{stderr_str}")
 
             if process.returncode != 0:
-                await db_jobs.job_update_status(job_id=job_id, status="FAILED")
                 return {
                     "status": "error",
                     "message": "Export failed due to an internal error. Please check the output file for more details.",
@@ -154,7 +155,6 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
         import logging
 
         logging.error(f"Failed to export model. Exception: {e}")
-        await db_jobs.job_update_status(job_id=job_id, status="FAILED")
         return {"message": "Failed to export model due to an internal error."}
 
     # Model create was successful!
@@ -182,7 +182,6 @@ async def run_exporter_script(id: int, plugin_name: str, plugin_architecture: st
     json.dump(model_description, model_description_file)
     model_description_file.close()
 
-    await db_jobs.job_update_status(job_id=job_id, status="COMPLETE")
     return {"status": "success", "job_id": job_id}
 
 
