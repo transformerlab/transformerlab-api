@@ -7,7 +7,7 @@ https://github.com/ml-explore/mlx-examples/blob/main/llms/mlx_lm/LORA.md
 import json
 import yaml
 import re
-import subprocess
+import asyncio
 import os
 from jinja2 import Environment
 
@@ -20,8 +20,8 @@ from transformerlab.plugin import WORKSPACE_DIR
 from transformerlab.plugin import get_python_executable
 
 
-@tlab_trainer.job_wrapper(wandb_project_name="TLab_Training", manual_logging=True)
-def train_mlx_lora():
+@tlab_trainer.async_job_wrapper(wandb_project_name="TLab_Training", manual_logging=True)
+async def train_mlx_lora():
     jinja_environment = Environment()
     plugin_dir = os.path.dirname(os.path.realpath(__file__))
     print("Plugin dir:", plugin_dir)
@@ -168,47 +168,52 @@ def train_mlx_lora():
     print("Adaptor will be saved in:", adaptor_output_dir)
 
     # Run the MLX LoRA training process
-    with subprocess.Popen(
-        popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True, env=env
-    ) as process:
-        for line in process.stdout:
-            # Parse progress from output
-            pattern = r"Iter (\d+):"
+    process = await asyncio.create_subprocess_exec(
+        *popen_command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+        env=env,
+    )
+
+    assert process.stdout is not None
+    async for line_bytes in process.stdout:
+        line = line_bytes.decode("utf-8", errors="replace")
+
+        # Parse progress from output
+        pattern = r"Iter (\d+):"
+        match = re.search(pattern, line)
+        if match:
+            iteration = int(match.group(1))
+            percent_complete = float(iteration) / float(iters) * 100
+            print("Progress: ", f"{percent_complete:.2f}%")
+            tlab_trainer.progress_update(percent_complete)
+
+            # Parse training metrics
+            pattern = r"Train loss (\d+\.\d+), Learning Rate (\d+\.[e\-\d]+), It/sec (\d+\.\d+), Tokens/sec (\d+\.\d+)"
             match = re.search(pattern, line)
             if match:
-                iteration = int(match.group(1))
-                percent_complete = float(iteration) / float(iters) * 100
-                print("Progress: ", f"{percent_complete:.2f}%")
-                tlab_trainer.progress_update(percent_complete)
+                loss = float(match.group(1))
+                it_per_sec = float(match.group(3))
+                tokens_per_sec = float(match.group(4))
+                print("Training Loss: ", loss)
 
-                # Parse training metrics
-                pattern = (
-                    r"Train loss (\d+\.\d+), Learning Rate (\d+\.[e\-\d]+), It/sec (\d+\.\d+), Tokens/sec (\d+\.\d+)"
-                )
+                tlab_trainer.log_metric("train/loss", loss, iteration)
+                tlab_trainer.log_metric("train/it_per_sec", it_per_sec, iteration)
+                tlab_trainer.log_metric("train/tokens_per_sec", tokens_per_sec, iteration)
+
+            else:
+                # Parse validation metrics
+                pattern = r"Val loss (\d+\.\d+), Val took (\d+\.\d+)s"
                 match = re.search(pattern, line)
                 if match:
-                    loss = float(match.group(1))
-                    it_per_sec = float(match.group(3))
-                    tokens_per_sec = float(match.group(4))
-                    print("Training Loss: ", loss)
+                    validation_loss = float(match.group(1))
+                    print("Validation Loss: ", validation_loss)
+                    tlab_trainer.log_metric("eval/loss", validation_loss, iteration)
 
-                    tlab_trainer.log_metric("train/loss", loss, iteration)
-                    tlab_trainer.log_metric("train/it_per_sec", it_per_sec, iteration)
-                    tlab_trainer.log_metric("train/tokens_per_sec", tokens_per_sec, iteration)
+        print(line, end="", flush=True)
 
-                # Parse validation metrics
-                else:
-                    pattern = r"Val loss (\d+\.\d+), Val took (\d+\.\d+)s"
-                    match = re.search(pattern, line)
-                    if match:
-                        validation_loss = float(match.group(1))
-                        print("Validation Loss: ", validation_loss)
-                        tlab_trainer.log_metric("eval/loss", validation_loss, iteration)
-
-            print(line, end="", flush=True)
-
-    # Check if the training process completed successfully
-    if process.returncode and process.returncode != 0:
+    return_code = await process.wait()
+    if return_code != 0:
         print("An error occured before training completed.")
         raise RuntimeError("Training failed.")
 
@@ -243,31 +248,32 @@ def train_mlx_lora():
             fused_model_location,
         ]
 
-        with subprocess.Popen(
-            fuse_popen_command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            bufsize=1,
-            universal_newlines=True,
+        process = await asyncio.create_subprocess_exec(
+            *fuse_popen_command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
             env=env,
-        ) as process:
-            for line in process.stdout:
-                print(line, end="", flush=True)
+        )
 
-            return_code = process.wait()
+        assert process.stdout is not None
+        async for line_bytes in process.stdout:
+            line = line_bytes.decode("utf-8", errors="replace")
+            print(line, end="", flush=True)
 
-            if return_code == 0:
-                json_data = {
-                    "description": f"An MLX model trained and generated by Transformer Lab based on {tlab_trainer.params.model_name}"
-                }
-                tlab_trainer.create_transformerlab_model(
-                    fused_model_name=fused_model_name, model_architecture="MLX", json_data=json_data
-                )
-                print("Finished fusing the adaptor with the model.")
-                return True
-            else:
-                print("Fusing model with adaptor failed: ", return_code)
-                raise RuntimeError(f"Model fusion failed with return code {return_code}")
+        return_code = await process.wait()
+
+        if return_code == 0:
+            json_data = {
+                "description": f"An MLX model trained and generated by Transformer Lab based on {tlab_trainer.params.model_name}"
+            }
+            tlab_trainer.create_transformerlab_model(
+                fused_model_name=fused_model_name, model_architecture="MLX", json_data=json_data
+            )
+            print("Finished fusing the adaptor with the model.")
+            return True
+        else:
+            print("Fusing model with adaptor failed: ", return_code)
+            raise RuntimeError(f"Model fusion failed with return code {return_code}")
 
 
 train_mlx_lora()

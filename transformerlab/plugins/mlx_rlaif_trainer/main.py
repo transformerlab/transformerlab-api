@@ -8,13 +8,13 @@ This plugin runs PPO training for MLX models, using a custom dataset provided by
 import os
 import re
 import json
-import subprocess
+import asyncio
 from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import WORKSPACE_DIR, get_python_executable
 
 
-@tlab_trainer.job_wrapper(wandb_project_name="TLab_RLAIF", manual_logging=True)
-def train_mlx_rlaif():
+@tlab_trainer.async_job_wrapper(wandb_project_name="TLab_RLAIF", manual_logging=True)
+async def train_mlx_rlaif():
     plugin_dir = os.path.dirname(os.path.realpath(__file__))
     print("Plugin dir:", plugin_dir)
 
@@ -87,41 +87,48 @@ def train_mlx_rlaif():
     total_steps = int(num_steps)
     current_step = 0
 
-    with subprocess.Popen(
-        popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True, env=env
-    ) as process:
-        for line in process.stdout:
-            print(line, end="", flush=True)
-            # Progress parsing
-            step_pattern = r"Step - (\d+)"
-            step_match = re.search(step_pattern, line)
-            if step_match:
-                current_step = int(step_match.group(1))
-                percent_complete = (current_step / total_steps) * 100
-                tlab_trainer.progress_update(percent_complete)
-            # Reward parsing
-            reward_pattern = r"Reward: array\((.*?), dtype=float32\)"
-            reward_match = re.search(reward_pattern, line)
-            if reward_match:
-                try:
-                    reward_str = reward_match.group(1).replace("...", "0, 0, 0")
-                    reward_values = [
-                        float(x) for x in reward_str.replace("[", "").replace("]", "").split(",") if x.strip()
-                    ]
-                    if reward_values:
-                        mean_reward = sum(reward_values) / len(reward_values)
-                        tlab_trainer.log_metric("train/mean_reward", mean_reward, current_step)
-                        tlab_trainer.log_metric("train/reward_batch_size", len(reward_values), current_step)
-                except Exception as e:
-                    print(f"Error parsing rewards: {e}")
-            # Other metrics
-            metrics_pattern = r"(policy_loss|value_loss|kl_div|entropy): ([-+]?\d*\.\d+|\d+)"
-            for match in re.finditer(metrics_pattern, line):
-                metric_name = match.group(1)
-                metric_value = float(match.group(2))
-                tlab_trainer.log_metric(f"train/{metric_name}", metric_value, current_step)
+    process = await asyncio.create_subprocess_exec(
+        *popen_command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT, env=env
+    )
 
-    if process.returncode and process.returncode != 0:
+    assert process.stdout is not None
+    current_step = 0
+
+    async for line_bytes in process.stdout:
+        line = line_bytes.decode("utf-8", errors="replace")
+        print(line, end="", flush=True)
+
+        # Progress parsing
+        step_pattern = r"Step - (\d+)"
+        step_match = re.search(step_pattern, line)
+        if step_match:
+            current_step = int(step_match.group(1))
+            percent_complete = (current_step / total_steps) * 100
+            tlab_trainer.progress_update(percent_complete)
+
+        # Reward parsing
+        reward_pattern = r"Reward: array\((.*?), dtype=float32\)"
+        reward_match = re.search(reward_pattern, line)
+        if reward_match:
+            try:
+                reward_str = reward_match.group(1).replace("...", "0, 0, 0")
+                reward_values = [float(x) for x in reward_str.replace("[", "").replace("]", "").split(",") if x.strip()]
+                if reward_values:
+                    mean_reward = sum(reward_values) / len(reward_values)
+                    tlab_trainer.log_metric("train/mean_reward", mean_reward, current_step)
+                    tlab_trainer.log_metric("train/reward_batch_size", len(reward_values), current_step)
+            except Exception as e:
+                print(f"Error parsing rewards: {e}")
+
+        # Other metrics
+        metrics_pattern = r"(policy_loss|value_loss|kl_div|entropy): ([-+]?\d*\.\d+|\d+)"
+        for match in re.finditer(metrics_pattern, line):
+            metric_name = match.group(1)
+            metric_value = float(match.group(2))
+            tlab_trainer.log_metric(f"train/{metric_name}", metric_value, current_step)
+
+    return_code = await process.wait()
+    if return_code != 0:
         print("An error occurred before training completed.")
         raise RuntimeError("Training failed.")
 

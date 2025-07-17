@@ -1,5 +1,5 @@
 import os
-import subprocess
+import asyncio
 import shutil
 
 try:
@@ -9,11 +9,12 @@ except ImportError or ModuleNotFoundError:
 
 
 tlab_exporter.add_argument(
-    "--model_path", default="gpt-j-6b", type=str, help="Path to directory or file containing the model.")
+    "--model_path", default="gpt-j-6b", type=str, help="Path to directory or file containing the model."
+)
 
 
-@tlab_exporter.exporter_job_wrapper(progress_start=0, progress_end=100)
-def llamafile_export():
+@tlab_exporter.async_exporter_job_wrapper(progress_start=0, progress_end=100)
+async def llamafile_export():
     """Export a model to Llamafile format"""
     input_model = tlab_exporter.params.get("model_name")
     input_model_id_without_author = input_model.split("/")[-1]
@@ -38,7 +39,7 @@ def llamafile_export():
                 -ngl
                 9999
                 """
-    
+
     with open(argsfile, "w") as f:
         f.write(argsoutput)
 
@@ -55,18 +56,27 @@ def llamafile_export():
 
     # Merge files together in single executable using zipalign
     subprocess_cmd = ["sh", "./zipalign", "-j0", outfile_name, input_model_path, ".args"]
-    export_process = subprocess.run(
-        subprocess_cmd, cwd=plugin_dir, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+    export_process = await asyncio.create_subprocess_exec(
+        *subprocess_cmd,
+        cwd=plugin_dir,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
     )
-    
-    stdout = export_process.stdout
-    for line in stdout.strip().splitlines():
+
+    assert export_process.stdout is not None
+    stdout_lines = []
+    async for line_bytes in export_process.stdout:
+        line = line_bytes.decode("utf-8", errors="replace").strip()
+        stdout_lines.append(line)
         print(line)
 
-    if export_process.returncode != 0:
+    return_code = await export_process.wait()
+    stdout = "\n".join(stdout_lines)
+
+    if return_code != 0:
         tlab_exporter.add_job_data("stderr", stdout)
-        print(f"zipalign failed with code {export_process.returncode}")
-        raise RuntimeError(f"zipalign failed with return code {export_process.returncode}")
+        print(f"zipalign failed with code {return_code}")
+        raise RuntimeError(f"zipalign failed with return code {return_code}")
 
     tlab_exporter.progress_update(80)
     tlab_exporter.add_job_data("status", "Moving Llamafile to output directory")

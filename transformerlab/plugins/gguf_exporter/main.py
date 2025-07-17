@@ -1,10 +1,11 @@
 # This plugin exports a model to GGUF format so you can interact and train on a MBP with Apple Silicon
 import os
-import subprocess
+import asyncio
 import contextlib
 import io
 
 from huggingface_hub import snapshot_download
+
 try:
     from transformerlab.sdk.v1.export import tlab_exporter
     from transformerlab.plugin import get_python_executable
@@ -12,13 +13,15 @@ except ImportError or ModuleNotFoundError:
     from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
     from transformerlab.plugin_sdk.transformerlab.sdk.v1.export import tlab_exporter
 
-    
+
 tlab_exporter.add_argument("--output_model_id", type=str, help="Filename for the GGUF model.")
-tlab_exporter.add_argument("--outtype", default="q8_0", type=str, help="GGUF output format. q8_0 quantizes the model to 8 bits.")
+tlab_exporter.add_argument(
+    "--outtype", default="q8_0", type=str, help="GGUF output format. q8_0 quantizes the model to 8 bits."
+)
 
 
-@tlab_exporter.exporter_job_wrapper(progress_start=0, progress_end=100)
-def gguf_export():
+@tlab_exporter.async_exporter_job_wrapper(progress_start=0, progress_end=100)
+async def gguf_export():
     """Export a model to GGUF format"""
     input_model = tlab_exporter.params.get("model_name")
     outtype = tlab_exporter.params.get("outtype")
@@ -43,8 +46,11 @@ def gguf_export():
             model_path = snapshot_download(
                 repo_id=input_model,
                 allow_patterns=[
-                    "*.json", "*.safetensors", "*.py",
-                    "tokenizer.model", "*.tiktoken",
+                    "*.json",
+                    "*.safetensors",
+                    "*.py",
+                    "tokenizer.model",
+                    "*.tiktoken",
                 ],
             )
 
@@ -54,52 +60,53 @@ def gguf_export():
     command = [
         python_executable,
         os.path.join(plugin_dir, "llama.cpp", "convert_hf_to_gguf.py"),
-        "--outfile", output_dir,
-        "--outtype", outtype,
+        "--outfile",
+        output_dir,
+        "--outtype",
+        outtype,
         model_path,
     ]
 
     print(f"Running command to convert model to GGUF format: {' '.join(command)}")
     tlab_exporter.add_job_data("command", " ".join(command))
     tlab_exporter.progress_update(10)
-    
+
     try:
-        with subprocess.Popen(
-            command,
+        process = await asyncio.create_subprocess_exec(
+            *command,
             cwd=plugin_dir,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            universal_newlines=True,
-            bufsize=1,
-        ) as process:
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
 
-            output_lines = []
-            progress_value = 10
+        assert process.stdout is not None
+        output_lines = []
+        progress_value = 10
 
-            for line in process.stdout:
-                line = line.strip()
-                output_lines.append(line)
-                print(line, flush=True)
+        async for line_bytes in process.stdout:
+            line = line_bytes.decode("utf-8", errors="replace").strip()
+            output_lines.append(line)
+            print(line, flush=True)
 
-                # Detect writing progress
-                if line.startswith("Writing:"):
-                    import re
-                    match = re.search(r"(\d+)%\|", line)
-                    if match:
-                        writing_percent = int(match.group(1))
-                        progress_value = 10 + int(writing_percent * 0.89)  # 0→100 writing becomes 10→99
-                        tlab_exporter.progress_update(progress_value)
-                        tlab_exporter.add_job_data("status", f"Writing GGUF file ({writing_percent}%)")
-                    continue
+            # Detect writing progress
+            if line.startswith("Writing:"):
+                import re
 
-            return_code = process.wait()
-            tlab_exporter.add_job_data("stdout", "\n".join(output_lines))
+                match = re.search(r"(\d+)%\|", line)
+                if match:
+                    writing_percent = int(match.group(1))
+                    progress_value = 10 + int(writing_percent * 0.89)  # 0→100 writing becomes 10→99
+                    tlab_exporter.progress_update(progress_value)
+                    tlab_exporter.add_job_data("status", f"Writing GGUF file ({writing_percent}%)")
 
-            if return_code != 0:
-                error_msg = f"GGUF conversion failed with return code {return_code}"
-                print(error_msg)
-                tlab_exporter.add_job_data("status", error_msg)
-                raise RuntimeError(error_msg)
+        return_code = await process.wait()
+        tlab_exporter.add_job_data("stdout", "\n".join(output_lines))
+
+        if return_code != 0:
+            error_msg = f"GGUF conversion failed with return code {return_code}"
+            print(error_msg)
+            tlab_exporter.add_job_data("status", error_msg)
+            raise RuntimeError(error_msg)
 
     except Exception as e:
         error_msg = f"GGUF conversion failed with exception: {str(e)}"
@@ -113,5 +120,5 @@ def gguf_export():
 
     return "Successful export to GGUF format"
 
-  
+
 gguf_export()

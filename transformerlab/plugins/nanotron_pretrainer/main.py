@@ -1,5 +1,5 @@
 import os
-import subprocess
+import asyncio
 import yaml
 import re
 import torch
@@ -7,6 +7,7 @@ from typing import Dict, Tuple
 
 
 from transformerlab.sdk.v1.train import tlab_trainer
+
 
 def get_gpu_count():
     """Get the number of available GPUs using PyTorch"""
@@ -194,8 +195,8 @@ def generate_nanotron_config():
     return nanotron_config
 
 
-@tlab_trainer.job_wrapper(wandb_project_name="TLab_Pretraining")
-def train_model():
+@tlab_trainer.async_job_wrapper(wandb_project_name="TLab_Pretraining")
+async def train_model():
     """Main training function using TrainerTLabPlugin"""
 
     # Create the Nanotron configuration
@@ -242,55 +243,45 @@ def train_model():
 
     print(f"Running Nanotron with command: {' '.join(cmd)}")
 
-    process = subprocess.Popen(
-        cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1
+    process = await asyncio.create_subprocess_exec(
+        *cmd, env=env, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
     )
 
-    # Process output line by line
-    for line in iter(process.stdout.readline, ""):
-        print(line.rstrip())  # Echo the output
+    assert process.stdout is not None
 
-        # Look for iteration information
+    async for line_bytes in process.stdout:
+        line = line_bytes.decode("utf-8", errors="replace").rstrip()
+        print(line)
+
         if "[INFO|" in line and "iteration:" in line:
             try:
-                # Extract iteration information using regex
                 iteration_match = re.search(r"iteration: (\d+) / (\d+)", line)
                 if iteration_match:
                     current_iter = int(iteration_match.group(1))
                     total_iter = int(iteration_match.group(2))
-
-                    # Calculate progress as percentage
                     progress_percentage = min(100, (current_iter / total_iter) * 100)
-
-                    # Update job progress
                     tlab_trainer.progress_update(progress_percentage)
 
-                    # Extract other metrics for TensorBoard
-                    # Loss
                     loss_match = re.search(r"lm_loss: ([\d.]+)", line)
                     if loss_match:
                         loss_value = float(loss_match.group(1))
                         tlab_trainer.log_metric("train/loss", loss_value, current_iter)
 
-                    # Learning rate
                     lr_match = re.search(r"lr: ([\d.e\-]+)", line)
                     if lr_match:
                         lr_value = float(lr_match.group(1))
                         tlab_trainer.log_metric("train/learning_rate", lr_value, current_iter)
 
-                    # Tokens per second
                     tps_match = re.search(r"tokens_per_sec: ([\d.]+)K", line)
                     if tps_match:
-                        tps_value = float(tps_match.group(1)) * 1000  # Convert K to actual value
+                        tps_value = float(tps_match.group(1)) * 1000
                         tlab_trainer.log_metric("system/tokens_per_sec", tps_value, current_iter)
 
-                    # Gradient norm
                     grad_norm_match = re.search(r"grad_norm: ([\d.]+)", line)
                     if grad_norm_match:
                         grad_norm_value = float(grad_norm_match.group(1))
                         tlab_trainer.log_metric("train/gradient_norm", grad_norm_value, current_iter)
 
-                    # Hardware TFLOPS per GPU
                     tflops_match = re.search(r"hardware_tflops_per_gpu: ([\d.]+)", line)
                     if tflops_match:
                         tflops_value = float(tflops_match.group(1))
@@ -299,8 +290,7 @@ def train_model():
             except Exception as e:
                 print(f"Error parsing progress: {e}")
 
-    # Wait for process to complete
-    process.wait()
+    await process.wait()
 
     # Ensure we mark the job as 100% complete when done
     tlab_trainer.progress_update(100)
@@ -338,14 +328,16 @@ def train_model():
             tlab_trainer.params.get("tokenizer_name", "robot-test/dummy-tokenizer-wordlevel"),
         ]
 
-        process_convert = subprocess.Popen(
-            cmd_convert, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, bufsize=1
+        process_convert = await asyncio.create_subprocess_exec(
+            *cmd_convert, env=env, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT
         )
 
-        for line in iter(process_convert.stdout.readline, ""):
-            print(line.rstrip())  # Echo the output
+        assert process_convert.stdout is not None
 
-        process_convert.wait()
+        async for line_bytes in process_convert.stdout:
+            print(line_bytes.decode("utf-8", errors="replace").rstrip())
+
+        await process_convert.wait()
 
         # Import the model into TransformerLab
         try:
