@@ -101,6 +101,7 @@ proxy_args = [
     "--model-path", model,
     "--proxy-url", f"http://localhost:{port}/v1",
    "--model", model,
+    "--temp-img-dir", str(VLLM_TEMP_IMG_DIR)
     ]
 
 # print("Starting FastChat OpenAI API Proxy worker...", file=sys.stderr)
