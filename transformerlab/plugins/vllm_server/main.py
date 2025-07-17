@@ -60,9 +60,15 @@ vllm_args = [
     "--dtype", "float16",
     "--port", str(port),
     "--gpu-memory-utilization", "0.9",
-    "--enforce-eager",
     "--trust-remote-code",
+    "--quantization", "awq",
 ]
+
+# Add tensor parallel size if multiple GPUs are available
+num_gpus = torch.cuda.device_count()
+if num_gpus > 1:
+    vllm_args.extend(["--tensor-parallel-size", str(num_gpus)])
+
 vllm_proc = subprocess.Popen(vllm_args, stdout=None, stderr=subprocess.PIPE)
 
 # Wait for vLLM server to be ready
