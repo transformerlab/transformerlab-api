@@ -4,6 +4,7 @@ from random import randrange
 
 import torch
 import shutil
+from functools import partial
 
 HAS_AMD = False
 if shutil.which("rocminfo") is not None:
@@ -16,19 +17,15 @@ if shutil.which("rocminfo") is not None:
 if torch.cuda.is_available():
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
-from jinja2 import Environment  # noqa: E402
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel  # noqa: E402
 from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig  # noqa: E402
 from trl import SFTConfig, SFTTrainer  # noqa: E402
 import torch.nn as nn  # noqa: E402
 
 
-from transformerlab.plugin import WORKSPACE_DIR  # noqa: E402
+from transformerlab.plugin import WORKSPACE_DIR, format_template  # noqa: E402
 from transformerlab.sdk.v1.train import tlab_trainer  # noqa: E402
 
-# use_flash_attention = False
-# Initialize Jinja environment
-jinja_environment = Environment()
 
 
 def find_lora_target_modules(model, keyword="proj"):
@@ -54,15 +51,9 @@ def train_model():
     print(f"Dataset loaded successfully with {len(dataset)} examples")
     print(dataset[randrange(len(dataset))])
 
-    # Setup template for formatting
-    print("Formatting template: " + tlab_trainer.params.formatting_template)
-    template = jinja_environment.from_string(tlab_trainer.params.formatting_template)
-
-    def format_instruction(mapping):
-        return template.render(mapping)
-
-    print("Formatted instruction example:")
-    print(format_instruction(dataset[randrange(len(dataset))]))
+    formatting_template=tlab_trainer.params.get("formatting_template", None)
+    chat_template=tlab_trainer.params.get("formatting_chat_template", None)
+    chat_column=tlab_trainer.params.get("chatml_formatted_column", "messages")
 
     # Setup quantization
     if not HAS_AMD:
@@ -134,6 +125,17 @@ def train_model():
         print(f"Model loading error: {str(e)}")
         raise
 
+    # Setup chat template and formatting function
+    formatting_func = partial(
+    format_template,
+    chat_template=chat_template,
+    formatting_template=formatting_template,
+    tokenizer=tokenizer,
+    chat_column=chat_column,
+)
+    print("Formatted example:")
+    print(formatting_func(dataset[randrange(len(dataset))]))
+
     # Setup LoRA - use direct attribute access with safe defaults
     lora_alpha = int(tlab_trainer.params.get("lora_alpha", 16))
     lora_dropout = float(tlab_trainer.params.get("lora_dropout", 0.05))
@@ -196,7 +198,7 @@ def train_model():
             save_strategy="epoch",
             learning_rate=learning_rate,
             bf16=True,
-            tf32=True,
+            tf32=False, # T4 GPUs do not support tf32
             max_grad_norm=0.3,
             warmup_ratio=0.03,
             lr_scheduler_type=lr_scheduler,
@@ -262,7 +264,7 @@ def train_model():
         eval_dataset=eval_data,
         peft_config=peft_config,
         processing_class=tokenizer,
-        formatting_func=format_instruction,
+        formatting_func=formatting_func,
         args=training_args,
         callbacks=callbacks,
     )
