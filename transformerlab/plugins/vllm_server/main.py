@@ -61,7 +61,6 @@ vllm_args = [
     "--port", str(port),
     "--gpu-memory-utilization", "0.9",
     "--trust-remote-code",
-    "--max-model-len", "4096",
     "--enforce-eager",
 ]
 
