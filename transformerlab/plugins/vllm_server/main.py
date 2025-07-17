@@ -7,6 +7,8 @@ import time
 import requests
 import gc
 import torch
+from pathlib import Path
+
 
 
 try:
@@ -52,6 +54,9 @@ port = int(parameters.get("port", 8000))
 # host = "127.0.0.1"
 print("Starting vLLM server...", file=sys.stderr)
 
+workspace = os.environ["_TFL_WORKSPACE_DIR"]
+VLLM_TEMP_IMG_DIR=Path(f"{workspace}/plugins/vllm_server/tmp_img")
+
 vllm_args = [
     python_executable,
     "-m",
@@ -62,6 +67,7 @@ vllm_args = [
     "--gpu-memory-utilization", "0.9",
     "--trust-remote-code",
     "--enforce-eager",
+    "--allowed-local-media-path", str(VLLM_TEMP_IMG_DIR)
 ]
 
 # Add tensor parallel size if multiple GPUs are available
