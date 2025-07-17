@@ -611,7 +611,7 @@ def prepare_dataset_files(
         dataset_split = datasets[split_name]
         print(f"Processing {split_name} dataset with {len(dataset_split)} examples.")
 
-        output_file = f"{data_directory}/{split_name}.jsonl"
+        output_file = os.path.join(data_directory, f"{split_name}.jsonl")
         with open(output_file, "w") as f:
             for i in range(len(dataset_split)):
                 example = dataset_split[i]
