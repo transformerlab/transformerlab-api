@@ -23,9 +23,8 @@ from trl import SFTConfig, SFTTrainer  # noqa: E402
 import torch.nn as nn  # noqa: E402
 
 
-from transformerlab.plugin import WORKSPACE_DIR  # noqa: E402
+from transformerlab.plugin import WORKSPACE_DIR, format_template  # noqa: E402
 from transformerlab.sdk.v1.train import tlab_trainer  # noqa: E402
-from transformerlab.utils import format_template # noqa: E402
 
 
 

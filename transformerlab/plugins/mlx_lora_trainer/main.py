@@ -13,8 +13,7 @@ import os
 # Import tlab_trainer from the SDK
 # from transformerlab.tlab_decorators import tlab_trainer
 from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import WORKSPACE_DIR
-from transformerlab.utils import prepare_dataset_files
+from transformerlab.plugin import WORKSPACE_DIR, prepare_dataset_files
 
 from transformerlab.plugin import get_python_executable
 

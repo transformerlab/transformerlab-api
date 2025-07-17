@@ -7,8 +7,7 @@ from functools import partial
 
 
 from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import WORKSPACE_DIR, get_python_executable
-from transformerlab.utils import format_template 
+from transformerlab.plugin import WORKSPACE_DIR, get_python_executable, format_template
 
 
 # Add custom arguments
