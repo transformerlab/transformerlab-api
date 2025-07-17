@@ -25,7 +25,14 @@
     "MixtralForCausalLM",
     "PhiForCausalLM",
     "Phi3ForCausalLM",
-    "Qwen2ForCausalLM"
+    "Qwen2ForCausalLM",
+    "Qwen2_5_VLForConditionalGeneration",
+    "Qwen2VLForConditionalGeneration",
+    "Gemma3ForConditionalGeneration",
+    "PaliGemmaForConditionalGeneration",
+    "DeepseekV2ForCausalLM",
+    "LlavaLlamaForCausalLM",
+    "LlavaQwenForCausalLM"
   ],
   "supported_hardware_architectures": ["cuda"],
   "files": ["main.py", "setup.sh"],
