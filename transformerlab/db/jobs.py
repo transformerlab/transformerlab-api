@@ -21,7 +21,7 @@ ALLOWED_JOB_TYPES = [
 ]
 
 
-async def job_create(type, status, job_data="{}", experiment_id=""):
+async def job_create(type, status, experiment_id, job_data="{}"):
     # check if type is allowed
     if type not in ALLOWED_JOB_TYPES:
         raise ValueError(f"Job type {type} is not allowed")

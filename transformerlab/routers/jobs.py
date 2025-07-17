@@ -30,6 +30,12 @@ async def jobs_get_all(type: str = "", status: str = ""):
     return jobs
 
 
+@router.get("/list_by_type_in_experiment")
+async def jobs_get_by_experiment_and_type(experiment_id: int, job_type: str):
+    jobs = await db_jobs.jobs_get_all_by_experiment_and_type(experiment_id, job_type)
+    return jobs
+
+
 @router.get("/delete/{job_id}")
 async def job_delete(job_id: str):
     await db_jobs.job_delete(job_id)
@@ -37,13 +43,13 @@ async def job_delete(job_id: str):
 
 
 @router.get("/create")
-async def job_create(type: str = "UNDEFINED", status: str = "CREATED", data: str = "{}", experiment_id: int = -1):
-    jobid = await db_jobs.job_create(type=type, status=status, job_data=data, experiment_id=experiment_id)
+async def job_create(experiment_id: int, type: str = "UNDEFINED", status: str = "CREATED", data: str = "{}"):
+    jobid = await db_jobs.job_create(type=type, status=status, experiment_id=experiment_id, job_data=data)
     return jobid
 
 
-async def job_create_task(script: str, job_data: str = "{}", experiment_id: int = -1):
-    jobid = await db_jobs.job_create(type="UNDEFINED", status="CREATED", job_data=job_data, experiment_id=experiment_id)
+async def job_create_task(experiment_id: int, script: str, job_data: str = "{}"):
+    jobid = await db_jobs.job_create(type="UNDEFINED", status="CREATED", experiment_id=experiment_id, job_data=job_data)
     return jobid
 
 

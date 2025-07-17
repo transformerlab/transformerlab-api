@@ -26,7 +26,7 @@ def get_sync_session() -> Session:
     return sync_session_factory()
 
 
-def job_create_sync(type, status, job_data="{}", experiment_id=""):
+def job_create_sync(type, status, experiment_id, job_data="{}"):
     """
     Synchronous version of job_create function for use with XML-RPC.
     """
@@ -54,7 +54,7 @@ def job_create_sync(type, status, job_data="{}", experiment_id=""):
             result = session.execute(stmt)
             session.commit()
             return result.inserted_primary_key[0]
-            
+
     except Exception as e:
         print("Error creating job: " + str(e))
         return None
@@ -66,14 +66,10 @@ def job_update_status_sync(job_id, status, error_msg=None):
     """
     try:
         with get_sync_session() as session:
-            stmt = (
-                update(models.Job)
-                .where(models.Job.id == job_id)
-                .values(status=status)
-            )
+            stmt = update(models.Job).where(models.Job.id == job_id).values(status=status)
             session.execute(stmt)
             session.commit()
-            
+
     except Exception as e:
         print("Error updating job status: " + str(e))
 
@@ -86,14 +82,10 @@ def job_update_sync(job_id, status):
     """
     try:
         with get_sync_session() as session:
-            stmt = (
-                update(models.Job)
-                .where(models.Job.id == job_id)
-                .values(status=status)
-            )
+            stmt = update(models.Job).where(models.Job.id == job_id).values(status=status)
             session.execute(stmt)
             session.commit()
-            
+
     except Exception as e:
         print("Error updating job status: " + str(e))
 
@@ -112,6 +104,6 @@ def job_mark_as_complete_if_running(job_id):
             )
             session.execute(stmt)
             session.commit()
-            
+
     except Exception as e:
         print("Error updating job status: " + str(e))
