@@ -299,8 +299,14 @@ async def stop_tensorboard():
     global tensorboard_process
 
     if tensorboard_process:
-        print("Stopping Tensorboard")
-        tensorboard_process.terminate()
+        if tensorboard_process.returncode is None:  # Process is still running
+            print("Stopping Tensorboard")
+            tensorboard_process.kill()
+            await tensorboard_process.wait()
+        else:
+            print("Tensorboard process already exited")
+        tensorboard_process = None
+
     return {"message": "OK"}
 
 
