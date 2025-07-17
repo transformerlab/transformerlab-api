@@ -1,6 +1,6 @@
 import json
 
-from sqlalchemy import select, delete, text, update
+from sqlalchemy import select, delete, update
 from sqlalchemy.dialects.sqlite import insert  # Correct import for SQLite upsert
 
 # from sqlalchemy import create_engine
