@@ -92,7 +92,7 @@ class GenTLabPlugin(TLabPlugin):
                 metadata.update(additional_metadata)
 
             # Save metadata
-            if dataset_id is not None:
+            if dataset_id is None:
                 metadata_file = os.path.join(output_dir, f"{self.params.run_name}_{self.params.job_id}_metadata.json")
             else:
                 metadata_file = os.path.join(output_dir, f"{dataset_id}_metadata.json")
