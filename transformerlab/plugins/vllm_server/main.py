@@ -5,6 +5,8 @@ import subprocess
 import sys
 import time
 import requests
+import gc
+import torch
 
 
 try:
@@ -12,6 +14,15 @@ try:
 except ImportError:
     from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable, register_process
 
+
+# Clear CUDA memory (if CUDA is available)
+def clear_vram():
+    gc.collect()
+    if torch.cuda.is_available():
+        print(">>> [main] Emptying CUDA memory cache and collecting garbage...")
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
+clear_vram()
 parser = argparse.ArgumentParser()
 parser.add_argument("--model-path", type=str)
 parser.add_argument("--parameters", type=str, default="{}")
@@ -92,4 +103,5 @@ for line in iter(proxy_proc.stderr.readline, b""):
     print(line, file=sys.stderr)
 
 print("Vllm worker exited", file=sys.stderr)
+clear_vram()
 sys.exit(1)  # 99 is our code for CUDA OOM
