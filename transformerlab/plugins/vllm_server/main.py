@@ -61,7 +61,6 @@ vllm_args = [
     "--port", str(port),
     "--gpu-memory-utilization", "0.9",
     "--trust-remote-code",
-    "--quantization", "awq",
 ]
 
 # Add tensor parallel size if multiple GPUs are available
@@ -84,7 +83,7 @@ while True:
     except Exception:
         pass
     if time.time() - start_time > timeout:
-        print("Timeout waiting for vLLM server to be ready", file=sys.stderr)
+        print("ERROR: Timeout waiting for vLLM server to be ready", file=sys.stderr)
         sys.exit(1)
     time.sleep(1)
 
