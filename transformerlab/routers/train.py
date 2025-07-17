@@ -1,7 +1,7 @@
 import json
 import yaml
 import os
-import subprocess
+import asyncio
 from typing import Annotated
 
 from fastapi import APIRouter, Body
@@ -340,4 +340,4 @@ async def spawn_tensorboard(job_id: str):
 
     logdir = f"{experiment_dir}/tensorboards/{template_name}"
 
-    tensorboard_process = subprocess.Popen(["tensorboard", "--logdir", logdir, "--host", "0.0.0.0"])
+    tensorboard_process = await asyncio.create_subprocess_exec("tensorboard", "--logdir", logdir, "--host", "0.0.0.0")

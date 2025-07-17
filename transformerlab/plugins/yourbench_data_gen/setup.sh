@@ -10,7 +10,7 @@ git switch -c eb50e1fff84849e19ecb62b45a25ed6afed46a2e
 # uv sync
 uv sync
 uv pip install -e .
-uv pip install deepeval langchain-openai instructor anthropic datasets
+uv pip install deepeval langchain-openai instructor anthropic datasets langchain
 # Need this to keep the current versions and preserve my sanity
 uv pip install torch==2.6.0 --upgrade
 uv pip install textstat evaluate
