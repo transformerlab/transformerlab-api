@@ -1,8 +1,7 @@
-
 import json
 import os
 import re
-import subprocess
+import asyncio
 
 from jinja2 import Environment
 
@@ -14,8 +13,8 @@ from transformerlab.plugin import get_python_executable
 jinja_environment = Environment()
 
 
-@tlab_trainer.job_wrapper(manual_logging=True)
-def train_model():
+@tlab_trainer.async_job_wrapper(manual_logging=True)
+async def train_model():
     """Main training function for AutoTrain SFT"""
     config = tlab_trainer.params._config
 
@@ -109,49 +108,55 @@ def train_model():
     print("Training beginning:")
 
     # Run the subprocess with output monitoring
-    with subprocess.Popen(
-        popen_command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True
-    ) as process:
-        iteration = 0
-        it_per_sec = 0
-        percent_complete = 0
+    process = await asyncio.create_subprocess_exec(
+        *popen_command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+    )
 
-        for line in process.stdout:
-            # Parse progress from output lines
-            # Progress complete pattern
-            pattern = r"\s*(\d+)\%\|.+?(?=\d+/)(\d+)/.+?(?=\d+.\d+s/it)(\d+.\d+)s/it"
-            match = re.search(pattern, line)
-            if match:
-                percent_complete = int(match.group(1))
-                iteration = int(match.group(2))
-                it_per_sec = float(match.group(3))
-                # Update progress in TransformerLab
-                tlab_trainer.progress_update(percent_complete)
+    assert process.stdout is not None
+    iteration = 0
+    it_per_sec = 0
+    percent_complete = 0
 
-            # Parse metrics for logging
-            pattern = r"INFO.+?{'loss': (\d+\.\d+), 'grad_norm': (\d+\.\d+), 'learning_rate': (\d+\.\d+), 'epoch': (\d+\.\d+)}"
-            match = re.search(pattern, line)
-            if match:
-                loss = float(match.group(1))
-                grad_norm = float(match.group(2))
-                learning_rate = float(match.group(3))
-                epoch = float(match.group(4))
+    async for line_bytes in process.stdout:
+        line = line_bytes.decode("utf-8", errors="replace")
 
-                print("Progress: ", f"{percent_complete}%")
-                print("Iteration: ", iteration)
-                print("It/sec: ", it_per_sec)
-                print("Loss: ", loss)
-                print("Epoch:", epoch)
+        # Parse progress from output lines
+        pattern = r"\s*(\d+)\%\|.+?(?=\d+/)(\d+)/.+?(?=\d+.\d+s/it)(\d+.\d+)s/it"
+        match = re.search(pattern, line)
+        if match:
+            percent_complete = int(match.group(1))
+            iteration = int(match.group(2))
+            it_per_sec = float(match.group(3))
+            tlab_trainer.progress_update(percent_complete)
 
-                # Log metrics to tensorboard and wandb
-                tlab_trainer.log_metric("train/loss", loss, iteration)
-                tlab_trainer.log_metric("train/grad_norm", grad_norm, iteration)
-                tlab_trainer.log_metric("train/it_per_sec", it_per_sec, iteration)
-                tlab_trainer.log_metric("train/learning_rate", learning_rate, iteration)
-                tlab_trainer.log_metric("train/epoch", epoch, iteration)
+        # Parse metrics for logging
+        pattern = (
+            r"INFO.+?{'loss': (\d+\.\d+), 'grad_norm': (\d+\.\d+), 'learning_rate': (\d+\.\d+), 'epoch': (\d+\.\d+)}"
+        )
+        match = re.search(pattern, line)
+        if match:
+            loss = float(match.group(1))
+            grad_norm = float(match.group(2))
+            learning_rate = float(match.group(3))
+            epoch = float(match.group(4))
 
-            # Print the output line
-            print(line, end="", flush=True)
+            print("Progress: ", f"{percent_complete}%")
+            print("Iteration: ", iteration)
+            print("It/sec: ", it_per_sec)
+            print("Loss: ", loss)
+            print("Epoch:", epoch)
+
+            tlab_trainer.log_metric("train/loss", loss, iteration)
+            tlab_trainer.log_metric("train/grad_norm", grad_norm, iteration)
+            tlab_trainer.log_metric("train/it_per_sec", it_per_sec, iteration)
+            tlab_trainer.log_metric("train/learning_rate", learning_rate, iteration)
+            tlab_trainer.log_metric("train/epoch", epoch, iteration)
+
+        print(line, end="", flush=True)
+
+    await process.wait()
 
     # Clean up and move model
     try:
