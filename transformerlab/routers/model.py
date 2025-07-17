@@ -642,7 +642,7 @@ async def download_gguf_file_from_repo(model: str, filename: str, experiment_id:
 
 
 @router.get(path="/model/download_model_from_gallery")
-async def download_model_from_gallery(gallery_id: str, job_id: int | None = None):
+async def download_model_from_gallery(gallery_id: str, experiment_id: int, job_id: int | None = None):
     """Provide a reference to a model in the gallery, and we will download it
     from huggingface
 
@@ -769,7 +769,7 @@ async def model_delete_peft(model_id: str, peft: str):
 
 
 @router.post("/model/install_peft")
-async def install_peft(peft: str, model_id: str, job_id: int | None = None):
+async def install_peft(peft: str, model_id: str, experiment_id: int, job_id: int | None = None):
     api = HfApi()
 
     try:
