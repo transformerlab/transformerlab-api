@@ -7,7 +7,7 @@ with synchronous sessions for consistency.
 """
 
 import json
-from sqlalchemy import create_engine, select, update
+from sqlalchemy import create_engine, update
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.dialects.sqlite import insert
 
@@ -110,7 +110,7 @@ def job_mark_as_complete_if_running(job_id):
                 .where(models.Job.id == job_id, models.Job.status == "RUNNING")
                 .values(status="COMPLETE")
             )
-            result = session.execute(stmt)
+            session.execute(stmt)
             session.commit()
             
     except Exception as e:
