@@ -155,6 +155,21 @@ async def job_count_running():
         return count
 
 
+async def job_mark_as_complete_if_running(job_id):
+    try:
+        async with async_session() as session:
+            stmt = (
+                update(models.Job)
+                .where(models.Job.id == job_id, models.Job.status == "RUNNING")
+                .values(status="COMPLETE")
+            )
+            await session.execute(stmt)
+            await session.commit()
+
+    except Exception as e:
+        print("Error marking job as complete (async):", str(e))
+
+
 async def jobs_get_next_queued_job():
     async with async_session() as session:
         result = await session.execute(

@@ -16,8 +16,6 @@ from werkzeug.utils import secure_filename
 
 from transformerlab.db.db import experiment_get, experiment_get_by_name
 
-# from transformerlab.db.sync import job_mark_as_complete_if_running, job_update_async
-from transformerlab.db.a_sync import job_mark_as_complete_if_running_async, job_update_async
 import transformerlab.db.jobs as db_jobs
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
@@ -440,12 +438,12 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
     async def on_train_complete():
         print("Training Job: The process has finished")
-        await job_mark_as_complete_if_running_async(job_id)
+        await db_jobs.job_mark_as_complete_if_running(job_id)
         end_time = time.strftime("%Y-%m-%d %H:%M:%S")
         await db_jobs.job_update_job_data_insert_key_value(job_id, "end_time", end_time)
 
     async def on_job_complete():
-        await job_update_async(job_id, "COMPLETE")
+        await db_jobs.job_update(job_id, "COMPLETE")
         end_time = time.strftime("%Y-%m-%d %H:%M:%S")
         asyncio.run(db_jobs.job_update_job_data_insert_key_value(job_id, "end_time", end_time))
 
