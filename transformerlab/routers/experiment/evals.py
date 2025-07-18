@@ -212,7 +212,12 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
     extra_args = ["--plugin_dir", script_directory]
     for key in template_config:
         extra_args.append("--" + key)
-        extra_args.append(template_config[key])
+        if isinstance(template_config[key], list):
+            extra_args.append(json.dumps(template_config[key]))
+        # elif not isinstance(template_config[key], str):
+        #     extra_args.append(str(template_config[key]))
+        else:
+            extra_args.append(str(template_config[key]))
 
     # print(template_config)
 

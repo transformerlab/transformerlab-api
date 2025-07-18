@@ -24,7 +24,7 @@
     "SmolLM3ForCausalLM"
   ],
   "supported_hardware_architectures": ["mlx"],
-  "supports": ["sweeps"],
+  "supports": ["sweeps", "chat_template_formatting"],
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
   "parameters": {

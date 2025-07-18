@@ -11,7 +11,10 @@ RUN apt-get update && apt-get install -y \
     git \
     python3.11 \
     python3-pip \
-    python-is-python3
+    python-is-python3 \
+    g++ \
+    ninja-build
+
 
 # Set ROCm environment variables
 ENV ROCM_PATH=/opt/rocm
