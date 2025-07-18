@@ -183,7 +183,7 @@ def get_trainer_xmlrpc_router(prefix="/client/v1/jobs", trainer_factory=None):
             experiment_id = tlab_core.get_experiment_id_from_name(experiment_name)
 
             # Set up the trainer parameters
-            job_id = job_create_sync("TRAIN", "RUNNING", job_data=json.dumps(config), experiment_id=str(experiment_id))
+            job_id = job_create_sync("TRAIN", "RUNNING", job_data=json.dumps(config), experiment_id=experiment_id)
 
             trainer_instance = trainer_factory()
             job_trainers[job_id] = trainer_instance

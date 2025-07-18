@@ -26,7 +26,7 @@ def get_sync_session() -> Session:
     return sync_session_factory()
 
 
-def job_create_sync(type, status, job_data="{}", experiment_id=""):
+def job_create_sync(type, status, experiment_id, job_data="{}"):
     """
     Synchronous version of job_create function for use with XML-RPC.
     """

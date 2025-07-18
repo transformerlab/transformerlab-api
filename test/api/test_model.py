@@ -58,7 +58,7 @@ async def test_install_peft_mock(mock_run_script, mock_get_details, client):
     test_model_id = "unsloth_Llama-3.2-1B-Instruct"
     test_peft_id = "dummy_adapter"
 
-    response = client.post(f"/model/install_peft?model_id={test_model_id}&peft={test_peft_id}")
+    response = client.post(f"/model/install_peft?model_id={test_model_id}&peft={test_peft_id}&experiment_id=1")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "error"  # As install_peft now returns 'started' after starting the async task
@@ -75,7 +75,7 @@ async def test_install_peft_base_model_adaptor_not_found(mock_run_script, mock_g
     mock_get_details.return_value = {"name": "dummy_adapter"}
     mock_run_script.return_value = AsyncMock()
 
-    response = client.post("/model/install_peft?model_id=broken_model&peft=dummy_adapter")
+    response = client.post("/model/install_peft?model_id=broken_model&peft=dummy_adapter&experiment_id=1")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "error"
@@ -95,7 +95,9 @@ def test_install_peft_success(client):
         patch("transformerlab.routers.model.db_jobs.job_create", return_value=123),
         patch("transformerlab.routers.model.asyncio.create_task"),
     ):
-        response = client.post("/model/install_peft", params={"peft": adapter_id, "model_id": model_id})
+        response = client.post(
+            "/model/install_peft", params={"peft": adapter_id, "model_id": model_id, "experiment_id": 1}
+        )
         assert response.status_code == 200
         result = response.json()
         assert result["status"] == "started"
@@ -107,7 +109,9 @@ def test_install_peft_model_config_fail(client):
     with (
         patch("transformerlab.routers.model.snapshot_download", side_effect=FileNotFoundError()),
     ):
-        response = client.post("/model/install_peft", params={"peft": "dummy", "model_id": "invalid-model"})
+        response = client.post(
+            "/model/install_peft", params={"peft": "dummy", "model_id": "invalid-model", "experiment_id": 1}
+        )
         assert response.status_code == 200
         assert response.json()["check_status"]["error"] == "not found"
 
@@ -119,7 +123,9 @@ def test_install_peft_adapter_info_fail(client):
         patch("json.load", return_value={}),
         patch("huggingface_hub.HfApi.model_info", side_effect=RuntimeError("not found")),
     ):
-        response = client.post("/model/install_peft", params={"peft": "dummy", "model_id": "valid_model"})
+        response = client.post(
+            "/model/install_peft", params={"peft": "dummy", "model_id": "valid_model", "experiment_id": 1}
+        )
         assert response.status_code == 200
         assert response.json()["check_status"]["error"] == "not found"
 
@@ -135,7 +141,9 @@ def test_install_peft_architecture_detection_unknown(client):
         patch("transformerlab.routers.model.db_jobs.job_create", return_value=123),
         patch("transformerlab.routers.model.asyncio.create_task"),
     ):
-        response = client.post("/model/install_peft", params={"peft": "dummy", "model_id": "valid_model"})
+        response = client.post(
+            "/model/install_peft", params={"peft": "dummy", "model_id": "valid_model", "experiment_id": 1}
+        )
         assert response.status_code == 200
         assert response.json()["check_status"]["architectures_status"] == "unknown"
 
@@ -151,7 +159,9 @@ def test_install_peft_unknown_field_status(client):
         patch("transformerlab.routers.model.db_jobs.job_create", return_value=123),
         patch("transformerlab.routers.model.asyncio.create_task"),
     ):
-        response = client.post("/model/install_peft", params={"peft": "dummy", "model_id": "valid_model"})
+        response = client.post(
+            "/model/install_peft", params={"peft": "dummy", "model_id": "valid_model", "experiment_id": 1}
+        )
         status = response.json()["check_status"]
         assert status["architectures_status"] == "unknown"
         assert status["model_type_status"] == "unknown"
