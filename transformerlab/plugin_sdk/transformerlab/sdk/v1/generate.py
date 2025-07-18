@@ -56,7 +56,11 @@ class GenTLabPlugin(TLabPlugin):
         self._ensure_args_parsed()
 
         # Create output directory
-        output_dir = self.get_output_file_path(dir_only=True)
+        if dataset_id is not None:
+            output_dir = self.get_output_file_path(dataset_id=dataset_id, dir_only=True)
+        else:
+            output_dir = self.get_output_file_path(dir_only=True)
+
         os.makedirs(output_dir, exist_ok=True)
 
         if is_image:
@@ -88,7 +92,10 @@ class GenTLabPlugin(TLabPlugin):
                 metadata.update(additional_metadata)
 
             # Save metadata
-            metadata_file = os.path.join(output_dir, f"{self.params.run_name}_{self.params.job_id}_metadata.json")
+            if dataset_id is None:
+                metadata_file = os.path.join(output_dir, f"{self.params.run_name}_{self.params.job_id}_metadata.json")
+            else:
+                metadata_file = os.path.join(output_dir, f"{dataset_id}_metadata.json")
             with open(metadata_file, "w") as f:
                 json.dump(metadata, f, indent=2)
 
@@ -148,7 +155,7 @@ class GenTLabPlugin(TLabPlugin):
             print(f"Error uploading to TransformerLab: {e}")
             raise
 
-    def get_output_file_path(self, suffix="", dir_only=False):
+    def get_output_file_path(self, suffix="", dataset_id=None, dir_only=False):
         """Get path for saving generated outputs
 
         Args:
@@ -165,7 +172,10 @@ class GenTLabPlugin(TLabPlugin):
         dataset_dir = os.path.join(experiment_dir, "datasets")
 
         # Create a specific directory for this generation job
-        gen_dir = os.path.join(dataset_dir, f"{self.params.run_name}_{self.params.job_id}")
+        if dataset_id is None:
+            gen_dir = os.path.join(dataset_dir, f"{self.params.run_name}_{self.params.job_id}")
+        else:
+            gen_dir = os.path.join(dataset_dir, dataset_id)
         os.makedirs(gen_dir, exist_ok=True)
 
         if dir_only:
