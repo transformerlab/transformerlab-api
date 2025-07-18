@@ -1,6 +1,7 @@
 import os
 import re
 import subprocess
+import json
 
 import pandas as pd
 import torch
@@ -32,6 +33,18 @@ def run_evaluation():
     # Validate parameters
     if not tlab_evals.params.model_name or tlab_evals.params.model_name == "":
         raise ValueError("No model provided. Please re-run after setting a Foundation model.")
+
+    # If tlab_evals.params.tasks is a json string of list of tasks, convert to comma-separated string
+    if isinstance(tlab_evals.params.tasks, str):
+        try:
+            tasks_list = json.loads(tlab_evals.params.tasks)
+            if isinstance(tasks_list, list):
+                tlab_evals.params.tasks = ",".join(tasks_list)
+            else:
+                raise ValueError("Tasks should be a list of task names.")
+        except json.JSONDecodeError:
+            # assuming older tasks which were sent as a comma-separated string
+            pass
 
     if tlab_evals.params.limit:
         limit_val = float(tlab_evals.params.limit)

@@ -4,6 +4,7 @@ import subprocess
 import traceback
 
 import pandas as pd
+import json
 import torch
 
 from transformerlab.sdk.v1.evals import tlab_evals
@@ -40,6 +41,18 @@ def run_evaluation():
                 raise ValueError("Limit should be between 0 and 1.")
             if limit_val == 1:
                 limit_val = 1.0
+
+        # If tlab_evals.params.tasks is a json string of list of tasks, convert to comma-separated string
+        if isinstance(tlab_evals.params.tasks, str):
+            try:
+                tasks_list = json.loads(tlab_evals.params.tasks)
+                if isinstance(tasks_list, list):
+                    tlab_evals.params.tasks = ",".join(tasks_list)
+                else:
+                    raise ValueError("Tasks should be a list of task names.")
+            except json.JSONDecodeError:
+                # assuming older tasks which were sent as a comma-separated string
+                pass
 
         # Use model_path as model_name if provided
         model_name = tlab_evals.params.model_name
