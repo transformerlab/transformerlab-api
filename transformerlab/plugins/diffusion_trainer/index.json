@@ -1,5 +1,5 @@
 {
-  "name": "Diffusion Trainer",
+  "name": "Diffusion LoRA Trainer",
   "uniqueId": "diffusion_trainer",
   "description": "A plugin for fine-tuning Stable Diffusion using LoRA adapters.",
   "plugin-format": "python",
