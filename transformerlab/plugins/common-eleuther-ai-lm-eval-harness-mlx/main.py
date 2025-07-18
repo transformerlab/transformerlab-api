@@ -1,6 +1,6 @@
 import os
 import re
-import subprocess
+import asyncio
 import traceback
 
 import pandas as pd
@@ -25,8 +25,8 @@ def get_detailed_file_names(output_file_path, prefix="samples_", suffix=".jsonl"
         return []
 
 
-@tlab_evals.job_wrapper()
-def run_evaluation():
+@tlab_evals.async_job_wrapper()
+async def run_evaluation():
     """Run the MLX Evaluation Harness"""
     try:
         # Validate parameters
@@ -101,22 +101,21 @@ def run_evaluation():
         print("--Beginning to run evaluations (please wait)...")
 
         # Run subprocess
-        with subprocess.Popen(
-            command,
+        process = await asyncio.create_subprocess_exec(
+            *command,
             cwd=plugin_dir,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            bufsize=1,
-            universal_newlines=True,
-        ) as process:
-            for line in process.stdout:
-                print(line.strip())
-                # Parse progress from output
-                pattern = r"^Running.*?(\d+)%\|"
-                match = re.search(pattern, line)
-                if match:
-                    tlab_evals.progress_update(int(match.group(1)))
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
 
+        assert process.stdout is not None
+        async for line_bytes in process.stdout:
+            line = line_bytes.decode("utf-8", errors="replace").strip()
+            print(line)
+            pattern = r"^Running.*?(\d+)%\|"
+            match = re.search(pattern, line)
+            if match:
+                tlab_evals.progress_update(int(match.group(1)))
         # Get detailed report files
         detailed_report_files = get_detailed_file_names(output_path)
 

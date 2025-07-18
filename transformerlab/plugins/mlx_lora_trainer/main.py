@@ -20,7 +20,6 @@ from transformerlab.plugin import get_python_executable
 
 @tlab_trainer.async_job_wrapper(wandb_project_name="TLab_Training", manual_logging=True)
 async def train_mlx_lora():
-    jinja_environment = Environment()
     plugin_dir = os.path.dirname(os.path.realpath(__file__))
     print("Plugin dir:", plugin_dir)
 
@@ -41,7 +40,7 @@ async def train_mlx_lora():
     lora_rank = tlab_trainer.params.get("lora_rank", None)
     lora_alpha = tlab_trainer.params.get("lora_alpha", None)
 
-    #Check if template parameters are set
+    # Check if template parameters are set
     chat_template = tlab_trainer.params.get("formatting_chat_template", None)
     chat_column = tlab_trainer.params.get("chatml_formatted_column", "messages")
     formatting_template = tlab_trainer.params.get("formatting_template", None)
@@ -94,14 +93,14 @@ async def train_mlx_lora():
     data_directory = f"{WORKSPACE_DIR}/plugins/mlx_lora_trainer/data"
     if not os.path.exists(data_directory):
         os.makedirs(data_directory)
-    
+
     prepare_dataset_files(
         data_directory=data_directory,
         datasets=datasets,
         formatting_template=formatting_template,
         chat_template=chat_template,
         model_name=tlab_trainer.params.model_name,
-        chat_column=chat_column
+        chat_column=chat_column,
     )
 
     # Set output directory for the adaptor
