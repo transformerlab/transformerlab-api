@@ -9,7 +9,7 @@ CUDA_VISIBLE_DEVICES=0 llamafactory-cli train examples/lora_single_gpu/llama3_lo
 """
 
 import os
-import subprocess
+import asyncio
 import time
 import json
 import yaml
@@ -30,8 +30,8 @@ plugin_dir = os.path.dirname(os.path.realpath(__file__))
 print("Plugin dir:", plugin_dir)
 
 
-@tlab_trainer.job_wrapper()
-def run_train():
+@tlab_trainer.async_job_wrapper()
+async def run_train():
     # Directory for storing temporary working files
     data_directory = f"{WORKSPACE_DIR}/temp/llama_factory/data"
     if not os.path.exists(data_directory):
@@ -167,52 +167,52 @@ def run_train():
     print(popen_command)
 
     error_output = ""
-    with subprocess.Popen(
-        popen_command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        bufsize=1,
-        universal_newlines=True,
+    process = await asyncio.create_subprocess_exec(
+        *popen_command,
         cwd=os.path.join(plugin_dir, "LLaMA-Factory"),
         env=env,
-    ) as process:
-        for line in process.stdout:
-            error_output += line
-            # Each output line from lora.py looks like
-            # "  2%|▏         | 8/366 [00:15<11:28,  1.92s/it]"
-            pattern = r"(\d+)%\|.*\| (\d+)\/(\d+) \[(\d+):(\d+)<(\d+):(\d+),(\s*)(\d+\.\d+)(.+)]"
-            match = re.search(pattern, line)
-            if match:
-                percentage = match.group(1)
-                current = match.group(2)
-                total = match.group(3)
-                minutes = match.group(4)
-                seconds = match.group(5)
-                it_s = match.group(9)
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+    )
 
-                print(
-                    f"Percentage: {percentage}, Current: {current}, Total: {total}, Minutes: {minutes}, Seconds: {seconds}, It/s: {it_s}"
-                )
-                tlab_trainer.progress_update(round(float(percentage), 2))
+    assert process.stdout is not None
+    async for line_bytes in process.stdout:
+        line = line_bytes.decode("utf-8", errors="replace")
+        error_output += line
 
-            print(line, end="", flush=True)
+        # Same progress regex
+        pattern = r"(\d+)%\|.*\| (\d+)\/(\d+) \[(\d+):(\d+)<(\d+):(\d+),(\s*)(\d+\.\d+)(.+)]"
+        match = re.search(pattern, line)
+        if match:
+            percentage = match.group(1)
+            current = match.group(2)
+            total = match.group(3)
+            minutes = match.group(4)
+            seconds = match.group(5)
+            it_s = match.group(9)
 
-        return_code = process.wait()
+            print(
+                f"Percentage: {percentage}, Current: {current}, Total: {total}, Minutes: {minutes}, Seconds: {seconds}, It/s: {it_s}"
+            )
+            tlab_trainer.progress_update(round(float(percentage), 2))
 
-        if (
-            return_code != 0
-            and "TypeError: DPOTrainer.create_model_card() got an unexpected keyword argument 'license'"
-            not in error_output
-        ):
-            raise RuntimeError(f"Training failed: {error_output}")
+        print(line, end="", flush=True)
+
+    return_code = await process.wait()
+
+    if (
+        return_code != 0
+        and "TypeError: DPOTrainer.create_model_card() got an unexpected keyword argument 'license'" not in error_output
+    ):
+        raise RuntimeError(f"Training failed: {error_output}")
 
     print("Finished training.")
 
     # Fuse the model with the base model
-    fuse_model()
+    await fuse_model()
 
 
-def fuse_model():
+async def fuse_model():
     """Fuse the adapter with the base model"""
     print("Now fusing the adaptor with the model.")
 
@@ -257,40 +257,38 @@ def fuse_model():
 
     fuse_popen_command = [python_executable, "export", yaml_config_path]
 
-    with subprocess.Popen(
-        fuse_popen_command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        bufsize=1,
-        universal_newlines=True,
+    proc = await asyncio.create_subprocess_exec(
+        *fuse_popen_command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
         env=env,
-    ) as process:
-        for line in process.stdout:
-            print(line, end="", flush=True)
+    )
 
-        return_code = process.wait()
+    assert proc.stdout is not None
+    async for line_bytes in proc.stdout:
+        print(line_bytes.decode("utf-8").rstrip(), flush=True)
 
-        # If model creation was successful, create an info.json file
-        print("Return code: ", return_code)
-        if return_code == 0:
-            # Create a TransformerLab model using the SDK function
-            tlab_trainer.create_transformerlab_model(
-                fused_model_name=fused_model_name,
-                model_architecture=tlab_trainer.params.get("model_architecture", "llama"),
-                json_data={
-                    "uniqueID": f"TransformerLab/{fused_model_name}",
-                    "name": "sft_llama_factory",
-                    "description": f"Model generated using Llama Factory in Transformer Lab based on {tlab_trainer.params.model_name}",
-                    "architecture": tlab_trainer.params.get("model_architecture", "llama"),
-                    "huggingface_repo": "",
-                },
-                output_dir=os.path.join(WORKSPACE_DIR, "models"),
-            )
+    return_code = await proc.wait()
 
-            print("Finished fusing the adaptor with the model.")
-        else:
-            print("Fusing model with adaptor failed: ", return_code)
-            raise RuntimeError(f"Fusing model with adaptor failed: {return_code}")
+    if return_code == 0:
+        # Create a TransformerLab model using the SDK function
+        tlab_trainer.create_transformerlab_model(
+            fused_model_name=fused_model_name,
+            model_architecture=tlab_trainer.params.get("model_architecture", "llama"),
+            json_data={
+                "uniqueID": f"TransformerLab/{fused_model_name}",
+                "name": "sft_llama_factory",
+                "description": f"Model generated using Llama Factory in Transformer Lab based on {tlab_trainer.params.model_name}",
+                "architecture": tlab_trainer.params.get("model_architecture", "llama"),
+                "huggingface_repo": "",
+            },
+            output_dir=os.path.join(WORKSPACE_DIR, "models"),
+        )
+
+        print("Finished fusing the adaptor with the model.")
+    else:
+        print("Fusing model with adaptor failed: ", return_code)
+        raise RuntimeError(f"Fusing model with adaptor failed: {return_code}")
 
 
 # Run the training process

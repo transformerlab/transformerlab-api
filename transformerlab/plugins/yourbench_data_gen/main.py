@@ -1,6 +1,6 @@
 import os
 import yaml
-import subprocess
+import asyncio
 from huggingface_hub import get_token, HfApi
 from datasets import load_from_disk
 from transformerlab.sdk.v1.generate import tlab_gen
@@ -37,7 +37,7 @@ def generate_config():
                 "model_name": trlab_model.generation_model_name,
                 "api_key": trlab_model.api_key,
                 "max_concurrent_requests": 8,
-                "base_url": trlab_model.base_url,
+                "base_url": getattr(trlab_model, "base_url", None),
             },
         ],
         "model_roles": {
@@ -107,8 +107,8 @@ def save_generated_datasets(output_dir):
         tlab_gen.save_generated_dataset(df, additional_metadata=additional_metadata, suffix=data_split)
 
 
-@tlab_gen.job_wrapper(progress_start=0, progress_end=100)
-def run_yourbench():
+@tlab_gen.async_job_wrapper(progress_start=0, progress_end=100)
+async def run_yourbench():
     """Run YourBench with generated configuration"""
     # Ensure arguments are parsed
     tlab_gen._ensure_args_parsed()
@@ -145,24 +145,24 @@ def run_yourbench():
         print(f"Executing YourBench with config: {config_path}")
         tlab_gen.progress_update(40)
 
-        command = f"""
-            yourbench run --config {config_path}
-            """
+        yourbench_bin = os.path.join(
+            os.environ["_TFL_WORKSPACE_DIR"], "plugins", "yourbench_data_gen", "yourbench", ".venv", "bin", "yourbench"
+        )
+        command = f"{yourbench_bin} run --config {config_path}"
 
-        process = subprocess.Popen(
+        process = await asyncio.create_subprocess_shell(
             command,
             cwd=yourbench_dir,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            universal_newlines=True,
-            shell=True,
-            executable="/bin/bash",  # ensure bash is used
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            executable="/bin/bash",
         )
 
         # Monitor progress
-        for line in process.stdout:
-            print(line.strip())
-            # Update progress based on output (simplified approach)
+        assert process.stdout is not None
+        async for line_bytes in process.stdout:
+            line = line_bytes.decode().strip()
+            print(line)
             if "Ingestion" in line:
                 tlab_gen.progress_update(50)
             elif "Summarization" in line:
@@ -174,26 +174,26 @@ def run_yourbench():
             elif "Multi hop question" in line:
                 tlab_gen.progress_update(90)
 
-        process.wait()
+        await process.wait()
 
         if process.returncode == 0:
             print("YourBench execution completed successfully!")
             tlab_gen.progress_update(95)
             print("Saving generated datasets now...")
             save_generated_datasets(output_dir)
-
             return config_path
         else:
             error_msg = f"YourBench process exited with error code: {process.returncode}"
             print(error_msg)
             raise ValueError("Error in process")
 
-    except subprocess.CalledProcessError as e:
-        error_msg = f"Error running YourBench: {e}"
-        print(error_msg)
-        raise ValueError("Error in process")
     except FileNotFoundError:
         error_msg = "Error: The 'yourbench' command was not found. Please ensure it's installed and in your PATH."
+        print(error_msg)
+        raise ValueError("Error in process")
+
+    except Exception as e:
+        error_msg = f"Unexpected error running YourBench: {e}"
         print(error_msg)
         raise ValueError("Error in process")
 

@@ -1,7 +1,7 @@
 import json
 import yaml
 import os
-import subprocess
+import asyncio
 from typing import Annotated
 
 from fastapi import APIRouter, Body
@@ -299,8 +299,14 @@ async def stop_tensorboard():
     global tensorboard_process
 
     if tensorboard_process:
-        print("Stopping Tensorboard")
-        tensorboard_process.terminate()
+        if tensorboard_process.returncode is None:  # Process is still running
+            print("Stopping Tensorboard")
+            tensorboard_process.kill()
+            await tensorboard_process.wait()
+        else:
+            print("Tensorboard process already exited")
+        tensorboard_process = None
+
     return {"message": "OK"}
 
 
@@ -340,4 +346,4 @@ async def spawn_tensorboard(job_id: str):
 
     logdir = f"{experiment_dir}/tensorboards/{template_name}"
 
-    tensorboard_process = subprocess.Popen(["tensorboard", "--logdir", logdir, "--host", "0.0.0.0"])
+    tensorboard_process = await asyncio.create_subprocess_exec("tensorboard", "--logdir", logdir, "--host", "0.0.0.0")

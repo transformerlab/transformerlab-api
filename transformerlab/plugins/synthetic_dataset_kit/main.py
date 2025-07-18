@@ -22,6 +22,7 @@ import json
 import shutil
 import pandas as pd
 from pathlib import Path
+import asyncio
 
 from transformerlab.sdk.v1.generate import tlab_gen
 from transformerlab.plugin import WORKSPACE_DIR
@@ -38,8 +39,8 @@ def get_synthetic_kit_cli_path():
         raise FileNotFoundError(f"'synthetic-data-kit' CLI not found at {cli_path}")
 
 
-@tlab_gen.job_wrapper()
-def run_generation():
+@tlab_gen.async_job_wrapper()
+async def run_generation():
     """
     Main entry point for TransformerLab plugin job.
 
@@ -244,89 +245,128 @@ def run_generation():
 
         try:
             # 1. Ingest: convert input file to plain text
-            subprocess.run(
-                [
-                    sys_path,
-                    "-c",
-                    str(config_path),
-                    "ingest",
-                    path,
-                    "-o",
-                    f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/output/",
-                ],
-                check=True,
+            proc = await asyncio.create_subprocess_exec(
+                sys_path,
+                "-c",
+                str(config_path),
+                "ingest",
+                path,
+                "-o",
+                f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/output/",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
+            stdout, stderr = await proc.communicate()
+            print(f"[STDOUT] Ingest\n {stdout.decode()}")
+            print(f"[STDERR] Ingest\n {stderr.decode()}")
+            if proc.returncode != 0:
+                raise RuntimeError(
+                    f"'ingest' command failed with code {proc.returncode}:\n"
+                    f"STDOUT:\n{stdout.decode()}\nSTDERR:\n{stderr.decode()}"
+                )
+
             tlab_gen.progress_update(((i + 0.25) / total_docs) * 100)
 
             # 2. Create: generate synthetic data based on document content
-            subprocess.run(
-                [
-                    sys_path,
-                    "create",
-                    output_txt,
-                    "--type",
-                    generation_type,
-                    "--api-base",
-                    api_base,
-                    "--model",
-                    model_name,
-                    "-o",
-                    f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/generated/",
-                ],
-                check=True,
+            proc = await asyncio.create_subprocess_exec(
+                sys_path,
+                "create",
+                output_txt,
+                "--type",
+                generation_type,
+                "--api-base",
+                api_base,
+                "--model",
+                model_name,
+                "-o",
+                f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/generated/",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
+            stdout, stderr = await proc.communicate()
+            print(f"[STDOUT] Create\n {stdout.decode()}")
+            print(f"[STDERR] Create\n {stderr.decode()}")
+            if proc.returncode != 0:
+                raise RuntimeError(
+                    f"'create' command failed with code {proc.returncode}:\n"
+                    f"STDOUT:\n{stdout.decode()}\nSTDERR:\n{stderr.decode()}"
+                )
+
             tlab_gen.progress_update(((i + 0.5) / total_docs) * 100)
             if output_format != "chatml":
                 # 3. Curate: filter QA pairs based on quality threshold
-                subprocess.run(
-                    [
-                        sys_path,
-                        "-c",
-                        str(config_path),
-                        "curate",
-                        gen_json,
-                        "-t",
-                        threshold,
-                        "-o",
-                        clean_json,
-                    ],
-                    check=True,
+                proc = await asyncio.create_subprocess_exec(
+                    sys_path,
+                    "-c",
+                    str(config_path),
+                    "curate",
+                    gen_json,
+                    "-t",
+                    str(threshold),
+                    "-o",
+                    clean_json,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
                 )
+                stdout, stderr = await proc.communicate()
+                print(f"[STDOUT] Curate\n {stdout.decode()}")
+                print(f"[STDERR] Curate\n {stderr.decode()}")
+                if proc.returncode != 0:
+                    raise RuntimeError(
+                        f"'curate' command failed with code {proc.returncode}:\n"
+                        f"STDOUT:\n{stdout.decode()}\nSTDERR:\n{stderr.decode()}"
+                    )
+
                 tlab_gen.progress_update(((i + 0.75) / total_docs) * 100)
 
                 # 4. Save-as: convert result to desired output format (jsonl, alpaca, chatml, etc.)
-                subprocess.run(
-                    [
-                        sys_path,
-                        "-c",
-                        str(config_path),
-                        "save-as",
-                        clean_json,
-                        "-f",
-                        output_format,
-                        "-o",
-                        final_jsonl,
-                    ],
-                    check=True,
+                proc = await asyncio.create_subprocess_exec(
+                    sys_path,
+                    "-c",
+                    str(config_path),
+                    "save-as",
+                    clean_json,
+                    "-f",
+                    output_format,
+                    "-o",
+                    final_jsonl,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
                 )
+                stdout, stderr = await proc.communicate()
+                print(f"[STDOUT] Save-as\n {stdout.decode()}")
+                print(f"[STDERR] Save-as\n {stderr.decode()}")
+                if proc.returncode != 0:
+                    raise RuntimeError(
+                        f"'save-as' command failed with code {proc.returncode}:\n"
+                        f"STDOUT:\n{stdout.decode()}\nSTDERR:\n{stderr.decode()}"
+                    )
+
             else:
                 tlab_gen.progress_update(((i + 0.75) / total_docs) * 100)
 
                 # 4. Save-as: convert result to desired output format (jsonl, alpaca, chatml, etc.)
-                subprocess.run(
-                    [
-                        sys_path,
-                        "-c",
-                        str(config_path),
-                        "save-as",
-                        gen_json,
-                        "-f",
-                        output_format,
-                        "-o",
-                        final_jsonl,
-                    ],
-                    check=True,
+                proc = await asyncio.create_subprocess_exec(
+                    sys_path,
+                    "-c",
+                    str(config_path),
+                    "save-as",
+                    gen_json,
+                    "-f",
+                    output_format,
+                    "-o",
+                    final_jsonl,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
                 )
+                stdout, stderr = await proc.communicate()
+                print(f"[STDOUT] Save-as\n {stdout.decode()}")
+                print(f"[STDERR] Save-as\n {stderr.decode()}")
+                if proc.returncode != 0:
+                    raise RuntimeError(
+                        f"'save-as' (with gen_json) command failed with code {proc.returncode}:\n"
+                        f"STDOUT:\n{stdout.decode()}\nSTDERR:\n{stderr.decode()}"
+                    )
 
             # Read final output file and parse each line to return to TransformerLab
             with open(final_jsonl) as f:
