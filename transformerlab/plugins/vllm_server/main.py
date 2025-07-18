@@ -13,7 +13,7 @@ except ImportError:
     from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable, register_process
 
 
-async def __bootstrap():
+async def launch_server():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-path", type=str)
     parser.add_argument("--parameters", type=str, default="{}")
@@ -115,4 +115,4 @@ async def __bootstrap():
     sys.exit(1)  # 99 is our code for CUDA OOM
 
 
-asyncio.run(__bootstrap())
+asyncio.run(launch_server())

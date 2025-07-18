@@ -77,7 +77,7 @@ def handle_sigterm(signum, frame):
     shutdown_event.set()
 
 
-async def __bootstrap():
+async def launch_server():
     inject_ninja_into_path()
 
     signal.signal(signal.SIGTERM, handle_sigterm)
@@ -206,4 +206,4 @@ async def __bootstrap():
     sys.exit(1)
 
 
-asyncio.run(__bootstrap())
+asyncio.run(launch_server())

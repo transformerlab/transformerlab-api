@@ -20,7 +20,7 @@ tlab_exporter.add_argument(
 )
 
 
-@tlab_exporter.async_exporter_job_wrapper(progress_start=0, progress_end=100)
+@tlab_exporter.async_job_wrapper(progress_start=0, progress_end=100)
 async def gguf_export():
     """Export a model to GGUF format"""
     input_model = tlab_exporter.params.get("model_name")

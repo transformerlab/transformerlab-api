@@ -16,7 +16,7 @@ def isnum(s):
     return s.strip().isdigit()
 
 
-async def __bootstrap():
+async def launch_server():
     # Get all arguments provided to this script using argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-path", type=str)
@@ -121,4 +121,4 @@ async def __bootstrap():
     sys.exit(1)
 
 
-asyncio.run(__bootstrap())
+asyncio.run(launch_server())
