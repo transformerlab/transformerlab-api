@@ -146,14 +146,9 @@ def execute_custom_function_regexp(output_text: str, expression: str, return_typ
             local_namespace = {"output_text": output_text}
 
             restricted_globals = {
-                '__builtins__': {
-                    **safe_builtins,
-                    **limited_builtins,
-                    **utility_builtins
-                },
-                're': re,
-                'json': json
-
+                "__builtins__": {**safe_builtins, **limited_builtins, **utility_builtins},
+                "re": re,
+                "json": json,
             }
 
             # Execute the code with the output_text variable available
@@ -161,18 +156,20 @@ def execute_custom_function_regexp(output_text: str, expression: str, return_typ
             byte_code = compile_restricted(expression, filename="<inline>", mode="exec")
 
             exec(byte_code, restricted_globals, local_namespace)
-            
+
             # The code should define an evaluate() function
             if "evaluate" not in local_namespace:
                 print("Error: Python code must have an evaluate() function which controls everything")
                 raise ValueError("evaluate() function not found in the code.")
-                
+
             # Call the evaluate function
             result = local_namespace["evaluate"]()
 
             # Validate that the result is either a numeric score or a boolean
             if not isinstance(result, (int, float, bool)):
-                print(f"Error: evaluate() function must return a numeric score (int/float) or a boolean, got {type(result).__name__}")
+                print(
+                    f"Error: evaluate() function must return a numeric score (int/float) or a boolean, got {type(result).__name__}"
+                )
                 raise ValueError("evaluate() function must return a numeric score (int/float) or a boolean.")
 
             return result
@@ -194,6 +191,8 @@ def run_evaluation():
 
     # Parse tasks
     tasks = []
+    print("TLAB EVALS TASKS:", tlab_evals.params.tasks, type(tlab_evals.params.tasks))
+    print("TLAB EVALS PREDEFINEDTASKS:", tlab_evals.params.predefined_tasks, type(tlab_evals.params.predefined_tasks))
 
     # First try to parse the tasks JSON
     try:
@@ -204,13 +203,22 @@ def run_evaluation():
         raise ValueError(f"Invalid tasks JSON format: {tlab_evals.params.tasks}")
 
     # Add predefined tasks if specified
-    if tlab_evals.params.predefined_tasks and tlab_evals.params.predefined_tasks.strip() != "":
-        pre_defined_tasks = tlab_evals.params.predefined_tasks.split(",")
-        for task in pre_defined_tasks:
-            if task in pre_defined:
-                tasks.append(pre_defined[task])
-            else:
-                print(f"Predefined task {task} not found.")
+    if tlab_evals.params.predefined_tasks and not isinstance(tlab_evals.params.predefined_tasks, list):
+        try:
+            predefined_tasks = json.loads(tlab_evals.params.predefined_tasks)
+        except json.JSONDecodeError:
+            print(f"Invalid JSON format for predefined tasks: {tlab_evals.params.predefined_tasks}")
+            predefined_tasks = (
+                tlab_evals.params.predefined_tasks.split(",") if tlab_evals.params.predefined_tasks else []
+            )
+    if len(predefined_tasks) == 0:
+        print("No valid predefined tasks found.")
+
+    for task in predefined_tasks:
+        if task in pre_defined:
+            tasks.append(pre_defined[task])
+        else:
+            print(f"Predefined task {task} not found.")
 
     if not tasks:
         raise ValueError("No tasks specified. Please provide tasks or predefined_tasks.")
