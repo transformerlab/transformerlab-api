@@ -30,13 +30,17 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "VERSION=${VERSION}"
       - name: Build General image
-        run: docker build -f docker/common/Dockerfile -t transformerlab/api:${VERSION} .
+        run: docker build -f docker/common/Dockerfile -t transformerlab/api:${VERSION} -t transformerlab/api:latest .
 
       - name: Build ROCm image
-        run: docker build -f docker/gpu/amd/Dockerfile -t transformerlab/api:${VERSION}-rocm docker/gpu/amd
+        run: docker build -f docker/gpu/amd/Dockerfile -t transformerlab/api:${VERSION}-rocm -t transformerlab/api:latest-rocm docker/gpu/amd
 
-      - name: Push image
-        run: docker push transformerlab/api:${VERSION}
+      - name: Push versioned images
+        run: |
+          docker push transformerlab/api:${VERSION}
+          docker push transformerlab/api:${VERSION}-rocm
 
-      - name: Push ROCm image
-        run: docker push transformerlab/api:${VERSION}-rocm
+      - name: Push latest images
+        run: |
+          docker push transformerlab/api:latest
+          docker push transformerlab/api:latest-rocm
