@@ -272,6 +272,12 @@ class Job:
             (status, self.id),
         )
 
+        # Trigger workflows if job status is COMPLETE
+        if status == "COMPLETE":
+            from transformerlab.db.sync import _trigger_workflows_on_job_completion_sync
+
+            _trigger_workflows_on_job_completion_sync(self.id)
+
     def get_status(self):
         """
         Get the status of this job.
