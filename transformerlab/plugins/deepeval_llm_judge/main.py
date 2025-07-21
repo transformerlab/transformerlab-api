@@ -47,7 +47,16 @@ def run_evaluation():
     tlab_evals.setup_eval_logging(wandb_project_name="TLab_Evaluations")
 
     # Parse metrics and tasks
-    predefined_tasks = tlab_evals.params.predefined_tasks.split(",") if tlab_evals.params.predefined_tasks else []
+    if isinstance(tlab_evals.params.predefined_tasks, str):
+        try:
+            predefined_tasks = json.loads(tlab_evals.params.predefined_tasks)
+        except json.JSONDecodeError:
+            print(f"Invalid JSON format for predefined tasks: {tlab_evals.params.predefined_tasks}")
+            predefined_tasks = (
+                tlab_evals.params.predefined_tasks.split(",") if tlab_evals.params.predefined_tasks else []
+            )
+    if len(predefined_tasks) == 0:
+        print("No valid predefined tasks found.")
     formatted_predefined_tasks = [task.strip().replace(" ", "") + "Metric" for task in predefined_tasks]
 
     try:
@@ -135,6 +144,7 @@ def run_evaluation():
     try:
         # Initialize predefined metrics
         for met in formatted_predefined_tasks:
+            print("CHECKING FOR METRIC:", met)
             metric_class = get_metric_class(met)
             metric = metric_class(
                 model=trlab_model, threshold=tlab_evals.params.get("threshold", 0.5), include_reason=True
@@ -150,22 +160,23 @@ def run_evaluation():
             ]
             if met["include_context"] == "Yes":
                 evaluation_params.append(LLMTestCaseParams.RETRIEVAL_CONTEXT)
-            
+
             evaluation_steps = None
 
             if isinstance(met["evaluation_steps"], str):
                 try:
                     met["evaluation_steps"] = json.loads(met["evaluation_steps"])
                 except json.JSONDecodeError:
-                    print(f"Invalid JSON format for evaluation steps: {met['evaluation_steps']}. Considering the description field only.")
-            
+                    print(
+                        f"Invalid JSON format for evaluation steps: {met['evaluation_steps']}. Considering the description field only."
+                    )
+
             if isinstance(met["evaluation_steps"], list):
                 evaluation_steps = met["evaluation_steps"]
                 if len(evaluation_steps) == 0:
                     evaluation_steps = None
                 elif len(evaluation_steps) > 0 and evaluation_steps[0] == "":
                     evaluation_steps = None
-                
 
             if evaluation_steps is not None:
                 print(f"Using evaluation steps: {evaluation_steps}")
@@ -181,7 +192,7 @@ def run_evaluation():
                     name=met["name"],
                     criteria=met["description"],
                     evaluation_params=evaluation_params,
-                    model=trlab_model, 
+                    model=trlab_model,
                 )
 
             metrics_arr.append(metric)
