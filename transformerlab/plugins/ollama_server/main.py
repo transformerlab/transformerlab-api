@@ -1,5 +1,5 @@
 """
-Ollama model worker
+Ollama model server
 
 Requires that ollama is installed on your server.
 
@@ -35,15 +35,12 @@ parser.add_argument("--model-path", type=str)
 parser.add_argument("--parameters", type=str, default="{}")
 args, unknown = parser.parse_known_args()
 
-# model = args.model_path
-
-
 # model_path can be a hugging face ID or a local file in Transformer Lab
 # But GGUF is always stored as a local path because
 # we are using a specific GGUF file
 # TODO: Make sure the path exists before continuing
-# if os.path.exists(args.model_path):
-model_path = args.model_path
+if os.path.exists(args.model_path):
+    model_path = args.model_path
 
 llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
 
@@ -72,7 +69,7 @@ print("Starting Ollama server...", file=sys.stderr)
 ollama_proc = subprocess.Popen(["ollama", "serve"], stdout=None, stderr=subprocess.PIPE)
 
 # Wait for Ollama server to be ready
-ollama_url = f"http://localhost:{port}/api/tags" #TODO: is this the right endpoint?
+ollama_url = f"http://localhost:{port}/api/tags"
 timeout = 180  # seconds
 start_time = time.time()
 while True:
@@ -163,14 +160,6 @@ if not os.path.exists(sha_filename):
 # TODO: I think you can do this via the SDK which would be better
 # for catching errors
 ollama_create_proc = subprocess.run(["ollama", "create", ollama_model_name, "-f", modelfile])
-
-# STEP 4: Start the model!
-# You load a model into memory in ollama by not passing a prompt to model.generate
-# load_model = model.generate(
-#     model=self.ollama_model_name,
-# )
-# print(load_model)
-
 
 # For debugging: Output a bunch of model info
 response: ollama.ProcessResponse = ollama.ps()
