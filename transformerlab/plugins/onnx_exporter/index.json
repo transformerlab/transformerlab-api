@@ -1,0 +1,39 @@
+{
+  "name": "ONNX Exporter",
+  "uniqueId": "onnx_exporter",
+  "description": "Exports the current model to ONNX format",
+  "plugin-format": "python",
+  "type": "exporter",
+  "version": "0.1.0",
+  "model_architectures": [
+    "CohereForCausalLM",
+    "FalconForCausalLM",
+    "LlamaForCausalLM",
+    "GemmaForCausalLM",
+    "Gemma2ForCausalLM",
+    "GPTJForCausalLM",
+    "MistralForCausalLM",
+    "MixtralForCausalLM",
+    "PhiForCausalLM",
+    "Phi3ForCausalLM",
+    "Qwen2ForCausalLM",
+    "Qwen3ForCausalLM",
+    "Qwen3MoeForCausalLM"
+  ],
+  "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
+  "export_architecture": "ONNX",
+  "files": ["main.py", "setup.sh"],
+  "setup-script": "setup.sh",
+  "parameters": {
+    "opset": {
+      "title": "ONNX Opset Version",
+      "type": "integer",
+      "default": 17
+    },
+    "quantize": {
+      "title": "Apply Dynamic Quantization",
+      "type": "boolean",
+      "default": false
+    }
+  }
+}
