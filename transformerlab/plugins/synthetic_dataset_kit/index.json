@@ -71,7 +71,11 @@
       "ui:help": "Select the model to be used for generating QA pairs"
     },
     "task_type": {
-      "ui:help": "Choose the type of generation: QA pairs, CoT examples, or summaries."
+      "ui:help": "Choose the type of generation: QA pairs, CoT examples, or summaries.",
+      "ui:widget": "AutoCompleteWidget",
+      "ui:options": {
+        "multiple": false
+      }
     },
     "num_pairs": {
       "ui:help": "Number of examples to generate from each document."
@@ -80,7 +84,11 @@
       "ui:help": "Minimum score (1-10) for keeping a generated example."
     },
     "output_format": {
-      "ui:help": "Select the output format compatible with your fine-tuning setup."
+      "ui:help": "Select the output format compatible with your fine-tuning setup.",
+      "ui:widget": "AutoCompleteWidget",
+      "ui:options": {
+        "multiple": false
+      }
     },
     "prompt_template": {
       "ui:help": "Custom prompt template for overriding default generation behavior."

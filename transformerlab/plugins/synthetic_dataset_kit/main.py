@@ -76,7 +76,12 @@ async def run_generation():
             Rules:
             1. Questions must be about important facts in the text
             2. Answers must be directly supported by the text
-            3. Return JSON format only:
+            3. Only output valid JSON.
+            5. Do not provide a summary at all, and just provide question-answer pairs as instructed
+            6. Do not add explanations.
+            7. Do not write markdown.
+            8. Do not wrap in quotes or code blocks.
+            9. Return JSON format only:
             
             [
             {{
@@ -124,6 +129,7 @@ async def run_generation():
             1. A challenging question that requires step-by-step reasoning
             2. Detailed reasoning steps that break down the problem
             3. A concise final answer
+            4. Do not provide a summary at all, and just provide complex reasoning examples as instructed
             
             Return JSON format only:
             
@@ -202,21 +208,22 @@ async def run_generation():
     # - LLM prompts
 
     config = {
+        "llm": {"provider": "vllm"},
         "paths": paths,
         "vllm": {
             "api_base": api_base,
-            "port": port,
+            "port": int(port),
             "model": model_name,
             "max_retries": 3,
             "retry_delay": 1.0,
         },
         "generation": {
-            "num_pairs": num_pairs,
+            "num_pairs": int(num_pairs),
             "temperature": 0.7,
             "chunk_size": 3000,
             "overlap": 300,
         },
-        "curate": {"threshold": threshold},
+        "curate": {"threshold": int(threshold)},
         "format": {
             "default": output_format,
             "include_metadata": True,
@@ -233,15 +240,31 @@ async def run_generation():
 
     final_outputs = []
     total_docs = len(full_paths)
+    suffix_name = ""
+    if generation_type == "qa":
+        suffix_name = "_pairs"
+    elif generation_type == "cot":
+        suffix_name = "_examples"
+    else:
+        suffix_name = ""
 
     # Process each uploaded document in the TransformerLab session
     for i, path in enumerate(full_paths):
         # Construct output filenames based on document basename and generation type
         base = Path(path).stem
         output_txt = f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/output/{base}.txt"
-        gen_json = f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/generated/{base}_{generation_type}_pairs.json"
-        clean_json = f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/cleaned/{base}_{generation_type}_pairs_cleaned.json"
-        final_jsonl = f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/final/{base}_{generation_type}_pairs_cleaned.jsonl"
+        gen_json = f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/generated/{base}_{generation_type}{suffix_name}.json"
+        clean_json = f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/cleaned/{base}_{generation_type}{suffix_name}_cleaned.json"
+        final_jsonl = f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/final/{base}_{generation_type}{suffix_name}_cleaned.jsonl"
+
+        # Clean up any existing files before generation
+        for fpath in [output_txt, gen_json, clean_json, final_jsonl]:
+            try:
+                if os.path.exists(fpath):
+                    os.remove(fpath)
+                    print(f"[INFO] Deleted existing file: {fpath}", flush=True)
+            except Exception as e:
+                print(f"[WARN] Could not delete {fpath}: {e}", flush=True)
 
         try:
             # 1. Ingest: convert input file to plain text
@@ -257,8 +280,8 @@ async def run_generation():
                 stderr=asyncio.subprocess.PIPE,
             )
             stdout, stderr = await proc.communicate()
-            print(f"[STDOUT] Ingest\n {stdout.decode()}")
-            print(f"[STDERR] Ingest\n {stderr.decode()}")
+            print(f"[STDOUT] Ingest\n {stdout.decode()}", flush=True)
+            print(f"[STDERR] Ingest\n {stderr.decode()}", flush=True)
             if proc.returncode != 0:
                 raise RuntimeError(
                     f"'ingest' command failed with code {proc.returncode}:\n"
@@ -270,22 +293,24 @@ async def run_generation():
             # 2. Create: generate synthetic data based on document content
             proc = await asyncio.create_subprocess_exec(
                 sys_path,
+                "-c",
+                str(config_path),
                 "create",
-                output_txt,
+                str(output_txt),
                 "--type",
-                generation_type,
+                str(generation_type),
                 "--api-base",
-                api_base,
+                str(api_base),
                 "--model",
-                model_name,
+                str(model_name),
                 "-o",
                 f"{WORKSPACE_DIR}/plugins/synthetic_dataset_kit/data/{sub_folder}/generated/",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
             stdout, stderr = await proc.communicate()
-            print(f"[STDOUT] Create\n {stdout.decode()}")
-            print(f"[STDERR] Create\n {stderr.decode()}")
+            print(f"[STDOUT] Create\n {stdout.decode()}", flush=True)
+            print(f"[STDERR] Create\n {stderr.decode()}", flush=True)
             if proc.returncode != 0:
                 raise RuntimeError(
                     f"'create' command failed with code {proc.returncode}:\n"
@@ -309,8 +334,8 @@ async def run_generation():
                     stderr=asyncio.subprocess.PIPE,
                 )
                 stdout, stderr = await proc.communicate()
-                print(f"[STDOUT] Curate\n {stdout.decode()}")
-                print(f"[STDERR] Curate\n {stderr.decode()}")
+                print(f"[STDOUT] Curate\n {stdout.decode()}", flush=True)
+                print(f"[STDERR] Curate\n {stderr.decode()}", flush=True)
                 if proc.returncode != 0:
                     raise RuntimeError(
                         f"'curate' command failed with code {proc.returncode}:\n"
@@ -334,53 +359,45 @@ async def run_generation():
                     stderr=asyncio.subprocess.PIPE,
                 )
                 stdout, stderr = await proc.communicate()
-                print(f"[STDOUT] Save-as\n {stdout.decode()}")
-                print(f"[STDERR] Save-as\n {stderr.decode()}")
+                print(f"[STDOUT] Save-as\n {stdout.decode()}", flush=True)
+                print(f"[STDERR] Save-as\n {stderr.decode()}", flush=True)
                 if proc.returncode != 0:
                     raise RuntimeError(
                         f"'save-as' command failed with code {proc.returncode}:\n"
                         f"STDOUT:\n{stdout.decode()}\nSTDERR:\n{stderr.decode()}"
                     )
-
+                # Read final output file and parse each line to return to TransformerLab
+                with open(final_jsonl) as f:
+                    if output_format == "jsonl":
+                        for line in f:
+                            final_outputs.append(json.loads(line))
+                    elif output_format == "alpaca":
+                        final_outputs = json.load(f)  # Only valid if file is a single JSON array
             else:
                 tlab_gen.progress_update(((i + 0.75) / total_docs) * 100)
 
-                # 4. Save-as: convert result to desired output format (jsonl, alpaca, chatml, etc.)
-                proc = await asyncio.create_subprocess_exec(
-                    sys_path,
-                    "-c",
-                    str(config_path),
-                    "save-as",
-                    gen_json,
-                    "-f",
-                    output_format,
-                    "-o",
-                    final_jsonl,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
-                stdout, stderr = await proc.communicate()
-                print(f"[STDOUT] Save-as\n {stdout.decode()}")
-                print(f"[STDERR] Save-as\n {stderr.decode()}")
-                if proc.returncode != 0:
-                    raise RuntimeError(
-                        f"'save-as' (with gen_json) command failed with code {proc.returncode}:\n"
-                        f"STDOUT:\n{stdout.decode()}\nSTDERR:\n{stderr.decode()}"
-                    )
+                # Read final output file and parse each line to return to TransformerLab
+                with open(gen_json) as f:
+                    raw = json.load(f)
 
-            # Read final output file and parse each line to return to TransformerLab
-            with open(final_jsonl) as f:
-                if output_format in {"jsonl", "chatml"}:
-                    for line in f:
-                        final_outputs.append(json.loads(line))
-                elif output_format == "alpaca":
-                    final_outputs = json.load(f)  # Only valid if file is a single JSON array
+                    if generation_type == "summary":
+                        # One row per summary (wrap as single record)
+                        final_outputs.append({"summary": raw.get("summary", "")})
+                    elif generation_type == "cot":
+                        # One row per Chain-of-Thought example
+                        cot_examples = raw.get("cot_examples", [])
+                        for cot in cot_examples:
+                            final_outputs.append(cot)
+
+                    else:
+                        raise ValueError(f"Unsupported generation_type: {generation_type}")
+
             tlab_gen.progress_update((i + 1) / total_docs * 100)
 
-        except subprocess.CalledProcessError as e:
-            print("Error running command:")
-            print("STDOUT:\n", e.stdout)
-            print("STDERR:\n", e.stderr)
+        except Exception as e:
+            print("Error running command:", flush=True)
+            print("STDOUT:\n", e.stdout, flush=True)
+            print("STDERR:\n", e.stderr, flush=True)
             if os.path.exists(config_path):
                 os.remove(config_path)
             raise RuntimeError(f"Subprocess failed with code {e.returncode}") from e
@@ -392,7 +409,7 @@ async def run_generation():
     # Save the generated dataset
     custom_name = tlab_gen.params.get("output_dataset_name")
     output_path, dataset_name = tlab_gen.save_generated_dataset(df, dataset_id=custom_name)
-    print(f"Dataset saved to {output_path}")
+    print(f"Dataset saved to {output_path}", flush=True)
 
     # Clean up all synthetic-data-kit working folders created in the plugin root (if any)
     system_generated_folders = [
@@ -412,17 +429,17 @@ async def run_generation():
         if os.path.isdir(folder):
             try:
                 shutil.rmtree(folder)
-                print(f"[INFO] Deleted system folder: {folder}")
+                print(f"[INFO] Deleted system folder: {folder}", flush=True)
             except Exception as e:
-                print(f"[WARN] Failed to delete {folder}: {e}")
+                print(f"[WARN] Failed to delete {folder}: {e}", flush=True)
 
     # If 'data/' is now empty, delete it too
     if os.path.isdir("data") and not os.listdir("data"):
         try:
             os.rmdir("data")
-            print("[INFO] Deleted empty root 'data/' directory.")
+            print("[INFO] Deleted empty root 'data/' directory.", flush=True)
         except Exception as e:
-            print(f"[WARN] Failed to delete 'data/' directory: {e}")
+            print(f"[WARN] Failed to delete 'data/' directory: {e}", flush=True)
     return True
 
 

@@ -28,6 +28,8 @@ This plugin requires a model that is:
 
 For a complete list of supported models see: [text](https://docs.vllm.ai/en/latest/models/supported_models.html#text-generation)
 
+In order to get best results out of the plugin try using models with at least 8B parameters and above.
+
 ### ❌ Not supported:
 - GGUF / GGML models (e.g. for llama.cpp)
 - MLX (Apple Silicon) models
@@ -80,6 +82,8 @@ If an unsupported model is selected, the job will fail during generation with a 
 - **Type:** string  
 - **Options:** `jsonl`, `alpaca`, `chatml`  
 - **Description:** Output structure for the final dataset.
+
+Note that the output structure for generating a summary of a chain of thought (`cot`) from a reference document **must** be selected as `chatml`.
 
 ## Usage
 
