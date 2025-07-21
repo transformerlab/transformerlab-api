@@ -70,6 +70,7 @@ async def a_target_model_callback(prompt: str) -> str:
             print(f"Error occurred while calling the target model: {e}")
             raise
 
+
 def target_model_callback(prompt: str) -> str:
     api_url = tlab_evals.params.api_url + "/chat/completions"
     api_key = tlab_evals.params.api_key
@@ -106,7 +107,7 @@ def create_objects_from_list(input_list):
 
             if prefix in VULNERABILITY_REGISTRY:
                 if type_str:
-                    grouped_objects[prefix].append(type_str.lower()) 
+                    grouped_objects[prefix].append(type_str.lower())
                 else:
                     raise ValueError(f"Invalid type '{type_str}' for class '{prefix}'")
             else:
@@ -134,8 +135,10 @@ def create_attack_enhancement_dict(enhancement_list):
     }
     if "All" in enhancement_list:
         return [attack_enhancement_dict[enhancement]() for enhancement in attack_enhancement_dict]
-    
-    final_enhancement_list = [attack_enhancement_dict[enhancement.lower().replace(" ", "_")]() for enhancement in enhancement_list]
+
+    final_enhancement_list = [
+        attack_enhancement_dict[enhancement.lower().replace(" ", "_")]() for enhancement in enhancement_list
+    ]
 
     return final_enhancement_list
 
@@ -148,7 +151,18 @@ def run_evaluation():
     tlab_evals.progress_update(10)
 
     # Parse tasks and attack enhancements
-    tasks = tlab_evals.params.tasks.split(",")
+    if isinstance(tlab_evals.params.tasks, str):
+        try:
+            tasks_list = json.loads(tlab_evals.params.tasks)
+            if isinstance(tasks_list, list):
+                tlab_evals.params.tasks = tasks_list
+            else:
+                raise ValueError("Tasks should be a list of task names.")
+        except json.JSONDecodeError:
+            # assuming older tasks which were sent as a comma-separated string
+            tlab_evals.params.tasks = tlab_evals.params.tasks.split(",")
+
+    tasks = tlab_evals.params.tasks
     attack_enhancements = tlab_evals.params.attack_enhancements.split(",")
 
     # Set generation model
@@ -176,11 +190,7 @@ def run_evaluation():
     async_mode = sys.platform != "darwin"
 
     # Initialize RedTeamer
-    red_teamer = RedTeamer(
-        simulator_model=trlab_gen_model,
-        evaluation_model=trlab_gen_model,
-        async_mode = async_mode
-    )
+    red_teamer = RedTeamer(simulator_model=trlab_gen_model, evaluation_model=trlab_gen_model, async_mode=async_mode)
 
     # Determine the vulnerabilities
     vulnerabilities = create_objects_from_list(tasks)
@@ -227,7 +237,6 @@ def run_evaluation():
                         "input": str(item.input),
                         "actual_output": str(item.actual_output),
                         "reason": str(item.reason),
-    
                     }
                 )
         else:

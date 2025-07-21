@@ -3,9 +3,11 @@ import subprocess
 import time
 from random import randrange
 import torch.nn as nn
+from functools import partial
+
 
 from transformerlab.sdk.v1.train import tlab_trainer
-from transformerlab.plugin import WORKSPACE_DIR, get_python_executable
+from transformerlab.plugin import WORKSPACE_DIR, get_python_executable, format_template
 
 
 # Add custom arguments
@@ -60,6 +62,10 @@ def train_model():
     datasets = tlab_trainer.load_dataset()
     dataset = datasets["train"]
 
+    formatting_template=tlab_trainer.params.get("formatting_template", None)
+    chat_template=tlab_trainer.params.get("formatting_chat_template", None)
+    chat_column=tlab_trainer.params.get("chatml_formatted_column", "messages")
+
     # Set up accelerate configuration
     accelerate_config = {
         "cuda": "multi_gpu",
@@ -101,7 +107,6 @@ def train_model():
 
     # Import dependencies after the subprocess check
     import torch
-    from jinja2 import Environment
     from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, AutoConfig
     from trl import SFTConfig, SFTTrainer
@@ -111,7 +116,6 @@ def train_model():
     accelerator = Accelerator()
     print(f"Running with accelerate on {accelerator.num_processes} processes")
 
-    jinja_environment = Environment()
     # use_flash_attention = False
 
     # Get model info
@@ -119,15 +123,6 @@ def train_model():
 
     print(f"dataset size: {len(dataset)}")
     print(dataset[randrange(len(dataset))])
-    print("formatting_template: " + tlab_trainer.params.formatting_template)
-
-    template = jinja_environment.from_string(tlab_trainer.params.formatting_template)
-
-    def format_instruction(mapping):
-        return template.render(mapping)
-
-    print("formatted instruction: (example) ")
-    print(format_instruction(dataset[randrange(len(dataset))]))
 
     # Model configuration
     bnb_config = BitsAndBytesConfig(
@@ -166,6 +161,18 @@ def train_model():
     tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
+
+    # Setup chat template and formatting function
+    formatting_func = partial(
+    format_template,
+    chat_template=chat_template,
+    formatting_template=formatting_template,
+    tokenizer=tokenizer,
+    chat_column=chat_column,
+)
+    print("Formatted example:")
+    print(formatting_func(dataset[randrange(len(dataset))]))
+    
     # LoRA config
     peft_config = LoraConfig(
         lora_alpha=int(tlab_trainer.params.lora_alpha),
@@ -211,7 +218,7 @@ def train_model():
         save_strategy="epoch",
         learning_rate=float(tlab_trainer.params.learning_rate),
         bf16=True,
-        tf32=True,
+        tf32=False,  # T4 GPUs do not support tf32
         max_grad_norm=0.3,
         warmup_ratio=0.03,
         lr_scheduler_type=tlab_trainer.params.learning_rate_schedule,
@@ -252,7 +259,7 @@ def train_model():
         eval_dataset=eval_data,
         peft_config=peft_config,
         processing_class=tokenizer,
-        formatting_func=format_instruction,
+        formatting_func=formatting_func,
         args=args,
         callbacks=callbacks,
     )
