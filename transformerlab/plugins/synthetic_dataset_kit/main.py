@@ -15,7 +15,6 @@ Main steps:
 
 import os
 import sys
-import subprocess
 import uuid
 import yaml
 import json
