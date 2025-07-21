@@ -156,7 +156,7 @@ real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
 # Get Python executable (from venv if available)
 python_executable = get_python_executable(real_plugin_dir)
 
-popen_args = [python_executable, f"{PLUGIN_DIR}/model_worker.py", "--model-path", model, "--device", device]
+popen_args = [python_executable, "-m", "fastchat.serve.sglang_worker", "--model-path", model, "--device", device]
 
 model_dtype = parameters.get("model_dtype")
 # Set model dtype if provided
