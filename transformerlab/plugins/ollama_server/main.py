@@ -64,15 +64,12 @@ real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
 python_executable = get_python_executable(real_plugin_dir)
 
 port = int(parameters.get("port", 11434))
-# host = "127.0.0.1"
+env = os.environ.copy()
+env["OLLAMA_HOST"] = f"127.0.0.1:{port}"
 print("Starting Ollama server...", file=sys.stderr)
 
-ollama_args = [
-    python_executable,
-    "ollama",
-    "serve",
-]
-ollama_proc = subprocess.Popen(ollama_args, stdout=None, stderr=subprocess.PIPE)
+
+ollama_proc = subprocess.Popen(["ollama", "serve"], stdout=None, stderr=subprocess.PIPE)
 
 # Wait for Ollama server to be ready
 ollama_url = f"http://localhost:{port}/api/tags" #TODO: is this the right endpoint?
@@ -192,7 +189,7 @@ proxy_args = [
     python_executable, 
     "-m", 
     "fastchat.serve.openai_api_proxy_worker",
-    "--model-path", ollama_model_name,
+    "--model-path", model_path,
     "--proxy-url", f"http://localhost:{port}/v1",
    "--model", ollama_model_name,
     ]
@@ -210,210 +207,3 @@ for line in iter(proxy_proc.stderr.readline, b""):
 
 print("Ollama worker exited", file=sys.stderr)
 sys.exit(1)  # 99 is our code for CUDA OOM
-
-
-
-
-
-
-# class OllamaServer(BaseModelWorker):
-#     def __init__(
-#         self,
-#         controller_addr: str,
-#         worker_addr: str,
-#         worker_id: str,
-#         model_path: str,
-#         model_names: List[str],
-#         limit_worker_concurrency: int,
-#         conv_template: str,
-#     ):
-#         super().__init__(
-#             controller_addr,
-#             worker_addr,
-#             worker_id,
-#             model_path,
-#             model_names,
-#             limit_worker_concurrency,
-#             conv_template,
-#         )
-
-#         logger.info(f"Loading the model {self.model_names} on worker {worker_id}, worker type: ollama-python...")
-
-
-
-#         # HACK: We don't really have access to the tokenization in ollama
-#         # But we need a tokenizer to work with fastchat
-#         self.tokenizer = OllamaTokenizer(model=self.model)
-
-#         # Fastchat needs to know context length to check for context overflow
-#         # You can try pulling this from modelinfo from ollama.show
-#         # As a backup, we will assume ollama default of 4096
-#         self.context_len = 4096
-#         show_response: ollama.ShowResponse = ollama.show(model=self.ollama_model_name)
-#         modelinfo = show_response.modelinfo
-#         print(modelinfo)
-#         model_architecture = modelinfo.get("general.architecture", None)
-#         if model_architecture:
-#             context_key = f"{model_architecture}.context_length"
-#             if context_key in modelinfo:
-#                 self.context_len = modelinfo[context_key]
-
-#         print("Setting context length to", self.context_len)
-
-#         
-
-#         self.init_heart_beat()
-
-#     async def generate_stream(self, params):
-#         self.call_ct += 1
-
-#         context = params.pop("prompt")
-#         params.pop("request_id")  # not used
-
-#         # Generation parameters
-#         max_new_tokens = params.get("max_new_tokens", 256)
-#         stop_str = params.get("stop", None)
-#         temperature = float(params.get("temperature", 1.0))
-#         top_p = float(params.get("top_p", 1.0))
-#         frequency_penalty = float(params.get("frequency_penalty", 0.0))
-
-#         # These parameters don't seem to be in the UI
-#         # top_k = params.get("top_k", -1.0)
-#         # presence_penalty = float(params.get("presence_penalty", 0.0))
-
-#         # Create a set out of our stop_str parameter
-#         stop = set()
-#         if isinstance(stop_str, str) and stop_str != "":
-#             stop.add(stop_str)
-#         elif isinstance(stop_str, list) and stop_str != []:
-#             stop.update(stop_str)
-
-#         # If we add tokenizer we can add this in later
-#         # Add stop tokens to set of stop strings
-#         # stop_token_ids = params.get("stop_token_ids", None) or []
-#         # if self.tokenizer.eos_token_id is not None:
-#         #    stop_token_ids.append(self.tokenizer.eos_token_id)
-#         # for tid in stop_token_ids:
-#         #    if tid is not None:
-#         #        s = self.tokenizer.decode(tid)
-#         #        if s != "":
-#         #            stop.add(s)
-
-#         print("Stop patterns: ", stop)
-
-#         # Make sure top_p is above some minimum
-#         # And set to 1.0 if temperature is effectively 0
-#         top_p = max(top_p, 1e-5)
-#         if temperature <= 1e-5:
-#             top_p = 1.0
-
-#         # Bundle together generation parameters
-#         # TODO: Add num_gpu and figure out num_ctx?
-#         # TODO: Add stop set so we don't have to manually check
-#         generation_params = {"top_p": top_p, "temperature": temperature, "frequency_penalty": frequency_penalty}
-
-#         decoded_tokens = []
-
-#         # context_tokens = self.model.tokenize(context.encode("utf-8"))
-
-#         finish_reason = "length"
-
-#         # TODO: Should this use generate?
-#         iterator = await run_in_threadpool(
-#             self.model.chat,
-#             model=self.ollama_model_name,
-#             messages=[{"role": "user", "content": context}],
-#             stream=True,
-#             options=generation_params,
-#         )
-
-#         for i in range(max_new_tokens):
-#             # Try to get next token.
-#             # If the generator hits a stop the interator finishes and throws:
-#             # RuntimeError: coroutine raised StopIteration
-#             try:
-#                 response = await run_in_threadpool(next, iterator)
-#             except RuntimeError as e:
-#                 print(e)
-#                 print(traceback.format_exc())
-#                 finish_reason = "stop"
-#                 break
-
-#             # Check if ollama returned a stop
-#             if response.get("done"):
-#                 finish_reason = response.get("done_reason", "")
-#                 break
-
-#             # Normally we'd add a response token to a list of tokens and detokenize
-#             # But ollama is detokenizing for us
-#             decoded_token = response["message"]["content"]
-#             decoded_tokens.append(decoded_token)
-#             tokens_decoded_str = "".join(decoded_tokens)
-
-#             # Check for stop string
-#             # Note that ollama can do this if we just pass stop to it correctly
-#             partial_stop = any(is_partial_stop(tokens_decoded_str, i) for i in stop)
-#             if partial_stop:
-#                 finish_reason = "stop"
-#                 break
-
-#             ret = {
-#                 "text": tokens_decoded_str,
-#                 "error_code": 0,
-#                 "usage": {
-#                     "prompt_tokens": len(context),
-#                     "completion_tokens": len(decoded_tokens),
-#                     "total_tokens": len(context) + len(decoded_tokens),
-#                 },
-#                 "cumulative_logprob": [],
-#                 "finish_reason": None,  # hard code for now
-#             }
-#             yield (json.dumps(ret) + "\0").encode()
-
-#         ret = {
-#             "text": "".join(decoded_tokens),
-#             "error_code": 0,
-#             "usage": {},
-#             "cumulative_logprob": [],
-#             "finish_reason": finish_reason,
-#         }
-#         yield (json.dumps(obj={**ret, **{"finish_reason": None}}) + "\0").encode()
-#         yield (json.dumps(ret) + "\0").encode()
-
-#     async def generate(self, params):
-#         prompt = params.pop("prompt")
-
-#         # TODO: Figure out what to do with max_tokens
-#         # max_tokens = params.get("max_new_tokens", 256)
-
-#         # Setup parameters
-#         temperature = float(params.get("temperature", 1.0))
-#         top_p = float(params.get("top_p", 1.0))
-#         frequency_penalty = float(params.get("frequency_penalty", 0.0))
-#         params = {"top_p": top_p, "temperature": temperature, "frequency_penalty": frequency_penalty}
-
-#         print("Generating with params: ", params)
-#         thread = asyncio.to_thread(
-#             self.model.generate, model=self.ollama_model_name, prompt=prompt, stream=False, options=params
-#         )
-
-#         response = await thread
-
-#         ret = {
-#             "text": response["repsonse"],
-#             "error_code": 0,
-#             "usage": {},
-#             "cumulative_logprob": [],
-#             "finish_reason": response["done_reason"],
-#         }
-#         return ret
-
-#     def stop_server(self):
-#         """
-#         Called by cleanup_at_exit.
-#         """
-#         # You can unload a model by not passing a prompt to generate
-#         # and setting keep_alive to 0
-#         self.model.generate(model=self.ollama_model_name, keep_alive=0)
-
-
