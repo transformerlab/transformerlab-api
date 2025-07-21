@@ -188,7 +188,7 @@ proxy_proc = subprocess.Popen(proxy_args, stdout=None, stderr=subprocess.PIPE)
 
 # save both worker process id and ollama process id to file
 # this will allow transformer lab to kill both later
-register_process([proxy_proc.pid, ollama_proc.pid, ollama_create_proc])
+register_process([proxy_proc.pid, ollama_proc.pid])
 
 # read output:
 for line in iter(proxy_proc.stderr.readline, b""):
