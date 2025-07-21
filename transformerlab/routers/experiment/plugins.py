@@ -14,7 +14,7 @@ from transformerlab.shared import dirs
 
 from werkzeug.utils import secure_filename
 
-from transformerlab.routers.plugins import install_plugin, plugin_gallery
+from transformerlab.routers.plugins import plugin_gallery
 
 
 router = APIRouter(prefix="/plugins", tags=["plugins"])
