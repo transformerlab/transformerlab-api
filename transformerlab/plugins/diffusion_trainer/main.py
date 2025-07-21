@@ -307,6 +307,15 @@ def train_diffusion_lora():
     # Extract parameters from tlab_trainer
     args = tlab_trainer.params
 
+    # Check if this is a FLUX model and route to FLUX trainer
+    model_architecture = args.get("model_architecture", "")
+    if "FluxPipeline" in model_architecture:
+        print("***** Detected FLUX model - using memory-efficient FLUX trainer *****")
+        # Import and run FLUX trainer
+        from . import flux_trainer
+
+        return flux_trainer.train_flux_lora(tlab_trainer)
+
     print("***** Running training *****")
 
     # Setup logging directory
