@@ -27,13 +27,13 @@ from diffusers.training_utils import cast_training_params, compute_snr
 from diffusers.utils import convert_state_dict_to_diffusers
 
 # Import Kohya utilities
-import flux_utils
-import flux_train_utils
-import strategy_flux
-import strategy_base
-import train_util
-from sd3_train_utils import FlowMatchEulerDiscreteScheduler
-from device_utils import clean_memory_on_device
+from library import flux_utils
+from library import flux_train_utils
+from library import strategy_flux
+from library import strategy_base
+from library import train_util
+from library.sd3_train_utils import FlowMatchEulerDiscreteScheduler
+from library.device_utils import clean_memory_on_device
 
 
 def cleanup_pipeline():
@@ -167,6 +167,12 @@ def train_flux_lora(tlab_trainer):
     pretrained_model_name_or_path = args.get("model_name")
     if args.get("model_path") is not None and args.get("model_path").strip() != "":
         pretrained_model_name_or_path = args.get("model_path")
+    else:
+        # Convert model name to path from hf cache
+        from huggingface_hub import snapshot_download
+
+        model_cache_path = snapshot_download(pretrained_model_name_or_path)
+        pretrained_model_name_or_path = model_cache_path
 
     # Mixed precision setup
     weight_dtype = torch.float32

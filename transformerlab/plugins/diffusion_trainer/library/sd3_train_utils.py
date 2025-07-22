@@ -13,13 +13,15 @@ from tqdm import tqdm
 from PIL import Image
 from transformers import CLIPTextModelWithProjection, T5EncoderModel
 
-from device_utils import init_ipex, clean_memory_on_device
+from library.device_utils import init_ipex, clean_memory_on_device
+
+init_ipex()
 
 # from transformers import CLIPTokenizer
 # from library import model_util
 # , sdxl_model_util, train_util, sdxl_original_unet
 # from library.sdxl_lpw_stable_diffusion import SdxlStableDiffusionLongPromptWeightingPipeline
-from utils import setup_logging
+from .utils import setup_logging
 
 setup_logging()
 import logging

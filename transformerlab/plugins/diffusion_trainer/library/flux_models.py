@@ -9,15 +9,17 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Union
 
-import utils
-from device_utils import clean_memory_on_device
+from library import utils
+from library.device_utils import clean_memory_on_device, init_ipex
+
+init_ipex()
 
 import torch
 from einops import rearrange
 from torch import Tensor, nn
 from torch.utils.checkpoint import checkpoint
 
-import custom_offloading_utils
+from library import custom_offloading_utils
 
 # USE_REENTRANT = True
 

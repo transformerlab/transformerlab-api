@@ -10,15 +10,15 @@ from safetensors import safe_open
 from safetensors.torch import load_file
 from transformers import CLIPConfig, CLIPTextModel, T5Config, T5EncoderModel
 
-from utils import setup_logging
+from library.utils import setup_logging
 
 setup_logging()
 import logging
 
 logger = logging.getLogger(__name__)
 
-import flux_models
-from utils import load_safetensors
+from library import flux_models
+from library.utils import load_safetensors
 
 MODEL_VERSION_FLUX_V1 = "flux1"
 MODEL_NAME_DEV = "dev"

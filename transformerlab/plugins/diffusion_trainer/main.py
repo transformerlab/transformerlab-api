@@ -312,7 +312,7 @@ def train_diffusion_lora():
     if "FluxPipeline" in model_architecture:
         print("***** Detected FLUX model - using memory-efficient FLUX trainer *****")
         # Import and run FLUX trainer
-        from . import flux_trainer
+        import flux_trainer
 
         return flux_trainer.train_flux_lora(tlab_trainer)
 
