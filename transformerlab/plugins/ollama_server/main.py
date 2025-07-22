@@ -41,6 +41,11 @@ args, unknown = parser.parse_known_args()
 # TODO: Make sure the path exists before continuing
 if os.path.exists(args.model_path):
     model_path = args.model_path
+else:
+    raise FileNotFoundError(
+        f"The specified GGUF model '{args.model_path}' was not found."
+        "Please select a valid GGUF model file to proceed."
+    )
 
 llmlab_root_dir = os.getenv("LLM_LAB_ROOT_PATH")
 
