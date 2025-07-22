@@ -82,7 +82,7 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 # to be overriden by the user.
 os.environ["_TFL_WORKSPACE_DIR"] = dirs.WORKSPACE_DIR
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
-os.environ["LOGDIR"] = os.getenv("TFL_HOME_DIR", os.path.join(str(Path.home(), ".transformerlab")))
+os.environ["LOGDIR"] = os.getenv("TFL_HOME_DIR", os.path.join(str(Path.home()), ".transformerlab"))
 os.environ["LOG_FILENAME"] = "transformerlab.log"
 
 from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router  # noqa: E402
