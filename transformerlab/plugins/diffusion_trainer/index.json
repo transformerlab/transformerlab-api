@@ -288,6 +288,47 @@
       "title": "Log to Weights and Biases",
       "type": "boolean",
       "default": true
+    },
+    "blocks_to_swap": {
+      "title": "Blocks to Swap (FLUX)",
+      "type": "integer",
+      "default": 0,
+      "minimum": 0,
+      "maximum": 32
+    },
+    "discrete_flow_shift": {
+      "title": "Discrete Flow Shift (FLUX)",
+      "type": "number",
+      "default": 1.15,
+      "minimum": 0.5,
+      "maximum": 3.0
+    },
+    "guidance_scale": {
+      "title": "Guidance Scale (FLUX)",
+      "type": "number",
+      "default": 3.5,
+      "minimum": 1.0,
+      "maximum": 20.0
+    },
+    "apply_t5_attn_mask": {
+      "title": "Apply T5 Attention Mask (FLUX)",
+      "type": "boolean",
+      "default": true
+    },
+    "cache_text_encoder_outputs": {
+      "title": "Cache Text Encoder Outputs",
+      "type": "boolean",
+      "default": false
+    },
+    "cache_latents": {
+      "title": "Cache Latents",
+      "type": "boolean",
+      "default": false
+    },
+    "cpu_offload_checkpointing": {
+      "title": "CPU Offload for Checkpointing",
+      "type": "boolean",
+      "default": false
     }
   },
   "parameters_ui": {
@@ -430,6 +471,27 @@
     },
     "log_to_wandb": {
       "ui:help": "Log training metrics to Weights and Biases. Requires W&B account and API key."
+    },
+    "blocks_to_swap": {
+      "ui:help": "Number of transformer blocks to swap between CPU and GPU for FLUX models. Higher values save VRAM but may slow training. Set to 0 to disable."
+    },
+    "discrete_flow_shift": {
+      "ui:help": "Flow shift parameter for FLUX's discrete flow matching scheduler. Controls the noise schedule. Default 1.15 works well for most cases."
+    },
+    "guidance_scale": {
+      "ui:help": "Guidance scale used during FLUX training. Higher values make the model follow prompts more closely. Default 3.5 is recommended."
+    },
+    "apply_t5_attn_mask": {
+      "ui:help": "Whether to apply attention mask for T5 text encoder in FLUX models. Usually recommended to keep enabled."
+    },
+    "cache_text_encoder_outputs": {
+      "ui:help": "Cache text encoder outputs to save memory and speed up training. Useful for repeated prompts."
+    },
+    "cache_latents": {
+      "ui:help": "Cache VAE-encoded latents to disk to save memory during training. Useful for large datasets."
+    },
+    "cpu_offload_checkpointing": {
+      "ui:help": "Offload gradient checkpointing computation to CPU to save GPU memory. May slow training but reduces VRAM usage."
     }
   }
 }
