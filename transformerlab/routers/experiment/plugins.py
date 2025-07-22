@@ -1,7 +1,6 @@
 import json
 import os
 from pathlib import Path
-from distutils.dir_util import remove_tree
 
 from typing import Annotated
 
@@ -15,7 +14,7 @@ from transformerlab.shared import dirs
 
 from werkzeug.utils import secure_filename
 
-from transformerlab.routers.plugins import install_plugin, plugin_gallery
+from transformerlab.routers.plugins import plugin_gallery
 
 
 router = APIRouter(prefix="/plugins", tags=["plugins"])
@@ -103,18 +102,6 @@ async def experiment_list_scripts(id: int, type: str = None, filter: str = None)
                         print("item does not have key " + filter_key)
 
     return scripts_full_json
-
-
-@router.get(path="/install_plugin_to_experiment")
-async def install_plugin_to_experiment(id: int, plugin_name: str):
-    return await install_plugin(plugin_name)
-
-
-@router.get(path="/delete_plugin_from_experiment")
-async def delete_plugin_from_experiment(id: int, plugin_name: str):
-    final_path = dirs.plugin_dir_by_name(plugin_name)
-    remove_tree(final_path)
-    return {"message": f"Plugin {plugin_name} deleted from experiment {id}"}
 
 
 @router.get("/download", summary="Download a dataset to the LLMLab server.")
