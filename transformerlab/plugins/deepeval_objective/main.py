@@ -1,5 +1,6 @@
 import nltk
 import pandas as pd
+import json
 from deepeval.metrics import BaseMetric
 from deepeval.scorer import Scorer
 from deepeval.test_case import LLMTestCase
@@ -169,7 +170,18 @@ metric_classes = {
 @tlab_evals.job_wrapper()
 def run_evaluation():
     # Parse tasks
-    tasks = tlab_evals.params.tasks.split(",")
+    if isinstance(tlab_evals.params.tasks, str):
+        try:
+            tasks_list = json.loads(tlab_evals.params.tasks)
+            if isinstance(tasks_list, list):
+                tlab_evals.params.tasks = tasks_list
+            else:
+                raise ValueError("Tasks should be a list of task names.")
+        except json.JSONDecodeError:
+            # assuming older tasks which were sent as a comma-separated string
+            tlab_evals.params.tasks = tlab_evals.params.tasks.split(",")
+
+    tasks = tlab_evals.params.tasks
     tasks = [metric.lower().replace(" ", "_") for metric in tasks]
 
     # Get the dataset split

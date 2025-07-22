@@ -365,7 +365,17 @@ def train_diffusion_lora():
     tokenizer = temp_pipeline.tokenizer
     text_encoder = temp_pipeline.text_encoder
     vae = temp_pipeline.vae
-    unet = temp_pipeline.unet
+
+    # Handle different architectures: FluxPipeline uses 'transformer', others use 'unet'
+    # We use 'unet' as a unified variable name for the main model component regardless of architecture
+    if hasattr(temp_pipeline, "transformer"):
+        # FluxPipeline and other transformer-based models
+        unet = temp_pipeline.transformer
+        model_component_name = "transformer"
+    else:
+        # SD 1.x, SDXL, SD3 and other UNet-based models
+        unet = temp_pipeline.unet
+        model_component_name = "unet"
 
     # Handle SDXL case with dual text encoders
     text_encoder_2 = getattr(temp_pipeline, "text_encoder_2", None)
@@ -376,7 +386,7 @@ def train_diffusion_lora():
     torch.cuda.empty_cache() if torch.cuda.is_available() else None
 
     print(f"Model components loaded successfully: {pretrained_model_name_or_path}")
-    print(f"Architecture detected - UNet type: {type(unet).__name__}")
+    print(f"Architecture detected - Model component ({model_component_name}): {type(unet).__name__}")
     if text_encoder_2 is not None:
         print("Dual text encoder setup detected (likely SDXL)")
     print(f"Text encoder type: {type(text_encoder).__name__}")
@@ -417,11 +427,11 @@ def train_diffusion_lora():
         weight_dtype = torch.bfloat16
 
     # LoRA config - adaptive target modules for different architectures
-    unet_type = type(unet).__name__
+    model_type = type(unet).__name__
 
     # Debug architecture detection
     print(f"Model path: {pretrained_model_name_or_path}")
-    print(f"UNet type: {unet_type}")
+    print(f"Model component type ({model_component_name}): {model_type}")
     print(f"Has text_encoder_2: {text_encoder_2 is not None}")
     print(
         f"Has addition_embed_type: {hasattr(unet.config, 'addition_embed_type') if hasattr(unet, 'config') else 'No config'}"
@@ -454,7 +464,7 @@ def train_diffusion_lora():
         target_modules = ["to_k", "to_q", "to_v", "to_out.0"]
         architecture_name = "SD 1.x"
 
-    print(f"Using LoRA target modules for {architecture_name} ({unet_type}): {target_modules}")
+    print(f"Using LoRA target modules for {architecture_name} ({model_type}): {target_modules}")
 
     unet_lora_config = LoraConfig(
         r=int(args.get("lora_r", 4)),
@@ -515,7 +525,7 @@ def train_diffusion_lora():
 
         print(f"Generating evaluation image for epoch {epoch}...")
 
-        # Set UNet to evaluation mode
+        # Set model component to evaluation mode
         unet.eval()
 
         # Create pipeline with current model state using AutoPipelineForText2Image
@@ -528,8 +538,11 @@ def train_diffusion_lora():
             requires_safety_checker=False,
         )
 
-        # Replace the UNet with our trained version to include LoRA weights
-        pipeline.unet = unet
+        # Replace the model component with our trained version to include LoRA weights
+        if model_component_name == "transformer":
+            pipeline.transformer = unet
+        else:
+            pipeline.unet = unet
         pipeline = pipeline.to(device)
 
         # Generate image
@@ -1016,10 +1029,10 @@ def train_diffusion_lora():
 
     # Save LoRA weights using the proven working method that worked perfectly with SD 1.5
     unet = unet.to(torch.float32)
-    unet_lora_state_dict = convert_state_dict_to_diffusers(get_peft_model_state_dict(unet))
+    model_lora_state_dict = convert_state_dict_to_diffusers(get_peft_model_state_dict(unet))
     # # Fix LoRA key naming for SDXL compatibility
     # fixed_state_dict = {}
-    # for key, tensor in unet_lora_state_dict.items():
+    # for key, tensor in model_lora_state_dict.items():
     #     if key.endswith(".lora.down.weight"):
     #         new_key = key.replace(".lora.down.weight", ".lora_A.default_0.weight")
     #     elif key.endswith(".lora.up.weight"):
@@ -1027,7 +1040,7 @@ def train_diffusion_lora():
     #     else:
     #         new_key = key
     #     fixed_state_dict[new_key] = tensor
-    # unet_lora_state_dict = fixed_state_dict
+    # model_lora_state_dict = fixed_state_dict
     save_directory = args.get("adaptor_output_dir", output_dir)
 
     print(f"Saving LoRA weights to {save_directory}")
@@ -1058,7 +1071,7 @@ def train_diffusion_lora():
         try:
             StableDiffusionPipeline.save_lora_weights(
                 save_directory=save_directory,
-                unet_lora_layers=unet_lora_state_dict,
+                unet_lora_layers=model_lora_state_dict,
                 safe_serialization=True,
             )
             print(f"LoRA weights saved to {save_directory} using StableDiffusionPipeline.save_lora_weights (SD 1.x)")
@@ -1075,7 +1088,7 @@ def train_diffusion_lora():
             # Only save UNet LoRA layers as we're not training text encoders in this config
             StableDiffusionXLPipeline.save_lora_weights(
                 save_directory=save_directory,
-                unet_lora_layers=unet_lora_state_dict,
+                unet_lora_layers=model_lora_state_dict,
                 text_encoder_lora_layers=None,  # Explicitly set to None for UNet-only training
                 text_encoder_2_lora_layers=None,  # Explicitly set to None for UNet-only training
                 safe_serialization=True,
@@ -1094,7 +1107,7 @@ def train_diffusion_lora():
 
             StableDiffusion3Pipeline.save_lora_weights(
                 save_directory=save_directory,
-                unet_lora_layers=unet_lora_state_dict,
+                unet_lora_layers=model_lora_state_dict,
                 safe_serialization=True,
             )
             print(f"LoRA weights saved to {save_directory} using StableDiffusion3Pipeline.save_lora_weights (SD3)")
@@ -1105,16 +1118,31 @@ def train_diffusion_lora():
     # Method 4: Try FLUX-specific save method
     if not saved_successfully and is_flux:
         try:
-            # FLUX pipelines may have their own save method
+            # FLUX pipelines may have their own save method and might expect transformer_lora_layers
             from diffusers import FluxPipeline
 
-            FluxPipeline.save_lora_weights(
-                save_directory=save_directory,
-                unet_lora_layers=unet_lora_state_dict,
-                safe_serialization=True,
-            )
-            print(f"LoRA weights saved to {save_directory} using FluxPipeline.save_lora_weights (FLUX)")
-            saved_successfully = True
+            # Try with transformer_lora_layers parameter first for FLUX
+            try:
+                FluxPipeline.save_lora_weights(
+                    save_directory=save_directory,
+                    transformer_lora_layers=model_lora_state_dict,
+                    safe_serialization=True,
+                )
+                print(
+                    f"LoRA weights saved to {save_directory} using FluxPipeline.save_lora_weights with transformer_lora_layers (FLUX)"
+                )
+                saved_successfully = True
+            except TypeError:
+                # Fallback to unet_lora_layers if transformer_lora_layers is not supported
+                FluxPipeline.save_lora_weights(
+                    save_directory=save_directory,
+                    unet_lora_layers=model_lora_state_dict,
+                    safe_serialization=True,
+                )
+                print(
+                    f"LoRA weights saved to {save_directory} using FluxPipeline.save_lora_weights with unet_lora_layers (FLUX)"
+                )
+                saved_successfully = True
         except Exception as e:
             print(f"Error with FluxPipeline.save_lora_weights: {e}")
 
@@ -1123,7 +1151,7 @@ def train_diffusion_lora():
         try:
             StableDiffusionPipeline.save_lora_weights(
                 save_directory=save_directory,
-                unet_lora_layers=unet_lora_state_dict,
+                unet_lora_layers=model_lora_state_dict,
                 safe_serialization=True,
             )
             print(
@@ -1138,7 +1166,7 @@ def train_diffusion_lora():
         try:
             from safetensors.torch import save_file
 
-            save_file(unet_lora_state_dict, os.path.join(save_directory, "pytorch_lora_weights.safetensors"))
+            save_file(model_lora_state_dict, os.path.join(save_directory, "pytorch_lora_weights.safetensors"))
             print(
                 f"LoRA weights saved to {save_directory}/pytorch_lora_weights.safetensors using safetensors (universal fallback)"
             )
@@ -1148,7 +1176,7 @@ def train_diffusion_lora():
             saved_successfully = True
         except ImportError:
             # Final fallback to standard PyTorch format
-            torch.save(unet_lora_state_dict, os.path.join(save_directory, "pytorch_lora_weights.bin"))
+            torch.save(model_lora_state_dict, os.path.join(save_directory, "pytorch_lora_weights.bin"))
             print(
                 f"LoRA weights saved to {save_directory}/pytorch_lora_weights.bin using PyTorch format (final fallback)"
             )

@@ -1,5 +1,6 @@
 import pandas as pd
 from requests_batching import process_dataset
+import json
 
 from transformerlab.sdk.v1.evals import tlab_evals
 
@@ -42,8 +43,18 @@ async def run_evaluation():
     tlab_evals.params.top_p = float(tlab_evals.params.top_p)
 
     # Parse the tasks
-    tasks = tlab_evals.params.tasks.split(",")
+    if isinstance(tlab_evals.params.tasks, str):
+        try:
+            tasks_list = json.loads(tlab_evals.params.tasks)
+            if isinstance(tasks_list, list):
+                tlab_evals.params.tasks = tasks_list
+            else:
+                raise ValueError("Tasks should be a list of task names.")
+        except json.JSONDecodeError:
+            # assuming older tasks which were sent as a comma-separated string
+            tlab_evals.params.tasks = tlab_evals.params.tasks.split(",")
 
+    tasks = tlab_evals.params.tasks
     tlab_evals.progress_update(10)
 
     # Load the appropriate model

@@ -20,7 +20,7 @@ def run_generation():
     prompt_column = tlab_gen.params.prompt_column
     negative_column = tlab_gen.params.negative_prompt_column.strip()
 
-    dataset_id = f"{tlab_gen.params.run_name}_{tlab_gen.params.job_id}".lower()
+    dataset_id = tlab_gen.params.get("output_dataset_name")
     output_dir = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "datasets", dataset_id)
     os.makedirs(output_dir, exist_ok=True)
 
@@ -83,9 +83,8 @@ def run_generation():
 
     # Save full metadata
     df = pd.DataFrame(final_outputs)
-    custom_name = tlab_gen.params.get("output_dataset_name")
-    output_path, dataset_name = tlab_gen.save_generated_dataset(df, is_image=True, dataset_id=custom_name)
-    print(f"Dataset saved to {output_path}")
+    output_path, dataset_name = tlab_gen.save_generated_dataset(df, is_image=True, dataset_id=dataset_id)
+    print(f"Dataset saved to {output_path} as '{dataset_name}'")
 
     return True
 
