@@ -7,8 +7,8 @@ import time
 import requests
 import gc
 import torch
-from pathlib import Path
 
+from fastchat.constants import TEMP_IMAGE_DIR
 
 
 try:
@@ -54,9 +54,6 @@ port = int(parameters.get("port", 8000))
 # host = "127.0.0.1"
 print("Starting vLLM server...", file=sys.stderr)
 
-workspace = os.environ["_TFL_WORKSPACE_DIR"]
-VLLM_TEMP_IMG_DIR=Path(f"{workspace}/plugins/vllm_server/tmp_img")
-
 vllm_args = [
     python_executable,
     "-m",
@@ -67,7 +64,7 @@ vllm_args = [
     "--gpu-memory-utilization", "0.9",
     "--trust-remote-code",
     "--enforce-eager",
-    "--allowed-local-media-path", str(VLLM_TEMP_IMG_DIR)
+    "--allowed-local-media-path", str(TEMP_IMAGE_DIR)
 ]
 
 # Add tensor parallel size if multiple GPUs are available
@@ -100,8 +97,7 @@ proxy_args = [
     "fastchat.serve.openai_api_proxy_worker",
     "--model-path", model,
     "--proxy-url", f"http://localhost:{port}/v1",
-   "--model", model,
-    "--temp-img-dir", str(VLLM_TEMP_IMG_DIR)
+   "--model", model
     ]
 
 # print("Starting FastChat OpenAI API Proxy worker...", file=sys.stderr)
