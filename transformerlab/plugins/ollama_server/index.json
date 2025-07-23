@@ -5,6 +5,16 @@
   "plugin-format": "python",
   "type": "loader",
   "version": "0.1.4",
+  "supports": [
+    "chat",
+    "completion",
+    "rag",
+    "tools",
+    "template",
+    "embeddings",
+    "batched",
+    "multimodal"
+  ],
   "model_architectures": ["GGUF"],
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
