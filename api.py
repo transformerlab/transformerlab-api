@@ -81,9 +81,9 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 # to be overriden by the user.
 os.environ["_TFL_WORKSPACE_DIR"] = dirs.WORKSPACE_DIR
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
-# The temporary image directory for OpenAI Proxy
+# The temporary image directory for transformerlab
 temp_image_dir = os.path.join(dirs.WORKSPACE_DIR, "temp", "images")
-os.environ["TEMP_IMAGE_DIR"] = str(temp_image_dir)
+os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
 
 from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router  # noqa: E402
 
