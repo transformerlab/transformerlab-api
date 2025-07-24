@@ -18,7 +18,6 @@ import argparse
 import asyncio
 import json
 import uuid
-import os
 from contextlib import asynccontextmanager
 from typing import List
 
@@ -27,6 +26,7 @@ import uvicorn
 from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
+from fastchat.utils import is_partial_stop
 from fastchat.serve.model_worker import logger
 from transformers.tokenization_utils_base import BatchEncoding
 

@@ -3,7 +3,6 @@ import json
 import sqlite3
 import itertools
 import sys
-import logging
 from pathlib import Path
 
 from jinja2 import Environment
@@ -96,7 +95,6 @@ def get_db_config_value(key: str):
 
 def test_wandb_login(project_name: str = "TFL_Training"):
     import netrc
-    from pathlib import Path
 
     netrc_path = Path.home() / (".netrc" if os.name != "nt" else "_netrc")
     if netrc_path.exists():

@@ -34,7 +34,6 @@ from transformers.generation.logits_process import (
     TopKLogitsWarper,
     TopPLogitsWarper,
 )
-from fastchat.serve.model_worker import logger
 
 
 worker_id = str(uuid.uuid4())[:8]
