@@ -51,7 +51,6 @@ real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
 python_executable = get_python_executable(real_plugin_dir)
 
 port = int(parameters.get("port", 8000))
-# host = "127.0.0.1"
 print("Starting vLLM server...", file=sys.stderr)
 
 os.makedirs(TEMP_IMAGE_DIR, exist_ok=True)
@@ -105,7 +104,6 @@ proxy_args = [
    "--model", model
     ]
 
-# print("Starting FastChat OpenAI API Proxy worker...", file=sys.stderr)
 proxy_proc = subprocess.Popen(proxy_args, stdout=None, stderr=subprocess.PIPE)
 
 # save both worker process id and vllm process id to file
@@ -118,4 +116,3 @@ for line in iter(proxy_proc.stderr.readline, b""):
 
 print("Vllm worker exited", file=sys.stderr)
 clear_vram()
-sys.exit(1)
