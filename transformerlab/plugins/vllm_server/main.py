@@ -76,6 +76,9 @@ if num_gpus > 1:
 
 vllm_proc = subprocess.Popen(vllm_args, stdout=None, stderr=subprocess.PIPE)
 
+for line in iter(vllm_proc.stderr.readline, b""):
+    print("[vLLM]", line.decode().strip(), file=sys.stderr)
+
 # Wait for vLLM server to be ready
 vllm_url = f"http://localhost:{port}/v1/models"
 timeout = 300  # seconds
