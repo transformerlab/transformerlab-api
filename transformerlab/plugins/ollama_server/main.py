@@ -202,4 +202,3 @@ for line in iter(proxy_proc.stderr.readline, b""):
     print(line, file=sys.stderr)
 
 print("Ollama worker exited", file=sys.stderr)
-sys.exit(1)  # 99 is our code for CUDA OOM
