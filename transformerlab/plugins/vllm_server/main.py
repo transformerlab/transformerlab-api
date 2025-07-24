@@ -54,6 +54,8 @@ port = int(parameters.get("port", 8000))
 # host = "127.0.0.1"
 print("Starting vLLM server...", file=sys.stderr)
 
+os.makedirs(TEMP_IMAGE_DIR, exist_ok=True)
+
 vllm_args = [
     python_executable,
     "-m",
