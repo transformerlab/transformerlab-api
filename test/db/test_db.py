@@ -128,7 +128,7 @@ async def test_job_get_status_and_error_msg_for_nonexistent():
 
 @pytest.mark.asyncio
 async def test_job_update_job_data_insert_key_value_overwrite():
-    job_id = await job_create("TRAIN", "QUEUED")
+    job_id = await job_create("TRAIN", "QUEUED", 99)
     await job_update_job_data_insert_key_value(job_id, "foo", {"bar": 1})
     await job_update_job_data_insert_key_value(job_id, "foo", {"baz": 2})
     job = await job_get(job_id)
@@ -137,7 +137,7 @@ async def test_job_update_job_data_insert_key_value_overwrite():
 
 @pytest.mark.asyncio
 async def test_job_update_status_without_error_msg():
-    job_id = await job_create("TRAIN", "QUEUED")
+    job_id = await job_create("TRAIN", "QUEUED", 99)
     await job_update_status(job_id, "RUNNING")
     status = await job_get_status(job_id)
     assert status == "RUNNING"
@@ -145,7 +145,7 @@ async def test_job_update_status_without_error_msg():
 
 @pytest.mark.asyncio
 async def test_job_delete_marks_deleted():
-    job_id = await job_create("TRAIN", "QUEUED")
+    job_id = await job_create("TRAIN", "QUEUED", 99)
     await job_delete(job_id)
     job = await job_get(job_id)
     assert job["status"] == "DELETED"
@@ -153,7 +153,7 @@ async def test_job_delete_marks_deleted():
 
 @pytest.mark.asyncio
 async def test_job_cancel_in_progress_jobs_sets_cancelled():
-    job_id = await job_create("TRAIN", "RUNNING")
+    job_id = await job_create("TRAIN", "RUNNING", 99)
     await job_cancel_in_progress_jobs()
     job = await job_get(job_id)
     assert job["status"] == "CANCELLED"
@@ -232,8 +232,8 @@ async def test_model_local_list_and_count():
 
 @pytest.mark.asyncio
 async def test_job_delete_all_and_cancel_in_progress_jobs():
-    await job_create("TRAIN", "RUNNING")
-    await job_create("TRAIN", "QUEUED")
+    await job_create("TRAIN", "RUNNING", 99)
+    await job_create("TRAIN", "QUEUED", 99)
     await job_delete_all()
     jobs = await jobs_get_all()
     assert all(job["status"] == "DELETED" for job in jobs)
@@ -242,7 +242,7 @@ async def test_job_delete_all_and_cancel_in_progress_jobs():
 
 @pytest.mark.asyncio
 async def test_job_update_job_data_insert_key_value_and_stop():
-    job_id = await job_create("TRAIN", "QUEUED")
+    job_id = await job_create("TRAIN", "QUEUED", 99)
     await job_update_job_data_insert_key_value(job_id, "foo", {"bar": 1})
     job = await job_get(job_id)
     assert job["job_data"]["foo"] == {"bar": 1}

@@ -180,10 +180,10 @@ def get_trainer_xmlrpc_router(prefix="/client/v1/jobs", trainer_factory=None):
             config = json.loads(config_json) if isinstance(config_json, str) else config_json
 
             experiment_name = config.get("experiment_name", "alpha")
-            experiment_id = tlab_core.get_experiment_id_from_name(experiment_name)
+            experiment_id = int(tlab_core.get_experiment_id_from_name(experiment_name))
 
             # Set up the trainer parameters
-            job_id = job_create_sync("TRAIN", "RUNNING", job_data=json.dumps(config), experiment_id=str(experiment_id))
+            job_id = job_create_sync("TRAIN", "RUNNING", experiment_id=experiment_id, job_data=json.dumps(config))
 
             trainer_instance = trainer_factory()
             job_trainers[job_id] = trainer_instance
@@ -214,11 +214,11 @@ def get_trainer_xmlrpc_router(prefix="/client/v1/jobs", trainer_factory=None):
             job.update_progress(0)
 
             # Return success with job ID
-            return {"status": "started", "job_id": job_id}
+            return {"status": "started", "job_id": job_id, "experiment_id": experiment_id}
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-    def get_training_status(job_id, progress_update):
+    def get_training_status(job_id, experiment_id, progress_update):
         """Get the status of a training job"""
         try:
             trainer_instance = job_trainers.get(job_id)
@@ -226,11 +226,12 @@ def get_trainer_xmlrpc_router(prefix="/client/v1/jobs", trainer_factory=None):
                 # Fall back to creating a new one with just the job_id set
                 trainer_instance = trainer_factory()
                 trainer_instance.params["job_id"] = job_id
+                trainer_instance.params["experiment_id"] = experiment_id
 
             job = trainer_instance._job
 
             if job.should_stop:
-                complete_job(job_id, status="STOPPED", message="Job was stopped")
+                complete_job(job_id, experiment_id, status="STOPPED", message="Job was stopped")
                 return {"status": "stopped", "job_id": job_id}
 
             job.update_progress(progress_update)
@@ -245,16 +246,16 @@ def get_trainer_xmlrpc_router(prefix="/client/v1/jobs", trainer_factory=None):
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-    def stop_training(job_id):
+    def stop_training(job_id, experiment_id):
         """Stop a training job"""
         try:
             # job = trainer_instance.job
-            job_update_status_sync(job_id, "STOPPED")
+            job_update_status_sync(job_id, "STOPPED", experiment_id)
             return {"status": "stopping", "job_id": job_id}
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-    def log_metrics(job_id, metrics_json):
+    def log_metrics(job_id, experiment_id, metrics_json):
         """Log metrics for a training job"""
         try:
             metrics = json.loads(metrics_json) if isinstance(metrics_json, str) else metrics_json
@@ -264,6 +265,7 @@ def get_trainer_xmlrpc_router(prefix="/client/v1/jobs", trainer_factory=None):
                 # Fall back to creating a new one with just the job_id set
                 trainer_instance = trainer_factory()
                 trainer_instance.params["job_id"] = job_id
+                trainer_instance.params["experiment_id"] = experiment_id
 
             trainer_instance.params.reported_metrics.append(metrics)
 
@@ -281,7 +283,7 @@ def get_trainer_xmlrpc_router(prefix="/client/v1/jobs", trainer_factory=None):
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-    def complete_job(job_id, status="COMPLETE", message="Training completed successfully"):
+    def complete_job(job_id, experiment_id, status="COMPLETE", message="Training completed successfully"):
         """Mark a training job as complete"""
         try:
             trainer_instance = job_trainers.get(job_id)
@@ -289,11 +291,12 @@ def get_trainer_xmlrpc_router(prefix="/client/v1/jobs", trainer_factory=None):
                 # Fall back to creating a new one with just the job_id set
                 trainer_instance = trainer_factory()
                 trainer_instance.params["job_id"] = job_id
+                trainer_instance.params["experiment_id"] = experiment_id
 
             job = trainer_instance._job
 
             # Update job status
-            job_update_status_sync(job_id, status)
+            job_update_status_sync(job_id, status, experiment_id)
 
             # Update job data with completion message
             job_data = job.get_job_data() or {}
@@ -317,7 +320,7 @@ def get_trainer_xmlrpc_router(prefix="/client/v1/jobs", trainer_factory=None):
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-    def save_model(job_id, local_model_path):
+    def save_model(job_id, experiment_id, local_model_path):
         """Save the model to the specified path"""
         try:
             trainer_instance = job_trainers.get(job_id)
@@ -325,6 +328,7 @@ def get_trainer_xmlrpc_router(prefix="/client/v1/jobs", trainer_factory=None):
                 # Fall back to creating a new one with just the job_id set
                 trainer_instance = trainer_factory()
                 trainer_instance.params["job_id"] = job_id
+                trainer_instance.params["experiment_id"] = experiment_id
 
             # Check if local_model_path is a directory
             if os.path.isdir(local_model_path):
@@ -360,7 +364,7 @@ def get_trainer_xmlrpc_router(prefix="/client/v1/jobs", trainer_factory=None):
             print("Error while saving model", e)
             return {"status": "error", "message": str(e)}
 
-    def update_output_file(job_id, output_file):
+    def update_output_file(job_id, experiment_id, output_file):
         """Update the output file for a training job"""
         try:
             trainer_instance = job_trainers.get(job_id)
@@ -369,6 +373,7 @@ def get_trainer_xmlrpc_router(prefix="/client/v1/jobs", trainer_factory=None):
                 # Fall back to creating a new one with just the job_id set
                 trainer_instance = trainer_factory()
                 trainer_instance.params["job_id"] = job_id
+                trainer_instance.params["experiment_id"] = experiment_id
 
             job = trainer_instance._job
 

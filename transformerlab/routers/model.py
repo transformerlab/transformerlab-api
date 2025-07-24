@@ -435,7 +435,9 @@ def get_model_download_size(model_id: str, allow_patterns: list = []):
     return {"status": "success", "data": download_size_in_bytes}
 
 
-async def download_huggingface_model(hugging_face_id: str, model_details: str = {}, job_id: int | None = None):
+async def download_huggingface_model(
+    hugging_face_id: str, model_details: str = {}, job_id: int | None = None, experiment_id: int = None
+):
     """
     Tries to download a model with the id hugging_face_id
     model_details is the object created from the gallery json
@@ -449,9 +451,11 @@ async def download_huggingface_model(hugging_face_id: str, model_details: str = 
     - message: error message if status is "error"
     """
     if job_id is None:
-        job_id = await db_jobs.job_create(type="DOWNLOAD_MODEL", status="STARTED", job_data="{}")
+        job_id = await db_jobs.job_create(
+            type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id, job_data="{}"
+        )
     else:
-        await db_jobs.job_update(job_id=job_id, type="DOWNLOAD_MODEL", status="STARTED")
+        await db_jobs.job_update(job_id=job_id, type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id)
 
     # try to figure out model details from model_details object
     # default is empty object so can't assume any of this exists
@@ -517,7 +521,7 @@ async def download_huggingface_model(hugging_face_id: str, model_details: str = 
 
 
 @router.get(path="/model/download_from_huggingface")
-async def download_model_by_huggingface_id(model: str, job_id: int | None = None):
+async def download_model_by_huggingface_id(model: str, job_id: int | None = None, experiment_id: int = None):
     """Takes a specific model string that must match huggingface ID to download
     This function will not be able to infer out description etc of the model
     since it is not in the gallery"""
@@ -590,11 +594,11 @@ on the model's Huggingface page."
     if is_sd:
         model_details["allow_patterns"] = sd_patterns
 
-    return await download_huggingface_model(model, model_details, job_id)
+    return await download_huggingface_model(model, model_details, job_id, experiment_id)
 
 
 @router.get(path="/model/download_gguf_file")
-async def download_gguf_file_from_repo(model: str, filename: str, job_id: int | None = None):
+async def download_gguf_file_from_repo(model: str, filename: str, job_id: int | None = None, experiment_id: int = None):
     """Download a specific GGUF file from a GGUF repository"""
 
     # First get the model details to validate this is a GGUF repo
@@ -634,11 +638,11 @@ async def download_gguf_file_from_repo(model: str, filename: str, job_id: int | 
     except Exception:
         pass  # Use existing size if we can't get specific file size
 
-    return await download_huggingface_model(model, model_details, job_id)
+    return await download_huggingface_model(model, model_details, job_id, experiment_id)
 
 
 @router.get(path="/model/download_model_from_gallery")
-async def download_model_from_gallery(gallery_id: str, job_id: int | None = None):
+async def download_model_from_gallery(gallery_id: str, job_id: int | None = None, experiment_id: int = None):
     """Provide a reference to a model in the gallery, and we will download it
     from huggingface
 
@@ -653,7 +657,7 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
 
     # Need to use huggingface repo to download - not always the same as uniqueID
     huggingface_id = gallery_entry.get("huggingface_repo", gallery_id)
-    return await download_huggingface_model(huggingface_id, gallery_entry, job_id)
+    return await download_huggingface_model(huggingface_id, gallery_entry, job_id, experiment_id)
 
 
 @router.get("/model/get_conversation_template")
@@ -765,7 +769,7 @@ async def model_delete_peft(model_id: str, peft: str):
 
 
 @router.post("/model/install_peft")
-async def install_peft(peft: str, model_id: str, job_id: int | None = None):
+async def install_peft(peft: str, model_id: str, job_id: int | None = None, experiment_id: int = None):
     api = HfApi()
 
     try:
@@ -852,9 +856,11 @@ async def install_peft(peft: str, model_id: str, job_id: int | None = None):
     print(f"Model Details: {model_details}")
     # Create or update job
     if job_id is None:
-        job_id = await db_jobs.job_create(type="DOWNLOAD_MODEL", status="STARTED", job_data="{}")
+        job_id = await db_jobs.job_create(
+            type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id, job_data="{}"
+        )
     else:
-        await db_jobs.job_update(job_id=job_id, type="DOWNLOAD_MODEL", status="STARTED")
+        await db_jobs.job_update(job_id=job_id, type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id)
 
     model_size = str(model_details.get("size_of_model_in_mb", -1))
     # Prepare script args

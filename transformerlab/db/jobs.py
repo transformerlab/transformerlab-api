@@ -21,7 +21,7 @@ ALLOWED_JOB_TYPES = [
 ]
 
 
-async def job_create(type, status, job_data="{}", experiment_id=None):
+async def job_create(type, status, experiment_id, job_data="{}"):
     # check if type is allowed
     if type not in ALLOWED_JOB_TYPES:
         raise ValueError(f"Job type {type} is not allowed")
@@ -43,7 +43,7 @@ async def job_create(type, status, job_data="{}", experiment_id=None):
         return result.inserted_primary_key[0]
 
 
-async def jobs_get_all(type="", status="", experiment_id=None):
+async def jobs_get_all(experiment_id, type="", status=""):
     async with async_session() as session:
         stmt = select(models.Job).where(models.Job.status != "DELETED")
         if experiment_id is not None:
@@ -108,7 +108,7 @@ async def jobs_get_by_experiment(experiment_id):
         return [sqlalchemy_to_dict(job) for job in jobs]
 
 
-async def job_get_status(job_id, experiment_id=None):
+async def job_get_status(job_id, experiment_id):
     async with async_session() as session:
         stmt = select(models.Job.status).where(models.Job.id == job_id)
         if experiment_id is not None:
@@ -118,7 +118,7 @@ async def job_get_status(job_id, experiment_id=None):
         return status
 
 
-async def job_get_error_msg(job_id, experiment_id=None):
+async def job_get_error_msg(job_id, experiment_id):
     async with async_session() as session:
         stmt = select(models.Job.job_data).where(models.Job.id == job_id)
         if experiment_id is not None:
@@ -139,7 +139,7 @@ async def job_get_error_msg(job_id, experiment_id=None):
         return job_data.get("error_msg", None)
 
 
-async def job_get(job_id, experiment_id=None):
+async def job_get(job_id, experiment_id):
     async with async_session() as session:
         stmt = select(models.Job).where(models.Job.id == job_id)
         if experiment_id is not None:
@@ -159,7 +159,7 @@ async def job_get(job_id, experiment_id=None):
         return row
 
 
-async def job_count_running(experiment_id=None):
+async def job_count_running(experiment_id):
     async with async_session() as session:
         stmt = select(models.Job).where(models.Job.status == "RUNNING")
         if experiment_id is not None:
@@ -169,7 +169,7 @@ async def job_count_running(experiment_id=None):
         return count
 
 
-async def jobs_get_next_queued_job(experiment_id=None):
+async def jobs_get_next_queued_job(experiment_id):
     async with async_session() as session:
         stmt = select(models.Job).where(models.Job.status == "QUEUED")
         if experiment_id is not None:
@@ -190,7 +190,7 @@ async def jobs_get_next_queued_job(experiment_id=None):
         return row
 
 
-async def job_update_status(job_id, status, error_msg=None, experiment_id=None):
+async def job_update_status(job_id, status, experiment_id, error_msg=None):
     async with async_session() as session:
         stmt = update(models.Job).where(models.Job.id == job_id)
         if experiment_id is not None:
@@ -219,7 +219,7 @@ async def job_update_status(job_id, status, error_msg=None, experiment_id=None):
     return
 
 
-async def job_update(job_id, type, status, experiment_id=None):
+async def job_update(job_id, type, status, experiment_id):
     async with async_session() as session:
         stmt = update(models.Job).where(models.Job.id == job_id)
         if experiment_id is not None:
@@ -229,7 +229,7 @@ async def job_update(job_id, type, status, experiment_id=None):
     return
 
 
-async def job_delete_all(experiment_id=None):
+async def job_delete_all(experiment_id):
     async with async_session() as session:
         stmt = update(models.Job)
         if experiment_id is not None:
@@ -239,7 +239,7 @@ async def job_delete_all(experiment_id=None):
     return
 
 
-async def job_delete(job_id, experiment_id=None):
+async def job_delete(job_id, experiment_id):
     print("Deleting job: " + str(job_id))
     async with async_session() as session:
         stmt = update(models.Job).where(models.Job.id == job_id)
@@ -250,7 +250,7 @@ async def job_delete(job_id, experiment_id=None):
     return
 
 
-async def job_update_job_data_insert_key_value(job_id, key, value, experiment_id=None):
+async def job_update_job_data_insert_key_value(job_id, key, value, experiment_id):
     async with async_session() as session:
         # Fetch current job_data
         stmt = select(models.Job.job_data).where(models.Job.id == job_id)
@@ -276,13 +276,13 @@ async def job_update_job_data_insert_key_value(job_id, key, value, experiment_id
     return
 
 
-async def job_stop(job_id, experiment_id=None):
+async def job_stop(job_id, experiment_id):
     print("Stopping job: " + str(job_id))
     await job_update_job_data_insert_key_value(job_id, "stop", True, experiment_id)
     return
 
 
-async def job_update_progress(job_id, progress, experiment_id=None):
+async def job_update_progress(job_id, progress, experiment_id):
     """
     Update the percent complete for this job.
 
@@ -296,7 +296,7 @@ async def job_update_progress(job_id, progress, experiment_id=None):
         await session.commit()
 
 
-async def job_update_sweep_progress(job_id, value, experiment_id=None):
+async def job_update_sweep_progress(job_id, value, experiment_id):
     """
     Update the 'sweep_progress' key in the job_data JSON column for a given job.
     """
