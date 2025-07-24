@@ -65,6 +65,7 @@ except Exception:
 from transformerlab import fastchat_openai_api
 from transformerlab.routers.experiment import experiment
 from transformerlab.routers.experiment import workflows
+from transformerlab.routers.experiment import jobs
 from transformerlab.shared import dirs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
