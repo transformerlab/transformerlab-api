@@ -118,4 +118,4 @@ for line in iter(proxy_proc.stderr.readline, b""):
 
 print("Vllm worker exited", file=sys.stderr)
 clear_vram()
-sys.exit(1)  # 99 is our code for CUDA OOM
+sys.exit(1)
