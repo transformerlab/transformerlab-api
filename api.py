@@ -42,7 +42,6 @@ from transformerlab.routers import (
     plugins,
     evals,
     config,
-    jobs,
     tasks,
     prompts,
     tools,

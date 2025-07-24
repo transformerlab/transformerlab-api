@@ -36,7 +36,7 @@ router.include_router(router=export.router, prefix="/{id}", tags=["export"])
 router.include_router(router=evals.router, prefix="/{experimentId}", tags=["evals"])
 router.include_router(router=generations.router, prefix="/{experimentId}", tags=["generations"])
 router.include_router(router=workflows.router, prefix="/{experimentId}", tags=["workflows"])
-router.include_router(router=jobs.router, prefix="/{experimentId}", tags=["jobs"])  # NEW: add jobs router
+router.include_router(router=jobs.router, prefix="/{experimentId}", tags=["jobs"])
 
 
 EXPERIMENTS_DIR: str = dirs.EXPERIMENTS_DIR
