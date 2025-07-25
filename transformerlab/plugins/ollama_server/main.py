@@ -177,7 +177,18 @@ for model in response.models:
     print("  Details: ", model.details)
     print("\n")
 
-
+# Fastchat needs to know context length to check for context overflow
+# You can try pulling this from modelinfo from ollama.show
+# As a backup, we will assume ollama default of 4096
+context_len = 4096
+show_response: ollama.ShowResponse = ollama.show(model=ollama_model_name)
+modelinfo = show_response.modelinfo
+print(modelinfo)
+model_architecture = modelinfo.get("general.architecture", None)
+if model_architecture:
+    context_key = f"{model_architecture}.context_length"
+    if context_key in modelinfo:
+        context_len = modelinfo[context_key]
 
 proxy_args = [
     python_executable, 
@@ -186,6 +197,7 @@ proxy_args = [
     "--model-path", model_path,
     "--proxy-url", f"http://localhost:{port}/v1",
    "--model", ollama_model_name,
+    "--context-len", str(context_len),
     ]
 
 # print("Starting FastChat OpenAI API Proxy worker...", file=sys.stderr)
