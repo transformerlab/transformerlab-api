@@ -200,4 +200,3 @@ finally:
 
 
 print("SGLang Worker exited", file=sys.stderr)
-sys.exit(1)

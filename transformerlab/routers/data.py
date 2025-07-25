@@ -336,10 +336,20 @@ async def dataset_preview_with_chat_template(
         for key in result["columns"].keys():
             row[key] = serialize_row(result["columns"][key][i])
         
-        row["__formatted__"] = tokenizer.apply_chat_template(
-                row[chat_column],
-                tokenize=False,
-            )
+        try:
+            row["__formatted__"] = tokenizer.apply_chat_template(
+                    row[chat_column],
+                    tokenize=False,
+                )
+        except Exception:
+            return {
+            "status": "error",
+            "message": (
+                f"Chat template could not be applied.\nThe selected column '{chat_column}' "
+                "must contain a list of dictionaries with 'role' and 'content' keys. \n"
+                f"Example: [{{'role': 'user', 'content': 'Hi'}}]."
+            ),
+        }
         rows.append(row)
 
     return {
