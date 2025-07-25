@@ -203,7 +203,6 @@ async def launch_server():
         sys.exit(1)
 
     print("SGLang Worker exited", file=sys.stderr)
-    sys.exit(1)
 
 
 asyncio.run(launch_server())
