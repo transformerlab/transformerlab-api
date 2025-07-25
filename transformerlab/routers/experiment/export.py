@@ -181,7 +181,6 @@ async def run_exporter_script(
     json.dump(model_description, model_description_file)
     model_description_file.close()
 
-    await db_jobs.job_update_status(job_id=job_id, status="COMPLETE")
     return {"status": "success", "job_id": job_id}
 
 
