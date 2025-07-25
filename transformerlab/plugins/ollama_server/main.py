@@ -19,11 +19,7 @@ import ollama
 import time
 import requests
 
-from transformerlab.plugin import setup_model_worker_logger
-
-
-worker_id = str(uuid.uuid4())[:8]
-logger = setup_model_worker_logger()
+from fastchat.serve.model_worker import logger
 
 try:
     from transformerlab.plugin import get_python_executable, register_process
@@ -167,15 +163,15 @@ if not os.path.exists(sha_filename):
 ollama_create_proc = subprocess.run(["ollama", "create", ollama_model_name, "-f", modelfile])
 
 # For debugging: Output a bunch of model info
-response: ollama.ProcessResponse = ollama.ps()
-for model in response.models:
-    print("Model: ", model.model)
-    print("  Digest: ", model.digest)
-    print("  Expires at: ", model.expires_at)
-    print("  Size: ", model.size)
-    print("  Size vram: ", model.size_vram)
-    print("  Details: ", model.details)
-    print("\n")
+# response: ollama.ProcessResponse = ollama.ps()
+# for model in response.models:
+#     print("Model: ", model.model)
+#     print("  Digest: ", model.digest)
+#     print("  Expires at: ", model.expires_at)
+#     print("  Size: ", model.size)
+#     print("  Size vram: ", model.size_vram)
+#     print("  Details: ", model.details)
+#     print("\n")
 
 # Openai api proxy needs to know context length to check for context overflow
 # You can try pulling this from modelinfo from ollama.show
@@ -190,6 +186,7 @@ if model_architecture:
     if context_key in modelinfo:
         context_len = modelinfo[context_key]
 
+
 proxy_args = [
     python_executable, 
     "-m", 
@@ -200,7 +197,6 @@ proxy_args = [
     "--context-len", str(context_len),
     ]
 
-# print("Starting FastChat OpenAI API Proxy worker...", file=sys.stderr)
 proxy_proc = subprocess.Popen(proxy_args, stdout=None, stderr=subprocess.PIPE)
 
 # save both worker process id and ollama process id to file
