@@ -31,48 +31,9 @@ from fastchat.serve.base_model_worker import BaseModelWorker
 import fastchat.serve.base_model_worker
 
 from fastchat.utils import get_context_length, is_partial_stop
+from fastchat.serve.model_worker import logger
 
 import traceback
-
-
-def setup_model_worker_logger(name: str = "transformerlab") -> logging.Logger:
-    """
-    Set up a clean logger for the model worker without duplicating handlers.
-    """
-    if "TFL_HOME_DIR" in os.environ:
-        HOME_DIR = os.environ["TFL_HOME_DIR"]
-        if not os.path.exists(HOME_DIR):
-            print(f"Creating home directory: {HOME_DIR}")
-            os.makedirs(HOME_DIR, exist_ok=True)
-    else:
-        HOME_DIR = Path.home() / ".transformerlab"
-        os.makedirs(HOME_DIR, exist_ok=True)
-
-    log_path = os.path.join(HOME_DIR, "transformerlab.log")
-
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
-    logger.propagate = False  # Prevent log duplication to root logger
-
-    # Prevent adding multiple handlers
-    if not any(
-        isinstance(h, logging.FileHandler) and h.baseFilename == os.path.abspath(log_path) for h in logger.handlers
-    ):
-        file_handler = logging.FileHandler(log_path)
-        formatter = logging.Formatter(
-            fmt="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-
-    # Patch FastChat's logger
-    fastchat.serve.base_model_worker.logger = logger
-
-    return logger
-
-
-logger = setup_model_worker_logger()
 
 
 def safe_configure_logger(server_args, prefix=""):
