@@ -315,12 +315,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     plugin_name = None
     if master_job_type in ["EVAL", "GENERATE"]:
         plugin_name = job_config["plugin"]
-    elif master_job_type == "EXPORT":
-        # For EXPORT, plugin_name comes from nested config
-        config = job_config["config"]
-        plugin_name = config["plugin_name"]
     else:
-        # For other job types (LoRA, pretraining, embedding), get from nested config
+        # For other job types (LoRA, pretraining, embedding, export), get from nested config
         template_config = job_config["config"]
         plugin_name = str(template_config["plugin_name"])
 
