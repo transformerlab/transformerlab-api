@@ -177,7 +177,7 @@ for model in response.models:
     print("  Details: ", model.details)
     print("\n")
 
-# Fastchat needs to know context length to check for context overflow
+# Openai api proxy needs to know context length to check for context overflow
 # You can try pulling this from modelinfo from ollama.show
 # As a backup, we will assume ollama default of 4096
 context_len = 4096
