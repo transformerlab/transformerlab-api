@@ -5,7 +5,6 @@ Usage:
 python3 -m fastchat.serve.sglang_worker --model-path liuhaotian/llava-v1.5-7b --tokenizer-path llava-hf/llava-1.5-7b-hf --port 30000 --worker-address http://localhost:30000
 """
 
-import logging
 import sys
 
 import argparse
@@ -28,10 +27,8 @@ from fastchat.conversation import IMAGE_PLACEHOLDER_STR
 from fastchat.model.model_adapter import get_conversation_template
 from fastchat.constants import ErrorCode, SERVER_ERROR_MSG
 from fastchat.serve.base_model_worker import BaseModelWorker
-import fastchat.serve.base_model_worker
 
 from fastchat.utils import get_context_length, is_partial_stop
-from fastchat.serve.model_worker import logger
 
 import traceback
 
