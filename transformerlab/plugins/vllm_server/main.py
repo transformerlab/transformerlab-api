@@ -11,9 +11,9 @@ from fastchat.constants import TEMP_IMAGE_DIR
 
 
 try:
-    from transformerlab.plugin import get_python_executable, register_process
+    from transformerlab.plugin import get_python_executable
 except ImportError:
-    from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable, register_process
+    from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable
 
 
 # Clear CUDA memory (if CUDA is available)
