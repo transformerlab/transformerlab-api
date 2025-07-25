@@ -361,7 +361,7 @@ async def training_jobs_get_all():
 
 
 async def export_job_create(experiment_id, job_data_json):
-    job_id = await job_create("EXPORT", "Started", job_data_json, experiment_id)
+    job_id = await job_create(type="EXPORT", status="Started", experiment_id=experiment_id, job_data=job_data_json)
     return job_id
 
 
@@ -426,7 +426,7 @@ async def experiment_delete(id):
             # Delete all associated jobs using the job delete method
             jobs = await jobs_get_by_experiment(id)
             for job in jobs:
-                await job_delete(job["id"])
+                await job_delete(job["id"], id)
 
             # Delete all associated workflow runs using the workflow run delete method
             workflow_runs = await workflow_runs_get_from_experiment(id)

@@ -75,7 +75,9 @@ async def _install_recipe_dependencies_job(job_id, id):
     from transformerlab.routers import plugins as plugins_router
 
     try:
-        await db_jobs.job_update_status(job_id, "RUNNING")
+        job = await db_jobs.job_get(job_id)
+        experiment_id = job["experiment_id"]
+        await db_jobs.job_update_status(job_id=job_id, status="RUNNING", experiment_id=experiment_id)
         recipes_gallery = galleries.get_exp_recipe_gallery()
         recipe = next((r for r in recipes_gallery if r.get("id") == id), None)
         if not recipe:
@@ -120,7 +122,7 @@ async def _install_recipe_dependencies_job(job_id, id):
                 result["status"] = str(e)
             results.append(result)
             progress += 1
-            await db_jobs.job_update_progress(job_id, int(progress * 100 / total))
+            await db_jobs.job_update_progress(job_id, int(progress * 100 / total), experiment_id)
             await db_jobs.job_update_job_data_insert_key_value(job_id, "results", results)
         await db_jobs.job_update_status(job_id, "COMPLETE")
     except Exception as e:

@@ -25,35 +25,39 @@ router = APIRouter(prefix="/jobs", tags=["train"])
 
 
 @router.get("/list")
-async def jobs_get_all(type: str = "", status: str = ""):
-    jobs = await db_jobs.jobs_get_all(type=type, status=status)
+async def jobs_get_all(experimentId: int, type: str = "", status: str = ""):
+    jobs = await db_jobs.jobs_get_all(type=type, status=status, experiment_id=experimentId)
     return jobs
 
 
 @router.get("/delete/{job_id}")
-async def job_delete(job_id: str):
-    await db_jobs.job_delete(job_id)
+async def job_delete(job_id: str, experimentId: int):
+    await db_jobs.job_delete(job_id, experiment_id=experimentId)
     return {"message": "OK"}
 
 
 @router.get("/create")
-async def job_create(type: str = "UNDEFINED", status: str = "CREATED", data: str = "{}", experiment_id: int = -1):
-    jobid = await db_jobs.job_create(type=type, status=status, job_data=data, experiment_id=experiment_id)
+async def job_create(
+    experimentId: int,
+    type: str = "UNDEFINED",
+    status: str = "CREATED",
+    data: str = "{}",
+):
+    jobid = await db_jobs.job_create(type=type, status=status, job_data=data, experiment_id=experimentId)
     return jobid
 
 
-async def job_create_task(script: str, job_data: str = "{}", experiment_id: int = -1):
-    jobid = await db_jobs.job_create(type="UNDEFINED", status="CREATED", job_data=job_data, experiment_id=experiment_id)
+async def job_create_task(script: str, job_data: str = "{}", experimentId: int = None):
+    jobid = await db_jobs.job_create(type="UNDEFINED", status="CREATED", job_data=job_data, experiment_id=experimentId)
     return jobid
 
 
 @router.get("/update/{job_id}")
-async def job_update(job_id: str, status: str):
-    await db_jobs.job_update_status(job_id, status)
+async def job_update(job_id: str, status: str, experimentId: int):
+    await db_jobs.job_update_status(job_id, status, experiment_id=experimentId)
     return {"message": "OK"}
 
 
-@router.get("/start_next")
 async def start_next_job():
     num_running_jobs = await db_jobs.job_count_running()
     if num_running_jobs > 0:
@@ -71,10 +75,8 @@ async def start_next_job():
         data = await experiment_get(experiment_id)
         if data is None:
             # mark the job as failed
-            await db_jobs.job_update_status(nextjob["id"], "FAILED")
-            return {"message": f"Experiment {id} does not exist"}
-        # config = json.loads(data["config"])
-
+            await db_jobs.job_update_status(nextjob["id"], "FAILED", experiment_id=experiment_id)
+            return {"message": f"Experiment {experiment_id} does not exist"}
         experiment_name = data["name"]
         await shared.run_job(
             job_id=nextjob["id"], job_config=job_config, experiment_name=experiment_name, job_details=nextjob
@@ -85,26 +87,26 @@ async def start_next_job():
 
 
 @router.get("/{job_id}/stop")
-async def stop_job(job_id: str):
+async def stop_job(job_id: str, experimentId: int):
     # The way a job is stopped is simply by adding "stop: true" to the job_data
     # This will be checked by the plugin as it runs
-    await db_jobs.job_stop(job_id)
+    await db_jobs.job_stop(job_id, experiment_id=experimentId)
     return {"message": "OK"}
 
 
 @router.get("/delete_all")
-async def job_delete_all():
-    await db_jobs.job_delete_all()
+async def job_delete_all(experimentId: int):
+    await db_jobs.job_delete_all(experiment_id=experimentId)
     return {"message": "OK"}
 
 
 @router.get("/{job_id}")
-async def get_training_job(job_id: str):
+async def get_training_job(job_id: str, experimentId: int):
     return await db_jobs.job_get(job_id)
 
 
 @router.get("/{job_id}/output")
-async def get_training_job_output(job_id: str, sweeps: bool = False):
+async def get_training_job_output(job_id: str, experimentId: int, sweeps: bool = False):
     # First get the template Id from this job:
     job = await db_jobs.job_get(job_id)
     job_data = job["job_data"]
@@ -157,13 +159,18 @@ async def get_training_job_output(job_id: str, sweeps: bool = False):
 
 
 @router.get("/template/{template_id}")
-async def get_train_template(template_id: str):
+async def get_train_template(template_id: str, experimentId: int):
     return await get_training_template(template_id)
 
 
 @router.put("/template/update")
 async def update_training_template(
-    template_id: str, name: str, description: str, type: str, config: Annotated[str, Body(embed=True)]
+    template_id: str,
+    name: str,
+    description: str,
+    type: str,
+    config: Annotated[str, Body(embed=True)],
+    experimentId: int,
 ):
     try:
         configObject = json.loads(config)
@@ -178,7 +185,7 @@ async def update_training_template(
     return {"status": "success"}
 
 
-async def get_output_file_name(job_id: str):
+async def get_output_file_name(job_id: str, experimentId: int):
     """
     Get the output file name for a job with comprehensive fallback logic.
     Adapted from train router for better robustness.
@@ -252,7 +259,7 @@ async def get_output_file_name(job_id: str):
 
 
 @router.get("/{job_id}/stream_output")
-async def stream_job_output(job_id: str, sweeps: bool = False):
+async def stream_job_output(job_id: str, experimentId: int, sweeps: bool = False):
     """
     Stream job output with robust error handling and retry logic.
     Enhanced version combining the best of both train and jobs routers.
@@ -328,11 +335,11 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
 
 
 @router.get("/{job_id}/stream_detailed_json_report")
-async def stream_detailed_json_report(job_id: str, file_name: str):
+async def stream_detailed_json_report(job_id: str, file_name: str, experimentId: int):
     if not os.path.exists(file_name):
         print(f"File not found: {file_name}")
         return "File not found", 404
-
+    
     return StreamingResponse(
         # we force polling because i can't get this to work otherwise -- changes aren't detected
         watch_file(file_name, start_from_beginning=True, force_polling=False),
@@ -342,7 +349,7 @@ async def stream_detailed_json_report(job_id: str, file_name: str):
 
 
 @router.get("/{job_id}/get_additional_details")
-async def stream_job_additional_details(job_id: str, task: str = "view"):
+async def stream_job_additional_details(job_id: str, experimentId: int, task: str = "view"):
     job = await db_jobs.job_get(job_id)
     job_data = job["job_data"]
     file_path = job_data["additional_output_path"]
@@ -354,10 +361,10 @@ async def stream_job_additional_details(job_id: str, task: str = "view"):
         filename = f"report_{job_id}.json"
     if task == "download":
         return FileResponse(file_path, filename=filename, media_type=file_format)
-
+    
     if not os.path.exists(file_path):
         return Response("No additional details found for this evaluation", media_type="text/csv")
-
+    
     # convert csv to JSON, but do not assume that \n marks the end of a row as cells can
     # contain fields that start and end with " and contain \n. Use a CSV parser instead.
     with open(file_path, "r") as csvfile:
@@ -373,20 +380,20 @@ async def stream_job_additional_details(job_id: str, task: str = "view"):
 
 
 @router.get("/{job_id}/get_figure_json")
-async def get_figure_path(job_id: str):
+async def get_figure_path(job_id: str, experimentId: int):
     job = await db_jobs.job_get(job_id)
     job_data = job["job_data"]
     file_path = job_data.get("plot_data_path", None)
 
     if file_path is None or not os.path.exists(file_path):
         return Response("No plot data found for this evaluation", media_type="text/csv")
-
+    
     content = json.loads(open(file_path, "r").read())
     return content
 
 
 @router.get("/{job_id}/get_generated_dataset")
-async def get_generated_dataset(job_id: str):
+async def get_generated_dataset(job_id: str, experimentId: int):
     job = await db_jobs.job_get(job_id)
     # Get experiment name
     job_data = job["job_data"]
@@ -396,21 +403,21 @@ async def get_generated_dataset(job_id: str):
         json_file_path = job_data["additional_output_path"]
     else:
         return Response("No dataset found for this evaluation", media_type="text/csv")
-
+    
     if not os.path.exists(json_file_path):
         return Response("No dataset found for this evaluation", media_type="text/csv")
     else:
         json_content = json.loads(open(json_file_path, "r").read())
 
         df = pd.DataFrame(json_content)
-
+    
         content = {"header": df.columns.tolist(), "body": df.values.tolist()}
 
         return content
 
 
 @router.get("/{job_id}/get_eval_images")
-async def get_eval_images(job_id: str):
+async def get_eval_images(job_id: str, experimentId: int):
     """Get list of evaluation images for a job"""
     job = await db_jobs.job_get(job_id)
     job_data = job["job_data"]
@@ -418,15 +425,14 @@ async def get_eval_images(job_id: str):
     # Check if the job has eval_images_dir
     if "eval_images_dir" not in job_data or not job_data["eval_images_dir"]:
         return {"images": []}
-
+    
     images_dir = job_data["eval_images_dir"]
 
     if not os.path.exists(images_dir):
         return {"images": []}
-
+    
     # Supported image extensions
     image_extensions = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".svg"}
-
     images = []
     try:
         for filename in os.listdir(images_dir):
@@ -447,15 +453,14 @@ async def get_eval_images(job_id: str):
     except OSError as e:
         logging.error(f"Error reading images directory {images_dir}: {e}")
         return {"images": []}
-
+    
     # Sort by filename for consistent ordering
     images.sort(key=lambda x: x["filename"])
-
     return {"images": images}
 
 
 @router.get("/{job_id}/image/{filename}")
-async def get_eval_image(job_id: str, filename: str):
+async def get_eval_image(job_id: str, filename: str, experimentId: int):
     """Serve individual evaluation image files"""
     job = await db_jobs.job_get(job_id)
     job_data = job["job_data"]
@@ -463,20 +468,20 @@ async def get_eval_image(job_id: str, filename: str):
     # Check if the job has eval_images_dir
     if "eval_images_dir" not in job_data or not job_data["eval_images_dir"]:
         return Response("No images directory found for this job", status_code=404)
-
+    
     images_dir = job_data["eval_images_dir"]
-
+    
     if not os.path.exists(images_dir):
         return Response("Images directory not found", status_code=404)
-
-    # Secure the filename to prevent directory traversal
+    
+     # Secure the filename to prevent directory traversal
     filename = secure_filename(filename)
     file_path = os.path.join(images_dir, filename)
-
+    
     # Ensure the file exists and is within the images directory
     if not os.path.exists(file_path) or not os.path.commonpath([images_dir, file_path]) == images_dir:
         return Response("Image not found", status_code=404)
-
+    
     # Determine media type based on file extension
     _, ext = os.path.splitext(filename.lower())
     media_type_map = {
@@ -490,7 +495,7 @@ async def get_eval_image(job_id: str, filename: str):
     }
 
     media_type = media_type_map.get(ext, "application/octet-stream")
-
+    
     return FileResponse(
         file_path,
         media_type=media_type,

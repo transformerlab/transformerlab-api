@@ -291,5 +291,10 @@ async def queue_task(task_id: int, input_override: str = "{}", output_override: 
         for key in output_override.keys():
             job_data["config"][key] = output_override[key]
         job_data["plugin"] = task_to_queue["plugin"]
-    job_id = await job_create("EXPORT" if job_type == "EXPORT" else job_type, job_status, json.dumps(job_data), task_to_queue["experiment_id"])
+    job_id = await job_create(
+        type=("EXPORT" if job_type == "EXPORT" else job_type),
+        status=job_status,
+        experiment_id=task_to_queue["experiment_id"],
+        job_data=json.dumps(job_data),
+    )
     return {"id": job_id}
