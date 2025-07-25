@@ -3,4 +3,4 @@
 # curl https://ollama.ai/install.sh | sh
 
 uv pip install ollama
-uv pip install transformerlab-inference==0.2.40
+uv pip install transformerlab-inference==0.2.41
