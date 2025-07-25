@@ -8,7 +8,7 @@ CUDA_VISIBLE_DEVICES=0 llamafactory-cli train examples/train_lora/llama3_lora_re
 """
 
 import os
-import subprocess
+import asyncio
 import time
 import json
 import yaml
@@ -46,8 +46,8 @@ def create_data_directory_in_llama_factory_format():
         json.dump(dataset_info, f, indent=2)
 
 
-@tlab_trainer.job_wrapper()
-def run_reward_modeling():
+@tlab_trainer.async_job_wrapper()
+async def run_reward_modeling():
     """Main function to run reward modeling with LlamaFactory"""
     # Access configuration through tlab_trainer
     config = tlab_trainer.params._config
@@ -123,42 +123,48 @@ def run_reward_modeling():
     print(popen_command)
 
     print("Training beginning:")
-    with subprocess.Popen(
-        popen_command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        bufsize=1,
-        universal_newlines=True,
+
+    process = await asyncio.create_subprocess_exec(
+        *popen_command,
         cwd=os.path.join(plugin_dir, "LLaMA-Factory"),
         env=env,
-    ) as process:
-        training_step_has_started = False
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
+    )
 
-        for line in process.stdout:
-            if "***** Running training *****" in line:
-                training_step_has_started = True
+    assert process.stdout is not None
+    training_step_has_started = False
 
-            if not training_step_has_started:
-                continue
+    async for line_bytes in process.stdout:
+        line = line_bytes.decode("utf-8", errors="replace")
 
-            # Parse progress from output lines
-            pattern = r"(\d+)%\|.*\| (\d+)\/(\d+) \[(\d+):(\d+)<(\d+):(\d+),(\s*)(\d+\.\d+)(.+)]"
-            match = re.search(pattern, line)
-            if match:
-                percentage = match.group(1)
-                current = match.group(2)
-                total = match.group(3)
-                minutes = match.group(4)
-                seconds = match.group(5)
-                it_s = match.group(8)
+        if "***** Running training *****" in line:
+            training_step_has_started = True
 
-                print(
-                    f"Percentage: {percentage}, Current: {current}, Total: {total}, Minutes: {minutes}, Seconds: {seconds}, It/s: {it_s}"
-                )
-                # Update progress using tlab_trainer
-                tlab_trainer.progress_update(round(float(percentage), 1))
+        if not training_step_has_started:
+            continue
 
-            print(line, end="", flush=True)
+        # Parse progress from output lines
+        pattern = r"(\d+)%\|.*\| (\d+)\/(\d+) \[(\d+):(\d+)<(\d+):(\d+),(\s*)(\d+\.\d+)(.+)]"
+        match = re.search(pattern, line)
+        if match:
+            percentage = match.group(1)
+            current = match.group(2)
+            total = match.group(3)
+            minutes = match.group(4)
+            seconds = match.group(5)
+            it_s = match.group(8)
+
+            print(
+                f"Percentage: {percentage}, Current: {current}, Total: {total}, Minutes: {minutes}, Seconds: {seconds}, It/s: {it_s}"
+            )
+            tlab_trainer.progress_update(round(float(percentage), 1))
+
+        print(line, end="", flush=True)
+
+    return_code = await process.wait()
+    if return_code != 0:
+        raise RuntimeError(f"Training subprocess failed with return code {return_code}")
 
     print("Finished training.")
 
@@ -196,38 +202,39 @@ def run_reward_modeling():
     # Run fusion process
     fuse_popen_command = [python_executable, "export", yaml_config_path]
 
-    with subprocess.Popen(
-        fuse_popen_command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        bufsize=1,
-        universal_newlines=True,
+    process = await asyncio.create_subprocess_exec(
+        *fuse_popen_command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT,
         env=env,
-    ) as process:
-        for line in process.stdout:
-            print(line, end="", flush=True)
+    )
 
-        return_code = process.wait()
+    assert process.stdout is not None
+    async for line_bytes in process.stdout:
+        print(line_bytes.decode(), end="", flush=True)
 
-        # If model fusion was successful, create model info
-        print("Return code: ", return_code)
-        if return_code == 0:
-            # Use tlab_trainer to create the model info
-            json_data = {
-                "uniqueID": f"TransformerLab/{fused_model_name}",
-                "name": fused_model_name,
-                "description": f"Model generated using Llama Factory in Transformer Lab based on {config['model_name']}",
-                "architecture": config["model_architecture"],
-                "huggingface_repo": "",
-            }
+    return_code = await process.wait()
 
-            tlab_trainer.create_transformerlab_model(
-                fused_model_name=fused_model_name, model_architecture=config["model_architecture"], json_data=json_data
-            )
+    # If model fusion was successful, create model info
+    print("Return code: ", return_code)
+    if return_code == 0:
+        json_data = {
+            "uniqueID": f"TransformerLab/{fused_model_name}",
+            "name": fused_model_name,
+            "description": f"Model generated using Llama Factory in Transformer Lab based on {config['model_name']}",
+            "architecture": config["model_architecture"],
+            "huggingface_repo": "",
+        }
 
-            print("Finished fusing the adaptor with the model.")
-        else:
-            print("Fusing model with adaptor failed: ", return_code)
+        tlab_trainer.create_transformerlab_model(
+            fused_model_name=fused_model_name,
+            model_architecture=config["model_architecture"],
+            json_data=json_data,
+        )
+
+        print("Finished fusing the adaptor with the model.")
+    else:
+        print("Fusing model with adaptor failed: ", return_code)
 
 
 run_reward_modeling()
