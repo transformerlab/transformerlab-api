@@ -490,12 +490,16 @@ async def download_huggingface_model(
         if exitcode == 77:
             # This means we got a GatedRepoError
             # The user needs to agree to terms on HuggingFace to download
-            error_msg = await db_jobs.job_get_error_msg(job_id)
+            job = await db_jobs.job_get(job_id)
+            experiment_id = job["experiment_id"]
+            error_msg = await db_jobs.job_get_error_msg(job_id, experiment_id)
             await db_jobs.job_update_status(job_id, "UNAUTHORIZED", error_msg)
             return {"status": "unauthorized", "message": error_msg}
 
         elif exitcode != 0:
-            error_msg = await db_jobs.job_get_error_msg(job_id)
+            job = await db_jobs.job_get(job_id)
+            experiment_id = job["experiment_id"]
+            error_msg = await db_jobs.job_get_error_msg(job_id, experiment_id)
             if not error_msg:
                 error_msg = f"Exit code {exitcode}"
                 await db_jobs.job_update_status(job_id, "FAILED", error_msg)
@@ -505,12 +509,16 @@ async def download_huggingface_model(
         error_msg = f"{type(e).__name__}: {e}"
         # Log the detailed error message
         print(error_msg)  # Replace with appropriate logging mechanism
-        await db_jobs.job_update_status(job_id, "FAILED", "An internal error has occurred.")
+        job = await db_jobs.job_get(job_id)
+        experiment_id = job["experiment_id"]
+        await db_jobs.job_update_status(job_id, "FAILED", "An internal error has occurred.", experiment_id)
         return {"status": "error", "message": "An internal error has occurred."}
 
     except asyncio.CancelledError:
         error_msg = "Download cancelled"
-        await db_jobs.job_update_status(job_id, "CANCELLED", error_msg)
+        job = await db_jobs.job_get(job_id)
+        experiment_id = job["experiment_id"]
+        await db_jobs.job_update_status(job_id, "CANCELLED", error_msg, experiment_id)
         return {"status": "error", "message": error_msg}
 
     if hugging_face_filename is None:
@@ -540,19 +548,25 @@ on the model's Huggingface page."
         # Log the detailed error message
         print(error_msg)  # Replace with appropriate logging mechanism
         if job_id:
-            await db_jobs.job_update_status(job_id, "UNAUTHORIZED", error_msg)
+            job = await db_jobs.job_get(job_id)
+            experiment_id = job["experiment_id"]
+            await db_jobs.job_update_status(job_id, "UNAUTHORIZED", error_msg, experiment_id)
         return {"status": "unauthorized", "message": error_msg}
     except Exception as e:
         error_msg = f"{type(e).__name__}: {e}"
         print(error_msg)
         if job_id:
-            await db_jobs.job_update_status(job_id, "FAILED", error_msg)
+            job = await db_jobs.job_get(job_id)
+            experiment_id = job["experiment_id"]
+            await db_jobs.job_update_status(job_id, "FAILED", error_msg, experiment_id)
         return {"status": "error", "message": "An internal error has occurred."}
 
     if model_details is None:
         error_msg = f"Error reading config for model with ID {model}"
         if job_id:
-            await db_jobs.job_update_status(job_id, "FAILED", error_msg)
+            job = await db_jobs.job_get(job_id)
+            experiment_id = job["experiment_id"]
+            await db_jobs.job_update_status(job_id, "FAILED", error_msg, experiment_id)
         return {"status": "error", "message": error_msg}
 
         # Check if this is a GGUF repository that requires file selection
@@ -607,13 +621,17 @@ async def download_gguf_file_from_repo(model: str, filename: str, job_id: int | 
     except Exception as e:
         error_msg = f"Error accessing model repository: {type(e).__name__}: {e}"
         if job_id:
-            await db_jobs.job_update_status(job_id, "FAILED", error_msg)
+            job = await db_jobs.job_get(job_id)
+            experiment_id = job["experiment_id"]
+            await db_jobs.job_update_status(job_id, "FAILED", error_msg, experiment_id)
         return {"status": "error", "message": error_msg}
 
     if model_details is None:
         error_msg = f"Error reading config for model with ID {model}"
         if job_id:
-            await db_jobs.job_update_status(job_id, "FAILED", error_msg)
+            job = await db_jobs.job_get(job_id)
+            experiment_id = job["experiment_id"]
+            await db_jobs.job_update_status(job_id, "FAILED", error_msg, experiment_id)
         return {"status": "error", "message": error_msg}
 
     # Validate the requested filename exists in the repository
@@ -621,7 +639,9 @@ async def download_gguf_file_from_repo(model: str, filename: str, job_id: int | 
     if filename not in available_files:
         error_msg = f"File '{filename}' not found in repository. Available files: {available_files}"
         if job_id:
-            await db_jobs.job_update_status(job_id, "FAILED", error_msg)
+            job = await db_jobs.job_get(job_id)
+            experiment_id = job["experiment_id"]
+            await db_jobs.job_update_status(job_id, "FAILED", error_msg, experiment_id)
         return {"status": "error", "message": error_msg}
 
     # Update model details for specific file download
@@ -674,12 +694,12 @@ async def model_local_list(embedding=False):
 
 
 @router.get("/model/provenance/{model_id}")
-async def model_provenance(model_id: str):
+async def model_provenance(model_id: str, experiment_id: int):
     # Get the provenance of a model along with the jobs that created it and evals that were done on each model
 
     model_id = model_id.replace("~~~", "/")
 
-    return await model_helper.list_model_provenance(model_id)
+    return await model_helper.list_model_provenance(model_id, experiment_id)
 
 
 @router.get("/model/count_downloaded")

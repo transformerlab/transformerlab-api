@@ -30,11 +30,11 @@ async def is_model_installed(model_id: str):
     return await localmodel.LocalModelStore().has_model(model_id)
 
 
-async def list_model_provenance(model_id: str):
+async def list_model_provenance(model_id: str, experiment_id: int):
     """
     Return a list of the provenance of a model with the unique ID model_id.
     """
-    return await localmodel.LocalModelStore().list_model_provenance(model_id)
+    return await localmodel.LocalModelStore().list_model_provenance(model_id, experiment_id)
 
 
 ###

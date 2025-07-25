@@ -100,12 +100,12 @@ async def job_delete_all(experimentId: int):
 
 @router.get("/{job_id}")
 async def get_training_job(job_id: str, experimentId: int):
-    return await db_jobs.job_get(job_id, experiment_id=experimentId)
+    return await db_jobs.job_get(job_id)
 
 
 @router.get("/{job_id}/output")
 async def get_training_job_output(job_id: str, experimentId: int, sweeps: bool = False):
-    job = await db_jobs.job_get(job_id, experiment_id=experimentId)
+    job = await db_jobs.job_get(job_id)
     job_data = job["job_data"]
 
     if not isinstance(job_data, dict):
@@ -170,7 +170,7 @@ async def update_training_template(
 
 async def get_output_file_name(job_id: str, experimentId: int):
     try:
-        job = await db_jobs.job_get(job_id, experiment_id=experimentId)
+        job = await db_jobs.job_get(job_id)
         job_data = job["job_data"]
         if not isinstance(job_data, dict):
             try:
@@ -222,7 +222,7 @@ async def get_output_file_name(job_id: str, experimentId: int):
 @router.get("/{job_id}/stream_output")
 async def stream_job_output(job_id: str, experimentId: int, sweeps: bool = False):
     try:
-        job = await db_jobs.job_get(job_id, experiment_id=experimentId)
+        job = await db_jobs.job_get(job_id)
         job_data = job["job_data"]
         if not isinstance(job_data, dict):
             try:
@@ -291,7 +291,7 @@ async def stream_detailed_json_report(job_id: str, file_name: str, experimentId:
 
 @router.get("/{job_id}/get_additional_details")
 async def stream_job_additional_details(job_id: str, experimentId: int, task: str = "view"):
-    job = await db_jobs.job_get(job_id, experiment_id=experimentId)
+    job = await db_jobs.job_get(job_id)
     job_data = job["job_data"]
     file_path = job_data["additional_output_path"]
     if file_path.endswith(".csv"):
@@ -317,7 +317,7 @@ async def stream_job_additional_details(job_id: str, experimentId: int, task: st
 
 @router.get("/{job_id}/get_figure_json")
 async def get_figure_path(job_id: str, experimentId: int):
-    job = await db_jobs.job_get(job_id, experiment_id=experimentId)
+    job = await db_jobs.job_get(job_id)
     job_data = job["job_data"]
     file_path = job_data.get("plot_data_path", None)
     if file_path is None or not os.path.exists(file_path):
@@ -328,7 +328,7 @@ async def get_figure_path(job_id: str, experimentId: int):
 
 @router.get("/{job_id}/get_generated_dataset")
 async def get_generated_dataset(job_id: str, experimentId: int):
-    job = await db_jobs.job_get(job_id, experiment_id=experimentId)
+    job = await db_jobs.job_get(job_id)
     job_data = job["job_data"]
     if "additional_output_path" in job_data.keys() and job_data["additional_output_path"]:
         json_file_path = job_data["additional_output_path"]
@@ -345,7 +345,7 @@ async def get_generated_dataset(job_id: str, experimentId: int):
 
 @router.get("/{job_id}/get_eval_images")
 async def get_eval_images(job_id: str, experimentId: int):
-    job = await db_jobs.job_get(job_id, experiment_id=experimentId)
+    job = await db_jobs.job_get(job_id)
     job_data = job["job_data"]
     if "eval_images_dir" not in job_data or not job_data["eval_images_dir"]:
         return {"images": []}
@@ -378,7 +378,7 @@ async def get_eval_images(job_id: str, experimentId: int):
 
 @router.get("/{job_id}/image/{filename}")
 async def get_eval_image(job_id: str, filename: str, experimentId: int):
-    job = await db_jobs.job_get(job_id, experiment_id=experimentId)
+    job = await db_jobs.job_get(job_id)
     job_data = job["job_data"]
     if "eval_images_dir" not in job_data or not job_data["eval_images_dir"]:
         return Response("No images directory found for this job", status_code=404)

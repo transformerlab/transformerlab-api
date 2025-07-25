@@ -358,10 +358,12 @@ async def server_worker_start(
     if exitcode is not None and exitcode != 0:
         with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
             global_log.write(f"Error loading model: {model_name} with exit code {exitcode}\n")
-        error_msg = await job_get_error_msg(job_id)
+        job = await job_create(job_id)
+        experiment_id = job["experiment_id"]
+        error_msg = await job_get_error_msg(job_id, experiment_id)
         if not error_msg:
             error_msg = f"Exit code {exitcode}"
-            await job_update_status(job_id, "FAILED", error_msg)
+            await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
         return {"status": "error", "message": error_msg}
     with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
         global_log.write(f"Model loaded successfully: {model_name}\n")

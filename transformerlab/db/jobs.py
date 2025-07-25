@@ -139,12 +139,9 @@ async def job_get_error_msg(job_id, experiment_id):
         return job_data.get("error_msg", None)
 
 
-async def job_get(job_id, experiment_id):
+async def job_get(job_id):
     async with async_session() as session:
-        stmt = select(models.Job).where(models.Job.id == job_id)
-        if experiment_id is not None:
-            stmt = stmt.where(models.Job.experiment_id == experiment_id)
-        result = await session.execute(stmt)
+        result = await session.execute(select(models.Job).where(models.Job.id == job_id))
         job = result.scalar_one_or_none()
         if job is None:
             return None
@@ -159,23 +156,18 @@ async def job_get(job_id, experiment_id):
         return row
 
 
-async def job_count_running(experiment_id):
+async def job_count_running():
     async with async_session() as session:
-        stmt = select(models.Job).where(models.Job.status == "RUNNING")
-        if experiment_id is not None:
-            stmt = stmt.where(models.Job.experiment_id == experiment_id)
-        result = await session.execute(stmt)
+        result = await session.execute(select(models.Job).where(models.Job.status == "RUNNING"))
         count = len(result.scalars().all())
         return count
 
 
-async def jobs_get_next_queued_job(experiment_id):
+async def jobs_get_next_queued_job():
     async with async_session() as session:
-        stmt = select(models.Job).where(models.Job.status == "QUEUED")
-        if experiment_id is not None:
-            stmt = stmt.where(models.Job.experiment_id == experiment_id)
-        stmt = stmt.order_by(models.Job.created_at.asc()).limit(1)
-        result = await session.execute(stmt)
+        result = await session.execute(
+            select(models.Job).where(models.Job.status == "QUEUED").order_by(models.Job.created_at.asc()).limit(1)
+        )
         job = result.scalar_one_or_none()
         if job is None:
             return None

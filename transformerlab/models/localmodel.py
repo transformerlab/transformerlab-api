@@ -311,13 +311,13 @@ class LocalModelStore(modelstore.ModelStore):
 
         return chain
 
-    async def get_evals_by_model(self):
+    async def get_evals_by_model(self, experiment_id):
         """
         Retrieve all completed EVAL jobs and group them by the model_name specified in the job_data.
         For each eval, remove keys we want to ignore (i.e., additional_output_path,
         completion_status, and completion_details) and attach the job_id.
         """
-        eval_jobs = await jobs_get_all(type="EVAL", status="COMPLETE")
+        eval_jobs = await jobs_get_all(experiment_id=experiment_id, type="EVAL", status="COMPLETE")
         evals_by_model = {}
         for job in eval_jobs:
             eval_data = job["job_data"]
@@ -338,7 +338,7 @@ class LocalModelStore(modelstore.ModelStore):
                 evals_by_model.setdefault(model_name, []).append(eval_data)
         return evals_by_model
 
-    async def list_model_provenance(self, model_id):
+    async def list_model_provenance(self, model_id, experiment_id):
         """
         List model provenance by reading from _tlab_provenance.json files.
         """
@@ -355,7 +355,7 @@ class LocalModelStore(modelstore.ModelStore):
         chain = await self.trace_provenance(model_id, provenance_mapping)
 
         # Retrieve eval jobs grouped by model_name
-        evals_by_model = await self.get_evals_by_model()
+        evals_by_model = await self.get_evals_by_model(experiment_id)
 
         if len(chain) == 0:
             item = {
