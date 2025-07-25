@@ -435,6 +435,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             "mask_image": "mask_image_path",
         }
 
+        # Track which base64 fields were removed
+        removed_base64_keys = []
         for base64_key, file_arg in base64_fields.items():
             if base64_key in config and config[base64_key]:
                 try:
@@ -447,9 +449,49 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
                     config[file_arg] = file_path
                     del config[base64_key]
+                    removed_base64_keys.append(base64_key)
 
                 except Exception as e:
                     print(f"[DIFFUSION] Failed to decode or write {base64_key}: {e}")
+
+        # Remove input_image and mask_image from job_data['config'] in db if they were present
+        if removed_base64_keys:
+            job_row = await db_jobs.job_get(job_id)
+            job_data = job_row.get("job_data", {})
+            # Handle job_data as str or dict
+            if isinstance(job_data, str):
+                try:
+                    job_data = json.loads(job_data)
+                except Exception as e:
+                    print(f"[DIFFUSION] Could not decode job_data: {e}")
+                    job_data = {}
+            config_in_db = job_data.get("config", {})
+            double_encoded = False
+            # Handle config_in_db as str or dict
+            if isinstance(config_in_db, str):
+                try:
+                    config_in_db = json.loads(config_in_db)
+                    # Handle double encoded json
+                    if isinstance(config_in_db, str):
+                        config_in_db = json.loads(config_in_db)
+                        double_encoded = True
+
+                except Exception as e:
+                    print(f"[DIFFUSION] Could not decode config from job_data: {e}")
+                    config_in_db = {}
+
+            if not isinstance(config_in_db, dict):
+                config_in_db = {}
+            updated = False
+            for key in removed_base64_keys:
+                if key in config_in_db:
+                    print("Deleting key from config_in_db:", key)
+                    del config_in_db[key]
+                    updated = True
+            if updated:
+                if double_encoded:
+                    config_in_db = json.dumps(config_in_db)
+                await db_jobs.job_update_job_data_insert_key_value(job_id, "config", config_in_db)
 
         # Now safely convert remaining config to CLI args
         config_args = []

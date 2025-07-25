@@ -1,5 +1,5 @@
 {
-  "name": "Image Generation Diffuser",
+  "name": "Image Diffusion",
   "uniqueId": "image_diffusion",
   "description": "Generate images in the Diffusion tab using this plugin",
   "plugin-format": "python",
