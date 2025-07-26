@@ -1,6 +1,7 @@
 # Root dir is the parent of the parent of this current directory:
 
 import os
+from pathlib import Path
 import transformerlab.shared.dirs_workspace as dirs_workspace
 from transformerlab.db.db import experiment_get
 
@@ -30,6 +31,10 @@ ROOT_DIR is a legacy variable that we should replace with the above, eventually.
 FASTCHAT_LOGS_DIR = os.path.join(WORKSPACE_DIR, "logs")
 if not os.path.exists(FASTCHAT_LOGS_DIR):
     os.makedirs(FASTCHAT_LOGS_DIR)
+
+#FASTCHAT LOGDIR
+os.environ["LOGDIR"] = os.getenv("TFL_HOME_DIR", os.path.join(str(Path.home()), ".transformerlab"))
+os.environ["TLAB_LOG"] = "transformerlab.log"
 
 # TFL_SOURCE_CODE_DIR
 api_py_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
