@@ -238,7 +238,6 @@ terraform.rc
 **/.ssh/
 
 # IDEs
-.vscode
 # NOTE: Cursor automatically ignores files in .gitignore and a default list on their website
 # Override with ! prefix in .cursorignore.
 # https://docs.cursor.com/context/ignore-files#default-ignore-list
