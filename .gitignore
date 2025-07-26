@@ -236,8 +236,6 @@ terraform.rc
 
 # Ignore .ssh folders
 **/.ssh/
-=======
-**/.ssh/
 
 # IDEs
 .vscode
