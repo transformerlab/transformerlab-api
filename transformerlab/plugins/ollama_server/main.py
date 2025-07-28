@@ -166,17 +166,6 @@ if not os.path.exists(sha_filename):
 # for catching errors
 ollama_create_proc = subprocess.run(["ollama", "create", ollama_model_name, "-f", modelfile])
 
-# For debugging: Output a bunch of model info
-# response: ollama.ProcessResponse = ollama.ps()
-# for model in response.models:
-#     print("Model: ", model.model)
-#     print("  Digest: ", model.digest)
-#     print("  Expires at: ", model.expires_at)
-#     print("  Size: ", model.size)
-#     print("  Size vram: ", model.size_vram)
-#     print("  Details: ", model.details)
-#     print("\n")
-
 # Openai api proxy needs to know context length to check for context overflow
 # You can try pulling this from modelinfo from ollama.show
 # As a backup, we will assume ollama default of 4096
