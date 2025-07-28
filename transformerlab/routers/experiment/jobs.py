@@ -101,12 +101,12 @@ async def job_delete_all(experimentId: int):
 
 
 @router.get("/{job_id}")
-async def get_training_job(job_id: str, experimentId: int):
+async def get_training_job(job_id: str):
     return await db_jobs.job_get(job_id)
 
 
 @router.get("/{job_id}/output")
-async def get_training_job_output(job_id: str, experimentId: int, sweeps: bool = False):
+async def get_training_job_output(job_id: str, sweeps: bool = False):
     # First get the template Id from this job:
     job = await db_jobs.job_get(job_id)
     job_data = job["job_data"]
@@ -159,7 +159,7 @@ async def get_training_job_output(job_id: str, experimentId: int, sweeps: bool =
 
 
 @router.get("/template/{template_id}")
-async def get_train_template(template_id: str, experimentId: int):
+async def get_train_template(template_id: str):
     return await get_training_template(template_id)
 
 
@@ -170,7 +170,6 @@ async def update_training_template(
     description: str,
     type: str,
     config: Annotated[str, Body(embed=True)],
-    experimentId: int,
 ):
     try:
         configObject = json.loads(config)
@@ -185,7 +184,7 @@ async def update_training_template(
     return {"status": "success"}
 
 
-async def get_output_file_name(job_id: str, experimentId: int):
+async def get_output_file_name(job_id: str):
     """
     Get the output file name for a job with comprehensive fallback logic.
     Adapted from train router for better robustness.
@@ -259,7 +258,7 @@ async def get_output_file_name(job_id: str, experimentId: int):
 
 
 @router.get("/{job_id}/stream_output")
-async def stream_job_output(job_id: str, experimentId: int, sweeps: bool = False):
+async def stream_job_output(job_id: str, sweeps: bool = False):
     """
     Stream job output with robust error handling and retry logic.
     Enhanced version combining the best of both train and jobs routers.
@@ -335,7 +334,7 @@ async def stream_job_output(job_id: str, experimentId: int, sweeps: bool = False
 
 
 @router.get("/{job_id}/stream_detailed_json_report")
-async def stream_detailed_json_report(job_id: str, file_name: str, experimentId: int):
+async def stream_detailed_json_report(job_id: str, file_name: str):
     if not os.path.exists(file_name):
         print(f"File not found: {file_name}")
         return "File not found", 404
@@ -349,7 +348,7 @@ async def stream_detailed_json_report(job_id: str, file_name: str, experimentId:
 
 
 @router.get("/{job_id}/get_additional_details")
-async def stream_job_additional_details(job_id: str, experimentId: int, task: str = "view"):
+async def stream_job_additional_details(job_id: str, task: str = "view"):
     job = await db_jobs.job_get(job_id)
     job_data = job["job_data"]
     file_path = job_data["additional_output_path"]
@@ -380,7 +379,7 @@ async def stream_job_additional_details(job_id: str, experimentId: int, task: st
 
 
 @router.get("/{job_id}/get_figure_json")
-async def get_figure_path(job_id: str, experimentId: int):
+async def get_figure_path(job_id: str):
     job = await db_jobs.job_get(job_id)
     job_data = job["job_data"]
     file_path = job_data.get("plot_data_path", None)
@@ -393,7 +392,7 @@ async def get_figure_path(job_id: str, experimentId: int):
 
 
 @router.get("/{job_id}/get_generated_dataset")
-async def get_generated_dataset(job_id: str, experimentId: int):
+async def get_generated_dataset(job_id: str):
     job = await db_jobs.job_get(job_id)
     # Get experiment name
     job_data = job["job_data"]
@@ -417,7 +416,7 @@ async def get_generated_dataset(job_id: str, experimentId: int):
 
 
 @router.get("/{job_id}/get_eval_images")
-async def get_eval_images(job_id: str, experimentId: int):
+async def get_eval_images(job_id: str):
     """Get list of evaluation images for a job"""
     job = await db_jobs.job_get(job_id)
     job_data = job["job_data"]
@@ -460,7 +459,7 @@ async def get_eval_images(job_id: str, experimentId: int):
 
 
 @router.get("/{job_id}/image/{filename}")
-async def get_eval_image(job_id: str, filename: str, experimentId: int):
+async def get_eval_image(job_id: str, filename: str):
     """Serve individual evaluation image files"""
     job = await db_jobs.job_get(job_id)
     job_data = job["job_data"]
@@ -473,8 +472,8 @@ async def get_eval_image(job_id: str, filename: str, experimentId: int):
     
     if not os.path.exists(images_dir):
         return Response("Images directory not found", status_code=404)
-    
-     # Secure the filename to prevent directory traversal
+
+    # Secure the filename to prevent directory traversal
     filename = secure_filename(filename)
     file_path = os.path.join(images_dir, filename)
     
