@@ -134,7 +134,7 @@ def test_gguf_download_with_job_id(client):
         assert download_response.status_code == 200
         download_data = download_response.json()
 
-        if download_data["status"] == "success":
+        if download_data and download_data["status"] == "success":
             assert download_data["job_id"] == 999
 
 

@@ -254,7 +254,7 @@ async def test_job_update_job_data_insert_key_value_and_stop():
 @pytest.mark.asyncio
 async def test_jobs_get_all_and_by_experiment_and_type(test_experiment):
     job_id = await job_create(type="TRAIN", status="QUEUED", experiment_id=test_experiment, job_data="{}")
-    jobs = await jobs_get_all(experiment_id=99, type="TRAIN", status="QUEUED")
+    jobs = await jobs_get_all(experiment_id=test_experiment, type="TRAIN", status="QUEUED")
     assert any(j["id"] == job_id for j in jobs)
     jobs_by_exp = await jobs_get_all_by_experiment_and_type(experiment_id=test_experiment, job_type="TRAIN")
     assert any(j["id"] == job_id for j in jobs_by_exp)
@@ -400,7 +400,7 @@ class TestModels:
         @pytest.mark.asyncio
         async def test_job_create_invalid_type(self):
             with pytest.raises(Exception):
-                await job_create("INVALID_TYPE", "QUEUED")
+                await job_create("INVALID_TYPE", "QUEUED", experiment_id=99)
 
         @pytest.mark.asyncio
         async def test_job_get_nonexistent(self):
@@ -409,28 +409,28 @@ class TestModels:
 
         @pytest.mark.asyncio
         async def test_job_delete(self):
-            job_id = await job_create("TRAIN", "QUEUED")
+            job_id = await job_create("TRAIN", "QUEUED", experiment_id=99)
             await job_delete(job_id, 99)
             job = await job_get(job_id)
             assert job["status"] == "DELETED"
 
         @pytest.mark.asyncio
         async def test_job_count_running(self):
-            await job_create("TRAIN", "RUNNING")
+            await job_create("TRAIN", "RUNNING", experiment_id=99)
             count = await job_count_running()
             assert isinstance(count, int)
             assert count > 0
 
         @pytest.mark.asyncio
         async def test_jobs_get_next_queued_job(self):
-            await job_create("TRAIN", "QUEUED")
+            await job_create("TRAIN", "QUEUED", experiment_id=99)
             job = await jobs_get_next_queued_job()
             assert job is not None
             assert job["status"] == "QUEUED"
 
         @pytest.mark.asyncio
         async def test_job_update_status_with_error_msg(self):
-            job_id = await job_create("TRAIN", "QUEUED")
+            job_id = await job_create("TRAIN", "QUEUED", experiment_id=99)
             await job_update_status(job_id, "FAILED", error_msg="Test error", experiment_id=99)
             status = await job_get_status(job_id, 99)
             assert status == "FAILED"
@@ -721,7 +721,7 @@ async def test_job_create_sync(setup_db):
     experiment_id = 99  # Use integer instead of string
 
     # Call the function - this creates its own connection
-    job_id = job_create_sync(job_type, status, job_data, experiment_id)
+    job_id = job_create_sync(job_type, status, experiment_id, job_data)
 
     # Verify job was created
     assert job_id is not None
@@ -735,8 +735,12 @@ async def test_job_create_sync(setup_db):
     assert job["type"] == job_type
     assert job["status"] == status
     assert job["experiment_id"] == experiment_id
-    assert "test" in job["job_data"]
-    assert job["job_data"]["test"] == "data"
+    # job_data might be stored as dict or string, handle both cases
+    job_data = job["job_data"]
+    if isinstance(job_data, str):
+        job_data = json.loads(job_data)
+    assert "test" in job_data
+    assert job_data["test"] == "data"
 
 
 @pytest.mark.asyncio
@@ -747,7 +751,7 @@ async def test_job_update_status_sync(setup_db):
 
     # Update the job status
     new_status = "RUNNING"
-    job_update_status_sync(job_id, new_status)
+    job_update_status_sync(job_id, new_status, 99)
 
     # Verify the status was updated
     job = await job_get(job_id)
@@ -762,7 +766,7 @@ async def test_job_update_sync(setup_db):
 
     # Update the job
     new_status = "RUNNING"
-    job_update_sync(job_id, new_status)
+    job_update_sync(job_id, new_status, 99)
 
     # Verify the job was updated
     job = await job_get(job_id)

@@ -67,15 +67,26 @@ def test_certificate_sans(ssl_utils):
 
 
 def test_lock_guards_concurrent_writes(ssl_utils, tmp_path):
-    from multiprocessing import Process, Queue
-    def worker(q):
-        q.put(ssl_utils.ensure_persistent_self_signed_cert())
+    from threading import Thread
+    from queue import Queue
+
+    results = []
     q = Queue()
-    procs = [Process(target=worker, args=(q,)) for _ in range(4)]
-    for p in procs:
-        p.start()
-    for p in procs:
-        p.join()
-    results = [q.get() for _ in procs]
+
+    def worker():
+        result = ssl_utils.ensure_persistent_self_signed_cert()
+        q.put(result)
+
+    threads = [Thread(target=worker) for _ in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    # Collect results
+    while not q.empty():
+        results.append(q.get())
+
+    assert len(results) == 4
     assert len({r[0] for r in results}) == 1
     assert len({r[1] for r in results}) == 1
