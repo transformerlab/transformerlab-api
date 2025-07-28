@@ -102,7 +102,10 @@ async def job_delete_all(experimentId: int):
 
 @router.get("/{job_id}")
 async def get_training_job(job_id: str):
-    return await db_jobs.job_get(job_id)
+    job = await db_jobs.job_get(job_id)
+    if job is None:
+        return Response("Job not found", status_code=404)
+    return job
 
 
 @router.get("/{job_id}/output")
@@ -338,7 +341,7 @@ async def stream_detailed_json_report(job_id: str, file_name: str):
     if not os.path.exists(file_name):
         print(f"File not found: {file_name}")
         return "File not found", 404
-    
+
     return StreamingResponse(
         # we force polling because i can't get this to work otherwise -- changes aren't detected
         watch_file(file_name, start_from_beginning=True, force_polling=False),
@@ -350,7 +353,11 @@ async def stream_detailed_json_report(job_id: str, file_name: str):
 @router.get("/{job_id}/get_additional_details")
 async def stream_job_additional_details(job_id: str, task: str = "view"):
     job = await db_jobs.job_get(job_id)
+    if job is None:
+        return Response("Job not found", status_code=404)
     job_data = job["job_data"]
+    if "additional_output_path" not in job_data:
+        return Response("No additional details found for this job", media_type="text/csv")
     file_path = job_data["additional_output_path"]
     if file_path.endswith(".csv"):
         file_format = "text/csv"
@@ -360,10 +367,10 @@ async def stream_job_additional_details(job_id: str, task: str = "view"):
         filename = f"report_{job_id}.json"
     if task == "download":
         return FileResponse(file_path, filename=filename, media_type=file_format)
-    
+
     if not os.path.exists(file_path):
         return Response("No additional details found for this evaluation", media_type="text/csv")
-    
+
     # convert csv to JSON, but do not assume that \n marks the end of a row as cells can
     # contain fields that start and end with " and contain \n. Use a CSV parser instead.
     with open(file_path, "r") as csvfile:
@@ -381,12 +388,14 @@ async def stream_job_additional_details(job_id: str, task: str = "view"):
 @router.get("/{job_id}/get_figure_json")
 async def get_figure_path(job_id: str):
     job = await db_jobs.job_get(job_id)
+    if job is None:
+        return Response("Job not found", status_code=404)
     job_data = job["job_data"]
     file_path = job_data.get("plot_data_path", None)
 
     if file_path is None or not os.path.exists(file_path):
         return Response("No plot data found for this evaluation", media_type="text/csv")
-    
+
     content = json.loads(open(file_path, "r").read())
     return content
 
@@ -394,6 +403,8 @@ async def get_figure_path(job_id: str):
 @router.get("/{job_id}/get_generated_dataset")
 async def get_generated_dataset(job_id: str):
     job = await db_jobs.job_get(job_id)
+    if job is None:
+        return Response("Job not found", status_code=404)
     # Get experiment name
     job_data = job["job_data"]
 
@@ -402,14 +413,14 @@ async def get_generated_dataset(job_id: str):
         json_file_path = job_data["additional_output_path"]
     else:
         return Response("No dataset found for this evaluation", media_type="text/csv")
-    
+
     if not os.path.exists(json_file_path):
         return Response("No dataset found for this evaluation", media_type="text/csv")
     else:
         json_content = json.loads(open(json_file_path, "r").read())
 
         df = pd.DataFrame(json_content)
-    
+
         content = {"header": df.columns.tolist(), "body": df.values.tolist()}
 
         return content
@@ -419,17 +430,19 @@ async def get_generated_dataset(job_id: str):
 async def get_eval_images(job_id: str):
     """Get list of evaluation images for a job"""
     job = await db_jobs.job_get(job_id)
+    if job is None:
+        return Response("Job not found", status_code=404)
     job_data = job["job_data"]
 
     # Check if the job has eval_images_dir
     if "eval_images_dir" not in job_data or not job_data["eval_images_dir"]:
         return {"images": []}
-    
+
     images_dir = job_data["eval_images_dir"]
 
     if not os.path.exists(images_dir):
         return {"images": []}
-    
+
     # Supported image extensions
     image_extensions = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".svg"}
     images = []
@@ -452,7 +465,7 @@ async def get_eval_images(job_id: str):
     except OSError as e:
         logging.error(f"Error reading images directory {images_dir}: {e}")
         return {"images": []}
-    
+
     # Sort by filename for consistent ordering
     images.sort(key=lambda x: x["filename"])
     return {"images": images}
@@ -462,25 +475,27 @@ async def get_eval_images(job_id: str):
 async def get_eval_image(job_id: str, filename: str):
     """Serve individual evaluation image files"""
     job = await db_jobs.job_get(job_id)
+    if job is None:
+        return Response("Job not found", status_code=404)
     job_data = job["job_data"]
 
     # Check if the job has eval_images_dir
     if "eval_images_dir" not in job_data or not job_data["eval_images_dir"]:
         return Response("No images directory found for this job", status_code=404)
-    
+
     images_dir = job_data["eval_images_dir"]
-    
+
     if not os.path.exists(images_dir):
         return Response("Images directory not found", status_code=404)
 
     # Secure the filename to prevent directory traversal
     filename = secure_filename(filename)
     file_path = os.path.join(images_dir, filename)
-    
+
     # Ensure the file exists and is within the images directory
     if not os.path.exists(file_path) or not os.path.commonpath([images_dir, file_path]) == images_dir:
         return Response("Image not found", status_code=404)
-    
+
     # Determine media type based on file extension
     _, ext = os.path.splitext(filename.lower())
     media_type_map = {
@@ -494,7 +509,7 @@ async def get_eval_image(job_id: str, filename: str):
     }
 
     media_type = media_type_map.get(ext, "application/octet-stream")
-    
+
     return FileResponse(
         file_path,
         media_type=media_type,
