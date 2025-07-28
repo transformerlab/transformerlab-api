@@ -21,6 +21,11 @@ import requests
 
 from fastchat.serve.model_worker import logger
 
+
+worker_id = str(uuid.uuid4())[:8]
+
+OLLAMA_STARTUP_TIMEOUT = 180  # seconds
+
 try:
     from transformerlab.plugin import get_python_executable, register_process
 except ImportError:
@@ -71,7 +76,6 @@ ollama_proc = subprocess.Popen(["ollama", "serve"], stdout=None, stderr=subproce
 
 # Wait for Ollama server to be ready
 ollama_url = f"http://localhost:{port}/api/tags"
-timeout = 180  # seconds
 start_time = time.time()
 while True:
     try:
@@ -81,7 +85,7 @@ while True:
             break
     except Exception:
         pass
-    if time.time() - start_time > timeout:
+    if time.time() - start_time > OLLAMA_STARTUP_TIMEOUT:
         print("Timeout waiting for Ollama server to be ready", file=sys.stderr)
         sys.exit(1)
     time.sleep(1)
@@ -208,4 +212,3 @@ for line in iter(proxy_proc.stderr.readline, b""):
     print(line, file=sys.stderr)
 
 print("Ollama worker exited", file=sys.stderr)
-sys.exit(1)  # 99 is our code for CUDA OOM
