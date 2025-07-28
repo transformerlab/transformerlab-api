@@ -294,6 +294,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     master_job_type = job_details["type"]
     print(master_job_type)
 
+    # Handle TASK jobs separately - they are simple and don't need the common setup
     if master_job_type == "TASK":
         """we define a TASK job as a job where we just ask
         the worker to run the related python script, passing in the parameters
@@ -305,20 +306,48 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         await db_jobs.job_update_status(job_id=job_id, status="COMPLETE", experiment_id=experiment_id)
         # implement rest later
         return {"status": "complete", "job_id": job_id, "message": "Task job completed successfully"}
-    elif master_job_type == "EVAL":
+
+    # Common setup for all other job types
+    WORKSPACE_DIR = dirs.WORKSPACE_DIR
+    output_temp_file_dir = os.path.join(WORKSPACE_DIR, "jobs", str(job_id))
+    if not os.path.exists(output_temp_file_dir):
+        os.makedirs(output_temp_file_dir)
+
+    # Get experiment details for job types that need them
+    experiment = None
+    experiment_id = None
+    if master_job_type in ["EVAL", "GENERATE"]:
         experiment = await experiment_get_by_name(experiment_name)
         experiment_id = experiment["id"]
+    elif master_job_type == "EXPORT":
+        # For EXPORT, experiment_id comes from job_details
+        experiment_id = int(job_details["experiment_id"])
+
+    # Extract plugin name consistently across all job types
+    plugin_name = None
+    if master_job_type in ["EVAL", "GENERATE"]:
         plugin_name = job_config["plugin"]
+    else:
+        # For other job types (LoRA, pretraining, embedding, export), get from nested config
+        template_config = job_config["config"]
+        plugin_name = str(template_config["plugin_name"])
+
+    # Common plugin location check for job types that use plugins
+    if plugin_name:
+        plugin_location = dirs.plugin_dir_by_name(plugin_name)
+        if not os.path.exists(plugin_location):
+            await db_jobs.job_update_status(job_id, "FAILED")
+            error_msg = f"{master_job_type} job failed: No plugin found"
+            return {"status": "error", "job_id": job_id, "message": error_msg}
+
+    # Handle different master job types
+    if master_job_type == "EVAL":
         eval_name = job_config.get("evaluator", "")
         job = await db_jobs.job_get(job_id)
         experiment_id = job["experiment_id"]
         await db_jobs.job_update_status(job_id=job_id, status="RUNNING", experiment_id=experiment_id)
         print("Running evaluation script")
-        WORKSPACE_DIR = dirs.WORKSPACE_DIR
-        # plugin_location = dirs.plugin_dir_by_name(plugin_name)
-        output_temp_file_dir = os.path.join(WORKSPACE_DIR, "jobs", str(job_id))
-        if not os.path.exists(output_temp_file_dir):
-            os.makedirs(output_temp_file_dir)
+
         evals_output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
         # Create output file if it doesn't exist
         if not os.path.exists(evals_output_file):
@@ -349,20 +378,14 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 experiment_id = job["experiment_id"]
                 await db_jobs.job_update_status(job_id=job_id, status="COMPLETE", experiment_id=experiment_id)
             return {"status": "complete", "job_id": job_id, "message": "Evaluation job completed successfully"}
+
     elif master_job_type == "GENERATE":
-        experiment = await experiment_get_by_name(experiment_name)
-        experiment_id = experiment["id"]
-        plugin_name = job_config["plugin"]
         generation_name = job_config["generator"]
         job = await db_jobs.job_get(job_id)
         experiment_id = job["experiment_id"]
         await db_jobs.job_update_status(job_id=job_id, status="RUNNING", experiment_id=experiment_id)
         print("Running generation script")
-        WORKSPACE_DIR = dirs.WORKSPACE_DIR
-        # plugin_location = dirs.plugin_dir_by_name(plugin_name)
-        output_temp_file_dir = os.path.join(WORKSPACE_DIR, "jobs", str(job_id))
-        if not os.path.exists(output_temp_file_dir):
-            os.makedirs(output_temp_file_dir)
+
         gen_output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
         # Create output file if it doesn't exist
         if not os.path.exists(gen_output_file):
@@ -395,16 +418,14 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 experiment_id = job["experiment_id"]
                 await db_jobs.job_update_status(job_id=job_id, status="COMPLETE", experiment_id=experiment_id)
             return {"status": "complete", "job_id": job_id, "message": "Generation job completed successfully"}
+
     elif master_job_type == "EXPORT":
         plugin_name = job_config["plugin"]
         job = await db_jobs.job_get(job_id)
         experiment_id = job["experiment_id"]
         await db_jobs.job_update_status(job_id=job_id, status="RUNNING", experiment_id=experiment_id)
         print("Running export script")
-        WORKSPACE_DIR = dirs.WORKSPACE_DIR
-        output_temp_file_dir = os.path.join(WORKSPACE_DIR, "jobs", str(job_id))
-        if not os.path.exists(output_temp_file_dir):
-            os.makedirs(output_temp_file_dir)
+
         export_output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
         # Create output file if it doesn't exist
         if not os.path.exists(export_output_file):
@@ -415,9 +436,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         from transformerlab.routers.experiment.export import run_exporter_script
 
         config = job_config["config"]
-        # Extract parameters from the job config
-        experiment_id = int(job_details["experiment_id"])
-        plugin_name = config["plugin_name"]
+        # Extract parameters from the job config - note: plugin_name is already set above
         plugin_architecture = config["output_model_architecture"]
         plugin_params = json.dumps(config["params"])
 
@@ -450,14 +469,13 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             print(f"Export job {job_id} failed")
             return {"status": "error", "job_id": job_id, "message": result.get("message", "Export job failed")}
 
+    # Handle remaining job types that use the plugin harness (LoRA, pretraining, embedding)
     job_type = job_config["config"]["type"]
 
-    # Get the plugin script name:
-    template_config = job_config["config"]
-    plugin_name = str(template_config["plugin_name"])
+    # Get the job details from the database for these job types
+    job_details_from_db = await db_jobs.job_get(job_id)
+    experiment_id = job_details_from_db["experiment_id"]
 
-    # Get the job details from the database:
-    job_details = await db_jobs.job_get(job_id)
     # Get the experiment details from the database:
     experiment_details = await experiment_get(job_details["experiment_id"])
     print("Experiment Details: ", experiment_details)
@@ -465,13 +483,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     experiment_name = experiment_details["name"]
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
 
-    # The script is in workspace/experiments/plugins/<plugin_name>/main.py so we need to
-    # form that string:
-    WORKSPACE_DIR = dirs.WORKSPACE_DIR
-    plugin_location = dirs.plugin_dir_by_name(plugin_name)
-    output_temp_file_dir = os.path.join(WORKSPACE_DIR, "jobs", str(job_id))
-    if not os.path.exists(output_temp_file_dir):
-        os.makedirs(output_temp_file_dir)
+    # plugin_name and plugin_location are already set above
     output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
 
     def on_train_complete():
@@ -486,11 +498,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         asyncio.run(db_jobs.job_update_job_data_insert_key_value(job_id, "end_time", end_time, experiment_id))
 
     if job_type == "LoRA":
-        job_config = job_config["config"]
-        model_name = job_config["model_name"]
+        template_config = job_config["config"]  # Get the config for this job type
+        model_name = template_config["model_name"]
         model_name = secure_filename(model_name)
-        template_config = job_config
-        adaptor_name = job_config.get("adaptor_name", "adaptor")
+        adaptor_name = template_config.get("adaptor_name", "adaptor")
         template_config["job_id"] = job_id
         template_config["adaptor_output_dir"] = os.path.join(dirs.WORKSPACE_DIR, "adaptors", model_name, adaptor_name)
         template_config["output_dir"] = os.path.join(
