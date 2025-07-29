@@ -19,11 +19,9 @@ import ollama
 import time
 import requests
 
-from transformerlab.plugin import setup_model_worker_logger
 
 
 worker_id = str(uuid.uuid4())[:8]
-logger = setup_model_worker_logger()
 
 OLLAMA_STARTUP_TIMEOUT = 180  # seconds
 
