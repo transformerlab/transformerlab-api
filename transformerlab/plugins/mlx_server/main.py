@@ -35,10 +35,9 @@ from mlx_embedding_models.embedding import EmbeddingModel
 from mlx_lm import load
 from mlx_lm.generate import generate_step
 from mlx_lm.sample_utils import make_logits_processors, make_sampler
-from transformerlab.plugin import setup_model_worker_logger
+from fastchat.serve.model_worker import logger
 
 worker_id = str(uuid.uuid4())[:8]
-logger = setup_model_worker_logger()
 
 from fastchat.serve.base_model_worker import BaseModelWorker  # noqa
 
