@@ -192,6 +192,8 @@ async def get_computer_information():
     try:
         if HAS_AMD and not IS_WSL_SYSTEM:
             deviceCount = rocml.smi_get_device_count()
+        elif HAS_AMD and IS_WSL_SYSTEM:
+            deviceCount = torch.cuda.device_count()
         else:
             deviceCount = nvmlDeviceGetCount()
         # print('device count: ', deviceCount)
@@ -199,6 +201,8 @@ async def get_computer_information():
             info = {}
             if HAS_AMD and not IS_WSL_SYSTEM:
                 handle = rocml.smi_get_device_id(i)
+            elif HAS_AMD and IS_WSL_SYSTEM:
+                handle = i
             else:
                 handle = nvmlDeviceGetHandleByIndex(i)
 
@@ -208,6 +212,8 @@ async def get_computer_information():
                 device_name = nvmlDeviceGetName(handle)
             elif HAS_AMD and not IS_WSL_SYSTEM:
                 device_name = rocml.smi_get_device_name(i)
+            elif HAS_AMD and IS_WSL_SYSTEM:
+                device_name = torch.cuda.get_device_name(i)
             else:
                 raise Exception("Unsupported GPU type for rocm-smi")
             # print('device name: ', device_name)
@@ -230,12 +236,19 @@ async def get_computer_information():
                 info["used_memory"] = rocml.smi_get_device_memory_used(i)
                 info["free_memory"] = rocml.smi_get_device_memory_total(i) - rocml.smi_get_device_memory_used(i)
                 info["utilization"] = rocml.smi_get_device_utilization(i)
+            elif HAS_AMD and IS_WSL_SYSTEM:
+                free_memory, total_memory = torch.cuda.mem_get_info(i)
+                info["total_memory"] = total_memory
+                info["used_memory"] = total_memory - free_memory
+                info["free_memory"] = free_memory
+                info["utilization"] = ((total_memory - free_memory) / total_memory) * 100
             else:
                 raise Exception("Unsupported GPU type")
 
             # info["temp"] = nvmlDeviceGetTemperature(handle)
             g.append(info)
-    except Exception:  # Catch all exceptions and print them
+    except Exception as e:  # Catch all exceptions and print them
+        print(f"Error retrieving GPU information: {e}")
         g.append(
             {
                 "name": "cpu",
