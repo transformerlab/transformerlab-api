@@ -187,6 +187,7 @@ proxy_args = [
     "--proxy-url", f"http://localhost:{port}/v1",
    "--model", ollama_model_name,
     "--context-len", str(context_len),
+    "--image-payload-encoding", "base64",
     ]
 
 proxy_proc = subprocess.Popen(proxy_args, stdout=None, stderr=subprocess.PIPE)
