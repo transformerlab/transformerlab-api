@@ -17,6 +17,7 @@
   ],
   "model_architectures": [
     "CohereForCausalLM",
+    "Exaone4ForCausalLM",
     "FalconForCausalLM",
     "GemmaForCausalLM",
     "GPTBigCodeForCausalLM",
