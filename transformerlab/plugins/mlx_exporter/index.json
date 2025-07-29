@@ -8,6 +8,7 @@
   "model_architectures": [
     "CohereForCausalLM",
     "DeepseekV2ForCausalLM",
+    "Exaone4ForCausalLM",
     "GemmaForCausalLM",
     "Gemma2ForCausalLM",
     "Gemma3ForCausalLM",
