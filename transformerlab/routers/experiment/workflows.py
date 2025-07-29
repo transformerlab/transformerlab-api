@@ -1,6 +1,6 @@
 from fastapi import APIRouter, UploadFile, Body
 from fastapi.responses import FileResponse
-from transformerlab.db.db import tasks_get_all
+from transformerlab.db.db import tasks_get_by_type_in_experiment
 import transformerlab.db.jobs as db_jobs
 from transformerlab.db.workflows import (
     workflow_count_queued,
@@ -649,9 +649,9 @@ async def handle_start_node_skip(next_task_ids, workflow_config, workflow_run_id
         return next_task_ids, next_nodes
 
 
-async def find_task_definition(task_name: str, workflow_run_id: int):
-    """Finds the task definition from the database by name."""
-    tasks = await tasks_get_all()
+async def find_task_definition(task_name: str, workflow_run_id: int, experiment_id: int, task_type: str):
+    """Finds the task definition from the database by name within the specified experiment and task type."""
+    tasks = await tasks_get_by_type_in_experiment(task_type, experiment_id)
     for task in tasks:
         if task.get("name") == task_name:
             return task
@@ -811,7 +811,13 @@ async def queue_job_for_node(node: dict, workflow_run: dict, workflow_config: di
     if not task_name:
         return None
 
-    task_def = await find_task_definition(task_name, workflow_run["id"])
+    experiment_id = workflow_run.get("experiment_id")
+    if experiment_id is None:
+        return None
+
+    # Extract task type from the node for efficient lookup
+    task_type = node.get("type")
+    task_def = await find_task_definition(task_name, workflow_run["id"], experiment_id, task_type)
     if not task_def:
         return None
 

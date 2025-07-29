@@ -18,7 +18,6 @@ import argparse
 import asyncio
 import json
 import uuid
-import os
 from contextlib import asynccontextmanager
 from typing import List
 
@@ -27,18 +26,12 @@ import uvicorn
 from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
-from fastchat.utils import is_partial_stop, build_logger
+from fastchat.utils import is_partial_stop
+from fastchat.serve.model_worker import logger
 from transformers.tokenization_utils_base import BatchEncoding
 
 worker_id = str(uuid.uuid4())[:8]
-logfile_path = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "logs")
-if not os.path.exists(logfile_path):
-    os.makedirs(logfile_path)
-logger = build_logger("model_worker", os.path.join(logfile_path, "model_worker.log"))
 
-import fastchat.serve.base_model_worker  # noqa
-
-fastchat.serve.base_model_worker.logger = logger
 from fastchat.serve.base_model_worker import BaseModelWorker  # noqa
 
 

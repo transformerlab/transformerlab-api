@@ -1,5 +1,5 @@
 {
-  "name": "Vision LoRA Trainer",
+  "name": "VLM LoRA Trainer",
   "uniqueId": "vlm_trainer",
   "description": "A training script for vision-language models (VLMs) using Huggingface TRL and PeFT. Supports models like Qwen2-VL.",
   "plugin-format": "python",
@@ -21,7 +21,6 @@
   "url": "",
   "files": ["main.py", "setup.sh"],
   "supported_hardware_architectures": ["cuda"],
-  "supports": ["experimental"],
   "training_template_format": "alpaca",
   "setup-script": "setup.sh",
   "parameters": {

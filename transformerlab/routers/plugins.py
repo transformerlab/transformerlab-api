@@ -1,5 +1,5 @@
 import asyncio
-from distutils.dir_util import copy_tree
+from distutils.dir_util import copy_tree, remove_tree
 import json
 import os
 import sys
@@ -165,6 +165,13 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
     await log_file.write(f"## {return_msg}\n")
     print(return_msg)
     return {"status": "success", "message": return_msg}
+
+
+@router.get(path="/delete_plugin")
+async def delete_plugin(plugin_name: str):
+    final_path = dirs.plugin_dir_by_name(plugin_name)
+    remove_tree(final_path)
+    return {"message": f"Plugin {plugin_name} deleted successfully."}
 
 
 @router.get("/gallery/{plugin_id}/install", summary="Install a plugin from the gallery.")

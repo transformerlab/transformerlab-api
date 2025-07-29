@@ -16,7 +16,12 @@ from fastapi import Depends
 from fastapi_users.db import SQLAlchemyUserDatabase
 
 from transformerlab.db.jobs import job_create, job_delete, jobs_get_by_experiment
-from transformerlab.db.workflows import workflow_delete_by_id, workflows_get_from_experiment, workflow_runs_get_from_experiment, workflow_run_delete
+from transformerlab.db.workflows import (
+    workflow_delete_by_id,
+    workflows_get_from_experiment,
+    workflow_runs_get_from_experiment,
+    workflow_run_delete,
+)
 from transformerlab.shared.models import models
 from transformerlab.shared.models.models import Config, Plugin
 from transformerlab.db.utils import sqlalchemy_to_dict, sqlalchemy_list_to_dict
@@ -417,22 +422,22 @@ async def experiment_delete(id):
             tasks = await tasks_get_by_experiment(id)
             for task in tasks:
                 await delete_task(task["id"])
-            
+
             # Delete all associated jobs using the job delete method
             jobs = await jobs_get_by_experiment(id)
             for job in jobs:
                 await job_delete(job["id"])
-            
+
             # Delete all associated workflow runs using the workflow run delete method
             workflow_runs = await workflow_runs_get_from_experiment(id)
             for workflow_run in workflow_runs:
                 await workflow_run_delete(workflow_run["id"])
-            
+
             # Delete all associated workflows using the workflow delete method
             workflows = await workflows_get_from_experiment(id)
             for workflow in workflows:
                 await workflow_delete_by_id(workflow["id"], id)
-            
+
             # Hard delete the experiment itself
             await session.delete(experiment)
             await session.commit()
@@ -521,8 +526,6 @@ async def experiment_save_prompt_template(id, template):
                 config = {}
 
             config["prompt_template"] = str(template)
-
-            print(f"Updated config: {config}")
 
             # Force SQLAlchemy to detect the change by creating a new dict
             # This is crucial for proper change tracking

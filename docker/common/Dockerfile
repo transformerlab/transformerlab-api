@@ -11,7 +11,9 @@ RUN apt-get update && apt-get install -y \
     git \
     python3.11 \
     python3-pip \
-    python-is-python3
+    python-is-python3 \
+    g++ \
+    ninja-build
 
 # Download and run the install.sh script from GitHub.
 RUN curl -fsSL https://raw.githubusercontent.com/transformerlab/transformerlab-api/refs/heads/main/install.sh | bash -s download_transformer_lab install_conda create_conda_environment
