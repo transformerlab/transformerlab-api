@@ -26,9 +26,9 @@ Use the instructions below if you are installing and running the API on a server
 
 # Requirements
 
-- An NVIDIA GPU + Linux or Windows with WSL2 support
+- An NVIDIA/AMD GPU + Linux or Windows with WSL2 support
 - or MacOS with Apple Silicon
-- If you do not have a GPU or have an Intel Mac, the API will run but will only be able to do inference, but not things like training
+- If you do not have a GPU, the API will run but will only be able to do inference, but not things like training
 
 # Automatic Installation
 
