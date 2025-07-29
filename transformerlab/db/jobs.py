@@ -198,59 +198,13 @@ async def job_update_status(job_id, status, error_msg=None):
             )
         await session.commit()
 
-    # Trigger workflows if job status is COMPLETE
-    if status == "COMPLETE":
-        await _trigger_workflows_on_job_completion(job_id)
-
     return
-
-
-async def _trigger_workflows_on_job_completion(job_id: str):
-    """
-    Trigger workflows when a job completes if the job type is in supported triggers.
-    """
-    try:
-        # Get the job details
-        job = await job_get(job_id)
-        if not job:
-            return
-
-        job_type = job.get("type")
-        experiment_id = job.get("experiment_id")
-
-        # Define supported triggers based on existing ALLOWED_JOB_TYPES
-        supported_triggers = ["TRAIN", "LOAD_MODEL", "EXPORT", "EVAL", "GENERATE"]
-
-        # Check if job type is in supported triggers
-        if job_type not in supported_triggers:
-            return
-
-        # Import here to avoid circular imports
-        from transformerlab.routers.experiment.workflows import workflows_get_by_trigger_type
-
-        # Get workflows that should be triggered
-        triggered_workflow_ids = await workflows_get_by_trigger_type(experiment_id, job_type)
-
-        # Start each workflow
-        if triggered_workflow_ids:
-            from transformerlab.db.workflows import workflow_queue
-
-            for workflow_id in triggered_workflow_ids:
-                await workflow_queue(workflow_id)
-                print(f"Triggered workflow {workflow_id} due to job {job_id} completion, job type: {job_type}.")
-
-    except Exception as e:
-        print(f"Error triggering workflows for job {job_id}: {e}")
 
 
 async def job_update(job_id, type, status):
     async with async_session() as session:
         await session.execute(update(models.Job).where(models.Job.id == job_id).values(type=type, status=status))
         await session.commit()
-
-    # Trigger workflows if job status is COMPLETE
-    if status == "COMPLETE":
-        await _trigger_workflows_on_job_completion(job_id)
 
     return
 

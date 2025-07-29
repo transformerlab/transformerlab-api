@@ -8,6 +8,8 @@ from pathlib import Path
 from jinja2 import Environment
 from transformers import AutoTokenizer
 
+from transformerlab.services.job_service import _trigger_workflows_on_job_completion_sync
+
 
 # useful constants
 WORKSPACE_DIR = os.getenv("_TFL_WORKSPACE_DIR")
@@ -18,6 +20,7 @@ TEMP_DIR = os.path.join(WORKSPACE_DIR, "temp")
 
 # Maintain a singleton database connection
 db = None
+
 
 def register_process(pid_or_pids):
     """
@@ -272,8 +275,6 @@ class Job:
 
         # Trigger workflows if job status is COMPLETE
         if status == "COMPLETE":
-            from transformerlab.db.sync import _trigger_workflows_on_job_completion_sync
-
             _trigger_workflows_on_job_completion_sync(self.id)
 
     def get_status(self):
@@ -363,7 +364,7 @@ class Job:
             cursor = self.db.execute("SELECT job_data FROM job WHERE id = ?", (self.id,))
             row = cursor.fetchone()
             cursor.close()
-            
+
             job_data = {}
             if row and row[0] is not None:
                 data = row[0]
@@ -372,7 +373,7 @@ class Job:
                     try:
                         # Try to parse as JSON
                         job_data = json.loads(data)
-                        
+
                         # Check if the result is still a string (double-encoded JSON)
                         if isinstance(job_data, str):
                             # Try to parse again
@@ -384,18 +385,18 @@ class Job:
                     job_data = data
                 else:
                     job_data = {}
-            
+
             # Update the key - handle different value types
             # if isinstance(value, str):
             #     # Try to parse as JSON, if that fails store as string
             #     try:
             #         job_data[key] = json.loads(value)
-                # except (json.JSONDecodeError, TypeError):
-                #     job_data[key] = value
+            # except (json.JSONDecodeError, TypeError):
+            #     job_data[key] = value
             # else:
             # Store value as-is (dict, list, number, bool, etc.)
             job_data[key] = value
-            
+
             # Save back as JSON
             self.db.execute(
                 "UPDATE job SET job_data = ? WHERE id = ?",
@@ -413,7 +414,7 @@ class Job:
             cursor = self.db.execute("SELECT job_data FROM job WHERE id = ?", (self.id,))
             row = cursor.fetchone()
             cursor.close()
-            
+
             job_data = {}
             if row and row[0] is not None:
                 data = row[0]
@@ -422,7 +423,7 @@ class Job:
                     try:
                         # Try to parse as JSON
                         job_data = json.loads(data)
-                        
+
                         # Check if the result is still a string (double-encoded JSON)
                         if isinstance(job_data, str):
                             # Try to parse again
@@ -434,7 +435,7 @@ class Job:
                     job_data = data
                 else:
                     job_data = {}
-            
+
             # Update the key - handle different value types
             if isinstance(value, str):
                 # Try to parse as JSON, if that fails store as string
@@ -445,7 +446,7 @@ class Job:
             else:
                 # Store value as-is (dict, list, number, bool, etc.)
                 job_data[key] = value
-            
+
             # Save back as JSON
             self.db.execute(
                 "UPDATE job SET job_data = ? WHERE id = ?",
@@ -476,7 +477,7 @@ class Job:
             # Add to job data completion_status and completion_details
             self.add_to_job_data("completion_status", completion_status)
             self.add_to_job_data("completion_details", completion_details)
-            
+
             # Update the job status field if there's a failure
             if completion_status == "failed":
                 self.update_status("FAILED")

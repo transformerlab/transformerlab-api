@@ -66,20 +66,9 @@ def job_update_status_sync(job_id, status, error_msg=None):
     """
     try:
         with get_sync_session() as session:
-            stmt = (
-                update(models.Job)
-                .where(models.Job.id == job_id)
-                .values(status=status)
-            )
+            stmt = update(models.Job).where(models.Job.id == job_id).values(status=status)
             session.execute(stmt)
             session.commit()
-
-        # Trigger workflows if job status is COMPLETE
-        if status == "COMPLETE":
-            try:
-                _trigger_workflows_on_job_completion_sync(job_id)
-            except Exception as e:
-                print(f"Error triggering workflows for job {job_id}: {e}")
 
     except Exception as e:
         print("Error updating job status: " + str(e))
@@ -93,20 +82,9 @@ def job_update_sync(job_id, status):
     """
     try:
         with get_sync_session() as session:
-            stmt = (
-                update(models.Job)
-                .where(models.Job.id == job_id)
-                .values(status=status)
-            )
+            stmt = update(models.Job).where(models.Job.id == job_id).values(status=status)
             session.execute(stmt)
             session.commit()
-
-        # Trigger workflows if job status is COMPLETE
-        if status == "COMPLETE":
-            try:
-                _trigger_workflows_on_job_completion_sync(job_id)
-            except Exception as e:
-                print(f"Error triggering workflows for job {job_id}: {e}")
 
     except Exception as e:
         print("Error updating job status: " + str(e))
@@ -126,13 +104,6 @@ def job_mark_as_complete_if_running(job_id):
             )
             result = session.execute(stmt)
             session.commit()
-
-            # If a job was actually updated (was running and is now complete), trigger workflows
-            if result.rowcount > 0:
-                try:
-                    _trigger_workflows_on_job_completion_sync(job_id)
-                except Exception as e:
-                    print(f"Error triggering workflows for job {job_id}: {e}")
 
     except Exception as e:
         print("Error updating job status: " + str(e))

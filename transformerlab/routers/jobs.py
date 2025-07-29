@@ -20,6 +20,7 @@ from transformerlab.db.db import get_training_template
 from transformerlab.db.db import experiment_get
 
 import transformerlab.db.jobs as db_jobs
+from transformerlab.services.job_service import job_update_status
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
@@ -49,7 +50,7 @@ async def job_create_task(script: str, job_data: str = "{}", experiment_id: int 
 
 @router.get("/update/{job_id}")
 async def job_update(job_id: str, status: str):
-    await db_jobs.job_update_status(job_id, status)
+    await job_update_status(job_id, status)
     return {"message": "OK"}
 
 
@@ -71,8 +72,8 @@ async def start_next_job():
         data = await experiment_get(experiment_id)
         if data is None:
             # mark the job as failed
-            await db_jobs.job_update_status(nextjob["id"], "FAILED")
-            return {"message": f"Experiment {id} does not exist"}
+            await job_update_status(nextjob["id"], "FAILED")
+            return {"message": f"Experiment {experiment_id} does not exist"}
         # config = json.loads(data["config"])
 
         experiment_name = data["name"]

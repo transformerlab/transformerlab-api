@@ -6,6 +6,7 @@ import transformerlab.db.jobs as db_jobs
 from transformerlab.models import model_helper
 import json
 from transformerlab.routers.experiment import workflows
+from transformerlab.services.job_service import job_update_status
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 
@@ -75,18 +76,18 @@ async def _install_recipe_dependencies_job(job_id, id):
     from transformerlab.routers import plugins as plugins_router
 
     try:
-        await db_jobs.job_update_status(job_id, "RUNNING")
+        await job_update_status(job_id, "RUNNING")
         recipes_gallery = galleries.get_exp_recipe_gallery()
         recipe = next((r for r in recipes_gallery if r.get("id") == id), None)
         if not recipe:
-            await db_jobs.job_update_status(job_id, "FAILED", error_msg=f"Recipe with id {id} not found.")
+            await job_update_status(job_id, "FAILED", error_msg=f"Recipe with id {id} not found.")
             return
 
         # Filter out model dependencies since they're handled separately
         non_model_deps = [dep for dep in recipe.get("dependencies", []) if dep.get("type") != "model"]
 
         if len(non_model_deps) == 0:
-            await db_jobs.job_update_status(job_id, "COMPLETE")
+            await job_update_status(job_id, "COMPLETE")
             return
 
         local_datasets = await get_datasets()
@@ -122,9 +123,9 @@ async def _install_recipe_dependencies_job(job_id, id):
             progress += 1
             await db_jobs.job_update_progress(job_id, int(progress * 100 / total))
             await db_jobs.job_update_job_data_insert_key_value(job_id, "results", results)
-        await db_jobs.job_update_status(job_id, "COMPLETE")
+        await job_update_status(job_id, "COMPLETE")
     except Exception as e:
-        await db_jobs.job_update_status(job_id, "FAILED", error_msg=str(e))
+        await job_update_status(job_id, "FAILED", error_msg=str(e))
 
 
 @router.get("/{id}/install_model_dependencies")
