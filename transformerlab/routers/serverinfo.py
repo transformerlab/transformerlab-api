@@ -201,6 +201,8 @@ async def get_computer_information():
             info = {}
             if HAS_AMD and not IS_WSL_SYSTEM:
                 handle = rocml.smi_get_device_id(i)
+            elif HAS_AMD and IS_WSL_SYSTEM:
+                handle = i
             else:
                 handle = nvmlDeviceGetHandleByIndex(i)
 
@@ -245,7 +247,8 @@ async def get_computer_information():
 
             # info["temp"] = nvmlDeviceGetTemperature(handle)
             g.append(info)
-    except Exception:  # Catch all exceptions and print them
+    except Exception as e:  # Catch all exceptions and print them
+        print(f"Error retrieving GPU information: {e}")
         g.append(
             {
                 "name": "cpu",
