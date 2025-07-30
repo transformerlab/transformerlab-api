@@ -19,6 +19,7 @@ from transformerlab.routers.serverinfo import watch_file
 
 from transformerlab.db.db import get_training_template
 from transformerlab.db.db import experiment_get
+from datetime import datetime
 
 import transformerlab.db.jobs as db_jobs
 
@@ -535,12 +536,23 @@ async def get_checkpoints(job_id: str):
     try:
         for filename in os.listdir(checkpoints_dir):
             if fnmatch(filename, checkpoints_file_filter):
-                checkpoints.append(filename)
+                file_path = os.path.join(checkpoints_dir, filename)
+                try:
+                    stat = os.stat(file_path)
+                    modified_time = stat.st_mtime
+                    filesize = stat.st_size
+                    # Format the timestamp as ISO 8601 string
+                    formatted_time = datetime.fromtimestamp(modified_time).isoformat()
+                except Exception as e:
+                    logging.error(f"Error getting stat for file {file_path}: {e}")
+                    formatted_time = None
+                    filesize = None
+                checkpoints.append({"filename": filename, "date": formatted_time, "size": filesize})
     except OSError as e:
         logging.error(f"Error reading checkpoints directory {checkpoints_dir}: {e}")
 
-    # Sort checkpoints by filename for consistent ordering
-    checkpoints.sort()
-    print(f"Sorted checkpoints: {checkpoints}")
+    # Sort checkpoints by filename in reverse (descending) order for consistent ordering
+    checkpoints.sort(key=lambda x: x["filename"], reverse=True)
+    # print(f"Sorted checkpoints: {checkpoints}")
 
     return {"checkpoints": checkpoints}
