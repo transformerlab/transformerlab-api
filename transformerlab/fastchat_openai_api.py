@@ -479,9 +479,10 @@ async def create_audio_speech(request: AudioRequest):
         elif isinstance(error_check_ret, dict) and "model_name" in error_check_ret.keys():
             request.model = error_check_ret["model_name"]
 
-    error_check_ret = check_requests(request)
-    if error_check_ret is not None:
-        return error_check_ret
+    #TODO: Implement a new check_requests function for audio requests
+    # error_check_ret = check_requests(request)
+    # if error_check_ret is not None:
+    #     return error_check_ret
     gen_params = {
         "model": request.model,
         "text": request.text,
