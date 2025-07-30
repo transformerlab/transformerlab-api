@@ -247,8 +247,7 @@ async def get_computer_information():
 
             # info["temp"] = nvmlDeviceGetTemperature(handle)
             g.append(info)
-    except Exception as e:  # Catch all exceptions and print them
-        print(f"Error retrieving GPU information: {e}")
+    except Exception:  # Catch all exceptions and print them
         g.append(
             {
                 "name": "cpu",

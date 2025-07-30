@@ -4,11 +4,12 @@
   "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.4.16",
+  "version": "0.4.17",
   "model_architectures": [
     "MLX",
     "CohereForCausalLM",
     "DeepseekV2ForCausalLM",
+    "Exaone4ForCausalLM",
     "GemmaForCausalLM",
     "Gemma2ForCausalLM",
     "Gemma3ForCausalLM",
