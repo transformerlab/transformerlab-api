@@ -49,7 +49,7 @@ from transformerlab.shared import dirs
 
 WORKER_API_TIMEOUT = 3600
 
-
+# TODO: Move all these to fastchat.protocol.openai_api_protocol
 class APIChatCompletionRequest(BaseModel):
     model: str
     adaptor: Optional[str] = ""
@@ -89,6 +89,10 @@ class ChatCompletionRequest(BaseModel):
     frequency_penalty: Optional[float] = 0.0
     user: Optional[str] = None
     logprobs: Optional[bool] = False
+
+class AudioRequest(BaseModel):
+    model: str
+    input: str
 
 
 class VisualizationRequest(PydanticBaseModel):
@@ -465,6 +469,18 @@ async def show_available_models():
     for m in models:
         model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
     return ModelList(data=model_cards)
+
+@router.post("api/v1/audio/speech", tags=["audio"])
+async def create_audio_speech(request: AudioRequest):
+    gen_params = {
+        "model": request.model,
+        "text": request.text,
+    }
+    #TODO: Define a base model class to structure the return value
+    content = asyncio.create_task(generate_completion(gen_params))
+
+    return content
+
 
 
 @router.post("/v1/chat/completions", dependencies=[Depends(check_api_key)], tags=["chat"])
