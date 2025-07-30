@@ -1,10 +1,10 @@
 {
-  "name": "Apple MLX Server",
-  "uniqueId": "mlx_server",
-  "description": "MLX Machine learning research on your laptop or in a data center - by Apple",
+  "name": "Apple Audio MLX Server",
+  "uniqueId": "mlx_audio_server",
+  "description": "A text-to-speech (TTS) and Speech-to-Speech (STS) library built on Apple's MLX framework, providing efficient speech synthesis on Apple Silicon.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "0.1.39",
+  "version": "0.0.1",
   "supports": [
     "chat",
     "completion",
