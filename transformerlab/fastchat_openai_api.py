@@ -49,7 +49,7 @@ from transformerlab.shared import dirs
 
 WORKER_API_TIMEOUT = 3600
 
-# TODO: Move all these to fastchat.protocol.openai_api_protocol
+# TODO: Move all base model to fastchat.protocol.openai_api_protocol
 class APIChatCompletionRequest(BaseModel):
     model: str
     adaptor: Optional[str] = ""
