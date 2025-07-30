@@ -40,17 +40,5 @@
   ],
   "supported_hardware_architectures": ["mlx"],
   "files": ["main.py", "setup.sh"],
-  "setup-script": "setup.sh",
-  "parameters": {
-    "context_length": {
-      "type": "integer",
-      "default": 4096,
-      "title": "Model Context Length (Fallback)"
-    }
-  },
-  "parameters_ui": {
-    "context_length": {
-      "ui:help": "This context length will be used when the context length is not specified in the model config."
-    }
-  }
+  "setup-script": "setup.sh"
 }
