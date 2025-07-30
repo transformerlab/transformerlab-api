@@ -71,22 +71,34 @@ class MLXAudioWorker(BaseModelWorker):
         file_prefix = params.get("file_prefix", "audio")
         audio_format = params.get("audio_format", "wav")
         sample_rate = params.get("sample_rate", 24000)
-        join_audio = params.get("join_audio", True)
+        temperature = params.get("temperature", 0.0)
+        ref_text = params.get("ref_text", None)
+        ref_audio = params.get("ref_audio", None)
 
         generate_audio(
             text=(text),
             model_path=self.model_name,
             voice=voice,
             speed=speed,
-            lang_code=lang_code, # Kokoro: (a)f_heart, or comment out for auto
+            lang_code=lang_code, # The language code
             file_prefix=file_prefix,
             audio_format=audio_format,
             sample_rate=sample_rate,
-            join_audio=join_audio,
-            verbose=True  # Set to False to disable print messages
+            join_audio=True,  # Whether to join multiple audio files into one
+            verbose=True,  # Set to False to disable print messages
+            temperature=temperature,
+            ref_text=ref_text,  # Caption for reference audio
+            ref_audio=ref_audio,  # Reference audio you would like to clone the voice from
+            stream=False,
+
 )
 
         logger.info(f"{file_prefix} successfully generated!")
+
+        return {
+            "status": "success",
+            "message": f"{file_prefix}.{audio_format}",
+        }
 
 
 def release_worker_semaphore():
