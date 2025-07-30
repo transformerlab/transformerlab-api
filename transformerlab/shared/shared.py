@@ -336,7 +336,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     if plugin_name:
         plugin_location = dirs.plugin_dir_by_name(plugin_name)
         if not os.path.exists(plugin_location):
-            await db_jobs.job_update_status(job_id, "FAILED")
+            job = await db_jobs.job_get(job_id)
+            experiment_id = job["experiment_id"]
+            await db_jobs.job_update_status(job_id, "FAILED", experiment_id)
             error_msg = f"{master_job_type} job failed: No plugin found"
             return {"status": "error", "job_id": job_id, "message": error_msg}
 
