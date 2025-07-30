@@ -92,7 +92,7 @@ class ChatCompletionRequest(BaseModel):
 
 class AudioRequest(BaseModel):
     model: str
-    input: str
+    text: str
 
 
 class VisualizationRequest(PydanticBaseModel):
@@ -470,14 +470,24 @@ async def show_available_models():
         model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
     return ModelList(data=model_cards)
 
-@router.post("api/v1/audio/speech", tags=["audio"])
+@router.post("/v1/audio/speech", tags=["audio"])
 async def create_audio_speech(request: AudioRequest):
+    error_check_ret = await check_model(request)
+    if error_check_ret is not None:
+        if isinstance(error_check_ret, JSONResponse):
+            return error_check_ret
+        elif isinstance(error_check_ret, dict) and "model_name" in error_check_ret.keys():
+            request.model = error_check_ret["model_name"]
+
+    error_check_ret = check_requests(request)
+    if error_check_ret is not None:
+        return error_check_ret
     gen_params = {
         "model": request.model,
         "text": request.text,
     }
     #TODO: Define a base model class to structure the return value
-    content = asyncio.create_task(generate_completion(gen_params))
+    content = await generate_completion(gen_params)
 
     return content
 

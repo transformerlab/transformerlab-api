@@ -65,6 +65,7 @@ class MLXAudioWorker(BaseModelWorker):
         self.call_ct += 1
 
         text = params.get("text", "")
+        model = params.get("model", None) # temporarily only for testing
         speed = params.get("speed", 1.0)
         voice = params.get("voice", "af_heart")
         lang_code = params.get("lang_code", "a")
@@ -77,7 +78,7 @@ class MLXAudioWorker(BaseModelWorker):
 
         generate_audio(
             text=(text),
-            model_path=self.model_name,
+            model_path=model,
             voice=voice,
             speed=speed,
             lang_code=lang_code, # The language code
