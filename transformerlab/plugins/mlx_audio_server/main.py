@@ -81,7 +81,7 @@ class MLXAudioWorker(BaseModelWorker):
             model_path=model,
             voice=voice,
             speed=speed,
-            lang_code=lang_code, # The language code
+            #lang_code=lang_code, # The language code
             file_prefix=file_prefix,
             audio_format=audio_format,
             sample_rate=sample_rate,
