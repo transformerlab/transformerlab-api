@@ -1,4 +1,5 @@
 import asyncio
+from fnmatch import fnmatch
 import json
 import os
 import csv
@@ -496,3 +497,50 @@ async def get_eval_image(job_id: str, filename: str):
         media_type=media_type,
         headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"},
     )
+
+
+@router.get("/{job_id}/checkpoints")
+async def get_checkpoints(job_id: str):
+    """Get list of checkpoints for a job"""
+    job = await db_jobs.job_get(job_id)
+    job_data = job["job_data"]
+
+    # Check if the job has a supports_checkpoints flag
+    # if "supports_checkpoints" not in job_data or not job_data["supports_checkpoints"]:
+    #     return {"checkpoints": []}
+
+    # By default we assume the training type is an adaptor training
+    # and the checkpoints are stored alongside the adaptors
+    # this maps to how mlx lora works, which will be the first use case
+    # but we will have to abstract this further in the future
+    model_name = job_data.get("model_name", "")
+    adaptor_name = job_data.get("adaptor_name", "adaptor")
+    default_adaptor_dir = os.path.join(dirs.WORKSPACE_DIR, "adaptors", secure_filename(model_name), adaptor_name)
+
+    # print(f"Default adaptor directory: {default_adaptor_dir}")
+
+    checkpoints_dir = job_data.get("checkpoints_dir", default_adaptor_dir)
+    if not checkpoints_dir or not os.path.exists(checkpoints_dir):
+        # print(f"Checkpoints directory does not exist: {checkpoints_dir}")
+        return {"checkpoints": []}
+
+    checkpoints_file_filter = job_data.get("checkpoints_file_filter", "*_adapters.safetensors")
+    if not checkpoints_file_filter:
+        checkpoints_file_filter = "*_adapters.safetensors"
+
+    # print(f"Checkpoints directory: {checkpoints_dir}")
+    # print(f"Checkpoints file filter: {checkpoints_file_filter}")
+
+    checkpoints = []
+    try:
+        for filename in os.listdir(checkpoints_dir):
+            if fnmatch(filename, checkpoints_file_filter):
+                checkpoints.append(filename)
+    except OSError as e:
+        logging.error(f"Error reading checkpoints directory {checkpoints_dir}: {e}")
+
+    # Sort checkpoints by filename for consistent ordering
+    checkpoints.sort()
+    print(f"Sorted checkpoints: {checkpoints}")
+
+    return {"checkpoints": checkpoints}
