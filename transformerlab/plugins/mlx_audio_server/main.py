@@ -75,21 +75,22 @@ class MLXAudioWorker(BaseModelWorker):
         temperature = params.get("temperature", 0.0)
         ref_text = params.get("ref_text", None)
         ref_audio = params.get("ref_audio", None)
+        logger.info("heeyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
 
         generate_audio(
-            text=(text),
+            text=text,
             model_path=model,
             voice=voice,
             speed=speed,
-            #lang_code=lang_code, # The language code
+            lang_code=lang_code, # The language code
             file_prefix=file_prefix,
             audio_format=audio_format,
             sample_rate=sample_rate,
             join_audio=True,  # Whether to join multiple audio files into one
-            verbose=True,  # Set to False to disable print messages
-            temperature=temperature,
-            ref_text=ref_text,  # Caption for reference audio
-            ref_audio=ref_audio,  # Reference audio you would like to clone the voice from
+            verbose=False,  # Set to False to disable print messages
+            #temperature=temperature,
+            #ref_text=ref_text,  # Caption for reference audio
+            #ref_audio=ref_audio,  # Reference audio you would like to clone the voice from
             stream=False,
 
 )
@@ -131,7 +132,7 @@ async def api_generate(request: Request):
     output = await worker.generate(params)
     release_worker_semaphore()
     # await engine.abort(request_id)
-    print("Trying to abort but not implemented")
+    #logger.debug("Trying to abort but not implemented")
     return JSONResponse(output)
 
 
@@ -185,7 +186,7 @@ def main():
         1024,
         False,
     )
-    uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+    uvicorn.run(app, host=args.host, port=args.port, log_level="info", access_log=False)
 
 
 if __name__ == "__main__":

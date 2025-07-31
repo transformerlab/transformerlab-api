@@ -3,4 +3,6 @@
 uv pip install "mlx-lm==0.24.0" 
 uv pip install "mlx-audio"
 uv pip install spacy
+# uv tool run --with pip spacy download en_core_web_md-3.8.0 --direct
+python -m ensurepip --upgrade
 #python -m spacy download en_core_web_sm

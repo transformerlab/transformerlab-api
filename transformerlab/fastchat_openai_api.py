@@ -488,7 +488,7 @@ async def create_audio_speech(request: AudioRequest):
         "text": request.text,
     }
     #TODO: Define a base model class to structure the return value
-    content = asyncio.create_task(generate_completion(gen_params))
+    content = await generate_completion(gen_params)
 
     return content
 
