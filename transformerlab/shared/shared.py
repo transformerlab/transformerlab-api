@@ -402,7 +402,15 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
         config = job_config["config"]
         # Extract parameters from the job config - note: plugin_name is already set above
-        plugin_architecture = config["output_model_architecture"]
+        # plugin_architecture = config["output_model_architecture"]
+        if "gguf" in plugin_name.lower():
+            plugin_architecture = "GGUF"
+        elif "mlx" in plugin_name.lower():
+            plugin_architecture = "MLX"
+        elif "llamafile" in plugin_name.lower():
+            plugin_architecture = "LLAMAFILE"
+        else:
+            plugin_architecture = "OTHER"
         plugin_params = json.dumps(config["params"])
 
         # Call the existing run_exporter_script function with the existing job_id
