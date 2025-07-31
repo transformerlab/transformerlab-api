@@ -311,54 +311,7 @@ class LocalModelStore(modelstore.ModelStore):
 
         return chain
 
-    async def get_evals_by_model(self):
-        """
-        Retrieve all completed EVAL jobs and group them by the model_name specified in the job_data.
-        For each eval, extract the scores and format them for the frontend display.
-        """
-        eval_jobs = await jobs_get_all(type="EVAL", status="COMPLETE")
-        evals_by_model = {}
-        for job in eval_jobs:
-            eval_data = job["job_data"].copy()  # Make a copy to avoid modifying the original
-
-            # Extract and format scores for frontend display
-            score_data = eval_data.get("score")
-            if score_data:
-                try:
-                    # Parse the score JSON string
-                    if isinstance(score_data, str):
-                        scores = json.loads(score_data)
-                    else:
-                        scores = score_data
-
-                    # Format scores for frontend display
-                    formatted_scores = []
-                    for score_item in scores:
-                        if isinstance(score_item, dict) and "type" in score_item and "score" in score_item:
-                            formatted_scores.append({"metric": score_item["type"], "score": score_item["score"]})
-
-                    # Add formatted scores to eval_data
-                    eval_data["formatted_scores"] = formatted_scores
-                except Exception as e:
-                    print(f"Error parsing scores for job {job.get('id')}: {e}")
-
-            # Attach the JOB ID
-            eval_data["job_id"] = job.get("id")
-            model_name = eval_data.get("model_name")
-            adapter_name = eval_data.get("model_adapter")
-
-            if model_name and os.path.exists(model_name):
-                # If model_name is a path, take the last part
-                model_name = model_name.split("/")[-1]
-
-            if model_name and adapter_name:
-                evals_by_model.setdefault(self.compute_output_model(model_name, adapter_name), []).append(eval_data)
-            if model_name:
-                evals_by_model.setdefault(model_name, []).append(eval_data)
-
-        return evals_by_model
-
-    async def get_evaluations_by_model(self, model_id):
+    async def get_evals_by_model(self, model_id):
         """
         Retrieve evaluation data from the _tlab_provenance.json file.
         """
@@ -418,6 +371,7 @@ class LocalModelStore(modelstore.ModelStore):
 
         return evaluations_by_model
 
+
     async def list_model_provenance(self, model_id):
         """
         List model provenance by reading from _tlab_provenance.json files.
@@ -435,7 +389,7 @@ class LocalModelStore(modelstore.ModelStore):
         chain = await self.trace_provenance(model_id, provenance_mapping)
 
         # Retrieve evaluation data from files
-        evaluations_by_model = await self.get_evaluations_by_model(model_id)
+        evals_by_model = await self.get_evals_by_model(model_id)
 
         if len(chain) == 0:
             item = {
@@ -446,13 +400,13 @@ class LocalModelStore(modelstore.ModelStore):
                 "start_time": None,
                 "end_time": None,
             }
-            item["evals"] = evaluations_by_model.get(model_id, [])
+            item["evals"] = evals_by_model.get(model_id, [])
             return {"final_model": model_id, "provenance_chain": [item]}
 
         # For every training job in the provenance chain, attach evaluations
         for item in chain:
             output_model = item.get("output_model") or item.get("model_name")
-            item["evals"] = evaluations_by_model.get(output_model, [])
+            item["evals"] = evals_by_model.get(output_model, [])
 
         # Create the final provenance dictionary
         output = {"final_model": model_id, "provenance_chain": chain}

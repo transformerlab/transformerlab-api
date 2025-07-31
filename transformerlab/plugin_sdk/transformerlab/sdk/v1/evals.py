@@ -210,8 +210,8 @@ class EvalsTLabPlugin(TLabPlugin):
         self.job.add_to_job_data("additional_output_path", output_path)
         self.job.add_to_job_data("plot_data_path", plot_data_path)
 
-        # Create evaluation provenance file
-        self.create_evaluation_provenance_file(metrics_df)
+        # Add evaluation data to existing provenance file
+        self.add_evaluation_to_provenance_file(metrics_df)
 
         # Print average scores by metric
         print("\n===== Evaluation Results =====")
@@ -226,7 +226,7 @@ class EvalsTLabPlugin(TLabPlugin):
 
         return output_path, plot_data_path
 
-    def create_evaluation_provenance_file(self, metrics_df):
+    def add_evaluation_to_provenance_file(self, metrics_df):
         """Add evaluation data to the existing _tlab_provenance.json file"""
 
         # Get evaluation parameters and metadata
