@@ -504,7 +504,7 @@ async def get_eval_image(job_id: str, filename: str):
 
 @router.get("/{job_id}/checkpoints")
 async def get_checkpoints(job_id: str):
-    if job_id is None or job_id == "" or job_id == -1:
+    if job_id is None or job_id == "" or job_id == "-1":
         return {"checkpoints": []}
 
     """Get list of checkpoints for a job"""
