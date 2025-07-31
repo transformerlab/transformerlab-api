@@ -1,7 +1,7 @@
 """
 A model worker using Apple MLX Audio
 """
-
+import os
 import argparse
 import asyncio
 import uuid
@@ -13,6 +13,8 @@ from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from fastchat.serve.model_worker import logger
+
+from transformerlab.plugin import WORKSPACE_DIR
 
 from mlx_audio.tts.generate import generate_audio
 
@@ -76,13 +78,17 @@ class MLXAudioWorker(BaseModelWorker):
         ref_text = params.get("ref_text", None)
         ref_audio = params.get("ref_audio", None)
 
+        audio_dir = os.path.join(WORKSPACE_DIR, "audio")
+        os.makedirs(name=audio_dir, exist_ok=True)
+
+
         generate_audio(
             text=text,
             model_path=model,
             voice=voice,
             speed=speed,
             lang_code=lang_code, # The language code
-            file_prefix=file_prefix,
+            file_prefix= os.path.join(audio_dir, file_prefix),
             audio_format=audio_format,
             sample_rate=sample_rate,
             join_audio=True,  # Whether to join multiple audio files into one
