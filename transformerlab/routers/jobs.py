@@ -504,6 +504,9 @@ async def get_eval_image(job_id: str, filename: str):
 
 @router.get("/{job_id}/checkpoints")
 async def get_checkpoints(job_id: str):
+    if job_id is None or job_id == "" or job_id == -1:
+        return {"checkpoints": []}
+
     """Get list of checkpoints for a job"""
     job = await db_jobs.job_get(job_id)
     job_data = job["job_data"]
@@ -516,8 +519,14 @@ async def get_checkpoints(job_id: str):
     # and the checkpoints are stored alongside the adaptors
     # this maps to how mlx lora works, which will be the first use case
     # but we will have to abstract this further in the future
-    model_name = job_data.get("model_name", "")
-    adaptor_name = job_data.get("adaptor_name", "adaptor")
+    config = job_data.get("config", {})
+    if not isinstance(config, dict):
+        try:
+            config = json.loads(config)
+        except Exception:
+            config = {}
+    model_name = config.get("model_name", "")
+    adaptor_name = config.get("adaptor_name", "adaptor")
     default_adaptor_dir = os.path.join(dirs.WORKSPACE_DIR, "adaptors", secure_filename(model_name), adaptor_name)
 
     # print(f"Default adaptor directory: {default_adaptor_dir}")
@@ -557,4 +566,8 @@ async def get_checkpoints(job_id: str):
     checkpoints.sort(key=lambda x: x["filename"], reverse=True)
     # print(f"Sorted checkpoints: {checkpoints}")
 
-    return {"checkpoints": checkpoints}
+    return {
+        "checkpoints": checkpoints,
+        "model_name": model_name,
+        "adaptor_name": adaptor_name,
+    }
