@@ -2,6 +2,7 @@
 A model worker using Apple MLX Audio
 """
 import os
+import sys
 import argparse
 import asyncio
 import uuid
@@ -100,11 +101,11 @@ class MLXAudioWorker(BaseModelWorker):
 
 )
 
-        logger.info(f"{file_prefix} successfully generated!")
+        logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
 
         return {
             "status": "success",
-            "message": f"{file_prefix}.{audio_format}",
+            "message": f"{audio_dir}/{file_prefix}.{audio_format}",
         }
 
 
@@ -191,6 +192,10 @@ def main():
         1024,
         False,
     )
+
+    # Restore original stdout/stderr to prevent logging recursion
+    sys.stdout = sys.__stdout__
+    sys.stderr = sys.__stderr__
     uvicorn.run(app, host=args.host, port=args.port, log_level="info", access_log=False)
 
 
