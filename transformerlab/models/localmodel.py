@@ -8,7 +8,6 @@ There are functions in model_helper to make it easier to work with.
 import os
 import json
 from huggingface_hub import hf_hub_download
-from transformerlab.db.jobs import jobs_get_all
 from transformerlab.models import modelstore
 import transformerlab.db.db as db
 from transformerlab.shared import dirs
