@@ -65,7 +65,7 @@ class MLXAudioWorker(BaseModelWorker):
         self.call_ct += 1
 
         text = params.get("text", "")
-        model = params.get("model", None) # temporarily only for testing
+        model = params.get("model", None)
         speed = params.get("speed", 1.0)
         voice = params.get("voice", "af_heart")
         lang_code = params.get("lang_code", "a")
@@ -75,7 +75,6 @@ class MLXAudioWorker(BaseModelWorker):
         temperature = params.get("temperature", 0.0)
         ref_text = params.get("ref_text", None)
         ref_audio = params.get("ref_audio", None)
-        logger.info("heeyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy")
 
         generate_audio(
             text=text,
@@ -87,10 +86,10 @@ class MLXAudioWorker(BaseModelWorker):
             audio_format=audio_format,
             sample_rate=sample_rate,
             join_audio=True,  # Whether to join multiple audio files into one
-            verbose=False,  # Set to False to disable print messages
-            #temperature=temperature,
-            #ref_text=ref_text,  # Caption for reference audio
-            #ref_audio=ref_audio,  # Reference audio you would like to clone the voice from
+            verbose=True,  # Set to False to disable print messages
+            temperature=temperature,
+            ref_text=ref_text,  # Caption for reference audio
+            ref_audio=ref_audio,  # Reference audio you would like to clone the voice from
             stream=False,
 
 )
