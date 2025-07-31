@@ -210,6 +210,9 @@ class EvalsTLabPlugin(TLabPlugin):
         self.job.add_to_job_data("additional_output_path", output_path)
         self.job.add_to_job_data("plot_data_path", plot_data_path)
 
+        # Create evaluation provenance file
+        self.create_evaluation_provenance_file(metrics_df)
+
         # Print average scores by metric
         print("\n===== Evaluation Results =====")
         metrics = metrics_df["metric_name"].unique()
@@ -222,6 +225,85 @@ class EvalsTLabPlugin(TLabPlugin):
         self.add_job_data("score", json.dumps(score_list))
 
         return output_path, plot_data_path
+
+    def create_evaluation_provenance_file(self, metrics_df):
+        """Add evaluation data to the existing _tlab_provenance.json file"""
+
+        # Get evaluation parameters and metadata
+        model_name = self.params.get("model_name", None)
+        if not model_name:
+            model_name = self.params.get("generation_model", "unknown_model")
+
+        # Extract just the model name if it's a full path
+        if model_name and "/" in model_name:
+            model_name = os.path.basename(model_name)
+
+        # Calculate average scores for each metric
+        metrics_summary = {}
+        for metric in metrics_df["metric_name"].unique():
+            avg_score = metrics_df[metrics_df["metric_name"] == metric]["score"].mean()
+            metrics_summary[metric] = avg_score
+
+        evaluation_data = {
+            "job_id": self.params.get("job_id", None),
+            "model_name": model_name,
+            "evaluation_type": self.params.get("eval_name", "evaluation"),
+            "parameters": {
+                "generation_model": self.params.get("generation_model", None),
+                "tasks": self.params.get("tasks", None),
+                "predefined_tasks": self.params.get("predefined_tasks", None),
+                "input_column": self.params.get("input_column", None),
+                "output_column": self.params.get("output_column", None),
+            },
+            "metrics_summary": metrics_summary,
+            "total_test_cases": len(metrics_df["test_case_id"].unique()),
+            "start_time": self.params.get("start_time", ""),
+            "end_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+        }
+
+        # Add evaluation data to the existing provenance file in the model directory
+        if model_name and model_name != "unknown_model":
+            # Try to find the model directory using environment variables
+            workspace_dir = os.environ.get("_TFL_WORKSPACE_DIR", "./")
+            models_dir = os.path.join(workspace_dir, "models")
+
+            # Look for the model directory
+            model_dir = None
+            for entry in os.listdir(models_dir):
+                if os.path.isdir(os.path.join(models_dir, entry)):
+                    if entry == model_name or entry.endswith(f"_{model_name}") or model_name in entry:
+                        model_dir = os.path.join(models_dir, entry)
+                        break
+
+            if model_dir and os.path.exists(model_dir):
+                provenance_path = os.path.join(model_dir, "_tlab_provenance.json")
+
+                # Load existing provenance data
+                existing_provenance = {}
+                if os.path.exists(provenance_path):
+                    try:
+                        with open(provenance_path, "r") as f:
+                            existing_provenance = json.load(f)
+                    except Exception as e:
+                        print(f"Error loading existing provenance: {e}")
+                        existing_provenance = {}
+
+                # Initialize evaluations list if it doesn't exist
+                if "evaluations" not in existing_provenance:
+                    existing_provenance["evaluations"] = []
+
+                # Add new evaluation to the list
+                existing_provenance["evaluations"].append(evaluation_data)
+
+                # Write updated provenance file
+                with open(provenance_path, "w") as f:
+                    json.dump(existing_provenance, f, indent=2)
+
+                print(f"Evaluation data added to provenance file: {provenance_path}")
+            else:
+                print(f"Could not find model directory for {model_name}, skipping evaluation provenance update")
+        else:
+            print("No model name available, skipping evaluation provenance update")
 
 
 tlab_evals = EvalsTLabPlugin()
