@@ -109,6 +109,8 @@ async def get_training_job(job_id: str):
 async def get_training_job_output(job_id: str, sweeps: bool = False):
     # First get the template Id from this job:
     job = await db_jobs.job_get(job_id)
+    if job is None:
+        return {"checkpoints": []}
     job_data = job["job_data"]
 
     if not isinstance(job_data, dict):
