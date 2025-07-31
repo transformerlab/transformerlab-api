@@ -391,12 +391,19 @@ class LocalModelStore(modelstore.ModelStore):
                         # Convert to the format expected by the API
                         converted_evaluations = []
                         for eval_data in evaluations:
+                            # Format scores for frontend display - convert metrics_summary to score format
+                            metrics_summary = eval_data.get("metrics_summary", {})
+                            score_array = []
+                            for metric_name, score_value in metrics_summary.items():
+                                score_array.append({"type": metric_name, "score": score_value})
+
                             converted_eval = {
                                 "job_id": eval_data.get("job_id"),
                                 "model_name": eval_data.get("model_name"),
                                 "evaluation_type": eval_data.get("evaluation_type"),
                                 "parameters": eval_data.get("parameters", {}),
                                 "metrics_summary": eval_data.get("metrics_summary", {}),
+                                "score": json.dumps(score_array),  # Frontend expects this format
                                 "total_test_cases": eval_data.get("total_test_cases"),
                                 "start_time": eval_data.get("start_time"),
                                 "end_time": eval_data.get("end_time"),
