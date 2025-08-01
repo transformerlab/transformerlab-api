@@ -27,35 +27,39 @@ router = APIRouter(prefix="/jobs", tags=["train"])
 
 
 @router.get("/list")
-async def jobs_get_all(type: str = "", status: str = ""):
-    jobs = await db_jobs.jobs_get_all(type=type, status=status)
+async def jobs_get_all(experimentId: int, type: str = "", status: str = ""):
+    jobs = await db_jobs.jobs_get_all(type=type, status=status, experiment_id=experimentId)
     return jobs
 
 
 @router.get("/delete/{job_id}")
-async def job_delete(job_id: str):
-    await db_jobs.job_delete(job_id)
+async def job_delete(job_id: str, experimentId: int):
+    await db_jobs.job_delete(job_id, experiment_id=experimentId)
     return {"message": "OK"}
 
 
 @router.get("/create")
-async def job_create(type: str = "UNDEFINED", status: str = "CREATED", data: str = "{}", experiment_id: int = -1):
-    jobid = await db_jobs.job_create(type=type, status=status, job_data=data, experiment_id=experiment_id)
+async def job_create(
+    experimentId: int,
+    type: str = "UNDEFINED",
+    status: str = "CREATED",
+    data: str = "{}",
+):
+    jobid = await db_jobs.job_create(type=type, status=status, job_data=data, experiment_id=experimentId)
     return jobid
 
 
-async def job_create_task(script: str, job_data: str = "{}", experiment_id: int = -1):
-    jobid = await db_jobs.job_create(type="UNDEFINED", status="CREATED", job_data=job_data, experiment_id=experiment_id)
+async def job_create_task(script: str, job_data: str = "{}", experimentId: int = None):
+    jobid = await db_jobs.job_create(type="UNDEFINED", status="CREATED", job_data=job_data, experiment_id=experimentId)
     return jobid
 
 
 @router.get("/update/{job_id}")
-async def job_update(job_id: str, status: str):
-    await db_jobs.job_update_status(job_id, status)
+async def job_update(job_id: str, status: str, experimentId: int):
+    await db_jobs.job_update_status(job_id, status, experiment_id=experimentId)
     return {"message": "OK"}
 
 
-@router.get("/start_next")
 async def start_next_job():
     num_running_jobs = await db_jobs.job_count_running()
     if num_running_jobs > 0:
@@ -73,10 +77,8 @@ async def start_next_job():
         data = await experiment_get(experiment_id)
         if data is None:
             # mark the job as failed
-            await db_jobs.job_update_status(nextjob["id"], "FAILED")
-            return {"message": f"Experiment {id} does not exist"}
-        # config = json.loads(data["config"])
-
+            await db_jobs.job_update_status(nextjob["id"], "FAILED", experiment_id=experiment_id)
+            return {"message": f"Experiment {experiment_id} does not exist"}
         experiment_name = data["name"]
         await shared.run_job(
             job_id=nextjob["id"], job_config=job_config, experiment_name=experiment_name, job_details=nextjob
@@ -87,22 +89,25 @@ async def start_next_job():
 
 
 @router.get("/{job_id}/stop")
-async def stop_job(job_id: str):
+async def stop_job(job_id: str, experimentId: int):
     # The way a job is stopped is simply by adding "stop: true" to the job_data
     # This will be checked by the plugin as it runs
-    await db_jobs.job_stop(job_id)
+    await db_jobs.job_stop(job_id, experiment_id=experimentId)
     return {"message": "OK"}
 
 
 @router.get("/delete_all")
-async def job_delete_all():
-    await db_jobs.job_delete_all()
+async def job_delete_all(experimentId: int):
+    await db_jobs.job_delete_all(experiment_id=experimentId)
     return {"message": "OK"}
 
 
 @router.get("/{job_id}")
 async def get_training_job(job_id: str):
-    return await db_jobs.job_get(job_id)
+    job = await db_jobs.job_get(job_id)
+    if job is None:
+        return Response("Job not found", status_code=404)
+    return job
 
 
 @router.get("/{job_id}/output")
@@ -167,7 +172,11 @@ async def get_train_template(template_id: str):
 
 @router.put("/template/update")
 async def update_training_template(
-    template_id: str, name: str, description: str, type: str, config: Annotated[str, Body(embed=True)]
+    template_id: str,
+    name: str,
+    description: str,
+    type: str,
+    config: Annotated[str, Body(embed=True)],
 ):
     try:
         configObject = json.loads(config)
@@ -348,7 +357,11 @@ async def stream_detailed_json_report(job_id: str, file_name: str):
 @router.get("/{job_id}/get_additional_details")
 async def stream_job_additional_details(job_id: str, task: str = "view"):
     job = await db_jobs.job_get(job_id)
+    if job is None:
+        return Response("Job not found", status_code=404)
     job_data = job["job_data"]
+    if "additional_output_path" not in job_data:
+        return Response("No additional details found for this job", media_type="text/csv")
     file_path = job_data["additional_output_path"]
     if file_path.endswith(".csv"):
         file_format = "text/csv"
@@ -379,6 +392,8 @@ async def stream_job_additional_details(job_id: str, task: str = "view"):
 @router.get("/{job_id}/get_figure_json")
 async def get_figure_path(job_id: str):
     job = await db_jobs.job_get(job_id)
+    if job is None:
+        return Response("Job not found", status_code=404)
     job_data = job["job_data"]
     file_path = job_data.get("plot_data_path", None)
 
@@ -392,6 +407,8 @@ async def get_figure_path(job_id: str):
 @router.get("/{job_id}/get_generated_dataset")
 async def get_generated_dataset(job_id: str):
     job = await db_jobs.job_get(job_id)
+    if job is None:
+        return Response("Job not found", status_code=404)
     # Get experiment name
     job_data = job["job_data"]
 
@@ -417,6 +434,8 @@ async def get_generated_dataset(job_id: str):
 async def get_eval_images(job_id: str):
     """Get list of evaluation images for a job"""
     job = await db_jobs.job_get(job_id)
+    if job is None:
+        return Response("Job not found", status_code=404)
     job_data = job["job_data"]
 
     # Check if the job has eval_images_dir
@@ -430,7 +449,6 @@ async def get_eval_images(job_id: str):
 
     # Supported image extensions
     image_extensions = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".svg"}
-
     images = []
     try:
         for filename in os.listdir(images_dir):
@@ -454,7 +472,6 @@ async def get_eval_images(job_id: str):
 
     # Sort by filename for consistent ordering
     images.sort(key=lambda x: x["filename"])
-
     return {"images": images}
 
 
@@ -462,6 +479,8 @@ async def get_eval_images(job_id: str):
 async def get_eval_image(job_id: str, filename: str):
     """Serve individual evaluation image files"""
     job = await db_jobs.job_get(job_id)
+    if job is None:
+        return Response("Job not found", status_code=404)
     job_data = job["job_data"]
 
     # Check if the job has eval_images_dir
