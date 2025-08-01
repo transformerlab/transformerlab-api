@@ -74,8 +74,6 @@ class MLXAudioWorker(BaseModelWorker):
         audio_format = params.get("audio_format", "wav")
         sample_rate = params.get("sample_rate", 24000)
         temperature = params.get("temperature", 0.0)
-        # ref_text = params.get("ref_text", None)
-        # ref_audio = params.get("ref_audio", None)
         stream = params.get("stream", False)
 
         audio_dir = os.path.join(WORKSPACE_DIR, "audio")
@@ -87,13 +85,10 @@ class MLXAudioWorker(BaseModelWorker):
                 model_path=model,
                 speed=speed,
                 file_prefix= os.path.join(audio_dir, file_prefix),
-                # audio_format=audio_format,
                 sample_rate=sample_rate,
                 join_audio=True,  # Whether to join multiple audio files into one
                 verbose=True,  # Set to False to disable print messages
                 temperature=temperature,
-                # ref_text=ref_text,  # Caption for reference audio
-                # ref_audio=ref_audio,  # Reference audio you would like to clone the voice from
                 stream=stream,
 
             )
