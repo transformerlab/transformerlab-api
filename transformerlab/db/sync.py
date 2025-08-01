@@ -7,7 +7,7 @@ with synchronous sessions for consistency.
 """
 
 import json
-from sqlalchemy import create_engine, update
+from sqlalchemy import create_engine, select, update
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.dialects.sqlite import insert
 
@@ -66,14 +66,10 @@ def job_update_status_sync(job_id, status, error_msg=None):
     """
     try:
         with get_sync_session() as session:
-            stmt = (
-                update(models.Job)
-                .where(models.Job.id == job_id)
-                .values(status=status)
-            )
+            stmt = update(models.Job).where(models.Job.id == job_id).values(status=status)
             session.execute(stmt)
             session.commit()
-            
+
     except Exception as e:
         print("Error updating job status: " + str(e))
 
@@ -86,14 +82,10 @@ def job_update_sync(job_id, status):
     """
     try:
         with get_sync_session() as session:
-            stmt = (
-                update(models.Job)
-                .where(models.Job.id == job_id)
-                .values(status=status)
-            )
+            stmt = update(models.Job).where(models.Job.id == job_id).values(status=status)
             session.execute(stmt)
             session.commit()
-            
+
     except Exception as e:
         print("Error updating job status: " + str(e))
 
@@ -110,8 +102,8 @@ def job_mark_as_complete_if_running(job_id):
                 .where(models.Job.id == job_id, models.Job.status == "RUNNING")
                 .values(status="COMPLETE")
             )
-            session.execute(stmt)
+            result = session.execute(stmt)
             session.commit()
-            
+
     except Exception as e:
         print("Error updating job status: " + str(e))

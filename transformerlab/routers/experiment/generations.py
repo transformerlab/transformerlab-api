@@ -221,7 +221,7 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
     extra_args = ["--plugin_dir", script_directory]
     for key in template_config:
         extra_args.append("--" + key)
-        extra_args.append(str(template_config[key]))
+        extra_args.append(template_config[key])
 
     extra_args.extend(
         [

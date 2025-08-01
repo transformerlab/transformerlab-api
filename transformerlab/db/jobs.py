@@ -197,6 +197,7 @@ async def job_update_status(job_id, status, error_msg=None):
                 update(models.Job).where(models.Job.id == job_id).values(job_data=json.dumps(job_data))
             )
         await session.commit()
+
     return
 
 
@@ -204,6 +205,7 @@ async def job_update(job_id, type, status):
     async with async_session() as session:
         await session.execute(update(models.Job).where(models.Job.id == job_id).values(type=type, status=status))
         await session.commit()
+
     return
 
 
