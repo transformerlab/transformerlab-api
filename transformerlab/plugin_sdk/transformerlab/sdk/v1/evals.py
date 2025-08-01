@@ -287,7 +287,7 @@ class EvalsTLabPlugin(TLabPlugin):
 
         if not model_dir or not os.path.exists(model_dir):
             print(
-                f"Unable to add evaluation details to model provenance file, since that is only supported for fine-tuned (locally trained) models."
+                "Unable to add evaluation details to model provenance file, since that is only supported for fine-tuned (locally trained) models."
             )
             return
 
