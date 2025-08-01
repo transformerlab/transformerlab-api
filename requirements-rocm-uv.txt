@@ -34,6 +34,8 @@ argon2-cffi-bindings==21.2.0
     # via argon2-cffi
 attrs==25.3.0
     # via aiohttp
+audioread==3.0.1
+    # via librosa
 azure-ai-documentintelligence==1.0.2
     # via markitdown
 azure-core==1.33.0
@@ -58,6 +60,7 @@ cffi==1.17.1
     # via
     #   argon2-cffi-bindings
     #   cryptography
+    #   soundfile
 charset-normalizer==2.1.1
     # via
     #   markitdown
@@ -86,6 +89,8 @@ datasets==2.19.1
     # via
     #   -r requirements-rocm.in
     #   evaluate
+decorator==5.2.1
+    # via librosa
 defusedxml==0.7.1
     # via youtube-transcript-api
 diffusers==0.33.1
@@ -195,12 +200,19 @@ jinja2==3.1.4
     # via torch
 joblib==1.4.2
     # via
+    #   librosa
     #   nltk
     #   scikit-learn
 latex2mathml==3.77.0
     # via markdown2
 lazy-loader==0.4
-    # via scikit-image
+    # via
+    #   librosa
+    #   scikit-image
+librosa==0.11.0
+    # via -r requirements-rocm.in
+llvmlite==0.44.0
+    # via numba
 lxml==5.4.0
     # via python-pptx
 macmon-python==0.1.2
@@ -237,6 +249,8 @@ msal==1.32.3
     #   msal-extensions
 msal-extensions==1.3.1
     # via azure-identity
+msgpack==1.1.1
+    # via librosa
 multidict==6.4.3
     # via
     #   aiohttp
@@ -253,6 +267,8 @@ nh3==0.2.21
     # via transformerlab-inference
 nltk==3.9.1
     # via -r requirements-rocm.in
+numba==0.61.2
+    # via librosa
 numpy==2.1.2
     # via
     #   accelerate
@@ -261,7 +277,9 @@ numpy==2.1.2
     #   diffusers
     #   evaluate
     #   imageio
+    #   librosa
     #   magika
+    #   numba
     #   onnxruntime
     #   opencv-python-headless
     #   pandas
@@ -269,6 +287,8 @@ numpy==2.1.2
     #   scikit-image
     #   scikit-learn
     #   scipy
+    #   soundfile
+    #   soxr
     #   tensorboard
     #   tensorboardx
     #   tifffile
@@ -293,6 +313,7 @@ packaging==24.1
     #   lazy-loader
     #   onnxruntime
     #   peft
+    #   pooch
     #   scikit-image
     #   tensorboard
     #   tensorboardx
@@ -316,7 +337,11 @@ pillow==11.0.0
     #   sentence-transformers
     #   torchvision
 platformdirs==4.3.7
-    # via wandb
+    # via
+    #   pooch
+    #   wandb
+pooch==1.8.2
+    # via librosa
 prompt-toolkit==3.0.51
     # via transformerlab-inference
 propcache==0.3.1
@@ -414,6 +439,7 @@ requests==2.28.1
     #   huggingface-hub
     #   markitdown
     #   msal
+    #   pooch
     #   tiktoken
     #   transformerlab-inference
     #   transformers
@@ -433,11 +459,14 @@ safetensors==0.5.3
 scikit-image==0.25.2
     # via controlnet-aux
 scikit-learn==1.6.1
-    # via sentence-transformers
+    # via
+    #   librosa
+    #   sentence-transformers
 scipy==1.15.2
     # via
     #   -r requirements-rocm.in
     #   controlnet-aux
+    #   librosa
     #   scikit-image
     #   scikit-learn
     #   sentence-transformers
@@ -470,8 +499,14 @@ smmap==5.0.2
     # via gitdb
 sniffio==1.3.1
     # via anyio
+soundfile==0.13.1
+    # via
+    #   -r requirements-rocm.in
+    #   librosa
 soupsieve==2.7
     # via beautifulsoup4
+soxr==0.5.0.post1
+    # via librosa
 speechrecognition==3.14.2
     # via markitdown
 sqlalchemy==2.0.40
@@ -537,7 +572,7 @@ tqdm==4.66.5
     #   peft
     #   sentence-transformers
     #   transformers
-transformerlab-inference==0.2.41
+transformerlab-inference==0.2.42
     # via -r requirements-rocm.in
 transformers==4.53.2
     # via
@@ -556,6 +591,7 @@ typing-extensions==4.12.2
     #   beautifulsoup4
     #   fastapi
     #   huggingface-hub
+    #   librosa
     #   pydantic
     #   pydantic-core
     #   python-pptx

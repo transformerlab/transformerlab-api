@@ -1,4 +1,5 @@
 import asyncio
+from fnmatch import fnmatch
 import json
 import os
 import csv
@@ -18,6 +19,7 @@ from transformerlab.routers.serverinfo import watch_file
 
 from transformerlab.db.db import get_training_template
 from transformerlab.db.db import experiment_get
+from datetime import datetime
 
 import transformerlab.db.jobs as db_jobs
 
@@ -112,6 +114,8 @@ async def get_training_job(job_id: str):
 async def get_training_job_output(job_id: str, sweeps: bool = False):
     # First get the template Id from this job:
     job = await db_jobs.job_get(job_id)
+    if job is None:
+        return {"checkpoints": []}
     job_data = job["job_data"]
 
     if not isinstance(job_data, dict):
@@ -515,3 +519,74 @@ async def get_eval_image(job_id: str, filename: str):
         media_type=media_type,
         headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"},
     )
+
+
+@router.get("/{job_id}/checkpoints")
+async def get_checkpoints(job_id: str):
+    if job_id is None or job_id == "" or job_id == "-1":
+        return {"checkpoints": []}
+
+    """Get list of checkpoints for a job"""
+    job = await db_jobs.job_get(job_id)
+    job_data = job["job_data"]
+
+    # Check if the job has a supports_checkpoints flag
+    # if "supports_checkpoints" not in job_data or not job_data["supports_checkpoints"]:
+    #     return {"checkpoints": []}
+
+    # By default we assume the training type is an adaptor training
+    # and the checkpoints are stored alongside the adaptors
+    # this maps to how mlx lora works, which will be the first use case
+    # but we will have to abstract this further in the future
+    config = job_data.get("config", {})
+    if not isinstance(config, dict):
+        try:
+            config = json.loads(config)
+        except Exception:
+            config = {}
+    model_name = config.get("model_name", "")
+    adaptor_name = config.get("adaptor_name", "adaptor")
+    default_adaptor_dir = os.path.join(dirs.WORKSPACE_DIR, "adaptors", secure_filename(model_name), adaptor_name)
+
+    # print(f"Default adaptor directory: {default_adaptor_dir}")
+
+    checkpoints_dir = job_data.get("checkpoints_dir", default_adaptor_dir)
+    if not checkpoints_dir or not os.path.exists(checkpoints_dir):
+        # print(f"Checkpoints directory does not exist: {checkpoints_dir}")
+        return {"checkpoints": []}
+
+    checkpoints_file_filter = job_data.get("checkpoints_file_filter", "*_adapters.safetensors")
+    if not checkpoints_file_filter:
+        checkpoints_file_filter = "*_adapters.safetensors"
+
+    # print(f"Checkpoints directory: {checkpoints_dir}")
+    # print(f"Checkpoints file filter: {checkpoints_file_filter}")
+
+    checkpoints = []
+    try:
+        for filename in os.listdir(checkpoints_dir):
+            if fnmatch(filename, checkpoints_file_filter):
+                file_path = os.path.join(checkpoints_dir, filename)
+                try:
+                    stat = os.stat(file_path)
+                    modified_time = stat.st_mtime
+                    filesize = stat.st_size
+                    # Format the timestamp as ISO 8601 string
+                    formatted_time = datetime.fromtimestamp(modified_time).isoformat()
+                except Exception as e:
+                    logging.error(f"Error getting stat for file {file_path}: {e}")
+                    formatted_time = None
+                    filesize = None
+                checkpoints.append({"filename": filename, "date": formatted_time, "size": filesize})
+    except OSError as e:
+        logging.error(f"Error reading checkpoints directory {checkpoints_dir}: {e}")
+
+    # Sort checkpoints by filename in reverse (descending) order for consistent ordering
+    checkpoints.sort(key=lambda x: x["filename"], reverse=True)
+    # print(f"Sorted checkpoints: {checkpoints}")
+
+    return {
+        "checkpoints": checkpoints,
+        "model_name": model_name,
+        "adaptor_name": adaptor_name,
+    }
