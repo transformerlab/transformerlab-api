@@ -8,10 +8,10 @@ There are functions in model_helper to make it easier to work with.
 import os
 import json
 from huggingface_hub import hf_hub_download
-from transformerlab.db.jobs import jobs_get_all
 from transformerlab.models import modelstore
 import transformerlab.db.db as db
 from transformerlab.shared import dirs
+from werkzeug.utils import secure_filename
 
 
 def is_sentence_transformer_model(
@@ -311,32 +311,72 @@ class LocalModelStore(modelstore.ModelStore):
 
         return chain
 
-    async def get_evals_by_model(self):
+    async def get_evals_by_model(self, model_id):
         """
-        Retrieve all completed EVAL jobs and group them by the model_name specified in the job_data.
-        For each eval, remove keys we want to ignore (i.e., additional_output_path,
-        completion_status, and completion_details) and attach the job_id.
+        Retrieve evaluation data from the _tlab_provenance.json file.
         """
-        eval_jobs = await jobs_get_all(experiment_id=None, type="EVAL", status="COMPLETE")
-        evals_by_model = {}
-        for job in eval_jobs:
-            eval_data = job["job_data"]
-            # # Remove keys that are not required
-            # eval_data.pop("additional_output_path", None)
-            # eval_data.pop("completion_status", None)
-            # eval_data.pop("completion_details", None)
-            # Attach the JOB ID
-            eval_data["job_id"] = job.get("id")
-            model_name = eval_data.get("model_name")
-            adapter_name = eval_data.get("model_adapter")
-            if model_name and os.path.exists(model_name):
-                # If model_name is a path, take the last part
-                model_name = model_name.split("/")[-1]
-            if model_name and adapter_name:
-                evals_by_model.setdefault(self.compute_output_model(model_name, adapter_name), []).append(eval_data)
-            if model_name:
-                evals_by_model.setdefault(model_name, []).append(eval_data)
-        return evals_by_model
+        models_dir = dirs.MODELS_DIR
+        evaluations_by_model = {}
+
+        # Extract just the model name if model_id contains a path
+        search_model_id = model_id
+        if "/" in model_id:
+            search_model_id = model_id.split("/")[-1]
+
+        # Sanitize the search_model_id to prevent directory traversal attacks
+        search_model_id = secure_filename(search_model_id)
+
+        # Look for the model directory - prioritize exact matches
+        model_dir = None
+        for entry in os.listdir(models_dir):
+            if os.path.isdir(os.path.join(models_dir, entry)):
+                # Exact match first, then check for suffixes
+                if entry == search_model_id:
+                    model_dir = os.path.join(models_dir, entry)
+                    break
+                elif entry.endswith(f"_{search_model_id}"):
+                    model_dir = os.path.join(models_dir, entry)
+                    break
+
+        if model_dir and os.path.exists(model_dir):
+            provenance_file = os.path.join(model_dir, "_tlab_provenance.json")
+            if os.path.exists(provenance_file):
+                try:
+                    with open(provenance_file, "r") as f:
+                        provenance_data = json.load(f)
+
+                        # Get evaluations from the same file
+                        evaluations = provenance_data.get("evaluations", [])
+
+                        # Convert to the format expected by the API
+                        converted_evaluations = []
+                        for eval_data in evaluations:
+                            # Format scores for frontend display - convert metrics_summary to score format
+                            metrics_summary = eval_data.get("metrics_summary", {})
+                            score_array = []
+                            for metric_name, score_value in metrics_summary.items():
+                                score_array.append({"type": metric_name, "score": score_value})
+
+                            converted_eval = {
+                                "job_id": eval_data.get("job_id"),
+                                "model_name": eval_data.get("model_name"),
+                                "evaluation_type": eval_data.get("evaluation_type"),
+                                "parameters": eval_data.get("parameters", {}),
+                                "metrics_summary": eval_data.get("metrics_summary", {}),
+                                "score": json.dumps(score_array),  # Frontend expects this format
+                                "total_test_cases": eval_data.get("total_test_cases"),
+                                "start_time": eval_data.get("start_time"),
+                                "end_time": eval_data.get("end_time"),
+                            }
+                            converted_evaluations.append(converted_eval)
+
+                        model_name = provenance_data.get("model_name", model_id)
+                        evaluations_by_model[model_name] = converted_evaluations
+
+                except Exception as e:
+                    print(f"Error loading provenance for {model_id}: {str(e)}")
+
+        return evaluations_by_model
 
     async def list_model_provenance(self, model_id):
         """
@@ -354,8 +394,8 @@ class LocalModelStore(modelstore.ModelStore):
         # Trace the provenance chain leading to the given model
         chain = await self.trace_provenance(model_id, provenance_mapping)
 
-        # Retrieve eval jobs grouped by model_name
-        evals_by_model = await self.get_evals_by_model()
+        # Retrieve evaluation data from files
+        evals_by_model = await self.get_evals_by_model(model_id)
 
         if len(chain) == 0:
             item = {
@@ -369,7 +409,7 @@ class LocalModelStore(modelstore.ModelStore):
             item["evals"] = evals_by_model.get(model_id, [])
             return {"final_model": model_id, "provenance_chain": [item]}
 
-        # For every training job in the provenance chain, attach evals
+        # For every training job in the provenance chain, attach evaluations
         for item in chain:
             output_model = item.get("output_model") or item.get("model_name")
             item["evals"] = evals_by_model.get(output_model, [])
