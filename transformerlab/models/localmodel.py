@@ -11,6 +11,7 @@ from huggingface_hub import hf_hub_download
 from transformerlab.models import modelstore
 import transformerlab.db.db as db
 from transformerlab.shared import dirs
+from werkzeug.utils import secure_filename
 
 
 def is_sentence_transformer_model(
@@ -322,11 +323,18 @@ class LocalModelStore(modelstore.ModelStore):
         if "/" in model_id:
             search_model_id = model_id.split("/")[-1]
 
-        # Look for the model directory
+        # Sanitize the search_model_id to prevent directory traversal attacks
+        search_model_id = secure_filename(search_model_id)
+
+        # Look for the model directory - prioritize exact matches
         model_dir = None
         for entry in os.listdir(models_dir):
             if os.path.isdir(os.path.join(models_dir, entry)):
-                if entry == search_model_id or entry.endswith(f"_{search_model_id}") or search_model_id in entry:
+                # Exact match first, then check for suffixes
+                if entry == search_model_id:
+                    model_dir = os.path.join(models_dir, entry)
+                    break
+                elif entry.endswith(f"_{search_model_id}"):
                     model_dir = os.path.join(models_dir, entry)
                     break
 
@@ -369,7 +377,6 @@ class LocalModelStore(modelstore.ModelStore):
                     print(f"Error loading provenance for {model_id}: {str(e)}")
 
         return evaluations_by_model
-
 
     async def list_model_provenance(self, model_id):
         """
