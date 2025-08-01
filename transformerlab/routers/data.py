@@ -17,6 +17,8 @@ from datasets.data_files import EmptyDatasetError
 from transformerlab.shared.shared import slugify
 from transformerlab.shared import galleries
 from datasets.exceptions import DatasetNotFoundError
+import numpy as np
+import wave
 
 from transformerlab.db.datasets import (
     create_huggingface_dataset,
@@ -27,7 +29,6 @@ from transformerlab.db.datasets import (
     get_generated_datasets,
 )
 from transformers import AutoTokenizer
-
 
 
 from werkzeug.utils import secure_filename
@@ -218,8 +219,14 @@ async def dataset_preview(
 
 
 def serialize_row(row):
-    """Convert PIL Images in a row to base64 strings, preserving original structure."""
+    """Convert PIL Images and audio arrays in a row to base64 strings, preserving original structure."""
     if isinstance(row, dict):
+        # Check if this is an audio object
+        if "audio" in row and isinstance(row["audio"], dict):
+            audio_data = row["audio"]
+            if "array" in audio_data and "sampling_rate" in audio_data:
+                # This is an audio object, serialize it
+                return serialize_audio_object(row)
         return {k: serialize_row(v) for k, v in row.items()}
     elif isinstance(row, list):
         return [serialize_row(v) for v in row]
@@ -228,8 +235,88 @@ def serialize_row(row):
         row.save(buffered, format="JPEG")
         img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
         return f"data:image/jpeg;base64,{img_str}"
+    elif isinstance(row, np.ndarray):
+        # Handle standalone numpy arrays (could be audio)
+        return serialize_audio_array(row)
     else:
         return row
+
+
+def serialize_audio_object(audio_obj):
+    """Serialize an audio object to a format suitable for frontend display."""
+    audio_data = audio_obj["audio"]
+    array = audio_data["array"]
+    sampling_rate = audio_data["sampling_rate"]
+    path = audio_data.get("path", "unknown")
+
+    # Convert numpy array to WAV format
+    wav_data = convert_audio_array_to_wav(array, sampling_rate)
+
+    # Create base64 data URL
+    wav_b64 = base64.b64encode(wav_data).decode("utf-8")
+    audio_data_url = f"data:audio/wav;base64,{wav_b64}"
+
+    # Calculate duration
+    duration = len(array) / sampling_rate if sampling_rate > 0 else 0
+
+    return {
+        "audio_data_url": audio_data_url,
+        "metadata": {
+            "path": path,
+            "sampling_rate": sampling_rate,
+            "duration": round(duration, 2),
+            "samples": len(array),
+            "format": "wav",
+        },
+    }
+
+
+def serialize_audio_array(array):
+    """Serialize a standalone numpy audio array."""
+    # Assume 16kHz sampling rate for standalone arrays
+    sampling_rate = 16000
+    wav_data = convert_audio_array_to_wav(array, sampling_rate)
+    wav_b64 = base64.b64encode(wav_data).decode("utf-8")
+    audio_data_url = f"data:audio/wav;base64,{wav_b64}"
+
+    duration = len(array) / sampling_rate if sampling_rate > 0 else 0
+
+    return {
+        "audio_data_url": audio_data_url,
+        "metadata": {
+            "sampling_rate": sampling_rate,
+            "duration": round(duration, 2),
+            "samples": len(array),
+            "format": "wav",
+        },
+    }
+
+
+def convert_audio_array_to_wav(array, sampling_rate):
+    """Convert a numpy audio array to WAV format bytes."""
+    # Normalize audio to 16-bit range
+    if array.dtype != np.int16:
+        # Convert to float if not already
+        if array.dtype != np.float32 and array.dtype != np.float64:
+            array = array.astype(np.float32)
+
+        # Normalize to [-1, 1] range
+        if array.max() > 1.0 or array.min() < -1.0:
+            array = array / max(abs(array.max()), abs(array.min()))
+
+        # Convert to 16-bit integers
+        array = (array * 32767).astype(np.int16)
+
+    # Create WAV file in memory
+    wav_buffer = BytesIO()
+    with wave.open(wav_buffer, "wb") as wav_file:
+        wav_file.setnchannels(1)  # Mono
+        wav_file.setsampwidth(2)  # 16-bit
+        wav_file.setframerate(sampling_rate)
+        wav_file.writeframes(array.tobytes())
+
+    return wav_buffer.getvalue()
+
 
 async def load_and_slice_dataset(dataset_id: str, offset: int, limit: int):
     d = await get_dataset(dataset_id)
@@ -257,6 +344,7 @@ async def load_and_slice_dataset(dataset_id: str, offset: int, limit: int):
         result["columns"] = dataset["train"][offset : min(offset + limit, dataset_len)]
     result["len"] = dataset_len
     return result, dataset_len
+
 
 @router.get(
     "/preview_with_template",
@@ -301,6 +389,7 @@ async def dataset_preview_with_template(
         "data": {"columns": column_names, "rows": rows, "len": dataset_len, "offset": offset, "limit": limit},
     }
 
+
 @router.get(
     "/preview_with_chat_template",
     summary="Preview the contents of a dataset after applying a jinja chat template to it.",
@@ -335,21 +424,21 @@ async def dataset_preview_with_chat_template(
         row["__index__"] = i + offset
         for key in result["columns"].keys():
             row[key] = serialize_row(result["columns"][key][i])
-        
+
         try:
             row["__formatted__"] = tokenizer.apply_chat_template(
-                    row[chat_column],
-                    tokenize=False,
-                )
+                row[chat_column],
+                tokenize=False,
+            )
         except Exception:
             return {
-            "status": "error",
-            "message": (
-                f"Chat template could not be applied.\nThe selected column '{chat_column}' "
-                "must contain a list of dictionaries with 'role' and 'content' keys. \n"
-                f"Example: [{{'role': 'user', 'content': 'Hi'}}]."
-            ),
-        }
+                "status": "error",
+                "message": (
+                    f"Chat template could not be applied.\nThe selected column '{chat_column}' "
+                    "must contain a list of dictionaries with 'role' and 'content' keys. \n"
+                    f"Example: [{{'role': 'user', 'content': 'Hi'}}]."
+                ),
+            }
         rows.append(row)
 
     return {
@@ -636,11 +725,14 @@ async def dataset_download(dataset_id: str, config_name: str = None):
         if "Config name is missing" in str(e):
             return {"status": "error", "message": "Please enter the folder_name of the dataset from huggingface"}
         else:
-            return {"status": "error", "message": "An internal error has occurred!"}   
-    
+            return {"status": "error", "message": "An internal error has occurred!"}
+
     except DatasetNotFoundError as e:
         log(f"DatasetNotFoundError occurred: {e}")
-        return {"status": "error", "message": f"Dataset '{dataset_id}' not found or is private. Please check the dataset ID."}
+        return {
+            "status": "error",
+            "message": f"Dataset '{dataset_id}' not found or is private. Please check the dataset ID.",
+        }
 
     except Exception as e:
         log(f"Exception occurred: {type(e).__name__}: {e}")
