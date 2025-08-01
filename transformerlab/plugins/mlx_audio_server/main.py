@@ -70,43 +70,46 @@ class MLXAudioWorker(BaseModelWorker):
         text = params.get("text", "")
         model = params.get("model", None)
         speed = params.get("speed", 1.0)
-        voice = params.get("voice", "af_heart")
-        lang_code = params.get("lang_code", "a")
         file_prefix = params.get("file_prefix", "audio")
         audio_format = params.get("audio_format", "wav")
         sample_rate = params.get("sample_rate", 24000)
         temperature = params.get("temperature", 0.0)
-        ref_text = params.get("ref_text", None)
-        ref_audio = params.get("ref_audio", None)
+        # ref_text = params.get("ref_text", None)
+        # ref_audio = params.get("ref_audio", None)
+        stream = params.get("stream", False)
 
         audio_dir = os.path.join(WORKSPACE_DIR, "audio")
         os.makedirs(name=audio_dir, exist_ok=True)
 
+        try:
+            generate_audio(
+                text=text,
+                model_path=model,
+                speed=speed,
+                file_prefix= os.path.join(audio_dir, file_prefix),
+                # audio_format=audio_format,
+                sample_rate=sample_rate,
+                join_audio=True,  # Whether to join multiple audio files into one
+                verbose=True,  # Set to False to disable print messages
+                temperature=temperature,
+                # ref_text=ref_text,  # Caption for reference audio
+                # ref_audio=ref_audio,  # Reference audio you would like to clone the voice from
+                stream=stream,
 
-        generate_audio(
-            text=text,
-            model_path=model,
-            voice=voice,
-            speed=speed,
-            lang_code=lang_code, # The language code
-            file_prefix= os.path.join(audio_dir, file_prefix),
-            audio_format=audio_format,
-            sample_rate=sample_rate,
-            join_audio=True,  # Whether to join multiple audio files into one
-            verbose=True,  # Set to False to disable print messages
-            temperature=temperature,
-            ref_text=ref_text,  # Caption for reference audio
-            ref_audio=ref_audio,  # Reference audio you would like to clone the voice from
-            stream=False,
+            )
 
-)
+            logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
 
-        logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
-
-        return {
-            "status": "success",
-            "message": f"{audio_dir}/{file_prefix}.{audio_format}",
-        }
+            return {
+                "status": "success",
+                "message": f"{audio_dir}/{file_prefix}.{audio_format}",
+            }
+        except Exception:
+            logger.error(f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}")
+            return {
+                "status": "error",
+                "message": f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}",
+            }
 
 
 def release_worker_semaphore():
