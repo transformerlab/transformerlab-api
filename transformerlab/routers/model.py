@@ -1044,3 +1044,37 @@ async def chat_template(model_name: str):
             return {"status": "success", "data": template}
     except Exception:
         return {"status": "error", "message": f"Invalid model name: {model_name}", "data": None}
+
+
+@router.get("/model/pipeline_tag")
+async def get_pipeline_tag(model_name: str):
+    """
+    Get the pipeline tag for a model from Hugging Face Hub.
+
+    Args:
+        model_name: The Hugging Face model ID (e.g., "mlx-community/Kokoro-82M-bf16")
+
+    Returns:
+        JSON response with status and pipeline tag data
+    """
+    try:
+        api = HfApi()
+        model_info = api.model_info(model_name)
+        pipeline_tag = model_info.pipeline_tag
+
+        return {"status": "success", "data": pipeline_tag, "model_id": model_name}
+    except GatedRepoError:
+        return {
+            "status": "error",
+            "message": f"Model {model_name} is gated. Please ensure you have proper authentication.",
+            "data": None,
+        }
+    except EntryNotFoundError:
+        return {"status": "error", "message": f"Model {model_name} not found on Hugging Face Hub.", "data": None}
+    except Exception as e:
+        logging.error(f"Error fetching pipeline tag for {model_name}: {type(e).__name__}: {e}")
+        return {
+            "status": "error",
+            "message": f"An error occurred while fetching pipeline tag for {model_name}",
+            "data": None,
+        }
