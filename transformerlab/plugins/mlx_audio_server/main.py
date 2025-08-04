@@ -1,6 +1,7 @@
 """
 A model worker using Apple MLX Audio
 """
+
 import os
 import sys
 import argparse
@@ -8,6 +9,7 @@ import asyncio
 import uuid
 from contextlib import asynccontextmanager
 from typing import List
+import json
 
 import uvicorn
 from fastapi import BackgroundTasks, FastAPI, Request
@@ -18,6 +20,7 @@ from fastchat.serve.model_worker import logger
 from transformerlab.plugin import WORKSPACE_DIR
 
 from mlx_audio.tts.generate import generate_audio
+from datetime import datetime
 
 worker_id = str(uuid.uuid4())[:8]
 
@@ -55,14 +58,15 @@ class MLXAudioWorker(BaseModelWorker):
             limit_worker_concurrency,
         )
 
-        logger.info(f"Loading the model {self.model_names} on worker" + f"{worker_id}, worker type: MLX Audio worker...")
+        logger.info(
+            f"Loading the model {self.model_names} on worker" + f"{worker_id}, worker type: MLX Audio worker..."
+        )
         logger.info(f"Model architecture: {model_architecture}")
 
         self.model_name = model_path
-        
+
         if not no_register:
             self.init_heart_beat()
-
 
     async def generate(self, params):
         self.call_ct += 1
@@ -70,28 +74,47 @@ class MLXAudioWorker(BaseModelWorker):
         text = params.get("text", "")
         model = params.get("model", None)
         speed = params.get("speed", 1.0)
-        file_prefix = params.get("file_prefix", "audio")
+        # file_prefix = params.get("file_prefix", "audio")
         audio_format = params.get("audio_format", "wav")
         sample_rate = params.get("sample_rate", 24000)
         temperature = params.get("temperature", 0.0)
         stream = params.get("stream", False)
 
+        # @TODO: Save audio in the experiment directory
         audio_dir = os.path.join(WORKSPACE_DIR, "audio")
         os.makedirs(name=audio_dir, exist_ok=True)
+
+        # Generate a UUID for this file name:
+        file_prefix = str(uuid.uuid4())
 
         try:
             generate_audio(
                 text=text,
                 model_path=model,
                 speed=speed,
-                file_prefix= os.path.join(audio_dir, file_prefix),
+                file_prefix=os.path.join(audio_dir, file_prefix),
                 sample_rate=sample_rate,
                 join_audio=True,  # Whether to join multiple audio files into one
                 verbose=True,  # Set to False to disable print messages
                 temperature=temperature,
                 stream=stream,
-
             )
+
+            # Also save the parameters and metadata used to generate the audio
+            metadata = {
+                "type": "audio",
+                "text": text,
+                "filename": f"{file_prefix}.{audio_format}",
+                "model": model,
+                "speed": speed,
+                "audio_format": audio_format,
+                "sample_rate": sample_rate,
+                "temperature": temperature,
+                "date": datetime.now().isoformat(),  # Store the real date and time
+            }
+            metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
+            with open(metadata_file, "w") as f:
+                json.dump(metadata, f)
 
             logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
 
@@ -136,7 +159,7 @@ async def api_generate(request: Request):
     output = await worker.generate(params)
     release_worker_semaphore()
     # await engine.abort(request_id)
-    #logger.debug("Trying to abort but not implemented")
+    # logger.debug("Trying to abort but not implemented")
     return JSONResponse(output)
 
 
