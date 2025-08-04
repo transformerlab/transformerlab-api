@@ -153,6 +153,7 @@ async def list_audio(experimentId: int):
                 try:
                     data = json.load(f)
                     # Add the file modification time for sorting
+                    data["id"] = filename[:-5]  # Remove .json from the filename
                     data["file_date"] = os.path.getmtime(file_path)
                     audio_files_metadata.append(data)
                 except Exception:
@@ -188,3 +189,63 @@ async def download_audio(experimentId: int, filename: str):
         return {"message": f"Audio file {filename} does not exist in experiment {experimentId}"}
 
     return FileResponse(path=file_path, filename=filename, media_type="audio/mpeg")
+
+
+# NOTE: For this endpoint, you must pass the metadata id (the .json file name), not the specific audio file name.
+@router.delete(path="/delete_audio")
+async def delete_audio(experimentId: int, id: str):
+    """
+    Delete an audio file associated with a specific experiment.
+
+    This endpoint deletes an audio file from the experiment's audio directory.
+    You must pass the metadata ID of the audio file (not the actual filename) as the `filename` parameter.
+
+    Args:
+        experimentId (int): The ID of the experiment.
+        filename (str): The metadata ID of the audio file (e.g. 2c164641-c4ce-4fb8-bc7f-0d32cab81249) to delete (not the full wav filename).
+
+    Returns:
+        dict: A message indicating the result of the deletion operation.
+
+    Responses:
+        200:
+            description: Audio file deleted successfully.
+            content:
+                application/json:
+                    example:
+                        {"message": "Audio file <filename> deleted from experiment <experimentId>"}
+        404:
+            description: Experiment or audio file does not exist.
+            content:
+                application/json:
+                    example:
+                        {"message": "Experiment <experimentId> does not exist"}
+                        {"message": "Audio file <filename> does not exist in experiment <experimentId>"}
+    """
+    # first get the experiment name:
+    data = await experiment_get(experimentId)
+
+    # if the experiment does not exist, return an error:
+    if data is None:
+        return {"message": f"Experiment {experimentId} does not exist"}
+
+    experiment_name = data["name"]
+
+    experiment_dir = dirs.experiment_dir_by_name(experiment_name)
+    audio_dir = os.path.join(experiment_dir, "audio/")
+
+    # temporarily hardcode the audio directory to WORKSPACE_DIR/audio
+    audio_dir = os.path.join(dirs.WORKSPACE_DIR, "audio/")
+
+    # Delete the metadata file (.json)
+    metadata_path = os.path.join(audio_dir, id + ".json")
+    if not os.path.exists(metadata_path):
+        return {"message": f"Audio file {id} does not exist in experiment {experimentId}"}
+    os.remove(metadata_path)
+
+    # Delete the audio file (.wav)
+    audio_path = os.path.join(audio_dir, id + ".wav")
+    if os.path.exists(audio_path):
+        os.remove(audio_path)
+
+    return {"message": f"Audio file {id} deleted from experiment {experimentId}"}
