@@ -387,7 +387,12 @@ async def server_worker_stop():
             pids = [line.strip() for line in f if line.strip()]
             for pid in pids:
                 print(f"Killing worker process with PID: {pid}")
-                os.kill(int(pid), signal.SIGTERM)
+                try:
+                    os.kill(int(pid), signal.SIGTERM)
+                except ProcessLookupError:
+                    print(f"Process {pid} no longer exists, skipping")
+                except Exception as e:
+                    print(f"Error killing process {pid}: {e}")
         # delete the worker.pid file:
         os.remove("worker.pid")
     return {"message": "OK"}
