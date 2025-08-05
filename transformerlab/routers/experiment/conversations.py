@@ -239,6 +239,7 @@ async def delete_audio(experimentId: int, id: str):
     audio_dir = os.path.join(dirs.WORKSPACE_DIR, "audio/")
 
     # Delete the metadata file (.json)
+    id = secure_filename(id)
     metadata_path = os.path.join(audio_dir, id + ".json")
     if not os.path.exists(metadata_path):
         return {"message": f"Audio file {id} does not exist in experiment {experimentId}"}
