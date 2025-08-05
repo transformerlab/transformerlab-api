@@ -183,18 +183,13 @@ async def download_audio(experimentId: int, filename: str):
     audio_dir = os.path.join(dirs.WORKSPACE_DIR, "audio/")
 
     # now download the audio file
-    # Sanitize and validate the filename to prevent path traversal
-    safe_filename = secure_filename(filename)
-    file_path = os.path.normpath(os.path.join(audio_dir, safe_filename))
-    audio_dir_abs = os.path.abspath(audio_dir)
-    file_path_abs = os.path.abspath(file_path)
-    if not file_path_abs.startswith(audio_dir_abs + os.sep):
-        return {"message": "Invalid filename or path traversal detected."}
+    filename = secure_filename(filename)
+    file_path = os.path.join(audio_dir, filename)
 
-    if not os.path.exists(file_path_abs):
+    if not os.path.exists(file_path):
         return {"message": f"Audio file {filename} does not exist in experiment {experimentId}"}
 
-    return FileResponse(path=file_path_abs, filename=safe_filename, media_type="audio/mpeg")
+    return FileResponse(path=file_path, filename=filename, media_type="audio/mpeg")
 
 
 # NOTE: For this endpoint, you must pass the metadata id (the .json file name), not the specific audio file name.
