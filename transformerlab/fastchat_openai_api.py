@@ -93,7 +93,6 @@ class ChatCompletionRequest(BaseModel):
 class AudioRequest(BaseModel):
     model: str
     text: str
-    stream: bool
     file_prefix: str
     sample_rate: int
     temperature: float
@@ -487,7 +486,6 @@ async def create_audio_tts(request: AudioRequest):
     gen_params = {
         "model": request.model,
         "text": request.text,
-        "stream": request.stream,
         "file_prefix": request.file_prefix,
         "sample_rate": request.sample_rate,
         "temperature": request.temperature,
