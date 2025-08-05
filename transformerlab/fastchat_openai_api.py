@@ -474,7 +474,7 @@ async def show_available_models():
         model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
     return ModelList(data=model_cards)
 
-@router.post("/v1/audio/tts", tags=["audio"])
+@router.post("/v1/audio/speech", tags=["audio"])
 async def create_audio_tts(request: AudioRequest):
     error_check_ret = await check_model(request)
     if error_check_ret is not None:
