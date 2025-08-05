@@ -49,7 +49,7 @@ from transformerlab.shared import dirs
 
 WORKER_API_TIMEOUT = 3600
 
-
+# TODO: Move all base model to fastchat.protocol.openai_api_protocol
 class APIChatCompletionRequest(BaseModel):
     model: str
     adaptor: Optional[str] = ""
@@ -89,6 +89,14 @@ class ChatCompletionRequest(BaseModel):
     frequency_penalty: Optional[float] = 0.0
     user: Optional[str] = None
     logprobs: Optional[bool] = False
+
+class AudioRequest(BaseModel):
+    model: str
+    text: str
+    file_prefix: str
+    sample_rate: int
+    temperature: float
+    speed: float
 
 
 class VisualizationRequest(PydanticBaseModel):
@@ -465,6 +473,29 @@ async def show_available_models():
     for m in models:
         model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
     return ModelList(data=model_cards)
+
+@router.post("/v1/audio/speech", tags=["audio"])
+async def create_audio_tts(request: AudioRequest):
+    error_check_ret = await check_model(request)
+    if error_check_ret is not None:
+        if isinstance(error_check_ret, JSONResponse):
+            return error_check_ret
+        elif isinstance(error_check_ret, dict) and "model_name" in error_check_ret.keys():
+            request.model = error_check_ret["model_name"]
+
+    gen_params = {
+        "model": request.model,
+        "text": request.text,
+        "file_prefix": request.file_prefix,
+        "sample_rate": request.sample_rate,
+        "temperature": request.temperature,
+        "speed": request.speed,
+    }
+    #TODO: Define a base model class to structure the return value
+    content = await generate_completion(gen_params)
+
+    return content
+
 
 
 @router.post("/v1/chat/completions", dependencies=[Depends(check_api_key)], tags=["chat"])

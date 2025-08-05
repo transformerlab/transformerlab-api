@@ -1,0 +1,18 @@
+{
+  "name": "Apple Audio MLX Server",
+  "uniqueId": "mlx_audio_server",
+  "description": "A text-to-speech (TTS) library built on Apple's MLX framework, providing efficient speech synthesis on Apple Silicon.",
+  "plugin-format": "python",
+  "type": "loader",
+  "version": "0.0.1",
+  "supports": [
+    "experimental"
+  ],
+  "model_architectures": [
+    "AUDIO_MLX",
+    "StyleTTS2"
+  ],
+  "supported_hardware_architectures": ["mlx"],
+  "files": ["main.py", "setup.sh"],
+  "setup-script": "setup.sh"
+}
