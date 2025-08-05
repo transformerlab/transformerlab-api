@@ -5,7 +5,8 @@ if command -v nvidia-smi &> /dev/null; then
     
     # Check if all GPUs have compute capability > 9.0
     min_compute_cap=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader,nounits | sort -n | head -1)
-    if (( $(echo "$min_compute_cap > 9.0" | bc -l) )); then
+    # Use awk to compare floating point numbers
+    if awk "BEGIN {exit !($min_compute_cap > 9.0)}"; then
         echo "All GPUs have compute capability > 9.0"
         uv pip install torch==2.8.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/test/cu128
         uv pip install git+https://github.com/triton-lang/triton.git@main#subdirectory=python/triton_kernels
