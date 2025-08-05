@@ -158,7 +158,9 @@ h11==0.14.0
     #   httpcore
     #   uvicorn
 hf-xet==1.1.4
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   huggingface-hub
 httpcore==1.0.7
     # via httpx
 httpx==0.28.1
@@ -167,7 +169,7 @@ httpx==0.28.1
     #   transformerlab-inference
 httpx-sse==0.4.0
     # via mcp
-huggingface-hub==0.30.2
+huggingface-hub==0.34.3
     # via
     #   accelerate
     #   controlnet-aux
@@ -609,7 +611,7 @@ tqdm==4.66.5
     #   transformers
 transformerlab-inference==0.2.42
     # via -r requirements.in
-transformers==4.53.2
+transformers==4.55.0
     # via
     #   -r requirements.in
     #   peft
