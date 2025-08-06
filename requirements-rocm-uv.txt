@@ -190,7 +190,7 @@ idna==3.4
     #   yarl
 imageio==2.37.0
     # via scikit-image
-importlib-metadata==8.7.0
+importlib-metadata==7.1.0
     # via
     #   controlnet-aux
     #   diffusers
@@ -640,5 +640,5 @@ yarl==1.20.0
     # via aiohttp
 youtube-transcript-api==1.0.3
     # via markitdown
-zipp==3.22.0
+zipp==3.19.2
     # via importlib-metadata
