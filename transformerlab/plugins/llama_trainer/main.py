@@ -18,7 +18,7 @@ if torch.cuda.is_available():
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel  # noqa: E402
-from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig  # noqa: E402
+from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig, Mxfp4Config  # noqa: E402
 from trl import SFTConfig, SFTTrainer  # noqa: E402
 import torch.nn as nn  # noqa: E402
 
@@ -56,19 +56,23 @@ def train_model():
     chat_template = tlab_trainer.params.get("formatting_chat_template", None)
     chat_column = tlab_trainer.params.get("chatml_formatted_column", "messages")
 
+    # Load model
+    model_id = tlab_trainer.params.model_name
+
     # Setup quantization
     if not HAS_AMD:
         from transformers import BitsAndBytesConfig
 
-        bnb_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_use_double_quant=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=torch.bfloat16,
-        )
+        if "gpt-oss" not in model_id:
+            quantization_config = Mxfp4Config(dequantize=True)
 
-    # Load model
-    model_id = tlab_trainer.params.model_name
+        else:
+            quantization_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_use_double_quant=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=torch.bfloat16,
+            )
 
     # AMD-specific memory management
     if HAS_AMD:
@@ -80,7 +84,7 @@ def train_model():
         if not HAS_AMD:
             model = AutoModelForCausalLM.from_pretrained(
                 model_id,
-                quantization_config=bnb_config,
+                quantization_config=quantization_config,
                 use_cache=False,
                 device_map="auto",
                 trust_remote_code=True,
@@ -105,7 +109,7 @@ def train_model():
         if not HAS_AMD:
             model = AutoModelForCausalLM.from_pretrained(
                 model_id,
-                quantization_config=bnb_config,
+                quantization_config=quantization_config,
                 device_map="auto",
                 trust_remote_code=True,
             )
