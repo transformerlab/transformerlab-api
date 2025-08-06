@@ -81,7 +81,7 @@ class MLXAudioWorker(BaseModelWorker):
         stream = params.get("stream", False)
 
        # audio_dir = os.path.join(WORKSPACE_DIR, "audio")
-        os.makedirs(name=audio_dir, exist_ok=True)
+        os.makedirs(name=self.audio_dir, exist_ok=True)
 
         # Generate a UUID for this file name:
         file_prefix = str(uuid.uuid4())
@@ -91,7 +91,7 @@ class MLXAudioWorker(BaseModelWorker):
                 text=text,
                 model_path=model,
                 speed=speed,
-                file_prefix=os.path.join(audio_dir, file_prefix),
+                file_prefix=os.path.join(self.audio_dir, file_prefix),
                 sample_rate=sample_rate,
                 join_audio=True,  # Whether to join multiple audio files into one
                 verbose=True,  # Set to False to disable print messages
@@ -111,21 +111,21 @@ class MLXAudioWorker(BaseModelWorker):
                 "temperature": temperature,
                 "date": datetime.now().isoformat(),  # Store the real date and time
             }
-            metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
+            metadata_file = os.path.join(self.audio_dir, f"{file_prefix}.json")
             with open(metadata_file, "w") as f:
                 json.dump(metadata, f)
 
-            logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
+            logger.info(f"Audio successfully generated: {self.audio_dir}/{file_prefix}.{audio_format}")
 
             return {
                 "status": "success",
-                "message": f"{audio_dir}/{file_prefix}.{audio_format}",
+                "message": f"{self.audio_dir}/{file_prefix}.{audio_format}",
             }
         except Exception:
-            logger.error(f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}")
+            logger.error(f"Error generating audio: {self.audio_dir}/{file_prefix}.{audio_format}")
             return {
                 "status": "error",
-                "message": f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}",
+                "message": f"Error generating audio: {self.audio_dir}/{file_prefix}.{audio_format}",
             }
 
 
