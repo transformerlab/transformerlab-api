@@ -142,7 +142,7 @@ async def list_audio(experimentId: int):
     audio_dir = os.path.join(experiment_dir, "audio/")
 
     # temporarily hardcode the audio directory to WORKSPACE_DIR/audio
-    audio_dir = os.path.join(dirs.WORKSPACE_DIR, "audio/")
+    # audio_dir = os.path.join(dirs.WORKSPACE_DIR, "audio/")
 
     # now get a list of all the json files in the audio directory
     audio_files_metadata = []
@@ -180,7 +180,7 @@ async def download_audio(experimentId: int, filename: str):
     audio_dir = os.path.join(experiment_dir, "audio/")
 
     # temporarily hardcode the audio directory to WORKSPACE_DIR/audio
-    audio_dir = os.path.join(dirs.WORKSPACE_DIR, "audio/")
+    # audio_dir = os.path.join(dirs.WORKSPACE_DIR, "audio/")
 
     # now download the audio file
     filename = secure_filename(filename)
@@ -236,7 +236,7 @@ async def delete_audio(experimentId: int, id: str):
     audio_dir = os.path.join(experiment_dir, "audio/")
 
     # temporarily hardcode the audio directory to WORKSPACE_DIR/audio
-    audio_dir = os.path.join(dirs.WORKSPACE_DIR, "audio/")
+    # audio_dir = os.path.join(dirs.WORKSPACE_DIR, "audio/")
 
     # Delete the metadata file (.json)
     id = secure_filename(id)

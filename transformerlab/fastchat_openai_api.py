@@ -45,6 +45,7 @@ from fastchat.protocol.openai_api_protocol import (
 )
 from pydantic import BaseModel as PydanticBaseModel
 
+from transformerlab.plugin_sdk.transformerlab.plugin import get_experiment_name_by_id
 from transformerlab.shared import dirs
 
 WORKER_API_TIMEOUT = 3600
@@ -91,6 +92,7 @@ class ChatCompletionRequest(BaseModel):
     logprobs: Optional[bool] = False
 
 class AudioRequest(BaseModel):
+    audio_dir: str
     model: str
     text: str
     file_prefix: str
@@ -483,7 +485,12 @@ async def create_audio_tts(request: AudioRequest):
         elif isinstance(error_check_ret, dict) and "model_name" in error_check_ret.keys():
             request.model = error_check_ret["model_name"]
 
+    experiment_name = get_experiment_name_by_id(request.experiment_id)
+    experiment_dir = dirs.experiment_dir_by_name(experiment_name)
+    audio_dir = os.path.join(experiment_dir, "audio/")
+    
     gen_params = {
+        "audio_dir": audio_dir,
         "model": request.model,
         "text": request.text,
         "file_prefix": request.file_prefix,

@@ -625,3 +625,14 @@ def format_template(
         formatting_template = jinja_env.from_string(formatting_template)
         return formatting_template.render(example)
     raise ValueError("Either formatting_template or chat_template must be provided.")
+
+def get_experiment_name_by_id(experiment_id: int):
+    """
+    Returns the experiment name for a given experiment ID.
+    """
+    experiment = experiment_get(experiment_id)
+    if experiment is None:
+        raise Exception(f"Experiment {experiment_id} does not exist.")
+    experiment_name = experiment["name"]
+
+    return experiment_name

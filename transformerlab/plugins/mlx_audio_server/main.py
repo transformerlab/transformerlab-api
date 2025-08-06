@@ -17,8 +17,6 @@ from fastapi.responses import JSONResponse
 
 from fastchat.serve.model_worker import logger
 
-from transformerlab.plugin import WORKSPACE_DIR
-
 from mlx_audio.tts.generate import generate_audio
 from datetime import datetime
 
@@ -48,6 +46,7 @@ class MLXAudioWorker(BaseModelWorker):
         model_architecture: str,
         limit_worker_concurrency: int,
         no_register: bool,
+        audio_dir: str,
     ):
         super().__init__(
             controller_addr,
@@ -64,6 +63,7 @@ class MLXAudioWorker(BaseModelWorker):
         logger.info(f"Model architecture: {model_architecture}")
 
         self.model_name = model_path
+        self.audio_dir = audio_dir
 
         if not no_register:
             self.init_heart_beat()
@@ -80,8 +80,7 @@ class MLXAudioWorker(BaseModelWorker):
         temperature = params.get("temperature", 0.0)
         stream = params.get("stream", False)
 
-        # @TODO: Save audio in the experiment directory
-        audio_dir = os.path.join(WORKSPACE_DIR, "audio")
+       # audio_dir = os.path.join(WORKSPACE_DIR, "audio")
         os.makedirs(name=audio_dir, exist_ok=True)
 
         # Generate a UUID for this file name:
@@ -196,7 +195,9 @@ def main():
         help="Trust remote code (e.g., from HuggingFace) whendownloading the model and tokenizer.",
     )
     parser.add_argument("--parameters", type=str, default="{}")
+    parser.add_argument("--audio-dir", type=str)
     parser.add_argument("--plugin_dir", type=str)
+
 
     args, unknown = parser.parse_known_args()
 
@@ -212,6 +213,7 @@ def main():
         args.model_architecture,
         1024,
         False,
+        args.audio_dir,
     )
 
     # Restore original stdout/stderr to prevent logging recursion
