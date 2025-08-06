@@ -90,13 +90,19 @@ class ChatCompletionRequest(BaseModel):
     user: Optional[str] = None
     logprobs: Optional[bool] = False
 
-class AudioRequest(BaseModel):
+class AudioSpeechRequest(BaseModel):
     model: str
     text: str
     file_prefix: str
     sample_rate: int
     temperature: float
     speed: float
+
+class AudioTranscriptionsRequest(BaseModel):
+    model: str
+    audio_path: str
+    format: str
+    # output_path: str note: probably we set this by ourself
 
 
 class VisualizationRequest(PydanticBaseModel):
@@ -475,7 +481,7 @@ async def show_available_models():
     return ModelList(data=model_cards)
 
 @router.post("/v1/audio/speech", tags=["audio"])
-async def create_audio_tts(request: AudioRequest):
+async def create_audio_tts(request: AudioSpeechRequest):
     error_check_ret = await check_model(request)
     if error_check_ret is not None:
         if isinstance(error_check_ret, JSONResponse):
@@ -491,6 +497,28 @@ async def create_audio_tts(request: AudioRequest):
         "temperature": request.temperature,
         "speed": request.speed,
     }
+    gen_params["task"] = "tts"
+    #TODO: Define a base model class to structure the return value
+    content = await generate_completion(gen_params)
+
+    return content
+
+@router.post("/v1/audio/transcriptions", tags=["audio"])
+async def create_text_stt(request: AudioTranscriptionsRequest):
+    error_check_ret = await check_model(request)
+    if error_check_ret is not None:
+        if isinstance(error_check_ret, JSONResponse):
+            return error_check_ret
+        elif isinstance(error_check_ret, dict) and "model_name" in error_check_ret.keys():
+            request.model = error_check_ret["model_name"]
+
+    gen_params = {
+        "model": request.model,
+        "audio_path": request.audio_path,
+        "output_path": request.output_path,
+        "format": request.format,
+    }
+    gen_params["task"] = "stt"
     #TODO: Define a base model class to structure the return value
     content = await generate_completion(gen_params)
 
