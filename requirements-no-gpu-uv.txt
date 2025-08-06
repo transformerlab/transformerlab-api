@@ -633,5 +633,5 @@ yarl==1.18.3
     # via aiohttp
 youtube-transcript-api==1.0.3
     # via markitdown
-zipp==3.21.0
+zipp==3.19.2
     # via importlib-metadata
