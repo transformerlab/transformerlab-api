@@ -140,6 +140,7 @@ async def list_audio(experimentId: int):
 
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
     audio_dir = os.path.join(experiment_dir, "audio/")
+    os.makedirs(name=audio_dir, exist_ok=True)
 
     # temporarily hardcode the audio directory to WORKSPACE_DIR/audio
     # audio_dir = os.path.join(dirs.WORKSPACE_DIR, "audio/")
@@ -234,6 +235,7 @@ async def delete_audio(experimentId: int, id: str):
 
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
     audio_dir = os.path.join(experiment_dir, "audio/")
+    
 
     # temporarily hardcode the audio directory to WORKSPACE_DIR/audio
     # audio_dir = os.path.join(dirs.WORKSPACE_DIR, "audio/")

@@ -91,7 +91,7 @@ class ChatCompletionRequest(BaseModel):
     logprobs: Optional[bool] = False
 
 class AudioRequest(BaseModel):
-    audio_dir: str
+    experiment_id: int
     model: str
     text: str
     file_prefix: str
@@ -484,8 +484,10 @@ async def create_audio_tts(request: AudioRequest):
         elif isinstance(error_check_ret, dict) and "model_name" in error_check_ret.keys():
             request.model = error_check_ret["model_name"]
 
-    experiment_dir = dirs.experiment_dir_by_id(request.experiment_id)
+    experiment_dir = await dirs.experiment_dir_by_id(request.experiment_id)
     audio_dir = os.path.join(experiment_dir, "audio/")
+    os.makedirs(audio_dir, exist_ok=True)
+
     
     gen_params = {
         "audio_dir": audio_dir,
