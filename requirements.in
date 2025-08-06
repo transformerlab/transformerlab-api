@@ -19,7 +19,7 @@ tiktoken
 torch==2.7.0
 torchaudio==2.7.0
 torchvision==0.22.0
-transformers==4.53.2
+transformers==4.55.0
 peft
 watchfiles
 wandb==0.19.10
@@ -30,7 +30,7 @@ sentence-transformers
 markitdown[all]
 hf_xet
 macmon-python
-transformerlab-inference==0.2.42
+transformerlab-inference==0.2.43
 diffusers==0.33.1
 nvidia-ml-py
 mcp[cli]
