@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import time
+import uuid
 
 from typing import Any, AsyncGenerator, Dict, Generator, List, Optional, Union
 
@@ -15,7 +16,7 @@ import shortuuid
 import tiktoken
 
 # Using torch to test for CUDA and MPS support.
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, File, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.security.http import HTTPAuthorizationCredentials, HTTPBearer
 from fastchat.constants import WORKER_API_EMBEDDING_BATCH_SIZE, ErrorCode
@@ -101,7 +102,7 @@ class AudioSpeechRequest(BaseModel):
 class AudioTranscriptionsRequest(BaseModel):
     model: str
     audio_path: str
-    format: str
+    # format: str
     # output_path: str note: probably we set this by ourself
 
 
@@ -516,13 +517,30 @@ async def create_text_stt(request: AudioTranscriptionsRequest):
         "model": request.model,
         "audio_path": request.audio_path,
         "output_path": request.output_path,
-        "format": request.format,
+        #"format": request.format,
     }
     gen_params["task"] = "stt"
     #TODO: Define a base model class to structure the return value
     content = await generate_completion(gen_params)
 
     return content
+
+@router.post("/v1/audio/upload")
+async def upload_audio(experiment_id: int, audio: UploadFile = File(...)):
+
+    experiment_dir = await dirs.experiment_dir_by_id(experiment_id)
+    uploaded_audio_dir = os.path.join(experiment_dir,experiment_id, "uploaded_audio")
+    os.makedirs(uploaded_audio_dir, exist_ok=True)
+
+    file_prefix = str(uuid.uuid4())
+    file_path = os.path.join(uploaded_audio_dir, file_prefix)
+
+    # Save the uploaded file
+    with open(file_path, "wb") as f:
+        content = await audio.read()
+        f.write(content)
+
+    return JSONResponse({"audioPath": file_path})
 
 
 
