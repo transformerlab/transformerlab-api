@@ -27,12 +27,13 @@ from transformerlab.plugin import WORKSPACE_DIR, format_template  # noqa: E402
 from transformerlab.sdk.v1.train import tlab_trainer  # noqa: E402
 
 
-
-def find_lora_target_modules(model, keyword="proj"):
+def find_lora_target_modules(model, keyword="proj", model_name=None):
     """
     Returns all submodule names (e.g., 'q_proj') suitable for LoRA injection.
     These can be passed directly to LoraConfig as `target_modules`.
     """
+    if model_name is not None and "gpt-oss" in model_name:
+        return "all-linear"
     module_names = set()
     for name, module in model.named_modules():
         if isinstance(module, nn.Linear) and keyword in name:
@@ -51,9 +52,9 @@ def train_model():
     print(f"Dataset loaded successfully with {len(dataset)} examples")
     print(dataset[randrange(len(dataset))])
 
-    formatting_template=tlab_trainer.params.get("formatting_template", None)
-    chat_template=tlab_trainer.params.get("formatting_chat_template", None)
-    chat_column=tlab_trainer.params.get("chatml_formatted_column", "messages")
+    formatting_template = tlab_trainer.params.get("formatting_template", None)
+    chat_template = tlab_trainer.params.get("formatting_chat_template", None)
+    chat_column = tlab_trainer.params.get("chatml_formatted_column", "messages")
 
     # Setup quantization
     if not HAS_AMD:
@@ -92,7 +93,7 @@ def train_model():
                 device_map="auto",
                 trust_remote_code=True,
             )
-        lora_target_modules = find_lora_target_modules(model)
+        lora_target_modules = find_lora_target_modules(model, model_name=model_id)
         model.config.pretraining_tp = 1
 
         tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
@@ -115,7 +116,7 @@ def train_model():
                 device_map="auto",
                 trust_remote_code=True,
             )
-        lora_target_modules = find_lora_target_modules(model)
+        lora_target_modules = find_lora_target_modules(model, model_name=model_id)
         model.config.pretraining_tp = 1
 
         tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
@@ -127,12 +128,12 @@ def train_model():
 
     # Setup chat template and formatting function
     formatting_func = partial(
-    format_template,
-    chat_template=chat_template,
-    formatting_template=formatting_template,
-    tokenizer=tokenizer,
-    chat_column=chat_column,
-)
+        format_template,
+        chat_template=chat_template,
+        formatting_template=formatting_template,
+        tokenizer=tokenizer,
+        chat_column=chat_column,
+    )
     print("Formatted example:")
     print(formatting_func(dataset[randrange(len(dataset))]))
 
@@ -198,7 +199,7 @@ def train_model():
             save_strategy="epoch",
             learning_rate=learning_rate,
             bf16=True,
-            tf32=False, # T4 GPUs do not support tf32
+            tf32=False,  # T4 GPUs do not support tf32
             max_grad_norm=0.3,
             warmup_ratio=0.03,
             lr_scheduler_type=lr_scheduler,
