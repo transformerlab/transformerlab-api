@@ -20,7 +20,6 @@ from fastchat.serve.model_worker import logger
 from transformerlab.plugin import WORKSPACE_DIR
 
 from mlx_audio.tts.generate import generate_audio
-from mlx_audio.stt.generate import generate
 from datetime import datetime
 
 worker_id = str(uuid.uuid4())[:8]
@@ -149,7 +148,7 @@ class MLXAudioWorker(BaseModelWorker):
                     audio_path=audio_path,
                     model_path=model,
                     format=format,
-                    output_path=output_path
+                    output_path=output_path,
                     # file_prefix=os.path.join(audio_dir, file_prefix),
                     verbose=True,  # Set to False to disable print messages
                 )
