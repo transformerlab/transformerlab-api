@@ -18,7 +18,7 @@ if torch.cuda.is_available():
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel  # noqa: E402
-from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig  # noqa: E402
+from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig, Mxfp4Config  # noqa: E402
 from trl import SFTConfig, SFTTrainer  # noqa: E402
 import torch.nn as nn  # noqa: E402
 
@@ -27,12 +27,13 @@ from transformerlab.plugin import WORKSPACE_DIR, format_template  # noqa: E402
 from transformerlab.sdk.v1.train import tlab_trainer  # noqa: E402
 
 
-
-def find_lora_target_modules(model, keyword="proj"):
+def find_lora_target_modules(model, keyword="proj", model_name=None):
     """
     Returns all submodule names (e.g., 'q_proj') suitable for LoRA injection.
     These can be passed directly to LoraConfig as `target_modules`.
     """
+    if model_name is not None and "gpt-oss" in model_name:
+        return "all-linear"
     module_names = set()
     for name, module in model.named_modules():
         if isinstance(module, nn.Linear) and keyword in name:
@@ -51,23 +52,29 @@ def train_model():
     print(f"Dataset loaded successfully with {len(dataset)} examples")
     print(dataset[randrange(len(dataset))])
 
-    formatting_template=tlab_trainer.params.get("formatting_template", None)
-    chat_template=tlab_trainer.params.get("formatting_chat_template", None)
-    chat_column=tlab_trainer.params.get("chatml_formatted_column", "messages")
-
-    # Setup quantization
-    if not HAS_AMD:
-        from transformers import BitsAndBytesConfig
-
-        bnb_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_use_double_quant=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=torch.bfloat16,
-        )
+    formatting_template = tlab_trainer.params.get("formatting_template", None)
+    chat_template = tlab_trainer.params.get("formatting_chat_template", None)
+    chat_column = tlab_trainer.params.get("chatml_formatted_column", "messages")
 
     # Load model
     model_id = tlab_trainer.params.model_name
+
+    # Setup quantization
+    if not HAS_AMD:
+
+        if "gpt-oss" in model_id:
+            print("Training GPT-OSS model is only supported for GPUs with compute capability 9.0 or higher.")
+            quantization_config = Mxfp4Config(dequantize=True)
+            print('The model is dequantized during loading. Please ensure you have enough VRAM for loading the model.')
+
+        else:
+            from transformers import BitsAndBytesConfig
+            quantization_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_use_double_quant=True,
+                bnb_4bit_quant_type="nf4",
+                bnb_4bit_compute_dtype=torch.bfloat16,
+            )
 
     # AMD-specific memory management
     if HAS_AMD:
@@ -75,24 +82,35 @@ def train_model():
         if torch.cuda.is_available():
             torch.cuda.synchronize()
 
+    model_kwargs = {
+        "use_cache": False,
+        "device_map": "auto",
+        "trust_remote_code": True,
+    }
+
+    # Set model kwargs
+    if not HAS_AMD:
+        model_kwargs["quantization_config"] = quantization_config
+        if 'gpt-oss' in model_id:
+            model_kwargs["torch_dtype"] = torch.bfloat16
+            model_kwargs['attn_implementation'] = 'eager'
+    else:
+        model_kwargs["torch_dtype"] = torch.float16
+
+
+
     try:
         if not HAS_AMD:
             model = AutoModelForCausalLM.from_pretrained(
                 model_id,
-                quantization_config=bnb_config,
-                use_cache=False,
-                device_map="auto",
-                trust_remote_code=True,
+                **model_kwargs,
             )
         else:
             model = AutoModelForCausalLM.from_pretrained(
                 model_id,
-                use_cache=False,
-                torch_dtype=torch.float16,
-                device_map="auto",
-                trust_remote_code=True,
+                **model_kwargs,
             )
-        lora_target_modules = find_lora_target_modules(model)
+        lora_target_modules = find_lora_target_modules(model, model_name=model_id)
         model.config.pretraining_tp = 1
 
         tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
@@ -101,21 +119,18 @@ def train_model():
 
         print(f"Model and tokenizer loaded successfully: {model_id}")
     except TypeError:
+        del model_kwargs["use_cache"]
         if not HAS_AMD:
             model = AutoModelForCausalLM.from_pretrained(
                 model_id,
-                quantization_config=bnb_config,
-                device_map="auto",
-                trust_remote_code=True,
+                **model_kwargs,
             )
         else:
             model = AutoModelForCausalLM.from_pretrained(
                 model_id,
-                torch_dtype=torch.float16,
-                device_map="auto",
-                trust_remote_code=True,
+                **model_kwargs,
             )
-        lora_target_modules = find_lora_target_modules(model)
+        lora_target_modules = find_lora_target_modules(model, model_name=model_id)
         model.config.pretraining_tp = 1
 
         tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
@@ -127,12 +142,12 @@ def train_model():
 
     # Setup chat template and formatting function
     formatting_func = partial(
-    format_template,
-    chat_template=chat_template,
-    formatting_template=formatting_template,
-    tokenizer=tokenizer,
-    chat_column=chat_column,
-)
+        format_template,
+        chat_template=chat_template,
+        formatting_template=formatting_template,
+        tokenizer=tokenizer,
+        chat_column=chat_column,
+    )
     print("Formatted example:")
     print(formatting_func(dataset[randrange(len(dataset))]))
 
@@ -174,7 +189,6 @@ def train_model():
     adaptor_output_dir = tlab_trainer.params.get("adaptor_output_dir", "./adaptor")
 
     # Setup training arguments - use direct attribute access
-    max_seq_length = int(tlab_trainer.params.get("maximum_sequence_length", 2048))
     num_train_epochs = int(tlab_trainer.params.get("num_train_epochs", 3))
     batch_size = int(tlab_trainer.params.get("batch_size", 4))
 
@@ -198,11 +212,10 @@ def train_model():
             save_strategy="epoch",
             learning_rate=learning_rate,
             bf16=True,
-            tf32=False, # T4 GPUs do not support tf32
+            tf32=False,  # T4 GPUs do not support tf32
             max_grad_norm=0.3,
             warmup_ratio=0.03,
             lr_scheduler_type=lr_scheduler,
-            max_seq_length=max_seq_length,
             disable_tqdm=False,
             packing=True,
             run_name=f"job_{tlab_trainer.params.job_id}_{run_suffix}",
@@ -230,7 +243,6 @@ def train_model():
             max_grad_norm=0.3,
             warmup_ratio=0.03,
             lr_scheduler_type=lr_scheduler,
-            max_seq_length=max_seq_length,
             disable_tqdm=False,
             packing=False,  # Disable packing for AMD compatibility
             run_name=f"job_{tlab_trainer.params.job_id}_{run_suffix}",
