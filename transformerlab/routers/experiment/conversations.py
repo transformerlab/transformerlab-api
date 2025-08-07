@@ -140,7 +140,7 @@ async def list_audio(experimentId: int):
 
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
     safe_experiment_id = secure_filename(str(experimentId))
-    audio_dir = os.path.join(experiment_dir, safe_experiment_id, "audio")
+    audio_dir = os.path.join(experiment_dir, str(safe_experiment_id), "audio")
     os.makedirs(name=audio_dir, exist_ok=True)
 
     # now get a list of all the json files in the audio directory
@@ -176,7 +176,7 @@ async def download_audio(experimentId: int, filename: str):
     experiment_name = data["name"]
 
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
-    audio_dir = os.path.join(experiment_dir, experimentId, "audio")
+    audio_dir = os.path.join(experiment_dir, str(experimentId), "audio")
 
     # now download the audio file
     filename = secure_filename(filename)
@@ -229,7 +229,7 @@ async def delete_audio(experimentId: int, id: str):
     experiment_name = data["name"]
 
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
-    audio_dir = os.path.join(experiment_dir, experimentId, "audio")
+    audio_dir = os.path.join(experiment_dir, str(experimentId), "audio")
     
     # Delete the metadata file (.json)
     id = secure_filename(id)
