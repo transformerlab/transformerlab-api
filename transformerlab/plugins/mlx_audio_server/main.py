@@ -76,13 +76,15 @@ class MLXAudioWorker(BaseModelWorker):
             text = params.get("text", "")
             model = params.get("model", None)
             speed = params.get("speed", 1.0)
+            # file_prefix = params.get("file_prefix", "audio")
             audio_format = params.get("audio_format", "wav")
             sample_rate = params.get("sample_rate", 24000)
             temperature = params.get("temperature", 0.0)
             stream = params.get("stream", False)
-
-            # @TODO: Save audio in the experiment directory
-            audio_dir = os.path.join(WORKSPACE_DIR, "audio")
+            
+            audio_dir = params.get("audio_dir", None)
+            if not audio_dir:
+                audio_dir = os.path.join(WORKSPACE_DIR, "audio")
             os.makedirs(name=audio_dir, exist_ok=True)
 
             # Generate a UUID for this file name:
@@ -129,11 +131,12 @@ class MLXAudioWorker(BaseModelWorker):
                     "status": "error",
                     "message": f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}",
                 }
+
         elif type == "stt":
             audio_path = params.get("audio_path", "")
             model = params.get("model", None)
             format = params.get("format", "txt")
-            output_path = params.get("output_path", None) #note: probably we set this by ourself
+            output_path = params.get("output_path", None)
 
             # @TODO: Save audio in the experiment directory
             audio_dir = os.path.join(WORKSPACE_DIR, "audio")
