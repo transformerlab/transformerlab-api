@@ -16,7 +16,6 @@ from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from fastchat.serve.model_worker import logger
-
 from transformerlab.plugin import WORKSPACE_DIR
 
 from mlx_audio.tts.generate import generate_audio
@@ -258,6 +257,7 @@ def main():
     )
     parser.add_argument("--parameters", type=str, default="{}")
     parser.add_argument("--plugin_dir", type=str)
+
 
     args, unknown = parser.parse_known_args()
 

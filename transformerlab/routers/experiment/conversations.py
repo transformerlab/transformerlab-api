@@ -136,13 +136,12 @@ async def list_audio(experimentId: int):
     if data is None:
         return {"message": f"Experiment {experimentId} does not exist"}
 
-    experiment_name = data["name"]
+    experiment_name = secure_filename(data["name"])
 
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
-    audio_dir = os.path.join(experiment_dir, "audio/")
-
-    # temporarily hardcode the audio directory to WORKSPACE_DIR/audio
-    audio_dir = os.path.join(dirs.WORKSPACE_DIR, "audio/")
+    safe_experiment_id = secure_filename(str(experimentId))
+    audio_dir = os.path.join(experiment_dir, str(safe_experiment_id), "audio")
+    os.makedirs(name=audio_dir, exist_ok=True)
 
     # now get a list of all the json files in the audio directory
     audio_files_metadata = []
@@ -177,10 +176,7 @@ async def download_audio(experimentId: int, filename: str):
     experiment_name = data["name"]
 
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
-    audio_dir = os.path.join(experiment_dir, "audio/")
-
-    # temporarily hardcode the audio directory to WORKSPACE_DIR/audio
-    audio_dir = os.path.join(dirs.WORKSPACE_DIR, "audio/")
+    audio_dir = os.path.join(experiment_dir, str(experimentId), "audio")
 
     # now download the audio file
     filename = secure_filename(filename)
@@ -233,11 +229,8 @@ async def delete_audio(experimentId: int, id: str):
     experiment_name = data["name"]
 
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
-    audio_dir = os.path.join(experiment_dir, "audio/")
-
-    # temporarily hardcode the audio directory to WORKSPACE_DIR/audio
-    audio_dir = os.path.join(dirs.WORKSPACE_DIR, "audio/")
-
+    audio_dir = os.path.join(experiment_dir, str(experimentId), "audio")
+    
     # Delete the metadata file (.json)
     id = secure_filename(id)
     metadata_path = os.path.join(audio_dir, id + ".json")
