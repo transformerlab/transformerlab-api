@@ -20,7 +20,6 @@ if command -v nvidia-smi &> /dev/null; then
         uv pip install "kernels>=0.9.0" "peft>=0.17.0" "trl>=0.21.0" "trackio" "transformers>=4.55.0"
     else
         uv pip install openai_harmony
-        uv pip install -e /home/transformerlab/workspace/transformerlab-inference/
         uv pip install git+https://github.com/triton-lang/triton.git@main#subdirectory=python/triton_kernels
         uv pip install "kernels>=0.9.0" "peft>=0.17.0" "trl>=0.21.0" "trackio"
         uv pip install git+https://github.com/huggingface/transformers.git 
