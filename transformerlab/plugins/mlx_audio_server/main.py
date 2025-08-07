@@ -19,6 +19,7 @@ from fastchat.serve.model_worker import logger
 from transformerlab.plugin import WORKSPACE_DIR
 
 from mlx_audio.tts.generate import generate_audio
+from mlx_audio.stt.generate import generate
 from datetime import datetime
 
 worker_id = str(uuid.uuid4())[:8]
@@ -136,52 +137,50 @@ class MLXAudioWorker(BaseModelWorker):
             audio_path = params.get("audio_path", "")
             model = params.get("model", None)
             format = params.get("format", "txt")
-            output_path = params.get("output_path", None)
+            transcriptions_dir = params.get("output_path", None)
+            format = params.get("format", "txt")
 
-            # @TODO: Save audio in the experiment directory
-            audio_dir = os.path.join(WORKSPACE_DIR, "audio")
-            os.makedirs(name=audio_dir, exist_ok=True)
+
+            if not transcriptions_dir:
+                transcriptions_dir = os.path.join(WORKSPACE_DIR, "transcriptions")
+            os.makedirs(name=transcriptions_dir, exist_ok=True)
 
             # Generate a UUID for this file name:
             file_prefix = str(uuid.uuid4())
 
             try:
-                generate_audio(
+                generate(
                     audio_path=audio_path,
                     model_path=model,
                     format=format,
-                    output_path=output_path,
-                    # file_prefix=os.path.join(audio_dir, file_prefix),
+                    output_path=os.path.join(transcriptions_dir, file_prefix),
                     verbose=True,  # Set to False to disable print messages
                 )
 
                 # Also save the parameters and metadata used to generate the audio
                 metadata = {
-                    "type": "audio",
-                    "text": text,
-                    "filename": f"{file_prefix}.{audio_format}",
+                    "type": "text",
+                    "audio_path": audio_path,
+                    "filename": f"{file_prefix}.{format}",
                     "model": model,
-                    "speed": speed,
-                    "audio_format": audio_format,
-                    "sample_rate": sample_rate,
-                    "temperature": temperature,
+                    "text_format": format,
                     "date": datetime.now().isoformat(),  # Store the real date and time
                 }
-                metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
+                metadata_file = os.path.join(transcriptions_dir, f"{file_prefix}.json")
                 with open(metadata_file, "w") as f:
                     json.dump(metadata, f)
 
-                logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
+                logger.info(f"Transcription successfully generated: {transcriptions_dir}/{file_prefix}.{format}")
 
                 return {
                     "status": "success",
-                    "message": f"{audio_dir}/{file_prefix}.{audio_format}",
+                    "message": f"{transcriptions_dir}/{file_prefix}.{format}",
                 }
             except Exception:
-                logger.error(f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}")
+                logger.error(f"Error generating transcription: {transcriptions_dir}/{file_prefix}.{format}")
                 return {
                     "status": "error",
-                    "message": f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}",
+                    "message": f"Error generating transcription: {transcriptions_dir}/{file_prefix}.{format}",
                 }
       
         else:
