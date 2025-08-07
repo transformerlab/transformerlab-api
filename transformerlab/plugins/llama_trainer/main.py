@@ -61,12 +61,13 @@ def train_model():
 
     # Setup quantization
     if not HAS_AMD:
-        from transformers import BitsAndBytesConfig
 
-        if "gpt-oss" not in model_id:
+        if "gpt-oss" in model_id:
             quantization_config = Mxfp4Config(dequantize=True)
+            print('The model is dequantized ')
 
         else:
+            from transformers import BitsAndBytesConfig
             quantization_config = BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_use_double_quant=True,
@@ -80,22 +81,33 @@ def train_model():
         if torch.cuda.is_available():
             torch.cuda.synchronize()
 
+    model_kwargs = {
+        "use_cache": False,
+        "device_map": "auto",
+        "trust_remote_code": True,
+    }
+
+    # Set model kwargs
+    if not HAS_AMD:
+        model_kwargs["quantization_config"] = quantization_config
+        if 'gpt-oss' in model_id:
+            model_kwargs["torch_dtype"] = torch.bfloat16
+            model_kwargs['attn_implementation'] = 'eager'
+    else:
+        model_kwargs["torch_dtype"] = torch.float16
+
+
+
     try:
         if not HAS_AMD:
             model = AutoModelForCausalLM.from_pretrained(
                 model_id,
-                quantization_config=quantization_config,
-                use_cache=False,
-                device_map="auto",
-                trust_remote_code=True,
+                **model_kwargs,
             )
         else:
             model = AutoModelForCausalLM.from_pretrained(
                 model_id,
-                use_cache=False,
-                torch_dtype=torch.float16,
-                device_map="auto",
-                trust_remote_code=True,
+                **model_kwargs,
             )
         lora_target_modules = find_lora_target_modules(model, model_name=model_id)
         model.config.pretraining_tp = 1
@@ -106,19 +118,16 @@ def train_model():
 
         print(f"Model and tokenizer loaded successfully: {model_id}")
     except TypeError:
+        del model_kwargs["use_cache"]
         if not HAS_AMD:
             model = AutoModelForCausalLM.from_pretrained(
                 model_id,
-                quantization_config=quantization_config,
-                device_map="auto",
-                trust_remote_code=True,
+                **model_kwargs,
             )
         else:
             model = AutoModelForCausalLM.from_pretrained(
                 model_id,
-                torch_dtype=torch.float16,
-                device_map="auto",
-                trust_remote_code=True,
+                **model_kwargs,
             )
         lora_target_modules = find_lora_target_modules(model, model_name=model_id)
         model.config.pretraining_tp = 1
@@ -179,7 +188,6 @@ def train_model():
     adaptor_output_dir = tlab_trainer.params.get("adaptor_output_dir", "./adaptor")
 
     # Setup training arguments - use direct attribute access
-    max_seq_length = int(tlab_trainer.params.get("maximum_sequence_length", 2048))
     num_train_epochs = int(tlab_trainer.params.get("num_train_epochs", 3))
     batch_size = int(tlab_trainer.params.get("batch_size", 4))
 
@@ -207,7 +215,6 @@ def train_model():
             max_grad_norm=0.3,
             warmup_ratio=0.03,
             lr_scheduler_type=lr_scheduler,
-            max_seq_length=max_seq_length,
             disable_tqdm=False,
             packing=True,
             run_name=f"job_{tlab_trainer.params.job_id}_{run_suffix}",
@@ -235,7 +242,6 @@ def train_model():
             max_grad_norm=0.3,
             warmup_ratio=0.03,
             lr_scheduler_type=lr_scheduler,
-            max_seq_length=max_seq_length,
             disable_tqdm=False,
             packing=False,  # Disable packing for AMD compatibility
             run_name=f"job_{tlab_trainer.params.job_id}_{run_suffix}",
