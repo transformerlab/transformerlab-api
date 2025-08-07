@@ -63,8 +63,9 @@ def train_model():
     if not HAS_AMD:
 
         if "gpt-oss" in model_id:
+            print("Training GPT-OSS model is only supported for GPUs with compute capability 9.0 or higher.")
             quantization_config = Mxfp4Config(dequantize=True)
-            print('The model is dequantized ')
+            print('The model is dequantized during loading. Please ensure you have enough VRAM for loading the model.')
 
         else:
             from transformers import BitsAndBytesConfig
