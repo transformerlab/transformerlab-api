@@ -101,6 +101,7 @@ class AudioSpeechRequest(BaseModel):
     speed: float
 
 class AudioTranscriptionsRequest(BaseModel):
+    experiment_id: int
     model: str
     audio_path: str
     # format: str
@@ -519,11 +520,15 @@ async def create_text_stt(request: AudioTranscriptionsRequest):
             return error_check_ret
         elif isinstance(error_check_ret, dict) and "model_name" in error_check_ret.keys():
             request.model = error_check_ret["model_name"]
+    
+    experiment_dir = await dirs.experiment_dir_by_id(request.experiment_id)
+    transcription_dir = os.path.join(experiment_dir, str(request.experiment_id), "transcriptions")
+    os.makedirs(transcription_dir, exist_ok=True)
 
     gen_params = {
         "model": request.model,
         "audio_path": request.audio_path,
-        "output_path": request.output_path,
+        "output_path": transcription_dir,
         #"format": request.format,
     }
     gen_params["task"] = "stt"
