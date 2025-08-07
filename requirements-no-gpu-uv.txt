@@ -158,7 +158,9 @@ h11==0.14.0
     #   httpcore
     #   uvicorn
 hf-xet==1.1.4
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   huggingface-hub
 httpcore==1.0.7
     # via httpx
 httpx==0.28.1
@@ -167,7 +169,7 @@ httpx==0.28.1
     #   transformerlab-inference
 httpx-sse==0.4.0
     # via mcp
-huggingface-hub==0.30.2
+huggingface-hub==0.34.3
     # via
     #   accelerate
     #   controlnet-aux
@@ -190,7 +192,7 @@ idna==3.4
     #   yarl
 imageio==2.37.0
     # via scikit-image
-importlib-metadata==8.7.0
+importlib-metadata==7.1.0
     # via
     #   controlnet-aux
     #   diffusers
@@ -569,9 +571,9 @@ tqdm==4.66.5
     #   peft
     #   sentence-transformers
     #   transformers
-transformerlab-inference==0.2.42
+transformerlab-inference==0.2.43
     # via -r requirements.in
-transformers==4.53.2
+transformers==4.55.0
     # via
     #   -r requirements.in
     #   peft
@@ -631,5 +633,5 @@ yarl==1.18.3
     # via aiohttp
 youtube-transcript-api==1.0.3
     # via markitdown
-zipp==3.21.0
+zipp==3.19.2
     # via importlib-metadata
