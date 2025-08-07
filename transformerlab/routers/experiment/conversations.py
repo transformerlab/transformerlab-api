@@ -136,10 +136,11 @@ async def list_audio(experimentId: int):
     if data is None:
         return {"message": f"Experiment {experimentId} does not exist"}
 
-    experiment_name = data["name"]
+    experiment_name = secure_filename(data["name"])
 
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
-    audio_dir = os.path.join(experiment_dir, experimentId, "audio")
+    safe_experiment_id = secure_filename(str(experimentId))
+    audio_dir = os.path.join(experiment_dir, safe_experiment_id, "audio")
     os.makedirs(name=audio_dir, exist_ok=True)
 
     # now get a list of all the json files in the audio directory
