@@ -538,10 +538,10 @@ async def create_text_stt(request: AudioTranscriptionsRequest):
     return content
 
 @router.post("/v1/audio/upload", tags=["audio"])
-async def upload_audio(experiment_id: int, audio: UploadFile = File(...)):
+async def upload_audio(experimentId: int, audio: UploadFile = File(...)):
 
-    experiment_dir = await dirs.experiment_dir_by_id(experiment_id)
-    uploaded_audio_dir = os.path.join(experiment_dir, str(experiment_id), "uploaded_audio")
+    experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+    uploaded_audio_dir = os.path.join(experiment_dir, str(experimentId), "uploaded_audio")
     os.makedirs(uploaded_audio_dir, exist_ok=True)
 
     file_prefix = str(uuid.uuid4())

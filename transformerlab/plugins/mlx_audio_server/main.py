@@ -71,8 +71,8 @@ class MLXAudioWorker(BaseModelWorker):
     async def generate(self, params):
         self.call_ct += 1
 
-        type = params.get("task")
-        if type == "tts":
+        task = params.get("task")
+        if task == "tts":
 
             text = params.get("text", "")
             model = params.get("model", None)
@@ -133,7 +133,7 @@ class MLXAudioWorker(BaseModelWorker):
                     "message": f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}",
                 }
 
-        elif type == "stt":
+        elif task == "stt":
             audio_path = params.get("audio_path", "")
             model = params.get("model", None)
             format = params.get("format", "txt")
@@ -184,10 +184,10 @@ class MLXAudioWorker(BaseModelWorker):
                 }
       
         else:
-            logger.error(f"Unknown task type: {type}")
+            logger.error(f"Unknown task type: {task}")
             return {
                 "status": "error",
-                "message": f"Unknown task type: {type}",
+                "message": f"Unknown task type: {task}",
             }
 
 
