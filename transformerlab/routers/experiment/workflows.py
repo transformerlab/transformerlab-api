@@ -467,7 +467,7 @@ async def cancel_workflow_run(workflow_run_id: str, experimentId: int):
     cancelled_jobs = []
 
     for job_id in current_job_ids:
-        await db_jobs.job_stop(job_id)  # This sets stop=True in job_data
+        await db_jobs.job_stop(job_id, experimentId)  # This sets stop=True in job_data
         cancelled_jobs.append(job_id)
 
     # The workflow execution engine will automatically detect the stopped jobs
