@@ -195,8 +195,6 @@ async def async_run_python_daemon_and_update_status(
 
     The FastAPI worker uses stderr, not stdout"""
 
-    print("🏃‍♂️ Running python script: " + str(python_script))
-
     # Extract plugin location from the python_script list
     plugin_location = None
     for i, arg in enumerate(python_script):
@@ -227,6 +225,10 @@ async def async_run_python_daemon_and_update_status(
     else:
         print(">Using system Python interpreter")
         command = [sys.executable, *python_script]  # Skip the original Python interpreter
+
+    ## Add job id to the command as well
+    command.extend(["--job_id", str(job_id)])
+    print("🏃‍♂️ Running python script: " + str(command))
 
     process = await asyncio.create_subprocess_exec(
         *command, stdin=None, stderr=subprocess.STDOUT, stdout=subprocess.PIPE
@@ -273,13 +275,21 @@ async def async_run_python_daemon_and_update_status(
     # Wait on the process and return the error
     await process.wait()
     returncode = process.returncode
+
+    # Check if the job was intentionally stopped before marking as failed
+    job = await db_jobs.job_get(job_id)
+    experiment_id = job["experiment_id"]
+    current_status = await db_jobs.job_get_status(job_id, experiment_id)
+
+    if current_status == "STOPPED":
+        print(f"Worker job {job_id} was stopped by user, not marking as failed.")
+        return process
+
     if not error_msg:
         error_msg = f"Process terminated prematurely with exit code {returncode}"
 
     print(f"ERROR: Worker job {job_id} failed with exit code {returncode}.")
     print(error_msg)
-    job = await db_jobs.job_get(job_id)
-    experiment_id = job["experiment_id"]
     await db_jobs.job_update_status(job_id=job_id, status="FAILED", error_msg=error_msg, experiment_id=experiment_id)
     return process
 
