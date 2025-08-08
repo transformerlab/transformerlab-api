@@ -8,7 +8,6 @@ from pathlib import Path
 from jinja2 import Environment
 from transformers import AutoTokenizer
 
-
 # useful constants
 WORKSPACE_DIR = os.getenv("_TFL_WORKSPACE_DIR")
 if WORKSPACE_DIR is None:
@@ -269,6 +268,12 @@ class Job:
             "UPDATE job SET status = ? WHERE id = ?",
             (status, self.id),
         )
+
+        from transformerlab.services.job_service import _trigger_workflows_on_job_completion_sync
+
+        # Trigger workflows if job status is COMPLETE
+        if status == "COMPLETE":
+            _trigger_workflows_on_job_completion_sync(self.id)
 
     def get_status(self):
         """
