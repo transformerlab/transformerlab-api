@@ -378,9 +378,12 @@ async def server_worker_stop():
     if worker_process is not None:
         from transformerlab.shared.shared import kill_sglang_subprocesses
 
-        worker_process.terminate()
-        kill_sglang_subprocesses()
-        worker_process = None
+        try:
+            worker_process.terminate()
+            kill_sglang_subprocesses()
+            worker_process = None
+        except Exception as e:
+            print(f"Error stopping worker process: {e}")
     # check if there is a file called worker.pid, if so kill the related process:
     if os.path.isfile("worker.pid"):
         with open("worker.pid", "r") as f:
