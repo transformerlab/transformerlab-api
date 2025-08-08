@@ -98,6 +98,7 @@ class MLXAudioWorker(BaseModelWorker):
                 verbose=True,  # Set to False to disable print messages
                 temperature=temperature,
                 stream=stream,
+                voice=None,
             )
 
             # Also save the parameters and metadata used to generate the audio
@@ -112,6 +113,7 @@ class MLXAudioWorker(BaseModelWorker):
                 "temperature": temperature,
                 "date": datetime.now().isoformat(),  # Store the real date and time
             }
+            
             metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
             with open(metadata_file, "w") as f:
                 json.dump(metadata, f)
