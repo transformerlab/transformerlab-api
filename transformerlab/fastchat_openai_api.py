@@ -522,7 +522,7 @@ async def create_text_stt(request: AudioTranscriptionsRequest):
             request.model = error_check_ret["model_name"]
     
     experiment_dir = await dirs.experiment_dir_by_id(request.experiment_id)
-    transcription_dir = os.path.join(experiment_dir, str(request.experiment_id), "transcriptions")
+    transcription_dir = os.path.join(experiment_dir, "transcriptions")
     os.makedirs(transcription_dir, exist_ok=True)
 
     gen_params = {
@@ -541,11 +541,12 @@ async def create_text_stt(request: AudioTranscriptionsRequest):
 async def upload_audio(experimentId: int, audio: UploadFile = File(...)):
 
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
-    uploaded_audio_dir = os.path.join(experiment_dir, str(experimentId), "uploaded_audio")
+    uploaded_audio_dir = os.path.join(experiment_dir, "uploaded_audio")
     os.makedirs(uploaded_audio_dir, exist_ok=True)
 
     file_prefix = str(uuid.uuid4())
-    file_path = os.path.join(uploaded_audio_dir, file_prefix)
+    _, ext = os.path.splitext(audio.filename)
+    file_path = os.path.join(uploaded_audio_dir, file_prefix + ext)
 
     # Save the uploaded file
     with open(file_path, "wb") as f:
