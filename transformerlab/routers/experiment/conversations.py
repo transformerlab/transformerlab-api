@@ -139,7 +139,6 @@ async def list_audio(experimentId: int):
     experiment_name = secure_filename(data["name"])
 
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
-    safe_experiment_id = secure_filename(str(experimentId))
     audio_dir = os.path.join(experiment_dir, "audio")
     os.makedirs(name=audio_dir, exist_ok=True)
 
