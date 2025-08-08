@@ -42,7 +42,6 @@ from transformerlab.routers import (
     plugins,
     evals,
     config,
-    jobs,
     tasks,
     prompts,
     tools,
@@ -65,6 +64,7 @@ except Exception:
 from transformerlab import fastchat_openai_api
 from transformerlab.routers.experiment import experiment
 from transformerlab.routers.experiment import workflows
+from transformerlab.routers.experiment import jobs
 from transformerlab.shared import dirs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
@@ -361,10 +361,10 @@ async def server_worker_start(
     if exitcode is not None and exitcode != 0:
         with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
             global_log.write(f"Error loading model: {model_name} with exit code {exitcode}\n")
-        error_msg = await job_get_error_msg(job_id)
+        error_msg = await job_get_error_msg(job_id, experiment_id)
         if not error_msg:
             error_msg = f"Exit code {exitcode}"
-            await job_update_status(job_id, "FAILED", error_msg)
+            await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
         return {"status": "error", "message": error_msg}
     with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
         global_log.write(f"Model loaded successfully: {model_name}\n")
@@ -378,16 +378,24 @@ async def server_worker_stop():
     if worker_process is not None:
         from transformerlab.shared.shared import kill_sglang_subprocesses
 
-        worker_process.terminate()
-        kill_sglang_subprocesses()
-        worker_process = None
+        try:
+            worker_process.terminate()
+            kill_sglang_subprocesses()
+            worker_process = None
+        except Exception as e:
+            print(f"Error stopping worker process: {e}")
     # check if there is a file called worker.pid, if so kill the related process:
     if os.path.isfile("worker.pid"):
         with open("worker.pid", "r") as f:
             pids = [line.strip() for line in f if line.strip()]
             for pid in pids:
                 print(f"Killing worker process with PID: {pid}")
-                os.kill(int(pid), signal.SIGTERM)
+                try:
+                    os.kill(int(pid), signal.SIGTERM)
+                except ProcessLookupError:
+                    print(f"Process {pid} no longer exists, skipping")
+                except Exception as e:
+                    print(f"Error killing process {pid}: {e}")
         # delete the worker.pid file:
         os.remove("worker.pid")
     return {"message": "OK"}

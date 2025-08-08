@@ -493,7 +493,7 @@ async def create_audio_tts(request: AudioSpeechRequest):
             request.model = error_check_ret["model_name"]
 
     experiment_dir = await dirs.experiment_dir_by_id(request.experiment_id)
-    audio_dir = os.path.join(experiment_dir, str(request.experiment_id), "audio")
+    audio_dir = os.path.join(experiment_dir, "audio")
     os.makedirs(audio_dir, exist_ok=True)
 
     
