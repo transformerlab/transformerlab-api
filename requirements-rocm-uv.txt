@@ -158,7 +158,9 @@ h11==0.16.0
     #   httpcore
     #   uvicorn
 hf-xet==1.1.4
-    # via -r requirements-rocm.in
+    # via
+    #   -r requirements-rocm.in
+    #   huggingface-hub
 httpcore==1.0.9
     # via httpx
 httpx==0.28.1
@@ -167,7 +169,7 @@ httpx==0.28.1
     #   transformerlab-inference
 httpx-sse==0.4.0
     # via mcp
-huggingface-hub==0.30.2
+huggingface-hub==0.34.3
     # via
     #   accelerate
     #   controlnet-aux
@@ -190,7 +192,7 @@ idna==3.4
     #   yarl
 imageio==2.37.0
     # via scikit-image
-importlib-metadata==8.7.0
+importlib-metadata==7.1.0
     # via
     #   controlnet-aux
     #   diffusers
@@ -299,6 +301,8 @@ olefile==0.47
     # via markitdown
 onnxruntime==1.21.1
     # via magika
+openai-harmony==0.0.3
+    # via transformerlab-inference
 opencv-python-headless==4.11.0.86
     # via controlnet-aux
 openpyxl==3.1.5
@@ -369,11 +373,12 @@ pyarrow-hotfix==0.7
     # via datasets
 pycparser==2.22
     # via cffi
-pydantic==2.11.4
+pydantic==2.11.7
     # via
     #   -r requirements-rocm.in
     #   fastapi
     #   mcp
+    #   openai-harmony
     #   pydantic-settings
     #   transformerlab-inference
     #   wandb
@@ -572,9 +577,9 @@ tqdm==4.66.5
     #   peft
     #   sentence-transformers
     #   transformers
-transformerlab-inference==0.2.42
+transformerlab-inference==0.2.44
     # via -r requirements-rocm.in
-transformers==4.53.2
+transformers==4.55.0
     # via
     #   -r requirements-rocm.in
     #   peft
@@ -640,5 +645,5 @@ yarl==1.20.0
     # via aiohttp
 youtube-transcript-api==1.0.3
     # via markitdown
-zipp==3.22.0
+zipp==3.19.2
     # via importlib-metadata

@@ -158,7 +158,9 @@ h11==0.14.0
     #   httpcore
     #   uvicorn
 hf-xet==1.1.4
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   huggingface-hub
 httpcore==1.0.7
     # via httpx
 httpx==0.28.1
@@ -167,7 +169,7 @@ httpx==0.28.1
     #   transformerlab-inference
 httpx-sse==0.4.0
     # via mcp
-huggingface-hub==0.30.2
+huggingface-hub==0.34.3
     # via
     #   accelerate
     #   controlnet-aux
@@ -190,7 +192,7 @@ idna==3.4
     #   yarl
 imageio==2.37.0
     # via scikit-image
-importlib-metadata==8.7.0
+importlib-metadata==7.1.0
     # via
     #   controlnet-aux
     #   diffusers
@@ -338,6 +340,8 @@ olefile==0.47
     # via markitdown
 onnxruntime==1.21.0
     # via magika
+openai-harmony==0.0.3
+    # via transformerlab-inference
 opencv-python-headless==4.11.0.86
     # via controlnet-aux
 openpyxl==3.1.5
@@ -408,15 +412,16 @@ pyarrow-hotfix==0.7
     # via datasets
 pycparser==2.22
     # via cffi
-pydantic==2.10.6
+pydantic==2.11.7
     # via
     #   -r requirements.in
     #   fastapi
     #   mcp
+    #   openai-harmony
     #   pydantic-settings
     #   transformerlab-inference
     #   wandb
-pydantic-core==2.27.2
+pydantic-core==2.33.2
     # via pydantic
 pydantic-settings==2.8.1
     # via
@@ -607,9 +612,9 @@ tqdm==4.66.5
     #   peft
     #   sentence-transformers
     #   transformers
-transformerlab-inference==0.2.42
+transformerlab-inference==0.2.44
     # via -r requirements.in
-transformers==4.53.2
+transformers==4.55.0
     # via
     #   -r requirements.in
     #   peft
@@ -636,7 +641,10 @@ typing-extensions==4.12.2
     #   sqlalchemy
     #   torch
     #   typer
+    #   typing-inspection
     #   wandb
+typing-inspection==0.4.1
+    # via pydantic
 tzdata==2025.1
     # via pandas
 urllib3==1.26.13
@@ -671,5 +679,5 @@ yarl==1.18.3
     # via aiohttp
 youtube-transcript-api==1.0.3
     # via markitdown
-zipp==3.21.0
+zipp==3.19.2
     # via importlib-metadata
