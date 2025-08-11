@@ -244,3 +244,60 @@ async def delete_audio(experimentId: int, id: str):
         os.remove(audio_path)
 
     return {"message": f"Audio file {id} deleted from experiment {experimentId}"}
+
+@router.get("/list_text")
+async def list_text(experimentId: int):
+    # Get experiment name and directory
+    data = await experiment_get(experimentId)
+    if data is None:
+        return {"message": f"Experiment {experimentId} does not exist"}
+    experiment_name = secure_filename(data["name"])
+    experiment_dir = dirs.experiment_dir_by_name(experiment_name)
+    text_dir = os.path.join(experiment_dir, str(experimentId), "audio")
+    os.makedirs(text_dir, exist_ok=True)
+
+    # List all .txt files in the text directory
+    text_files_metadata = []
+    for filename in os.listdir(text_dir):
+        if filename.endswith(".txt"):
+            file_path = os.path.join(text_dir, filename)
+            try:
+                # You can add more metadata if needed
+                text_files_metadata.append({
+                    "id": filename[:-4],  # Remove .txt
+                    "filename": filename,
+                    "file_date": os.path.getmtime(file_path),
+                })
+            except Exception:
+                continue
+    text_files_metadata.sort(key=lambda x: x["file_date"], reverse=True)
+    return text_files_metadata
+
+@router.get("/download_text")
+async def download_text(experimentId: int, filename: str):
+    data = await experiment_get(experimentId)
+    if data is None:
+        return {"message": f"Experiment {experimentId} does not exist"}
+    experiment_name = secure_filename(data["name"])
+    experiment_dir = dirs.experiment_dir_by_name(experiment_name)
+    text_dir = os.path.join(experiment_dir, str(experimentId), "audio")
+    filename = secure_filename(filename)
+    file_path = os.path.join(text_dir, filename)
+    if not os.path.exists(file_path):
+        return {"message": f"Text file {filename} does not exist in experiment {experimentId}"}
+    return FileResponse(path=file_path, filename=filename, media_type="text/plain")
+
+@router.delete("/delete_text")
+async def delete_text(experimentId: int, id: str):
+    data = await experiment_get(experimentId)
+    if data is None:
+        return {"message": f"Experiment {experimentId} does not exist"}
+    experiment_name = secure_filename(data["name"])
+    experiment_dir = dirs.experiment_dir_by_name(experiment_name)
+    text_dir = os.path.join(experiment_dir, str(experimentId), "audio")
+    id = secure_filename(id)
+    text_path = os.path.join(text_dir, id + ".txt")
+    if not os.path.exists(text_path):
+        return {"message": f"Text file {id} does not exist in experiment {experimentId}"}
+    os.remove(text_path)
+    return {"message": f"Text file {id} deleted from experiment {experimentId}"}
