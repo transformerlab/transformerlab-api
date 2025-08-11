@@ -316,7 +316,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     # Get experiment details for job types that need them
     experiment = None
     experiment_id = None
-    if master_job_type in ["EVAL", "GENERATE"]:
+    if master_job_type in ["EVAL", "GENERATE", "DIFFUSION"]:
         experiment = await experiment_get_by_name(experiment_name)
         experiment_id = experiment["id"]
     elif master_job_type == "EXPORT":
@@ -325,7 +325,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
     # Extract plugin name consistently across all job types
     plugin_name = None
-    if master_job_type in ["EVAL", "GENERATE"]:
+    if master_job_type in ["EVAL", "GENERATE", "DIFFUSION"]:
         plugin_name = job_config["plugin"]
     else:
         # For other job types (LoRA, pretraining, embedding, export), get from nested config
@@ -338,7 +338,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         if not os.path.exists(plugin_location):
             job = await db_jobs.job_get(job_id)
             experiment_id = job["experiment_id"]
-            await db_jobs.job_update_status(job_id, "FAILED", experiment_id)
+            await db_jobs.job_update_status(job_id, "FAILED", experiment_id=experiment_id)
             error_msg = f"{master_job_type} job failed: No plugin found"
             return {"status": "error", "job_id": job_id, "message": error_msg}
 
@@ -488,7 +488,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         experiment_id = experiment["id"]
         plugin_name = job_config["plugin"]
 
-        await db_jobs.job_update_status(job_id, "RUNNING")
+        await db_jobs.job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
 
         # Prep paths and script args
         WORKSPACE_DIR = dirs.WORKSPACE_DIR
@@ -563,7 +563,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             if updated:
                 if double_encoded:
                     config_in_db = json.dumps(config_in_db)
-                await db_jobs.job_update_job_data_insert_key_value(job_id, "config", config_in_db)
+                await db_jobs.job_update_job_data_insert_key_value(
+                    job_id, "config", config_in_db, experiment_id=experiment_id
+                )
 
         # Now safely convert remaining config to CLI args
         config_args = []
@@ -610,7 +612,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 await process.communicate()
 
             if process.returncode == 0:
-                await db_jobs.job_update_status(job_id, "COMPLETE")
+                await db_jobs.job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
                 print(f"[DIFFUSION] Job {job_id} completed successfully")
                 return {
                     "status": "complete",
@@ -618,18 +620,18 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                     "message": "Diffusion job completed successfully",
                 }
             else:
-                await db_jobs.job_update_status(job_id, "FAILED")
+                await db_jobs.job_update_status(job_id, "FAILED", experiment_id=experiment_id)
                 print(f"[DIFFUSION] Job {job_id} failed with return code {process.returncode}")
                 return {"status": "error", "job_id": job_id, "message": "Diffusion job failed"}
         except Exception as e:
-            await db_jobs.job_update_status(job_id, "FAILED")
+            await db_jobs.job_update_status(job_id, "FAILED", experiment_id=experiment_id)
             print(f"[DIFFUSION] Job {job_id} execution error: {e}")
             return {"status": "error", "job_id": job_id, "message": "Diffusion job failed"}
 
     job_type = job_config["config"].get("type", "")
 
     # Get the job details from the database for these job types
-    job_details_from_db = await db_jobs.job_get(job_id)
+    job_details_from_db = await db_jobs.job_get(job_id, experiment_id=experiment_id)
     experiment_id = job_details_from_db["experiment_id"]
 
     # Get the experiment details from the database:
