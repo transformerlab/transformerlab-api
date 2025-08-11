@@ -34,11 +34,9 @@ from transformers.generation.logits_process import (
     TopKLogitsWarper,
     TopPLogitsWarper,
 )
-from transformerlab.plugin import setup_model_worker_logger
 
 
 worker_id = str(uuid.uuid4())[:8]
-logger = setup_model_worker_logger()
 
 from fastchat.serve.base_model_worker import BaseModelWorker  # noqa
 

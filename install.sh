@@ -107,7 +107,7 @@ unset_conda_for_sure() {
 
 # We've seen users who installed conda using root have problems if their
 # ~/.conda directory is not writable. This checks for that.
-check_if_conda_envronments_dot_text_is_writable() {
+check_if_conda_environments_dot_text_is_writable() {
     # Check if a file called ~/.conda/environments.txt exists:
   if [ -f "$HOME/.conda/environments.txt" ]; then
     # Now check if it is writable:
@@ -282,7 +282,7 @@ create_conda_environment() {
   title "Step 3: Create the Conda Environment"
   echo "🌘 Step 3: START"
 
-  check_if_conda_envronments_dot_text_is_writable
+  check_if_conda_environments_dot_text_is_writable
 
   check_conda
 
@@ -440,7 +440,7 @@ list_installed_packages() {
 }
 
 list_environments() {
-  check_if_conda_envronments_dot_text_is_writable
+  check_if_conda_environments_dot_text_is_writable
   unset_conda_for_sure
   eval "$(${CONDA_BIN} shell.bash hook)"
   conda env list

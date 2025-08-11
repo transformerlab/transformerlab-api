@@ -23,11 +23,10 @@ from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastchat.utils import get_context_length
-from transformerlab.plugin import setup_model_worker_logger
+from fastchat.serve.model_worker import logger
 
 
 worker_id = str(uuid.uuid4())[:8]
-logger = setup_model_worker_logger()
 
 from fastchat.serve.base_model_worker import BaseModelWorker  # noqa
 from generate import generate_text, load_model, prepare_inputs  # noqa

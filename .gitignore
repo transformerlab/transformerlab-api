@@ -236,3 +236,10 @@ terraform.rc
 
 # Ignore .ssh folders
 **/.ssh/
+
+# IDEs
+# NOTE: Cursor automatically ignores files in .gitignore and a default list on their website
+# Override with ! prefix in .cursorignore.
+# https://docs.cursor.com/context/ignore-files#default-ignore-list
+.cursor/
+.cursorignore

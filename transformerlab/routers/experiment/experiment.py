@@ -22,6 +22,7 @@ from transformerlab.routers.experiment import (
     generations,
     workflows,
     diffusion,
+    jobs,
 )
 
 from werkzeug.utils import secure_filename
@@ -37,6 +38,7 @@ router.include_router(router=evals.router, prefix="/{experimentId}", tags=["eval
 router.include_router(router=generations.router, prefix="/{experimentId}", tags=["generations"])
 router.include_router(router=workflows.router, prefix="/{experimentId}", tags=["workflows"])
 router.include_router(router=diffusion.router, prefix="/{experimentId}", tags=["diffusion"])
+router.include_router(router=jobs.router, prefix="/{experimentId}", tags=["jobs"])
 
 
 EXPERIMENTS_DIR: str = dirs.EXPERIMENTS_DIR
