@@ -164,7 +164,7 @@ async def list_audio(experimentId: int):
 
 
 @router.get(path="/download_audio")
-async def download_audio(experimentId: int, filename: str):
+async def download_audio(experimentId: int, filename: str, audioFolder: str = "audio"):
     # first get the experiment name:
     data = await experiment_get(experimentId)
 
@@ -175,7 +175,7 @@ async def download_audio(experimentId: int, filename: str):
     experiment_name = data["name"]
 
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
-    audio_dir = os.path.join(experiment_dir, "audio")
+    audio_dir = os.path.join(experiment_dir, audioFolder)
 
     # now download the audio file
     filename = secure_filename(filename)
