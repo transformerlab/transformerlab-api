@@ -33,21 +33,6 @@ from transformers import AutoProcessor
 from transformerlab.sdk.v1.train import tlab_trainer  # noqa: E402
 
 
-# def find_lora_target_modules(model, keyword="proj", model_name=None):
-#     """
-#     Returns all submodule names (e.g., 'q_proj') suitable for LoRA injection.
-#     These can be passed directly to LoraConfig as `target_modules`.
-#     """
-#     if model_name is not None and "gpt-oss" in model_name:
-#         return "all-linear"
-#     module_names = set()
-#     for name, module in model.named_modules():
-#         if isinstance(module, nn.Linear) and keyword in name:
-#             # Keep full relative module name, excluding the root prefix (e.g., "model.")
-#             cleaned_name = ".".join(name.split(".")[1:]) if name.startswith("model.") else name
-#             module_names.add(cleaned_name.split(".")[-1])  # Use just the relative layer name
-#     return sorted(module_names)
-
 def preprocess_example(example, speaker_key="source", processor=None):
     conversation = [
         {
