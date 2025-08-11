@@ -115,7 +115,6 @@ def train_text_to_speech_unsloth():
     model_id = tlab_trainer.params.model_name
 
     max_seq_length = int(tlab_trainer.params.maximum_sequence_length)
-    max_completion_length = int(tlab_trainer.params.maximum_completion_length)
     learning_rate = float(tlab_trainer.params.learning_rate)
     learning_rate_schedule = tlab_trainer.params.get("learning_rate_schedule", "constant")
     max_grad_norm = float(tlab_trainer.params.max_grad_norm)
@@ -132,12 +131,6 @@ def train_text_to_speech_unsloth():
 
     print(f"Dataset loaded successfully with {len(dataset)} examples")
 
-    # Load model
-    model_kwargs = {
-        "use_cache": False,
-        "device_map": "auto",
-        "trust_remote_code": True,
-    }
     try:
         # TODO: what parameters are needed to passed
         model, processor = FastModel.from_pretrained(
