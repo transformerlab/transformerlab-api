@@ -252,7 +252,7 @@ async def list_text(experimentId: int):
         return {"message": f"Experiment {experimentId} does not exist"}
     experiment_name = secure_filename(data["name"])
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
-    text_dir = os.path.join(experiment_dir, str(experimentId), "audio")
+    text_dir = os.path.join(experiment_dir, "transcriptions")
     os.makedirs(text_dir, exist_ok=True)
 
     # List all .txt files in the text directory
@@ -264,7 +264,6 @@ async def list_text(experimentId: int):
                 # You can add more metadata if needed
                 text_files_metadata.append({
                     "id": filename[:-4],  # Remove .txt
-                    "filename": filename,
                     "file_date": os.path.getmtime(file_path),
                 })
             except Exception:
@@ -279,7 +278,7 @@ async def download_text(experimentId: int, filename: str):
         return {"message": f"Experiment {experimentId} does not exist"}
     experiment_name = secure_filename(data["name"])
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
-    text_dir = os.path.join(experiment_dir, str(experimentId), "audio")
+    text_dir = os.path.join(experiment_dir, "transcriptions")
     filename = secure_filename(filename)
     file_path = os.path.join(text_dir, filename)
     if not os.path.exists(file_path):
@@ -293,7 +292,7 @@ async def delete_text(experimentId: int, id: str):
         return {"message": f"Experiment {experimentId} does not exist"}
     experiment_name = secure_filename(data["name"])
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
-    text_dir = os.path.join(experiment_dir, str(experimentId), "audio")
+    text_dir = os.path.join(experiment_dir, "transcriptions")
     id = secure_filename(id)
     text_path = os.path.join(text_dir, id + ".txt")
     if not os.path.exists(text_path):
