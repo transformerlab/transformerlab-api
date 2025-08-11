@@ -127,6 +127,7 @@ def train_text_to_speech_unsloth():
     adam_beta2 = float(tlab_trainer.params.adam_beta2)
     adam_epsilon = float(tlab_trainer.params.adam_epsilon)
     output_dir = tlab_trainer.params.output_dir
+    report_to = tlab_trainer.report_to
 
 
 
@@ -201,22 +202,34 @@ def train_text_to_speech_unsloth():
         model = model,
         train_dataset = processed_ds,
         args = TrainingArguments(
-            per_device_train_batch_size = 2,
-            gradient_accumulation_steps = 4,
-            warmup_steps = 5,
+            logging_dir=os.path.join(output_dir, f"job_{tlab_trainer.params.job_id}_{run_suffix}"),
+            num_train_epochs=num_epochs,
+            per_device_train_batch_size = batch_size,
+            gradient_accumulation_steps = 2,
+            gradient_checkpointing=True,
+            warmup_rate = 0.03,
             max_steps = 60,
-            learning_rate = 2e-4,
+            learning_rate = learning_rate,
             fp16 = not is_bfloat16_supported(),
             bf16 = is_bfloat16_supported(),
-            logging_steps = 1,
-            optim = "adamw_8bit",
-            weight_decay = 0.01, # Turn this on if overfitting
-            lr_scheduler_type = "linear",
+            logging_steps = 10,
+            optim = "adamw_8bit", # which one? "paged_adamw_32bit"
+            save_strategy="epoch",
+            weight_decay = weight_decay,
+            lr_scheduler_type = learning_rate_schedule,
+            max_grad_norm=max_grad_norm,
+            adam_beta1=adam_beta1,
+            adam_beta2=adam_beta2,
+            adam_epsilon=adam_epsilon,
+            disable_tqdm=False,
             seed = 3407,
-            output_dir = "outputs",
-            report_to = "none", # Use this for WandB etc
+            output_dir = output_dir,
+            run_name=f"job_{tlab_trainer.params.job_id}_{run_suffix}",
+            report_to = report_to
         ),
 )
+    # Create progress callback using tlab_trainer
+    progress_callback = tlab_trainer.create_progress_callback(framework="huggingface")
 
     # # Setup quantization
     # if not HAS_AMD:
