@@ -160,7 +160,8 @@ class MLXAudioWorker(BaseModelWorker):
                 # Also save the parameters and metadata used to generate the audio
                 metadata = {
                     "type": "text",
-                    "audio_path": audio_path,
+                    "audio_folder": "uploaded_audio",
+                    "audio_path": audio_path.split("/").pop(),
                     "filename": f"{file_prefix}.{format}",
                     "model": model,
                     "text_format": format,
