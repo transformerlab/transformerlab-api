@@ -1,4 +1,4 @@
-# import time
+import time
 import os
 # from random import randrange
 import torch
@@ -17,6 +17,8 @@ import torch
 #     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 from unsloth import FastModel
 from transformers import CsmForConditionalGeneration
+from transformers import TrainingArguments, Trainer
+from unsloth import is_bfloat16_supported
 from datasets import load_dataset, Audio, Dataset
 from transformers import AutoProcessor
 
@@ -47,7 +49,7 @@ from transformerlab.sdk.v1.train import tlab_trainer  # noqa: E402
 #             module_names.add(cleaned_name.split(".")[-1])  # Use just the relative layer name
 #     return sorted(module_names)
 
-def preprocess_example(example):
+def preprocess_example(example, speaker_key="source", processor=None):
     conversation = [
         {
             "role": str(example[speaker_key]),
@@ -107,37 +109,52 @@ def train_text_to_speech_unsloth():
     datasets = tlab_trainer.load_dataset()
     dataset = datasets["train"]
 
-    print(f"Dataset loaded successfully with {len(dataset)} examples")
-
-    # formatting_template = tlab_trainer.params.get("formatting_template", None)
-    # chat_template = tlab_trainer.params.get("formatting_chat_template", None)
-    # chat_column = tlab_trainer.params.get("chatml_formatted_column", "messages")
-
-    # Load model
+    # Get configuration values
+    lora_alpha = int(tlab_trainer.params.get("lora_alpha", 16))
+    lora_dropout = float(tlab_trainer.params.get("lora_dropout", 0))
+    lora_r = int(tlab_trainer.params.get("lora_r", 8))
     model_id = tlab_trainer.params.model_name
 
+    max_seq_length = int(tlab_trainer.params.maximum_sequence_length)
+    max_completion_length = int(tlab_trainer.params.maximum_completion_length)
+    learning_rate = float(tlab_trainer.params.learning_rate)
+    learning_rate_schedule = tlab_trainer.params.get("learning_rate_schedule", "constant")
+    max_grad_norm = float(tlab_trainer.params.max_grad_norm)
+    batch_size = int(tlab_trainer.params.batch_size)
+    num_epochs = int(tlab_trainer.params.num_train_epochs)
+    weight_decay = float(tlab_trainer.params.weight_decay)
+    adam_beta1 = float(tlab_trainer.params.adam_beta1)
+    adam_beta2 = float(tlab_trainer.params.adam_beta2)
+    adam_epsilon = float(tlab_trainer.params.adam_epsilon)
+    output_dir = tlab_trainer.params.output_dir
+
+
+
+    print(f"Dataset loaded successfully with {len(dataset)} examples")
+
+    # Load model
     model_kwargs = {
         "use_cache": False,
         "device_map": "auto",
         "trust_remote_code": True,
     }
-
-    # TODO: what parameters are needed to passed
-    model, processor = FastModel.from_pretrained(
-        model_name = model_id,
-        # max_seq_length= 2048, # Choose any for long context!
-        # dtype = None, # Leave as None for auto-detection
-        # auto_model = CsmForConditionalGeneration, # TODO: check if this is needed!
-        load_in_4bit = False, # Keep it false because voice models are small and we can keep the high quality result.
-    )
+    try:
+        # TODO: what parameters are needed to passed
+        model, processor = FastModel.from_pretrained(
+            model_name = model_id,
+            max_seq_length= max_seq_length,
+            # dtype = None, # Leave as None for auto-detection
+            # auto_model = CsmForConditionalGeneration, # TODO: check if this is needed!
+            load_in_4bit = False, # Keep it false because voice models are small and we can keep the high quality result.
+        )
+    except Exception as e:
+        return f"Failed to load model: {str(e)}"
 
 
     # Setup LoRA
 
     # # Setup LoRA - use direct attribute access with safe defaults
-    lora_alpha = int(tlab_trainer.params.get("lora_alpha", 16))
-    lora_dropout = float(tlab_trainer.params.get("lora_dropout", 0))
-    lora_r = int(tlab_trainer.params.get("lora_r", 8))
+    
 
     model = FastModel.get_peft_model(
         model,
@@ -172,10 +189,34 @@ def train_text_to_speech_unsloth():
     dataset = dataset.cast_column("audio", Audio(sampling_rate=target_sampling_rate))
 
     processed_ds = dataset.map(
-        preprocess_example,
+        lambda example: preprocess_example(example, speaker_key=speaker_key, processor=processor),
         remove_columns=dataset.column_names,
         desc="Preprocessing dataset",
     )
+
+     # Training run name
+    today = time.strftime("%Y%m%d-%H%M%S")
+    run_suffix = tlab_trainer.params.get("template_name", today)
+    trainer = Trainer(
+        model = model,
+        train_dataset = processed_ds,
+        args = TrainingArguments(
+            per_device_train_batch_size = 2,
+            gradient_accumulation_steps = 4,
+            warmup_steps = 5,
+            max_steps = 60,
+            learning_rate = 2e-4,
+            fp16 = not is_bfloat16_supported(),
+            bf16 = is_bfloat16_supported(),
+            logging_steps = 1,
+            optim = "adamw_8bit",
+            weight_decay = 0.01, # Turn this on if overfitting
+            lr_scheduler_type = "linear",
+            seed = 3407,
+            output_dir = "outputs",
+            report_to = "none", # Use this for WandB etc
+        ),
+)
 
     # # Setup quantization
     # if not HAS_AMD:
