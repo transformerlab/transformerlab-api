@@ -1,7 +1,6 @@
 # import time
-# import os
+import os
 # from random import randrange
-
 import torch
 # import shutil
 # from functools import partial
@@ -18,6 +17,10 @@ import torch
 #     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 from unsloth import FastModel
 from transformers import CsmForConditionalGeneration
+from datasets import load_dataset, Audio, Dataset
+from transformers import AutoProcessor
+
+
 
 # from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel  # noqa: E402
 # from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig, Mxfp4Config  # noqa: E402
@@ -44,6 +47,59 @@ from transformerlab.sdk.v1.train import tlab_trainer  # noqa: E402
 #             module_names.add(cleaned_name.split(".")[-1])  # Use just the relative layer name
 #     return sorted(module_names)
 
+def preprocess_example(example):
+    conversation = [
+        {
+            "role": str(example[speaker_key]),
+            "content": [
+                {"type": "text", "text": example["text"]},
+                {"type": "audio", "path": example["audio"]["array"]},
+            ],
+        }
+    ]
+
+    try:
+        model_inputs = processor.apply_chat_template(
+            conversation,
+            tokenize=True,
+            return_dict=True,
+            output_labels=True,
+            text_kwargs = {
+                "padding": "max_length", # pad to the max_length
+                "max_length": 256, # this should be the max length of audio
+                "pad_to_multiple_of": 8,
+                "padding_side": "right",
+            },
+            audio_kwargs = {
+                "sampling_rate": 24_000,
+                "max_length": 240001, # max input_values length of the whole dataset
+                "padding": "max_length",
+            },
+            common_kwargs = {"return_tensors": "pt"},
+        )
+    except Exception as e:
+        print(f"Error processing example with text '{example['text'][:50]}...': {e}")
+        return None
+
+    required_keys = ["input_ids", "attention_mask", "labels", "input_values", "input_values_cutoffs"]
+    processed_example = {}
+    # print(model_inputs.keys())
+    for key in required_keys:
+        if key not in model_inputs:
+            print(f"Warning: Required key '{key}' not found in processor output for example.")
+            return None
+
+        value = model_inputs[key][0]
+        processed_example[key] = value
+
+
+    # Final check (optional but good)
+    if not all(isinstance(processed_example[key], torch.Tensor) for key in processed_example):
+        print(f"Error: Not all required keys are tensors in final processed example. Keys: {list(processed_example.keys())}")
+        return None
+
+    return processed_example
+
 
 @tlab_trainer.job_wrapper(wandb_project_name="TLab_Training", manual_logging=True)
 def train_text_to_speech_unsloth():
@@ -60,15 +116,66 @@ def train_text_to_speech_unsloth():
     # Load model
     model_id = tlab_trainer.params.model_name
 
- 
+    model_kwargs = {
+        "use_cache": False,
+        "device_map": "auto",
+        "trust_remote_code": True,
+    }
 
-model, processor = FastModel.from_pretrained(
-    model_name = "unsloth/csm-1b",
-    max_seq_length= 2048, # Choose any for long context!
-    dtype = None, # Leave as None for auto-detection
-    auto_model = CsmForConditionalGeneration,
-    load_in_4bit = False, # Select True for 4bit - reduces memory usage
+    # TODO: what parameters are needed to passed
+    model, processor = FastModel.from_pretrained(
+        model_name = model_id,
+        # max_seq_length= 2048, # Choose any for long context!
+        # dtype = None, # Leave as None for auto-detection
+        # auto_model = CsmForConditionalGeneration, # TODO: check if this is needed!
+        load_in_4bit = False, # Keep it false because voice models are small and we can keep the high quality result.
+    )
+
+
+    # Setup LoRA
+
+    # # Setup LoRA - use direct attribute access with safe defaults
+    lora_alpha = int(tlab_trainer.params.get("lora_alpha", 16))
+    lora_dropout = float(tlab_trainer.params.get("lora_dropout", 0))
+    lora_r = int(tlab_trainer.params.get("lora_r", 8))
+
+    model = FastModel.get_peft_model(
+        model,
+        r = lora_r, 
+        target_modules = ["q_proj", "k_proj", "v_proj", "o_proj",
+                        "gate_proj", "up_proj", "down_proj",], # TODO: implement something like find_lora_target_modules
+        lora_alpha = lora_alpha,
+        lora_dropout = lora_dropout,
+        bias = "none",    # Supports any, but = "none" is optimized
+        # [NEW] "unsloth" uses 30% less VRAM, fits 2x larger batch sizes!
+        use_gradient_checkpointing = "unsloth", # True or "unsloth" for very long context
+        random_state = 3407,
+        use_rslora = False,  # We support rank stabilized LoRA
+        loftq_config = None, # And LoftQ
 )
+    num_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Trainable parameters: {num_trainable}")
+
+    processor = AutoProcessor.from_pretrained(model_id)
+
+
+    # Getting the speaker id is important for multi-speaker models and speaker consistency
+    speaker_key = "source"
+    if "source" not in dataset.column_names and "speaker_id" not in dataset.column_names:
+        print("No speaker found, adding default \"source\" of 0 for all examples")
+        new_column = ["0"] * len(dataset)
+        dataset = dataset.add_column("source", new_column)
+    elif "source" not in dataset.column_names and "speaker_id" in dataset.column_names:
+        speaker_key = "speaker_id"
+
+    target_sampling_rate = 24000
+    dataset = dataset.cast_column("audio", Audio(sampling_rate=target_sampling_rate))
+
+    processed_ds = dataset.map(
+        preprocess_example,
+        remove_columns=dataset.column_names,
+        desc="Preprocessing dataset",
+    )
 
     # # Setup quantization
     # if not HAS_AMD:
@@ -151,49 +258,8 @@ model, processor = FastModel.from_pretrained(
     #     print(f"Model loading error: {str(e)}")
     #     raise
 
-    # # Setup chat template and formatting function
-    # formatting_func = partial(
-    #     format_template,
-    #     chat_template=chat_template,
-    #     formatting_template=formatting_template,
-    #     tokenizer=tokenizer,
-    #     chat_column=chat_column,
-    # )
-    # print("Formatted example:")
-    # print(formatting_func(dataset[randrange(len(dataset))]))
 
-    # # Setup LoRA - use direct attribute access with safe defaults
-    # lora_alpha = int(tlab_trainer.params.get("lora_alpha", 16))
-    # lora_dropout = float(tlab_trainer.params.get("lora_dropout", 0.05))
-    # lora_r = int(tlab_trainer.params.get("lora_r", 8))
-
-    # peft_config = LoraConfig(
-    #     lora_alpha=lora_alpha,
-    #     lora_dropout=lora_dropout,
-    #     r=lora_r,
-    #     bias="none",
-    #     task_type="CAUSAL_LM",
-    # )
-
-    # # Prepare model for training
-    # if not HAS_AMD:
-    #     model = prepare_model_for_kbit_training(model)
-    # try:
-    #     model = get_peft_model(model, peft_config)
-    # except ValueError as e:
-    #     print(f"PEFT model preparation error: {str(e)}")
-    #     peft_config = LoraConfig(
-    #         lora_alpha=lora_alpha,
-    #         lora_dropout=lora_dropout,
-    #         r=lora_r,
-    #         bias="none",
-    #         task_type="CAUSAL_LM",
-    #         target_modules=lora_target_modules,
-    #     )
-    #     model = get_peft_model(model, peft_config)
-
-    # num_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    # print(f"Trainable parameters: {num_trainable}")
+    
 
     # # Get output directories - use direct attribute access
     # output_dir = tlab_trainer.params.get("output_dir", "./output")
