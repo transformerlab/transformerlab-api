@@ -248,28 +248,31 @@ async def delete_audio(experimentId: int, id: str):
 async def list_transcription(experimentId: int):
     # Get experiment name and directory
     data = await experiment_get(experimentId)
+    
     if data is None:
         return {"message": f"Experiment {experimentId} does not exist"}
+    
     experiment_name = secure_filename(data["name"])
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
-    text_dir = os.path.join(experiment_dir, "transcriptions")
-    os.makedirs(text_dir, exist_ok=True)
+    transcription_dir = os.path.join(experiment_dir, "transcriptions")
+    os.makedirs(transcription_dir, exist_ok=True)
 
-    # List all .txt files in the text directory
-    text_files_metadata = []
-    for filename in os.listdir(text_dir):
-        if filename.endswith(".txt"):
-            file_path = os.path.join(text_dir, filename)
-            try:
-                # You can add more metadata if needed
-                text_files_metadata.append({
-                    "id": filename[:-4],  # Remove .txt
-                    "file_date": os.path.getmtime(file_path),
-                })
-            except Exception:
-                continue
-    text_files_metadata.sort(key=lambda x: x["file_date"], reverse=True)
-    return text_files_metadata
+    # List all .json files in the transcription directory
+    transcription_files_metadata = []
+    for filename in os.listdir(transcription_dir):
+        if filename.endswith(".json"):
+            file_path = os.path.join(transcription_dir, filename)
+            with open(file_path, "r") as f:
+                try:
+                    data = json.load(f)
+                    # Add the file modification time for sorting
+                    data["id"] = filename[:-5]  # Remove .json from the filename
+                    data["file_date"] = os.path.getmtime(file_path)
+                    transcription_files_metadata.append(data)
+                except Exception:
+                    continue
+    transcription_files_metadata.sort(key=lambda x: x["file_date"], reverse=True)
+    return transcription_files_metadata
 
 @router.get("/download_transcription")
 async def download_transcription(experimentId: int, filename: str):
