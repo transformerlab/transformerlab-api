@@ -244,8 +244,8 @@ async def delete_audio(experimentId: int, id: str):
 
     return {"message": f"Audio file {id} deleted from experiment {experimentId}"}
 
-@router.get("/list_text")
-async def list_text(experimentId: int):
+@router.get("/list_transcriptions")
+async def list_transcriptions(experimentId: int):
     # Get experiment name and directory
     data = await experiment_get(experimentId)
     if data is None:
@@ -271,8 +271,8 @@ async def list_text(experimentId: int):
     text_files_metadata.sort(key=lambda x: x["file_date"], reverse=True)
     return text_files_metadata
 
-@router.get("/download_text")
-async def download_text(experimentId: int, filename: str):
+@router.get("/download_transcription")
+async def download_transcription(experimentId: int, filename: str):
     data = await experiment_get(experimentId)
     if data is None:
         return {"message": f"Experiment {experimentId} does not exist"}
@@ -285,8 +285,8 @@ async def download_text(experimentId: int, filename: str):
         return {"message": f"Text file {filename} does not exist in experiment {experimentId}"}
     return FileResponse(path=file_path, filename=filename, media_type="text/plain")
 
-@router.delete("/delete_text")
-async def delete_text(experimentId: int, id: str):
+@router.delete("/delete_transcription")
+async def delete_transcription(experimentId: int, id: str):
     data = await experiment_get(experimentId)
     if data is None:
         return {"message": f"Experiment {experimentId} does not exist"}
