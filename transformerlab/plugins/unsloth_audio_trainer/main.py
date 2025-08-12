@@ -22,7 +22,7 @@ from datasets import Audio
 from transformers import AutoProcessor
 
 
-
+from transformers import CsmForConditionalGeneration
 # from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel  # noqa: E402
 # from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig, Mxfp4Config  # noqa: E402
 # from trl import SFTConfig, SFTTrainer  # noqa: E402
@@ -112,20 +112,18 @@ def train_text_to_speech_unsloth():
     output_dir = tlab_trainer.params.output_dir
     report_to = tlab_trainer.report_to
 
-
-
-    print(f"Dataset loaded successfully with {len(dataset)} examples")
-
+    print("Loading model...")
     try:
         # TODO: what parameters are needed to passed
         model, processor = FastModel.from_pretrained(
             model_name = model_id,
             max_seq_length= max_seq_length,
             # dtype = None, # Leave as None for auto-detection
-            # auto_model = CsmForConditionalGeneration, # TODO: check if this is needed!
+            auto_model = CsmForConditionalGeneration, # TODO: check if this is needed!
             load_in_4bit = False, # Keep it false because voice models are small and we can keep the high quality result.
         )
     except Exception as e:
+        print(f"Failed to load model: {str(e)}")
         return f"Failed to load model: {str(e)}"
 
 
