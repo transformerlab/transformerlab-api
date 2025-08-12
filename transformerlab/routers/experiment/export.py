@@ -147,7 +147,9 @@ async def run_exporter_script(
                 f.write(f"\nError:\n{stderr_str}")
 
             if process.returncode != 0:
-                await job_update_status(job_id=job_id, status="FAILED")
+                job = await db_jobs.job_get(job_id)
+                experiment_id = job["experiment_id"]
+                await job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
                 return {
                     "status": "error",
                     "message": "Export failed due to an internal error. Please check the output file for more details.",
@@ -157,7 +159,9 @@ async def run_exporter_script(
         import logging
 
         logging.error(f"Failed to export model. Exception: {e}")
-        await job_update_status(job_id=job_id, status="FAILED")
+        job = await db_jobs.job_get(job_id)
+        experiment_id = job["experiment_id"]
+        await job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
         return {"message": "Failed to export model due to an internal error."}
 
     # Model create was successful!
@@ -186,18 +190,6 @@ async def run_exporter_script(
     model_description_file.close()
 
     return {"status": "success", "job_id": job_id}
-
-
-@router.get("/jobs")
-async def get_export_jobs(id: int):
-    jobs = await db_jobs.jobs_get_all_by_experiment_and_type(id, "EXPORT")
-    return jobs
-
-
-@router.get("/job")
-async def get_export_job(id: int, jobId: str):
-    job = await db_jobs.job_get(jobId)
-    return job
 
 
 async def get_output_file_name(job_id: str):

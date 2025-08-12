@@ -25,7 +25,6 @@ worker_id = str(uuid.uuid4())[:8]
 
 OLLAMA_STARTUP_TIMEOUT = 180  # seconds
 
-
 try:
     from transformerlab.plugin import get_python_executable, register_process
 except ImportError:
@@ -166,17 +165,18 @@ if not os.path.exists(sha_filename):
 # for catching errors
 ollama_create_proc = subprocess.run(["ollama", "create", ollama_model_name, "-f", modelfile])
 
-# For debugging: Output a bunch of model info
-response: ollama.ProcessResponse = ollama.ps()
-for model in response.models:
-    print("Model: ", model.model)
-    print("  Digest: ", model.digest)
-    print("  Expires at: ", model.expires_at)
-    print("  Size: ", model.size)
-    print("  Size vram: ", model.size_vram)
-    print("  Details: ", model.details)
-    print("\n")
-
+# Openai api proxy needs to know context length to check for context overflow
+# You can try pulling this from modelinfo from ollama.show
+# As a backup, we will assume ollama default of 4096
+context_len = 4096
+show_response: ollama.ShowResponse = ollama.show(model=ollama_model_name)
+modelinfo = show_response.modelinfo
+print(modelinfo)
+model_architecture = modelinfo.get("general.architecture", None)
+if model_architecture:
+    context_key = f"{model_architecture}.context_length"
+    if context_key in modelinfo:
+        context_len = modelinfo[context_key]
 
 
 proxy_args = [
@@ -186,9 +186,10 @@ proxy_args = [
     "--model-path", model_path,
     "--proxy-url", f"http://localhost:{port}/v1",
    "--model", ollama_model_name,
+    "--context-len", str(context_len),
+    "--image-payload-encoding", "base64",
     ]
 
-# print("Starting FastChat OpenAI API Proxy worker...", file=sys.stderr)
 proxy_proc = subprocess.Popen(proxy_args, stdout=None, stderr=subprocess.PIPE)
 
 # save both worker process id and ollama process id to file

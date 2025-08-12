@@ -52,24 +52,27 @@ async def _trigger_workflows_on_job_completion(job_id: str):
         logger.error(f"Error triggering workflows for job {job_id}: {e}")
 
 
-async def job_update_status(job_id: str, status: str, error_msg: Optional[str] = None):
+async def job_update_status(
+    job_id: str, status: str, experiment_id: Optional[str] = None, error_msg: Optional[str] = None
+):
     """
     Update job status and trigger workflows if job is completed.
 
     Args:
         job_id: The ID of the job to update
         status: The new status to set
+        experiment_id: The experiment ID (required for most operations, optional for backward compatibility)
         error_msg: Optional error message to add to job data
     """
     # Update the job status in the database
-    await db_jobs.job_update_status(job_id, status, error_msg)
+    await db_jobs.job_update_status(job_id, status, experiment_id, error_msg)
 
     # Trigger workflows if job status is COMPLETE
     if status == "COMPLETE":
         await _trigger_workflows_on_job_completion(job_id)
 
 
-async def job_update(job_id: str, type: str, status: str):
+async def job_update(job_id: str, type: str, status: str, experiment_id: Optional[str] = None):
     """
     Update job type and status and trigger workflows if job is completed.
 
@@ -77,38 +80,51 @@ async def job_update(job_id: str, type: str, status: str):
         job_id: The ID of the job to update
         type: The new type to set
         status: The new status to set
+        experiment_id: The experiment ID (required for most operations, optional for backward compatibility)
     """
     # Update the job in the database
-    await db_jobs.job_update(job_id, type, status)
+    await db_jobs.job_update(job_id, type, status, experiment_id)
 
     # Trigger workflows if job status is COMPLETE
     if status == "COMPLETE":
         await _trigger_workflows_on_job_completion(job_id)
 
 
-def job_update_status_sync(job_id: str, status: str, error_msg: Optional[str] = None):
+def job_update_status_sync(
+    job_id: str, status: str, experiment_id: Optional[str] = None, error_msg: Optional[str] = None
+):
     """
     Synchronous version of job status update.
 
     Args:
         job_id: The ID of the job to update
         status: The new status to set
+        experiment_id: The experiment ID (required for most operations, optional for backward compatibility)
         error_msg: Optional error message to add to job data
     """
     # Update the job status in the database
-    db_job_update_status_sync(job_id, status, error_msg)
+    db_job_update_status_sync(job_id, status, experiment_id, error_msg)
+
+    # Trigger workflows if job status is COMPLETE
+    if status == "COMPLETE":
+        _trigger_workflows_on_job_completion_sync(job_id)
 
 
-def job_update_sync(job_id: str, status: str):
+def job_update_sync(job_id: str, status: str, experiment_id: Optional[str] = None):
     """
     Synchronous version of job update.
 
     Args:
         job_id: The ID of the job to update
         status: The new status to set
+        experiment_id: The experiment ID (required for most operations, optional for backward compatibility)
     """
     # Update the job in the database
-    db_job_update_sync(job_id, status)
+    db_job_update_sync(job_id, status, experiment_id)
+
+    # Trigger workflows if job status is COMPLETE
+    if status == "COMPLETE":
+        _trigger_workflows_on_job_completion_sync(job_id)
 
 
 def _trigger_workflows_on_job_completion_sync(job_id: str):

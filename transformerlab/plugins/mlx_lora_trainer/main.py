@@ -35,12 +35,13 @@ def train_mlx_lora():
     datasets = tlab_trainer.load_dataset(["train", "valid"])
     steps_per_report = tlab_trainer.params.get("steps_per_report", "10")
     save_every = tlab_trainer.params.get("save_every", "1000")
+    tlab_trainer.add_job_data("checkpoints", True)  # save_every implies checkpoints
 
     # Check if LoRA parameters are set
     lora_rank = tlab_trainer.params.get("lora_rank", None)
     lora_alpha = tlab_trainer.params.get("lora_alpha", None)
 
-    #Check if template parameters are set
+    # Check if template parameters are set
     chat_template = tlab_trainer.params.get("formatting_chat_template", None)
     chat_column = tlab_trainer.params.get("chatml_formatted_column", "messages")
     formatting_template = tlab_trainer.params.get("formatting_template", None)
@@ -58,9 +59,6 @@ def train_mlx_lora():
             steps_per_epoch = 1  # Handle case where batch size > dataset size
         total_steps = steps_per_epoch * int(num_train_epochs)
         iters = str(total_steps)
-        steps_per_eval = str(total_steps // int(num_train_epochs))
-        steps_per_report = str(total_steps // int(num_train_epochs))
-        save_every = str(total_steps // int(num_train_epochs))
         print(f"Using epoch-based training: {num_train_epochs} epochs")
         print(f"Training dataset size: {num_examples} examples")
         print(f"Steps per epoch: {steps_per_epoch}")
@@ -93,14 +91,14 @@ def train_mlx_lora():
     data_directory = f"{WORKSPACE_DIR}/plugins/mlx_lora_trainer/data"
     if not os.path.exists(data_directory):
         os.makedirs(data_directory)
-    
+
     prepare_dataset_files(
         data_directory=data_directory,
         datasets=datasets,
         formatting_template=formatting_template,
         chat_template=chat_template,
         model_name=tlab_trainer.params.model_name,
-        chat_column=chat_column
+        chat_column=chat_column,
     )
 
     # Set output directory for the adaptor
