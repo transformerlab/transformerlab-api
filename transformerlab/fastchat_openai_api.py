@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import time
+import uuid
 
 from typing import Any, AsyncGenerator, Dict, Generator, List, Optional, Union
 
@@ -15,7 +16,7 @@ import shortuuid
 import tiktoken
 
 # Using torch to test for CUDA and MPS support.
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, File, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.security.http import HTTPAuthorizationCredentials, HTTPBearer
 from fastchat.constants import WORKER_API_EMBEDDING_BATCH_SIZE, ErrorCode
@@ -90,7 +91,7 @@ class ChatCompletionRequest(BaseModel):
     user: Optional[str] = None
     logprobs: Optional[bool] = False
 
-class AudioRequest(BaseModel):
+class AudioSpeechRequest(BaseModel):
     experiment_id: int
     model: str
     text: str
@@ -98,6 +99,13 @@ class AudioRequest(BaseModel):
     sample_rate: int
     temperature: float
     speed: float
+
+class AudioTranscriptionsRequest(BaseModel):
+    experiment_id: int
+    model: str
+    audio_path: str
+    # format: str
+    # output_path: str note: probably we set this by ourself
 
 
 class VisualizationRequest(PydanticBaseModel):
@@ -476,7 +484,7 @@ async def show_available_models():
     return ModelList(data=model_cards)
 
 @router.post("/v1/audio/speech", tags=["audio"])
-async def create_audio_tts(request: AudioRequest):
+async def create_audio_tts(request: AudioSpeechRequest):
     error_check_ret = await check_model(request)
     if error_check_ret is not None:
         if isinstance(error_check_ret, JSONResponse):
@@ -498,10 +506,54 @@ async def create_audio_tts(request: AudioRequest):
         "temperature": request.temperature,
         "speed": request.speed,
     }
+    gen_params["task"] = "tts"
     #TODO: Define a base model class to structure the return value
     content = await generate_completion(gen_params)
 
     return content
+
+@router.post("/v1/audio/transcriptions", tags=["audio"])
+async def create_text_stt(request: AudioTranscriptionsRequest):
+    error_check_ret = await check_model(request)
+    if error_check_ret is not None:
+        if isinstance(error_check_ret, JSONResponse):
+            return error_check_ret
+        elif isinstance(error_check_ret, dict) and "model_name" in error_check_ret.keys():
+            request.model = error_check_ret["model_name"]
+    
+    experiment_dir = await dirs.experiment_dir_by_id(request.experiment_id)
+    transcription_dir = os.path.join(experiment_dir, "transcriptions")
+    os.makedirs(transcription_dir, exist_ok=True)
+
+    gen_params = {
+        "model": request.model,
+        "audio_path": request.audio_path,
+        "output_path": transcription_dir,
+        #"format": request.format,
+    }
+    gen_params["task"] = "stt"
+    #TODO: Define a base model class to structure the return value
+    content = await generate_completion(gen_params)
+
+    return content
+
+@router.post("/v1/audio/upload", tags=["audio"])
+async def upload_audio(experimentId: int, audio: UploadFile = File(...)):
+
+    experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+    uploaded_audio_dir = os.path.join(experiment_dir, "uploaded_audio")
+    os.makedirs(uploaded_audio_dir, exist_ok=True)
+
+    file_prefix = str(uuid.uuid4())
+    _, ext = os.path.splitext(audio.filename)
+    file_path = os.path.join(uploaded_audio_dir, file_prefix + ext)
+
+    # Save the uploaded file
+    with open(file_path, "wb") as f:
+        content = await audio.read()
+        f.write(content)
+
+    return JSONResponse({"audioPath": file_path})
 
 
 

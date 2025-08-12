@@ -19,6 +19,7 @@ from fastchat.serve.model_worker import logger
 from transformerlab.plugin import WORKSPACE_DIR
 
 from mlx_audio.tts.generate import generate_audio
+from mlx_audio.stt.generate import generate
 from datetime import datetime
 
 worker_id = str(uuid.uuid4())[:8]
@@ -70,64 +71,126 @@ class MLXAudioWorker(BaseModelWorker):
     async def generate(self, params):
         self.call_ct += 1
 
-        text = params.get("text", "")
-        model = params.get("model", None)
-        speed = params.get("speed", 1.0)
-        # file_prefix = params.get("file_prefix", "audio")
-        audio_format = params.get("audio_format", "wav")
-        sample_rate = params.get("sample_rate", 24000)
-        temperature = params.get("temperature", 0.0)
-        stream = params.get("stream", False)
-        
-        audio_dir = params.get("audio_dir", None)
-        if not audio_dir:
-            audio_dir = os.path.join(WORKSPACE_DIR, "audio")
-        os.makedirs(name=audio_dir, exist_ok=True)
+        task = params.get("task")
+        if task == "tts":
 
-        # Generate a UUID for this file name:
-        file_prefix = str(uuid.uuid4())
+            text = params.get("text", "")
+            model = params.get("model", None)
+            speed = params.get("speed", 1.0)
+            # file_prefix = params.get("file_prefix", "audio")
+            audio_format = params.get("audio_format", "wav")
+            sample_rate = params.get("sample_rate", 24000)
+            temperature = params.get("temperature", 0.0)
+            stream = params.get("stream", False)
+            
+            audio_dir = params.get("audio_dir", None)
+            if not audio_dir:
+                audio_dir = os.path.join(WORKSPACE_DIR, "audio")
+            os.makedirs(name=audio_dir, exist_ok=True)
 
-        try:
-            generate_audio(
-                text=text,
-                model_path=model,
-                speed=speed,
-                file_prefix=os.path.join(audio_dir, file_prefix),
-                sample_rate=sample_rate,
-                join_audio=True,  # Whether to join multiple audio files into one
-                verbose=True,  # Set to False to disable print messages
-                temperature=temperature,
-                stream=stream,
-            )
+            # Generate a UUID for this file name:
+            file_prefix = str(uuid.uuid4())
 
-            # Also save the parameters and metadata used to generate the audio
-            metadata = {
-                "type": "audio",
-                "text": text,
-                "filename": f"{file_prefix}.{audio_format}",
-                "model": model,
-                "speed": speed,
-                "audio_format": audio_format,
-                "sample_rate": sample_rate,
-                "temperature": temperature,
-                "date": datetime.now().isoformat(),  # Store the real date and time
-            }
-            metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
-            with open(metadata_file, "w") as f:
-                json.dump(metadata, f)
+            try:
+                generate_audio(
+                    text=text,
+                    model_path=model,
+                    speed=speed,
+                    file_prefix=os.path.join(audio_dir, file_prefix),
+                    sample_rate=sample_rate,
+                    join_audio=True,  # Whether to join multiple audio files into one
+                    verbose=True,  # Set to False to disable print messages
+                    temperature=temperature,
+                    stream=stream,
+                )
 
-            logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
+                # Also save the parameters and metadata used to generate the audio
+                metadata = {
+                    "type": "audio",
+                    "text": text,
+                    "filename": f"{file_prefix}.{audio_format}",
+                    "model": model,
+                    "speed": speed,
+                    "audio_format": audio_format,
+                    "sample_rate": sample_rate,
+                    "temperature": temperature,
+                    "date": datetime.now().isoformat(),  # Store the real date and time
+                }
+                metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
+                with open(metadata_file, "w") as f:
+                    json.dump(metadata, f)
 
-            return {
-                "status": "success",
-                "message": f"{audio_dir}/{file_prefix}.{audio_format}",
-            }
-        except Exception:
-            logger.error(f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}")
+                logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
+
+                return {
+                    "status": "success",
+                    "message": f"{audio_dir}/{file_prefix}.{audio_format}",
+                }
+            except Exception:
+                logger.error(f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}")
+                return {
+                    "status": "error",
+                    "message": f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}",
+                }
+
+        elif task == "stt":
+            audio_path = params.get("audio_path", "")
+            model = params.get("model", None)
+            format = params.get("format", "txt")
+            transcriptions_dir = params.get("output_path", None)
+            format = params.get("format", "txt")
+
+
+            if not transcriptions_dir:
+                transcriptions_dir = os.path.join(WORKSPACE_DIR, "transcriptions")
+            os.makedirs(name=transcriptions_dir, exist_ok=True)
+
+            # Generate a UUID for this file name:
+            file_prefix = str(uuid.uuid4())
+
+            try:
+                generate(
+                    audio_path=audio_path,
+                    model_path=model,
+                    format=format,
+                    output_path=os.path.join(transcriptions_dir, file_prefix),
+                    verbose=True,  # Set to False to disable print messages
+                )
+
+                # Also save the parameters and metadata used to generate the audio
+                metadata = {
+                    "type": "text",
+                    "audio_folder": "uploaded_audio",
+                    "audio_path": audio_path.split("/").pop(),
+                    "filename": f"{file_prefix}.{format}",
+                    "model": model,
+                    "text_format": format,
+                    "date": datetime.now().isoformat(),  # Store the real date and time
+                }
+                metadata_file = os.path.join(transcriptions_dir, f"{file_prefix}.json")
+                with open(metadata_file, "w") as f:
+                    json.dump(metadata, f)
+
+                logger.info(f"Transcription successfully generated: {transcriptions_dir}/{file_prefix}.{format}")
+
+                return {
+                    "status": "success",
+                    "message": f"{transcriptions_dir}/{file_prefix}.{format}",
+                }
+            except Exception:
+                logger.error(f"Error generating transcription: {transcriptions_dir}/{file_prefix}.{format}")
+                return {
+                    "status": "error",
+                    "message": f"Error generating transcription: {transcriptions_dir}/{file_prefix}.{format}",
+                }
+      
+        else:
+            logger.error(f"Unknown task type: {task}")
             return {
                 "status": "error",
-                "message": f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}",
+                "message": f"Unknown task type: {task}",
             }
+
 
 
 def release_worker_semaphore():
