@@ -172,6 +172,8 @@ def train_text_to_speech_unsloth():
         desc="Preprocessing dataset",
     )
 
+    print(f"Processed dataset length: {len(processed_ds)}")
+
 
     # Create progress callback using tlab_trainer
     progress_callback = tlab_trainer.create_progress_callback(framework="huggingface")
