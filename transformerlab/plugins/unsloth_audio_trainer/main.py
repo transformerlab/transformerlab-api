@@ -3,24 +3,12 @@ import os
 import torch
 import importlib
 
-# HAS_AMD = False
-# if shutil.which("rocminfo") is not None:
-#     HAS_AMD = True
-#     # AMD-specific optimizations
-#     os.environ["PYTORCH_HIP_ALLOC_CONF"] = "max_split_size_mb:128"
-#     os.environ["HIP_VISIBLE_DEVICES"] = "0"
-#     # Disable some problematic CUDA-specific features
-#     os.environ["TOKENIZERS_PARALLELISM"] = "false"
-# if torch.cuda.is_available():
-#     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 from unsloth import FastModel
 from transformers import TrainingArguments, Trainer
 from unsloth import is_bfloat16_supported
 from datasets import Audio
 from transformers import AutoProcessor, AutoConfig
 
-
-# from transformerlab.plugin import WORKSPACE_DIR, format_template  # noqa: E402
 from transformerlab.sdk.v1.train import tlab_trainer  # noqa: E402
 
 def get_model_class_from_architecture(model_id):
