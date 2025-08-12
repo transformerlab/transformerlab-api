@@ -1,5 +1,4 @@
 import json
-import logging
 from typing import Optional
 
 import transformerlab.db.jobs as db_jobs
@@ -7,11 +6,10 @@ from transformerlab.db.sync import (
     job_update_status_sync as db_job_update_status_sync,
     job_update_sync as db_job_update_sync,
     get_sync_session,
+    job_mark_as_complete_if_running as db_job_mark_as_complete_if_running,
 )
 from transformerlab.shared.models import models
 from sqlalchemy import select
-
-logger = logging.getLogger(__name__)
 
 
 async def _trigger_workflows_on_job_completion(job_id: str):
@@ -46,10 +44,8 @@ async def _trigger_workflows_on_job_completion(job_id: str):
 
             for workflow_id in triggered_workflow_ids:
                 await workflow_queue(workflow_id)
-                logger.info(f"Triggered workflow {workflow_id} due to job {job_id} completion, job type: {job_type}.")
-
     except Exception as e:
-        logger.error(f"Error triggering workflows for job {job_id}: {e}")
+        print(f"Error triggering workflows for job {job_id}: {e}")
 
 
 async def job_update_status(
@@ -155,6 +151,7 @@ def _trigger_workflows_on_job_completion_sync(job_id: str):
             )
 
             triggered_workflow_ids = []
+
             for workflow_row in workflows_result:
                 workflow_id = workflow_row[0]
                 config = workflow_row[1]
@@ -167,9 +164,11 @@ def _trigger_workflows_on_job_completion_sync(job_id: str):
                         continue
 
                     triggers = config.get("triggers", [])
+
                     if job_type in triggers:
                         triggered_workflow_ids.append(workflow_id)
-                except (json.JSONDecodeError, TypeError):
+
+                except (json.JSONDecodeError, TypeError) as e:
                     continue
 
             # 5. Queue workflows (sync)
@@ -190,9 +189,15 @@ def _trigger_workflows_on_job_completion_sync(job_id: str):
                     experiment_id=experiment_id,
                 )
                 session.add(workflow_run)
-                print(f"Triggered workflow {workflow_id} due to job {job_id} completion, job type: {job_type}")
 
             session.commit()
-
     except Exception as e:
         print(f"Error triggering workflows for job {job_id}: {e}")
+
+
+def job_mark_as_complete_if_running(job_id: int, experiment_id: int) -> None:
+    """Service wrapper: call db.sync.job_mark_as_complete_if_running and then trigger workflows."""
+    # We cannot know from the db function whether an update occurred,
+    # but it's safe to attempt the trigger; it will read the type and queue accordingly.
+    db_job_mark_as_complete_if_running(job_id, experiment_id)
+    _trigger_workflows_on_job_completion_sync(job_id)

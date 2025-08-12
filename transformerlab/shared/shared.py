@@ -494,12 +494,18 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
     def on_train_complete():
         print("Training Job: The process has finished")
-        job_mark_as_complete_if_running(job_id, experiment_id)
+        # Safely mark COMPLETE only if still RUNNING and trigger workflows via service
+        try:
+            from transformerlab.services.job_service import job_mark_as_complete_if_running
+
+            job_mark_as_complete_if_running(job_id, experiment_id)
+        except Exception:
+            pass
         end_time = time.strftime("%Y-%m-%d %H:%M:%S")
         asyncio.run(db_jobs.job_update_job_data_insert_key_value(job_id, "end_time", end_time, experiment_id))
 
     def on_job_complete():
-        job_update_sync(job_id, "COMPLETE")
+        job_update_sync(job_id, "COMPLETE", experiment_id)
         end_time = time.strftime("%Y-%m-%d %H:%M:%S")
         asyncio.run(db_jobs.job_update_job_data_insert_key_value(job_id, "end_time", end_time, experiment_id))
 
