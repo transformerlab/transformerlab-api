@@ -643,13 +643,13 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 await db_jobs.job_update_sweep_progress(job_id, int((i / total_configs) * 100), experiment_id)
                 await db_jobs.job_update_job_data_insert_key_value(job_id, "sweep_current", str(i + 1), experiment_id)
                 await db_jobs.job_update_job_data_insert_key_value(
-                    job_id, "sweep_running_config", json.dumps(config_params)
+                    job_id, "sweep_running_config", json.dumps(config_params), experiment_id
                 )
 
                 # Run the training job with this configuration
                 run_output_file = os.path.join(sweep_dir, f"output_sweep_{job_id}.txt")
                 await db_jobs.job_update_job_data_insert_key_value(
-                    job_id, "sweep_output_file", os.path.join(sweep_dir, f"output_sweep_{job_id}.txt")
+                    job_id, "sweep_output_file", os.path.join(sweep_dir, f"output_sweep_{job_id}.txt"), experiment_id
                 )
 
                 # Create command for this run
@@ -745,10 +745,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
                             # Update job data with current best
                             await db_jobs.job_update_job_data_insert_key_value(
-                                job_id, "sweep_best_config", json.dumps(best_config)
+                                job_id, "sweep_best_config", json.dumps(best_config), experiment_id
                             )
                             await db_jobs.job_update_job_data_insert_key_value(
-                                job_id, "sweep_best_metric", json.dumps({metric_name: best_metric})
+                                job_id, "sweep_best_metric", json.dumps({metric_name: best_metric}), experiment_id
                             )
                 except Exception as e:
                     print(f"Error processing metrics for run {i + 1}: {str(e)}")
