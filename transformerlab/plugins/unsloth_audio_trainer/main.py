@@ -131,23 +131,28 @@ def train_text_to_speech_unsloth():
 
     # # Setup LoRA - use direct attribute access with safe defaults
     
+    print("Setting up LoRA...")
+    try:
+        model = FastModel.get_peft_model(
+            model,
+            r = lora_r, 
+            target_modules = ["q_proj", "k_proj", "v_proj", "o_proj",
+                            "gate_proj", "up_proj", "down_proj",], # TODO: implement something like find_lora_target_modules
+            lora_alpha = lora_alpha,
+            lora_dropout = lora_dropout,
+            bias = "none",    # Supports any, but = "none" is optimized
+            # [NEW] "unsloth" uses 30% less VRAM, fits 2x larger batch sizes!
+            use_gradient_checkpointing = "unsloth", # True or "unsloth" for very long context
+            random_state = 3407,
+            use_rslora = False,  # We support rank stabilized LoRA
+            loftq_config = None, # And LoftQ
+    )
+        num_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        print(f"Trainable parameters: {num_trainable}")
+    except Exception as e:
+        print(f"Failed to set up LoRA: {str(e)}")
+        return f"Failed to set up LoRA: {str(e)}"
 
-    model = FastModel.get_peft_model(
-        model,
-        r = lora_r, 
-        target_modules = ["q_proj", "k_proj", "v_proj", "o_proj",
-                        "gate_proj", "up_proj", "down_proj",], # TODO: implement something like find_lora_target_modules
-        lora_alpha = lora_alpha,
-        lora_dropout = lora_dropout,
-        bias = "none",    # Supports any, but = "none" is optimized
-        # [NEW] "unsloth" uses 30% less VRAM, fits 2x larger batch sizes!
-        use_gradient_checkpointing = "unsloth", # True or "unsloth" for very long context
-        random_state = 3407,
-        use_rslora = False,  # We support rank stabilized LoRA
-        loftq_config = None, # And LoftQ
-)
-    num_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"Trainable parameters: {num_trainable}")
 
     processor = AutoProcessor.from_pretrained(model_id)
 
@@ -189,7 +194,7 @@ def train_text_to_speech_unsloth():
             per_device_train_batch_size = batch_size,
             gradient_accumulation_steps = 2,
             gradient_checkpointing=True,
-            warmup_rate = 0.03,
+            warmup_ratio = 0.03,
             max_steps = 60,
             learning_rate = learning_rate,
             fp16 = not is_bfloat16_supported(),
