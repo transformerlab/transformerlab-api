@@ -36,7 +36,7 @@ def find_lora_target_modules(model):
                 found.add(pattern)
     return list(found) if found else patterns
 
-def preprocess_example(example, speaker_key="source", processor=None):
+def preprocess_example(example, speaker_key="source", processor=None, max_seq_length=256):
     conversation = [
         {
             "role": str(example[speaker_key]),
@@ -54,9 +54,9 @@ def preprocess_example(example, speaker_key="source", processor=None):
             return_dict=True,
             output_labels=True,
             text_kwargs = {
-                "padding": "max_length", # pad to the max_length
-                "max_length": 256, # this should be the max length of audio
-                "pad_to_multiple_of": 8,
+                "padding": "max_length",  # pad to the max_length
+                "max_length": max_seq_length, # this should be the max length of audio
+                "pad_to_multiple_of": 8, # Pad so length is a multiple of 8 (for efficiency)
                 "padding_side": "right",
             },
             audio_kwargs = {
@@ -151,10 +151,8 @@ def train_text_to_speech_unsloth():
         print(f"Failed to set up LoRA: {str(e)}")
         return f"Failed to set up LoRA: {str(e)}"
 
-
+    
     processor = AutoProcessor.from_pretrained(model_id)
-
-
     # Getting the speaker id is important for multi-speaker models and speaker consistency
     speaker_key = "source"
     if "source" not in dataset.column_names and "speaker_id" not in dataset.column_names:
@@ -166,9 +164,10 @@ def train_text_to_speech_unsloth():
 
     target_sampling_rate = 24000
     dataset = dataset.cast_column("audio", Audio(sampling_rate=target_sampling_rate))
+    
 
     processed_ds = dataset.map(
-        lambda example: preprocess_example(example, speaker_key=speaker_key, processor=processor),
+        lambda example: preprocess_example(example, speaker_key=speaker_key, processor=processor, max_seq_length=max_seq_length),
         remove_columns=dataset.column_names,
         desc="Preprocessing dataset",
     )
