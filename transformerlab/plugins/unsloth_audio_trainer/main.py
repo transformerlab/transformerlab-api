@@ -1,9 +1,7 @@
 import time
 import os
-# from random import randrange
 import torch
-# import shutil
-# from functools import partial
+import importlib
 
 # HAS_AMD = False
 # if shutil.which("rocminfo") is not None:
@@ -19,19 +17,36 @@ from unsloth import FastModel
 from transformers import TrainingArguments, Trainer
 from unsloth import is_bfloat16_supported
 from datasets import Audio
-from transformers import AutoProcessor
-
-
-from transformers import CsmForConditionalGeneration
-# from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training, PeftModel  # noqa: E402
-# from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig, Mxfp4Config  # noqa: E402
-# from trl import SFTConfig, SFTTrainer  # noqa: E402
-# import torch.nn as nn  # noqa: E402
+from transformers import AutoProcessor, AutoConfig
 
 
 # from transformerlab.plugin import WORKSPACE_DIR, format_template  # noqa: E402
 from transformerlab.sdk.v1.train import tlab_trainer  # noqa: E402
 
+def get_model_class_from_architecture(model_id):
+    config = AutoConfig.from_pretrained(model_id)
+    architecture = config.architectures[0] if hasattr(config, "architectures") and config.architectures else None
+    print(f"Model architecture: {architecture}")
+
+    # Try to import the class from transformers
+    if architecture:
+        try:
+            model_class = getattr(importlib.import_module("transformers"), architecture)
+        except AttributeError:
+            raise ImportError(f"Could not import {architecture} from transformers. Please check the architecture name or install the required version of transformers.")
+    else:
+        model_class = None
+
+    return model_class
+
+def find_lora_target_modules(model):
+    patterns = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+    found = set()
+    for name, module in model.named_modules():
+        for pattern in patterns:
+            if pattern in name:
+                found.add(pattern)
+    return list(found) if found else patterns
 
 def preprocess_example(example, speaker_key="source", processor=None):
     conversation = [
@@ -114,30 +129,25 @@ def train_text_to_speech_unsloth():
 
     print("Loading model...")
     try:
-        # TODO: what parameters are needed to passed
         model, processor = FastModel.from_pretrained(
             model_name = model_id,
             max_seq_length= max_seq_length,
-            # dtype = None, # Leave as None for auto-detection
-            auto_model = CsmForConditionalGeneration, # TODO: check if this is needed!
-            load_in_4bit = False, # Keep it false because voice models are small and we can keep the high quality result.
+            dtype = None, # Leave as None for auto-detection
+            auto_model = get_model_class_from_architecture(model_id),
+            load_in_4bit = False, # Keep this set to False because voice models are small, so we can maintain high quality results.
         )
     except Exception as e:
         print(f"Failed to load model: {str(e)}")
         return f"Failed to load model: {str(e)}"
 
 
-    # Setup LoRA
-
-    # # Setup LoRA - use direct attribute access with safe defaults
-    
+    # Setup LoRA - use direct attribute access with safe defaults
     print("Setting up LoRA...")
     try:
         model = FastModel.get_peft_model(
             model,
-            r = lora_r, 
-            target_modules = ["q_proj", "k_proj", "v_proj", "o_proj",
-                            "gate_proj", "up_proj", "down_proj",], # TODO: implement something like find_lora_target_modules
+            r = lora_r,
+            target_modules = find_lora_target_modules(model),
             lora_alpha = lora_alpha,
             lora_dropout = lora_dropout,
             bias = "none",    # Supports any, but = "none" is optimized
