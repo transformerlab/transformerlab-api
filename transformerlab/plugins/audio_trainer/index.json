@@ -8,7 +8,7 @@
   "model_architectures": [
     "CsmForConditionalGeneration"
   ],
-  "supported_hardware_architectures": ["cuda", "cpu", "mlx"],
+  "supported_hardware_architectures": ["cuda"],
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
