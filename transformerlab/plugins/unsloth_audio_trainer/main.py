@@ -36,7 +36,14 @@ def find_lora_target_modules(model):
                 found.add(pattern)
     return list(found) if found else patterns
 
-def preprocess_example(example, speaker_key="source", processor=None, max_seq_length=256):
+def preprocess_example(
+        example, 
+        speaker_key="source", 
+        processor=None, 
+        max_seq_length=256, 
+        max_audio_length=240001,
+        sampling_rate=24000
+    ):
     conversation = [
         {
             "role": str(example[speaker_key]),
@@ -60,8 +67,8 @@ def preprocess_example(example, speaker_key="source", processor=None, max_seq_le
                 "padding_side": "right",
             },
             audio_kwargs = {
-                "sampling_rate": 24_000,
-                "max_length": 240001, # max input_values length of the whole dataset
+                "sampling_rate": sampling_rate,
+                "max_length": max_audio_length, # max input_values length of the whole dataset
                 "padding": "max_length",
             },
             common_kwargs = {"return_tensors": "pt"},
@@ -114,6 +121,7 @@ def train_text_to_speech_unsloth():
     adam_epsilon = float(tlab_trainer.params.adam_epsilon)
     output_dir = tlab_trainer.params.output_dir
     report_to = tlab_trainer.report_to
+    sampling_rate = int(tlab_trainer.params.get("sampling_rate", 24000))
 
     print("Loading model...")
     try:
@@ -162,12 +170,18 @@ def train_text_to_speech_unsloth():
     elif "source" not in dataset.column_names and "speaker_id" in dataset.column_names:
         speaker_key = "speaker_id"
 
-    target_sampling_rate = 24000
-    dataset = dataset.cast_column("audio", Audio(sampling_rate=target_sampling_rate))
-    
+    dataset = dataset.cast_column("audio", Audio(sampling_rate=sampling_rate))
 
+    max_audio_length = max(len(example["audio"]["array"]) for example in dataset)
     processed_ds = dataset.map(
-        lambda example: preprocess_example(example, speaker_key=speaker_key, processor=processor, max_seq_length=max_seq_length),
+        lambda example: preprocess_example(
+            example,
+            speaker_key=speaker_key,
+            processor=processor,
+            max_seq_length=max_seq_length,
+            max_audio_length=max_audio_length,
+            sampling_rate=sampling_rate
+        ),
         remove_columns=dataset.column_names,
         desc="Preprocessing dataset",
     )

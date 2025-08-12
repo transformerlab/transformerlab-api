@@ -15,6 +15,11 @@
   "setup-script": "setup.sh",
   "training_template_format": "none",
   "parameters": {
+    "sampling_rate": {
+      "title": "Sampling Rate",
+      "type": "integer",
+      "default": 24000
+    },
     "maximum_sequence_length": {
       "title": "Maximum Sequence Length",
       "type": "integer",
