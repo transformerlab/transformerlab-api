@@ -13,7 +13,7 @@
   "url": "",
   "files": ["main.py", "setup.sh"],
   "setup-script": "setup.sh",
-  "training_template_format": "alpaca",
+  "training_template_format": "none",
   "parameters": {
     "maximum_sequence_length": {
       "title": "Maximum Sequence Length",
