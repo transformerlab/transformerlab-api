@@ -122,6 +122,7 @@ def train_text_to_speech_unsloth():
     output_dir = tlab_trainer.params.output_dir
     report_to = tlab_trainer.report_to
     sampling_rate = int(tlab_trainer.params.get("sampling_rate", 24000))
+    max_steps = int(tlab_trainer.params.get("max_steps", -1))
 
     print("Loading model...")
     try:
@@ -188,7 +189,6 @@ def train_text_to_speech_unsloth():
 
     print(f"Processed dataset length: {len(processed_ds)}")
 
-
     # Create progress callback using tlab_trainer
     progress_callback = tlab_trainer.create_progress_callback(framework="huggingface")
     
@@ -206,12 +206,12 @@ def train_text_to_speech_unsloth():
             gradient_accumulation_steps = 2,
             gradient_checkpointing=True,
             warmup_ratio = 0.03,
-            max_steps = 60,
+            max_steps = max_steps,
             learning_rate = learning_rate,
             fp16 = not is_bfloat16_supported(),
             bf16 = is_bfloat16_supported(),
             logging_steps = 10,
-            optim = "adamw_8bit", # which one? "paged_adamw_32bit"
+            optim = "adamw_8bit",
             save_strategy="epoch",
             weight_decay = weight_decay,
             lr_scheduler_type = learning_rate_schedule,
