@@ -1,6 +1,6 @@
 {
   "name": "Unsloth Audio trainer",
-  "uniqueId": "unsloth_audio_trainer",
+  "uniqueId": "audio_trainer",
   "description": "An audio trainer Text-to-Speech (TTS) based on the unsloth audio training notebooks",
   "plugin-format": "python",
   "type": "trainer",
