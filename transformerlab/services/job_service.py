@@ -168,7 +168,7 @@ def _trigger_workflows_on_job_completion_sync(job_id: str):
                     if job_type in triggers:
                         triggered_workflow_ids.append(workflow_id)
 
-                except (json.JSONDecodeError, TypeError) as e:
+                except (json.JSONDecodeError, TypeError):
                     continue
 
             # 5. Queue workflows (sync)

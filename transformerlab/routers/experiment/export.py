@@ -13,6 +13,7 @@ import transformerlab.db.db as db
 import transformerlab.db.jobs as db_jobs
 from transformerlab.shared import dirs
 
+from transformerlab.routers.serverinfo import watch_file
 from transformerlab.services.job_service import job_update_status
 
 from werkzeug.utils import secure_filename

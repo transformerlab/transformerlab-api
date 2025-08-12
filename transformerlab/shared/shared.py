@@ -15,7 +15,6 @@ from anyio.streams.text import TextReceiveStream
 from werkzeug.utils import secure_filename
 
 from transformerlab.db.db import experiment_get, experiment_get_by_name
-from transformerlab.db.sync import job_mark_as_complete_if_running
 from transformerlab.services.job_service import job_update_sync
 import transformerlab.db.jobs as db_jobs
 from transformerlab.routers.experiment.evals import run_evaluation_script
