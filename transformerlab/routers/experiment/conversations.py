@@ -297,7 +297,7 @@ async def delete_transcription(experimentId: int, id: str):
     experiment_dir = dirs.experiment_dir_by_name(experiment_name)
     text_dir = os.path.join(experiment_dir, "transcriptions")
     id = secure_filename(id)
-    text_path = os.path.join(text_dir, id + ".txt")
+    text_path = os.path.join(text_dir, id + ".json")
     if not os.path.exists(text_path):
         return {"message": f"Text file {id} does not exist in experiment {experimentId}"}
     os.remove(text_path)
