@@ -10,16 +10,21 @@ import uuid
 from contextlib import asynccontextmanager
 from typing import List
 import json
-
+from datetime import datetime
 import uvicorn
+import torch
+
 from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from fastchat.serve.model_worker import logger
 from transformerlab.plugin import WORKSPACE_DIR
 
-from mlx_audio.tts.generate import generate_audio
-from datetime import datetime
+from unsloth import FastModel
+from unsloth import FastLanguageModel
+from snac import SNAC
+
+
 
 worker_id = str(uuid.uuid4())[:8]
 
@@ -36,7 +41,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-class MLXAudioWorker(BaseModelWorker):
+class UnslothAudioWorker(BaseModelWorker):
     def __init__(
         self,
         controller_addr: str,
@@ -44,9 +49,9 @@ class MLXAudioWorker(BaseModelWorker):
         worker_id: str,
         model_path: str,
         model_names: List[str],
-        model_architecture: str,
         limit_worker_concurrency: int,
         no_register: bool,
+        context_length: int,
     ):
         super().__init__(
             controller_addr,
@@ -60,9 +65,24 @@ class MLXAudioWorker(BaseModelWorker):
         logger.info(
             f"Loading the model {self.model_names} on worker" + f"{worker_id}, worker type: MLX Audio worker..."
         )
-        logger.info(f"Model architecture: {model_architecture}")
+
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+
 
         self.model_name = model_path
+        self.context_length = context_length
+
+
+        self.model, self.tokenizer = FastLanguageModel.from_pretrained(
+        model_name = self.model_name,
+        max_seq_length= self.context_length,
+        dtype = None, # Select None for auto detection
+        load_in_4bit = False, # Keep this set to False because voice models are small, so we can maintain high quality results.
+    )
+        FastLanguageModel.for_inference(self.model) # Enable native 2x faster inference
+
+        snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz") # Should we remove hardcoded model name?
+        self.snac_model = snac_model.to(self.device)
 
         if not no_register:
             self.init_heart_beat()
@@ -71,6 +91,42 @@ class MLXAudioWorker(BaseModelWorker):
         self.call_ct += 1
 
         text = params.get("text", "")
+        prompts = [text]
+        chosen_voice = None # None for single-speaker
+        prompts_ = [(f"{chosen_voice}: " + p) if chosen_voice else p for p in prompts]
+
+        # clean the code for data processing
+        all_input_ids = []
+
+        for prompt in prompts_:
+            input_ids = self.tokenizer(prompt, return_tensors="pt").input_ids
+            all_input_ids.append(input_ids)
+
+        start_token = torch.tensor([[ 128259]], dtype=torch.int64) # Start of human
+        end_tokens = torch.tensor([[128009, 128260]], dtype=torch.int64) # End of text, End of human
+
+        all_modified_input_ids = []
+        for input_ids in all_input_ids:
+            modified_input_ids = torch.cat([start_token, input_ids, end_tokens], dim=1) # SOH SOT Text EOT EOH
+            all_modified_input_ids.append(modified_input_ids)
+
+        all_padded_tensors = []
+        all_attention_masks = []
+        max_length = max([modified_input_ids.shape[1] for modified_input_ids in all_modified_input_ids])
+        for modified_input_ids in all_modified_input_ids:
+            padding = max_length - modified_input_ids.shape[1]
+            padded_tensor = torch.cat([torch.full((1, padding), 128263, dtype=torch.int64), modified_input_ids], dim=1)
+            attention_mask = torch.cat([torch.zeros((1, padding), dtype=torch.int64), torch.ones((1, modified_input_ids.shape[1]), dtype=torch.int64)], dim=1)
+            all_padded_tensors.append(padded_tensor)
+            all_attention_masks.append(attention_mask)
+
+        all_padded_tensors = torch.cat(all_padded_tensors, dim=0)
+        all_attention_masks = torch.cat(all_attention_masks, dim=0)
+
+        input_ids = all_padded_tensors.to(self.device)
+        attention_mask = all_attention_masks.to(self.device)
+
+
         model = params.get("model", None)
         speed = params.get("speed", 1.0)
         # file_prefix = params.get("file_prefix", "audio")
@@ -185,36 +241,35 @@ def main():
     parser.add_argument("--worker-address", type=str, default="http://localhost:21002")
     parser.add_argument("--controller-address", type=str, default="http://localhost:21001")
     parser.add_argument("--model-path", type=str, default="microsoft/phi-2")
-    parser.add_argument("--model-architecture", type=str, default="MLX")
     parser.add_argument(
         "--model-names",
         type=lambda s: s.split(","),
         help="Optional display comma separated names",
     )
-    parser.add_argument(
-        "--trust_remote_code",
-        action="store_false",
-        default=True,
-        help="Trust remote code (e.g., from HuggingFace) whendownloading the model and tokenizer.",
-    )
     parser.add_argument("--parameters", type=str, default="{}")
-    parser.add_argument("--plugin_dir", type=str)
+    
 
 
     args, unknown = parser.parse_known_args()
 
+    try:
+        parameters = json.loads(args.parameters)
+        context_length = int(parameters.get("context_length", "2048"))
+    except Exception:
+        context_length = 2048
+
     if args.model_path:
         args.model = args.model_path
 
-    worker = MLXAudioWorker(
+    worker = UnslothAudioWorker(
         args.controller_address,
         args.worker_address,
         worker_id,
         args.model_path,
         args.model_names,
-        args.model_architecture,
         1024,
         False,
+        context_length
     )
 
     # Restore original stdout/stderr to prevent logging recursion
