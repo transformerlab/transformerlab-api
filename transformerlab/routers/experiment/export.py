@@ -2,18 +2,15 @@ import json
 import os
 import time
 import asyncio
-import logging
 import subprocess
 import sys
 
 from fastapi import APIRouter
-from fastapi.responses import StreamingResponse
 
 import transformerlab.db.db as db
 import transformerlab.db.jobs as db_jobs
 from transformerlab.shared import dirs
 
-from transformerlab.routers.serverinfo import watch_file
 from transformerlab.services.job_service import job_update_status
 
 from werkzeug.utils import secure_filename
@@ -229,27 +226,3 @@ async def get_output_file_name(job_id: str):
         return output_file
     except Exception as e:
         raise e
-
-
-@router.get("/job/{job_id}/stream_output")
-async def watch_export_log(job_id: str):
-    try:
-        job_id = secure_filename(job_id)
-        output_file_name = await get_output_file_name(job_id)
-    except ValueError as e:
-        # if the value error starts with "No output file found for job" then wait 4 seconds and try again
-        # because the file might not have been created yet
-        if str(e).startswith("No output file found for job"):
-            await asyncio.sleep(4)
-            print("Retrying to get output file in 4 seconds...")
-            output_file_name = await get_output_file_name(job_id)
-        else:
-            logging.error(f"ValueError: {e}")
-            return "An internal error has occurred!"
-
-    return StreamingResponse(
-        # we force polling because i can't get this to work otherwise -- changes aren't detected
-        watch_file(output_file_name, start_from_beginning=True, force_polling=True),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
-    )

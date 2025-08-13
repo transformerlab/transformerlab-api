@@ -208,7 +208,6 @@ async def job_update_status(job_id, status, experiment_id, error_msg=None):
                 stmt3 = stmt3.where(models.Job.experiment_id == experiment_id)
             await session.execute(stmt3.values(job_data=json.dumps(job_data)))
         await session.commit()
-
     return
 
 
@@ -219,7 +218,6 @@ async def job_update(job_id, type, status, experiment_id):
             stmt = stmt.where(models.Job.experiment_id == experiment_id)
         await session.execute(stmt.values(type=type, status=status))
         await session.commit()
-
     return
 
 

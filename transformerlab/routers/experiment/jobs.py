@@ -80,7 +80,6 @@ async def start_next_job():
             # mark the job as failed
             await job_update_status(nextjob["id"], "FAILED", experiment_id=experiment_id)
             return {"message": f"Experiment {experiment_id} does not exist"}
-        # config = json.loads(data["config"])
         experiment_name = data["name"]
         await shared.run_job(
             job_id=nextjob["id"], job_config=job_config, experiment_name=experiment_name, job_details=nextjob

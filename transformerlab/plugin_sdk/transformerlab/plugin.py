@@ -18,6 +18,7 @@ TEMP_DIR = os.path.join(WORKSPACE_DIR, "temp")
 # Maintain a singleton database connection
 db = None
 
+
 def register_process(pid_or_pids):
     """
     Record one or many PIDs in <LLM_LAB_ROOT_PATH>/worker.pid so that
@@ -263,17 +264,11 @@ class Job:
 
         status: str representing the status of the job
         """
-        # Remove manual updated_at - SQLAlchemy handles this automatically
-        self.db.execute(
-            "UPDATE job SET status = ? WHERE id = ?",
-            (status, self.id),
-        )
+        from transformerlab.services.job_service import job_update_status_sync
 
-        from transformerlab.services.job_service import _trigger_workflows_on_job_completion_sync
-
-        # Trigger workflows if job status is COMPLETE
-        if status == "COMPLETE":
-            _trigger_workflows_on_job_completion_sync(self.id)
+        # Delegate to service (handles DB update and workflow triggering on COMPLETE)
+        experiment_id = self.get_experiment_id()
+        job_update_status_sync(self.id, status, experiment_id)
 
     def get_status(self):
         """
@@ -362,7 +357,7 @@ class Job:
             cursor = self.db.execute("SELECT job_data FROM job WHERE id = ?", (self.id,))
             row = cursor.fetchone()
             cursor.close()
-            
+
             job_data = {}
             if row and row[0] is not None:
                 data = row[0]
@@ -371,7 +366,7 @@ class Job:
                     try:
                         # Try to parse as JSON
                         job_data = json.loads(data)
-                        
+
                         # Check if the result is still a string (double-encoded JSON)
                         if isinstance(job_data, str):
                             # Try to parse again
@@ -383,18 +378,18 @@ class Job:
                     job_data = data
                 else:
                     job_data = {}
-            
+
             # Update the key - handle different value types
             # if isinstance(value, str):
             #     # Try to parse as JSON, if that fails store as string
             #     try:
             #         job_data[key] = json.loads(value)
-                # except (json.JSONDecodeError, TypeError):
-                #     job_data[key] = value
+            # except (json.JSONDecodeError, TypeError):
+            #     job_data[key] = value
             # else:
             # Store value as-is (dict, list, number, bool, etc.)
             job_data[key] = value
-            
+
             # Save back as JSON
             self.db.execute(
                 "UPDATE job SET job_data = ? WHERE id = ?",
@@ -412,7 +407,7 @@ class Job:
             cursor = self.db.execute("SELECT job_data FROM job WHERE id = ?", (self.id,))
             row = cursor.fetchone()
             cursor.close()
-            
+
             job_data = {}
             if row and row[0] is not None:
                 data = row[0]
@@ -421,7 +416,7 @@ class Job:
                     try:
                         # Try to parse as JSON
                         job_data = json.loads(data)
-                        
+
                         # Check if the result is still a string (double-encoded JSON)
                         if isinstance(job_data, str):
                             # Try to parse again
@@ -433,7 +428,7 @@ class Job:
                     job_data = data
                 else:
                     job_data = {}
-            
+
             # Update the key - handle different value types
             if isinstance(value, str):
                 # Try to parse as JSON, if that fails store as string
@@ -444,7 +439,7 @@ class Job:
             else:
                 # Store value as-is (dict, list, number, bool, etc.)
                 job_data[key] = value
-            
+
             # Save back as JSON
             self.db.execute(
                 "UPDATE job SET job_data = ? WHERE id = ?",
@@ -475,7 +470,7 @@ class Job:
             # Add to job data completion_status and completion_details
             self.add_to_job_data("completion_status", completion_status)
             self.add_to_job_data("completion_details", completion_details)
-            
+
             # Update the job status field if there's a failure
             if completion_status == "failed":
                 self.update_status("FAILED")
@@ -559,15 +554,16 @@ def generate_model_json(
 
     return model_description
 
+
 def prepare_dataset_files(
     data_directory: str,
     datasets: dict,
-    formatting_template: str=None,
-    chat_template: str=None,
-    model_name: str=None,
-    chat_column: str="messages"
+    formatting_template: str = None,
+    chat_template: str = None,
+    model_name: str = None,
+    chat_column: str = "messages",
 ):
-    """ Prepares dataset files for training by formatting each example according to the provided template."""
+    """Prepares dataset files for training by formatting each example according to the provided template."""
     tokenizer = None
     if chat_template:
         tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
@@ -586,13 +582,13 @@ def prepare_dataset_files(
                         formatting_template=formatting_template,
                         chat_template=chat_template,
                         tokenizer=tokenizer,
-                        chat_column=chat_column
+                        chat_column=chat_column,
                     )
                     rendered_text = rendered_text.replace("\n", "\\n").replace("\r", "\\r")
                     f.write(json.dumps({"text": rendered_text}) + "\n")
                 except Exception:
-                        print(f"Warning: Failed to process example {i} in '{split_name}'. Skipping.")
-                        continue # Skip problematic examples
+                    print(f"Warning: Failed to process example {i} in '{split_name}'. Skipping.")
+                    continue  # Skip problematic examples
 
         # Print one example from the written jsonl file
         try:
@@ -607,24 +603,22 @@ def prepare_dataset_files(
         except Exception as e:
             print(f"Error reading example from {output_file}: {e}")
 
+
 def format_template(
     example: dict,
-    formatting_template: str=None,
-    chat_template: str=None,
-    tokenizer: AutoTokenizer=None,
-    chat_column: str="messages"
+    formatting_template: str = None,
+    chat_template: str = None,
+    tokenizer: AutoTokenizer = None,
+    chat_column: str = "messages",
 ):
-    """ Formats a single example using either a Jinja2 template or a chat template."""
+    """Formats a single example using either a Jinja2 template or a chat template."""
     if chat_template and tokenizer:
         if tokenizer.chat_template is None:
             raise ValueError("Tokenizer lacks a default chat template. Ensure model is instruction-tuned for chat.")
         return tokenizer.apply_chat_template(
-                        example[chat_column],
-                        tokenize=False,
-                        add_generation_prompt=False,
-                        chat_template=chat_template
-                    )
-    
+            example[chat_column], tokenize=False, add_generation_prompt=False, chat_template=chat_template
+        )
+
     if formatting_template:
         jinja_env = Environment()
         formatting_template = jinja_env.from_string(formatting_template)

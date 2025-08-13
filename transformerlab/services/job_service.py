@@ -12,6 +12,10 @@ from transformerlab.shared.models import models
 from sqlalchemy import select
 
 
+# Centralized set of job types that can trigger workflows on completion
+SUPPORTED_WORKFLOW_TRIGGERS = ["TRAIN", "LOAD_MODEL", "EXPORT", "EVAL", "GENERATE", "DOWNLOAD_MODEL"]
+
+
 async def _trigger_workflows_on_job_completion(job_id: str):
     """
     Trigger workflows when a job completes if the job type is in supported triggers.
@@ -25,8 +29,8 @@ async def _trigger_workflows_on_job_completion(job_id: str):
         job_type = job.get("type")
         experiment_id = job.get("experiment_id")
 
-        # Define supported triggers based on existing ALLOWED_JOB_TYPES
-        supported_triggers = ["TRAIN", "LOAD_MODEL", "EXPORT", "EVAL", "GENERATE"]
+        # Define supported triggers based on centralized configuration
+        supported_triggers = SUPPORTED_WORKFLOW_TRIGGERS
 
         # Check if job type is in supported triggers
         if job_type not in supported_triggers:
@@ -141,7 +145,7 @@ def _trigger_workflows_on_job_completion_sync(job_id: str):
             experiment_id = job_row[1]
 
             # 2. Check if job type is supported
-            supported_triggers = ["TRAIN", "LOAD_MODEL", "EXPORT", "EVAL", "GENERATE"]
+            supported_triggers = SUPPORTED_WORKFLOW_TRIGGERS
             if job_type not in supported_triggers:
                 return
 
