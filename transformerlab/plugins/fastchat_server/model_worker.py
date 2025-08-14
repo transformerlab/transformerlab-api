@@ -412,6 +412,10 @@ async def api_generate_with_visualization(request: Request):
             max_tokens = int(params.get("max_tokens", 100))
             stream = params.get("stream", False)
 
+            if "tools" in params:
+                print(f"Worker received {len(params['tools'])} tools: {[tool.get('function', {}).get('name', 'unnamed') for tool in params['tools']]}")
+                logger.info(f"Worker received tools parameter with {len(params['tools'])} tools")
+
             # Prepare for generation
             inputs = worker.tokenizer(prompt, return_tensors="pt").to(worker.device)
             input_ids = inputs["input_ids"].tolist()[0]

@@ -49,6 +49,7 @@ from transformerlab.shared import dirs
 
 WORKER_API_TIMEOUT = 3600
 
+
 # TODO: Move all base model to fastchat.protocol.openai_api_protocol
 class APIChatCompletionRequest(BaseModel):
     model: str
@@ -89,6 +90,8 @@ class ChatCompletionRequest(BaseModel):
     frequency_penalty: Optional[float] = 0.0
     user: Optional[str] = None
     logprobs: Optional[bool] = False
+    tools: Optional[List[Dict[str, Any]]] = None  # Add this line
+
 
 class AudioRequest(BaseModel):
     experiment_id: int
@@ -347,6 +350,7 @@ async def get_gen_params(
     stream: Optional[bool],
     stop: Optional[Union[str, List[str]]],
     logprobs: Optional[bool] = False,
+    tools: Optional[List[Dict[str, Any]]] = None,  # Add this line
 ) -> Dict[str, Any]:
     conv = await get_conv(model_name)
     conv = Conversation(
@@ -415,6 +419,18 @@ async def get_gen_params(
     }
     if images is not None and len(images) > 0:
         gen_params["images"] = images
+    if tools is not None and len(tools) > 0:
+        gen_params["tools"] = tools
+        # Handle both regular tools (with function.name) and MCP tools (with direct name)
+        tool_names = []
+        for tool in tools:
+            if "function" in tool and "name" in tool["function"]:
+                tool_names.append(tool["function"]["name"])
+            elif "name" in tool:
+                tool_names.append(tool["name"])
+            else:
+                tool_names.append("unnamed")
+        print(f"Passing tools to worker: {tool_names}")
     if not stop:
         gen_params.update({"stop": conv.stop_str, "stop_token_ids": conv.stop_token_ids})
     else:
@@ -475,6 +491,7 @@ async def show_available_models():
         model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
     return ModelList(data=model_cards)
 
+
 @router.post("/v1/audio/speech", tags=["audio"])
 async def create_audio_tts(request: AudioRequest):
     error_check_ret = await check_model(request)
@@ -488,7 +505,6 @@ async def create_audio_tts(request: AudioRequest):
     audio_dir = os.path.join(experiment_dir, "audio")
     os.makedirs(audio_dir, exist_ok=True)
 
-    
     gen_params = {
         "audio_dir": audio_dir,
         "model": request.model,
@@ -498,11 +514,10 @@ async def create_audio_tts(request: AudioRequest):
         "temperature": request.temperature,
         "speed": request.speed,
     }
-    #TODO: Define a base model class to structure the return value
+    # TODO: Define a base model class to structure the return value
     content = await generate_completion(gen_params)
 
     return content
-
 
 
 @router.post("/v1/chat/completions", dependencies=[Depends(check_api_key)], tags=["chat"])
@@ -519,6 +534,34 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
     if error_check_ret is not None:
         return error_check_ret
 
+        # NEW: Auto-load tools if not provided in request
+    tools = request.tools
+    if tools is None:
+        try:
+            import httpx
+
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                # Try to load tools with common MCP servers
+                mcp_servers_to_try = ["mcp_server_fetch", ""]  # Try fetch server first, then no MCP server
+
+                for mcp_server in mcp_servers_to_try:
+                    url = "http://localhost:8338/tools/prompt"
+                    if mcp_server:
+                        url += f"?mcp_server_file={mcp_server}"
+
+                    response = await client.get(url)
+                    if response.status_code == 200:
+                        prompt_text = response.json()
+                        import re
+
+                        json_match = re.search(r"<tools>\s*(\[.*?\])\s*</tools>", prompt_text, re.DOTALL)
+                        if json_match:
+                            tools_json = json_match.group(1)
+                            tools = json.loads(tools_json)
+                            break  # Use the first successful response
+        except Exception:
+            tools = None
+
     gen_params = await get_gen_params(
         request.model,
         request.messages,
@@ -530,6 +573,7 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
         stream=request.stream,
         stop=request.stop,
         logprobs=request.logprobs,
+        tools=tools,  # Add this line
     )
 
     error_check_ret = await check_length(request, gen_params["prompt"], gen_params["max_new_tokens"])
@@ -1105,6 +1149,33 @@ async def create_chat_completion(request: APIChatCompletionRequest):
     if error_check_ret is not None:
         return error_check_ret
 
+        # NEW: Auto-load tools if not provided in request (for APIChatCompletionRequest too)
+    tools = None
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            # Try to load tools with common MCP servers
+            mcp_servers_to_try = ["mcp_server_fetch", ""]  # Try fetch server first, then no MCP server
+
+            for mcp_server in mcp_servers_to_try:
+                url = "http://localhost:8338/tools/prompt"
+                if mcp_server:
+                    url += f"?mcp_server_file={mcp_server}"
+
+                response = await client.get(url)
+                if response.status_code == 200:
+                    prompt_text = response.json()
+                    import re
+
+                    json_match = re.search(r"<tools>\s*(\[.*?\])\s*</tools>", prompt_text, re.DOTALL)
+                    if json_match:
+                        tools_json = json_match.group(1)
+                        tools = json.loads(tools_json)
+                        break  # Use the first successful response
+    except Exception:
+        tools = None
+
     gen_params = await get_gen_params(
         request.model,
         request.messages,
@@ -1116,6 +1187,7 @@ async def create_chat_completion(request: APIChatCompletionRequest):
         stream=request.stream,
         stop=request.stop,
         logprobs=request.logprobs,
+        tools=tools,  # Add this line
     )
 
     if request.repetition_penalty is not None:
