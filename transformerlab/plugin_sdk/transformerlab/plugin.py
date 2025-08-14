@@ -4,6 +4,7 @@ import sqlite3
 import itertools
 import sys
 from pathlib import Path
+import torch
 
 from jinja2 import Environment
 from transformers import AutoTokenizer
@@ -625,3 +626,46 @@ def format_template(
         formatting_template = jinja_env.from_string(formatting_template)
         return formatting_template.render(example)
     raise ValueError("Either formatting_template or chat_template must be provided.")
+
+def process_prompts_for_tts_inference(
+    prompts,
+    tokenizer,
+    start_token_id,
+    end_token_ids,
+    pad_token_id,
+    token_to_find,
+    token_to_remove,
+    device
+):
+    """
+    Tokenizes prompts, adds special tokens, pads, creates attention masks,
+    and post-processes generated ids for audio model inference.
+    Returns: input_ids, attention_mask, postprocess_fn
+    """
+    # Tokenize prompts
+    all_input_ids = [tokenizer(prompt, return_tensors="pt").input_ids for prompt in prompts]
+
+    # Prepare special tokens
+    start_token = torch.tensor([[start_token_id]], dtype=torch.int64)
+    end_tokens = torch.tensor([end_token_ids], dtype=torch.int64)
+
+    # Add special tokens
+    all_modified_input_ids = [
+        torch.cat([start_token, input_ids, end_tokens], dim=1)
+        for input_ids in all_input_ids
+    ]
+
+    # Pad and create attention masks
+    max_length = max(ids.shape[1] for ids in all_modified_input_ids)
+    padded_tensors = []
+    attention_masks = []
+    for ids in all_modified_input_ids:
+        padding = max_length - ids.shape[1]
+        padded = torch.cat([torch.full((1, padding), pad_token_id, dtype=torch.int64), ids], dim=1)
+        mask = torch.cat([torch.zeros((1, padding), dtype=torch.int64), torch.ones((1, ids.shape[1]), dtype=torch.int64)], dim=1)
+        padded_tensors.append(padded)
+        attention_masks.append(mask)
+    input_ids = torch.cat(padded_tensors, dim=0).to(device)
+    attention_mask = torch.cat(attention_masks, dim=0).to(device)
+
+    return input_ids, attention_mask
