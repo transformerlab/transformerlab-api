@@ -1,5 +1,5 @@
 {
-  "name": "Unsloth Audio MLX Server",
+  "name": "Unsloth Audio Server",
   "uniqueId": "unsloth_audio_server",
   "description": "A text-to-speech (TTS) and audio generation server powered by Unsloth, supporting efficient, high-quality speech synthesis.",
   "plugin-format": "python",
