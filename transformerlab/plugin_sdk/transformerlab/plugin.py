@@ -633,8 +633,6 @@ def process_prompts_for_tts_inference(
     start_token_id,
     end_token_ids,
     pad_token_id,
-    token_to_find,
-    token_to_remove,
     device
 ):
     """
