@@ -18,9 +18,9 @@ from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from fastchat.serve.model_worker import logger
-from transformerlab.plugin import WORKSPACE_DIR
+from transformerlab.plugin import WORKSPACE_DIR, get_model_class_from_architecture
 
-from unsloth import FastModel
+
 from unsloth import FastLanguageModel
 from snac import SNAC
 
@@ -77,12 +77,13 @@ class UnslothAudioWorker(BaseModelWorker):
         model_name = self.model_name,
         max_seq_length= self.context_length,
         dtype = None, # Select None for auto detection
+        auto_model = get_model_class_from_architecture(self.model_name),
         load_in_4bit = False, # Keep this set to False because voice models are small, so we can maintain high quality results.
     )
         FastLanguageModel.for_inference(self.model) # Enable native 2x faster inference
 
-        snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz") # Should we remove hardcoded model name?
-        self.snac_model = snac_model.to(self.device)
+        # snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz") # Should we remove hardcoded model name?
+        # self.snac_model = snac_model.to(self.device)
 
         if not no_register:
             self.init_heart_beat()
@@ -91,42 +92,6 @@ class UnslothAudioWorker(BaseModelWorker):
         self.call_ct += 1
 
         text = params.get("text", "")
-        prompts = [text]
-        chosen_voice = None # None for single-speaker
-        prompts_ = [(f"{chosen_voice}: " + p) if chosen_voice else p for p in prompts]
-
-        # clean the code for data processing
-        all_input_ids = []
-
-        for prompt in prompts_:
-            input_ids = self.tokenizer(prompt, return_tensors="pt").input_ids
-            all_input_ids.append(input_ids)
-
-        start_token = torch.tensor([[ 128259]], dtype=torch.int64) # Start of human
-        end_tokens = torch.tensor([[128009, 128260]], dtype=torch.int64) # End of text, End of human
-
-        all_modified_input_ids = []
-        for input_ids in all_input_ids:
-            modified_input_ids = torch.cat([start_token, input_ids, end_tokens], dim=1) # SOH SOT Text EOT EOH
-            all_modified_input_ids.append(modified_input_ids)
-
-        all_padded_tensors = []
-        all_attention_masks = []
-        max_length = max([modified_input_ids.shape[1] for modified_input_ids in all_modified_input_ids])
-        for modified_input_ids in all_modified_input_ids:
-            padding = max_length - modified_input_ids.shape[1]
-            padded_tensor = torch.cat([torch.full((1, padding), 128263, dtype=torch.int64), modified_input_ids], dim=1)
-            attention_mask = torch.cat([torch.zeros((1, padding), dtype=torch.int64), torch.ones((1, modified_input_ids.shape[1]), dtype=torch.int64)], dim=1)
-            all_padded_tensors.append(padded_tensor)
-            all_attention_masks.append(attention_mask)
-
-        all_padded_tensors = torch.cat(all_padded_tensors, dim=0)
-        all_attention_masks = torch.cat(all_attention_masks, dim=0)
-
-        input_ids = all_padded_tensors.to(self.device)
-        attention_mask = all_attention_masks.to(self.device)
-
-
         model = params.get("model", None)
         speed = params.get("speed", 1.0)
         # file_prefix = params.get("file_prefix", "audio")
@@ -143,49 +108,66 @@ class UnslothAudioWorker(BaseModelWorker):
         # Generate a UUID for this file name:
         file_prefix = str(uuid.uuid4())
 
-        try:
-            generate_audio(
-                text=text,
-                model_path=model,
-                speed=speed,
-                file_prefix=os.path.join(audio_dir, file_prefix),
-                sample_rate=sample_rate,
-                join_audio=True,  # Whether to join multiple audio files into one
-                verbose=True,  # Set to False to disable print messages
-                temperature=temperature,
-                stream=stream,
-                voice=None,
-            )
+        inputs = self.tokenizer(text, padding=True, return_tensors="pt").to(self.device)
 
-            # Also save the parameters and metadata used to generate the audio
-            metadata = {
-                "type": "audio",
-                "text": text,
-                "filename": f"{file_prefix}.{audio_format}",
-                "model": model,
-                "speed": speed,
-                "audio_format": audio_format,
-                "sample_rate": sample_rate,
-                "temperature": temperature,
-                "date": datetime.now().isoformat(),  # Store the real date and time
-            }
+        audio_values = model.generate(
+            input_ids=inputs["input_ids"],
+            attention_mask=inputs["attention_mask"],
+            max_new_tokens=1200,
+            # do_sample=True,
+            # temperature=0.6,
+            # top_p=0.95,
+            # repetition_penalty=1.1,
+            # num_return_sequences=1,
+            eos_token_id=128258,  # Orpheus EOS
+            # use_cache=True
+        )
+
+        logger.info(f"Generated audio values: {audio_values}")
+
+        # try:
+        #     generate_audio(
+        #         text=text,
+        #         model_path=model,
+        #         speed=speed,
+        #         file_prefix=os.path.join(audio_dir, file_prefix),
+        #         sample_rate=sample_rate,
+        #         join_audio=True,  # Whether to join multiple audio files into one
+        #         verbose=True,  # Set to False to disable print messages
+        #         temperature=temperature,
+        #         stream=stream,
+        #         voice=None,
+        #     )
+
+        #     # Also save the parameters and metadata used to generate the audio
+        #     metadata = {
+        #         "type": "audio",
+        #         "text": text,
+        #         "filename": f"{file_prefix}.{audio_format}",
+        #         "model": model,
+        #         "speed": speed,
+        #         "audio_format": audio_format,
+        #         "sample_rate": sample_rate,
+        #         "temperature": temperature,
+        #         "date": datetime.now().isoformat(),  # Store the real date and time
+        #     }
             
-            metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
-            with open(metadata_file, "w") as f:
-                json.dump(metadata, f)
+        #     metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
+        #     with open(metadata_file, "w") as f:
+        #         json.dump(metadata, f)
 
-            logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
+        #     logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
 
-            return {
-                "status": "success",
-                "message": f"{audio_dir}/{file_prefix}.{audio_format}",
-            }
-        except Exception:
-            logger.error(f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}")
-            return {
-                "status": "error",
-                "message": f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}",
-            }
+        #     return {
+        #         "status": "success",
+        #         "message": f"{audio_dir}/{file_prefix}.{audio_format}",
+        #     }
+        # except Exception:
+        #     logger.error(f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}")
+        #     return {
+        #         "status": "error",
+        #         "message": f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}",
+        #     }
 
 
 def release_worker_semaphore():

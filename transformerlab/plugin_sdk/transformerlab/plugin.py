@@ -4,10 +4,12 @@ import sqlite3
 import itertools
 import sys
 from pathlib import Path
-import torch
+import importlib
 
 from jinja2 import Environment
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoConfig
+
+
 
 
 # useful constants
@@ -626,3 +628,19 @@ def format_template(
         formatting_template = jinja_env.from_string(formatting_template)
         return formatting_template.render(example)
     raise ValueError("Either formatting_template or chat_template must be provided.")
+
+def get_model_class_from_architecture(model_id):
+    config = AutoConfig.from_pretrained(model_id)
+    architecture = config.architectures[0] if hasattr(config, "architectures") and config.architectures else None
+    print(f"Model architecture: {architecture}")
+
+    # Try to import the class from transformers
+    if architecture:
+        try:
+            model_class = getattr(importlib.import_module("transformers"), architecture)
+        except AttributeError:
+            raise ImportError(f"Could not import {architecture} from transformers. Please check the architecture name or install the required version of transformers.")
+    else:
+        model_class = None
+
+    return model_class
