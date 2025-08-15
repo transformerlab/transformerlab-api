@@ -102,7 +102,7 @@ class UnslothAudioWorker(BaseModelWorker):
         "⚠️  RECOMMENDATION: For best results with CsmForConditionalGeneration models, set temperature=0!"
     )
         else:
-            auto_model = barkModel
+            auto_model = BarkModel
         try:
             self.processor = AutoProcessor.from_pretrained(self.model_name)
         except Exception:
