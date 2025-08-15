@@ -2,7 +2,6 @@
 A model worker using Apple MLX Audio
 """
 from unsloth import FastModel
-import re
 import os
 import sys
 import argparse
@@ -16,6 +15,7 @@ import uvicorn
 import torch
 import soundfile as sf
 from scipy.signal import resample
+from audio import CsmAudioModel, OrpheusAudioModel
 
 
 
@@ -24,11 +24,11 @@ from fastapi.responses import JSONResponse
 
 from fastchat.serve.model_worker import logger
 from transformerlab.plugin import WORKSPACE_DIR
-from transformers import AutoProcessor, CsmForConditionalGeneration, BarkModel
+from transformers import AutoProcessor, CsmForConditionalGeneration
+from snac import SNAC
+
 
 worker_id = str(uuid.uuid4())[:8]
-
-AUDIO_TOKENS_REGEX = re.compile(r"<custom_token_(\d+)>")
 
 
 from fastchat.serve.base_model_worker import BaseModelWorker  # noqa
@@ -40,21 +40,6 @@ async def lifespan(app: FastAPI):
     # This function is called when the app shuts down
     cleanup_at_exit()
 
-def convert_to_audio_snac(audio_ids, model):
-  audio_ids = torch.tensor(audio_ids, dtype=torch.int32).reshape(-1, 7)
-  codes_0 = audio_ids[:, 0].unsqueeze(0)
-  codes_1 = torch.stack((audio_ids[:, 1], audio_ids[:, 4])).t().flatten().unsqueeze(0)
-  codes_2 = (
-    torch.stack((audio_ids[:, 2], audio_ids[:, 3], audio_ids[:, 5], audio_ids[:, 6]))
-    .t()
-    .flatten()
-    .unsqueeze(0)
-  )
-
-  with torch.inference_mode():
-    audio_hat = model.decode([codes_0, codes_1, codes_2])
-
-  return audio_hat[0]
 
 
 app = FastAPI(lifespan=lifespan)
@@ -89,45 +74,24 @@ class UnslothAudioWorker(BaseModelWorker):
 
 
         self.model_name = model_path
-        self.context_length = context_length
+        # self.context_length = context_length
         self.model_architecture = model_architecture
 
         if self.model_architecture == "CsmForConditionalGeneration":
-            auto_model = CsmForConditionalGeneration
+            self.model_object = CsmAudioModel(self.model_name, self.device)
             logger.info(
-        "⚠️  RECOMMENDATION: For best results with CsmForConditionalGeneration models, set temperature=0!"
-    )
-        elif self.model_architecture == "BarkModel":
-            auto_model = BarkModel
-        else:
-            auto_model = None
-        try:
-            self.processor = AutoProcessor.from_pretrained(self.model_name)
-        except Exception:
-            self.processor = None
-
-
-        try:
-            self.model, self.tokenizer = FastModel.from_pretrained(
-                model_name=self.model_name,
-                max_seq_length=self.context_length,
-                dtype=None,  # Select None for auto detection
-                auto_model=auto_model,
-                load_in_4bit=False,  # Keep this set to False because voice models are small, so we can maintain high quality results.
+                "⚠️  RECOMMENDATION: For best results with CsmForConditionalGeneration models, set temperature=0!"
             )
-            FastModel.for_inference(self.model) # Enable native 2x faster inference
-            self.model = self.model.to(self.device)
-        except Exception:
-            self.model = auto_model.from_pretrained(
-                self.model_name,
-                max_seq_length=self.context_length,
-                torch_dtype=None,  # Select None for auto detection
-            ).to(self.device)
 
+        elif "orpheus" in self.model_name:
+            self.model_object = OrpheusAudioModel(self.model_name, self.device)
+            logger.info("Initialized Orpheus Aaudio Model")
 
-        # snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz") # Should we remove hardcoded model name?
-        # self.snac_model = snac_model.to(self.device)
-
+        else:
+            logger.info(
+                f"Model architecture {self.model_architecture} is not supported for audio generation."
+            )
+        
         if not no_register:
             self.init_heart_beat()
 
@@ -137,7 +101,6 @@ class UnslothAudioWorker(BaseModelWorker):
         text = params.get("text", "")
         model = params.get("model", None)
         speed = params.get("speed", 1.0)
-        # file_prefix = params.get("file_prefix", "audio")
         audio_format = params.get("audio_format", "wav")
         sample_rate = params.get("sample_rate", 24000)
         temperature = params.get("temperature", 0.0)
@@ -150,36 +113,22 @@ class UnslothAudioWorker(BaseModelWorker):
 
         # Generate a UUID for this file name:
         file_prefix = str(uuid.uuid4())
+        generate_kwargs = {}
+        if temperature == 0:
+            generate_kwargs["do_sample"] = False
+        else:
+            generate_kwargs["do_sample"] = True
+            generate_kwargs["temperature"] = temperature
         try:
-            if self.processor:
-                speaker_id = 0
-                inputs = self.processor(f"[{speaker_id}]{text}", add_special_tokens=True).to(self.device)
-
-                # Prepare generation kwargs based on temperature
-                generate_kwargs = {
-                    **inputs,
-                    "max_new_tokens": 1200,
-                    "output_audio": True,
-                }
-                if temperature == 0:
-                    generate_kwargs["do_sample"] = False
-                else:
-                    generate_kwargs["do_sample"] = True
-                    generate_kwargs["temperature"] = temperature
-
-                audio_values = self.model.generate(**generate_kwargs)
-
-                audio = audio_values[0].to(torch.float32).cpu().numpy()
-
-                # Adjust speed if needed
-                if speed != 1.0:
-                    n_samples = int(len(audio) / speed)
-                    audio = resample(audio, n_samples)
-
+            inputs = self.model_object.tokenize(text)
+            audio_values = self.model_object.generate(inputs, **generate_kwargs)
+            audio = self.model_object.decode(audio_values)
+            if speed != 1.0:
+                n_samples = int(len(audio) / speed)
+                audio = resample(audio, n_samples)
                 output_path = os.path.join(audio_dir, f"{file_prefix}.{audio_format}")
                 os.makedirs(audio_dir, exist_ok=True)  # Ensure directory exists
                 sf.write(output_path, audio, sample_rate)
-                logger.info(f"Audio file written to: {output_path}")
 
                 metadata = {
                     "type": "audio",
@@ -201,60 +150,6 @@ class UnslothAudioWorker(BaseModelWorker):
                 return {
                     "status": "success",
                     "message": output_path,
-                }
-            
-            # elif "orpheus" in self.model_name:
-            #     snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz")
-            #     snac_model.to(self.device)
-            #     inputs = self.tokenizer(text, return_tensors="pt").to(self.model.device)
-                
-            #     generated_ids = model.generate(
-            #     input_ids=inputs["input_ids"],
-            #     attention_mask=inputs["attention_mask"],
-            #     max_new_tokens=10240,
-            #     #do_sample=True,
-            #     temperature=temperature,
-            #     #top_p=0.95,
-            #     # repetition_penalty=1.1,
-            #     # num_return_sequences=1,
-            #     eos_token_id=128258,  # Orpheus EOS
-            #     use_cache=True
-            #     )
-            #     audio_ids = [
-            #     int(token) - 10 - ((index % 7) * 4096)
-            #     for index, token in enumerate(AUDIO_TOKENS_REGEX.findall(generated_ids))
-            #     ]
-            #     audio = convert_to_audio_snac(audio_ids, snac_model)
-            #     sf.write(os.path.join(audio_dir, file_prefix, f"{file_prefix}.{audio_format}"), audio, 24000)
-
-            #     metadata = {
-            #         "type": "audio",
-            #         "text": text,
-            #         "filename": f"{file_prefix}.{audio_format}",
-            #         "model": model,
-            #         "speed": speed,
-            #         "audio_format": audio_format,
-            #         "sample_rate": sample_rate,
-            #         "temperature": temperature,
-            #         "date": datetime.now().isoformat(),  # Store the real date and time
-            #     }
-            #     metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
-            #     with open(metadata_file, "w") as f:
-            #         json.dump(metadata, f)
-
-            #     logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
-
-            #     return {
-            #         "status": "success",
-            #         "message": f"{audio_dir}/{file_prefix}.{audio_format}",
-            #     }
-        
-
-            else:
-                logger.info("Not implemented for this model")
-                return {
-                    "status": "error",
-                    "message": f"Not implemented for this model: {self.model_name}",
                 }
         except Exception as e:
             logger.error(f"Error during generation: {e}")
