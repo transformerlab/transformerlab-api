@@ -117,7 +117,7 @@ class UnslothAudioWorker(BaseModelWorker):
             )
             FastModel.for_inference(self.model) # Enable native 2x faster inference
             self.model = self.model.to(self.device)
-        except:
+        except Exception:
             self.model = auto_model.from_pretrained(
                 self.model_name,
                 max_seq_length=self.context_length,
