@@ -2,9 +2,7 @@
 A model worker using Apple MLX Audio
 """
 
-from email.mime import audio
 import os
-from platform import processor
 import sys
 import argparse
 import asyncio
@@ -23,7 +21,6 @@ from fastapi.responses import JSONResponse
 
 from fastchat.serve.model_worker import logger
 from transformerlab.plugin import WORKSPACE_DIR
-from transformers import CsmForConditionalGeneration
 from transformers import AutoProcessor
 
 from unsloth import FastModel
@@ -131,7 +128,6 @@ class UnslothAudioWorker(BaseModelWorker):
         audio_format = params.get("audio_format", "wav")
         sample_rate = params.get("sample_rate", 24000)
         temperature = params.get("temperature", 0.0)
-        stream = params.get("stream", False)
         
         audio_dir = params.get("audio_dir", None)
         if not audio_dir:
