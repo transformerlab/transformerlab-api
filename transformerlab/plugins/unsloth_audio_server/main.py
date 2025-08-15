@@ -2,7 +2,9 @@
 A model worker using Apple MLX Audio
 """
 
+from email.mime import audio
 import os
+from platform import processor
 import sys
 import argparse
 import asyncio
@@ -13,15 +15,18 @@ import json
 from datetime import datetime
 import uvicorn
 import torch
+import soundfile as sf
+
 
 from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from fastchat.serve.model_worker import logger
-from transformerlab.plugin import WORKSPACE_DIR, get_model_class_from_architecture
+from transformerlab.plugin import WORKSPACE_DIR
+from transformers import CsmForConditionalGeneration
+from transformers import AutoProcessor
 
-
-from unsloth import FastLanguageModel
+from unsloth import FastModel
 from snac import SNAC
 
 
@@ -39,7 +44,6 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
-
 
 class UnslothAudioWorker(BaseModelWorker):
     def __init__(
@@ -72,15 +76,23 @@ class UnslothAudioWorker(BaseModelWorker):
         self.model_name = model_path
         self.context_length = context_length
 
+        if self.model_name == "unsloth/csm-1b":
+            auto_model = CsmForConditionalGeneration
+            self.processor = AutoProcessor.from_pretrained(self.model_name)
 
-        self.model, self.tokenizer = FastLanguageModel.from_pretrained(
+        else:
+            auto_model = None
+            self.processor = None
+
+        
+        self.model, self.tokenizer = FastModel.from_pretrained(
         model_name = self.model_name,
         max_seq_length= self.context_length,
         dtype = None, # Select None for auto detection
-        auto_model = get_model_class_from_architecture(self.model_name),
+        auto_model = auto_model,
         load_in_4bit = False, # Keep this set to False because voice models are small, so we can maintain high quality results.
     )
-        FastLanguageModel.for_inference(self.model) # Enable native 2x faster inference
+        FastModel.for_inference(self.model) # Enable native 2x faster inference
 
         # snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz") # Should we remove hardcoded model name?
         # self.snac_model = snac_model.to(self.device)
@@ -108,66 +120,55 @@ class UnslothAudioWorker(BaseModelWorker):
         # Generate a UUID for this file name:
         file_prefix = str(uuid.uuid4())
 
-        inputs = self.tokenizer(text, padding=True, return_tensors="pt").to(self.device)
+        if self.processor:
+            speaker_id = 0
+            inputs = self.processor(f"[{speaker_id}]{text}", add_special_tokens=True).to("cuda")
 
-        audio_values = model.generate(
-            input_ids=inputs["input_ids"],
-            attention_mask=inputs["attention_mask"],
+            audio_values = self.model.generate(
+            **inputs,
             max_new_tokens=1200,
+            # play with these parameters to tweak results
+            # depth_decoder_top_k=0,
+            # depth_decoder_top_p=0.9,
+            # depth_decoder_do_sample=True,
+            # depth_decoder_temperature=0.9,
+            # top_k=0,
+            # top_p=1.0,
+            temperature=temperature,
             # do_sample=True,
-            # temperature=0.6,
-            # top_p=0.95,
-            # repetition_penalty=1.1,
-            # num_return_sequences=1,
-            eos_token_id=128258,  # Orpheus EOS
-            # use_cache=True
-        )
+            output_audio=True
+            )
+            audio = audio_values[0].to(torch.float32).cpu().numpy()
+            sf.write(os.path.join(audio_dir, file_prefix, f"{file_prefix}.{audio_format}"), audio, 24000)
 
-        logger.info(f"Generated audio values: {audio_values}")
+            metadata = {
+                "type": "audio",
+                "text": text,
+                "filename": f"{file_prefix}.{audio_format}",
+                "model": model,
+                "speed": speed,
+                "audio_format": audio_format,
+                "sample_rate": sample_rate,
+                "temperature": temperature,
+                "date": datetime.now().isoformat(),  # Store the real date and time
+            }
+            metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
+            with open(metadata_file, "w") as f:
+                json.dump(metadata, f)
 
-        # try:
-        #     generate_audio(
-        #         text=text,
-        #         model_path=model,
-        #         speed=speed,
-        #         file_prefix=os.path.join(audio_dir, file_prefix),
-        #         sample_rate=sample_rate,
-        #         join_audio=True,  # Whether to join multiple audio files into one
-        #         verbose=True,  # Set to False to disable print messages
-        #         temperature=temperature,
-        #         stream=stream,
-        #         voice=None,
-        #     )
+            logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
 
-        #     # Also save the parameters and metadata used to generate the audio
-        #     metadata = {
-        #         "type": "audio",
-        #         "text": text,
-        #         "filename": f"{file_prefix}.{audio_format}",
-        #         "model": model,
-        #         "speed": speed,
-        #         "audio_format": audio_format,
-        #         "sample_rate": sample_rate,
-        #         "temperature": temperature,
-        #         "date": datetime.now().isoformat(),  # Store the real date and time
-        #     }
-            
-        #     metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
-        #     with open(metadata_file, "w") as f:
-        #         json.dump(metadata, f)
+            return {
+                "status": "success",
+                "message": f"{audio_dir}/{file_prefix}.{audio_format}",
+            }
+        else:
+            logger.info("Not implemented for this model")
+            return {
+                "status": "error",
+                "message": f"Not implemented for this model: {self.model_name}",
+            }
 
-        #     logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
-
-        #     return {
-        #         "status": "success",
-        #         "message": f"{audio_dir}/{file_prefix}.{audio_format}",
-        #     }
-        # except Exception:
-        #     logger.error(f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}")
-        #     return {
-        #         "status": "error",
-        #         "message": f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}",
-        #     }
 
 
 def release_worker_semaphore():
