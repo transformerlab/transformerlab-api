@@ -111,8 +111,9 @@ class UnslothAudioWorker(BaseModelWorker):
         auto_model = auto_model,
         load_in_4bit = False, # Keep this set to False because voice models are small, so we can maintain high quality results.
     )
+        
         FastModel.for_inference(self.model) # Enable native 2x faster inference
-
+        self.model = self.model.to(self.device)
         # snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz") # Should we remove hardcoded model name?
         # self.snac_model = snac_model.to(self.device)
 
@@ -137,103 +138,112 @@ class UnslothAudioWorker(BaseModelWorker):
 
         # Generate a UUID for this file name:
         file_prefix = str(uuid.uuid4())
+        try:
+            if self.processor:
+                speaker_id = 0
+                inputs = self.processor(f"[{speaker_id}]{text}", add_special_tokens=True).to(self.device)
 
-        if self.processor:
-            speaker_id = 0
-            inputs = self.processor(f"[{speaker_id}]{text}", add_special_tokens=True).to("cuda")
+                logger.info(f"we're here {inputs}")
+                audio_values = self.model.generate(
+                **inputs,
+                max_new_tokens=1200,
+                # play with these parameters to tweak results
+                # depth_decoder_top_k=0,
+                # depth_decoder_top_p=0.9,
+                # depth_decoder_do_sample=True,
+                # depth_decoder_temperature=0.9,
+                # top_k=0,
+                # top_p=1.0,
+                temperature=temperature,
+                # do_sample=True,
+                output_audio=True
+                )
+                audio = audio_values[0].to(torch.float32).cpu().numpy()
+                output_path = os.path.join(audio_dir, f"{file_prefix}.{audio_format}")
+                os.makedirs(audio_dir, exist_ok=True)  # Ensure directory exists
+                sf.write(output_path, audio, sample_rate)
+                logger.info(f"Audio file written to: {output_path}")
+                logger.info("generation is done")
+                metadata = {
+                    "type": "audio",
+                    "text": text,
+                    "filename": f"{file_prefix}.{audio_format}",
+                    "model": model,
+                    "speed": speed,
+                    "audio_format": audio_format,
+                    "sample_rate": sample_rate,
+                    "temperature": temperature,
+                    "date": datetime.now().isoformat(),  # Store the real date and time
+                }
+                metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
+                with open(metadata_file, "w") as f:
+                    json.dump(metadata, f)
 
-            logger.info("we're here")
-            audio_values = self.model.generate(
-            **inputs,
-            max_new_tokens=1200,
-            # play with these parameters to tweak results
-            # depth_decoder_top_k=0,
-            # depth_decoder_top_p=0.9,
-            # depth_decoder_do_sample=True,
-            # depth_decoder_temperature=0.9,
-            # top_k=0,
-            # top_p=1.0,
-            temperature=temperature,
-            # do_sample=True,
-            output_audio=True
-            )
-            audio = audio_values[0].to(torch.float32).cpu().numpy()
-            sf.write(os.path.join(audio_dir, file_prefix, f"{file_prefix}.{audio_format}"), audio, 24000)
-            logger.info("generation is done")
-            metadata = {
-                "type": "audio",
-                "text": text,
-                "filename": f"{file_prefix}.{audio_format}",
-                "model": model,
-                "speed": speed,
-                "audio_format": audio_format,
-                "sample_rate": sample_rate,
-                "temperature": temperature,
-                "date": datetime.now().isoformat(),  # Store the real date and time
-            }
-            metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
-            with open(metadata_file, "w") as f:
-                json.dump(metadata, f)
+                logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
 
-            logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
-
-            return {
-                "status": "success",
-                "message": f"{audio_dir}/{file_prefix}.{audio_format}",
-            }
-        
-        elif "orpheus" in self.model_name:
-            snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz")
-            snac_model.to(self.device)
-            inputs = self.tokenizer(text, return_tensors="pt").to(self.model.device)
+                return {
+                    "status": "success",
+                    "message": f"{audio_dir}/{file_prefix}.{audio_format}",
+                }
             
-            generated_ids = model.generate(
-            input_ids=inputs["input_ids"],
-            attention_mask=inputs["attention_mask"],
-            max_new_tokens=10240,
-            #do_sample=True,
-            temperature=temperature,
-            #top_p=0.95,
-            # repetition_penalty=1.1,
-            # num_return_sequences=1,
-            eos_token_id=128258,  # Orpheus EOS
-            use_cache=True
-            )
-            audio_ids = [
-            int(token) - 10 - ((index % 7) * 4096)
-            for index, token in enumerate(AUDIO_TOKENS_REGEX.findall(generated_ids))
-            ]
-            audio = convert_to_audio_snac(audio_ids, snac_model)
-            sf.write(os.path.join(audio_dir, file_prefix, f"{file_prefix}.{audio_format}"), audio, 24000)
+            elif "orpheus" in self.model_name:
+                snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz")
+                snac_model.to(self.device)
+                inputs = self.tokenizer(text, return_tensors="pt").to(self.model.device)
+                
+                generated_ids = model.generate(
+                input_ids=inputs["input_ids"],
+                attention_mask=inputs["attention_mask"],
+                max_new_tokens=10240,
+                #do_sample=True,
+                temperature=temperature,
+                #top_p=0.95,
+                # repetition_penalty=1.1,
+                # num_return_sequences=1,
+                eos_token_id=128258,  # Orpheus EOS
+                use_cache=True
+                )
+                audio_ids = [
+                int(token) - 10 - ((index % 7) * 4096)
+                for index, token in enumerate(AUDIO_TOKENS_REGEX.findall(generated_ids))
+                ]
+                audio = convert_to_audio_snac(audio_ids, snac_model)
+                sf.write(os.path.join(audio_dir, file_prefix, f"{file_prefix}.{audio_format}"), audio, 24000)
 
-            metadata = {
-                "type": "audio",
-                "text": text,
-                "filename": f"{file_prefix}.{audio_format}",
-                "model": model,
-                "speed": speed,
-                "audio_format": audio_format,
-                "sample_rate": sample_rate,
-                "temperature": temperature,
-                "date": datetime.now().isoformat(),  # Store the real date and time
-            }
-            metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
-            with open(metadata_file, "w") as f:
-                json.dump(metadata, f)
+                metadata = {
+                    "type": "audio",
+                    "text": text,
+                    "filename": f"{file_prefix}.{audio_format}",
+                    "model": model,
+                    "speed": speed,
+                    "audio_format": audio_format,
+                    "sample_rate": sample_rate,
+                    "temperature": temperature,
+                    "date": datetime.now().isoformat(),  # Store the real date and time
+                }
+                metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
+                with open(metadata_file, "w") as f:
+                    json.dump(metadata, f)
 
-            logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
+                logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
 
-            return {
-                "status": "success",
-                "message": f"{audio_dir}/{file_prefix}.{audio_format}",
-            }
+                return {
+                    "status": "success",
+                    "message": f"{audio_dir}/{file_prefix}.{audio_format}",
+                }
         
 
-        else:
-            logger.info("Not implemented for this model")
+            else:
+                logger.info("Not implemented for this model")
+                return {
+                    "status": "error",
+                    "message": f"Not implemented for this model: {self.model_name}",
+                }
+        except Exception as e:
+            logger.error(f"Error during generation: {e}")
             return {
                 "status": "error",
-                "message": f"Not implemented for this model: {self.model_name}",
+                "message": f"Exception during generation: {e}"
             }
 
 
