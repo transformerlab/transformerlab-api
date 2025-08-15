@@ -27,7 +27,6 @@ from transformers import AutoProcessor, CsmForConditionalGeneration
 
 
 from unsloth import FastModel
-from snac import SNAC
 import re
 
 
@@ -107,7 +106,7 @@ class UnslothAudioWorker(BaseModelWorker):
             self.processor = None
         try:
             self.processor = AutoProcessor.from_pretrained(self.model_name)
-        except Exception as e:
+        except Exception:
             self.processor = None
 
 
