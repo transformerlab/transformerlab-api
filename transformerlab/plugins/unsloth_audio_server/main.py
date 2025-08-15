@@ -14,6 +14,8 @@ from datetime import datetime
 import uvicorn
 import torch
 import soundfile as sf
+from scipy.signal import resample
+
 
 
 from fastapi import BackgroundTasks, FastAPI, Request
@@ -100,11 +102,14 @@ class UnslothAudioWorker(BaseModelWorker):
             logger.info(
         "⚠️  RECOMMENDATION: For best results with CsmForConditionalGeneration models, set temperature=0!"
     )
-            self.processor = AutoProcessor.from_pretrained(self.model_name)
-
         else:
             auto_model = None
             self.processor = None
+        try:
+            self.processor = AutoProcessor.from_pretrained(self.model_name)
+        except Exception as e:
+            self.processor = None
+
 
         
         self.model, self.tokenizer = FastModel.from_pretrained(
@@ -147,8 +152,6 @@ class UnslothAudioWorker(BaseModelWorker):
                 speaker_id = 0
                 inputs = self.processor(f"[{speaker_id}]{text}", add_special_tokens=True).to(self.device)
 
-                logger.info(f"Inputs prepared for generation: {inputs}")
-
                 # Prepare generation kwargs based on temperature
                 generate_kwargs = {
                     **inputs,
@@ -162,9 +165,14 @@ class UnslothAudioWorker(BaseModelWorker):
                     generate_kwargs["temperature"] = temperature
 
                 audio_values = self.model.generate(**generate_kwargs)
-                logger.info(f"Generation is done: {audio_values}")
 
                 audio = audio_values[0].to(torch.float32).cpu().numpy()
+
+                # Adjust speed if needed
+                if speed != 1.0:
+                    n_samples = int(len(audio) / speed)
+                    audio = resample(audio, n_samples)
+
                 output_path = os.path.join(audio_dir, f"{file_prefix}.{audio_format}")
                 os.makedirs(audio_dir, exist_ok=True)  # Ensure directory exists
                 sf.write(output_path, audio, sample_rate)
@@ -192,51 +200,51 @@ class UnslothAudioWorker(BaseModelWorker):
                     "message": output_path,
                 }
             
-            elif "orpheus" in self.model_name:
-                snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz")
-                snac_model.to(self.device)
-                inputs = self.tokenizer(text, return_tensors="pt").to(self.model.device)
+            # elif "orpheus" in self.model_name:
+            #     snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz")
+            #     snac_model.to(self.device)
+            #     inputs = self.tokenizer(text, return_tensors="pt").to(self.model.device)
                 
-                generated_ids = model.generate(
-                input_ids=inputs["input_ids"],
-                attention_mask=inputs["attention_mask"],
-                max_new_tokens=10240,
-                #do_sample=True,
-                temperature=temperature,
-                #top_p=0.95,
-                # repetition_penalty=1.1,
-                # num_return_sequences=1,
-                eos_token_id=128258,  # Orpheus EOS
-                use_cache=True
-                )
-                audio_ids = [
-                int(token) - 10 - ((index % 7) * 4096)
-                for index, token in enumerate(AUDIO_TOKENS_REGEX.findall(generated_ids))
-                ]
-                audio = convert_to_audio_snac(audio_ids, snac_model)
-                sf.write(os.path.join(audio_dir, file_prefix, f"{file_prefix}.{audio_format}"), audio, 24000)
+            #     generated_ids = model.generate(
+            #     input_ids=inputs["input_ids"],
+            #     attention_mask=inputs["attention_mask"],
+            #     max_new_tokens=10240,
+            #     #do_sample=True,
+            #     temperature=temperature,
+            #     #top_p=0.95,
+            #     # repetition_penalty=1.1,
+            #     # num_return_sequences=1,
+            #     eos_token_id=128258,  # Orpheus EOS
+            #     use_cache=True
+            #     )
+            #     audio_ids = [
+            #     int(token) - 10 - ((index % 7) * 4096)
+            #     for index, token in enumerate(AUDIO_TOKENS_REGEX.findall(generated_ids))
+            #     ]
+            #     audio = convert_to_audio_snac(audio_ids, snac_model)
+            #     sf.write(os.path.join(audio_dir, file_prefix, f"{file_prefix}.{audio_format}"), audio, 24000)
 
-                metadata = {
-                    "type": "audio",
-                    "text": text,
-                    "filename": f"{file_prefix}.{audio_format}",
-                    "model": model,
-                    "speed": speed,
-                    "audio_format": audio_format,
-                    "sample_rate": sample_rate,
-                    "temperature": temperature,
-                    "date": datetime.now().isoformat(),  # Store the real date and time
-                }
-                metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
-                with open(metadata_file, "w") as f:
-                    json.dump(metadata, f)
+            #     metadata = {
+            #         "type": "audio",
+            #         "text": text,
+            #         "filename": f"{file_prefix}.{audio_format}",
+            #         "model": model,
+            #         "speed": speed,
+            #         "audio_format": audio_format,
+            #         "sample_rate": sample_rate,
+            #         "temperature": temperature,
+            #         "date": datetime.now().isoformat(),  # Store the real date and time
+            #     }
+            #     metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
+            #     with open(metadata_file, "w") as f:
+            #         json.dump(metadata, f)
 
-                logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
+            #     logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
 
-                return {
-                    "status": "success",
-                    "message": f"{audio_dir}/{file_prefix}.{audio_format}",
-                }
+            #     return {
+            #         "status": "success",
+            #         "message": f"{audio_dir}/{file_prefix}.{audio_format}",
+            #     }
         
 
             else:
