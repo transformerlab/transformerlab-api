@@ -1,0 +1,19 @@
+{
+  "name": "Unsloth Audio Server",
+  "uniqueId": "unsloth_audio_server",
+  "description": "A text-to-speech (TTS) and audio generation server powered by Unsloth, supporting efficient, high-quality speech synthesis.",
+  "plugin-format": "python",
+  "type": "loader",
+  "version": "0.0.1",
+  "supports": [
+    "Text-to-Speech",
+    "Audio",
+    "experimental"
+  ],
+  "model_architectures": [
+    "CsmForConditionalGeneration"
+  ],
+  "supported_hardware_architectures": ["cuda"],
+  "files": ["main.py", "setup.sh"],
+  "setup-script": "setup.sh"
+}
