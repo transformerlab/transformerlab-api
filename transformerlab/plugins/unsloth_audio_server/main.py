@@ -1,7 +1,8 @@
 """
 A model worker using Apple MLX Audio
 """
-
+from unsloth import FastModel
+import re
 import os
 import sys
 import argparse
@@ -24,11 +25,6 @@ from fastapi.responses import JSONResponse
 from fastchat.serve.model_worker import logger
 from transformerlab.plugin import WORKSPACE_DIR
 from transformers import AutoProcessor, CsmForConditionalGeneration, BarkModel
-
-
-from unsloth import FastModel
-import re
-
 
 worker_id = str(uuid.uuid4())[:8]
 
@@ -101,25 +97,34 @@ class UnslothAudioWorker(BaseModelWorker):
             logger.info(
         "⚠️  RECOMMENDATION: For best results with CsmForConditionalGeneration models, set temperature=0!"
     )
-        else:
+        elif self.model_architecture == "BarkModel":
             auto_model = BarkModel
+        else:
+            auto_model = None
         try:
             self.processor = AutoProcessor.from_pretrained(self.model_name)
         except Exception:
             self.processor = None
 
 
-        
-        self.model, self.tokenizer = FastModel.from_pretrained(
-            model_name=self.model_name,
-            max_seq_length=self.context_length,
-            dtype=None,  # Select None for auto detection
-            auto_model=auto_model,
-            load_in_4bit=False,  # Keep this set to False because voice models are small, so we can maintain high quality results.
-        )
+        try:
+            self.model, self.tokenizer = FastModel.from_pretrained(
+                model_name=self.model_name,
+                max_seq_length=self.context_length,
+                dtype=None,  # Select None for auto detection
+                auto_model=auto_model,
+                load_in_4bit=False,  # Keep this set to False because voice models are small, so we can maintain high quality results.
+            )
+            FastModel.for_inference(self.model) # Enable native 2x faster inference
+            self.model = self.model.to(self.device)
+        except:
+            self.model = auto_model.from_pretrained(
+                self.model_name,
+                max_seq_length=self.context_length,
+                torch_dtype=None,  # Select None for auto detection
+            ).to(self.device)
 
-        FastModel.for_inference(self.model) # Enable native 2x faster inference
-        self.model = self.model.to(self.device)
+
         # snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz") # Should we remove hardcoded model name?
         # self.snac_model = snac_model.to(self.device)
 
