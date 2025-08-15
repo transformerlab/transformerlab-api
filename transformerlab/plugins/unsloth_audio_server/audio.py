@@ -22,11 +22,10 @@ def convert_to_audio_snac(audio_ids, model):
     return audio_hat[0]
 
 class AudioModelBase(ABC):
-    def __init__(self, model_name, device, context_length=2048, snac_model=None):
+    def __init__(self, model_name, device, context_length=2048):
         self.model_name = model_name
         self.device = device
         self.context_length = context_length
-        self.snac_model = snac_model
 
     @abstractmethod
     def tokenize(self, text):
@@ -41,8 +40,8 @@ class AudioModelBase(ABC):
         pass
 
 class CsmAudioModel(AudioModelBase):
-    def __init__(self, model_name, device, context_length=2048, snac_model=None):
-        super().__init__(model_name, device, context_length, snac_model)
+    def __init__(self, model_name, device, context_length=2048):
+        super().__init__(model_name, device, context_length)
         self.processor = AutoProcessor.from_pretrained(self.model_name)
         self.model, self.tokenizer = FastModel.from_pretrained(
             model_name=self.model_name,
@@ -72,10 +71,16 @@ class CsmAudioModel(AudioModelBase):
         return audio
 
 class OrpheusAudioModel(AudioModelBase):
-    def __init__(self, model_name, device, context_length=2048, snac_model=None):
-        super().__init__(model_name, device, context_length, snac_model)
+    def __init__(self, model_name, device, context_length=2048):
+        super().__init__(model_name, device, context_length)
         self.snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz")
         self.snac_model = self.snac_model.to(self.device)
+        self.model, self.tokenizer = FastModel.from_pretrained(
+            model_name=self.model_name,
+            max_seq_length=self.context_length,
+            dtype=None,
+            load_in_4bit=False,
+        )
         # Assume self.model and self.tokenizer are set up elsewhere
         self.generate_kwargs = {
             "max_new_tokens": 10240,

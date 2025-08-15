@@ -1,7 +1,6 @@
 """
 A model worker using Apple MLX Audio
 """
-from unsloth import FastModel
 import os
 import sys
 import argparse
@@ -24,8 +23,6 @@ from fastapi.responses import JSONResponse
 
 from fastchat.serve.model_worker import logger
 from transformerlab.plugin import WORKSPACE_DIR
-from transformers import AutoProcessor, CsmForConditionalGeneration
-from snac import SNAC
 
 
 worker_id = str(uuid.uuid4())[:8]
@@ -78,13 +75,13 @@ class UnslothAudioWorker(BaseModelWorker):
         self.model_architecture = model_architecture
 
         if self.model_architecture == "CsmForConditionalGeneration":
-            self.model_object = CsmAudioModel(self.model_name, self.device)
+            self.audio_model = CsmAudioModel(self.model_name, self.device)
             logger.info(
                 "⚠️  RECOMMENDATION: For best results with CsmForConditionalGeneration models, set temperature=0!"
             )
 
         elif "orpheus" in self.model_name:
-            self.model_object = OrpheusAudioModel(self.model_name, self.device)
+            self.audio_model = OrpheusAudioModel(self.model_name, self.device)
             logger.info("Initialized Orpheus Aaudio Model")
 
         else:
@@ -109,7 +106,6 @@ class UnslothAudioWorker(BaseModelWorker):
         audio_dir = params.get("audio_dir", None)
         if not audio_dir:
             audio_dir = os.path.join(WORKSPACE_DIR, "audio")
-        os.makedirs(name=audio_dir, exist_ok=True)
 
         # Generate a UUID for this file name:
         file_prefix = str(uuid.uuid4())
@@ -120,37 +116,37 @@ class UnslothAudioWorker(BaseModelWorker):
             generate_kwargs["do_sample"] = True
             generate_kwargs["temperature"] = temperature
         try:
-            inputs = self.model_object.tokenize(text)
-            audio_values = self.model_object.generate(inputs, **generate_kwargs)
-            audio = self.model_object.decode(audio_values)
+            inputs = self.audio_model.tokenize(text)
+            audio_values = self.audio_model.generate(inputs, **generate_kwargs)
+            audio = self.audio_model.decode(audio_values)
             if speed != 1.0:
                 n_samples = int(len(audio) / speed)
                 audio = resample(audio, n_samples)
-                output_path = os.path.join(audio_dir, f"{file_prefix}.{audio_format}")
-                os.makedirs(audio_dir, exist_ok=True)  # Ensure directory exists
-                sf.write(output_path, audio, sample_rate)
+            output_path = os.path.join(audio_dir, f"{file_prefix}.{audio_format}")
+            os.makedirs(audio_dir, exist_ok=True)  # Ensure directory exists
+            sf.write(output_path, audio, sample_rate)
 
-                metadata = {
-                    "type": "audio",
-                    "text": text,
-                    "filename": f"{file_prefix}.{audio_format}",
-                    "model": model,
-                    "speed": speed,
-                    "audio_format": audio_format,
-                    "sample_rate": sample_rate,
-                    "temperature": temperature,
-                    "date": datetime.now().isoformat(),
-                }
-                metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
-                with open(metadata_file, "w") as f:
-                    json.dump(metadata, f)
+            metadata = {
+                "type": "audio",
+                "text": text,
+                "filename": f"{file_prefix}.{audio_format}",
+                "model": model,
+                "speed": speed,
+                "audio_format": audio_format,
+                "sample_rate": sample_rate,
+                "temperature": temperature,
+                "date": datetime.now().isoformat(),
+            }
+            metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
+            with open(metadata_file, "w") as f:
+                json.dump(metadata, f)
 
-                logger.info(f"Audio successfully generated: {output_path}")
+            logger.info(f"Audio successfully generated: {output_path}")
 
-                return {
-                    "status": "success",
-                    "message": output_path,
-                }
+            return {
+                "status": "success",
+                "message": output_path,
+            }
         except Exception as e:
             logger.error(f"Error during generation: {e}")
             return {
