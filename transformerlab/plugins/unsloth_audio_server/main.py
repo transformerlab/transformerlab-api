@@ -28,10 +28,13 @@ from transformers import AutoProcessor
 
 from unsloth import FastModel
 from snac import SNAC
-
+import re
 
 
 worker_id = str(uuid.uuid4())[:8]
+
+AUDIO_TOKENS_REGEX = re.compile(r"<custom_token_(\d+)>")
+
 
 from fastchat.serve.base_model_worker import BaseModelWorker  # noqa
 
@@ -41,6 +44,22 @@ async def lifespan(app: FastAPI):
     yield
     # This function is called when the app shuts down
     cleanup_at_exit()
+
+def convert_to_audio_snac(audio_ids, model):
+  audio_ids = torch.tensor(audio_ids, dtype=torch.int32).reshape(-1, 7)
+  codes_0 = audio_ids[:, 0].unsqueeze(0)
+  codes_1 = torch.stack((audio_ids[:, 1], audio_ids[:, 4])).t().flatten().unsqueeze(0)
+  codes_2 = (
+    torch.stack((audio_ids[:, 2], audio_ids[:, 3], audio_ids[:, 5], audio_ids[:, 6]))
+    .t()
+    .flatten()
+    .unsqueeze(0)
+  )
+
+  with torch.inference_mode():
+    audio_hat = model.decode([codes_0, codes_1, codes_2])
+
+  return audio_hat[0]
 
 
 app = FastAPI(lifespan=lifespan)
@@ -162,6 +181,54 @@ class UnslothAudioWorker(BaseModelWorker):
                 "status": "success",
                 "message": f"{audio_dir}/{file_prefix}.{audio_format}",
             }
+        
+        elif "orpheus" in self.model_name:
+            snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz")
+            snac_model.to(self.device)
+            inputs = self.tokenizer(text, return_tensors="pt").to(self.model.device)
+            
+            generated_ids = model.generate(
+            input_ids=inputs["input_ids"],
+            attention_mask=inputs["attention_mask"],
+            max_new_tokens=10240,
+            #do_sample=True,
+            temperature=temperature,
+            #top_p=0.95,
+            # repetition_penalty=1.1,
+            # num_return_sequences=1,
+            eos_token_id=128258,  # Orpheus EOS
+            use_cache=True
+            )
+            audio_ids = [
+            int(token) - 10 - ((index % 7) * 4096)
+            for index, token in enumerate(AUDIO_TOKENS_REGEX.findall(generated_ids))
+            ]
+            audio = convert_to_audio_snac(audio_ids, snac_model)
+            sf.write(os.path.join(audio_dir, file_prefix, f"{file_prefix}.{audio_format}"), audio, 24000)
+
+            metadata = {
+                "type": "audio",
+                "text": text,
+                "filename": f"{file_prefix}.{audio_format}",
+                "model": model,
+                "speed": speed,
+                "audio_format": audio_format,
+                "sample_rate": sample_rate,
+                "temperature": temperature,
+                "date": datetime.now().isoformat(),  # Store the real date and time
+            }
+            metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
+            with open(metadata_file, "w") as f:
+                json.dump(metadata, f)
+
+            logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
+
+            return {
+                "status": "success",
+                "message": f"{audio_dir}/{file_prefix}.{audio_format}",
+            }
+        
+
         else:
             logger.info("Not implemented for this model")
             return {
