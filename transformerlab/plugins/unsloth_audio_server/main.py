@@ -72,6 +72,7 @@ class UnslothAudioWorker(BaseModelWorker):
         worker_id: str,
         model_path: str,
         model_names: List[str],
+        model_architecture: str,
         limit_worker_concurrency: int,
         no_register: bool,
         context_length: int,
@@ -94,9 +95,10 @@ class UnslothAudioWorker(BaseModelWorker):
 
         self.model_name = model_path
         self.context_length = context_length
+        self.model_architecture = model_architecture
 
-        if self.model_name == "unsloth/csm-1b":
-            auto_model = CsmForConditionalGeneration
+        if self.model_architecture == "CsmForConditionalGeneration":
+            auto_model = self.model_architecture
             self.processor = AutoProcessor.from_pretrained(self.model_name)
 
         else:
@@ -143,6 +145,7 @@ class UnslothAudioWorker(BaseModelWorker):
             speaker_id = 0
             inputs = self.processor(f"[{speaker_id}]{text}", add_special_tokens=True).to("cuda")
 
+            logger.info("we're here")
             audio_values = self.model.generate(
             **inputs,
             max_new_tokens=1200,
@@ -159,7 +162,7 @@ class UnslothAudioWorker(BaseModelWorker):
             )
             audio = audio_values[0].to(torch.float32).cpu().numpy()
             sf.write(os.path.join(audio_dir, file_prefix, f"{file_prefix}.{audio_format}"), audio, 24000)
-
+            logger.info("generation is done")
             metadata = {
                 "type": "audio",
                 "text": text,
@@ -296,6 +299,7 @@ def main():
         type=lambda s: s.split(","),
         help="Optional display comma separated names",
     )
+    parser.add_argument("--model-architecture", type=str, default="MLX")
     parser.add_argument("--parameters", type=str, default="{}")
     
 
@@ -317,6 +321,7 @@ def main():
         worker_id,
         args.model_path,
         args.model_names,
+        args.model_architecture,
         1024,
         False,
         context_length
