@@ -23,7 +23,7 @@ from fastapi.responses import JSONResponse
 
 from fastchat.serve.model_worker import logger
 from transformerlab.plugin import WORKSPACE_DIR
-from transformers import AutoProcessor, CsmForConditionalGeneration
+from transformers import AutoProcessor, CsmForConditionalGeneration, BarkModel
 
 
 from unsloth import FastModel
@@ -103,7 +103,6 @@ class UnslothAudioWorker(BaseModelWorker):
     )
         else:
             auto_model = None
-            self.processor = None
         try:
             self.processor = AutoProcessor.from_pretrained(self.model_name)
         except Exception:
