@@ -7,7 +7,8 @@
   "version": "0.0.1",
   "supports": [
     "Text-to-Speech",
-    "Audio"
+    "Audio",
+    "experimental"
   ],
   "model_architectures": [
     "CsmForConditionalGeneration"
