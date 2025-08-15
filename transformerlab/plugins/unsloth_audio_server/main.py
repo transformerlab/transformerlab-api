@@ -131,6 +131,7 @@ class UnslothAudioWorker(BaseModelWorker):
         sample_rate = params.get("sample_rate", 24000)
         temperature = params.get("temperature", 0.0)
         
+        
         audio_dir = params.get("audio_dir", None)
         if not audio_dir:
             audio_dir = os.path.join(WORKSPACE_DIR, "audio")
@@ -143,27 +144,29 @@ class UnslothAudioWorker(BaseModelWorker):
                 speaker_id = 0
                 inputs = self.processor(f"[{speaker_id}]{text}", add_special_tokens=True).to(self.device)
 
-                logger.info(f"we're here {inputs}")
-                audio_values = self.model.generate(
-                **inputs,
-                max_new_tokens=1200,
-                # play with these parameters to tweak results
-                # depth_decoder_top_k=0,
-                # depth_decoder_top_p=0.9,
-                # depth_decoder_do_sample=True,
-                # depth_decoder_temperature=0.9,
-                # top_k=0,
-                # top_p=1.0,
-                temperature=temperature,
-                # do_sample=True,
-                output_audio=True
-                )
+                logger.info(f"Inputs prepared for generation: {inputs}")
+
+                # Prepare generation kwargs based on temperature
+                generate_kwargs = {
+                    **inputs,
+                    "max_new_tokens": 1200,
+                    "output_audio": True,
+                }
+                if temperature == 0:
+                    generate_kwargs["do_sample"] = False
+                else:
+                    generate_kwargs["do_sample"] = True
+                    generate_kwargs["temperature"] = temperature
+
+                audio_values = self.model.generate(**generate_kwargs)
+                logger.info(f"Generation is done: {audio_values}")
+
                 audio = audio_values[0].to(torch.float32).cpu().numpy()
                 output_path = os.path.join(audio_dir, f"{file_prefix}.{audio_format}")
                 os.makedirs(audio_dir, exist_ok=True)  # Ensure directory exists
                 sf.write(output_path, audio, sample_rate)
                 logger.info(f"Audio file written to: {output_path}")
-                logger.info("generation is done")
+
                 metadata = {
                     "type": "audio",
                     "text": text,
@@ -173,17 +176,17 @@ class UnslothAudioWorker(BaseModelWorker):
                     "audio_format": audio_format,
                     "sample_rate": sample_rate,
                     "temperature": temperature,
-                    "date": datetime.now().isoformat(),  # Store the real date and time
+                    "date": datetime.now().isoformat(),
                 }
                 metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
                 with open(metadata_file, "w") as f:
                     json.dump(metadata, f)
 
-                logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
+                logger.info(f"Audio successfully generated: {output_path}")
 
                 return {
                     "status": "success",
-                    "message": f"{audio_dir}/{file_prefix}.{audio_format}",
+                    "message": output_path,
                 }
             
             elif "orpheus" in self.model_name:
