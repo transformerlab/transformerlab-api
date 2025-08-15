@@ -21,7 +21,8 @@ from fastapi.responses import JSONResponse
 
 from fastchat.serve.model_worker import logger
 from transformerlab.plugin import WORKSPACE_DIR
-from transformers import AutoProcessor
+from transformers import AutoProcessor, CsmForConditionalGeneration
+
 
 from unsloth import FastModel
 from snac import SNAC
@@ -95,7 +96,7 @@ class UnslothAudioWorker(BaseModelWorker):
         self.model_architecture = model_architecture
 
         if self.model_architecture == "CsmForConditionalGeneration":
-            auto_model = self.model_architecture
+            auto_model = CsmForConditionalGeneration
             self.processor = AutoProcessor.from_pretrained(self.model_name)
 
         else:
