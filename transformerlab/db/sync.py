@@ -26,7 +26,7 @@ def get_sync_session() -> Session:
     return sync_session_factory()
 
 
-def job_create_sync(type, status, job_data="{}", experiment_id=""):
+def job_create_sync(type, status, experiment_id: int, job_data="{}"):
     """
     Synchronous version of job_create function for use with XML-RPC.
     """
@@ -54,13 +54,13 @@ def job_create_sync(type, status, job_data="{}", experiment_id=""):
             result = session.execute(stmt)
             session.commit()
             return result.inserted_primary_key[0]
-            
+
     except Exception as e:
         print("Error creating job: " + str(e))
         return None
 
 
-def job_update_status_sync(job_id, status, error_msg=None):
+def job_update_status_sync(job_id: int, status: str, experiment_id: int, error_msg=None):
     """
     Synchronous version of job status update for use with XML-RPC.
     """
@@ -68,17 +68,17 @@ def job_update_status_sync(job_id, status, error_msg=None):
         with get_sync_session() as session:
             stmt = (
                 update(models.Job)
-                .where(models.Job.id == job_id)
+                .where(models.Job.id == job_id, models.Job.experiment_id == experiment_id)
                 .values(status=status)
             )
             session.execute(stmt)
             session.commit()
-            
+
     except Exception as e:
         print("Error updating job status: " + str(e))
 
 
-def job_update_sync(job_id, status):
+def job_update_sync(job_id: int, status: str, experiment_id: int):
     """
     Synchronous version of job_update.
     This is used by popen_and_call function which can only support synchronous functions.
@@ -88,17 +88,17 @@ def job_update_sync(job_id, status):
         with get_sync_session() as session:
             stmt = (
                 update(models.Job)
-                .where(models.Job.id == job_id)
+                .where(models.Job.id == job_id, models.Job.experiment_id == experiment_id)
                 .values(status=status)
             )
             session.execute(stmt)
             session.commit()
-            
+
     except Exception as e:
         print("Error updating job status: " + str(e))
 
 
-def job_mark_as_complete_if_running(job_id):
+def job_mark_as_complete_if_running(job_id: int, experiment_id: int):
     """
     Synchronous update to jobs that only marks a job as "COMPLETE" if it is currently "RUNNING".
     This avoids updating "stopped" jobs and marking them as complete.
@@ -107,11 +107,13 @@ def job_mark_as_complete_if_running(job_id):
         with get_sync_session() as session:
             stmt = (
                 update(models.Job)
-                .where(models.Job.id == job_id, models.Job.status == "RUNNING")
+                .where(
+                    models.Job.id == job_id, models.Job.experiment_id == experiment_id, models.Job.status == "RUNNING"
+                )
                 .values(status="COMPLETE")
             )
             session.execute(stmt)
             session.commit()
-            
+
     except Exception as e:
         print("Error updating job status: " + str(e))
