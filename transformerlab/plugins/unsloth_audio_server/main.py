@@ -97,6 +97,9 @@ class UnslothAudioWorker(BaseModelWorker):
 
         if self.model_architecture == "CsmForConditionalGeneration":
             auto_model = CsmForConditionalGeneration
+            logger.info(
+        "⚠️  RECOMMENDATION: For best results with CsmForConditionalGeneration models, set temperature=0!"
+    )
             self.processor = AutoProcessor.from_pretrained(self.model_name)
 
         else:
