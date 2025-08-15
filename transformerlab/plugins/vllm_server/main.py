@@ -24,10 +24,13 @@ def clear_vram():
         print(">>> [main] Emptying CUDA memory cache and collecting garbage...")
         torch.cuda.empty_cache()
         torch.cuda.ipc_collect()
+
+
 clear_vram()
 parser = argparse.ArgumentParser()
 parser.add_argument("--model-path", type=str)
 parser.add_argument("--parameters", type=str, default="{}")
+parser.add_argument("--job_id", type=str)
 args, unknown = parser.parse_known_args()
 
 model = args.model_path
@@ -59,13 +62,18 @@ vllm_args = [
     python_executable,
     "-m",
     "vllm.entrypoints.openai.api_server",
-    "--model", model,
-    "--dtype", "float16",
-    "--port", str(port),
-    "--gpu-memory-utilization", "0.9",
+    "--model",
+    model,
+    "--dtype",
+    "float16",
+    "--port",
+    str(port),
+    "--gpu-memory-utilization",
+    "0.9",
     "--trust-remote-code",
     "--enforce-eager",
-    "--allowed-local-media-path", str(TEMP_IMAGE_DIR)
+    "--allowed-local-media-path",
+    str(TEMP_IMAGE_DIR),
 ]
 
 # Add tensor parallel size if multiple GPUs are available
@@ -96,19 +104,22 @@ while True:
     time.sleep(1)
 
 proxy_args = [
-    python_executable, 
-    "-m", 
+    python_executable,
+    "-m",
     "fastchat.serve.openai_api_proxy_worker",
-    "--model-path", model,
-    "--proxy-url", f"http://localhost:{port}/v1",
-   "--model", model
-    ]
+    "--model-path",
+    model,
+    "--proxy-url",
+    f"http://localhost:{port}/v1",
+    "--model",
+    model,
+]
 
 proxy_proc = subprocess.Popen(proxy_args, stdout=None, stderr=subprocess.PIPE)
 
 # save both worker process id and vllm process id to file
 # this will allow transformer lab to kill both later
-register_process([proxy_proc.pid, vllm_proc.pid])
+register_process([proxy_proc.pid, vllm_proc.pid], job_id=args.job_id)
 
 # read output:
 for line in iter(proxy_proc.stderr.readline, b""):
