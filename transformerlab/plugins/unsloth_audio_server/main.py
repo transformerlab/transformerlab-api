@@ -102,7 +102,7 @@ class UnslothAudioWorker(BaseModelWorker):
         "⚠️  RECOMMENDATION: For best results with CsmForConditionalGeneration models, set temperature=0!"
     )
         else:
-            auto_model = None
+            auto_model = barkModel
         try:
             self.processor = AutoProcessor.from_pretrained(self.model_name)
         except Exception:
@@ -111,13 +111,13 @@ class UnslothAudioWorker(BaseModelWorker):
 
         
         self.model, self.tokenizer = FastModel.from_pretrained(
-        model_name = self.model_name,
-        max_seq_length= self.context_length,
-        dtype = None, # Select None for auto detection
-        auto_model = auto_model,
-        load_in_4bit = False, # Keep this set to False because voice models are small, so we can maintain high quality results.
-    )
-        
+            model_name=self.model_name,
+            max_seq_length=self.context_length,
+            dtype=None,  # Select None for auto detection
+            auto_model=auto_model,
+            load_in_4bit=False,  # Keep this set to False because voice models are small, so we can maintain high quality results.
+        )
+
         FastModel.for_inference(self.model) # Enable native 2x faster inference
         self.model = self.model.to(self.device)
         # snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz") # Should we remove hardcoded model name?
