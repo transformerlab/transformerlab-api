@@ -389,9 +389,9 @@ install_dependencies() {
         location=$(pip show torch | grep Location | awk -F ": " '{print $2}')
         cd "${location}/torch/lib/" || exit 1
         rm -f libhsa-runtime64.so*
-        cp /opt/rocm/lib/libhsa-runtime64.so.1.14.0 .
-        ln -sf libhsa-runtime64.so.1.14.0 libhsa-runtime64.so.1
-        ln -sf libhsa-runtime64.so.1 libhsa-runtime64.so
+        # cp /opt/rocm/lib/libhsa-runtime64.so.1.14.0 .
+        # ln -sf libhsa-runtime64.so.1.14.0 libhsa-runtime64.so.1
+        # ln -sf libhsa-runtime64.so.1 libhsa-runtime64.so
       fi
 
   else

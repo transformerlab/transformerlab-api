@@ -384,20 +384,20 @@ def patch_rocm_runtime_for_venv(venv_path):
             if file.startswith("libhsa-runtime64.so"):
                 os.remove(os.path.join(torch_lib_path, file))
 
-        # Copy ROCm .so file
-        src = "/opt/rocm/lib/libhsa-runtime64.so.1.14.0"
-        dst = os.path.join(torch_lib_path, "libhsa-runtime64.so.1.14.0")
-        shutil.copy(src, dst)
+        # # Copy ROCm .so file
+        # src = "/opt/rocm/lib/libhsa-runtime64.so.1.14.0"
+        # dst = os.path.join(torch_lib_path, "libhsa-runtime64.so.1.14.0")
+        # shutil.copy(src, dst)
 
-        # Create symlinks
-        def force_symlink(target, link_name):
-            full_link = os.path.join(torch_lib_path, link_name)
-            if os.path.islink(full_link) or os.path.exists(full_link):
-                os.remove(full_link)
-            os.symlink(target, full_link)
+        # # Create symlinks
+        # def force_symlink(target, link_name):
+        #     full_link = os.path.join(torch_lib_path, link_name)
+        #     if os.path.islink(full_link) or os.path.exists(full_link):
+        #         os.remove(full_link)
+        #     os.symlink(target, full_link)
 
-        force_symlink("libhsa-runtime64.so.1.14.0", "libhsa-runtime64.so.1")
-        force_symlink("libhsa-runtime64.so.1", "libhsa-runtime64.so")
+        # force_symlink("libhsa-runtime64.so.1.14.0", "libhsa-runtime64.so.1")
+        # force_symlink("libhsa-runtime64.so.1", "libhsa-runtime64.so")
 
         print("ROCm runtime patched successfully.")
         return {"status": "success", "message": "ROCm runtime patched successfully."}
