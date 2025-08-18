@@ -65,14 +65,20 @@ class OrpheusAudioModel(AudioModelBase):
             load_in_4bit=False,
         )
         FastModel.for_inference(self.model)
+        # Tips for prompting [1]:
+        #  - Sampling parameters 'temperature' and 'top_p' work just like regular LLMs.
+        #  - 'repetition_penalty' >= 1.1 is required for stable generations.
+        #  - Increasing 'repetition_penalty' and/or 'temperature' makes the model speak faster.
         self.generate_kwargs = {
             "max_new_tokens": 10240,
             "eos_token_id": 128258,
             "use_cache": True,
+            "repetition_penalty": 1.1,
         }
 
-    def tokenize(self, text):
-        return self.tokenizer(text, return_tensors="pt").to(self.device)
+    def tokenize(self, text, voice="tara"):
+        prompt = f"<custom_token_3><|begin_of_text|>{voice}: {text}<|eot_id|><custom_token_4><custom_token_5><custom_token_1>"
+        return self.tokenizer(prompt, return_tensors="pt").to(self.device)
 
     def generate(self, inputs, **kwargs):
         gen_args = {**inputs, **self.generate_kwargs, **kwargs}
