@@ -20,16 +20,20 @@ TEMP_DIR = os.path.join(WORKSPACE_DIR, "temp")
 db = None
 
 
-def register_process(pid_or_pids, job_id=None):
+def register_process(pid_or_pids=None, job_id=None):
     """
     Record one or many PIDs in <LLM_LAB_ROOT_PATH>/worker.pid so that
     the 'worker_stop' endpoint can later clean them up.
     Now stores data as JSON with optional job_id mapping.
     """
-    if isinstance(pid_or_pids, int):
-        pids = [pid_or_pids]
+
+    if pid_or_pids is not None:
+        if isinstance(pid_or_pids, int):
+            pids = [pid_or_pids]
+        else:
+            pids = list(pid_or_pids)
     else:
-        pids = list(pid_or_pids)
+        pids = []
 
     root_dir = os.getenv("LLM_LAB_ROOT_PATH")
     if not root_dir:
@@ -64,6 +68,9 @@ def register_process(pid_or_pids, job_id=None):
         if job_id is not None:
             process_entry["job_id"] = job_id
         worker_data["processes"].append(process_entry)
+
+    if len(pids) == 0 and job_id is not None:
+        worker_data["processes"].append({"job_id": job_id})
 
     # Write back to file as JSON
     with open(pid_file, "w") as f:

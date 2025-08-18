@@ -37,6 +37,11 @@ from mlx_lm.generate import generate_step
 from mlx_lm.sample_utils import make_logits_processors, make_sampler
 from fastchat.serve.model_worker import logger
 
+try:
+    from transformerlab.plugin import register_process
+except ImportError:
+    from transformerlab.plugin_sdk.transformerlab.plugin import register_process
+
 worker_id = str(uuid.uuid4())[:8]
 
 from fastchat.serve.base_model_worker import BaseModelWorker  # noqa
@@ -914,12 +919,14 @@ def main():
     )
     parser.add_argument("--parameters", type=str, default="{}")
     parser.add_argument("--plugin_dir", type=str)
+    parser.add_argument("--job_id", type=str, default=None)
 
     args, unknown = parser.parse_known_args()
 
     try:
         parameters = json.loads(args.parameters)
         context_length = int(parameters.get("context_length", "2048"))
+        register_process(job_id=args.job_id)
     except Exception:
         context_length = 2048
 
