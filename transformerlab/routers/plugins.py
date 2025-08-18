@@ -214,7 +214,7 @@ async def install_plugin(plugin_id: str):
             # If we have a GPU, use the requirements file for GPU
             print("NVIDIA GPU detected, using GPU requirements file.")
             requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-uv.txt")
-            additional_flags = "--index 'https://download.pytorch.org/whl/cu128'"
+            additional_flags = ""
         elif check_amd_gpu():
             # If we have an AMD GPU, use the requirements file for AMD
             requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-rocm-uv.txt")

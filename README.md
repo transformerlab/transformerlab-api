@@ -62,7 +62,7 @@ Dependencies are managed with uv (installed separately). Add new requirements to
 
 ```bash
 # GPU enabled requirements for CUDA
-uv pip compile requirements.in -o requirements-uv.txt --index=https://download.pytorch.org/whl/cu128
+uv pip compile requirements.in -o requirements-uv.txt
 sed -i 's/\+cu128//g' requirements-uv.txt
 
 # GPU enabled requirements for ROCm

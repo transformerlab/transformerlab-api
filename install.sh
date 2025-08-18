@@ -369,7 +369,6 @@ install_dependencies() {
         exit 1
       fi
 
-      PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/cu128"
       uv pip install ${PIP_WHEEL_FLAGS} -r ${REQS_PATH}
 
   elif [ "$HAS_AMD" = true ]; then
