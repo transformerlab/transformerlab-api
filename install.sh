@@ -382,7 +382,7 @@ install_dependencies() {
         exit 1
       fi
 
-      PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/rocm6.3"
+      PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/rocm6.4"
       uv pip install ${PIP_WHEEL_FLAGS} -r ${REQS_PATH}
 
       if [ "$TLAB_ON_WSL" = 1 ]; then

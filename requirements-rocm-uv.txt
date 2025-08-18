@@ -415,7 +415,7 @@ python-multipart==0.0.20
     #   mcp
 python-pptx==1.0.2
     # via markitdown
-pytorch-triton-rocm==3.3.0
+pytorch-triton-rocm==3.4.0
     # via torch
 pytz==2025.2
     # via pandas
@@ -551,7 +551,7 @@ timm==1.0.15
     #   controlnet-aux
 tokenizers==0.21.1
     # via transformers
-torch==2.7.0
+torch==2.8.0
     # via
     #   -r requirements-rocm.in
     #   accelerate
@@ -561,9 +561,9 @@ torch==2.7.0
     #   timm
     #   torchaudio
     #   torchvision
-torchaudio==2.7.0
+torchaudio==2.8.0
     # via -r requirements-rocm.in
-torchvision==0.22.0
+torchvision==0.23.0
     # via
     #   -r requirements-rocm.in
     #   controlnet-aux

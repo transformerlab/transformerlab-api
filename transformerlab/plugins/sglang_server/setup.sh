@@ -13,7 +13,7 @@ echo "[setup] Installing sglang[all] with custom torch index"
 if command -v rocminfo &>/dev/null; then
     echo "[setup] ROCm detected."
     BACKEND="rocm"
-    TORCH_INDEX_URL="https://download.pytorch.org/whl/rocm6.3"
+    TORCH_INDEX_URL="https://download.pytorch.org/whl/rocm6.4"
     uv pip install "sglang[all]==0.4.8.post1" --index "$TORCH_INDEX_URL"
 
 else
