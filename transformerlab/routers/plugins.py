@@ -214,11 +214,11 @@ async def install_plugin(plugin_id: str):
             # If we have a GPU, use the requirements file for GPU
             print("NVIDIA GPU detected, using GPU requirements file.")
             requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-uv.txt")
-            additional_flags = "--index 'https://download.pytorch.org/whl/cu128'"
+            additional_flags = ""
         elif check_amd_gpu():
             # If we have an AMD GPU, use the requirements file for AMD
             requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-rocm-uv.txt")
-            additional_flags = "--index 'https://download.pytorch.org/whl/rocm6.3'"
+            additional_flags = "--index 'https://download.pytorch.org/whl/rocm6.4'"
         # Check if system is MacOS with Apple Silicon
         elif sys.platform == "darwin":
             # If we have a MacOS with Apple Silicon, use the requirements file for MacOS
@@ -384,20 +384,20 @@ def patch_rocm_runtime_for_venv(venv_path):
             if file.startswith("libhsa-runtime64.so"):
                 os.remove(os.path.join(torch_lib_path, file))
 
-        # Copy ROCm .so file
-        src = "/opt/rocm/lib/libhsa-runtime64.so.1.14.0"
-        dst = os.path.join(torch_lib_path, "libhsa-runtime64.so.1.14.0")
-        shutil.copy(src, dst)
+        # # Copy ROCm .so file
+        # src = "/opt/rocm/lib/libhsa-runtime64.so.1.14.0"
+        # dst = os.path.join(torch_lib_path, "libhsa-runtime64.so.1.14.0")
+        # shutil.copy(src, dst)
 
-        # Create symlinks
-        def force_symlink(target, link_name):
-            full_link = os.path.join(torch_lib_path, link_name)
-            if os.path.islink(full_link) or os.path.exists(full_link):
-                os.remove(full_link)
-            os.symlink(target, full_link)
+        # # Create symlinks
+        # def force_symlink(target, link_name):
+        #     full_link = os.path.join(torch_lib_path, link_name)
+        #     if os.path.islink(full_link) or os.path.exists(full_link):
+        #         os.remove(full_link)
+        #     os.symlink(target, full_link)
 
-        force_symlink("libhsa-runtime64.so.1.14.0", "libhsa-runtime64.so.1")
-        force_symlink("libhsa-runtime64.so.1", "libhsa-runtime64.so")
+        # force_symlink("libhsa-runtime64.so.1.14.0", "libhsa-runtime64.so.1")
+        # force_symlink("libhsa-runtime64.so.1", "libhsa-runtime64.so")
 
         print("ROCm runtime patched successfully.")
         return {"status": "success", "message": "ROCm runtime patched successfully."}

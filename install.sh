@@ -369,7 +369,6 @@ install_dependencies() {
         exit 1
       fi
 
-      PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/cu128"
       uv pip install ${PIP_WHEEL_FLAGS} -r ${REQS_PATH}
 
   elif [ "$HAS_AMD" = true ]; then
@@ -383,16 +382,16 @@ install_dependencies() {
         exit 1
       fi
 
-      PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/rocm6.3"
+      PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/rocm6.4"
       uv pip install ${PIP_WHEEL_FLAGS} -r ${REQS_PATH}
 
       if [ "$TLAB_ON_WSL" = 1 ]; then
         location=$(pip show torch | grep Location | awk -F ": " '{print $2}')
         cd "${location}/torch/lib/" || exit 1
         rm -f libhsa-runtime64.so*
-        cp /opt/rocm/lib/libhsa-runtime64.so.1.14.0 .
-        ln -sf libhsa-runtime64.so.1.14.0 libhsa-runtime64.so.1
-        ln -sf libhsa-runtime64.so.1 libhsa-runtime64.so
+        # cp /opt/rocm/lib/libhsa-runtime64.so.1.14.0 .
+        # ln -sf libhsa-runtime64.so.1.14.0 libhsa-runtime64.so.1
+        # ln -sf libhsa-runtime64.so.1 libhsa-runtime64.so
       fi
 
   else
