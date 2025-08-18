@@ -1,6 +1,6 @@
+from unsloth import FastModel
 from abc import ABC, abstractmethod
 from transformers import AutoProcessor, CsmForConditionalGeneration
-from unsloth import FastModel
 from snac import SNAC
 import torch
 import re
