@@ -1,7 +1,7 @@
 {
-  "name": "Unsloth Audio Server",
-  "uniqueId": "unsloth_audio_server",
-  "description": "A text-to-speech (TTS) and audio generation server powered by Unsloth, supporting efficient, high-quality speech synthesis.",
+  "name": "Audio Server",
+  "uniqueId": "audio_server",
+  "description": "A text-to-speech (TTS) audio generation server, supporting efficient, high-quality speech synthesis.",
   "plugin-format": "python",
   "type": "loader",
   "version": "0.0.1",
