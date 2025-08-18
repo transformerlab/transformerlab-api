@@ -9,8 +9,6 @@ from jinja2 import Environment
 from transformers import AutoTokenizer
 
 
-
-
 # useful constants
 WORKSPACE_DIR = os.getenv("_TFL_WORKSPACE_DIR")
 if WORKSPACE_DIR is None:
