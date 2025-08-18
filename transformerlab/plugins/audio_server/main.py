@@ -147,7 +147,7 @@ class UnslothAudioWorker(BaseModelWorker):
                 "status": "success",
                 "message": output_path,
             }
-        except Exception as e:
+        except Exception:
             logger.exception("Error during generation")  # Logs full stack trace
             return {
                 "status": "error",
