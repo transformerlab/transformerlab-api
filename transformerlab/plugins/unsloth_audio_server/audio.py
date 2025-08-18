@@ -100,7 +100,7 @@ class OrpheusAudioModel(AudioModelBase):
         if len(audio_ids) % 7 != 0:
             new_length = (len(audio_ids) // 7) * 7
             audio_ids = audio_ids[:new_length]
-        audio_ids = torch.tensor(audio_ids, dtype=torch.int32).reshape(-1, 7)
+        audio_ids = torch.tensor(audio_ids, dtype=torch.int32, device=self.device).reshape(-1, 7)
         codes_0 = audio_ids[:, 0].unsqueeze(0)
         codes_1 = torch.stack((audio_ids[:, 1], audio_ids[:, 4])).t().flatten().unsqueeze(0)
         codes_2 = (
