@@ -1,9 +1,9 @@
+from email.mime import audio
 from unsloth import FastModel
 from abc import ABC, abstractmethod
 from transformers import AutoProcessor, CsmForConditionalGeneration
 from snac import SNAC
 import torch
-import re
 
 class AudioModelBase(ABC):
     def __init__(self, model_name, device, context_length=2048):
@@ -65,6 +65,7 @@ class OrpheusAudioModel(AudioModelBase):
             load_in_4bit=False,
         )
         FastModel.for_inference(self.model)
+        self.model = self.model.to(self.device)
         # Tips for prompting [1]:
         #  - Sampling parameters 'temperature' and 'top_p' work just like regular LLMs.
         #  - 'repetition_penalty' >= 1.1 is required for stable generations.
@@ -76,41 +77,54 @@ class OrpheusAudioModel(AudioModelBase):
             "repetition_penalty": 1.1,
         }
 
-    def tokenize(self, text, voice="tara"):
-        prompt = f"<custom_token_3><|begin_of_text|>{voice}: {text}<|eot_id|><custom_token_4><custom_token_5><custom_token_1>"
-        return self.tokenizer(prompt, return_tensors="pt").to(self.device)
+    def tokenize(self, text):
+
+        return self.tokenizer(text, return_tensors="pt").to(self.device)
 
     def generate(self, inputs, **kwargs):
         gen_args = {**inputs, **self.generate_kwargs, **kwargs}
         return self.model.generate(**gen_args)
 
-    def decode(self, generated, **kwargs):
-        generated_text = self.tokenizer.decode(generated[0], skip_special_tokens=False)
+    def decode(self, generated_ids, **kwargs):
 
-        AUDIO_TOKENS_REGEX = re.compile(r"<custom_token_(\d+)>")
-        audio_ids = [
-            int(token) - 10 - ((index % 7) * 4096)
-            for index, token in enumerate(AUDIO_TOKENS_REGEX.findall(generated_text))
-        ]
-        audio = self.convert_to_audio_snac(audio_ids, self.snac_model)
-        return audio
+        #Post-process: remove unwanted tokens before decoding to audio
+        token_to_find = 128257  # <start_of_speech>
+        token_to_remove = 128258  # <end_of_speech>
+
+        token_indices = (generated_ids == token_to_find).nonzero(as_tuple=True)
+        if len(token_indices[1]) > 0:
+            last_occurrence_idx = token_indices[1][-1].item()
+            cropped_tensor = generated_ids[:, last_occurrence_idx+1:]
+        else:
+            cropped_tensor = generated_ids
+
+        processed_rows = [row[row != token_to_remove] for row in cropped_tensor]
+
+        # Convert generated tokens into codec codes
+        code_lists = []
+        for row in processed_rows:
+            row_length = row.size(0)
+            new_length = (row_length // 7) * 7
+            trimmed_row = row[:new_length]
+            trimmed_row = [t - 128266 for t in trimmed_row]  # Adjust to codec IDs
+            code_lists.append(trimmed_row)
+
+        # Run decoding
+        audio = [self.redistribute_codes(code_list) for code_list in code_lists]
+        return audio[0].to(torch.float32).cpu().squeeze().numpy()
     
-    def convert_to_audio_snac(self, audio_ids, model):
-
-        if len(audio_ids) % 7 != 0:
-            new_length = (len(audio_ids) // 7) * 7
-            audio_ids = audio_ids[:new_length]
-        audio_ids = torch.tensor(audio_ids, dtype=torch.int32, device=self.device).reshape(-1, 7)
-        codes_0 = audio_ids[:, 0].unsqueeze(0)
-        codes_1 = torch.stack((audio_ids[:, 1], audio_ids[:, 4])).t().flatten().unsqueeze(0)
-        codes_2 = (
-            torch.stack((audio_ids[:, 2], audio_ids[:, 3], audio_ids[:, 5], audio_ids[:, 6]))
-            .t()
-            .flatten()
-            .unsqueeze(0)
-        )
-
-        with torch.inference_mode():
-            audio_hat = model.decode([codes_0, codes_1, codes_2])
-
-        return audio_hat[0]
+    def redistribute_codes(self, code_list):
+            """Decode to waveform using SNAC"""
+            layer_1, layer_2, layer_3 = [], [], []
+            for i in range((len(code_list)+1)//7):
+                layer_1.append(code_list[7*i])
+                layer_2.append(code_list[7*i+1] - 4096)
+                layer_3.append(code_list[7*i+2] - (2*4096))
+                layer_3.append(code_list[7*i+3] - (3*4096))
+                layer_2.append(code_list[7*i+4] - (4*4096))
+                layer_3.append(code_list[7*i+5] - (5*4096))
+                layer_3.append(code_list[7*i+6] - (6*4096))
+            codes = [torch.tensor(layer_1, device=self.device).unsqueeze(0),
+                    torch.tensor(layer_2, device=self.device).unsqueeze(0),
+                    torch.tensor(layer_3, device=self.device).unsqueeze(0)]
+            return self.snac_model.decode(codes)
