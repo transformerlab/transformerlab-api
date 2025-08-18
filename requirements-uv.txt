@@ -614,7 +614,7 @@ tqdm==4.66.5
     #   transformers
 transformerlab-inference==0.2.44
     # via -r requirements.in
-transformers==4.55.0
+transformers==4.55.2
     # via
     #   -r requirements.in
     #   peft
