@@ -1,4 +1,3 @@
-from email.mime import audio
 from unsloth import FastModel
 from abc import ABC, abstractmethod
 from transformers import AutoProcessor, CsmForConditionalGeneration
@@ -111,8 +110,8 @@ class OrpheusAudioModel(AudioModelBase):
 
         # Run decoding
         audio = [self.redistribute_codes(code_list) for code_list in code_lists]
-        return audio[0].to(torch.float32).cpu().squeeze().numpy()
-    
+        return audio[0].squeeze().to(torch.float32).cpu().detach().numpy()
+
     def redistribute_codes(self, code_list):
             """Decode to waveform using SNAC"""
             layer_1, layer_2, layer_3 = [], [], []
