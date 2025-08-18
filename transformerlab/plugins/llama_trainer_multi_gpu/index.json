@@ -4,7 +4,7 @@
   "description": "A training script adapted from https://www.philschmid.de/instruction-tune-llama-2 for training Llama2 using PeFT",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.1.15",
+  "version": "0.1.17",
   "model_architectures": [
     "LlamaForCausalLM",
     "Qwen2ForCausalLM",
@@ -19,7 +19,8 @@
     "PhiForCausalLM",
     "Phi3ForCausalLM",
     "MistralForCausalLM",
-    "MixtralForCausalLM"
+    "MixtralForCausalLM",
+    "SmolLM3ForCausalLM"
   ],
   "git": "",
   "url": "",
@@ -39,12 +40,6 @@
       "title": "GPU IDs to Train",
       "type": "string",
       "default": "auto"
-    },
-    "maximum_sequence_length": {
-      "title": "Maximum Sequence Length",
-      "type": "integer",
-      "default": 2048,
-      "minimum": 1
     },
     "batch_size": {
       "title": "Batch Size",

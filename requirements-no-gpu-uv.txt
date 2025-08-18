@@ -548,7 +548,7 @@ timm==1.0.15
     #   controlnet-aux
 tokenizers==0.21.1
     # via transformers
-torch==2.7.0
+torch==2.8.0
     # via
     #   -r requirements.in
     #   accelerate
@@ -558,9 +558,9 @@ torch==2.7.0
     #   timm
     #   torchaudio
     #   torchvision
-torchaudio==2.7.0
+torchaudio==2.8.0
     # via -r requirements.in
-torchvision==0.22.0
+torchvision==0.23.0
     # via
     #   -r requirements.in
     #   controlnet-aux
@@ -576,7 +576,7 @@ tqdm==4.66.5
     #   transformers
 transformerlab-inference==0.2.44
     # via -r requirements.in
-transformers==4.55.0
+transformers==4.55.2
     # via
     #   -r requirements.in
     #   peft
