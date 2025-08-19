@@ -71,7 +71,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
 
         self.model_name = model_path
         self.model_architecture = model_architecture
-
+        # Use the model name and architecture to determine which custom audio model class to instantiate
         if self.model_architecture == "CsmForConditionalGeneration":
             self.audio_model = CsmAudioModel(self.model_name, self.device)
             logger.info(
