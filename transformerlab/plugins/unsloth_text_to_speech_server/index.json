@@ -11,7 +11,8 @@
     "experimental"
   ],
   "model_architectures": [
-    "CsmForConditionalGeneration"
+    "CsmForConditionalGeneration",
+    "LlamaForCausalLM"
   ],
   "supported_hardware_architectures": ["cuda"],
   "files": ["main.py", "setup.sh"],
