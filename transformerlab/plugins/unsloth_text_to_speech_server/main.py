@@ -15,6 +15,8 @@ import torch
 import soundfile as sf
 from scipy.signal import resample
 from audio import CsmAudioModel, OrpheusAudioModel
+from werkzeug.utils import secure_filename
+
 
 
 
@@ -101,8 +103,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         audio_dir = params.get("audio_dir")
         
         # security check - reject path traversal attempts
-        if audio_dir and ".." in audio_dir:
-            return {"status": "error", "message": "Invalid audio_dir path."}
+        audio_dir = secure_filename(audio_dir)
         # Generate a UUID for this file name:
         file_prefix = str(uuid.uuid4())
         generate_kwargs = {}
