@@ -49,7 +49,6 @@ from transformerlab.shared import dirs
 
 WORKER_API_TIMEOUT = 3600
 
-
 # TODO: Move all base model to fastchat.protocol.openai_api_protocol
 class APIChatCompletionRequest(BaseModel):
     model: str
@@ -91,7 +90,6 @@ class ChatCompletionRequest(BaseModel):
     user: Optional[str] = None
     logprobs: Optional[bool] = False
     tools: Optional[List[Dict[str, Any]]] = None
-
 
 class AudioRequest(BaseModel):
     experiment_id: int
@@ -430,7 +428,7 @@ async def get_gen_params(
                 tool_names.append(tool["name"])
             else:
                 tool_names.append("unnamed")
-        print(f"Adding tools to the generation parameters: {tool_names}")
+        print(f"Adding tools to generation parameters: {tool_names}")
     if not stop:
         gen_params.update({"stop": conv.stop_str, "stop_token_ids": conv.stop_token_ids})
     else:
@@ -491,7 +489,6 @@ async def show_available_models():
         model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
     return ModelList(data=model_cards)
 
-
 @router.post("/v1/audio/speech", tags=["audio"])
 async def create_audio_tts(request: AudioRequest):
     error_check_ret = await check_model(request)
@@ -505,6 +502,7 @@ async def create_audio_tts(request: AudioRequest):
     audio_dir = os.path.join(experiment_dir, "audio")
     os.makedirs(audio_dir, exist_ok=True)
 
+    
     gen_params = {
         "audio_dir": audio_dir,
         "model": request.model,
@@ -514,10 +512,11 @@ async def create_audio_tts(request: AudioRequest):
         "temperature": request.temperature,
         "speed": request.speed,
     }
-    # TODO: Define a base model class to structure the return value
+    #TODO: Define a base model class to structure the return value
     content = await generate_completion(gen_params)
 
     return content
+
 
 
 @router.post("/v1/chat/completions", dependencies=[Depends(check_api_key)], tags=["chat"])
