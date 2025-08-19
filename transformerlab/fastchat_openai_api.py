@@ -502,7 +502,7 @@ async def create_audio_tts(request: AudioRequest):
     audio_dir = os.path.join(experiment_dir, "audio")
     os.makedirs(audio_dir, exist_ok=True)
 
-
+    
     gen_params = {
         "audio_dir": audio_dir,
         "model": request.model,
@@ -516,6 +516,8 @@ async def create_audio_tts(request: AudioRequest):
     content = await generate_completion(gen_params)
 
     return content
+
+
 
 @router.post("/v1/chat/completions", dependencies=[Depends(check_api_key)], tags=["chat"])
 async def create_openapi_chat_completion(request: ChatCompletionRequest):
