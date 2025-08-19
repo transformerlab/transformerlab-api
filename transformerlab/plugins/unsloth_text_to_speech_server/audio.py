@@ -114,19 +114,23 @@ class OrpheusAudioModel(AudioModelBase):
         return audio[0].squeeze().to(torch.float32).cpu().detach().numpy()
     
     def redistribute_codes(self, code_list):
-            """Decode to waveform using SNAC. 
-The LLM outputs audio tokens, not playable sound. We need an encoder/decoder to convert these tokens into an audio waveform.
-SNAC expects audio tokens grouped in a specific structure (7 tokens per group across 3 layers in this setup)."""
-            layer_1, layer_2, layer_3 = [], [], []
-            for i in range((len(code_list)+1)//7):
-                layer_1.append(code_list[7*i])
-                layer_2.append(code_list[7*i+1] - 4096)
-                layer_3.append(code_list[7*i+2] - (2*4096))
-                layer_3.append(code_list[7*i+3] - (3*4096))
-                layer_2.append(code_list[7*i+4] - (4*4096))
-                layer_3.append(code_list[7*i+5] - (5*4096))
-                layer_3.append(code_list[7*i+6] - (6*4096))
-            codes = [torch.tensor(layer_1, device=self.device).unsqueeze(0),
-                    torch.tensor(layer_2, device=self.device).unsqueeze(0),
-                    torch.tensor(layer_3, device=self.device).unsqueeze(0)]
-            return self.snac_model.decode(codes)
+        """
+        Decode to waveform using SNAC.
+        
+        The LLM outputs audio tokens, not playable sound. We need an encoder/decoder 
+        to convert these tokens into an audio waveform. SNAC expects audio tokens 
+        grouped in a specific structure (7 tokens per group across 3 layers in this setup).
+        """
+        layer_1, layer_2, layer_3 = [], [], []
+        for i in range((len(code_list)+1)//7):
+            layer_1.append(code_list[7*i])
+            layer_2.append(code_list[7*i+1] - 4096)
+            layer_3.append(code_list[7*i+2] - (2*4096))
+            layer_3.append(code_list[7*i+3] - (3*4096))
+            layer_2.append(code_list[7*i+4] - (4*4096))
+            layer_3.append(code_list[7*i+5] - (5*4096))
+            layer_3.append(code_list[7*i+6] - (6*4096))
+        codes = [torch.tensor(layer_1, device=self.device).unsqueeze(0),
+                torch.tensor(layer_2, device=self.device).unsqueeze(0),
+                torch.tensor(layer_3, device=self.device).unsqueeze(0)]
+        return self.snac_model.decode(codes)
