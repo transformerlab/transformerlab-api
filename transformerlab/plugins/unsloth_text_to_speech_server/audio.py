@@ -89,7 +89,7 @@ class OrpheusAudioModel(AudioModelBase):
         #Post-process: remove unwanted tokens before decoding to audio
         token_to_find = 128257  # <start_of_speech>
         token_to_remove = 128258  # <end_of_speech>
-
+        # Look for the special CODE_START_TOKEN_ID (128257 in this model) which marks the beginning of the audio token sequence.
         token_indices = (generated_ids == token_to_find).nonzero(as_tuple=True)
         if len(token_indices[1]) > 0:
             last_occurrence_idx = token_indices[1][-1].item()
@@ -105,15 +105,18 @@ class OrpheusAudioModel(AudioModelBase):
             row_length = row.size(0)
             new_length = (row_length // 7) * 7
             trimmed_row = row[:new_length]
+            # Offset them (subtract CODE_TOKEN_OFFSET which is 128266 here) to get the actual code values (0-4095 range)
             trimmed_row = [t - 128266 for t in trimmed_row]  # Adjust to codec IDs
             code_lists.append(trimmed_row)
 
         # Run decoding
         audio = [self.redistribute_codes(code_list) for code_list in code_lists]
         return audio[0].squeeze().to(torch.float32).cpu().detach().numpy()
-
+    
     def redistribute_codes(self, code_list):
-            """Decode to waveform using SNAC"""
+            """Decode to waveform using SNAC. 
+The LLM outputs audio tokens, not playable sound. We need an encoder/decoder to convert these tokens into an audio waveform.
+SNAC expects audio tokens grouped in a specific structure (7 tokens per group across 3 layers in this setup)."""
             layer_1, layer_2, layer_3 = [], [], []
             for i in range((len(code_list)+1)//7):
                 layer_1.append(code_list[7*i])
