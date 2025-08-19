@@ -99,8 +99,10 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         sample_rate = params.get("sample_rate", 24000)
         temperature = params.get("temperature", 0.0)
         audio_dir = params.get("audio_dir")
-
-
+        
+        # security check - reject path traversal attempts
+        if audio_dir and ".." in audio_dir:
+            return {"status": "error", "message": "Invalid audio_dir path."}
         # Generate a UUID for this file name:
         file_prefix = str(uuid.uuid4())
         generate_kwargs = {}
