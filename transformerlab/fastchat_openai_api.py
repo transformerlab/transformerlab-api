@@ -49,7 +49,6 @@ from transformerlab.shared import dirs
 
 WORKER_API_TIMEOUT = 3600
 
-
 # TODO: Move all base model to fastchat.protocol.openai_api_protocol
 class APIChatCompletionRequest(BaseModel):
     model: str
@@ -90,8 +89,7 @@ class ChatCompletionRequest(BaseModel):
     frequency_penalty: Optional[float] = 0.0
     user: Optional[str] = None
     logprobs: Optional[bool] = False
-    tools: Optional[List[Dict[str, Any]]] = None  # Add this line
-
+    tools: Optional[List[Dict[str, Any]]] = None
 
 class AudioRequest(BaseModel):
     experiment_id: int
@@ -350,7 +348,7 @@ async def get_gen_params(
     stream: Optional[bool],
     stop: Optional[Union[str, List[str]]],
     logprobs: Optional[bool] = False,
-    tools: Optional[List[Dict[str, Any]]] = None,  # Add this line
+    tools: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     conv = await get_conv(model_name)
     conv = Conversation(
@@ -491,7 +489,6 @@ async def show_available_models():
         model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
     return ModelList(data=model_cards)
 
-
 @router.post("/v1/audio/speech", tags=["audio"])
 async def create_audio_tts(request: AudioRequest):
     error_check_ret = await check_model(request)
@@ -505,6 +502,7 @@ async def create_audio_tts(request: AudioRequest):
     audio_dir = os.path.join(experiment_dir, "audio")
     os.makedirs(audio_dir, exist_ok=True)
 
+
     gen_params = {
         "audio_dir": audio_dir,
         "model": request.model,
@@ -514,11 +512,10 @@ async def create_audio_tts(request: AudioRequest):
         "temperature": request.temperature,
         "speed": request.speed,
     }
-    # TODO: Define a base model class to structure the return value
+    #TODO: Define a base model class to structure the return value
     content = await generate_completion(gen_params)
 
     return content
-
 
 @router.post("/v1/chat/completions", dependencies=[Depends(check_api_key)], tags=["chat"])
 async def create_openapi_chat_completion(request: ChatCompletionRequest):
@@ -585,7 +582,7 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
         stream=request.stream,
         stop=request.stop,
         logprobs=request.logprobs,
-        tools=tools,  # Add this line
+        tools=tools,
     )
 
     error_check_ret = await check_length(request, gen_params["prompt"], gen_params["max_new_tokens"])
@@ -1211,7 +1208,7 @@ async def create_chat_completion(request: APIChatCompletionRequest):
         stream=request.stream,
         stop=request.stop,
         logprobs=request.logprobs,
-        tools=tools,  # Add this line
+        tools=tools,
     )
 
     if request.repetition_penalty is not None:
