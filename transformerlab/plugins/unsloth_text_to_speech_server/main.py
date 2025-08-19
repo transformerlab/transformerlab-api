@@ -63,7 +63,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         )
 
         logger.info(
-            f"Loading the model {self.model_names} on worker" + f"{worker_id}, worker type: MLX Audio worker..."
+            f"Loading the model {self.model_names} on worker {worker_id}"
         )
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
