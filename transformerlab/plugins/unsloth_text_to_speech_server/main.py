@@ -22,7 +22,6 @@ from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from fastchat.serve.model_worker import logger
-from transformerlab.plugin import WORKSPACE_DIR
 
 
 worker_id = str(uuid.uuid4())[:8]
