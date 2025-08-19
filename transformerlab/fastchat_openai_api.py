@@ -534,32 +534,44 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
     if error_check_ret is not None:
         return error_check_ret
 
-        # NEW: Auto-load tools if not provided in request
+    # NEW: Auto-load tools if not provided in request
     tools = request.tools
     if tools is None:
         try:
             import httpx
 
             async with httpx.AsyncClient(timeout=5.0) as client:
-                # Try to load tools with common MCP servers
-                mcp_servers_to_try = ["mcp_server_fetch", ""]  # Try fetch server first, then no MCP server
+                # Get the current MCP server configuration from config
+                mcp_config = None
+                try:
+                    config_response = await client.get("http://localhost:8338/config/get/MCP_SERVER")
+                    if config_response.status_code == 200:
+                        config_text = config_response.json()
+                        if config_text:
+                            mcp_config = json.loads(config_text)
+                except Exception as e:
+                    print(f"Failed to get MCP config: {e}")
 
-                for mcp_server in mcp_servers_to_try:
-                    url = "http://localhost:8338/tools/prompt"
-                    if mcp_server:
-                        url += f"?mcp_server_file={mcp_server}"
+                # Get tools using the configured MCP server (if any)
+                url = "http://localhost:8338/tools/prompt"
+                if mcp_config and mcp_config.get("serverName"):
+                    url += f"?mcp_server_file={mcp_config['serverName']}"
+                    if mcp_config.get("args"):
+                        url += f"&mcp_args={mcp_config['args']}"
+                    if mcp_config.get("env"):
+                        url += f"&mcp_env={mcp_config['env']}"
 
-                    response = await client.get(url)
-                    if response.status_code == 200:
-                        prompt_text = response.json()
-                        import re
+                response = await client.get(url)
+                if response.status_code == 200:
+                    prompt_text = response.json()
+                    import re
 
-                        json_match = re.search(r"<tools>\s*(\[.*?\])\s*</tools>", prompt_text, re.DOTALL)
-                        if json_match:
-                            tools_json = json_match.group(1)
-                            tools = json.loads(tools_json)
-                            break  # Use the first successful response
-        except Exception:
+                    json_match = re.search(r"<tools>\s*(\[.*?\])\s*</tools>", prompt_text, re.DOTALL)
+                    if json_match:
+                        tools_json = json_match.group(1)
+                        tools = json.loads(tools_json)
+        except Exception as e:
+            print(f"Error auto-loading tools: {e}")
             tools = None
 
     gen_params = await get_gen_params(
@@ -1155,25 +1167,37 @@ async def create_chat_completion(request: APIChatCompletionRequest):
         import httpx
 
         async with httpx.AsyncClient(timeout=5.0) as client:
-            # Try to load tools with common MCP servers
-            mcp_servers_to_try = ["mcp_server_fetch", ""]  # Try fetch server first, then no MCP server
+            # Get the current MCP server configuration from config
+            mcp_config = None
+            try:
+                config_response = await client.get("http://localhost:8338/config/get/MCP_SERVER")
+                if config_response.status_code == 200:
+                    config_text = config_response.json()
+                    if config_text:
+                        mcp_config = json.loads(config_text)
+            except Exception as e:
+                print(f"Failed to get MCP config: {e}")
 
-            for mcp_server in mcp_servers_to_try:
-                url = "http://localhost:8338/tools/prompt"
-                if mcp_server:
-                    url += f"?mcp_server_file={mcp_server}"
+            # Get tools using the configured MCP server (if any)
+            url = "http://localhost:8338/tools/prompt"
+            if mcp_config and mcp_config.get("serverName"):
+                url += f"?mcp_server_file={mcp_config['serverName']}"
+                if mcp_config.get("args"):
+                    url += f"&mcp_args={mcp_config['args']}"
+                if mcp_config.get("env"):
+                    url += f"&mcp_env={mcp_config['env']}"
 
-                response = await client.get(url)
-                if response.status_code == 200:
-                    prompt_text = response.json()
-                    import re
+            response = await client.get(url)
+            if response.status_code == 200:
+                prompt_text = response.json()
+                import re
 
-                    json_match = re.search(r"<tools>\s*(\[.*?\])\s*</tools>", prompt_text, re.DOTALL)
-                    if json_match:
-                        tools_json = json_match.group(1)
-                        tools = json.loads(tools_json)
-                        break  # Use the first successful response
-    except Exception:
+                json_match = re.search(r"<tools>\s*(\[.*?\])\s*</tools>", prompt_text, re.DOTALL)
+                if json_match:
+                    tools_json = json_match.group(1)
+                    tools = json.loads(tools_json)
+    except Exception as e:
+        print(f"Error auto-loading tools: {e}")
         tools = None
 
     gen_params = await get_gen_params(
