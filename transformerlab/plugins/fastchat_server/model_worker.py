@@ -110,6 +110,9 @@ class ModelWorker(BaseModelWorker):
             self.init_heart_beat()
 
     def generate_stream_gate(self, params):
+        # Process tools using HF chat_template approach
+        params = self.process_tools_hf(params)
+
         if self.device == "npu":
             import torch_npu
 
@@ -411,10 +414,6 @@ async def api_generate_with_visualization(request: Request):
             min_p = float(params.get("min_p", 0.0))  # Add min_p parameter
             max_tokens = int(params.get("max_tokens", 100))
             stream = params.get("stream", False)
-
-            if "tools" in params:
-                print(f"Worker received {len(params['tools'])} tools: {[tool.get('function', {}).get('name', 'unnamed') for tool in params['tools']]}")
-                logger.info(f"Worker received tools parameter with {len(params['tools'])} tools")
 
             # Prepare for generation
             inputs = worker.tokenizer(prompt, return_tensors="pt").to(worker.device)
