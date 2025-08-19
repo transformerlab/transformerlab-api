@@ -98,11 +98,8 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         audio_format = params.get("audio_format", "wav")
         sample_rate = params.get("sample_rate", 24000)
         temperature = params.get("temperature", 0.0)
-        
-        
         audio_dir = params.get("audio_dir")
-        # if not audio_dir:
-        #     audio_dir = os.path.join(WORKSPACE_DIR, "audio")
+
 
         # Generate a UUID for this file name:
         file_prefix = str(uuid.uuid4())

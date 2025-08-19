@@ -69,6 +69,7 @@ class OrpheusAudioModel(AudioModelBase):
         #  - Sampling parameters 'temperature' and 'top_p' work just like regular LLMs.
         #  - 'repetition_penalty' >= 1.1 is required for stable generations.
         #  - Increasing 'repetition_penalty' and/or 'temperature' makes the model speak faster.
+        # [1]: https://github.com/canopyai/Orpheus-TTS/tree/main?tab=readme-ov-file#prompting
         self.generate_kwargs = {
             "max_new_tokens": 10240,
             "eos_token_id": 128258,
