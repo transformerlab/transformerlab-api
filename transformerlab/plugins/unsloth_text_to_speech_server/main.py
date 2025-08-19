@@ -41,7 +41,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-class UnslothAudioWorker(BaseModelWorker):
+class UnslothTextToSpeechWorker(BaseModelWorker):
     def __init__(
         self,
         controller_addr: str,
@@ -52,7 +52,6 @@ class UnslothAudioWorker(BaseModelWorker):
         model_architecture: str,
         limit_worker_concurrency: int,
         no_register: bool,
-        context_length: int,
     ):
         super().__init__(
             controller_addr,
@@ -71,7 +70,6 @@ class UnslothAudioWorker(BaseModelWorker):
 
 
         self.model_name = model_path
-        # self.context_length = context_length
         self.model_architecture = model_architecture
 
         if self.model_architecture == "CsmForConditionalGeneration":
@@ -221,16 +219,11 @@ def main():
 
     args, unknown = parser.parse_known_args()
 
-    try:
-        parameters = json.loads(args.parameters)
-        context_length = int(parameters.get("context_length", "2048"))
-    except Exception:
-        context_length = 2048
 
     if args.model_path:
         args.model = args.model_path
 
-    worker = UnslothAudioWorker(
+    worker = UnslothTextToSpeechWorker(
         args.controller_address,
         args.worker_address,
         worker_id,
@@ -239,7 +232,6 @@ def main():
         args.model_architecture,
         1024,
         False,
-        context_length
     )
 
     # Restore original stdout/stderr to prevent logging recursion
