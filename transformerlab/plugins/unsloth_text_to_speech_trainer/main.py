@@ -1,13 +1,10 @@
 import time
 import os
-import torch
-import importlib
 
 from unsloth import FastModel
 from transformers import TrainingArguments, Trainer
 from unsloth import is_bfloat16_supported
 from datasets import Audio
-from transformers import AutoProcessor, AutoConfig
 
 from trainer import CsmAudioTrainer
 
@@ -25,7 +22,7 @@ def find_lora_target_modules(model):
 
 @tlab_trainer.job_wrapper(wandb_project_name="TLab_Training", manual_logging=True)
 def train_model():
-    print(f"!!!!", tlab_trainer.params)
+    print("!!!!", tlab_trainer.params)
     # Configuration is loaded automatically when tlab_trainer methods are called
     datasets = tlab_trainer.load_dataset()
     dataset = datasets["train"]
