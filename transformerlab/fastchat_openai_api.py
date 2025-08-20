@@ -44,10 +44,14 @@ from fastchat.protocol.openai_api_protocol import (
     UsageInfo,
 )
 from pydantic import BaseModel as PydanticBaseModel
+from transformers.utils import get_json_schema
 
 from transformerlab.shared import dirs
+import transformerlab.db.db as db
+from transformerlab.routers.tools import load_tools, mcp_list_tools
 
 WORKER_API_TIMEOUT = 3600
+
 
 # TODO: Move all base model to fastchat.protocol.openai_api_protocol
 class APIChatCompletionRequest(BaseModel):
@@ -90,6 +94,7 @@ class ChatCompletionRequest(BaseModel):
     user: Optional[str] = None
     logprobs: Optional[bool] = False
     tools: Optional[List[Dict[str, Any]]] = None
+
 
 class AudioRequest(BaseModel):
     experiment_id: int
@@ -489,6 +494,7 @@ async def show_available_models():
         model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
     return ModelList(data=model_cards)
 
+
 @router.post("/v1/audio/speech", tags=["audio"])
 async def create_audio_tts(request: AudioRequest):
     error_check_ret = await check_model(request)
@@ -502,7 +508,6 @@ async def create_audio_tts(request: AudioRequest):
     audio_dir = os.path.join(experiment_dir, "audio")
     os.makedirs(audio_dir, exist_ok=True)
 
-    
     gen_params = {
         "audio_dir": audio_dir,
         "model": request.model,
@@ -512,11 +517,10 @@ async def create_audio_tts(request: AudioRequest):
         "temperature": request.temperature,
         "speed": request.speed,
     }
-    #TODO: Define a base model class to structure the return value
+    # TODO: Define a base model class to structure the return value
     content = await generate_completion(gen_params)
 
     return content
-
 
 
 @router.post("/v1/chat/completions", dependencies=[Depends(check_api_key)], tags=["chat"])
@@ -537,38 +541,41 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
     tools = request.tools
     if tools is None:
         try:
-            import httpx
+            # Get MCP server config directly from database
+            mcp_config = None
+            try:
+                config_text = await db.config_get(key="MCP_SERVER")
+                if config_text:
+                    mcp_config = json.loads(config_text)
+            except Exception as e:
+                print(f"Failed to get MCP config: {e}")
 
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                # Get the current MCP server configuration from config
-                mcp_config = None
+            # Load tools directly
+            available_tools = load_tools()
+            tool_descriptions = [get_json_schema(func) for name, func in available_tools.items()]
+
+            # Add MCP tools if configured
+            if mcp_config and mcp_config.get("serverName"):
                 try:
-                    config_response = await client.get("http://localhost:8338/config/get/MCP_SERVER")
-                    if config_response.status_code == 200:
-                        config_text = config_response.json()
-                        if config_text:
-                            mcp_config = json.loads(config_text)
+                    args = mcp_config.get("args", "").split(",") if mcp_config.get("args") else None
+                    base_env = os.environ.copy()
+                    override_env = json.loads(mcp_config.get("env", "{}")) if mcp_config.get("env") else {}
+                    env = {**base_env, **override_env}
+
+                    mcp_tools = await mcp_list_tools(mcp_config["serverName"], args=args, env=env)
+                    mcp_tools = mcp_tools.tools
+
+                    # Convert MCP tools to the expected format
+                    if isinstance(mcp_tools, list):
+                        for tool in mcp_tools:
+                            if not isinstance(tool, dict):
+                                tool_descriptions.append(tool.model_dump())
+                            else:
+                                tool_descriptions.append(tool)
                 except Exception as e:
-                    print(f"Failed to get MCP config: {e}")
+                    print(f"Error loading MCP tools: {e}")
 
-                # Get tools using the configured MCP server (if any)
-                url = "http://localhost:8338/tools/prompt"
-                if mcp_config and mcp_config.get("serverName"):
-                    url += f"?mcp_server_file={mcp_config['serverName']}"
-                    if mcp_config.get("args"):
-                        url += f"&mcp_args={mcp_config['args']}"
-                    if mcp_config.get("env"):
-                        url += f"&mcp_env={mcp_config['env']}"
-
-                response = await client.get(url)
-                if response.status_code == 200:
-                    prompt_text = response.json()
-                    import re
-
-                    json_match = re.search(r"<tools>\s*(\[.*?\])\s*</tools>", prompt_text, re.DOTALL)
-                    if json_match:
-                        tools_json = json_match.group(1)
-                        tools = json.loads(tools_json)
+            tools = tool_descriptions
         except Exception as e:
             print(f"Error auto-loading tools: {e}")
             tools = None
@@ -1163,38 +1170,41 @@ async def create_chat_completion(request: APIChatCompletionRequest):
         # NEW: Auto-load tools if not provided in request (for APIChatCompletionRequest too)
     tools = None
     try:
-        import httpx
+        # Get MCP server config directly from database
+        mcp_config = None
+        try:
+            config_text = await db.config_get(key="MCP_SERVER")
+            if config_text:
+                mcp_config = json.loads(config_text)
+        except Exception as e:
+            print(f"Failed to get MCP config: {e}")
 
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            # Get the current MCP server configuration from config
-            mcp_config = None
+        # Load tools directly
+        available_tools = load_tools()
+        tool_descriptions = [get_json_schema(func) for name, func in available_tools.items()]
+
+        # Add MCP tools if configured
+        if mcp_config and mcp_config.get("serverName"):
             try:
-                config_response = await client.get("http://localhost:8338/config/get/MCP_SERVER")
-                if config_response.status_code == 200:
-                    config_text = config_response.json()
-                    if config_text:
-                        mcp_config = json.loads(config_text)
+                args = mcp_config.get("args", "").split(",") if mcp_config.get("args") else None
+                base_env = os.environ.copy()
+                override_env = json.loads(mcp_config.get("env", "{}")) if mcp_config.get("env") else {}
+                env = {**base_env, **override_env}
+
+                mcp_tools = await mcp_list_tools(mcp_config["serverName"], args=args, env=env)
+                mcp_tools = mcp_tools.tools
+
+                # Convert MCP tools to the expected format
+                if isinstance(mcp_tools, list):
+                    for tool in mcp_tools:
+                        if not isinstance(tool, dict):
+                            tool_descriptions.append(tool.model_dump())
+                        else:
+                            tool_descriptions.append(tool)
             except Exception as e:
-                print(f"Failed to get MCP config: {e}")
+                print(f"Error loading MCP tools: {e}")
 
-            # Get tools using the configured MCP server (if any)
-            url = "http://localhost:8338/tools/prompt"
-            if mcp_config and mcp_config.get("serverName"):
-                url += f"?mcp_server_file={mcp_config['serverName']}"
-                if mcp_config.get("args"):
-                    url += f"&mcp_args={mcp_config['args']}"
-                if mcp_config.get("env"):
-                    url += f"&mcp_env={mcp_config['env']}"
-
-            response = await client.get(url)
-            if response.status_code == 200:
-                prompt_text = response.json()
-                import re
-
-                json_match = re.search(r"<tools>\s*(\[.*?\])\s*</tools>", prompt_text, re.DOTALL)
-                if json_match:
-                    tools_json = json_match.group(1)
-                    tools = json.loads(tools_json)
+        tools = tool_descriptions
     except Exception as e:
         print(f"Error auto-loading tools: {e}")
         tools = None
