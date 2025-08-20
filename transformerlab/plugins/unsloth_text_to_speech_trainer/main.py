@@ -94,7 +94,7 @@ def train_model():
 
     max_audio_length = max(len(example["audio"]["array"]) for example in dataset)
     processed_ds = dataset.map(
-        lambda example: model_trainer.preprocess_example(
+        lambda example: model_trainer.preprocess_dataset(
             example,
             speaker_key=speaker_key,
             processor=processor,
