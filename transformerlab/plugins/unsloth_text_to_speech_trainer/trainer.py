@@ -1,13 +1,11 @@
-from abc import ABC, abstractmethod
 from unsloth import FastModel
-from transformers import AutoProcessor, TrainingArguments, Trainer
+from abc import ABC, abstractmethod
+from transformers import CsmForConditionalGeneration
 import torch
 
-
 class AudioTrainerBase(ABC):
-    def __init__(self, model_name, config):
+    def __init__(self, model_name):
         self.model_name = model_name
-        self.config = config
         
     @abstractmethod
     def load_model(self):
@@ -26,10 +24,10 @@ class AudioTrainerBase(ABC):
         pass
 
 class CsmAudioTrainer(AudioTrainerBase):
-    def load_model(self):
+    def load_model(self, max_seq_length):
         model, processor = FastModel.from_pretrained(
             model_name=self.model_name,
-            max_seq_length=self.config.max_seq_length,
+            max_seq_length=max_seq_length,
             dtype=None,  # Leave as None for auto-detection
             auto_model=CsmForConditionalGeneration,
             load_in_4bit=False,  # Keep this set to False because voice models are small, so we can maintain high quality results.

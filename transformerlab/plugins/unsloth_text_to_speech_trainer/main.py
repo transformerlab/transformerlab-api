@@ -9,23 +9,9 @@ from unsloth import is_bfloat16_supported
 from datasets import Audio
 from transformers import AutoProcessor, AutoConfig
 
+from trainer import CsmAudioTrainer
+
 from transformerlab.sdk.v1.train import tlab_trainer  # noqa: E402
-
-def get_model_class_from_architecture(model_id):
-    config = AutoConfig.from_pretrained(model_id)
-    architecture = config.architectures[0] if hasattr(config, "architectures") and config.architectures else None
-    print(f"Model architecture: {architecture}")
-
-    # Try to import the class from transformers
-    if architecture:
-        try:
-            model_class = getattr(importlib.import_module("transformers"), architecture)
-        except AttributeError:
-            raise ImportError(f"Could not import {architecture} from transformers. Please check the architecture name or install the required version of transformers.")
-    else:
-        model_class = None
-
-    return model_class
 
 def find_lora_target_modules(model):
     patterns = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
@@ -36,69 +22,10 @@ def find_lora_target_modules(model):
                 found.add(pattern)
     return list(found) if found else patterns
 
-def preprocess_example(
-        example, 
-        speaker_key="source", 
-        processor=None, 
-        max_seq_length=256, 
-        max_audio_length=240001,
-        sampling_rate=24000
-    ):
-    conversation = [
-        {
-            "role": str(example[speaker_key]),
-            "content": [
-                {"type": "text", "text": example["text"]},
-                {"type": "audio", "path": example["audio"]["array"]},
-            ],
-        }
-    ]
-
-    try:
-        model_inputs = processor.apply_chat_template(
-            conversation,
-            tokenize=True,
-            return_dict=True,
-            output_labels=True,
-            text_kwargs = {
-                "padding": "max_length",  # pad to the max_length
-                "max_length": max_seq_length, # this should be the max length of audio
-                "pad_to_multiple_of": 8, # Pad so length is a multiple of 8 (for efficiency)
-                "padding_side": "right",
-            },
-            audio_kwargs = {
-                "sampling_rate": sampling_rate,
-                "max_length": max_audio_length, # max input_values length of the whole dataset
-                "padding": "max_length",
-            },
-            common_kwargs = {"return_tensors": "pt"},
-        )
-    except Exception as e:
-        print(f"Error processing example with text '{example['text'][:50]}...': {e}")
-        return None
-
-    required_keys = ["input_ids", "attention_mask", "labels", "input_values", "input_values_cutoffs"]
-    processed_example = {}
-    # print(model_inputs.keys())
-    for key in required_keys:
-        if key not in model_inputs:
-            print(f"Warning: Required key '{key}' not found in processor output for example.")
-            return None
-
-        value = model_inputs[key][0]
-        processed_example[key] = value
-
-
-    # Final check (optional but good)
-    if not all(isinstance(processed_example[key], torch.Tensor) for key in processed_example):
-        print(f"Error: Not all required keys are tensors in final processed example. Keys: {list(processed_example.keys())}")
-        return None
-
-    return processed_example
-
 
 @tlab_trainer.job_wrapper(wandb_project_name="TLab_Training", manual_logging=True)
-def train_text_to_speech_unsloth():
+def train_model():
+    print(f"!!!!", tlab_trainer.params)
     # Configuration is loaded automatically when tlab_trainer methods are called
     datasets = tlab_trainer.load_dataset()
     dataset = datasets["train"]
@@ -123,19 +50,12 @@ def train_text_to_speech_unsloth():
     report_to = tlab_trainer.report_to
     sampling_rate = int(tlab_trainer.params.get("sampling_rate", 24000))
     max_steps = int(tlab_trainer.params.get("max_steps", -1))
+    
+
+    model_trainer = CsmAudioTrainer(model_name=model_id)
 
     print("Loading model...")
-    try:
-        model, processor = FastModel.from_pretrained(
-            model_name = model_id,
-            max_seq_length= max_seq_length,
-            dtype = None, # Leave as None for auto-detection
-            auto_model = get_model_class_from_architecture(model_id),
-            load_in_4bit = False, # Keep this set to False because voice models are small, so we can maintain high quality results.
-        )
-    except Exception as e:
-        print(f"Failed to load model: {str(e)}")
-        return f"Failed to load model: {str(e)}"
+    model, processor = model_trainer.load_model(max_seq_length=max_seq_length)
 
 
     # Setup LoRA - use direct attribute access with safe defaults
@@ -148,7 +68,6 @@ def train_text_to_speech_unsloth():
             lora_alpha = lora_alpha,
             lora_dropout = lora_dropout,
             bias = "none",    # Supports any, but = "none" is optimized
-            # [NEW] "unsloth" uses 30% less VRAM, fits 2x larger batch sizes!
             use_gradient_checkpointing = "unsloth", # True or "unsloth" for very long context
             random_state = 3407,
             use_rslora = False,  # We support rank stabilized LoRA
@@ -242,4 +161,4 @@ def train_text_to_speech_unsloth():
     return "Audio model trained successfully."
 
     
-train_text_to_speech_unsloth()
+train_model()
