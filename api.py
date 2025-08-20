@@ -255,6 +255,7 @@ async def server_controller_stop():
 
 def set_worker_process_id(process):
     global worker_process
+    print("Setting worker process to ", process)
     worker_process = process
 
 
@@ -342,13 +343,13 @@ async def server_worker_start(
     with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
         global_log.write(f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
 
-    worker_process = await shared.async_run_python_daemon_and_update_status(
+    process = await shared.async_run_python_daemon_and_update_status(
         python_script=params,
         job_id=job_id,
         begin_string="Application startup complete.",
         set_process_id_function=set_worker_process_id,
     )
-    exitcode = worker_process.returncode
+    exitcode = process.returncode
     if exitcode == 99:
         with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
             global_log.write(
@@ -366,6 +367,11 @@ async def server_worker_start(
             error_msg = f"Exit code {exitcode}"
             await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
         return {"status": "error", "message": error_msg}
+
+    # Model started successfully
+    # Setting worker_process is redundant because of set_process_id_function above
+    # But temporarily leaving this here while we rework
+    worker_process = process
     with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
         global_log.write(f"Model loaded successfully: {model_name}\n")
     return {"status": "success", "job_id": job_id}
