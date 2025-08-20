@@ -50,9 +50,13 @@ def train_model():
     report_to = tlab_trainer.report_to
     sampling_rate = int(tlab_trainer.params.get("sampling_rate", 24000))
     max_steps = int(tlab_trainer.params.get("max_steps", -1))
+    model_architecture = tlab_trainer.params.get("model_architecture")
     
+    if model_architecture == "CsmForConditionalGeneration":
+        model_trainer = CsmAudioTrainer(model_name=model_id)
+    else:
+        raise ValueError(f"Model architecture {model_architecture} is not supported for audio training.")
 
-    model_trainer = CsmAudioTrainer(model_name=model_id)
 
     print("Loading model...")
     model, processor = model_trainer.load_model(max_seq_length=max_seq_length)
@@ -80,7 +84,6 @@ def train_model():
         return f"Failed to set up LoRA: {str(e)}"
 
     
-    processor = AutoProcessor.from_pretrained(model_id)
     # Getting the speaker id is important for multi-speaker models and speaker consistency
     speaker_key = "source"
     if "source" not in dataset.column_names and "speaker_id" not in dataset.column_names:
@@ -94,7 +97,7 @@ def train_model():
 
     max_audio_length = max(len(example["audio"]["array"]) for example in dataset)
     processed_ds = dataset.map(
-        lambda example: preprocess_example(
+        lambda example: model_trainer.preprocess_example(
             example,
             speaker_key=speaker_key,
             processor=processor,

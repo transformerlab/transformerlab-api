@@ -2,6 +2,7 @@ from unsloth import FastModel
 from abc import ABC, abstractmethod
 from transformers import CsmForConditionalGeneration
 import torch
+from transformers import AutoProcessor
 
 class AudioTrainerBase(ABC):
     def __init__(self, model_name):
@@ -14,24 +15,18 @@ class AudioTrainerBase(ABC):
     @abstractmethod
     def preprocess_dataset(self, example):
         pass
-    
-    @abstractmethod
-    def setup_lora(self, model):
-        pass
-    
-    @abstractmethod
-    def train(self, dataset):
-        pass
+
 
 class CsmAudioTrainer(AudioTrainerBase):
     def load_model(self, max_seq_length):
-        model, processor = FastModel.from_pretrained(
+        model, _ = FastModel.from_pretrained(
             model_name=self.model_name,
             max_seq_length=max_seq_length,
             dtype=None,  # Leave as None for auto-detection
             auto_model=CsmForConditionalGeneration,
             load_in_4bit=False,  # Keep this set to False because voice models are small, so we can maintain high quality results.
         )
+        processor = AutoProcessor.from_pretrained(self.model_name)
         return model, processor
     
     def preprocess_dataset(self, example, speaker_key="source", processor=None, max_seq_length=256, max_audio_length=240001, sampling_rate=24000):
@@ -70,7 +65,6 @@ class CsmAudioTrainer(AudioTrainerBase):
 
         required_keys = ["input_ids", "attention_mask", "labels", "input_values", "input_values_cutoffs"]
         processed_example = {}
-        # print(model_inputs.keys())
         for key in required_keys:
             if key not in model_inputs:
                 print(f"Warning: Required key '{key}' not found in processor output for example.")
@@ -79,8 +73,6 @@ class CsmAudioTrainer(AudioTrainerBase):
             value = model_inputs[key][0]
             processed_example[key] = value
 
-
-        # Final check (optional but good)
         if not all(isinstance(processed_example[key], torch.Tensor) for key in processed_example):
             print(f"Error: Not all required keys are tensors in final processed example. Keys: {list(processed_example.keys())}")
             return None
@@ -88,5 +80,4 @@ class CsmAudioTrainer(AudioTrainerBase):
         return processed_example
 
 class OrpheusAudioTrainer(AudioTrainerBase):
-    # Your Orpheus-specific training logic  
     pass
