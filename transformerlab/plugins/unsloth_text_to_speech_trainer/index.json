@@ -37,7 +37,7 @@
       "title": "Learning Rate Schedule",
       "type": "string",
       "enum": ["constant", "linear", "cosine", "constant_with_warmup"],
-      "default": "constant"
+      "default": "linear"
     },
     "learning_rate": {
       "title": "Learning Rate",
