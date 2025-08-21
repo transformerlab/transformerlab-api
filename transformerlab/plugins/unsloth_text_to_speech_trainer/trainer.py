@@ -152,11 +152,6 @@ class OrpheusAudioTrainer(AudioTrainerBase):
         """Convert audio waveform to SNAC tokens."""
         waveform = torch.from_numpy(waveform).unsqueeze(0)
         waveform = waveform.to(dtype=torch.float32)
-        
-        # Resample to 24kHz if needed
-        if waveform.shape[1] != self.ds_sample_rate:
-            resample_transform = T.Resample(orig_freq=waveform.shape[1], new_freq=self.ds_sample_rate)
-            waveform = resample_transform(waveform)
 
         waveform = waveform.unsqueeze(0).to(self.device)
 
