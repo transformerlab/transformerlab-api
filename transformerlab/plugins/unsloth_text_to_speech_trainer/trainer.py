@@ -146,6 +146,7 @@ class OrpheusAudioTrainer(AudioTrainerBase):
         self.start_of_ai = self.tokenizer_length + 5
         self.end_of_ai = self.tokenizer_length + 6
         self.audio_tokens_start = self.tokenizer_length + 10
+        self.pad_token = self.tokenizer_length + 7
         self.ds_sample_rate = 24000
     
     def _tokenize_audio(self, waveform):
@@ -212,7 +213,6 @@ class OrpheusAudioTrainer(AudioTrainerBase):
             else:
                 text_prompt = example["text"]
             
-            # Tokenize text
             text_ids = self.processor.encode(text_prompt, add_special_tokens=True)
             text_ids.append(self.end_of_text)
             
@@ -227,6 +227,17 @@ class OrpheusAudioTrainer(AudioTrainerBase):
                 [self.end_of_speech] +
                 [self.end_of_ai]
             )
+            
+            # Use tokenizer to handle truncation and padding on the complete sequence
+            processed_inputs = self.processor.pad(
+                {"input_ids": input_ids},
+                truncation=True,
+                max_length=self.context_length,
+                padding=True,
+                return_tensors=False
+            )
+            
+            input_ids = processed_inputs["input_ids"]
             
             return {
                 "input_ids": input_ids,  
