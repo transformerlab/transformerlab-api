@@ -75,9 +75,9 @@
     "lora_dropout": {
       "title": "Lora Dropout",
       "type": "number",
-      "minimum": 0.05,
+      "minimum": 0.0,
       "maximum": 0.9,
-      "default": 0.05
+      "default": 0.0
     },
     "max_grad_norm": {
       "title": "Max Grad Norm",
