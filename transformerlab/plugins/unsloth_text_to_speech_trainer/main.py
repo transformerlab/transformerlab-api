@@ -90,6 +90,8 @@ def train_model():
         desc="Preprocessing dataset",
     )
 
+    processed_ds = processed_ds.filter(lambda x: x is not None)
+
     print(f"Processed dataset length: {len(processed_ds)}")
 
     # Create progress callback using tlab_trainer
