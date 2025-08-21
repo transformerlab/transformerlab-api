@@ -112,7 +112,7 @@ class OrpheusAudioTrainer(AudioTrainerBase):
                 lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length):
         super().__init__(model_name, context_length, device, speaker_key, 
                         lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length)
-        self.snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz")
+        self.snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz").to(self.device)
         self.model, self.processor = FastModel.from_pretrained(
             model_name=self.model_name,
             max_seq_length=self.context_length,
