@@ -1,4 +1,5 @@
-from unsloth import FastModel
+from unsloth import FastModel, FastLanguageModel
+
 from abc import ABC, abstractmethod
 from transformers import CsmForConditionalGeneration
 import torch
@@ -112,14 +113,14 @@ class OrpheusAudioTrainer(AudioTrainerBase):
         super().__init__(model_name, context_length, device, speaker_key, 
                         lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length)
         self.snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz").to(self.device)
-        self.model, self.processor = FastModel.from_pretrained(
+        self.model, self.processor = FastLanguageModel.from_pretrained(
             model_name=self.model_name,
             max_seq_length=self.context_length,
             dtype=None,
             load_in_4bit=False,
         )
 
-        self.model = FastModel.get_peft_model(
+        self.model = FastLanguageModel.get_peft_model(
             self.model,
             r = lora_r,
             target_modules = self.lora_target_modules,
@@ -229,7 +230,7 @@ class OrpheusAudioTrainer(AudioTrainerBase):
             
             return {
                 "input_ids": input_ids,  
-                "labels": input_ids,     
+                "labels": input_ids.copy(),      
                 "attention_mask": [1] * len(input_ids)
             }
             
