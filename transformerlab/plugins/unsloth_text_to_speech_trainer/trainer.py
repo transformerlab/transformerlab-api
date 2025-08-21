@@ -20,7 +20,8 @@ class AudioTrainerBase(ABC):
         self.lora_dropout = lora_dropout
         self.sampling_rate = sampling_rate
         self.max_audio_length = max_audio_length
-        self.lora_target_modules = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+        #self.lora_target_modules = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+        self.lora_target_modules = ["o_proj","qkv_proj"]
 
 
     @abstractmethod
