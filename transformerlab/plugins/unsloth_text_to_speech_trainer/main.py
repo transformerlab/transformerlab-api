@@ -17,6 +17,9 @@ def train_model():
     datasets = tlab_trainer.load_dataset()
     dataset = datasets["train"]
 
+    if "audio" not in dataset.column_names or "text" not in dataset.column_names:
+        raise ValueError("Dataset must contain 'audio' and 'text' columns.")
+
     # Get configuration values
     lora_alpha = int(tlab_trainer.params.get("lora_alpha", 16))
     lora_dropout = float(tlab_trainer.params.get("lora_dropout", 0))
