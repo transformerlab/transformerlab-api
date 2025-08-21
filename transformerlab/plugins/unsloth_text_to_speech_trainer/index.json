@@ -6,7 +6,8 @@
   "type": "trainer",
   "version": "0.0.1",
   "model_architectures": [
-    "CsmForConditionalGeneration"
+    "CsmForConditionalGeneration",
+    "LlamaForCausalLM"
   ],
   "supported_hardware_architectures": ["cuda"],
   "git": "",
