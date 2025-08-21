@@ -228,9 +228,9 @@ class OrpheusAudioTrainer(AudioTrainerBase):
             )
             
             return {
-                "input_ids": torch.tensor(input_ids, dtype=torch.long),
-                "labels": torch.tensor(input_ids, dtype=torch.long),
-                "attention_mask": torch.tensor([1] * len(input_ids), dtype=torch.long)
+                "input_ids": input_ids,
+                "labels": input_ids,
+                "attention_mask": [1] * len(input_ids)
             }
             
         except Exception as e:
