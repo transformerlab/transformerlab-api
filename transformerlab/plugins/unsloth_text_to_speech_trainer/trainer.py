@@ -6,14 +6,6 @@ from transformers import AutoProcessor
 from snac import SNAC
 import torchaudio.transforms as T
 
-def find_lora_target_modules(model):
-    patterns = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
-    found = set()
-    for name, module in model.named_modules():
-        for pattern in patterns:
-            if pattern in name:
-                found.add(pattern)
-    return list(found) if found else patterns
 
 class AudioTrainerBase(ABC):
     def __init__(
@@ -29,6 +21,8 @@ class AudioTrainerBase(ABC):
         self.lora_dropout = lora_dropout
         self.sampling_rate = sampling_rate
         self.max_audio_length = max_audio_length
+        self.lora_target_modules = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+
 
     @abstractmethod
     def preprocess_dataset(self, example):
@@ -51,7 +45,7 @@ class CsmAudioTrainer(AudioTrainerBase):
         self.model = FastModel.get_peft_model(
             self.model,
             r = lora_r,
-            target_modules = find_lora_target_modules(self.model_name),
+            target_modules = self.lora_target_modules,
             lora_alpha = lora_alpha,
             lora_dropout = lora_dropout,
             bias = "none",    # Supports any, but = "none" is optimized
@@ -129,7 +123,7 @@ class OrpheusAudioTrainer(AudioTrainerBase):
         self.model = FastModel.get_peft_model(
             self.model,
             r = lora_r,
-            target_modules = find_lora_target_modules(self.model_name),
+            target_modules = self.lora_target_modules,
             lora_alpha = lora_alpha,
             lora_dropout = lora_dropout,
             bias = "none",    # Supports any, but = "none" is optimized
