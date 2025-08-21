@@ -3,7 +3,7 @@ import time
 import os
 import torch
 
-from transformers import TrainingArguments, Trainer, DataCollatorForLanguageModeling
+from transformers import TrainingArguments, Trainer, DataCollatorForSeq2Seq
 from datasets import Audio
 
 from trainer import CsmAudioTrainer, OrpheusAudioTrainer
@@ -103,10 +103,7 @@ def train_model():
         model=model_trainer.model,
         train_dataset=processed_ds,
         callbacks=[progress_callback],
-        data_collator=DataCollatorForLanguageModeling(
-            tokenizer=model_trainer.processor,
-            mlm=False,
-        ),
+        data_collator=DataCollatorForSeq2Seq(tokenizer=model_trainer.processor),
         args=TrainingArguments(
             logging_dir=os.path.join(output_dir, f"job_{tlab_trainer.params.job_id}_{run_suffix}"),
             num_train_epochs=num_epochs,
