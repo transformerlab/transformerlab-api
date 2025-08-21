@@ -30,7 +30,7 @@
     "batch_size": {
       "title": "Batch Size",
       "type": "integer",
-      "default": 4,
+      "default": 1,
       "minimum": 1
     },
     "learning_rate_schedule": {
