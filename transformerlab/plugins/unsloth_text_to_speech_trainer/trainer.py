@@ -228,15 +228,16 @@ class OrpheusAudioTrainer(AudioTrainerBase):
                 [self.end_of_ai]
             )
             
-            # Use tokenizer to handle truncation and padding on the complete sequence
+            # truncate manually
+            input_ids = input_ids[:self.context_length]
+
+            # pad
             processed_inputs = self.processor.pad(
-                {"input_ids": input_ids},
-                truncation=True,
+                [{"input_ids": input_ids}],
+                padding="max_length",
                 max_length=self.context_length,
-                padding=True,
-                return_tensors=False
+                return_tensors=None
             )
-            
             input_ids = processed_inputs["input_ids"]
             
             return {
