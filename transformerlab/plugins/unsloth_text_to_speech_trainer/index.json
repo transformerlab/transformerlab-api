@@ -9,6 +9,9 @@
     "CsmForConditionalGeneration",
     "LlamaForCausalLM"
   ],
+  "supports": [
+      "experimental"
+  ],
   "supported_hardware_architectures": ["cuda"],
   "git": "",
   "url": "",
