@@ -228,22 +228,25 @@ class OrpheusAudioTrainer(AudioTrainerBase):
                 [self.end_of_ai]
             )
             
-            # truncate manually
-            input_ids = input_ids[:self.context_length]
-
-            # pad
-            processed_inputs = self.processor.pad(
-                [{"input_ids": input_ids}],
-                padding="max_length",
-                max_length=self.context_length,
-                return_tensors=None
-            )
-            input_ids = processed_inputs["input_ids"]
+            # Use tokenizer to handle truncation and padding properly
+            if len(input_ids) > self.context_length:
+                input_ids = input_ids[:self.context_length]
+            
+            labels = input_ids.copy()
+            
+            # Pad to context_length using the pad_token
+            padding_length = self.context_length - len(input_ids)
+            if padding_length > 0:
+                input_ids.extend([self.pad_token] * padding_length)
+                labels.extend([-100] * padding_length)
+                attention_mask = [1] * (len(input_ids) - padding_length) + [0] * padding_length
+            else:
+                attention_mask = [1] * len(input_ids)
             
             return {
                 "input_ids": input_ids,  
-                "labels": input_ids.copy(),      
-                "attention_mask": [1] * len(input_ids)
+                "labels": labels,      
+                "attention_mask": attention_mask
             }
             
         except Exception as e:

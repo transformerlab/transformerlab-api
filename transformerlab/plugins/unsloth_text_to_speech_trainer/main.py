@@ -84,8 +84,6 @@ def train_model():
     else:
         raise ValueError(f"Model architecture {model_architecture} is not supported for audio training.")
 
-    print(model_trainer.processor.pad_token_id)
-
     processed_ds = dataset.map(
         model_trainer.preprocess_dataset,
         remove_columns=dataset.column_names,
