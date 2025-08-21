@@ -1,9 +1,9 @@
+from unsloth import is_bfloat16_supported
 import time
 import os
 import torch
 
 from transformers import TrainingArguments, Trainer
-from unsloth import is_bfloat16_supported
 from datasets import Audio
 
 from trainer import CsmAudioTrainer, OrpheusAudioTrainer
