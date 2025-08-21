@@ -117,7 +117,8 @@
     "adaptor_name": {
       "title": "Adaptor Name",
       "type": "string",
-      "required": true
+      "required": true,
+      "default": "tts-lora-adapter"
     },
     "log_to_wandb": {
       "title": "Log to Weights and Biases",
