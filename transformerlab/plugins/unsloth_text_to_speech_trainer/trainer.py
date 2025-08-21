@@ -6,12 +6,26 @@ from transformers import AutoProcessor
 from snac import SNAC
 import torchaudio.transforms as T
 
+def find_lora_target_modules(model):
+    patterns = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+    found = set()
+    for name, module in model.named_modules():
+        for pattern in patterns:
+            if pattern in name:
+                found.add(pattern)
+    return list(found) if found else patterns
 
 class AudioTrainerBase(ABC):
-    def __init__(self, model_name, context_length, device):
+    def __init__(self, model_name, context_length, device, speaker_key, lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length):
         self.model_name = model_name
         self.context_length = context_length
         self.device = device
+        self.speaker_key = speaker_key
+        self.lora_r = lora_r
+        self.lora_alpha = lora_alpha
+        self.lora_dropout = lora_dropout
+        self.sampling_rate = sampling_rate
+        self.max_audio_length = max_audio_length
 
     @abstractmethod
     def preprocess_dataset(self, example):
@@ -19,8 +33,8 @@ class AudioTrainerBase(ABC):
 
 
 class CsmAudioTrainer(AudioTrainerBase):
-    def __init__(self, model_name, context_length, device):
-        super().__init__(model_name, context_length, device)
+    def __init__(self, model_name, context_length, device, speaker_key, lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length):
+        super().__init__(model_name, context_length, device, speaker_key, lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length)
         self.model, self.tokenizer = FastModel.from_pretrained(
             model_name=self.model_name,
             max_seq_length=self.context_length,
@@ -29,11 +43,25 @@ class CsmAudioTrainer(AudioTrainerBase):
             load_in_4bit=False,  # Keep this set to False because voice models are small, so we can maintain high quality results.
         )
         self.processor = AutoProcessor.from_pretrained(self.model_name)
-    
-    def preprocess_dataset(self, example, speaker_key="source", audio_max_seq_length=256, max_audio_length=240001, sampling_rate=24000):
+        self.model = FastModel.get_peft_model(
+            self.model,
+            r = lora_r,
+            target_modules = find_lora_target_modules(self.model_name),
+            lora_alpha = lora_alpha,
+            lora_dropout = lora_dropout,
+            bias = "none",    # Supports any, but = "none" is optimized
+            use_gradient_checkpointing = "unsloth", # True or "unsloth" for very long context
+            random_state = 3407,
+            use_rslora = False,  # We support rank stabilized LoRA
+            loftq_config = None, # And LoftQ
+    )
+        num_trainable = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+        print(f"Trainable parameters: {num_trainable}")
+
+    def preprocess_dataset(self, example):
         conversation = [
             {
-                "role": str(example[speaker_key]),
+                "role": str(example[self.speaker_key]),
                 "content": [
                     {"type": "text", "text": example["text"]},
                     {"type": "audio", "path": example["audio"]["array"]},
@@ -49,13 +77,13 @@ class CsmAudioTrainer(AudioTrainerBase):
                 output_labels=True,
                 text_kwargs = {
                     "padding": "max_length",  # pad to the max_length
-                    "max_length": max_seq_length, # this should be the max length of audio
+                    "max_length": self.context_length, # this should be the max length of audio
                     "pad_to_multiple_of": 8, # Pad so length is a multiple of 8 (for efficiency)
                     "padding_side": "right",
                 },
                 audio_kwargs = {
-                    "sampling_rate": sampling_rate,
-                    "max_length": max_audio_length, # max input_values length of the whole dataset
+                    "sampling_rate": self.sampling_rate,
+                    "max_length": self.max_audio_length, # max input_values length of the whole dataset
                     "padding": "max_length",
                 },
                 common_kwargs = {"return_tensors": "pt"},
@@ -81,8 +109,8 @@ class CsmAudioTrainer(AudioTrainerBase):
         return processed_example
 
 class OrpheusAudioTrainer(AudioTrainerBase):
-    def __init__(self, model_name, context_length, device):
-        super().__init__(model_name, context_length, device)
+    def __init__(self, model_name, context_length, device, speaker_key, lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length):
+        super().__init__(model_name, context_length, device, speaker_key, lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length)
         self.snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz")
         self.model, self.processor = FastModel.from_pretrained(
             model_name=self.model_name,
@@ -90,6 +118,21 @@ class OrpheusAudioTrainer(AudioTrainerBase):
             dtype=None,
             load_in_4bit=False,
         )
+
+        self.model = FastModel.get_peft_model(
+            self.model,
+            r = lora_r,
+            target_modules = find_lora_target_modules(self.model_name),
+            lora_alpha = lora_alpha,
+            lora_dropout = lora_dropout,
+            bias = "none",    # Supports any, but = "none" is optimized
+            use_gradient_checkpointing = "unsloth", # True or "unsloth" for very long context
+            random_state = 3407,
+            use_rslora = False,  # We support rank stabilized LoRA
+            loftq_config = None, # And LoftQ
+    )
+        num_trainable = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+        print(f"Trainable parameters: {num_trainable}")
         
         # Define special tokens
         self.tokenizer_length = 128256
@@ -151,7 +194,7 @@ class OrpheusAudioTrainer(AudioTrainerBase):
         
         return result
     
-    def preprocess_dataset(self, example, speaker_key="source"):
+    def preprocess_dataset(self, example):
         """
         Preprocess a single example for Orpheus training.
         """
@@ -168,8 +211,8 @@ class OrpheusAudioTrainer(AudioTrainerBase):
             codes_list = self._remove_duplicate_frames(codes_list)
             
             # Create text prompt (multi-speaker or single-speaker)
-            if speaker_key in example and example[speaker_key]:
-                text_prompt = f"{example[speaker_key]}: {example['text']}"
+            if self.speaker_key in example and example[self.speaker_key]:
+                text_prompt = f"{example[self.speaker_key]}: {example['text']}"
             else:
                 text_prompt = example["text"]
             

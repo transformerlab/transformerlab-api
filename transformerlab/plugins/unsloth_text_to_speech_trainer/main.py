@@ -1,28 +1,18 @@
 import time
 import os
+import torch
 
-from unsloth import FastModel
 from transformers import TrainingArguments, Trainer
 from unsloth import is_bfloat16_supported
 from datasets import Audio
 
-from trainer import CsmAudioTrainer
+from trainer import CsmAudioTrainer, OrpheusAudioTrainer
 
 from transformerlab.sdk.v1.train import tlab_trainer  # noqa: E402
-
-def find_lora_target_modules(model):
-    patterns = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
-    found = set()
-    for name, module in model.named_modules():
-        for pattern in patterns:
-            if pattern in name:
-                found.add(pattern)
-    return list(found) if found else patterns
 
 
 @tlab_trainer.job_wrapper(wandb_project_name="TLab_Training", manual_logging=True)
 def train_model():
-    print("!!!!", tlab_trainer.params)
     # Configuration is loaded automatically when tlab_trainer methods are called
     datasets = tlab_trainer.load_dataset()
     dataset = datasets["train"]
@@ -48,39 +38,9 @@ def train_model():
     sampling_rate = int(tlab_trainer.params.get("sampling_rate", 24000))
     max_steps = int(tlab_trainer.params.get("max_steps", -1))
     model_architecture = tlab_trainer.params.get("model_architecture")
-    
-    if model_architecture == "CsmForConditionalGeneration":
-        model_trainer = CsmAudioTrainer(model_name=model_id)
-    else:
-        raise ValueError(f"Model architecture {model_architecture} is not supported for audio training.")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-    print("Loading model...")
-    model, processor = model_trainer.load_model(max_seq_length=max_seq_length)
-
-
-    # Setup LoRA - use direct attribute access with safe defaults
-    print("Setting up LoRA...")
-    try:
-        model = FastModel.get_peft_model(
-            model,
-            r = lora_r,
-            target_modules = find_lora_target_modules(model),
-            lora_alpha = lora_alpha,
-            lora_dropout = lora_dropout,
-            bias = "none",    # Supports any, but = "none" is optimized
-            use_gradient_checkpointing = "unsloth", # True or "unsloth" for very long context
-            random_state = 3407,
-            use_rslora = False,  # We support rank stabilized LoRA
-            loftq_config = None, # And LoftQ
-    )
-        num_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-        print(f"Trainable parameters: {num_trainable}")
-    except Exception as e:
-        print(f"Failed to set up LoRA: {str(e)}")
-        return f"Failed to set up LoRA: {str(e)}"
-
-    
     # Getting the speaker id is important for multi-speaker models and speaker consistency
     speaker_key = "source"
     if "source" not in dataset.column_names and "speaker_id" not in dataset.column_names:
@@ -91,16 +51,40 @@ def train_model():
         speaker_key = "speaker_id"
 
     dataset = dataset.cast_column("audio", Audio(sampling_rate=sampling_rate))
-
     max_audio_length = max(len(example["audio"]["array"]) for example in dataset)
+
+    
+    if model_architecture == "CsmForConditionalGeneration":
+        model_trainer = CsmAudioTrainer(
+            model_name=model_id, 
+            speaker_key=speaker_key, 
+            context_length=max_seq_length, 
+            device=device, 
+            lora_r=lora_r, 
+            lora_alpha=lora_alpha, 
+            lora_dropout=lora_dropout,
+            sampling_rate=sampling_rate,
+            max_audio_length=max_audio_length
+        )
+    elif "orpheus" in model_id:
+        model_trainer = OrpheusAudioTrainer(
+            model_name=model_id, 
+            speaker_key=speaker_key, 
+            context_length=max_seq_length, 
+            device=device, 
+            lora_r=lora_r, 
+            lora_alpha=lora_alpha, 
+            lora_dropout=lora_dropout,
+            sampling_rate=sampling_rate,
+            max_audio_length=max_audio_length
+
+        )
+    else:
+        raise ValueError(f"Model architecture {model_architecture} is not supported for audio training.")
+
     processed_ds = dataset.map(
         lambda example: model_trainer.preprocess_dataset(
             example,
-            speaker_key=speaker_key,
-            processor=processor,
-            max_seq_length=max_seq_length,
-            max_audio_length=max_audio_length,
-            sampling_rate=sampling_rate
         ),
         remove_columns=dataset.column_names,
         desc="Preprocessing dataset",
@@ -115,7 +99,7 @@ def train_model():
     today = time.strftime("%Y%m%d-%H%M%S")
     run_suffix = tlab_trainer.params.get("template_name", today)
     trainer = Trainer(
-        model = model,
+        model = model_trainer.model,
         train_dataset = processed_ds,
         callbacks = [progress_callback],
         args = TrainingArguments(
