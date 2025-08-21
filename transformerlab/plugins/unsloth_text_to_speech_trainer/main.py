@@ -83,9 +83,7 @@ def train_model():
         raise ValueError(f"Model architecture {model_architecture} is not supported for audio training.")
 
     processed_ds = dataset.map(
-        lambda example: model_trainer.preprocess_dataset(
-            example,
-        ),
+        model_trainer.preprocess_dataset,
         remove_columns=dataset.column_names,
         desc="Preprocessing dataset",
     )
