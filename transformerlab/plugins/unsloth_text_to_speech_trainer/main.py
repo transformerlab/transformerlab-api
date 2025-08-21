@@ -78,7 +78,8 @@ def train_model():
             lora_alpha=lora_alpha, 
             lora_dropout=lora_dropout,
             sampling_rate=sampling_rate,
-            max_audio_length=max_audio_length
+            max_audio_length=max_audio_length,
+            batch_size=batch_size
 
         )
     else:

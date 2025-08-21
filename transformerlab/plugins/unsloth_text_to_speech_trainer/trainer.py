@@ -109,7 +109,7 @@ class CsmAudioTrainer(AudioTrainerBase):
 
 class OrpheusAudioTrainer(AudioTrainerBase):
     def __init__(self, model_name, context_length, device, speaker_key,
-                lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length):
+                lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length, batch_size):
         super().__init__(model_name, context_length, device, speaker_key, 
                         lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length)
         self.snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz").to(self.device)
@@ -148,6 +148,7 @@ class OrpheusAudioTrainer(AudioTrainerBase):
         self.audio_tokens_start = self.tokenizer_length + 10
         self.pad_token = self.tokenizer_length + 7
         self.ds_sample_rate = 24000
+        self.batch_size = batch_size
     
     def _tokenize_audio(self, waveform):
         """Convert audio waveform to SNAC tokens."""
@@ -236,7 +237,7 @@ class OrpheusAudioTrainer(AudioTrainerBase):
             
             # Pad to context_length using the pad_token
             padding_length = self.context_length - len(input_ids)
-            if padding_length > 0:
+            if padding_length > 0 and self.batch_size > 1:
                 input_ids.extend([self.pad_token] * padding_length)
                 labels.extend([-100] * padding_length)
                 attention_mask = [1] * (len(input_ids) - padding_length) + [0] * padding_length
