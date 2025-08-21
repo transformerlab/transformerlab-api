@@ -1,3 +1,4 @@
+from unsloth import is_bfloat16_supported
 import time
 import os
 import torch
@@ -113,8 +114,8 @@ def train_model():
             warmup_ratio = 0.03,
             max_steps = max_steps,
             learning_rate = learning_rate,
-            #fp16 = not is_bfloat16_supported(),
-            #bf16 = is_bfloat16_supported(),
+            fp16 = not is_bfloat16_supported(),
+            bf16 = is_bfloat16_supported(),
             logging_steps = 10,
             optim = "adamw_8bit",
             save_strategy="epoch",
