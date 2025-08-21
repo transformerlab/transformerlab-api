@@ -3,7 +3,7 @@ import time
 import os
 import torch
 
-from transformers import TrainingArguments, Trainer
+from transformers import TrainingArguments, Trainer, DataCollatorForLanguageModeling
 from datasets import Audio
 
 from trainer import CsmAudioTrainer, OrpheusAudioTrainer
@@ -100,34 +100,38 @@ def train_model():
     today = time.strftime("%Y%m%d-%H%M%S")
     run_suffix = tlab_trainer.params.get("template_name", today)
     trainer = Trainer(
-        model = model_trainer.model,
-        train_dataset = processed_ds,
-        callbacks = [progress_callback],
-        args = TrainingArguments(
+        model=model_trainer.model,
+        train_dataset=processed_ds,
+        callbacks=[progress_callback],
+        data_collator=DataCollatorForLanguageModeling(
+            tokenizer=model_trainer.processor,
+            mlm=False,
+        ),
+        args=TrainingArguments(
             logging_dir=os.path.join(output_dir, f"job_{tlab_trainer.params.job_id}_{run_suffix}"),
             num_train_epochs=num_epochs,
-            per_device_train_batch_size = batch_size,
-            gradient_accumulation_steps = 2,
+            per_device_train_batch_size=batch_size,
+            gradient_accumulation_steps=2,
             gradient_checkpointing=True,
-            warmup_ratio = 0.03,
-            max_steps = max_steps,
-            learning_rate = learning_rate,
-            fp16 = not is_bfloat16_supported(),
-            bf16 = is_bfloat16_supported(),
-            logging_steps = 10,
-            optim = "adamw_8bit",
+            warmup_ratio=0.03,
+            max_steps=max_steps,
+            learning_rate=learning_rate,
+            fp16=not is_bfloat16_supported(),
+            bf16=is_bfloat16_supported(),
+            logging_steps=10,
+            optim="adamw_8bit",
             save_strategy="epoch",
-            weight_decay = weight_decay,
-            lr_scheduler_type = learning_rate_schedule,
+            weight_decay=weight_decay,
+            lr_scheduler_type=learning_rate_schedule,
             max_grad_norm=max_grad_norm,
             adam_beta1=adam_beta1,
             adam_beta2=adam_beta2,
             adam_epsilon=adam_epsilon,
             disable_tqdm=False,
-            seed = 3407,
-            output_dir = output_dir,
+            seed=3407,
+            output_dir=output_dir,
             run_name=f"job_{tlab_trainer.params.job_id}_{run_suffix}",
-            report_to = report_to
+            report_to=report_to
         ),
 )
     # Train the model
