@@ -1,7 +1,6 @@
 """
 A model worker using Apple MLX Audio
 """
-
 import os
 import sys
 import argparse
@@ -10,18 +9,25 @@ import uuid
 from contextlib import asynccontextmanager
 from typing import List
 import json
-
+from datetime import datetime
 import uvicorn
+import torch
+import soundfile as sf
+from scipy.signal import resample
+from audio import CsmAudioModel, OrpheusAudioModel
+from werkzeug.utils import secure_filename
+
+
+
+
 from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from fastchat.serve.model_worker import logger
-from transformerlab.plugin import WORKSPACE_DIR
 
-from mlx_audio.tts.generate import generate_audio
-from datetime import datetime
 
 worker_id = str(uuid.uuid4())[:8]
+
 
 from fastchat.serve.base_model_worker import BaseModelWorker  # noqa
 
@@ -33,10 +39,10 @@ async def lifespan(app: FastAPI):
     cleanup_at_exit()
 
 
+
 app = FastAPI(lifespan=lifespan)
 
-
-class MLXAudioWorker(BaseModelWorker):
+class UnslothTextToSpeechWorker(BaseModelWorker):
     def __init__(
         self,
         controller_addr: str,
@@ -58,12 +64,30 @@ class MLXAudioWorker(BaseModelWorker):
         )
 
         logger.info(
-            f"Loading the model {self.model_names} on worker" + f"{worker_id}, worker type: MLX Audio worker..."
+            f"Loading the model {self.model_names} on worker {worker_id}"
         )
-        logger.info(f"Model architecture: {model_architecture}")
+
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+
 
         self.model_name = model_path
+        self.model_architecture = model_architecture
+        # Use the model name and architecture to determine which custom audio model class to instantiate
+        if self.model_architecture == "CsmForConditionalGeneration":
+            self.audio_model = CsmAudioModel(self.model_name, self.device)
+            logger.info(
+                "⚠️  RECOMMENDATION: For best results with CsmForConditionalGeneration models, set temperature=0!"
+            )
 
+        elif "orpheus" in self.model_name:
+            self.audio_model = OrpheusAudioModel(self.model_name, self.device)
+            logger.info("Initialized Orpheus Aaudio Model")
+
+        else:
+            logger.info(
+                f"Model architecture {self.model_architecture} is not supported for audio generation."
+            )
+        
         if not no_register:
             self.init_heart_beat()
 
@@ -73,35 +97,32 @@ class MLXAudioWorker(BaseModelWorker):
         text = params.get("text", "")
         model = params.get("model", None)
         speed = params.get("speed", 1.0)
-        # file_prefix = params.get("file_prefix", "audio")
         audio_format = params.get("audio_format", "wav")
         sample_rate = params.get("sample_rate", 24000)
         temperature = params.get("temperature", 0.0)
-        stream = params.get("stream", False)
+        audio_dir = params.get("audio_dir")
         
-        audio_dir = params.get("audio_dir", None)
-        if not audio_dir:
-            audio_dir = os.path.join(WORKSPACE_DIR, "audio")
-        os.makedirs(name=audio_dir, exist_ok=True)
-
+        # security check - reject path traversal attempts
+        audio_dir = secure_filename(audio_dir)
         # Generate a UUID for this file name:
         file_prefix = str(uuid.uuid4())
-
+        generate_kwargs = {}
+        if temperature == 0:
+            generate_kwargs["do_sample"] = False
+        else:
+            generate_kwargs["do_sample"] = True
+            generate_kwargs["temperature"] = temperature
         try:
-            generate_audio(
-                text=text,
-                model_path=model,
-                speed=speed,
-                file_prefix=os.path.join(audio_dir, file_prefix),
-                sample_rate=sample_rate,
-                join_audio=True,  # Whether to join multiple audio files into one
-                verbose=True,  # Set to False to disable print messages
-                temperature=temperature,
-                stream=stream,
-                voice=None,
-            )
+            inputs = self.audio_model.tokenize(text)
+            audio_values = self.audio_model.generate(inputs, **generate_kwargs)
+            audio = self.audio_model.decode(audio_values)
+            if speed != 1.0:
+                n_samples = int(len(audio) / speed)
+                audio = resample(audio, n_samples)
+            output_path = os.path.join(audio_dir, f"{file_prefix}.{audio_format}")
+            os.makedirs(audio_dir, exist_ok=True)  # Ensure directory exists
+            sf.write(output_path, audio, sample_rate)
 
-            # Also save the parameters and metadata used to generate the audio
             metadata = {
                 "type": "audio",
                 "text": text,
@@ -111,25 +132,25 @@ class MLXAudioWorker(BaseModelWorker):
                 "audio_format": audio_format,
                 "sample_rate": sample_rate,
                 "temperature": temperature,
-                "date": datetime.now().isoformat(),  # Store the real date and time
+                "date": datetime.now().isoformat(),
             }
-            
             metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
             with open(metadata_file, "w") as f:
                 json.dump(metadata, f)
 
-            logger.info(f"Audio successfully generated: {audio_dir}/{file_prefix}.{audio_format}")
+            logger.info(f"Audio successfully generated: {output_path}")
 
             return {
                 "status": "success",
-                "message": f"{audio_dir}/{file_prefix}.{audio_format}",
+                "message": output_path,
             }
         except Exception:
-            logger.error(f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}")
+            logger.exception("Error during generation")  # Logs full stack trace
             return {
                 "status": "error",
-                "message": f"Error generating audio: {audio_dir}/{file_prefix}.{audio_format}",
+                "message": "An internal error occurred during generation."
             }
+
 
 
 def release_worker_semaphore():
@@ -185,28 +206,23 @@ def main():
     parser.add_argument("--worker-address", type=str, default="http://localhost:21002")
     parser.add_argument("--controller-address", type=str, default="http://localhost:21001")
     parser.add_argument("--model-path", type=str, default="microsoft/phi-2")
-    parser.add_argument("--model-architecture", type=str, default="MLX")
     parser.add_argument(
         "--model-names",
         type=lambda s: s.split(","),
         help="Optional display comma separated names",
     )
-    parser.add_argument(
-        "--trust_remote_code",
-        action="store_false",
-        default=True,
-        help="Trust remote code (e.g., from HuggingFace) whendownloading the model and tokenizer.",
-    )
+    parser.add_argument("--model-architecture", type=str, default="MLX")
     parser.add_argument("--parameters", type=str, default="{}")
-    parser.add_argument("--plugin_dir", type=str)
+    
 
 
     args, unknown = parser.parse_known_args()
 
+
     if args.model_path:
         args.model = args.model_path
 
-    worker = MLXAudioWorker(
+    worker = UnslothTextToSpeechWorker(
         args.controller_address,
         args.worker_address,
         worker_id,
