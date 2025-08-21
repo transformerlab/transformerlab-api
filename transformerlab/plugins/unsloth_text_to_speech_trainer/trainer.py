@@ -16,7 +16,10 @@ def find_lora_target_modules(model):
     return list(found) if found else patterns
 
 class AudioTrainerBase(ABC):
-    def __init__(self, model_name, context_length, device, speaker_key, lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length):
+    def __init__(
+        self, model_name, context_length, device, speaker_key, 
+        lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length
+    ):
         self.model_name = model_name
         self.context_length = context_length
         self.device = device
@@ -33,8 +36,10 @@ class AudioTrainerBase(ABC):
 
 
 class CsmAudioTrainer(AudioTrainerBase):
-    def __init__(self, model_name, context_length, device, speaker_key, lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length):
-        super().__init__(model_name, context_length, device, speaker_key, lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length)
+    def __init__(self, model_name, context_length, device, speaker_key, 
+                lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length):
+        super().__init__(model_name, context_length, device, speaker_key, 
+                        lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length)
         self.model, self.tokenizer = FastModel.from_pretrained(
             model_name=self.model_name,
             max_seq_length=self.context_length,
@@ -109,8 +114,10 @@ class CsmAudioTrainer(AudioTrainerBase):
         return processed_example
 
 class OrpheusAudioTrainer(AudioTrainerBase):
-    def __init__(self, model_name, context_length, device, speaker_key, lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length):
-        super().__init__(model_name, context_length, device, speaker_key, lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length)
+    def __init__(self, model_name, context_length, device, speaker_key,
+                lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length):
+        super().__init__(model_name, context_length, device, speaker_key, 
+                        lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length)
         self.snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz")
         self.model, self.processor = FastModel.from_pretrained(
             model_name=self.model_name,
