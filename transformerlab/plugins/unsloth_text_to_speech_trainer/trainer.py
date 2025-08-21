@@ -4,7 +4,6 @@ from transformers import CsmForConditionalGeneration
 import torch
 from transformers import AutoProcessor
 from snac import SNAC
-import torchaudio.transforms as T
 
 
 class AudioTrainerBase(ABC):
