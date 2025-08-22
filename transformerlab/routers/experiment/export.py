@@ -11,6 +11,8 @@ import transformerlab.db.db as db
 import transformerlab.db.jobs as db_jobs
 from transformerlab.shared import dirs
 
+from transformerlab.services.job_service import job_update_status
+
 from werkzeug.utils import secure_filename
 
 router = APIRouter(prefix="/export", tags=["export"])
@@ -145,7 +147,7 @@ async def run_exporter_script(
             if process.returncode != 0:
                 job = await db_jobs.job_get(job_id)
                 experiment_id = job["experiment_id"]
-                await db_jobs.job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
+                await job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
                 return {
                     "status": "error",
                     "message": "Export failed due to an internal error. Please check the output file for more details.",
@@ -157,7 +159,7 @@ async def run_exporter_script(
         logging.error(f"Failed to export model. Exception: {e}")
         job = await db_jobs.job_get(job_id)
         experiment_id = job["experiment_id"]
-        await db_jobs.job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
+        await job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
         return {"message": "Failed to export model due to an internal error."}
 
     # Model create was successful!
@@ -185,9 +187,6 @@ async def run_exporter_script(
     json.dump(model_description, model_description_file)
     model_description_file.close()
 
-    job = await db_jobs.job_get(job_id)
-    experiment_id = job["experiment_id"]
-    await db_jobs.job_update_status(job_id=job_id, status="COMPLETE", experiment_id=experiment_id)
     return {"status": "success", "job_id": job_id}
 
 
