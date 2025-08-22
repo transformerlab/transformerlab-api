@@ -12,7 +12,7 @@ from transformerlab.models import basemodel
 
 import huggingface_hub
 from huggingface_hub.hf_api import RepoFile
-from huggingface_hub import scan_cache_dir, hf_hub_download
+from huggingface_hub import scan_cache_dir
 
 
 async def list_models():
