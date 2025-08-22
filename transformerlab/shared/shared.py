@@ -318,7 +318,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     # Get experiment details for job types that need them
     experiment = None
     experiment_id = None
-    if master_job_type in ["EVAL", "GENERATE"]:
+    if master_job_type in ["EVAL", "GENERATE", "DIFFUSION"]:
         experiment = await experiment_get_by_name(experiment_name)
         experiment_id = experiment["id"]
     elif master_job_type == "EXPORT":
@@ -327,7 +327,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
     # Extract plugin name consistently across all job types
     plugin_name = None
-    if master_job_type in ["EVAL", "GENERATE"]:
+    if master_job_type in ["EVAL", "GENERATE", "DIFFUSION"]:
         plugin_name = job_config["plugin"]
     else:
         # For other job types (LoRA, pretraining, embedding, export), get from nested config
@@ -340,7 +340,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         if not os.path.exists(plugin_location):
             job = await db_jobs.job_get(job_id)
             experiment_id = job["experiment_id"]
-            await db_jobs.job_update_status(job_id, "FAILED", experiment_id)
+            await db_jobs.job_update_status(job_id, "FAILED", experiment_id=experiment_id)
             error_msg = f"{master_job_type} job failed: No plugin found"
             return {"status": "error", "job_id": job_id, "message": error_msg}
 
@@ -384,6 +384,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             return {"status": "complete", "job_id": job_id, "message": "Evaluation job completed successfully"}
 
     elif master_job_type == "GENERATE":
+        experiment = await experiment_get_by_name(experiment_name)
+        experiment_id = experiment["id"]
+        plugin_name = job_config["plugin"]
+
         generation_name = job_config["generator"]
         job = await db_jobs.job_get(job_id)
         experiment_id = job["experiment_id"]
@@ -481,11 +485,155 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             print(f"Export job {job_id} failed")
             return {"status": "error", "job_id": job_id, "message": result.get("message", "Export job failed")}
 
-    # Handle remaining job types that use the plugin harness (LoRA, pretraining, embedding)
-    job_type = job_config["config"]["type"]
+    elif master_job_type == "DIFFUSION":
+        experiment = await experiment_get_by_name(experiment_name)
+        experiment_id = experiment["id"]
+        plugin_name = job_config["plugin"]
+
+        await db_jobs.job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
+
+        # Prep paths and script args
+        WORKSPACE_DIR = dirs.WORKSPACE_DIR
+        output_temp_file_dir = os.path.join(WORKSPACE_DIR, "jobs", str(job_id))
+        os.makedirs(output_temp_file_dir, exist_ok=True)
+
+        plugin_dir = dirs.plugin_dir_by_name(plugin_name)
+        plugin_main_args = ["--plugin_dir", plugin_dir]
+
+        # Flatten job_config["config"] into CLI args
+        config = job_config.get("config", {})
+
+        # Convert base64 images to files and update config
+        base64_fields = {
+            "input_image": "input_image_path",
+            "mask_image": "mask_image_path",
+        }
+
+        # Track which base64 fields were removed
+        removed_base64_keys = []
+        for base64_key, file_arg in base64_fields.items():
+            if base64_key in config and config[base64_key]:
+                try:
+                    import base64
+
+                    decoded = base64.b64decode(config[base64_key])
+                    file_path = os.path.join(output_temp_file_dir, f"{file_arg}.png")
+                    with open(file_path, "wb") as f:
+                        f.write(decoded)
+
+                    config[file_arg] = file_path
+                    del config[base64_key]
+                    removed_base64_keys.append(base64_key)
+
+                except Exception as e:
+                    print(f"[DIFFUSION] Failed to decode or write {base64_key}: {e}")
+
+        # Remove input_image and mask_image from job_data['config'] in db if they were present
+        if removed_base64_keys:
+            job_row = await db_jobs.job_get(job_id)
+            job_data = job_row.get("job_data", {})
+            # Handle job_data as str or dict
+            if isinstance(job_data, str):
+                try:
+                    job_data = json.loads(job_data)
+                except Exception as e:
+                    print(f"[DIFFUSION] Could not decode job_data: {e}")
+                    job_data = {}
+            config_in_db = job_data.get("config", {})
+            double_encoded = False
+            # Handle config_in_db as str or dict
+            if isinstance(config_in_db, str):
+                try:
+                    config_in_db = json.loads(config_in_db)
+                    # Handle double encoded json
+                    if isinstance(config_in_db, str):
+                        config_in_db = json.loads(config_in_db)
+                        double_encoded = True
+
+                except Exception as e:
+                    print(f"[DIFFUSION] Could not decode config from job_data: {e}")
+                    config_in_db = {}
+
+            if not isinstance(config_in_db, dict):
+                config_in_db = {}
+            updated = False
+            for key in removed_base64_keys:
+                if key in config_in_db:
+                    print("Deleting key from config_in_db:", key)
+                    del config_in_db[key]
+                    updated = True
+            if updated:
+                if double_encoded:
+                    config_in_db = json.dumps(config_in_db)
+                await db_jobs.job_update_job_data_insert_key_value(
+                    job_id, "config", config_in_db, experiment_id=experiment_id
+                )
+
+        # Now safely convert remaining config to CLI args
+        config_args = []
+        for k, v in config.items():
+            if k != "plugin":
+                config_args.append(f"--{k}")
+                config_args.append(str(v))
+
+        extra_args = (
+            plugin_main_args
+            + config_args
+            + [
+                "--job_id",
+                str(job_id),
+                "--experiment_name",
+                experiment_name,
+                "--run_name",
+                job_config.get("run_name", "diffused"),
+            ]
+        )
+
+        # Check for virtual environment in plugin
+        venv_path = os.path.join(plugin_dir, "venv")
+        if os.path.exists(venv_path) and os.path.isdir(venv_path):
+            print(f"[DIFFUSION] Using venv at {venv_path}")
+            python_bin = os.path.join(venv_path, "bin", "python")
+        else:
+            print("[DIFFUSION] Using system Python interpreter")
+            python_bin = sys.executable
+
+        subprocess_command = [python_bin, dirs.PLUGIN_HARNESS] + extra_args
+        output_path = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        print(f"[DIFFUSION] Running command: {subprocess_command}")
+        try:
+            with open(output_path, "w") as f:
+                process = await asyncio.create_subprocess_exec(
+                    *subprocess_command,
+                    stdout=f,
+                    stderr=asyncio.subprocess.STDOUT,
+                    cwd=plugin_dir,
+                )
+
+                await process.communicate()
+
+            if process.returncode == 0:
+                await db_jobs.job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
+                print(f"[DIFFUSION] Job {job_id} completed successfully")
+                return {
+                    "status": "complete",
+                    "job_id": job_id,
+                    "message": "Diffusion job completed successfully",
+                }
+            else:
+                await db_jobs.job_update_status(job_id, "FAILED", experiment_id=experiment_id)
+                print(f"[DIFFUSION] Job {job_id} failed with return code {process.returncode}")
+                return {"status": "error", "job_id": job_id, "message": "Diffusion job failed"}
+        except Exception as e:
+            await db_jobs.job_update_status(job_id, "FAILED", experiment_id=experiment_id)
+            print(f"[DIFFUSION] Job {job_id} execution error: {e}")
+            return {"status": "error", "job_id": job_id, "message": "Diffusion job failed"}
+
+    job_type = job_config["config"].get("type", "")
 
     # Get the job details from the database for these job types
-    job_details_from_db = await db_jobs.job_get(job_id)
+    job_details_from_db = await db_jobs.job_get(job_id, experiment_id=experiment_id)
     experiment_id = job_details_from_db["experiment_id"]
 
     # Get the experiment details from the database:
