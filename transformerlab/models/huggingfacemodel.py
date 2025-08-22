@@ -254,22 +254,9 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
                         architectures = [class_name]
                     else:
                         architectures = class_name
-        except Exception:
-            try:
-                config_path = hf_hub_download(hugging_face_id, filename="config.json")
-                with open(config_path) as f:
-                    model_index = json.load(f)
-                    class_name = model_index.get("_class_name")
-                    if class_name:
-                        if isinstance(class_name, str):
-                            architectures = [class_name]
-                        else:
-                            architectures = class_name
-                    else:
-                        architectures = ["UnknownDiffusionModel"]
-            except Exception:
-                model_index = None
-                architectures = ["UnknownDiffusionModel"]
+        except Exception as e:
+            print(f"Error reading model_index.json for {hugging_face_id}: {e}")
+            return None
         config = {
             "uniqueID": hugging_face_id,
             "name": getattr(hf_model_info, "modelId", hugging_face_id),
@@ -295,9 +282,9 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
     try:
         # First try to download the config.json file to local cache
         local_config_path = huggingface_hub.hf_hub_download(repo_id=hugging_face_id, filename="config.json")
-        
+
         # Read from the local downloaded file
-        with open(local_config_path, 'r') as f:
+        with open(local_config_path, "r") as f:
             filedata = json.load(f)
     except Exception:
         try:
