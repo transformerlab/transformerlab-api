@@ -107,6 +107,9 @@ class LlamaCppServer(BaseModelWorker):
             self.init_heart_beat()
 
     async def generate_stream(self, params):
+        # Process tools using HF chat_template approach
+        params = self.process_tools_hf(params)
+
         # We set "generate_stream" as def not, async def, so that it can
         # run on another thread. Otherwise, it will block the main thread.
         self.call_ct += 1

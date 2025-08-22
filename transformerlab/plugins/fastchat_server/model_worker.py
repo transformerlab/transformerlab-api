@@ -110,6 +110,9 @@ class ModelWorker(BaseModelWorker):
             self.init_heart_beat()
 
     def generate_stream_gate(self, params):
+        # Process tools using HF chat_template approach
+        params = self.process_tools_hf(params)
+
         if self.device == "npu":
             import torch_npu
 

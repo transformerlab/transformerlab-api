@@ -44,10 +44,14 @@ from fastchat.protocol.openai_api_protocol import (
     UsageInfo,
 )
 from pydantic import BaseModel as PydanticBaseModel
+from transformers.utils import get_json_schema
 
 from transformerlab.shared import dirs
+import transformerlab.db.db as db
+from transformerlab.routers.tools import load_tools, mcp_list_tools
 
 WORKER_API_TIMEOUT = 3600
+
 
 # TODO: Move all base model to fastchat.protocol.openai_api_protocol
 class APIChatCompletionRequest(BaseModel):
@@ -89,6 +93,8 @@ class ChatCompletionRequest(BaseModel):
     frequency_penalty: Optional[float] = 0.0
     user: Optional[str] = None
     logprobs: Optional[bool] = False
+    tools: Optional[List[Dict[str, Any]]] = None
+
 
 class AudioRequest(BaseModel):
     experiment_id: int
@@ -347,6 +353,7 @@ async def get_gen_params(
     stream: Optional[bool],
     stop: Optional[Union[str, List[str]]],
     logprobs: Optional[bool] = False,
+    tools: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     conv = await get_conv(model_name)
     conv = Conversation(
@@ -415,6 +422,18 @@ async def get_gen_params(
     }
     if images is not None and len(images) > 0:
         gen_params["images"] = images
+    if tools is not None and len(tools) > 0:
+        gen_params["tools"] = tools
+        # Handle both regular tools (with function.name) and MCP tools (with direct name)
+        tool_names = []
+        for tool in tools:
+            if "function" in tool and "name" in tool["function"]:
+                tool_names.append(tool["function"]["name"])
+            elif "name" in tool:
+                tool_names.append(tool["name"])
+            else:
+                tool_names.append("unnamed")
+        print(f"Adding tools to generation parameters: {tool_names}")
     if not stop:
         gen_params.update({"stop": conv.stop_str, "stop_token_ids": conv.stop_token_ids})
     else:
@@ -475,6 +494,7 @@ async def show_available_models():
         model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
     return ModelList(data=model_cards)
 
+
 @router.post("/v1/audio/speech", tags=["audio"])
 async def create_audio_tts(request: AudioRequest):
     error_check_ret = await check_model(request)
@@ -488,7 +508,6 @@ async def create_audio_tts(request: AudioRequest):
     audio_dir = os.path.join(experiment_dir, "audio")
     os.makedirs(audio_dir, exist_ok=True)
 
-    
     gen_params = {
         "audio_dir": audio_dir,
         "model": request.model,
@@ -498,11 +517,10 @@ async def create_audio_tts(request: AudioRequest):
         "temperature": request.temperature,
         "speed": request.speed,
     }
-    #TODO: Define a base model class to structure the return value
+    # TODO: Define a base model class to structure the return value
     content = await generate_completion(gen_params)
 
     return content
-
 
 
 @router.post("/v1/chat/completions", dependencies=[Depends(check_api_key)], tags=["chat"])
@@ -519,6 +537,49 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
     if error_check_ret is not None:
         return error_check_ret
 
+    # NEW: Auto-load tools if not provided in request
+    tools = request.tools
+    if tools is None:
+        try:
+            # Get MCP server config directly from database
+            mcp_config = None
+            try:
+                config_text = await db.config_get(key="MCP_SERVER")
+                if config_text:
+                    mcp_config = json.loads(config_text)
+            except Exception as e:
+                print(f"Failed to get MCP config: {e}")
+
+            # Load tools directly
+            available_tools = load_tools()
+            tool_descriptions = [get_json_schema(func) for name, func in available_tools.items()]
+
+            # Add MCP tools if configured
+            if mcp_config and mcp_config.get("serverName"):
+                try:
+                    args = mcp_config.get("args", "").split(",") if mcp_config.get("args") else None
+                    base_env = os.environ.copy()
+                    override_env = json.loads(mcp_config.get("env", "{}")) if mcp_config.get("env") else {}
+                    env = {**base_env, **override_env}
+
+                    mcp_tools = await mcp_list_tools(mcp_config["serverName"], args=args, env=env)
+                    mcp_tools = mcp_tools.tools
+
+                    # Convert MCP tools to the expected format
+                    if isinstance(mcp_tools, list):
+                        for tool in mcp_tools:
+                            if not isinstance(tool, dict):
+                                tool_descriptions.append(tool.model_dump())
+                            else:
+                                tool_descriptions.append(tool)
+                except Exception as e:
+                    print(f"Error loading MCP tools: {e}")
+
+            tools = tool_descriptions
+        except Exception as e:
+            print(f"Error auto-loading tools: {e}")
+            tools = None
+
     gen_params = await get_gen_params(
         request.model,
         request.messages,
@@ -530,6 +591,7 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
         stream=request.stream,
         stop=request.stop,
         logprobs=request.logprobs,
+        tools=tools,
     )
 
     error_check_ret = await check_length(request, gen_params["prompt"], gen_params["max_new_tokens"])
@@ -1105,6 +1167,48 @@ async def create_chat_completion(request: APIChatCompletionRequest):
     if error_check_ret is not None:
         return error_check_ret
 
+        # NEW: Auto-load tools if not provided in request (for APIChatCompletionRequest too)
+    tools = None
+    try:
+        # Get MCP server config directly from database
+        mcp_config = None
+        try:
+            config_text = await db.config_get(key="MCP_SERVER")
+            if config_text:
+                mcp_config = json.loads(config_text)
+        except Exception as e:
+            print(f"Failed to get MCP config: {e}")
+
+        # Load tools directly
+        available_tools = load_tools()
+        tool_descriptions = [get_json_schema(func) for name, func in available_tools.items()]
+
+        # Add MCP tools if configured
+        if mcp_config and mcp_config.get("serverName"):
+            try:
+                args = mcp_config.get("args", "").split(",") if mcp_config.get("args") else None
+                base_env = os.environ.copy()
+                override_env = json.loads(mcp_config.get("env", "{}")) if mcp_config.get("env") else {}
+                env = {**base_env, **override_env}
+
+                mcp_tools = await mcp_list_tools(mcp_config["serverName"], args=args, env=env)
+                mcp_tools = mcp_tools.tools
+
+                # Convert MCP tools to the expected format
+                if isinstance(mcp_tools, list):
+                    for tool in mcp_tools:
+                        if not isinstance(tool, dict):
+                            tool_descriptions.append(tool.model_dump())
+                        else:
+                            tool_descriptions.append(tool)
+            except Exception as e:
+                print(f"Error loading MCP tools: {e}")
+
+        tools = tool_descriptions
+    except Exception as e:
+        print(f"Error auto-loading tools: {e}")
+        tools = None
+
     gen_params = await get_gen_params(
         request.model,
         request.messages,
@@ -1116,6 +1220,7 @@ async def create_chat_completion(request: APIChatCompletionRequest):
         stream=request.stream,
         stop=request.stop,
         logprobs=request.logprobs,
+        tools=tools,
     )
 
     if request.repetition_penalty is not None:
