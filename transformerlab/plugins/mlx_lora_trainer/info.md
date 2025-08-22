@@ -6,12 +6,17 @@ If you have an Apple M-Series Chip, MLX LoRA fine-tuning is the fastest and simp
 
 This implementation works with the following model families:
 
-- Mistral
-- Llama
-- Phi2
-- Mixtral
-- Qwen2
+- Cohere
+- Deepseek
+- Exaone
 - Gemma
-- OLMo
-- MiniCPM
+- GPTBigCode
 - InternLM2
+- Llama
+- MiniCPM
+- Mistral
+- Mixtral
+- OLMo
+- Phi
+- Qwen
+- Smol
