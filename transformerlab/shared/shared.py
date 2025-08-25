@@ -172,6 +172,8 @@ async def read_process_output(process, job_id):
     returncode = process.returncode
     if returncode == 0:
         print("Worker Process completed successfully")
+    elif returncode == -15:
+        print("Worker Process stopped by user")
     else:
         print(f"ERROR: Worker Process ended with exit code {returncode}.")
     with open(GLOBAL_LOG_PATH, "a") as log:
