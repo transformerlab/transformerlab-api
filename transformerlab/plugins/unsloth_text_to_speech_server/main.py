@@ -72,6 +72,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
 
         if adaptor_path != "":
             self.model_name = adaptor_path
+            logger.info(f"Using adaptor path: {adaptor_path}")
         else:
             self.model_name = model_path
         self.model_architecture = model_architecture
