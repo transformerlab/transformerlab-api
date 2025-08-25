@@ -102,9 +102,9 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         temperature = params.get("temperature", 0.0)
         audio_dir = params.get("audio_dir")
 
-        abs_path = os.path.abspath(audio_dir)
+        real_path = os.path.realpath(audio_dir)
         # Make sure the path is still inside the workspace directory
-        if not abs_path.startswith(os.path.abspath(WORKSPACE_DIR) + os.sep):
+        if not real_path.startswith(os.path.realpath(WORKSPACE_DIR) + os.sep):
             return {
                 "status": "error",
                 "message": f"Unsafe audio directory path: {audio_dir}.",
