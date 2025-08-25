@@ -25,9 +25,10 @@ def find_lora_target_modules(model, keyword="proj"):
     for name, module in model.named_modules():
         if isinstance(module, nn.Linear) and keyword in name:
             # Keep full relative module name, excluding the root prefix (e.g., "model.")
-            cleaned_name = ".".join(name.split('.')[1:]) if name.startswith("model.") else name
-            module_names.add(cleaned_name.split('.')[-1])  # Use just the relative layer name
+            cleaned_name = ".".join(name.split(".")[1:]) if name.startswith("model.") else name
+            module_names.add(cleaned_name.split(".")[-1])  # Use just the relative layer name
     return sorted(module_names)
+
 
 def setup_accelerate_environment():
     """Set up the environment for the accelerate launch subprocess"""
@@ -62,9 +63,9 @@ def train_model():
     datasets = tlab_trainer.load_dataset()
     dataset = datasets["train"]
 
-    formatting_template=tlab_trainer.params.get("formatting_template", None)
-    chat_template=tlab_trainer.params.get("formatting_chat_template", None)
-    chat_column=tlab_trainer.params.get("chatml_formatted_column", "messages")
+    formatting_template = tlab_trainer.params.get("formatting_template", None)
+    chat_template = tlab_trainer.params.get("formatting_chat_template", None)
+    chat_column = tlab_trainer.params.get("chatml_formatted_column", "messages")
 
     # Set up accelerate configuration
     accelerate_config = {
@@ -136,25 +137,20 @@ def train_model():
     device_map = None if accelerator.num_processes > 1 else "auto"
     try:
         model = AutoModelForCausalLM.from_pretrained(
-            model_id,
-            quantization_config=bnb_config,
-            use_cache=False,
-            device_map=device_map,
-            trust_remote_code=True
+            model_id, quantization_config=bnb_config, use_cache=False, device_map=device_map, trust_remote_code=True
         )
         lora_target_modules = find_lora_target_modules(model)
     except TypeError:
         model = AutoModelForCausalLM.from_pretrained(
-                model_id,
-                quantization_config=bnb_config,
-                device_map=device_map,
-                trust_remote_code=True,
-            )
+            model_id,
+            quantization_config=bnb_config,
+            device_map=device_map,
+            trust_remote_code=True,
+        )
         lora_target_modules = find_lora_target_modules(model)
     except Exception as e:
         print(f"Model loading error: {str(e)}")
         raise e
-
 
     model.config.pretraining_tp = 1
     # Load tokenizer
@@ -164,15 +160,15 @@ def train_model():
 
     # Setup chat template and formatting function
     formatting_func = partial(
-    format_template,
-    chat_template=chat_template,
-    formatting_template=formatting_template,
-    tokenizer=tokenizer,
-    chat_column=chat_column,
-)
+        format_template,
+        chat_template=chat_template,
+        formatting_template=formatting_template,
+        tokenizer=tokenizer,
+        chat_column=chat_column,
+    )
     print("Formatted example:")
     print(formatting_func(dataset[randrange(len(dataset))]))
-    
+
     # LoRA config
     peft_config = LoraConfig(
         lora_alpha=int(tlab_trainer.params.lora_alpha),
@@ -197,14 +193,13 @@ def train_model():
             target_modules=lora_target_modules,
         )
         model = get_peft_model(model, peft_config)
-        
+
     # Training configuration
     output_dir = tlab_trainer.params.get("output_dir", "./output")
 
     # Setup WandB - decorator would handle this check
     today = time.strftime("%Y%m%d-%H%M%S")
     run_suffix = tlab_trainer.params.get("template_name", today)
-    max_seq_length = int(tlab_trainer.params.maximum_sequence_length)
 
     args = SFTConfig(
         output_dir=output_dir,
@@ -222,7 +217,6 @@ def train_model():
         max_grad_norm=0.3,
         warmup_ratio=0.03,
         lr_scheduler_type=tlab_trainer.params.learning_rate_schedule,
-        max_seq_length=max_seq_length,
         disable_tqdm=False,
         packing=True,
         run_name=f"job_{tlab_trainer.params.job_id}_{run_suffix}",
@@ -235,9 +229,8 @@ def train_model():
         metric_for_best_model="loss",
         greater_is_better=False,
         eval_strategy="epoch",
-        completion_only_loss=False
+        completion_only_loss=False,
     )
-
 
     # Create progress callback
     callback = tlab_trainer.create_progress_callback() if hasattr(tlab_trainer, "create_progress_callback") else None
