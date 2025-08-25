@@ -15,7 +15,6 @@ import torch
 import soundfile as sf
 from scipy.signal import resample
 from audio import CsmAudioModel, OrpheusAudioModel
-from werkzeug.utils import secure_filename
 
 
 
@@ -24,6 +23,7 @@ from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from fastchat.serve.model_worker import logger
+from transformerlab.plugin import WORKSPACE_DIR
 
 
 worker_id = str(uuid.uuid4())[:8]
@@ -101,9 +101,15 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         sample_rate = params.get("sample_rate", 24000)
         temperature = params.get("temperature", 0.0)
         audio_dir = params.get("audio_dir")
+
+        real_path = os.path.realpath(audio_dir)
+        # Make sure the path is still inside the workspace directory
+        if not real_path.startswith(os.path.realpath(WORKSPACE_DIR) + os.sep):
+            return {
+                "status": "error",
+                "message": f"Unsafe audio directory path: {audio_dir}.",
+            }
         
-        # security check - reject path traversal attempts
-        audio_dir = secure_filename(audio_dir)
         # Generate a UUID for this file name:
         file_prefix = str(uuid.uuid4())
         generate_kwargs = {}
