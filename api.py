@@ -255,6 +255,7 @@ async def server_controller_stop():
 
 def set_worker_process_id(process):
     global worker_process
+    print("Setting worker process to ", process)
     worker_process = process
 
 
@@ -342,13 +343,13 @@ async def server_worker_start(
     with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
         global_log.write(f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
 
-    worker_process = await shared.async_run_python_daemon_and_update_status(
+    process = await shared.async_run_python_daemon_and_update_status(
         python_script=params,
         job_id=job_id,
         begin_string="Application startup complete.",
         set_process_id_function=set_worker_process_id,
     )
-    exitcode = worker_process.returncode
+    exitcode = process.returncode
     if exitcode == 99:
         with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
             global_log.write(
@@ -366,6 +367,11 @@ async def server_worker_start(
             error_msg = f"Exit code {exitcode}"
             await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
         return {"status": "error", "message": error_msg}
+
+    # Model started successfully
+    # Setting worker_process is redundant because of set_process_id_function above
+    # But temporarily leaving this here while we rework
+    worker_process = process
     with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
         global_log.write(f"Model loaded successfully: {model_name}\n")
     return {"status": "success", "job_id": job_id}
@@ -375,6 +381,7 @@ async def server_worker_start(
 async def server_worker_stop():
     global worker_process
     print(f"Stopping worker process: {worker_process}")
+
     if worker_process is not None:
         from transformerlab.shared.shared import kill_sglang_subprocesses
 
@@ -384,20 +391,88 @@ async def server_worker_stop():
             worker_process = None
         except Exception as e:
             print(f"Error stopping worker process: {e}")
-    # check if there is a file called worker.pid, if so kill the related process:
-    if os.path.isfile("worker.pid"):
-        with open("worker.pid", "r") as f:
-            pids = [line.strip() for line in f if line.strip()]
-            for pid in pids:
-                print(f"Killing worker process with PID: {pid}")
-                try:
-                    os.kill(int(pid), signal.SIGTERM)
-                except ProcessLookupError:
-                    print(f"Process {pid} no longer exists, skipping")
-                except Exception as e:
-                    print(f"Error killing process {pid}: {e}")
-        # delete the worker.pid file:
-        os.remove("worker.pid")
+
+    # Check if there is a file called worker.pid with the new JSON structure
+    worker_pid_path = os.path.join(dirs.ROOT_DIR, "worker.pid")
+    if os.path.isfile(worker_pid_path):
+        try:
+            with open(worker_pid_path, "r") as f:
+                content = f.read().strip()
+                if content:
+                    try:
+                        # Try to parse as JSON (new format)
+                        worker_data = json.loads(content)
+                        processes = worker_data.get("processes", [])
+
+                        for process_entry in processes:
+                            pid = process_entry.get("pid")
+                            job_id = process_entry.get("job_id")
+
+                            # If we have a job_id, use it to update job status and find the worker_job_*.pid file
+                            if job_id:
+                                try:
+                                    # Update job status to STOPPED
+                                    from transformerlab.db import jobs as db_jobs
+
+                                    job = await db_jobs.job_get(job_id)
+                                    if job:
+                                        experiment_id = job.get("experiment_id")
+                                        await job_update_status(
+                                            job_id=job_id,
+                                            status="STOPPED",
+                                            error_msg="Job stopped by user",
+                                            experiment_id=experiment_id,
+                                        )
+
+                                    # Look for the specific worker_job_*.pid file
+                                    worker_job_pid_file = os.path.join(dirs.TEMP_DIR, f"worker_job_{job_id}.pid")
+                                    if os.path.exists(worker_job_pid_file):
+                                        try:
+                                            with open(worker_job_pid_file, "r") as job_pid_file:
+                                                job_pid = job_pid_file.read().strip()
+                                                # Kill the process from the job file
+                                                try:
+                                                    os.kill(int(job_pid), signal.SIGTERM)
+                                                    print(f"Killed process {job_pid} from job file")
+                                                except (ProcessLookupError, ValueError):
+                                                    print(f"Process {job_pid} no longer exists or invalid PID")
+                                                # Remove the job PID file
+                                                os.remove(worker_job_pid_file)
+                                        except Exception as e:
+                                            print(f"Error reading job PID file {worker_job_pid_file}: {e}")
+                                except Exception as e:
+                                    print(f"Error handling job {job_id}: {e}")
+
+                            # Also kill the PID from the worker.pid file as a backup
+                            if pid:
+                                try:
+                                    os.kill(int(pid), signal.SIGTERM)
+                                    print(f"Killed process {pid} from worker.pid")
+                                except (ProcessLookupError, ValueError):
+                                    print(f"Process {pid} no longer exists or invalid PID")
+                                except Exception as e:
+                                    print(f"Error killing process {pid}: {e}")
+
+                    except json.JSONDecodeError:
+                        # Legacy format - handle line-separated PIDs
+                        print("Found legacy worker.pid format, processing as plain text")
+                        pids = [line.strip() for line in content.split("\n") if line.strip().isdigit()]
+                        for pid in pids:
+                            print(f"Killing worker process with PID: {pid}")
+                            try:
+                                os.kill(int(pid), signal.SIGTERM)
+                            except ProcessLookupError:
+                                print(f"Process {pid} no longer exists, skipping")
+                            except Exception as e:
+                                print(f"Error killing process {pid}: {e}")
+
+            # Delete the worker.pid file
+            os.remove(worker_pid_path)
+            print("Removed worker.pid file")
+
+        except Exception as e:
+            print(f"Error processing worker.pid file: {e}")
+
     return {"message": "OK"}
 
 
@@ -436,12 +511,48 @@ def cleanup_at_exit():
             worker_process.kill()
         except ProcessLookupError:
             print(f"Process {worker_process.pid} doesn't exist so nothing to kill")
-    if os.path.isfile("worker.pid"):
-        with open("worker.pid", "r") as f:
-            pids = [line.strip() for line in f if line.strip()]
-            for pid in pids:
-                os.kill(int(pid), signal.SIGTERM)
-            os.remove("worker.pid")
+
+    # Handle the new JSON structure in worker.pid
+    worker_pid_path = os.path.join(dirs.ROOT_DIR, "worker.pid")
+    if os.path.isfile(worker_pid_path):
+        try:
+            with open(worker_pid_path, "r") as f:
+                content = f.read().strip()
+                if content:
+                    try:
+                        # Try to parse as JSON (new format)
+                        worker_data = json.loads(content)
+                        processes = worker_data.get("processes", [])
+
+                        for process_entry in processes:
+                            pid = process_entry.get("pid")
+                            if pid:
+                                try:
+                                    os.kill(int(pid), signal.SIGTERM)
+                                    print(f"🔴 Killed worker process {pid}")
+                                except (ProcessLookupError, ValueError):
+                                    print(f"Process {pid} no longer exists or invalid PID")
+                                except Exception as e:
+                                    print(f"Error killing process {pid}: {e}")
+
+                    except json.JSONDecodeError:
+                        # Legacy format - handle line-separated PIDs
+                        pids = [line.strip() for line in content.split("\n") if line.strip().isdigit()]
+                        for pid in pids:
+                            try:
+                                os.kill(int(pid), signal.SIGTERM)
+                                print(f"🔴 Killed worker process {pid}")
+                            except (ProcessLookupError, ValueError):
+                                print(f"Process {pid} no longer exists or invalid PID")
+                            except Exception as e:
+                                print(f"Error killing process {pid}: {e}")
+
+            os.remove(worker_pid_path)
+            print("🔴 Removed worker.pid file")
+
+        except Exception as e:
+            print(f"Error processing worker.pid file during cleanup: {e}")
+
     # Perform NVML Shutdown if CUDA is available
     if torch.cuda.is_available():
         try:

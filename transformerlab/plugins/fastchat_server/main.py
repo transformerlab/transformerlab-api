@@ -22,6 +22,7 @@ parser.add_argument("--model-path", type=str)
 parser.add_argument("--adaptor-path", type=str)
 parser.add_argument("--parameters", type=str, default="{}")
 parser.add_argument("--plugin_dir", type=str)
+parser.add_argument("--job_id", type=str)
 
 args, unknown = parser.parse_known_args()
 
@@ -108,7 +109,7 @@ proc = subprocess.Popen(popen_args, stderr=subprocess.PIPE, stdout=None)
 
 # save worker process id to file
 # this will allow transformer lab to kill it later
-register_process(proc.pid)
+register_process(proc.pid, job_id=args.job_id)
 
 # read output:
 for line in proc.stderr:
