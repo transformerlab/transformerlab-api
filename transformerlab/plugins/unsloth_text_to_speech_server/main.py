@@ -53,6 +53,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         model_architecture: str,
         limit_worker_concurrency: int,
         no_register: bool,
+        adaptor_path: str,
     ):
         super().__init__(
             controller_addr,
@@ -69,8 +70,10 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
-
-        self.model_name = model_path
+        if adaptor_path != "":
+            self.model_name = adaptor_path
+        else:
+            self.model_name = model_path
         self.model_architecture = model_architecture
         # Use the model name and architecture to determine which custom audio model class to instantiate
         if self.model_architecture == "CsmForConditionalGeneration":
@@ -219,6 +222,8 @@ def main():
     )
     parser.add_argument("--model-architecture", type=str, default="MLX")
     parser.add_argument("--parameters", type=str, default="{}")
+    parser.add_argument("--adaptor-path", type=str, default="")
+
     
 
 
@@ -237,6 +242,7 @@ def main():
         args.model_architecture,
         1024,
         False,
+        args.adaptor_path
     )
 
     # Restore original stdout/stderr to prevent logging recursion
