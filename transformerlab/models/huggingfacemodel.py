@@ -254,9 +254,12 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
                         architectures = [class_name]
                     else:
                         architectures = class_name
+        except huggingface_hub.utils.GatedRepoError:
+            print(f"Model {hugging_face_id} is gated.")
+            raise
         except Exception as e:
             print(f"Error reading model_index.json for {hugging_face_id}: {e}")
-            raise huggingface_hub.utils.GatedRepoError(f"Model {hugging_face_id} is gated.")
+            raise
         config = {
             "uniqueID": hugging_face_id,
             "name": getattr(hf_model_info, "modelId", hugging_face_id),
@@ -293,6 +296,9 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
             filename = os.path.join(hugging_face_id, "config.json")
             with fs.open(filename) as f:
                 filedata = json.load(f)
+        except huggingface_hub.utils.GatedRepoError:
+            print(f"Model {hugging_face_id} is gated.")
+            raise
         except Exception as e:
             # If we can't read the config.json file, return None
             print(f"Error reading config.json for {hugging_face_id}: {e}")
