@@ -12,7 +12,7 @@ from transformerlab.models import basemodel
 
 import huggingface_hub
 from huggingface_hub.hf_api import RepoFile
-from huggingface_hub import scan_cache_dir, hf_hub_download
+from huggingface_hub import scan_cache_dir
 
 
 async def list_models():
@@ -254,22 +254,12 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
                         architectures = [class_name]
                     else:
                         architectures = class_name
-        except Exception:
-            try:
-                config_path = hf_hub_download(hugging_face_id, filename="config.json")
-                with open(config_path) as f:
-                    model_index = json.load(f)
-                    class_name = model_index.get("_class_name")
-                    if class_name:
-                        if isinstance(class_name, str):
-                            architectures = [class_name]
-                        else:
-                            architectures = class_name
-                    else:
-                        architectures = ["UnknownDiffusionModel"]
-            except Exception:
-                model_index = None
-                architectures = ["UnknownDiffusionModel"]
+        except huggingface_hub.utils.GatedRepoError:
+            print(f"Model {hugging_face_id} is gated.")
+            raise
+        except Exception as e:
+            print(f"Error reading model_index.json for {hugging_face_id}: {e}")
+            raise
         config = {
             "uniqueID": hugging_face_id,
             "name": getattr(hf_model_info, "modelId", hugging_face_id),
@@ -295,9 +285,9 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
     try:
         # First try to download the config.json file to local cache
         local_config_path = huggingface_hub.hf_hub_download(repo_id=hugging_face_id, filename="config.json")
-        
+
         # Read from the local downloaded file
-        with open(local_config_path, 'r') as f:
+        with open(local_config_path, "r") as f:
             filedata = json.load(f)
     except Exception:
         try:
@@ -306,6 +296,9 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
             filename = os.path.join(hugging_face_id, "config.json")
             with fs.open(filename) as f:
                 filedata = json.load(f)
+        except huggingface_hub.utils.GatedRepoError:
+            print(f"Model {hugging_face_id} is gated.")
+            raise
         except Exception as e:
             # If we can't read the config.json file, return None
             print(f"Error reading config.json for {hugging_face_id}: {e}")
