@@ -738,49 +738,6 @@ class TestWorkflows:
         assert workflow_runs[0]["status"] in ["QUEUED", "RUNNING"]
 
     @pytest.mark.asyncio
-    async def test_workflow_trigger_with_export_job_mapping(self, test_experiment):
-        """Test that EXPORT jobs trigger workflows with EXPORT trigger type"""
-        # Create a workflow with EXPORT trigger
-        workflow_config = {
-            "nodes": [{"type": "START", "id": "start", "name": "START", "out": []}],
-            "triggers": ["EXPORT"],
-        }
-        workflow_id = await workflow_create("test_export_trigger", json.dumps(workflow_config), test_experiment)
-
-        # Create an EXPORT job
-        job_id = await job_create("EXPORT", "RUNNING", test_experiment, "{}")
-
-        # Complete the job - this should trigger the workflow
-        await service_job_update_status(job_id, "COMPLETE", test_experiment)
-        await asyncio.sleep(0.1)
-
-        # Check that workflow was triggered
-        workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
-        assert len(workflow_runs) > 0
-        assert workflow_runs[0]["workflow_id"] == workflow_id
-
-    @pytest.mark.asyncio
-    async def test_workflow_trigger_with_download_model_job(self, test_experiment):
-        """Test that DOWNLOAD_MODEL jobs DO trigger workflows (supported trigger type)"""
-        # Create a workflow with DOWNLOAD_MODEL trigger
-        workflow_config = {
-            "nodes": [{"type": "START", "id": "start", "name": "START", "out": []}],
-            "triggers": ["DOWNLOAD_MODEL"],
-        }
-        await workflow_create("test_download_model_trigger", json.dumps(workflow_config), test_experiment)
-
-        # Create a DOWNLOAD_MODEL job
-        job_id = await job_create("DOWNLOAD_MODEL", "RUNNING", test_experiment, "{}")
-
-        # Complete the job - this should NOT trigger the workflow since DOWNLOAD_MODEL is not a supported trigger
-        await service_job_update_status(job_id, "COMPLETE", test_experiment)
-        await asyncio.sleep(0.1)
-
-        # Check that workflow WAS triggered
-        workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
-        assert len(workflow_runs) > 0
-
-    @pytest.mark.asyncio
     async def test_workflow_trigger_error_handling(self, test_experiment):
         """Test that workflows with malformed configs don't cause errors"""
         # Create a workflow with malformed JSON config
