@@ -2,7 +2,7 @@ import json
 import sqlite3
 from threading import Thread, Event
 from time import sleep
-from huggingface_hub import hf_hub_download, snapshot_download
+from huggingface_hub import hf_hub_download, snapshot_download, HfFileSystem
 from huggingface_hub.utils import GatedRepoError, EntryNotFoundError
 import argparse
 import os
@@ -26,6 +26,44 @@ error_msg = False
 WORKSPACE_DIR = os.environ.get("_TFL_WORKSPACE_DIR")
 if WORKSPACE_DIR is None:
     raise EnvironmentError("Environment variable _TFL_WORKSPACE_DIR is not set!")
+
+
+def check_model_gated(repo_id):
+    """
+    Check if a model is gated by trying to read config.json or model_index.json
+    using HuggingFace Hub filesystem.
+
+    Args:
+        repo_id (str): The repository ID to check
+
+    Raises:
+        GatedRepoError: If the model is gated and requires authentication/license acceptance
+    """
+    fs = HfFileSystem()
+
+    # List of config files to check
+    config_files = ["config.json", "model_index.json"]
+
+    # Try to read each config file
+    for config_file in config_files:
+        file_path = f"{repo_id}/{config_file}"
+        try:
+            # Try to open and read the file
+            with fs.open(file_path, "r") as f:
+                f.read(1)  # Just read a byte to check accessibility
+            # If we can read any config file, the model is not gated
+            return
+        except GatedRepoError:
+            # If we get a GatedRepoError, the model is definitely gated
+            raise GatedRepoError(f"Model {repo_id} is gated and requires authentication or license acceptance")
+        except Exception:
+            # If we get other errors (like file not found), continue to next file
+            continue
+
+    # If we couldn't read any config file due to non-gated errors,
+    # we'll let the main download process handle it
+    return
+
 
 # Parse arguments
 parser = argparse.ArgumentParser()
@@ -194,6 +232,23 @@ def download_blocking(model_is_downloaded):
     db.execute("PRAGMA busy_timeout=30000")
     db.execute("UPDATE job SET progress=?, job_data=json(?) WHERE id=?", (0, job_data, job_id))
     db.close()
+
+    # Check if model is gated before starting download
+    if mode == "adaptor":
+        repo_to_check = peft
+    else:
+        repo_to_check = model
+
+    try:
+        check_model_gated(repo_to_check)
+    except GatedRepoError:
+        returncode = 77
+        if mode == "adaptor":
+            error_msg = f"{peft} is a gated adapter. Please accept the license on the model's HuggingFace page."
+        else:
+            error_msg = f"{model} is a gated HuggingFace model. To continue downloading, you must agree to the terms on the model's HuggingFace page."
+        model_is_downloaded.set()
+        return
 
     if mode == "adaptor":
         try:

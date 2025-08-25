@@ -256,7 +256,7 @@ async def get_model_details_from_huggingface(hugging_face_id: str):
                         architectures = class_name
         except Exception as e:
             print(f"Error reading model_index.json for {hugging_face_id}: {e}")
-            return None
+            raise huggingface_hub.utils.GatedRepoError(f"Model {hugging_face_id} is gated.")
         config = {
             "uniqueID": hugging_face_id,
             "name": getattr(hf_model_info, "modelId", hugging_face_id),
