@@ -490,12 +490,12 @@ async def download_huggingface_model(
         if exitcode == 77:
             # This means we got a GatedRepoError
             # The user needs to agree to terms on HuggingFace to download
-            error_msg = await db_jobs.job_get_error_msg(job_id)
+            error_msg = await db_jobs.job_get_error_msg(job_id, experiment_id)
             await db_jobs.job_update_status(job_id, "UNAUTHORIZED", experiment_id, error_msg=error_msg)
             return {"status": "unauthorized", "message": error_msg}
 
         elif exitcode != 0:
-            error_msg = await db_jobs.job_get_error_msg(job_id)
+            error_msg = await db_jobs.job_get_error_msg(job_id, experiment_id)
             if not error_msg:
                 error_msg = f"Exit code {exitcode}"
                 await db_jobs.job_update_status(job_id, "FAILED", experiment_id, error_msg=error_msg)
