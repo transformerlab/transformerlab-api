@@ -124,7 +124,7 @@ class OrpheusAudioModel(AudioModelBase):
             sample_rate = sample_rate or self.DEFAULT_SAMPLE_RATE
             audio_array, _ = librosa.load(audio_path, sr=sample_rate)
             audio_tokens = self._encode_audio_to_tokens(audio_array)
-            return self._create_voice_cloning_input(text_tokens, audio_tokens)
+            return self._create_voice_cloning_input(text_tokens.input_ids, audio_tokens)
         else:
             # Standard text-to-speech without voice cloning
             return text_tokens
@@ -146,7 +146,7 @@ class OrpheusAudioModel(AudioModelBase):
         else:
             input_ids = inputs
             
-        return self.model.generate(input_ids, **self.generate_kwargs, **kwargs)
+        return self.model.generate(input_ids=input_ids, **self.generate_kwargs, **kwargs)
 
     def decode(self, generated_ids, **kwargs):
         """
@@ -256,7 +256,7 @@ class OrpheusAudioModel(AudioModelBase):
         
         return all_tokens
     
-    def _create_voice_cloning_input(self, target_text_tokens, audio_tokens, voice_prompt="and_the_transcript_is"):
+    def _create_voice_cloning_input(self, target_text_tokens, audio_tokens, voice_prompt=""):
         """
         Create structured input for voice cloning.
         
