@@ -44,11 +44,7 @@ from fastchat.protocol.openai_api_protocol import (
     UsageInfo,
 )
 from pydantic import BaseModel as PydanticBaseModel
-from transformers.utils import get_json_schema
-
 from transformerlab.shared import dirs
-import transformerlab.db.db as db
-from transformerlab.routers.tools import load_tools, mcp_list_tools
 
 WORKER_API_TIMEOUT = 3600
 
@@ -537,48 +533,8 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
     if error_check_ret is not None:
         return error_check_ret
 
-    # NEW: Auto-load tools if not provided in request
+    # Pass through tools from frontend - no auto-loading
     tools = request.tools
-    if tools is None:
-        try:
-            # Get MCP server config directly from database
-            mcp_config = None
-            try:
-                config_text = await db.config_get(key="MCP_SERVER")
-                if config_text:
-                    mcp_config = json.loads(config_text)
-            except Exception as e:
-                print(f"Failed to get MCP config: {e}")
-
-            # Load tools directly
-            available_tools = load_tools()
-            tool_descriptions = [get_json_schema(func) for name, func in available_tools.items()]
-
-            # Add MCP tools if configured
-            if mcp_config and mcp_config.get("serverName"):
-                try:
-                    args = mcp_config.get("args", "").split(",") if mcp_config.get("args") else None
-                    base_env = os.environ.copy()
-                    override_env = json.loads(mcp_config.get("env", "{}")) if mcp_config.get("env") else {}
-                    env = {**base_env, **override_env}
-
-                    mcp_tools = await mcp_list_tools(mcp_config["serverName"], args=args, env=env)
-                    mcp_tools = mcp_tools.tools
-
-                    # Convert MCP tools to the expected format
-                    if isinstance(mcp_tools, list):
-                        for tool in mcp_tools:
-                            if not isinstance(tool, dict):
-                                tool_descriptions.append(tool.model_dump())
-                            else:
-                                tool_descriptions.append(tool)
-                except Exception as e:
-                    print(f"Error loading MCP tools: {e}")
-
-            tools = tool_descriptions
-        except Exception as e:
-            print(f"Error auto-loading tools: {e}")
-            tools = None
 
     gen_params = await get_gen_params(
         request.model,
@@ -1167,47 +1123,8 @@ async def create_chat_completion(request: APIChatCompletionRequest):
     if error_check_ret is not None:
         return error_check_ret
 
-        # NEW: Auto-load tools if not provided in request (for APIChatCompletionRequest too)
-    tools = None
-    try:
-        # Get MCP server config directly from database
-        mcp_config = None
-        try:
-            config_text = await db.config_get(key="MCP_SERVER")
-            if config_text:
-                mcp_config = json.loads(config_text)
-        except Exception as e:
-            print(f"Failed to get MCP config: {e}")
-
-        # Load tools directly
-        available_tools = load_tools()
-        tool_descriptions = [get_json_schema(func) for name, func in available_tools.items()]
-
-        # Add MCP tools if configured
-        if mcp_config and mcp_config.get("serverName"):
-            try:
-                args = mcp_config.get("args", "").split(",") if mcp_config.get("args") else None
-                base_env = os.environ.copy()
-                override_env = json.loads(mcp_config.get("env", "{}")) if mcp_config.get("env") else {}
-                env = {**base_env, **override_env}
-
-                mcp_tools = await mcp_list_tools(mcp_config["serverName"], args=args, env=env)
-                mcp_tools = mcp_tools.tools
-
-                # Convert MCP tools to the expected format
-                if isinstance(mcp_tools, list):
-                    for tool in mcp_tools:
-                        if not isinstance(tool, dict):
-                            tool_descriptions.append(tool.model_dump())
-                        else:
-                            tool_descriptions.append(tool)
-            except Exception as e:
-                print(f"Error loading MCP tools: {e}")
-
-        tools = tool_descriptions
-    except Exception as e:
-        print(f"Error auto-loading tools: {e}")
-        tools = None
+    # Pass through tools from frontend - no auto-loading
+    tools = request.tools if hasattr(request, "tools") else None
 
     gen_params = await get_gen_params(
         request.model,

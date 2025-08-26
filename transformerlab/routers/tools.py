@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from transformers.utils import get_json_schema
 
 from transformerlab.shared import dirs
+import transformerlab.db.db as db
 
 # MCP client imports
 try:
@@ -36,32 +37,33 @@ router = APIRouter(prefix="/tools", tags=["tools"])
 
 
 def load_tools():
-    available_tools = {}
+    return {}
+    # available_tools = {}
 
-    # TODO: Pull dir from dirs.py
-    tools_dir = os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "tools")
-    sys.path.append(tools_dir)
+    # # TODO: Pull dir from dirs.py
+    # tools_dir = os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "tools")
+    # sys.path.append(tools_dir)
 
-    # Scan the tools dir to subdirectories
-    with os.scandir(tools_dir) as dirlist:
-        for entry in dirlist:
-            if entry.is_dir():
-                # Try importing main.py from the subdirectory
-                package_name = entry.name
-                import_name = f"{package_name}.main"
-                pkg = importlib.import_module(import_name)
+    # # Scan the tools dir to subdirectories
+    # with os.scandir(tools_dir) as dirlist:
+    #     for entry in dirlist:
+    #         if entry.is_dir():
+    #             # Try importing main.py from the subdirectory
+    #             package_name = entry.name
+    #             import_name = f"{package_name}.main"
+    #             pkg = importlib.import_module(import_name)
 
-                # Go through package contents and look for functions
-                if pkg:
-                    for attr in dir(pkg):
-                        func = getattr(pkg, attr)
+    #             # Go through package contents and look for functions
+    #             if pkg:
+    #                 for attr in dir(pkg):
+    #                     func = getattr(pkg, attr)
 
-                        # Add any functions that has pydocs
-                        if callable(func) and func.__doc__:
-                            func_name = func.__name__
-                            available_tools[func_name] = func
+    #                     # Add any functions that has pydocs
+    #                     if callable(func) and func.__doc__:
+    #                         func_name = func.__name__
+    #                         available_tools[func_name] = func
 
-    return available_tools
+    # return available_tools
 
 
 #############################
@@ -100,6 +102,50 @@ async def list_tools(
         elif isinstance(mcp_tools, dict) and mcp_tools.get("status") == "error":
             tool_descriptions.append({"name": "MCP_ERROR", "description": mcp_tools.get("message")})
     return tool_descriptions
+
+
+@router.get("/all", summary="Returns all available tools in the format required for completions API")
+async def get_all_tools():
+    """Returns all available tools (both custom and MCP) in the exact format required for the completions API"""
+    try:
+        # Get MCP server config directly from database
+        mcp_config = None
+        try:
+            config_text = await db.config_get(key="MCP_SERVER")
+            if config_text:
+                mcp_config = json.loads(config_text)
+        except Exception as e:
+            print(f"Failed to get MCP config: {e}")
+
+        # Load custom tools
+        available_tools = load_tools()
+        tool_descriptions = [get_json_schema(func) for name, func in available_tools.items()]
+
+        # Add MCP tools if configured
+        if mcp_config and mcp_config.get("serverName"):
+            try:
+                args = mcp_config.get("args", "").split(",") if mcp_config.get("args") else None
+                base_env = os.environ.copy()
+                override_env = json.loads(mcp_config.get("env", "{}")) if mcp_config.get("env") else {}
+                env = {**base_env, **override_env}
+
+                mcp_tools = await mcp_list_tools(mcp_config["serverName"], args=args, env=env)
+                mcp_tools = mcp_tools.tools
+
+                # Convert MCP tools to the expected format
+                if isinstance(mcp_tools, list):
+                    for tool in mcp_tools:
+                        if not isinstance(tool, dict):
+                            tool_descriptions.append(tool.model_dump())
+                        else:
+                            tool_descriptions.append(tool)
+            except Exception as e:
+                print(f"Error loading MCP tools: {e}")
+
+        return tool_descriptions
+    except Exception as e:
+        print(f"Error loading all tools: {e}")
+        return []
 
 
 @router.get("/prompt", summary="Returns a default system prompt containing a list of available tools")
