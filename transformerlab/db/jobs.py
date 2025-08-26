@@ -18,6 +18,7 @@ ALLOWED_JOB_TYPES = [
     "UNDEFINED",
     "GENERATE",
     "INSTALL_RECIPE_DEPS",
+    "DIFFUSION",
 ]
 
 

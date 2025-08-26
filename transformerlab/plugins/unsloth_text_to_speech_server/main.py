@@ -15,7 +15,6 @@ import torch
 import soundfile as sf
 from scipy.signal import resample
 from audio import CsmAudioModel, OrpheusAudioModel
-from werkzeug.utils import secure_filename
 
 
 
@@ -24,6 +23,7 @@ from fastapi import BackgroundTasks, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from fastchat.serve.model_worker import logger
+from transformerlab.plugin import WORKSPACE_DIR
 
 
 worker_id = str(uuid.uuid4())[:8]
@@ -53,6 +53,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         model_architecture: str,
         limit_worker_concurrency: int,
         no_register: bool,
+        adaptor_path: str,
     ):
         super().__init__(
             controller_addr,
@@ -69,19 +70,29 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
-
-        self.model_name = model_path
+        if adaptor_path != "":
+            self.model_name = adaptor_path
+            logger.info(f"Using adaptor path: {adaptor_path}")
+        else:
+            self.model_name = model_path
         self.model_architecture = model_architecture
         # Use the model name and architecture to determine which custom audio model class to instantiate
         if self.model_architecture == "CsmForConditionalGeneration":
-            self.audio_model = CsmAudioModel(self.model_name, self.device)
+            self.audio_model = CsmAudioModel(
+                model_name=self.model_name,
+                device=self.device,
+                processor_name=model_path,
+            )
             logger.info(
                 "⚠️  RECOMMENDATION: For best results with CsmForConditionalGeneration models, set temperature=0!"
             )
 
         elif "orpheus" in self.model_name:
-            self.audio_model = OrpheusAudioModel(self.model_name, self.device)
-            logger.info("Initialized Orpheus Aaudio Model")
+            self.audio_model = OrpheusAudioModel(
+                model_name=self.model_name,
+                device=self.device,
+            )
+            logger.info("Initialized Orpheus Audio Model")
 
         else:
             logger.info(
@@ -101,9 +112,15 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         sample_rate = params.get("sample_rate", 24000)
         temperature = params.get("temperature", 0.0)
         audio_dir = params.get("audio_dir")
+
+        real_path = os.path.realpath(audio_dir)
+        # Make sure the path is still inside the workspace directory
+        if not real_path.startswith(os.path.realpath(WORKSPACE_DIR) + os.sep):
+            return {
+                "status": "error",
+                "message": f"Unsafe audio directory path: {audio_dir}.",
+            }
         
-        # security check - reject path traversal attempts
-        audio_dir = secure_filename(audio_dir)
         # Generate a UUID for this file name:
         file_prefix = str(uuid.uuid4())
         generate_kwargs = {}
@@ -213,6 +230,8 @@ def main():
     )
     parser.add_argument("--model-architecture", type=str, default="MLX")
     parser.add_argument("--parameters", type=str, default="{}")
+    parser.add_argument("--adaptor-path", type=str, default="")
+
     
 
 
@@ -231,6 +250,7 @@ def main():
         args.model_architecture,
         1024,
         False,
+        args.adaptor_path
     )
 
     # Restore original stdout/stderr to prevent logging recursion
