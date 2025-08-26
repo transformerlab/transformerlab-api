@@ -116,15 +116,18 @@ class OrpheusAudioModel(AudioModelBase):
         Returns:
             dict or torch.Tensor: Tokenized inputs ready for generation
         """
+        # Tokenize target text (common to both paths)
+        text_tokens = self.tokenizer(text, return_tensors="pt").to(self.device)
+        
         if audio_path:
             # Load and encode audio for voice cloning
             sample_rate = sample_rate or self.DEFAULT_SAMPLE_RATE
             audio_array, _ = librosa.load(audio_path, sr=sample_rate)
             audio_tokens = self._encode_audio_to_tokens(audio_array)
-            return self._create_voice_cloning_input(text, audio_tokens)
+            return self._create_voice_cloning_input(text_tokens, audio_tokens)
         else:
             # Standard text-to-speech without voice cloning
-            return self.tokenizer(text, return_tensors="pt").to(self.device)
+            return text_tokens
 
     def generate(self, inputs, **kwargs):
         """
@@ -251,7 +254,7 @@ class OrpheusAudioModel(AudioModelBase):
         
         return all_tokens
     
-    def _create_voice_cloning_input(self, text, audio_tokens, voice_prompt="and_the_transcript_is"):
+    def _create_voice_cloning_input(self, target_text_tokens, audio_tokens, voice_prompt="and_the_transcript_is"):
         """
         Create structured input for voice cloning.
         
@@ -259,16 +262,15 @@ class OrpheusAudioModel(AudioModelBase):
         SOH + voice_prompt + EOT EOH DELIM SOS + audio_tokens + EOS SEP + SOH + target_text + EOT EOH DELIM
         
         Args:
-            text (str): Target text to generate speech for
+            target_text_tokens (torch.Tensor): Pre-tokenized target text
             audio_tokens (list): Encoded reference audio tokens
             voice_prompt (str): Prompt describing the audio transcript
             
         Returns:
             dict: Input tensors with input_ids and attention_mask
         """
-        # Tokenize text components
+        # Tokenize voice prompt
         voice_prompt_tokens = self.tokenizer(voice_prompt, return_tensors="pt").input_ids
-        target_text_tokens = self.tokenizer(text, return_tensors="pt").input_ids
         
         # Create token sequences
         header_start = torch.tensor([[self.START_OF_HEADER]], dtype=torch.int64)
@@ -298,7 +300,7 @@ class OrpheusAudioModel(AudioModelBase):
             torch.tensor([audio_tokens], dtype=torch.int64),  # audio tokens
             voice_end,                      # EOS SEP
             header_start,                   # SOH
-            target_text_tokens,             # target text
+            target_text_tokens,             # target text (pre-tokenized)
             target_end                      # EOT EOH DELIM
         ]
         
