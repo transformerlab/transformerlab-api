@@ -140,11 +140,13 @@ class OrpheusAudioModel(AudioModelBase):
         Returns:
             torch.Tensor: Generated token sequences
         """
-        # Handle legacy tensor format by converting to dict
-        if not isinstance(inputs, dict):
-            inputs = {"input_ids": inputs}
+        # Extract input_ids for Unsloth compatibility
+        if isinstance(inputs, dict):
+            input_ids = inputs["input_ids"]
+        else:
+            input_ids = inputs
             
-        return self.model.generate(**inputs, **self.generate_kwargs, **kwargs)
+        return self.model.generate(input_ids, **self.generate_kwargs, **kwargs)
 
     def decode(self, generated_ids, **kwargs):
         """
