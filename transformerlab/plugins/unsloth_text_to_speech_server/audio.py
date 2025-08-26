@@ -117,36 +117,31 @@ class OrpheusAudioModel(AudioModelBase):
             dict or torch.Tensor: Tokenized inputs ready for generation
         """
         # Tokenize target text (common to both paths)
-        text_tokens = self.tokenizer(text, return_tensors="pt").to(self.device)
+        text_tokens = self.tokenizer(text, return_tensors="pt")
+        text_input_ids = text_tokens["input_ids"].to(self.device)
         
         if audio_path:
             # Load and encode audio for voice cloning
             sample_rate = sample_rate or self.DEFAULT_SAMPLE_RATE
             audio_array, _ = librosa.load(audio_path, sr=sample_rate)
             audio_tokens = self._encode_audio_to_tokens(audio_array)
-            return self._create_voice_cloning_input(text_tokens.input_ids, audio_tokens)
+            return self._create_voice_cloning_input(text_input_ids, audio_tokens)
         else:
             # Standard text-to-speech without voice cloning
-            return text_tokens
+            return text_input_ids
 
     def generate(self, inputs, **kwargs):
         """
         Generate audio tokens from tokenized inputs.
         
         Args:
-            inputs (dict or torch.Tensor): Tokenized inputs
+            inputs (torch.Tensor): Tokenized input_ids tensor
             **kwargs: Additional generation parameters
             
         Returns:
             torch.Tensor: Generated token sequences
         """
-        # Extract input_ids for Unsloth compatibility
-        if isinstance(inputs, dict):
-            input_ids = inputs["input_ids"]
-        else:
-            input_ids = inputs
-            
-        return self.model.generate(input_ids=input_ids, **self.generate_kwargs, **kwargs)
+        return self.model.generate(inputs, **self.generate_kwargs, **kwargs)
 
     def decode(self, generated_ids, **kwargs):
         """
@@ -256,7 +251,7 @@ class OrpheusAudioModel(AudioModelBase):
         
         return all_tokens
     
-    def _create_voice_cloning_input(self, target_text_tokens, audio_tokens, voice_prompt=""):
+    def _create_voice_cloning_input(self, target_text_ids, audio_tokens, voice_prompt=""):
         """
         Create structured input for voice cloning.
         
@@ -264,15 +259,15 @@ class OrpheusAudioModel(AudioModelBase):
         SOH + voice_prompt + EOT EOH DELIM SOS + audio_tokens + EOS SEP + SOH + target_text + EOT EOH DELIM
         
         Args:
-            target_text_tokens (torch.Tensor): Pre-tokenized target text
+            target_text_ids (torch.Tensor): Pre-tokenized target text input_ids
             audio_tokens (list): Encoded reference audio tokens
             voice_prompt (str): Prompt describing the audio transcript
             
         Returns:
-            dict: Input tensors with input_ids and attention_mask
+            torch.Tensor: Input tensor ready for generation
         """
         # Tokenize voice prompt
-        voice_prompt_tokens = self.tokenizer(voice_prompt, return_tensors="pt").input_ids
+        voice_prompt_tokens = self.tokenizer(voice_prompt, return_tensors="pt")["input_ids"]
         
         # Create token sequences
         header_start = torch.tensor([[self.START_OF_HEADER]], dtype=torch.int64)
@@ -297,19 +292,15 @@ class OrpheusAudioModel(AudioModelBase):
         # Assemble complete input sequence
         input_sequence = [
             header_start,                   # SOH
-            voice_prompt_tokens,            # "and_the_transcript_is"
+            voice_prompt_tokens,            # voice prompt
             header_end,                     # EOT EOH DELIM SOS
             torch.tensor([audio_tokens], dtype=torch.int64),  # audio tokens
             voice_end,                      # EOS SEP
             header_start,                   # SOH
-            target_text_tokens,             # target text (pre-tokenized)
+            target_text_ids,                # target text input_ids
             target_end                      # EOT EOH DELIM
         ]
         
         input_ids = torch.cat(input_sequence, dim=1)
-        attention_mask = torch.ones_like(input_ids, dtype=torch.int64)
         
-        return {
-            "input_ids": input_ids.to(self.device),
-            "attention_mask": attention_mask.to(self.device)
-        }
+        return input_ids.to(self.device)
