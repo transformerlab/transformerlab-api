@@ -66,26 +66,15 @@ class OrpheusAudioModel(AudioModelBase):
     SNAC_MODEL_NAME = "hubertsiuzdak/snac_24khz"
     
     # Special tokens for voice cloning
-    class SpecialTokens:
-        START_OF_HEADER = 128259      # SOH
-        END_OF_TEXT = 128009          # EOT  
-        END_OF_HEADER = 128260        # EOH
-        SPEECH_DELIMITER = 128261     # Speech delimiter
-        START_OF_SPEECH = 128257      # <start_of_speech>
-        END_OF_SPEECH = 128258        # <end_of_speech>
-        SPEECH_SEPARATOR = 128262     # Speech separator
-        PAD_TOKEN = 128263            # Padding token
-        CODE_TOKEN_OFFSET = 128266    # Base offset for audio codes
-    
-    # Audio codec layer offsets
-    class CodecOffsets:
-        LAYER_1 = 0
-        LAYER_2 = 4096
-        LAYER_3_BASE = 2 * 4096
-        LAYER_3_OFFSET_1 = 3 * 4096
-        LAYER_2_OFFSET_1 = 4 * 4096
-        LAYER_3_OFFSET_2 = 5 * 4096
-        LAYER_3_OFFSET_3 = 6 * 4096
+    START_OF_HEADER = 128259      # SOH
+    END_OF_TEXT = 128009          # EOT  
+    END_OF_HEADER = 128260        # EOH
+    SPEECH_DELIMITER = 128261     # Speech delimiter
+    START_OF_SPEECH = 128257      # <start_of_speech>
+    END_OF_SPEECH = 128258        # <end_of_speech>
+    SPEECH_SEPARATOR = 128262     # Speech separator
+    PAD_TOKEN = 128263            # Padding token
+    CODE_TOKEN_OFFSET = 128266    # Base offset for audio codes
         
     def __init__(self, model_name, device, context_length=2048):
         super().__init__(model_name, device, context_length)
@@ -122,7 +111,7 @@ class OrpheusAudioModel(AudioModelBase):
         # - Higher values make the model speak faster
         self.generate_kwargs = {
             "max_new_tokens": 10240,
-            "eos_token_id": self.SpecialTokens.END_OF_SPEECH,
+            "eos_token_id": self.END_OF_SPEECH,
             "use_cache": True,
             "repetition_penalty": 1.1,
         }
@@ -200,7 +189,7 @@ class OrpheusAudioModel(AudioModelBase):
     def _extract_audio_tokens(self, generated_ids):
         """Extract audio tokens from generated sequence."""
         # Find start of speech tokens
-        start_indices = (generated_ids == self.SpecialTokens.START_OF_SPEECH).nonzero(as_tuple=True)
+        start_indices = (generated_ids == self.START_OF_SPEECH).nonzero(as_tuple=True)
         
         if len(start_indices[1]) > 0:
             last_start_idx = start_indices[1][-1].item()
@@ -209,7 +198,7 @@ class OrpheusAudioModel(AudioModelBase):
             cropped_tensor = generated_ids
         
         # Remove end of speech tokens
-        return [row[row != self.SpecialTokens.END_OF_SPEECH] for row in cropped_tensor]
+        return [row[row != self.END_OF_SPEECH] for row in cropped_tensor]
     
     def _tokens_to_codec_codes(self, processed_tokens):
         """Convert audio tokens to codec codes."""
@@ -221,7 +210,7 @@ class OrpheusAudioModel(AudioModelBase):
             trimmed_row = row[:new_length]
             
             # Convert to codec IDs by subtracting offset
-            codec_codes = [token.item() - self.SpecialTokens.CODE_TOKEN_OFFSET 
+            codec_codes = [token.item() - self.CODE_TOKEN_OFFSET 
                           for token in trimmed_row]
             code_lists.append(codec_codes)
         
@@ -256,14 +245,14 @@ class OrpheusAudioModel(AudioModelBase):
             layer_1.append(code_list[base_idx])
             
             # Layer 2: Mid-level features with offsets
-            layer_2.append(code_list[base_idx + 1] - self.CodecOffsets.LAYER_2)
-            layer_2.append(code_list[base_idx + 4] - self.CodecOffsets.LAYER_2_OFFSET_1)
+            layer_2.append(code_list[base_idx + 1] - self.CODEC_LAYER_2_OFFSET)
+            layer_2.append(code_list[base_idx + 4] - self.CODEC_LAYER_2_OFFSET_1)
             
             # Layer 3: Fine details with offsets
-            layer_3.append(code_list[base_idx + 2] - self.CodecOffsets.LAYER_3_BASE)
-            layer_3.append(code_list[base_idx + 3] - self.CodecOffsets.LAYER_3_OFFSET_1)
-            layer_3.append(code_list[base_idx + 5] - self.CodecOffsets.LAYER_3_OFFSET_2)
-            layer_3.append(code_list[base_idx + 6] - self.CodecOffsets.LAYER_3_OFFSET_3)
+            layer_3.append(code_list[base_idx + 2] - self.CODEC_LAYER_3_BASE_OFFSET)
+            layer_3.append(code_list[base_idx + 3] - self.CODEC_LAYER_3_OFFSET_1)
+            layer_3.append(code_list[base_idx + 5] - self.CODEC_LAYER_3_OFFSET_2)
+            layer_3.append(code_list[base_idx + 6] - self.CODEC_LAYER_3_OFFSET_3)
         
         # Convert to tensors and decode
         codes = [
@@ -302,28 +291,28 @@ class OrpheusAudioModel(AudioModelBase):
         
         for i in range(codes[0].shape[1]):
             # Layer 1: Base features
-            all_tokens.append(codes[0][0][i].item() + self.SpecialTokens.CODE_TOKEN_OFFSET)
+            all_tokens.append(codes[0][0][i].item() + self.CODE_TOKEN_OFFSET)
             
             # Layer 2: Mid-level features
             all_tokens.append(codes[1][0][2*i].item() + 
-                            self.SpecialTokens.CODE_TOKEN_OFFSET + self.CodecOffsets.LAYER_2)
+                            self.CODE_TOKEN_OFFSET + self.CODEC_LAYER_2_OFFSET)
             
             # Layer 3: Fine details (4 tokens)
             base_idx = 4 * i
             all_tokens.append(codes[2][0][base_idx].item() + 
-                            self.SpecialTokens.CODE_TOKEN_OFFSET + self.CodecOffsets.LAYER_3_BASE)
+                            self.CODE_TOKEN_OFFSET + self.CODEC_LAYER_3_BASE_OFFSET)
             all_tokens.append(codes[2][0][base_idx + 1].item() + 
-                            self.SpecialTokens.CODE_TOKEN_OFFSET + self.CodecOffsets.LAYER_3_OFFSET_1)
+                            self.CODE_TOKEN_OFFSET + self.CODEC_LAYER_3_OFFSET_1)
             
             # Layer 2: Second token
             all_tokens.append(codes[1][0][2*i + 1].item() + 
-                            self.SpecialTokens.CODE_TOKEN_OFFSET + self.CodecOffsets.LAYER_2_OFFSET_1)
+                            self.CODE_TOKEN_OFFSET + self.CODEC_LAYER_2_OFFSET_1)
             
             # Layer 3: Remaining tokens
             all_tokens.append(codes[2][0][base_idx + 2].item() + 
-                            self.SpecialTokens.CODE_TOKEN_OFFSET + self.CodecOffsets.LAYER_3_OFFSET_2)
+                            self.CODE_TOKEN_OFFSET + self.CODEC_LAYER_3_OFFSET_2)
             all_tokens.append(codes[2][0][base_idx + 3].item() + 
-                            self.SpecialTokens.CODE_TOKEN_OFFSET + self.CodecOffsets.LAYER_3_OFFSET_3)
+                            self.CODE_TOKEN_OFFSET + self.CODEC_LAYER_3_OFFSET_3)
 
         return all_tokens
     
@@ -347,23 +336,23 @@ class OrpheusAudioModel(AudioModelBase):
         target_text_tokens = self.tokenizer(text, return_tensors="pt").input_ids
         
         # Create token sequences
-        header_start = torch.tensor([[self.SpecialTokens.START_OF_HEADER]], dtype=torch.int64)
+        header_start = torch.tensor([[self.START_OF_HEADER]], dtype=torch.int64)
         header_end = torch.tensor([[
-            self.SpecialTokens.END_OF_TEXT,
-            self.SpecialTokens.END_OF_HEADER, 
-            self.SpecialTokens.SPEECH_DELIMITER,
-            self.SpecialTokens.START_OF_SPEECH
+            self.END_OF_TEXT,
+            self.END_OF_HEADER, 
+            self.SPEECH_DELIMITER,
+            self.START_OF_SPEECH
         ]], dtype=torch.int64)
         
         voice_end = torch.tensor([[
-            self.SpecialTokens.END_OF_SPEECH,
-            self.SpecialTokens.SPEECH_SEPARATOR
+            self.END_OF_SPEECH,
+            self.SPEECH_SEPARATOR
         ]], dtype=torch.int64)
         
         target_end = torch.tensor([[
-            self.SpecialTokens.END_OF_TEXT,
-            self.SpecialTokens.END_OF_HEADER,
-            self.SpecialTokens.SPEECH_DELIMITER
+            self.END_OF_TEXT,
+            self.END_OF_HEADER,
+            self.SPEECH_DELIMITER
         ]], dtype=torch.int64)
         
         # Assemble complete input sequence
