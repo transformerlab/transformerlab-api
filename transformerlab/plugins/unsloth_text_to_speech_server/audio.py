@@ -144,16 +144,11 @@ class OrpheusAudioModel(AudioModelBase):
         Returns:
             torch.Tensor: Generated token sequences
         """
-        generation_args = self._prepare_generation_args(inputs, **kwargs)
-        return self.model.generate(**generation_args)
-    
-    def _prepare_generation_args(self, inputs, **kwargs):
-        """Prepare arguments for model generation."""
-        if isinstance(inputs, dict):
-            return {**inputs, **self.generate_kwargs, **kwargs}
-        else:
-            # Handle legacy tensor format
-            return {"input_ids": inputs, **self.generate_kwargs, **kwargs}
+        # Handle legacy tensor format by converting to dict
+        if not isinstance(inputs, dict):
+            inputs = {"input_ids": inputs}
+            
+        return self.model.generate(**inputs, **self.generate_kwargs, **kwargs)
 
     def decode(self, generated_ids, **kwargs):
         """
