@@ -245,14 +245,14 @@ class OrpheusAudioModel(AudioModelBase):
             layer_1.append(code_list[base_idx])
             
             # Layer 2: Mid-level features with offsets
-            layer_2.append(code_list[base_idx + 1] - self.CODEC_LAYER_2_OFFSET)
-            layer_2.append(code_list[base_idx + 4] - self.CODEC_LAYER_2_OFFSET_1)
+            layer_2.append(code_list[base_idx + 1] - 4096)
+            layer_2.append(code_list[base_idx + 4] - 16384)  # 4 * 4096
             
             # Layer 3: Fine details with offsets
-            layer_3.append(code_list[base_idx + 2] - self.CODEC_LAYER_3_BASE_OFFSET)
-            layer_3.append(code_list[base_idx + 3] - self.CODEC_LAYER_3_OFFSET_1)
-            layer_3.append(code_list[base_idx + 5] - self.CODEC_LAYER_3_OFFSET_2)
-            layer_3.append(code_list[base_idx + 6] - self.CODEC_LAYER_3_OFFSET_3)
+            layer_3.append(code_list[base_idx + 2] - 8192)   # 2 * 4096
+            layer_3.append(code_list[base_idx + 3] - 12288)  # 3 * 4096
+            layer_3.append(code_list[base_idx + 5] - 20480)  # 5 * 4096
+            layer_3.append(code_list[base_idx + 6] - 24576)  # 6 * 4096
         
         # Convert to tensors and decode
         codes = [
@@ -294,25 +294,19 @@ class OrpheusAudioModel(AudioModelBase):
             all_tokens.append(codes[0][0][i].item() + self.CODE_TOKEN_OFFSET)
             
             # Layer 2: Mid-level features
-            all_tokens.append(codes[1][0][2*i].item() + 
-                            self.CODE_TOKEN_OFFSET + self.CODEC_LAYER_2_OFFSET)
+            all_tokens.append(codes[1][0][2*i].item() + self.CODE_TOKEN_OFFSET + 4096)
             
             # Layer 3: Fine details (4 tokens)
             base_idx = 4 * i
-            all_tokens.append(codes[2][0][base_idx].item() + 
-                            self.CODE_TOKEN_OFFSET + self.CODEC_LAYER_3_BASE_OFFSET)
-            all_tokens.append(codes[2][0][base_idx + 1].item() + 
-                            self.CODE_TOKEN_OFFSET + self.CODEC_LAYER_3_OFFSET_1)
+            all_tokens.append(codes[2][0][base_idx].item() + self.CODE_TOKEN_OFFSET + 8192)      # 2 * 4096
+            all_tokens.append(codes[2][0][base_idx + 1].item() + self.CODE_TOKEN_OFFSET + 12288) # 3 * 4096
             
             # Layer 2: Second token
-            all_tokens.append(codes[1][0][2*i + 1].item() + 
-                            self.CODE_TOKEN_OFFSET + self.CODEC_LAYER_2_OFFSET_1)
+            all_tokens.append(codes[1][0][2*i + 1].item() + self.CODE_TOKEN_OFFSET + 16384)      # 4 * 4096
             
             # Layer 3: Remaining tokens
-            all_tokens.append(codes[2][0][base_idx + 2].item() + 
-                            self.CODE_TOKEN_OFFSET + self.CODEC_LAYER_3_OFFSET_2)
-            all_tokens.append(codes[2][0][base_idx + 3].item() + 
-                            self.CODE_TOKEN_OFFSET + self.CODEC_LAYER_3_OFFSET_3)
+            all_tokens.append(codes[2][0][base_idx + 2].item() + self.CODE_TOKEN_OFFSET + 20480) # 5 * 4096
+            all_tokens.append(codes[2][0][base_idx + 3].item() + self.CODE_TOKEN_OFFSET + 24576) # 6 * 4096
 
         return all_tokens
     
