@@ -15,12 +15,13 @@ from anyio.streams.text import TextReceiveStream
 from werkzeug.utils import secure_filename
 
 from transformerlab.db.db import experiment_get, experiment_get_by_name
-from transformerlab.db.sync import job_mark_as_complete_if_running, job_update_sync
+from transformerlab.services.job_service import job_update_sync
 import transformerlab.db.jobs as db_jobs
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
 from transformerlab.shared import dirs
 from transformerlab.shared.dirs import GLOBAL_LOG_PATH
+from transformerlab.services.job_service import job_update_status
 
 
 def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs):
@@ -132,7 +133,7 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
                 print(f"Job {job_id} now in progress!")
                 job = await db_jobs.job_get(job_id)
                 experiment_id = job["experiment_id"]
-                await db_jobs.job_update_status(job_id=job_id, status="RUNNING", experiment_id=experiment_id)
+                await job_update_status(job_id=job_id, status="RUNNING", experiment_id=experiment_id)
 
             # Check the job_data column for the stop flag:
             job_row = await db_jobs.job_get(job_id)
@@ -148,12 +149,12 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
             print(f"Job {job_id} completed successfully")
             job = await db_jobs.job_get(job_id)
             experiment_id = job["experiment_id"]
-            await db_jobs.job_update_status(job_id=job_id, status="COMPLETE", experiment_id=experiment_id)
+            await job_update_status(job_id=job_id, status="COMPLETE", experiment_id=experiment_id)
         else:
             print(f"ERROR: Job {job_id} failed with exit code {process.returncode}.")
             job = await db_jobs.job_get(job_id)
             experiment_id = job["experiment_id"]
-            await db_jobs.job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
+            await job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
 
         return process
 
@@ -252,7 +253,7 @@ async def async_run_python_daemon_and_update_status(
             print(f"Worker job {job_id} started successfully")
             job = await db_jobs.job_get(job_id)
             experiment_id = job["experiment_id"]
-            await db_jobs.job_update_status(job_id=job_id, status="COMPLETE", experiment_id=experiment_id)
+            await job_update_status(job_id=job_id, status="COMPLETE", experiment_id=experiment_id)
 
             # Schedule the read_process_output coroutine in the current event
             # so we can keep watching this process, but return back to the caller
@@ -282,7 +283,7 @@ async def async_run_python_daemon_and_update_status(
     print(error_msg)
     job = await db_jobs.job_get(job_id)
     experiment_id = job["experiment_id"]
-    await db_jobs.job_update_status(job_id=job_id, status="FAILED", error_msg=error_msg, experiment_id=experiment_id)
+    await job_update_status(job_id=job_id, status="FAILED", error_msg=error_msg, experiment_id=experiment_id)
     return process
 
 
@@ -305,7 +306,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         # update task to be marked as COMPLETE:
         job = await db_jobs.job_get(job_id)
         experiment_id = job["experiment_id"]
-        await db_jobs.job_update_status(job_id=job_id, status="COMPLETE", experiment_id=experiment_id)
+        await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
         # implement rest later
         return {"status": "complete", "job_id": job_id, "message": "Task job completed successfully"}
 
@@ -349,7 +350,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         eval_name = job_config.get("evaluator", "")
         job = await db_jobs.job_get(job_id)
         experiment_id = job["experiment_id"]
-        await db_jobs.job_update_status(job_id=job_id, status="RUNNING", experiment_id=experiment_id)
+        await job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
         print("Running evaluation script")
 
         evals_output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
@@ -364,13 +365,13 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         if job_data is None:
             job = await db_jobs.job_get(job_id)
             experiment_id = job["experiment_id"]
-            await db_jobs.job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
+            await job_update_status(job_id, "FAILED", experiment_id=experiment_id)
             return {"status": "error", "job_id": job_id, "message": "Evaluation job failed: No job data found"}
 
         if job_data.get("stop", False):
             job = await db_jobs.job_get(job_id)
             experiment_id = job["experiment_id"]
-            await db_jobs.job_update_status(job_id=job_id, status="STOPPED", experiment_id=experiment_id)
+            await job_update_status(job_id, "STOPPED", experiment_id=experiment_id)
             return {"status": "stopped", "job_id": job_id, "message": "Evaluation job was stopped by user"}
         else:
             # Only set to COMPLETE if not already FAILED
@@ -378,9 +379,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             experiment_id = job["experiment_id"]
             current_status = await db_jobs.job_get_status(job_id, experiment_id)
             if current_status != "FAILED":
-                job = await db_jobs.job_get(job_id)
-                experiment_id = job["experiment_id"]
-                await db_jobs.job_update_status(job_id=job_id, status="COMPLETE", experiment_id=experiment_id)
+                await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
             return {"status": "complete", "job_id": job_id, "message": "Evaluation job completed successfully"}
 
     elif master_job_type == "GENERATE":
@@ -391,7 +390,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         generation_name = job_config["generator"]
         job = await db_jobs.job_get(job_id)
         experiment_id = job["experiment_id"]
-        await db_jobs.job_update_status(job_id=job_id, status="RUNNING", experiment_id=experiment_id)
+        await job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
         print("Running generation script")
 
         gen_output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
@@ -408,13 +407,13 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         if job_data is None:
             job = await db_jobs.job_get(job_id)
             experiment_id = job["experiment_id"]
-            await db_jobs.job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
+            await job_update_status(job_id, "FAILED", experiment_id=experiment_id)
             return {"status": "error", "job_id": job_id, "message": "Generation job failed: No job data found"}
 
         if job_data.get("stop", False):
             job = await db_jobs.job_get(job_id)
             experiment_id = job["experiment_id"]
-            await db_jobs.job_update_status(job_id=job_id, status="STOPPED", experiment_id=experiment_id)
+            await job_update_status(job_id, "STOPPED", experiment_id=experiment_id)
             return {"status": "stopped", "job_id": job_id, "message": "Generation job was stopped by user"}
         else:
             # Only set to COMPLETE if not already FAILED
@@ -422,16 +421,14 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             experiment_id = job["experiment_id"]
             current_status = await db_jobs.job_get_status(job_id, experiment_id)
             if current_status != "FAILED":
-                job = await db_jobs.job_get(job_id)
-                experiment_id = job["experiment_id"]
-                await db_jobs.job_update_status(job_id=job_id, status="COMPLETE", experiment_id=experiment_id)
+                await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
             return {"status": "complete", "job_id": job_id, "message": "Generation job completed successfully"}
 
     elif master_job_type == "EXPORT":
         plugin_name = job_config["plugin"]
         job = await db_jobs.job_get(job_id)
         experiment_id = job["experiment_id"]
-        await db_jobs.job_update_status(job_id=job_id, status="RUNNING", experiment_id=experiment_id)
+        await job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
         print("Running export script")
 
         export_output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
@@ -472,16 +469,14 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             experiment_id = job["experiment_id"]
             current_status = await db_jobs.job_get_status(job_id, experiment_id)
             if current_status != "FAILED":
-                job = await db_jobs.job_get(job_id)
-                experiment_id = job["experiment_id"]
-                await db_jobs.job_update_status(job_id=job_id, status="COMPLETE", experiment_id=experiment_id)
+                await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
                 print(f"Export job {job_id} completed successfully")
             return {"status": "complete", "job_id": job_id, "message": "Export job completed successfully"}
 
         else:
             job = await db_jobs.job_get(job_id)
             experiment_id = job["experiment_id"]
-            await db_jobs.job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
+            await job_update_status(job_id, "FAILED", experiment_id=experiment_id)
             print(f"Export job {job_id} failed")
             return {"status": "error", "job_id": job_id, "message": result.get("message", "Export job failed")}
 
@@ -648,12 +643,18 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
     def on_train_complete():
         print("Training Job: The process has finished")
-        job_mark_as_complete_if_running(job_id, experiment_id)
+        # Safely mark COMPLETE only if still RUNNING and trigger workflows via service
+        try:
+            from transformerlab.services.job_service import job_mark_as_complete_if_running
+
+            job_mark_as_complete_if_running(job_id, experiment_id)
+        except Exception:
+            pass
         end_time = time.strftime("%Y-%m-%d %H:%M:%S")
         asyncio.run(db_jobs.job_update_job_data_insert_key_value(job_id, "end_time", end_time, experiment_id))
 
     def on_job_complete():
-        job_update_sync(job_id, "COMPLETE")
+        job_update_sync(job_id, "COMPLETE", experiment_id)
         end_time = time.strftime("%Y-%m-%d %H:%M:%S")
         asyncio.run(db_jobs.job_update_job_data_insert_key_value(job_id, "end_time", end_time, experiment_id))
 
@@ -673,7 +674,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         venv_path = os.path.join(plugin_location, "venv")
         job = await db_jobs.job_get(job_id)
         experiment_id = job["experiment_id"]
-        await db_jobs.job_update_status(job_id=job_id, status="RUNNING", experiment_id=experiment_id)
+        await job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
         start_time = time.strftime("%Y-%m-%d %H:%M:%S")
         await db_jobs.job_update_job_data_insert_key_value(job_id, "start_time", start_time, experiment_id)
 
@@ -1152,7 +1153,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
     job = await db_jobs.job_get(job_id)
     experiment_id = job["experiment_id"]
-    await db_jobs.job_update_status(job_id=job_id, status="RUNNING", experiment_id=experiment_id)
+    await job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
     return
 
 

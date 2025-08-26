@@ -1,5 +1,6 @@
 import json
 import os
+import asyncio
 
 
 os.environ["TFL_HOME_DIR"] = "./test/tmp/"
@@ -46,9 +47,15 @@ from transformerlab.db.db import (
 
 from transformerlab.db.sync import (
     job_create_sync,
-    job_update_status_sync,
-    job_update_sync,
-    job_mark_as_complete_if_running,
+    job_update_status_sync,  # used in dedicated sync tests
+    job_update_sync,  # used in dedicated sync tests
+    job_mark_as_complete_if_running,  # used in dedicated sync tests
+)
+from transformerlab.services.job_service import (
+    job_update_status as service_job_update_status,
+    job_update_status_sync as service_job_update_status_sync,
+    job_update_sync as service_job_update_sync,
+    job_mark_as_complete_if_running as service_job_mark_as_complete_if_running,
 )
 
 from transformerlab.db.datasets import (
@@ -84,7 +91,7 @@ from transformerlab.db.jobs import (
     job_create,
     job_get_status,
     job_get,
-    job_update_status,
+    job_update_status,  # used in unit tests validating DB-layer behavior
     job_delete_all,
     job_update_job_data_insert_key_value,
     job_stop,
@@ -706,6 +713,94 @@ class TestWorkflows:
         assert len(workflow_runs) > 0
         assert workflow_runs[0]["experiment_id"] == test_experiment
         assert workflow_runs[0]["workflow_id"] == workflow_id
+
+    @pytest.mark.asyncio
+    async def test_workflow_trigger_on_job_completion(self, test_experiment):
+        """Test that workflows are triggered when jobs complete with matching trigger types"""
+        # Create a workflow with TRAIN trigger
+        workflow_config = {
+            "nodes": [{"type": "START", "id": "start", "name": "START", "out": []}],
+            "triggers": ["TRAIN"],
+        }
+        workflow_id = await workflow_create("test_trigger_workflow", json.dumps(workflow_config), test_experiment)
+
+        # Create a TRAIN job
+        job_id = await job_create("TRAIN", "RUNNING", test_experiment, "{}")
+
+        # Complete the job - this should trigger the workflow
+        await service_job_update_status(job_id, "COMPLETE", test_experiment)
+        await asyncio.sleep(0.1)
+
+        # Check that workflow was queued
+        workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
+        assert len(workflow_runs) > 0
+        assert workflow_runs[0]["workflow_id"] == workflow_id
+        assert workflow_runs[0]["status"] in ["QUEUED", "RUNNING"]
+
+    @pytest.mark.asyncio
+    async def test_workflow_trigger_error_handling(self, test_experiment):
+        """Test that workflows with malformed configs don't cause errors"""
+        # Create a workflow with malformed JSON config
+        await workflow_create("test_malformed_config", "invalid json", test_experiment)
+
+        # Create a TRAIN job
+        job_id = await job_create("TRAIN", "RUNNING", test_experiment, "{}")
+
+        # Complete the job - this should not crash even with malformed config
+        await service_job_update_status(job_id, "COMPLETE", test_experiment)
+        await asyncio.sleep(0.1)
+
+        # Check that no workflow was triggered due to malformed config
+        workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
+        assert len(workflow_runs) == 0
+
+    @pytest.mark.asyncio
+    async def test_sync_job_functions_trigger_workflows(self, test_experiment):
+        """Test that sync job functions also trigger workflows when jobs complete"""
+        # Create a workflow with TRAIN trigger
+        workflow_config = {
+            "nodes": [{"type": "START", "id": "start", "name": "START", "out": []}],
+            "triggers": ["TRAIN"],
+        }
+        workflow_id = await workflow_create("test_sync_trigger", json.dumps(workflow_config), test_experiment)
+
+        # Test job_update_status_sync
+        job_id1 = await job_create("TRAIN", "RUNNING", test_experiment, "{}")
+        service_job_update_status_sync(job_id1, "COMPLETE", test_experiment)
+
+        # Wait a moment for async trigger to complete
+        import asyncio
+
+        await asyncio.sleep(0.1)
+
+        # Check that workflow was triggered
+        workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
+        assert len(workflow_runs) > 0
+        # Check if our workflow was triggered (it might not be the first one)
+        triggered_workflow_ids = [run["workflow_id"] for run in workflow_runs]
+        assert workflow_id in triggered_workflow_ids
+
+        # Test job_update_sync
+        job_id2 = await job_create("TRAIN", "RUNNING", test_experiment, "{}")
+        service_job_update_sync(job_id2, "COMPLETE", test_experiment)
+
+        # Wait a moment for async trigger to complete
+        await asyncio.sleep(0.1)
+
+        # Check that workflow was triggered again
+        workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
+        assert len(workflow_runs) >= 2
+
+        # Test job_mark_as_complete_if_running
+        job_id3 = await job_create("TRAIN", "RUNNING", test_experiment, "{}")
+        service_job_mark_as_complete_if_running(job_id3, test_experiment)
+
+        # Wait a moment for async trigger to complete
+        await asyncio.sleep(0.1)
+
+        # Check that workflow was triggered again
+        workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
+        assert len(workflow_runs) >= 3
 
 
 @pytest.mark.asyncio
