@@ -166,7 +166,7 @@ class OrpheusAudioModel(AudioModelBase):
         codec_codes = self._tokens_to_codec_codes(audio_tokens)
         
         # Decode to audio waveform
-        audio_waveforms = [self._decode_codec_codes(codes) for codes in codec_codes]
+        audio_waveforms = [self._decode_to_audio(codes) for codes in codec_codes]
         return audio_waveforms[0].squeeze().to(torch.float32).cpu().detach().numpy()
     
     def _extract_audio_tokens(self, generated_ids):
@@ -199,11 +199,7 @@ class OrpheusAudioModel(AudioModelBase):
         
         return code_lists
     
-    def _decode_codec_codes(self, code_list):
-        """Decode codec codes to audio using SNAC decoder."""
-        return self.redistribute_codes(code_list)
-    
-    def redistribute_codes(self, code_list):
+    def _decode_to_audio(self, code_list):
         """
         Redistribute codec codes across SNAC layers for audio decoding.
         
