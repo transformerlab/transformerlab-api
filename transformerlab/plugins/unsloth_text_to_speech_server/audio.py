@@ -251,7 +251,7 @@ class OrpheusAudioModel(AudioModelBase):
         
         return all_tokens
     
-    def _create_voice_cloning_input(self, target_text_ids, audio_tokens, voice_prompt=""):
+    def _create_voice_cloning_input(self, target_text_ids, audio_tokens, voice_prompt="This is how the person sounds: "):
         """
         Create structured input for voice cloning.
         
