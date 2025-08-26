@@ -243,7 +243,7 @@ class OrpheusAudioModel(AudioModelBase):
         for i in range(codes[0].shape[1]):
             base_idx = 4 * i
             all_tokens.extend([
-                codes[0][0][i].item() + self.CODE_TOKEN_OFFSET,                           # Layer 1
+                codes[0][0][i].item() + self.CODE_TOKEN_OFFSET,                          # Layer 1
                 codes[1][0][2*i].item() + self.CODE_TOKEN_OFFSET + 4096,                 # Layer 2
                 codes[2][0][base_idx].item() + self.CODE_TOKEN_OFFSET + 2 * 4096,        # Layer 3
                 codes[2][0][base_idx + 1].item() + self.CODE_TOKEN_OFFSET + 3 * 4096,    # Layer 3
@@ -294,7 +294,7 @@ class OrpheusAudioModel(AudioModelBase):
         
         # Assemble complete input sequence
         input_sequence = [
-            header_start,                    # SOH
+            header_start,                   # SOH
             voice_prompt_tokens,            # "and_the_transcript_is"
             header_end,                     # EOT EOH DELIM SOS
             torch.tensor([audio_tokens], dtype=torch.int64),  # audio tokens
