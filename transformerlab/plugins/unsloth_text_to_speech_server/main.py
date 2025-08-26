@@ -78,14 +78,21 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         self.model_architecture = model_architecture
         # Use the model name and architecture to determine which custom audio model class to instantiate
         if self.model_architecture == "CsmForConditionalGeneration":
-            self.audio_model = CsmAudioModel(self.model_name, self.device)
+            self.audio_model = CsmAudioModel(
+                model_name=self.model_name,
+                device=self.device,
+                processor_name=model_path,
+            )
             logger.info(
                 "⚠️  RECOMMENDATION: For best results with CsmForConditionalGeneration models, set temperature=0!"
             )
 
         elif "orpheus" in self.model_name:
-            self.audio_model = OrpheusAudioModel(self.model_name, self.device)
-            logger.info("Initialized Orpheus Aaudio Model")
+            self.audio_model = OrpheusAudioModel(
+                model_name=self.model_name,
+                device=self.device,
+            )
+            logger.info("Initialized Orpheus Audio Model")
 
         else:
             logger.info(
