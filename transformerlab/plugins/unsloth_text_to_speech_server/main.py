@@ -101,6 +101,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         sample_rate = params.get("sample_rate", 24000)
         temperature = params.get("temperature", 0.0)
         audio_dir = params.get("audio_dir")
+        audio_path = params.get("audio_path", None)
 
         real_path = os.path.realpath(audio_dir)
         # Make sure the path is still inside the workspace directory
@@ -119,7 +120,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
             generate_kwargs["do_sample"] = True
             generate_kwargs["temperature"] = temperature
         try:
-            inputs = self.audio_model.tokenize(text)
+            inputs = self.audio_model.tokenize(text=text, audio_path=audio_path, sample_rate=sample_rate)
             audio_values = self.audio_model.generate(inputs, **generate_kwargs)
             audio = self.audio_model.decode(audio_values)
             if speed != 1.0:
