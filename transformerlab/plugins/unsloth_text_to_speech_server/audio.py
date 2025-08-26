@@ -116,22 +116,15 @@ class OrpheusAudioModel(AudioModelBase):
         Returns:
             dict or torch.Tensor: Tokenized inputs ready for generation
         """
-        sample_rate = sample_rate or self.DEFAULT_SAMPLE_RATE
-        
         if audio_path:
-            return self._tokenize_with_voice_cloning(text, audio_path, sample_rate)
+            # Load and encode audio for voice cloning
+            sample_rate = sample_rate or self.DEFAULT_SAMPLE_RATE
+            audio_array, _ = librosa.load(audio_path, sr=sample_rate)
+            audio_tokens = self._encode_audio_to_tokens(audio_array)
+            return self._create_voice_cloning_input(text, audio_tokens)
         else:
-            return self._tokenize_text_only(text)
-    
-    def _tokenize_text_only(self, text):
-        """Tokenize text for standard TTS without voice cloning."""
-        return self.tokenizer(text, return_tensors="pt").to(self.device)
-    
-    def _tokenize_with_voice_cloning(self, text, audio_path, sample_rate):
-        """Tokenize text and audio for voice cloning."""
-        audio_array, _ = librosa.load(audio_path, sr=sample_rate)
-        audio_tokens = self._encode_audio_to_tokens(audio_array)
-        return self._create_voice_cloning_input(text, audio_tokens)
+            # Standard text-to-speech without voice cloning
+            return self.tokenizer(text, return_tensors="pt").to(self.device)
 
     def generate(self, inputs, **kwargs):
         """
@@ -161,43 +154,26 @@ class OrpheusAudioModel(AudioModelBase):
         Returns:
             numpy.ndarray: Audio waveform
         """
-        # Extract and process audio tokens
-        audio_tokens = self._extract_audio_tokens(generated_ids)
-        codec_codes = self._tokens_to_codec_codes(audio_tokens)
-        
-        # Decode to audio waveform
-        audio_waveforms = [self._decode_to_audio(codes) for codes in codec_codes]
-        return audio_waveforms[0].squeeze().to(torch.float32).cpu().detach().numpy()
-    
-    def _extract_audio_tokens(self, generated_ids):
-        """Extract audio tokens from generated sequence."""
-        # Find start of speech tokens
+        # Find and extract audio tokens
         start_indices = (generated_ids == self.START_OF_SPEECH).nonzero(as_tuple=True)
-        
         if len(start_indices[1]) > 0:
             last_start_idx = start_indices[1][-1].item()
             cropped_tensor = generated_ids[:, last_start_idx + 1:]
         else:
             cropped_tensor = generated_ids
         
-        # Remove end of speech tokens
-        return [row[row != self.END_OF_SPEECH] for row in cropped_tensor]
-    
-    def _tokens_to_codec_codes(self, processed_tokens):
-        """Convert audio tokens to codec codes."""
-        code_lists = []
-        for row in processed_tokens:
-            # Ensure length is multiple of 7 (SNAC requirement)
-            row_length = row.size(0)
-            new_length = (row_length // 7) * 7
-            trimmed_row = row[:new_length]
-            
-            # Convert to codec IDs by subtracting offset
-            codec_codes = [token.item() - self.CODE_TOKEN_OFFSET 
-                          for token in trimmed_row]
-            code_lists.append(codec_codes)
+        # Remove end of speech tokens and convert to codec codes
+        processed_tokens = [row[row != self.END_OF_SPEECH] for row in cropped_tensor]
         
-        return code_lists
+        # Process the first row (assuming single generation)
+        row = processed_tokens[0]
+        row_length = row.size(0)
+        new_length = (row_length // 7) * 7
+        trimmed_row = row[:new_length]
+        
+        # Convert to codec codes and decode to audio
+        codec_codes = [token.item() - self.CODE_TOKEN_OFFSET for token in trimmed_row]
+        return self._decode_to_audio(codec_codes).squeeze().to(torch.float32).cpu().detach().numpy()
     
     def _decode_to_audio(self, code_list):
         """
@@ -252,41 +228,27 @@ class OrpheusAudioModel(AudioModelBase):
         Returns:
             list: Audio tokens with proper offsets
         """
-        # Prepare waveform tensor
-        waveform_tensor = torch.from_numpy(waveform).unsqueeze(0)
+        # Prepare waveform tensor and encode
+        waveform_tensor = torch.from_numpy(waveform).unsqueeze(0).unsqueeze(0)
         waveform_tensor = waveform_tensor.to(dtype=torch.float32, device=self.device)
-        waveform_tensor = waveform_tensor.unsqueeze(0)
 
-        # Encode to codec codes
         with torch.inference_mode():
             codes = self.snac_model.encode(waveform_tensor)
 
         # Convert codes to tokens with layer-specific offsets
-        return self._codes_to_tokens(codes)
-    
-    def _codes_to_tokens(self, codes):
-        """Convert SNAC codes to tokens with proper offsets."""
         all_tokens = []
-        
         for i in range(codes[0].shape[1]):
-            # Layer 1: Base features
-            all_tokens.append(codes[0][0][i].item() + self.CODE_TOKEN_OFFSET)
-            
-            # Layer 2: Mid-level features
-            all_tokens.append(codes[1][0][2*i].item() + self.CODE_TOKEN_OFFSET + 4096)
-            
-            # Layer 3: Fine details (4 tokens)
             base_idx = 4 * i
-            all_tokens.append(codes[2][0][base_idx].item() + self.CODE_TOKEN_OFFSET + 2 * 4096)
-            all_tokens.append(codes[2][0][base_idx + 1].item() + self.CODE_TOKEN_OFFSET + 3 * 4096)
-            
-            # Layer 2: Second token
-            all_tokens.append(codes[1][0][2*i + 1].item() + self.CODE_TOKEN_OFFSET + 4 * 4096)
-            
-            # Layer 3: Remaining tokens
-            all_tokens.append(codes[2][0][base_idx + 2].item() + self.CODE_TOKEN_OFFSET + 5 * 4096)
-            all_tokens.append(codes[2][0][base_idx + 3].item() + self.CODE_TOKEN_OFFSET + 6 * 4096)
-
+            all_tokens.extend([
+                codes[0][0][i].item() + self.CODE_TOKEN_OFFSET,                           # Layer 1
+                codes[1][0][2*i].item() + self.CODE_TOKEN_OFFSET + 4096,                 # Layer 2
+                codes[2][0][base_idx].item() + self.CODE_TOKEN_OFFSET + 2 * 4096,        # Layer 3
+                codes[2][0][base_idx + 1].item() + self.CODE_TOKEN_OFFSET + 3 * 4096,    # Layer 3
+                codes[1][0][2*i + 1].item() + self.CODE_TOKEN_OFFSET + 4 * 4096,         # Layer 2
+                codes[2][0][base_idx + 2].item() + self.CODE_TOKEN_OFFSET + 5 * 4096,    # Layer 3
+                codes[2][0][base_idx + 3].item() + self.CODE_TOKEN_OFFSET + 6 * 4096     # Layer 3
+            ])
+        
         return all_tokens
     
     def _create_voice_cloning_input(self, text, audio_tokens, voice_prompt="and_the_transcript_is"):
