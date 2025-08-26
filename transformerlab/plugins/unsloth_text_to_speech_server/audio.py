@@ -79,22 +79,11 @@ class OrpheusAudioModel(AudioModelBase):
     def __init__(self, model_name, device, context_length=2048):
         super().__init__(model_name, device, context_length)
         
-        # Initialize audio codec
-        self._initialize_snac_model()
-        
-        # Initialize language model
-        self._initialize_language_model()
-        
-        # Configure generation parameters
-        self._setup_generation_config()
-    
-    def _initialize_snac_model(self):
-        """Initialize and configure the SNAC audio codec model."""
+        # Initialize SNAC audio codec model
         self.snac_model = SNAC.from_pretrained(self.SNAC_MODEL_NAME)
         self.snac_model = self.snac_model.to(self.device)
         
-    def _initialize_language_model(self):
-        """Initialize and configure the Orpheus language model."""
+        # Initialize Orpheus language model
         self.model, self.tokenizer = FastModel.from_pretrained(
             model_name=self.model_name,
             max_seq_length=self.context_length,
@@ -104,8 +93,7 @@ class OrpheusAudioModel(AudioModelBase):
         FastModel.for_inference(self.model)
         self.model = self.model.to(self.device)
         
-    def _setup_generation_config(self):
-        """Configure generation parameters optimized for Orpheus TTS."""
+        # Configure generation parameters optimized for Orpheus TTS
         # Based on Orpheus documentation recommendations:
         # - repetition_penalty >= 1.1 required for stable generations
         # - Higher values make the model speak faster
