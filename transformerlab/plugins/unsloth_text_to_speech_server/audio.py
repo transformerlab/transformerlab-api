@@ -41,9 +41,49 @@ class CsmAudioModel(AudioModelBase):
             "output_audio": True,
         }
 
-    def tokenize(self, text):
+    def tokenize(self, text, audio_path=None, sample_rate=24000):
+        """
+        Tokenize text and optionally audio for voice cloning.
+        
+        Args:
+            text (str): Text to convert to speech
+            audio_path (str, optional): Path to reference audio file for voice cloning
+            sample_rate (int, optional): Sample rate for audio processing
+            
+        Returns:
+            dict: Tokenized inputs ready for generation
+        """
         speaker_id = 0
-        return self.processor(f"[{speaker_id}]{text}", add_special_tokens=True).to(self.device)
+        
+        if audio_path:
+            # Load reference audio for voice cloning
+            audio_array, _ = librosa.load(audio_path, sr=sample_rate)
+            
+            # Create conversation with reference audio and target text
+            conversation = [
+                {
+                    "role": f"{speaker_id}",
+                    "content": [
+                        {"type": "text", "text": "This is how I sound."},
+                        {"type": "audio", "path": audio_array}
+                    ],
+                },
+                {
+                    "role": f"{speaker_id}",
+                    "content": [{"type": "text", "text": text}],
+                }
+            ]
+            
+            # Use processor's chat template for voice cloning
+            inputs = self.processor.apply_chat_template(
+                conversation,
+                tokenize=True,
+                return_dict=True,
+            )
+            return inputs.to(self.device)
+        else:
+            # Standard text-to-speech without voice cloning
+            return self.processor(f"[{speaker_id}]{text}", add_special_tokens=True).to(self.device)
 
     def generate(self, inputs, **kwargs):
         gen_args = {**inputs, **self.generate_kwargs, **kwargs}

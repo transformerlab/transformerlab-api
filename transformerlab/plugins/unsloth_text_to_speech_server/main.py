@@ -101,8 +101,6 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         audio_dir = params.get("audio_dir")
         audio_path = params.get("audio_path", None)
 
-        logger.info(f"!!!!{audio_path}!!!!")
-
         real_path = os.path.realpath(audio_dir)
         # Make sure the path is still inside the workspace directory
         if not real_path.startswith(os.path.realpath(WORKSPACE_DIR) + os.sep):
