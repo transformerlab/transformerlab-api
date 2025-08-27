@@ -251,7 +251,7 @@ class OrpheusAudioModel(AudioModelBase):
         
         return all_tokens
     
-    def _create_voice_cloning_input(self, target_text_ids, audio_tokens, voice_prompt="This is how the person sounds: "):
+    def _create_voice_cloning_input(self, target_text_ids, audio_tokens, voice_prompt="This is the way I want you to sound. "):
         """
         Create structured input for voice cloning.
         
@@ -267,34 +267,34 @@ class OrpheusAudioModel(AudioModelBase):
             torch.Tensor: Input tensor ready for generation
         """
         # Tokenize voice prompt
-        voice_prompt_tokens = self.tokenizer(voice_prompt, return_tensors="pt")["input_ids"]
+        voice_prompt_tokens = self.tokenizer(voice_prompt, return_tensors="pt")["input_ids"].to(self.device)
         
         # Create token sequences
-        header_start = torch.tensor([[self.START_OF_HEADER]], dtype=torch.int64)
+        header_start = torch.tensor([[self.START_OF_HEADER]], dtype=torch.int64).to(self.device)
         header_end = torch.tensor([[
             self.END_OF_TEXT,
             self.END_OF_HEADER, 
             self.SPEECH_DELIMITER,
             self.START_OF_SPEECH
-        ]], dtype=torch.int64)
+        ]], dtype=torch.int64).to(self.device)
         
         voice_end = torch.tensor([[
             self.END_OF_SPEECH,
             self.SPEECH_SEPARATOR
-        ]], dtype=torch.int64)
+        ]], dtype=torch.int64).to(self.device)
         
         target_end = torch.tensor([[
             self.END_OF_TEXT,
             self.END_OF_HEADER,
             self.SPEECH_DELIMITER
-        ]], dtype=torch.int64)
+        ]], dtype=torch.int64).to(self.device)
         
         # Assemble complete input sequence
         input_sequence = [
             header_start,                   # SOH
             voice_prompt_tokens,            # voice prompt
             header_end,                     # EOT EOH DELIM SOS
-            torch.tensor([audio_tokens], dtype=torch.int64),  # audio tokens
+            torch.tensor([audio_tokens], dtype=torch.int64).to(self.device),  # audio tokens
             voice_end,                      # EOS SEP
             header_start,                   # SOH
             target_text_ids,                # target text input_ids
