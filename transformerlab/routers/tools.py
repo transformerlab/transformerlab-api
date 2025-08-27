@@ -67,8 +67,8 @@ async def get_all_tools():
             config_text = await db.config_get(key="MCP_SERVER")
             if config_text:
                 mcp_config = json.loads(config_text)
-        except Exception as e:
-            print(f"Failed to get MCP config: {e}")
+        except Exception:
+            return {"status": "error", "message": "Failed to get MCP configuration"}
 
         # Add MCP tools if configured
         if mcp_config and mcp_config.get("serverName"):
@@ -99,13 +99,12 @@ async def get_all_tools():
                             "parameters": tool_data.get("inputSchema", {}),
                         }
                         tool_descriptions.append(hf_tool)
-            except Exception as e:
-                print(f"Error loading MCP tools: {e}")
+            except Exception:
+                return {"status": "error", "message": "Failed to connect to MCP server"}
 
         return tool_descriptions
-    except Exception as e:
-        print(f"Error loading MCP tools: {e}")
-        return []
+    except Exception:
+        return {"status": "error", "message": "An error occurred while loading tools"}
 
 
 @router.get("/call/{tool_id}", summary="Executes an MCP tool with parameters supplied in JSON.")
