@@ -24,9 +24,9 @@ class AudioModelBase(ABC):
         pass
 
 class CsmAudioModel(AudioModelBase):
-    def __init__(self, model_name, device, context_length=2048):
+    def __init__(self, model_name, device, processor_name, context_length=2048):
         super().__init__(model_name, device, context_length)
-        self.processor = AutoProcessor.from_pretrained(self.model_name)
+        self.processor = AutoProcessor.from_pretrained(processor_name)
         self.model, self.tokenizer = FastModel.from_pretrained(
             model_name=self.model_name,
             max_seq_length=self.context_length,

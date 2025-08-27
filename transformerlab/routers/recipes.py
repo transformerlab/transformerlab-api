@@ -6,6 +6,7 @@ import transformerlab.db.jobs as db_jobs
 from transformerlab.models import model_helper
 import json
 from transformerlab.routers.experiment import workflows
+from transformerlab.services.job_service import job_update_status
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 
@@ -77,12 +78,12 @@ async def _install_recipe_dependencies_job(job_id, id):
     try:
         job = await db_jobs.job_get(job_id)
         experiment_id = job["experiment_id"]
-        await db_jobs.job_update_status(job_id=job_id, status="RUNNING", experiment_id=experiment_id)
+        await job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
         recipes_gallery = galleries.get_exp_recipe_gallery()
         recipe = next((r for r in recipes_gallery if r.get("id") == id), None)
         if not recipe:
-            await db_jobs.job_update_status(
-                job_id, "FAILED", experiment_id, error_msg=f"Recipe with id {id} not found."
+            await job_update_status(
+                job_id, "FAILED", experiment_id=experiment_id, error_msg=f"Recipe with id {id} not found."
             )
             return
 
@@ -90,7 +91,7 @@ async def _install_recipe_dependencies_job(job_id, id):
         non_model_deps = [dep for dep in recipe.get("dependencies", []) if dep.get("type") != "model"]
 
         if len(non_model_deps) == 0:
-            await db_jobs.job_update_status(job_id, "COMPLETE", experiment_id)
+            await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
             return
 
         local_datasets = await get_datasets()
@@ -126,9 +127,9 @@ async def _install_recipe_dependencies_job(job_id, id):
             progress += 1
             await db_jobs.job_update_progress(job_id, int(progress * 100 / total), experiment_id)
             await db_jobs.job_update_job_data_insert_key_value(job_id, "results", results, experiment_id)
-        await db_jobs.job_update_status(job_id, "COMPLETE", experiment_id)
+        await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
     except Exception as e:
-        await db_jobs.job_update_status(job_id, "FAILED", experiment_id, error_msg=str(e))
+        await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=str(e))
 
 
 @router.get("/{id}/install_model_dependencies")
