@@ -142,7 +142,7 @@ async def call_tool(
     except Exception as e:
         err_string = f"{type(e).__name__}: {e}"
         print(err_string)
-        return {"status": "error", "message": f"Error calling MCP tool: {err_string}"}
+        return {"status": "error", "message": "An internal error has occurred."}
 
 
 class MCPServerParams(BaseModel):
