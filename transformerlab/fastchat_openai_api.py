@@ -466,6 +466,7 @@ async def show_available_models():
     controller_address = app_settings.controller_address
     async with httpx.AsyncClient() as client:
         await client.post(controller_address + "/refresh_all_workers")
+        await asyncio.sleep(0.5)  # Allow time for workers to re-register after refresh
         ret = await client.post(controller_address + "/list_models")
     models = ret.json()["models"]
     models.sort()
