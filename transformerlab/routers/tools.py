@@ -55,9 +55,9 @@ async def list_tools(
     return tool_descriptions
 
 
-@router.get("/all", summary="Returns all available MCP tools in the format required for completions API")
+@router.get("/all", summary="Returns all available MCP tools in Hugging Face format for completions API")
 async def get_all_tools():
-    """Returns all available MCP tools in the exact format required for the completions API"""
+    """Returns all available MCP tools converted to Hugging Face format for apply_chat_template"""
     try:
         tool_descriptions = []
 
@@ -81,13 +81,24 @@ async def get_all_tools():
                 mcp_tools = await mcp_list_tools(mcp_config["serverName"], args=args, env=env)
                 mcp_tools = mcp_tools.tools
 
-                # Convert MCP tools to the expected format
+                # Convert MCP tools to Hugging Face format
                 if isinstance(mcp_tools, list):
                     for tool in mcp_tools:
+                        # Get tool data as dict
                         if not isinstance(tool, dict):
-                            tool_descriptions.append(tool.model_dump())
+                            tool_data = tool.model_dump()
                         else:
-                            tool_descriptions.append(tool)
+                            tool_data = tool
+
+                        # Convert MCP format to Hugging Face format
+                        # MCP: {"name": "...", "description": "...", "inputSchema": {...}}
+                        # HF:  {"name": "...", "description": "...", "parameters": {...}}
+                        hf_tool = {
+                            "name": tool_data.get("name", "unnamed"),
+                            "description": tool_data.get("description", ""),
+                            "parameters": tool_data.get("inputSchema", {}),
+                        }
+                        tool_descriptions.append(hf_tool)
             except Exception as e:
                 print(f"Error loading MCP tools: {e}")
 
