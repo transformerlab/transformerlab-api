@@ -97,8 +97,6 @@ async def get_all_tools():
         return []
 
 
-
-
 @router.get("/call/{tool_id}", summary="Executes an MCP tool with parameters supplied in JSON.")
 async def call_tool(
     tool_id: str,

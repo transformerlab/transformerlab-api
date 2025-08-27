@@ -420,16 +420,14 @@ async def get_gen_params(
         gen_params["images"] = images
     if tools is not None and len(tools) > 0:
         gen_params["tools"] = tools
-        # Handle both regular tools (with function.name) and MCP tools (with direct name)
+        # Extract tool names for logging (MCP tools only)
         tool_names = []
         for tool in tools:
-            if "function" in tool and "name" in tool["function"]:
-                tool_names.append(tool["function"]["name"])
-            elif "name" in tool:
+            if "name" in tool:
                 tool_names.append(tool["name"])
             else:
                 tool_names.append("unnamed")
-        print(f"Adding tools to generation parameters: {tool_names}")
+        print(f"Adding MCP tools to generation parameters: {tool_names}")
     if not stop:
         gen_params.update({"stop": conv.stop_str, "stop_token_ids": conv.stop_token_ids})
     else:
