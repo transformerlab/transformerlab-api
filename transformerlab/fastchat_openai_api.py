@@ -93,6 +93,7 @@ class ChatCompletionRequest(BaseModel):
 class AudioRequest(BaseModel):
     experiment_id: int
     model: str
+    adaptor: Optional[str] = ""
     text: str
     file_prefix: str
     sample_rate: int
