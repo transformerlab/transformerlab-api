@@ -466,15 +466,24 @@ async def show_available_models():
     controller_address = app_settings.controller_address
     async with httpx.AsyncClient() as client:
         await client.post(controller_address + "/refresh_all_workers")
-        await asyncio.sleep(0.5)  # Allow time for workers to re-register after refresh
-        ret = await client.post(controller_address + "/list_models")
-    models = ret.json()["models"]
-    models.sort()
-    # TODO: return real model permission details
-    model_cards = []
-    for m in models:
-        model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
-    return ModelList(data=model_cards)
+        # Poll /list_models until non-empty or timeout
+        timeout = 5.0  # seconds
+        poll_interval = 0.2  # seconds
+        elapsed = 0.0
+        models = []
+        while elapsed < timeout:
+            ret = await client.post(controller_address + "/list_models")
+            models = ret.json().get("models", [])
+            if models:
+                break
+            await asyncio.sleep(poll_interval)
+            elapsed += poll_interval
+        models.sort()
+        # TODO: return real model permission details
+        model_cards = []
+        for m in models:
+            model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
+        return ModelList(data=model_cards)
 
 @router.post("/v1/audio/speech", tags=["audio"])
 async def create_audio_tts(request: AudioRequest):
