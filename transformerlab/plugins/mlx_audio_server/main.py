@@ -106,6 +106,7 @@ class MLXAudioWorker(BaseModelWorker):
             metadata = {
                 "type": "audio",
                 "text": text,
+                "voice": voice,
                 "filename": f"{file_prefix}.{audio_format}",
                 "model": model,
                 "speed": speed,
