@@ -479,12 +479,13 @@ async def show_available_models():
                 break
             await asyncio.sleep(poll_interval)
             elapsed += poll_interval
-        models.sort()
-        # TODO: return real model permission details
-        model_cards = []
-        for m in models:
-            model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
-        return ModelList(data=model_cards)
+    
+    models.sort()
+    # TODO: return real model permission details
+    model_cards = []
+    for m in models:
+        model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
+    return ModelList(data=model_cards)
 
 @router.post("/v1/audio/speech", tags=["audio"])
 async def create_audio_tts(request: AudioRequest):
