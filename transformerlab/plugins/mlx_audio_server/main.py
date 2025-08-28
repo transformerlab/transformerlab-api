@@ -78,6 +78,7 @@ class MLXAudioWorker(BaseModelWorker):
         sample_rate = params.get("sample_rate", 24000)
         temperature = params.get("temperature", 0.0)
         stream = params.get("stream", False)
+        voice = params.get("voice", None)
         
         audio_dir = params.get("audio_dir", None)
         if not audio_dir:
@@ -98,7 +99,7 @@ class MLXAudioWorker(BaseModelWorker):
                 verbose=True,  # Set to False to disable print messages
                 temperature=temperature,
                 stream=stream,
-                voice=None,
+                voice=voice,
             )
 
             # Also save the parameters and metadata used to generate the audio
