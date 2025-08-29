@@ -168,7 +168,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
                         real_uploaded_path = os.path.realpath(uploaded_audio_path)
                         if real_uploaded_path.startswith(os.path.realpath(WORKSPACE_DIR) + os.sep):
                             os.remove(real_uploaded_path)
-                            logger.info(f"Cleaned up reference audio file.")
+                            logger.info("Cleaned up reference audio file.")
                 except OSError:
                     logger.warning("Failed to cleanup reference audio file")
 
