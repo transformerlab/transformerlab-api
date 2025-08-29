@@ -112,9 +112,9 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         audio_dir = params.get("audio_dir")
         uploaded_audio_path = params.get("uploaded_audio_path", None)
         if uploaded_audio_path:
-            logger.info(f"Received reference audio for cloning")
+            logger.info("Received reference audio for cloning")
         else:
-            logger.info(f"No reference audio provided, performing standard TTS")
+            logger.info("No reference audio provided, performing standard TTS")
 
         real_path = os.path.realpath(audio_dir)
         # Make sure the path is still inside the workspace directory
@@ -167,8 +167,8 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
                     if os.path.exists(uploaded_audio_path):
                         os.remove(uploaded_audio_path)
                         logger.info(f"Cleaned up reference audio file: {uploaded_audio_path}")
-                except OSError as e:
-                    logger.warning(f"Failed to cleanup reference audio file")
+                except OSError:
+                    logger.warning("Failed to cleanup reference audio file")
 
             return {
                 "status": "success",
