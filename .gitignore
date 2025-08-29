@@ -237,6 +237,9 @@ terraform.rc
 # Ignore .ssh folders
 **/.ssh/
 
+# Ignore unsloth compiled cache folder
+unsloth_compiled_cache/
+
 # IDEs
 # NOTE: Cursor automatically ignores files in .gitignore and a default list on their website
 # Override with ! prefix in .cursorignore.
