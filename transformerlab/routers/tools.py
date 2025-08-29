@@ -1,7 +1,14 @@
 import json
 import os
 import subprocess
+import logging
+import warnings
 from typing import Any, Dict, Optional
+
+# Suppress logging from MCP client and FastChat
+logging.getLogger("fastchat").setLevel(logging.WARNING)
+logging.getLogger("mcp").setLevel(logging.WARNING)
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="pydub.utils")
 
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
@@ -24,6 +31,59 @@ router = APIRouter(prefix="/tools", tags=["tools"])
 #############################
 # TOOLS API ENDPOINTS
 #############################
+
+
+async def get_all_mcp_servers():
+    """Get all configured MCP servers from database"""
+    servers = {}
+
+    # Get legacy MCP_SERVER config
+    legacy_config = await db.config_get(key="MCP_SERVER")
+    if legacy_config:
+        try:
+            servers["default"] = json.loads(legacy_config)
+        except Exception:
+            pass
+
+    # Get all MCP_SERVER_* configs
+    try:
+        from sqlalchemy import select
+        from transformerlab.shared.models.models import Config
+        from transformerlab.db.session import async_session
+
+        async with async_session() as session:
+            result = await session.execute(select(Config.key, Config.value).where(Config.key.like("MCP_SERVER_%")))
+            rows = result.fetchall()
+            for key, value in rows:
+                server_id = key.replace("MCP_SERVER_", "")
+                try:
+                    servers[server_id] = json.loads(value)
+                except Exception:
+                    continue
+    except Exception:
+        pass
+
+    return servers
+
+
+async def get_mcp_server_by_id(server_id: str):
+    """Get a specific MCP server config by ID"""
+    if server_id == "default":
+        config = await db.config_get(key="MCP_SERVER")
+        if config:
+            try:
+                return json.loads(config)
+            except Exception:
+                return None
+
+    config = await db.config_get(key=f"MCP_SERVER_{server_id}")
+    if config:
+        try:
+            return json.loads(config)
+        except Exception:
+            return None
+
+    return None
 
 
 @router.get("/list", summary="List the MCP tools that are currently available.")
@@ -51,6 +111,25 @@ async def list_tools(
                     tool_descriptions.append(tool)
         elif isinstance(mcp_tools, dict) and mcp_tools.get("status") == "error":
             tool_descriptions.append({"name": "MCP_ERROR", "description": mcp_tools.get("message")})
+    else:
+        # Get all configured MCP servers and aggregate their tools
+        mcp_servers = await get_all_mcp_servers()
+        for server_id, mcp_config in mcp_servers.items():
+            try:
+                args = mcp_config.get("args", "").split(",") if mcp_config.get("args") else None
+                base_env = os.environ.copy()
+                override_env = json.loads(mcp_config.get("env", "{}")) if mcp_config.get("env") else {}
+                env = {**base_env, **override_env}
+                mcp_tools = await mcp_list_tools(mcp_config["serverName"], args=args, env=env)
+                mcp_tools = mcp_tools.tools
+                if isinstance(mcp_tools, list):
+                    for tool in mcp_tools:
+                        tool_data = tool.model_dump() if not isinstance(tool, dict) else tool
+                        tool_descriptions.append(tool_data)
+                elif isinstance(mcp_tools, dict) and mcp_tools.get("status") == "error":
+                    tool_descriptions.append({"name": "MCP_ERROR", "description": mcp_tools.get("message")})
+            except Exception as e:
+                print(f"Failed to load tools from server {server_id}: {e}")
 
     return tool_descriptions
 
@@ -61,17 +140,9 @@ async def get_all_tools():
     try:
         tool_descriptions = []
 
-        # Get MCP server config directly from database
-        mcp_config = None
-        try:
-            config_text = await db.config_get(key="MCP_SERVER")
-            if config_text:
-                mcp_config = json.loads(config_text)
-        except Exception:
-            return {"status": "error", "message": "Failed to get MCP configuration"}
-
-        # Add MCP tools if configured
-        if mcp_config and mcp_config.get("serverName"):
+        # Get all configured MCP servers
+        mcp_servers = await get_all_mcp_servers()
+        for server_id, mcp_config in mcp_servers.items():
             try:
                 args = mcp_config.get("args", "").split(",") if mcp_config.get("args") else None
                 base_env = os.environ.copy()
@@ -102,8 +173,8 @@ async def get_all_tools():
                             },
                         }
                         tool_descriptions.append(openai_tool)
-            except Exception:
-                return {"status": "error", "message": "Failed to connect to MCP server"}
+            except Exception as e:
+                print(f"Failed to load tools from server {server_id}: {e}")
 
         return tool_descriptions
     except Exception:

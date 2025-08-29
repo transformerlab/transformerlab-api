@@ -670,3 +670,19 @@ async def config_set(key: str, value: str):
         await session.execute(stmt)
         await session.commit()
     return
+
+
+async def config_get_all_with_prefix(prefix: str):
+    """Get all config entries with a specific prefix"""
+    async with async_session() as session:
+        result = await session.execute(select(Config.key, Config.value).where(Config.key.like(f"{prefix}%")))
+        rows = result.fetchall()
+        return {row[0]: row[1] for row in rows}
+
+
+async def config_delete(key: str):
+    """Delete a config entry"""
+    async with async_session() as session:
+        await session.execute(delete(Config).where(Config.key == key))
+        await session.commit()
+    return
