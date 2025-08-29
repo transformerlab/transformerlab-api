@@ -78,6 +78,10 @@ class MLXAudioWorker(BaseModelWorker):
         sample_rate = params.get("sample_rate", 24000)
         temperature = params.get("temperature", 0.0)
         stream = params.get("stream", False)
+        # Audio cloning parameters
+        audio_path = params.get("audio_path", None)  # Reference audio file for voice cloning
+        ref_text = params.get("ref_text", None)    # Text spoken in reference audio (optional)
+        stt_model = params.get("stt_model", "mlx-community/whisper-large-v3-turbo")  # STT model for transcribing ref_audio
         
         audio_dir = params.get("audio_dir", None)
         if not audio_dir:
@@ -99,6 +103,10 @@ class MLXAudioWorker(BaseModelWorker):
                 temperature=temperature,
                 stream=stream,
                 voice=None,
+                ref_audio=audio_path,
+                ref_text=ref_text,
+                stt_model=stt_model,
+                audio_format=audio_format,
             )
 
             # Also save the parameters and metadata used to generate the audio
@@ -111,6 +119,9 @@ class MLXAudioWorker(BaseModelWorker):
                 "audio_format": audio_format,
                 "sample_rate": sample_rate,
                 "temperature": temperature,
+                "ref_audio": audio_path,
+                "ref_text": ref_text,
+                "stt_model": stt_model,
                 "date": datetime.now().isoformat(),  # Store the real date and time
             }
             
