@@ -506,8 +506,8 @@ async def create_audio_tts(request: AudioRequest):
 
     return content
 
-@router.post("/v1/audio/upload", tags=["audio"])
-async def upload_audio(experimentId: int, audio: UploadFile = File(...)):
+@router.post("/v1/audio/upload_reference", tags=["audio"])
+async def upload_audio_reference(experimentId: int, audio: UploadFile = File(...)):
 
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     uploaded_audio_dir = os.path.join(experiment_dir, "uploaded_audio")
