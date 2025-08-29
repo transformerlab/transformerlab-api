@@ -1,47 +1,46 @@
 {
-  "name": "LLM LoRA Trainer",
-  "uniqueId": "llama_trainer",
-  "description": "A training script adapted from https://www.philschmid.de/instruction-tune-llama-2 for training Llama2 using PeFT",
+  "name": "Unsloth Text-to-Speech Trainer",
+  "uniqueId": "unsloth_text_to_speech_trainer",
+  "description": "A Text-to-Speech (TTS) trainer based on the unsloth audio training notebooks",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "1.0.33",
+  "version": "0.0.1",
   "model_architectures": [
-    "LlamaForCausalLM",
-    "Qwen2ForCausalLM",
-    "Qwen3ForCausalLM",
-    "Qwen3MoeForCausalLM",
-    "GemmaForCausalLM",
-    "Gemma2ForCausalLM",
-    "Gemma3ForCausalLM",
-    "Gemma3ForConditionalGeneration",
-    "GraniteForCausalLM",
-    "AprielForCausalLM",
-    "ExaoneForCausalLM",
-    "PhiForCausalLM",
-    "Phi3ForCausalLM",
-    "MistralForCausalLM",
-    "MixtralForCausalLM",
-    "SmolLM3ForCausalLM",
-    "GptOssForCausalLM"
+    "CsmForConditionalGeneration",
+    "LlamaForCausalLM"
   ],
-  "supports": ["sweeps", "chat_template_formatting"],
+  "supports": [
+      "experimental"
+  ],
+  "supported_hardware_architectures": ["cuda"],
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
-  "supported_hardware_architectures": ["cuda", "amd"],
   "setup-script": "setup.sh",
+  "training_template_format": "none",
   "parameters": {
+    "sampling_rate": {
+      "title": "Sampling Rate",
+      "type": "integer",
+      "default": 24000
+    },
+    "maximum_sequence_length": {
+      "title": "Maximum Sequence Length",
+      "type": "integer",
+      "default": 1024,
+      "minimum": 1
+    },
     "batch_size": {
       "title": "Batch Size",
       "type": "integer",
-      "default": 4,
+      "default": 1,
       "minimum": 1
     },
     "learning_rate_schedule": {
       "title": "Learning Rate Schedule",
       "type": "string",
       "enum": ["constant", "linear", "cosine", "constant_with_warmup"],
-      "default": "constant"
+      "default": "linear"
     },
     "learning_rate": {
       "title": "Learning Rate",
@@ -79,28 +78,62 @@
     "lora_dropout": {
       "title": "Lora Dropout",
       "type": "number",
-      "minimum": 0.05,
+      "minimum": 0.0,
       "maximum": 0.9,
-      "default": 0.05
+      "default": 0.0
+    },
+    "max_grad_norm": {
+      "title": "Max Grad Norm",
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.3
+    },
+    "weight_decay": {
+      "title": "Weight Decay",
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.0
+    },
+    "adam_beta1": {
+      "title": "Adam Beta 1",
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.9
+    },
+    "adam_beta2": {
+      "title": "Adam Beta 2",
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.999
+    },
+    "adam_epsilon": {
+      "title": "Adam Epsilon",
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.00000001
     },
     "adaptor_name": {
       "title": "Adaptor Name",
       "type": "string",
-      "required": true
+      "required": true,
+      "default": "tts-lora-adapter"
     },
     "log_to_wandb": {
       "title": "Log to Weights and Biases",
       "type": "boolean",
       "default": true,
       "required": true
-    },
-    "fuse_model": {
-      "title": "Fuse Model",
-      "type": "boolean",
-      "default": false
     }
   },
   "parameters_ui": {
+    "maximum_sequence_length": {
+      "ui:help": "Maximum sequence length for the model. Longer sequences will be truncated. Keep lower to save memory."
+    },
     "batch_size": {
       "ui:help": "The number of sequences processed simultaneously during training. Higher values lower number of iterations but require more memory."
     },
@@ -114,9 +147,6 @@
     },
     "log_to_wandb": {
       "ui:help": "Log training to Weights and Biases. You must have a Weights and Biases account and API key to use this feature. You need to set the API Key in settings to use this feature."
-    },
-    "fuse_model": {
-      "ui:help": "This will create a new fused model with the adaptor and the model merged. A separate entry will be created in the model zoo for the fused model."
     }
   }
 }
