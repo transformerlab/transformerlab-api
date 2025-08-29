@@ -1,14 +1,3 @@
-# 1. Clone the repo
-git clone https://github.com/huggingface/yourbench.git
-cd yourbench
-git switch -c eb50e1fff84849e19ecb62b45a25ed6afed46a2e
-
-# Use uv to install the dependencies
-# pip install uv # if you do not have uv already
-# uv venv
-# source .venv/bin/activate
-# uv sync
-uv sync
-uv pip install -e .
-uv pip install deepeval langchain-openai instructor anthropic datasets langchain langchain-community
-uv pip install textstat evaluate
+uv pip install yourbench==0.6.0
+uv pip install  deepeval==2.8.2 langchain-openai==0.3.16 langchain==0.3.25 langchain-community==0.3.23 langchain_text_splitters==0.3.8 instructor==1.7.9 anthropic==0.49.0 datasets==3.5.1
+uv pip install textstat==0.7.8 evaluate==0.4.3

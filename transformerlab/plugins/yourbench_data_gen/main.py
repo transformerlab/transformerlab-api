@@ -163,10 +163,11 @@ def run_yourbench():
         command = f"""
             {yourbench_executable} run {config_path}
             """
+        print("")
 
         process = subprocess.Popen(
             command,
-            cwd=yourbench_dir,
+            cwd=current_dir,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             universal_newlines=True,
