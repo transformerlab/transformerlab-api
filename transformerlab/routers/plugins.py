@@ -200,9 +200,16 @@ async def install_plugin(plugin_id: str):
         print("Creating virtual environment for plugin...")
         await log_file.write(f"## Creating virtual environment for {plugin_id}...\n")
 
-        proc = await asyncio.create_subprocess_exec(
-            "uv", "venv", venv_path, "--python", "3.11", cwd=new_directory, stdout=log_file, stderr=log_file
-        )
+        if "yourbench" in plugin_id:
+            await log_file.write("## Setting up python 3.12 for yourbench...\n")
+            proc = await asyncio.create_subprocess_exec(
+                "uv", "venv", venv_path, "--python", "3.12", cwd=new_directory, stdout=log_file, stderr=log_file
+            )
+        else:
+            proc = await asyncio.create_subprocess_exec(
+                "uv", "venv", venv_path, "--python", "3.11", cwd=new_directory, stdout=log_file, stderr=log_file
+            )
+
         await proc.wait()
 
         # Run uv sync after setup script, also with environment activated
