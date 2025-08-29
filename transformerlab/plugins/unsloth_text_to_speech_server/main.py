@@ -145,6 +145,16 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
 
             logger.info(f"Audio successfully generated: {output_path}")
 
+            # Clean up the specific reference audio file after successful generation
+            # This ensures reference files don't accumulate after use
+            if audio_path:
+                try:
+                    if os.path.exists(audio_path):
+                        os.remove(audio_path)
+                        logger.info(f"Cleaned up reference audio file: {audio_path}")
+                except OSError as e:
+                    logger.warning(f"Failed to cleanup reference audio file")
+
             return {
                 "status": "success",
                 "message": output_path,
