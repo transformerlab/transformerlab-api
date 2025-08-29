@@ -423,7 +423,9 @@ async def get_gen_params(
         # Extract tool names for logging (MCP tools only)
         tool_names = []
         for tool in tools:
-            if "name" in tool:
+            if "function" in tool and "name" in tool["function"]:
+                tool_names.append(tool["function"]["name"])
+            elif "name" in tool:
                 tool_names.append(tool["name"])
             else:
                 tool_names.append("unnamed")
