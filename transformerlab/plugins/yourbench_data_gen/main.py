@@ -143,7 +143,6 @@ def run_yourbench():
 
     # Get the yourbench directory path
     current_dir = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "plugins", "yourbench_data_gen")
-    yourbench_dir = os.path.join(current_dir, "yourbench")
 
     # Run yourbench with the configuration
     try:
