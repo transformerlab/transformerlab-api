@@ -94,6 +94,7 @@ class ChatCompletionRequest(BaseModel):
 class AudioRequest(BaseModel):
     experiment_id: int
     model: str
+    adaptor: Optional[str] = ""
     text: str
     file_prefix: str
     sample_rate: int
@@ -468,8 +469,19 @@ async def show_available_models():
     controller_address = app_settings.controller_address
     async with httpx.AsyncClient() as client:
         await client.post(controller_address + "/refresh_all_workers")
-        ret = await client.post(controller_address + "/list_models")
-    models = ret.json()["models"]
+        # Poll /list_models until non-empty or timeout
+        timeout = 5.0  # seconds
+        poll_interval = 0.2  # seconds
+        elapsed = 0.0
+        models = []
+        while elapsed < timeout:
+            ret = await client.post(controller_address + "/list_models")
+            models = ret.json().get("models", [])
+            if models:
+                break
+            await asyncio.sleep(poll_interval)
+            elapsed += poll_interval
+    
     models.sort()
     # TODO: return real model permission details
     model_cards = []

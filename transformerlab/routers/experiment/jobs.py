@@ -22,6 +22,7 @@ from transformerlab.db.db import experiment_get
 from datetime import datetime
 
 import transformerlab.db.jobs as db_jobs
+from transformerlab.services.job_service import job_update_status
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
@@ -56,7 +57,7 @@ async def job_create_task(script: str, job_data: str = "{}", experimentId: int =
 
 @router.get("/update/{job_id}")
 async def job_update(job_id: str, status: str, experimentId: int):
-    await db_jobs.job_update_status(job_id, status, experiment_id=experimentId)
+    await job_update_status(job_id, status, experiment_id=experimentId)
     return {"message": "OK"}
 
 
@@ -77,7 +78,7 @@ async def start_next_job():
         data = await experiment_get(experiment_id)
         if data is None:
             # mark the job as failed
-            await db_jobs.job_update_status(nextjob["id"], "FAILED", experiment_id=experiment_id)
+            await job_update_status(nextjob["id"], "FAILED", experiment_id=experiment_id)
             return {"message": f"Experiment {experiment_id} does not exist"}
         experiment_name = data["name"]
         await shared.run_job(

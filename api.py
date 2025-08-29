@@ -46,11 +46,9 @@ from transformerlab.routers import (
     prompts,
     tools,
     batched_prompts,
-    diffusion,
     recipes,
     users,
 )
-
 import torch
 
 try:
@@ -194,7 +192,6 @@ app.include_router(tools.router)
 app.include_router(recipes.router)
 app.include_router(batched_prompts.router)
 app.include_router(fastchat_openai_api.router)
-app.include_router(diffusion.router)
 app.include_router(get_xmlrpc_router())
 app.include_router(get_trainer_xmlrpc_router())
 
@@ -270,8 +267,6 @@ async def server_worker_start(
     experiment_id: int = None,
     inference_params: str = "",
 ):
-    global worker_process
-
     # the first priority for inference params should be the inference params passed in, then the inference parameters in the experiment
     # first we check to see if any inference params were passed in
     if inference_params != "":
@@ -342,13 +337,13 @@ async def server_worker_start(
     with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
         global_log.write(f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
 
-    worker_process = await shared.async_run_python_daemon_and_update_status(
+    process = await shared.async_run_python_daemon_and_update_status(
         python_script=params,
         job_id=job_id,
         begin_string="Application startup complete.",
         set_process_id_function=set_worker_process_id,
     )
-    exitcode = worker_process.returncode
+    exitcode = process.returncode
     if exitcode == 99:
         with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
             global_log.write(
