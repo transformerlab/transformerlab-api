@@ -164,9 +164,9 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
             # This ensures reference files don't accumulate after use
             if uploaded_audio_path:
                 try:
-                    if os.path.exists(uploaded_audio_path):
-                        real_uploaded_path = os.path.realpath(uploaded_audio_path)
-                        if real_uploaded_path.startswith(os.path.realpath(WORKSPACE_DIR) + os.sep):
+                    real_uploaded_path = os.path.realpath(uploaded_audio_path)
+                    if real_uploaded_path.startswith(os.path.realpath(WORKSPACE_DIR) + os.sep):
+                        if os.path.exists(real_uploaded_path):
                             os.remove(real_uploaded_path)
                             logger.info("Cleaned up reference audio file.")
                 except OSError:
