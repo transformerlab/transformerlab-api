@@ -396,7 +396,6 @@ class TLabPlugin:
 
         elif model_type == "openai":
             openai_api_key = tlab_core.get_db_config_value("OPENAI_API_KEY")
-            print("OPENAI API KEY:", openai_api_key)
             if not openai_api_key or openai_api_key.strip() == "":
                 raise ValueError("Please set the OpenAI API Key from Settings.")
 
