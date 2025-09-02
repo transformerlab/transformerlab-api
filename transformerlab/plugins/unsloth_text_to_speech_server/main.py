@@ -110,7 +110,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         sample_rate = params.get("sample_rate", 24000)
         temperature = params.get("temperature", 0.0)
         audio_dir = params.get("audio_dir")
-        uploaded_audio_path = params.get("uploaded_audio_path", None)
+        uploaded_audio_path = params.get("audio_path", None)
         if uploaded_audio_path:
             logger.info("Received reference audio for cloning")
         else:
