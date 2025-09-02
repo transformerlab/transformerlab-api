@@ -396,11 +396,14 @@ class TLabPlugin:
 
         elif model_type == "openai":
             openai_api_key = tlab_core.get_db_config_value("OPENAI_API_KEY")
+            print("OPENAI API KEY:", openai_api_key)
             if not openai_api_key or openai_api_key.strip() == "":
                 raise ValueError("Please set the OpenAI API Key from Settings.")
 
             os.environ["OPENAI_API_KEY"] = openai_api_key
-            return self._create_commercial_model_wrapper("openai", generation_model)
+            obj = self._create_commercial_model_wrapper("openai", generation_model)
+            print("OBJ", obj)
+            return obj
 
         elif model_type == "custom":
             custom_api_details = tlab_core.get_db_config_value("CUSTOM_MODEL_API_KEY")
@@ -594,6 +597,9 @@ class TLabPlugin:
             def __init__(self, model_type="claude", model_name="claude-3-7-sonnet-latest"):
                 self.model_type = model_type
                 self.generation_model_name = model_name
+                # Dealing with the new {"provider": "<model_name>"} output format
+                if isinstance(model_name, dict):
+                    self.generation_model_name = model_name.get("provider", model_name)
 
                 if model_type == "claude":
                     self.chat_completions_url = "https://api.anthropic.com/v1/chat/completions"
@@ -655,6 +661,8 @@ class TLabPlugin:
 
             def generate(self, prompt: str, schema=None):
                 client = self.load_model()
+                if isinstance(self.generation_model_name, dict):
+                    self.generation_model_name = self.generation_model_name.get("provider", self.generation_model_name)
                 if schema:
                     import instructor
 
@@ -675,6 +683,7 @@ class TLabPlugin:
                         model=self.generation_model_name,
                         messages=[{"role": "user", "content": prompt}],
                     )
+
                     return response.choices[0].message.content
 
             async def a_generate(self, prompt: str, schema=None):
