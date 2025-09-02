@@ -400,9 +400,7 @@ class TLabPlugin:
                 raise ValueError("Please set the OpenAI API Key from Settings.")
 
             os.environ["OPENAI_API_KEY"] = openai_api_key
-            obj = self._create_commercial_model_wrapper("openai", generation_model)
-            print("OBJ", obj)
-            return obj
+            return self._create_commercial_model_wrapper("openai", generation_model)
 
         elif model_type == "custom":
             custom_api_details = tlab_core.get_db_config_value("CUSTOM_MODEL_API_KEY")
