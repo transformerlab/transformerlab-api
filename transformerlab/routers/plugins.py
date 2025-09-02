@@ -225,7 +225,7 @@ async def install_plugin(plugin_id: str):
         elif check_amd_gpu():
             # If we have an AMD GPU, use the requirements file for AMD
             requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-rocm-uv.txt")
-            additional_flags = "--index 'https://download.pytorch.org/whl/rocm6.4'"
+            additional_flags = "--index 'https://download.pytorch.org/whl/rocm6.4' --index-strategy unsafe-best-match"
         # Check if system is MacOS with Apple Silicon
         elif sys.platform == "darwin":
             # If we have a MacOS with Apple Silicon, use the requirements file for MacOS
@@ -235,7 +235,7 @@ async def install_plugin(plugin_id: str):
         else:
             # If we don't have a GPU, use the requirements file for CPU
             requirements_file_path = os.path.join(os.environ["_TFL_SOURCE_CODE_DIR"], "requirements-no-gpu-uv.txt")
-            additional_flags = "--index 'https://download.pytorch.org/whl/cpu'"
+            additional_flags = "--index 'https://download.pytorch.org/whl/cpu' --index-strategy unsafe-best-match"
 
         print(f"Using requirements file: {requirements_file_path}")
         proc = await asyncio.create_subprocess_exec(

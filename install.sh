@@ -382,7 +382,7 @@ install_dependencies() {
         exit 1
       fi
 
-      PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/rocm6.4"
+      PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/rocm6.4 --index-strategy unsafe-best-match"
       uv pip install ${PIP_WHEEL_FLAGS} -r ${REQS_PATH}
 
       if [ "$TLAB_ON_WSL" = 1 ]; then
@@ -410,7 +410,7 @@ install_dependencies() {
 
       if [[ -z "${TLAB_ON_MACOS}" ]]; then
           # Add the CPU-specific PyTorch index for non-macOS systems
-          PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/cpu"
+          PIP_WHEEL_FLAGS+=" --index https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match"
       fi
 
       echo "Using requirements from ${REQS_PATH}"
