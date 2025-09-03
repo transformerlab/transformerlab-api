@@ -91,6 +91,11 @@ class MLXAudioWorker(BaseModelWorker):
         # Generate a UUID for this file name:
         file_prefix = str(uuid.uuid4())
 
+        if audio_path:
+            logger.info("Received reference audio for cloning")
+        else:
+            logger.info("No reference audio provided, performing standard TTS")
+
         try:
             generate_audio(
                 text=text,
