@@ -1072,18 +1072,7 @@ async def get_pipeline_tag(model_name: str):
         pipeline_tag = model_info.pipeline_tag
 
         return {"status": "success", "data": pipeline_tag, "model_id": model_name}
-    except GatedRepoError:
-        return {
-            "status": "error",
-            "message": f"Model {model_name} is gated. Please ensure you have proper authentication.",
-            "data": None,
-        }
-    except EntryNotFoundError:
-        return {"status": "error", "message": f"Model {model_name} not found on Hugging Face Hub.", "data": None}
     except Exception as e:
-        logging.error(f"Error fetching pipeline tag for {model_name}: {type(e).__name__}: {e}")
-        return {
-            "status": "error",
-            "message": f"An error occurred while fetching pipeline tag for {model_name}",
-            "data": None,
-        }
+        ## Assume text generation if we can't get the tag (this fixes things for local models)
+        print(f"Error fetching pipeline tag for {model_name}: {type(e).__name__}: {e}")
+        return {"status": "success", "data": "text-generation", "model_id": model_name}
