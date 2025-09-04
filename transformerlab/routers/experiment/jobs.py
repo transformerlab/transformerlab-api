@@ -105,7 +105,7 @@ async def job_delete_all(experimentId: int):
 
 @router.get("/{job_id}")
 async def get_training_job(job_id: str):
-    job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
+    job = await db_jobs.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     return job
@@ -114,7 +114,7 @@ async def get_training_job(job_id: str):
 @router.get("/{job_id}/output")
 async def get_training_job_output(job_id: str, sweeps: bool = False):
     # First get the template Id from this job:
-    job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
+    job = await db_jobs.job_get(job_id)
     if job is None:
         return {"checkpoints": []}
     job_data = job["job_data"]
@@ -199,7 +199,7 @@ async def get_output_file_name(job_id: str):
     """
     try:
         # First get the job data
-        job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
+        job = await db_jobs.job_get(job_id)
         job_data = job["job_data"]
 
         # Handle both dict and JSON string formats
@@ -272,7 +272,7 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
     Enhanced version combining the best of both train and jobs routers.
     """
     try:
-        job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
+        job = await db_jobs.job_get(job_id)
         job_data = job["job_data"]
 
         # Handle both dict and JSON string formats
@@ -357,7 +357,7 @@ async def stream_detailed_json_report(job_id: str, file_name: str):
 
 @router.get("/{job_id}/get_additional_details")
 async def stream_job_additional_details(job_id: str, task: str = "view"):
-    job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
+    job = await db_jobs.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -392,7 +392,7 @@ async def stream_job_additional_details(job_id: str, task: str = "view"):
 
 @router.get("/{job_id}/get_figure_json")
 async def get_figure_path(job_id: str):
-    job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
+    job = await db_jobs.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -407,7 +407,7 @@ async def get_figure_path(job_id: str):
 
 @router.get("/{job_id}/get_generated_dataset")
 async def get_generated_dataset(job_id: str):
-    job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
+    job = await db_jobs.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     # Get experiment name
@@ -434,7 +434,7 @@ async def get_generated_dataset(job_id: str):
 @router.get("/{job_id}/get_eval_images")
 async def get_eval_images(job_id: str):
     """Get list of evaluation images for a job"""
-    job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
+    job = await db_jobs.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -479,7 +479,7 @@ async def get_eval_images(job_id: str):
 @router.get("/{job_id}/image/{filename}")
 async def get_eval_image(job_id: str, filename: str):
     """Serve individual evaluation image files"""
-    job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
+    job = await db_jobs.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -528,7 +528,7 @@ async def get_checkpoints(job_id: str):
         return {"checkpoints": []}
 
     """Get list of checkpoints for a job"""
-    job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
+    job = await db_jobs.job_get(job_id)
     job_data = job["job_data"]
 
     # Check if the job has a supports_checkpoints flag

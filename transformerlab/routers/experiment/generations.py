@@ -161,7 +161,7 @@ async def get_generation_plugin_file_contents(experimentId: int, plugin_name: st
 
 @router.get("/run_generation_script")
 async def run_generation_script(experimentId: int, plugin_name: str, generation_name: str, job_id: str):
-    job_config = (await job_get(job_id, experimentId))["job_data"]
+    job_config = (await job_get(job_id))["job_data"]
     generation_config = job_config.get("config", {})
     print(generation_config)
     plugin_name = secure_filename(plugin_name)
