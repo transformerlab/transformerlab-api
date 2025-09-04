@@ -102,8 +102,8 @@ class AudioRequest(BaseModel):
     sample_rate: int
     temperature: float
     speed: float
+    voice: Optional[str] = None
     audio_path: Optional[str] = None
-
 
 class VisualizationRequest(PydanticBaseModel):
     model: str
@@ -518,6 +518,13 @@ async def create_audio_tts(request: AudioRequest):
         "speed": request.speed,
         "audio_path": request.audio_path,
     }
+    
+    # Add voice parameter if provided
+    if request.voice:
+        gen_params["voice"] = request.voice
+        gen_params["lang_code"] = request.voice[0]
+
+
     # TODO: Define a base model class to structure the return value
     content = await generate_completion(gen_params)
 

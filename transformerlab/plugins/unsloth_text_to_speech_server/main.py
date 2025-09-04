@@ -67,6 +67,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         )
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.adaptor_path = adaptor_path
 
         if adaptor_path != "":
             self.model_name = adaptor_path
@@ -132,6 +133,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         else:
             generate_kwargs["do_sample"] = True
             generate_kwargs["temperature"] = temperature
+            generate_kwargs["top_p"] = 0.95
         try:
             inputs = self.audio_model.tokenize(text=text, audio_path=uploaded_audio_path, sample_rate=sample_rate)
             audio_values = self.audio_model.generate(inputs, **generate_kwargs)
@@ -148,6 +150,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
                 "text": text,
                 "filename": f"{file_prefix}.{audio_format}",
                 "model": model,
+                "adaptor": self.adaptor_path.split('/')[-1] if self.adaptor_path else "",
                 "speed": speed,
                 "audio_format": audio_format,
                 "sample_rate": sample_rate,
