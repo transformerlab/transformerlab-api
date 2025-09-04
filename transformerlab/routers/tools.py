@@ -1,16 +1,13 @@
-import importlib
 import json
 import os
 import subprocess
-import sys
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from transformers.utils import get_json_schema
 
-from transformerlab.shared import dirs
+import transformerlab.db.db as db
 
 # MCP client imports
 try:
@@ -24,174 +21,131 @@ except ImportError:
 router = APIRouter(prefix="/tools", tags=["tools"])
 
 
-###################################################################
-# Tools loading function
-#
-# This should be called by every tools endpoint that needs
-# access to the list of available tools.
-#
-# NOTE: Adding tools right out of API directory.
-#   This should be updated to copy and then look in workspace.
-####################################################################
-
-
-def load_tools():
-    available_tools = {}
-
-    # TODO: Pull dir from dirs.py
-    tools_dir = os.path.join(dirs.TFL_SOURCE_CODE_DIR, "transformerlab", "tools")
-    sys.path.append(tools_dir)
-
-    # Scan the tools dir to subdirectories
-    with os.scandir(tools_dir) as dirlist:
-        for entry in dirlist:
-            if entry.is_dir():
-                # Try importing main.py from the subdirectory
-                package_name = entry.name
-                import_name = f"{package_name}.main"
-                pkg = importlib.import_module(import_name)
-
-                # Go through package contents and look for functions
-                if pkg:
-                    for attr in dir(pkg):
-                        func = getattr(pkg, attr)
-
-                        # Add any functions that has pydocs
-                        if callable(func) and func.__doc__:
-                            func_name = func.__name__
-                            available_tools[func_name] = func
-
-    return available_tools
-
-
 #############################
 # TOOLS API ENDPOINTS
 #############################
 
 
-@router.get("/list", summary="List the tools that are currently installed.")
+@router.get("/list", summary="List the MCP tools that are currently available.")
 async def list_tools(
     mcp_server_file: str = Query(None, description="MCP server file to include MCP tools"),
     mcp_args: Optional[str] = Query(None, description="Comma-separated args for MCP server"),
     mcp_env: Optional[str] = Query(None, description="JSON string for MCP server env"),
 ) -> list[object]:
-    available_tools = load_tools()
-    tool_descriptions = [
-        {"name": name, "description": f"{name}:\n{func.__doc__}\n\n"} for name, func in available_tools.items()
-    ]
+    tool_descriptions = []
+
     if mcp_server_file:
         args = mcp_args.split(",") if mcp_args and len(mcp_args) > 1 else None
-        # env = json.loads(mcp_env) if mcp_env else None
         base_env = os.environ.copy()
         override_env = json.loads(mcp_env) if mcp_env else {}
         env = {**base_env, **override_env}
         mcp_tools = await mcp_list_tools(mcp_server_file, args=args, env=env)
         mcp_tools = mcp_tools.tools
+
         # If MCP returns a list of dicts of Tool objects, convert them to dicts
         if isinstance(mcp_tools, list):
-            mcp_tools_converted = []
             for tool in mcp_tools:
                 if not isinstance(tool, dict):
-                    mcp_tools_converted.append(tool.model_dump())
+                    tool_descriptions.append(tool.model_dump())
                 else:
-                    mcp_tools_converted.append(tool)
-            tool_descriptions.extend(mcp_tools_converted)
-
+                    tool_descriptions.append(tool)
         elif isinstance(mcp_tools, dict) and mcp_tools.get("status") == "error":
             tool_descriptions.append({"name": "MCP_ERROR", "description": mcp_tools.get("message")})
+
     return tool_descriptions
 
 
-@router.get("/prompt", summary="Returns a default system prompt containing a list of available tools")
-async def get_prompt(
-    mcp_server_file: str = Query(None, description="MCP server file to include MCP tools"),
-    mcp_args: Optional[str] = Query(None, description="Comma-separated args for MCP server"),
-    mcp_env: Optional[str] = Query(None, description="JSON string for MCP server env"),
-):
-    available_tools = load_tools()
-    tool_descriptions = [get_json_schema(func) for name, func in available_tools.items()]
-    if mcp_server_file:
-        args = mcp_args.split(",") if mcp_args and len(mcp_args) > 1 else None
-        base_env = os.environ.copy()
-        override_env = json.loads(mcp_env) if mcp_env else {}
-        env = {**base_env, **override_env}
-        mcp_tools = await mcp_list_tools(mcp_server_file, args=args, env=env)
-        mcp_tools = mcp_tools.tools
-        # If MCP returns a list of dicts of Tool objects, convert them to dicts
-        if isinstance(mcp_tools, list):
-            mcp_tools_converted = []
-            for tool in mcp_tools:
-                if not isinstance(tool, dict):
-                    mcp_tools_converted.append(tool.model_dump())
-                else:
-                    mcp_tools_converted.append(tool)
-            tool_descriptions.extend(mcp_tools_converted)
-        elif isinstance(mcp_tools, dict) and mcp_tools.get("status") == "error":
-            tool_descriptions.append({"name": "MCP_ERROR", "description": mcp_tools.get("message")})
-    tool_json = json.dumps(tool_descriptions)
-    return f"""You are a function calling AI model. You are provided with function signatures within <tools></tools> XML tags. You may call one or more functions to assist with the user query. Don't make assumptions about what values to plug into functions.
-Here are the available tools:
-<tools>
-{tool_json}
-</tools>
-For each function call return a json object with function name and arguments within <tool_call></tool_call> XML tags as follows:
-<tool_call>
-{{"name": <function-name>, "arguments": <args-dict>}}
-</tool_call>
-"""
+@router.get("/all", summary="Returns all available MCP tools in OpenAI format for completions API")
+async def get_all_tools():
+    """Returns all available MCP tools converted to OpenAI format for completions API"""
+    try:
+        tool_descriptions = []
+
+        # Get MCP server config directly from database
+        mcp_config = None
+        try:
+            config_text = await db.config_get(key="MCP_SERVER")
+            if config_text:
+                mcp_config = json.loads(config_text)
+        except Exception:
+            return {"status": "error", "message": "Failed to get MCP configuration"}
+
+        # Add MCP tools if configured
+        if mcp_config and mcp_config.get("serverName"):
+            try:
+                args = mcp_config.get("args", "").split(",") if mcp_config.get("args") else None
+                base_env = os.environ.copy()
+                override_env = json.loads(mcp_config.get("env", "{}")) if mcp_config.get("env") else {}
+                env = {**base_env, **override_env}
+
+                mcp_tools = await mcp_list_tools(mcp_config["serverName"], args=args, env=env)
+                mcp_tools = mcp_tools.tools
+
+                # Convert MCP tools to OpenAI format
+                if isinstance(mcp_tools, list):
+                    for tool in mcp_tools:
+                        # Get tool data as dict
+                        if not isinstance(tool, dict):
+                            tool_data = tool.model_dump()
+                        else:
+                            tool_data = tool
+
+                        # Convert MCP format to OpenAI format
+                        # MCP: {"name": "...", "description": "...", "inputSchema": {...}}
+                        # OpenAI: {"type": "function", "function": {"name": "...", "description": "...", "parameters": {...}}}
+                        openai_tool = {
+                            "type": "function",
+                            "function": {
+                                "name": tool_data.get("name", "unnamed"),
+                                "description": tool_data.get("description", ""),
+                                "parameters": tool_data.get("inputSchema", {}),
+                            },
+                        }
+                        tool_descriptions.append(openai_tool)
+            except Exception:
+                return {"status": "error", "message": "Failed to connect to MCP server"}
+
+        return tool_descriptions
+    except Exception:
+        return {"status": "error", "message": "An error occurred while loading tools"}
 
 
-@router.get("/call/{tool_id}", summary="Executes a tool with parameters supplied in JSON.")
+@router.get("/call/{tool_id}", summary="Executes an MCP tool with parameters supplied in JSON.")
 async def call_tool(
     tool_id: str,
     params: str,
-    mcp_server_file: str = Query(None, description="MCP server file to call MCP tool"),
+    mcp_server_file: str = Query(..., description="MCP server file to call MCP tool"),
     mcp_args: Optional[str] = Query(None, description="Comma-separated args for MCP server (if needed)"),
     mcp_env: Optional[str] = Query(None, description="JSON string for MCP server env (if needed)"),
 ):
-    available_tools = load_tools()
-    if tool_id not in available_tools:
-        if mcp_server_file:
-            args = mcp_args.split(",") if mcp_args and len(mcp_args) > 1 else None
-            # env = json.loads(mcp_env) if mcp_env else None
-            base_env = os.environ.copy()
-            override_env = json.loads(mcp_env) if mcp_env else {}
-            env = {**base_env, **override_env}
-            try:
-                function_args = json.loads(params)
-            except Exception:
-                return {"status": "error", "message": "Invalid parameters provided."}
-            result = await mcp_call_tool(mcp_server_file, tool_id, arguments=function_args, args=args, env=env)
-            final_result = ""
-            for content in result.content:
-                content = content.model_dump()
-                if isinstance(content, dict) and content.get("type") == "text":
-                    final_result += f"\n {content.get('text')}"
-                elif isinstance(content, dict) and content.get("type") == "json":
-                    final_result += f"\n {str(content.get('json'))}"
+    if not mcp_server_file:
+        return {"status": "error", "message": "MCP server file is required."}
 
-            return {"status": "success", "data": final_result}
-        else:
-            return {"status": "error", "message": f"No tool with ID {tool_id} found."}
-    else:
-        try:
-            function_args = json.loads(params)
-        except Exception as e:
-            err_string = f"{type(e).__name__}: {e}"
-            print(err_string)
-            print("Passed JSON parameter string:")
-            print(params)
-            return {"status": "error", "message": "Invalid parameters provided."}
-        try:
-            tool_function = available_tools.get(tool_id)
-            result = tool_function(**function_args)
-            print("Successfully called", tool_id)
-            print(result)
-            return {"status": "success", "data": result}
-        except Exception as e:
-            err_string = f"{type(e).__name__}: {e}"
-            print(err_string)
-            return {"status": "error", "message": "An internal error has occurred."}
+    args = mcp_args.split(",") if mcp_args and len(mcp_args) > 1 else None
+    base_env = os.environ.copy()
+    override_env = json.loads(mcp_env) if mcp_env else {}
+    env = {**base_env, **override_env}
+
+    try:
+        function_args = json.loads(params)
+    except Exception:
+        return {"status": "error", "message": "Invalid parameters provided."}
+
+    try:
+        result = await mcp_call_tool(mcp_server_file, tool_id, arguments=function_args, args=args, env=env)
+        final_result = ""
+        for content in result.content:
+            content = content.model_dump()
+            if isinstance(content, dict) and content.get("type") == "text":
+                final_result += f"\n {content.get('text')}"
+            elif isinstance(content, dict) and content.get("type") == "json":
+                final_result += f"\n {str(content.get('json'))}"
+
+        return {"status": "success", "data": final_result}
+    except Exception as e:
+        err_string = f"{type(e).__name__}: {e}"
+        print(err_string)
+        return {"status": "error", "message": "An internal error has occurred."}
 
 
 class MCPServerParams(BaseModel):
