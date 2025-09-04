@@ -628,7 +628,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     job_type = job_config["config"].get("type", "")
 
     # Get the job details from the database for these job types
-    job_details_from_db = await db_jobs.job_get(job_id, experiment_id=experiment_id)
+    job_details_from_db = await db_jobs.job_get(job_id)
     experiment_id = job_details_from_db["experiment_id"]
 
     # Get the experiment details from the database:
