@@ -470,7 +470,7 @@ async def show_available_models():
     async with httpx.AsyncClient() as client:
         await client.post(controller_address + "/refresh_all_workers")
         # Poll /list_models until non-empty or timeout
-        timeout = 5.0  # seconds
+        timeout = 10.0  # seconds
         poll_interval = 0.2  # seconds
         elapsed = 0.0
         models = []
