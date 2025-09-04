@@ -90,19 +90,22 @@ class MLXAudioWorker(BaseModelWorker):
         file_prefix = str(uuid.uuid4())
 
         try:
-            generate_audio(
-                text=text,
-                model_path=model,
-                speed=speed,
-                file_prefix=os.path.join(audio_dir, file_prefix),
-                sample_rate=sample_rate,
-                join_audio=True,  # Whether to join multiple audio files into one
-                verbose=True,  # Set to False to disable print messages
-                temperature=temperature,
-                stream=stream,
-                voice=voice,
-                lang_code=lang_code,
-            )
+            kwargs = {
+                "text": text,
+                "model_path": model,
+                "speed": speed,
+                "file_prefix": os.path.join(audio_dir, file_prefix),
+                "sample_rate": sample_rate,
+                "join_audio": True,
+                "verbose": True,
+                "temperature": temperature,
+                "stream": stream,
+                "voice": voice,
+            }
+            if lang_code:
+                kwargs["lang_code"] = lang_code
+            
+            generate_audio(**kwargs)
 
             # Also save the parameters and metadata used to generate the audio
             metadata = {
