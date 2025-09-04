@@ -22,7 +22,7 @@ async def _trigger_workflows_on_job_completion(job_id: str):
     """
     try:
         # Get the job details
-        job = await db_jobs.job_get(job_id)
+        job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
         if not job:
             return
 

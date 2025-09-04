@@ -76,7 +76,7 @@ async def _install_recipe_dependencies_job(job_id, id):
     from transformerlab.routers import plugins as plugins_router
 
     try:
-        job = await db_jobs.job_get(job_id)
+        job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
         experiment_id = job["experiment_id"]
         await job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
         recipes_gallery = galleries.get_exp_recipe_gallery()
@@ -231,7 +231,7 @@ async def install_recipe_dependencies(id: str, background_tasks: BackgroundTasks
 @router.get("/jobs/{job_id}/status")
 async def get_install_job_status(job_id: int):
     """Get the status and progress of a dependency installation job."""
-    job = await db_jobs.job_get(job_id)
+    job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
     if not job:
         return {"error": f"Job {job_id} not found."}
     return {

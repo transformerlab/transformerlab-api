@@ -60,13 +60,13 @@ async def delete_training_template(template_id: str):
 
 @router.get("/job/{job_id}")
 async def get_training_job(job_id: str):
-    return await db_jobs.job_get(job_id)
+    return await db_jobs.job_get(job_id, experiment_id=None)
 
 
 async def get_output_file_name(job_id: str):
     try:
         # First get the template Id from this job:
-        job = await db_jobs.job_get(job_id)
+        job = await db_jobs.job_get(job_id, experiment_id=None)
 
         job_data = job["job_data"]
         if "template_id" not in job_data:
@@ -109,7 +109,7 @@ async def get_output_file_name(job_id: str):
 async def get_training_job_output(job_id: str, sweeps: bool = False):
     try:
         if sweeps:
-            job = await db_jobs.job_get(job_id)
+            job = await db_jobs.job_get(job_id, experiment_id=None)
             job_data = json.loads(job["job_data"])
             output_file = job_data.get("sweep_output_file", None)
             if output_file is not None and os.path.exists(output_file):
@@ -138,7 +138,7 @@ async def get_training_job_output(job_id: str, sweeps: bool = False):
 @router.get("/job/{job_id}/sweep_results")
 async def sweep_results(job_id: str):
     try:
-        job = await db_jobs.job_get(job_id)
+        job = await db_jobs.job_get(job_id, experiment_id=None)
         job_data = job.get("job_data", {})
 
         output_file = job_data.get("sweep_results_file", None)
@@ -187,7 +187,7 @@ async def spawn_tensorboard(job_id: str):
 
     print("Starting tensorboard")
 
-    job = await db_jobs.job_get(job_id)
+    job = await db_jobs.job_get(job_id, experiment_id=None)
     # First get the experiment name from the job
     experiment_id = job["experiment_id"]
     data = await db.experiment_get(experiment_id)

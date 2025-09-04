@@ -89,7 +89,6 @@ from transformerlab.db.workflows import (
 
 from transformerlab.db.jobs import (
     job_create,
-    job_get_status,
     job_get,
     job_update_status,  # used in unit tests validating DB-layer behavior
     job_delete_all,
@@ -100,7 +99,6 @@ from transformerlab.db.jobs import (
     jobs_get_next_queued_job,
     job_count_running,
     job_delete,
-    job_get_error_msg,
     job_update,
 )
 
@@ -127,10 +125,10 @@ async def test_model_local_delete_nonexistent():
 @pytest.mark.asyncio
 async def test_job_get_status_and_error_msg_for_nonexistent():
     # Should raise or return None for missing job
-    status = await job_get_status(999999, None)
-    assert status is None
-    error_msg = await job_get_error_msg(999999, None)
-    assert error_msg is None
+    job = await job_get(999999, None)
+    assert job is None
+    # Since job is None, both status and error_msg would be None
+    assert job is None
 
 
 @pytest.mark.asyncio
@@ -138,7 +136,7 @@ async def test_job_update_job_data_insert_key_value_overwrite():
     job_id = await job_create(type="TRAIN", status="QUEUED", experiment_id=99, job_data="{}")
     await job_update_job_data_insert_key_value(job_id, "foo", {"bar": 1}, 99)
     await job_update_job_data_insert_key_value(job_id, "foo", {"baz": 2}, 99)
-    job = await job_get(job_id)
+    job = await job_get(job_id, 99)
     assert job["job_data"]["foo"] == {"baz": 2}
 
 
@@ -146,15 +144,15 @@ async def test_job_update_job_data_insert_key_value_overwrite():
 async def test_job_update_status_without_error_msg():
     job_id = await job_create(type="TRAIN", status="QUEUED", experiment_id=99, job_data="{}")
     await job_update_status(job_id, "RUNNING", 99)
-    status = await job_get_status(job_id, 99)
-    assert status == "RUNNING"
+    job = await job_get(job_id, 99)
+    assert job["status"] == "RUNNING"
 
 
 @pytest.mark.asyncio
 async def test_job_delete_marks_deleted():
     job_id = await job_create(type="TRAIN", status="QUEUED", experiment_id=99, job_data="{}")
     await job_delete(job_id, 99)
-    job = await job_get(job_id)
+    job = await job_get(job_id, 99)
     assert job["status"] == "DELETED"
 
 
@@ -439,10 +437,9 @@ class TestModels:
         async def test_job_update_status_with_error_msg(self):
             job_id = await job_create("TRAIN", "QUEUED", experiment_id=99)
             await job_update_status(job_id, "FAILED", error_msg="Test error", experiment_id=99)
-            status = await job_get_status(job_id, 99)
-            assert status == "FAILED"
-            error_msg = await job_get_error_msg(job_id, 99)
-            assert error_msg == "Test error"
+            job = await job_get(job_id, 99)
+            assert job["status"] == "FAILED"
+            assert job["job_data"]["error_msg"] == "Test error"
 
     class TestDatasets:
         @pytest.mark.asyncio

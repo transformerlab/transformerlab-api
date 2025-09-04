@@ -433,7 +433,7 @@ async def workflow_runs_get_by_id(workflow_run_id: str, experimentId: int):
             job_ids = workflow_run.get("job_ids", [])
 
         for job_id in job_ids:
-            job = await db_jobs.job_get(job_id)
+            job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
             if not job:
                 continue
 
@@ -559,7 +559,7 @@ async def check_current_jobs_status(workflow_run_id, current_job_ids):
         return None
 
     for job_id in current_job_ids:
-        current_job = await db_jobs.job_get(job_id)
+        current_job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
         if not current_job:
             await workflow_run_update_status(workflow_run_id, "FAILED")
             return f"Could not find job with ID {job_id}"

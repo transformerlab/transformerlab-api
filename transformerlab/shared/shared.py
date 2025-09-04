@@ -131,12 +131,12 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
             print(">> " + text)
             if begin_string in text:
                 print(f"Job {job_id} now in progress!")
-                job = await db_jobs.job_get(job_id)
+                job = await db_jobs.job_get(job_id, experiment_id=None)
                 experiment_id = job["experiment_id"]
                 await job_update_status(job_id=job_id, status="RUNNING", experiment_id=experiment_id)
 
             # Check the job_data column for the stop flag:
-            job_row = await db_jobs.job_get(job_id)
+            job_row = await db_jobs.job_get(job_id, experiment_id=None)
             job_data = job_row.get("job_data", None)
             if job_data and job_data.get("stop", False):
                 print(f"Job {job_id}: 'stop' flag detected. Cancelling job.")
@@ -147,12 +147,12 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
 
         if process.returncode == 0:
             print(f"Job {job_id} completed successfully")
-            job = await db_jobs.job_get(job_id)
+            job = await db_jobs.job_get(job_id, experiment_id=None)
             experiment_id = job["experiment_id"]
             await job_update_status(job_id=job_id, status="COMPLETE", experiment_id=experiment_id)
         else:
             print(f"ERROR: Job {job_id} failed with exit code {process.returncode}.")
-            job = await db_jobs.job_get(job_id)
+            job = await db_jobs.job_get(job_id, experiment_id=None)
             experiment_id = job["experiment_id"]
             await job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
 
@@ -251,7 +251,7 @@ async def async_run_python_daemon_and_update_status(
                 if set_process_id_function:
                     set_process_id_function(process)
             print(f"Worker job {job_id} started successfully")
-            job = await db_jobs.job_get(job_id)
+            job = await db_jobs.job_get(job_id, experiment_id=None)
             experiment_id = job["experiment_id"]
             await job_update_status(job_id=job_id, status="COMPLETE", experiment_id=experiment_id)
 
@@ -281,7 +281,7 @@ async def async_run_python_daemon_and_update_status(
 
     print(f"ERROR: Worker job {job_id} failed with exit code {returncode}.")
     print(error_msg)
-    job = await db_jobs.job_get(job_id)
+    job = await db_jobs.job_get(job_id, experiment_id=None)
     experiment_id = job["experiment_id"]
     await job_update_status(job_id=job_id, status="FAILED", error_msg=error_msg, experiment_id=experiment_id)
     return process
@@ -304,7 +304,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         that are defined in job_config"""
         # plugin = job_config["plugin"]
         # update task to be marked as COMPLETE:
-        job = await db_jobs.job_get(job_id)
+        job = await db_jobs.job_get(job_id, experiment_id=None)
         experiment_id = job["experiment_id"]
         await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
         # implement rest later
@@ -339,7 +339,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     if plugin_name:
         plugin_location = dirs.plugin_dir_by_name(plugin_name)
         if not os.path.exists(plugin_location):
-            job = await db_jobs.job_get(job_id)
+            job = await db_jobs.job_get(job_id, experiment_id=None)
             experiment_id = job["experiment_id"]
             await db_jobs.job_update_status(job_id, "FAILED", experiment_id=experiment_id)
             error_msg = f"{master_job_type} job failed: No plugin found"
@@ -348,7 +348,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     # Handle different master job types
     if master_job_type == "EVAL":
         eval_name = job_config.get("evaluator", "")
-        job = await db_jobs.job_get(job_id)
+        job = await db_jobs.job_get(job_id, experiment_id=None)
         experiment_id = job["experiment_id"]
         await job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
         print("Running evaluation script")
@@ -360,24 +360,24 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 f.write("")
         await run_evaluation_script(experiment_id, plugin_name, eval_name, job_id)
         # Check if stop button was clicked and update status accordingly
-        job_row = await db_jobs.job_get(job_id)
+        job_row = await db_jobs.job_get(job_id, experiment_id=None)
         job_data = job_row.get("job_data", None)
         if job_data is None:
-            job = await db_jobs.job_get(job_id)
+            job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
             experiment_id = job["experiment_id"]
             await job_update_status(job_id, "FAILED", experiment_id=experiment_id)
             return {"status": "error", "job_id": job_id, "message": "Evaluation job failed: No job data found"}
 
         if job_data.get("stop", False):
-            job = await db_jobs.job_get(job_id)
+            job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
             experiment_id = job["experiment_id"]
             await job_update_status(job_id, "STOPPED", experiment_id=experiment_id)
             return {"status": "stopped", "job_id": job_id, "message": "Evaluation job was stopped by user"}
         else:
             # Only set to COMPLETE if not already FAILED
-            job = await db_jobs.job_get(job_id)
+            job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
             experiment_id = job["experiment_id"]
-            current_status = await db_jobs.job_get_status(job_id, experiment_id)
+            current_status = job["status"]
             if current_status != "FAILED":
                 await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
             return {"status": "complete", "job_id": job_id, "message": "Evaluation job completed successfully"}
@@ -388,7 +388,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         plugin_name = job_config["plugin"]
 
         generation_name = job_config["generator"]
-        job = await db_jobs.job_get(job_id)
+        job = await db_jobs.job_get(job_id, experiment_id=None)
         experiment_id = job["experiment_id"]
         await job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
         print("Running generation script")
@@ -402,31 +402,31 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         await run_generation_script(experiment_id, plugin_name, generation_name, job_id)
 
         # Check should_stop flag and update status accordingly
-        job_row = await db_jobs.job_get(job_id)
+        job_row = await db_jobs.job_get(job_id, experiment_id=None)
         job_data = job_row.get("job_data", None)
         if job_data is None:
-            job = await db_jobs.job_get(job_id)
+            job = await db_jobs.job_get(job_id, experiment_id=None)
             experiment_id = job["experiment_id"]
             await job_update_status(job_id, "FAILED", experiment_id=experiment_id)
             return {"status": "error", "job_id": job_id, "message": "Generation job failed: No job data found"}
 
         if job_data.get("stop", False):
-            job = await db_jobs.job_get(job_id)
+            job = await db_jobs.job_get(job_id, experiment_id=None)
             experiment_id = job["experiment_id"]
             await job_update_status(job_id, "STOPPED", experiment_id=experiment_id)
             return {"status": "stopped", "job_id": job_id, "message": "Generation job was stopped by user"}
         else:
             # Only set to COMPLETE if not already FAILED
-            job = await db_jobs.job_get(job_id)
+            job = await db_jobs.job_get(job_id, experiment_id=None)
             experiment_id = job["experiment_id"]
-            current_status = await db_jobs.job_get_status(job_id, experiment_id)
+            current_status = job["status"]
             if current_status != "FAILED":
                 await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
             return {"status": "complete", "job_id": job_id, "message": "Generation job completed successfully"}
 
     elif master_job_type == "EXPORT":
         plugin_name = job_config["plugin"]
-        job = await db_jobs.job_get(job_id)
+        job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
         experiment_id = job["experiment_id"]
         await job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
         print("Running export script")
@@ -465,16 +465,16 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         # Check the result and update job status accordingly
         if result.get("status") == "success":
             # Only set to COMPLETE if not already FAILED
-            job = await db_jobs.job_get(job_id)
+            job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
             experiment_id = job["experiment_id"]
-            current_status = await db_jobs.job_get_status(job_id, experiment_id)
+            current_status = job["status"]
             if current_status != "FAILED":
                 await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
                 print(f"Export job {job_id} completed successfully")
             return {"status": "complete", "job_id": job_id, "message": "Export job completed successfully"}
 
         else:
-            job = await db_jobs.job_get(job_id)
+            job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
             experiment_id = job["experiment_id"]
             await job_update_status(job_id, "FAILED", experiment_id=experiment_id)
             print(f"Export job {job_id} failed")
@@ -525,7 +525,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
         # Remove input_image and mask_image from job_data['config'] in db if they were present
         if removed_base64_keys:
-            job_row = await db_jobs.job_get(job_id)
+            job_row = await db_jobs.job_get(job_id, experiment_id=None)
             job_data = job_row.get("job_data", {})
             # Handle job_data as str or dict
             if isinstance(job_data, str):
@@ -628,7 +628,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     job_type = job_config["config"].get("type", "")
 
     # Get the job details from the database for these job types
-    job_details_from_db = await db_jobs.job_get(job_id)
+    job_details_from_db = await db_jobs.job_get(job_id, experiment_id=None)
     experiment_id = job_details_from_db["experiment_id"]
 
     # Get the experiment details from the database:
@@ -672,7 +672,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         )
         # Check if plugin has a venv directory
         venv_path = os.path.join(plugin_location, "venv")
-        job = await db_jobs.job_get(job_id)
+        job = await db_jobs.job_get(job_id, experiment_id=None)
         experiment_id = job["experiment_id"]
         await job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
         start_time = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -1151,7 +1151,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         print("I don't know what to do with this job type: " + job_type)
         on_job_complete()
 
-    job = await db_jobs.job_get(job_id)
+    job = await db_jobs.job_get(job_id, experiment_id=None)
     experiment_id = job["experiment_id"]
     await job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
     return

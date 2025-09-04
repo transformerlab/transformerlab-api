@@ -109,40 +109,12 @@ async def jobs_get_by_experiment(experiment_id):
         return [sqlalchemy_to_dict(job) for job in jobs]
 
 
-async def job_get_status(job_id, experiment_id):
+async def job_get(job_id, experiment_id):
     async with async_session() as session:
-        stmt = select(models.Job.status).where(models.Job.id == job_id)
+        stmt = select(models.Job).where(models.Job.id == job_id)
         if experiment_id is not None:
             stmt = stmt.where(models.Job.experiment_id == experiment_id)
         result = await session.execute(stmt)
-        status = result.scalar_one_or_none()
-        return status
-
-
-async def job_get_error_msg(job_id, experiment_id):
-    async with async_session() as session:
-        stmt = select(models.Job.job_data).where(models.Job.id == job_id)
-        if experiment_id is not None:
-            stmt = stmt.where(models.Job.experiment_id == experiment_id)
-        result = await session.execute(stmt)
-        job_data_raw = result.scalar_one_or_none()
-        # If no job_data, return None
-        if not job_data_raw:
-            return None
-        # Parse JSON string if necessary
-        if isinstance(job_data_raw, str):
-            try:
-                job_data = json.loads(job_data_raw)
-            except Exception:
-                return None
-        else:
-            job_data = job_data_raw
-        return job_data.get("error_msg", None)
-
-
-async def job_get(job_id):
-    async with async_session() as session:
-        result = await session.execute(select(models.Job).where(models.Job.id == job_id))
         job = result.scalar_one_or_none()
         if job is None:
             return None

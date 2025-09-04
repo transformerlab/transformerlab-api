@@ -145,7 +145,7 @@ async def run_exporter_script(
                 f.write(f"\nError:\n{stderr_str}")
 
             if process.returncode != 0:
-                job = await db_jobs.job_get(job_id)
+                job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
                 experiment_id = job["experiment_id"]
                 await job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
                 return {
@@ -157,7 +157,7 @@ async def run_exporter_script(
         import logging
 
         logging.error(f"Failed to export model. Exception: {e}")
-        job = await db_jobs.job_get(job_id)
+        job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
         experiment_id = job["experiment_id"]
         await job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
         return {"message": "Failed to export model due to an internal error."}
@@ -196,7 +196,7 @@ async def get_output_file_name(job_id: str):
         job_id = str(job_id)
 
         # Get job data
-        job = await db_jobs.job_get(job_id)
+        job = await db_jobs.job_get(job_id, None)  # First get without experiment restriction
         job_data = job["job_data"]
 
         # Check if it has a custom output file path
