@@ -109,7 +109,7 @@ async def jobs_get_by_experiment(experiment_id):
         return [sqlalchemy_to_dict(job) for job in jobs]
 
 
-async def job_get(job_id, experiment_id):
+async def job_get(job_id, experiment_id=None):
     async with async_session() as session:
         stmt = select(models.Job).where(models.Job.id == job_id)
         if experiment_id is not None:
