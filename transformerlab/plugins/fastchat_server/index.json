@@ -4,7 +4,7 @@
   "description": "Fastchat loads models for inference using Huggingface Transformers for generation.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "1.0.20",
+  "version": "1.0.21",
   "supports": [
     "chat",
     "completion",
@@ -42,7 +42,8 @@
     "Ernie4_5_MoeForCausalLM",
     "Ernie4_5_ForCausalLM",
     "SmolLM3ForCausalLM",
-    "GptOssForCausalLM"
+    "GptOssForCausalLM",
+    "RForConditionalGeneration"
   ],
   "supported_hardware_architectures": ["cpu", "cuda", "mlx", "amd"],
   "files": ["main.py", "setup.sh"],
