@@ -135,6 +135,9 @@ class MLXWorker(BaseModelWorker):
         return {**token_info, "top_logprobs": [top_logprobs]}
 
     async def generate_stream(self, params):
+        # Process tools using HF chat_template approach
+        params = self.process_tools_hf(params)
+
         self.call_ct += 1
 
         context = params.pop("prompt")
