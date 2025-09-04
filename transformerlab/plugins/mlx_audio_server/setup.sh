@@ -4,5 +4,3 @@ uv pip install "mlx-audio"
 python -m ensurepip --upgrade
 uv pip install misaki[ja]
 uv pip install misaki[zh]
-python -m unidic download
-
