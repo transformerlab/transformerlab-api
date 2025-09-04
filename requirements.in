@@ -1,7 +1,7 @@
 accelerate
 aiofiles
 aiosqlite
-datasets
+datasets==3.6.0
 einops
 evaluate
 fastapi
