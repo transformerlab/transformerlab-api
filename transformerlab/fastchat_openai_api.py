@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import time
+import uuid
 
 from typing import Any, AsyncGenerator, Dict, Generator, List, Optional, Union
 
@@ -15,7 +16,7 @@ import shortuuid
 import tiktoken
 
 # Using torch to test for CUDA and MPS support.
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, File, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.security.http import HTTPAuthorizationCredentials, HTTPBearer
 from fastchat.constants import WORKER_API_EMBEDDING_BATCH_SIZE, ErrorCode
@@ -44,10 +45,10 @@ from fastchat.protocol.openai_api_protocol import (
     UsageInfo,
 )
 from pydantic import BaseModel as PydanticBaseModel
-
 from transformerlab.shared import dirs
 
 WORKER_API_TIMEOUT = 3600
+
 
 # TODO: Move all base model to fastchat.protocol.openai_api_protocol
 class APIChatCompletionRequest(BaseModel):
@@ -89,16 +90,20 @@ class ChatCompletionRequest(BaseModel):
     frequency_penalty: Optional[float] = 0.0
     user: Optional[str] = None
     logprobs: Optional[bool] = False
+    tools: Optional[List[Dict[str, Any]]] = None
+
 
 class AudioRequest(BaseModel):
     experiment_id: int
     model: str
+    adaptor: Optional[str] = ""
     text: str
     file_prefix: str
     sample_rate: int
     temperature: float
     speed: float
     voice: Optional[str] = None
+    audio_path: Optional[str] = None
 
 
 class VisualizationRequest(PydanticBaseModel):
@@ -348,6 +353,7 @@ async def get_gen_params(
     stream: Optional[bool],
     stop: Optional[Union[str, List[str]]],
     logprobs: Optional[bool] = False,
+    tools: Optional[List[Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     conv = await get_conv(model_name)
     conv = Conversation(
@@ -416,6 +422,8 @@ async def get_gen_params(
     }
     if images is not None and len(images) > 0:
         gen_params["images"] = images
+    if tools is not None and len(tools) > 0:
+        gen_params["tools"] = tools
     if not stop:
         gen_params.update({"stop": conv.stop_str, "stop_token_ids": conv.stop_token_ids})
     else:
@@ -467,14 +475,26 @@ async def show_available_models():
     controller_address = app_settings.controller_address
     async with httpx.AsyncClient() as client:
         await client.post(controller_address + "/refresh_all_workers")
-        ret = await client.post(controller_address + "/list_models")
-    models = ret.json()["models"]
+        # Poll /list_models until non-empty or timeout
+        timeout = 10.0  # seconds
+        poll_interval = 0.2  # seconds
+        elapsed = 0.0
+        models = []
+        while elapsed < timeout:
+            ret = await client.post(controller_address + "/list_models")
+            models = ret.json().get("models", [])
+            if models:
+                break
+            await asyncio.sleep(poll_interval)
+            elapsed += poll_interval
+    
     models.sort()
     # TODO: return real model permission details
     model_cards = []
     for m in models:
         model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
     return ModelList(data=model_cards)
+
 
 @router.post("/v1/audio/speech", tags=["audio"])
 async def create_audio_tts(request: AudioRequest):
@@ -489,7 +509,6 @@ async def create_audio_tts(request: AudioRequest):
     audio_dir = os.path.join(experiment_dir, "audio")
     os.makedirs(audio_dir, exist_ok=True)
 
-    
     gen_params = {
         "audio_dir": audio_dir,
         "model": request.model,
@@ -498,15 +517,35 @@ async def create_audio_tts(request: AudioRequest):
         "sample_rate": request.sample_rate,
         "temperature": request.temperature,
         "speed": request.speed,
+        "audio_path": request.audio_path,
     }
     
     # Add voice parameter if provided
     if request.voice:
         gen_params["voice"] = request.voice
-    #TODO: Define a base model class to structure the return value
+
+    # TODO: Define a base model class to structure the return value
     content = await generate_completion(gen_params)
 
     return content
+
+@router.post("/v1/audio/upload_reference", tags=["audio"])
+async def upload_audio_reference(experimentId: int, audio: UploadFile = File(...)):
+
+    experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+    uploaded_audio_dir = os.path.join(experiment_dir, "uploaded_audio")
+    os.makedirs(uploaded_audio_dir, exist_ok=True)
+
+    file_prefix = str(uuid.uuid4())
+    _, ext = os.path.splitext(audio.filename)
+    file_path = os.path.join(uploaded_audio_dir, file_prefix + ext)
+
+    # Save the uploaded file
+    with open(file_path, "wb") as f:
+        content = await audio.read()
+        f.write(content)
+
+    return JSONResponse({"audioPath": file_path})
 
 
 
@@ -524,6 +563,9 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
     if error_check_ret is not None:
         return error_check_ret
 
+    # Pass through tools from frontend - no auto-loading
+    tools = request.tools
+
     gen_params = await get_gen_params(
         request.model,
         request.messages,
@@ -535,6 +577,7 @@ async def create_openapi_chat_completion(request: ChatCompletionRequest):
         stream=request.stream,
         stop=request.stop,
         logprobs=request.logprobs,
+        tools=tools,
     )
 
     error_check_ret = await check_length(request, gen_params["prompt"], gen_params["max_new_tokens"])
@@ -1110,6 +1153,9 @@ async def create_chat_completion(request: APIChatCompletionRequest):
     if error_check_ret is not None:
         return error_check_ret
 
+    # Pass through tools from frontend - no auto-loading
+    tools = request.tools if hasattr(request, "tools") else None
+
     gen_params = await get_gen_params(
         request.model,
         request.messages,
@@ -1121,6 +1167,7 @@ async def create_chat_completion(request: APIChatCompletionRequest):
         stream=request.stream,
         stop=request.stop,
         logprobs=request.logprobs,
+        tools=tools,
     )
 
     if request.repetition_penalty is not None:

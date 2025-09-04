@@ -174,15 +174,14 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
     config = json.loads(experiment_details["config"])
 
     experiment_name = experiment_details["name"]
-    model_name = config["foundation"]
+    model_name = config.get("foundation", "")
     if "model_name" in generation_config.keys():
         model_name = generation_config["model_name"]
 
-    if config["foundation_filename"] is None or config["foundation_filename"].strip() == "":
+    model_file_path = config.get("foundation_filename", "")
+    if model_file_path is None or model_file_path.strip() == "":
         model_file_path = ""
-    else:
-        model_file_path = config["foundation_filename"]
-    model_type = config["foundation_model_architecture"]
+    model_type = config.get("foundation_model_architecture", "")
     if "model_architecture" in generation_config.keys():
         model_type = generation_config["model_architecture"]
     model_adapter = config.get("model_adapter", "")
