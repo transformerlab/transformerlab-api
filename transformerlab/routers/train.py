@@ -63,7 +63,7 @@ async def get_training_job(job_id: str):
     return await db_jobs.job_get(job_id)
 
 
-async def get_output_file_name(job_id: str):
+async def get_output_file_name(job_id: str, experiment_name: str):
     try:
         # First get the template Id from this job:
         job = await db_jobs.job_get(job_id)
@@ -85,12 +85,15 @@ async def get_output_file_name(job_id: str):
 
         job_id = secure_filename(job_id)
 
-        # job output is stored in separate files with a job number in the name...
-        jobs_dir_output_file_name = os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id))
+        # Try new job directory structure first
+        new_jobs_dir = dirs.get_job_output_dir(experiment_name, job_id)
+        if os.path.exists(os.path.join(new_jobs_dir, f"output_{job_id}.txt")):
+            output_file = os.path.join(new_jobs_dir, f"output_{job_id}.txt")
 
-        # job output is stored in separate files with a job number in the name...
-        if os.path.exists(os.path.join(jobs_dir_output_file_name, f"output_{job_id}.txt")):
-            output_file = os.path.join(jobs_dir_output_file_name, f"output_{job_id}.txt")
+        # Fall back to old structure for backward compatibility
+        elif os.path.exists(os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id), f"output_{job_id}.txt")):
+            output_file = os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id), f"output_{job_id}.txt")
+
         elif os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
             output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
 
@@ -117,10 +120,18 @@ async def get_training_job_output(job_id: str, sweeps: bool = False):
                     output = f.read()
                 return output
             else:
-                output_file_name = await get_output_file_name(job_id)
+                # Get experiment information for new job directory structure
+                experiment_id = job["experiment_id"]
+                experiment = await db.experiment_get(experiment_id)
+                experiment_name = experiment["name"]
+                output_file_name = await get_output_file_name(job_id, experiment_name)
 
         else:
-            output_file_name = await get_output_file_name(job_id)
+            # Get experiment information for new job directory structure
+            experiment_id = job["experiment_id"]
+            experiment = await db.experiment_get(experiment_id)
+            experiment_name = experiment["name"]
+            output_file_name = await get_output_file_name(job_id, experiment_name)
 
         with open(output_file_name, "r") as f:
             output = f.read()
