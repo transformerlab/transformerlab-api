@@ -4,7 +4,7 @@ name: Test for Install and Serving (macOS)
 
 on:
   push:
-    branches: ["main"]
+    branches: ["add/macos-server-test"]
   pull_request:
     branches: ["main"]
 
