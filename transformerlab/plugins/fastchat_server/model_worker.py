@@ -459,6 +459,7 @@ async def api_generate_with_visualization(request: Request):
                             logits = outputs.logits
                             hidden_states = outputs.hidden_states
                             attentions = outputs.attentions
+
                             if torch.isnan(logits).all():
                                 print("All logits are still NaN after conversion, stopping generation here")
                                 break
@@ -504,11 +505,24 @@ async def api_generate_with_visualization(request: Request):
                         for token_id, prob in zip(top_ids[0], top_probs[0])
                     ]
 
-                    # Process MLP activations
-                    mlp_activations = process_mlp_activations(hidden_states)
+                    # Process MLP activations only if hidden_states are available
+                    if hidden_states is not None:
+                        mlp_activations = process_mlp_activations(hidden_states)
+                    else:
+                        # Create dummy MLP activation data (zeros) when hidden_states are not available
+                        # This can happen with certain model configurations or optimized implementations
+                        # Default to a reasonable number of layers (e.g., 32 for most transformer models)
+                        num_layers = 32
+                        mlp_activations = np.zeros(num_layers)
 
-                    # Process attention entropy
-                    attention_entropy = compute_attention_entropy(attentions)
+                    # Process attention entropy only if attentions are available
+                    if attentions is not None:
+                        attention_entropy = compute_attention_entropy(attentions)
+                    else:
+                        # Create dummy attention entropy data (zeros) when attentions are not available
+                        # This can happen with SDPA attention implementation or other optimized attention variants
+                        num_layers = len(hidden_states) if hidden_states else 32
+                        attention_entropy = np.zeros(num_layers)
 
                     # Get generated text so far
                     generated_text = worker.tokenizer.decode(
@@ -553,6 +567,9 @@ async def api_generate_with_visualization(request: Request):
 
 def process_mlp_activations(hidden_states):
     """Process MLP (Feedforward) layer activations"""
+    if hidden_states is None:
+        return np.array([])
+
     # Stack all layer hidden states for the last token
     activations = torch.stack([layer[:, -1, :] for layer in hidden_states])
     # Add support for bfloat16
@@ -564,6 +581,9 @@ def process_mlp_activations(hidden_states):
 
 def compute_attention_entropy(attentions):
     """Compute entropy of attention distributions per layer"""
+    if attentions is None:
+        return np.array([])
+
     entropy_values = []
 
     for attn_layer in attentions:
@@ -577,9 +597,10 @@ def compute_attention_entropy(attentions):
         # Average over attention heads
         layer_entropy = entropy.mean(dim=-1).cpu().numpy()
         entropy_values.append(layer_entropy.item())
-        # Replace nans with 0.0
-        final_np_array = np.array(entropy_values)
-        final_np_array[np.isnan(final_np_array)] = 0.0
+
+    # Replace nans with 0.0
+    final_np_array = np.array(entropy_values)
+    final_np_array[np.isnan(final_np_array)] = 0.0
 
     return final_np_array
 
