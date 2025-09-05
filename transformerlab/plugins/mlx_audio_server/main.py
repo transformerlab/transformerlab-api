@@ -78,6 +78,8 @@ class MLXAudioWorker(BaseModelWorker):
         sample_rate = params.get("sample_rate", 24000)
         temperature = params.get("temperature", 0.0)
         stream = params.get("stream", False)
+        voice = params.get("voice", None)
+        lang_code = params.get("lang_code", None)
         
         audio_dir = params.get("audio_dir", None)
         if not audio_dir:
@@ -88,23 +90,28 @@ class MLXAudioWorker(BaseModelWorker):
         file_prefix = str(uuid.uuid4())
 
         try:
-            generate_audio(
-                text=text,
-                model_path=model,
-                speed=speed,
-                file_prefix=os.path.join(audio_dir, file_prefix),
-                sample_rate=sample_rate,
-                join_audio=True,  # Whether to join multiple audio files into one
-                verbose=True,  # Set to False to disable print messages
-                temperature=temperature,
-                stream=stream,
-                voice=None,
-            )
+            kwargs = {
+                "text": text,
+                "model_path": model,
+                "speed": speed,
+                "file_prefix": os.path.join(audio_dir, file_prefix),
+                "sample_rate": sample_rate,
+                "join_audio": True,
+                "verbose": True,
+                "temperature": temperature,
+                "stream": stream,
+                "voice": voice,
+            }
+            if lang_code:
+                kwargs["lang_code"] = lang_code
+            
+            generate_audio(**kwargs)
 
             # Also save the parameters and metadata used to generate the audio
             metadata = {
                 "type": "audio",
                 "text": text,
+                "voice": voice,
                 "filename": f"{file_prefix}.{audio_format}",
                 "model": model,
                 "speed": speed,
