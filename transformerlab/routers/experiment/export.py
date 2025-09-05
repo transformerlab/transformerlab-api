@@ -34,8 +34,6 @@ async def run_exporter_script(
     if experiment_details is None:
         return {"message": f"Experiment {id} does not exist"}
 
-    experiment_name = experiment_details["name"]
-
     # Get input model parameters
     config = json.loads(experiment_details["config"])
     input_model_id = config["foundation"]
@@ -128,7 +126,7 @@ async def run_exporter_script(
     subprocess_command = [sys.executable, dirs.PLUGIN_HARNESS] + args
     try:
         # Get the output file path
-        job_output_file = await get_output_file_name(job_id, experiment_name)
+        job_output_file = await get_output_file_name(job_id)
 
         # Create the output file and run the process with output redirection
         with open(job_output_file, "w") as f:
@@ -192,7 +190,7 @@ async def run_exporter_script(
     return {"status": "success", "job_id": job_id}
 
 
-async def get_output_file_name(job_id: str, experiment_name: str):
+async def get_output_file_name(job_id: str):
     try:
         # Ensure job_id is a string
         job_id = str(job_id)
@@ -215,20 +213,15 @@ async def get_output_file_name(job_id: str, experiment_name: str):
 
         job_id = secure_filename(job_id)
 
-        # Try new job directory structure first
-        new_jobs_dir = dirs.get_job_output_dir(experiment_name, job_id)
-        if os.path.exists(os.path.join(new_jobs_dir, f"output_{job_id}.txt")):
-            output_file = os.path.join(new_jobs_dir, f"output_{job_id}.txt")
-
-        # Fall back to old structure for backward compatibility
-        elif os.path.exists(os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id), f"output_{job_id}.txt")):
-            output_file = os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id), f"output_{job_id}.txt")
-
+        # Check for output file with job id
+        jobs_dir_output_file_name = os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id))
+        if os.path.exists(os.path.join(jobs_dir_output_file_name, f"output_{job_id}.txt")):
+            output_file = os.path.join(jobs_dir_output_file_name, f"output_{job_id}.txt")
         elif os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
             output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
         else:
             # Create the output file path even if it doesn't exist yet
-            output_file = os.path.join(new_jobs_dir, f"output_{job_id}.txt")
+            output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
 
         return output_file
     except Exception as e:
