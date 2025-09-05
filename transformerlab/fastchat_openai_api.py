@@ -473,13 +473,13 @@ async def get_conv(model_name: str):
 @router.get("/v1/models", dependencies=[Depends(check_api_key)], tags=["chat"])
 async def show_available_models():
     controller_address = app_settings.controller_address
+    models = []
     async with httpx.AsyncClient() as client:
         await client.post(controller_address + "/refresh_all_workers")
         # # Poll /list_models until non-empty or timeout
         # timeout = 10.0  # seconds
         # poll_interval = 0.2  # seconds
         # elapsed = 0.0
-        models = []
         # while elapsed < timeout:
         ret = await client.post(controller_address + "/list_models")
         models = ret.json().get("models", [])
