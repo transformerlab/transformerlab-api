@@ -10,7 +10,8 @@ from snac import SNAC
 class AudioTrainerBase(ABC):
     def __init__(
         self, model_name, context_length, device, speaker_key, 
-        lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length
+        lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length,
+        audio_column_name="audio", text_column_name="text"
     ):
         self.model_name = model_name
         self.context_length = context_length
@@ -21,6 +22,8 @@ class AudioTrainerBase(ABC):
         self.lora_dropout = lora_dropout
         self.sampling_rate = sampling_rate
         self.max_audio_length = max_audio_length
+        self.audio_column_name = audio_column_name
+        self.text_column_name = text_column_name
         self.lora_target_modules = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
 
 
@@ -31,9 +34,11 @@ class AudioTrainerBase(ABC):
 
 class CsmAudioTrainer(AudioTrainerBase):
     def __init__(self, model_name, context_length, device, speaker_key, 
-                lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length):
+                lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length,
+                audio_column_name="audio", text_column_name="text"):
         super().__init__(model_name, context_length, device, speaker_key, 
-                        lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length)
+                        lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length,
+                        audio_column_name, text_column_name)
         self.model, self.tokenizer = FastModel.from_pretrained(
             model_name=self.model_name,
             max_seq_length=self.context_length,
@@ -62,8 +67,8 @@ class CsmAudioTrainer(AudioTrainerBase):
             {
                 "role": str(example[self.speaker_key]),
                 "content": [
-                    {"type": "text", "text": example["text"]},
-                    {"type": "audio", "path": example["audio"]["array"]},
+                    {"type": "text", "text": example[self.text_column_name]},
+                    {"type": "audio", "path": example[self.audio_column_name]["array"]},
                 ],
             }
         ]
@@ -88,7 +93,7 @@ class CsmAudioTrainer(AudioTrainerBase):
                 common_kwargs = {"return_tensors": "pt"},
             )
         except Exception as e:
-            print(f"Error processing example with text '{example['text'][:50]}...': {e}")
+            print(f"Error processing example with text '{example[self.text_column_name][:50]}...': {e}")
             return None
 
         required_keys = ["input_ids", "attention_mask", "labels", "input_values", "input_values_cutoffs"]
@@ -109,9 +114,11 @@ class CsmAudioTrainer(AudioTrainerBase):
 
 class OrpheusAudioTrainer(AudioTrainerBase):
     def __init__(self, model_name, context_length, device, speaker_key,
-                lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length, batch_size):
+                lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length, batch_size,
+                audio_column_name="audio", text_column_name="text"):
         super().__init__(model_name, context_length, device, speaker_key, 
-                        lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length)
+                        lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length,
+                        audio_column_name, text_column_name)
         self.snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz").to(self.device)
         self.model, self.processor = FastLanguageModel.from_pretrained(
             model_name=self.model_name,
@@ -198,11 +205,11 @@ class OrpheusAudioTrainer(AudioTrainerBase):
         """
         try:
             # Extract and tokenize audio
-            audio_array = example["audio"]["array"]
+            audio_array = example[self.audio_column_name]["array"]
             codes_list = self._tokenize_audio(audio_array)
             
             if not codes_list:
-                print(f"Warning: Empty codes list for example with text '{example['text'][:50]}...'")
+                print(f"Warning: Empty codes list for example with text '{example[self.text_column_name][:50]}...'")
                 return None
             
             # Remove duplicate frames for efficiency
@@ -210,9 +217,9 @@ class OrpheusAudioTrainer(AudioTrainerBase):
             
             # Create text prompt (multi-speaker or single-speaker)
             if self.speaker_key in example and example[self.speaker_key]:
-                text_prompt = f"{example[self.speaker_key]}: {example['text']}"
+                text_prompt = f"{example[self.speaker_key]}: {example[self.text_column_name]}"
             else:
-                text_prompt = example["text"]
+                text_prompt = example[self.text_column_name]
             
             text_ids = self.processor.encode(text_prompt, add_special_tokens=True)
             text_ids.append(self.end_of_text)
@@ -251,5 +258,5 @@ class OrpheusAudioTrainer(AudioTrainerBase):
             }
             
         except Exception as e:
-            print(f"Error processing example with text '{example['text'][:50]}...': {e}")
+            print(f"Error processing example with text '{example[self.text_column_name][:50]}...': {e}")
             return None
