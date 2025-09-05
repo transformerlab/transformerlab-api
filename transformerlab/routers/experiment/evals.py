@@ -198,7 +198,7 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
             experiment_details["config"]["evaluations"] = json.loads(experiment_details["config"]["evaluations"])
 
     template_config = eval_config["script_parameters"]
-    job_output_file = await get_job_output_file_name(job_id, plugin_name)
+    job_output_file = await get_job_output_file_name(job_id, plugin_name, experiment_name)
 
     input_contents = {"experiment": experiment_details, "config": template_config}
     with open(input_file, "w") as outfile:
@@ -270,17 +270,22 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
                 f.write(line)
 
 
-async def get_job_output_file_name(job_id: str, plugin_name: str):
+async def get_job_output_file_name(job_id: str, plugin_name: str, experiment_name: str):
     try:
         job_id = secure_filename(str(job_id))
         plugin_name = secure_filename(plugin_name)
 
         plugin_dir = dirs.plugin_dir_by_name(plugin_name)
-        jobs_dir_output_file_name = os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id))
 
-        # job output is stored in separate files with a job number in the name...
-        if os.path.exists(os.path.join(jobs_dir_output_file_name, f"output_{job_id}.txt")):
-            output_file = os.path.join(jobs_dir_output_file_name, f"output_{job_id}.txt")
+        # Try new job directory structure first
+        new_jobs_dir = dirs.get_job_output_dir(experiment_name, job_id)
+        if os.path.exists(os.path.join(new_jobs_dir, f"output_{job_id}.txt")):
+            output_file = os.path.join(new_jobs_dir, f"output_{job_id}.txt")
+
+        # Fall back to old structure for backward compatibility
+        elif os.path.exists(os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id), f"output_{job_id}.txt")):
+            output_file = os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id), f"output_{job_id}.txt")
+
         elif os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
             output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
         # but it used to be all stored in a single file called output.txt, so check that as well
