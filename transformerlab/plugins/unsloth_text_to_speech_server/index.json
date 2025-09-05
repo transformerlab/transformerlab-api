@@ -4,11 +4,10 @@
   "description": "A text-to-speech (TTS) audio generation server, supporting efficient, high-quality speech synthesis.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "supports": [
     "Text-to-Speech",
-    "Audio",
-    "experimental"
+    "Audio"
   ],
   "model_architectures": [
     "CsmForConditionalGeneration",
