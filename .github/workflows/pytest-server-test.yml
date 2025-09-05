@@ -1,6 +1,6 @@
 # This workflow will install Python dependencies and run tests
 
-name: Test for Install and Serving
+name: Test for Install and Serving (Ubuntu)
 
 on:
   push:
