@@ -1,7 +1,7 @@
 accelerate
 aiofiles
 aiosqlite
-datasets
+datasets==3.6.0
 einops
 evaluate
 fastapi
@@ -30,7 +30,7 @@ sentence-transformers
 markitdown[all]
 hf_xet
 macmon-python
-transformerlab-inference==0.2.45
+transformerlab-inference==0.2.47
 diffusers==0.33.1
 nvidia-ml-py
 mcp[cli]

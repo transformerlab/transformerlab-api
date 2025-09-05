@@ -17,9 +17,15 @@ def train_model():
     datasets = tlab_trainer.load_dataset()
     dataset = datasets["train"]
 
-    if "audio" not in dataset.column_names or "text" not in dataset.column_names:
-        raise ValueError("Dataset must contain 'audio' and 'text' columns.")
+    # Get configurable column names
+    audio_column_name = tlab_trainer.params.get("audio_column_name", "audio")
+    text_column_name = tlab_trainer.params.get("text_column_name", "text")
 
+    if audio_column_name not in dataset.column_names or text_column_name not in dataset.column_names:
+        raise ValueError(
+            f"Missing required columns: '{audio_column_name}' and '{text_column_name}'. "
+            "Please update the column names in the Plugin Config."
+        )
     # Get configuration values
     lora_alpha = int(tlab_trainer.params.get("lora_alpha", 16))
     lora_dropout = float(tlab_trainer.params.get("lora_dropout", 0))
@@ -53,8 +59,8 @@ def train_model():
     elif "source" not in dataset.column_names and "speaker_id" in dataset.column_names:
         speaker_key = "speaker_id"
 
-    dataset = dataset.cast_column("audio", Audio(sampling_rate=sampling_rate))
-    max_audio_length = max(len(example["audio"]["array"]) for example in dataset)
+    dataset = dataset.cast_column(audio_column_name, Audio(sampling_rate=sampling_rate))
+    max_audio_length = max(len(example[audio_column_name]["array"]) for example in dataset)
 
     
     if model_architecture == "CsmForConditionalGeneration":
@@ -67,7 +73,9 @@ def train_model():
             lora_alpha=lora_alpha, 
             lora_dropout=lora_dropout,
             sampling_rate=sampling_rate,
-            max_audio_length=max_audio_length
+            max_audio_length=max_audio_length,
+            audio_column_name=audio_column_name,
+            text_column_name=text_column_name
         )
     elif "orpheus" in model_id:
         model_trainer = OrpheusAudioTrainer(
@@ -80,8 +88,9 @@ def train_model():
             lora_dropout=lora_dropout,
             sampling_rate=sampling_rate,
             max_audio_length=max_audio_length,
-            batch_size=batch_size
-
+            batch_size=batch_size,
+            audio_column_name=audio_column_name,
+            text_column_name=text_column_name
         )
     else:
         raise ValueError(f"Model architecture {model_architecture} is not supported for audio training.")

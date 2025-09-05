@@ -1,7 +1,7 @@
 accelerate
 aiofiles
 aiosqlite
-datasets
+datasets==3.6.0
 einops
 evaluate
 fastapi
@@ -16,9 +16,9 @@ scipy
 sentencepiece
 tensorboard
 tiktoken
-torch==2.8.0
-torchaudio==2.8.0
-torchvision==0.23.0
+torch==2.8.0+rocm6.4
+torchaudio==2.8.0+rocm6.4
+torchvision==0.23.0+rocm6.4
 transformers==4.55.2
 peft
 watchfiles
@@ -31,7 +31,7 @@ markitdown[all]
 hf_xet
 macmon-python
 mcp[cli]
-transformerlab-inference==0.2.45
+transformerlab-inference==0.2.47
 diffusers==0.33.1
 pyrsmi
 controlnet_aux==0.0.10
