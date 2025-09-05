@@ -246,26 +246,14 @@ async def get_output_file_name(job_id: str):
         plugin_dir = dirs.plugin_dir_by_name(plugin_name)
         job_id_safe = secure_filename(str(job_id))
 
-        # Get experiment information for new job directory structure
-        experiment_id = job["experiment_id"]
-        experiment = await experiment_get(experiment_id)
-        experiment_name = experiment["name"]
-
         # Define potential output file locations in order of preference
-        # Try new structure first
-        new_jobs_dir_output_file = os.path.join(dirs.get_job_output_dir(experiment_name, job_id), f"output_{job_id_safe}.txt")
-
-        # Fall back to old structure for backward compatibility
-        old_jobs_dir_output_file = os.path.join(dirs.WORKSPACE_DIR, "jobs", job_id_safe, f"output_{job_id_safe}.txt")
-
+        jobs_dir_output_file_name = os.path.join(dirs.WORKSPACE_DIR, "jobs", job_id_safe, f"output_{job_id_safe}.txt")
         plugin_job_output_file = os.path.join(plugin_dir, f"output_{job_id_safe}.txt")
         plugin_legacy_output_file = os.path.join(plugin_dir, "output.txt")
 
         # Check files in order of preference
-        if os.path.exists(new_jobs_dir_output_file):
-            return new_jobs_dir_output_file
-        elif os.path.exists(old_jobs_dir_output_file):
-            return old_jobs_dir_output_file
+        if os.path.exists(jobs_dir_output_file_name):
+            return jobs_dir_output_file_name
         elif os.path.exists(plugin_job_output_file):
             return plugin_job_output_file
         elif os.path.exists(plugin_legacy_output_file):
@@ -322,13 +310,8 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
                 logging.warning(
                     f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}"
                 )
-                # Get experiment information for new job directory structure
-                experiment_id = job["experiment_id"]
-                experiment = await experiment_get(experiment_id)
-                experiment_name = experiment["name"]
-
                 job_id_safe = secure_filename(str(job_id))
-                new_output_dir = dirs.get_job_output_dir(experiment_name, job_id)
+                new_output_dir = os.path.join(dirs.WORKSPACE_DIR, "jobs", job_id_safe)
                 if not os.path.exists(new_output_dir):
                     os.makedirs(new_output_dir)
                 output_file_name = os.path.join(new_output_dir, f"output_{job_id_safe}.txt")
