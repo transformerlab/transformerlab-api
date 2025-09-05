@@ -14,12 +14,13 @@ from anyio import open_process
 from anyio.streams.text import TextReceiveStream
 from werkzeug.utils import secure_filename
 
-from transformerlab.db.db import experiment_get, experiment_get_by_name
+from transformerlab.db.db import experiment_get_by_name
 from transformerlab.services.job_service import job_update_sync
 import transformerlab.db.jobs as db_jobs
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
 from transformerlab.shared import dirs
+from transformerlab.db.db import experiment_get
 from transformerlab.shared.dirs import GLOBAL_LOG_PATH
 from transformerlab.services.job_service import job_update_status
 
@@ -311,8 +312,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         return {"status": "complete", "job_id": job_id, "message": "Task job completed successfully"}
 
     # Common setup for all other job types
-    WORKSPACE_DIR = dirs.WORKSPACE_DIR
-    output_temp_file_dir = os.path.join(WORKSPACE_DIR, "jobs", str(job_id))
+    output_temp_file_dir = dirs.get_job_output_dir(experiment_name, job_id)
     if not os.path.exists(output_temp_file_dir):
         os.makedirs(output_temp_file_dir)
 
@@ -488,8 +488,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         await db_jobs.job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
 
         # Prep paths and script args
-        WORKSPACE_DIR = dirs.WORKSPACE_DIR
-        output_temp_file_dir = os.path.join(WORKSPACE_DIR, "jobs", str(job_id))
+        output_temp_file_dir = dirs.get_job_output_dir(experiment_name, job_id)
         os.makedirs(output_temp_file_dir, exist_ok=True)
 
         plugin_dir = dirs.plugin_dir_by_name(plugin_name)
