@@ -11,6 +11,8 @@ Your dataset should contain paired audio and text data with the following struct
 - **text**: Corresponding transcriptions or text prompts
 - **speaker** (optional): Speaker identification for multi-speaker datasets
 
+**Note:** The column names for audio and text data can be customized in the Plugin Config if your dataset uses different column names.
+
 **Example Datasets:**
 - MrDragonFox/Elise
 - Any dataset with `audio` and `text` columns in HuggingFace format
