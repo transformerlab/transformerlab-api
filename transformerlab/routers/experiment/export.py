@@ -224,6 +224,8 @@ async def get_output_file_name(job_id: str, experiment_name: str):
         elif os.path.exists(os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id), f"output_{job_id}.txt")):
             output_file = os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id), f"output_{job_id}.txt")
 
+        elif os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
+            output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
         else:
             # Create the output file path even if it doesn't exist yet
             output_file = os.path.join(new_jobs_dir, f"output_{job_id}.txt")

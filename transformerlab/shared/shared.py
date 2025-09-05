@@ -311,7 +311,6 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         return {"status": "complete", "job_id": job_id, "message": "Task job completed successfully"}
 
     # Common setup for all other job types
-    WORKSPACE_DIR = dirs.WORKSPACE_DIR
     output_temp_file_dir = dirs.get_job_output_dir(experiment_name, job_id)
     if not os.path.exists(output_temp_file_dir):
         os.makedirs(output_temp_file_dir)
