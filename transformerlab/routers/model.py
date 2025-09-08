@@ -1058,7 +1058,7 @@ async def chat_template(model_name: str):
 @router.get("/model/pipeline_tag")
 async def get_pipeline_tag(model_name: str):
     """
-    Get the pipeline tag for a model from Hugging Face Hub.
+    Get the pipeline tag for a model from the database or Hugging Face Hub.
 
     Args:
         model_name: The Hugging Face model ID (e.g., "mlx-community/Kokoro-82M-bf16")
@@ -1066,7 +1066,15 @@ async def get_pipeline_tag(model_name: str):
     Returns:
         JSON response with status and pipeline tag data
     """
+    # First try to get from database
+    model_data = await db.model_local_get(model_name)
+    if model_data and model_data.get("json_data") and "pipeline_tag" in model_data["json_data"]:
+        pipeline_tag = model_data["json_data"]["pipeline_tag"]
+        return {"status": "success", "data": pipeline_tag, "model_id": model_name}
+
+    # If not in database, fetch from Hugging Face Hub
     try:
+        print(f"Fetching pipeline tag for {model_name} from Hugging Face Hub...")
         api = HfApi()
         model_info = api.model_info(model_name)
         pipeline_tag = model_info.pipeline_tag
