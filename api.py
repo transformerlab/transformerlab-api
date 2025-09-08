@@ -374,12 +374,7 @@ async def server_worker_stop():
         from transformerlab.shared.shared import kill_sglang_subprocesses
 
         try:
-            worker_process.terminate()
-            try:
-                worker_process.wait(timeout=10)  # Wait up to 10 seconds for graceful exit
-            except subprocess.TimeoutExpired:
-                worker_process.kill()  # Force kill if it doesn't exit
-
+            os.kill(worker_process.pid, signal.SIGTERM)
             kill_sglang_subprocesses()
             worker_process = None
 
