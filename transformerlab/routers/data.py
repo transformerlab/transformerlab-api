@@ -222,11 +222,9 @@ def serialize_row(row):
     """Convert PIL Images and audio arrays in a row to base64 strings, preserving original structure."""
     if isinstance(row, dict):
         # Check if this is an audio object
-        if "audio" in row and isinstance(row["audio"], dict):
-            audio_data = row["audio"]
-            if "array" in audio_data and "sampling_rate" in audio_data:
-                # This is an audio object, serialize it
-                return serialize_audio_object(row)
+        if "sampling_rate" in row and "array" in row and "path" in row:
+            # This is an audio object, serialize it
+            return serialize_audio_object(row)
         return {k: serialize_row(v) for k, v in row.items()}
     elif isinstance(row, list):
         return [serialize_row(v) for v in row]
@@ -244,7 +242,7 @@ def serialize_row(row):
 
 def serialize_audio_object(audio_obj):
     """Serialize an audio object to a format suitable for frontend display."""
-    audio_data = audio_obj["audio"]
+    audio_data = audio_obj
     array = audio_data["array"]
     sampling_rate = audio_data["sampling_rate"]
     path = audio_data.get("path", "unknown")
