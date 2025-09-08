@@ -375,8 +375,14 @@ async def server_worker_stop():
 
         try:
             worker_process.terminate()
+            try:
+                worker_process.wait(timeout=10)  # Wait up to 10 seconds for graceful exit
+            except subprocess.TimeoutExpired:
+                worker_process.kill()  # Force kill if it doesn't exit
+
             kill_sglang_subprocesses()
             worker_process = None
+
         except Exception as e:
             print(f"Error stopping worker process: {e}")
     # check if there is a file called worker.pid, if so kill the related process:
