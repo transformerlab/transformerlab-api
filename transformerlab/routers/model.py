@@ -660,6 +660,25 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
 
     # Need to use huggingface repo to download - not always the same as uniqueID
     huggingface_id = gallery_entry.get("huggingface_repo", gallery_id)
+
+    # Fetch pipeline_tag if not present in gallery_entry
+    if "pipeline_tag" not in gallery_entry:
+        # First try to get from database
+        model_data = await db.model_local_get(huggingface_id)
+        if model_data and model_data.get("json_data") and "pipeline_tag" in model_data["json_data"]:
+            gallery_entry["pipeline_tag"] = model_data["json_data"]["pipeline_tag"]
+        else:
+            # If not in database, fetch from Hugging Face Hub
+            try:
+                api = HfApi()
+                model_info = api.model_info(huggingface_id)
+                gallery_entry["pipeline_tag"] = model_info.pipeline_tag
+            except Exception as e:
+                # Assume text generation if we can't get the tag
+                print(f"Error fetching pipeline tag for {huggingface_id}: {type(e).__name__}: {e}")
+                gallery_entry["pipeline_tag"] = "text-generation"
+    print("GALLERY ENTRY:", gallery_entry)
+
     return await download_huggingface_model(huggingface_id, gallery_entry, job_id, experiment_id)
 
 
@@ -1074,7 +1093,6 @@ async def get_pipeline_tag(model_name: str):
 
     # If not in database, fetch from Hugging Face Hub
     try:
-        print(f"Fetching pipeline tag for {model_name} from Hugging Face Hub...")
         api = HfApi()
         model_info = api.model_info(model_name)
         pipeline_tag = model_info.pipeline_tag
