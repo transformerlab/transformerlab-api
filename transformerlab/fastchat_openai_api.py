@@ -105,6 +105,7 @@ class AudioRequest(BaseModel):
     voice: Optional[str] = None
     audio_path: Optional[str] = None
 
+
 class VisualizationRequest(PydanticBaseModel):
     model: str
     adaptor: Optional[str] = ""
@@ -472,21 +473,21 @@ async def get_conv(model_name: str):
 @router.get("/v1/models", dependencies=[Depends(check_api_key)], tags=["chat"])
 async def show_available_models():
     controller_address = app_settings.controller_address
+    models = []
     async with httpx.AsyncClient() as client:
         await client.post(controller_address + "/refresh_all_workers")
-        # Poll /list_models until non-empty or timeout
-        timeout = 10.0  # seconds
-        poll_interval = 0.2  # seconds
-        elapsed = 0.0
-        models = []
-        while elapsed < timeout:
-            ret = await client.post(controller_address + "/list_models")
-            models = ret.json().get("models", [])
-            if models:
-                break
-            await asyncio.sleep(poll_interval)
-            elapsed += poll_interval
-    
+        # # Poll /list_models until non-empty or timeout
+        # timeout = 10.0  # seconds
+        # poll_interval = 0.2  # seconds
+        # elapsed = 0.0
+        # while elapsed < timeout:
+        ret = await client.post(controller_address + "/list_models")
+        models = ret.json().get("models", [])
+        # if models:
+        #     break
+        # await asyncio.sleep(poll_interval)
+        # elapsed += poll_interval
+
     models.sort()
     # TODO: return real model permission details
     model_cards = []
@@ -518,21 +519,20 @@ async def create_audio_tts(request: AudioRequest):
         "speed": request.speed,
         "audio_path": request.audio_path,
     }
-    
+
     # Add voice parameter if provided
     if request.voice:
         gen_params["voice"] = request.voice
         gen_params["lang_code"] = request.voice[0]
-
 
     # TODO: Define a base model class to structure the return value
     content = await generate_completion(gen_params)
 
     return content
 
+
 @router.post("/v1/audio/upload_reference", tags=["audio"])
 async def upload_audio_reference(experimentId: int, audio: UploadFile = File(...)):
-
     experiment_dir = await dirs.experiment_dir_by_id(experimentId)
     uploaded_audio_dir = os.path.join(experiment_dir, "uploaded_audio")
     os.makedirs(uploaded_audio_dir, exist_ok=True)
@@ -547,7 +547,6 @@ async def upload_audio_reference(experimentId: int, audio: UploadFile = File(...
         f.write(content)
 
     return JSONResponse({"audioPath": file_path})
-
 
 
 @router.post("/v1/chat/completions", dependencies=[Depends(check_api_key)], tags=["chat"])
