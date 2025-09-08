@@ -101,8 +101,6 @@ class OrpheusAudioModel(AudioModelBase):
     reference audio through the SNAC encoder and creating structured input sequences.
     """
     
-    # Audio processing constants
-    DEFAULT_SAMPLE_RATE = 24000
     SNAC_MODEL_NAME = "hubertsiuzdak/snac_24khz"
     
     # Special tokens for voice cloning
@@ -164,7 +162,7 @@ class OrpheusAudioModel(AudioModelBase):
         
         if audio_path:
             # Load and encode audio for voice cloning
-            sample_rate = sample_rate or self.DEFAULT_SAMPLE_RATE
+            sample_rate = sample_rate
             audio_array, _ = librosa.load(audio_path, sr=sample_rate)
             audio_tokens = self._encode_audio_to_tokens(audio_array)
             return self._create_voice_cloning_input(text_input_ids, audio_tokens)
