@@ -156,8 +156,8 @@ class OrpheusAudioModel(AudioModelBase):
         Returns:
             dict or torch.Tensor: Tokenized inputs ready for generation
         """
-        # Tokenize target text (common to both paths)
-        prompt = (f"{voice}: " + text) if voice else text
+        # Tokenize target text
+        prompt = f"{voice}: " + text if voice else text
 
         text_tokens = self.tokenizer(prompt, return_tensors="pt")
         text_input_ids = text_tokens["input_ids"].to(self.device)
