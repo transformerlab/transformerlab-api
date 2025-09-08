@@ -13,7 +13,7 @@ from datetime import datetime
 import uvicorn
 import torch
 import soundfile as sf
-from scipy.signal import resample
+import librosa
 from audio import CsmAudioModel, OrpheusAudioModel
 
 
@@ -140,8 +140,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
             audio_values = self.audio_model.generate(inputs, **generate_kwargs)
             audio = self.audio_model.decode(audio_values)
             if speed != 1.0:
-                n_samples = int(len(audio) / speed)
-                audio = resample(audio, n_samples)
+                audio = librosa.effects.time_stretch(audio, rate=speed)
             output_path = os.path.join(audio_dir, f"{file_prefix}.{audio_format}")
             os.makedirs(audio_dir, exist_ok=True)  # Ensure directory exists
             sf.write(output_path, audio, sample_rate)
