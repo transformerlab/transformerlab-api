@@ -12,7 +12,7 @@ class AudioModelBase(ABC):
         self.context_length = context_length
 
     @abstractmethod
-    def tokenize(self, text, audio_path=None, sample_rate=24000):
+    def tokenize(self, text, audio_path=None, sample_rate=24000, voice=None):
         pass
 
     @abstractmethod
@@ -41,7 +41,7 @@ class CsmAudioModel(AudioModelBase):
             "output_audio": True,
         }
 
-    def tokenize(self, text, audio_path=None, sample_rate=24000):
+    def tokenize(self, text, audio_path=None, sample_rate=24000, voice=None):
         """
         Tokenize text and optionally audio for voice cloning.
         
@@ -144,7 +144,7 @@ class OrpheusAudioModel(AudioModelBase):
             "repetition_penalty": 1.1,
         }
 
-    def tokenize(self, text, audio_path=None, sample_rate=None):
+    def tokenize(self, text, audio_path=None, sample_rate=None, voice=None):
         """
         Tokenize text and optionally audio for voice cloning.
         
@@ -157,7 +157,9 @@ class OrpheusAudioModel(AudioModelBase):
             dict or torch.Tensor: Tokenized inputs ready for generation
         """
         # Tokenize target text (common to both paths)
-        text_tokens = self.tokenizer(text, return_tensors="pt")
+        prompt = (f"{voice}: " + text) if voice else text
+
+        text_tokens = self.tokenizer(prompt, return_tensors="pt")
         text_input_ids = text_tokens["input_ids"].to(self.device)
         
         if audio_path:

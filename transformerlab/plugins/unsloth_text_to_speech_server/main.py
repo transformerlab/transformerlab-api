@@ -111,6 +111,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         sample_rate = params.get("sample_rate", 24000)
         temperature = params.get("temperature", 0.0)
         audio_dir = params.get("audio_dir")
+        voice = params.get("voice", None)
         uploaded_audio_path = params.get("audio_path", None)
         if uploaded_audio_path:
             logger.info("Received reference audio for cloning")
@@ -135,7 +136,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
             generate_kwargs["temperature"] = temperature
             generate_kwargs["top_p"] = 0.95
         try:
-            inputs = self.audio_model.tokenize(text=text, audio_path=uploaded_audio_path, sample_rate=sample_rate)
+            inputs = self.audio_model.tokenize(text=text, audio_path=uploaded_audio_path, sample_rate=sample_rate, voice=voice)
             audio_values = self.audio_model.generate(inputs, **generate_kwargs)
             audio = self.audio_model.decode(audio_values)
             if speed != 1.0:
