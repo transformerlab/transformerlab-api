@@ -376,7 +376,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             # Only set to COMPLETE if not already FAILED
             job = await db_jobs.job_get(job_id)
             experiment_id = job["experiment_id"]
-            current_status = await db_jobs.job_get_status(job_id, experiment_id)
+            current_status = job.get("status")
             if current_status != "FAILED":
                 await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
             return {"status": "complete", "job_id": job_id, "message": "Evaluation job completed successfully"}
@@ -418,7 +418,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             # Only set to COMPLETE if not already FAILED
             job = await db_jobs.job_get(job_id)
             experiment_id = job["experiment_id"]
-            current_status = await db_jobs.job_get_status(job_id, experiment_id)
+            current_status = job.get("status")
             if current_status != "FAILED":
                 await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
             return {"status": "complete", "job_id": job_id, "message": "Generation job completed successfully"}
@@ -465,8 +465,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         if result.get("status") == "success":
             # Only set to COMPLETE if not already FAILED
             job = await db_jobs.job_get(job_id)
-            experiment_id = job["experiment_id"]
-            current_status = await db_jobs.job_get_status(job_id, experiment_id)
+            experiment_id = job.get("experiment_id")
+            current_status = job.get("status")
             if current_status != "FAILED":
                 await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
                 print(f"Export job {job_id} completed successfully")

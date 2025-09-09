@@ -236,7 +236,7 @@ async def get_install_job_status(job_id: int):
         return {"error": f"Job {job_id} not found."}
     return {
         "job_id": job_id,
-        "status": job["status"],
+        "status": job.get("status"),
         "progress": job.get("progress", 0),
         "results": job["job_data"].get("results", []),
         "error_msg": job["job_data"].get("error_msg"),
