@@ -393,6 +393,17 @@ async def server_worker_stop():
                     print(f"Error killing process {pid}: {e}")
         # delete the worker.pid file:
         os.remove("worker.pid")
+    
+    # Wait a bit for the worker to fully terminate
+    await asyncio.sleep(0.2)
+    
+    # Refresh the controller to remove the stopped worker immediately
+    try:
+        async with httpx.AsyncClient() as client:
+            await client.post(fastchat_openai_api.app_settings.controller_address + "/refresh_all_workers")
+    except Exception as e:
+        print(f"Error refreshing controller after stopping worker: {e}")
+    
     return {"message": "OK"}
 
 
