@@ -13,7 +13,7 @@ from datetime import datetime
 import uvicorn
 import torch
 import soundfile as sf
-from scipy.signal import resample
+import librosa
 from audio import CsmAudioModel, OrpheusAudioModel
 
 
@@ -111,6 +111,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         sample_rate = params.get("sample_rate", 24000)
         temperature = params.get("temperature", 0.0)
         audio_dir = params.get("audio_dir")
+        voice = params.get("voice", None)
         uploaded_audio_path = params.get("audio_path", None)
         if uploaded_audio_path:
             logger.info("Received reference audio for cloning")
@@ -135,12 +136,11 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
             generate_kwargs["temperature"] = temperature
             generate_kwargs["top_p"] = 0.95
         try:
-            inputs = self.audio_model.tokenize(text=text, audio_path=uploaded_audio_path, sample_rate=sample_rate)
+            inputs = self.audio_model.tokenize(text=text, audio_path=uploaded_audio_path, sample_rate=sample_rate, voice=voice)
             audio_values = self.audio_model.generate(inputs, **generate_kwargs)
             audio = self.audio_model.decode(audio_values)
             if speed != 1.0:
-                n_samples = int(len(audio) / speed)
-                audio = resample(audio, n_samples)
+                audio = librosa.effects.time_stretch(audio, rate=speed)
             output_path = os.path.join(audio_dir, f"{file_prefix}.{audio_format}")
             os.makedirs(audio_dir, exist_ok=True)  # Ensure directory exists
             sf.write(output_path, audio, sample_rate)

@@ -12,7 +12,7 @@ class AudioModelBase(ABC):
         self.context_length = context_length
 
     @abstractmethod
-    def tokenize(self, text, audio_path=None, sample_rate=24000):
+    def tokenize(self, text, audio_path=None, sample_rate=24000, voice=None):
         pass
 
     @abstractmethod
@@ -41,7 +41,7 @@ class CsmAudioModel(AudioModelBase):
             "output_audio": True,
         }
 
-    def tokenize(self, text, audio_path=None, sample_rate=24000):
+    def tokenize(self, text, audio_path=None, sample_rate=24000, voice=None):
         """
         Tokenize text and optionally audio for voice cloning.
         
@@ -101,8 +101,6 @@ class OrpheusAudioModel(AudioModelBase):
     reference audio through the SNAC encoder and creating structured input sequences.
     """
     
-    # Audio processing constants
-    DEFAULT_SAMPLE_RATE = 24000
     SNAC_MODEL_NAME = "hubertsiuzdak/snac_24khz"
     
     # Special tokens for voice cloning
@@ -144,7 +142,7 @@ class OrpheusAudioModel(AudioModelBase):
             "repetition_penalty": 1.1,
         }
 
-    def tokenize(self, text, audio_path=None, sample_rate=None):
+    def tokenize(self, text, audio_path=None, sample_rate=None, voice=None):
         """
         Tokenize text and optionally audio for voice cloning.
         
@@ -156,13 +154,15 @@ class OrpheusAudioModel(AudioModelBase):
         Returns:
             dict or torch.Tensor: Tokenized inputs ready for generation
         """
-        # Tokenize target text (common to both paths)
-        text_tokens = self.tokenizer(text, return_tensors="pt")
+        # Tokenize target text
+        prompt = f"{voice}: " + text if voice else text
+
+        text_tokens = self.tokenizer(prompt, return_tensors="pt")
         text_input_ids = text_tokens["input_ids"].to(self.device)
         
         if audio_path:
             # Load and encode audio for voice cloning
-            sample_rate = sample_rate or self.DEFAULT_SAMPLE_RATE
+            sample_rate = sample_rate
             audio_array, _ = librosa.load(audio_path, sr=sample_rate)
             audio_tokens = self._encode_audio_to_tokens(audio_array)
             return self._create_voice_cloning_input(text_input_ids, audio_tokens)
