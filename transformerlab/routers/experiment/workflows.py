@@ -564,7 +564,7 @@ async def check_current_jobs_status(workflow_run_id, current_job_ids):
             await workflow_run_update_status(workflow_run_id, "FAILED")
             return f"Could not find job with ID {job_id}"
 
-        status = current_job["status"]
+        status = current_job.get("status")
 
         if status == "FAILED":
             await workflow_run_update_status(workflow_run_id, "FAILED")
