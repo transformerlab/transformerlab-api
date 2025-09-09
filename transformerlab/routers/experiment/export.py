@@ -9,7 +9,7 @@ from fastapi import APIRouter
 
 import transformerlab.db.db as db
 import transformerlab.db.jobs as db_jobs
-from transformerlab.shared import dirs
+from transformerlab.shared import dirs, shared
 
 from transformerlab.services.job_service import job_update_status
 
@@ -128,7 +128,7 @@ async def run_exporter_script(
     subprocess_command = [sys.executable, dirs.PLUGIN_HARNESS] + args
     try:
         # Get the output file path
-        job_output_file = await get_output_file_name(job_id, experiment_name)
+        job_output_file = await shared.get_job_output_file_name(job_id, experiment_name=experiment_name)
 
         # Create the output file and run the process with output redirection
         with open(job_output_file, "w") as f:
@@ -190,46 +190,3 @@ async def run_exporter_script(
     model_description_file.close()
 
     return {"status": "success", "job_id": job_id}
-
-
-async def get_output_file_name(job_id: str, experiment_name: str):
-    try:
-        # Ensure job_id is a string
-        job_id = str(job_id)
-
-        # Get job data
-        job = await db_jobs.job_get(job_id)
-        job_data = job["job_data"]
-
-        # Check if it has a custom output file path
-        if job_data.get("output_file_path") is not None:
-            return job_data["output_file_path"]
-
-        # Get the plugin name from the job data
-        plugin_name = job_data.get("plugin")
-        if not plugin_name:
-            raise ValueError("Plugin not found in job data")
-
-        # Get the plugin directory
-        plugin_dir = dirs.plugin_dir_by_name(plugin_name)
-
-        job_id = secure_filename(job_id)
-
-        # Try new job directory structure first
-        new_jobs_dir = dirs.get_job_output_dir(experiment_name, job_id)
-        if os.path.exists(os.path.join(new_jobs_dir, f"output_{job_id}.txt")):
-            output_file = os.path.join(new_jobs_dir, f"output_{job_id}.txt")
-
-        # Fall back to old structure for backward compatibility
-        elif os.path.exists(os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id), f"output_{job_id}.txt")):
-            output_file = os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id), f"output_{job_id}.txt")
-
-        elif os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
-            output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
-        else:
-            # Create the output file path even if it doesn't exist yet
-            output_file = os.path.join(new_jobs_dir, f"output_{job_id}.txt")
-
-        return output_file
-    except Exception as e:
-        raise e

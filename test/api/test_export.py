@@ -1,7 +1,7 @@
 import json
 from unittest.mock import patch, AsyncMock, MagicMock
 import pytest
-from transformerlab.routers.experiment.export import get_output_file_name
+from transformerlab.shared.shared import get_job_output_file_name
 import asyncio
 
 pytestmark = pytest.mark.skip("skipping these as they need to be fixed")

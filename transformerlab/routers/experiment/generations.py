@@ -205,7 +205,7 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
             experiment_details["config"]["generations"] = json.loads(experiment_details["config"]["generations"])
 
     template_config = generation_config["script_parameters"]
-    job_output_file = await get_job_output_file_name(job_id, plugin_name, experiment_name)
+    job_output_file = await shared.get_job_output_file_name(job_id, plugin_name, experiment_name)
 
     input_contents = {"experiment": experiment_details, "config": template_config}
     with open(input_file, "w") as outfile:
@@ -269,34 +269,6 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
         with open(job_output_file, "r") as job_output:
             for line in job_output:
                 f.write(line)
-
-
-async def get_job_output_file_name(job_id: str, plugin_name: str, experiment_name: str):
-    job_id = secure_filename(str(job_id))
-    plugin_name = secure_filename(plugin_name)
-    try:
-        plugin_dir = dirs.plugin_dir_by_name(plugin_name)
-        # Try new job directory structure first
-        new_jobs_dir = dirs.get_job_output_dir(experiment_name, job_id)
-        if os.path.exists(os.path.join(new_jobs_dir, f"output_{job_id}.txt")):
-            output_file = os.path.join(new_jobs_dir, f"output_{job_id}.txt")
-
-        # Fall back to old structure for backward compatibility
-        elif os.path.exists(os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id), f"output_{job_id}.txt")):
-            output_file = os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id), f"output_{job_id}.txt")
-
-        # job output is stored in separate files with a job number in the name...
-        elif os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
-            output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
-
-        # but it used to be all stored in a single file called output.txt, so check that as well
-        elif os.path.exists(os.path.join(plugin_dir, "output.txt")):
-            output_file = os.path.join(plugin_dir, "output.txt")
-        else:
-            raise ValueError(f"No output file found for job {job_id}")
-        return output_file
-    except Exception as e:
-        raise e
 
 
 @router.get("/get_output")
