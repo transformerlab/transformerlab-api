@@ -9,6 +9,7 @@ import uuid
 from typing import List
 import shutil
 from transformerlab.db.datasets import get_dataset, create_local_dataset, delete_dataset
+from transformerlab.db import db
 from transformerlab.models import model_helper
 from transformerlab.shared import dirs
 from transformerlab.shared.shared import slugify
@@ -415,13 +416,45 @@ async def is_valid_diffusion(request: DiffusionRequest):
     model_id = request.model
     if not model_id or model_id.strip() == "":
         return {"is_valid_diffusion_model": False, "reason": "Model ID is empty"}
+
     try:
-        info = model_info(model_id)
-        config = getattr(info, "config", {})
-        diffusers_config = config.get("diffusers", {})
-        architectures = diffusers_config.get("_class_name", "")
-        if isinstance(architectures, str):
-            architectures = [architectures]
+        # First try to get architecture from database
+        model_data = await db.model_local_get(model_id)
+        architectures = []
+
+        if model_data and model_data.get("json_data"):
+            json_data = model_data["json_data"]
+
+            # Try to get architecture from various possible locations in json_data
+            arch = json_data.get("architecture")
+            if not arch:
+                # Try model_index fallback
+                model_index = json_data.get("model_index", {})
+                arch = model_index.get("_class_name")
+
+            if arch:
+                if isinstance(arch, str):
+                    architectures = [arch]
+                elif isinstance(arch, list):
+                    architectures = arch
+                else:
+                    architectures = [str(arch)]
+
+            else:
+                print(f"No architecture found in database for {model_id}, falling back to Hugging Face API")
+
+        # If no architecture found in database, fetch from Hugging Face
+        if not architectures:
+            info = model_info(model_id)
+            config = getattr(info, "config", {})
+            diffusers_config = config.get("diffusers", {})
+            arch_from_hf = diffusers_config.get("_class_name", "")
+            if isinstance(arch_from_hf, str):
+                architectures = [arch_from_hf]
+            elif isinstance(arch_from_hf, list):
+                architectures = arch_from_hf
+
+            print(f"Fetched architecture from Hugging Face for {model_id}: {architectures}")
 
         if request.is_inpainting:
             # First check if it's already an inpainting-specific architecture

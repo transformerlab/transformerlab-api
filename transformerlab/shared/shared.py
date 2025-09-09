@@ -311,8 +311,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         return {"status": "complete", "job_id": job_id, "message": "Task job completed successfully"}
 
     # Common setup for all other job types
-    WORKSPACE_DIR = dirs.WORKSPACE_DIR
-    output_temp_file_dir = os.path.join(WORKSPACE_DIR, "jobs", str(job_id))
+    output_temp_file_dir = dirs.get_job_output_dir(experiment_name, job_id)
     if not os.path.exists(output_temp_file_dir):
         os.makedirs(output_temp_file_dir)
 
@@ -377,7 +376,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             # Only set to COMPLETE if not already FAILED
             job = await db_jobs.job_get(job_id)
             experiment_id = job["experiment_id"]
-            current_status = await db_jobs.job_get_status(job_id, experiment_id)
+            current_status = job.get("status")
             if current_status != "FAILED":
                 await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
             return {"status": "complete", "job_id": job_id, "message": "Evaluation job completed successfully"}
@@ -419,7 +418,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             # Only set to COMPLETE if not already FAILED
             job = await db_jobs.job_get(job_id)
             experiment_id = job["experiment_id"]
-            current_status = await db_jobs.job_get_status(job_id, experiment_id)
+            current_status = job.get("status")
             if current_status != "FAILED":
                 await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
             return {"status": "complete", "job_id": job_id, "message": "Generation job completed successfully"}
@@ -466,8 +465,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         if result.get("status") == "success":
             # Only set to COMPLETE if not already FAILED
             job = await db_jobs.job_get(job_id)
-            experiment_id = job["experiment_id"]
-            current_status = await db_jobs.job_get_status(job_id, experiment_id)
+            experiment_id = job.get("experiment_id")
+            current_status = job.get("status")
             if current_status != "FAILED":
                 await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
                 print(f"Export job {job_id} completed successfully")
@@ -488,8 +487,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         await db_jobs.job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
 
         # Prep paths and script args
-        WORKSPACE_DIR = dirs.WORKSPACE_DIR
-        output_temp_file_dir = os.path.join(WORKSPACE_DIR, "jobs", str(job_id))
+        output_temp_file_dir = dirs.get_job_output_dir(experiment_name, job_id)
         os.makedirs(output_temp_file_dir, exist_ok=True)
 
         plugin_dir = dirs.plugin_dir_by_name(plugin_name)
@@ -1155,6 +1153,65 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     experiment_id = job["experiment_id"]
     await job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
     return
+
+
+async def get_job_output_file_name(job_id: str, plugin_name: str = None, experiment_name: str = None):
+    try:
+        job_id = secure_filename(str(job_id))
+        
+        # If plugin_name or experiment_name is not provided, get them from job_data
+        if plugin_name is None or experiment_name is None:
+            job = await db_jobs.job_get(job_id)
+            job_data = job["job_data"]
+            
+            # Check if it has a custom output file path
+            if job_data.get("output_file_path") is not None:
+                return job_data["output_file_path"]
+            
+            if experiment_name is None:
+                experiment_id = job["experiment_id"]
+                experiment = await experiment_get(experiment_id)
+                experiment_name = experiment["name"]
+            
+            # Get the plugin name from the job data
+            if plugin_name is None:
+                if "template_id" in job_data:
+                    template_config = job_data["config"]
+                    if "plugin_name" not in template_config:
+                        raise ValueError("Plugin name not found in template config")
+                    plugin_name = template_config["plugin_name"]
+                else:
+                    plugin_name = job_data.get("plugin")
+                    if not plugin_name:
+                        raise ValueError("Plugin not found in job data")
+        else:
+            plugin_name = secure_filename(plugin_name)
+
+        plugin_dir = dirs.plugin_dir_by_name(plugin_name)
+
+        # Try new job directory structure first
+        new_jobs_dir = dirs.get_job_output_dir(experiment_name, job_id)
+        if os.path.exists(os.path.join(new_jobs_dir, f"output_{job_id}.txt")):
+            output_file = os.path.join(new_jobs_dir, f"output_{job_id}.txt")
+
+        # Fall back to old structure for backward compatibility
+        elif os.path.exists(os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id), f"output_{job_id}.txt")):
+            output_file = os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id), f"output_{job_id}.txt")
+
+        elif os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
+            output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
+        # but it used to be all stored in a single file called output.txt, so check that as well
+        elif os.path.exists(os.path.join(plugin_dir, "output.txt")):
+            output_file = os.path.join(plugin_dir, "output.txt")
+        else:
+            # For export and similar, create the output file path even if it doesn't exist yet
+            if experiment_name:
+                output_file = os.path.join(new_jobs_dir, f"output_{job_id}.txt")
+            else:
+                raise ValueError(f"No output file found for job {job_id}")
+        return output_file
+    except Exception as e:
+        raise e
 
 
 rainbow = [

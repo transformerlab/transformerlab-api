@@ -360,8 +360,34 @@ class TrainerTLabPlugin(TLabPlugin):
             print(f"Error saving metrics to file: {str(e)}")
 
     def create_transformerlab_model(
-        self, fused_model_name, model_architecture, json_data, output_dir=None, generate_json=True
+        self,
+        fused_model_name,
+        model_architecture,
+        json_data,
+        output_dir=None,
+        generate_json=True,
+        pipeline_tag=None,
+        parent_model=None,
     ):
+        # Handle pipeline tag logic
+        if pipeline_tag is None and parent_model is not None:
+            # Try to fetch pipeline tag from parent model
+            try:
+                from huggingface_hub import HfApi
+
+                api = HfApi()
+                model_info = api.model_info(parent_model)
+                pipeline_tag = model_info.pipeline_tag
+                print(f"Fetched pipeline tag '{pipeline_tag}' from parent model '{parent_model}'")
+            except Exception as e:
+                print(f"Error fetching pipeline tag from parent model '{parent_model}': {type(e).__name__}: {e}")
+                pipeline_tag = None  # Default fallback
+
+        # Add pipeline tag to json_data if provided
+        if pipeline_tag is not None:
+            json_data = json_data.copy() if json_data else {}
+            json_data["pipeline_tag"] = pipeline_tag
+
         if generate_json:
             generate_model_json(fused_model_name, model_architecture, json_data=json_data, output_directory=output_dir)
 

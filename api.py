@@ -30,7 +30,8 @@ from fastchat.protocol.openai_api_protocol import (
     ErrorResponse,
 )
 
-from transformerlab.db.jobs import job_create, job_get_error_msg, job_update_status
+from transformerlab.db.jobs import job_create, job_update_status
+from transformerlab.db import jobs as db_jobs
 from transformerlab.db.db import experiment_get
 import transformerlab.db.session as db
 from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert
@@ -356,7 +357,10 @@ async def server_worker_start(
     if exitcode is not None and exitcode != 0:
         with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
             global_log.write(f"Error loading model: {model_name} with exit code {exitcode}\n")
-        error_msg = await job_get_error_msg(job_id, experiment_id)
+        job = await db_jobs.job_get(job_id)
+        error_msg = None
+        if job and job.get("job_data"):
+            error_msg = job["job_data"].get("error_msg")
         if not error_msg:
             error_msg = f"Exit code {exitcode}"
             await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
@@ -374,9 +378,10 @@ async def server_worker_stop():
         from transformerlab.shared.shared import kill_sglang_subprocesses
 
         try:
-            worker_process.terminate()
+            os.kill(worker_process.pid, signal.SIGTERM)
             kill_sglang_subprocesses()
             worker_process = None
+
         except Exception as e:
             print(f"Error stopping worker process: {e}")
     # check if there is a file called worker.pid, if so kill the related process:
