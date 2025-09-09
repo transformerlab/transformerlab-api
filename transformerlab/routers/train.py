@@ -7,7 +7,7 @@ from fastapi import APIRouter, Body
 import logging
 import transformerlab.db.db as db
 import transformerlab.db.jobs as db_jobs
-from transformerlab.shared import dirs
+from transformerlab.shared import dirs, shared
 
 from werkzeug.utils import secure_filename
 
@@ -63,48 +63,6 @@ async def get_training_job(job_id: str):
     return await db_jobs.job_get(job_id)
 
 
-async def get_output_file_name(job_id: str):
-    try:
-        # First get the template Id from this job:
-        job = await db_jobs.job_get(job_id)
-
-        job_data = job["job_data"]
-        if "template_id" not in job_data:
-            if job_data.get("output_file_path") is not None:
-                # if the job data has an output file path, use that
-                return job_data["output_file_path"]
-            raise ValueError("Template ID not found in job data")
-
-        template_config = job_data["config"]
-        if "plugin_name" not in template_config:
-            raise ValueError("Plugin name not found in template config")
-
-        # get the output.txt from the plugin which is stored in
-        plugin_name = template_config["plugin_name"]
-        plugin_dir = dirs.plugin_dir_by_name(plugin_name)
-
-        job_id = secure_filename(job_id)
-
-        # job output is stored in separate files with a job number in the name...
-        jobs_dir_output_file_name = os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id))
-
-        # job output is stored in separate files with a job number in the name...
-        if os.path.exists(os.path.join(jobs_dir_output_file_name, f"output_{job_id}.txt")):
-            output_file = os.path.join(jobs_dir_output_file_name, f"output_{job_id}.txt")
-        elif os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
-            output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
-
-        # but it used to be all stored in a single file called output.txt, so check that as well
-        elif os.path.exists(os.path.join(plugin_dir, "output.txt")):
-            output_file = os.path.join(plugin_dir, "output.txt")
-        else:
-            raise ValueError(f"No output file found for job {job_id}")
-
-        return output_file
-    except Exception as e:
-        raise e
-
-
 @router.get("/job/{job_id}/output")
 async def get_training_job_output(job_id: str, sweeps: bool = False):
     try:
@@ -117,10 +75,18 @@ async def get_training_job_output(job_id: str, sweeps: bool = False):
                     output = f.read()
                 return output
             else:
-                output_file_name = await get_output_file_name(job_id)
+                # Get experiment information for new job directory structure
+                experiment_id = job["experiment_id"]
+                experiment = await db.experiment_get(experiment_id)
+                experiment_name = experiment["name"]
+                output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experiment_name)
 
         else:
-            output_file_name = await get_output_file_name(job_id)
+            # Get experiment information for new job directory structure
+            experiment_id = job["experiment_id"]
+            experiment = await db.experiment_get(experiment_id)
+            experiment_name = experiment["name"]
+            output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experiment_name)
 
         with open(output_file_name, "r") as f:
             output = f.read()
