@@ -77,6 +77,7 @@ class MLXAudioWorker(BaseModelWorker):
         audio_format = params.get("audio_format", "wav")
         sample_rate = params.get("sample_rate", 24000)
         temperature = params.get("temperature", 0.0)
+        top_p = params.get("top_p", 1.0)
         stream = params.get("stream", False)
         voice = params.get("voice", None)
         lang_code = params.get("lang_code", None)
@@ -99,6 +100,7 @@ class MLXAudioWorker(BaseModelWorker):
                 "join_audio": True,
                 "verbose": True,
                 "temperature": temperature,
+                "top_p": top_p,
                 "stream": stream,
                 "voice": voice,
             }
@@ -118,6 +120,7 @@ class MLXAudioWorker(BaseModelWorker):
                 "audio_format": audio_format,
                 "sample_rate": sample_rate,
                 "temperature": temperature,
+                "top_p": top_p,
                 "date": datetime.now().isoformat(),  # Store the real date and time
             }
             
