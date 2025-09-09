@@ -5,7 +5,6 @@ import subprocess
 import sys
 import time
 import requests
-import gc
 import torch
 
 from fastchat.constants import TEMP_IMAGE_DIR

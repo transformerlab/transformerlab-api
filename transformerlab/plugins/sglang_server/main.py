@@ -6,7 +6,6 @@ import sys
 import signal
 import psutil
 import torch
-import gc
 import threading
 import shutil
 import site
