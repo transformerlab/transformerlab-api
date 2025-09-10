@@ -110,6 +110,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         audio_format = params.get("audio_format", "wav")
         sample_rate = params.get("sample_rate", 24000)
         temperature = params.get("temperature", 0.0)
+        top_p = params.get("top_p", 1.0)
         audio_dir = params.get("audio_dir")
         voice = params.get("voice", None)
         uploaded_audio_path = params.get("audio_path", None)
@@ -134,7 +135,8 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
         else:
             generate_kwargs["do_sample"] = True
             generate_kwargs["temperature"] = temperature
-            generate_kwargs["top_p"] = 0.95
+            if top_p < 1.0:
+                generate_kwargs["top_p"] = top_p
         try:
             inputs = self.audio_model.tokenize(text=text, audio_path=uploaded_audio_path, sample_rate=sample_rate, voice=voice)
             audio_values = self.audio_model.generate(inputs, **generate_kwargs)
@@ -155,6 +157,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
                 "audio_format": audio_format,
                 "sample_rate": sample_rate,
                 "temperature": temperature,
+                "top_p": top_p,
                 "date": datetime.now().isoformat(),
             }
             metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")

@@ -102,6 +102,7 @@ class AudioRequest(BaseModel):
     sample_rate: int
     temperature: float
     speed: float
+    top_p: Optional[float] = 1.0
     voice: Optional[str] = None
     audio_path: Optional[str] = None
 
@@ -519,6 +520,7 @@ async def create_audio_tts(request: AudioRequest):
         "sample_rate": request.sample_rate,
         "temperature": request.temperature,
         "speed": request.speed,
+        "top_p": request.top_p,
         "audio_path": request.audio_path,
     }
 
