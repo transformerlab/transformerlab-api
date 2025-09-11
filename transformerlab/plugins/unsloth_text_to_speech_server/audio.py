@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-import os
 from transformers import AutoProcessor, CsmForConditionalGeneration
 import torch
 import librosa
