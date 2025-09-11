@@ -400,7 +400,7 @@ async def server_worker_stop():
         os.remove("worker.pid")
     
     # Wait a bit for the worker to fully terminate
-    await asyncio.sleep(0.2)
+    await asyncio.sleep(1)
     
     # Refresh the controller to remove the stopped worker immediately
     try:
