@@ -1,6 +1,3 @@
-"""
-A model worker using Apple MLX Audio
-"""
 import os
 import sys
 import argparse
@@ -37,8 +34,8 @@ async def lifespan(app: FastAPI):
     cleanup_at_exit()
 
 
-
 app = FastAPI(lifespan=lifespan)
+
 
 class UnslothTextToSpeechWorker(BaseModelWorker):
     def __init__(
@@ -62,9 +59,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
             limit_worker_concurrency,
         )
 
-        logger.info(
-            f"Loading the model {self.model_names} on worker {worker_id}"
-        )
+        logger.info(f"Loading the model {self.model_names} on worker {worker_id}")
 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.adaptor_path = adaptor_path
@@ -94,10 +89,8 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
             logger.info("Initialized Orpheus Audio Model")
 
         else:
-            logger.info(
-                f"Model architecture {self.model_architecture} is not supported for audio generation."
-            )
-        
+            logger.info(f"Model architecture {self.model_architecture} is not supported for audio generation.")
+
         if not no_register:
             self.init_heart_beat()
 
@@ -126,7 +119,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
                 "status": "error",
                 "message": f"Unsafe audio directory path: {audio_dir}.",
             }
-        
+
         # Generate a UUID for this file name:
         file_prefix = str(uuid.uuid4())
         generate_kwargs = {}
@@ -138,21 +131,22 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
             if top_p < 1.0:
                 generate_kwargs["top_p"] = top_p
         try:
-            inputs = self.audio_model.tokenize(text=text, audio_path=uploaded_audio_path, sample_rate=sample_rate, voice=voice)
-            audio_values = self.audio_model.generate(inputs, **generate_kwargs)
+            inputs = self.audio_model.tokenize(
+                text=text, audio_path=uploaded_audio_path, sample_rate=sample_rate, voice=voice
+            )
+            audio_values, chunks = self.audio_model.generate(inputs, **generate_kwargs)
             audio = self.audio_model.decode(audio_values)
             if speed != 1.0:
                 audio = librosa.effects.time_stretch(audio, rate=speed)
             output_path = os.path.join(audio_dir, f"{file_prefix}.{audio_format}")
             os.makedirs(audio_dir, exist_ok=True)  # Ensure directory exists
             sf.write(output_path, audio, sample_rate)
-
             metadata = {
                 "type": "audio",
                 "text": text,
                 "filename": f"{file_prefix}.{audio_format}",
                 "model": model,
-                "adaptor": self.adaptor_path.split('/')[-1] if self.adaptor_path else "",
+                "adaptor": self.adaptor_path.split("/")[-1] if self.adaptor_path else "",
                 "speed": speed,
                 "audio_format": audio_format,
                 "sample_rate": sample_rate,
@@ -184,11 +178,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
             }
         except Exception:
             logger.exception("Error during generation")  # Logs full stack trace
-            return {
-                "status": "error",
-                "message": "An internal error occurred during generation."
-            }
-
+            return {"status": "error", "message": "An internal error occurred during generation."}
 
 
 def release_worker_semaphore():
@@ -253,11 +243,7 @@ def main():
     parser.add_argument("--parameters", type=str, default="{}")
     parser.add_argument("--adaptor-path", type=str, default="")
 
-    
-
-
     args, unknown = parser.parse_known_args()
-
 
     if args.model_path:
         args.model = args.model_path
@@ -271,7 +257,7 @@ def main():
         args.model_architecture,
         1024,
         False,
-        args.adaptor_path
+        args.adaptor_path,
     )
 
     # Restore original stdout/stderr to prevent logging recursion
