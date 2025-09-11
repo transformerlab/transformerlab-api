@@ -102,6 +102,7 @@ class AudioRequest(BaseModel):
     sample_rate: int
     temperature: float
     speed: float
+    top_p: Optional[float] = 1.0
     voice: Optional[str] = None
     audio_path: Optional[str] = None
 
@@ -473,21 +474,24 @@ async def get_conv(model_name: str):
 @router.get("/v1/models", dependencies=[Depends(check_api_key)], tags=["chat"])
 async def show_available_models():
     controller_address = app_settings.controller_address
-    models = []
+    models = []  # Initialize models to avoid NameError if the async with block fails
     async with httpx.AsyncClient() as client:
-        await client.post(controller_address + "/refresh_all_workers")
-        # # Poll /list_models until non-empty or timeout
-        # timeout = 10.0  # seconds
-        # poll_interval = 0.2  # seconds
-        # elapsed = 0.0
-        # while elapsed < timeout:
+        # First, try to get models without refresh
         ret = await client.post(controller_address + "/list_models")
         models = ret.json().get("models", [])
-        # if models:
-        #     break
-        # await asyncio.sleep(poll_interval)
-        # elapsed += poll_interval
-
+        if models:
+            models.sort()
+            # TODO: return real model permission details
+            model_cards = []
+            for m in models:
+                model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
+            return ModelList(data=model_cards)
+        
+        # If no models, refresh and try again
+        await client.post(controller_address + "/refresh_all_workers")
+        ret = await client.post(controller_address + "/list_models")
+        models = ret.json().get("models", [])
+        
     models.sort()
     # TODO: return real model permission details
     model_cards = []
@@ -517,6 +521,7 @@ async def create_audio_tts(request: AudioRequest):
         "sample_rate": request.sample_rate,
         "temperature": request.temperature,
         "speed": request.speed,
+        "top_p": request.top_p,
         "audio_path": request.audio_path,
     }
 
