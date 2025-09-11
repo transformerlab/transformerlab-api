@@ -474,6 +474,7 @@ async def get_conv(model_name: str):
 @router.get("/v1/models", dependencies=[Depends(check_api_key)], tags=["chat"])
 async def show_available_models():
     controller_address = app_settings.controller_address
+    models = []  # Initialize models to avoid NameError if the async with block fails
     async with httpx.AsyncClient() as client:
         # First, try to get models without refresh
         ret = await client.post(controller_address + "/list_models")
