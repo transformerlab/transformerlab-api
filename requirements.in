@@ -30,7 +30,7 @@ sentence-transformers
 markitdown[all]
 hf_xet
 macmon-python
-transformerlab-inference==0.2.47
+transformerlab-inference==0.2.48
 diffusers==0.33.1
 nvidia-ml-py
 mcp[cli]
