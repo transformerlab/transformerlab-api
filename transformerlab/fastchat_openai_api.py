@@ -528,9 +528,11 @@ async def create_audio_tts(request: AudioRequest):
         gen_params["lang_code"] = request.voice[0]
 
     # TODO: Define a base model class to structure the return value
-    content = await generate_completion(gen_params)
-
-    return content
+    try:
+        content = await generate_completion(gen_params)
+        return content
+    except Exception as e:
+        return create_error_response(ErrorCode.INTERNAL_ERROR, str(e))
 
 
 @router.post("/v1/audio/upload_reference", tags=["audio"])
