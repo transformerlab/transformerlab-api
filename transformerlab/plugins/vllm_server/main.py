@@ -5,7 +5,6 @@ import subprocess
 import sys
 import time
 import requests
-import gc
 import torch
 
 from fastchat.constants import TEMP_IMAGE_DIR
@@ -17,14 +16,6 @@ except ImportError:
     from transformerlab.plugin_sdk.transformerlab.plugin import get_python_executable, register_process
 
 
-# Clear CUDA memory (if CUDA is available)
-def clear_vram():
-    gc.collect()
-    if torch.cuda.is_available():
-        print(">>> [main] Emptying CUDA memory cache and collecting garbage...")
-        torch.cuda.empty_cache()
-        torch.cuda.ipc_collect()
-clear_vram()
 parser = argparse.ArgumentParser()
 parser.add_argument("--model-path", type=str)
 parser.add_argument("--parameters", type=str, default="{}")
@@ -59,13 +50,18 @@ vllm_args = [
     python_executable,
     "-m",
     "vllm.entrypoints.openai.api_server",
-    "--model", model,
-    "--dtype", "float16",
-    "--port", str(port),
-    "--gpu-memory-utilization", "0.9",
+    "--model",
+    model,
+    "--dtype",
+    "float16",
+    "--port",
+    str(port),
+    "--gpu-memory-utilization",
+    "0.9",
     "--trust-remote-code",
     "--enforce-eager",
-    "--allowed-local-media-path", str(TEMP_IMAGE_DIR)
+    "--allowed-local-media-path",
+    str(TEMP_IMAGE_DIR),
 ]
 
 # Add tensor parallel size if multiple GPUs are available
@@ -96,13 +92,16 @@ while True:
     time.sleep(1)
 
 proxy_args = [
-    python_executable, 
-    "-m", 
+    python_executable,
+    "-m",
     "fastchat.serve.openai_api_proxy_worker",
-    "--model-path", model,
-    "--proxy-url", f"http://localhost:{port}/v1",
-   "--model", model
-    ]
+    "--model-path",
+    model,
+    "--proxy-url",
+    f"http://localhost:{port}/v1",
+    "--model",
+    model,
+]
 
 proxy_proc = subprocess.Popen(proxy_args, stdout=None, stderr=subprocess.PIPE)
 
@@ -115,4 +114,3 @@ for line in iter(proxy_proc.stderr.readline, b""):
     print(line, file=sys.stderr)
 
 print("Vllm worker exited", file=sys.stderr)
-clear_vram()

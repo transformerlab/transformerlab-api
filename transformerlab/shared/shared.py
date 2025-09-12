@@ -183,6 +183,8 @@ async def read_process_output(process, job_id):
     pid_file = os.path.join(dirs.TEMP_DIR, f"worker_job_{job_id}.pid")
     if os.path.exists(pid_file):
         os.remove(pid_file)
+    # Clean up resources after process ends
+    clear_vram_and_kill_sglang()
 
 
 async def async_run_python_daemon_and_update_status(
@@ -936,7 +938,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 with open(final_input_file, "w") as outfile:
                     json.dump(final_input_contents, outfile, indent=4)
 
-                # Use the appropriate python interpreter
+                # Create command for final training
                 if os.path.exists(venv_path) and os.path.isdir(venv_path):
                     venv_python = os.path.join(venv_path, "bin", "python")
                     final_command = [
@@ -1158,21 +1160,21 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 async def get_job_output_file_name(job_id: str, plugin_name: str = None, experiment_name: str = None):
     try:
         job_id = secure_filename(str(job_id))
-        
+
         # If plugin_name or experiment_name is not provided, get them from job_data
         if plugin_name is None or experiment_name is None:
             job = await db_jobs.job_get(job_id)
             job_data = job["job_data"]
-            
+
             # Check if it has a custom output file path
             if job_data.get("output_file_path") is not None:
                 return job_data["output_file_path"]
-            
+
             if experiment_name is None:
                 experiment_id = job["experiment_id"]
                 experiment = await experiment_get(experiment_id)
                 experiment_name = experiment["name"]
-            
+
             # Get the plugin name from the job data
             if plugin_name is None:
                 if "template_id" in job_data:
@@ -1252,3 +1254,25 @@ def kill_sglang_subprocesses():
                 proc.kill()
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             continue
+
+
+def clear_vram_and_kill_sglang():
+    kill_sglang_subprocesses()
+    """Clean up pipeline to free VRAM"""
+    try:
+        import gc
+        import torch
+
+        # Force garbage collection multiple times
+        gc.collect()
+        gc.collect()  # Second call often helps
+
+        if torch.cuda.is_available():
+            # Clear CUDA cache and synchronize multiple times for better cleanup
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()
+            torch.cuda.ipc_collect()  # Clean up inter-process communication
+            torch.cuda.empty_cache()  # Second empty_cache call
+
+    except Exception as e:
+        print(f"Error clearing torch cache: {e}")
