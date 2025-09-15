@@ -107,7 +107,7 @@ elif command -v rocminfo &> /dev/null; then
 fi
 
 # Check if multitenant mode is enabled
-if [ "$MULTITENANT" = "true" ]; then
+if [ "$TFL_MULTITENANT" = "true" ]; then
     echo "🏢 Multitenant mode detected, setting up remote workspace"
     
     # Create remote workspace directory if it doesn't exist

@@ -486,9 +486,9 @@ doctor() {
 install_mountpoint_s3() {
   title "Install Mountpoint for Amazon S3 (Linux only)"
 
-  # Only proceed if MULTITENANT is set in environment/.env (any non-empty value)
-  if [[ -z "${MULTITENANT:-}" ]]; then
-    echo "Skipping Mountpoint install because MULTITENANT is not set."
+  # Only proceed if TFL_MULTITENANT is set in environment/.env (any non-empty value)
+  if [[ -z "${TFL_MULTITENANT:-}" ]]; then
+    echo "Skipping Mountpoint install because TFL_MULTITENANT is not set."
     return 0
   fi
 
@@ -561,9 +561,9 @@ print_success_message() {
 }
 
 # Load .env configuration (prefer current dir, then fallback to app src dir)
-MULTITENANT=${MULTITENANT:-}
+TFL_MULTITENANT=${TFL_MULTITENANT:-}
 load_env_from_file "${RUN_DIR}/.env"
-if [ -z "${MULTITENANT:-}" ]; then
+if [ -z "${TFL_MULTITENANT:-}" ]; then
   load_env_from_file "${TLAB_CODE_DIR}/.env"
 fi
 
@@ -602,16 +602,16 @@ else
       *)
         # Print allowed arguments
         echo "Allowed arguments: [download_transformer_lab, install_conda, create_conda_environment, install_dependencies] or leave blank to perform a full installation."
-        echo "To enable multitenant setup, set MULTITENANT=true in a local .env file."
+        echo "To enable multitenant setup, set TFL_MULTITENANT=true in a local .env file."
         abort "❌ Unknown argument: $arg"
         ;;
     esac
   done
 fi
 
-# If MULTITENANT is truthy in .env, also install Mountpoint (Linux only)
+# If TFL_MULTITENANT is truthy in .env, also install Mountpoint (Linux only)
 shopt -s nocasematch
-if [[ "${MULTITENANT:-}" == "1" || "${MULTITENANT:-}" == "true" || "${MULTITENANT:-}" == "yes" ]]; then
+if [[ "${TFL_MULTITENANT:-}" == "1" || "${TFL_MULTITENANT:-}" == "true" || "${TFL_MULTITENANT:-}" == "yes" ]]; then
   install_mountpoint_s3 || true
 fi
 shopt -u nocasematch
