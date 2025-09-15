@@ -1,9 +1,9 @@
 import os
 from pathlib import Path
 
-# Check for MULTITENANT environment variables
-# If MULTITENANT is set, use multi-tenant mode
-MULTITENANT = os.getenv("MULTITENANT", "").lower() == "true"
+# Check for TFL_MULTITENANT environment variables
+# If TFL_MULTITENANT is set, use multi-tenant mode
+MULTITENANT = os.getenv("TFL_MULTITENANT", "").lower() == "true"
 
 # TFL_HOME_DIR
 if "TFL_HOME_DIR" in os.environ:
