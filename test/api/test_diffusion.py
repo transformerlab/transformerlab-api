@@ -190,50 +190,59 @@ def test_is_valid_diffusion_model_empty_class_name(client):
 
 def test_get_history_success(client):
     """Test getting diffusion history with default parameters"""
-    with patch("transformerlab.routers.experiment.diffusion.load_history") as mock_load_history:
+    with (
+        patch("transformerlab.routers.experiment.diffusion.load_history") as mock_load_history,
+        patch("transformerlab.routers.experiment.diffusion.get_experiment_name", return_value="test-exp-name"),
+    ):
         mock_history = MagicMock()
         mock_history.images = []
         mock_history.total = 0
         mock_load_history.return_value = mock_history
 
-        resp = client.get("/experiment/test-exp/diffusion/history")
+        resp = client.get("/experiment/1/diffusion/history")
         assert resp.status_code == 200
-        mock_load_history.assert_called_once_with(limit=50, offset=0)
+        mock_load_history.assert_called_once_with(limit=50, offset=0, experiment_name="test-exp-name")
 
 
 def test_get_history_with_pagination(client):
     """Test getting diffusion history with pagination parameters"""
-    with patch("transformerlab.routers.experiment.diffusion.load_history") as mock_load_history:
+    with (
+        patch("transformerlab.routers.experiment.diffusion.load_history") as mock_load_history,
+        patch("transformerlab.routers.experiment.diffusion.get_experiment_name", return_value="test-exp-name"),
+    ):
         mock_history = MagicMock()
         mock_history.images = []
         mock_history.total = 0
         mock_load_history.return_value = mock_history
 
-        resp = client.get("/experiment/test-exp/diffusion/history?limit=25&offset=10")
+        resp = client.get("/experiment/1/diffusion/history?limit=25&offset=10")
         assert resp.status_code == 200
-        mock_load_history.assert_called_once_with(limit=25, offset=10)
+        mock_load_history.assert_called_once_with(limit=25, offset=10, experiment_name="test-exp-name")
 
 
 def test_get_history_invalid_limit(client):
     """Test getting history with invalid limit parameter"""
-    resp = client.get("/experiment/test-exp/diffusion/history?limit=0")
+    resp = client.get("/experiment/1/diffusion/history?limit=0")
     assert resp.status_code == 400
     assert "Limit must be greater than 1" in resp.json()["detail"]
 
 
 def test_get_history_invalid_offset(client):
     """Test getting history with invalid offset parameter"""
-    resp = client.get("/experiment/test-exp/diffusion/history?offset=-5")
+    resp = client.get("/experiment/1/diffusion/history?offset=-5")
     assert resp.status_code == 400
     assert "Offset must be non-negative" in resp.json()["detail"]
 
 
 def test_get_image_by_id_not_found(client):
     """Test getting a non-existent image by ID"""
-    with patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image:
+    with (
+        patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image,
+        patch("transformerlab.routers.experiment.diffusion.get_experiment_name", return_value="test-exp-name"),
+    ):
         mock_find_image.return_value = None
 
-        resp = client.get("/experiment/test-exp/diffusion/history/non-existent-id")
+        resp = client.get("/experiment/1/diffusion/history/non-existent-id")
         assert resp.status_code == 404
         assert "Image with ID non-existent-id not found" in resp.json()["detail"]
 
@@ -242,6 +251,8 @@ def test_get_image_by_id_index_out_of_range(client):
     """Test getting image with index out of range"""
     with (
         patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image,
+        patch("transformerlab.routers.experiment.diffusion.get_experiment_name", return_value="test-exp-name"),
+        patch("transformerlab.routers.experiment.diffusion.get_images_dir", return_value="/fake/images"),
         patch("os.path.exists", return_value=True),
         patch("os.path.isdir", return_value=True),
     ):
@@ -253,7 +264,7 @@ def test_get_image_by_id_index_out_of_range(client):
 
         mock_find_image.return_value = mock_image
 
-        resp = client.get("/experiment/test-exp/diffusion/history/test-folder-id?index=5")
+        resp = client.get("/experiment/1/diffusion/history/test-folder-id?index=5")
         assert resp.status_code == 404
         assert "Image index 5 out of range" in resp.json()["detail"]
 
@@ -262,6 +273,7 @@ def test_get_image_info_by_id_success(client):
     """Test getting image metadata by ID"""
     with (
         patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image,
+        patch("transformerlab.routers.experiment.diffusion.get_experiment_name", return_value="test-exp-name"),
         patch("os.path.exists", return_value=True),
         patch("os.path.isdir", return_value=True),
         patch("os.listdir", return_value=["0.png", "1.png", "2.png"]),
@@ -274,7 +286,7 @@ def test_get_image_info_by_id_success(client):
 
         mock_find_image.return_value = mock_image
 
-        resp = client.get("/experiment/test-exp/diffusion/history/test-image-id/info")
+        resp = client.get("/experiment/1/diffusion/history/test-image-id/info")
         assert resp.status_code == 200
         data = resp.json()
         assert data["id"] == "test-image-id"
@@ -285,6 +297,7 @@ def test_get_image_count_success(client):
     """Test getting image count for an image set"""
     with (
         patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image,
+        patch("transformerlab.routers.experiment.diffusion.get_experiment_name", return_value="test-exp-name"),
         patch("os.path.exists", return_value=True),
         patch("os.path.isdir", return_value=True),
         patch("os.listdir", return_value=["0.png", "1.png"]),
@@ -296,7 +309,7 @@ def test_get_image_count_success(client):
 
         mock_find_image.return_value = mock_image
 
-        resp = client.get("/experiment/test-exp/diffusion/history/test-image-id/count")
+        resp = client.get("/experiment/1/diffusion/history/test-image-id/count")
         assert resp.status_code == 200
         data = resp.json()
         assert data["id"] == "test-image-id"
@@ -306,11 +319,12 @@ def test_get_image_count_success(client):
 def test_delete_image_from_history_not_found(client):
     """Test deleting a non-existent image from history"""
     with (
+        patch("transformerlab.routers.experiment.diffusion.get_experiment_name", return_value="test-exp-name"),
         patch("transformerlab.routers.experiment.diffusion.get_history_file_path", return_value="/fake/history.json"),
         patch("os.path.exists", return_value=True),
         patch("builtins.open", mock_open(read_data='[{"id": "other-id", "image_path": "/fake/path.png"}]')),
     ):
-        resp = client.delete("/experiment/test-exp/diffusion/history/non-existent-id")
+        resp = client.delete("/experiment/1/diffusion/history/non-existent-id")
         assert resp.status_code == 500
         assert "Image with ID non-existent-id not found" in resp.json()["detail"]
 
@@ -319,6 +333,7 @@ def test_create_dataset_from_history_success(client):
     """Test creating a dataset from history images"""
     with (
         patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image,
+        patch("transformerlab.routers.experiment.diffusion.get_experiment_name", return_value="test-exp-name"),
         patch("transformerlab.routers.experiment.diffusion.get_dataset", return_value=None),
         patch("transformerlab.routers.experiment.diffusion.create_local_dataset") as mock_create_dataset,
         patch("transformerlab.shared.dirs.dataset_dir_by_id", return_value="/fake/dataset"),
@@ -359,7 +374,7 @@ def test_create_dataset_from_history_success(client):
             "include_metadata": True,
         }
 
-        resp = client.post("/experiment/test-exp/diffusion/dataset/create", json=payload)
+        resp = client.post("/experiment/1/diffusion/dataset/create", json=payload)
         data = resp.json()
         assert resp.status_code == 200
         assert data["status"] == "success"
@@ -376,7 +391,7 @@ def test_create_dataset_invalid_image_ids(client):
         "include_metadata": False,
     }
 
-    resp = client.post("/experiment/test-exp/diffusion/dataset/create", json=payload)
+    resp = client.post("/experiment/1/diffusion/dataset/create", json=payload)
     assert resp.status_code == 400
     assert "Invalid image IDs list" in resp.json()["detail"]
 
@@ -385,6 +400,7 @@ def test_create_dataset_invalid_image_ids(client):
 def test_create_dataset_existing_dataset(client):
     """Test creating dataset with name that already exists"""
     with (
+        patch("transformerlab.routers.experiment.diffusion.get_experiment_name", return_value="test-exp-name"),
         patch("transformerlab.routers.experiment.diffusion.get_dataset", return_value={"id": "existing"}),
         patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image,
     ):
@@ -399,7 +415,7 @@ def test_create_dataset_existing_dataset(client):
             "include_metadata": False,
         }
 
-        resp = client.post("/experiment/test-exp/diffusion/dataset/create", json=payload)
+        resp = client.post("/experiment/1/diffusion/dataset/create", json=payload)
         assert resp.status_code == 400
         assert "already exists" in resp.json()["detail"]
 
@@ -407,6 +423,7 @@ def test_create_dataset_existing_dataset(client):
 def test_create_dataset_no_images_found(client):
     """Test creating dataset when no images are found for given IDs"""
     with (
+        patch("transformerlab.routers.experiment.diffusion.get_experiment_name", return_value="test-exp-name"),
         patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image,
         patch("transformerlab.routers.experiment.diffusion.get_dataset", return_value=None),
     ):
@@ -419,7 +436,7 @@ def test_create_dataset_no_images_found(client):
             "include_metadata": False,
         }
 
-        resp = client.post("/experiment/test-exp/diffusion/dataset/create", json=payload)
+        resp = client.post("/experiment/1/diffusion/dataset/create", json=payload)
         assert resp.status_code == 404
         assert "No images found for the given IDs" in resp.json()["detail"]
 
@@ -590,7 +607,7 @@ def test_load_history_success():
     ):
         from transformerlab.routers.experiment.diffusion import load_history
 
-        result = load_history(limit=50, offset=0)
+        result = load_history(limit=50, offset=0, experiment_name=None)
 
         assert result.total == 1
         assert len(result.images) == 1
@@ -640,7 +657,7 @@ def test_load_history_with_pagination():
     ):
         from transformerlab.routers.experiment.diffusion import load_history
 
-        result = load_history(limit=3, offset=2)
+        result = load_history(limit=3, offset=2, experiment_name=None)
 
         assert result.total == 10
         assert len(result.images) == 3
@@ -657,7 +674,7 @@ def test_load_history_no_file():
     ):
         from transformerlab.routers.experiment.diffusion import load_history
 
-        result = load_history()
+        result = load_history(experiment_name=None)
 
         assert result.total == 0
         assert len(result.images) == 0
@@ -672,7 +689,7 @@ def test_load_history_invalid_json():
     ):
         from transformerlab.routers.experiment.diffusion import load_history
 
-        result = load_history()
+        result = load_history(experiment_name=None)
 
         assert result.total == 0
         assert len(result.images) == 0
@@ -744,7 +761,7 @@ def test_find_image_by_id_success():
     ):
         from transformerlab.routers.experiment.diffusion import find_image_by_id
 
-        result = find_image_by_id("test-id-2")
+        result = find_image_by_id("test-id-2", experiment_name=None)
 
         assert result is not None
         assert result.id == "test-id-2"
@@ -791,7 +808,7 @@ def test_find_image_by_id_not_found(client):
     ):
         from transformerlab.routers.experiment.diffusion import find_image_by_id
 
-        result = find_image_by_id("non-existent-id")
+        result = find_image_by_id("non-existent-id", experiment_name=None)
 
         assert result is None
 
@@ -804,7 +821,7 @@ def test_find_image_by_id_no_file():
     ):
         from transformerlab.routers.experiment.diffusion import find_image_by_id
 
-        result = find_image_by_id("test-id")
+        result = find_image_by_id("test-id", experiment_name=None)
 
         assert result is None
 
@@ -818,7 +835,7 @@ def test_find_image_by_id_invalid_json():
     ):
         from transformerlab.routers.experiment.diffusion import find_image_by_id
 
-        result = find_image_by_id("test-id")
+        result = find_image_by_id("test-id", experiment_name=None)
 
         assert result is None
 
