@@ -492,21 +492,6 @@ install_mountpoint_s3() {
     return 0
   fi
 
-  # Export AWS credentials if present (after .env load) for potential use
-  if [ -n "${AWS_SECRET_KEY_ID:-}" ] || [ -n "${AWS_SECRET_ACCESS_KEY:-}" ] || [ -n "${AWS_SESSION_TOKEN:-}" ]; then
-    export AWS_SECRET_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
-    if [ -n "${AWS_SECRET_KEY_ID:-}" ]; then
-      AKID_PREFIX="${AWS_SECRET_KEY_ID:0:4}"
-      ohai "AWS_SECRET_KEY_ID loaded from environment (${AKID_PREFIX}****)"
-    fi
-    if [ -n "${AWS_SECRET_ACCESS_KEY:-}" ]; then
-      ohai "AWS_SECRET_ACCESS_KEY loaded from environment (hidden)"
-    fi
-    if [ -n "${AWS_SESSION_TOKEN:-}" ]; then
-      ohai "AWS_SESSION_TOKEN loaded from environment (hidden)"
-    fi
-  fi
-
   if [[ -n "${TLAB_ON_MACOS}" ]]; then
     echo "Skipping Mountpoint install on macOS."
     return 0
