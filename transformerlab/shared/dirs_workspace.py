@@ -34,4 +34,4 @@ else:
     else:
         WORKSPACE_DIR = os.path.join(HOME_DIR, "workspace")
         os.makedirs(name=WORKSPACE_DIR, exist_ok=True)
-        print(f"Single-tenant local mode: Using workspace directory: {WORKSPACE_DIR}")
+        print(f"Single-tenant local mode, Using workspace directory: {WORKSPACE_DIR}")
