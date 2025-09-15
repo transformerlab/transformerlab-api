@@ -19,6 +19,9 @@ else:
 
 if MULTITENANT:
     WORKSPACE_DIR = os.getenv("REMOTE_WORKSPACE_DIR")
+    if not os.path.exists(WORKSPACE_DIR):
+        print(f"Error: Workspace directory {WORKSPACE_DIR} does not exist")
+        exit(1)
     print(f"🏢 Multi-tenant S3 mode, Using mounted workspace directory: {WORKSPACE_DIR}")
 else:
 # TFL_WORKSPACE_DIR
@@ -30,4 +33,5 @@ else:
         print(f"Workspace is set to: {WORKSPACE_DIR}")
     else:
         WORKSPACE_DIR = os.path.join(HOME_DIR, "workspace")
+        os.makedirs(name=WORKSPACE_DIR, exist_ok=True)
         print(f"Single-tenant local mode: Using workspace directory: {WORKSPACE_DIR}")
