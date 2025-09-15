@@ -128,31 +128,53 @@ if [ "$MULTITENANT" = "true" ]; then
             chmod 700 "$AWS_DIR"
         fi
         
-        # Create/update credentials file
-        cat > "$AWS_DIR/credentials" << EOF
+        # Update credentials file - preserve existing profiles
+        CREDENTIALS_FILE="$AWS_DIR/credentials"
+        if [ -f "$CREDENTIALS_FILE" ]; then
+            echo "📝 Updating existing credentials file, preserving other profiles"
+            # Remove existing transformerlab-s3 profile if it exists
+            awk 'BEGIN{in_profile=0} /^\[transformerlab-s3\]/{in_profile=1; next} /^\[/ && !/^\[transformerlab-s3\]/{in_profile=0} !in_profile{print}' "$CREDENTIALS_FILE" > "$CREDENTIALS_FILE.tmp"
+            mv "$CREDENTIALS_FILE.tmp" "$CREDENTIALS_FILE"
+        else
+            echo "📝 Creating new credentials file"
+        fi
+        
+        # Append transformerlab-s3 profile
+        cat >> "$CREDENTIALS_FILE" << EOF
 [transformerlab-s3]
 aws_access_key_id=$AWS_ACCESS_KEY_ID
 aws_secret_access_key=$AWS_SECRET_ACCESS_KEY
 EOF
-        chmod 600 "$AWS_DIR/credentials"
+        chmod 600 "$CREDENTIALS_FILE"
         
-        # Create/update config file with default region if provided
+        # Update config file - preserve existing profiles
+        CONFIG_FILE="$AWS_DIR/config"
+        if [ -f "$CONFIG_FILE" ]; then
+            echo "📝 Updating existing config file, preserving other profiles"
+            # Remove existing transformerlab-s3 profile if it exists
+            awk 'BEGIN{in_profile=0} /^\[profile transformerlab-s3\]/{in_profile=1; next} /^\[/ && !/^\[profile transformerlab-s3\]/{in_profile=0} !in_profile{print}' "$CONFIG_FILE" > "$CONFIG_FILE.tmp"
+            mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+        else
+            echo "📝 Creating new config file"
+        fi
+        
+        # Append transformerlab-s3 profile
         if [ -n "$AWS_DEFAULT_REGION" ]; then
-            cat > "$AWS_DIR/config" << EOF
+            cat >> "$CONFIG_FILE" << EOF
 [profile transformerlab-s3]
 region=$AWS_DEFAULT_REGION
 output=json
 EOF
         else
-            cat > "$AWS_DIR/config" << EOF
+            cat >> "$CONFIG_FILE" << EOF
 [profile transformerlab-s3]
 region=us-east-1
 output=json
 EOF
         fi
-        chmod 600 "$AWS_DIR/config"
+        chmod 600 "$CONFIG_FILE"
         
-        echo "✅ AWS credentials configured in ~/.aws"
+        echo "✅ AWS credentials configured in ~/.aws (transformerlab-s3 profile)"
     else
         echo "⚠️ AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY not set, skipping AWS setup"
     fi
