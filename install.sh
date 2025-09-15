@@ -600,7 +600,8 @@ else
         list_environments
         ;;
       *)
-        echo "Allowed arguments: [download_transformer_lab, install_conda, create_conda_environment, install_dependencies, doctor, list_installed_packages, list_environments]"
+        # Print allowed arguments
+        echo "Allowed arguments: [download_transformer_lab, install_conda, create_conda_environment, install_dependencies] or leave blank to perform a full installation."
         echo "To enable multitenant setup, set MULTITENANT=true in a local .env file."
         abort "❌ Unknown argument: $arg"
         ;;
