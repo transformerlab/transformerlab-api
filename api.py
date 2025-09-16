@@ -31,6 +31,7 @@ from fastchat.constants import (
 from fastchat.protocol.openai_api_protocol import (
     ErrorResponse,
 )
+from starlette.middleware import Middleware
 
 load_dotenv()
 
@@ -165,8 +166,39 @@ app = fastapi.FastAPI(
     openapi_tags=tags_metadata,
 )
 
-app.add_middleware(
-    CORSMiddleware,
+def configure_cors(*, allow_origins, allow_credentials, allow_methods, allow_headers) -> None:
+    """Ensure exactly one CORS middleware exists with the provided settings."""
+    new_user_middleware = []
+    cors_configured = False
+    for middleware in app.user_middleware:
+        if middleware.cls is CORSMiddleware and not cors_configured:
+            new_user_middleware.append(
+                Middleware(
+                    CORSMiddleware,
+                    allow_origins=allow_origins,
+                    allow_credentials=allow_credentials,
+                    allow_methods=allow_methods,
+                    allow_headers=allow_headers,
+                )
+            )
+            cors_configured = True
+        elif middleware.cls is not CORSMiddleware:
+            new_user_middleware.append(middleware)
+    if not cors_configured:
+        new_user_middleware.append(
+            Middleware(
+                CORSMiddleware,
+                allow_origins=allow_origins,
+                allow_credentials=allow_credentials,
+                allow_methods=allow_methods,
+                allow_headers=allow_headers,
+            )
+        )
+    app.user_middleware = new_user_middleware
+    app.middleware_stack = app.build_middleware_stack()
+
+
+configure_cors(
     allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["*"],
@@ -505,10 +537,9 @@ def run():
 
     print(f"args: {args}")
     if args.allowed_origins == ["*"]:
-        args.allowed_credentials = False
+        args.allow_credentials = False
 
-    app.add_middleware(
-        CORSMiddleware,
+    configure_cors(
         allow_origins=args.allowed_origins,
         allow_credentials=args.allow_credentials,
         allow_methods=args.allowed_methods,
