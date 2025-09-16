@@ -246,3 +246,5 @@ unsloth_compiled_cache/
 # https://docs.cursor.com/context/ignore-files#default-ignore-list
 .cursor/
 .cursorignore
+
+yamltest.yaml

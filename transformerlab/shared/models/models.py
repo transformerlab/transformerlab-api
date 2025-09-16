@@ -1,8 +1,11 @@
-from typing import Optional
+from typing import Optional, List
 from sqlalchemy import String, JSON, DateTime, func, Integer, Index
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-from fastapi_users.db import SQLAlchemyBaseUserTableUUID
+from fastapi_users.db import (
+    SQLAlchemyBaseUserTableUUID,
+    SQLAlchemyBaseOAuthAccountTableUUID,
+)
 
 
 class Base(DeclarativeBase):
@@ -31,6 +34,13 @@ class Plugin(Base):
     type: Mapped[str] = mapped_column(String, index=True, nullable=False)
 
 
+class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
+    __tablename__ = "oauth_account"
+    __table_args__ = {"extend_existing": True}
+    # Allow accounts to exist without an access token (e.g. expired or not yet issued)
+    access_token: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+
+
 class User(SQLAlchemyBaseUserTableUUID, Base):
     """
     This builds a standard FastAPI-Users User model
@@ -39,6 +49,9 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     """
 
     name: Mapped[str] = mapped_column(String(64), nullable=False, server_default="")
+    oauth_accounts: Mapped[List[OAuthAccount]] = relationship(
+        "OAuthAccount", lazy="selectin", cascade="all, delete-orphan"
+    )
 
 
 class Experiment(Base):

@@ -41,7 +41,10 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def get_user_db(session: AsyncSession = Depends(get_async_session)):
-    yield SQLAlchemyUserDatabase(session, models.User)
+    user_db = SQLAlchemyUserDatabase(session, models.User, models.OAuthAccount)
+    if not hasattr(user_db, "oauth_account_model"):
+        setattr(user_db, "oauth_account_model", models.OAuthAccount)
+    yield user_db
 
 
 ###############
