@@ -1,6 +1,10 @@
 import os
 from pathlib import Path
 
+# Check for TFL_MULTITENANT environment variables
+# If TFL_MULTITENANT is set, use multi-tenant mode
+MULTITENANT = os.getenv("TFL_MULTITENANT", "").lower() == "true"
+
 # TFL_HOME_DIR
 if "TFL_HOME_DIR" in os.environ:
     HOME_DIR = os.environ["TFL_HOME_DIR"]
@@ -13,14 +17,21 @@ else:
     os.makedirs(name=HOME_DIR, exist_ok=True)
     print(f"Using default home directory: {HOME_DIR}")
 
-# TFL_WORKSPACE_DIR
-if "TFL_WORKSPACE_DIR" in os.environ:
-    WORKSPACE_DIR = os.environ["TFL_WORKSPACE_DIR"]
+if MULTITENANT:
+    WORKSPACE_DIR = os.getenv("REMOTE_WORKSPACE_DIR")
     if not os.path.exists(WORKSPACE_DIR):
-        print(f"Error: Workspace directory {WORKSPACE_DIR} does not exist")
+        print(f"Error: Multi-tenant workspace directory {WORKSPACE_DIR} does not exist")
         exit(1)
-    print(f"Workspace is set to: {WORKSPACE_DIR}")
+    print(f"🏢 Multi-tenant mode, Using mounted workspace directory: {WORKSPACE_DIR}")
 else:
-    WORKSPACE_DIR = os.path.join(HOME_DIR, "workspace")
-    os.makedirs(name=WORKSPACE_DIR, exist_ok=True)
-    print(f"Using default workspace directory: {WORKSPACE_DIR}")
+# TFL_WORKSPACE_DIR
+    if "TFL_WORKSPACE_DIR" in os.environ:
+        WORKSPACE_DIR = os.environ["TFL_WORKSPACE_DIR"]
+        if not os.path.exists(WORKSPACE_DIR):
+            print(f"Error: Workspace directory {WORKSPACE_DIR} does not exist")
+            exit(1)
+        print(f"Workspace is set to: {WORKSPACE_DIR}")
+    else:
+        WORKSPACE_DIR = os.path.join(HOME_DIR, "workspace")
+        os.makedirs(name=WORKSPACE_DIR, exist_ok=True)
+        print(f"Single-tenant local mode, Using workspace directory: {WORKSPACE_DIR}")
