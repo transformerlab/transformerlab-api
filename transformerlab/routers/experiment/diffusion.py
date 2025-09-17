@@ -411,7 +411,7 @@ async def generate_image(experimentId: int, request: DiffusionRequest):
             raise HTTPException(status_code=400, detail="Plugin not installed")
 
         if request.plugin == "image_diffusion":
-            request_dict = request.dict()
+            request_dict = request.model_dump()
             if request.generation_id:
                 generation_id = request.generation_id
             else:
