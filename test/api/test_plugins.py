@@ -79,7 +79,7 @@ def test_plugin_install_with_nonexistent_plugin(client):
 async def test_delete_plugin_files_from_workspace():
     """Test the delete_plugin_files_from_workspace function directly"""
     from transformerlab.routers.plugins import delete_plugin_files_from_workspace
-    from transformerlab.shared import dirs
+    from lab import dirs
 
     # Create a temporary plugin directory structure
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -109,7 +109,7 @@ async def test_delete_plugin_files_from_workspace():
 async def test_delete_plugin_files_from_workspace_nonexistent():
     """Test deleting a non-existent plugin doesn't raise an error"""
     from transformerlab.routers.plugins import delete_plugin_files_from_workspace
-    from transformerlab.shared import dirs
+    from lab import dirs
 
     with tempfile.TemporaryDirectory() as temp_dir:
         with patch.object(dirs, "PLUGIN_DIR", temp_dir):
@@ -121,7 +121,7 @@ async def test_delete_plugin_files_from_workspace_nonexistent():
 async def test_copy_plugin_files_to_workspace():
     """Test the copy_plugin_files_to_workspace function"""
     from transformerlab.routers.plugins import copy_plugin_files_to_workspace
-    from transformerlab.shared import dirs
+    from lab import dirs
 
     with tempfile.TemporaryDirectory() as temp_dir:
         # Create mock gallery and plugin directories
@@ -158,7 +158,7 @@ async def test_copy_plugin_files_to_workspace():
 async def test_run_installer_for_plugin_with_missing_setup_script():
     """Test that run_installer_for_plugin calls delete when no setup script is found"""
     from transformerlab.routers.plugins import run_installer_for_plugin
-    from transformerlab.shared import dirs
+    from lab import dirs
 
     with tempfile.TemporaryDirectory() as temp_dir:
         # Create mock plugin structure
@@ -201,7 +201,7 @@ async def test_run_installer_for_plugin_with_missing_setup_script():
 async def test_run_installer_for_plugin_setup_script_failure():
     """Test that run_installer_for_plugin calls delete when setup script fails"""
     from transformerlab.routers.plugins import run_installer_for_plugin
-    from transformerlab.shared import dirs
+    from lab import dirs
 
     with tempfile.TemporaryDirectory() as temp_dir:
         # Create mock plugin structure
