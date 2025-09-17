@@ -82,6 +82,19 @@ uv pip compile requirements.in -o requirements-no-gpu-uv.txt
 
 2. the `sed` commands are to remove the suffixes on pytorch libraries that get added but break the install
 
+# WorkOS Connect SSO (optional)
+
+- `WORKOS_CLIENT_ID` and `WORKOS_CLIENT_SECRET`
+- `WORKOS_ISSUER` or `WORKOS_OPENID_CONFIGURATION_URL`
+- `WORKOS_REDIRECT_URL` (e.g., `https://your-b.example.com/auth/workos/callback`)
+- `OAUTH_STATE_SECRET` (optional; falls back to the app auth secret)
+- `FRONTEND_REDIRECT_URL` (optional; default `http://localhost:1212/auth/callback`). After a successful OAuth callback, the API redirects the browser here and passes the bearer token in the URL fragment (e.g., `#access_token=...`).
+
+Routes are available under `/auth/workos`:
+
+- `GET /auth/workos/authorize` → redirects to WorkOS
+- `GET /auth/workos/callback` → exchanges code and logs in/creates a user, then redirects to `FRONTEND_REDIRECT_URL` with the token in the hash fragment
+
 # Windows Notes
 
 https://transformerlab.ai/docs/install/install-on-windows

@@ -9,15 +9,17 @@ import asyncio
 import json
 import signal
 import subprocess
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 import sys
 from werkzeug.utils import secure_filename
 
 import fastapi
 import httpx
+import torch
 
 # Using torch to test for CUDA and MPS support.
 import uvicorn
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,28 +31,15 @@ from fastchat.constants import (
 from fastchat.protocol.openai_api_protocol import (
     ErrorResponse,
 )
+from starlette.middleware import Middleware
 
-from transformerlab.db.jobs import job_create, job_update_status
-from transformerlab.db import jobs as db_jobs
-from transformerlab.db.db import experiment_get
-import transformerlab.db.session as db
-from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert
-from transformerlab.routers import (
-    data,
-    model,
-    serverinfo,
-    train,
-    plugins,
-    evals,
-    config,
-    tasks,
-    prompts,
-    tools,
-    batched_prompts,
-    recipes,
-    users,
-)
-import torch
+load_dotenv()
+
+from transformerlab.db.jobs import job_create, job_update_status  # noqa: E402
+from transformerlab.db import jobs as db_jobs  # noqa: E402
+from transformerlab.db.db import experiment_get  # noqa: E402
+import transformerlab.db.session as db  # noqa: E402
+from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert  # noqa: E402
 
 try:
     from pynvml import nvmlShutdown
@@ -60,17 +49,13 @@ except Exception:
     from pyrsmi import rocml
 
     HAS_AMD = True
-from transformerlab import fastchat_openai_api
-from transformerlab.routers.experiment import experiment
-from transformerlab.routers.experiment import workflows
-from transformerlab.routers.experiment import jobs
-from transformerlab.shared import dirs
-from transformerlab.shared import shared
-from transformerlab.shared import galleries
-
-from dotenv import load_dotenv
-
-load_dotenv()
+from transformerlab import fastchat_openai_api  # noqa: E402
+from transformerlab.routers.experiment import experiment  # noqa: E402
+from transformerlab.routers.experiment import workflows  # noqa: E402
+from transformerlab.routers.experiment import jobs  # noqa: E402
+from transformerlab.shared import dirs  # noqa: E402
+from transformerlab.shared import shared  # noqa: E402
+from transformerlab.shared import galleries  # noqa: E402
 
 # The following environment variable can be used by other scripts
 # who need to connect to the root DB, for example
@@ -86,6 +71,23 @@ os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
 
 from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router  # noqa: E402
 
+# Router modules rely on environment variables; import them only after `load_dotenv()` runs above.
+from transformerlab.routers import (  # noqa: E402
+    data,
+    model,
+    serverinfo,
+    train,
+    plugins,
+    evals,
+    config,
+    tasks,
+    prompts,
+    tools,
+    batched_prompts,
+    recipes,
+    users,
+)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -98,10 +100,17 @@ async def lifespan(app: FastAPI):
     if "--reload" in sys.argv:
         await install_all_plugins()
     # run the migration
-    asyncio.create_task(migrate())
-    asyncio.create_task(run_over_and_over())
+    _track_background_task(asyncio.create_task(migrate()))
+    _track_background_task(asyncio.create_task(run_over_and_over()))
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
+    tasks_to_cancel = list(background_tasks)
+    for task in tasks_to_cancel:
+        task.cancel()
+    for task in tasks_to_cancel:
+        with suppress(asyncio.CancelledError):
+            await task
+    background_tasks.clear()
     # Do the following at API Shutdown:
     await db.close()
     # Run the clean up function
@@ -157,8 +166,39 @@ app = fastapi.FastAPI(
     openapi_tags=tags_metadata,
 )
 
-app.add_middleware(
-    CORSMiddleware,
+def configure_cors(*, allow_origins, allow_credentials, allow_methods, allow_headers) -> None:
+    """Ensure exactly one CORS middleware exists with the provided settings."""
+    new_user_middleware = []
+    cors_configured = False
+    for middleware in app.user_middleware:
+        if middleware.cls is CORSMiddleware and not cors_configured:
+            new_user_middleware.append(
+                Middleware(
+                    CORSMiddleware,
+                    allow_origins=allow_origins,
+                    allow_credentials=allow_credentials,
+                    allow_methods=allow_methods,
+                    allow_headers=allow_headers,
+                )
+            )
+            cors_configured = True
+        elif middleware.cls is not CORSMiddleware:
+            new_user_middleware.append(middleware)
+    if not cors_configured:
+        new_user_middleware.append(
+            Middleware(
+                CORSMiddleware,
+                allow_origins=allow_origins,
+                allow_credentials=allow_credentials,
+                allow_methods=allow_methods,
+                allow_headers=allow_headers,
+            )
+        )
+    app.user_middleware = new_user_middleware
+    app.middleware_stack = app.build_middleware_stack()
+
+
+configure_cors(
     allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["*"],
@@ -202,6 +242,13 @@ app.include_router(users.router)
 
 controller_process = None
 worker_process = None
+background_tasks: set[asyncio.Task] = set()
+
+
+def _track_background_task(task: asyncio.Task) -> None:
+    """Remember background tasks so we can cancel them during shutdown."""
+    background_tasks.add(task)
+    task.add_done_callback(background_tasks.discard)
 
 
 def spawn_fastchat_controller_subprocess():
@@ -490,10 +537,9 @@ def run():
 
     print(f"args: {args}")
     if args.allowed_origins == ["*"]:
-        args.allowed_credentials = False
+        args.allow_credentials = False
 
-    app.add_middleware(
-        CORSMiddleware,
+    configure_cors(
         allow_origins=args.allowed_origins,
         allow_credentials=args.allow_credentials,
         allow_methods=args.allowed_methods,

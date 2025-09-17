@@ -5,12 +5,11 @@ import os
 import csv
 import pandas as pd
 import logging
-from fastapi import APIRouter, Body, Response
+from fastapi import APIRouter, Response, HTTPException
 from fastapi.responses import StreamingResponse, FileResponse
 
 from transformerlab.shared import shared
 from transformerlab.shared import dirs
-from typing import Annotated
 from json import JSONDecodeError
 
 from werkzeug.utils import secure_filename
@@ -177,18 +176,22 @@ async def update_training_template(
     name: str,
     description: str,
     type: str,
-    config: Annotated[str, Body(embed=True)],
+    config: str,
 ):
     try:
-        configObject = json.loads(config)
-        datasets = configObject["dataset_name"]
+        config_object = json.loads(config)
+        datasets = config_object.get("dataset_name")
+        if datasets is None:
+            raise HTTPException(status_code=400, detail="Missing 'dataset_name' in config")
         await db_jobs.update_training_template(template_id, name, description, type, datasets, config)
     except JSONDecodeError as e:
         logging.error(f"JSON decode error: {e}")
-        return {"status": "error", "message": "An error occurred while processing the request."}
+        raise HTTPException(status_code=400, detail="Invalid JSON in config") from e
+    except HTTPException:
+        raise
     except Exception as e:
         logging.error(f"Unexpected error: {e}")
-        return {"status": "error", "message": "An internal error has occurred."}
+        raise HTTPException(status_code=500, detail="Internal server error") from e
     return {"status": "success"}
 
 
