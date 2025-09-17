@@ -548,7 +548,7 @@ timm==1.0.15
     #   controlnet-aux
 tokenizers==0.21.1
     # via transformers
-torch==2.8.0+rocm6.4
+torch==2.8.0
     # via
     #   -r requirements-rocm.in
     #   accelerate
@@ -558,9 +558,9 @@ torch==2.8.0+rocm6.4
     #   timm
     #   torchaudio
     #   torchvision
-torchaudio==2.8.0+rocm6.4
+torchaudio==2.8.0
     # via -r requirements-rocm.in
-torchvision==0.23.0+rocm6.4
+torchvision==0.23.0
     # via
     #   -r requirements-rocm.in
     #   controlnet-aux
