@@ -1,5 +1,5 @@
 # --- Centralized Database Configuration ---
-from transformerlab.shared.dirs_workspace import WORKSPACE_DIR
+from lab import WORKSPACE_DIR
 
 
 db = None  # This will hold the aiosqlite connection

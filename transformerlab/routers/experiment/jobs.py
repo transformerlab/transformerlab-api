@@ -23,6 +23,7 @@ from datetime import datetime
 
 import transformerlab.db.jobs as db_jobs
 from transformerlab.services.job_service import job_update_status
+from lab import WORKSPACE_DIR
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
@@ -478,7 +479,7 @@ async def get_checkpoints(job_id: str):
             config = {}
     model_name = config.get("model_name", "")
     adaptor_name = config.get("adaptor_name", "adaptor")
-    default_adaptor_dir = os.path.join(dirs.WORKSPACE_DIR, "adaptors", secure_filename(model_name), adaptor_name)
+    default_adaptor_dir = os.path.join(WORKSPACE_DIR, "adaptors", secure_filename(model_name), adaptor_name)
 
     # print(f"Default adaptor directory: {default_adaptor_dir}")
 
