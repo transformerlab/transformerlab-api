@@ -64,10 +64,9 @@ from transformerlab import fastchat_openai_api
 from transformerlab.routers.experiment import experiment
 from transformerlab.routers.experiment import workflows
 from transformerlab.routers.experiment import jobs
-from lab import dirs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
-from lab import WORKSPACE_DIR
+from lab import WORKSPACE_DIR, dirs
 
 from dotenv import load_dotenv
 
