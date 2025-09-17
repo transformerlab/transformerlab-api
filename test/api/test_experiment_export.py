@@ -3,6 +3,7 @@ import json
 import transformerlab.db.db as db
 import transformerlab.db.workflows as db_workflows
 from transformerlab.shared import dirs
+from lab import WORKSPACE_DIR
 
 
 async def test_export_experiment(client):
@@ -67,7 +68,7 @@ async def test_export_experiment(client):
     assert response.headers["content-type"] == "application/json"
 
     # Read the exported file from workspace directory
-    export_file = os.path.join(dirs.WORKSPACE_DIR, f"{test_experiment_name}_export.json")
+    export_file = os.path.join(WORKSPACE_DIR, f"{test_experiment_name}_export.json")
     assert os.path.exists(export_file)
 
     with open(export_file, "r") as f:
