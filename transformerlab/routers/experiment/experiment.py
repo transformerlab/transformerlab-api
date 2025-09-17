@@ -24,6 +24,7 @@ from transformerlab.routers.experiment import (
     diffusion,
     jobs,
 )
+from lab import WORKSPACE_DIR
 
 from werkzeug.utils import secure_filename
 
@@ -315,7 +316,7 @@ async def export_experiment_to_recipe(id: int):
             export_data["workflows"].append({"name": workflow["name"], "config": json.loads(workflow["config"])})
 
     # Write to file in the workspace directory
-    output_file = os.path.join(dirs.WORKSPACE_DIR, f"{data['name']}_export.json")
+    output_file = os.path.join(WORKSPACE_DIR, f"{data['name']}_export.json")
     with open(output_file, "w") as f:
         json.dump(export_data, f, indent=2)
 
