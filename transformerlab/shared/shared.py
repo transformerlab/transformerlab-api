@@ -22,6 +22,7 @@ from transformerlab.routers.experiment.generations import run_generation_script
 from transformerlab.shared import dirs
 from transformerlab.shared.dirs import GLOBAL_LOG_PATH
 from transformerlab.services.job_service import job_update_status
+from lab import WORKSPACE_DIR
 
 
 def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs):
@@ -664,7 +665,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         model_name = secure_filename(model_name)
         adaptor_name = template_config.get("adaptor_name", "adaptor")
         template_config["job_id"] = job_id
-        template_config["adaptor_output_dir"] = os.path.join(dirs.WORKSPACE_DIR, "adaptors", model_name, adaptor_name)
+        template_config["adaptor_output_dir"] = os.path.join(WORKSPACE_DIR, "adaptors", model_name, adaptor_name)
         template_config["output_dir"] = os.path.join(
             experiment_dir,
             "tensorboards",
@@ -681,7 +682,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         if os.path.exists(venv_path) and os.path.isdir(venv_path):
             venv_python = os.path.join(venv_path, "bin", "python")
 
-        tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
+        tempdir = os.path.join(WORKSPACE_DIR, "temp")
         if not os.path.exists(tempdir):
             os.makedirs(tempdir)
         # Check if hyperparameter sweep is requested
@@ -759,7 +760,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
                 # Create a unique adaptor directory for this run
                 run_adaptor_dir = os.path.join(
-                    dirs.WORKSPACE_DIR, "adaptors", secure_filename(model_name), f"{adaptor_name}_sweep_{i + 1}"
+                    WORKSPACE_DIR, "adaptors", secure_filename(model_name), f"{adaptor_name}_sweep_{i + 1}"
                 )
                 os.makedirs(run_adaptor_dir, exist_ok=True)
 
@@ -971,7 +972,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
         else:
             # Create a file in the temp directory to store the inputs:
-            tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
+            tempdir = os.path.join(WORKSPACE_DIR, "temp")
             if not os.path.exists(tempdir):
                 os.makedirs(tempdir)
             input_file = os.path.join(tempdir, f"plugin_input_{job_id}.json")
@@ -1033,7 +1034,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         )
 
         # Create a file in the temp directory to store the inputs:
-        tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
+        tempdir = os.path.join(WORKSPACE_DIR, "temp")
         if not os.path.exists(tempdir):
             os.makedirs(tempdir)
         input_file = os.path.join(tempdir, f"plugin_input_{job_id}.json")
@@ -1097,7 +1098,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 f.write("")
 
         # Create a file in the temp directory to store the inputs:
-        tempdir = os.path.join(dirs.WORKSPACE_DIR, "temp")
+        tempdir = os.path.join(WORKSPACE_DIR, "temp")
         if not os.path.exists(tempdir):
             os.makedirs(tempdir)
         input_file = os.path.join(tempdir, f"plugin_input_{job_id}.json")
@@ -1197,8 +1198,8 @@ async def get_job_output_file_name(job_id: str, plugin_name: str = None, experim
             output_file = os.path.join(new_jobs_dir, f"output_{job_id}.txt")
 
         # Fall back to old structure for backward compatibility
-        elif os.path.exists(os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id), f"output_{job_id}.txt")):
-            output_file = os.path.join(dirs.WORKSPACE_DIR, "jobs", str(job_id), f"output_{job_id}.txt")
+        elif os.path.exists(os.path.join(WORKSPACE_DIR, "jobs", str(job_id), f"output_{job_id}.txt")):
+            output_file = os.path.join(WORKSPACE_DIR, "jobs", str(job_id), f"output_{job_id}.txt")
 
         elif os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
             output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")

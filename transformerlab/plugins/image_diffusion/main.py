@@ -530,27 +530,32 @@ def get_python_executable():
     return sys.executable
 
 
-def get_diffusion_dir():
+def get_diffusion_dir(experiment_name: str = None):
     """Get the diffusion directory path"""
-    return os.path.join(WORKSPACE_DIR, "diffusion")
+    if experiment_name is not None:
+        # New experiment-specific path
+        return os.path.join(WORKSPACE_DIR, "experiments", experiment_name, "diffusion")
+    else:
+        # Legacy global path for backward compatibility
+        return os.path.join(WORKSPACE_DIR, "diffusion")
 
 
-def get_images_dir():
+def get_images_dir(experiment_name: str = None):
     """Get the images directory path"""
-    return os.path.join(get_diffusion_dir(), "images")
+    return os.path.join(get_diffusion_dir(experiment_name), "images")
 
 
-def get_history_file_path():
+def get_history_file_path(experiment_name: str = None):
     """Get the history file path"""
     # Create a history file in the diffusion directory if it doesn't exist
-    return os.path.join(get_diffusion_dir(), HISTORY_FILE)
+    return os.path.join(get_diffusion_dir(experiment_name), HISTORY_FILE)
 
 
-def ensure_directories():
+def ensure_directories(experiment_name: str = None):
     """Ensure diffusion and images directories exist"""
-    diffusion_dir = get_diffusion_dir()
-    images_dir = get_images_dir()
-    history_file_path = get_history_file_path()
+    diffusion_dir = get_diffusion_dir(experiment_name)
+    images_dir = get_images_dir(experiment_name)
+    history_file_path = get_history_file_path(experiment_name)
 
     os.makedirs(diffusion_dir, exist_ok=True)
     os.makedirs(images_dir, exist_ok=True)
@@ -560,10 +565,10 @@ def ensure_directories():
             pass
 
 
-def save_to_history(item: ImageHistoryItem):
+def save_to_history(item: ImageHistoryItem, experiment_name: str = None):
     """Save an image generation record to history"""
-    ensure_directories()
-    history_file = get_history_file_path()
+    ensure_directories(experiment_name)
+    history_file = get_history_file_path(experiment_name)
 
     # Load existing history
     history = []
@@ -612,6 +617,7 @@ async def run_multi_gpu_generation(
     mask_image_path: str = "",
     is_img2img: bool = False,
     is_inpainting: bool = False,
+    experiment_name: str = None,
 ) -> dict:
     """Run image generation using multi-GPU subprocess approach"""
 
@@ -650,8 +656,8 @@ async def run_multi_gpu_generation(
     }
 
     # Save config to temporary file
-    ensure_directories()
-    config_path = os.path.join(get_diffusion_dir(), secure_filename(f"config_{generation_id}.json"))
+    ensure_directories(experiment_name)
+    config_path = os.path.join(get_diffusion_dir(experiment_name), secure_filename(f"config_{generation_id}.json"))
     with open(config_path, "w") as f:
         json.dump(config, f, indent=2)
 
@@ -787,6 +793,14 @@ async def diffusion_generate_job():
     # Make a shallow copy to avoid mutating the original
     job_config = tlab_diffusion.params.copy()
 
+    # Get experiment name for experiment-specific paths
+    experiment_name = tlab_diffusion.params.get("experiment_name")
+    if experiment_name and experiment_name != "default":
+        print(f"Using experiment-specific paths for experiment: {experiment_name}")
+    else:
+        experiment_name = None
+        print("Using legacy global paths")
+
     # Convert image paths to base64 and remove original keys
     for path_key, base64_key in image_path_keys.items():
         if path_key in job_config and job_config[path_key]:
@@ -827,9 +841,9 @@ async def diffusion_generate_job():
             raise HTTPException(status_code=400, detail="Invalid generation_id format")
 
         # Create folder for images
-        ensure_directories()
-        images_folder = os.path.normpath(os.path.join(get_images_dir(), generation_id))
-        if not images_folder.startswith(get_images_dir()):
+        ensure_directories(experiment_name)
+        images_folder = os.path.normpath(os.path.join(get_images_dir(experiment_name), generation_id))
+        if not images_folder.startswith(get_images_dir(experiment_name)):
             raise HTTPException(status_code=400, detail="Invalid path for images_folder")
         os.makedirs(images_folder, exist_ok=True)
 
@@ -862,9 +876,9 @@ async def diffusion_generate_job():
                 input_image_obj = Image.open(BytesIO(image_data)).convert("RGB")
 
                 # Save input image for history
-                ensure_directories()
+                ensure_directories(experiment_name)
                 input_image_filename = f"input_{uuid_suffix}.png"
-                input_image_path = os.path.join(get_images_dir(), input_image_filename)
+                input_image_path = os.path.join(get_images_dir(experiment_name), input_image_filename)
                 input_image_obj.save(input_image_path, format="PNG")
                 print(f"Input image saved: {input_image_path}")
 
@@ -878,7 +892,9 @@ async def diffusion_generate_job():
 
                         # Save preprocessed image
                         preprocessed_image_filename = f"preprocessed_{uuid_suffix}.png"
-                        preprocessed_image_path = os.path.join(get_images_dir(), preprocessed_image_filename)
+                        preprocessed_image_path = os.path.join(
+                            get_images_dir(experiment_name), preprocessed_image_filename
+                        )
                         input_image_obj.save(preprocessed_image_path, format="PNG")
                         print(f"Preprocessed image saved: {preprocessed_image_path}")
                     except Exception as e:
@@ -893,9 +909,9 @@ async def diffusion_generate_job():
                 mask_image_obj = Image.open(BytesIO(mask_data)).convert("L")  # Convert to grayscale
 
                 # Save mask image for history
-                ensure_directories()
+                ensure_directories(experiment_name)
                 mask_image_filename = f"mask_{uuid_suffix}.png"
-                mask_image_path = os.path.join(get_images_dir(), mask_image_filename)
+                mask_image_path = os.path.join(get_images_dir(experiment_name), mask_image_filename)
                 mask_image_obj.save(mask_image_path, format="PNG")
                 print(f"Mask image saved: {mask_image_path}")
             except Exception as e:
@@ -919,6 +935,7 @@ async def diffusion_generate_job():
                     mask_image_path,
                     is_img2img,
                     is_inpainting,
+                    experiment_name,
                 )
 
                 images = []
@@ -1212,7 +1229,7 @@ async def diffusion_generate_job():
             # Intermediate image saving
             saved_intermediate_images=request.save_intermediate_images,
         )
-        save_to_history(history_item)
+        save_to_history(history_item, experiment_name)
 
         # Save output metadata to tmp_json.json
         output_data = {

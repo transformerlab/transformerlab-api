@@ -4,14 +4,14 @@
   "description": "A Text-to-Speech (TTS) trainer based on the unsloth audio training notebooks",
   "plugin-format": "python",
   "type": "trainer",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "model_architectures": [
     "CsmForConditionalGeneration",
     "LlamaForCausalLM"
   ],
   "supports": [
   ],
-  "supported_hardware_architectures": ["cuda"],
+  "supported_hardware_architectures": ["cuda", "amd"],
   "git": "",
   "url": "",
   "files": ["main.py", "setup.sh"],
