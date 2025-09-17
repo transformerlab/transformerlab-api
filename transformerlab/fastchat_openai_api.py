@@ -45,7 +45,7 @@ from fastchat.protocol.openai_api_protocol import (
     UsageInfo,
 )
 from pydantic import BaseModel as PydanticBaseModel
-from transformerlab.shared import dirs
+from lab import dirs
 
 WORKER_API_TIMEOUT = 3600
 

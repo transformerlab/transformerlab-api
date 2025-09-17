@@ -18,7 +18,6 @@ from pathlib import Path
 import logging
 
 from transformerlab.shared import shared
-from transformerlab.shared import dirs
 from transformerlab.shared import galleries
 
 from transformerlab.models import model_helper
@@ -26,7 +25,7 @@ from transformerlab.models import basemodel
 from transformerlab.models import huggingfacemodel
 from transformerlab.models import filesystemmodel
 from transformerlab.services.job_service import job_update_status
-from lab import WORKSPACE_DIR
+from lab import WORKSPACE_DIR, dirs
 
 from werkzeug.utils import secure_filename
 
