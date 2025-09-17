@@ -13,7 +13,6 @@ from werkzeug.utils import secure_filename
 from urllib.parse import urlparse
 
 from transformerlab.routers.experiment import rag
-from lab import dirs
 from transformerlab.shared.dirs import experiment_dir_by_id
 from transformerlab.shared.shared import slugify
 
