@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 from urllib.parse import urlparse
 
 from transformerlab.routers.experiment import rag
-from transformerlab.shared import dirs
+from lab import dirs
 from transformerlab.shared.shared import slugify
 
 router = APIRouter(prefix="/documents", tags=["documents"])

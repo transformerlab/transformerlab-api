@@ -9,7 +9,7 @@ import aiofiles
 import subprocess
 import shutil
 
-from transformerlab.shared import dirs
+from lab import dirs
 
 from werkzeug.utils import secure_filename
 

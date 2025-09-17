@@ -3,7 +3,7 @@ import os
 from typing import Annotated
 from fastapi import APIRouter, Body
 
-from transformerlab.shared import dirs
+from lab import dirs
 from transformerlab.shared.shared import slugify
 
 router = APIRouter(prefix="/prompts", tags=["prompts"])
