@@ -10,7 +10,8 @@ from transformerlab.db.db import experiment_get, experiment_update_config
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
 from transformerlab.db.jobs import job_get
-from transformerlab.shared import dirs, shared
+from transformerlab.shared import shared
+from lab import dirs
 
 from werkzeug.utils import secure_filename
 

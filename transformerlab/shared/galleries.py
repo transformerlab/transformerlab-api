@@ -8,7 +8,7 @@ import json
 import shutil
 import urllib.request
 
-from transformerlab.shared import dirs
+from lab import dirs
 
 # This is the list of galleries that are updated remotely
 MODEL_GALLERY_FILE = "model-gallery.json"

@@ -19,10 +19,9 @@ from transformerlab.services.job_service import job_update_sync
 import transformerlab.db.jobs as db_jobs
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
-from transformerlab.shared import dirs
 from transformerlab.shared.dirs import GLOBAL_LOG_PATH
 from transformerlab.services.job_service import job_update_status
-from lab import WORKSPACE_DIR
+from lab import WORKSPACE_DIR, dirs
 
 
 def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs):
