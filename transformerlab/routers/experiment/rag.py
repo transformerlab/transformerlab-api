@@ -7,6 +7,7 @@ from transformerlab.db.db import experiment_get
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from lab import dirs
+from transformerlab.shared.dirs import experiment_dir_by_id
 from pydantic import BaseModel
 
 
@@ -22,7 +23,7 @@ router = APIRouter(prefix="/rag", tags=["rag"])
 async def query(experimentId: int, query: str, settings: str = None, rag_folder: str = "rag"):
     """Query the RAG engine"""
 
-    experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+    experiment_dir = await experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
     documents_dir = os.path.join(documents_dir, rag_folder)
     documents_dir = os.path.abspath(documents_dir)
@@ -119,7 +120,7 @@ async def query(experimentId: int, query: str, settings: str = None, rag_folder:
 async def reindex(experimentId: int, rag_folder: str = "rag"):
     """Reindex the RAG engine"""
 
-    experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+    experiment_dir = await experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
     documents_dir = os.path.join(documents_dir, rag_folder)
     if not os.path.exists(documents_dir):
