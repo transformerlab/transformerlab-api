@@ -26,6 +26,7 @@ from transformerlab.models import basemodel
 from transformerlab.models import huggingfacemodel
 from transformerlab.models import filesystemmodel
 from transformerlab.services.job_service import job_update_status
+from lab import WORKSPACE_DIR
 
 from werkzeug.utils import secure_filename
 
@@ -764,7 +765,7 @@ async def model_local_delete(model_id: str, delete_from_cache: bool = False):
 async def model_gets_pefts(
     model_id: Annotated[str, Body()],
 ):
-    workspace_dir = dirs.WORKSPACE_DIR
+    workspace_dir = WORKSPACE_DIR
     model_id = secure_filename(model_id)
     adaptors_dir = os.path.join(workspace_dir, "adaptors", model_id)
 
@@ -781,7 +782,7 @@ async def model_gets_pefts(
 
 @router.get("/model/delete_peft")
 async def model_delete_peft(model_id: str, peft: str):
-    workspace_dir = dirs.WORKSPACE_DIR
+    workspace_dir = WORKSPACE_DIR
     secure_model_id = secure_filename(model_id)
     adaptors_dir = f"{workspace_dir}/adaptors/{secure_model_id}"
     # Check if the peft exists
