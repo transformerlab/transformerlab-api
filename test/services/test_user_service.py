@@ -59,7 +59,13 @@ async def test_sync_profile_updates_user_name(monkeypatch, tmp_path):
                 return None
 
             def json(self) -> dict[str, str]:
-                return {"given_name": "Ada", "family_name": "Lovelace"}
+                return {
+                    "given_name": "Ada",
+                    "family_name": "Lovelace",
+                    "organization_id": "org_123",
+                    "organization_slug": "ada-inc",
+                    "id": "user_123",
+                }
 
         class DummyClient:
             def __init__(self, *args, **kwargs):
@@ -86,7 +92,7 @@ async def test_sync_profile_updates_user_name(monkeypatch, tmp_path):
             return dummy_client
 
         monkeypatch.setattr(user_service.httpx, "AsyncClient", client_factory)
-        user_service._WORKOS_USERINFO_ENDPOINT = None
+        user_service._WORKOS_OPENID_CONFIGURATION = None
 
         async with session_module.async_session() as session:
             user_db = SQLAlchemyUserDatabase(session, models.User, models.OAuthAccount)
@@ -98,6 +104,10 @@ async def test_sync_profile_updates_user_name(monkeypatch, tmp_path):
             result = await session.execute(select(models.User).where(models.User.id == user_id))
             refreshed = result.scalar_one()
             assert refreshed.name == "Ada Lovelace"
+            assert refreshed.oauth_accounts[0].account_data["userinfo"]["organization_id"] == "org_123"
+            assert refreshed.oauth_accounts[0].account_data["workos"]["organization_id"] == "org_123"
+            assert refreshed.oauth_accounts[0].account_data["workos"]["organization_slug"] == "ada-inc"
+            assert refreshed.oauth_accounts[0].account_id == "user_123"
 
         assert calls == [
             "https://workos.example/.well-known/openid-configuration",
@@ -137,7 +147,7 @@ async def test_sync_profile_skips_without_oauth_account(monkeypatch, tmp_path):
                 raise AssertionError("OAuth discovery should not execute")
 
         monkeypatch.setattr(user_service.httpx, "AsyncClient", ShouldNotRun)
-        user_service._WORKOS_USERINFO_ENDPOINT = None
+        user_service._WORKOS_OPENID_CONFIGURATION = None
 
         async with session_module.async_session() as session:
             user_db = SQLAlchemyUserDatabase(session, models.User, models.OAuthAccount)
@@ -221,7 +231,7 @@ async def test_sync_profile_selects_workos_account(monkeypatch, tmp_path):
                 return DummyResponse()
 
         monkeypatch.setattr(user_service.httpx, "AsyncClient", DummyClient)
-        user_service._WORKOS_USERINFO_ENDPOINT = None
+        user_service._WORKOS_OPENID_CONFIGURATION = None
 
         async with session_module.async_session() as session:
             user_db = SQLAlchemyUserDatabase(session, models.User, models.OAuthAccount)
@@ -275,7 +285,7 @@ async def test_sync_profile_requires_access_token(monkeypatch, tmp_path):
                 raise AssertionError("Should not fetch discovery without access token")
 
         monkeypatch.setattr(user_service.httpx, "AsyncClient", ShouldNotRun)
-        user_service._WORKOS_USERINFO_ENDPOINT = None
+        user_service._WORKOS_OPENID_CONFIGURATION = None
 
         async with session_module.async_session() as session:
             user_db = SQLAlchemyUserDatabase(session, models.User, models.OAuthAccount)
@@ -287,5 +297,121 @@ async def test_sync_profile_requires_access_token(monkeypatch, tmp_path):
             result = await session.execute(select(models.User).where(models.User.id == user_id))
             refreshed = result.scalar_one()
             assert refreshed.name == "Original"
+    finally:
+        await session_module.close()
+
+
+@pytest.mark.asyncio
+async def test_scope_workos_session_to_org_updates_tokens(monkeypatch, tmp_path):
+    user_service = import_module_with_temp_workspace(
+        monkeypatch, tmp_path, "transformerlab.services.user_service"
+    )
+    session_module = importlib.import_module("transformerlab.db.session")
+    models = importlib.import_module("transformerlab.shared.models.models")
+
+    await session_module.init()
+
+    try:
+        async with session_module.async_session() as session:
+            user = models.User(
+                email="org@example.com",
+                hashed_password="hashed",
+                is_active=True,
+                is_superuser=False,
+                is_verified=False,
+                name="",
+            )
+            account = models.OAuthAccount(
+                oauth_name="workos",
+                access_token="old-token",
+                refresh_token="refresh-123",
+                account_email="org@example.com",
+            )
+            user.oauth_accounts.append(account)
+            session.add(user)
+            await session.commit()
+            user_id = user.id
+
+        async def fake_refresh(refresh_token: str, organization_id: str) -> dict[str, str]:
+            assert refresh_token == "refresh-123"
+            assert organization_id == "org_abc"
+            return {
+                "access_token": "new-access",
+                "refresh_token": "new-refresh",
+                "token_type": "bearer",
+                "expires_in": 3600,
+            }
+
+        def fake_decode(token: str) -> dict[str, str]:
+            assert token == "new-access"
+            return {
+                "org_id": "org_abc",
+                "organization_slug": "acme",
+            }
+
+        monkeypatch.setattr(user_service, "_refresh_workos_tokens", fake_refresh)
+        monkeypatch.setattr(user_service, "_decode_claims_no_verify", fake_decode)
+
+        async with session_module.async_session() as session:
+            user_db = SQLAlchemyUserDatabase(session, models.User, models.OAuthAccount)
+            db_user = await user_db.get(user_id)
+
+        result = await user_service.scope_workos_session_to_org(db_user, "org_abc")
+
+        assert result["tokens"]["access_token"] == "new-access"
+        assert result["organization_id"] == "org_abc"
+        assert result["organization_slug"] == "acme"
+
+        async with session_module.async_session() as session:
+            refreshed_account = await session.execute(
+                select(models.OAuthAccount).where(models.OAuthAccount.user_id == user_id)
+            )
+            account = refreshed_account.scalar_one()
+            assert account.access_token == "new-access"
+            assert account.refresh_token == "new-refresh"
+            assert account.account_data["workos"]["organization_id"] == "org_abc"
+            assert account.account_data["workos"]["organization_slug"] == "acme"
+            assert account.expires_at is not None
+    finally:
+        await session_module.close()
+
+
+@pytest.mark.asyncio
+async def test_scope_workos_session_requires_refresh_token(monkeypatch, tmp_path):
+    user_service = import_module_with_temp_workspace(
+        monkeypatch, tmp_path, "transformerlab.services.user_service"
+    )
+    session_module = importlib.import_module("transformerlab.db.session")
+    models = importlib.import_module("transformerlab.shared.models.models")
+
+    await session_module.init()
+
+    try:
+        async with session_module.async_session() as session:
+            user = models.User(
+                email="missing@example.com",
+                hashed_password="hashed",
+                is_active=True,
+                is_superuser=False,
+                is_verified=False,
+                name="",
+            )
+            account = models.OAuthAccount(
+                oauth_name="workos",
+                access_token="token",
+                refresh_token=None,
+                account_email="missing@example.com",
+            )
+            user.oauth_accounts.append(account)
+            session.add(user)
+            await session.commit()
+            user_id = user.id
+
+        async with session_module.async_session() as session:
+            user_db = SQLAlchemyUserDatabase(session, models.User, models.OAuthAccount)
+            db_user = await user_db.get(user_id)
+
+        with pytest.raises(ValueError):
+            await user_service.scope_workos_session_to_org(db_user, "org_123")
     finally:
         await session_module.close()

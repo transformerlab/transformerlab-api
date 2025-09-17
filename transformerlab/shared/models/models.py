@@ -39,6 +39,8 @@ class OAuthAccount(SQLAlchemyBaseOAuthAccountTableUUID, Base):
     __table_args__ = {"extend_existing": True}
     # Allow accounts to exist without an access token (e.g. expired or not yet issued)
     access_token: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    account_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    account_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
 
 class User(SQLAlchemyBaseUserTableUUID, Base):

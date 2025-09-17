@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from transformerlab.services.openid_client import OpenIDWithProfile
+from transformerlab.services.openid_client import DEFAULT_OPENID_SCOPES, OpenIDWithProfile
 from transformerlab.services.redirect_transport import RedirectBearerTransport
 
 from test.utils import import_module_with_temp_workspace
@@ -42,7 +42,7 @@ def test_openid_with_profile_default_scopes():
         "https://workos.example/.well-known/openid-configuration",
     )
 
-    assert client.base_scopes == ["openid", "email", "profile"]
+    assert client.base_scopes == list(DEFAULT_OPENID_SCOPES)
 
 
 @pytest.mark.asyncio

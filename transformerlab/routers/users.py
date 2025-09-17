@@ -1,18 +1,46 @@
 import os
 import logging
-from fastapi import APIRouter
+from collections.abc import Mapping
+from typing import Any
+
+import httpx
+from fastapi import APIRouter, Depends, HTTPException, status
 
 # from .user_service import auth_backend, current_active_user, fastapi_users
 
 # FastAPI Users integration
-from transformerlab.services.user_service import auth_backend, fastapi_users, SECRET, get_jwt_strategy
+from transformerlab.services.user_service import (
+    auth_backend,
+    current_active_user,
+    fastapi_users,
+    get_jwt_strategy,
+    scope_workos_session_to_org,
+    SECRET,
+)
 from transformerlab.services.redirect_transport import RedirectBearerTransport
 from fastapi_users.authentication import AuthenticationBackend
+from pydantic import BaseModel, Field
 from transformerlab.schemas.user import UserCreate, UserRead, UserUpdate
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+class WorkOSScopeSessionRequest(BaseModel):
+    organization_id: str = Field(..., min_length=1)
+
+
+class WorkOSScopeSessionResponse(BaseModel):
+    access_token: str
+    refresh_token: str | None = None
+    token_type: str | None = None
+    expires_in: int | None = None
+    expires_at: int | None = None
+    id_token: str | None = None
+    organization_id: str | None = None
+    organization_slug: str | None = None
+    claims: dict[str, Any] | None = None
 
 router.include_router(
     fastapi_users.get_auth_router(auth_backend),
@@ -91,6 +119,53 @@ if have_all:
     )
     router.include_router(oauth_router, prefix="/auth/workos", tags=["auth"])
     logger.info("Mounted WorkOS OAuth routes at /auth/workos (authorize, callback)")
+
+    @router.post(
+        "/auth/workos/scope",
+        response_model=WorkOSScopeSessionResponse,
+        tags=["auth"],
+    )
+    async def scope_workos_session(
+        payload: WorkOSScopeSessionRequest,
+        user=Depends(current_active_user),
+    ) -> WorkOSScopeSessionResponse:
+        organization_id = payload.organization_id.strip()
+        try:
+            result = await scope_workos_session_to_org(user, organization_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        except httpx.HTTPStatusError as exc:
+            detail: Any
+            try:
+                detail = exc.response.json()
+            except Exception:
+                detail = exc.response.text
+            raise HTTPException(status_code=exc.response.status_code, detail=detail) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+
+        tokens = result.get("tokens", {})
+        access_token = tokens.get("access_token")
+        if not isinstance(access_token, str) or not access_token:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="WorkOS refresh succeeded without an access token.",
+            )
+
+        claims = result.get("claims")
+        claims_dict = claims if isinstance(claims, dict) else dict(claims) if isinstance(claims, Mapping) else None
+
+        return WorkOSScopeSessionResponse(
+            access_token=access_token,
+            refresh_token=tokens.get("refresh_token"),
+            token_type=tokens.get("token_type"),
+            expires_in=tokens.get("expires_in"),
+            expires_at=tokens.get("expires_at"),
+            id_token=tokens.get("id_token"),
+            organization_id=result.get("organization_id"),
+            organization_slug=result.get("organization_slug"),
+            claims=claims_dict,
+        )
 else:
     logger.warning(
         "Skipping WorkOS OAuth routes. Missing vars: "

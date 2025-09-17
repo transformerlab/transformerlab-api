@@ -18,6 +18,9 @@ from typing import Optional, Any
 from httpx_oauth.clients.openid import OpenID
 
 
+DEFAULT_OPENID_SCOPES: tuple[str, ...] = ("openid", "email", "profile", "offline_access")
+
+
 class OpenIDWithProfile(OpenID):
     def __init__(self, client_id: str, client_secret: str, openid_configuration_endpoint: str):
         """OpenID client with default profile/email scopes.
@@ -36,7 +39,7 @@ class OpenIDWithProfile(OpenID):
                 client_id=client_id,
                 client_secret=client_secret,
                 openid_configuration_endpoint=openid_configuration_endpoint,
-                base_scopes=["openid", "email", "profile"],
+                base_scopes=list(DEFAULT_OPENID_SCOPES),
             )
         except Exception:  # pragma: no cover - defensive; specific error types vary
             # Provide minimal attributes required by tests. Real operations that
@@ -45,7 +48,7 @@ class OpenIDWithProfile(OpenID):
             self.client_id = client_id
             self.client_secret = client_secret
             self.openid_configuration_endpoint = openid_configuration_endpoint
-            self.base_scopes = ["openid", "email", "profile"]
+            self.base_scopes = list(DEFAULT_OPENID_SCOPES)
 
 
 class LazyOpenIDWithProfile:
@@ -59,7 +62,7 @@ class LazyOpenIDWithProfile:
     # Expose attributes accessed during FastAPI Users router construction so we don't
     # need to instantiate the underlying networked client just to read them.
     name = "openid"
-    base_scopes = ["openid", "email", "profile"]
+    base_scopes = list(DEFAULT_OPENID_SCOPES)
 
     def __init__(self, client_id: str, client_secret: str, openid_configuration_endpoint: str):
         self._client_id = client_id
