@@ -2,13 +2,10 @@
 
 import os
 from pathlib import Path
-import transformerlab.shared.dirs_workspace as dirs_workspace
+from lab import WORKSPACE_DIR, HOME_DIR
 from transformerlab.db.db import experiment_get
 
 from werkzeug.utils import secure_filename
-
-WORKSPACE_DIR = dirs_workspace.WORKSPACE_DIR
-HOME_DIR = dirs_workspace.HOME_DIR
 
 """
 TFL_HOME_DIR is the directory that is the parent of the src and workspace directories.
