@@ -5,6 +5,8 @@ from transformers import CsmForConditionalGeneration
 import torch
 from transformers import AutoProcessor
 from snac import SNAC
+from vibevoice.modular.modeling_vibevoice import VibeVoiceForConditionalGeneration
+from vibevoice.processor.vibevoice_processor import VibeVoiceProcessor
 
 
 class AudioTrainerBase(ABC):
@@ -255,6 +257,114 @@ class OrpheusAudioTrainer(AudioTrainerBase):
                 "input_ids": input_ids,  
                 "labels": labels,      
                 "attention_mask": attention_mask
+            }
+            
+        except Exception as e:
+            print(f"Error processing example with text '{example[self.text_column_name][:50]}...': {e}")
+            return None
+
+
+class VibeVoiceAudioTrainer(AudioTrainerBase):
+    def __init__(self, model_name, context_length, device, speaker_key, 
+                lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length,
+                audio_column_name="audio", text_column_name="text"):
+        super().__init__(model_name, context_length, device, speaker_key, 
+                        lora_r, lora_alpha, lora_dropout, sampling_rate, max_audio_length,
+                        audio_column_name, text_column_name)
+        
+        # Load model
+        dtype = torch.float32
+        self.model = VibeVoiceForConditionalGeneration.from_pretrained(
+            model_name,
+            torch_dtype=dtype,
+        )
+        
+        # Load processor
+        self.processor = VibeVoiceProcessor.from_pretrained(model_name)
+        
+        # Set up LoRA for language model
+        self.model.model.language_model = FastLanguageModel.get_peft_model(
+            self.model.model.language_model,
+            r=lora_r,
+            target_modules=self.lora_target_modules,
+            lora_alpha=lora_alpha,
+            lora_dropout=lora_dropout,
+            bias="none",
+            use_gradient_checkpointing="unsloth",
+            random_state=3407,
+            use_rslora=False,
+            loftq_config=None,
+        )
+        
+        num_trainable = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+        print(f"Trainable parameters: {num_trainable}")
+        
+        # Set noise scheduler
+        self.model.model.noise_scheduler = self.model.model.noise_scheduler.from_config(
+            self.model.model.noise_scheduler.config,
+            algorithm_type="sde-dpmsolver++",
+            beta_schedule="squaredcos_cap_v2",
+        )
+
+    def preprocess_dataset(self, example):
+        """
+        Preprocess a single example for VibeVoice training.
+        """
+        try:
+            text = example[self.text_column_name]
+            audio_array = example[self.audio_column_name]["array"]
+            
+            # Handle voice prompts if available
+            voice_samples = None
+            if "voice_prompts" in example and example["voice_prompts"]:
+                voice_samples = example["voice_prompts"]
+            
+            # Process with VibeVoice processor
+            proc = self.processor(
+                text=[text],
+                voice_samples=voice_samples,
+                padding=False,
+                truncation=False,
+                max_length=self.context_length,
+                return_tensors="pt",
+            )
+            
+            # Get basic tensors
+            input_ids = proc["input_ids"][0]
+            attention_mask = proc.get("attention_mask", torch.ones_like(input_ids))[0]
+            
+            # Handle speech tensors and masks
+            speech_tensors = proc.get("speech_tensors")
+            speech_masks = proc.get("speech_masks")
+            speech_semantic_tensors = proc.get("speech_semantic_tensors")
+            
+            # Create acoustic input mask
+            speech_input_mask = proc.get("speech_input_mask")
+            if speech_input_mask is None:
+                speech_input_mask = torch.zeros_like(input_ids, dtype=torch.bool)
+            
+            # Create acoustic loss mask (loss only on target audio, not prompts)
+            acoustic_loss_mask = torch.zeros_like(speech_input_mask, dtype=torch.bool)
+            if speech_masks is not None and len(speech_masks) > 0:
+                # Last segment is target, others are prompts
+                target_mask = speech_masks[-1]  # Last one is target
+                acoustic_loss_mask = torch.cat([
+                    torch.zeros_like(speech_input_mask[:-len(target_mask)]),
+                    target_mask
+                ])
+            
+            # Prepare labels (same as input_ids for causal LM)
+            labels = input_ids.clone()
+            
+            return {
+                "input_ids": input_ids,
+                "attention_mask": attention_mask,
+                "labels": labels,
+                "speech_tensors": speech_tensors,
+                "speech_masks": speech_masks,
+                "speech_semantic_tensors": speech_semantic_tensors,
+                "acoustic_input_mask": speech_input_mask,
+                "acoustic_loss_mask": acoustic_loss_mask,
             }
             
         except Exception as e:

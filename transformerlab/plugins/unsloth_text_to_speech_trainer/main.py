@@ -6,7 +6,7 @@ import torch
 from transformers import TrainingArguments, Trainer
 from datasets import Audio
 
-from trainer import CsmAudioTrainer, OrpheusAudioTrainer
+from trainer import CsmAudioTrainer, OrpheusAudioTrainer, VibeVoiceAudioTrainer
 
 from transformerlab.sdk.v1.train import tlab_trainer  # noqa: E402
 
@@ -89,6 +89,20 @@ def train_model():
             sampling_rate=sampling_rate,
             max_audio_length=max_audio_length,
             batch_size=batch_size,
+            audio_column_name=audio_column_name,
+            text_column_name=text_column_name
+        )
+    elif "vibevoice" in model_id:
+        model_trainer = VibeVoiceAudioTrainer(
+            model_name=model_id, 
+            speaker_key=speaker_key, 
+            context_length=max_seq_length, 
+            device=device, 
+            lora_r=lora_r, 
+            lora_alpha=lora_alpha, 
+            lora_dropout=lora_dropout,
+            sampling_rate=sampling_rate,
+            max_audio_length=max_audio_length,
             audio_column_name=audio_column_name,
             text_column_name=text_column_name
         )
