@@ -111,7 +111,7 @@ if [ "$TFL_MULTITENANT" = "true" ]; then
     echo "🏢 Multitenant mode detected, setting up remote workspace"
     
     # Create remote workspace directory if it doesn't exist
-    REMOTE_WORKSPACE_DIR="$HOME/.transformerlab/org_1/workspace"
+    REMOTE_WORKSPACE_DIR="$HOME/.transformerlab/orgs/org_1/workspace"
     if [ ! -d "$REMOTE_WORKSPACE_DIR" ]; then
         echo "📁 Creating remote workspace directory: $REMOTE_WORKSPACE_DIR"
         mkdir -p "$REMOTE_WORKSPACE_DIR"
