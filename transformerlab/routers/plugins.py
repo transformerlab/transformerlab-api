@@ -9,7 +9,8 @@ import aiofiles
 import subprocess
 import shutil
 
-from lab import dirs
+from lab import dirs as lab_dirs
+from transformerlab.shared import dirs
 
 from werkzeug.utils import secure_filename
 
@@ -82,20 +83,20 @@ async def copy_plugin_files_to_workspace(plugin_id: str):
 
     plugin_path = os.path.join(dirs.PLUGIN_PRELOADED_GALLERY, plugin_id)
     # create the directory if it doesn't exist
-    new_directory = os.path.join(dirs.PLUGIN_DIR, plugin_id)
+    new_directory = os.path.join(lab_dirs.PLUGIN_DIR, plugin_id)
     if not os.path.exists(plugin_path):
         print(f"Plugin {plugin_path} not found in gallery.")
         return
     if not os.path.exists(new_directory):
         os.makedirs(new_directory)
     # Now copy it to the workspace:
-    copy_tree(plugin_path, dirs.plugin_dir_by_name(plugin_id))
+    copy_tree(plugin_path, lab_dirs.plugin_dir_by_name(plugin_id))
 
 
 async def delete_plugin_files_from_workspace(plugin_id: str):
     plugin_id = secure_filename(plugin_id)
 
-    plugin_path = os.path.join(dirs.PLUGIN_DIR, plugin_id)
+    plugin_path = os.path.join(lab_dirs.PLUGIN_DIR, plugin_id)
     # return if the directory doesn't exist
     if not os.path.exists(plugin_path):
         print(f"Plugin {plugin_path} not found in workspace.")
@@ -106,7 +107,7 @@ async def delete_plugin_files_from_workspace(plugin_id: str):
 
 async def run_installer_for_plugin(plugin_id: str, log_file):
     plugin_id = secure_filename(plugin_id)
-    new_directory = os.path.join(dirs.PLUGIN_DIR, plugin_id)
+    new_directory = os.path.join(lab_dirs.PLUGIN_DIR, plugin_id)
     venv_path = os.path.join(new_directory, "venv")
     plugin_path = os.path.join(dirs.PLUGIN_PRELOADED_GALLERY, plugin_id)
 
@@ -169,7 +170,7 @@ async def run_installer_for_plugin(plugin_id: str, log_file):
 
 @router.get(path="/delete_plugin")
 async def delete_plugin(plugin_name: str):
-    final_path = dirs.plugin_dir_by_name(plugin_name)
+    final_path = lab_dirs.plugin_dir_by_name(plugin_name)
     remove_tree(final_path)
     return {"message": f"Plugin {plugin_name} deleted successfully."}
 
@@ -191,10 +192,10 @@ async def install_plugin(plugin_id: str):
 
     await copy_plugin_files_to_workspace(plugin_id)
 
-    new_directory = os.path.join(dirs.PLUGIN_DIR, plugin_id)
+    new_directory = os.path.join(lab_dirs.PLUGIN_DIR, plugin_id)
     venv_path = os.path.join(new_directory, "venv")
 
-    global_log_file_name = dirs.GLOBAL_LOG_PATH
+    global_log_file_name = lab_dirs.GLOBAL_LOG_PATH
     async with aiofiles.open(global_log_file_name, "a") as log_file:
         # Create virtual environment using uv
         print("Creating virtual environment for plugin...")
@@ -293,7 +294,7 @@ async def install_plugin(plugin_id: str):
 
 @router.get("/{plugin_id}/run_installer_script", summary="Run the installer script for a plugin.")
 async def run_installer_script(plugin_id: str):
-    global_log_file_name = dirs.GLOBAL_LOG_PATH
+    global_log_file_name = lab_dirs.GLOBAL_LOG_PATH
     async with aiofiles.open(global_log_file_name, "a") as log_file:
         return await run_installer_for_plugin(plugin_id, log_file)
     return {"status": "error", "message": f"Failed to open log file: {global_log_file_name}"}
@@ -303,7 +304,7 @@ async def run_installer_script(plugin_id: str):
 async def list_plugins() -> list[object]:
     """Get list of plugins that are currently installed"""
 
-    local_workspace_gallery_directory = dirs.PLUGIN_DIR
+    local_workspace_gallery_directory = lab_dirs.PLUGIN_DIR
 
     # now get the local workspace gallery
     workspace_gallery = []
