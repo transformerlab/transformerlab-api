@@ -73,6 +73,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Determine the source code directory for the API to track where the API code is being served from
 api_source_dir = os.path.dirname(os.path.abspath(__file__))
 os.environ["TFL_SOURCE_CODE_DIR"] = api_source_dir
 
