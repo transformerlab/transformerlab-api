@@ -1,7 +1,6 @@
 # Root dir is the parent of the parent of this current directory:
 
 import os
-from pathlib import Path
 from lab import HOME_DIR, dirs
 from transformerlab.db.db import experiment_get
 
@@ -60,13 +59,3 @@ PLUGIN_HARNESS = os.path.join(PLUGIN_SDK_DIR, "plugin_harness.py")
 
 # Galleries cache directory
 GALLERIES_LOCAL_FALLBACK_DIR = os.path.join(TFL_SOURCE_CODE_DIR, "transformerlab/galleries/")
-
-# Evals output file:
-
-
-async def eval_output_file(experiment_name: str, eval_name: str) -> str:
-    experiment_dir = experiment_dir_by_name(experiment_name)
-    eval_name = secure_filename(eval_name)
-    p = os.path.join(experiment_dir, "evals", eval_name)
-    os.makedirs(p, exist_ok=True)
-    return os.path.join(p, "output.txt")
