@@ -16,6 +16,31 @@ PORT="8338"
 RELOAD=false
 HTTPS=false
 
+# Load environment variables from .env files
+load_env_files() {
+    # Look for .env files in current directory only
+    local env_files=(
+        ".env"
+        ".env.local"
+        ".env.production"
+        ".env.development"
+    )
+    
+    for env_file in "${env_files[@]}"; do
+        # Check in current directory only
+        if [ -f "$env_file" ]; then
+            echo "📄 Loading environment variables from $env_file"
+            # Export variables from .env file, ignoring comments and empty lines
+            set -a  # automatically export all variables
+            source "$env_file"
+            set +a  # stop automatically exporting
+        fi
+    done
+}
+
+# Load environment variables
+load_env_files
+
 # echo "Your shell is $SHELL"
 # echo "Conda's binary is at ${CONDA_BIN}"
 # echo "Your current directory is $(pwd)"
@@ -79,6 +104,89 @@ elif command -v rocminfo &> /dev/null; then
     echo "✅ AMD GPU detected, adding appropriate libraries to path"
     export PATH=$PATH:/opt/rocm/bin:/opt/rocm/rocprofiler/bin:/opt/rocm/opencl/bin
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/rocm/lib:/opt/rocm/lib64
+fi
+
+# Check if multitenant mode is enabled
+if [ "$TFL_MULTITENANT" = "true" ]; then
+    echo "🏢 Multitenant mode detected, setting up remote workspace"
+    
+    # Create remote workspace directory if it doesn't exist
+    REMOTE_WORKSPACE_DIR="$HOME/.transformerlab/orgs/org_1/workspace"
+    if [ ! -d "$REMOTE_WORKSPACE_DIR" ]; then
+        echo "📁 Creating remote workspace directory: $REMOTE_WORKSPACE_DIR"
+        mkdir -p "$REMOTE_WORKSPACE_DIR"
+    fi
+    
+    # Setup AWS credentials in ~/.aws directory
+    if [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ]; then
+        echo "🔐 Setting up AWS credentials in ~/.aws directory"
+        
+        # Create .aws directory if it doesn't exist
+        AWS_DIR="$HOME/.aws"
+        if [ ! -d "$AWS_DIR" ]; then
+            mkdir -p "$AWS_DIR"
+            chmod 700 "$AWS_DIR"
+        fi
+        
+        # Update credentials file - preserve existing profiles
+        CREDENTIALS_FILE="$AWS_DIR/credentials"
+        if [ -f "$CREDENTIALS_FILE" ]; then
+            echo "📝 Updating existing credentials file, preserving other profiles"
+            # Remove existing transformerlab-s3 profile if it exists
+            awk 'BEGIN{in_profile=0} /^\[transformerlab-s3\]/{in_profile=1; next} /^\[/ && !/^\[transformerlab-s3\]/{in_profile=0} !in_profile{print}' "$CREDENTIALS_FILE" > "$CREDENTIALS_FILE.tmp"
+            mv "$CREDENTIALS_FILE.tmp" "$CREDENTIALS_FILE"
+        else
+            echo "📝 Creating new credentials file"
+        fi
+        
+        # Append transformerlab-s3 profile
+        cat >> "$CREDENTIALS_FILE" << EOF
+[transformerlab-s3]
+aws_access_key_id=$AWS_ACCESS_KEY_ID
+aws_secret_access_key=$AWS_SECRET_ACCESS_KEY
+EOF
+        chmod 600 "$CREDENTIALS_FILE"
+        
+        # Update config file - preserve existing profiles
+        CONFIG_FILE="$AWS_DIR/config"
+        if [ -f "$CONFIG_FILE" ]; then
+            echo "📝 Updating existing config file, preserving other profiles"
+            # Remove existing transformerlab-s3 profile if it exists
+            awk 'BEGIN{in_profile=0} /^\[profile transformerlab-s3\]/{in_profile=1; next} /^\[/ && !/^\[profile transformerlab-s3\]/{in_profile=0} !in_profile{print}' "$CONFIG_FILE" > "$CONFIG_FILE.tmp"
+            mv "$CONFIG_FILE.tmp" "$CONFIG_FILE"
+        else
+            echo "📝 Creating new config file"
+        fi
+        
+        # Append transformerlab-s3 profile
+        if [ -n "$AWS_DEFAULT_REGION" ]; then
+            cat >> "$CONFIG_FILE" << EOF
+[profile transformerlab-s3]
+region=$AWS_DEFAULT_REGION
+output=json
+EOF
+        else
+            cat >> "$CONFIG_FILE" << EOF
+[profile transformerlab-s3]
+region=us-east-1
+output=json
+EOF
+        fi
+        chmod 600 "$CONFIG_FILE"
+        
+        echo "✅ AWS credentials configured in ~/.aws (transformerlab-s3 profile)"
+    else
+        echo "⚠️ AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY not set, skipping AWS setup"
+    fi
+    
+    # Mount S3 bucket using AWS credentials from ~/.aws
+    if [ -n "$BUCKET_NAME" ]; then
+        echo "☁️ Mounting S3 bucket '$BUCKET_NAME' to remote workspace"
+        mount-s3 --profile transformerlab-s3 "$BUCKET_NAME" "$REMOTE_WORKSPACE_DIR"
+    else
+        echo "⚠️ BUCKET_NAME not set in environment variables, skipping S3 mount"
+        echo "💡 Please set BUCKET_NAME in your .env file"
+    fi
 fi
 
 echo "▶️ Starting the API server:"

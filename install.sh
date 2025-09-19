@@ -71,6 +71,17 @@ title() {
   printf "%s#########################################################################%s\n" "${tty_blue}" "${tty_reset}"
 }
 
+load_env_from_file() {
+  local env_path="$1"
+  if [ -f "$env_path" ]; then
+    ohai "Loading environment from $env_path"
+    set -a
+    # shellcheck disable=SC1090
+    source "$env_path"
+    set +a
+  fi
+}
+
 check_conda() {
   if ! command -v "${CONDA_BIN}" &> /dev/null; then
     abort "❌ Conda is not installed at ${MINIFORGE_ROOT}. Please install Conda using '${TLAB_DIR}/src/install.sh install_conda' and try again."
@@ -468,6 +479,70 @@ doctor() {
 
 }
 
+##############################
+## Optional: Install Mountpoint for Amazon S3 (Linux only)
+##############################
+
+install_mountpoint_s3() {
+  title "Install Mountpoint for Amazon S3 (Linux only)"
+
+  # Only proceed if TFL_MULTITENANT is set in environment/.env (any non-empty value)
+  if [[ -z "${TFL_MULTITENANT:-}" ]]; then
+    echo "Skipping Mountpoint install because TFL_MULTITENANT is not set."
+    return 0
+  fi
+
+  if [[ -n "${TLAB_ON_MACOS}" ]]; then
+    echo "Skipping Mountpoint install on macOS."
+    return 0
+  fi
+
+  if command -v mount-s3 >/dev/null 2>&1; then
+    ohai "✅ Mountpoint for Amazon S3 already installed (mount-s3 found)."
+    return 0
+  fi
+
+  ARCH=$(uname -m)
+  if [[ "$ARCH" == "aarch64" || "$ARCH" == "arm64" ]]; then
+    MP_ARCH="arm64"
+  else
+    MP_ARCH="x86_64"
+  fi
+
+  TMP_DIR=$(mktemp -d)
+  cleanup() { rm -rf "$TMP_DIR" 2>/dev/null || true; }
+  trap cleanup EXIT
+
+  if command -v apt-get >/dev/null 2>&1; then
+    echo "Detected apt-based system. Installing .deb package."
+    DEB_URL="https://s3.amazonaws.com/mountpoint-s3-release/latest/${MP_ARCH}/mount-s3.deb"
+    echo "Downloading: $DEB_URL"
+    wget -q "$DEB_URL" -O "$TMP_DIR/mount-s3.deb"
+    sudo apt-get install -y "$TMP_DIR/mount-s3.deb"
+  elif command -v yum >/dev/null 2>&1; then
+    echo "Detected yum-based system. Installing .rpm package."
+    RPM_URL="https://s3.amazonaws.com/mountpoint-s3-release/latest/${MP_ARCH}/mount-s3.rpm"
+    echo "Downloading: $RPM_URL"
+    wget -q "$RPM_URL" -O "$TMP_DIR/mount-s3.rpm"
+    sudo yum install -y "$TMP_DIR/mount-s3.rpm"
+  elif command -v dnf >/dev/null 2>&1; then
+    echo "Detected dnf-based system. Installing .rpm package."
+    RPM_URL="https://s3.amazonaws.com/mountpoint-s3-release/latest/${MP_ARCH}/mount-s3.rpm"
+    echo "Downloading: $RPM_URL"
+    wget -q "$RPM_URL" -O "$TMP_DIR/mount-s3.rpm"
+    sudo dnf install -y "$TMP_DIR/mount-s3.rpm"
+  else
+    warn "Unsupported Linux package manager for automatic Mountpoint install. Please install manually."
+    return 1
+  fi
+
+  if command -v mount-s3 >/dev/null 2>&1; then
+    ohai "✅ Mountpoint for Amazon S3 installed successfully."
+  else
+    warn "Mountpoint for Amazon S3 installation may have failed; 'mount-s3' not found."
+  fi
+}
+
 print_success_message() {
   title "Installation Complete"
   echo "------------------------------------------"
@@ -485,7 +560,14 @@ print_success_message() {
   echo
 }
 
-# Check if there are arguments to this script, and if so, run the appropriate function.
+# Load .env configuration (prefer current dir, then fallback to app src dir)
+TFL_MULTITENANT=${TFL_MULTITENANT:-}
+load_env_from_file "${RUN_DIR}/.env"
+if [ -z "${TFL_MULTITENANT:-}" ]; then
+  load_env_from_file "${TLAB_CODE_DIR}/.env"
+fi
+
+# Check if there are positional arguments; if not, perform full install
 if [[ "$#" -eq 0 ]]; then
   title "Performing a full installation of Transformer Lab."
   download_transformer_lab
@@ -494,8 +576,7 @@ if [[ "$#" -eq 0 ]]; then
   install_dependencies
   print_success_message
 else
-  for arg in "$@"
-  do
+  for arg in "$@"; do
     case $arg in
       download_transformer_lab)
         download_transformer_lab
@@ -521,8 +602,16 @@ else
       *)
         # Print allowed arguments
         echo "Allowed arguments: [download_transformer_lab, install_conda, create_conda_environment, install_dependencies] or leave blank to perform a full installation."
+        echo "To enable multitenant setup, set TFL_MULTITENANT=true in a local .env file."
         abort "❌ Unknown argument: $arg"
         ;;
     esac
   done
 fi
+
+# If TFL_MULTITENANT is truthy in .env, also install Mountpoint (Linux only)
+shopt -s nocasematch
+if [[ "${TFL_MULTITENANT:-}" == "1" || "${TFL_MULTITENANT:-}" == "true" || "${TFL_MULTITENANT:-}" == "yes" ]]; then
+  install_mountpoint_s3 || true
+fi
+shopt -u nocasematch
