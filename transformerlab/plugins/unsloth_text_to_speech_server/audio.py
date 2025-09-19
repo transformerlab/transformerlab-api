@@ -4,6 +4,8 @@ from transformers import AutoProcessor, CsmForConditionalGeneration
 from snac import SNAC
 import torch
 import librosa
+from vibevoice.modular.modeling_vibevoice_inference import VibeVoiceForConditionalGenerationInference
+from vibevoice.processor.vibevoice_processor import VibeVoiceProcessor
 
 class AudioModelBase(ABC):
     def __init__(self, model_name, device, context_length=2048):
@@ -344,3 +346,51 @@ class OrpheusAudioModel(AudioModelBase):
         input_ids = torch.cat(input_sequence, dim=1)
         
         return input_ids.to(self.device)
+
+
+class VibeVoiceAudioModel(AudioModelBase):
+    def __init__(self, model_name, device, context_length=2048):
+        super().__init__(model_name, device, context_length)
+        self.processor = VibeVoiceProcessor.from_pretrained(model_name)
+        self.model = VibeVoiceForConditionalGenerationInference.from_pretrained(
+            model_name,
+            torch_dtype=torch.bfloat16,
+            device_map=device,
+            attn_implementation="flash_attention_2",
+        )
+        self.model.eval()
+        # Set noise scheduler
+        self.model.model.noise_scheduler = self.model.model.noise_scheduler.from_config(
+            self.model.model.noise_scheduler.config,
+            algorithm_type="sde-dpmsolver++",
+            beta_schedule="squaredcos_cap_v2",
+        )
+        self.generate_kwargs = {
+            "max_new_tokens": None,
+            "cfg_scale": 1.3,
+            "inference_steps": 10,
+            "do_sample": False,
+        }
+
+    def tokenize(self, text, audio_path=None, sample_rate=24000, voice=None):
+        voice_samples = []
+        if audio_path:
+            audio_array, _ = librosa.load(audio_path, sr=sample_rate)
+            voice_samples = [audio_array]
+        inputs = self.processor(
+            text=[text],
+            voice_samples=voice_samples if voice_samples else None,
+            padding=True,
+            return_tensors="pt",
+            return_attention_mask=True,
+        )
+        return inputs.to(self.device)
+
+    def generate(self, inputs, **kwargs):
+        gen_args = {**inputs, **self.generate_kwargs, **kwargs}
+        outputs = self.model.generate(**gen_args)
+        return outputs
+
+    def decode(self, generated, **kwargs):
+        audio = generated[0].to(torch.float32).cpu().numpy()
+        return audio

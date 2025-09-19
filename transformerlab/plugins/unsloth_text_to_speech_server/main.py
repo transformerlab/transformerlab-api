@@ -14,7 +14,7 @@ import uvicorn
 import torch
 import soundfile as sf
 import librosa
-from audio import CsmAudioModel, OrpheusAudioModel
+from audio import CsmAudioModel, OrpheusAudioModel, VibeVoiceAudioModel
 
 
 from fastapi import BackgroundTasks, FastAPI, Request
@@ -92,6 +92,13 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
                 device=self.device,
             )
             logger.info("Initialized Orpheus Audio Model")
+
+        elif "vibevoice" in self.model_name:
+            self.audio_model = VibeVoiceAudioModel(
+                model_name=self.model_name,
+                device=self.device,
+            )
+            logger.info("Initialized VibeVoice Audio Model")
 
         else:
             logger.info(
