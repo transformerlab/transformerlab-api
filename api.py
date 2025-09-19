@@ -73,6 +73,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+api_source_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+os.environ["TFL_SOURCE_CODE_DIR"] = api_source_dir
+
+
 # The following environment variable can be used by other scripts
 # who need to connect to the root DB, for example
 os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
@@ -80,7 +84,7 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 # used internally to set constants that are shared between separate processes. They are not meant to be
 # to be overriden by the user.
 os.environ["_TFL_WORKSPACE_DIR"] = WORKSPACE_DIR
-os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
+os.environ["_TFL_SOURCE_CODE_DIR"] = api_source_dir
 # The temporary image directory for transformerlab
 temp_image_dir = os.path.join(WORKSPACE_DIR, "temp", "images")
 os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
