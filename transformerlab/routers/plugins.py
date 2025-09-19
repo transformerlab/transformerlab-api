@@ -59,7 +59,7 @@ async def plugin_gallery():
     gallery = workspace_gallery + remote_gallery
 
     # Now get a list of the plugins that are already installed:
-    local_workspace_gallery_directory = dirs.PLUGIN_DIR
+    local_workspace_gallery_directory = lab_dirs.PLUGIN_DIR
     installed_plugins = []
     if os.path.exists(local_workspace_gallery_directory):
         for lp in os.listdir(local_workspace_gallery_directory):
