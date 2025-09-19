@@ -396,17 +396,17 @@ async def server_worker_stop():
                     print(f"Error killing process {pid}: {e}")
         # delete the worker.pid file:
         os.remove("worker.pid")
-    
+
     # Wait a bit for the worker to fully terminate
     await asyncio.sleep(1)
-    
+
     # Refresh the controller to remove the stopped worker immediately
     try:
         async with httpx.AsyncClient() as client:
             await client.post(fastchat_openai_api.app_settings.controller_address + "/refresh_all_workers")
     except Exception as e:
         print(f"Error refreshing controller after stopping worker: {e}")
-    
+
     return {"message": "OK"}
 
 
@@ -449,7 +449,12 @@ def cleanup_at_exit():
         with open("worker.pid", "r") as f:
             pids = [line.strip() for line in f if line.strip()]
             for pid in pids:
-                os.kill(int(pid), signal.SIGTERM)
+                try:
+                    os.kill(int(pid), signal.SIGTERM)
+                except ProcessLookupError:
+                    print(f"Process {pid} doesn't exist so nothing to kill")
+                except Exception as e:
+                    print(f"Error killing process {pid}: {e}")
             os.remove("worker.pid")
     # Perform NVML Shutdown if CUDA is available
     if torch.cuda.is_available():
