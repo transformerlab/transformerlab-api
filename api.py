@@ -73,7 +73,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-api_source_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+api_source_dir = os.path.dirname(os.path.abspath(__file__))
 os.environ["TFL_SOURCE_CODE_DIR"] = api_source_dir
 
 
