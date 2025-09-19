@@ -10,7 +10,7 @@ import httpx
 from transformerlab.db.db import experiment_get, save_plugin
 
 from transformerlab.shared import shared
-from transformerlab.shared import dirs
+from lab import dirs
 
 from werkzeug.utils import secure_filename
 

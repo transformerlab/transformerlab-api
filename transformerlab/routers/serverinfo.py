@@ -31,7 +31,7 @@ except Exception:
     HAS_AMD = True
 
 
-from transformerlab.shared import dirs
+from lab import dirs
 
 pyTorch_version = torch.__version__
 print(f"🔥 PyTorch version: {pyTorch_version}")

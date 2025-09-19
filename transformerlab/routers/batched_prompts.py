@@ -5,7 +5,7 @@ from typing import Annotated, Optional, Union
 from fastapi import APIRouter, Body
 from pydantic import BaseModel
 
-from transformerlab.shared import dirs
+from lab import dirs
 from transformerlab.shared.batched_requests import process_dataset
 from transformerlab.shared.shared import slugify
 

@@ -9,7 +9,7 @@ import os
 import json
 import errno
 
-from transformerlab.shared import dirs
+from lab import dirs
 
 
 async def list_models():

@@ -12,7 +12,7 @@ from typing import Dict, Any
 from io import BytesIO
 import base64
 from pathlib import Path
-from transformerlab.shared import dirs
+from lab import dirs
 from datasets.data_files import EmptyDatasetError
 from transformerlab.shared.shared import slugify
 from transformerlab.shared import galleries

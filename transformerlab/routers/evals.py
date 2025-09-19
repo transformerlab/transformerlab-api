@@ -5,7 +5,7 @@ import pandas as pd
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from transformerlab.db.jobs import job_get
-from transformerlab.shared import dirs
+from lab import dirs
 
 
 router = APIRouter(prefix="/evals", tags=["evals"])
