@@ -7,7 +7,6 @@ in run.sh for multitenant mode.
 
 import os
 import subprocess
-from lab import WORKSPACE_DIR
 
 
 def check_remote_path_exists_and_has_files(remote_path: str) -> bool:
@@ -117,17 +116,18 @@ def setup_user_s3_mount(user_id: str) -> bool:
 
         # Get required environment variables
         bucket_name = os.getenv("BUCKET_NAME")
+        HOME_DIR = os.path.join(os.path.expanduser("~"), ".transformerlab")
 
         if not bucket_name:
             print("BUCKET_NAME not set in environment variables, skipping S3 mount")
             return True
 
-        if not WORKSPACE_DIR:
-            print("WORKSPACE_DIR not set in environment variables, skipping S3 mount")
+        if not os.path.exists(HOME_DIR):
+            print(f"{HOME_DIR} does not exist, skipping S3 mount")
             return True
 
-        # Construct the remote path using WORKSPACE_DIR and BUCKET_REMOTE_PATH
-        bucket_remote_path = os.path.join(WORKSPACE_DIR, "orgs", "org_2", "workspace")
+        # Construct the remote path using HOME_DIR and BUCKET_REMOTE_PATH
+        bucket_remote_path = os.path.join(HOME_DIR, "orgs", "org_2", "workspace")
 
         print(f"Setting up S3 mount for user {user_id}")
         print(f"Bucket: {bucket_name}, Remote path: {bucket_remote_path}")

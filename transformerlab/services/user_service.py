@@ -31,7 +31,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     async def on_after_request_verify(self, user: User, token: str, request: Optional[Request] = None):
         print(f"Verification requested for user {user.id}. Verification token: {token}")
 
-    async def on_after_login(self, user: User, request: Optional[Request] = None):
+    async def on_after_login(self, user: User, request: Optional[Request] = None, response: Optional[object] = None):
         """Called after a user successfully logs in."""
         print(f"User {user.id} has logged in. Setting up S3 mount if needed.")
         try:
