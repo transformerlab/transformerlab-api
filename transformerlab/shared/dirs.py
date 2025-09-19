@@ -4,7 +4,6 @@ import os
 from lab import HOME_DIR, dirs
 from transformerlab.db.db import experiment_get
 
-from werkzeug.utils import secure_filename
 
 """
 TFL_HOME_DIR is the directory that is the parent of the src and workspace directories.
@@ -44,7 +43,7 @@ async def experiment_dir_by_id(experiment_id: int) -> str:
         experiment = await experiment_get(experiment_id)
     else:
         print("Error: experiment_id is None")
-        return os.path.join(EXPERIMENTS_DIR, "error")
+        return os.path.join(dirs.EXPERIMENTS_DIR, "error")
 
     experiment_name = experiment["name"]
     return os.path.join(dirs.EXPERIMENTS_DIR, experiment_name)
