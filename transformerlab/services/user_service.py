@@ -13,6 +13,7 @@ from fastapi_users.db import SQLAlchemyUserDatabase
 
 from transformerlab.db.db import get_user_db
 from transformerlab.shared.models.models import User
+from transformerlab.shared.s3_mount import setup_user_s3_mount
 
 SECRET = "TEMPSECRET"
 
@@ -29,6 +30,19 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
 
     async def on_after_request_verify(self, user: User, token: str, request: Optional[Request] = None):
         print(f"Verification requested for user {user.id}. Verification token: {token}")
+
+    async def on_after_login(self, user: User, request: Optional[Request] = None):
+        """Called after a user successfully logs in."""
+        print(f"User {user.id} has logged in. Setting up S3 mount if needed.")
+        try:
+            # Setup S3 mount for the user
+            success = setup_user_s3_mount(str(user.id))
+            if success:
+                print(f"S3 mount setup completed for user {user.id}")
+            else:
+                print(f"S3 mount setup failed for user {user.id}")
+        except Exception as e:
+            print(f"Error setting up S3 mount for user {user.id}: {e}")
 
 
 async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db)):
