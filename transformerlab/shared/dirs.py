@@ -6,12 +6,6 @@ from transformerlab.db.db import experiment_get
 
 
 """
-TFL_HOME_DIR is the directory that is the parent of the src and workspace directories.
-By default, it is set to ~/.transformerlab
-
-TFL_WORKSPACE_DIR is the directory where all the experiments, plugins, and models are stored.
-By default, it is set to TFL_HOME_DIR/workspace
-
 TFL_SOURCE_CODE_DIR is the directory where the source code is stored.
 By default, it is set to TFL_HOME_DIR/src
 This directory stores code but shouldn't store any data because it is erased and replaced
