@@ -10,10 +10,31 @@ from transformerlab.db.sync import (
 )
 from transformerlab.shared.models import models
 from sqlalchemy import select
+from lab import Experiment
 
 
 # Centralized set of job types that can trigger workflows on completion
 SUPPORTED_WORKFLOW_TRIGGERS = ["TRAIN", "LOAD_MODEL", "EXPORT", "EVAL", "GENERATE", "DOWNLOAD_MODEL"]
+
+
+def _get_experiment(experimentId: int):
+    """
+    Helper function to get SDK Experiment from an ID.
+    TODO: This is hardcoded to blanktest for now!
+    """
+    experiment_name = "blanktest"
+    experiment = Experiment(experiment_name)
+    return experiment
+
+
+def list_jobs_by_experiment(experimentId: int, type: str = "", status: str = ""):
+    """
+    Returns a list of jobs in an experiment.
+    Optionally, filter on type or status
+    """
+    exp = _get_experiment(experimentId)
+    job_list = exp.get_jobs(type, status)
+    print(job_list)
 
 
 async def _trigger_workflows_on_job_completion(job_id: str):
