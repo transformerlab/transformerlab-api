@@ -1,3 +1,4 @@
+import os
 import json
 from typing import Optional
 
@@ -27,14 +28,17 @@ def _get_experiment(experimentId: int):
     return experiment
 
 
-def list_jobs_by_experiment(experimentId: int, type: str = "", status: str = ""):
+async def list_jobs_by_experiment(experimentId: int, type: str = "", status: str = ""):
     """
     Returns a list of jobs in an experiment.
     Optionally, filter on type or status
     """
-    exp = _get_experiment(experimentId)
-    job_list = exp.get_jobs(type, status)
-    print(job_list)
+    if os.environ.get("MULTITENANT", False):
+        exp = _get_experiment(experimentId)
+        job_list = exp.get_jobs(type, status)
+        print(job_list)
+    jobs = await db_jobs.jobs_get_all(type=type, status=status, experiment_id=experimentId)
+    return jobs
 
 
 async def _trigger_workflows_on_job_completion(job_id: str):
