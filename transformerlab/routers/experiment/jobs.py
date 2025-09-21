@@ -23,6 +23,7 @@ from datetime import datetime
 
 import transformerlab.db.jobs as db_jobs
 from transformerlab.services.job_service import job_update_status
+import transformerlab.services.job_service as job_service
 from lab import WORKSPACE_DIR
 
 router = APIRouter(prefix="/jobs", tags=["train"])
@@ -30,6 +31,7 @@ router = APIRouter(prefix="/jobs", tags=["train"])
 
 @router.get("/list")
 async def jobs_get_all(experimentId: int, type: str = "", status: str = ""):
+    await job_service.list_jobs_by_experiment(experimentId, type, status)
     jobs = await db_jobs.jobs_get_all(type=type, status=status, experiment_id=experimentId)
     return jobs
 
