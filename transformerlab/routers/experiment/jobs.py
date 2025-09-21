@@ -31,9 +31,7 @@ router = APIRouter(prefix="/jobs", tags=["train"])
 
 @router.get("/list")
 async def jobs_get_all(experimentId: int, type: str = "", status: str = ""):
-    await job_service.list_jobs_by_experiment(experimentId, type, status)
-    jobs = await db_jobs.jobs_get_all(type=type, status=status, experiment_id=experimentId)
-    return jobs
+    return await job_service.list_jobs_by_experiment(experimentId, type, status)
 
 
 @router.get("/delete/{job_id}")
