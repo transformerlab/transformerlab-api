@@ -36,7 +36,6 @@ from transformerlab.db.db import experiment_get
 import transformerlab.db.session as db
 from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert
 from transformerlab.routers import (
-    auth,
     data,
     model,
     serverinfo,
@@ -84,6 +83,9 @@ os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 # The temporary image directory for transformerlab
 temp_image_dir = os.path.join(WORKSPACE_DIR, "temp", "images")
 os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
+
+if os.getenv("TFL_MULTITENANT") == "true":
+    from transformerlab.routers import auth
 
 from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router  # noqa: E402
 
@@ -199,7 +201,8 @@ app.include_router(get_xmlrpc_router())
 app.include_router(get_trainer_xmlrpc_router())
 
 # Authentication and session management routes
-app.include_router(auth.router)
+if os.getenv("TFL_MULTITENANT") == "true":
+    app.include_router(auth.router)
 
 
 controller_process = None
