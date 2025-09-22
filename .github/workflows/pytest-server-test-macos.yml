@@ -11,6 +11,13 @@ on:
 jobs:
   build:
     runs-on: macos-latest
+    env:
+      AUTH_CLIENT_ID: ${{ secrets.AUTH_CLIENT_ID }}
+      AUTH_API_KEY: ${{ secrets.AUTH_API_KEY }}
+      FRONTEND_URL: http://localhost:8338
+      AUTH_SUCCESS_REDIRECT_URL: /
+      AUTH_ERROR_REDIRECT_URL: /
+      AUTH_LOGOUT_REDIRECT_URL: /
     strategy:
       fail-fast: false
       matrix:
