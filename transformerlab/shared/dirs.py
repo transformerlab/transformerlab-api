@@ -55,7 +55,7 @@ async def experiment_dir_by_id(experiment_id: int) -> str:
         return os.path.join(dirs.EXPERIMENTS_DIR, "error")
 
     experiment_name = experiment["name"]
-    return os.path.join(dirs.EXPERIMENTS_DIR, experiment_name)
+    return dirs.experiment_dir_by_name(experiment_name)
 
 
 # PLUGIN_PRELOADED_GALLERY
