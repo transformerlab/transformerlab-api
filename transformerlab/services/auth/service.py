@@ -185,7 +185,7 @@ class AuthService:
             # Try to authenticate a loaded but unauthenticated session (provider-specific)
             try:
                 session = session.authenticate()
-            except Exception as exc:
+            except Exception:
                 pass
         if not session.authenticated:
             raise HTTPException(status_code=401, detail="Not authenticated")
