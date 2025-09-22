@@ -9,8 +9,8 @@ import httpx
 
 from transformerlab.db.db import experiment_get, save_plugin
 
-from transformerlab.shared import shared
-from transformerlab.shared import dirs
+from transformerlab.shared import shared, dirs
+from lab import dirs as lab_dirs
 
 from werkzeug.utils import secure_filename
 
@@ -43,7 +43,7 @@ async def experiment_list_scripts(id: int, type: str = None, filter: str = None)
 
     # print(f"Filtering by {filter_key} with value {filter_value}")
 
-    scripts_dir = dirs.PLUGIN_DIR
+    scripts_dir = lab_dirs.PLUGIN_DIR
 
     # now get a list of all the directories in the scripts directory:
     scripts_full_json = []
@@ -141,7 +141,7 @@ async def plugin_download(id: int, plugin_slug: str):
         response = await client.get(url + file)
         file_contents = response.text
         # Save each file to workspace/plugins/<plugin_slug>/<file>
-        p = dirs.plugin_dir_by_name(plugin_slug)
+        p = lab_dirs.plugin_dir_by_name(plugin_slug)
         os.makedirs(p, mode=0o755, exist_ok=True)
         with open(f"{p}/{file}", "w") as f:
             f.write(file_contents)
@@ -185,7 +185,7 @@ async def plugin_save_file_contents(id: str, pluginId: str, filename: str, file_
     filename = shared.slugify(filename)
     pluginId = shared.slugify(pluginId)
 
-    script_path = dirs.plugin_dir_by_name(pluginId)
+    script_path = lab_dirs.plugin_dir_by_name(pluginId)
 
     # make directory if it does not exist:
     if not os.path.exists(f"{script_path}"):
@@ -219,7 +219,7 @@ async def plugin_get_file_contents(id: str, pluginId: str, filename: str):
         return {"message": f"File extension {file_ext} for {filename} not supported"}
 
     # The following prevents path traversal attacks:
-    plugin_dir = dirs.plugin_dir_by_name((pluginId))
+    plugin_dir = lab_dirs.plugin_dir_by_name((pluginId))
     final_path = Path(plugin_dir).joinpath(filename + file_ext).resolve().relative_to(plugin_dir)
 
     final_path = plugin_dir + "/" + str(final_path)
@@ -244,7 +244,7 @@ async def plugin_list_files(id: str, pluginId: str):
         return {"message": f"Experiment {id} does not exist"}
 
     # experiment_name = data["name"]
-    scripts_dir = dirs.plugin_dir_by_name(pluginId)
+    scripts_dir = lab_dirs.plugin_dir_by_name(pluginId)
 
     # check if directory exists:
     if not os.path.exists(scripts_dir):
@@ -286,7 +286,7 @@ async def plugin_create_new_file(id: str, pluginId: str, filename: str):
     filename = shared.slugify(filename)
     pluginId = shared.slugify(pluginId)
 
-    script_path = dirs.plugin_dir_by_name(pluginId)
+    script_path = lab_dirs.plugin_dir_by_name(pluginId)
 
     # make directory if it does not exist:
     if not os.path.exists(f"{script_path}"):
@@ -326,7 +326,7 @@ async def plugin_delete_file(id: str, pluginId: str, filename: str):
     filename = shared.slugify(filename)
     pluginId = shared.slugify(pluginId)
 
-    script_path = dirs.plugin_dir_by_name(pluginId)
+    script_path = lab_dirs.plugin_dir_by_name(pluginId)
 
     # make directory if it does not exist:
     if not os.path.exists(f"{script_path}"):
@@ -352,7 +352,7 @@ async def plugin_new_plugin_directory(id: str, pluginId: str):
     # clean the file name:
     pluginId = shared.slugify(value=pluginId)
 
-    script_path = dirs.plugin_dir_by_name(pluginId)
+    script_path = lab_dirs.plugin_dir_by_name(pluginId)
 
     # make directory if it does not exist:
     if not os.path.exists(f"{script_path}"):
