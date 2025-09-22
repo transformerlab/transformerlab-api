@@ -9,8 +9,8 @@ from fastapi import APIRouter
 
 import transformerlab.db.db as db
 import transformerlab.db.jobs as db_jobs
-from lab import dirs
-from transformerlab.shared import shared
+from lab import dirs as lab_dirs
+from transformerlab.shared import dirs, shared
 
 from transformerlab.services.job_service import job_update_status
 
@@ -80,11 +80,11 @@ async def run_exporter_script(
         output_filename = output_model_id
 
     # Figure out plugin and model output directories
-    script_directory = dirs.plugin_dir_by_name(plugin_name)
+    script_directory = lab_dirs.plugin_dir_by_name(plugin_name)
 
     output_model_id = secure_filename(output_model_id)
 
-    output_path = os.path.join(dirs.MODELS_DIR, output_model_id)
+    output_path = os.path.join(lab_dirs.MODELS_DIR, output_model_id)
 
     # Create a job in the DB with the details of this export (only if job_id not provided)
     if job_id is None:
