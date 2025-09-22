@@ -47,9 +47,9 @@ async def list_jobs_by_experiment(experimentId: int, type: str = "", status: str
         experiment = await _get_experiment_by_id(experimentId)
         if not experiment:
             return []
-        job_list = experiment.get_jobs(type, status)
-        return job_list
-    jobs = await db_jobs.jobs_get_all(type=type, status=status, experiment_id=experimentId)
+        jobs = experiment.get_jobs(type, status)
+    else:
+        jobs = await db_jobs.jobs_get_all(type=type, status=status, experiment_id=experimentId)
     return jobs
 
 
