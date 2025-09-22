@@ -18,7 +18,6 @@ from pathlib import Path
 import logging
 
 from transformerlab.shared import shared
-from transformerlab.shared import dirs
 from transformerlab.shared import galleries
 
 from transformerlab.models import model_helper
@@ -26,7 +25,8 @@ from transformerlab.models import basemodel
 from transformerlab.models import huggingfacemodel
 from transformerlab.models import filesystemmodel
 from transformerlab.services.job_service import job_update_status
-from lab import WORKSPACE_DIR
+from lab import WORKSPACE_DIR, dirs as lab_dirs
+from transformerlab.shared import dirs
 
 from werkzeug.utils import secure_filename
 
@@ -41,7 +41,7 @@ def get_model_dir(model_id: str):
     model_id may be in Hugging Face format
     """
     model_id_without_author = model_id.split("/")[-1]
-    return os.path.join(dirs.MODELS_DIR, model_id_without_author)
+    return os.path.join(lab_dirs.MODELS_DIR, model_id_without_author)
 
 
 def get_model_details_from_gallery(model_id: str):
@@ -728,7 +728,7 @@ async def model_local_create(id: str, name: str, json_data={}):
 async def model_local_delete(model_id: str, delete_from_cache: bool = False):
     # If this is a locally generated model then actually delete from filesystem
     # Check for the model stored in a directory based on the model name (i.e. the part after teh slash)
-    root_models_dir = dirs.MODELS_DIR
+    root_models_dir = lab_dirs.MODELS_DIR
     model_dir = model_id.rsplit("/", 1)[-1]
     info_file = os.path.join(root_models_dir, model_dir, "info.json")
 
