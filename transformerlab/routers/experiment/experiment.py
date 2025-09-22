@@ -11,7 +11,6 @@ import transformerlab.db.db as db
 from transformerlab.db.workflows import workflows_get_from_experiment
 from transformerlab.db.datasets import get_dataset
 from transformerlab.shared import shared
-from transformerlab.shared import dirs
 from transformerlab.routers.experiment import (
     rag,
     documents,
@@ -24,7 +23,7 @@ from transformerlab.routers.experiment import (
     diffusion,
     jobs,
 )
-from lab import WORKSPACE_DIR
+from lab import WORKSPACE_DIR, dirs
 
 from werkzeug.utils import secure_filename
 
