@@ -10,7 +10,8 @@ from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
 from transformerlab.db.jobs import job_get
 from transformerlab.shared import shared
-from lab import dirs
+from lab import dirs as lab_dirs
+from transformerlab.shared import dirs
 
 from werkzeug.utils import secure_filename
 
@@ -142,7 +143,7 @@ async def get_evaluation_plugin_file_contents(experimentId: int, plugin_name: st
     # print(f"{EXPERIMENTS_DIR}/{experiment_name}/evals/{eval_name}/main.py")
 
     file_name = "main.py"
-    plugin_path = dirs.plugin_dir_by_name(plugin_name)
+    plugin_path = lab_dirs.plugin_dir_by_name(plugin_name)
 
     # now get the file contents
     try:
@@ -185,7 +186,7 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
     # @TODO: This whole thing can be re-written to use the shared function to run a plugin
 
     # Create the input file for the script:
-    input_file = dirs.TEMP_DIR + "/plugin_input_" + str(plugin_name) + ".json"
+    input_file = lab_dirs.TEMP_DIR + "/plugin_input_" + str(plugin_name) + ".json"
 
     # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
     # and should be done in the API itself
@@ -209,7 +210,7 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
     # as command line arguments to the script.
 
     # Create a list of all the parameters:
-    script_directory = dirs.plugin_dir_by_name(plugin_name)
+    script_directory = lab_dirs.plugin_dir_by_name(plugin_name)
     extra_args = ["--plugin_dir", script_directory]
     for key in template_config:
         extra_args.append("--" + key)
@@ -257,7 +258,7 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
 
     print(f">Running {subprocess_command}")
 
-    output_file = await dirs.eval_output_file(experiment_name, eval_name)
+    output_file = await lab_dirs.eval_output_file(experiment_name, eval_name)
     print(f">EVAL Output file: {job_output_file}")
 
     with open(job_output_file, "w") as f:
@@ -282,7 +283,7 @@ async def get_output(experimentId: int, eval_name: str):
 
     experiment_name = data["name"]
 
-    eval_output_file = await dirs.eval_output_file(experiment_name, eval_name)
+    eval_output_file = await lab_dirs.eval_output_file(experiment_name, eval_name)
     if not os.path.exists(eval_output_file):
         return {"message": "Output file does not exist"}
 
