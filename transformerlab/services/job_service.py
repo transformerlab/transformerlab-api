@@ -10,6 +10,7 @@ from transformerlab.db.sync import (
     job_mark_as_complete_if_running as db_job_mark_as_complete_if_running,
 )
 from transformerlab.shared.models import models
+from transformerlab.db.db import experiment_get
 from sqlalchemy import select
 from lab import Experiment
 
@@ -21,12 +22,18 @@ SUPPORTED_WORKFLOW_TRIGGERS = ["TRAIN", "LOAD_MODEL", "EXPORT", "EVAL", "GENERAT
 MULTITENANT = os.getenv("TFL_MULTITENANT", "")
 
 
-def _get_experiment(experimentId: int):
+async def _get_experiment_by_id(experimentId: int):
     """
     Helper function to get SDK Experiment from an ID.
-    TODO: This is hardcoded to blanktest for now!
     """
-    experiment_name = "blanktest"
+    # first get the experiment name:
+    data = await experiment_get(experimentId)
+
+    # if the experiment does not exist, return none
+    if data is None:
+        return None
+
+    experiment_name = data["name"]
     experiment = Experiment(experiment_name)
     return experiment
 
@@ -37,8 +44,10 @@ async def list_jobs_by_experiment(experimentId: int, type: str = "", status: str
     Optionally, filter on type or status
     """
     if MULTITENANT:
-        exp = _get_experiment(experimentId)
-        job_list = exp.get_jobs(type, status)
+        experiment = await _get_experiment_by_id(experimentId)
+        if not experiment:
+            return []
+        job_list = experiment.get_jobs(type, status)
         return job_list
     jobs = await db_jobs.jobs_get_all(type=type, status=status, experiment_id=experimentId)
     return jobs
