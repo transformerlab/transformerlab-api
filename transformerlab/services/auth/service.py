@@ -56,9 +56,14 @@ class AuthService:
         self._cookie_samesite = os.getenv("AUTH_COOKIE_SAMESITE", "lax")
         self._session_cookie_max_age = int(os.getenv("AUTH_SESSION_COOKIE_MAX_AGE", "43200"))
         self._refresh_cookie_max_age = int(os.getenv("AUTH_REFRESH_COOKIE_MAX_AGE", "1209600"))
-        self._success_redirect = os.getenv("AUTH_SUCCESS_REDIRECT_URL", "http://localhost:1212/#")
-        self._error_redirect = os.getenv("AUTH_ERROR_REDIRECT_URL", "http://localhost:1212/#")
-        self._logout_redirect = os.getenv("AUTH_LOGOUT_REDIRECT_URL", "http://localhost:1212/#")
+        # Optional base URL for frontend. When set, non-absolute redirect targets will be joined to this base.
+        # Example: FRONTEND_URL="http://localhost:1212" and AUTH_SUCCESS_REDIRECT_URL="/" → "http://localhost:1212/"
+        self._frontend_url = os.getenv("FRONTEND_URL", "http://localhost:1212")
+        # Redirect targets can be absolute (http(s)://...) or relative (e.g., "/" or "/#").
+        # When relative and FRONTEND_URL is set, we will resolve against it; otherwise, against the API base URL.
+        self._success_redirect = os.getenv("AUTH_SUCCESS_REDIRECT_URL", "/")
+        self._error_redirect = os.getenv("AUTH_ERROR_REDIRECT_URL", "/")
+        self._logout_redirect = os.getenv("AUTH_LOGOUT_REDIRECT_URL", "/")
         self._redirect_uri_override = os.getenv("AUTH_REDIRECT_URI")
         self._allowed_scopes_env = os.getenv("AUTH_ALLOWED_SCOPES")
 
@@ -262,7 +267,8 @@ class AuthService:
     def _resolve_url(self, target: str, request: Request) -> str:
         if target.startswith("http://") or target.startswith("https://"):
             return target
-        base_url = self._get_base_url(request)
+        # Prefer FRONTEND_URL if provided, otherwise fall back to the API base URL
+        base_url = (self._frontend_url or self._get_base_url(request)).rstrip("/") + "/"
         return urljoin(base_url, target)
 
     def _get_base_url(self, request: Request) -> str:
