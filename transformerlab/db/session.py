@@ -34,6 +34,7 @@ async def init():
     old_db_path = os.path.join(WORKSPACE_DIR, "llmlab.sqlite3")
     if not os.path.exists(DATABASE_FILE_NAME) and os.path.exists(old_db_path):
         shutil.copy2(old_db_path, DATABASE_FILE_NAME)
+        os.remove(old_db_path)
         print("Migrated database from workspace to parent directory")
     os.makedirs(os.path.dirname(DATABASE_FILE_NAME), exist_ok=True)
     db = await aiosqlite.connect(DATABASE_FILE_NAME)
