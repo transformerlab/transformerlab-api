@@ -24,6 +24,7 @@ from transformerlab.routers.experiment import (
     jobs,
 )
 from lab import WORKSPACE_DIR, dirs
+from lab.experiment import Experiment
 
 from werkzeug.utils import secure_filename
 
@@ -82,6 +83,17 @@ async def experiments_create(name: str):
     secure_name = secure_filename(name)
 
     newid = await db.experiment_create(secure_name, {})
+
+    # Also create on filesystem
+    exp = Experiment(secure_name)
+    exp_dir = exp.get_dir()
+    os.makedirs(exp_dir, exist_ok=True)
+
+    # Save initial config
+    config_path = os.path.join(exp_dir, "config.json")
+    with open(config_path, "w") as f:
+        json.dump({}, f)
+
     return newid
 
 
@@ -102,21 +114,66 @@ async def experiment_get(id: int):
 @router.get("/{id}/delete", tags=["experiment"])
 async def experiments_delete(id: int):
     id = await convert_experiment_name_to_id_if_needed(id)
-    await db.experiment_delete(id)
+
+    # Get name before deleting from db
+    data = await db.experiment_get(id)
+    if data:
+        experiment_name = data["name"]
+        await db.experiment_delete(id)
+
+        # Also delete from filesystem
+        exp = Experiment(experiment_name)
+        exp_dir = exp.get_dir()
+        if os.path.exists(exp_dir):
+            import shutil
+
+            shutil.rmtree(exp_dir)
+    else:
+        await db.experiment_delete(id)
+
     return {"message": f"Experiment {id} deleted"}
 
 
 @router.get("/{id}/update", tags=["experiment"])
 async def experiments_update(id: int, name: str):
     id = await convert_experiment_name_to_id_if_needed(id)
-    await db.experiment_update(id, name)
-    return {"message": f"Experiment {id} updated to {name}"}
+
+    # Get old name
+    data = await db.experiment_get(id)
+    old_name = data["name"] if data else None
+
+    secure_name = secure_filename(name)
+    await db.experiment_update(id, secure_name)
+
+    # Also rename on filesystem
+    if old_name:
+        old_exp = Experiment(old_name)
+        old_dir = old_exp.get_dir()
+        new_exp = Experiment(secure_name)
+        new_dir = new_exp.get_dir()
+        if os.path.exists(old_dir):
+            os.rename(old_dir, new_dir)
+
+    return {"message": f"Experiment {id} updated to {secure_name}"}
 
 
 @router.get("/{id}/update_config", tags=["experiment"])
 async def experiments_update_config(id: int, key: str, value: str):
     id = await convert_experiment_name_to_id_if_needed(id)
     await db.experiment_update_config(id, key, value)
+
+    # Also update on filesystem
+    data = await db.experiment_get(id)
+    if data:
+        experiment_name = data["name"]
+        current_config = json.loads(data["config"])
+        current_config[key] = value
+        exp = Experiment(experiment_name)
+        exp_dir = exp.get_dir()
+        config_path = os.path.join(exp_dir, "config.json")
+        with open(config_path, "w") as f:
+            json.dump(current_config, f)
+
     return {"message": f"Experiment {id} updated"}
 
 
@@ -124,6 +181,19 @@ async def experiments_update_config(id: int, key: str, value: str):
 async def experiments_update_configs(id: int, updates: Annotated[dict, Body()]):
     id = await convert_experiment_name_to_id_if_needed(id)
     await db.experiment_update_configs(id, updates)
+
+    # Also update on filesystem
+    data = await db.experiment_get(id)
+    if data:
+        experiment_name = data["name"]
+        current_config = json.loads(data["config"])
+        current_config.update(updates)
+        exp = Experiment(experiment_name)
+        exp_dir = exp.get_dir()
+        config_path = os.path.join(exp_dir, "config.json")
+        with open(config_path, "w") as f:
+            json.dump(current_config, f)
+
     return {"message": f"Experiment {id} configs updated"}
 
 
