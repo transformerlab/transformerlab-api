@@ -45,7 +45,8 @@ from fastchat.protocol.openai_api_protocol import (
     UsageInfo,
 )
 from pydantic import BaseModel as PydanticBaseModel
-from transformerlab.shared import dirs
+from lab import dirs
+from transformerlab.shared.dirs import experiment_dir_by_id
 
 WORKER_API_TIMEOUT = 3600
 
@@ -509,7 +510,7 @@ async def create_audio_tts(request: AudioRequest):
         elif isinstance(error_check_ret, dict) and "model_name" in error_check_ret.keys():
             request.model = error_check_ret["model_name"]
 
-    experiment_dir = await dirs.experiment_dir_by_id(request.experiment_id)
+    experiment_dir = await experiment_dir_by_id(request.experiment_id)
     audio_dir = os.path.join(experiment_dir, "audio")
     os.makedirs(audio_dir, exist_ok=True)
 
@@ -540,7 +541,7 @@ async def create_audio_tts(request: AudioRequest):
 
 @router.post("/v1/audio/upload_reference", tags=["audio"])
 async def upload_audio_reference(experimentId: int, audio: UploadFile = File(...)):
-    experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+    experiment_dir = await experiment_dir_by_id(experimentId)
     uploaded_audio_dir = os.path.join(experiment_dir, "uploaded_audio")
     os.makedirs(uploaded_audio_dir, exist_ok=True)
 
