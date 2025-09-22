@@ -6,8 +6,10 @@ import sys
 from transformerlab.db.db import experiment_get
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from transformerlab.shared import dirs
+from lab import dirs as lab_dirs
+from transformerlab.shared.dirs import experiment_dir_by_id
 from pydantic import BaseModel
+from transformerlab.shared import dirs
 
 
 class EmbedRequest(BaseModel):
@@ -22,7 +24,7 @@ router = APIRouter(prefix="/rag", tags=["rag"])
 async def query(experimentId: int, query: str, settings: str = None, rag_folder: str = "rag"):
     """Query the RAG engine"""
 
-    experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+    experiment_dir = await experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
     documents_dir = os.path.join(documents_dir, rag_folder)
     documents_dir = os.path.abspath(documents_dir)
@@ -59,7 +61,7 @@ async def query(experimentId: int, query: str, settings: str = None, rag_folder:
         return "Error: No RAG Engine has been assigned to this experiment."
 
     # Check if it exists in workspace/plugins:
-    plugin_path = os.path.join(dirs.PLUGIN_DIR, plugin)
+    plugin_path = os.path.join(lab_dirs.PLUGIN_DIR, plugin)
     if not os.path.exists(plugin_path):
         return f"Plugin {plugin} does not exist on the filesystem -- you must install or reinstall this plugin."
 
@@ -119,7 +121,7 @@ async def query(experimentId: int, query: str, settings: str = None, rag_folder:
 async def reindex(experimentId: int, rag_folder: str = "rag"):
     """Reindex the RAG engine"""
 
-    experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+    experiment_dir = await experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
     documents_dir = os.path.join(documents_dir, rag_folder)
     if not os.path.exists(documents_dir):
@@ -145,7 +147,7 @@ async def reindex(experimentId: int, rag_folder: str = "rag"):
         return "Error: No RAG Engine has been assigned to this experiment."
 
     # Check if it exists in workspace/plugins:
-    plugin_path = os.path.join(dirs.PLUGIN_DIR, plugin)
+    plugin_path = os.path.join(lab_dirs.PLUGIN_DIR, plugin)
     if not os.path.exists(plugin_path):
         return f"Plugin {plugin} does not exist on the filesystem -- you must install or reinstall this plugin."
 
