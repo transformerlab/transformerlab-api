@@ -36,6 +36,7 @@ from transformerlab.db.db import experiment_get
 import transformerlab.db.session as db
 from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert
 from transformerlab.routers import (
+    auth,
     data,
     model,
     serverinfo,
@@ -48,7 +49,6 @@ from transformerlab.routers import (
     tools,
     batched_prompts,
     recipes,
-    users,
 )
 import torch
 
@@ -197,8 +197,8 @@ app.include_router(fastchat_openai_api.router)
 app.include_router(get_xmlrpc_router())
 app.include_router(get_trainer_xmlrpc_router())
 
-# This includes the FastAPI Users routers
-app.include_router(users.router)
+# Authentication and session management routes
+app.include_router(auth.router)
 
 
 controller_process = None
