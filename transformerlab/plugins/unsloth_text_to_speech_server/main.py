@@ -93,7 +93,7 @@ class UnslothTextToSpeechWorker(BaseModelWorker):
             )
             logger.info("Initialized Orpheus Audio Model")
 
-        elif "vibevoice" in self.model_name:
+        elif "vibevoice" in self.model_name.lower():
             self.audio_model = VibeVoiceAudioModel(
                 model_name=self.model_name,
                 device=self.device,
