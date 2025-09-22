@@ -49,16 +49,16 @@ class AuthService:
         self._organization_cookie_name = organization_cookie_name or os.getenv(
             "AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id"
         )
-        self._cookie_password = cookie_password or os.getenv("AUTH_COOKIE_PASSWORD", "change-me")
+        self._cookie_password = cookie_password or os.getenv("AUTH_COOKIE_PASSWORD", "3qHvlqlA5zNAFUWmA4PFXhNy AxksRnmcgV8fgCpp62Y=")
         self._seal_session = self._env_bool(os.getenv("AUTH_SEAL_SESSION", "true"))
         self._cookie_secure = self._env_bool(os.getenv("AUTH_COOKIE_SECURE", "false"))
         self._cookie_domain = os.getenv("AUTH_COOKIE_DOMAIN") or None
         self._cookie_samesite = os.getenv("AUTH_COOKIE_SAMESITE", "lax")
         self._session_cookie_max_age = int(os.getenv("AUTH_SESSION_COOKIE_MAX_AGE", "43200"))
         self._refresh_cookie_max_age = int(os.getenv("AUTH_REFRESH_COOKIE_MAX_AGE", "1209600"))
-        self._success_redirect = os.getenv("AUTH_SUCCESS_REDIRECT_URL", "/")
-        self._error_redirect = os.getenv("AUTH_ERROR_REDIRECT_URL", "/login?error=1")
-        self._logout_redirect = os.getenv("AUTH_LOGOUT_REDIRECT_URL", "/")
+        self._success_redirect = os.getenv("AUTH_SUCCESS_REDIRECT_URL", "http://localhost:1212/#")
+        self._error_redirect = os.getenv("AUTH_ERROR_REDIRECT_URL", "http://localhost:1212/#")
+        self._logout_redirect = os.getenv("AUTH_LOGOUT_REDIRECT_URL", "http://localhost:1212/#")
         self._redirect_uri_override = os.getenv("AUTH_REDIRECT_URI")
         self._allowed_scopes_env = os.getenv("AUTH_ALLOWED_SCOPES")
 
@@ -177,6 +177,12 @@ class AuthService:
         except Exception as exc:  # pragma: no cover - provider-specific failure paths
             raise HTTPException(status_code=401, detail="Session invalid") from exc
         if not session.authenticated:
+            # Try to authenticate a loaded but unauthenticated session (provider-specific)
+            try:
+                session = session.authenticate()
+            except Exception as exc:
+                pass
+        if not session.authenticated:
             raise HTTPException(status_code=401, detail="Not authenticated")
         return AuthenticatedIdentity(source="session", session=session, user=session.user)
 
@@ -270,7 +276,7 @@ class AuthService:
 
     def _set_cookie(self, response: Response, name: str, value: str, *, max_age: Optional[int] = None) -> None:
         response.set_cookie(
-            name=name,
+            key=name,
             value=value,
             max_age=max_age,
             httponly=True,
@@ -282,7 +288,7 @@ class AuthService:
 
     def _delete_cookie(self, response: Response, name: str) -> None:
         response.delete_cookie(
-            name=name,
+            key=name,
             domain=self._cookie_domain,
             path="/",
         )

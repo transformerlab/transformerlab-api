@@ -160,8 +160,9 @@ app = fastapi.FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
+    # Restrict origins so credentialed requests (cookies) are allowed
     allow_origins=["*"],
-    allow_credentials=False,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
