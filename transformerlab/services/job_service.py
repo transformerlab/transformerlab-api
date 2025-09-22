@@ -17,6 +17,9 @@ from lab import Experiment
 # Centralized set of job types that can trigger workflows on completion
 SUPPORTED_WORKFLOW_TRIGGERS = ["TRAIN", "LOAD_MODEL", "EXPORT", "EVAL", "GENERATE", "DOWNLOAD_MODEL"]
 
+# For now several service calls will use the SDK for MULTITENANT environments
+MULTITENANT = os.getenv("TFL_MULTITENANT", "")
+
 
 def _get_experiment(experimentId: int):
     """
@@ -33,10 +36,10 @@ async def list_jobs_by_experiment(experimentId: int, type: str = "", status: str
     Returns a list of jobs in an experiment.
     Optionally, filter on type or status
     """
-    if os.environ.get("MULTITENANT", False):
+    if MULTITENANT:
         exp = _get_experiment(experimentId)
         job_list = exp.get_jobs(type, status)
-        print(job_list)
+        return job_list
     jobs = await db_jobs.jobs_get_all(type=type, status=status, experiment_id=experimentId)
     return jobs
 
