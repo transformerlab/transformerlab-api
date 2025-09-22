@@ -66,7 +66,9 @@ from transformerlab.routers.experiment import workflows
 from transformerlab.routers.experiment import jobs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
-from lab import WORKSPACE_DIR, dirs
+from lab import WORKSPACE_DIR
+from lab import dirs as lab_dirs
+from transformerlab.shared import dirs
 
 from dotenv import load_dotenv
 
@@ -206,7 +208,7 @@ worker_process = None
 
 def spawn_fastchat_controller_subprocess():
     global controller_process
-    logfile = open(os.path.join(dirs.FASTCHAT_LOGS_DIR, "controller.log"), "w")
+    logfile = open(os.path.join(lab_dirs.FASTCHAT_LOGS_DIR, "controller.log"), "w")
     port = "21001"
 
     controller_process = subprocess.Popen(
@@ -217,7 +219,7 @@ def spawn_fastchat_controller_subprocess():
             "--port",
             port,
             "--log-file",
-            os.path.join(dirs.FASTCHAT_LOGS_DIR, "controller.log"),
+            os.path.join(lab_dirs.FASTCHAT_LOGS_DIR, "controller.log"),
         ],
         stdout=logfile,
         stderr=logfile,
@@ -308,7 +310,7 @@ async def server_worker_start(
     model_architecture = model_architecture
 
     plugin_name = inference_engine
-    plugin_location = dirs.plugin_dir_by_name(plugin_name)
+    plugin_location = lab_dirs.plugin_dir_by_name(plugin_name)
 
     model = model_name
     if model_filename is not None and model_filename != "":
@@ -335,7 +337,7 @@ async def server_worker_start(
 
     print("Loading plugin loader instead of default worker")
 
-    with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
+    with open(lab_dirs.GLOBAL_LOG_PATH, "a") as global_log:
         global_log.write(f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
 
     process = await shared.async_run_python_daemon_and_update_status(
@@ -346,7 +348,7 @@ async def server_worker_start(
     )
     exitcode = process.returncode
     if exitcode == 99:
-        with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
+        with open(lab_dirs.GLOBAL_LOG_PATH, "a") as global_log:
             global_log.write(
                 "GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources.\n"
             )
@@ -355,7 +357,7 @@ async def server_worker_start(
             "message": "GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources.",
         }
     if exitcode is not None and exitcode != 0:
-        with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
+        with open(lab_dirs.GLOBAL_LOG_PATH, "a") as global_log:
             global_log.write(f"Error loading model: {model_name} with exit code {exitcode}\n")
         job = await db_jobs.job_get(job_id)
         error_msg = None
@@ -365,7 +367,7 @@ async def server_worker_start(
             error_msg = f"Exit code {exitcode}"
             await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
         return {"status": "error", "message": error_msg}
-    with open(dirs.GLOBAL_LOG_PATH, "a") as global_log:
+    with open(lab_dirs.GLOBAL_LOG_PATH, "a") as global_log:
         global_log.write(f"Model loaded successfully: {model_name}\n")
     return {"status": "success", "job_id": job_id}
 
@@ -431,7 +433,7 @@ async def server_worker_health(request: Request):
 
 
 # Add an endpoint that serves the static files in the ~/.transformerlab/webapp directory:
-app.mount("/", StaticFiles(directory=dirs.STATIC_FILES_DIR, html=True), name="application")
+app.mount("/", StaticFiles(directory=lab_dirs.STATIC_FILES_DIR, html=True), name="application")
 
 
 def cleanup_at_exit():
