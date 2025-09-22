@@ -18,6 +18,7 @@ from transformerlab.routers.serverinfo import watch_file
 
 from transformerlab.db.db import get_training_template
 from transformerlab.db.db import experiment_get
+from lab.job import Job
 from datetime import datetime
 
 import transformerlab.db.jobs as db_jobs
@@ -36,6 +37,18 @@ async def jobs_get_all(experimentId: int, type: str = "", status: str = ""):
 @router.get("/delete/{job_id}")
 async def job_delete(job_id: str, experimentId: int):
     await db_jobs.job_delete(job_id, experiment_id=experimentId)
+
+    # Also delete from filesystem
+    exp_data = await experiment_get(experimentId)
+    if exp_data:
+        experiment_name = exp_data["name"]
+        job = Job(experiment_name, job_id)
+        job_dir = job.get_dir()
+        if os.path.exists(job_dir):
+            import shutil
+
+            shutil.rmtree(job_dir)
+
     return {"message": "OK"}
 
 
@@ -47,6 +60,22 @@ async def job_create(
     data: str = "{}",
 ):
     jobid = await db_jobs.job_create(type=type, status=status, job_data=data, experiment_id=experimentId)
+
+    # Also create on filesystem
+    exp_data = await experiment_get(experimentId)
+    if exp_data:
+        experiment_name = exp_data["name"]
+        job = Job(experiment_name, str(jobid))
+        # Create dir and save initial data
+        initial_data = {
+            "id": str(jobid),
+            "type": type,
+            "status": status,
+            "job_data": json.loads(data),
+            "progress": 0
+        }
+        job._set_json_data(initial_data)
+
     return jobid
 
 

@@ -10,6 +10,8 @@ from transformerlab.db.sync import (
 )
 from transformerlab.shared.models import models
 from sqlalchemy import select
+from lab.job import Job
+from transformerlab.db.db import experiment_get
 
 
 # Centralized set of job types that can trigger workflows on completion
@@ -66,6 +68,14 @@ async def job_update_status(
     """
     # Update the job status in the database
     await db_jobs.job_update_status(job_id, status, experiment_id, error_msg)
+
+    # Also update on filesystem
+    if experiment_id:
+        exp_data = await experiment_get(int(experiment_id))
+        if exp_data:
+            experiment_name = exp_data["name"]
+            job = Job(experiment_name, job_id)
+            job.update_status(status)
 
     # Trigger workflows if job status is COMPLETE
     if status == "COMPLETE":
