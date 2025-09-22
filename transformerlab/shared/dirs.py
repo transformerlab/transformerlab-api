@@ -16,6 +16,21 @@ You can set any of the above using environment parameters and it will override t
 ROOT_DIR is a legacy variable that we should replace with the above, eventually.
 """
 
+FASTCHAT_LOGS_DIR = os.path.join(dirs.WORKSPACE_DIR, "logs")
+if not os.path.exists(FASTCHAT_LOGS_DIR):
+    os.makedirs(FASTCHAT_LOGS_DIR)
+
+
+# TFL_STATIC_FILES_DIR is TFL_HOME_DIR/webapp
+STATIC_FILES_DIR = os.path.join(HOME_DIR, "webapp")
+os.makedirs(name=STATIC_FILES_DIR, exist_ok=True)
+# if there is no index.html file in the static directory, create blank one
+if not os.path.exists(os.path.join(STATIC_FILES_DIR, "index.html")):
+    with open(os.path.join(STATIC_FILES_DIR, "index.html"), "w") as f:
+        f.write(
+            "<html><body><p>Transformer Lab Cloud App Files Missing. Run <pre>curl https://raw.githubusercontent.com/transformerlab/transformerlab-api/main/install.sh | bash</pre> to install.</p></body></html>"
+        )
+
 # TFL_SOURCE_CODE_DIR
 api_py_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if api_py_dir != os.path.join(HOME_DIR, "src"):

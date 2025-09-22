@@ -208,7 +208,7 @@ worker_process = None
 
 def spawn_fastchat_controller_subprocess():
     global controller_process
-    logfile = open(os.path.join(lab_dirs.FASTCHAT_LOGS_DIR, "controller.log"), "w")
+    logfile = open(os.path.join(dirs.FASTCHAT_LOGS_DIR, "controller.log"), "w")
     port = "21001"
 
     controller_process = subprocess.Popen(
@@ -219,7 +219,7 @@ def spawn_fastchat_controller_subprocess():
             "--port",
             port,
             "--log-file",
-            os.path.join(lab_dirs.FASTCHAT_LOGS_DIR, "controller.log"),
+            os.path.join(dirs.FASTCHAT_LOGS_DIR, "controller.log"),
         ],
         stdout=logfile,
         stderr=logfile,
@@ -433,7 +433,7 @@ async def server_worker_health(request: Request):
 
 
 # Add an endpoint that serves the static files in the ~/.transformerlab/webapp directory:
-app.mount("/", StaticFiles(directory=lab_dirs.STATIC_FILES_DIR, html=True), name="application")
+app.mount("/", StaticFiles(directory=dirs.STATIC_FILES_DIR, html=True), name="application")
 
 
 def cleanup_at_exit():
