@@ -95,8 +95,7 @@ def get_downloaded_size_from_cache(repo_id, file_metadata):
     """
     try:
         cache_dir = get_cache_dir_for_repo(repo_id)
-        print(f"Cache directory: {cache_dir}")
-        
+                
         if not os.path.exists(cache_dir):
             return 0
         
