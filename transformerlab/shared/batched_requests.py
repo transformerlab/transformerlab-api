@@ -149,6 +149,72 @@ async def process_dataset(
     return ordered_responses
 
 
+# ===== Batched Audio (TTS) helpers =====
+async def predict_audio(
+    session,
+    payload,
+    inference_url="http://localhost:8338/v1/audio/speech",
+):
+    headers = {"Content-Type": "application/json"}
+    data = json.dumps(payload)
+    async with session.post(inference_url, headers=headers, data=data, timeout=timeout) as response:
+        try:
+            return await response.json()
+        except Exception as e:
+            print(f"Exception (audio): {e}")
+            print(await response.text())
+            return ""
+
+
+async def process_audio_batch(
+    session,
+    batch,
+    inference_url="http://localhost:8338/v1/audio/speech",
+    max_concurrent=1,
+):
+    results = []
+    for i in range(0, len(batch), max_concurrent):
+        sub_batch = batch[i : i + max_concurrent]
+        tasks = [predict_audio(session, item, inference_url=inference_url) for item in sub_batch]
+        sub_results = await asyncio.gather(*tasks)
+        results.extend(sub_results)
+        await asyncio.sleep(0.01)
+    return results
+
+
+async def process_audio_dataset(
+    items,
+    batch_size,
+    inference_url="http://localhost:8338/v1/audio/speech",
+    min_idx=0,
+    max_idx=None,
+):
+    """
+    Process a list of audio synthesis payloads.
+    Returns an array of responses ordered by input index.
+    """
+    if max_idx is None:
+        max_idx = len(items)
+    if isinstance(batch_size, str):
+        batch_size = int(batch_size)
+
+    responses = {}
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        for start in range(min_idx, max_idx, batch_size):
+            end = min(start + batch_size, max_idx)
+            batch = items[start:end]
+            results = await process_audio_batch(
+                session,
+                batch,
+                inference_url=inference_url,
+            )
+            for idx, result in enumerate(results):
+                global_idx = start + idx
+                responses[global_idx] = result
+
+    ordered_responses = [responses[i] for i in sorted(responses.keys())]
+    return ordered_responses
+
 # async def process_dataset(
 #     examples,
 #     batch_size,
