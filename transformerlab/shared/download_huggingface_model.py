@@ -80,7 +80,6 @@ def get_repo_file_metadata(repo_id, allow_patterns=None):
 def get_cache_dir_for_repo(repo_id):
     """Get the HuggingFace cache directory for a specific repo"""
     from huggingface_hub.constants import HF_HUB_CACHE
-    import re
     
     # Convert repo_id to cache-safe name (same logic as huggingface_hub)
     # repo_name = re.sub(r'[^\w\-_.]', '-', repo_id)
@@ -179,16 +178,13 @@ def cache_progress_monitor(job_id, workspace_dir, model_name, repo_id, file_meta
     """
     global _cache_stop_monitoring
     
-    last_downloaded = 0
-    last_time = time.time()
-    
     while not _cache_stop_monitoring:
         try:
             downloaded_bytes = get_downloaded_size_from_cache(repo_id, file_metadata)
             
             # Update database
             update_database_progress(job_id, workspace_dir, model_name, downloaded_bytes, total_bytes)
-            
+
                         
             # Check if download is complete
             if downloaded_bytes >= total_bytes * 0.99:  # 99% complete
