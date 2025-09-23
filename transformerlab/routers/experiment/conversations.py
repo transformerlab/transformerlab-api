@@ -8,7 +8,7 @@ from fastapi import APIRouter, Body
 
 from transformerlab.db.db import experiment_get
 
-from transformerlab.shared import dirs
+from lab import dirs
 
 from werkzeug.utils import secure_filename
 from fastapi.responses import FileResponse

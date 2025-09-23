@@ -19,10 +19,10 @@ from transformerlab.services.job_service import job_update_sync
 import transformerlab.db.jobs as db_jobs
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
-from transformerlab.shared import dirs
-from transformerlab.shared.dirs import GLOBAL_LOG_PATH
+from lab.dirs import GLOBAL_LOG_PATH
 from transformerlab.services.job_service import job_update_status
-from lab import WORKSPACE_DIR
+from lab import WORKSPACE_DIR, dirs as lab_dirs
+from transformerlab.shared import dirs
 
 
 def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs):
@@ -106,9 +106,9 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
     # Check if plugin has a venv directory
     if plugin_location:
         plugin_location = os.path.normpath(plugin_location)
-        if not plugin_location.startswith(dirs.PLUGIN_DIR):
-            print(f"Plugin location {plugin_location} is not in {dirs.PLUGIN_DIR}")
-            raise Exception(f"Plugin location {plugin_location} is not in {dirs.PLUGIN_DIR}")
+        if not plugin_location.startswith(lab_dirs.PLUGIN_DIR):
+            print(f"Plugin location {plugin_location} is not in {lab_dirs.PLUGIN_DIR}")
+            raise Exception(f"Plugin location {plugin_location} is not in {lab_dirs.PLUGIN_DIR}")
         if os.path.exists(os.path.join(plugin_location, "venv")) and os.path.isdir(
             os.path.join(plugin_location, "venv")
         ):
@@ -181,7 +181,7 @@ async def read_process_output(process, job_id):
         log.write(f"Inference Server Terminated with {returncode}.\n")
         log.flush()
     # so we should delete the pid file:
-    pid_file = os.path.join(dirs.TEMP_DIR, f"worker_job_{job_id}.pid")
+    pid_file = os.path.join(lab_dirs.TEMP_DIR, f"worker_job_{job_id}.pid")
     if os.path.exists(pid_file):
         os.remove(pid_file)
     # Clean up resources after process ends
@@ -216,9 +216,9 @@ async def async_run_python_daemon_and_update_status(
     # Check if plugin has a venv directory
     if plugin_location:
         plugin_location = os.path.normpath(plugin_location)
-        if not plugin_location.startswith(dirs.PLUGIN_DIR):
-            print(f"Plugin location {plugin_location} is not in {dirs.PLUGIN_DIR}")
-            raise Exception(f"Plugin location {plugin_location} is not in {dirs.PLUGIN_DIR}")
+        if not plugin_location.startswith(lab_dirs.PLUGIN_DIR):
+            print(f"Plugin location {plugin_location} is not in {lab_dirs.PLUGIN_DIR}")
+            raise Exception(f"Plugin location {plugin_location} is not in {lab_dirs.PLUGIN_DIR}")
         if os.path.exists(os.path.join(plugin_location, "venv")) and os.path.isdir(
             os.path.join(plugin_location, "venv")
         ):
@@ -239,7 +239,7 @@ async def async_run_python_daemon_and_update_status(
     )
 
     pid = process.pid
-    pid_file = os.path.join(dirs.TEMP_DIR, f"worker_job_{job_id}.pid")
+    pid_file = os.path.join(lab_dirs.TEMP_DIR, f"worker_job_{job_id}.pid")
     with open(pid_file, "w") as f:
         f.write(str(pid))
 
@@ -314,7 +314,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         return {"status": "complete", "job_id": job_id, "message": "Task job completed successfully"}
 
     # Common setup for all other job types
-    output_temp_file_dir = dirs.get_job_output_dir(experiment_name, job_id)
+    output_temp_file_dir = lab_dirs.get_job_output_dir(experiment_name, job_id)
     if not os.path.exists(output_temp_file_dir):
         os.makedirs(output_temp_file_dir)
 
@@ -339,7 +339,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
     # Common plugin location check for job types that use plugins
     if plugin_name:
-        plugin_location = dirs.plugin_dir_by_name(plugin_name)
+        plugin_location = lab_dirs.plugin_dir_by_name(plugin_name)
         if not os.path.exists(plugin_location):
             job = await db_jobs.job_get(job_id)
             experiment_id = job["experiment_id"]
@@ -490,10 +490,10 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         await db_jobs.job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
 
         # Prep paths and script args
-        output_temp_file_dir = dirs.get_job_output_dir(experiment_name, job_id)
+        output_temp_file_dir = lab_dirs.get_job_output_dir(experiment_name, job_id)
         os.makedirs(output_temp_file_dir, exist_ok=True)
 
-        plugin_dir = dirs.plugin_dir_by_name(plugin_name)
+        plugin_dir = lab_dirs.plugin_dir_by_name(plugin_name)
         plugin_main_args = ["--plugin_dir", plugin_dir]
 
         # Flatten job_config["config"] into CLI args
@@ -637,7 +637,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     print("Experiment Details: ", experiment_details)
     experiment_details_as_string = json.dumps(experiment_details)
     experiment_name = experiment_details["name"]
-    experiment_dir = dirs.experiment_dir_by_name(experiment_name)
+    experiment_dir = lab_dirs.experiment_dir_by_name(experiment_name)
 
     # plugin_name and plugin_location are already set above
     output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
@@ -1190,10 +1190,10 @@ async def get_job_output_file_name(job_id: str, plugin_name: str = None, experim
         else:
             plugin_name = secure_filename(plugin_name)
 
-        plugin_dir = dirs.plugin_dir_by_name(plugin_name)
+        plugin_dir = lab_dirs.plugin_dir_by_name(plugin_name)
 
         # Try new job directory structure first
-        new_jobs_dir = dirs.get_job_output_dir(experiment_name, job_id)
+        new_jobs_dir = lab_dirs.get_job_output_dir(experiment_name, job_id)
         if os.path.exists(os.path.join(new_jobs_dir, f"output_{job_id}.txt")):
             output_file = os.path.join(new_jobs_dir, f"output_{job_id}.txt")
 

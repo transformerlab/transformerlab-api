@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 from urllib.parse import urlparse
 
 from transformerlab.routers.experiment import rag
-from transformerlab.shared import dirs
+from transformerlab.shared.dirs import experiment_dir_by_id
 from transformerlab.shared.shared import slugify
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -46,7 +46,7 @@ def is_valid_url(url: str) -> bool:
 @router.get("/open/{document_name}", summary="View the contents of a document.")
 async def document_view(experimentId: str, document_name: str, folder: str = None):
     try:
-        experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+        experiment_dir = await experiment_dir_by_id(experimentId)
 
         document_name = secure_filename(document_name)
         folder = secure_filename(folder)
@@ -67,7 +67,7 @@ async def document_view(experimentId: str, document_name: str, folder: str = Non
 async def document_list(experimentId: str, folder: str = None):
     documents = []
     # List the files that are in the experiment/<experiment_name>/documents directory:
-    experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+    experiment_dir = await experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
     folder = secure_filename(folder)
     if folder and folder != "":
@@ -106,7 +106,7 @@ async def document_new(experimentId: str, dataset_id: str):
 
 @router.get("/delete", summary="Delete a document.")
 async def delete_document(experimentId: str, document_name: str, folder: str = None):
-    experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+    experiment_dir = await experiment_dir_by_id(experimentId)
 
     document_name = secure_filename(document_name)
     path = os.path.join(experiment_dir, "documents", document_name)
@@ -155,7 +155,7 @@ async def document_upload(experimentId: str, folder: str, files: list[UploadFile
         # if file_ext not in allowed_file_types:
         #     raise HTTPException(status_code=403, detail="The file must be a text file, a JSONL file, or a PDF")
 
-        experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+        experiment_dir = await experiment_dir_by_id(experimentId)
         documents_dir = os.path.join(experiment_dir, "documents")
         if folder and folder != "":
             if os.path.exists(os.path.join(documents_dir, folder)):
@@ -239,7 +239,7 @@ async def create_folder(experimentId: str, name: str):
     name = slugify(name)
     # Secure folder name
     name = secure_filename(name)
-    experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+    experiment_dir = await experiment_dir_by_id(experimentId)
     path = os.path.join(experiment_dir, "documents", name)
     print(f"Creating folder {path}")
     if not os.path.exists(path):
@@ -251,7 +251,7 @@ async def create_folder(experimentId: str, name: str):
 async def document_upload_links(experimentId: str, folder: str = None, data: dict = Body(...)):
     urls = data.get("urls")
     folder = secure_filename(folder)
-    experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+    experiment_dir = await experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
     if folder and folder != "":
         if os.path.exists(os.path.join(documents_dir, folder)):
@@ -292,7 +292,7 @@ async def document_download_zip(experimentId: str, data: dict = Body(...)):
     if not is_valid_url(url):
         raise HTTPException(status_code=400, detail="Invalid or unauthorized URL")
 
-    experiment_dir = await dirs.experiment_dir_by_id(experimentId)
+    experiment_dir = await experiment_dir_by_id(experimentId)
     documents_dir = os.path.join(experiment_dir, "documents")
 
     try:

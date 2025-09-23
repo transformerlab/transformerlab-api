@@ -7,7 +7,8 @@ from fastapi import APIRouter, Body
 import logging
 import transformerlab.db.db as db
 import transformerlab.db.jobs as db_jobs
-from transformerlab.shared import dirs, shared
+from transformerlab.shared import shared
+from lab import dirs
 
 from werkzeug.utils import secure_filename
 
