@@ -8,6 +8,8 @@ from pathlib import Path
 from jinja2 import Environment
 from transformers import AutoTokenizer
 
+from transformerlab.db.constants import DATABASE_FILE_NAME
+
 
 # useful constants
 WORKSPACE_DIR = os.getenv("_TFL_WORKSPACE_DIR")
@@ -44,7 +46,7 @@ def get_db_connection():
     """
     global db
     if db is None:
-        dbfile = os.path.join(WORKSPACE_DIR, "llmlab.sqlite3")
+        dbfile = DATABASE_FILE_NAME
         db = sqlite3.connect(dbfile, isolation_level=None)
 
         # Need to set these every time we open a connection
