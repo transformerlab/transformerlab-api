@@ -423,56 +423,30 @@ class VibeVoiceAudioModel(AudioModelBase):
         return outputs
 
     def decode(self, generated, **kwargs):
-        # Debug: Log the type and attributes of generated object
-        logger.info(f"Generated type: {type(generated)}")
-        logger.info(f"Generated attributes: {dir(generated)}")
-        
-        # Check for common VibeVoice output attributes
-        if hasattr(generated, 'waveform'):
-            logger.info(f"Found waveform attribute: {type(generated.waveform)}")
-        if hasattr(generated, 'audio'):
-            logger.info(f"Found audio attribute: {type(generated.audio)}")
-        if hasattr(generated, 'speech'):
-            logger.info(f"Found speech attribute: {type(generated.speech)}")
-        
         # Step 1: Extract audio from VibeVoiceGenerationOutput
         if hasattr(generated, "speech_outputs"):
-            logger.info(f"Found speech_outputs: {type(generated.speech_outputs)}, length: {len(generated.speech_outputs)}")
             audio = generated.speech_outputs[0]
-            logger.info(f"Extracted audio type: {type(audio)}")
-            if torch.is_tensor(audio):
-                logger.info(f"Audio tensor shape: {audio.shape}, dtype: {audio.dtype}")
-                logger.info(f"Audio tensor min/max: {torch.min(audio).item():.6f}/{torch.max(audio).item():.6f}")
         elif hasattr(generated, "waveform"):
-            logger.info("Using waveform attribute")
             audio = generated.waveform
         elif hasattr(generated, "audio"):
-            logger.info("Using audio attribute")
             audio = generated.audio
         elif isinstance(generated, (list, tuple)):
-            logger.info(f"Generated is list/tuple, length: {len(generated)}")
             audio = generated[0]
-            logger.info(f"Extracted audio type: {type(audio)}")
         else:
-            logger.info("Using generated directly as audio")
             audio = generated
 
         # Step 2: Convert tensor to numpy array
         if torch.is_tensor(audio):
-            # Convert bfloat16 to float32 first, then to numpy (same as demo)
+            # Convert bfloat16 to float32 first, then to numpy
             if audio.dtype == torch.bfloat16:
                 audio = audio.float()
             audio_np = audio.cpu().numpy().astype(np.float32)
-            logger.info("Converted tensor to numpy")
         else:
             audio_np = np.array(audio, dtype=np.float32)
-
-        logger.info(f"Audio shape: {audio_np.shape}, dtype: {audio_np.dtype}")
         
-        # Step 3: Ensure audio is 1D and properly normalized (like demo)
+        # Step 3: Ensure audio is 1D and properly normalized
         if len(audio_np.shape) > 1:
             audio_np = audio_np.squeeze()
-            logger.info(f"Squeezed audio shape: {audio_np.shape}")
         
         # Step 4: Check for invalid values
         if np.any(np.isnan(audio_np)) or np.any(np.isinf(audio_np)):
@@ -482,10 +456,10 @@ class VibeVoiceAudioModel(AudioModelBase):
         # Step 5: Convert to 16-bit format like the demo does
         audio_16bit = self._convert_to_16_bit_wav(audio_np)
         
-        # Step 6: Convert back to float32 for compatibility (like demo)
+        # Step 6: Convert back to float32 for compatibility
         final_audio = audio_16bit.astype(np.float32) / 32767.0
 
-        logger.info(f"Final audio shape: {final_audio.shape}, dtype: {final_audio.dtype}, range: [{np.min(final_audio):.3f}, {np.max(final_audio):.3f}]")
+        logger.info(f"VibeVoice audio generated: shape={final_audio.shape}, range=[{np.min(final_audio):.3f}, {np.max(final_audio):.3f}]")
         
         return final_audio
 
