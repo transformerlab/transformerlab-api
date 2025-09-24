@@ -145,10 +145,16 @@ async def migrate_experiments():
 
 async def migrate_db_to_filesystem():
     """Migrate data from DB to filesystem if not already migrated."""
+    migration_marker = os.path.join(WORKSPACE_DIR, ".migration_in_progress")
+    
     try:
-        # Check if migration has already been done by checking for index.json files
+        # Check if migration is already in progress
+        if os.path.exists(migration_marker):
+            print("Migration already in progress, skipping...")
+            return
+            
         # Check if experiments migration has already been done
-        experiments_dir = lab_dirs.EXPERIMENTS_DIR
+        experiments_dir = lab_dirs.experiments_dir()
         experiments_migrated = False
         if os.path.exists(experiments_dir):
             for exp_dir in os.listdir(experiments_dir):
@@ -160,7 +166,7 @@ async def migrate_db_to_filesystem():
                         break
         
         # Check if jobs migration has already been done
-        jobs_dir = lab_dirs.JOBS_DIR
+        jobs_dir = lab_dirs.jobs_dir()
         jobs_migrated = False
         if os.path.exists(jobs_dir):
             for job_dir in os.listdir(jobs_dir):
@@ -173,61 +179,40 @@ async def migrate_db_to_filesystem():
         
         # If both are already migrated, skip entirely
         if experiments_migrated and jobs_migrated:
-            print("Filesystem Migration already completed - found existing experiment and job data.")
+            print("Migration already completed - found existing experiment and job data.")
             return
+        
+        # Create migration marker
+        with open(migration_marker, 'w') as f:
+            f.write(f"Migration started at {datetime.now().isoformat()}\n")
         
         # If experiments are migrated but jobs aren't, only migrate jobs
         if experiments_migrated and not jobs_migrated:
             print("Experiments already migrated, migrating jobs only...")
-            # Define and run only jobs migration
             await migrate_jobs()
             print("Jobs migration completed.")
-            return
-        
+            
         # If neither is migrated, do full migration
-        if not experiments_migrated and not jobs_migrated:
+        elif not experiments_migrated and not jobs_migrated:
             print("Running full DB to filesystem migration...")
             
             # Check if there are experiments in DB to migrate
-            
-
-            # Define migration functions inline
-            
-
-            async def migrate_jobs():
-                """Migrate jobs from DB to filesystem."""
-                print("Migrating jobs...")
-                experiments = await experiment_get_all()
+            db_experiments = await experiment_get_all()
+            if not db_experiments:
+                print("No experiments in DB to migrate.")
+                return
                 
-                for exp in experiments:
-                    print(f"Migrating jobs for experiment: {exp['name']}")
-                    jobs = await jobs_get_by_experiment(exp['id'])
-
-                    for job in jobs:
-                        print(f"Migrating job: {job['id']} (type: {job['type']})")
-                        
-                        # Create SDK Job
-                        job_obj = Job(job['id'])
-                        job_obj.__initialize()
-                        # Update the JSON data with DB data
-                        job_obj.update_job_data_field(key="id", value=job["id"])
-                        job_obj.update_job_data_field(key="experiment_id", value=exp["name"])  # Use name instead of numeric ID
-                        job_obj.update_job_data_field(key="job_data", value=job["job_data"] if isinstance(job["job_data"], dict) else {})
-                        job_obj.update_job_data_field(key="status", value=job["status"])
-                        job_obj.update_job_data_field(key="type", value=job["type"])
-                        job_obj.update_job_data_field(key="progress", value=job.get("progress", 0))
-                        job_obj.update_job_data_field(key="created_at", value=job.get("created_at", datetime.now().isoformat()))
-                        job_obj.update_job_data_field(key="updated_at", value=job.get("updated_at", datetime.now().isoformat()))
-
-                        print(f"Created job directory: {job_obj.get_dir()}")
-
-            # Run the migration
             await migrate_experiments()
             await migrate_jobs()
             print("DB to filesystem migration completed.")
-            return
+        
+        # Remove migration marker on success
+        if os.path.exists(migration_marker):
+            os.remove(migration_marker)
+            
     except Exception as e:
         print(f"Error during migration: {e}")
+        # Leave marker file for manual inspection
         pass
 
 
