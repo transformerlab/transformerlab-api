@@ -385,7 +385,7 @@ class VibeVoiceAudioModel(AudioModelBase):
 
     def generate(self, inputs, **kwargs):
         self.model.set_ddpm_inference_steps(num_steps=self.generate_kwargs['inference_steps'])
-        gen_args = {**inputs, **self.generate_kwargs, **kwargs}
+        gen_args = {**inputs, **self.generate_kwargs, "tokenizer": self.processor.tokenizer, **kwargs}
         outputs = self.model.generate(**gen_args)
         return outputs
 
