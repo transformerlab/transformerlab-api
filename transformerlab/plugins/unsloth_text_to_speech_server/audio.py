@@ -423,26 +423,21 @@ class VibeVoiceAudioModel(AudioModelBase):
         return outputs
 
     def decode(self, generated, **kwargs):
-        logger.info(type(generated))
-        logger.info(dir(generated))
-        # Simple decoding as shown in your example
-        audio = generated[0] if isinstance(generated, (list, tuple)) else generated
+        # Step 1: Extract audio from VibeVoiceGenerationOutput
+        if hasattr(generated, "speech_outputs"):
+            audio = generated.speech_outputs[0]
+        elif isinstance(generated, (list, tuple)):
+            audio = generated[0]
+        else:
+            audio = generated
+
+        # Step 2: Convert tensor to numpy array
         if torch.is_tensor(audio):
             audio = audio.float().cpu().numpy()
-        audio = self._convert_to_16_bit_wav(audio)
-        
-        # Convert back to float32 for compatibility with audio processing
-        return audio.astype(np.float32) / 32767.0
 
-    def _convert_to_16_bit_wav(self, data):
-        """Convert audio data to 16-bit format like the demo."""
-        # Ensure data is numpy array
-        data = np.array(data)
+        # Step 3: Normalize if needed
+        if np.max(np.abs(audio)) > 1.0:
+            audio = audio / np.max(np.abs(audio))
 
-        # Normalize to range [-1, 1] if it's not already
-        if np.max(np.abs(data)) > 1.0:
-            data = data / np.max(np.abs(data))
-
-        # Scale to 16-bit integer range
-        data = (data * 32767).astype(np.int16)
-        return data
+        # Step 4: Return as float32 in [-1, 1]
+        return audio.astype(np.float32)
