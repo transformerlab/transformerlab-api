@@ -11,7 +11,7 @@ from pathlib import Path
 from multiprocessing import Process, Queue
 from werkzeug.utils import secure_filename
 
-from transformerlab.db.constants import DATABASE_FILE_NAME
+from lab import HOME_DIR
 
 # If there is an error set returncode and error_msg
 # returncode is used by API to know about errors and
@@ -25,6 +25,7 @@ returncode = 0
 error_msg = False
 
 
+DATABASE_FILE_NAME = f"{HOME_DIR}/llmlab.sqlite3"
 WORKSPACE_DIR = os.environ.get("_TFL_WORKSPACE_DIR")
 if WORKSPACE_DIR is None:
     raise EnvironmentError("Environment variable _TFL_WORKSPACE_DIR is not set!")
