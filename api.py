@@ -39,7 +39,7 @@ from transformerlab.db import jobs as db_jobs  # noqa: E402
 from transformerlab.db.db import experiment_get  # noqa: E402
 import transformerlab.db.session as db  # noqa: E402
 from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert  # noqa: E402
-from transformerlab.routers import (
+from transformerlab.routers import (  # noqa: E402
     data,
     model,
     serverinfo,
@@ -53,7 +53,7 @@ from transformerlab.routers import (
     batched_prompts,
     recipes,
     users,
-)  # noqa: E402
+)
 import torch  # noqa: E402
 
 try:
