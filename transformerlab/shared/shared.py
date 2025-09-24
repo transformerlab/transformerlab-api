@@ -15,12 +15,11 @@ from anyio.streams.text import TextReceiveStream
 from werkzeug.utils import secure_filename
 
 from transformerlab.db.db import experiment_get, experiment_get_by_name
-from transformerlab.services.job_service import job_update_sync
+from transformerlab.services.job_service import job_update_sync, job_update_status
 import transformerlab.db.jobs as db_jobs
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
 from lab.dirs import GLOBAL_LOG_PATH
-from transformerlab.services.job_service import job_update_status
 from lab import WORKSPACE_DIR, dirs as lab_dirs
 from transformerlab.shared import dirs
 
@@ -314,7 +313,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         return {"status": "complete", "job_id": job_id, "message": "Task job completed successfully"}
 
     # Common setup for all other job types
-    output_temp_file_dir = lab_dirs.get_job_output_dir(experiment_name, job_id)
+    output_temp_file_dir = dirs.get_job_output_dir(experiment_name, job_id)
     if not os.path.exists(output_temp_file_dir):
         os.makedirs(output_temp_file_dir)
 
@@ -490,7 +489,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         await db_jobs.job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
 
         # Prep paths and script args
-        output_temp_file_dir = lab_dirs.get_job_output_dir(experiment_name, job_id)
+        output_temp_file_dir = dirs.get_job_output_dir(experiment_name, job_id)
         os.makedirs(output_temp_file_dir, exist_ok=True)
 
         plugin_dir = lab_dirs.plugin_dir_by_name(plugin_name)
@@ -1193,7 +1192,7 @@ async def get_job_output_file_name(job_id: str, plugin_name: str = None, experim
         plugin_dir = lab_dirs.plugin_dir_by_name(plugin_name)
 
         # Try new job directory structure first
-        new_jobs_dir = lab_dirs.get_job_output_dir(experiment_name, job_id)
+        new_jobs_dir = dirs.get_job_output_dir(experiment_name, job_id)
         if os.path.exists(os.path.join(new_jobs_dir, f"output_{job_id}.txt")):
             output_file = os.path.join(new_jobs_dir, f"output_{job_id}.txt")
 
