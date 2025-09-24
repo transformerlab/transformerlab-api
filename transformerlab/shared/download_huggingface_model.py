@@ -11,6 +11,8 @@ from pathlib import Path
 from multiprocessing import Process, Queue
 from werkzeug.utils import secure_filename
 
+from lab import HOME_DIR
+
 # If there is an error set returncode and error_msg
 # returncode is used by API to know about errors and
 # error_msg will get passed back in API response.
@@ -23,6 +25,7 @@ returncode = 0
 error_msg = False
 
 
+DATABASE_FILE_NAME = f"{HOME_DIR}/llmlab.sqlite3"
 WORKSPACE_DIR = os.environ.get("_TFL_WORKSPACE_DIR")
 if WORKSPACE_DIR is None:
     raise EnvironmentError("Environment variable _TFL_WORKSPACE_DIR is not set!")
@@ -136,7 +139,7 @@ def do_download(repo_id, queue, allow_patterns=None, mode="model"):
 
 def cancel_check():
     try:
-        db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
+        db = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
         db.execute("PRAGMA journal_mode=WAL")
         db.execute("PRAGMA synchronous=normal")
         db.execute("PRAGMA busy_timeout=30000")
@@ -226,7 +229,7 @@ def download_blocking(model_is_downloaded):
 
     # Connect to the DB to start the job and then close
     # Need to set these PRAGMAs every time as they get reset per connection
-    db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
+    db = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
     db.execute("PRAGMA journal_mode=WAL")
     db.execute("PRAGMA synchronous=normal")
     db.execute("PRAGMA busy_timeout=30000")
@@ -338,7 +341,7 @@ def check_disk_size(model_is_downloaded: Event):
         # Not sure if we should reconnect over and over in the loop like this
         # But leaving it to reduce the chance of leaving a connection open if this
         # thread gets interrupted?
-        db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
+        db = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
         db.execute("PRAGMA journal_mode=WAL")
         db.execute("PRAGMA synchronous=normal")
         db.execute("PRAGMA busy_timeout=30000")
@@ -391,7 +394,7 @@ def main():
             status = "UNAUTHORIZED"
 
         # Need to set these PRAGMAs every time as they get reset per connection
-        db = sqlite3.connect(f"{WORKSPACE_DIR}/llmlab.sqlite3", isolation_level=None)
+        db = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
         db.execute("PRAGMA journal_mode=WAL")
         db.execute("PRAGMA synchronous=normal")
         db.execute("PRAGMA busy_timeout=30000")
