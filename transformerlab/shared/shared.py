@@ -15,14 +15,17 @@ from anyio.streams.text import TextReceiveStream
 from werkzeug.utils import secure_filename
 
 from transformerlab.db.db import experiment_get, experiment_get_by_name
-from transformerlab.services.job_service import job_update_sync
+from transformerlab.services.job_service import job_update_sync, job_update_status
 import transformerlab.db.jobs as db_jobs
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
 from lab.dirs import GLOBAL_LOG_PATH
-from transformerlab.services.job_service import job_update_status
-from lab import WORKSPACE_DIR, dirs as lab_dirs
+from lab import WORKSPACE_DIR, Job, dirs as lab_dirs
 from transformerlab.shared import dirs
+
+
+# For now several service calls will use the SDK for MULTITENANT environments
+MULTITENANT = os.getenv("TFL_MULTITENANT", "")
 
 
 def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs):
@@ -1162,6 +1165,12 @@ async def get_job_output_file_name(job_id: str, plugin_name: str = None, experim
     try:
         job_id = secure_filename(str(job_id))
 
+        # For multitenant, there is only one way to get this directory so it is simpler
+        if MULTITENANT:
+            job = Job.get(job_id)
+            job.get_log_path()
+
+        # For standalone app, need to check different possibilities
         # If plugin_name or experiment_name is not provided, get them from job_data
         if plugin_name is None or experiment_name is None:
             job = await db_jobs.job_get(job_id)
