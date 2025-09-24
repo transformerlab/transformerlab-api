@@ -6,6 +6,8 @@ from sqlalchemy.dialects.sqlite import insert  # Correct import for SQLite upser
 # from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from lab import Experiment
+
 
 # Make sure SQLAlchemy is installed using pip install sqlalchemy[asyncio] as
 # described here https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html
@@ -387,6 +389,8 @@ async def experiment_create(name: str, config: dict) -> int:
         session.add(experiment)
         await session.commit()
         await session.refresh(experiment)
+        # Also create the filesystem version
+        Experiment.create(name)
         return experiment.id
 
 
