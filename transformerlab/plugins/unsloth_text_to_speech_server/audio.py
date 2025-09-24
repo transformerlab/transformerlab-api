@@ -373,19 +373,29 @@ class VibeVoiceAudioModel(AudioModelBase):
         }
 
     def tokenize(self, text, audio_path=None, sample_rate=24000, voice=None):
-        voice_samples = [[librosa.load(audio_path, sr=sample_rate)[0]]] if audio_path else None
-        inputs = self.processor(
-            text=[f"Speaker 0: {text}"],
-            voice_samples=voice_samples,
-            padding=True,
-            return_tensors="pt",
-            return_attention_mask=True,
-        )
+        if audio_path:
+            # Load reference audio for voice cloning
+            voice_samples = [[librosa.load(audio_path, sr=sample_rate)[0]]]
+            inputs = self.processor(
+                text=[f"Speaker 0: {text}"],
+                voice_samples=voice_samples,
+                padding=True,
+                return_tensors="pt",
+                return_attention_mask=True,
+            )
+        else:
+            # Standard text-to-speech without voice cloning - don't pass voice_samples
+            inputs = self.processor(
+                text=[f"Speaker 0: {text}"],
+                padding=True,
+                return_tensors="pt",
+                return_attention_mask=True,
+            )
         return inputs.to(self.device)
 
     def generate(self, inputs, **kwargs):
         self.model.set_ddpm_inference_steps(num_steps=self.generate_kwargs['inference_steps'])
-        gen_args = {**inputs, **self.generate_kwargs, "tokenizer": self.processor.tokenizer, "audio_streamer": None, "verbose": False, "refresh_negative": True, **kwargs}
+        gen_args = {**inputs, **self.generate_kwargs, "tokenizer": self.processor.tokenizer, "verbose": False, "refresh_negative": True, **kwargs}
         outputs = self.model.generate(**gen_args)
         return outputs
 
