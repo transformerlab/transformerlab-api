@@ -178,6 +178,7 @@ async def process_audio_batch(
         tasks = [predict_audio(session, item, inference_url=inference_url) for item in sub_batch]
         sub_results = await asyncio.gather(*tasks)
         results.extend(sub_results)
+        # Add a small delay between batches to allow MLX operations to complete
         await asyncio.sleep(0.01)
     return results
 
