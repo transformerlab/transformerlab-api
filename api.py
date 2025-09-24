@@ -72,6 +72,8 @@ from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
 
 from dotenv import load_dotenv
+from datetime import datetime
+
 
 load_dotenv()
 
@@ -93,86 +95,136 @@ from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc
 async def migrate_db_to_filesystem():
     """Migrate data from DB to filesystem if not already migrated."""
     try:
-        # Check if migration has already been done by seeing if there are any experiments in filesystem
-        # TODO: need a better way to check if migration is needed
-
-        # experiments_dir = dirs.experiments_dir()
-        # if os.path.exists(experiments_dir):
-        #     existing_experiments = [
-        #         d
-        #         for d in os.listdir(experiments_dir)
-        #         if os.path.isdir(os.path.join(experiments_dir, d))
-        #     ]
-        #     if existing_experiments:
-        #         print("Filesystem experiments already exist, skipping migration.")
-        #         return
-
-        # Check if there are experiments in DB to migrate
-
-        db_experiments = await experiment_get_all()
-        if not db_experiments:
-            print("No experiments in DB to migrate.")
+        # Check if migration has already been done by checking for index.json files
+        # Check if experiments migration has already been done
+        experiments_dir = lab_dirs.experiments_dir()
+        experiments_migrated = False
+        if os.path.exists(experiments_dir):
+            for exp_dir in os.listdir(experiments_dir):
+                exp_path = os.path.join(experiments_dir, exp_dir)
+                if os.path.isdir(exp_path):
+                    index_file = os.path.join(exp_path, "index.json")
+                    if os.path.exists(index_file):
+                        experiments_migrated = True
+                        break
+        
+        # Check if jobs migration has already been done
+        jobs_dir = lab_dirs.jobs_dir()
+        jobs_migrated = False
+        if os.path.exists(jobs_dir):
+            for job_dir in os.listdir(jobs_dir):
+                job_path = os.path.join(jobs_dir, job_dir)
+                if os.path.isdir(job_path):
+                    job_index = os.path.join(job_path, "index.json")
+                    if os.path.exists(job_index):
+                        jobs_migrated = True
+                        break
+        
+        # If both are already migrated, skip entirely
+        if experiments_migrated and jobs_migrated:
+            print("Migration already completed - found existing experiment and job data.")
             return
-
-        print("Running DB to filesystem migration...")
         
-        # Import required modules for migration
-        from datetime import datetime
-        
-        # Define migration functions inline
-        async def migrate_experiments():
-            """Migrate experiments from DB to filesystem."""
-            print("Migrating experiments...")
-            experiments = await experiment_get_all()
-
-            for exp in experiments:
-                print(f"Migrating experiment: {exp['name']} (ID: {exp['id']})")
+        # If experiments are migrated but jobs aren't, only migrate jobs
+        if experiments_migrated and not jobs_migrated:
+            print("Experiments already migrated, migrating jobs only...")
+            # Define and run only jobs migration
+            async def migrate_jobs():
+                """Migrate jobs from DB to filesystem."""
+                print("Migrating jobs...")
+                experiments = await experiment_get_all()
                 
-                # Create SDK Experiment
-                experiment = Experiment(exp['id'])
-                experiment.__initialize()
+                for exp in experiments:
+                    print(f"Migrating jobs for experiment: {exp['name']}")
+                    jobs = await jobs_get_by_experiment(exp['id'])
 
-                
-                # TODO: which datetime to use here?
-                experiment.update_json_data_field(key="id", value=exp["id"])
-                experiment.update_json_data_field(key="name", value=exp["name"])
-                experiment.update_json_data_field(key="config", value=exp["config"] if isinstance(exp["config"], dict) else {})
-                experiment.update_json_data_field(key="created_at", value=exp.get("created_at", datetime.now().isoformat()))
-                experiment.update_json_data_field(key="updated_at", value=exp.get("updated_at", datetime.now().isoformat()))
+                    for job in jobs:
+                        print(f"Migrating job: {job['id']} (type: {job['type']})")
+                        
+                        # Create SDK Job
+                        job_obj = Job(job['id'])
+                        job_obj.__initialize()
+                        # Update the JSON data with DB data
+                        job_obj.update_job_data_field(key="id", value=job["id"])
+                        job_obj.update_job_data_field(key="experiment_id", value=exp["name"])  # Use name instead of numeric ID
+                        job_obj.update_job_data_field(key="job_data", value=job["job_data"] if isinstance(job["job_data"], dict) else {})
+                        job_obj.update_job_data_field(key="status", value=job["status"])
+                        job_obj.update_job_data_field(key="type", value=job["type"])
+                        job_obj.update_job_data_field(key="progress", value=job.get("progress", 0))
+                        job_obj.update_job_data_field(key="created_at", value=job.get("created_at", datetime.now().isoformat()))
+                        job_obj.update_job_data_field(key="updated_at", value=job.get("updated_at", datetime.now().isoformat()))
 
-                print(f"Created experiment directory: {experiment.get_dir()}")
-
-        async def migrate_jobs():
-            """Migrate jobs from DB to filesystem."""
-            print("Migrating jobs...")
-            experiments = await experiment_get_all()
+                        print(f"Created job directory: {job_obj.get_dir()}")
             
-            for exp in experiments:
-                print(f"Migrating jobs for experiment: {exp['name']}")
-                jobs = await jobs_get_by_experiment(exp['id'])
+            await migrate_jobs()
+            print("Jobs migration completed.")
+            return
+        
+        # If neither is migrated, do full migration
+        if not experiments_migrated and not jobs_migrated:
+            print("Running full DB to filesystem migration...")
+            
+            # Check if there are experiments in DB to migrate
+            db_experiments = await experiment_get_all()
+            if not db_experiments:
+                print("No experiments in DB to migrate.")
+                return
 
-                for job in jobs:
-                    print(f"Migrating job: {job['id']} (type: {job['type']})")
+            # Define migration functions inline
+            async def migrate_experiments():
+                """Migrate experiments from DB to filesystem."""
+                print("Migrating experiments...")
+                experiments = await experiment_get_all()
+
+                for exp in experiments:
+                    print(f"Migrating experiment: {exp['name']} (ID: {exp['id']})")
                     
-                    # Create SDK Job
-                    job = Job(job['id'])
-                    job.__initialize()
-                    # Update the JSON data with DB data
-                    job.update_job_data_field(key="id", value=job["id"])
-                    job.update_job_data_field(key="experiment_id", value=exp["name"])  # Use name instead of numeric ID
-                    job.update_job_data_field(key="job_data", value=job["job_data"] if isinstance(job["job_data"], dict) else {})
-                    job.update_job_data_field(key="status", value=job["status"])
-                    job.update_job_data_field(key="type", value=job["type"])
-                    job.update_job_data_field(key="progress", value=job.get("progress", 0))
-                    job.update_job_data_field(key="created_at", value=job.get("created_at", datetime.now().isoformat()))
-                    job.update_job_data_field(key="updated_at", value=job.get("updated_at", datetime.now().isoformat()))
+                    # Create SDK Experiment
+                    experiment = Experiment(exp['id'])
+                    experiment.__initialize()
 
-                    print(f"Created job directory: {job.get_dir()}")
+                    
+                    # TODO: which datetime to use here?
+                    experiment.update_json_data_field(key="id", value=exp["id"])
+                    experiment.update_json_data_field(key="name", value=exp["name"])
+                    experiment.update_json_data_field(key="config", value=exp["config"] if isinstance(exp["config"], dict) else {})
+                    experiment.update_json_data_field(key="created_at", value=exp.get("created_at", datetime.now().isoformat()))
+                    experiment.update_json_data_field(key="updated_at", value=exp.get("updated_at", datetime.now().isoformat()))
 
-        # Run the migration
-        await migrate_experiments()
-        await migrate_jobs()
-        print("DB to filesystem migration completed.")
+                    print(f"Created experiment directory: {experiment.get_dir()}")
+
+            async def migrate_jobs():
+                """Migrate jobs from DB to filesystem."""
+                print("Migrating jobs...")
+                experiments = await experiment_get_all()
+                
+                for exp in experiments:
+                    print(f"Migrating jobs for experiment: {exp['name']}")
+                    jobs = await jobs_get_by_experiment(exp['id'])
+
+                    for job in jobs:
+                        print(f"Migrating job: {job['id']} (type: {job['type']})")
+                        
+                        # Create SDK Job
+                        job_obj = Job(job['id'])
+                        job_obj.__initialize()
+                        # Update the JSON data with DB data
+                        job_obj.update_job_data_field(key="id", value=job["id"])
+                        job_obj.update_job_data_field(key="experiment_id", value=exp["name"])  # Use name instead of numeric ID
+                        job_obj.update_job_data_field(key="job_data", value=job["job_data"] if isinstance(job["job_data"], dict) else {})
+                        job_obj.update_job_data_field(key="status", value=job["status"])
+                        job_obj.update_job_data_field(key="type", value=job["type"])
+                        job_obj.update_job_data_field(key="progress", value=job.get("progress", 0))
+                        job_obj.update_job_data_field(key="created_at", value=job.get("created_at", datetime.now().isoformat()))
+                        job_obj.update_job_data_field(key="updated_at", value=job.get("updated_at", datetime.now().isoformat()))
+
+                        print(f"Created job directory: {job_obj.get_dir()}")
+
+            # Run the migration
+            await migrate_experiments()
+            await migrate_jobs()
+            print("DB to filesystem migration completed.")
+            return
     except Exception as e:
         print(f"Error during migration: {e}")
         pass
