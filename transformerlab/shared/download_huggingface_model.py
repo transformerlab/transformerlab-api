@@ -24,10 +24,6 @@ error_msg = False
 
 
 # Global variables for cache-based progress tracking
-_cache_progress_job_id = None
-_cache_progress_workspace_dir = None
-_cache_file_metadata = None
-_cache_model_name = None
 _cache_stop_monitoring = False
 
 def get_repo_file_metadata(repo_id, allow_patterns=None):
