@@ -4,6 +4,7 @@ from transformers import AutoProcessor, CsmForConditionalGeneration
 from snac import SNAC
 import torch
 import librosa
+import numpy as np
 from vibevoice.modular.modeling_vibevoice_inference import VibeVoiceForConditionalGenerationInference
 from vibevoice.processor.vibevoice_processor import VibeVoiceProcessor
 
@@ -373,32 +374,69 @@ class VibeVoiceAudioModel(AudioModelBase):
         }
 
     def tokenize(self, text, audio_path=None, sample_rate=24000, voice=None):
+        # VibeVoice expects a multi-speaker dialogue format
+        # If audio_path is provided, use it as the voice sample for Speaker 0
         if audio_path:
-            # Load reference audio for voice cloning
-            voice_samples = [[librosa.load(audio_path, sr=sample_rate)[0]]]
-            inputs = self.processor(
-                text=[f"Speaker 0: {text}"],
-                voice_samples=voice_samples,
-                padding=True,
-                return_tensors="pt",
-                return_attention_mask=True,
-            )
+            # Load reference audio for the speaker
+            voice_audio = librosa.load(audio_path, sr=sample_rate)[0]
+            voice_samples = [[voice_audio]]
         else:
-            # Standard text-to-speech without voice cloning - don't pass voice_samples
-            inputs = self.processor(
-                text=[f"Speaker 0: {text}"],
-                padding=True,
-                return_tensors="pt",
-                return_attention_mask=True,
-            )
+            # For standard TTS without voice reference, use None
+            # VibeVoice should handle this case internally
+            voice_samples = None
+        
+        # Format the text as a single-speaker dialogue
+        formatted_text = f"Speaker 0: {text}"
+        
+        inputs = self.processor(
+            text=[formatted_text],
+            voice_samples=voice_samples,
+            padding=True,
+            return_tensors="pt",
+            return_attention_mask=True,
+        )
         return inputs.to(self.device)
 
     def generate(self, inputs, **kwargs):
         self.model.set_ddpm_inference_steps(num_steps=self.generate_kwargs['inference_steps'])
-        gen_args = {**inputs, **self.generate_kwargs, "tokenizer": self.processor.tokenizer, "verbose": False, "refresh_negative": True, **kwargs}
+        
+        gen_args = {
+            **inputs,
+            "max_new_tokens": None,
+            "cfg_scale": self.generate_kwargs['cfg_scale'],
+            "tokenizer": self.processor.tokenizer,
+            "generation_config": {
+                "do_sample": self.generate_kwargs['do_sample'],
+            },
+            "audio_streamer": None,
+            "stop_check_fn": None,
+            "verbose": False,
+            "refresh_negative": True,
+            **kwargs
+        }
+        
         outputs = self.model.generate(**gen_args)
         return outputs
 
     def decode(self, generated, **kwargs):
-        audio = generated[0].to(torch.float32).cpu().numpy()
-        return audio
+        # Simple decoding as shown in your example
+        audio = generated[0] if isinstance(generated, (list, tuple)) else generated
+        if torch.is_tensor(audio):
+            audio = audio.float().cpu().numpy()
+        audio = self._convert_to_16_bit_wav(audio)
+        
+        # Convert back to float32 for compatibility with audio processing
+        return audio.astype(np.float32) / 32767.0
+
+    def _convert_to_16_bit_wav(self, data):
+        """Convert audio data to 16-bit format like the demo."""
+        # Ensure data is numpy array
+        data = np.array(data)
+
+        # Normalize to range [-1, 1] if it's not already
+        if np.max(np.abs(data)) > 1.0:
+            data = data / np.max(np.abs(data))
+
+        # Scale to 16-bit integer range
+        data = (data * 32767).astype(np.int16)
+        return data
