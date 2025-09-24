@@ -91,45 +91,7 @@ os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
 
 from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router  # noqa: E402
 
-
-async def migrate_db_to_filesystem():
-    """Migrate data from DB to filesystem if not already migrated."""
-    try:
-        # Check if migration has already been done by checking for index.json files
-        # Check if experiments migration has already been done
-        experiments_dir = lab_dirs.experiments_dir()
-        experiments_migrated = False
-        if os.path.exists(experiments_dir):
-            for exp_dir in os.listdir(experiments_dir):
-                exp_path = os.path.join(experiments_dir, exp_dir)
-                if os.path.isdir(exp_path):
-                    index_file = os.path.join(exp_path, "index.json")
-                    if os.path.exists(index_file):
-                        experiments_migrated = True
-                        break
-        
-        # Check if jobs migration has already been done
-        jobs_dir = lab_dirs.jobs_dir()
-        jobs_migrated = False
-        if os.path.exists(jobs_dir):
-            for job_dir in os.listdir(jobs_dir):
-                job_path = os.path.join(jobs_dir, job_dir)
-                if os.path.isdir(job_path):
-                    job_index = os.path.join(job_path, "index.json")
-                    if os.path.exists(job_index):
-                        jobs_migrated = True
-                        break
-        
-        # If both are already migrated, skip entirely
-        if experiments_migrated and jobs_migrated:
-            print("Migration already completed - found existing experiment and job data.")
-            return
-        
-        # If experiments are migrated but jobs aren't, only migrate jobs
-        if experiments_migrated and not jobs_migrated:
-            print("Experiments already migrated, migrating jobs only...")
-            # Define and run only jobs migration
-            async def migrate_jobs():
+async def migrate_jobs():
                 """Migrate jobs from DB to filesystem."""
                 print("Migrating jobs...")
                 experiments = await experiment_get_all()
@@ -155,26 +117,14 @@ async def migrate_db_to_filesystem():
                         job_obj.update_job_data_field(key="updated_at", value=job.get("updated_at", datetime.now().isoformat()))
 
                         print(f"Created job directory: {job_obj.get_dir()}")
-            
-            await migrate_jobs()
-            print("Jobs migration completed.")
-            return
-        
-        # If neither is migrated, do full migration
-        if not experiments_migrated and not jobs_migrated:
-            print("Running full DB to filesystem migration...")
-            
-            # Check if there are experiments in DB to migrate
-            db_experiments = await experiment_get_all()
-            if not db_experiments:
-                print("No experiments in DB to migrate.")
-                return
 
-            # Define migration functions inline
-            async def migrate_experiments():
+async def migrate_experiments():
                 """Migrate experiments from DB to filesystem."""
                 print("Migrating experiments...")
                 experiments = await experiment_get_all()
+                if not experiments:
+                    print("No experiments in DB to migrate.")
+                    return
 
                 for exp in experiments:
                     print(f"Migrating experiment: {exp['name']} (ID: {exp['id']})")
@@ -192,6 +142,57 @@ async def migrate_db_to_filesystem():
                     experiment.update_json_data_field(key="updated_at", value=exp.get("updated_at", datetime.now().isoformat()))
 
                     print(f"Created experiment directory: {experiment.get_dir()}")
+
+async def migrate_db_to_filesystem():
+    """Migrate data from DB to filesystem if not already migrated."""
+    try:
+        # Check if migration has already been done by checking for index.json files
+        # Check if experiments migration has already been done
+        experiments_dir = lab_dirs.EXPERIMENTS_DIR
+        experiments_migrated = False
+        if os.path.exists(experiments_dir):
+            for exp_dir in os.listdir(experiments_dir):
+                exp_path = os.path.join(experiments_dir, exp_dir)
+                if os.path.isdir(exp_path):
+                    index_file = os.path.join(exp_path, "index.json")
+                    if os.path.exists(index_file):
+                        experiments_migrated = True
+                        break
+        
+        # Check if jobs migration has already been done
+        jobs_dir = lab_dirs.JOBS_DIR
+        jobs_migrated = False
+        if os.path.exists(jobs_dir):
+            for job_dir in os.listdir(jobs_dir):
+                job_path = os.path.join(jobs_dir, job_dir)
+                if os.path.isdir(job_path):
+                    job_index = os.path.join(job_path, "index.json")
+                    if os.path.exists(job_index):
+                        jobs_migrated = True
+                        break
+        
+        # If both are already migrated, skip entirely
+        if experiments_migrated and jobs_migrated:
+            print("Filesystem Migration already completed - found existing experiment and job data.")
+            return
+        
+        # If experiments are migrated but jobs aren't, only migrate jobs
+        if experiments_migrated and not jobs_migrated:
+            print("Experiments already migrated, migrating jobs only...")
+            # Define and run only jobs migration
+            await migrate_jobs()
+            print("Jobs migration completed.")
+            return
+        
+        # If neither is migrated, do full migration
+        if not experiments_migrated and not jobs_migrated:
+            print("Running full DB to filesystem migration...")
+            
+            # Check if there are experiments in DB to migrate
+            
+
+            # Define migration functions inline
+            
 
             async def migrate_jobs():
                 """Migrate jobs from DB to filesystem."""
