@@ -30,11 +30,15 @@ from fastchat.protocol.openai_api_protocol import (
     ErrorResponse,
 )
 
-from transformerlab.db.jobs import job_create, job_update_status
-from transformerlab.db import jobs as db_jobs
-from transformerlab.db.db import experiment_get
-import transformerlab.db.session as db
-from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert
+from dotenv import load_dotenv
+
+load_dotenv()
+
+from transformerlab.db.jobs import job_create, job_update_status  # noqa: E402
+from transformerlab.db import jobs as db_jobs  # noqa: E402
+from transformerlab.db.db import experiment_get  # noqa: E402
+import transformerlab.db.session as db  # noqa: E402
+from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert  # noqa: E402
 from transformerlab.routers import (
     data,
     model,
@@ -49,30 +53,26 @@ from transformerlab.routers import (
     batched_prompts,
     recipes,
     users,
-)
-import torch
+)  # noqa: E402
+import torch  # noqa: E402
 
 try:
-    from pynvml import nvmlShutdown
+    from pynvml import nvmlShutdown  # noqa: E402
 
     HAS_AMD = False
 except Exception:
-    from pyrsmi import rocml
+    from pyrsmi import rocml  # noqa: E402
 
     HAS_AMD = True
-from transformerlab import fastchat_openai_api
-from transformerlab.routers.experiment import experiment
-from transformerlab.routers.experiment import workflows
-from transformerlab.routers.experiment import jobs
-from transformerlab.shared import shared
-from transformerlab.shared import galleries
-from lab import WORKSPACE_DIR
-from lab import dirs as lab_dirs
-from transformerlab.shared import dirs
-
-from dotenv import load_dotenv
-
-load_dotenv()
+from transformerlab import fastchat_openai_api  # noqa: E402
+from transformerlab.routers.experiment import experiment  # noqa: E402
+from transformerlab.routers.experiment import workflows  # noqa: E402
+from transformerlab.routers.experiment import jobs  # noqa: E402
+from transformerlab.shared import shared  # noqa: E402
+from transformerlab.shared import galleries  # noqa: E402
+from lab import WORKSPACE_DIR  # noqa: E402
+from lab import dirs as lab_dirs  # noqa: E402
+from transformerlab.shared import dirs  # noqa: E402
 
 # The following environment variable can be used by other scripts
 # who need to connect to the root DB, for example
