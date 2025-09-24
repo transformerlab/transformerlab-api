@@ -5,8 +5,12 @@ from snac import SNAC
 import torch
 import librosa
 import numpy as np
+
 from vibevoice.modular.modeling_vibevoice_inference import VibeVoiceForConditionalGenerationInference
 from vibevoice.processor.vibevoice_processor import VibeVoiceProcessor
+
+from fastchat.serve.model_worker import logger
+
 
 class AudioModelBase(ABC):
     def __init__(self, model_name, device, context_length=2048):
@@ -419,6 +423,8 @@ class VibeVoiceAudioModel(AudioModelBase):
         return outputs
 
     def decode(self, generated, **kwargs):
+        logger.info(type(generated))
+        logger.info(dir(generated))
         # Simple decoding as shown in your example
         audio = generated[0] if isinstance(generated, (list, tuple)) else generated
         if torch.is_tensor(audio):
