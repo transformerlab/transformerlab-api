@@ -373,13 +373,10 @@ class VibeVoiceAudioModel(AudioModelBase):
         }
 
     def tokenize(self, text, audio_path=None, sample_rate=24000, voice=None):
-        voice_samples = []
-        if audio_path:
-            audio_array, _ = librosa.load(audio_path, sr=sample_rate)
-            voice_samples = [audio_array]
+        voice_samples = [[librosa.load(audio_path, sr=sample_rate)[0]]] if audio_path else None
         inputs = self.processor(
-            text=[text],
-            voice_samples=voice_samples if voice_samples else None,
+            text=[f"Speaker 0: {text}"],
+            voice_samples=voice_samples,
             padding=True,
             return_tensors="pt",
             return_attention_mask=True,
