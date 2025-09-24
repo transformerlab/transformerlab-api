@@ -199,8 +199,7 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
     Enhanced version combining the best of both train and jobs routers.
     """
     try:
-        job = await db_jobs.job_get(job_id)
-        job_data = job["job_data"]
+        job_data = await job_service.get_job_data(job_id)
 
         # Handle both dict and JSON string formats
         if not isinstance(job_data, dict):
