@@ -34,7 +34,7 @@ async def _get_experiment_by_id(experimentId: int):
         return None
 
     experiment_name = data["name"]
-    experiment = Experiment(experiment_name)
+    experiment = Experiment.get(experiment_name)
     return experiment
 
 
