@@ -237,9 +237,7 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
                     f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}"
                 )
                 # Get experiment information for new job directory structure
-                experiment_id = job["experiment_id"]
-                experiment = await experiment_get(experiment_id)
-                experiment_name = experiment["name"]
+                experiment_name = job_data.get("experiment_name", "alpha")
                 job_id_safe = secure_filename(str(job_id))
                 new_output_dir = dirs.get_job_output_dir(experiment_name, job_id)
                 if not os.path.exists(new_output_dir):
