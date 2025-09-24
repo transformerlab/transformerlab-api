@@ -356,7 +356,7 @@ class VibeVoiceAudioModel(AudioModelBase):
             model_name,
             torch_dtype=torch.bfloat16,
             device_map=device,
-            attn_implementation="flash_attention_2",
+            attn_implementation=None,
         )
         self.model.eval()
         # Set noise scheduler
