@@ -14,6 +14,9 @@ from lab import HOME_DIR
 
 
 DATABASE_FILE_NAME = f"{HOME_DIR}/llmlab.sqlite3"
+WORKSPACE_DIR = os.environ.get("_TFL_WORKSPACE_DIR")
+if WORKSPACE_DIR is None:
+    raise EnvironmentError("Environment variable _TFL_WORKSPACE_DIR is not set!")
 
 
 # If there is an error set returncode and error_msg
@@ -198,11 +201,6 @@ def cache_progress_monitor(job_id, workspace_dir, model_name, repo_id, file_meta
             time.sleep(5)  # Wait longer on error
     
     print("Progress monitoring stopped")
-
-
-WORKSPACE_DIR = os.environ.get("_TFL_WORKSPACE_DIR")
-if WORKSPACE_DIR is None:
-    raise EnvironmentError("Environment variable _TFL_WORKSPACE_DIR is not set!")
 
 
 def check_model_gated(repo_id):
