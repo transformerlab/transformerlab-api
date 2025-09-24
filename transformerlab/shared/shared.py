@@ -1167,8 +1167,11 @@ async def get_job_output_file_name(job_id: str, plugin_name: str = None, experim
 
         # For multitenant, there is only one way to get this directory so it is simpler
         if MULTITENANT:
+            print("Multitenant mode: using Job class to get log path")
             job = Job.get(job_id)
-            job.get_log_path()
+            output_path = job.get_log_path()
+            if output_path and os.path.exists(output_path):
+                return output_path
 
         # For standalone app, need to check different possibilities
         # If plugin_name or experiment_name is not provided, get them from job_data
