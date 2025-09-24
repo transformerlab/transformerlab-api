@@ -10,8 +10,11 @@ import sys
 from pathlib import Path
 from multiprocessing import Process, Queue
 from werkzeug.utils import secure_filename
+from lab import HOME_DIR
 
-from transformerlab.db.constants import DATABASE_FILE_NAME
+
+DATABASE_FILE_NAME = f"{HOME_DIR}/llmlab.sqlite3"
+
 
 # If there is an error set returncode and error_msg
 # returncode is used by API to know about errors and
