@@ -4,7 +4,7 @@ try:
     from lab import WORKSPACE_DIR
 except Exception as e:
     # We intentionally do not fall back to env per requirement.
-    raise ImportError("Failed to import WORKSPACE_DIR from lab. Ensure lab is available.") from e
+    raise ImportError("Failed to import WORKSPACE_DIR from lab.") from e
 
 
 WORKSPACE_DIR = WORKSPACE_DIR
