@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
 from transformerlab.db.constants import DATABASE_FILE_NAME, DATABASE_URL
-from lab import WORKSPACE_DIR
+from lab import WORKSPACE_DIR, Experiment
 from transformerlab.shared.models import models
 
 
@@ -73,13 +73,11 @@ async def init():
     print("✅ Database initialized")
 
     print("✅ SEED DATA")
-    async with async_session() as session:
-        for name in ["alpha", "beta", "gamma"]:
-            # Check if experiment already exists
-            exists = await session.execute(select(models.Experiment).where(models.Experiment.name == name))
-            if not exists.scalar_one_or_none():
-                session.add(models.Experiment(name=name, config={}))
-        await session.commit()
+    for name in ["alpha", "beta", "gamma"]:
+        try:
+            Experiment.get(name)
+        except FileNotFoundError:
+            Experiment.create(name)
 
     # On startup, look for any jobs that are in the RUNNING state and set them to CANCELLED instead:
     # This is to handle the case where the server is restarted while a job is running.
