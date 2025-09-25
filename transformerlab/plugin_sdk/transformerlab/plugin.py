@@ -7,10 +7,11 @@ from pathlib import Path
 
 from jinja2 import Environment
 from transformers import AutoTokenizer
-
+from lab import HOME_DIR
 
 # useful constants
 WORKSPACE_DIR = os.getenv("_TFL_WORKSPACE_DIR")
+DATABASE_FILE_NAME = f"{HOME_DIR}/llmlab.sqlite3"
 if WORKSPACE_DIR is None:
     print("Plugin Harness Error: Environment variable _TFL_WORKSPACE_DIR is not set. Quitting.")
     exit(1)
@@ -18,6 +19,7 @@ TEMP_DIR = os.path.join(WORKSPACE_DIR, "temp")
 
 # Maintain a singleton database connection
 db = None
+
 
 def register_process(pid_or_pids):
     """
@@ -44,7 +46,7 @@ def get_db_connection():
     """
     global db
     if db is None:
-        dbfile = os.path.join(WORKSPACE_DIR, "llmlab.sqlite3")
+        dbfile = DATABASE_FILE_NAME
         db = sqlite3.connect(dbfile, isolation_level=None)
 
         # Need to set these every time we open a connection
@@ -470,7 +472,7 @@ class Job:
             # Add to job data completion_status and completion_details
             self.add_to_job_data("completion_status", completion_status)
             self.add_to_job_data("completion_details", completion_details)
-            
+
             # Update the job status field if there's a failure
             if completion_status == "failed":
                 self.update_status("FAILED")
@@ -554,15 +556,16 @@ def generate_model_json(
 
     return model_description
 
+
 def prepare_dataset_files(
     data_directory: str,
     datasets: dict,
-    formatting_template: str=None,
-    chat_template: str=None,
-    model_name: str=None,
-    chat_column: str="messages"
+    formatting_template: str = None,
+    chat_template: str = None,
+    model_name: str = None,
+    chat_column: str = "messages",
 ):
-    """ Prepares dataset files for training by formatting each example according to the provided template."""
+    """Prepares dataset files for training by formatting each example according to the provided template."""
     tokenizer = None
     if chat_template:
         tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
@@ -581,13 +584,13 @@ def prepare_dataset_files(
                         formatting_template=formatting_template,
                         chat_template=chat_template,
                         tokenizer=tokenizer,
-                        chat_column=chat_column
+                        chat_column=chat_column,
                     )
                     rendered_text = rendered_text.replace("\n", "\\n").replace("\r", "\\r")
                     f.write(json.dumps({"text": rendered_text}) + "\n")
                 except Exception:
-                        print(f"Warning: Failed to process example {i} in '{split_name}'. Skipping.")
-                        continue # Skip problematic examples
+                    print(f"Warning: Failed to process example {i} in '{split_name}'. Skipping.")
+                    continue  # Skip problematic examples
 
         # Print one example from the written jsonl file
         try:
@@ -602,24 +605,22 @@ def prepare_dataset_files(
         except Exception as e:
             print(f"Error reading example from {output_file}: {e}")
 
+
 def format_template(
     example: dict,
-    formatting_template: str=None,
-    chat_template: str=None,
-    tokenizer: AutoTokenizer=None,
-    chat_column: str="messages"
+    formatting_template: str = None,
+    chat_template: str = None,
+    tokenizer: AutoTokenizer = None,
+    chat_column: str = "messages",
 ):
-    """ Formats a single example using either a Jinja2 template or a chat template."""
+    """Formats a single example using either a Jinja2 template or a chat template."""
     if chat_template and tokenizer:
         if tokenizer.chat_template is None:
             raise ValueError("Tokenizer lacks a default chat template. Ensure model is instruction-tuned for chat.")
         return tokenizer.apply_chat_template(
-                        example[chat_column],
-                        tokenize=False,
-                        add_generation_prompt=False,
-                        chat_template=chat_template
-                    )
-    
+            example[chat_column], tokenize=False, add_generation_prompt=False, chat_template=chat_template
+        )
+
     if formatting_template:
         jinja_env = Environment()
         formatting_template = jinja_env.from_string(formatting_template)
