@@ -32,7 +32,7 @@ from fastchat.protocol.openai_api_protocol import (
 
 from transformerlab.db.jobs import job_create, job_update_status
 from transformerlab.db import jobs as db_jobs
-from transformerlab.db.db import experiment_get, experiment_get_all, jobs_get_by_experiment
+from transformerlab.db.db import experiment_get, jobs_get_by_experiment
 import transformerlab.db.session as db
 from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert
 from transformerlab.routers import (
@@ -68,7 +68,7 @@ from transformerlab.shared import shared
 from transformerlab.shared import galleries
 from lab import WORKSPACE_DIR, Experiment, Job
 
-from lab import dirs as lab_dirs
+from lab import dirs as lab_dirs, Experiment
 from transformerlab.shared import dirs
 
 from dotenv import load_dotenv
@@ -94,8 +94,8 @@ from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc
 async def migrate_jobs():
                 """Migrate jobs from DB to filesystem."""
                 print("Migrating jobs...")
-                experiments = await experiment_get_all()
-                
+                experiments = Experiment.get_all()
+
                 for exp in experiments:
                     print(f"Migrating jobs for experiment: {exp['name']}")
                     jobs = await jobs_get_by_experiment(exp['id'])
@@ -121,7 +121,7 @@ async def migrate_jobs():
 async def migrate_experiments():
                 """Migrate experiments from DB to filesystem."""
                 print("Migrating experiments...")
-                experiments = await experiment_get_all()
+                experiments = Experiment.get_all()
                 if not experiments:
                     print("No experiments in DB to migrate.")
                     return
@@ -196,7 +196,7 @@ async def migrate_db_to_filesystem():
             print("Running full DB to filesystem migration...")
             
             # Check if there are experiments in DB to migrate
-            db_experiments = await experiment_get_all()
+            db_experiments = Experiment.get_all()
             if not db_experiments:
                 print("No experiments in DB to migrate.")
                 return

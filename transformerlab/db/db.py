@@ -372,10 +372,6 @@ async def export_job_create(experiment_id, job_data_json):
 ###################
 
 
-async def experiment_get_all():
-    return Experiment.get_all()
-
-
 async def experiment_create(name: str, config: dict) -> str:
     # test to see if config is a valid dict:
     if not isinstance(config, dict):

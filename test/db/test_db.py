@@ -17,7 +17,6 @@ from transformerlab.db.db import (
     model_local_list,
     model_local_count,
     model_local_delete,
-    experiment_get_all,
     experiment_create,
     experiment_get,
     experiment_delete,
@@ -105,6 +104,7 @@ from transformerlab.db.jobs import (
 
 from transformerlab.db.session import job_cancel_in_progress_jobs
 import transformerlab.db.session as db
+from lab import Experiment
 
 
 import pytest
@@ -504,7 +504,7 @@ class TestExperiments:
 
     @pytest.mark.asyncio
     async def test_experiment_get_all(self):
-        experiments = await experiment_get_all()
+        experiments = Experiment.get_all()
         assert isinstance(experiments, list)
 
     @pytest.mark.asyncio
