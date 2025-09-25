@@ -685,7 +685,6 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
                 # Assume text generation if we can't get the tag
                 print(f"Error fetching pipeline tag for {huggingface_id}: {type(e).__name__}: {e}")
                 gallery_entry["pipeline_tag"] = "text-generation"
-    print("GALLERY ENTRY:", gallery_entry)
 
     return await download_huggingface_model(huggingface_id, gallery_entry, job_id, experiment_id)
 
