@@ -193,6 +193,11 @@ async def job_update_status(job_id, status, experiment_id, error_msg=None):
                 stmt3 = stmt3.where(models.Job.experiment_id == experiment_id)
             await session.execute(stmt3.values(job_data=json.dumps(job_data)))
         await session.commit()
+        # Also update filesystem
+        job = Job(job_id)
+        job.update_status(status)
+        if error_msg:
+            job.update_job_data_field("error_msg", str(error_msg))
     return
 
 
@@ -203,6 +208,10 @@ async def job_update(job_id, type, status, experiment_id):
             stmt = stmt.where(models.Job.experiment_id == experiment_id)
         await session.execute(stmt.values(type=type, status=status))
         await session.commit()
+    # Also update filesystem
+    job = Job(job_id)
+    job.update_json_data_field("type", type)
+    job.update_status(status)
     return
 
 
@@ -224,6 +233,9 @@ async def job_delete(job_id, experiment_id):
             stmt = stmt.where(models.Job.experiment_id == experiment_id)
         await session.execute(stmt.values(status="DELETED"))
         await session.commit()
+    # Also update filesystem
+    job = Job(job_id)
+    job.update_status("DELETED")
     return
 
 
@@ -250,6 +262,9 @@ async def job_update_job_data_insert_key_value(job_id, key, value, experiment_id
             stmt2 = stmt2.where(models.Job.experiment_id == experiment_id)
         await session.execute(stmt2.values(job_data=json.dumps(job_data)))
         await session.commit()
+    # Also update filesystem
+    job = Job(job_id)
+    job.update_job_data_field(key, value)
     return
 
 
@@ -271,6 +286,9 @@ async def job_update_progress(job_id, progress, experiment_id):
             stmt = stmt.where(models.Job.experiment_id == experiment_id)
         await session.execute(stmt.values(progress=progress))
         await session.commit()
+    # Also update filesystem
+    job = Job(job_id)
+    job.update_progress(progress)
 
 
 async def job_update_sweep_progress(job_id, value, experiment_id):
@@ -304,4 +322,7 @@ async def job_update_sweep_progress(job_id, value, experiment_id):
             stmt2 = stmt2.where(models.Job.experiment_id == experiment_id)
         await session.execute(stmt2.values(job_data=json.dumps(job_data)))
         await session.commit()
+    # Also update filesystem
+    fs_job = Job(job_id)
+    fs_job.update_job_data_field("sweep_progress", value)
     return
