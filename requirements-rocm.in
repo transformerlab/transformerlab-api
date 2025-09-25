@@ -31,7 +31,7 @@ markitdown[all]
 hf_xet
 macmon-python
 mcp[cli]
-transformerlab-inference==0.2.48
+transformerlab-inference==0.2.49
 transformerlab==0.0.6
 diffusers==0.33.1
 pyrsmi
