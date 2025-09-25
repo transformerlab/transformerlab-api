@@ -1,3 +1,6 @@
+"""Auth provider base types and interfaces."""
+
+# Postpone evaluation of type annotations (forward refs, faster imports, avoid cycles)
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
