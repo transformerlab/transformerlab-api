@@ -127,15 +127,14 @@ async def migrate_experiments():
                     return
 
                 for exp in experiments:
-                    print(f"Migrating experiment: {exp['name']} (ID: {exp['id']})")
+                    print(f"Migrating experiment: {exp['name']}")
                     
                     # Create SDK Experiment
-                    experiment = Experiment(exp['id'])
+                    experiment = Experiment(exp['name'])
                     experiment.__initialize()
 
                     
                     # TODO: which datetime to use here?
-                    experiment.update_json_data_field(key="id", value=exp["id"])
                     experiment.update_json_data_field(key="name", value=exp["name"])
                     experiment.update_json_data_field(key="config", value=exp["config"] if isinstance(exp["config"], dict) else {})
                     experiment.update_json_data_field(key="created_at", value=exp.get("created_at", datetime.now().isoformat()))
