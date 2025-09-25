@@ -21,7 +21,8 @@ from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
 from lab.dirs import GLOBAL_LOG_PATH
 from transformerlab.services.job_service import job_update_status
-from lab import WORKSPACE_DIR, dirs as lab_dirs
+from transformerlab.shared.constants import WORKSPACE_DIR
+from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
 
 

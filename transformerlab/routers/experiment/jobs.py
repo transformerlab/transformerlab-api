@@ -22,7 +22,8 @@ from datetime import datetime
 
 import transformerlab.db.jobs as db_jobs
 from transformerlab.services.job_service import job_update_status
-from lab import WORKSPACE_DIR, dirs
+from transformerlab.shared.constants import WORKSPACE_DIR
+from lab import dirs
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 

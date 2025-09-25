@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
 from transformerlab.db.constants import DATABASE_FILE_NAME, DATABASE_URL
-from lab import WORKSPACE_DIR
+from transformerlab.shared.constants import WORKSPACE_DIR
 from transformerlab.shared.models import models
 
 
