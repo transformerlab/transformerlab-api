@@ -17,7 +17,7 @@ from typing import AsyncGenerator
 from fastapi import Depends
 from fastapi_users.db import SQLAlchemyUserDatabase
 
-from transformerlab.db.jobs import job_create, job_delete, jobs_get_by_experiment
+from transformerlab.db.jobs import job_create
 from transformerlab.db.workflows import (
     workflow_delete_by_id,
     workflows_get_from_experiment,

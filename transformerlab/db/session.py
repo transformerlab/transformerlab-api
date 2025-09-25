@@ -1,7 +1,7 @@
 import os
 import shutil
 import aiosqlite
-from sqlalchemy import select, update
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
