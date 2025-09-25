@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 uv pip install unsloth
 uv pip install snac
+vibevoice @ git+https://github.com/rsxdalv/vibevoice@stable
 
 if command -v rocminfo &> /dev/null; then
     # Install Unsloth from source
@@ -9,3 +10,4 @@ if command -v rocminfo &> /dev/null; then
     # Install ROCm Bitsandbytes from source 
     git clone --recurse https://github.com/ROCm/bitsandbytes && cd bitsandbytes && git checkout rocm_enabled_multi_backend && uv pip install -r requirements-dev.txt && cmake -DCOMPUTE_BACKEND=hip -S . && make -j  && uv pip install -e .
 fi
+

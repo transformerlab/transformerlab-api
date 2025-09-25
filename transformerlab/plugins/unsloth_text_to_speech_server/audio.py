@@ -4,6 +4,13 @@ from transformers import AutoProcessor, CsmForConditionalGeneration
 from snac import SNAC
 import torch
 import librosa
+import numpy as np
+
+from vibevoice.modular.modeling_vibevoice_inference import VibeVoiceForConditionalGenerationInference
+from vibevoice.processor.vibevoice_processor import VibeVoiceProcessor
+
+from fastchat.serve.model_worker import logger
+
 
 class AudioModelBase(ABC):
     def __init__(self, model_name, device, context_length=2048):
@@ -344,3 +351,131 @@ class OrpheusAudioModel(AudioModelBase):
         input_ids = torch.cat(input_sequence, dim=1)
         
         return input_ids.to(self.device)
+
+
+class VibeVoiceAudioModel(AudioModelBase):
+    def __init__(self, model_name, device, context_length=2048):
+        super().__init__(model_name, device, context_length)
+        self.processor = VibeVoiceProcessor.from_pretrained(model_name)
+        self.model = VibeVoiceForConditionalGenerationInference.from_pretrained(
+            model_name,
+            torch_dtype=torch.bfloat16,
+            device_map=device,
+            attn_implementation=None,
+        )
+        self.model.eval()
+        # Set noise scheduler
+        self.model.model.noise_scheduler = self.model.model.noise_scheduler.from_config(
+            self.model.model.noise_scheduler.config,
+            algorithm_type="sde-dpmsolver++",
+            beta_schedule="squaredcos_cap_v2",
+        )
+        self.generate_kwargs = {
+            "max_new_tokens": None,
+            "cfg_scale": 1.3,
+            "inference_steps": 10,
+            "do_sample": False,
+        }
+
+    def tokenize(self, text, audio_path=None, sample_rate=24000, voice=None):
+        # VibeVoice expects a multi-speaker dialogue format
+        # If audio_path is provided, use it as the voice sample for Speaker 0
+        if audio_path:
+            # Load reference audio for the speaker
+            voice_audio = librosa.load(audio_path, sr=sample_rate)[0]
+            voice_samples = [[voice_audio]]
+        else:
+            # For standard TTS without voice reference, use None
+            # VibeVoice should handle this case internally
+            voice_samples = None
+        
+        # Format the text as a single-speaker dialogue
+        formatted_text = f"Speaker 0: {text}"
+        
+        inputs = self.processor(
+            text=[formatted_text],
+            voice_samples=voice_samples,
+            padding=True,
+            return_tensors="pt",
+            return_attention_mask=True,
+        )
+        return inputs.to(self.device)
+
+    def generate(self, inputs, **kwargs):
+        self.model.set_ddpm_inference_steps(num_steps=self.generate_kwargs['inference_steps'])
+        
+        gen_args = {
+            **inputs,
+            "max_new_tokens": None,
+            "cfg_scale": self.generate_kwargs['cfg_scale'],
+            "tokenizer": self.processor.tokenizer,
+            "generation_config": {
+                "do_sample": self.generate_kwargs['do_sample'],
+            },
+            "audio_streamer": None,
+            "stop_check_fn": None,
+            "verbose": False,
+            "refresh_negative": True,
+            **kwargs
+        }
+        
+        outputs = self.model.generate(**gen_args)
+        return outputs
+
+    def decode(self, generated, **kwargs):
+        # Step 1: Extract audio from VibeVoiceGenerationOutput
+        if hasattr(generated, "speech_outputs"):
+            audio = generated.speech_outputs[0]
+        elif hasattr(generated, "waveform"):
+            audio = generated.waveform
+        elif hasattr(generated, "audio"):
+            audio = generated.audio
+        elif isinstance(generated, (list, tuple)):
+            audio = generated[0]
+        else:
+            audio = generated
+
+        # Step 2: Convert tensor to numpy array
+        if torch.is_tensor(audio):
+            # Convert bfloat16 to float32 first, then to numpy
+            if audio.dtype == torch.bfloat16:
+                audio = audio.float()
+            audio_np = audio.cpu().numpy().astype(np.float32)
+        else:
+            audio_np = np.array(audio, dtype=np.float32)
+        
+        # Step 3: Ensure audio is 1D and properly normalized
+        if len(audio_np.shape) > 1:
+            audio_np = audio_np.squeeze()
+        
+        # Step 4: Check for invalid values
+        if np.any(np.isnan(audio_np)) or np.any(np.isinf(audio_np)):
+            logger.warning("Audio contains NaN or Inf values, cleaning...")
+            audio_np = np.nan_to_num(audio_np, nan=0.0, posinf=1.0, neginf=-1.0)
+        
+        # Step 5: Convert to 16-bit format like the demo does
+        audio_16bit = self._convert_to_16_bit_wav(audio_np)
+        
+        # Step 6: Convert back to float32 for compatibility
+        final_audio = audio_16bit.astype(np.float32) / 32767.0
+
+        logger.info(f"VibeVoice audio generated: shape={final_audio.shape}, range=[{np.min(final_audio):.3f}, {np.max(final_audio):.3f}]")
+        
+        return final_audio
+
+    def _convert_to_16_bit_wav(self, data):
+        """Convert audio data to 16-bit format exactly like the demo."""
+        # Check if data is a tensor and move to cpu
+        if torch.is_tensor(data):
+            data = data.detach().cpu().numpy()
+
+        # Ensure data is numpy array
+        data = np.array(data)
+
+        # Normalize to range [-1, 1] if it's not already
+        if np.max(np.abs(data)) > 1.0:
+            data = data / np.max(np.abs(data))
+
+        # Scale to 16-bit integer range
+        data = (data * 32767).astype(np.int16)
+        return data

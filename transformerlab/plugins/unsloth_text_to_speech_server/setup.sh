@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 uv pip install unsloth
 uv pip install snac
+uv pip install flash-attn
+uv pip install "vibevoice @ git+https://github.com/rsxdalv/vibevoice.git@stable"
+uv pip install transformers==4.55.2
 
 if command -v rocminfo &> /dev/null; then
     # Install Unsloth from source
