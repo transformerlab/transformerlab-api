@@ -23,8 +23,9 @@ from transformerlab.routers.experiment import (
     diffusion,
     jobs,
 )
+
 from transformerlab.shared.constants import WORKSPACE_DIR
-from lab import dirs
+from lab import dirs, Experiment
 
 from werkzeug.utils import secure_filename
 
@@ -74,7 +75,7 @@ async def convert_experiment_name_to_id_if_needed(name: int | str) -> int:
 @router.get("/", summary="Get all Experiments", tags=["experiment"])
 async def experiments_get_all():
     """Get a list of all experiments"""
-    return await db.experiment_get_all()
+    return Experiment.get_all()
 
 
 @router.get("/create", summary="Create Experiment", tags=["experiment"])

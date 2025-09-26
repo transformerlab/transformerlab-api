@@ -40,7 +40,7 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
 
     name: Mapped[str] = mapped_column(String(64), nullable=False, server_default="")
 
-
+# TODO: Remove this after removing experiment_get in db.py
 class Experiment(Base):
     """Experiment model."""
 
