@@ -755,7 +755,8 @@ async def model_local_create(id: str, name: str, json_data={}):
     except FileExistsError:
         return {"status": "error", "message": f"Model {id} already exists"}
     except Exception as e:
-        return {"status": "error", "message": f"Failed to create model: {str(e)}"}
+        print(f"Error creating model {id}: {e}")
+        return {"status": "error", "message": "Failed to create model due to an internal error."}
 
 
 @router.get("/model/delete")
@@ -776,13 +777,22 @@ async def model_local_delete(model_id: str, delete_from_cache: bool = False):
 
     # Also try the legacy method for backward compatibility
     root_models_dir = lab_dirs.MODELS_DIR
-    model_dir = model_id.rsplit("/", 1)[-1]
-    index_file = os.path.join(root_models_dir, model_dir, "index.json")
 
-    if os.path.isfile(index_file):
+    
+    # Sanitize and validate model_dir
+    unsafe_model_dir = model_id.rsplit("/", 1)[-1]
+    model_dir = os.path.normpath(unsafe_model_dir)
+    candidate_index_file = os.path.join(root_models_dir, model_dir, "index.json")
+    index_file = os.path.abspath(candidate_index_file)
+    models_dir_abs = os.path.abspath(root_models_dir)
+
+    if not index_file.startswith(models_dir_abs):
+        print("ERROR: Invalid index file path")
+
+    elif os.path.isfile(index_file):
         model_path = os.path.join(root_models_dir, model_dir)
         model_path = os.path.abspath(model_path)
-        if not model_path.startswith(os.path.abspath(root_models_dir)):
+        if not model_path.startswith(models_dir_abs):
             print("ERROR: Invalid directory structure")
         print(f"Deleteing {model_path}")
         shutil.rmtree(model_path)
