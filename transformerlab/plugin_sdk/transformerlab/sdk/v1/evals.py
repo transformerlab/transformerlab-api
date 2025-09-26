@@ -53,7 +53,7 @@ class EvalsTLabPlugin(TLabPlugin):
         self._ensure_args_parsed()
 
         today = time.strftime("%Y%m%d-%H%M%S")
-        workspace_dir = os.environ.get("_TFL_WORKSPACE_DIR", "./")
+        from transformerlab.plugin import WORKSPACE_DIR as workspace_dir
 
         # Create tensorboard directory structure
         tensorboard_dir = os.path.join(workspace_dir, "experiments", self.params.experiment_name, "tensorboards")
@@ -145,7 +145,7 @@ class EvalsTLabPlugin(TLabPlugin):
 
         self._ensure_args_parsed()
 
-        workspace_dir = os.environ.get("_TFL_WORKSPACE_DIR", "./")
+        from transformerlab.plugin import WORKSPACE_DIR as workspace_dir
         experiment_dir = os.path.join(workspace_dir, "experiments", self.params.experiment_name)
         eval_dir = os.path.join(experiment_dir, "evals", self.params.eval_name, self.params.job_id)
 
@@ -270,7 +270,7 @@ class EvalsTLabPlugin(TLabPlugin):
 
         # Add evaluation data to the existing provenance file in the model directory
         # Try to find the model directory using environment variables
-        workspace_dir = os.environ.get("_TFL_WORKSPACE_DIR", "./")
+        from transformerlab.plugin import WORKSPACE_DIR as workspace_dir
         models_dir = os.path.join(workspace_dir, "models")
 
         # Look for the model directory - since we have the actual model path, we can be more precise
