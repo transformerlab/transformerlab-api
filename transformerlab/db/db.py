@@ -380,12 +380,19 @@ async def experiment_create(name: str, config: dict) -> str:
     exp._update_json_data_field("config", config)
     return name
 
-# TODO: Make sure a name is always passed to this function
-# or actually remove this and only keep experiment_get_by_name
+# TODO: Remove this and only keep experiment_get_by_name
 async def experiment_get(id):
     if id is None or id == "undefined":
         return None
-    return Experiment.get(id)
+    async with async_session() as session:
+        result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
+        experiment = result.scalar_one_or_none()
+        if experiment is None:
+            return None
+        # Ensure config is always a JSON string
+        if isinstance(experiment.config, dict):
+            experiment.config = json.dumps(experiment.config)
+        return sqlalchemy_to_dict(experiment)
 
 
 async def experiment_get_by_name(name):
