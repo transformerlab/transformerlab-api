@@ -41,6 +41,20 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
     name: Mapped[str] = mapped_column(String(64), nullable=False, server_default="")
 
 
+class Experiment(Base):
+    """Experiment model."""
+
+    __tablename__ = "experiment"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    config: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+    updated_at: Mapped[DateTime] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
 class Model(Base):
     """Model definition."""
 
