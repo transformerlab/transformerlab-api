@@ -98,7 +98,16 @@ class BaseModel:
 
     async def install(self):
         json_data = await self.get_json_data()
-        await db.model_local_create(model_id=self.id, name=self.name, json_data=json_data)
+        from lab.model import Model as ModelService
+        try:
+            model_service = ModelService.create(self.id)
+        except FileExistsError:
+            model_service = ModelService.get(self.id)
+        model_service.set_metadata(
+            model_id=self.id,
+            name=self.name,
+            json_data=json_data
+        )
 
 
 # MODEL UTILITY FUNCTIONS
