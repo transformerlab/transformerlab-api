@@ -65,7 +65,7 @@ from transformerlab.routers.experiment import workflows
 from transformerlab.routers.experiment import jobs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
-from lab import WORKSPACE_DIR
+from transformerlab.shared.constants import WORKSPACE_DIR
 from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
 
@@ -79,7 +79,7 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 # environment variables that start with _ are
 # used internally to set constants that are shared between separate processes. They are not meant to be
 # to be overriden by the user.
-os.environ["_TFL_WORKSPACE_DIR"] = WORKSPACE_DIR
+# os.environ["_TFL_WORKSPACE_DIR"] = WORKSPACE_DIR
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 # The temporary image directory for transformerlab
 temp_image_dir = os.path.join(WORKSPACE_DIR, "temp", "images")

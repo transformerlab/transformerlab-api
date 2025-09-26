@@ -25,7 +25,8 @@ from transformerlab.models import basemodel
 from transformerlab.models import huggingfacemodel
 from transformerlab.models import filesystemmodel
 from transformerlab.services.job_service import job_update_status
-from lab import WORKSPACE_DIR, dirs as lab_dirs
+from transformerlab.shared.constants import WORKSPACE_DIR
+from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
 
 from werkzeug.utils import secure_filename
@@ -684,7 +685,6 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
                 # Assume text generation if we can't get the tag
                 print(f"Error fetching pipeline tag for {huggingface_id}: {type(e).__name__}: {e}")
                 gallery_entry["pipeline_tag"] = "text-generation"
-    print("GALLERY ENTRY:", gallery_entry)
 
     return await download_huggingface_model(huggingface_id, gallery_entry, job_id, experiment_id)
 
