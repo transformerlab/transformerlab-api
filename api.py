@@ -104,8 +104,7 @@ async def migrate_jobs():
                         print(f"Migrating job: {job['id']} (type: {job['type']})")
                         
                         # Create SDK Job
-                        job_obj = Job(job['id'])
-                        job_obj.__initialize()
+                        job_obj = Job.create(job['id'])
                         # Update the JSON data with DB data
                         job_obj.update_job_data_field(key="id", value=job["id"])
                         job_obj.update_job_data_field(key="experiment_id", value=exp["name"])  # Use name instead of numeric ID
@@ -130,9 +129,7 @@ async def migrate_experiments():
                     print(f"Migrating experiment: {exp['name']}")
                     
                     # Create SDK Experiment
-                    experiment = Experiment(exp['name'])
-                    experiment.__initialize()
-
+                    experiment = Experiment.create(exp['name'])
                     
                     # TODO: which datetime to use here?
                     experiment.update_json_data_field(key="name", value=exp["name"])
@@ -152,47 +149,49 @@ async def migrate_db_to_filesystem():
             print("Migration already in progress, skipping...")
             return
             
-        # Check if experiments migration has already been done
+        # Check if experiments migration is needed
+        # We need migration if there are experiment directories WITHOUT index.json
         experiments_dir = lab_dirs.experiments_dir()
-        experiments_migrated = False
+        experiments_need_migration = False
         if os.path.exists(experiments_dir):
             for exp_dir in os.listdir(experiments_dir):
                 exp_path = os.path.join(experiments_dir, exp_dir)
                 if os.path.isdir(exp_path):
                     index_file = os.path.join(exp_path, "index.json")
-                    if os.path.exists(index_file):
-                        experiments_migrated = True
+                    if not os.path.exists(index_file):
+                        experiments_need_migration = True
                         break
         
-        # Check if jobs migration has already been done
+        # Check if jobs migration is needed
+        # We need migration if there are job directories WITHOUT index.json
         jobs_dir = lab_dirs.jobs_dir()
-        jobs_migrated = False
+        jobs_need_migration = False
         if os.path.exists(jobs_dir):
             for job_dir in os.listdir(jobs_dir):
                 job_path = os.path.join(jobs_dir, job_dir)
                 if os.path.isdir(job_path):
                     job_index = os.path.join(job_path, "index.json")
-                    if os.path.exists(job_index):
-                        jobs_migrated = True
+                    if not os.path.exists(job_index):
+                        jobs_need_migration = True
                         break
         
-        # If both are already migrated, skip entirely
-        if experiments_migrated and jobs_migrated:
-            print("Migration already completed - found existing experiment and job data.")
+        # If neither needs migration, skip entirely
+        if not experiments_need_migration and not jobs_need_migration:
+            print("Migration not needed - all experiment and job directories have index.json files.")
             return
         
         # Create migration marker
         with open(migration_marker, 'w') as f:
             f.write(f"Migration started at {datetime.now().isoformat()}\n")
         
-        # If experiments are migrated but jobs aren't, only migrate jobs
-        if experiments_migrated and not jobs_migrated:
-            print("Experiments already migrated, migrating jobs only...")
+        # If only jobs need migration, migrate jobs only
+        if not experiments_need_migration and jobs_need_migration:
+            print("Experiments already have index.json files, migrating jobs only...")
             await migrate_jobs()
             print("Jobs migration completed.")
             
-        # If neither is migrated, do full migration
-        elif not experiments_migrated and not jobs_migrated:
+        # If experiments need migration, do full migration
+        elif experiments_need_migration:
             print("Running full DB to filesystem migration...")
             
             # Check if there are experiments in DB to migrate
@@ -202,7 +201,8 @@ async def migrate_db_to_filesystem():
                 return
                 
             await migrate_experiments()
-            await migrate_jobs()
+            if jobs_need_migration:
+                await migrate_jobs()
             print("DB to filesystem migration completed.")
         
         # Remove migration marker on success
