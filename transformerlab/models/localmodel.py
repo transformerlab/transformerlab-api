@@ -133,20 +133,22 @@ class LocalModelStore(modelstore.ModelStore):
         # Add additional metadata to each model
         models_dir = dirs.MODELS_DIR
         for model in models:
-            # tells the app this model was loaded from workspace directory
-            model["stored_in_filesystem"] = True
+            # Only set model["stored_in_filesystem"] to True if the model is a local model and not a Hugging Face model
+            if not (model.get("json_data", {}).get("source", "") == "huggingface" and model.get("json_data", {}).get("model_filename", "") == ""):
+                # tells the app this model was loaded from workspace directory
+                model["stored_in_filesystem"] = True
 
-            # Set local_path to the filesystem location
-            # this will tell Hugging Face to not try downloading
-            model_id = model.get("model_id", "")
-            model["local_path"] = os.path.join(models_dir, model_id)
+                # Set local_path to the filesystem location
+                # this will tell Hugging Face to not try downloading
+                model_id = model.get("model_id", "")
+                model["local_path"] = os.path.join(models_dir, model_id)
 
-            # Some models are a single file (possibly of many in a directory, e.g. GGUF)
-            # For models that have model_filename set we should link directly to that specific file
-            if "model_filename" in model and model["model_filename"]:
-                model["local_path"] = os.path.join(
-                    model["local_path"], model["model_filename"]
-                )
+                # Some models are a single file (possibly of many in a directory, e.g. GGUF)
+                # For models that have model_filename set we should link directly to that specific file
+                if "model_filename" in model.get("json_data", {}) and model["json_data"]["model_filename"]:
+                    model["local_path"] = os.path.join(
+                        model["local_path"], model["json_data"]["model_filename"]
+                    )
 
         # Filter out models based on whether they are embedding models or not
         models = await self.filter_embedding_models(models, embedding)
