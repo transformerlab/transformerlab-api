@@ -21,7 +21,8 @@ def run_generation():
     negative_column = tlab_gen.params.negative_prompt_column.strip()
 
     dataset_id = tlab_gen.params.get("output_dataset_name")
-    output_dir = os.path.join(os.environ["_TFL_WORKSPACE_DIR"], "datasets", dataset_id)
+    from transformerlab.plugin import WORKSPACE_DIR
+    output_dir = os.path.join(WORKSPACE_DIR, "datasets", dataset_id)
     os.makedirs(output_dir, exist_ok=True)
 
     # Load dataset
