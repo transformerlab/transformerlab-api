@@ -189,10 +189,6 @@ async def job_update(job_id, type, status, experiment_id):
             stmt = stmt.where(models.Job.experiment_id == experiment_id)
         await session.execute(stmt.values(type=type, status=status))
         await session.commit()
-    # Also update filesystem
-    job = Job(job_id)
-    job.update_json_data_field("type", type)
-    job.update_status(status)
     return
 
 
@@ -214,9 +210,6 @@ async def job_delete(job_id, experiment_id):
             stmt = stmt.where(models.Job.experiment_id == experiment_id)
         await session.execute(stmt.values(status="DELETED"))
         await session.commit()
-    # Also update filesystem
-    job = Job(job_id)
-    job.update_status("DELETED")
     return
 
 
