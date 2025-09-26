@@ -68,7 +68,7 @@ from transformerlab.shared import shared
 from transformerlab.shared import galleries
 from lab import WORKSPACE_DIR, Experiment, Job
 
-from lab import dirs as lab_dirs, Experiment
+from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
 
 from dotenv import load_dotenv
