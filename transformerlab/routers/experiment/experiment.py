@@ -25,7 +25,7 @@ from transformerlab.routers.experiment import (
 )
 
 from transformerlab.shared.constants import WORKSPACE_DIR
-from lab import dirs
+from lab import dirs, Experiment
 
 from werkzeug.utils import secure_filename
 

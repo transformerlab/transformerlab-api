@@ -9,6 +9,7 @@ from transformerlab.db.constants import DATABASE_FILE_NAME, DATABASE_URL
 
 from transformerlab.shared.constants import WORKSPACE_DIR
 from transformerlab.shared.models import models
+from lab import Experiment
 
 
 # --- SQLAlchemy Async Engine ---
