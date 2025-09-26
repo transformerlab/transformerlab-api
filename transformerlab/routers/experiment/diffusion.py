@@ -468,8 +468,10 @@ async def is_valid_diffusion(request: DiffusionRequest):
         return {"is_valid_diffusion_model": False, "reason": "Model ID is empty"}
 
     try:
-        # First try to get architecture from database
-        model_data = await db.model_local_get(model_id)
+        # First try to get architecture from filesystem
+        from lab.model import Model as ModelService
+        model_service = ModelService.get(model_id)
+        model_data = model_service.get_metadata()
         architectures = []
 
         if model_data and model_data.get("json_data"):

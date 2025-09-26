@@ -101,6 +101,7 @@ async def lifespan(app: FastAPI):
         await install_all_plugins()
     # run the migration
     asyncio.create_task(migrate())
+    asyncio.create_task(migrate_models_table_to_filesystem())
     asyncio.create_task(run_over_and_over())
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
@@ -116,6 +117,77 @@ async def migrate():
     if len(await tasks.tasks_get_all()) == 0:
         for exp in await experiment.experiments_get_all():
             await tasks.convert_all_to_tasks(exp["id"])
+
+
+async def migrate_models_table_to_filesystem():
+    """
+    One-time migration: copy rows from the legacy model DB table into the filesystem
+    registry via transformerlab-sdk, then drop the table.
+    Safe to run multiple times; it will no-op if table is missing or empty.
+    """
+    try:
+        # Late import to avoid hard dependency during tests without DB
+        from transformerlab.db.db import model_local_list
+        from transformerlab.db.session import async_session
+        from sqlalchemy import text as sqlalchemy_text
+        from lab.model import Model as model_service
+
+        # Read existing rows
+        rows = []
+        try:
+            # First check if the table exists
+            async with async_session() as session:
+                result = await session.execute(sqlalchemy_text(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='model'"
+                ))
+                exists = result.fetchone() is not None
+            if not exists:
+                return
+            rows = await model_local_list()
+        except Exception:
+            rows = []
+
+        migrated = 0
+        for row in rows:
+            model_id = str(row.get("model_id")) if row.get("model_id") is not None else None
+            if not model_id:
+                continue
+            name = row.get("name", model_id)
+            json_data = row.get("json_data", {})
+            if isinstance(json_data, str):
+                try:
+                    json_data = json.loads(json_data)
+                except Exception:
+                    json_data = {}
+
+            try:
+                try:
+                    model = model_service.get(model_id)
+                except FileNotFoundError:
+                    model = model_service.create(model_id)
+                model.set_metadata(
+                    model_id=model_id,
+                    name=name,
+                    json_data=json_data,
+                )
+                migrated += 1
+            except Exception:
+                # Best-effort migration; continue
+                continue
+
+        # Drop the legacy table if present
+        try:
+            async with async_session() as session:
+                await session.execute(sqlalchemy_text("DROP TABLE IF EXISTS model"))
+                await session.commit()
+        except Exception:
+            pass
+
+        if migrated:
+            print(f"Models migration completed: {migrated} entries migrated to filesystem store.")
+    except Exception as e:
+        # Do not block startup on migration issues
+        print(f"Models migration skipped due to error: {e}")
 
 
 async def run_over_and_over():
