@@ -142,11 +142,15 @@ class LocalModelStore(modelstore.ModelStore):
                 # this will tell Hugging Face to not try downloading
                 model_id = model.get("model_id", "")
                 model_filename = model.get("json_data", {}).get("model_filename", "")
-                model["local_path"] = os.path.join(models_dir, model_id)
+                model["local_path"] = os.path.join(models_dir, secure_filename(model_id))
+                # Check if local path exists
+                if not os.path.exists(model["local_path"]):
+                    # Remove the Starting TransformerLab/ prefix to handle the save_transformerlab_model function
+                    model["local_path"] = os.path.join(models_dir, secure_filename("/".join(model_id.split("/")[1:])))
 
                 # Some models are a single file (possibly of many in a directory, e.g. GGUF)
                 # For models that have model_filename set we should link directly to that specific file
-                if "model_filename" in model.get("json_data", {}) and model["json_data"]["model_filename"]:
+                if "model_filename" in model.get("json_data", {}):
                     model_filename = model["json_data"]["model_filename"]
                     if model_filename.endswith(".gguf"):
                         model["local_path"] = os.path.join(os.path.join(models_dir, secure_filename(model_id)), model_filename)
