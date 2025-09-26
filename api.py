@@ -68,6 +68,7 @@ from transformerlab.shared import shared
 from transformerlab.shared import galleries
 from transformerlab.shared.constants import WORKSPACE_DIR
 from lab import dirs as lab_dirs
+from lab.dataset import Dataset as dataset_service
 from transformerlab.shared import dirs
 
 from dotenv import load_dotenv
@@ -99,8 +100,9 @@ async def lifespan(app: FastAPI):
     await db.init()
     if "--reload" in sys.argv:
         await install_all_plugins()
-    # run the migration
+    # run the migrations
     asyncio.create_task(migrate())
+    asyncio.create_task(migrate_datasets_table_to_filesystem())
     asyncio.create_task(run_over_and_over())
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
@@ -116,6 +118,71 @@ async def migrate():
     if len(await tasks.tasks_get_all()) == 0:
         for exp in await experiment.experiments_get_all():
             await tasks.convert_all_to_tasks(exp["id"])
+
+
+async def migrate_datasets_table_to_filesystem():
+    """
+    One-time migration: copy rows from the legacy dataset DB table into the filesystem
+    registry via transformerlab-sdk, then drop the table.
+    Safe to run multiple times; it will no-op if table is missing or empty.
+    """
+    try:
+        # Late import to avoid hard dependency during tests without DB
+        from transformerlab.db.datasets import get_datasets
+        from transformerlab.db.session import async_session
+        from sqlalchemy import text as sqlalchemy_text
+
+        # Read existing rows
+        rows = []
+        try:
+            rows = await get_datasets()
+        except Exception:
+            rows = []
+
+        migrated = 0
+        for row in rows:
+            dataset_id = str(row.get("dataset_id")) if row.get("dataset_id") is not None else None
+            if not dataset_id:
+                continue
+            location = row.get("location", "local")
+            description = row.get("description", "")
+            size = int(row.get("size", -1)) if row.get("size") is not None else -1
+            json_data = row.get("json_data", {})
+            if isinstance(json_data, str):
+                try:
+                    json_data = json.loads(json_data)
+                except Exception:
+                    json_data = {}
+
+            try:
+                try:
+                    ds = dataset_service.get(dataset_id)
+                except FileNotFoundError:
+                    ds = dataset_service.create(dataset_id)
+                ds.set_metadata(
+                    location=location,
+                    description=description,
+                    size=size,
+                    json_data=json_data,
+                )
+                migrated += 1
+            except Exception:
+                # Best-effort migration; continue
+                continue
+
+        # Drop the legacy table if present
+        try:
+            async with async_session() as session:
+                await session.execute(sqlalchemy_text("DROP TABLE IF EXISTS dataset"))
+                await session.commit()
+        except Exception:
+            pass
+
+        if migrated:
+            print(f"Datasets migration completed: {migrated} entries migrated to filesystem store.")
+    except Exception as e:
+        # Do not block startup on migration issues
+        print(f"Datasets migration skipped due to error: {e}")
 
 
 async def run_over_and_over():
