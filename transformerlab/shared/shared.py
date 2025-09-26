@@ -25,6 +25,7 @@ from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
 
 
+
 def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs):
     """
     Runs a subprocess.Popen, and then calls the function onExit when the
