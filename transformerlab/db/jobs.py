@@ -8,7 +8,6 @@ from transformerlab.shared.models import models
 from transformerlab.db.utils import sqlalchemy_to_dict
 
 from lab import Job
-from transformerlab.db.db import experiment_get
 
 # Allowed job types:
 ALLOWED_JOB_TYPES = [
@@ -44,18 +43,7 @@ async def job_create(type, status, experiment_id, job_data="{}"):
         )
         result = await session.execute(stmt)
         await session.commit()
-        job_id = result.inserted_primary_key[0]
-        # Also create the filesystem version
-        job = Job.create(job_id)
-        job.update_json_data_field("type", type)
-        job.update_json_data_field("status", status)
-        job.update_json_data_field("experiment_id", experiment_id)
-        job.update_json_data_field("job_data", job_data)
-        # Set the experiment name
-        exp_data = await experiment_get(experiment_id)
-        if exp_data:
-            job.set_experiment(exp_data['name'])
-        return job_id
+        return result.inserted_primary_key[0]
 
 
 async def jobs_get_all(experiment_id, type="", status=""):

@@ -32,7 +32,7 @@ from fastchat.protocol.openai_api_protocol import (
 
 from transformerlab.db.jobs import job_create, job_update_status
 from transformerlab.db import jobs as db_jobs
-from transformerlab.db.db import experiment_get, jobs_get_by_experiment
+from transformerlab.db.db import jobs_get_by_experiment
 import transformerlab.db.session as db
 from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert
 from transformerlab.routers import (
@@ -395,7 +395,7 @@ async def server_worker_start(
     eight_bit: bool = False,
     cpu_offload: bool = False,
     inference_engine: str = "default",
-    experiment_id: int = None,
+    experiment_id: str = None,
     inference_params: str = "",
 ):
     # the first priority for inference params should be the inference params passed in, then the inference parameters in the experiment
@@ -408,7 +408,7 @@ async def server_worker_start(
     # then we check to see if we are an experiment
     elif experiment_id is not None:
         try:
-            experiment = await experiment_get(experiment_id)
+            experiment = Experiment.get(experiment_id)
             experiment_config = experiment["config"]
             if not isinstance(experiment_config, dict):
                 experiment_config = json.loads(experiment_config)

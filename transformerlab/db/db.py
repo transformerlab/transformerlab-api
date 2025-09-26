@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from lab import Experiment
 
-
 # Make sure SQLAlchemy is installed using pip install sqlalchemy[asyncio] as
 # described here https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html
 
