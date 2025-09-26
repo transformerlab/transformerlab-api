@@ -1,6 +1,5 @@
 import os
 
-import transformerlab.db.db as db
 
 
 class BaseModel:
