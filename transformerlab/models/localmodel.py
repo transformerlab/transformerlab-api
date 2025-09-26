@@ -141,14 +141,19 @@ class LocalModelStore(modelstore.ModelStore):
                 # Set local_path to the filesystem location
                 # this will tell Hugging Face to not try downloading
                 model_id = model.get("model_id", "")
+                model_filename = model.get("json_data", {}).get("model_filename", "")
                 model["local_path"] = os.path.join(models_dir, model_id)
 
                 # Some models are a single file (possibly of many in a directory, e.g. GGUF)
                 # For models that have model_filename set we should link directly to that specific file
                 if "model_filename" in model.get("json_data", {}) and model["json_data"]["model_filename"]:
-                    model["local_path"] = os.path.join(
-                        model["local_path"], model["json_data"]["model_filename"]
-                    )
+                    model_filename = model["json_data"]["model_filename"]
+                    if model_filename.endswith(".gguf"):
+                        model["local_path"] = os.path.join(os.path.join(models_dir, secure_filename(model_id)), model_filename)
+                    else:
+                        model["local_path"] = os.path.join(
+                            model["local_path"], model["json_data"]["model_filename"]
+                        )
 
         # Filter out models based on whether they are embedding models or not
         models = await self.filter_embedding_models(models, embedding)

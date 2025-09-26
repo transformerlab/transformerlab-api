@@ -465,7 +465,8 @@ def download_blocking(model_is_downloaded):
             # Right now the logo is hard coded to assuming if you are downloading one file, you are looking
             # at GGUF
             print("downloading model to workspace/models using filename mode")
-            location = f"{WORKSPACE_DIR}/models/{model_filename}"
+            # Use the model ID (repo name) as the directory name, not the filename
+            location = f"{WORKSPACE_DIR}/models/{secure_filename(model)}/{model_filename}"
             os.makedirs(location, exist_ok=True)
             # Get metadata for single file
             try:
