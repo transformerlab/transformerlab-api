@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 from filelock import FileLock
 
-from lab import WORKSPACE_DIR
+from transformerlab.shared.constants import WORKSPACE_DIR
 
 __all__ = [
     "CERT_DIR",

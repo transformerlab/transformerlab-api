@@ -4,7 +4,7 @@
   "description": "vLLM is a fast and easy-to-use library for LLM inference and serving.",
   "plugin-format": "python",
   "type": "loader",
-  "version": "1.0.15",
+  "version": "1.0.17",
   "supports": [
     "chat",
     "completion",
