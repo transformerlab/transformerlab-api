@@ -135,6 +135,14 @@ async def migrate_datasets_table_to_filesystem():
         # Read existing rows
         rows = []
         try:
+            # First check if the table exists
+            async with async_session() as session:
+                result = await session.execute(sqlalchemy_text(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='dataset'"
+                ))
+                exists = result.fetchone() is not None
+            if not exists:
+                return
             rows = await get_datasets()
         except Exception:
             rows = []
