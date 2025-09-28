@@ -130,12 +130,11 @@ async def migrate_experiments():
                     
                     # Create SDK Experiment
                     experiment = Experiment.create(exp['name'])
-                    
                     # TODO: which datetime to use here?
                     experiment._update_json_data_field(key="name", value=exp["name"])
-                    experiment._update_json_data_field(key="config", value=exp["config"] if isinstance(exp["config"], dict) else {})
-                    experiment._update_json_data_field(key="created_at", value=exp["created_at"])
-                    experiment._update_json_data_field(key="updated_at", value=exp["updated_at"])
+                    experiment._update_json_data_field(key="config", value=json.loads(exp.get("config", "{}")))
+                    experiment._update_json_data_field(key="created_at", value=exp.get("created_at", datetime.now().isoformat()))
+                    experiment._update_json_data_field(key="updated_at", value=exp.get("updated_at", datetime.now().isoformat()))
 
                     print(f"Created experiment directory: {experiment.get_dir()}")
 
@@ -145,7 +144,7 @@ async def migrate_db_to_filesystem():
     try: 
         # Check if experiments migration is needed
         # We need migration if there are experiment directories WITHOUT index.json
-        experiments_need_migration = False
+        experiments_need_migration = True
         if os.path.exists(lab_dirs.EXPERIMENTS_DIR):
             for exp_dir in os.listdir(lab_dirs.EXPERIMENTS_DIR):
                 exp_path = os.path.join(lab_dirs.EXPERIMENTS_DIR, exp_dir)
@@ -164,7 +163,7 @@ async def migrate_db_to_filesystem():
                 if os.path.isdir(job_path):
                     job_index = os.path.join(job_path, "index.json")
                     if not os.path.exists(job_index):
-                        jobs_need_migration = True
+                        jobs_need_migration = False
                         break
         
         # If neither needs migration, skip entirely
