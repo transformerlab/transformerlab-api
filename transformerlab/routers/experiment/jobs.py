@@ -22,7 +22,9 @@ from datetime import datetime
 
 import transformerlab.db.jobs as db_jobs
 from transformerlab.services.job_service import job_update_status
-from lab import WORKSPACE_DIR, dirs
+from transformerlab.shared.constants import WORKSPACE_DIR
+from transformerlab.shared.dirs import get_job_output_dir
+from lab import dirs
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
@@ -242,7 +244,7 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
                 experiment = await experiment_get(experiment_id)
                 experiment_name = experiment["name"]
                 job_id_safe = secure_filename(str(job_id))
-                new_output_dir = dirs.get_job_output_dir(experiment_name, job_id)
+                new_output_dir = get_job_output_dir(experiment_name, job_id)
                 if not os.path.exists(new_output_dir):
                     os.makedirs(new_output_dir)
                 output_file_name = os.path.join(new_output_dir, f"output_{job_id_safe}.txt")

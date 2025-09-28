@@ -10,10 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # Make sure SQLAlchemy is installed using pip install sqlalchemy[asyncio] as
 # described here https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html
 
-# FastAPI Users
 from typing import AsyncGenerator
-from fastapi import Depends
-from fastapi_users.db import SQLAlchemyUserDatabase
 
 from transformerlab.db.jobs import job_create, job_delete, jobs_get_by_experiment
 from transformerlab.db.workflows import (
@@ -29,19 +26,9 @@ from transformerlab.db.utils import sqlalchemy_to_dict, sqlalchemy_list_to_dict
 from transformerlab.db.session import async_session
 
 
-###############################################
-# Dependencies for FastAPI Users
-# It wants specific types for session and DB.
-###############################################
-
-
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session() as session:
         yield session
-
-
-async def get_user_db(session: AsyncSession = Depends(get_async_session)):
-    yield SQLAlchemyUserDatabase(session, models.User)
 
 
 ###############

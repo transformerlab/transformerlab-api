@@ -50,7 +50,6 @@ from transformerlab.routers import (
     tools,
     batched_prompts,
     recipes,
-    users,
 )
 import torch
 
@@ -68,7 +67,7 @@ from transformerlab.routers.experiment import workflows
 from transformerlab.routers.experiment import jobs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
-from lab import WORKSPACE_DIR
+from transformerlab.shared.constants import WORKSPACE_DIR
 from lab import dirs as lab_dirs, Experiment, Job
 from transformerlab.shared import dirs
 
@@ -88,7 +87,7 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 # The temporary image directory for transformerlab
 temp_image_dir = os.path.join(WORKSPACE_DIR, "temp", "images")
-os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
+os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)    
 
 from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router  # noqa: E402
 
@@ -290,8 +289,9 @@ app = fastapi.FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
+    # Restrict origins so credentialed requests (cookies) are allowed
     allow_origins=["*"],
-    allow_credentials=False,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -327,8 +327,10 @@ app.include_router(fastchat_openai_api.router)
 app.include_router(get_xmlrpc_router())
 app.include_router(get_trainer_xmlrpc_router())
 
-# This includes the FastAPI Users routers
-app.include_router(users.router)
+# Authentication and session management routes
+if os.getenv("TFL_MULTITENANT") == "true":
+    from transformerlab.routers import auth  # noqa: E402
+    app.include_router(auth.router)
 
 
 controller_process = None
