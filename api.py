@@ -106,14 +106,14 @@ async def migrate_jobs():
                         # Create SDK Job
                         job_obj = Job.create(job['id'])
                         # Update the JSON data with DB data
-                        job_obj.update_job_data_field(key="id", value=job["id"])
-                        job_obj.update_job_data_field(key="experiment_id", value=exp["name"])  # Use name instead of numeric ID
-                        job_obj.update_job_data_field(key="job_data", value=job["job_data"] if isinstance(job["job_data"], dict) else {})
-                        job_obj.update_job_data_field(key="status", value=job["status"])
-                        job_obj.update_job_data_field(key="type", value=job["type"])
-                        job_obj.update_job_data_field(key="progress", value=job["progress"])
-                        job_obj.update_job_data_field(key="created_at", value=job["created_at"])
-                        job_obj.update_job_data_field(key="updated_at", value=job["updated_at"])
+                        job_obj._update_json_data_field(key="id", value=job["id"])
+                        job_obj._update_json_data_field(key="experiment_id", value=exp["name"])  # Use name instead of numeric ID
+                        job_obj._update_json_data_field(key="job_data", value=job["job_data"] if isinstance(job["job_data"], dict) else {})
+                        job_obj._update_json_data_field(key="status", value=job["status"])
+                        job_obj._update_json_data_field(key="type", value=job["type"])
+                        job_obj._update_json_data_field(key="progress", value=job["progress"])
+                        job_obj._update_json_data_field(key="created_at", value=job["created_at"])
+                        job_obj._update_json_data_field(key="updated_at", value=job["updated_at"])
 
                         print(f"Created job directory: {job_obj.get_dir()}")
 
@@ -132,10 +132,10 @@ async def migrate_experiments():
                     experiment = Experiment.create(exp['name'])
                     
                     # TODO: which datetime to use here?
-                    experiment.update_json_data_field(key="name", value=exp["name"])
-                    experiment.update_json_data_field(key="config", value=exp["config"] if isinstance(exp["config"], dict) else {})
-                    experiment.update_json_data_field(key="created_at", value=exp["created_at"])
-                    experiment.update_json_data_field(key="updated_at", value=exp["updated_at"])
+                    experiment._update_json_data_field(key="name", value=exp["name"])
+                    experiment._update_json_data_field(key="config", value=exp["config"] if isinstance(exp["config"], dict) else {})
+                    experiment._update_json_data_field(key="created_at", value=exp["created_at"])
+                    experiment._update_json_data_field(key="updated_at", value=exp["updated_at"])
 
                     print(f"Created experiment directory: {experiment.get_dir()}")
 
