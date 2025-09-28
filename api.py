@@ -33,7 +33,7 @@ from fastchat.protocol.openai_api_protocol import (
 from transformerlab.db.jobs import job_create, job_update_status
 from transformerlab.db import jobs as db_jobs
 from transformerlab.db.jobs import jobs_get_by_experiment
-from transformerlab.db.db import experiment_get
+from transformerlab.db.db import experiment_get, experiment_get_all
 import transformerlab.db.session as db
 
 from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert
@@ -94,7 +94,7 @@ from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc
 async def migrate_jobs():
                 """Migrate jobs from DB to filesystem."""
                 print("Migrating jobs...")
-                experiments = Experiment.get_all()
+                experiments = await experiment_get_all()
 
                 for exp in experiments:
                     print(f"Migrating jobs for experiment: {exp['name']}")
@@ -111,16 +111,16 @@ async def migrate_jobs():
                         job_obj.update_job_data_field(key="job_data", value=job["job_data"] if isinstance(job["job_data"], dict) else {})
                         job_obj.update_job_data_field(key="status", value=job["status"])
                         job_obj.update_job_data_field(key="type", value=job["type"])
-                        job_obj.update_job_data_field(key="progress", value=job.get("progress", 0))
-                        job_obj.update_job_data_field(key="created_at", value=job.get("created_at", datetime.now().isoformat()))
-                        job_obj.update_job_data_field(key="updated_at", value=job.get("updated_at", datetime.now().isoformat()))
+                        job_obj.update_job_data_field(key="progress", value=job["progress"])
+                        job_obj.update_job_data_field(key="created_at", value=job["created_at"])
+                        job_obj.update_job_data_field(key="updated_at", value=job["updated_at"])
 
                         print(f"Created job directory: {job_obj.get_dir()}")
 
 async def migrate_experiments():
                 """Migrate experiments from DB to filesystem."""
                 print("Migrating experiments...")
-                experiments = Experiment.get_all()
+                experiments = await experiment_get_all()
                 if not experiments:
                     print("No experiments in DB to migrate.")
                     return
@@ -134,28 +134,21 @@ async def migrate_experiments():
                     # TODO: which datetime to use here?
                     experiment.update_json_data_field(key="name", value=exp["name"])
                     experiment.update_json_data_field(key="config", value=exp["config"] if isinstance(exp["config"], dict) else {})
-                    experiment.update_json_data_field(key="created_at", value=exp.get("created_at", datetime.now().isoformat()))
-                    experiment.update_json_data_field(key="updated_at", value=exp.get("updated_at", datetime.now().isoformat()))
+                    experiment.update_json_data_field(key="created_at", value=exp["created_at"])
+                    experiment.update_json_data_field(key="updated_at", value=exp["updated_at"])
 
                     print(f"Created experiment directory: {experiment.get_dir()}")
 
 async def migrate_db_to_filesystem():
     """Migrate data from DB to filesystem if not already migrated."""
-    migration_marker = os.path.join(WORKSPACE_DIR, ".migration_in_progress")
     
-    try:
-        # Check if migration is already in progress
-        if os.path.exists(migration_marker):
-            print("Migration already in progress, skipping...")
-            return
-            
+    try: 
         # Check if experiments migration is needed
         # We need migration if there are experiment directories WITHOUT index.json
-        experiments_dir = lab_dirs.experiments_dir()
         experiments_need_migration = False
-        if os.path.exists(experiments_dir):
-            for exp_dir in os.listdir(experiments_dir):
-                exp_path = os.path.join(experiments_dir, exp_dir)
+        if os.path.exists(lab_dirs.EXPERIMENTS_DIR):
+            for exp_dir in os.listdir(lab_dirs.EXPERIMENTS_DIR):
+                exp_path = os.path.join(lab_dirs.EXPERIMENTS_DIR, exp_dir)
                 if os.path.isdir(exp_path):
                     index_file = os.path.join(exp_path, "index.json")
                     if not os.path.exists(index_file):
@@ -164,11 +157,10 @@ async def migrate_db_to_filesystem():
         
         # Check if jobs migration is needed
         # We need migration if there are job directories WITHOUT index.json
-        jobs_dir = lab_dirs.jobs_dir()
         jobs_need_migration = False
-        if os.path.exists(jobs_dir):
-            for job_dir in os.listdir(jobs_dir):
-                job_path = os.path.join(jobs_dir, job_dir)
+        if os.path.exists(lab_dirs.JOBS_DIR):
+            for job_dir in os.listdir(lab_dirs.JOBS_DIR):
+                job_path = os.path.join(lab_dirs.JOBS_DIR, job_dir)
                 if os.path.isdir(job_path):
                     job_index = os.path.join(job_path, "index.json")
                     if not os.path.exists(job_index):
@@ -180,10 +172,6 @@ async def migrate_db_to_filesystem():
             print("Migration not needed - all experiment and job directories have index.json files.")
             return
         
-        # Create migration marker
-        with open(migration_marker, 'w') as f:
-            f.write(f"Migration started at {datetime.now().isoformat()}\n")
-        
         # If only jobs need migration, migrate jobs only
         if not experiments_need_migration and jobs_need_migration:
             print("Experiments already have index.json files, migrating jobs only...")
@@ -193,21 +181,11 @@ async def migrate_db_to_filesystem():
         # If experiments need migration, do full migration
         elif experiments_need_migration:
             print("Running full DB to filesystem migration...")
-            
-            # Check if there are experiments in DB to migrate
-            db_experiments = Experiment.get_all()
-            if not db_experiments:
-                print("No experiments in DB to migrate.")
-                return
                 
             await migrate_experiments()
             if jobs_need_migration:
                 await migrate_jobs()
             print("DB to filesystem migration completed.")
-        
-        # Remove migration marker on success
-        if os.path.exists(migration_marker):
-            os.remove(migration_marker)
             
     except Exception as e:
         print(f"Error during migration: {e}")
