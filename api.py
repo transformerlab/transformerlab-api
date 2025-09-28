@@ -131,7 +131,7 @@ async def migrate_experiments():
                     # Create SDK Experiment
                     experiment = Experiment.create(exp['name'])
                     # TODO: which datetime to use here?
-                    experiment._update_json_data_field(key="name", value=exp["name"])
+                    experiment._update_json_data_field(key="id", value=exp["name"])
                     experiment._update_json_data_field(key="config", value=json.loads(exp.get("config", "{}")))
                     experiment._update_json_data_field(key="created_at", value=exp.get("created_at", datetime.now().isoformat()))
                     experiment._update_json_data_field(key="updated_at", value=exp.get("updated_at", datetime.now().isoformat()))

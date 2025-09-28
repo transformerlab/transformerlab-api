@@ -24,6 +24,7 @@ from transformerlab.shared.models.models import Config, Plugin
 from transformerlab.db.utils import sqlalchemy_to_dict, sqlalchemy_list_to_dict
 
 from transformerlab.db.session import async_session
+from lab import Experiment
 
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
@@ -376,21 +377,16 @@ async def experiment_create(name: str, config: dict) -> int:
         await session.refresh(experiment)
         return experiment.id
 
-# TODO: Rexplace this with experiment_get_by_name
 async def experiment_get(id):
-    if id is None or id == "undefined":
-        return None
-    async with async_session() as session:
-        result = await session.execute(select(models.Experiment).where(models.Experiment.name == id))
-        experiment = result.scalar_one_or_none()
-        if experiment is None:
-            return None
-        # Ensure config is always a JSON string
-        if isinstance(experiment.config, dict):
-            experiment.config = json.dumps(experiment.config)
-        d = sqlalchemy_to_dict(experiment)
-        d['id'] = d['name']  # Set id to name for frontend compatibility
-        return d
+    exp_obj = Experiment.get(id)
+    snapshot_path = exp_obj._get_latest_snapshot_file()
+    snapshot_file = json.load(open(snapshot_path))
+
+    return {
+        "id": snapshot_file["id"],
+        "name": snapshot_file["name"],
+        "config": json.dumps(snapshot_file["config"]) if snapshot_file else "{}",
+    }
 
 
 async def experiment_get_by_name(name):
