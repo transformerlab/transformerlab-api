@@ -64,7 +64,7 @@ async def convert_experiment_name_to_id_if_needed(name: int | str) -> int:
 
     Later on we can remove this function, once we have updated all the code to use the experiment name instead of the id."""
     if isinstance(name, str):
-        data = await db.experiment_get_by_name(name)
+        data = await db.experiment_get(name)
         if data is None:
             return name
         return data["id"]

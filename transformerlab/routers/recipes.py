@@ -249,7 +249,7 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
     from transformerlab.routers.experiment import experiment as experiment_router
 
     # Check if experiment already exists
-    existing = await db.experiment_get_by_name(experiment_name)
+    existing = await db.experiment_get(experiment_name)
     if existing:
         return {"status": "error", "message": f"Experiment '{experiment_name}' already exists.", "data": {}}
     # Create experiment with blank config

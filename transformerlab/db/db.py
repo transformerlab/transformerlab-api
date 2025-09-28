@@ -378,24 +378,18 @@ async def experiment_create(name: str, config: dict) -> int:
         return experiment.id
 
 async def experiment_get(id):
-    exp_obj = Experiment.get(id)
-    snapshot_path = exp_obj._get_latest_snapshot_file()
-    snapshot_file = json.load(open(snapshot_path))
+    try:
+        exp_obj = Experiment.get(id)
+        snapshot_path = exp_obj._get_latest_snapshot_file()
+        snapshot_file = json.load(open(snapshot_path))
 
-    return {
-        "id": snapshot_file["id"],
-        "name": snapshot_file["name"],
-        "config": json.dumps(snapshot_file["config"]) if snapshot_file else "{}",
-    }
-
-
-async def experiment_get_by_name(name):
-    async with async_session() as session:
-        result = await session.execute(select(models.Experiment).where(models.Experiment.name == name))
-        experiment = result.scalar_one_or_none()
-        if experiment is None:
-            return None
-        return sqlalchemy_to_dict(experiment)
+        return {
+            "id": snapshot_file["id"],
+            "name": snapshot_file["name"],
+            "config": json.dumps(snapshot_file["config"]) if snapshot_file else "{}",
+        }
+    except Exception as e:
+        return None
 
 
 async def experiment_delete(id):

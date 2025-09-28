@@ -14,7 +14,7 @@ from anyio import open_process
 from anyio.streams.text import TextReceiveStream
 from werkzeug.utils import secure_filename
 
-from transformerlab.db.db import experiment_get, experiment_get_by_name
+from transformerlab.db.db import experiment_get
 from transformerlab.services.job_service import job_update_sync, job_update_status
 import transformerlab.db.jobs as db_jobs
 from transformerlab.routers.experiment.evals import run_evaluation_script
@@ -323,7 +323,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     experiment = None
     experiment_id = None
     if master_job_type in ["EVAL", "GENERATE", "DIFFUSION"]:
-        experiment = await experiment_get_by_name(experiment_name)
+        experiment = await experiment_get(experiment_name)
         experiment_id = experiment["id"]
     elif master_job_type == "EXPORT":
         # For EXPORT, experiment_id comes from job_details
@@ -386,7 +386,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             return {"status": "complete", "job_id": job_id, "message": "Evaluation job completed successfully"}
 
     elif master_job_type == "GENERATE":
-        experiment = await experiment_get_by_name(experiment_name)
+        experiment = await experiment_get(experiment_name)
         experiment_id = experiment["id"]
         plugin_name = job_config["plugin"]
 
@@ -484,7 +484,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             return {"status": "error", "job_id": job_id, "message": result.get("message", "Export job failed")}
 
     elif master_job_type == "DIFFUSION":
-        experiment = await experiment_get_by_name(experiment_name)
+        experiment = await experiment_get(experiment_name)
         experiment_id = experiment["id"]
         plugin_name = job_config["plugin"]
 
