@@ -32,8 +32,10 @@ from fastchat.protocol.openai_api_protocol import (
 
 from transformerlab.db.jobs import job_create, job_update_status
 from transformerlab.db import jobs as db_jobs
+from transformerlab.db.jobs import jobs_get_by_experiment
 from transformerlab.db.db import experiment_get
 import transformerlab.db.session as db
+
 from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert
 from transformerlab.routers import (
     data,
@@ -67,10 +69,12 @@ from transformerlab.routers.experiment import jobs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
 from lab import WORKSPACE_DIR
-from lab import dirs as lab_dirs
+from lab import dirs as lab_dirs, Experiment, Job
 from transformerlab.shared import dirs
 
 from dotenv import load_dotenv
+from datetime import datetime
+
 
 load_dotenv()
 
@@ -80,13 +84,136 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 # environment variables that start with _ are
 # used internally to set constants that are shared between separate processes. They are not meant to be
 # to be overriden by the user.
-os.environ["_TFL_WORKSPACE_DIR"] = WORKSPACE_DIR
+# os.environ["_TFL_WORKSPACE_DIR"] = WORKSPACE_DIR
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 # The temporary image directory for transformerlab
 temp_image_dir = os.path.join(WORKSPACE_DIR, "temp", "images")
 os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
 
 from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router  # noqa: E402
+
+async def migrate_jobs():
+                """Migrate jobs from DB to filesystem."""
+                print("Migrating jobs...")
+                experiments = Experiment.get_all()
+
+                for exp in experiments:
+                    print(f"Migrating jobs for experiment: {exp['name']}")
+                    jobs = await jobs_get_by_experiment(exp['id'])
+
+                    for job in jobs:
+                        print(f"Migrating job: {job['id']} (type: {job['type']})")
+                        
+                        # Create SDK Job
+                        job_obj = Job.create(job['id'])
+                        # Update the JSON data with DB data
+                        job_obj.update_job_data_field(key="id", value=job["id"])
+                        job_obj.update_job_data_field(key="experiment_id", value=exp["name"])  # Use name instead of numeric ID
+                        job_obj.update_job_data_field(key="job_data", value=job["job_data"] if isinstance(job["job_data"], dict) else {})
+                        job_obj.update_job_data_field(key="status", value=job["status"])
+                        job_obj.update_job_data_field(key="type", value=job["type"])
+                        job_obj.update_job_data_field(key="progress", value=job.get("progress", 0))
+                        job_obj.update_job_data_field(key="created_at", value=job.get("created_at", datetime.now().isoformat()))
+                        job_obj.update_job_data_field(key="updated_at", value=job.get("updated_at", datetime.now().isoformat()))
+
+                        print(f"Created job directory: {job_obj.get_dir()}")
+
+async def migrate_experiments():
+                """Migrate experiments from DB to filesystem."""
+                print("Migrating experiments...")
+                experiments = Experiment.get_all()
+                if not experiments:
+                    print("No experiments in DB to migrate.")
+                    return
+
+                for exp in experiments:
+                    print(f"Migrating experiment: {exp['name']}")
+                    
+                    # Create SDK Experiment
+                    experiment = Experiment.create(exp['name'])
+                    
+                    # TODO: which datetime to use here?
+                    experiment.update_json_data_field(key="name", value=exp["name"])
+                    experiment.update_json_data_field(key="config", value=exp["config"] if isinstance(exp["config"], dict) else {})
+                    experiment.update_json_data_field(key="created_at", value=exp.get("created_at", datetime.now().isoformat()))
+                    experiment.update_json_data_field(key="updated_at", value=exp.get("updated_at", datetime.now().isoformat()))
+
+                    print(f"Created experiment directory: {experiment.get_dir()}")
+
+async def migrate_db_to_filesystem():
+    """Migrate data from DB to filesystem if not already migrated."""
+    migration_marker = os.path.join(WORKSPACE_DIR, ".migration_in_progress")
+    
+    try:
+        # Check if migration is already in progress
+        if os.path.exists(migration_marker):
+            print("Migration already in progress, skipping...")
+            return
+            
+        # Check if experiments migration is needed
+        # We need migration if there are experiment directories WITHOUT index.json
+        experiments_dir = lab_dirs.experiments_dir()
+        experiments_need_migration = False
+        if os.path.exists(experiments_dir):
+            for exp_dir in os.listdir(experiments_dir):
+                exp_path = os.path.join(experiments_dir, exp_dir)
+                if os.path.isdir(exp_path):
+                    index_file = os.path.join(exp_path, "index.json")
+                    if not os.path.exists(index_file):
+                        experiments_need_migration = True
+                        break
+        
+        # Check if jobs migration is needed
+        # We need migration if there are job directories WITHOUT index.json
+        jobs_dir = lab_dirs.jobs_dir()
+        jobs_need_migration = False
+        if os.path.exists(jobs_dir):
+            for job_dir in os.listdir(jobs_dir):
+                job_path = os.path.join(jobs_dir, job_dir)
+                if os.path.isdir(job_path):
+                    job_index = os.path.join(job_path, "index.json")
+                    if not os.path.exists(job_index):
+                        jobs_need_migration = True
+                        break
+        
+        # If neither needs migration, skip entirely
+        if not experiments_need_migration and not jobs_need_migration:
+            print("Migration not needed - all experiment and job directories have index.json files.")
+            return
+        
+        # Create migration marker
+        with open(migration_marker, 'w') as f:
+            f.write(f"Migration started at {datetime.now().isoformat()}\n")
+        
+        # If only jobs need migration, migrate jobs only
+        if not experiments_need_migration and jobs_need_migration:
+            print("Experiments already have index.json files, migrating jobs only...")
+            await migrate_jobs()
+            print("Jobs migration completed.")
+            
+        # If experiments need migration, do full migration
+        elif experiments_need_migration:
+            print("Running full DB to filesystem migration...")
+            
+            # Check if there are experiments in DB to migrate
+            db_experiments = Experiment.get_all()
+            if not db_experiments:
+                print("No experiments in DB to migrate.")
+                return
+                
+            await migrate_experiments()
+            if jobs_need_migration:
+                await migrate_jobs()
+            print("DB to filesystem migration completed.")
+        
+        # Remove migration marker on success
+        if os.path.exists(migration_marker):
+            os.remove(migration_marker)
+            
+    except Exception as e:
+        print(f"Error during migration: {e}")
+        # Leave marker file for manual inspection
+        pass
 
 
 @asynccontextmanager
@@ -99,6 +226,8 @@ async def lifespan(app: FastAPI):
     await db.init()
     if "--reload" in sys.argv:
         await install_all_plugins()
+    # run the migration from DB to filesystem if needed
+    await migrate_db_to_filesystem()
     # run the migration
     asyncio.create_task(migrate())
     asyncio.create_task(run_over_and_over())

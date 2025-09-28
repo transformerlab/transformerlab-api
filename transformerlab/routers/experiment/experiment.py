@@ -86,8 +86,7 @@ async def experiments_create(name: str):
 
 
 @router.get("/{id}", summary="Get Experiment by ID", tags=["experiment"])
-async def experiment_get(id: int):
-    id = await convert_experiment_name_to_id_if_needed(id)
+async def experiment_get(id: str):
 
     data = await db.experiment_get(id)
 

@@ -389,19 +389,21 @@ async def experiment_create(name: str, config: dict) -> int:
         await session.refresh(experiment)
         return experiment.id
 
-
+# TODO: Rexplace this with experiment_get_by_name
 async def experiment_get(id):
     if id is None or id == "undefined":
         return None
     async with async_session() as session:
-        result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
+        result = await session.execute(select(models.Experiment).where(models.Experiment.name == id))
         experiment = result.scalar_one_or_none()
         if experiment is None:
             return None
         # Ensure config is always a JSON string
         if isinstance(experiment.config, dict):
             experiment.config = json.dumps(experiment.config)
-        return sqlalchemy_to_dict(experiment)
+        d = sqlalchemy_to_dict(experiment)
+        d['id'] = d['name']  # Set id to name for frontend compatibility
+        return d
 
 
 async def experiment_get_by_name(name):
