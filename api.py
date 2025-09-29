@@ -70,6 +70,7 @@ from transformerlab.routers.experiment import workflows  # noqa: E402
 from transformerlab.routers.experiment import jobs  # noqa: E402
 from transformerlab.shared import shared  # noqa: E402
 from transformerlab.shared import galleries  # noqa: E402
+from transformerlab.shared.constants import MULTITENANT  # noqa: E402
 from lab import WORKSPACE_DIR  # noqa: E402
 from lab import dirs as lab_dirs  # noqa: E402
 from transformerlab.shared import dirs  # noqa: E402
@@ -200,7 +201,7 @@ app.include_router(get_xmlrpc_router())
 app.include_router(get_trainer_xmlrpc_router())
 
 # Authentication and session management routes
-if os.getenv("TFL_MULTITENANT") == "true":
+if MULTITENANT:
     from transformerlab.routers import auth  # noqa: E402
 
     app.include_router(auth.router)
