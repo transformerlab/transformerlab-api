@@ -5,7 +5,6 @@ datasets==3.6.0
 einops
 evaluate
 fastapi
-fastapi-users[sqlalchemy]
 packaging
 psutil
 python-dotenv
@@ -25,13 +24,14 @@ watchfiles
 wandb==0.19.10
 tensorboardX
 werkzeug
+workos
 sqlalchemy[asyncio]
 sentence-transformers
 markitdown[all]
 hf_xet
 macmon-python
-transformerlab-inference==0.2.48
-transformerlab==0.0.6
+transformerlab-inference==0.2.49
+transformerlab==0.0.7
 diffusers==0.33.1
 nvidia-ml-py
 mcp[cli]

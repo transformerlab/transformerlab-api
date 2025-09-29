@@ -52,7 +52,6 @@ from transformerlab.routers import (  # noqa: E402
     tools,
     batched_prompts,
     recipes,
-    users,
 )
 import torch  # noqa: E402
 
@@ -80,11 +79,11 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 # environment variables that start with _ are
 # used internally to set constants that are shared between separate processes. They are not meant to be
 # to be overriden by the user.
-os.environ["_TFL_WORKSPACE_DIR"] = WORKSPACE_DIR
+# os.environ["_TFL_WORKSPACE_DIR"] = WORKSPACE_DIR
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 # The temporary image directory for transformerlab
 temp_image_dir = os.path.join(WORKSPACE_DIR, "temp", "images")
-os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
+os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)    
 
 from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router  # noqa: E402
 
@@ -161,8 +160,9 @@ app = fastapi.FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
+    # Restrict origins so credentialed requests (cookies) are allowed
     allow_origins=["*"],
-    allow_credentials=False,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -198,8 +198,10 @@ app.include_router(fastchat_openai_api.router)
 app.include_router(get_xmlrpc_router())
 app.include_router(get_trainer_xmlrpc_router())
 
-# This includes the FastAPI Users routers
-app.include_router(users.router)
+# Authentication and session management routes
+if os.getenv("TFL_MULTITENANT") == "true":
+    from transformerlab.routers import auth  # noqa: E402
+    app.include_router(auth.router)
 
 
 controller_process = None
