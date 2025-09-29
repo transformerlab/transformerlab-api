@@ -4,7 +4,7 @@ import asyncio
 
 
 os.environ["TFL_HOME_DIR"] = "./test/tmp/"
-os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
+os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp/workspace"
 
 
 from transformerlab.db.db import (
