@@ -1,6 +1,5 @@
 import json
 import os
-import datetime
 import shutil
 
 from sqlalchemy import select, delete, text, update
@@ -374,27 +373,17 @@ async def experiment_get_all():
 
 
 async def experiment_create(name: str, config: dict) -> str:
-    experiment = Experiment.create(name)
-    experiment._update_json_data_field("config", json.dumps(config))
-    experiment._update_json_data_field("created_at", datetime.datetime.now().isoformat())
-    experiment._update_json_data_field("updated_at", datetime.datetime.now().isoformat())
+    Experiment.create_with_config(name, config)
     return name
 
 async def experiment_get(id):
     try:
         exp_obj = Experiment.get(id)
-        snapshot_path = exp_obj._get_latest_snapshot_file()
-        snapshot_file = json.load(open(snapshot_path))
-
-        return {
-            "id": snapshot_file["id"],
-            "name": snapshot_file["name"],
-            "config": json.dumps(snapshot_file["config"]) if snapshot_file else "{}",
-        }
-    except Exception as e:
+        return exp_obj.get_experiment()
+    except Exception:
         return None
 
-# TODO: How we handle experiment_dekete
+# TODO: Need to change this, How we handle experiment_delete?
 async def experiment_delete(id):
     try:
         exp_obj = Experiment.get(id)
@@ -406,41 +395,31 @@ async def experiment_delete(id):
 async def experiment_update(id, config):
     try:
         exp_obj = Experiment.get(id)
-        exp_obj._update_json_data_field("config",  json.dumps(config))
-        exp_obj._update_json_data_field("updated_at", datetime.datetime.now().isoformat())
+        exp_obj.update_config(config)
     except Exception:
         pass
 
 
 async def experiment_update_config(id, key, value):
     try:
-        exp_obj = await experiment_get(id)
-        config = exp_obj["config"]
-        config[key] = value
-        exp_obj._update_json_data_field("config", json.dumps(config))
-        exp_obj._update_json_data_field("updated_at", datetime.datetime.now().isoformat())
+        exp_obj = Experiment.get(id)
+        exp_obj.update_config_field(key, value)
     except Exception:
         pass
 
 
 async def experiment_save_prompt_template(id, template):
     try:
-        exp_obj = await experiment_get(id)
-        config = exp_obj["config"]
-        config["prompt_template"] = str(template)
-        exp_obj._update_json_data_field("config", json.dumps(config))
-        exp_obj._update_json_data_field("updated_at", datetime.datetime.now().isoformat())
+        exp_obj = Experiment.get(id)
+        exp_obj.update_config_field("prompt_template", template)
     except Exception:
         pass
 
 
 async def experiment_update_configs(id, updates: dict):
     try:
-        exp_obj = await experiment_get(id)
-        config = exp_obj["config"]
-        config.update(updates)
-        exp_obj._update_json_data_field("config", json.dumps(config))
-        exp_obj._update_json_data_field("updated_at", datetime.datetime.now().isoformat())
+        exp_obj = Experiment.get(id)
+        exp_obj.update_config(updates)
     except Exception:
         pass
 
