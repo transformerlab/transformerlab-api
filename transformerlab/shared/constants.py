@@ -1,3 +1,5 @@
+import os
+
 # Single source of truth for workspace directory used across API and plugins
 # Currently delegated to lab's WORKSPACE_DIR. Change here to adjust globally.
 try:
