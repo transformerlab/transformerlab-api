@@ -95,7 +95,7 @@ class ChatCompletionRequest(BaseModel):
 
 
 class AudioRequest(BaseModel):
-    experiment_id: int
+    experiment_id: str
     model: str
     adaptor: Optional[str] = ""
     text: str
@@ -510,6 +510,7 @@ async def create_audio_tts(request: AudioRequest):
         elif isinstance(error_check_ret, dict) and "model_name" in error_check_ret.keys():
             request.model = error_check_ret["model_name"]
 
+    # TODO: Change this
     experiment_dir = await experiment_dir_by_id(request.experiment_id)
     audio_dir = os.path.join(experiment_dir, "audio")
     os.makedirs(audio_dir, exist_ok=True)
