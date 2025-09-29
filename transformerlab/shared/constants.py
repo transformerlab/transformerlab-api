@@ -8,3 +8,7 @@ except Exception as e:
 
 
 WORKSPACE_DIR = WORKSPACE_DIR
+
+
+# For now several service calls will use the SDK for MULTITENANT environments
+MULTITENANT = os.getenv("TFL_MULTITENANT", "")
