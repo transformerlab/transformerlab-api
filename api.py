@@ -34,6 +34,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# The following imports have noqa: E402 because of the call to load_dotenv above
 from transformerlab.db.jobs import job_create, job_update_status  # noqa: E402
 from transformerlab.db import jobs as db_jobs  # noqa: E402
 from transformerlab.db.db import experiment_get  # noqa: E402
@@ -83,7 +84,7 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 # The temporary image directory for transformerlab
 temp_image_dir = os.path.join(WORKSPACE_DIR, "temp", "images")
-os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)    
+os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
 
 from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router  # noqa: E402
 
@@ -201,6 +202,7 @@ app.include_router(get_trainer_xmlrpc_router())
 # Authentication and session management routes
 if os.getenv("TFL_MULTITENANT") == "true":
     from transformerlab.routers import auth  # noqa: E402
+
     app.include_router(auth.router)
 
 
