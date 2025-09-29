@@ -12,15 +12,13 @@ from transformerlab.db.sync import (
 from transformerlab.shared.models import models
 from transformerlab.services.experiment_service import get_experiment_by_id
 from sqlalchemy import select
+from transformerlab.shared import MULTITENANT
 
 from lab import Job
 
 
 # Centralized set of job types that can trigger workflows on completion
 SUPPORTED_WORKFLOW_TRIGGERS = ["TRAIN", "LOAD_MODEL", "EXPORT", "EVAL", "GENERATE", "DOWNLOAD_MODEL"]
-
-# For now several service calls will use the SDK for MULTITENANT environments
-MULTITENANT = os.getenv("TFL_MULTITENANT", "")
 
 
 async def list_jobs_by_experiment(experimentId: int, type: str = "", status: str = ""):
