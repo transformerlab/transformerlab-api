@@ -57,6 +57,14 @@ async def init():
     async with async_engine.begin() as conn:
         await conn.run_sync(models.Base.metadata.create_all)
 
+    # Ensure the aiosqlite connection sees the committed changes
+    # by closing and reopening it after table creation
+    await db.close()
+    db = await aiosqlite.connect(DATABASE_FILE_NAME)
+    await db.execute("PRAGMA journal_mode=WAL")
+    await db.execute("PRAGMA synchronous=normal")
+    await db.execute("PRAGMA busy_timeout = 30000")
+
     # Check if experiment_id column exists in workflow_runs table
     cursor = await db.execute("PRAGMA table_info(workflow_runs)")
     columns = await cursor.fetchall()
