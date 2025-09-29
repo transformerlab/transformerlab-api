@@ -28,6 +28,7 @@ from transformerlab.shared import dirs
 # For now several service calls will use the SDK for MULTITENANT environments
 MULTITENANT = os.getenv("TFL_MULTITENANT", "")
 
+
 def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs):
     """
     Runs a subprocess.Popen, and then calls the function onExit when the
@@ -1167,7 +1168,6 @@ async def get_job_output_file_name(job_id: str, plugin_name: str = None, experim
 
         # For multitenant, there is only one way to get this directory so it is simpler
         if MULTITENANT:
-            print("Multitenant mode: using Job class to get log path")
             job = Job.get(job_id)
             output_path = job.get_log_path()
             if output_path and os.path.exists(output_path):
