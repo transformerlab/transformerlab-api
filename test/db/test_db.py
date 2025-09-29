@@ -2,6 +2,8 @@ import json
 import os
 import asyncio
 
+# Create test directories before setting environment variables
+os.makedirs("./test/tmp/workspace", exist_ok=True)
 
 os.environ["TFL_HOME_DIR"] = "./test/tmp/"
 os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp/workspace"

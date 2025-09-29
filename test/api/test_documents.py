@@ -2,6 +2,9 @@ import os
 import pytest
 import time
 
+# Create test directories before setting environment variables
+os.makedirs("./test/tmp/workspace", exist_ok=True)
+
 # Set environment variables before importing modules
 os.environ["TFL_HOME_DIR"] = "./test/tmp/"
 os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp/workspace"
