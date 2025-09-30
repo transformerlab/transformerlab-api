@@ -180,7 +180,7 @@ async def migrate_datasets_table_to_filesystem():
         # Drop the legacy table if present
         try:
             async with async_session() as session:
-                await session.execute(sqlalchemy_text("ALTER TABLE dataset RENAME TO migrated_dataset"))
+                await session.execute(sqlalchemy_text("ALTER TABLE dataset RENAME TO zzz_archived_dataset"))
                 await session.commit()
         except Exception:
             pass
