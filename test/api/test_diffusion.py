@@ -376,7 +376,6 @@ def test_create_dataset_from_history_success(client):
 
         resp = client.post("/experiment/1/diffusion/dataset/create", json=payload)
         data = resp.json()
-        print(data)
         assert resp.status_code == 200
         assert data["status"] == "success"
         assert "test-dataset" in data["message"]
