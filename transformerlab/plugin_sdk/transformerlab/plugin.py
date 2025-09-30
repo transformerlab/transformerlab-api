@@ -7,7 +7,7 @@ from pathlib import Path
 
 from jinja2 import Environment
 from transformers import AutoTokenizer
-from lab import HOME_DIR, WORKSPACE_DIR
+from lab import HOME_DIR, WORKSPACE_DIR, Experiment
 
 # useful constants
 # Use shared constant as sole source of truth
@@ -114,77 +114,25 @@ def test_wandb_login(project_name: str = "TFL_Training"):
         return False, ["tensorboard"]
 
 
-def experiment_get_by_name(name):
-    db = get_db_connection()
-    cursor = db.execute("SELECT * FROM experiment WHERE name = ?", (name,))
-    row = cursor.fetchone()
-
-    if row is None:
-        return None
-
-    # Convert the SQLite row into a JSON object with keys
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row_dict = dict(itertools.zip_longest(column_names, row))
-
-    # Exclude created_at and updated_at fields to match our SQLAlchemy utility
-    excluded_fields = {"created_at", "updated_at"}
-    result = {k: v for k, v in row_dict.items() if k not in excluded_fields}
-
-    cursor.close()
-    return result
-
-
 def experiment_get(id):
-    db = get_db_connection()
-    if id is None or id == "undefined":
+    try:
+        exp_obj = Experiment.get(id)
+        return exp_obj.get_json_data()
+    except Exception:
         return None
-    cursor = db.execute("SELECT * FROM experiment WHERE id = ?", (id,))
-    row = cursor.fetchone()
-
-    if row is None:
-        return None
-
-    # Convert the SQLite row into a JSON object with keys
-    desc = cursor.description
-    column_names = [col[0] for col in desc]
-    row_dict = dict(itertools.zip_longest(column_names, row))
-
-    # Exclude created_at and updated_at fields to match our SQLAlchemy utility
-    excluded_fields = {"created_at", "updated_at"}
-    result = {k: v for k, v in row_dict.items() if k not in excluded_fields}
-
-    cursor.close()
-    return result
-
-
-def get_experiment_id_from_name(name: str):
-    """
-    Returns the experiment ID from the experiment name.
-    """
-    if isinstance(name, str):
-        data = experiment_get_by_name(name)
-        if data is None:
-            return name
-        return data["id"]
-    return name
 
 
 def get_experiment_config(name: str):
     """
     Returns the experiment config from the experiment name.
     """
-    if isinstance(name, str):
-        experiment_id = get_experiment_id_from_name(name)
-        data = experiment_get(experiment_id)
-        if data is None:
-            return None, experiment_id
-        if not isinstance(data["config"], dict):
-            return json.loads(data["config"]), experiment_id
-        else:
-            return data["config"], experiment_id
-
-    return None, experiment_id
+    try:
+        exp_obj = Experiment.get(name)
+        json_data = exp_obj.get_json_data()
+        if json_data:
+            return json_data["config"], name
+    except Exception:
+        return None, name
 
 
 def get_python_executable(plugin_dir):
