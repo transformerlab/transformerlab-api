@@ -158,7 +158,7 @@ async def convert_training_template_to_task(template_id: int, experiment_id: int
 
 
 @router.get("/convert_eval_to_task", summary="Convert a specific eval template to a task")
-async def convert_eval_to_task(eval_name: str, experiment_id: int):
+async def convert_eval_to_task(eval_name: str, experiment_id: str):
     experiment_evaluations = json.loads(json.loads((await db.experiment_get(experiment_id))["config"])["evaluations"])
     for eval in experiment_evaluations:
         if eval["name"] == eval_name:
@@ -167,7 +167,7 @@ async def convert_eval_to_task(eval_name: str, experiment_id: int):
 
 
 @router.get("/convert_generate_to_task", summary="Convert a specific generation template to a task")
-async def convert_generate_to_task(generate_name: str, experiment_id: int):
+async def convert_generate_to_task(generate_name: str, experiment_id: str):
     experiment_generations = json.loads(json.loads((await db.experiment_get(experiment_id))["config"])["generations"])
     for generation in experiment_generations:
         if generation["name"] == generate_name:
