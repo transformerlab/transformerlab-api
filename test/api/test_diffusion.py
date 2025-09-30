@@ -336,7 +336,6 @@ def test_create_dataset_from_history_success(client):
         patch("transformerlab.routers.experiment.diffusion.get_experiment_name", return_value="test-exp-name"),
         patch("transformerlab.routers.experiment.diffusion.Dataset.get", return_value=None),
         patch("transformerlab.routers.experiment.diffusion.create_local_dataset") as mock_create_dataset,
-        patch("lab.dirs.dataset_dir_by_id", return_value="/fake/dataset"),
         patch("os.makedirs"),
         patch("os.path.exists", return_value=True),
         patch("os.path.isdir", return_value=True),
@@ -344,6 +343,11 @@ def test_create_dataset_from_history_success(client):
         patch("shutil.copy2"),
         patch("builtins.open", mock_open()),
     ):
+        # Configure Dataset.get().get_dir()
+        mock_dataset = MagicMock()
+        mock_dataset.get_dir.return_value = "/fake/dataset"
+        mock_create_dataset.return_value = mock_dataset
+
         # Create mock image
         mock_image = MagicMock()
         mock_image.id = "test-image-id"
