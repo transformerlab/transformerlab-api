@@ -142,11 +142,34 @@ async def migrate_jobs():
                                         shutil.copytree(src, dst, dirs_exist_ok=True)
                                     else:
                                         shutil.copy2(src, dst)
+                            else:
+                                # Job not found in jobs directory, check if it's in the wrong place
+                                # (experiments/{experiment_name}/jobs/{job_id}) from the last month
+                                temp_experiments_dir = f"{lab_dirs.EXPERIMENTS_DIR}_migration_temp"
+                                if os.path.exists(temp_experiments_dir):
+                                    wrong_place_job_dir = os.path.join(temp_experiments_dir, str(exp['name']), "jobs", str(job['id']))
+                                    if os.path.exists(wrong_place_job_dir):
+                                        new_job_dir = job_obj.get_dir()
+                                        print(f"Found job in wrong location, copying from {wrong_place_job_dir} to {new_job_dir}")
+                                        # Copy all files except index.json (which we just created)
+                                        for item in os.listdir(wrong_place_job_dir):
+                                            src = os.path.join(wrong_place_job_dir, item)
+                                            dst = os.path.join(new_job_dir, item)
+                                            if os.path.isdir(src):
+                                                shutil.copytree(src, dst, dirs_exist_ok=True)
+                                            else:
+                                                shutil.copy2(src, dst)
 
                 # Clean up temp directory
                 if temp_jobs_dir and os.path.exists(temp_jobs_dir):
                     print(f"Cleaning up temp jobs directory: {temp_jobs_dir}")
                     shutil.rmtree(temp_jobs_dir)
+                
+                # Clean up temp experiments directory if it was used for job migration
+                temp_experiments_dir = f"{lab_dirs.EXPERIMENTS_DIR}_migration_temp"
+                if os.path.exists(temp_experiments_dir):
+                    print(f"Cleaning up temp experiments directory after job migration: {temp_experiments_dir}")
+                    shutil.rmtree(temp_experiments_dir)
 
 async def migrate_experiments():
                 """Migrate experiments from DB to filesystem."""
