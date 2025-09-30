@@ -127,7 +127,6 @@ async def migrate_datasets_table_to_filesystem():
     """
     try:
         # Late import to avoid hard dependency during tests without DB
-        from transformerlab.db.datasets import get_datasets
         from transformerlab.db.session import async_session
         from sqlalchemy import text as sqlalchemy_text
 
@@ -142,8 +141,19 @@ async def migrate_datasets_table_to_filesystem():
                 exists = result.fetchone() is not None
             if not exists:
                 return
-            rows = await get_datasets()
-        except Exception:
+            # Migrated db.dataset.get_datasets() to run here as we are deleting that code
+            rows = []
+            async with async_session() as session:
+                result = await session.execute(sqlalchemy_text("SELECT * FROM dataset"))
+                datasets = result.mappings().all()
+                dict_rows = [dict(dataset) for dataset in datasets]
+                for row in dict_rows:
+                    if "json_data" in row and row["json_data"]:
+                        if isinstance(row["json_data"], str):
+                            row["json_data"] = json.loads(row["json_data"])
+                    rows.append(row)
+        except Exception as e:
+            print(f"Failed to read datasets for migration: {e}")
             rows = []
 
         migrated = 0
