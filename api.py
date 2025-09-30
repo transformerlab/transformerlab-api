@@ -84,7 +84,7 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 # The temporary image directory for transformerlab
 temp_image_dir = os.path.join(WORKSPACE_DIR, "temp", "images")
-os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)    
+os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
 
 from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router  # noqa: E402
 
@@ -136,9 +136,9 @@ async def migrate_datasets_table_to_filesystem():
         try:
             # First check if the table exists
             async with async_session() as session:
-                result = await session.execute(sqlalchemy_text(
-                    "SELECT name FROM sqlite_master WHERE type='table' AND name='dataset'"
-                ))
+                result = await session.execute(
+                    sqlalchemy_text("SELECT name FROM sqlite_master WHERE type='table' AND name='dataset'")
+                )
                 exists = result.fetchone() is not None
             if not exists:
                 return
@@ -180,7 +180,7 @@ async def migrate_datasets_table_to_filesystem():
         # Drop the legacy table if present
         try:
             async with async_session() as session:
-                await session.execute(sqlalchemy_text("DROP TABLE IF EXISTS dataset"))
+                await session.execute(sqlalchemy_text("ALTER TABLE dataset RENAME TO migrated_dataset"))
                 await session.commit()
         except Exception:
             pass
@@ -276,6 +276,7 @@ app.include_router(get_trainer_xmlrpc_router())
 # Authentication and session management routes
 if os.getenv("TFL_MULTITENANT") == "true":
     from transformerlab.routers import auth  # noqa: E402
+
     app.include_router(auth.router)
 
 
