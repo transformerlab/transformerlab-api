@@ -2,12 +2,15 @@ import os
 import pytest
 import time
 
+# Create test directories before setting environment variables
+os.makedirs("./test/tmp/workspace", exist_ok=True)
+
 # Set environment variables before importing modules
 os.environ["TFL_HOME_DIR"] = "./test/tmp/"
-os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
+os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp/workspace"
 
-from transformerlab.routers.experiment.documents import document_download_zip
-from fastapi import HTTPException
+from transformerlab.routers.experiment.documents import document_download_zip  # noqa: E402
+from fastapi import HTTPException  # noqa: E402
 
 
 async def test_download_zip_missing_url():
