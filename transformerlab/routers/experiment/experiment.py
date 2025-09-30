@@ -24,7 +24,7 @@ from transformerlab.routers.experiment import (
     jobs,
 )
 from transformerlab.shared.constants import WORKSPACE_DIR
-from lab import dirs
+from lab import dirs, Experiment
 
 from werkzeug.utils import secure_filename
 
@@ -74,7 +74,7 @@ async def experiment_get(id: str):
 
 
 @router.get("/{id}/delete", tags=["experiment"])
-async def experiments_delete(id: int):
+async def experiments_delete(id: str):
     await db.experiment_delete(id)
     return {"message": f"Experiment {id} deleted"}
 
@@ -108,15 +108,6 @@ async def experiment_save_file_contents(id: str, filename: str, file_contents: A
 
     filename = secure_filename(filename)
 
-    # first get the experiment name:
-    data = await db.experiment_get(id)
-
-    # if the experiment does not exist, return an error:
-    if data is None:
-        return {"message": f"Experiment {id} does not exist"}
-
-    experiment_name = data["name"]
-
     # remove file extension from file:
     [filename, file_ext] = os.path.splitext(filename)
 
@@ -127,14 +118,14 @@ async def experiment_save_file_contents(id: str, filename: str, file_contents: A
     filename = shared.slugify(filename)
 
     # make directory if it does not exist:
-    if not os.path.exists(f"{EXPERIMENTS_DIR}/{experiment_name}"):
-        os.makedirs(f"{EXPERIMENTS_DIR}/{experiment_name}")
+    if not os.path.exists(f"{EXPERIMENTS_DIR}/{id}"):
+        os.makedirs(f"{EXPERIMENTS_DIR}/{id}")
 
     # now save the file contents, overwriting if it already exists:
-    with open(f"{EXPERIMENTS_DIR}/{experiment_name}/{filename}{file_ext}", "w") as f:
+    with open(f"{EXPERIMENTS_DIR}/{id}/{filename}{file_ext}", "w") as f:
         f.write(file_contents)
 
-    return {"message": f"{EXPERIMENTS_DIR}/{experiment_name}/{filename}{file_ext} file contents saved"}
+    return {"message": f"{EXPERIMENTS_DIR}/{id}/{filename}{file_ext} file contents saved"}
 
 
 @router.get("/{id}/file_contents", tags=["experiment"])
@@ -142,14 +133,8 @@ async def experiment_get_file_contents(id: str, filename: str):
 
     filename = secure_filename(filename)
 
-    # first get the experiment name:
-    data = await db.experiment_get(id)
-
-    # if the experiment does not exist, return an error:
-    if data is None:
-        return {"message": f"Experiment {id} does not exist"}
-
-    experiment_name = data["name"]
+    exp_obj = Experiment.get(id)
+    experiment_dir = exp_obj.get_dir()
 
     # remove file extension from file:
     [filename, file_ext] = os.path.splitext(filename)
@@ -163,7 +148,6 @@ async def experiment_get_file_contents(id: str, filename: str):
     # filename = shared.slugify(filename)
 
     # The following prevents path traversal attacks:
-    experiment_dir = dirs.experiment_dir_by_name(experiment_name)
     final_path = Path(experiment_dir).joinpath(filename + file_ext).resolve().relative_to(experiment_dir)
 
     final_path = experiment_dir + "/" + str(final_path)
@@ -202,7 +186,8 @@ async def export_experiment_to_recipe(id: str):
     }
 
     # Get the notes content from readme.md if it exists
-    experiment_dir = dirs.experiment_dir_by_name(data["name"])
+    exp_obj = Experiment.get(id)
+    experiment_dir = exp_obj.get_dir()
     notes_path = os.path.join(experiment_dir, "readme.md")
     try:
         with open(notes_path, "r") as f:

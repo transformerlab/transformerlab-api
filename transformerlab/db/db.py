@@ -385,7 +385,6 @@ async def experiment_delete(id):
     except Exception:
         pass
 
-
 async def experiment_update(id, config):
     try:
         exp_obj = Experiment.get(id)
