@@ -373,7 +373,7 @@ async def experiment_create(name: str, config: dict) -> str:
 async def experiment_get(id):
     try:
         exp_obj = Experiment.get(id)
-        return exp_obj.get_experiment()
+        return exp_obj.get_json_data()
     except Exception:
         return None
 
