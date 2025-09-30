@@ -168,25 +168,11 @@ async def migrate_db_to_filesystem():
                         break
         
         # If neither needs migration, skip entirely
-        if not experiments_need_migration and not jobs_need_migration:
-            print("Migration not needed - all experiment and job directories have index.json files.")
+        if not experiments_need_migration:
             return
-        
-        # If only jobs need migration, migrate jobs only
-        if not experiments_need_migration and jobs_need_migration:
-            print("Experiments already have index.json files, migrating jobs only...")
-            await migrate_jobs()
-            print("Jobs migration completed.")
-            
-        # If experiments need migration, do full migration
-        elif experiments_need_migration:
-            print("Running full DB to filesystem migration...")
-                
+        else:
             await migrate_experiments()
-            if jobs_need_migration:
-                await migrate_jobs()
-            print("DB to filesystem migration completed.")
-            
+            await migrate_jobs()
     except Exception as e:
         print(f"Error during migration: {e}")
         # Leave marker file for manual inspection
