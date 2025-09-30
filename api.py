@@ -5,6 +5,7 @@ The Entrypoint File for Transformer Lab's API Server.
 import os
 import argparse
 import asyncio
+import shutil
 
 import json
 import signal
@@ -96,6 +97,16 @@ async def migrate_jobs():
                 print("Migrating jobs...")
                 experiments = await experiment_get_all()
 
+                # Move existing jobs directory to temp if it exists
+                # We do this because the SDK's create() method will fail if directories already exist, so we temporarily move
+                # the existing directories aside, let the SDK create clean directories with proper structure,
+                # then copy back all the existing files (preserving user data like logs, configs, etc.)
+                temp_jobs_dir = None
+                if os.path.exists(lab_dirs.JOBS_DIR):
+                    temp_jobs_dir = f"{lab_dirs.JOBS_DIR}_migration_temp"
+                    print(f"Moving existing jobs directory to: {temp_jobs_dir}")
+                    os.rename(lab_dirs.JOBS_DIR, temp_jobs_dir)
+
                 for exp in experiments:
                     print(f"Migrating jobs for experiment: {exp['name']}")
                     jobs = await jobs_get_by_experiment(exp['id'])
@@ -114,8 +125,28 @@ async def migrate_jobs():
                         job_obj._update_json_data_field(key="progress", value=job["progress"])
                         job_obj._update_json_data_field(key="created_at", value=job["created_at"])
                         job_obj._update_json_data_field(key="updated_at", value=job["updated_at"])
+                        
+                        # Copy existing files from temp directory if they exist
+                        # This preserves all user data (logs, configs, outputs, etc.) that was in the
+                        # original job directories while maintaining the new SDK structure
+                        if temp_jobs_dir:
+                            old_job_dir = os.path.join(temp_jobs_dir, str(job['id']))
+                            if os.path.exists(old_job_dir):
+                                new_job_dir = job_obj.get_dir()
+                                print(f"Copying existing files from {old_job_dir} to {new_job_dir}")
+                                # Copy all files except index.json (which we just created)
+                                for item in os.listdir(old_job_dir):
+                                    src = os.path.join(old_job_dir, item)
+                                    dst = os.path.join(new_job_dir, item)
+                                    if os.path.isdir(src):
+                                        shutil.copytree(src, dst, dirs_exist_ok=True)
+                                    else:
+                                        shutil.copy2(src, dst)
 
-                        print(f"Created job directory: {job_obj.get_dir()}")
+                # Clean up temp directory
+                if temp_jobs_dir and os.path.exists(temp_jobs_dir):
+                    print(f"Cleaning up temp jobs directory: {temp_jobs_dir}")
+                    shutil.rmtree(temp_jobs_dir)
 
 async def migrate_experiments():
                 """Migrate experiments from DB to filesystem."""
@@ -124,6 +155,17 @@ async def migrate_experiments():
                 if not experiments:
                     print("No experiments in DB to migrate.")
                     return
+
+                # Move existing experiments directory to temp if it exists
+                # We do this because the SDK's create() method will fail if 
+                # directories already exist, so we temporarily move the existing directories aside, let the 
+                # SDK create clean directories with proper structure, then copy back all the existing files 
+                # (preserving user data like models, datasets, configs, etc.)
+                temp_experiments_dir = None
+                if os.path.exists(lab_dirs.EXPERIMENTS_DIR):
+                    temp_experiments_dir = f"{lab_dirs.EXPERIMENTS_DIR}_migration_temp"
+                    print(f"Moving existing experiments directory to: {temp_experiments_dir}")
+                    os.rename(lab_dirs.EXPERIMENTS_DIR, temp_experiments_dir)
 
                 for exp in experiments:
                     print(f"Migrating experiment: {exp['name']}")
@@ -136,8 +178,27 @@ async def migrate_experiments():
                     experiment._update_json_data_field(key="config", value=json.loads(exp.get("config", "{}")))
                     experiment._update_json_data_field(key="created_at", value=exp.get("created_at", datetime.now().isoformat()))
                     experiment._update_json_data_field(key="updated_at", value=exp.get("updated_at", datetime.now().isoformat()))
+                    
+                    # Copy existing files from temp directory if they exist
+                    # This preserves all user data (models, datasets, configs, etc.) that was in the
+                    # original experiment directories while maintaining the new SDK structure
+                    if temp_experiments_dir:
+                        old_experiment_dir = os.path.join(temp_experiments_dir, exp['name'])
+                        if os.path.exists(old_experiment_dir):
+                            new_experiment_dir = experiment.get_dir()
+                            print(f"Copying existing files from {old_experiment_dir} to {new_experiment_dir}")
+                            for item in os.listdir(old_experiment_dir):
+                                src = os.path.join(old_experiment_dir, item)
+                                dst = os.path.join(new_experiment_dir, item)
+                                if os.path.isdir(src):
+                                    shutil.copytree(src, dst, dirs_exist_ok=True)
+                                else:
+                                    shutil.copy2(src, dst)
 
-                    print(f"Created experiment directory: {experiment.get_dir()}")
+                # Clean up temp directory
+                if temp_experiments_dir and os.path.exists(temp_experiments_dir):
+                    print(f"Cleaning up temp experiments directory: {temp_experiments_dir}")
+                    shutil.rmtree(temp_experiments_dir)
 
 async def migrate_db_to_filesystem():
     """Migrate data from DB to filesystem if not already migrated."""
