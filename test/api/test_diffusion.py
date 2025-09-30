@@ -401,7 +401,7 @@ def test_create_dataset_existing_dataset(client):
     """Test creating dataset with name that already exists"""
     with (
         patch("transformerlab.routers.experiment.diffusion.get_experiment_name", return_value="test-exp-name"),
-        patch("transformerlab.routers.experiment.diffusion.get_dataset", return_value={"id": "existing"}),
+        patch("transformerlab.routers.experiment.diffusion.Dataset.get", return_value=None),
         patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image,
     ):
         mock_image = MagicMock()
@@ -425,7 +425,7 @@ def test_create_dataset_no_images_found(client):
     with (
         patch("transformerlab.routers.experiment.diffusion.get_experiment_name", return_value="test-exp-name"),
         patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image,
-        patch("transformerlab.routers.experiment.diffusion.get_dataset", return_value=None),
+        patch("transformerlab.routers.experiment.diffusion.Dataset.get", return_value=None),
     ):
         mock_find_image.return_value = None
 
