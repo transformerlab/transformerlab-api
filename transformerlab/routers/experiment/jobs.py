@@ -22,17 +22,17 @@ from datetime import datetime
 
 import transformerlab.db.jobs as db_jobs
 from transformerlab.services.job_service import job_update_status
-from transformerlab.shared.constants import WORKSPACE_DIR
+import transformerlab.services.job_service as job_service
+from transformerlab.shared.constants import WORKSPACE_DIR, MULTITENANT
 from transformerlab.shared.dirs import get_job_output_dir
-from lab import dirs
+from lab import dirs, Job
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
 
 @router.get("/list")
 async def jobs_get_all(experimentId: int, type: str = "", status: str = ""):
-    jobs = await db_jobs.jobs_get_all(type=type, status=status, experiment_id=experimentId)
-    return jobs
+    return await job_service.list_jobs_by_experiment(experimentId, type, status)
 
 
 @router.get("/delete/{job_id}")
@@ -201,8 +201,7 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
     Enhanced version combining the best of both train and jobs routers.
     """
     try:
-        job = await db_jobs.job_get(job_id)
-        job_data = job["job_data"]
+        job_data = await job_service.get_job_data(job_id)
 
         # Handle both dict and JSON string formats
         if not isinstance(job_data, dict):
@@ -239,12 +238,16 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
                 logging.warning(
                     f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}"
                 )
-                # Get experiment information for new job directory structure
-                experiment_id = job["experiment_id"]
-                experiment = await experiment_get(experiment_id)
-                experiment_name = experiment["name"]
-                job_id_safe = secure_filename(str(job_id))
-                new_output_dir = get_job_output_dir(experiment_name, job_id)
+                if MULTITENANT:
+                    job = Job.get(job_id)
+                    new_output_dir = job.get_dir()
+                else:
+                    # Get experiment information for new job directory structure
+                    experiment_id = job["experiment_id"]
+                    experiment = await experiment_get(experiment_id)
+                    experiment_name = experiment["name"]
+                    job_id_safe = secure_filename(str(job_id))
+                    new_output_dir = get_job_output_dir(experiment_name, job_id)
                 if not os.path.exists(new_output_dir):
                     os.makedirs(new_output_dir)
                 output_file_name = os.path.join(new_output_dir, f"output_{job_id_safe}.txt")

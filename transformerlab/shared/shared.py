@@ -20,10 +20,9 @@ import transformerlab.db.jobs as db_jobs
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
 from lab.dirs import GLOBAL_LOG_PATH
-from transformerlab.shared.constants import WORKSPACE_DIR
-from lab import dirs as lab_dirs
+from transformerlab.shared.constants import WORKSPACE_DIR, MULTITENANT
+from lab import Job, dirs as lab_dirs
 from transformerlab.shared import dirs
-
 
 
 def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs):
@@ -1163,6 +1162,12 @@ async def get_job_output_file_name(job_id: str, plugin_name: str = None, experim
     try:
         job_id = secure_filename(str(job_id))
 
+        # For multitenant, there is only one way to get this directory so it is simpler
+        if MULTITENANT:
+            job = Job.get(job_id)
+            return job.get_log_path()
+
+        # For standalone app, need to check different possibilities
         # If plugin_name or experiment_name is not provided, get them from job_data
         if plugin_name is None or experiment_name is None:
             job = await db_jobs.job_get(job_id)

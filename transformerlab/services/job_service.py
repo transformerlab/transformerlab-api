@@ -9,11 +9,45 @@ from transformerlab.db.sync import (
     job_mark_as_complete_if_running as db_job_mark_as_complete_if_running,
 )
 from transformerlab.shared.models import models
+from transformerlab.services.experiment_service import get_experiment_by_id
 from sqlalchemy import select
+from transformerlab.shared.constants import MULTITENANT
+
+from lab import Job
 
 
 # Centralized set of job types that can trigger workflows on completion
 SUPPORTED_WORKFLOW_TRIGGERS = ["TRAIN", "LOAD_MODEL", "EXPORT", "EVAL", "GENERATE", "DOWNLOAD_MODEL"]
+
+
+async def list_jobs_by_experiment(experimentId: int, type: str = "", status: str = ""):
+    """
+    Returns a list of jobs in an experiment.
+    Optionally, filter on type or status
+    """
+    if MULTITENANT:
+        experiment = await get_experiment_by_id(experimentId)
+        if not experiment:
+            return []
+        jobs = experiment.get_jobs(type, status)
+    else:
+        jobs = await db_jobs.jobs_get_all(type=type, status=status, experiment_id=experimentId)
+    return jobs
+
+
+async def get_job_data(job_id: int):
+    """
+    Gets the json data associated with job_id
+    """
+    if MULTITENANT:
+        try:
+            job = Job.get(job_id)
+            return job.get_job_data()
+        except Exception:
+            return {}
+    else:
+        job = await db_jobs.job_get(job_id)
+        return job.get("job_data", "")
 
 
 async def _trigger_workflows_on_job_completion(job_id: str):
