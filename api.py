@@ -132,6 +132,7 @@ async def migrate_experiments():
                     experiment = Experiment.create(exp['name'])
                     # TODO: which datetime to use here?
                     experiment._update_json_data_field(key="id", value=exp["name"])
+                    experiment._update_json_data_field(key="db_experiment_id", value=exp["id"])
                     experiment._update_json_data_field(key="config", value=json.loads(exp.get("config", "{}")))
                     experiment._update_json_data_field(key="created_at", value=exp.get("created_at", datetime.now().isoformat()))
                     experiment._update_json_data_field(key="updated_at", value=exp.get("updated_at", datetime.now().isoformat()))
@@ -375,7 +376,7 @@ async def server_worker_start(
     eight_bit: bool = False,
     cpu_offload: bool = False,
     inference_engine: str = "default",
-    experiment_id: int = None,
+    experiment_id: str = None,
     inference_params: str = "",
 ):
     # the first priority for inference params should be the inference params passed in, then the inference parameters in the experiment
