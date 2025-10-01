@@ -545,8 +545,7 @@ async def download_huggingface_model(
 
 @router.get(path="/model/download_from_huggingface")
 async def download_model_by_huggingface_id(
-    model: str, job_id: int | None = None, experiment_id: int = None, request: Request | None = None
-):
+    model: str, job_id: int | None = None, experiment_id: int = None):
     """Takes a specific model string that must match huggingface ID to download
     This function will not be able to infer out description etc of the model
     since it is not in the gallery"""
