@@ -948,7 +948,7 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
 
     # Check if dataset already exists
     try:
-        existing_dataset = Dataset.get(dataset_id)
+        Dataset.get(dataset_id)
         # If we get here, the dataset exists
         raise HTTPException(status_code=400, detail=f"Dataset '{dataset_id}' already exists")
     except FileNotFoundError:
