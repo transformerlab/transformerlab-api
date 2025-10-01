@@ -626,9 +626,14 @@ on the model's Huggingface page."
 
     org_id = None
     if os.getenv("TFL_MULTITENANT") == "true":
-        from lab.dirs_workspace import get_organization_id
+        from lab.dirs_workspace import get_workspace_dir
 
-        org_id = get_organization_id()
+        ws = get_workspace_dir()
+        if "/orgs/" in ws:
+            try:
+                org_id = ws.split("/orgs/")[-1].split("/")[0]
+            except Exception:
+                org_id = None
     return await download_huggingface_model(model, model_details, job_id, experiment_id, org_id)
 
 
@@ -717,9 +722,14 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
 
     org_id = None
     if os.getenv("TFL_MULTITENANT") == "true":
-        from lab.dirs_workspace import get_organization_id
+        from lab.dirs_workspace import get_workspace_dir
 
-        org_id = get_organization_id()
+        ws = get_workspace_dir()
+        if "/orgs/" in ws:
+            try:
+                org_id = ws.split("/orgs/")[-1].split("/")[0]
+            except Exception:
+                org_id = None
     return await download_huggingface_model(huggingface_id, gallery_entry, job_id, experiment_id, org_id)
 
 
@@ -1142,6 +1152,14 @@ async def get_pipeline_tag(model_name: str):
     Returns:
         JSON response with status and pipeline tag data
     """
+    print(f"🟠 PIPELINE_TAG HANDLER START: {model_name}")
+
+    # Debug: Check what org ID is available in the context
+    from lab.dirs_workspace import get_workspace_dir
+
+    ws = get_workspace_dir()
+    print(f"🟠 WORKSPACE DIR: {ws}")
+
     # First try to get from database
     model_data = await db.model_local_get(model_name)
     if model_data and model_data.get("json_data") and "pipeline_tag" in model_data["json_data"]:
