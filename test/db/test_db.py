@@ -2,12 +2,14 @@ import json
 import os
 import asyncio
 
+# Create test directories before setting environment variables
+os.makedirs("./test/tmp/workspace", exist_ok=True)
 
 os.environ["TFL_HOME_DIR"] = "./test/tmp/"
-os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp"
+os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp/workspace"
 
 
-from transformerlab.db.db import (
+from transformerlab.db.db import (  # noqa: E402
     delete_plugin,
     experiment_get_by_name,
     get_plugins_of_type,
@@ -45,20 +47,20 @@ from transformerlab.db.db import (
     export_job_create,
 )
 
-from transformerlab.db.sync import (
+from transformerlab.db.sync import (  # noqa: E402
     job_create_sync,
     job_update_status_sync,  # used in dedicated sync tests
     job_update_sync,  # used in dedicated sync tests
     job_mark_as_complete_if_running,  # used in dedicated sync tests
 )
-from transformerlab.services.job_service import (
+from transformerlab.services.job_service import (  # noqa: E402
     job_update_status as service_job_update_status,
     job_update_status_sync as service_job_update_status_sync,
     job_update_sync as service_job_update_sync,
     job_mark_as_complete_if_running as service_job_mark_as_complete_if_running,
 )
 
-from transformerlab.db.datasets import (
+from transformerlab.db.datasets import (  # noqa: E402
     create_huggingface_dataset,
     get_dataset,
     get_datasets,
@@ -67,7 +69,7 @@ from transformerlab.db.datasets import (
     get_generated_datasets,
 )
 
-from transformerlab.db.workflows import (
+from transformerlab.db.workflows import (  # noqa: E402
     workflow_count_queued,
     workflow_count_running,
     workflow_create,
@@ -87,7 +89,7 @@ from transformerlab.db.workflows import (
     workflows_get_by_id,
 )
 
-from transformerlab.db.jobs import (
+from transformerlab.db.jobs import (  # noqa: E402
     job_create,
     job_get,
     job_update_status,  # used in unit tests validating DB-layer behavior
@@ -102,12 +104,11 @@ from transformerlab.db.jobs import (
     job_update,
 )
 
+from transformerlab.db.session import job_cancel_in_progress_jobs  # noqa: E402
+import transformerlab.db.session as db  # noqa: E402
 
-from transformerlab.db.session import job_cancel_in_progress_jobs
-import transformerlab.db.session as db
 
-
-import pytest
+import pytest  # noqa: E402
 
 
 @pytest.mark.asyncio
