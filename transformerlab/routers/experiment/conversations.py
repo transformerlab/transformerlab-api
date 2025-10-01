@@ -6,9 +6,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body
 
-from transformerlab.db.db import experiment_get
 
-from lab import dirs, Experiment
+from lab import Experiment
 
 from werkzeug.utils import secure_filename
 from fastapi.responses import FileResponse

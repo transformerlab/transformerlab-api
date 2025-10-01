@@ -1,7 +1,6 @@
 import os
 import json
 import sqlite3
-import itertools
 import sys
 from pathlib import Path
 
