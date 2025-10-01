@@ -687,6 +687,16 @@ async def download_gguf_file_from_repo(
     except Exception:
         pass  # Use existing size if we can't get specific file size
 
+    org_id = None
+    if os.getenv("TFL_MULTITENANT") == "true":
+        from lab.dirs_workspace import get_workspace_dir
+
+        ws = get_workspace_dir()
+        if "/orgs/" in ws:
+            try:
+                org_id = ws.split("/orgs/")[-1].split("/")[0]
+            except Exception:
+                org_id = None
     return await download_huggingface_model(model, model_details, job_id, experiment_id, org_id)
 
 
@@ -968,10 +978,7 @@ async def install_peft(
 
     # Multitenant: pass workspace_dir explicitly so the script uses the correct org path
     try:
-        org_id = None
-        if request is not None and os.getenv("TFL_MULTITENANT") == "true":
-            org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
-            org_id = request.cookies.get(org_cookie_name)
+        from lab.dirs_workspace import get_workspace_dir
         workspace_dir = get_workspace_dir()
         args += ["--workspace_dir", workspace_dir]
     except Exception:

@@ -11,7 +11,7 @@ from pathlib import Path
 from multiprocessing import Process, Queue
 from werkzeug.utils import secure_filename
 
-from lab import HOME_DIR, WORKSPACE_DIR as LAB_WORKSPACE_DIR
+from lab import HOME_DIR
 
 
 DATABASE_FILE_NAME = f"{HOME_DIR}/llmlab.sqlite3"

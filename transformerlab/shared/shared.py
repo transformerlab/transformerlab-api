@@ -667,7 +667,6 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         adaptor_name = template_config.get("adaptor_name", "adaptor")
         template_config["job_id"] = job_id
         # Resolve org-aware workspace dir if multitenant via job_data (org_id may be persisted by caller)
-        org_id = job_config.get("organization_id") if isinstance(job_config, dict) else None
         workspace_dir = get_workspace_dir()
         template_config["adaptor_output_dir"] = os.path.join(workspace_dir, "adaptors", model_name, adaptor_name)
         template_config["output_dir"] = os.path.join(

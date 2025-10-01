@@ -432,10 +432,6 @@ async def generate_image(experimentId: int, request: DiffusionRequest, http_requ
 
             # Get experiment name for experiment-specific paths
             experiment_name = await get_experiment_name(experimentId)
-            org_id = None
-            if os.getenv("TFL_MULTITENANT") == "true":
-                org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
-                org_id = http_request.cookies.get(org_cookie_name)
             workspace_dir = get_workspace_dir()
             images_folder = os.path.join(get_images_dir(experiment_name, workspace_dir), generation_id)
             images_folder = os.path.normpath(images_folder)  # Normalize path
@@ -558,10 +554,6 @@ async def get_history(experimentId: int, limit: int = 50, offset: int = 0, http_
 
     # Get experiment name for experiment-specific paths
     experiment_name = await get_experiment_name(experimentId)
-    org_id = None
-    if http_request and os.getenv("TFL_MULTITENANT") == "true":
-        org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
-        org_id = http_request.cookies.get(org_cookie_name)
     workspace_dir = get_workspace_dir()
     return load_history(limit=limit, offset=offset, experiment_name=experiment_name, workspace_dir=workspace_dir)
 
@@ -588,10 +580,6 @@ async def get_image_by_id(
     """
     # Get experiment name for experiment-specific paths
     experiment_name = await get_experiment_name(experimentId)
-    org_id = None
-    if http_request and os.getenv("TFL_MULTITENANT") == "true":
-        org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
-        org_id = http_request.cookies.get(org_cookie_name)
     workspace_dir = get_workspace_dir()
 
     if step:
@@ -702,10 +690,6 @@ async def get_image_info_by_id(image_id: str, experimentId: int, http_request: R
     """
     # Get experiment name for experiment-specific paths
     experiment_name = await get_experiment_name(experimentId)
-    org_id = None
-    if http_request and os.getenv("TFL_MULTITENANT") == "true":
-        org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
-        org_id = http_request.cookies.get(org_cookie_name)
     workspace_dir = get_workspace_dir()
     image_item = find_image_by_id(image_id, experiment_name, workspace_dir)
 
@@ -745,10 +729,6 @@ async def get_image_count(image_id: str, experimentId: int, http_request: Reques
     """
     # Get experiment name for experiment-specific paths
     experiment_name = await get_experiment_name(experimentId)
-    org_id = None
-    if http_request and os.getenv("TFL_MULTITENANT") == "true":
-        org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
-        org_id = http_request.cookies.get(org_cookie_name)
     workspace_dir = get_workspace_dir()
     image_item = find_image_by_id(image_id, experiment_name, workspace_dir)
 
@@ -787,10 +767,6 @@ async def get_all_images(image_id: str, experimentId: int, http_request: Request
 
     # Get experiment name for experiment-specific paths
     experiment_name = await get_experiment_name(experimentId)
-    org_id = None
-    if http_request and os.getenv("TFL_MULTITENANT") == "true":
-        org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
-        org_id = http_request.cookies.get(org_cookie_name)
     workspace_dir = get_workspace_dir()
     image_item = find_image_by_id(image_id, experiment_name, workspace_dir)
 
@@ -842,10 +818,6 @@ async def delete_image_from_history(experimentId: int, image_id: str, http_reque
     """
     # Get experiment name for experiment-specific paths
     experiment_name = await get_experiment_name(experimentId)
-    org_id = None
-    if http_request and os.getenv("TFL_MULTITENANT") == "true":
-        org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
-        org_id = http_request.cookies.get(org_cookie_name)
     workspace_dir = get_workspace_dir()
     history_file = get_history_file_path(experiment_name, workspace_dir)
 
@@ -905,10 +877,6 @@ async def clear_history(experimentId: int, http_request: Request = None):
     try:
         # Get experiment name for experiment-specific paths
         experiment_name = await get_experiment_name(experimentId)
-        org_id = None
-        if http_request and os.getenv("TFL_MULTITENANT") == "true":
-            org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
-            org_id = http_request.cookies.get(org_cookie_name)
         workspace_dir = get_workspace_dir()
         history_file = get_history_file_path(experiment_name, workspace_dir)
         images_dir = get_images_dir(experiment_name, workspace_dir)
@@ -1212,10 +1180,6 @@ async def get_new_generation_id(experimentId: int, http_request: Request = None)
     # Get experiment name for experiment-specific paths
     experiment_name = await get_experiment_name(experimentId)
     generation_id = str(uuid.uuid4())
-    org_id = None
-    if http_request and os.getenv("TFL_MULTITENANT") == "true":
-        org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
-        org_id = http_request.cookies.get(org_cookie_name)
     workspace_dir = get_workspace_dir()
     ensure_directories(experiment_name, workspace_dir)
     images_folder = os.path.join(get_images_dir(experiment_name, workspace_dir), generation_id)

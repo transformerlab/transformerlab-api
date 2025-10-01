@@ -350,10 +350,6 @@ async def server_worker_start(
 
     if adaptor != "":
         # Resolve per-request workspace if multitenant
-        org_id = None
-        if os.getenv("TFL_MULTITENANT") == "true":
-            org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
-            org_id = request.cookies.get(org_cookie_name)
         workspace_dir = get_workspace_dir()
         adaptor = f"{workspace_dir}/adaptors/{secure_filename(model)}/{adaptor}"
 
