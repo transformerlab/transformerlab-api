@@ -42,9 +42,6 @@ router.include_router(router=diffusion.router, prefix="/{experimentId}", tags=["
 router.include_router(router=jobs.router, prefix="/{experimentId}", tags=["jobs"])
 
 
-EXPERIMENTS_DIR: str = dirs.EXPERIMENTS_DIR
-
-
 async def convert_experiment_id_to_name_if_needed(id: int | str) -> str:
     """As we move to make the experiment name the best way to fetch an experiment, we use this function to
     convert an experiment id to an experiment name if needed.

@@ -6,12 +6,13 @@ import dateutil.relativedelta
 from typing import Annotated
 import transformerlab.db.db as db
 import transformerlab.db.jobs as db_jobs
-from fastapi import APIRouter, Body, Request
+from fastapi import APIRouter, Body
 from fastchat.model.model_adapter import get_conversation_template
 from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi, list_repo_tree
 from huggingface_hub import ModelCard, ModelCardData
 from huggingface_hub.utils import HfHubHTTPError, GatedRepoError, EntryNotFoundError
 from transformers import AutoTokenizer
+
 
 import os
 from pathlib import Path
@@ -544,8 +545,7 @@ async def download_huggingface_model(
 
 
 @router.get(path="/model/download_from_huggingface")
-async def download_model_by_huggingface_id(
-    model: str, job_id: int | None = None, experiment_id: int = None):
+async def download_model_by_huggingface_id(model: str, job_id: int | None = None, experiment_id: int = None):
     """Takes a specific model string that must match huggingface ID to download
     This function will not be able to infer out description etc of the model
     since it is not in the gallery"""
@@ -620,14 +620,13 @@ on the model's Huggingface page."
 
     org_id = None
     if os.getenv("TFL_MULTITENANT") == "true":
-        from lab.dirs_workspace import get_workspace_dir
-
         ws = get_workspace_dir()
         if "/orgs/" in ws:
             try:
                 org_id = ws.split("/orgs/")[-1].split("/")[0]
             except Exception:
                 org_id = None
+    print("WORKSPACE DIR:", ws)
     return await download_huggingface_model(model, model_details, job_id, experiment_id, org_id)
 
 
@@ -637,7 +636,6 @@ async def download_gguf_file_from_repo(
     filename: str,
     job_id: int | None = None,
     experiment_id: int = None,
-    request: Request | None = None,
 ):
     """Download a specific GGUF file from a GGUF repository"""
 
@@ -678,17 +676,11 @@ async def download_gguf_file_from_repo(
     except Exception:
         pass  # Use existing size if we can't get specific file size
 
-    org_id = None
-    if request is not None and os.getenv("TFL_MULTITENANT") == "true":
-        org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
-        org_id = request.cookies.get(org_cookie_name)
     return await download_huggingface_model(model, model_details, job_id, experiment_id, org_id)
 
 
 @router.get(path="/model/download_model_from_gallery")
-async def download_model_from_gallery(
-    gallery_id: str, job_id: int | None = None, experiment_id: int = None, request: Request | None = None
-):
+async def download_model_from_gallery(gallery_id: str, job_id: int | None = None, experiment_id: int = None):
     """Provide a reference to a model in the gallery, and we will download it
     from huggingface
 
@@ -723,7 +715,7 @@ async def download_model_from_gallery(
 
     org_id = None
     if os.getenv("TFL_MULTITENANT") == "true":
-        from lab.dirs_workspace import get_workspace_dir
+        print("COMING IN HERE")
 
         ws = get_workspace_dir()
         if "/orgs/" in ws:
@@ -731,6 +723,7 @@ async def download_model_from_gallery(
                 org_id = ws.split("/orgs/")[-1].split("/")[0]
             except Exception:
                 org_id = None
+    print("WORKSPACE DIR:", ws)
     return await download_huggingface_model(huggingface_id, gallery_entry, job_id, experiment_id, org_id)
 
 
@@ -809,12 +802,7 @@ async def model_local_delete(model_id: str, delete_from_cache: bool = False):
 @router.post("/model/pefts")
 async def model_gets_pefts(
     model_id: Annotated[str, Body()],
-    request: Request,
 ):
-    org_id = None
-    if os.getenv("TFL_MULTITENANT") == "true":
-        org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
-        org_id = request.cookies.get(org_cookie_name)
     workspace_dir = get_workspace_dir()
     model_id = secure_filename(model_id)
     adaptors_dir = os.path.join(workspace_dir, "adaptors", model_id)
@@ -831,11 +819,7 @@ async def model_gets_pefts(
 
 
 @router.get("/model/delete_peft")
-async def model_delete_peft(model_id: str, peft: str, request: Request):
-    org_id = None
-    if os.getenv("TFL_MULTITENANT") == "true":
-        org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
-        org_id = request.cookies.get(org_cookie_name)
+async def model_delete_peft(model_id: str, peft: str):
     workspace_dir = get_workspace_dir()
     secure_model_id = secure_filename(model_id)
     adaptors_dir = f"{workspace_dir}/adaptors/{secure_model_id}"
@@ -857,7 +841,6 @@ async def install_peft(
     model_id: str,
     job_id: int | None = None,
     experiment_id: int = None,
-    request: Request | None = None,
 ):
     api = HfApi()
 

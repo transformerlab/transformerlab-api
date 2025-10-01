@@ -85,7 +85,7 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 # The temporary image directory for transformerlab (default; per-request overrides computed in routes)
 temp_image_dir = os.path.join(get_workspace_dir(), "temp", "images")
-os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)    
+os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
 
 from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router  # noqa: E402
 
@@ -110,7 +110,6 @@ async def lifespan(app: FastAPI):
     # Run the clean up function
     cleanup_at_exit()
     print("FastAPI LIFESPAN: Complete")
-
 
 
 # the migrate function only runs the conversion function if no tasks are already present
@@ -170,6 +169,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # Middleware to set context var for organization id per request (multitenant)
 @app.middleware("http")
 async def set_org_context(request: Request, call_next):
@@ -178,6 +178,7 @@ async def set_org_context(request: Request, call_next):
         if os.getenv("TFL_MULTITENANT") == "true":
             org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
             org_id = request.cookies.get(org_cookie_name)
+            print("ORG ID FROM COOKIE:", org_id)
         set_current_org_id(org_id)
         if lab_set_org_id is not None:
             lab_set_org_id(org_id)
@@ -223,6 +224,7 @@ app.include_router(get_trainer_xmlrpc_router())
 # Authentication and session management routes
 if os.getenv("TFL_MULTITENANT") == "true":
     from transformerlab.routers import auth  # noqa: E402
+
     app.include_router(auth.router)
 
 
