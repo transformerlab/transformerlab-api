@@ -69,8 +69,7 @@ from lab.dirs_workspace import get_workspace_dir
 from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
 from transformerlab.shared.request_context import set_current_org_id
-    # Prefer setting ContextVar in lab so all lab helpers see it
- from lab.dirs_workspace import set_organization_id as lab_set_org_id
+from lab.dirs_workspace import set_organization_id as lab_set_org_id
 
 from dotenv import load_dotenv
 
