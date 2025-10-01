@@ -126,7 +126,6 @@ async def migrate_models_table_to_filesystem():
     """
     try:
         # Late import to avoid hard dependency during tests without DB
-        from transformerlab.db.db import model_local_list
         from transformerlab.db.session import async_session
         from sqlalchemy import text as sqlalchemy_text
         from lab.model import Model as model_service
@@ -142,6 +141,7 @@ async def migrate_models_table_to_filesystem():
                 exists = result.fetchone() is not None
             if not exists:
                 return
+            from transformerlab.db.db import model_local_list
             rows = await model_local_list()
         except Exception:
             rows = []
