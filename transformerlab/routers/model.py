@@ -489,11 +489,15 @@ async def download_huggingface_model(
             from lab.dirs_workspace import HOME_DIR
 
             workspace_dir = os.path.join(HOME_DIR, "orgs", organization_id, "workspace")
+            print(f"🔵 CONSTRUCTED ORG WORKSPACE: {workspace_dir}")
         else:
             # Use default workspace path
             workspace_dir = get_workspace_dir()
+            print(f"🔵 DEFAULT WORKSPACE: {workspace_dir}")
+        print(f"🔵 PASSING TO SUBPROCESS: --workspace_dir {workspace_dir}")
         args += ["--workspace_dir", workspace_dir]
-    except Exception:
+    except Exception as e:
+        print(f"🔵 ERROR CONSTRUCTING WORKSPACE: {e}")
         pass
 
     if hugging_face_filename is not None:
@@ -693,6 +697,12 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
 
     You can manually specify a pre-created job_id if you want to track the progress of the download with
     a defined job_id provided by the API using /job/createId"""
+    print(f"🟣 DOWNLOAD_GALLERY HANDLER START: gallery_id={gallery_id}, job_id={job_id}")
+    
+    # Debug: Check what org ID is available in the context
+    from lab.dirs_workspace import get_workspace_dir
+    ws = get_workspace_dir()
+    print(f"🟣 WORKSPACE DIR: {ws}")
 
     # Get model details from the gallery
     # If None then return an error
