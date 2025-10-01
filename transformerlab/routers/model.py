@@ -484,8 +484,14 @@ async def download_huggingface_model(
 
     # Multitenant: pass workspace_dir explicitly so the script uses the correct org path
     try:
-        org_id = organization_id if os.getenv("TFL_MULTITENANT") == "true" else None
-        workspace_dir = get_workspace_dir()
+        if os.getenv("TFL_MULTITENANT") == "true" and organization_id:
+            # Construct org-specific workspace path manually
+            from lab.dirs_workspace import HOME_DIR
+
+            workspace_dir = os.path.join(HOME_DIR, "orgs", organization_id, "workspace")
+        else:
+            # Use default workspace path
+            workspace_dir = get_workspace_dir()
         args += ["--workspace_dir", workspace_dir]
     except Exception:
         pass
@@ -620,13 +626,9 @@ on the model's Huggingface page."
 
     org_id = None
     if os.getenv("TFL_MULTITENANT") == "true":
-        ws = get_workspace_dir()
-        if "/orgs/" in ws:
-            try:
-                org_id = ws.split("/orgs/")[-1].split("/")[0]
-            except Exception:
-                org_id = None
-    print("WORKSPACE DIR:", ws)
+        from lab.dirs_workspace import get_organization_id
+
+        org_id = get_organization_id()
     return await download_huggingface_model(model, model_details, job_id, experiment_id, org_id)
 
 
@@ -715,15 +717,9 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
 
     org_id = None
     if os.getenv("TFL_MULTITENANT") == "true":
-        print("COMING IN HERE")
+        from lab.dirs_workspace import get_organization_id
 
-        ws = get_workspace_dir()
-        if "/orgs/" in ws:
-            try:
-                org_id = ws.split("/orgs/")[-1].split("/")[0]
-            except Exception:
-                org_id = None
-    print("WORKSPACE DIR:", ws)
+        org_id = get_organization_id()
     return await download_huggingface_model(huggingface_id, gallery_entry, job_id, experiment_id, org_id)
 
 

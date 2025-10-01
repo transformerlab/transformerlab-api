@@ -255,7 +255,7 @@ parser.add_argument("--peft", type=str)
 parser.add_argument("--local_model_id", type=str)
 
 args, other = parser.parse_known_args()
-WORKSPACE_DIR = args.workspace_dir or LAB_WORKSPACE_DIR
+WORKSPACE_DIR = args.workspace_dir
 mode = args.mode
 print(f"MODE IS: {mode}")
 
