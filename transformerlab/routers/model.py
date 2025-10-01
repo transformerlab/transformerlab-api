@@ -1166,6 +1166,13 @@ async def get_pipeline_tag(model_name: str):
     Returns:
         JSON response with status and pipeline tag data
     """
+    print(f"🟠 PIPELINE_TAG HANDLER START: {model_name}")
+    
+    # Debug: Check what org ID is available in the context
+    from lab.dirs_workspace import get_workspace_dir
+    ws = get_workspace_dir()
+    print(f"🟠 WORKSPACE DIR: {ws}")
+    
     # First try to get from database
     model_data = await db.model_local_get(model_name)
     if model_data and model_data.get("json_data") and "pipeline_tag" in model_data["json_data"]:
