@@ -32,6 +32,7 @@ class WorkOSSession(AuthSession):
                 first_name=getattr(workos_user, "first_name", None),
                 last_name=getattr(workos_user, "last_name", None),
                 profile_picture_url=getattr(workos_user, "profile_picture_url", None),
+                organization_id=self.organization_id,
             )
         else:
             self.user = None

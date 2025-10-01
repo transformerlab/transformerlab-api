@@ -95,7 +95,7 @@ def run_mountpoint_command(bucket_name: str, remote_workspace_dir: str, profile:
         return False
 
 
-def setup_user_s3_mount(user_id: str) -> bool:
+def setup_user_s3_mount(user_id: str, organization_id: str | None = None) -> bool:
     """
     Setup S3 bucket mounting for a user after login.
 
@@ -126,10 +126,12 @@ def setup_user_s3_mount(user_id: str) -> bool:
             print(f"{HOME_DIR} does not exist, skipping S3 mount")
             return True
 
-        # Construct the remote path using HOME_DIR and BUCKET_REMOTE_PATH
-        bucket_remote_path = os.path.join(HOME_DIR, "orgs", "org_2", "workspace")
+        # Construct the remote path using HOME_DIR and organization_id (fallback to org_2)
+        org_dir = organization_id or "org_2"
+        bucket_remote_path = os.path.join(HOME_DIR, "orgs", org_dir, "workspace")
 
         print(f"Setting up S3 mount for user {user_id}")
+        print(f"Organization: {org_dir}")
         print(f"Bucket: {bucket_name}, Remote path: {bucket_remote_path}")
 
         # Create the directory if it doesn't exist
