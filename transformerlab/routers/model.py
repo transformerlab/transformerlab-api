@@ -25,7 +25,7 @@ from transformerlab.models import basemodel
 from transformerlab.models import huggingfacemodel
 from transformerlab.models import filesystemmodel
 from transformerlab.services.job_service import job_update_status
-from transformerlab.shared.constants import _get_workspace_dir
+from lab.dirs_workspace import get_workspace_dir
 from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
 
@@ -484,7 +484,7 @@ async def download_huggingface_model(
     # Multitenant: pass workspace_dir explicitly so the script uses the correct org path
     try:
         org_id = organization_id if os.getenv("TFL_MULTITENANT") == "true" else None
-        workspace_dir = _get_workspace_dir(org_id)
+        workspace_dir = get_workspace_dir()
         args += ["--workspace_dir", workspace_dir]
     except Exception:
         pass
@@ -620,9 +620,15 @@ on the model's Huggingface page."
         model_details["allow_patterns"] = sd_patterns
 
     org_id = None
-    if request is not None and os.getenv("TFL_MULTITENANT") == "true":
-        org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
-        org_id = request.cookies.get(org_cookie_name)
+    if os.getenv("TFL_MULTITENANT") == "true":
+        from lab.dirs_workspace import get_workspace_dir
+
+        ws = get_workspace_dir()
+        if "/orgs/" in ws:
+            try:
+                org_id = ws.split("/orgs/")[-1].split("/")[0]
+            except Exception:
+                org_id = None
     return await download_huggingface_model(model, model_details, job_id, experiment_id, org_id)
 
 
@@ -717,9 +723,15 @@ async def download_model_from_gallery(
                 gallery_entry["pipeline_tag"] = "text-generation"
 
     org_id = None
-    if request is not None and os.getenv("TFL_MULTITENANT") == "true":
-        org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
-        org_id = request.cookies.get(org_cookie_name)
+    if os.getenv("TFL_MULTITENANT") == "true":
+        from lab.dirs_workspace import get_workspace_dir
+
+        ws = get_workspace_dir()
+        if "/orgs/" in ws:
+            try:
+                org_id = ws.split("/orgs/")[-1].split("/")[0]
+            except Exception:
+                org_id = None
     return await download_huggingface_model(huggingface_id, gallery_entry, job_id, experiment_id, org_id)
 
 
@@ -804,7 +816,7 @@ async def model_gets_pefts(
     if os.getenv("TFL_MULTITENANT") == "true":
         org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
         org_id = request.cookies.get(org_cookie_name)
-    workspace_dir = _get_workspace_dir(org_id)
+    workspace_dir = get_workspace_dir()
     model_id = secure_filename(model_id)
     adaptors_dir = os.path.join(workspace_dir, "adaptors", model_id)
 
@@ -825,7 +837,7 @@ async def model_delete_peft(model_id: str, peft: str, request: Request):
     if os.getenv("TFL_MULTITENANT") == "true":
         org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
         org_id = request.cookies.get(org_cookie_name)
-    workspace_dir = _get_workspace_dir(org_id)
+    workspace_dir = get_workspace_dir()
     secure_model_id = secure_filename(model_id)
     adaptors_dir = f"{workspace_dir}/adaptors/{secure_model_id}"
     # Check if the peft exists
@@ -962,7 +974,7 @@ async def install_peft(
         if request is not None and os.getenv("TFL_MULTITENANT") == "true":
             org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
             org_id = request.cookies.get(org_cookie_name)
-        workspace_dir = _get_workspace_dir(org_id)
+        workspace_dir = get_workspace_dir()
         args += ["--workspace_dir", workspace_dir]
     except Exception:
         pass

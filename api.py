@@ -65,9 +65,12 @@ from transformerlab.routers.experiment import workflows
 from transformerlab.routers.experiment import jobs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
-from transformerlab.shared.constants import WORKSPACE_DIR, _get_workspace_dir
+from lab.dirs_workspace import get_workspace_dir
 from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
+from transformerlab.shared.request_context import set_current_org_id
+    # Prefer setting ContextVar in lab so all lab helpers see it
+ from lab.dirs_workspace import set_organization_id as lab_set_org_id
 
 from dotenv import load_dotenv
 
@@ -82,7 +85,7 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 # os.environ["_TFL_WORKSPACE_DIR"] = WORKSPACE_DIR
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 # The temporary image directory for transformerlab (default; per-request overrides computed in routes)
-temp_image_dir = os.path.join(WORKSPACE_DIR, "temp", "images")
+temp_image_dir = os.path.join(get_workspace_dir(), "temp", "images")
 os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)    
 
 from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router  # noqa: E402
@@ -108,6 +111,7 @@ async def lifespan(app: FastAPI):
     # Run the clean up function
     cleanup_at_exit()
     print("FastAPI LIFESPAN: Complete")
+
 
 
 # the migrate function only runs the conversion function if no tasks are already present
@@ -166,6 +170,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Middleware to set context var for organization id per request (multitenant)
+@app.middleware("http")
+async def set_org_context(request: Request, call_next):
+    try:
+        org_id = None
+        if os.getenv("TFL_MULTITENANT") == "true":
+            org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
+            org_id = request.cookies.get(org_cookie_name)
+        set_current_org_id(org_id)
+        if lab_set_org_id is not None:
+            lab_set_org_id(org_id)
+        response = await call_next(request)
+        return response
+    finally:
+        # Clear at end of request
+        set_current_org_id(None)
+        if lab_set_org_id is not None:
+            lab_set_org_id(None)
 
 
 def create_error_response(code: int, message: str) -> JSONResponse:
@@ -325,7 +348,7 @@ async def server_worker_start(
         if os.getenv("TFL_MULTITENANT") == "true":
             org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
             org_id = request.cookies.get(org_cookie_name)
-        workspace_dir = _get_workspace_dir(org_id)
+        workspace_dir = get_workspace_dir()
         adaptor = f"{workspace_dir}/adaptors/{secure_filename(model)}/{adaptor}"
 
     params = [

@@ -22,7 +22,7 @@ from datetime import datetime
 
 import transformerlab.db.jobs as db_jobs
 from transformerlab.services.job_service import job_update_status
-from transformerlab.shared.constants import _get_workspace_dir
+from lab.dirs_workspace import get_workspace_dir
 from transformerlab.shared.dirs import get_job_output_dir
 from lab import dirs
 
@@ -480,11 +480,7 @@ async def get_checkpoints(job_id: str, request: Request):
             config = {}
     model_name = config.get("model_name", "")
     adaptor_name = config.get("adaptor_name", "adaptor")
-    org_id = None
-    if os.getenv("TFL_MULTITENANT") == "true":
-        org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
-        org_id = request.cookies.get(org_cookie_name)
-    workspace_dir = _get_workspace_dir(org_id)
+    workspace_dir = get_workspace_dir()
     default_adaptor_dir = os.path.join(workspace_dir, "adaptors", secure_filename(model_name), adaptor_name)
 
     # print(f"Default adaptor directory: {default_adaptor_dir}")

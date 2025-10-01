@@ -23,7 +23,7 @@ from transformerlab.routers.experiment import (
     diffusion,
     jobs,
 )
-from transformerlab.shared.constants import _get_workspace_dir
+from lab.dirs_workspace import get_workspace_dir
 from lab import dirs
 
 from werkzeug.utils import secure_filename
@@ -160,14 +160,15 @@ async def experiment_save_file_contents(id: int, filename: str, file_contents: A
     filename = shared.slugify(filename)
 
     # make directory if it does not exist:
-    if not os.path.exists(f"{EXPERIMENTS_DIR}/{experiment_name}"):
-        os.makedirs(f"{EXPERIMENTS_DIR}/{experiment_name}")
+    experiment_dir = dirs.experiment_dir_by_name(experiment_name)
+    if not os.path.exists(experiment_dir):
+        os.makedirs(experiment_dir)
 
     # now save the file contents, overwriting if it already exists:
-    with open(f"{EXPERIMENTS_DIR}/{experiment_name}/{filename}{file_ext}", "w") as f:
+    with open(os.path.join(experiment_dir, f"{filename}{file_ext}"), "w") as f:
         f.write(file_contents)
 
-    return {"message": f"{EXPERIMENTS_DIR}/{experiment_name}/{filename}{file_ext} file contents saved"}
+    return {"message": f"{os.path.join(experiment_dir, f'{filename}{file_ext}')} file contents saved"}
 
 
 @router.get("/{id}/file_contents", tags=["experiment"])
@@ -315,12 +316,8 @@ async def export_experiment_to_recipe(id: int, request: Request):
         if workflow["status"] != "DELETED":  # Only include active workflows
             export_data["workflows"].append({"name": workflow["name"], "config": json.loads(workflow["config"])})
 
-    # Write to file in the workspace directory (org-aware when multitenant)
-    org_id = None
-    if os.getenv("TFL_MULTITENANT") == "true":
-        org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
-        org_id = request.cookies.get(org_cookie_name)
-    workspace_dir = _get_workspace_dir(org_id)
+    # Write to file in the workspace directory (org-aware via request context)
+    workspace_dir = get_workspace_dir()
     output_file = os.path.join(workspace_dir, f"{data['name']}_export.json")
     with open(output_file, "w") as f:
         json.dump(export_data, f, indent=2)

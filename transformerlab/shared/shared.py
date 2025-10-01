@@ -20,7 +20,7 @@ import transformerlab.db.jobs as db_jobs
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
 from lab.dirs import GLOBAL_LOG_PATH
-from transformerlab.shared.constants import WORKSPACE_DIR, _get_workspace_dir
+from lab.dirs_workspace import get_workspace_dir
 from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
 
@@ -668,7 +668,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         template_config["job_id"] = job_id
         # Resolve org-aware workspace dir if multitenant via job_data (org_id may be persisted by caller)
         org_id = job_config.get("organization_id") if isinstance(job_config, dict) else None
-        workspace_dir = _get_workspace_dir(org_id)
+        workspace_dir = get_workspace_dir()
         template_config["adaptor_output_dir"] = os.path.join(workspace_dir, "adaptors", model_name, adaptor_name)
         template_config["output_dir"] = os.path.join(
             experiment_dir,
@@ -1102,7 +1102,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 f.write("")
 
         # Create a file in the temp directory to store the inputs:
-        tempdir = os.path.join(WORKSPACE_DIR, "temp")
+        tempdir = os.path.join(get_workspace_dir(), "temp")
         if not os.path.exists(tempdir):
             os.makedirs(tempdir)
         input_file = os.path.join(tempdir, f"plugin_input_{job_id}.json")
@@ -1202,8 +1202,8 @@ async def get_job_output_file_name(job_id: str, plugin_name: str = None, experim
             output_file = os.path.join(new_jobs_dir, f"output_{job_id}.txt")
 
         # Fall back to old structure for backward compatibility
-        elif os.path.exists(os.path.join(WORKSPACE_DIR, "jobs", str(job_id), f"output_{job_id}.txt")):
-            output_file = os.path.join(WORKSPACE_DIR, "jobs", str(job_id), f"output_{job_id}.txt")
+        elif os.path.exists(os.path.join(get_workspace_dir(), "jobs", str(job_id), f"output_{job_id}.txt")):
+            output_file = os.path.join(get_workspace_dir(), "jobs", str(job_id), f"output_{job_id}.txt")
 
         elif os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
             output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
