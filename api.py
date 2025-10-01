@@ -65,7 +65,7 @@ from transformerlab.routers.experiment import workflows
 from transformerlab.routers.experiment import jobs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
-from transformerlab.shared.constants import WORKSPACE_DIR
+from transformerlab.shared.constants import WORKSPACE_DIR, _get_workspace_dir
 from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
 
@@ -81,7 +81,7 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 # to be overriden by the user.
 # os.environ["_TFL_WORKSPACE_DIR"] = WORKSPACE_DIR
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
-# The temporary image directory for transformerlab
+# The temporary image directory for transformerlab (default; per-request overrides computed in routes)
 temp_image_dir = os.path.join(WORKSPACE_DIR, "temp", "images")
 os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)    
 
@@ -271,6 +271,7 @@ async def server_worker_start(
     inference_engine: str = "default",
     experiment_id: int = None,
     inference_params: str = "",
+    request: Request = None,
 ):
     # the first priority for inference params should be the inference params passed in, then the inference parameters in the experiment
     # first we check to see if any inference params were passed in
@@ -319,7 +320,13 @@ async def server_worker_start(
         model = model_filename
 
     if adaptor != "":
-        adaptor = f"{WORKSPACE_DIR}/adaptors/{secure_filename(model)}/{adaptor}"
+        # Resolve per-request workspace if multitenant
+        org_id = None
+        if os.getenv("TFL_MULTITENANT") == "true":
+            org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
+            org_id = request.cookies.get(org_cookie_name)
+        workspace_dir = _get_workspace_dir(org_id)
+        adaptor = f"{workspace_dir}/adaptors/{secure_filename(model)}/{adaptor}"
 
     params = [
         dirs.PLUGIN_HARNESS,

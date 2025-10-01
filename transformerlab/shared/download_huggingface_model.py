@@ -11,7 +11,7 @@ from pathlib import Path
 from multiprocessing import Process, Queue
 from werkzeug.utils import secure_filename
 
-from lab import HOME_DIR, WORKSPACE_DIR
+from lab import HOME_DIR, WORKSPACE_DIR as LAB_WORKSPACE_DIR
 
 
 DATABASE_FILE_NAME = f"{HOME_DIR}/llmlab.sqlite3"
@@ -248,12 +248,14 @@ parser.add_argument("--total_size_of_model_in_mb", type=float, required=True)
 parser.add_argument("--model_name", type=str)
 parser.add_argument("--model_filename", type=str, required=False)
 parser.add_argument("--allow_patterns", type=str, required=False)
+parser.add_argument("--workspace_dir", type=str, required=False)
 
 # Args for mode=adaptor
 parser.add_argument("--peft", type=str)
 parser.add_argument("--local_model_id", type=str)
 
 args, other = parser.parse_known_args()
+WORKSPACE_DIR = args.workspace_dir or LAB_WORKSPACE_DIR
 mode = args.mode
 print(f"MODE IS: {mode}")
 
