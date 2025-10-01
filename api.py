@@ -140,15 +140,17 @@ async def migrate_models_table_to_filesystem():
                 ))
                 exists = result.fetchone() is not None
             if not exists:
-                return
-            from transformerlab.db.db import model_local_list
-            rows = await model_local_list()
-        except Exception:
+                rows = []
+            else:
+                from transformerlab.db.db import model_local_list
+                rows = await model_local_list()
+        except Exception as e:
+            print(f"Error getting models: {e}")
             rows = []
-
         migrated = 0
         for row in rows:
             model_id = str(row.get("model_id")) if row.get("model_id") is not None else None
+            print(f"Migrating model: {model_id}")
             if not model_id:
                 continue
             name = row.get("name", model_id)
@@ -170,7 +172,8 @@ async def migrate_models_table_to_filesystem():
                     json_data=json_data,
                 )
                 migrated += 1
-            except Exception:
+            except Exception as e:
+                print(f"Error migrating model: {e}")
                 # Best-effort migration; continue
                 continue
 
@@ -179,7 +182,60 @@ async def migrate_models_table_to_filesystem():
             async with async_session() as session:
                 await session.execute(sqlalchemy_text("DROP TABLE IF EXISTS model"))
                 await session.commit()
-        except Exception:
+        except Exception as e:
+            print(f"Error dropping models table: {e}")
+            pass
+
+        # Additionally, scan filesystem models directory for legacy models that
+        # have info.json but are missing index.json, and create SDK metadata.
+        try:
+            models_dir = lab_dirs.MODELS_DIR
+            if os.path.isdir(models_dir):
+                fs_migrated = 0
+                for entry in os.listdir(models_dir):
+                    entry_path = os.path.join(models_dir, entry)
+                    if not os.path.isdir(entry_path):
+                        continue
+                    info_path = os.path.join(entry_path, "info.json")
+                    index_path = os.path.join(entry_path, "index.json")
+                    if os.path.isfile(info_path) and not os.path.isfile(index_path):
+                        model_id = entry
+                        # Load legacy info.json as best-effort metadata
+                        name = model_id
+                        json_data = {}
+                        try:
+                            with open(info_path, "r") as f:
+                                info_obj = json.load(f)
+                                if isinstance(info_obj, dict):
+                                    name = info_obj.get("name", name)
+                                    json_data = info_obj
+                        except Exception:
+                            # Skip malformed info.json but continue migration
+                            pass
+
+                        try:
+                            try:
+                                model = model_service.get(model_id)
+                            except FileNotFoundError:
+                                model = model_service.create(model_id)
+                            model.set_metadata(
+                                model_id=model_id,
+                                name=name,
+                                json_data=json_data,
+                            )
+                            fs_migrated += 1
+                        except Exception as e:
+                            print(f"Error migrating local model: {e}")
+                            # Best-effort; continue scanning others
+                            continue
+
+                if fs_migrated:
+                    print(
+                        f"Filesystem models migration: {fs_migrated} entries created from info.json (no index.json)."
+                    )
+        except Exception as e:
+            # Do not block startup on filesystem migration issues
+            print(f"Error migrating models: {e}")
             pass
 
         if migrated:
