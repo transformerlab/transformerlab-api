@@ -1,10 +1,12 @@
 import os
+import shutil
 import aiosqlite
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
 from transformerlab.db.constants import DATABASE_FILE_NAME, DATABASE_URL
+from transformerlab.shared.constants import WORKSPACE_DIR
 from transformerlab.shared.models import models
 
 
@@ -28,6 +30,23 @@ async def init():
     Create the database, tables, and workspace folder if they don't exist.
     """
     global db
+    # Migrate database from old location if necessary
+    old_db_base = os.path.join(WORKSPACE_DIR, "llmlab.sqlite3")
+    if os.path.exists(old_db_base):
+        if not os.path.exists(DATABASE_FILE_NAME):
+            for ext in ["", "-wal", "-shm"]:
+                old_path = old_db_base + ext
+                new_path = DATABASE_FILE_NAME + ext
+                if os.path.exists(old_path):
+                    shutil.copy2(old_path, new_path)
+                    os.remove(old_path)
+            print("Migrated database from workspace to parent directory")
+        else:
+            for ext in ["", "-wal", "-shm"]:
+                old_path = old_db_base + ext
+                if os.path.exists(old_path):
+                    os.remove(old_path)
+            print("Old database files removed (new database already exists)")
     os.makedirs(os.path.dirname(DATABASE_FILE_NAME), exist_ok=True)
     db = await aiosqlite.connect(DATABASE_FILE_NAME)
     await db.execute("PRAGMA journal_mode=WAL")

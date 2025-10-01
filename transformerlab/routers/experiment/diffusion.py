@@ -12,6 +12,7 @@ from transformerlab.db.datasets import get_dataset, create_local_dataset, delete
 from transformerlab.db import db
 from transformerlab.models import model_helper
 from lab import dirs
+from transformerlab.shared.constants import WORKSPACE_DIR
 from transformerlab.shared.shared import slugify
 import transformerlab.db.jobs as db_jobs
 import logging
@@ -287,10 +288,10 @@ def get_diffusion_dir(experiment_name: str = None):
     """Get the diffusion directory path"""
     if experiment_name is not None:
         # New experiment-specific path
-        return os.path.join(os.environ.get("_TFL_WORKSPACE_DIR", ""), "experiments", experiment_name, "diffusion")
+        return os.path.join(WORKSPACE_DIR, "experiments", experiment_name, "diffusion")
     else:
         # Legacy global path for backward compatibility
-        return os.path.join(os.environ.get("_TFL_WORKSPACE_DIR", ""), "diffusion")
+        return os.path.join(WORKSPACE_DIR, "diffusion")
 
 
 def get_images_dir(experiment_name: str = None):
