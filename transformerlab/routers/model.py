@@ -625,8 +625,13 @@ on the model's Huggingface page."
 
     org_id = None
     if os.getenv("TFL_MULTITENANT") == "true":
-        from lab.dirs_workspace import get_organization_id
-        org_id = get_organization_id()
+        from lab.dirs_workspace import get_workspace_dir
+        ws = get_workspace_dir()
+        if "/orgs/" in ws:
+            try:
+                org_id = ws.split("/orgs/")[-1].split("/")[0]
+            except Exception:
+                org_id = None
     return await download_huggingface_model(model, model_details, job_id, experiment_id, org_id)
 
 
@@ -722,8 +727,13 @@ async def download_model_from_gallery(
 
     org_id = None
     if os.getenv("TFL_MULTITENANT") == "true":
-        from lab.dirs_workspace import get_organization_id
-        org_id = get_organization_id()
+        from lab.dirs_workspace import get_workspace_dir
+        ws = get_workspace_dir()
+        if "/orgs/" in ws:
+            try:
+                org_id = ws.split("/orgs/")[-1].split("/")[0]
+            except Exception:
+                org_id = None
     return await download_huggingface_model(huggingface_id, gallery_entry, job_id, experiment_id, org_id)
 
 
