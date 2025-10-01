@@ -947,9 +947,13 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
         raise HTTPException(status_code=400, detail="Invalid dataset name")
 
     # Check if dataset already exists
-    existing_dataset = Dataset.get(dataset_id)
-    if existing_dataset:
+    try:
+        existing_dataset = Dataset.get(dataset_id)
+        # If we get here, the dataset exists
         raise HTTPException(status_code=400, detail=f"Dataset '{dataset_id}' already exists")
+    except FileNotFoundError:
+        # Dataset doesn't exist, which is what we want
+        pass
 
     # Find selected images efficiently
     selected_images = []

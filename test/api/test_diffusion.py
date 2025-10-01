@@ -405,9 +405,21 @@ def test_create_dataset_existing_dataset(client):
     """Test creating dataset with name that already exists"""
     with (
         patch("transformerlab.routers.experiment.diffusion.get_experiment_name", return_value="test-exp-name"),
-        patch("transformerlab.routers.experiment.diffusion.Dataset.get", return_value=None),
+        patch("transformerlab.routers.experiment.diffusion.Dataset.get") as mock_dataset_get,
         patch("transformerlab.routers.experiment.diffusion.find_image_by_id") as mock_find_image,
     ):
+        # Mock Dataset.get to raise FileNotFoundError for non-existent dataset (new behavior)
+        # but return a mock dataset for existing dataset
+        def mock_get_side_effect(dataset_id):
+            if dataset_id == "existing-dataset":
+                mock_dataset = MagicMock()
+                mock_dataset.get_dir.return_value = "/fake/path/to/existing-dataset"
+                return mock_dataset
+            else:
+                raise FileNotFoundError(f"Directory for Dataset with id '{dataset_id}' not found")
+        
+        mock_dataset_get.side_effect = mock_get_side_effect
+        
         mock_image = MagicMock()
         mock_image.id = "test-id"
         mock_find_image.return_value = mock_image
