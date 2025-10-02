@@ -589,7 +589,7 @@ async def get_image_by_id(
         return FileResponse(step_image_path)
 
     # Use the efficient function to find the specific image
-    image_item = find_image_by_id(image_id, experiment_name)
+    image_item = find_image_by_id(image_id, experimentId)
 
     if not image_item:
         raise HTTPException(status_code=404, detail=f"Image with ID {image_id} not found")
