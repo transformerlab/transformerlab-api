@@ -456,8 +456,8 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         await db_jobs.job_update_status(job_id, "RUNNING", experiment_id=experiment_name)
 
         # Prep paths and script args
-        output_temp_file_dir = dirs.get_job_output_dir(experiment_name, job_id)
-        os.makedirs(output_temp_file_dir, exist_ok=True)
+        job_obj = Job.get(job_id)
+        output_temp_file_dir = job_obj.get_dir()
 
         plugin_dir = lab_dirs.plugin_dir_by_name(plugin_name)
         plugin_main_args = ["--plugin_dir", plugin_dir]
