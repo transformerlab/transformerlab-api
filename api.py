@@ -67,7 +67,6 @@ from transformerlab.shared import shared
 from transformerlab.shared import galleries
 from transformerlab.shared.constants import WORKSPACE_DIR
 from lab import dirs as lab_dirs
-from lab.dataset import Dataset as dataset_service
 from transformerlab.shared import dirs
 from transformerlab.db.filesystem_migrations import migrate_datasets_table_to_filesystem, migrate_tasks_table_to_filesystem
 

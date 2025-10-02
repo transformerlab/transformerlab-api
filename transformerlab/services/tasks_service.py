@@ -3,7 +3,6 @@ Tasks service that uses the filesystem instead of the database.
 This replaces the database-based task operations with filesystem-based ones.
 """
 
-import json
 import uuid
 from typing import List, Dict, Any, Optional
 from lab.task import Task as TaskService
