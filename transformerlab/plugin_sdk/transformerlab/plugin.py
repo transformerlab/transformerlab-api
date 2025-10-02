@@ -6,7 +6,9 @@ from pathlib import Path
 
 from jinja2 import Environment
 from transformers import AutoTokenizer
+
 from lab import HOME_DIR, WORKSPACE_DIR, Experiment
+from lab.dataset import Dataset as dataset_service
 
 # useful constants
 # Use shared constant as sole source of truth
@@ -57,27 +59,26 @@ def get_db_connection():
 
 def get_dataset_path(dataset_id: str):
     """
-    Returns the ID or filesystem path to pass to load_dataset() for a given ID.
+    Returns the ID or filesystem path to pass to load_dataset() for a given ID,
+    using the dataset service instead of the deprecated DB table.
     """
-    db = get_db_connection()
-    cursor = db.execute("SELECT location FROM dataset WHERE dataset_id = ?", (dataset_id,))
-    row = cursor.fetchone()
-    cursor.close()
-
-    # if no rows exist then the dataset hasn't been installed!
-    if row is None:
+    try:
+        ds = dataset_service.get(dataset_id)
+        metadata = ds.get_metadata()
+    except FileNotFoundError:
         raise Exception(f"No dataset named {dataset_id} installed.")
 
-    # dataset_location will be either "local" or "huggingface"
-    # (and if it's something else we're going to treat "huggingface" as default)
-    # if it's local then pass it the path to the dataset directory
-    dataset_location = row[0]
-    if dataset_location == "local":
-        return os.path.join(WORKSPACE_DIR, "datasets", dataset_id)
+    location = (metadata or {}).get("location", "huggingface")
+    if location == "local":
+        # Use service path resolution to ensure correctness
+        try:
+            return ds.get_dir()
+        except Exception:
+            # Fallback to previous behavior if needed
+            return os.path.join(WORKSPACE_DIR, "datasets", dataset_id)
 
-    # Otherwise assume it is a Huggingface ID
-    else:
-        return dataset_id
+    # Otherwise assume it is a HuggingFace dataset id
+    return dataset_id
 
 
 def get_db_config_value(key: str):
