@@ -483,19 +483,58 @@ doctor() {
 ## Optional: Install Mountpoint for Amazon S3 (Linux only)
 ##############################
 
-install_mountpoint_s3() {
-  title "Install Mountpoint for Amazon S3 (Linux only)"
+install_s3_mounting() {
+  title "Install S3 Mounting Tools"
 
   # Only proceed if TFL_MULTITENANT is set in environment/.env (any non-empty value)
   if [[ -z "${TFL_MULTITENANT:-}" ]]; then
-    echo "Skipping Mountpoint install because TFL_MULTITENANT is not set."
+    echo "Skipping S3 mounting install because TFL_MULTITENANT is not set."
     return 0
   fi
 
   if [[ -n "${TLAB_ON_MACOS}" ]]; then
-    echo "Skipping Mountpoint install on macOS."
+    install_s3fs_macos
+  else
+    install_mountpoint_linux
+  fi
+}
+
+install_s3fs_macos() {
+  title "Install s3fs for macOS S3 Mounting"
+
+  if command -v s3fs >/dev/null 2>&1; then
+    ohai "✅ s3fs already installed (s3fs found)."
     return 0
   fi
+
+  # Check if Homebrew is installed
+  if ! command -v brew >/dev/null 2>&1; then
+    echo "Installing Homebrew first..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    
+    # Add Homebrew to PATH for Apple Silicon Macs
+    if [[ $(uname -m) == "arm64" ]]; then
+      echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+    fi
+  fi
+
+  echo "Installing macFUSE (required for s3fs)..."
+  brew install --cask macfuse
+  
+  echo "Installing s3fs using Homebrew..."
+  brew install gromgit/fuse/s3fs-mac
+
+  if command -v s3fs >/dev/null 2>&1; then
+    ohai "✅ s3fs installed successfully."
+  else
+    warn "s3fs installation may have failed; 's3fs' not found."
+    return 1
+  fi
+}
+
+install_mountpoint_linux() {
+  title "Install Mountpoint for Amazon S3 (Linux only)"
 
   if command -v mount-s3 >/dev/null 2>&1; then
     ohai "✅ Mountpoint for Amazon S3 already installed (mount-s3 found)."
@@ -609,9 +648,9 @@ else
   done
 fi
 
-# If TFL_MULTITENANT is truthy in .env, also install Mountpoint (Linux only)
+# If TFL_MULTITENANT is truthy in .env, also install S3 mounting tools
 shopt -s nocasematch
 if [[ "${TFL_MULTITENANT:-}" == "1" || "${TFL_MULTITENANT:-}" == "true" || "${TFL_MULTITENANT:-}" == "yes" ]]; then
-  install_mountpoint_s3 || true
+  install_s3_mounting || true
 fi
 shopt -u nocasematch

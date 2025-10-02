@@ -2,11 +2,30 @@
 S3 bucket mounting utilities for user authentication.
 
 This module handles mounting S3 buckets when users log in, similar to the functionality
-in run.sh for multitenant mode.
+in run.sh for multitenant mode. Supports both mount-s3 (Linux) and s3fs (macOS).
 """
 
 import os
+import platform
 import subprocess
+
+
+def is_macos() -> bool:
+    """Check if the current platform is macOS."""
+    return platform.system() == "Darwin"
+
+
+def get_s3_mount_command() -> str:
+    """
+    Get the appropriate S3 mounting command based on the platform.
+    
+    Returns:
+        The command to use for S3 mounting ('mount-s3' for Linux, 's3fs' for macOS)
+    """
+    if is_macos():
+        return "s3fs"
+    else:
+        return "mount-s3"
 
 
 def check_remote_path_exists_and_has_files(remote_path: str) -> bool:
@@ -50,9 +69,9 @@ def check_remote_path_exists_and_has_files(remote_path: str) -> bool:
         return False
 
 
-def run_mountpoint_command(bucket_name: str, remote_workspace_dir: str, profile: str = "transformerlab-s3") -> bool:
+def run_s3_mount_command(bucket_name: str, remote_workspace_dir: str, profile: str = "transformerlab-s3") -> bool:
     """
-    Run the mount-s3 command to mount an S3 bucket.
+    Run the appropriate S3 mounting command (mount-s3 for Linux, s3fs for macOS).
 
     Args:
         bucket_name: Name of the S3 bucket to mount
@@ -67,8 +86,17 @@ def run_mountpoint_command(bucket_name: str, remote_workspace_dir: str, profile:
         os.makedirs(remote_workspace_dir, exist_ok=True)
         print(f"Created/verified remote workspace directory: {remote_workspace_dir}")
 
-        # Run the mount-s3 command
-        cmd = ["mount-s3", "--profile", profile, bucket_name, remote_workspace_dir]
+        mount_command = get_s3_mount_command()
+        
+        if mount_command == "s3fs":
+            # s3fs command for macOS
+            # s3fs supports AWS profiles through ~/.aws/credentials
+            # Format: s3fs bucket_name mount_point -o profile=profile_name
+            cmd = ["s3fs", bucket_name, remote_workspace_dir, "-o", f"profile={profile}"]
+        else:
+            # mount-s3 command for Linux
+            cmd = ["mount-s3", "--profile", profile, bucket_name, remote_workspace_dir]
+        
         print(f"Running mount command: {' '.join(cmd)}")
 
         result = subprocess.run(
@@ -79,7 +107,7 @@ def run_mountpoint_command(bucket_name: str, remote_workspace_dir: str, profile:
         )
 
         if result.returncode == 0:
-            print(f"Successfully mounted S3 bucket '{bucket_name}' to '{remote_workspace_dir}'")
+            print(f"Successfully mounted S3 bucket '{bucket_name}' to '{remote_workspace_dir}' using {mount_command}")
             return True
         else:
             print(f"Mount command failed with return code {result.returncode}")
@@ -142,8 +170,8 @@ def setup_user_s3_mount(user_id: str, organization_id: str | None = None) -> boo
             print(f"Remote path {bucket_remote_path} already exists with content, skipping mount")
             return True
 
-        # Run the mountpoint command
-        success = run_mountpoint_command(bucket_name, bucket_remote_path)
+        # Run the S3 mount command (mount-s3 for Linux, s3fs for macOS)
+        success = run_s3_mount_command(bucket_name, bucket_remote_path)
 
         if success:
             print(f"S3 mount setup completed successfully for user {user_id}")
