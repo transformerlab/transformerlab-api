@@ -23,7 +23,7 @@ from transformerlab.routers.experiment import (
     diffusion,
     jobs,
 )
-from lab.dirs_workspace import get_workspace_dir
+from lab.dirs import get_workspace_dir
 from lab import dirs
 
 from werkzeug.utils import secure_filename

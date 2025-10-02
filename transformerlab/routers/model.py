@@ -26,7 +26,7 @@ from transformerlab.models import basemodel
 from transformerlab.models import huggingfacemodel
 from transformerlab.models import filesystemmodel
 from transformerlab.services.job_service import job_update_status
-from lab.dirs_workspace import get_workspace_dir
+from lab.dirs import get_workspace_dir
 from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
 
@@ -486,7 +486,7 @@ async def download_huggingface_model(
     try:
         if os.getenv("TFL_MULTITENANT") == "true" and organization_id:
             # Construct org-specific workspace path manually
-            from lab.dirs_workspace import HOME_DIR
+            from lab.dirs import HOME_DIR
 
             workspace_dir = os.path.join(HOME_DIR, "orgs", organization_id, "workspace")
             print(f"🔵 CONSTRUCTED ORG WORKSPACE: {workspace_dir}")
@@ -630,7 +630,7 @@ on the model's Huggingface page."
 
     org_id = None
     if os.getenv("TFL_MULTITENANT") == "true":
-        from lab.dirs_workspace import get_workspace_dir
+        from lab.dirs import get_workspace_dir
 
         ws = get_workspace_dir()
         if "/orgs/" in ws:
@@ -689,7 +689,7 @@ async def download_gguf_file_from_repo(
 
     org_id = None
     if os.getenv("TFL_MULTITENANT") == "true":
-        from lab.dirs_workspace import get_workspace_dir
+        from lab.dirs import get_workspace_dir
 
         ws = get_workspace_dir()
         if "/orgs/" in ws:
@@ -710,7 +710,7 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
     print(f"🟣 DOWNLOAD_GALLERY HANDLER START: gallery_id={gallery_id}, job_id={job_id}")
     
     # Debug: Check what org ID is available in the context
-    from lab.dirs_workspace import get_workspace_dir
+    from lab.dirs import get_workspace_dir
     ws = get_workspace_dir()
     print(f"🟣 WORKSPACE DIR: {ws}")
 
@@ -742,7 +742,7 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
 
     org_id = None
     if os.getenv("TFL_MULTITENANT") == "true":
-        from lab.dirs_workspace import get_workspace_dir
+        from lab.dirs import get_workspace_dir
 
         ws = get_workspace_dir()
         if "/orgs/" in ws:
@@ -978,7 +978,7 @@ async def install_peft(
 
     # Multitenant: pass workspace_dir explicitly so the script uses the correct org path
     try:
-        from lab.dirs_workspace import get_workspace_dir
+        from lab.dirs import get_workspace_dir
         workspace_dir = get_workspace_dir()
         args += ["--workspace_dir", workspace_dir]
     except Exception:
@@ -1172,7 +1172,7 @@ async def get_pipeline_tag(model_name: str):
     print(f"🟠 PIPELINE_TAG HANDLER START: {model_name}")
 
     # Debug: Check what org ID is available in the context
-    from lab.dirs_workspace import get_workspace_dir
+    from lab.dirs import get_workspace_dir
 
     ws = get_workspace_dir()
     print(f"🟠 WORKSPACE DIR: {ws}")

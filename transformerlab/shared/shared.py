@@ -20,7 +20,7 @@ import transformerlab.db.jobs as db_jobs
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
 from lab.dirs import GLOBAL_LOG_PATH
-from lab.dirs_workspace import get_workspace_dir
+from lab.dirs import get_workspace_dir
 from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
 

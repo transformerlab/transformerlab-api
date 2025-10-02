@@ -65,12 +65,12 @@ from transformerlab.routers.experiment import workflows
 from transformerlab.routers.experiment import jobs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
-from lab.dirs_workspace import get_workspace_dir
+from lab.dirs import get_workspace_dir
 from lab import dirs as lab_dirs
 from lab.dataset import Dataset as dataset_service
 from transformerlab.shared import dirs
 from transformerlab.shared.request_context import set_current_org_id
-from lab.dirs_workspace import set_organization_id as lab_set_org_id
+from lab.dirs import set_organization_id as lab_set_org_id
 
 from dotenv import load_dotenv
 
