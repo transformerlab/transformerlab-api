@@ -224,7 +224,7 @@ async def run_generation_script(experimentId: str, plugin_name: str, generation_
     extra_args.extend(
         [
             "--experiment_name",
-            experiment_name,
+            experimentId,
             "--generation_name",
             generation_name,
             "--input_file",
@@ -256,7 +256,7 @@ async def run_generation_script(experimentId: str, plugin_name: str, generation_
 
     print(f">Running {subprocess_command}")
 
-    output_file = await lab_dirs.generation_output_file(experiment_name, generation_name)
+    output_file = await lab_dirs.generation_output_file(experimentId, generation_name)
 
     print(f">GENERATION Output file: {job_output_file}")
 
