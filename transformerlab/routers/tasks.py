@@ -4,7 +4,7 @@ from fastapi import APIRouter, Body
 from werkzeug.utils import secure_filename
 
 import transformerlab.db.db as db
-from transformerlab.db.datasets import get_datasets
+from lab import Dataset
 from transformerlab.db.jobs import job_create
 from transformerlab.models import model_helper
 
@@ -88,7 +88,7 @@ async def add_task(new_task: dict = Body()):
 
         # Repeat for dataset
         dataset_downloaded = False
-        local_datasets = await get_datasets()
+        local_datasets = Dataset.list_all()
         for dataset in local_datasets:
             if dataset["dataset_id"] == datasets:
                 dataset_downloaded = True

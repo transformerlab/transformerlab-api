@@ -2,6 +2,7 @@ from typing import Optional
 from sqlalchemy import String, JSON, DateTime, func, Integer, Index
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+
 class Base(DeclarativeBase):
     pass
 
@@ -40,19 +41,6 @@ class Experiment(Base):
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
-
-
-class Dataset(Base):
-    """Dataset model."""
-
-    __tablename__ = "dataset"
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    dataset_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
-    location: Mapped[str] = mapped_column(String, nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    size: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    json_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True, server_default="{}")
 
 
 class TrainingTemplate(Base):
