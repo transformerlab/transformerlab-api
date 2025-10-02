@@ -111,8 +111,21 @@ async def migrate_models_table_to_filesystem():
             if not exists:
                 rows = []
             else:
-                from transformerlab.db.db import model_local_list
-                rows = await model_local_list()
+                # Inline the legacy models query here to avoid relying on removed DB helpers
+                async with async_session() as session:
+                    result = await session.execute(sqlalchemy_text("SELECT * FROM model"))
+                    models_rows = result.mappings().all()
+                    dict_rows = [dict(model) for model in models_rows]
+                    rows = []
+                    for row in dict_rows:
+                        if "json_data" in row and row["json_data"]:
+                            if isinstance(row["json_data"], str):
+                                try:
+                                    row["json_data"] = json.loads(row["json_data"])
+                                except Exception:
+                                    # If malformed, keep as original string
+                                    pass
+                        rows.append(row)
         except Exception as e:
             print(f"Error getting models: {e}")
             rows = []

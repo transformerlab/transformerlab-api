@@ -32,25 +32,6 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 ###############
-# MODELS MODEL
-###############
-
-
-async def model_local_list():
-    async with async_session() as session:
-        result = await session.execute(select(models.Model))
-        models_list = result.scalars().all()
-        data = []
-        for model in models_list:
-            row = sqlalchemy_to_dict(model)
-            if "json_data" in row and row["json_data"]:
-                if isinstance(row["json_data"], str):
-                    row["json_data"] = json.loads(row["json_data"])
-            data.append(row)
-        return data
-
-
-###############
 # TASKS MODEL
 ###############
 
