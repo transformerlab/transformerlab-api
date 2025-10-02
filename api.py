@@ -237,18 +237,6 @@ async def migrate_db_to_filesystem():
                         experiments_need_migration = True
                         break
         
-        # Check if jobs migration is needed
-        # We need migration if there are job directories WITHOUT index.json
-        jobs_need_migration = False
-        if os.path.exists(lab_dirs.JOBS_DIR):
-            for job_dir in os.listdir(lab_dirs.JOBS_DIR):
-                job_path = os.path.join(lab_dirs.JOBS_DIR, job_dir)
-                if os.path.isdir(job_path):
-                    job_index = os.path.join(job_path, "index.json")
-                    if not os.path.exists(job_index):
-                        jobs_need_migration = True
-                        break
-        
         # If neither needs migration, skip entirely
         if not experiments_need_migration:
             return
