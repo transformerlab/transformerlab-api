@@ -162,7 +162,7 @@ async def migrate_models_table_to_filesystem():
         # Drop the legacy table if present
         try:
             async with async_session() as session:
-                await session.execute(sqlalchemy_text("DROP TABLE IF EXISTS model"))
+                await session.execute(sqlalchemy_text("ALTER TABLE model RENAME TO zzz_archived_model"))
                 await session.commit()
         except Exception as e:
             print(f"Error dropping models table: {e}")
