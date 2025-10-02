@@ -24,26 +24,26 @@ import transformerlab.db.jobs as db_jobs
 from transformerlab.services.job_service import job_update_status
 from transformerlab.shared.constants import WORKSPACE_DIR
 from transformerlab.shared.dirs import get_job_output_dir
-from lab import dirs
+from lab import dirs, Job
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
 
 @router.get("/list")
-async def jobs_get_all(experimentId: int, type: str = "", status: str = ""):
+async def jobs_get_all(experimentId: str, type: str = "", status: str = ""):
     jobs = await db_jobs.jobs_get_all(type=type, status=status, experiment_id=experimentId)
     return jobs
 
 
 @router.get("/delete/{job_id}")
-async def job_delete(job_id: str, experimentId: int):
+async def job_delete(job_id: str, experimentId: str):
     await db_jobs.job_delete(job_id, experiment_id=experimentId)
     return {"message": "OK"}
 
 
 @router.get("/create")
 async def job_create(
-    experimentId: int,
+    experimentId: str,
     type: str = "UNDEFINED",
     status: str = "CREATED",
     data: str = "{}",
@@ -52,13 +52,13 @@ async def job_create(
     return jobid
 
 
-async def job_create_task(script: str, job_data: str = "{}", experimentId: int = None):
+async def job_create_task(script: str, job_data: str = "{}", experimentId: str = None):
     jobid = await db_jobs.job_create(type="UNDEFINED", status="CREATED", job_data=job_data, experiment_id=experimentId)
     return jobid
 
 
 @router.get("/update/{job_id}")
-async def job_update(job_id: str, status: str, experimentId: int):
+async def job_update(job_id: str, status: str, experimentId: str):
     await job_update_status(job_id, status, experiment_id=experimentId)
     return {"message": "OK"}
 
@@ -76,13 +76,7 @@ async def start_next_job():
             job_config = json.loads(nextjob["job_data"])
         else:
             job_config = nextjob_data
-        experiment_id = nextjob["experiment_id"]
-        data = await experiment_get(experiment_id)
-        if data is None:
-            # mark the job as failed
-            await job_update_status(nextjob["id"], "FAILED", experiment_id=experiment_id)
-            return {"message": f"Experiment {experiment_id} does not exist"}
-        experiment_name = data["name"]
+        experiment_name = nextjob["experiment_id"]  # Note: experiment_id and experiment_name are the same
         await shared.run_job(
             job_id=nextjob["id"], job_config=job_config, experiment_name=experiment_name, job_details=nextjob
         )
@@ -92,7 +86,7 @@ async def start_next_job():
 
 
 @router.get("/{job_id}/stop")
-async def stop_job(job_id: str, experimentId: int):
+async def stop_job(job_id: str, experimentId: str):
     # The way a job is stopped is simply by adding "stop: true" to the job_data
     # This will be checked by the plugin as it runs
     await db_jobs.job_stop(job_id, experiment_id=experimentId)
@@ -100,7 +94,7 @@ async def stop_job(job_id: str, experimentId: int):
 
 
 @router.get("/delete_all")
-async def job_delete_all(experimentId: int):
+async def job_delete_all(experimentId: str):
     await db_jobs.job_delete_all(experiment_id=experimentId)
     return {"message": "OK"}
 
@@ -212,8 +206,6 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
                 logging.error(f"Error decoding job_data for job {job_id}. Using empty job_data.")
                 job_data = {}
 
-        job_id_safe = secure_filename(str(job_id))
-
         # Handle sweeps case first
         if sweeps:
             output_file = job_data.get("sweep_output_file", None)
@@ -235,19 +227,15 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
             try:
                 output_file_name = await shared.get_job_output_file_name(job_id)
             except Exception as retry_e:
-                # If still no file after retry, create an empty one in the jobs directory
+                # If still no file after retry, create an empty one using the Job class
                 logging.warning(
                     f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}"
                 )
-                # Get experiment information for new job directory structure
-                experiment_id = job["experiment_id"]
-                experiment = await experiment_get(experiment_id)
-                experiment_name = experiment["name"]
-                job_id_safe = secure_filename(str(job_id))
-                new_output_dir = get_job_output_dir(experiment_name, job_id)
-                if not os.path.exists(new_output_dir):
-                    os.makedirs(new_output_dir)
-                output_file_name = os.path.join(new_output_dir, f"output_{job_id_safe}.txt")
+                # Use the Job class to get the proper directory and create the file
+                job_obj = Job(job_id)
+                output_file_name = job_obj.get_log_path()
+                # Ensure the directory exists
+                os.makedirs(os.path.dirname(output_file_name), exist_ok=True)
                 with open(output_file_name, "w") as f:
                     f.write("")
         else:
