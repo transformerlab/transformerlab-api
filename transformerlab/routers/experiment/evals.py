@@ -225,7 +225,7 @@ async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: 
     extra_args.extend(
         [
             "--experiment_name",
-            experiment_name,
+            experimentId,
             "--eval_name",
             eval_name,
             "--input_file",
