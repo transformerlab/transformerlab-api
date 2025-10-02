@@ -20,7 +20,6 @@ except ModuleNotFoundError:
 
 from lab import Job
 
-
 class DotDict(dict):
     """Dictionary subclass that allows attribute access to dictionary keys"""
 
@@ -105,7 +104,8 @@ class TLabPlugin:
 
                     # Update final progress and success status
                     self.progress_update(progress_end)
-                    self.job.set_job_completion_status("success", "Job completed successfully")
+                    self.job.update_job_data_field("completion_status", "success")
+                    self.job.update_job_data_field("completion_details", "Job completed successfully")
                     self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                     if manual_logging and getattr(self.params, "wandb_run") is not None:
                         self.wandb_run.finish()
@@ -122,7 +122,8 @@ class TLabPlugin:
                     print(error_msg)
 
                     # Update job with failure status
-                    self.job.set_job_completion_status("failed", "Error occurred while executing job")
+                    self.job.update_job_data_field("completion_status", "failed")
+                    self.job.update_job_data_field("completion_details", "Error occurred while executing job")
                     self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                     if manual_logging and getattr(self.params, "wandb_run") is not None:
                         self.wandb_run.finish()
@@ -181,7 +182,8 @@ class TLabPlugin:
 
                         # Update final progress and success status
                         self.progress_update(progress_end)
-                        self.job.set_job_completion_status("success", "Job completed successfully")
+                        self.job.update_job_data_field("completion_status", "success")
+                        self.job.update_job_data_field("completion_details", "Job completed successfully")
                         self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                         if manual_logging and getattr(self, "wandb_run") is not None:
                             self.wandb_run.finish()
@@ -198,7 +200,8 @@ class TLabPlugin:
                         print(error_msg)
 
                         # Update job with failure status
-                        self.job.set_job_completion_status("failed", "Error occurred while executing job")
+                        self.job.update_job_data_field("completion_status", "failed")
+                        self.job.update_job_data_field("completion_details", "Error occurred while executing job")
                         self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
                         if manual_logging and getattr(self, "wandb_run") is not None:
                             self.wandb_run.finish()
@@ -246,7 +249,8 @@ class TLabPlugin:
         self._ensure_args_parsed()
 
         if not self.params.dataset_name:
-            self.job.set_job_completion_status("failed", "Dataset name not provided")
+            self.job.update_job_data_field("completion_status", "failed")
+            self.job.update_job_data_field("completion_details", "Dataset name not provided")
             self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise ValueError("Dataset name not provided")
 
@@ -321,7 +325,8 @@ class TLabPlugin:
         except Exception as e:
             error_msg = f"Error loading dataset: {str(e)}\n{traceback.format_exc()}"
             print(error_msg)
-            self.job.set_job_completion_status("failed", "Failed to load dataset")
+            self.job.update_job_data_field("completion_status", "failed")
+            self.job.update_job_data_field("completion_details", "Failed to load dataset")
             self.add_job_data("end_time", time.strftime("%Y-%m-%d %H:%M:%S"))
             raise
 
