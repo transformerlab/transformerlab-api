@@ -13,7 +13,7 @@ from lab import Experiment
 
 
 class EmbedRequest(BaseModel):
-    experiment_id: int
+    experiment_id: str
     text: str
 
 
