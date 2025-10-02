@@ -48,17 +48,6 @@ else:
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-async def experiment_dir_by_id(experiment_id: int) -> str:
-    if experiment_id is not None:
-        experiment = await experiment_get(experiment_id)
-    else:
-        print("Error: experiment_id is None")
-        return os.path.join(dirs.EXPERIMENTS_DIR, "error")
-
-    experiment_name = experiment["name"]
-    return dirs.experiment_dir_by_name(experiment_name)
-
-
 # PLUGIN_PRELOADED_GALLERY
 PLUGIN_PRELOADED_GALLERY = os.path.join(TFL_SOURCE_CODE_DIR, "transformerlab", "plugins")
 
@@ -72,7 +61,3 @@ GALLERIES_LOCAL_FALLBACK_DIR = os.path.join(TFL_SOURCE_CODE_DIR, "transformerlab
 
 # TEMPORARY: We want to move jobs back into the root directory instead of under experiment
 # But for now we need to leave this here.
-
-
-def experiment_dir_by_name(experiment_name: str) -> str:
-    return os.path.join(dirs.EXPERIMENTS_DIR, experiment_name)
