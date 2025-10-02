@@ -78,16 +78,12 @@ async def get_training_job_output(job_id: str, sweeps: bool = False):
             else:
                 # Get experiment information for new job directory structure
                 experiment_id = job["experiment_id"]
-                experiment = await db.experiment_get(experiment_id)
-                experiment_name = experiment["name"]
-                output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experiment_name)
+                output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experiment_id)
 
         else:
             # Get experiment information for new job directory structure
             experiment_id = job["experiment_id"]
-            experiment = await db.experiment_get(experiment_id)
-            experiment_name = experiment["name"]
-            output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experiment_name)
+            output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experiment_id)
 
         with open(output_file_name, "r") as f:
             output = f.read()
