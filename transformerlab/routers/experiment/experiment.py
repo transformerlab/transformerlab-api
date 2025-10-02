@@ -117,15 +117,22 @@ async def experiment_save_file_contents(id: str, filename: str, file_contents: A
     # clean the file name:
     filename = shared.slugify(filename)
 
-    # make directory if it does not exist:
-    if not os.path.exists(f"{EXPERIMENTS_DIR}/{id}"):
-        os.makedirs(f"{EXPERIMENTS_DIR}/{id}")
-
-    # now save the file contents, overwriting if it already exists:
-    with open(f"{EXPERIMENTS_DIR}/{id}/{filename}{file_ext}", "w") as f:
+    # Get experiment directory using proper path handling
+    exp_obj = Experiment.get(id)
+    experiment_dir = exp_obj.get_dir()
+    
+    # Use Path for secure path construction and validation
+    try:
+        file_path = Path(experiment_dir).joinpath(f"{filename}{file_ext}").resolve()
+        # Ensure the resolved path is within the experiment directory
+        file_path.relative_to(Path(experiment_dir).resolve())
+    except ValueError:
+        return {"message": "Invalid file path - path traversal detected"}
+    # Save the file contents securely
+    with open(file_path, "w", encoding="utf-8") as f:
         f.write(file_contents)
 
-    return {"message": f"{EXPERIMENTS_DIR}/{id}/{filename}{file_ext} file contents saved"}
+    return {"message": f"{file_path} file contents saved"}
 
 
 @router.get("/{id}/file_contents", tags=["experiment"])
