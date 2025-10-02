@@ -1124,9 +1124,7 @@ async def get_job_output_file_name(job_id: str, plugin_name: str = None, experim
                 return job_data["output_file_path"]
 
             if experiment_name is None:
-                experiment_id = job["experiment_id"]
-                experiment = await experiment_get(experiment_id)
-                experiment_name = experiment["name"]
+                experiment_name = job["experiment_id"]
 
             # Get the plugin name from the job data
             if plugin_name is None:
@@ -1144,26 +1142,8 @@ async def get_job_output_file_name(job_id: str, plugin_name: str = None, experim
 
         plugin_dir = lab_dirs.plugin_dir_by_name(plugin_name)
 
-        # Try new job directory structure first
-        new_jobs_dir = dirs.get_job_output_dir(experiment_name, job_id)
-        if os.path.exists(os.path.join(new_jobs_dir, f"output_{job_id}.txt")):
-            output_file = os.path.join(new_jobs_dir, f"output_{job_id}.txt")
-
-        # Fall back to old structure for backward compatibility
-        elif os.path.exists(os.path.join(WORKSPACE_DIR, "jobs", str(job_id), f"output_{job_id}.txt")):
-            output_file = os.path.join(WORKSPACE_DIR, "jobs", str(job_id), f"output_{job_id}.txt")
-
-        elif os.path.exists(os.path.join(plugin_dir, f"output_{job_id}.txt")):
-            output_file = os.path.join(plugin_dir, f"output_{job_id}.txt")
-        # but it used to be all stored in a single file called output.txt, so check that as well
-        elif os.path.exists(os.path.join(plugin_dir, "output.txt")):
-            output_file = os.path.join(plugin_dir, "output.txt")
-        else:
-            # For export and similar, create the output file path even if it doesn't exist yet
-            if experiment_name:
-                output_file = os.path.join(new_jobs_dir, f"output_{job_id}.txt")
-            else:
-                raise ValueError(f"No output file found for job {job_id}")
+        job_obj = Job(job_id)
+        output_file = job_obj.get_log_path()
         return output_file
     except Exception as e:
         raise e
