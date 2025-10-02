@@ -7,11 +7,12 @@ from pathlib import Path
 
 from jinja2 import Environment
 from transformers import AutoTokenizer
-from lab import HOME_DIR, WORKSPACE_DIR
+from lab import HOME_DIR, get_workspace_dir
 
 # useful constants
 # Use shared constant as sole source of truth
 DATABASE_FILE_NAME = f"{HOME_DIR}/llmlab.sqlite3"
+WORKSPACE_DIR = get_workspace_dir()
 if WORKSPACE_DIR is None:
     print("Plugin Harness Error: WORKSPACE_DIR not available. Quitting.")
     exit(1)

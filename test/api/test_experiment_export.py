@@ -2,7 +2,9 @@ import os
 import json
 import transformerlab.db.db as db
 import transformerlab.db.workflows as db_workflows
-from transformerlab.shared.constants import WORKSPACE_DIR
+from lab import get_workspace_dir
+
+WORKSPACE_DIR = get_workspace_dir()
 
 
 async def test_export_experiment(client):
