@@ -1112,36 +1112,6 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
 async def get_job_output_file_name(job_id: str, plugin_name: str = None, experiment_name: str = None):
     try:
-        job_id = secure_filename(str(job_id))
-
-        # If plugin_name or experiment_name is not provided, get them from job_data
-        if plugin_name is None or experiment_name is None:
-            job = await db_jobs.job_get(job_id)
-            job_data = job["job_data"]
-
-            # Check if it has a custom output file path
-            if job_data.get("output_file_path") is not None:
-                return job_data["output_file_path"]
-
-            if experiment_name is None:
-                experiment_name = job["experiment_id"]
-
-            # Get the plugin name from the job data
-            if plugin_name is None:
-                if "template_id" in job_data:
-                    template_config = job_data["config"]
-                    if "plugin_name" not in template_config:
-                        raise ValueError("Plugin name not found in template config")
-                    plugin_name = template_config["plugin_name"]
-                else:
-                    plugin_name = job_data.get("plugin")
-                    if not plugin_name:
-                        raise ValueError("Plugin not found in job data")
-        else:
-            plugin_name = secure_filename(plugin_name)
-
-        plugin_dir = lab_dirs.plugin_dir_by_name(plugin_name)
-
         job_obj = Job(job_id)
         output_file = job_obj.get_log_path()
         return output_file
