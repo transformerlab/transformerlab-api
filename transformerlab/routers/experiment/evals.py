@@ -257,7 +257,7 @@ async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: 
 
     print(f">Running {subprocess_command}")
 
-    output_file = await lab_dirs.eval_output_file(experiment_name, eval_name)
+    output_file = await lab_dirs.eval_output_file(experimentId, eval_name)
     print(f">EVAL Output file: {job_output_file}")
 
     with open(job_output_file, "w") as f:
