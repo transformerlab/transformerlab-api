@@ -312,12 +312,12 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         # implement rest later
         return {"status": "complete", "job_id": job_id, "message": "Task job completed successfully"}
 
-    # Common setup for all other job types
+    # Common setup using SDK classes
     job_obj = Job.get(job_id)
+    exp_obj = Experiment(experiment_name)
     output_temp_file_dir = job_obj.get_dir()
 
-    # Get experiment details for job types that need them
-    experiment = None
+    experiment_details = await experiment_get(experiment_name)
 
     # Extract plugin name consistently across all job types
     plugin_name = None
@@ -455,10 +455,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
         await db_jobs.job_update_status(job_id, "RUNNING", experiment_id=experiment_name)
 
-        # Prep paths and script args
-        job_obj = Job.get(job_id)
-        output_temp_file_dir = job_obj.get_dir()
-
+        # Use existing job object and output directory
         plugin_dir = lab_dirs.plugin_dir_by_name(plugin_name)
         plugin_main_args = ["--plugin_dir", plugin_dir]
 
@@ -594,15 +591,13 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
     job_type = job_config["config"].get("type", "")
 
-    # Get the experiment details from the database:
-    experiment_details = await experiment_get(experiment_name)
+    # Use experiment details and SDK objects for path management
     print("Experiment Details: ", experiment_details)
     experiment_details_as_string = json.dumps(experiment_details)
-    exp_obj = Experiment(experiment_name)
     experiment_dir = exp_obj.get_dir()
 
-    # plugin_name and plugin_location are already set above
-    output_file = os.path.join(output_temp_file_dir, f"output_{job_id}.txt")
+    # Use Job SDK for output file path
+    output_file = job_obj.get_log_path()
 
     def on_train_complete():
         print("Training Job: The process has finished")
