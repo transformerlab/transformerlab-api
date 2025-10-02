@@ -473,7 +473,7 @@ class TLabPlugin:
 
         # Add experiment_id if we have one
         if experiment_id is not None:
-            params["experiment_id"] = int(experiment_id)
+            params["experiment_id"] = experiment_id
 
         # Add optional parameters if they exist
         if self.params.get("model_adapter"):
