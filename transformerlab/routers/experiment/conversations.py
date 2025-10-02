@@ -58,6 +58,7 @@ async def get_conversations(experimentId: str):
 async def save_conversation(
     experimentId: str, conversation_id: Annotated[str, Body()], conversation: Annotated[str, Body()]
 ):
+    conversation_id = secure_filename(conversation_id)
     exp_obj = Experiment.get(experimentId)
     experiment_dir = exp_obj.get_dir()
 
