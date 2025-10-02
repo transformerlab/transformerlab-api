@@ -166,7 +166,6 @@ async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: 
         return {"message": f"Experiment {experimentId} does not exist"}
     config = json.loads(experiment_details["config"])
 
-    experiment_name = experiment_details["name"]
     model_name = config["foundation"]
     if "model_name" in eval_config.keys():
         model_name = eval_config["model_name"]
@@ -200,7 +199,7 @@ async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: 
             experiment_details["config"]["evaluations"] = json.loads(experiment_details["config"]["evaluations"])
 
     template_config = eval_config["script_parameters"]
-    job_output_file = await shared.get_job_output_file_name(job_id, plugin_name, experiment_name)
+    job_output_file = await shared.get_job_output_file_name(job_id, plugin_name, experimentId)
 
     input_contents = {"experiment": experiment_details, "config": template_config}
     with open(input_file, "w") as outfile:
@@ -281,9 +280,7 @@ async def get_output(experimentId: str, eval_name: str):
     if data is None:
         return {"message": f"Experiment {experimentId} does not exist"}
 
-    experiment_name = data["name"]
-
-    eval_output_file = await lab_dirs.eval_output_file(experiment_name, eval_name)
+    eval_output_file = await lab_dirs.eval_output_file(experimentId, eval_name)
     if not os.path.exists(eval_output_file):
         return {"message": "Output file does not exist"}
 
