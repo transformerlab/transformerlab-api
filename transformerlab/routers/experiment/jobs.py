@@ -17,7 +17,6 @@ from werkzeug.utils import secure_filename
 from transformerlab.routers.serverinfo import watch_file
 
 from transformerlab.db.db import get_training_template
-from transformerlab.db.db import experiment_get
 from datetime import datetime
 
 import transformerlab.db.jobs as db_jobs
