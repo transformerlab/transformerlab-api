@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 
 import transformerlab.db.db as db
 from transformerlab.db.workflows import workflows_get_from_experiment
-from transformerlab.db.datasets import get_dataset
+from lab import Dataset
 from transformerlab.shared import shared
 from transformerlab.routers.experiment import (
     rag,
@@ -206,7 +206,7 @@ async def export_experiment_to_recipe(id: str):
             # For datasets, check if it's generated and skip if it is
             if dep_type == "dataset":
                 try:
-                    dataset_info = await get_dataset(dep_name)
+                    dataset_info = Dataset.get(dep_name)
                     if dataset_info:
                         json_data = dataset_info.get("json_data", "{}")
                         if not isinstance(json_data, dict):

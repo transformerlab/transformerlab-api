@@ -1,5 +1,5 @@
 from fastapi import APIRouter, BackgroundTasks
-from transformerlab.db.datasets import get_datasets
+from lab import Dataset
 from transformerlab.shared import galleries
 import transformerlab.db.db as db
 import transformerlab.db.jobs as db_jobs
@@ -43,7 +43,7 @@ async def check_recipe_dependencies(id: str):
     # Get local models and datasets
     local_models = await model_helper.list_installed_models()
     local_model_names = set(model["model_id"] for model in local_models)
-    local_datasets = await get_datasets()
+    local_datasets = Dataset.list_all()
     local_dataset_ids = set(ds["dataset_id"] for ds in local_datasets)
 
     # Get installed plugins using the same logic as /plugins/gallery
@@ -94,7 +94,7 @@ async def _install_recipe_dependencies_job(job_id, id):
             await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
             return
 
-        local_datasets = await get_datasets()
+        local_datasets = Dataset.list_all()
         local_dataset_ids = set(ds["dataset_id"] for ds in local_datasets)
         total = len(non_model_deps)
         progress = 0
@@ -514,60 +514,3 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
             "notes_result": notes_result,
         },
     }
-
-
-## OLDER CODE WITHOUT A JOB SYSTEM
-
-# @router.get("/{id}/install_dependencies")
-# async def install_recipe_dependencies(id: int):
-#     """Install model and dataset dependencies for a recipe."""
-#     from transformerlab.routers import model as model_router
-#     from transformerlab.routers import data as data_router
-
-#     # Get the recipe
-#     recipes_gallery = galleries.get_exp_recipe_gallery()
-#     recipe = next((r for r in recipes_gallery if r.get("id") == id), None)
-#     if not recipe:
-#         return {"error": f"Recipe with id {id} not found."}
-
-#     if len(recipe.get("dependencies", [])) == 0:
-#         return {"results": []}
-
-#     # Get local models and datasets
-#     local_models = await model_helper.list_installed_models()
-#     local_model_names = set(model["model_id"] for model in local_models)
-#     local_datasets = await get_datasets()
-#     local_dataset_ids = set(ds["dataset_id"] for ds in local_datasets)
-
-#     install_results = []
-#     for dep in recipe.get("dependencies", []):
-#         dep_type = dep.get("type")
-#         dep_name = dep.get("name")
-#         if dep_type == "workflow":
-#             # Skip workflow installation in this background job
-#             continue
-#         result = {"type": dep_type, "name": dep_name, "action": None, "status": None}
-#         if dep_type == "model":
-#             if dep_name not in local_model_names:
-#                 download_result = await model_router.download_model_by_huggingface_id(model=dep_name)
-#                 result["action"] = "download_model"
-#                 result["status"] = download_result.get("status", "unknown")
-#             else:
-#                 result["action"] = "already_installed"
-#                 result["status"] = "success"
-#         elif dep_type == "dataset":
-#             if dep_name not in local_dataset_ids:
-#                 download_result = await data_router.dataset_download(dataset_id=dep_name)
-#                 result["action"] = "download_dataset"
-#                 result["status"] = download_result.get("status", "unknown")
-#             else:
-#                 result["action"] = "already_installed"
-#                 result["status"] = "success"
-#         elif dep_type == "plugin":
-#             from transformerlab.routers import plugins as plugins_router
-
-#             install_result = await plugins_router.install_plugin(plugin_id=dep_name)
-#             result["action"] = "install_plugin"
-#             result["status"] = install_result.get("status", "unknown")
-#         install_results.append(result)
-#     return {"results": install_results}

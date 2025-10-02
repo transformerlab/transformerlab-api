@@ -8,10 +8,10 @@ import json
 import uuid
 from typing import List
 import shutil
-from transformerlab.db.datasets import get_dataset, create_local_dataset, delete_dataset
+from transformerlab.services.dataset_service import create_local_dataset
 from transformerlab.db import db
 from transformerlab.models import model_helper
-from lab import dirs
+from lab import dirs, Dataset
 from transformerlab.shared.constants import WORKSPACE_DIR
 from transformerlab.shared.shared import slugify
 import transformerlab.db.jobs as db_jobs
@@ -923,9 +923,13 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
         raise HTTPException(status_code=400, detail="Invalid dataset name")
 
     # Check if dataset already exists
-    existing_dataset = await get_dataset(dataset_id)
-    if existing_dataset:
+    try:
+        Dataset.get(dataset_id)
+        # If we get here, the dataset exists
         raise HTTPException(status_code=400, detail=f"Dataset '{dataset_id}' already exists")
+    except FileNotFoundError:
+        # Dataset doesn't exist, which is what we want
+        pass
 
     # Find selected images efficiently
     selected_images = []
@@ -959,12 +963,12 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
             "image_count": total_image_count,
             "created_from_image_ids": image_ids,
         }
-        await create_local_dataset(dataset_id, json_data=json_data)
+        new_dataset = create_local_dataset(dataset_id, json_data=json_data)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create dataset in database: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create dataset: {str(e)}")
 
     # Create dataset directory
-    dataset_dir = dirs.dataset_dir_by_id(dataset_id)
+    dataset_dir = new_dataset.get_dir()
     images_dir = os.path.join(dataset_dir, "train")
     os.makedirs(images_dir, exist_ok=True)
 
@@ -1084,8 +1088,7 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
 
     if not dataset_records:
         # Clean up if no images were successfully processed
-        await delete_dataset(dataset_id)
-        shutil.rmtree(dataset_dir, ignore_errors=True)
+        new_dataset.delete()
         raise HTTPException(status_code=500, detail="Failed to process any images")
 
     # Save dataset as JSONL file
@@ -1098,8 +1101,7 @@ async def create_dataset_from_history(request: CreateDatasetRequest, experimentI
                 f.write(json.dumps(record) + "\n")
     except Exception as e:
         # Clean up on failure
-        await delete_dataset(dataset_id)
-        shutil.rmtree(dataset_dir, ignore_errors=True)
+        new_dataset.delete()
         raise HTTPException(status_code=500, detail=f"Failed to save dataset: {str(e)}")
 
     return JSONResponse(
