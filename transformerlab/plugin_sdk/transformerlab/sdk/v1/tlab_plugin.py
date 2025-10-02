@@ -12,11 +12,13 @@ from typing import Any, List
 from datasets import get_dataset_split_names, get_dataset_config_names, load_dataset
 
 try:
-    from transformerlab.plugin import Job, get_dataset_path
+    from transformerlab.plugin import get_dataset_path
     import transformerlab.plugin as tlab_core
 except ModuleNotFoundError:
-    from transformerlab.plugin_sdk.transformerlab.plugin import Job, get_dataset_path
+    from transformerlab.plugin_sdk.transformerlab.plugin import get_dataset_path
     import transformerlab.plugin_sdk.transformerlab.plugin as tlab_core
+
+from lab import Job
 
 
 class DotDict(dict):
@@ -216,15 +218,17 @@ class TLabPlugin:
         return decorator
 
     def progress_update(self, progress: int):
-        """Update job progress"""
+        """Update job progress using SDK directly"""
         job_data = self.job.get_job_data()
         if job_data.get("sweep_progress") is not None:
             if int(job_data.get("sweep_progress")) != 100:
-                self.job.update_job_data("sweep_subprogress", progress)
+                self.job.update_job_data_field("sweep_subprogress", progress)
                 return
 
         self.job.update_progress(progress)
-        if self.job.should_stop:
+        # Check stop status using SDK
+        job_data = self.job.get_job_data()
+        if job_data.get("stop", False):
             self.job.update_status("STOPPED")
             raise KeyboardInterrupt("Job stopped by user")
 
@@ -233,8 +237,8 @@ class TLabPlugin:
         return tlab_core.get_experiment_config(experiment_name)
 
     def add_job_data(self, key: str, value: Any):
-        """Add data to job"""
-        self.job.add_to_job_data(key, value)
+        """Add data to job using SDK directly"""
+        self.job.update_job_data_field(key, value)
 
     def load_dataset(self, dataset_types: List[str] = ["train"], config_name: str = None):
         """Decorator for loading datasets with error handling"""

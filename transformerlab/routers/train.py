@@ -8,7 +8,7 @@ import logging
 import transformerlab.db.db as db
 import transformerlab.db.jobs as db_jobs
 from transformerlab.shared import shared
-from lab import dirs
+from lab import dirs, Experiment
 
 from werkzeug.utils import secure_filename
 
@@ -157,12 +157,8 @@ async def spawn_tensorboard(job_id: str):
     job = await db_jobs.job_get(job_id)
     # First get the experiment name from the job
     experiment_id = job["experiment_id"]
-    data = await db.experiment_get(experiment_id)
-    if data is None:
-        return {"message": f"Experiment {experiment_id} does not exist"}
-
-    experiment_dir = dirs.experiment_dir_by_name(data["name"])
-
+    exp_obj = Experiment(experiment_id)
+    experiment_dir = exp_obj.get_dir()
     job_data = job["job_data"]
 
     if "template_name" not in job_data.keys():

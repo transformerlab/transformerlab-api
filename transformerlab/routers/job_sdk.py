@@ -210,7 +210,7 @@ def get_trainer_xmlrpc_router(prefix="/client/v1/jobs", trainer_factory=None):
             # Initialize the job
             job = trainer_instance.job
             start_time = time.strftime("%Y-%m-%d %H:%M:%S")
-            job.add_to_job_data("start_time", start_time)
+            job.update_job_data_field("start_time", start_time)
             # job_update_status_sync(job_id, "RUNNING")
             job.update_progress(0)
 
@@ -304,10 +304,10 @@ def get_trainer_xmlrpc_router(prefix="/client/v1/jobs", trainer_factory=None):
             if isinstance(job_data, str):
                 job_data = json.loads(job_data)
 
-            job.add_to_job_data("reported_metrics", str(trainer_instance.params.reported_metrics))
+            job.update_job_data_field("reported_metrics", str(trainer_instance.params.reported_metrics))
 
             end_time = time.strftime("%Y-%m-%d %H:%M:%S")
-            job.add_to_job_data("end_time", end_time)
+            job.update_job_data_field("end_time", end_time)
 
             # Update job data
             # job.update_job_data(json.dumps(job_data))
@@ -389,7 +389,7 @@ def get_trainer_xmlrpc_router(prefix="/client/v1/jobs", trainer_factory=None):
                     os.makedirs(output_directory)
                 output_file_name = os.path.join(output_directory, f"output_{job_id}.txt")
                 trainer_instance.params["output_file_path"] = output_file_name
-                job.add_to_job_data("output_file_path", output_file_name)
+                job.update_job_data_field("output_file_path", output_file_name)
             else:
                 output_file_name = trainer_instance.params.output_file_path
 

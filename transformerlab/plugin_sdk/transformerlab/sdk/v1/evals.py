@@ -207,8 +207,8 @@ class EvalsTLabPlugin(TLabPlugin):
         plotting_data.to_json(plot_data_path, orient="records", lines=False)
         print(f"Saved plotting data to {plot_data_path}")
 
-        self.job.add_to_job_data("additional_output_path", output_path)
-        self.job.add_to_job_data("plot_data_path", plot_data_path)
+        self.job.update_job_data_field("additional_output_path", output_path)
+        self.job.update_job_data_field("plot_data_path", plot_data_path)
 
         # Add evaluation data to existing provenance file
         self.add_evaluation_to_provenance_file(metrics_df)
