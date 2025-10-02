@@ -90,8 +90,6 @@ os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 temp_image_dir = os.path.join(WORKSPACE_DIR, "temp", "images")
 os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)    
 
-from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router  # noqa: E402
-
 async def migrate_jobs():
                 """Migrate jobs from DB to filesystem."""
                 print("Migrating jobs...")
@@ -372,8 +370,6 @@ app.include_router(tools.router)
 app.include_router(recipes.router)
 app.include_router(batched_prompts.router)
 app.include_router(fastchat_openai_api.router)
-app.include_router(get_xmlrpc_router())
-app.include_router(get_trainer_xmlrpc_router())
 
 # Authentication and session management routes
 if os.getenv("TFL_MULTITENANT") == "true":
