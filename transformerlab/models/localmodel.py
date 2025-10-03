@@ -9,7 +9,6 @@ import os
 import json
 from huggingface_hub import hf_hub_download
 from transformerlab.models import modelstore
-import transformerlab.db.db as db
 from lab import dirs
 from werkzeug.utils import secure_filename
 
@@ -123,50 +122,41 @@ class LocalModelStore(modelstore.ModelStore):
 
     async def list_models(self, embedding=False):
         """
-        Check both the database and workspace for models.
+        Check both the filesystem and workspace for models.
         """
 
-        # start with the list of downloaded models which is stored in the db
-        models = await db.model_local_list()
+        # Use SDK to get all models from the filesystem
+        from lab.model import Model as ModelService
+        models = ModelService.list_all()
 
-        # now generate a list of local models by reading the filesystem
+        # Add additional metadata to each model
         models_dir = dirs.MODELS_DIR
+        for model in models:
+            # Only set model["stored_in_filesystem"] to True if the model is a local model and not a Hugging Face model
+            if not (model.get("json_data", {}).get("source", "") == "huggingface" and model.get("json_data", {}).get("model_filename", "") == ""):
+                # tells the app this model was loaded from workspace directory
+                model["stored_in_filesystem"] = True
 
-        # now iterate through all the subdirectories in the models directory
-        with os.scandir(models_dir) as dirlist:
-            for entry in dirlist:
-                if entry.is_dir():
-                    # Look for model information in info.json
-                    info_file = os.path.join(models_dir, entry, "info.json")
-                    try:
-                        with open(info_file, "r") as f:
-                            filedata = json.load(f)
-                            f.close()
+                # Set local_path to the filesystem location
+                # this will tell Hugging Face to not try downloading
+                model_id = model.get("model_id", "")
+                model_filename = model.get("json_data", {}).get("model_filename", "")
+                model["local_path"] = os.path.join(models_dir, secure_filename(model_id))
+                # Check if local path exists
+                if not os.path.exists(model["local_path"]):
+                    # Remove the Starting TransformerLab/ prefix to handle the save_transformerlab_model function
+                    model["local_path"] = os.path.join(models_dir, secure_filename("/".join(model_id.split("/")[1:])))
 
-                            # NOTE: In some places info.json may be a list and in others not
-                            # Once info.json format is finalized we can remove this
-                            if isinstance(filedata, list):
-                                filedata = filedata[0]
-
-                            # tells the app this model was loaded from workspace directory
-                            filedata["stored_in_filesystem"] = True
-
-                            # Set local_path to the filesystem location
-                            # this will tell Hugging Face to not try downloading
-                            filedata["local_path"] = os.path.join(models_dir, entry)
-
-                            # Some models are a single file (possibly of many in a directory, e.g. GGUF)
-                            # For models that have model_filename set we should link directly to that specific file
-                            if "model_filename" in filedata and filedata["model_filename"]:
-                                filedata["local_path"] = os.path.join(
-                                    filedata["local_path"], filedata["model_filename"]
-                                )
-
-                            models.append(filedata)
-
-                    except FileNotFoundError:
-                        # do nothing: just ignore this directory
-                        pass
+                # Some models are a single file (possibly of many in a directory, e.g. GGUF)
+                # For models that have model_filename set we should link directly to that specific file
+                if "model_filename" in model.get("json_data", {}):
+                    model_filename = model["json_data"]["model_filename"]
+                    if model_filename.endswith(".gguf"):
+                        model["local_path"] = os.path.join(os.path.join(models_dir, secure_filename(model_id)), model_filename)
+                    else:
+                        model["local_path"] = os.path.join(
+                            model["local_path"], model["json_data"]["model_filename"]
+                        )
 
         # Filter out models based on whether they are embedding models or not
         models = await self.filter_embedding_models(models, embedding)
@@ -252,7 +242,8 @@ class LocalModelStore(modelstore.ModelStore):
 
     async def check_provenance_for_local_models(self, provenance):
         # Get the list of all local models
-        models = await db.model_local_list()
+        from lab.model import Model as ModelService
+        models = ModelService.list_all()
         models_added_to_provenance = 0
         # Iterate through models and check if they have provenance data and if they exist already in provenance
         for model_dict in models:
