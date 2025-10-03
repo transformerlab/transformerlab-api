@@ -707,10 +707,6 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
     You can manually specify a pre-created job_id if you want to track the progress of the download with
     a defined job_id provided by the API using /job/createId"""
     
-    # Debug: Check what org ID is available in the context
-    from lab.dirs import get_workspace_dir
-    ws = get_workspace_dir()
-
     # Get model details from the gallery
     # If None then return an error
     gallery_entry = get_model_details_from_gallery(gallery_id)
