@@ -264,11 +264,14 @@ async def export_experiment_to_recipe(id: str, request: Request):
                 }
             )
 
-    # Add workflows
-    workflows = await workflows_get_from_experiment(id)
-    for workflow in workflows:
-        if workflow["status"] != "DELETED":  # Only include active workflows
-            export_data["workflows"].append({"name": workflow["name"], "config": json.loads(workflow["config"])})
+    # Add workflows - COMMENTED OUT as workflows are being removed
+    # workflows = await workflows_get_from_experiment(id)
+    # for workflow in workflows:
+    #     if workflow["status"] != "DELETED":  # Only include active workflows
+    #         export_data["workflows"].append({"name": workflow["name"], "config": json.loads(workflow["config"])})
+    
+    # For now, just ensure workflows is an empty list
+    export_data["workflows"] = []
 
     # Write to file in the workspace directory (org-aware via request context)
     workspace_dir = get_workspace_dir()
