@@ -265,12 +265,39 @@ async def get_computer_information():
 
 @router.get("/python_libraries")
 async def get_python_library_versions():
-    # get the list of installed python packages
-    packages = subprocess.check_output(sys.executable + " -m pip list --format=json", shell=True)
+    # Prefer importlib.metadata (std lib, no subprocess) to enumerate installed distributions.
+    # Fallback to invoking pip only if necessary.
+    try:
+        try:
+            from importlib import metadata
+        except ImportError:  # pragma: no cover
+            import importlib_metadata as metadata  # type: ignore
 
-    packages = packages.decode("utf-8")
-    packages = json.loads(packages)
-    return packages
+        dists = []
+        for dist in metadata.distributions():
+            name = dist.metadata.get("Name") or dist.metadata.get("Summary") or dist.metadata.get("name")
+            version = dist.version if hasattr(dist, "version") else dist.metadata.get("Version", "")
+            if name and version:
+                dists.append({"name": name, "version": version})
+
+        if dists:
+            dists.sort(key=lambda x: x["name"].lower())
+            return dists
+
+        # If we got no distributions, attempt pip as a fallback
+        try:
+            pip_output = subprocess.check_output(
+                [sys.executable, "-m", "pip", "list", "--format=json"],
+                stderr=subprocess.STDOUT,
+            )
+            parsed = json.loads(pip_output.decode("utf-8"))
+            if isinstance(parsed, list):
+                return parsed
+        except Exception:
+            pass
+    except Exception:
+        return []
+    return []
 
 
 @router.get("/pytorch_collect_env")
