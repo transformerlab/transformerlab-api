@@ -326,10 +326,7 @@ async def login_to_huggingface():
 
 @router.get(path="/model/logout_from_huggingface")
 async def logout_from_huggingface():
-
-
    # Logout from Hugging Face using the huggingface_hub logout function.
-
 
    from huggingface_hub import logout
    import os
@@ -346,9 +343,9 @@ async def logout_from_huggingface():
       
        return {"message": "OK"}
       
-   except Exception as e:
-       return {"message": f"Logout failed"}
-       
+   except Exception:
+       return {"message": "Logout failed"}
+
 @router.get(path="/model/login_to_wandb")
 async def login_to_wandb():
     # TODO: Move all of these logins and their tests to another router outside 'model' to maintain clarity
