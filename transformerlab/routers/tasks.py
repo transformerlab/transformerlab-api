@@ -7,28 +7,28 @@ import transformerlab.db.db as db
 from lab import Dataset
 from transformerlab.db.jobs import job_create
 from transformerlab.models import model_helper
+from transformerlab.services.tasks_service import tasks_service
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
 @router.get("/list", summary="Returns all the tasks")
 async def tasks_get_all():
-    tasks = await db.tasks_get_all()
+    tasks = await tasks_service.tasks_get_all()
     return tasks
 
 
 @router.get("/{task_id}/get", summary="Gets all the data for a single task")
 async def tasks_get_by_id(task_id: int):
-    tasks = await db.tasks_get_all()
-    for task in tasks:
-        if task["id"] == task_id:
-            return task
-    return {"message": "NOT FOUND"}
+    task = await tasks_service.tasks_get_by_id(task_id)
+    if task is None:
+        return {"message": "NOT FOUND"}
+    return task
 
 
 @router.get("/list_by_type", summary="Returns all the tasks of a certain type, e.g TRAIN")
 async def tasks_get_by_type(type: str):
-    tasks = await db.tasks_get_by_type(type)
+    tasks = await tasks_service.tasks_get_by_type(type)
     return tasks
 
 
@@ -36,29 +36,36 @@ async def tasks_get_by_type(type: str):
     "/list_by_type_in_experiment", summary="Returns all the tasks of a certain type in a certain experiment, e.g TRAIN"
 )
 async def tasks_get_by_type_in_experiment(type: str, experiment_id: int):
-    tasks = await db.tasks_get_by_type_in_experiment(type, experiment_id)
+    tasks = await tasks_service.tasks_get_by_type_in_experiment(type, experiment_id)
     return tasks
 
 
 @router.put("/{task_id}/update", summary="Updates a task with new information")
 async def update_task(task_id: int, new_task: dict = Body()):
     # Perform secure_filename before updating the task
-    new_task["name"] = secure_filename(new_task["name"])
-    await db.update_task(task_id, new_task)
-    return {"message": "OK"}
+    if "name" in new_task:
+        new_task["name"] = secure_filename(new_task["name"])
+    success = await tasks_service.update_task(task_id, new_task)
+    if success:
+        return {"message": "OK"}
+    else:
+        return {"message": "NOT FOUND"}
 
 
 @router.get("/{task_id}/delete", summary="Deletes a task")
 async def delete_task(task_id: int):
-    await db.delete_task(task_id)
-    return {"message": "OK"}
+    success = await tasks_service.delete_task(task_id)
+    if success:
+        return {"message": "OK"}
+    else:
+        return {"message": "NOT FOUND"}
 
 
 @router.put("/new_task", summary="Create a new task")
 async def add_task(new_task: dict = Body()):
     # Perform secure_filename before adding the task
     new_task["name"] = secure_filename(new_task["name"])
-    await db.add_task(
+    await tasks_service.add_task(
         new_task["name"],
         new_task["type"],
         new_task["inputs"],
@@ -115,7 +122,7 @@ async def add_task(new_task: dict = Body()):
 
 @router.get("/delete_all", summary="Wipe the task table")
 async def tasks_delete_all():
-    await db.tasks_delete_all()
+    await tasks_service.tasks_delete_all()
     return {"message": "OK"}
 
 
@@ -143,13 +150,13 @@ async def convert_training_template_to_task(template_id: int, experiment_id: int
     if "adaptor_name" in template_config.keys():
         outputs = {"adaptor_name": template_config.get("adaptor_name", "adaptor")}
     try:
-        await db.add_task(
+        await tasks_service.add_task(
             template["name"],
             "TRAIN",
-            json.dumps(inputs),
-            template["config"],
+            inputs,
+            json.loads(template["config"]) if isinstance(template["config"], str) else template["config"],
             template_config["plugin_name"],
-            json.dumps(outputs),
+            outputs,
             experiment_id,
         )
     except Exception:
@@ -162,7 +169,7 @@ async def convert_eval_to_task(eval_name: str, experiment_id: int):
     experiment_evaluations = json.loads(json.loads((await db.experiment_get(experiment_id))["config"])["evaluations"])
     for eval in experiment_evaluations:
         if eval["name"] == eval_name:
-            await db.add_task(eval["name"], "EVAL", "{}", json.dumps(eval), eval["plugin"], "{}", experiment_id)
+            await tasks_service.add_task(eval["name"], "EVAL", {}, eval, eval["plugin"], {}, experiment_id)
     return {"message": "OK"}
 
 
@@ -171,8 +178,8 @@ async def convert_generate_to_task(generate_name: str, experiment_id: int):
     experiment_generations = json.loads(json.loads((await db.experiment_get(experiment_id))["config"])["generations"])
     for generation in experiment_generations:
         if generation["name"] == generate_name:
-            await db.add_task(
-                generation["name"], "GENERATE", "{}", json.dumps(generation), generation["plugin"], "{}", experiment_id
+            await tasks_service.add_task(
+                generation["name"], "GENERATE", {}, generation, generation["plugin"], {}, experiment_id
             )
     return {"message": "OK"}
 
@@ -204,7 +211,9 @@ async def convert_all_to_tasks(experiment_id):
 
 @router.get("/{task_id}/queue", summary="Queue a task to run")
 async def queue_task(task_id: int, input_override: str = "{}", output_override: str = "{}"):
-    task_to_queue = await db.tasks_get_by_id(task_id)
+    task_to_queue = await tasks_service.tasks_get_by_id(task_id)
+    if task_to_queue is None:
+        return {"message": "TASK NOT FOUND"}
     job_type = task_to_queue["type"]
     job_status = "QUEUED"
     job_data = {}
