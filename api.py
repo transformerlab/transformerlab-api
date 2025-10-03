@@ -163,8 +163,6 @@ async def migrate_jobs():
 
         migrated = 0
         for job in jobs_rows:
-            print(f"Migrating job: {job['id']} (type: {job['type']})")
-            
             # Get experiment name from mapping
             experiment_name = experiments_map.get(job.get('experiment_id'), 'unknown')
             
@@ -188,7 +186,6 @@ async def migrate_jobs():
                     old_job_dir = os.path.join(temp_jobs_dir, str(job['id']))
                     if os.path.exists(old_job_dir):
                         new_job_dir = job_obj.get_dir()
-                        print(f"Copying existing files from {old_job_dir} to {new_job_dir}")
                         # Copy all files except index.json (which we just created)
                         for item in os.listdir(old_job_dir):
                             src = os.path.join(old_job_dir, item)
@@ -205,7 +202,6 @@ async def migrate_jobs():
                             wrong_place_job_dir = os.path.join(temp_experiments_dir, str(experiment_name), "jobs", str(job['id']))
                             if os.path.exists(wrong_place_job_dir):
                                 new_job_dir = job_obj.get_dir()
-                                print(f"Found job in wrong location, copying from {wrong_place_job_dir} to {new_job_dir}")
                                 # Copy all files except index.json (which we just created)
                                 for item in os.listdir(wrong_place_job_dir):
                                     src = os.path.join(wrong_place_job_dir, item)
@@ -217,7 +213,6 @@ async def migrate_jobs():
                 
                 migrated += 1
             except Exception as e:
-                print(f"Failed to migrate job {job['id']}: {e}")
                 # Best-effort migration; continue
                 continue
 
@@ -304,8 +299,6 @@ async def migrate_experiments():
 
         migrated = 0
         for exp in experiments_rows:
-            print(f"Migrating experiment: {exp['name']}")
-            
             try:
                 # Create SDK Experiment
                 experiment = Experiment.create(exp['name'])
@@ -323,7 +316,6 @@ async def migrate_experiments():
                     old_experiment_dir = os.path.join(temp_experiments_dir, exp['name'])
                     if os.path.exists(old_experiment_dir):
                         new_experiment_dir = experiment.get_dir()
-                        print(f"Copying existing files from {old_experiment_dir} to {new_experiment_dir}")
                         for item in os.listdir(old_experiment_dir):
                             src = os.path.join(old_experiment_dir, item)
                             dst = os.path.join(new_experiment_dir, item)
@@ -334,7 +326,6 @@ async def migrate_experiments():
                 
                 migrated += 1
             except Exception as e:
-                print(f"Failed to migrate experiment {exp['name']}: {e}")
                 # Best-effort migration; continue
                 continue
 
