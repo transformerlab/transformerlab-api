@@ -7,7 +7,7 @@ from pathlib import Path
 from jinja2 import Environment
 from transformers import AutoTokenizer
 
-from lab import HOME_DIR, WORKSPACE_DIR, Experiment
+from lab import HOME_DIR, Experiment
 from lab.dirs import get_workspace_dir
 from lab.dataset import Dataset as dataset_service
 

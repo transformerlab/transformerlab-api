@@ -861,7 +861,7 @@ async def clear_history(experimentId: str, http_request: Request = None):
     """
     try:
         # Get experiment name for experiment-specific paths
-\        workspace_dir = get_workspace_dir()
+        workspace_dir = get_workspace_dir()
         history_file = get_history_file_path(experimentId, workspace_dir)
         images_dir = get_images_dir(experimentId, workspace_dir)
 
@@ -1163,7 +1163,7 @@ async def get_new_generation_id(experimentId: str, http_request: Request = None)
     """
     generation_id = str(uuid.uuid4())
     workspace_dir = get_workspace_dir()
-    ensure_directories(experiment_name, workspace_dir)
+    ensure_directories(experimentId, workspace_dir)
     images_folder = os.path.join(get_images_dir(experimentId, workspace_dir), generation_id)
     os.makedirs(images_folder, exist_ok=True)
     return {"generation_id": generation_id, "images_folder": images_folder}
