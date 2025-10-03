@@ -1,14 +1,14 @@
 import os
 import shutil
 import aiosqlite
-from sqlalchemy import update
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
 from transformerlab.db.constants import DATABASE_FILE_NAME, DATABASE_URL
 from transformerlab.shared.constants import WORKSPACE_DIR
 from transformerlab.shared.models import models
-from lab import Experiment
+from lab import Experiment, Job
+import lab.dirs as lab_dirs
 
 
 
@@ -104,9 +104,24 @@ async def init():
 
 
 async def job_cancel_in_progress_jobs():
-    async with async_session() as session:
-        await session.execute(update(models.Job).where(models.Job.status == "RUNNING").values(status="CANCELLED"))
-        await session.commit()
+    """Cancel all jobs that are currently in RUNNING state using filesystem-based Job system."""
+
+    # Check if JOBS_DIR exists
+    if not os.path.exists(lab_dirs.JOBS_DIR):
+        return
+    
+    # Iterate through all job directories
+    for entry in os.listdir(lab_dirs.JOBS_DIR):
+        job_path = os.path.join(lab_dirs.JOBS_DIR, entry)
+        if os.path.isdir(job_path):
+            try:
+                job = Job.get(entry)
+                if job.get_status() == "RUNNING":
+                    job.update_status("CANCELLED")
+                    print(f"Cancelled running job: {entry}")
+            except Exception:
+                # If we can't access the job, continue to the next one
+                pass
     return
 
 
