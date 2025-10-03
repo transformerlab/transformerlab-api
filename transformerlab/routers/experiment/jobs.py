@@ -5,7 +5,7 @@ import os
 import csv
 import pandas as pd
 import logging
-from fastapi import APIRouter, Body, Response
+from fastapi import APIRouter, Body, Response, Request
 from fastapi.responses import StreamingResponse, FileResponse
 
 from transformerlab.shared import shared
@@ -23,6 +23,8 @@ import transformerlab.db.jobs as db_jobs
 from transformerlab.services.job_service import job_update_status
 from transformerlab.shared.constants import WORKSPACE_DIR
 from lab import dirs, Job
+from lab.dirs import get_workspace_dir
+from transformerlab.shared.dirs import get_job_output_dir
 
 router = APIRouter(prefix="/jobs", tags=["train"])
 
@@ -442,7 +444,7 @@ async def get_eval_image(job_id: str, filename: str):
 
 
 @router.get("/{job_id}/checkpoints")
-async def get_checkpoints(job_id: str):
+async def get_checkpoints(job_id: str, request: Request):
     if job_id is None or job_id == "" or job_id == "-1":
         return {"checkpoints": []}
 
@@ -466,7 +468,8 @@ async def get_checkpoints(job_id: str):
             config = {}
     model_name = config.get("model_name", "")
     adaptor_name = config.get("adaptor_name", "adaptor")
-    default_adaptor_dir = os.path.join(WORKSPACE_DIR, "adaptors", secure_filename(model_name), adaptor_name)
+    workspace_dir = get_workspace_dir()
+    default_adaptor_dir = os.path.join(workspace_dir, "adaptors", secure_filename(model_name), adaptor_name)
 
     # print(f"Default adaptor directory: {default_adaptor_dir}")
 

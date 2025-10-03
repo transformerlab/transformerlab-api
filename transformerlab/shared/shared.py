@@ -22,6 +22,7 @@ from transformerlab.routers.experiment.generations import run_generation_script
 from lab.dirs import GLOBAL_LOG_PATH
 from transformerlab.shared.constants import WORKSPACE_DIR
 from lab import dirs as lab_dirs, Job, Experiment
+from lab.dirs import get_workspace_dir
 from transformerlab.shared import dirs
 
 
@@ -618,7 +619,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         model_name = secure_filename(model_name)
         adaptor_name = template_config.get("adaptor_name", "adaptor")
         template_config["job_id"] = job_id
-        template_config["adaptor_output_dir"] = os.path.join(WORKSPACE_DIR, "adaptors", model_name, adaptor_name)
+        # Resolve org-aware workspace dir if multitenant via job_data (org_id may be persisted by caller)
+        workspace_dir = get_workspace_dir()
+        template_config["adaptor_output_dir"] = os.path.join(workspace_dir, "adaptors", model_name, adaptor_name)
         template_config["output_dir"] = os.path.join(
             experiment_dir,
             "tensorboards",
@@ -631,7 +634,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         if os.path.exists(venv_path) and os.path.isdir(venv_path):
             venv_python = os.path.join(venv_path, "bin", "python")
 
-        tempdir = os.path.join(WORKSPACE_DIR, "temp")
+        tempdir = os.path.join(workspace_dir, "temp")
         if not os.path.exists(tempdir):
             os.makedirs(tempdir)
         # Check if hyperparameter sweep is requested
@@ -709,7 +712,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
                 # Create a unique adaptor directory for this run
                 run_adaptor_dir = os.path.join(
-                    WORKSPACE_DIR, "adaptors", secure_filename(model_name), f"{adaptor_name}_sweep_{i + 1}"
+                    workspace_dir, "adaptors", secure_filename(model_name), f"{adaptor_name}_sweep_{i + 1}"
                 )
                 os.makedirs(run_adaptor_dir, exist_ok=True)
 
@@ -921,7 +924,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
 
         else:
             # Create a file in the temp directory to store the inputs:
-            tempdir = os.path.join(WORKSPACE_DIR, "temp")
+            tempdir = os.path.join(workspace_dir, "temp")
             if not os.path.exists(tempdir):
                 os.makedirs(tempdir)
             input_file = os.path.join(tempdir, f"plugin_input_{job_id}.json")
@@ -983,7 +986,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
         )
 
         # Create a file in the temp directory to store the inputs:
-        tempdir = os.path.join(WORKSPACE_DIR, "temp")
+        tempdir = os.path.join(workspace_dir, "temp")
         if not os.path.exists(tempdir):
             os.makedirs(tempdir)
         input_file = os.path.join(tempdir, f"plugin_input_{job_id}.json")
@@ -1047,7 +1050,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
                 f.write("")
 
         # Create a file in the temp directory to store the inputs:
-        tempdir = os.path.join(WORKSPACE_DIR, "temp")
+        tempdir = os.path.join(get_workspace_dir(), "temp")
         if not os.path.exists(tempdir):
             os.makedirs(tempdir)
         input_file = os.path.join(tempdir, f"plugin_input_{job_id}.json")
