@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 
 import transformerlab.db.db as db
 from transformerlab.db.workflows import workflows_get_from_experiment
-from lab import Dataset
+from lab import Dataset, Experiment
 from transformerlab.shared import shared
 from transformerlab.routers.experiment import (
     rag,
@@ -24,7 +24,6 @@ from transformerlab.routers.experiment import (
     jobs,
 )
 from lab.dirs import get_workspace_dir
-from lab import dirs
 
 from werkzeug.utils import secure_filename
 
@@ -42,30 +41,7 @@ router.include_router(router=diffusion.router, prefix="/{experimentId}", tags=["
 router.include_router(router=jobs.router, prefix="/{experimentId}", tags=["jobs"])
 
 
-async def convert_experiment_id_to_name_if_needed(id: int | str) -> str:
-    """As we move to make the experiment name the best way to fetch an experiment, we use this function to
-    convert an experiment id to an experiment name if needed.
 
-    Later on we can remove this function, once we have updated all the code to use the experiment name instead of the id."""
-    if isinstance(id, int):
-        data = await db.experiment_get(id)
-        if data is None:
-            return id
-        return data["name"]
-    return id
-
-
-async def convert_experiment_name_to_id_if_needed(name: int | str) -> int:
-    """As we move to make the experiment name the best way to fetch an experiment, we use this function to
-    convert an experiment name to an experiment id if needed.
-
-    Later on we can remove this function, once we have updated all the code to use the experiment name instead of the id."""
-    if isinstance(name, str):
-        data = await db.experiment_get_by_name(name)
-        if data is None:
-            return name
-        return data["id"]
-    return name
 
 
 @router.get("/", summary="Get all Experiments", tags=["experiment"])
@@ -84,8 +60,7 @@ async def experiments_create(name: str):
 
 
 @router.get("/{id}", summary="Get Experiment by ID", tags=["experiment"])
-async def experiment_get(id: int):
-    id = await convert_experiment_name_to_id_if_needed(id)
+async def experiment_get(id: str):
 
     data = await db.experiment_get(id)
 
@@ -98,54 +73,39 @@ async def experiment_get(id: int):
 
 
 @router.get("/{id}/delete", tags=["experiment"])
-async def experiments_delete(id: int):
-    id = await convert_experiment_name_to_id_if_needed(id)
+async def experiments_delete(id: str):
     await db.experiment_delete(id)
     return {"message": f"Experiment {id} deleted"}
 
 
 @router.get("/{id}/update", tags=["experiment"])
-async def experiments_update(id: int, name: str):
-    id = await convert_experiment_name_to_id_if_needed(id)
+async def experiments_update(id: str, name: str):
     await db.experiment_update(id, name)
     return {"message": f"Experiment {id} updated to {name}"}
 
 
 @router.get("/{id}/update_config", tags=["experiment"])
-async def experiments_update_config(id: int, key: str, value: str):
-    id = await convert_experiment_name_to_id_if_needed(id)
+async def experiments_update_config(id: str, key: str, value: str):
     await db.experiment_update_config(id, key, value)
     return {"message": f"Experiment {id} updated"}
 
 
 @router.post("/{id}/update_configs", tags=["experiment"])
-async def experiments_update_configs(id: int, updates: Annotated[dict, Body()]):
-    id = await convert_experiment_name_to_id_if_needed(id)
+async def experiments_update_configs(id: str, updates: Annotated[dict, Body()]):
     await db.experiment_update_configs(id, updates)
     return {"message": f"Experiment {id} configs updated"}
 
 
 @router.post("/{id}/prompt", tags=["experiment"])
-async def experiments_save_prompt_template(id: int, template: Annotated[str, Body()]):
-    id = await convert_experiment_name_to_id_if_needed(id)
+async def experiments_save_prompt_template(id: str, template: Annotated[str, Body()]):
     await db.experiment_save_prompt_template(id, template)
     return {"message": f"Experiment {id} prompt template saved"}
 
 
 @router.post("/{id}/save_file_contents", tags=["experiment"])
-async def experiment_save_file_contents(id: int, filename: str, file_contents: Annotated[str, Body()]):
-    id = await convert_experiment_name_to_id_if_needed(id)
+async def experiment_save_file_contents(id: str, filename: str, file_contents: Annotated[str, Body()]):
 
     filename = secure_filename(filename)
-
-    # first get the experiment name:
-    data = await db.experiment_get(id)
-
-    # if the experiment does not exist, return an error:
-    if data is None:
-        return {"message": f"Experiment {id} does not exist"}
-
-    experiment_name = data["name"]
 
     # remove file extension from file:
     [filename, file_ext] = os.path.splitext(filename)
@@ -156,32 +116,30 @@ async def experiment_save_file_contents(id: int, filename: str, file_contents: A
     # clean the file name:
     filename = shared.slugify(filename)
 
-    # make directory if it does not exist:
-    experiment_dir = dirs.experiment_dir_by_name(experiment_name)
-    if not os.path.exists(experiment_dir):
-        os.makedirs(experiment_dir)
-
-    # now save the file contents, overwriting if it already exists:
-    with open(os.path.join(experiment_dir, f"{filename}{file_ext}"), "w") as f:
+    exp_obj = Experiment.get(id)
+    experiment_dir = exp_obj.get_dir()
+    
+    # Use Path for secure path construction and validation
+    try:
+        file_path = Path(experiment_dir).joinpath(f"{filename}{file_ext}").resolve()
+        # Ensure the resolved path is within the experiment directory
+        file_path.relative_to(Path(experiment_dir).resolve())
+    except ValueError:
+        return {"message": "Invalid file path - path traversal detected"}
+    # Save the file contents securely
+    with open(file_path, "w", encoding="utf-8") as f:
         f.write(file_contents)
 
-    return {"message": f"{os.path.join(experiment_dir, f'{filename}{file_ext}')} file contents saved"}
+    return {"message": f"{file_path} file contents saved"}
 
 
 @router.get("/{id}/file_contents", tags=["experiment"])
-async def experiment_get_file_contents(id: int, filename: str):
-    id = await convert_experiment_name_to_id_if_needed(id)
+async def experiment_get_file_contents(id: str, filename: str):
 
     filename = secure_filename(filename)
 
-    # first get the experiment name:
-    data = await db.experiment_get(id)
-
-    # if the experiment does not exist, return an error:
-    if data is None:
-        return {"message": f"Experiment {id} does not exist"}
-
-    experiment_name = data["name"]
+    exp_obj = Experiment.get(id)
+    experiment_dir = exp_obj.get_dir()
 
     # remove file extension from file:
     [filename, file_ext] = os.path.splitext(filename)
@@ -195,7 +153,6 @@ async def experiment_get_file_contents(id: int, filename: str):
     # filename = shared.slugify(filename)
 
     # The following prevents path traversal attacks:
-    experiment_dir = dirs.experiment_dir_by_name(experiment_name)
     final_path = Path(experiment_dir).joinpath(filename + file_ext).resolve().relative_to(experiment_dir)
 
     final_path = experiment_dir + "/" + str(final_path)
@@ -212,9 +169,8 @@ async def experiment_get_file_contents(id: int, filename: str):
 
 
 @router.get("/{id}/export_to_recipe", summary="Export experiment to recipe format", tags=["experiment"])
-async def export_experiment_to_recipe(id: int, request: Request):
+async def export_experiment_to_recipe(id: str, request: Request):
     """Export an experiment to JSON format that matches the recipe gallery structure."""
-    id = await convert_experiment_name_to_id_if_needed(id)
 
     # Get experiment data
     data = await db.experiment_get(id)
@@ -235,7 +191,8 @@ async def export_experiment_to_recipe(id: int, request: Request):
     }
 
     # Get the notes content from readme.md if it exists
-    experiment_dir = dirs.experiment_dir_by_name(data["name"])
+    exp_obj = Experiment.get(id)
+    experiment_dir = exp_obj.get_dir()
     notes_path = os.path.join(experiment_dir, "readme.md")
     try:
         with open(notes_path, "r") as f:
@@ -307,11 +264,14 @@ async def export_experiment_to_recipe(id: int, request: Request):
                 }
             )
 
-    # Add workflows
-    workflows = await workflows_get_from_experiment(id)
-    for workflow in workflows:
-        if workflow["status"] != "DELETED":  # Only include active workflows
-            export_data["workflows"].append({"name": workflow["name"], "config": json.loads(workflow["config"])})
+    # Add workflows - COMMENTED OUT as workflows are being removed
+    # workflows = await workflows_get_from_experiment(id)
+    # for workflow in workflows:
+    #     if workflow["status"] != "DELETED":  # Only include active workflows
+    #         export_data["workflows"].append({"name": workflow["name"], "config": json.loads(workflow["config"])})
+    
+    # For now, just ensure workflows is an empty list
+    export_data["workflows"] = []
 
     # Write to file in the workspace directory (org-aware via request context)
     workspace_dir = get_workspace_dir()

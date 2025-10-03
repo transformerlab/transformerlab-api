@@ -8,7 +8,7 @@ import logging
 import transformerlab.db.db as db
 import transformerlab.db.jobs as db_jobs
 from transformerlab.shared import shared
-from lab import dirs
+from lab import Experiment
 
 from werkzeug.utils import secure_filename
 
@@ -78,16 +78,12 @@ async def get_training_job_output(job_id: str, sweeps: bool = False):
             else:
                 # Get experiment information for new job directory structure
                 experiment_id = job["experiment_id"]
-                experiment = await db.experiment_get(experiment_id)
-                experiment_name = experiment["name"]
-                output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experiment_name)
+                output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experiment_id)
 
         else:
             # Get experiment information for new job directory structure
             experiment_id = job["experiment_id"]
-            experiment = await db.experiment_get(experiment_id)
-            experiment_name = experiment["name"]
-            output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experiment_name)
+            output_file_name = await shared.get_job_output_file_name(job_id, experiment_name=experiment_id)
 
         with open(output_file_name, "r") as f:
             output = f.read()
@@ -157,12 +153,8 @@ async def spawn_tensorboard(job_id: str):
     job = await db_jobs.job_get(job_id)
     # First get the experiment name from the job
     experiment_id = job["experiment_id"]
-    data = await db.experiment_get(experiment_id)
-    if data is None:
-        return {"message": f"Experiment {experiment_id} does not exist"}
-
-    experiment_dir = dirs.experiment_dir_by_name(data["name"])
-
+    exp_obj = Experiment(experiment_id)
+    experiment_dir = exp_obj.get_dir()
     job_data = job["job_data"]
 
     if "template_name" not in job_data.keys():

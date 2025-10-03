@@ -11,7 +11,7 @@ os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp/workspace"
 
 from transformerlab.db.db import (  # noqa: E402
     delete_plugin,
-    experiment_get_by_name,
+    experiment_get,
     get_plugins_of_type,
     get_training_template_by_name,
     model_local_create,
@@ -21,7 +21,6 @@ from transformerlab.db.db import (  # noqa: E402
     model_local_delete,
     experiment_get_all,
     experiment_create,
-    experiment_get,
     experiment_delete,
     experiment_update,
     experiment_update_config,
@@ -164,8 +163,8 @@ async def test_get_training_template_and_by_name_returns_none_for_missing():
 
 
 @pytest.mark.asyncio
-async def test_experiment_get_by_name_returns_none_for_missing():
-    exp = await experiment_get_by_name("does_not_exist")
+async def test_experiment_get_returns_none_for_missing():
+    exp = await experiment_get("does_not_exist")
     assert exp is None
 
 
@@ -339,7 +338,7 @@ async def setup_db():
 @pytest.fixture
 async def test_experiment():
     # Setup code to create test_experiment
-    existing = await experiment_get_by_name("test_experiment")
+    existing = await experiment_get("test_experiment")
     if existing:
         await experiment_delete(existing["id"])
     experiment_id = await experiment_create("test_experiment", {})
@@ -426,7 +425,7 @@ class TestExperiments:
         # experiment_id = await experiment_create("test_experiment", "{}")
         # assert experiment_id is None
         # Now check if an experiment named "alpha" exists, it should be there as part of the db init:
-        experiment = await experiment_get_by_name("alpha")
+        experiment = await experiment_get("alpha")
         assert experiment is not None
         assert experiment["name"] == "alpha"
         # Try to create an experiment with a string instead of a dict for the config:
@@ -455,13 +454,13 @@ class TestExperiments:
         experiment_name = "test_experiment_by_name"
         config = {}
         # Delete the experiment if it already exists
-        existing = await experiment_get_by_name(experiment_name)
+        existing = await experiment_get(experiment_name)
         if existing:
             await experiment_delete(existing["id"])
         experiment_id = await experiment_create(experiment_name, config)
 
         # Test the function
-        experiment = await experiment_get_by_name(experiment_name)
+        experiment = await experiment_get(experiment_name)
 
         # Verify results
         assert experiment is not None
@@ -469,7 +468,7 @@ class TestExperiments:
         assert experiment["id"] == experiment_id
 
         # Test with non-existent name
-        non_existent = await experiment_get_by_name("non_existent_experiment")
+        non_existent = await experiment_get("non_existent_experiment")
         assert non_existent is None
 
 
@@ -619,7 +618,7 @@ class TestWorkflows:
     @pytest.mark.skip(reason="Skipping as it causes db lock issues")
     async def test_experiment_workflow_routes(self, test_experiment):
         # Ensure no duplicate experiment name exists
-        existing = await experiment_get_by_name("test_experiment")
+        existing = await experiment_get("test_experiment")
         if existing:
             await experiment_delete(existing["id"])
         # Create a workflow in the experiment

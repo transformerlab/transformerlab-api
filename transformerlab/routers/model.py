@@ -460,7 +460,7 @@ async def download_huggingface_model(
     hugging_face_id: str,
     model_details: str = {},
     job_id: int | None = None,
-    experiment_id: int = None,
+    experiment_id: str = None,
     organization_id: str | None = None,
 ):
     """
@@ -572,7 +572,7 @@ async def download_huggingface_model(
 
 
 @router.get(path="/model/download_from_huggingface")
-async def download_model_by_huggingface_id(model: str, job_id: int | None = None, experiment_id: int = None):
+async def download_model_by_huggingface_id(model: str, job_id: int | None = None, experiment_id: str = None):
     """Takes a specific model string that must match huggingface ID to download
     This function will not be able to infer out description etc of the model
     since it is not in the gallery"""
@@ -650,12 +650,7 @@ on the model's Huggingface page."
 
 
 @router.get(path="/model/download_gguf_file")
-async def download_gguf_file_from_repo(
-    model: str,
-    filename: str,
-    job_id: int | None = None,
-    experiment_id: int = None,
-):
+async def download_gguf_file_from_repo(model: str, filename: str, job_id: int | None = None, experiment_id: str = None):
     """Download a specific GGUF file from a GGUF repository"""
 
     # First get the model details to validate this is a GGUF repo
@@ -700,7 +695,7 @@ async def download_gguf_file_from_repo(
 
 
 @router.get(path="/model/download_model_from_gallery")
-async def download_model_from_gallery(gallery_id: str, job_id: int | None = None, experiment_id: int = None):
+async def download_model_from_gallery(gallery_id: str, job_id: int | None = None, experiment_id: str = None):
     """Provide a reference to a model in the gallery, and we will download it
     from huggingface
 
@@ -853,12 +848,7 @@ async def model_delete_peft(model_id: str, peft: str):
 
 
 @router.post("/model/install_peft")
-async def install_peft(
-    peft: str,
-    model_id: str,
-    job_id: int | None = None,
-    experiment_id: int = None,
-):
+async def install_peft(peft: str, model_id: str, job_id: int | None = None, experiment_id: str = None):
     api = HfApi()
 
     try:

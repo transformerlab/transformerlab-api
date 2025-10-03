@@ -19,7 +19,7 @@ router = APIRouter(prefix="/evals", tags=["evals"])
 
 
 @router.post("/add")
-async def experiment_add_evaluation(experimentId: int, plugin: Any = Body()):
+async def experiment_add_evaluation(experimentId: str, plugin: Any = Body()):
     """Add an evaluation to an experiment. This will create a new directory in the experiment
     and add global plugin to the specific experiment. By copying the plugin to the experiment
     directory, we can modify the plugin code for the specific experiment without affecting
@@ -58,7 +58,7 @@ async def experiment_add_evaluation(experimentId: int, plugin: Any = Body()):
 
 
 @router.get("/delete")
-async def experiment_delete_eval(experimentId: int, eval_name: str):
+async def experiment_delete_eval(experimentId: str, eval_name: str):
     """Delete an evaluation from an experiment. This will delete the directory in the experiment
     and remove the global plugin from the specific experiment."""
     experiment = await experiment_get(experimentId)
@@ -85,7 +85,7 @@ async def experiment_delete_eval(experimentId: int, eval_name: str):
 
 
 @router.post("/edit")
-async def edit_evaluation_task(experimentId: int, plugin: Any = Body()):
+async def edit_evaluation_task(experimentId: str, plugin: Any = Body()):
     """Get the contents of the evaluation"""
     try:
         experiment = await experiment_get(experimentId)
@@ -130,7 +130,7 @@ async def edit_evaluation_task(experimentId: int, plugin: Any = Body()):
 
 
 @router.get("/get_evaluation_plugin_file_contents")
-async def get_evaluation_plugin_file_contents(experimentId: int, plugin_name: str):
+async def get_evaluation_plugin_file_contents(experimentId: str, plugin_name: str):
     # first get the experiment name:
     data = await experiment_get(experimentId)
 
@@ -156,7 +156,7 @@ async def get_evaluation_plugin_file_contents(experimentId: int, plugin_name: st
 
 
 @router.get("/run_evaluation_script")
-async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: str, job_id: str):
+async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: str, job_id: str):
     job_config = (await job_get(job_id))["job_data"]
     eval_config = job_config.get("config", {})
     print(eval_config)
@@ -166,7 +166,6 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
         return {"message": f"Experiment {experimentId} does not exist"}
     config = json.loads(experiment_details["config"])
 
-    experiment_name = experiment_details["name"]
     model_name = config["foundation"]
     if "model_name" in eval_config.keys():
         model_name = eval_config["model_name"]
@@ -200,7 +199,7 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
             experiment_details["config"]["evaluations"] = json.loads(experiment_details["config"]["evaluations"])
 
     template_config = eval_config["script_parameters"]
-    job_output_file = await shared.get_job_output_file_name(job_id, plugin_name, experiment_name)
+    job_output_file = await shared.get_job_output_file_name(job_id, plugin_name, experimentId)
 
     input_contents = {"experiment": experiment_details, "config": template_config}
     with open(input_file, "w") as outfile:
@@ -226,7 +225,7 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
     extra_args.extend(
         [
             "--experiment_name",
-            experiment_name,
+            experimentId,
             "--eval_name",
             eval_name,
             "--input_file",
@@ -258,7 +257,7 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
 
     print(f">Running {subprocess_command}")
 
-    output_file = await lab_dirs.eval_output_file(experiment_name, eval_name)
+    output_file = await lab_dirs.eval_output_file(experimentId, eval_name)
     print(f">EVAL Output file: {job_output_file}")
 
     with open(job_output_file, "w") as f:
@@ -273,7 +272,7 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
 
 
 @router.get("/get_output")
-async def get_output(experimentId: int, eval_name: str):
+async def get_output(experimentId: str, eval_name: str):
     """Get the output of an evaluation"""
     eval_name = secure_filename(eval_name)  # sanitize the input
     data = await experiment_get(experimentId)
@@ -281,9 +280,7 @@ async def get_output(experimentId: int, eval_name: str):
     if data is None:
         return {"message": f"Experiment {experimentId} does not exist"}
 
-    experiment_name = data["name"]
-
-    eval_output_file = await lab_dirs.eval_output_file(experiment_name, eval_name)
+    eval_output_file = await lab_dirs.eval_output_file(experimentId, eval_name)
     if not os.path.exists(eval_output_file):
         return {"message": "Output file does not exist"}
 
