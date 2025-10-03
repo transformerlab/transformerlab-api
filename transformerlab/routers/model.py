@@ -815,6 +815,7 @@ async def model_local_delete(model_id: str, delete_from_cache: bool = False):
     return {"message": "model deleted"}
 
 
+
 @router.post("/model/pefts")
 async def model_gets_pefts(
     model_id: Annotated[str, Body()],
