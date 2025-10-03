@@ -19,7 +19,7 @@ router = APIRouter(prefix="/generations", tags=["generations"])
 
 
 @router.post("/add")
-async def experiment_add_generation(experimentId: int, plugin: Any = Body()):
+async def experiment_add_generation(experimentId: str, plugin: Any = Body()):
     """Add an generationn to an experiment. This will create a new directory in the experiment
     and add global plugin to the specific experiment. By copying the plugin to the experiment
     directory, we can modify the plugin code for the specific experiment without affecting
@@ -58,7 +58,7 @@ async def experiment_add_generation(experimentId: int, plugin: Any = Body()):
 
 
 @router.get("/delete")
-async def experiment_delete_generation(experimentId: int, generation_name: str):
+async def experiment_delete_generation(experimentId: str, generation_name: str):
     """Delete an generation from an experiment. This will delete the directory in the experiment
     and remove the global plugin from the specific experiment."""
     try:
@@ -90,7 +90,7 @@ async def experiment_delete_generation(experimentId: int, generation_name: str):
 
 
 @router.post("/edit")
-async def edit_evaluation_generation(experimentId: int, plugin: Any = Body()):
+async def edit_evaluation_generation(experimentId: str, plugin: Any = Body()):
     """Get the contents of the generation"""
     try:
         experiment = await experiment_get(experimentId)
@@ -135,7 +135,7 @@ async def edit_evaluation_generation(experimentId: int, plugin: Any = Body()):
 
 
 @router.get("/get_generation_plugin_file_contents")
-async def get_generation_plugin_file_contents(experimentId: int, plugin_name: str):
+async def get_generation_plugin_file_contents(experimentId: str, plugin_name: str):
     # first get the experiment name:
     data = await experiment_get(experimentId)
 
@@ -161,7 +161,7 @@ async def get_generation_plugin_file_contents(experimentId: int, plugin_name: st
 
 
 @router.get("/run_generation_script")
-async def run_generation_script(experimentId: int, plugin_name: str, generation_name: str, job_id: str):
+async def run_generation_script(experimentId: str, plugin_name: str, generation_name: str, job_id: str):
     job_config = (await job_get(job_id))["job_data"]
     generation_config = job_config.get("config", {})
     print(generation_config)
@@ -174,7 +174,6 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
         return {"message": f"Experiment {experimentId} does not exist"}
     config = json.loads(experiment_details["config"])
 
-    experiment_name = experiment_details["name"]
     model_name = config.get("foundation", "")
     if "model_name" in generation_config.keys():
         model_name = generation_config["model_name"]
@@ -206,7 +205,7 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
             experiment_details["config"]["generations"] = json.loads(experiment_details["config"]["generations"])
 
     template_config = generation_config["script_parameters"]
-    job_output_file = await shared.get_job_output_file_name(job_id, plugin_name, experiment_name)
+    job_output_file = await shared.get_job_output_file_name(job_id, plugin_name, experimentId)
 
     input_contents = {"experiment": experiment_details, "config": template_config}
     with open(input_file, "w") as outfile:
@@ -273,19 +272,13 @@ async def run_generation_script(experimentId: int, plugin_name: str, generation_
 
 
 @router.get("/get_output")
-async def get_output(experimentId: int, generation_name: str):
+async def get_output(experimentId: str, generation_name: str):
     """Get the output of an generation"""
-    data = await experiment_get(experimentId)
-    # if the experiment does not exist, return an error:
-    if data is None:
-        return {"message": f"Experiment {experimentId} does not exist"}
-
-    experiment_name = data["name"]
 
     # sanitize the input:
     generation_name = urllib.parse.unquote(generation_name)
 
-    generation_output_file = await lab_dirs.generation_output_file(experiment_name, generation_name)
+    generation_output_file = await lab_dirs.generation_output_file(experimentId, generation_name)
     if not os.path.exists(generation_output_file):
         return {"message": "Output file does not exist"}
 

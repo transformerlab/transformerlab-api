@@ -19,7 +19,7 @@ router = APIRouter(prefix="/evals", tags=["evals"])
 
 
 @router.post("/add")
-async def experiment_add_evaluation(experimentId: int, plugin: Any = Body()):
+async def experiment_add_evaluation(experimentId: str, plugin: Any = Body()):
     """Add an evaluation to an experiment. This will create a new directory in the experiment
     and add global plugin to the specific experiment. By copying the plugin to the experiment
     directory, we can modify the plugin code for the specific experiment without affecting
@@ -58,7 +58,7 @@ async def experiment_add_evaluation(experimentId: int, plugin: Any = Body()):
 
 
 @router.get("/delete")
-async def experiment_delete_eval(experimentId: int, eval_name: str):
+async def experiment_delete_eval(experimentId: str, eval_name: str):
     """Delete an evaluation from an experiment. This will delete the directory in the experiment
     and remove the global plugin from the specific experiment."""
     experiment = await experiment_get(experimentId)
@@ -85,7 +85,7 @@ async def experiment_delete_eval(experimentId: int, eval_name: str):
 
 
 @router.post("/edit")
-async def edit_evaluation_task(experimentId: int, plugin: Any = Body()):
+async def edit_evaluation_task(experimentId: str, plugin: Any = Body()):
     """Get the contents of the evaluation"""
     try:
         experiment = await experiment_get(experimentId)
@@ -130,7 +130,7 @@ async def edit_evaluation_task(experimentId: int, plugin: Any = Body()):
 
 
 @router.get("/get_evaluation_plugin_file_contents")
-async def get_evaluation_plugin_file_contents(experimentId: int, plugin_name: str):
+async def get_evaluation_plugin_file_contents(experimentId: str, plugin_name: str):
     # first get the experiment name:
     data = await experiment_get(experimentId)
 
@@ -156,7 +156,7 @@ async def get_evaluation_plugin_file_contents(experimentId: int, plugin_name: st
 
 
 @router.get("/run_evaluation_script")
-async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: str, job_id: str):
+async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: str, job_id: str):
     job_config = (await job_get(job_id))["job_data"]
     eval_config = job_config.get("config", {})
     print(eval_config)
@@ -273,7 +273,7 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
 
 
 @router.get("/get_output")
-async def get_output(experimentId: int, eval_name: str):
+async def get_output(experimentId: str, eval_name: str):
     """Get the output of an evaluation"""
     eval_name = secure_filename(eval_name)  # sanitize the input
     data = await experiment_get(experimentId)

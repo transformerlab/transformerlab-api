@@ -21,7 +21,7 @@ router = APIRouter(prefix="/plugins", tags=["plugins"])
 
 
 @router.get("/list")
-async def experiment_list_scripts(id: int, type: str = None, filter: str = None):
+async def experiment_list_scripts(id: str, type: str = None, filter: str = None):
     """List all the scripts in the experiment"""
     # first get the experiment name:
     data = await experiment_get(id)

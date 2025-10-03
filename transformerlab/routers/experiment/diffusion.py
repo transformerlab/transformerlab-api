@@ -276,7 +276,7 @@ class CreateDatasetRequest(BaseModel):
 HISTORY_FILE = "history.json"
 
 
-async def get_experiment_name(experiment_id: int) -> str:
+async def get_experiment_name(experiment_id: str) -> str:
     """Get experiment name from experiment ID"""
     experiment_data = await db.experiment_get(experiment_id)
     if experiment_data is None:
