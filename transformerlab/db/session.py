@@ -8,8 +8,9 @@ from transformerlab.db.constants import DATABASE_FILE_NAME, DATABASE_URL
 from transformerlab.shared.constants import WORKSPACE_DIR
 from transformerlab.shared.models import models
 from lab import Experiment, Job
-import lab.dirs as lab_dirs
+from lab.dirs import get_jobs_dir
 
+JOBS_DIR = get_jobs_dir()
 
 
 # --- SQLAlchemy Async Engine ---
@@ -104,15 +105,14 @@ async def init():
 
 
 async def job_cancel_in_progress_jobs():
-    """Cancel all jobs that are currently in RUNNING state using filesystem-based Job system."""
-
+    """Cancel all jobs that are currently in RUNNING state using filesystem-based Job system."""    
     # Check if JOBS_DIR exists
-    if not os.path.exists(lab_dirs.JOBS_DIR):
+    if not os.path.exists(JOBS_DIR):
         return
     
     # Iterate through all job directories
-    for entry in os.listdir(lab_dirs.JOBS_DIR):
-        job_path = os.path.join(lab_dirs.JOBS_DIR, entry)
+    for entry in os.listdir(JOBS_DIR):
+        job_path = os.path.join(JOBS_DIR, entry)
         if os.path.isdir(job_path):
             try:
                 job = Job.get(entry)
