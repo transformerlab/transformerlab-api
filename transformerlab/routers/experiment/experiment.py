@@ -8,7 +8,6 @@ from fastapi import APIRouter, Body, Request
 from fastapi.responses import FileResponse
 
 import transformerlab.db.db as db
-from transformerlab.db.workflows import workflows_get_from_experiment
 from lab import Dataset, Experiment
 from transformerlab.shared import shared
 from transformerlab.routers.experiment import (
