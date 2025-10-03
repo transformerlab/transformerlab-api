@@ -190,7 +190,8 @@ async def migrate_models_table_to_filesystem():
                                 info_obj = json.load(f)
                                 if isinstance(info_obj, dict):
                                     name = info_obj.get("name", name)
-                                    json_data = info_obj
+                                    # Use the json_data from the legacy info.json directly
+                                    json_data = info_obj.get("json_data", {})
                         except Exception:
                             # Skip malformed info.json but continue migration
                             pass

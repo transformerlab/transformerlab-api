@@ -134,14 +134,3 @@ class Task(Base):
     updated_at: Mapped[DateTime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now(), nullable=False
     )
-
-
-class Model(Base):
-    """Model definition."""
-
-    __tablename__ = "model"
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    model_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
-    name: Mapped[str] = mapped_column(String, nullable=False)
-    json_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
