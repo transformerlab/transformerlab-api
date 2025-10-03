@@ -2,7 +2,7 @@ import os
 import json
 import transformerlab.db.db as db
 import transformerlab.db.workflows as db_workflows
-from lab import get_workspace_dir
+from lab.dirs import get_workspace_dir
 
 WORKSPACE_DIR = get_workspace_dir()
 
