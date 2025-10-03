@@ -13,6 +13,7 @@ from huggingface_hub import ModelCard, ModelCardData
 from huggingface_hub.utils import HfHubHTTPError, GatedRepoError, EntryNotFoundError
 from transformers import AutoTokenizer
 
+
 import os
 from pathlib import Path
 import logging
@@ -25,7 +26,7 @@ from transformerlab.models import basemodel
 from transformerlab.models import huggingfacemodel
 from transformerlab.models import filesystemmodel
 from transformerlab.services.job_service import job_update_status
-from transformerlab.shared.constants import WORKSPACE_DIR
+from lab.dirs import get_workspace_dir
 from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
 from lab.model import Model as ModelService
@@ -44,6 +45,23 @@ def get_model_dir(model_id: str):
     """
     model_id_without_author = model_id.split("/")[-1]
     return os.path.join(lab_dirs.MODELS_DIR, model_id_without_author)
+
+
+def get_current_org_id() -> str | None:
+    """
+    Resolve the current organization id from workspace path when multitenant is enabled.
+    Returns None if multitenancy is disabled or org id cannot be determined.
+    """
+    try:
+        if os.getenv("TFL_MULTITENANT") == "true":
+            from lab.dirs import get_workspace_dir
+
+            ws = get_workspace_dir()
+            if "/orgs/" in ws:
+                return ws.split("/orgs/")[-1].split("/")[0]
+    except Exception:
+        pass
+    return None
 
 
 def get_model_details_from_gallery(model_id: str):
@@ -434,7 +452,11 @@ def get_model_download_size(model_id: str, allow_patterns: list = []):
 
 
 async def download_huggingface_model(
-    hugging_face_id: str, model_details: str = {}, job_id: int | None = None, experiment_id: int = None
+    hugging_face_id: str,
+    model_details: str = {},
+    job_id: int | None = None,
+    experiment_id: int = None,
+    organization_id: str | None = None,
 ):
     """
     Tries to download a model with the id hugging_face_id
@@ -471,6 +493,24 @@ async def download_huggingface_model(
         "--total_size_of_model_in_mb",
         model_size,
     ]
+
+    # Multitenant: pass workspace_dir explicitly so the script uses the correct org path
+    try:
+        if os.getenv("TFL_MULTITENANT") == "true" and organization_id:
+            # Construct org-specific workspace path manually
+            from lab.dirs import HOME_DIR
+
+            workspace_dir = os.path.join(HOME_DIR, "orgs", organization_id, "workspace")
+            print(f"🔵 CONSTRUCTED ORG WORKSPACE: {workspace_dir}")
+        else:
+            # Use default workspace path
+            workspace_dir = get_workspace_dir()
+            print(f"🔵 DEFAULT WORKSPACE: {workspace_dir}")
+        print(f"🔵 PASSING TO SUBPROCESS: --workspace_dir {workspace_dir}")
+        args += ["--workspace_dir", workspace_dir]
+    except Exception as e:
+        print(f"🔵 ERROR CONSTRUCTING WORKSPACE: {e}")
+        pass
 
     if hugging_face_filename is not None:
         args += ["--model_filename", hugging_face_filename]
@@ -614,11 +654,17 @@ on the model's Huggingface page."
     if is_sd:
         model_details["allow_patterns"] = sd_patterns
 
-    return await download_huggingface_model(model, model_details, job_id, experiment_id)
+    org_id = get_current_org_id()
+    return await download_huggingface_model(model, model_details, job_id, experiment_id, org_id)
 
 
 @router.get(path="/model/download_gguf_file")
-async def download_gguf_file_from_repo(model: str, filename: str, job_id: int | None = None, experiment_id: int = None):
+async def download_gguf_file_from_repo(
+    model: str,
+    filename: str,
+    job_id: int | None = None,
+    experiment_id: int = None,
+):
     """Download a specific GGUF file from a GGUF repository"""
 
     # First get the model details to validate this is a GGUF repo
@@ -658,7 +704,8 @@ async def download_gguf_file_from_repo(model: str, filename: str, job_id: int | 
     except Exception:
         pass  # Use existing size if we can't get specific file size
 
-    return await download_huggingface_model(model, model_details, job_id, experiment_id)
+    org_id = get_current_org_id()
+    return await download_huggingface_model(model, model_details, job_id, experiment_id, org_id)
 
 
 @router.get(path="/model/download_model_from_gallery")
@@ -668,6 +715,12 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
 
     You can manually specify a pre-created job_id if you want to track the progress of the download with
     a defined job_id provided by the API using /job/createId"""
+    print(f"🟣 DOWNLOAD_GALLERY HANDLER START: gallery_id={gallery_id}, job_id={job_id}")
+    
+    # Debug: Check what org ID is available in the context
+    from lab.dirs import get_workspace_dir
+    ws = get_workspace_dir()
+    print(f"🟣 WORKSPACE DIR: {ws}")
 
     # Get model details from the gallery
     # If None then return an error
@@ -707,7 +760,8 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
                 print(f"Error fetching pipeline tag for {huggingface_id}: {type(e).__name__}: {e}")
                 gallery_entry["pipeline_tag"] = "text-generation"
 
-    return await download_huggingface_model(huggingface_id, gallery_entry, job_id, experiment_id)
+    org_id = get_current_org_id()
+    return await download_huggingface_model(huggingface_id, gallery_entry, job_id, experiment_id, org_id)
 
 
 @router.get("/model/get_conversation_template")
@@ -816,11 +870,12 @@ async def model_local_delete(model_id: str, delete_from_cache: bool = False):
     return {"message": "model deleted"}
 
 
+
 @router.post("/model/pefts")
 async def model_gets_pefts(
     model_id: Annotated[str, Body()],
 ):
-    workspace_dir = WORKSPACE_DIR
+    workspace_dir = get_workspace_dir()
     model_id = secure_filename(model_id)
     adaptors_dir = os.path.join(workspace_dir, "adaptors", model_id)
 
@@ -837,7 +892,7 @@ async def model_gets_pefts(
 
 @router.get("/model/delete_peft")
 async def model_delete_peft(model_id: str, peft: str):
-    workspace_dir = WORKSPACE_DIR
+    workspace_dir = get_workspace_dir()
     secure_model_id = secure_filename(model_id)
     adaptors_dir = f"{workspace_dir}/adaptors/{secure_model_id}"
     # Check if the peft exists
@@ -853,7 +908,12 @@ async def model_delete_peft(model_id: str, peft: str):
 
 
 @router.post("/model/install_peft")
-async def install_peft(peft: str, model_id: str, job_id: int | None = None, experiment_id: int = None):
+async def install_peft(
+    peft: str,
+    model_id: str,
+    job_id: int | None = None,
+    experiment_id: int = None,
+):
     api = HfApi()
 
     try:
@@ -961,6 +1021,14 @@ async def install_peft(peft: str, model_id: str, job_id: int | None = None, expe
         "--total_size_of_model_in_mb",
         model_size,
     ]
+
+    # Multitenant: pass workspace_dir explicitly so the script uses the correct org path
+    try:
+        from lab.dirs import get_workspace_dir
+        workspace_dir = get_workspace_dir()
+        args += ["--workspace_dir", workspace_dir]
+    except Exception:
+        pass
 
     # Start async subprocess without waiting for completion (like download_huggingface_model)
     asyncio.create_task(
