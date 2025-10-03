@@ -486,9 +486,9 @@ doctor() {
 install_s3_mounting() {
   title "Install S3 Mounting Tools"
 
-  # Only proceed if TFL_MULTITENANT is set in environment/.env (any non-empty value)
-  if [[ -z "${TFL_MULTITENANT:-}" ]]; then
-    echo "Skipping S3 mounting install because TFL_MULTITENANT is not set."
+  # Only proceed if TFL_MULTITENANT is exactly "true"
+  if [[ "${TFL_MULTITENANT:-}" != "true" ]]; then
+    echo "Skipping S3 mounting install because TFL_MULTITENANT is not 'true'."
     return 0
   fi
 
@@ -582,6 +582,20 @@ install_mountpoint_linux() {
   fi
 }
 
+install_mounting() {
+  title "Step 5: Install Mounting (S3)"
+  echo "🌘 Step 5: START"
+
+  # This wrapper ensures we only run mounting installers when multitenant is truthy
+  if [[ "${TFL_MULTITENANT:-}" == "true" ]]; then
+    install_s3_mounting || true
+  else
+    echo "Skipping mounting installation because TFL_MULTITENANT is not 'true'."
+  fi
+
+  echo "🌕 Step 5: COMPLETE"
+}
+
 print_success_message() {
   title "Installation Complete"
   echo "------------------------------------------"
@@ -613,6 +627,7 @@ if [[ "$#" -eq 0 ]]; then
   install_conda
   create_conda_environment
   install_dependencies
+  install_mounting
   print_success_message
 else
   for arg in "$@"; do
@@ -629,6 +644,9 @@ else
       install_dependencies)
         install_dependencies
         ;;
+      install_mounting)
+        install_mounting
+        ;;
       doctor)
         doctor
         ;;
@@ -640,7 +658,7 @@ else
         ;;
       *)
         # Print allowed arguments
-        echo "Allowed arguments: [download_transformer_lab, install_conda, create_conda_environment, install_dependencies] or leave blank to perform a full installation."
+        echo "Allowed arguments: [download_transformer_lab, install_conda, create_conda_environment, install_dependencies, install_mounting] or leave blank to perform a full installation."
         echo "To enable multitenant setup, set TFL_MULTITENANT=true in a local .env file."
         abort "❌ Unknown argument: $arg"
         ;;
@@ -648,9 +666,4 @@ else
   done
 fi
 
-# If TFL_MULTITENANT is truthy in .env, also install S3 mounting tools
-shopt -s nocasematch
-if [[ "${TFL_MULTITENANT:-}" == "1" || "${TFL_MULTITENANT:-}" == "true" || "${TFL_MULTITENANT:-}" == "yes" ]]; then
-  install_s3_mounting || true
-fi
-shopt -u nocasematch
+
