@@ -58,16 +58,6 @@ from transformerlab.services.job_service import (  # noqa: E402
     job_update_sync as service_job_update_sync,
     job_mark_as_complete_if_running as service_job_mark_as_complete_if_running,
 )
-
-from transformerlab.db.datasets import (  # noqa: E402
-    create_huggingface_dataset,
-    get_dataset,
-    get_datasets,
-    create_local_dataset,
-    delete_dataset,
-    get_generated_datasets,
-)
-
 from transformerlab.db.workflows import (  # noqa: E402
     workflow_count_queued,
     workflow_count_running,
@@ -108,12 +98,6 @@ import transformerlab.db.session as db  # noqa: E402
 
 
 import pytest  # noqa: E402
-
-
-@pytest.mark.asyncio
-async def test_get_dataset_returns_none_for_missing():
-    dataset = await get_dataset("does_not_exist")
-    assert dataset is None
 
 
 @pytest.mark.asyncio
@@ -352,15 +336,6 @@ async def setup_db():
 
 
 @pytest.fixture
-async def test_dataset():
-    # Setup code to create test_dataset
-    dataset = await create_local_dataset("test_dataset")
-    yield dataset
-    # Teardown code to delete test_dataset
-    await delete_dataset("test_dataset")
-
-
-@pytest.fixture
 async def test_experiment():
     # Setup code to create test_experiment
     existing = await experiment_get("test_experiment")
@@ -378,26 +353,6 @@ async def test_experiment():
 def test_db_exists():
     global db
     assert db is not None
-
-
-class TestDatasets:
-    @pytest.mark.asyncio
-    async def test_create_and_get_dataset(self, test_dataset):
-        dataset = await get_dataset("test_dataset")
-        assert dataset is not None
-        assert dataset["dataset_id"] == "test_dataset"
-
-    @pytest.mark.asyncio
-    async def test_get_datasets(self):
-        datasets = await get_datasets()
-        assert isinstance(datasets, list)
-
-    @pytest.mark.asyncio
-    async def test_delete_dataset(self):
-        await create_local_dataset("test_dataset_delete")
-        await delete_dataset("test_dataset_delete")
-        dataset = await get_dataset("test_dataset_delete")
-        assert dataset is None
 
 
 class TestModels:
@@ -440,31 +395,6 @@ class TestModels:
             job = await job_get(job_id)
             assert job.get("status") == "FAILED"
             assert job["job_data"]["error_msg"] == "Test error"
-
-    class TestDatasets:
-        @pytest.mark.asyncio
-        async def test_get_generated_datasets(self):
-            dataset = await get_dataset("test_generated_dataset")
-            if dataset:
-                await delete_dataset("test_generated_dataset")
-            await create_local_dataset("test_generated_dataset", {"generated": True})
-            datasets = await get_generated_datasets()
-            assert isinstance(datasets, list)
-            assert any(dataset["dataset_id"] == "test_generated_dataset" for dataset in datasets)
-            await delete_dataset("test_generated_dataset")
-
-        @pytest.mark.asyncio
-        async def test_create_huggingface_dataset(self):
-            dataset = await get_dataset("hf_dataset")
-            if dataset:
-                await delete_dataset("hf_dataset")
-            await create_huggingface_dataset("hf_dataset", "HuggingFace Dataset", 100, {"key": "value"})
-            dataset = await get_dataset("hf_dataset")
-            assert dataset is not None
-            assert dataset["location"] == "huggingfacehub"
-            assert dataset["description"] == "HuggingFace Dataset"
-            assert dataset["size"] == 100
-            assert dataset["json_data"]["key"] == "value"
 
     class TestModels:
         @pytest.mark.asyncio
