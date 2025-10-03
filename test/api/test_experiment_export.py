@@ -2,9 +2,8 @@ import os
 import json
 import transformerlab.db.db as db
 import transformerlab.db.workflows as db_workflows
-from transformerlab.shared.constants import WORKSPACE_DIR
 from transformerlab.services.tasks_service import tasks_service
-
+from lab.dirs import get_workspace_dir
 
 async def test_export_experiment(client):
     """Test exporting an experiment to JSON format"""
@@ -66,6 +65,8 @@ async def test_export_experiment(client):
 
     # The response should be a JSON file
     assert response.headers["content-type"] == "application/json"
+
+    WORKSPACE_DIR = get_workspace_dir()
 
     # Read the exported file from workspace directory
     export_file = os.path.join(WORKSPACE_DIR, f"{test_experiment_name}_export.json")

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from typing import Annotated
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Request
 from fastapi.responses import FileResponse
 
 import transformerlab.db.db as db
@@ -23,7 +23,7 @@ from transformerlab.routers.experiment import (
     diffusion,
     jobs,
 )
-from transformerlab.shared.constants import WORKSPACE_DIR
+from lab.dirs import get_workspace_dir
 from lab import dirs
 
 from werkzeug.utils import secure_filename
@@ -40,9 +40,6 @@ router.include_router(router=generations.router, prefix="/{experimentId}", tags=
 router.include_router(router=workflows.router, prefix="/{experimentId}", tags=["workflows"])
 router.include_router(router=diffusion.router, prefix="/{experimentId}", tags=["diffusion"])
 router.include_router(router=jobs.router, prefix="/{experimentId}", tags=["jobs"])
-
-
-EXPERIMENTS_DIR: str = dirs.EXPERIMENTS_DIR
 
 
 async def convert_experiment_id_to_name_if_needed(id: int | str) -> str:
@@ -160,14 +157,15 @@ async def experiment_save_file_contents(id: int, filename: str, file_contents: A
     filename = shared.slugify(filename)
 
     # make directory if it does not exist:
-    if not os.path.exists(f"{EXPERIMENTS_DIR}/{experiment_name}"):
-        os.makedirs(f"{EXPERIMENTS_DIR}/{experiment_name}")
+    experiment_dir = dirs.experiment_dir_by_name(experiment_name)
+    if not os.path.exists(experiment_dir):
+        os.makedirs(experiment_dir)
 
     # now save the file contents, overwriting if it already exists:
-    with open(f"{EXPERIMENTS_DIR}/{experiment_name}/{filename}{file_ext}", "w") as f:
+    with open(os.path.join(experiment_dir, f"{filename}{file_ext}"), "w") as f:
         f.write(file_contents)
 
-    return {"message": f"{EXPERIMENTS_DIR}/{experiment_name}/{filename}{file_ext} file contents saved"}
+    return {"message": f"{os.path.join(experiment_dir, f'{filename}{file_ext}')} file contents saved"}
 
 
 @router.get("/{id}/file_contents", tags=["experiment"])
@@ -214,7 +212,7 @@ async def experiment_get_file_contents(id: int, filename: str):
 
 
 @router.get("/{id}/export_to_recipe", summary="Export experiment to recipe format", tags=["experiment"])
-async def export_experiment_to_recipe(id: int):
+async def export_experiment_to_recipe(id: int, request: Request):
     """Export an experiment to JSON format that matches the recipe gallery structure."""
     id = await convert_experiment_name_to_id_if_needed(id)
 
@@ -316,8 +314,9 @@ async def export_experiment_to_recipe(id: int):
         if workflow["status"] != "DELETED":  # Only include active workflows
             export_data["workflows"].append({"name": workflow["name"], "config": json.loads(workflow["config"])})
 
-    # Write to file in the workspace directory
-    output_file = os.path.join(WORKSPACE_DIR, f"{data['name']}_export.json")
+    # Write to file in the workspace directory (org-aware via request context)
+    workspace_dir = get_workspace_dir()
+    output_file = os.path.join(workspace_dir, f"{data['name']}_export.json")
     with open(output_file, "w") as f:
         json.dump(export_data, f, indent=2)
 
