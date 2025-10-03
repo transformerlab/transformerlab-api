@@ -46,6 +46,23 @@ def get_model_dir(model_id: str):
     return os.path.join(lab_dirs.MODELS_DIR, model_id_without_author)
 
 
+def get_current_org_id() -> str | None:
+    """
+    Resolve the current organization id from workspace path when multitenant is enabled.
+    Returns None if multitenancy is disabled or org id cannot be determined.
+    """
+    try:
+        if os.getenv("TFL_MULTITENANT") == "true":
+            from lab.dirs import get_workspace_dir
+
+            ws = get_workspace_dir()
+            if "/orgs/" in ws:
+                return ws.split("/orgs/")[-1].split("/")[0]
+    except Exception:
+        pass
+    return None
+
+
 def get_model_details_from_gallery(model_id: str):
     """
     Given a model ID this returns the associated data from the model gallery file.
@@ -628,16 +645,7 @@ on the model's Huggingface page."
     if is_sd:
         model_details["allow_patterns"] = sd_patterns
 
-    org_id = None
-    if os.getenv("TFL_MULTITENANT") == "true":
-        from lab.dirs import get_workspace_dir
-
-        ws = get_workspace_dir()
-        if "/orgs/" in ws:
-            try:
-                org_id = ws.split("/orgs/")[-1].split("/")[0]
-            except Exception:
-                org_id = None
+    org_id = get_current_org_id()
     return await download_huggingface_model(model, model_details, job_id, experiment_id, org_id)
 
 
@@ -687,16 +695,7 @@ async def download_gguf_file_from_repo(
     except Exception:
         pass  # Use existing size if we can't get specific file size
 
-    org_id = None
-    if os.getenv("TFL_MULTITENANT") == "true":
-        from lab.dirs import get_workspace_dir
-
-        ws = get_workspace_dir()
-        if "/orgs/" in ws:
-            try:
-                org_id = ws.split("/orgs/")[-1].split("/")[0]
-            except Exception:
-                org_id = None
+    org_id = get_current_org_id()
     return await download_huggingface_model(model, model_details, job_id, experiment_id, org_id)
 
 
@@ -740,16 +739,7 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
                 print(f"Error fetching pipeline tag for {huggingface_id}: {type(e).__name__}: {e}")
                 gallery_entry["pipeline_tag"] = "text-generation"
 
-    org_id = None
-    if os.getenv("TFL_MULTITENANT") == "true":
-        from lab.dirs import get_workspace_dir
-
-        ws = get_workspace_dir()
-        if "/orgs/" in ws:
-            try:
-                org_id = ws.split("/orgs/")[-1].split("/")[0]
-            except Exception:
-                org_id = None
+    org_id = get_current_org_id()
     return await download_huggingface_model(huggingface_id, gallery_entry, job_id, experiment_id, org_id)
 
 
