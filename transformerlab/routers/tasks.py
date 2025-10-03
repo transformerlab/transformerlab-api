@@ -223,6 +223,8 @@ async def queue_task(task_id: int, input_override: str = "{}", output_override: 
     if not isinstance(output_override, dict):
         output_override = json.loads(output_override)
 
+    print(f"Input override: {input_override}")
+
     if not isinstance(task_to_queue["config"], dict):
         task_to_queue["config"] = json.loads(task_to_queue["config"])
 

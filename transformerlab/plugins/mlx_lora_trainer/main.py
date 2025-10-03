@@ -46,6 +46,10 @@ def train_mlx_lora():
     chat_column = tlab_trainer.params.get("chatml_formatted_column", "messages")
     formatting_template = tlab_trainer.params.get("formatting_template", None)
 
+    # Check if we are starting from a checkpoint:
+    restart_from_checkpoint = tlab_trainer.params.get("restart_from_checkpoint", None)
+    print("Restarting from checkpoint:", restart_from_checkpoint)
+
     if num_train_epochs is not None and num_train_epochs != "" and int(num_train_epochs) >= 0:
         if num_train_epochs == 0:
             print(
@@ -109,6 +113,11 @@ def train_mlx_lora():
     if not os.path.exists(adaptor_output_dir):
         os.makedirs(adaptor_output_dir)
 
+    # If checkpointing is enabled, then set the path to be the checkpoint name in the adaptor output directory
+    if restart_from_checkpoint:
+        checkpoint_path = os.path.join(adaptor_output_dir, restart_from_checkpoint)
+        print("Using checkpoint output directory:", checkpoint_path)
+
     # Get Python executable (from venv if available)
     python_executable = get_python_executable(plugin_dir)
     env = os.environ.copy()
@@ -141,6 +150,9 @@ def train_mlx_lora():
         "--save-every",
         str(save_every),
     ]
+
+    if restart_from_checkpoint:
+        popen_command.extend(["--resume-adapter-file", checkpoint_path])
 
     # If a config file has been created then include it
     if config_file:
