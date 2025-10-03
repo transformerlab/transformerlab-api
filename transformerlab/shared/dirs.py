@@ -53,7 +53,8 @@ async def experiment_dir_by_id(experiment_id: int) -> str:
         experiment = await experiment_get(experiment_id)
     else:
         print("Error: experiment_id is None")
-        return os.path.join(dirs.EXPERIMENTS_DIR, "error")
+        experiments_dir = dirs.get_experiments_dir()
+        return os.path.join(experiments_dir, "error")
 
     experiment_name = experiment["name"]
     return dirs.experiment_dir_by_name(experiment_name)
@@ -75,7 +76,8 @@ GALLERIES_LOCAL_FALLBACK_DIR = os.path.join(TFL_SOURCE_CODE_DIR, "transformerlab
 
 
 def experiment_dir_by_name(experiment_name: str) -> str:
-    return os.path.join(dirs.EXPERIMENTS_DIR, experiment_name)
+    experiments_dir = dirs.get_experiments_dir()
+    return os.path.join(experiments_dir, experiment_name)
 
 
 def job_dir_by_experiment_and_id(experiment_name: str, job_id: str) -> str:
