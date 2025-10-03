@@ -33,8 +33,7 @@ from fastchat.protocol.openai_api_protocol import (
 
 from transformerlab.db.jobs import job_create, job_update_status
 from transformerlab.db import jobs as db_jobs
-from transformerlab.db.jobs import jobs_get_by_experiment
-from transformerlab.db.db import experiment_get, experiment_get_all
+from transformerlab.db.db import experiment_get
 import transformerlab.db.session as db
 
 from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert
@@ -213,7 +212,7 @@ async def migrate_jobs():
                                         shutil.copy2(src, dst)
                 
                 migrated += 1
-            except Exception as e:
+            except Exception:
                 # Best-effort migration; continue
                 continue
 
@@ -326,7 +325,7 @@ async def migrate_experiments():
                                 shutil.copy2(src, dst)
                 
                 migrated += 1
-            except Exception as e:
+            except Exception:
                 # Best-effort migration; continue
                 continue
 
