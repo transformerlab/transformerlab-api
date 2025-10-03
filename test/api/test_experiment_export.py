@@ -1,7 +1,6 @@
 import os
 import json
 import transformerlab.db.db as db
-import transformerlab.db.workflows as db_workflows
 from transformerlab.shared.constants import WORKSPACE_DIR
 
 
