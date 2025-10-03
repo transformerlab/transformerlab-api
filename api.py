@@ -413,11 +413,10 @@ async def lifespan(app: FastAPI):
     await db.init()
     if "--reload" in sys.argv:
         await install_all_plugins()
-    # run the migration from DB to filesystem if needed
-    await migrate_job_and_experiment_to_filesystem()
-    # run the migration
+    # run the migrations
     asyncio.create_task(migrate())
     asyncio.create_task(migrate_datasets_table_to_filesystem())
+    asyncio.create_task(migrate_job_and_experiment_to_filesystem())
     asyncio.create_task(run_over_and_over())
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
