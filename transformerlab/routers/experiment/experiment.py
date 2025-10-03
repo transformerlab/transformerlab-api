@@ -4,7 +4,7 @@ from pathlib import Path
 
 from typing import Annotated
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Request
 from fastapi.responses import FileResponse
 
 import transformerlab.db.db as db
@@ -23,8 +23,7 @@ from transformerlab.routers.experiment import (
     diffusion,
     jobs,
 )
-from transformerlab.shared.constants import WORKSPACE_DIR
-from lab import dirs, Experiment
+from lab.dirs import get_workspace_dir
 
 from werkzeug.utils import secure_filename
 
@@ -42,7 +41,7 @@ router.include_router(router=diffusion.router, prefix="/{experimentId}", tags=["
 router.include_router(router=jobs.router, prefix="/{experimentId}", tags=["jobs"])
 
 
-EXPERIMENTS_DIR: str = dirs.EXPERIMENTS_DIR
+
 
 
 @router.get("/", summary="Get all Experiments", tags=["experiment"])
@@ -117,7 +116,6 @@ async def experiment_save_file_contents(id: str, filename: str, file_contents: A
     # clean the file name:
     filename = shared.slugify(filename)
 
-    # Get experiment directory using proper path handling
     exp_obj = Experiment.get(id)
     experiment_dir = exp_obj.get_dir()
     
@@ -171,7 +169,7 @@ async def experiment_get_file_contents(id: str, filename: str):
 
 
 @router.get("/{id}/export_to_recipe", summary="Export experiment to recipe format", tags=["experiment"])
-async def export_experiment_to_recipe(id: str):
+async def export_experiment_to_recipe(id: str, request: Request):
     """Export an experiment to JSON format that matches the recipe gallery structure."""
 
     # Get experiment data
@@ -272,8 +270,9 @@ async def export_experiment_to_recipe(id: str):
         if workflow["status"] != "DELETED":  # Only include active workflows
             export_data["workflows"].append({"name": workflow["name"], "config": json.loads(workflow["config"])})
 
-    # Write to file in the workspace directory
-    output_file = os.path.join(WORKSPACE_DIR, f"{data['name']}_export.json")
+    # Write to file in the workspace directory (org-aware via request context)
+    workspace_dir = get_workspace_dir()
+    output_file = os.path.join(workspace_dir, f"{data['name']}_export.json")
     with open(output_file, "w") as f:
         json.dump(export_data, f, indent=2)
 
