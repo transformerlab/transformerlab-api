@@ -65,10 +65,12 @@ from transformerlab.routers.experiment import workflows
 from transformerlab.routers.experiment import jobs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
-from transformerlab.shared.constants import WORKSPACE_DIR
+from lab.dirs import get_workspace_dir
 from lab import dirs as lab_dirs
 from lab.dataset import Dataset as dataset_service
 from transformerlab.shared import dirs
+from transformerlab.shared.request_context import set_current_org_id
+from lab.dirs import set_organization_id as lab_set_org_id
 
 from dotenv import load_dotenv
 
@@ -80,10 +82,9 @@ os.environ["LLM_LAB_ROOT_PATH"] = dirs.ROOT_DIR
 # environment variables that start with _ are
 # used internally to set constants that are shared between separate processes. They are not meant to be
 # to be overriden by the user.
-# os.environ["_TFL_WORKSPACE_DIR"] = WORKSPACE_DIR
 os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
-# The temporary image directory for transformerlab
-temp_image_dir = os.path.join(WORKSPACE_DIR, "temp", "images")
+# The temporary image directory for transformerlab (default; per-request overrides computed in routes)
+temp_image_dir = os.path.join(get_workspace_dir(), "temp", "images")
 os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
 
 from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router  # noqa: E402
@@ -253,6 +254,32 @@ app.add_middleware(
 )
 
 
+# Middleware to set context var for organization id per request (multitenant)
+@app.middleware("http")
+async def set_org_context(request: Request, call_next):
+    print(f"🔵 MIDDLEWARE START: {request.method} {request.url.path}")
+    try:
+        org_id = None
+        if os.getenv("TFL_MULTITENANT") == "true":
+            org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
+            org_id = request.cookies.get(org_cookie_name)
+            print(f"ORG ID FROM COOKIE: {org_id}")
+        print(f"SETTING ORG ID: {org_id}")
+        set_current_org_id(org_id)
+        if lab_set_org_id is not None:
+            lab_set_org_id(org_id)
+        print(f"🟢 CALLING HANDLER: {request.method} {request.url.path}")
+        response = await call_next(request)
+        print(f"🟡 HANDLER COMPLETE: {request.method} {request.url.path} -> {response.status_code}")
+        return response
+    finally:
+        # Clear at end of request
+        print(f"🔴 CLEARING ORG ID: {request.method} {request.url.path}")
+        set_current_org_id(None)
+        if lab_set_org_id is not None:
+            lab_set_org_id(None)
+
+
 def create_error_response(code: int, message: str) -> JSONResponse:
     return JSONResponse(ErrorResponse(message=message, code=code).model_dump(), status_code=400)
 
@@ -357,6 +384,7 @@ async def server_worker_start(
     inference_engine: str = "default",
     experiment_id: int = None,
     inference_params: str = "",
+    request: Request = None,
 ):
     # the first priority for inference params should be the inference params passed in, then the inference parameters in the experiment
     # first we check to see if any inference params were passed in
@@ -405,7 +433,9 @@ async def server_worker_start(
         model = model_filename
 
     if adaptor != "":
-        adaptor = f"{WORKSPACE_DIR}/adaptors/{secure_filename(model)}/{adaptor}"
+        # Resolve per-request workspace if multitenant
+        workspace_dir = get_workspace_dir()
+        adaptor = f"{workspace_dir}/adaptors/{secure_filename(model)}/{adaptor}"
 
     params = [
         dirs.PLUGIN_HARNESS,

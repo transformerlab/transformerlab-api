@@ -15,6 +15,7 @@ from transformerlab.routers.auth.provider import (
     AuthUser,
     WorkOSProvider,
 )
+from transformerlab.services.user_service import user_service
 
 try:
     from transformerlab.fastchat_openai_api import app_settings as fastchat_app_settings
@@ -84,6 +85,15 @@ class AuthService:
         )
         response = self._redirect_response(self._success_redirect, request)
         self._persist_session(response, session)
+        print(f"SESSION: {session}")
+        try:
+            if session and getattr(session, "user", None):
+                # Fire-and-forget; do not block redirect on post-login tasks
+                # Intentionally not awaited in a background task framework here; best-effort
+                await user_service.on_after_login(session.user, request=request, response=response)
+        except Exception:
+            # Never let post-login hooks break the happy path
+            pass
         return response
 
     def get_frontend_error_url(self, request: Request) -> str:
