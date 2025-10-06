@@ -12,6 +12,8 @@ from typing import AsyncGenerator
 import psutil
 import torch
 from fastapi import APIRouter
+from lab.dirs import get_global_log_path
+
 
 
 try:
@@ -31,7 +33,6 @@ except Exception:
     HAS_AMD = True
 
 
-from lab import dirs
 
 pyTorch_version = torch.__version__
 print(f"🔥 PyTorch version: {pyTorch_version}")
@@ -280,8 +281,6 @@ async def get_pytorch_collect_env():
     return output.decode("utf-8")
 
 
-from lab.dirs import get_global_log_path
-GLOBAL_LOG_PATH = get_global_log_path()
 
 
 async def watch_file(filename: str, start_from_beginning=False, force_polling=True) -> AsyncGenerator[str, None]:
@@ -318,8 +317,9 @@ async def watch_file(filename: str, start_from_beginning=False, force_polling=Tr
 
 @router.get("/stream_log")
 async def watch_log():
+    global_log_path = get_global_log_path()
     return StreamingResponse(
-        watch_file(GLOBAL_LOG_PATH),
+        watch_file(global_log_path),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "Access-Control-Allow-Origin": "*"},
     )

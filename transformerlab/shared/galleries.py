@@ -8,7 +8,6 @@ import json
 import shutil
 import urllib.request
 
-from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
 
 # This is the list of galleries that are updated remotely

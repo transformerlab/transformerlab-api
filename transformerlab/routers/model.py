@@ -27,8 +27,6 @@ from transformerlab.models import huggingfacemodel
 from transformerlab.models import filesystemmodel
 from transformerlab.services.job_service import job_update_status
 from lab.dirs import get_workspace_dir
-from lab import dirs as lab_dirs
-from transformerlab.shared import dirs
 from lab.model import Model as ModelService
 
 from werkzeug.utils import secure_filename

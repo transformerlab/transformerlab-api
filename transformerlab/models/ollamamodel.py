@@ -9,7 +9,6 @@ import os
 import json
 import errno
 
-from lab import dirs
 
 
 async def list_models():

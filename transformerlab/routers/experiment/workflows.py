@@ -24,7 +24,6 @@ import json
 import yaml
 import uuid
 
-from lab import dirs
 from transformerlab.shared.shared import slugify
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])

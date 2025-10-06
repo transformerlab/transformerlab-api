@@ -11,7 +11,7 @@ import shutil
 from transformerlab.services.dataset_service import create_local_dataset
 from transformerlab.db import db
 from transformerlab.models import model_helper
-from lab import dirs, Dataset
+from lab import Dataset
 from lab.dirs import get_workspace_dir
 from transformerlab.shared.shared import slugify
 import transformerlab.db.jobs as db_jobs

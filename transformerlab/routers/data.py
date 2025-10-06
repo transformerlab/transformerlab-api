@@ -20,6 +20,8 @@ from transformerlab.shared import galleries
 from datasets.exceptions import DatasetNotFoundError
 import numpy as np
 import wave
+from lab.dirs import get_global_log_path
+
 
 from transformers import AutoTokenizer
 
@@ -38,12 +40,10 @@ logging.basicConfig(level=logging.ERROR)
 
 
 # Configure logging
-from lab.dirs import get_global_log_path
-GLOBAL_LOG_PATH = get_global_log_path()
-
 
 def log(msg):
-    with open(GLOBAL_LOG_PATH, "a") as f:
+    global_log_path = get_global_log_path()
+    with open(global_log_path, "a") as f:
         f.write(msg + "\n")
 
 
@@ -781,7 +781,7 @@ async def dataset_download(dataset_id: str, config_name: str = None):
     # Download the dataset
     # Later on we can move this to a job
     async def load_dataset_thread(dataset_id, config_name=None):
-        logFile = open(GLOBAL_LOG_PATH, "a")
+        logFile = open(get_global_log_path(), "a")
         flushLogFile = FlushFile(logFile)
         with contextlib.redirect_stdout(flushLogFile), contextlib.redirect_stderr(flushLogFile):
             try:

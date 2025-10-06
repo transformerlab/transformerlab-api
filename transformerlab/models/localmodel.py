@@ -9,7 +9,6 @@ import os
 import json
 from huggingface_hub import hf_hub_download
 from transformerlab.models import modelstore
-from lab import dirs
 from werkzeug.utils import secure_filename
 
 
