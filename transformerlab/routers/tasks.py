@@ -14,13 +14,13 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 @router.get("/list", summary="Returns all the tasks")
 async def tasks_get_all():
-    tasks = await tasks_service.tasks_get_all()
+    tasks = tasks_service.tasks_get_all()
     return tasks
 
 
 @router.get("/{task_id}/get", summary="Gets all the data for a single task")
 async def tasks_get_by_id(task_id: int):
-    task = await tasks_service.tasks_get_by_id(task_id)
+    task = tasks_service.tasks_get_by_id(task_id)
     if task is None:
         return {"message": "NOT FOUND"}
     return task
@@ -28,7 +28,7 @@ async def tasks_get_by_id(task_id: int):
 
 @router.get("/list_by_type", summary="Returns all the tasks of a certain type, e.g TRAIN")
 async def tasks_get_by_type(type: str):
-    tasks = await tasks_service.tasks_get_by_type(type)
+    tasks = tasks_service.tasks_get_by_type(type)
     return tasks
 
 
@@ -36,7 +36,7 @@ async def tasks_get_by_type(type: str):
     "/list_by_type_in_experiment", summary="Returns all the tasks of a certain type in a certain experiment, e.g TRAIN"
 )
 async def tasks_get_by_type_in_experiment(type: str, experiment_id: int):
-    tasks = await tasks_service.tasks_get_by_type_in_experiment(type, experiment_id)
+    tasks = tasks_service.tasks_get_by_type_in_experiment(type, experiment_id)
     return tasks
 
 
@@ -45,7 +45,7 @@ async def update_task(task_id: int, new_task: dict = Body()):
     # Perform secure_filename before updating the task
     if "name" in new_task:
         new_task["name"] = secure_filename(new_task["name"])
-    success = await tasks_service.update_task(task_id, new_task)
+    success = tasks_service.update_task(task_id, new_task)
     if success:
         return {"message": "OK"}
     else:
@@ -54,7 +54,7 @@ async def update_task(task_id: int, new_task: dict = Body()):
 
 @router.get("/{task_id}/delete", summary="Deletes a task")
 async def delete_task(task_id: int):
-    success = await tasks_service.delete_task(task_id)
+    success = tasks_service.delete_task(task_id)
     if success:
         return {"message": "OK"}
     else:
@@ -65,7 +65,7 @@ async def delete_task(task_id: int):
 async def add_task(new_task: dict = Body()):
     # Perform secure_filename before adding the task
     new_task["name"] = secure_filename(new_task["name"])
-    await tasks_service.add_task(
+    tasks_service.add_task(
         new_task["name"],
         new_task["type"],
         new_task["inputs"],
@@ -122,7 +122,7 @@ async def add_task(new_task: dict = Body()):
 
 @router.get("/delete_all", summary="Wipe the task table")
 async def tasks_delete_all():
-    await tasks_service.tasks_delete_all()
+    tasks_service.tasks_delete_all()
     return {"message": "OK"}
 
 
@@ -150,7 +150,7 @@ async def convert_training_template_to_task(template_id: int, experiment_id: int
     if "adaptor_name" in template_config.keys():
         outputs = {"adaptor_name": template_config.get("adaptor_name", "adaptor")}
     try:
-        await tasks_service.add_task(
+        tasks_service.add_task(
             template["name"],
             "TRAIN",
             inputs,
@@ -169,7 +169,7 @@ async def convert_eval_to_task(eval_name: str, experiment_id: int):
     experiment_evaluations = json.loads(json.loads((await db.experiment_get(experiment_id))["config"])["evaluations"])
     for eval in experiment_evaluations:
         if eval["name"] == eval_name:
-            await tasks_service.add_task(eval["name"], "EVAL", {}, eval, eval["plugin"], {}, experiment_id)
+            tasks_service.add_task(eval["name"], "EVAL", {}, eval, eval["plugin"], {}, experiment_id)
     return {"message": "OK"}
 
 
@@ -178,7 +178,7 @@ async def convert_generate_to_task(generate_name: str, experiment_id: int):
     experiment_generations = json.loads(json.loads((await db.experiment_get(experiment_id))["config"])["generations"])
     for generation in experiment_generations:
         if generation["name"] == generate_name:
-            await tasks_service.add_task(
+            tasks_service.add_task(
                 generation["name"], "GENERATE", {}, generation, generation["plugin"], {}, experiment_id
             )
     return {"message": "OK"}

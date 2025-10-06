@@ -14,27 +14,27 @@ class TasksService:
     def __init__(self):
         self.task_service = TaskService
 
-    async def tasks_get_all(self) -> List[Dict[str, Any]]:
+    def tasks_get_all(self) -> List[Dict[str, Any]]:
         """Get all tasks from filesystem"""
         return self.task_service.list_all()
 
-    async def tasks_get_by_id(self, task_id: int) -> Optional[Dict[str, Any]]:
+    def tasks_get_by_id(self, task_id: int) -> Optional[Dict[str, Any]]:
         """Get a specific task by ID"""
         return self.task_service.get_by_id(str(task_id))
 
-    async def tasks_get_by_type(self, task_type: str) -> List[Dict[str, Any]]:
+    def tasks_get_by_type(self, task_type: str) -> List[Dict[str, Any]]:
         """Get all tasks of a specific type"""
         return self.task_service.list_by_type(task_type)
 
-    async def tasks_get_by_experiment(self, experiment_id: int) -> List[Dict[str, Any]]:
+    def tasks_get_by_experiment(self, experiment_id: int) -> List[Dict[str, Any]]:
         """Get all tasks for a specific experiment"""
         return self.task_service.list_by_experiment(experiment_id)
 
-    async def tasks_get_by_type_in_experiment(self, task_type: str, experiment_id: int) -> List[Dict[str, Any]]:
+    def tasks_get_by_type_in_experiment(self, task_type: str, experiment_id: int) -> List[Dict[str, Any]]:
         """Get all tasks of a specific type in a specific experiment"""
         return self.task_service.list_by_type_in_experiment(task_type, experiment_id)
 
-    async def add_task(self, name: str, task_type: str, inputs: Dict[str, Any], 
+    def add_task(self, name: str, task_type: str, inputs: Dict[str, Any], 
                       config: Dict[str, Any], plugin: str, outputs: Dict[str, Any], 
                       experiment_id: Optional[int]) -> str:
         """Create a new task"""
@@ -68,7 +68,7 @@ class TasksService:
             )
             return task_id
 
-    async def update_task(self, task_id: int, new_task_data: Dict[str, Any]) -> bool:
+    def update_task(self, task_id: int, new_task_data: Dict[str, Any]) -> bool:
         """Update an existing task"""
         try:
             task = self.task_service.get(str(task_id))
@@ -90,7 +90,7 @@ class TasksService:
         except FileNotFoundError:
             return False
 
-    async def delete_task(self, task_id: int) -> bool:
+    def delete_task(self, task_id: int) -> bool:
         """Delete a task"""
         try:
             task = self.task_service.get(str(task_id))
@@ -99,7 +99,7 @@ class TasksService:
         except FileNotFoundError:
             return False
 
-    async def tasks_delete_all(self) -> None:
+    def tasks_delete_all(self) -> None:
         """Delete all tasks"""
         self.task_service.delete_all()
 

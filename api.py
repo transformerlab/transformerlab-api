@@ -118,7 +118,7 @@ async def lifespan(app: FastAPI):
 # the migrate function only runs the conversion function if no tasks are already present
 async def migrate():
     from transformerlab.services.tasks_service import tasks_service
-    if len(await tasks_service.tasks_get_all()) == 0:
+    if len(tasks_service.tasks_get_all()) == 0:
         for exp in await experiment.experiments_get_all():
             await tasks.convert_all_to_tasks(exp["id"])
 

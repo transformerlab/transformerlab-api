@@ -438,7 +438,7 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
                 plugin_name = parsed_config.get("plugin_name", "")
 
                 # Create task in filesystem
-                await tasks_service.add_task(
+                tasks_service.add_task(
                     name=task_name,
                     task_type=task_type,
                     inputs=inputs,

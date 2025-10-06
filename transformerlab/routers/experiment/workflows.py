@@ -651,7 +651,7 @@ async def handle_start_node_skip(next_task_ids, workflow_config, workflow_run_id
 
 async def find_task_definition(task_name: str, workflow_run_id: int, experiment_id: int, task_type: str):
     """Finds the task definition from the database by name within the specified experiment and task type."""
-    tasks = await tasks_service.tasks_get_by_type_in_experiment(task_type, experiment_id)
+    tasks = tasks_service.tasks_get_by_type_in_experiment(task_type, experiment_id)
     for task in tasks:
         if task.get("name") == task_name:
             return task

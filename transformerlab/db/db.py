@@ -230,9 +230,9 @@ async def experiment_delete(id):
         experiment = result.scalar_one_or_none()
         if experiment:
             # Delete all associated tasks using the filesystem service
-            tasks = await tasks_service.tasks_get_by_experiment(id)
+            tasks = tasks_service.tasks_get_by_experiment(id)
             for task in tasks:
-                await tasks_service.delete_task(int(task["id"]))
+                tasks_service.delete_task(int(task["id"]))
 
             # Delete all associated jobs using the job delete method
             jobs = await jobs_get_by_experiment(id)
