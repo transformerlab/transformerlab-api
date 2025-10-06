@@ -3,7 +3,6 @@ import json
 import transformerlab.db.db as db
 from transformerlab.services.tasks_service import tasks_service
 from lab.dirs import get_workspace_dir
-import pytest
 
 
 async def test_export_experiment(client):
