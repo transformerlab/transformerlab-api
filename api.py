@@ -67,7 +67,7 @@ from transformerlab.routers.experiment import workflows
 from transformerlab.routers.experiment import jobs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
-from lab.dirs import get_workspace_dir
+from lab.dirs import get_workspace_dir, get_jobs_dir
 from lab import dirs as lab_dirs, Experiment, Job
 from transformerlab.shared import dirs
 from transformerlab.db.filesystem_migrations import migrate_datasets_table_to_filesystem, migrate_models_table_to_filesystem
@@ -77,7 +77,7 @@ from lab.dirs import set_organization_id as lab_set_org_id
 from dotenv import load_dotenv
 from datetime import datetime
 
-
+JOBS_DIR = get_jobs_dir()
 load_dotenv()
 
 # The following environment variable can be used by other scripts
@@ -156,10 +156,10 @@ async def migrate_jobs():
         # the existing directories aside, let the SDK create clean directories with proper structure,
         # then copy back all the existing files (preserving user data like logs, configs, etc.)
         temp_jobs_dir = None
-        if os.path.exists(lab_dirs.JOBS_DIR):
-            temp_jobs_dir = f"{lab_dirs.JOBS_DIR}_migration_temp"
+        if os.path.exists(JOBS_DIR):
+            temp_jobs_dir = f"{JOBS_DIR}_migration_temp"
             print(f"Moving existing jobs directory to: {temp_jobs_dir}")
-            os.rename(lab_dirs.JOBS_DIR, temp_jobs_dir)
+            os.rename(JOBS_DIR, temp_jobs_dir)
 
         migrated = 0
         for job in jobs_rows:
