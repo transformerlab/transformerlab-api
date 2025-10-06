@@ -199,7 +199,6 @@ async def test_run_installer_for_plugin_with_missing_setup_script():
 async def test_run_installer_for_plugin_setup_script_failure():
     """Test that run_installer_for_plugin calls delete when setup script fails"""
     from transformerlab.routers.plugins import run_installer_for_plugin
-    from lab import dirs as lab_dirs
     from transformerlab.shared import dirs
 
     with tempfile.TemporaryDirectory() as temp_dir:
