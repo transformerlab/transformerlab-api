@@ -497,7 +497,7 @@ async def is_valid_diffusion(experimentId: str, request: DiffusionRequest):
                     else:
                         architectures = [str(arch)]
         except Exception:
-            # Ignore filesystem/model DB errors and proceed to HF fallback
+            # Ignore filesystem errors and proceed to HF fallback
             pass
 
         # If no architecture found in database, fetch from Hugging Face
