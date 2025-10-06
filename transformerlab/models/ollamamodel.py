@@ -183,25 +183,23 @@ class OllamaModel(basemodel.BaseModel):
         link_name = os.path.join(output_path, output_filename)
         os.symlink(input_model_path, link_name)
 
-        # Create an info.json file so this can be read by the system
-        model_description = [
-            {
-                "model_id": output_model_id,
-                "model_filename": output_filename,
+        # Create an index.json file so this can be read by the system (SDK format)
+        model_description = {
+            "model_id": output_model_id,
+            "model_filename": output_filename,
+            "name": f"{self.name} (Ollama)",
+            "source": "ollama",
+            "json_data": {
+                "uniqueID": output_model_id,
                 "name": f"{self.name} (Ollama)",
+                "model_filename": output_filename,
+                "description": f"Link to Ollama model {self.source_id_or_path}",
                 "source": "ollama",
-                "json_data": {
-                    "uniqueID": output_model_id,
-                    "name": f"{self.name} (Ollama)",
-                    "model_filename": output_filename,
-                    "description": f"Link to Ollama model {self.source_id_or_path}",
-                    "source": "ollama",
-                    "architecture": "GGUF",
-                    "huggingface_repo": "",
-                },
-            }
-        ]
-        model_info_file = os.path.join(output_path, "info.json")
+                "architecture": "GGUF",
+                "huggingface_repo": "",
+            },
+        }
+        model_info_file = os.path.join(output_path, "index.json")
         with open(model_info_file, "w") as f:
             json.dump(model_description, f)
 

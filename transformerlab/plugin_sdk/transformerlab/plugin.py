@@ -196,7 +196,7 @@ def generate_model_json(
     # Output the json to the file
     if not output_directory:
         output_directory = os.path.join(WORKSPACE_DIR, "models", model_id)
-    with open(os.path.join(output_directory, "info.json"), "w") as outfile:
+    with open(os.path.join(output_directory, "index.json"), "w") as outfile:
         json.dump(model_description, outfile)
 
     return model_description
