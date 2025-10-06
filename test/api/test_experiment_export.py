@@ -21,7 +21,7 @@ async def test_export_experiment(client):
         "batch_size": "4",
         "learning_rate": "0.0001",
     }
-    await tasks_service.add_task(
+    tasks_service.add_task(
         name="test_train_task",
         task_type="TRAIN",
         inputs={"model_name": "test-model", "dataset_name": "test-dataset"},
@@ -40,7 +40,7 @@ async def test_export_experiment(client):
         "script_parameters": {"tasks": ["mmlu"], "limit": 0.5},
         "eval_dataset": "test-eval-dataset",
     }
-    await tasks_service.add_task(
+    tasks_service.add_task(
         name="test_eval_task",
         task_type="EVAL",
         inputs={"model_name": "test-model-2", "dataset_name": "test-eval-dataset"},
