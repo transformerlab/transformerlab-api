@@ -470,32 +470,35 @@ async def is_valid_diffusion(experimentId: str, request: DiffusionRequest):
         return {"is_valid_diffusion_model": False, "reason": "Model ID is empty"}
 
     try:
-        # First try to get architecture from filesystem
-        from lab.model import Model as ModelService
-        model_service = ModelService.get(model_id)
-        model_data = model_service.get_metadata()
         architectures = []
 
-        if model_data and model_data.get("json_data"):
-            json_data = model_data["json_data"]
+        # First try to get architecture from filesystem; if it fails, fall back gracefully
+        try:
+            from lab.model import Model as ModelService
 
-            # Try to get architecture from various possible locations in json_data
-            arch = json_data.get("architecture")
-            if not arch:
-                # Try model_index fallback
-                model_index = json_data.get("model_index", {})
-                arch = model_index.get("_class_name")
+            model_service = ModelService.get(model_id)
+            model_data = model_service.get_metadata()
 
-            if arch:
-                if isinstance(arch, str):
-                    architectures = [arch]
-                elif isinstance(arch, list):
-                    architectures = arch
-                else:
-                    architectures = [str(arch)]
+            if model_data and model_data.get("json_data"):
+                json_data = model_data["json_data"]
 
-            else:
-                print(f"No architecture found in database for {model_id}, falling back to Hugging Face API")
+                # Try to get architecture from various possible locations in json_data
+                arch = json_data.get("architecture")
+                if not arch:
+                    # Try model_index fallback
+                    model_index = json_data.get("model_index", {})
+                    arch = model_index.get("_class_name")
+
+                if arch:
+                    if isinstance(arch, str):
+                        architectures = [arch]
+                    elif isinstance(arch, list):
+                        architectures = arch
+                    else:
+                        architectures = [str(arch)]
+        except Exception:
+            # Ignore filesystem/model DB errors and proceed to HF fallback
+            pass
 
         # If no architecture found in database, fetch from Hugging Face
         if not architectures:
