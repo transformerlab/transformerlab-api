@@ -180,8 +180,6 @@ async def migrate_jobs():
                 job_obj._update_json_data_field(key="status", value=job["status"])
                 job_obj._update_json_data_field(key="type", value=job["type"])
                 job_obj._update_json_data_field(key="progress", value=job.get("progress"))
-                job_obj._update_json_data_field(key="created_at", value=job.get("created_at"))
-                job_obj._update_json_data_field(key="updated_at", value=job.get("updated_at"))
                 
                 # Copy existing files from temp directory if they exist
                 # This preserves all user data (logs, configs, outputs, etc.) that was in the
