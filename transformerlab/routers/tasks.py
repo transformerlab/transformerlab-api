@@ -34,7 +34,7 @@ async def tasks_get_by_type(type: str):
 @router.get(
     "/list_by_type_in_experiment", summary="Returns all the tasks of a certain type in a certain experiment, e.g TRAIN"
 )
-async def tasks_get_by_type_in_experiment(type: str, experiment_id: int):
+async def tasks_get_by_type_in_experiment(type: str, experiment_id: str):
     tasks = tasks_service.tasks_get_by_type_in_experiment(type, experiment_id)
     return tasks
 
