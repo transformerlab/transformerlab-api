@@ -113,7 +113,7 @@ async def migrate_jobs():
                 
                 # Also check if experiments table exists to get the name mapping
                 result = await session.execute(
-                    sqlalchemy_text("SELECT name FROM sqlite_master WHERE type='table' AND name='experiment'")
+                    sqlalchemy_text("SELECT name FROM sqlite_master WHERE type='table' AND name='zzz_archived_experiment'")
                 )
                 experiments_table_exists = result.fetchone() is not None
             
@@ -124,12 +124,11 @@ async def migrate_jobs():
             # Get experiments mapping first (can't use experiment_get_all() as it might be deleted)
             if experiments_table_exists:
                 async with async_session() as session:
-                    result = await session.execute(sqlalchemy_text("SELECT * FROM experiment"))
+                    result = await session.execute(sqlalchemy_text("SELECT * FROM zzz_archived_experiment"))
                     experiments = result.mappings().all()
                     for exp in experiments:
                         # Ensure consistent string keys for mapping
                         experiments_map[str(exp['id'])] = exp['name']            
-            
             # Get all jobs using raw SQL (can't use jobs_get_by_experiment() as it might be deleted)
             async with async_session() as session:
                 result = await session.execute(sqlalchemy_text("SELECT * FROM job"))
@@ -166,7 +165,10 @@ async def migrate_jobs():
         for job in jobs_rows:
             # Get experiment name from mapping
             experiment_id = job.get('experiment_id')
-            experiment_name = experiments_map.get(str(experiment_id), 'unknown')
+            if experiment_id is None or experiment_id == -1:
+                experiment_name = 'unknown'
+            else:
+                experiment_name = experiments_map.get(str(experiment_id))
             
             try:
                 # Create SDK Job
