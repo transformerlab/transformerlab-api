@@ -275,13 +275,13 @@ class CreateDatasetRequest(BaseModel):
 HISTORY_FILE = "history.json"
 
 
-
 def get_diffusion_dir(experiment_name: str = None, workspace_dir: str | None = None):
     """Get the diffusion directory path"""
     base = workspace_dir or get_workspace_dir()
+
     if experiment_name is not None:
         # New experiment-specific path
-        return os.path.join(base, "experiments", experiment_name, "diffusion")
+        return os.path.join(base, "experiments", secure_filename(experiment_name), "diffusion")
     else:
         # Legacy global path for backward compatibility
         return os.path.join(base, "diffusion")
@@ -312,7 +312,9 @@ def ensure_directories(experiment_name: str = None, workspace_dir: str | None = 
             pass
 
 
-def load_history(limit: int = 50, offset: int = 0, experiment_name: str = None, workspace_dir: str | None = None) -> HistoryResponse:
+def load_history(
+    limit: int = 50, offset: int = 0, experiment_name: str = None, workspace_dir: str | None = None
+) -> HistoryResponse:
     """Load image generation history from both new and old paths for backward compatibility"""
     all_images = []
 
@@ -358,7 +360,9 @@ def load_history(limit: int = 50, offset: int = 0, experiment_name: str = None, 
     return HistoryResponse(images=items, total=total_items)
 
 
-def find_image_by_id(image_id: str, experiment_name: str = None, workspace_dir: str | None = None) -> ImageHistoryItem | None:
+def find_image_by_id(
+    image_id: str, experiment_name: str = None, workspace_dir: str | None = None
+) -> ImageHistoryItem | None:
     """Find a specific image by ID without loading all history, searching both new and old paths"""
 
     # Search in new experiment-specific path first if experiment info is provided
