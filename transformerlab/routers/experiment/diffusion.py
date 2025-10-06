@@ -153,7 +153,8 @@ def _setup_diffusion_logger():
 
     # File handler
     try:
-        file_handler = logging.FileHandler(dirs.GLOBAL_LOG_PATH, encoding="utf-8")
+        from lab.dirs import get_global_log_path
+        file_handler = logging.FileHandler(get_global_log_path(), encoding="utf-8")
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
     except Exception:

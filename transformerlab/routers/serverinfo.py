@@ -280,7 +280,8 @@ async def get_pytorch_collect_env():
     return output.decode("utf-8")
 
 
-GLOBAL_LOG_PATH = dirs.GLOBAL_LOG_PATH
+from lab.dirs import get_global_log_path
+GLOBAL_LOG_PATH = get_global_log_path()
 
 
 async def watch_file(filename: str, start_from_beginning=False, force_polling=True) -> AsyncGenerator[str, None]:

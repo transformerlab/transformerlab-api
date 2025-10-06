@@ -186,7 +186,8 @@ async def run_evaluation_script(experimentId: int, plugin_name: str, eval_name: 
     # @TODO: This whole thing can be re-written to use the shared function to run a plugin
 
     # Create the input file for the script:
-    input_file = lab_dirs.TEMP_DIR + "/plugin_input_" + str(plugin_name) + ".json"
+    from lab.dirs import get_temp_dir
+    input_file = os.path.join(get_temp_dir(), "plugin_input_" + str(plugin_name) + ".json")
 
     # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
     # and should be done in the API itself

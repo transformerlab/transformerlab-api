@@ -174,7 +174,8 @@ class OllamaModel(basemodel.BaseModel):
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), input_model_path)
 
         # Create a directory for the model. Make sure it doesn't exist already.
-        output_path = os.path.join(dirs.MODELS_DIR, output_model_id)
+        from lab.dirs import get_models_dir
+        output_path = os.path.join(get_models_dir(), output_model_id)
         if os.path.exists(output_path):
             raise FileExistsError(errno.EEXIST, "Directory already exists", output_path)
         os.makedirs(output_path)

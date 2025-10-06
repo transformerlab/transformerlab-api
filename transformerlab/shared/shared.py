@@ -19,7 +19,7 @@ from transformerlab.services.job_service import job_update_sync, job_update_stat
 import transformerlab.db.jobs as db_jobs
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
-from lab.dirs import GLOBAL_LOG_PATH
+from lab.dirs import get_global_log_path
 from lab.dirs import get_workspace_dir
 from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
@@ -107,9 +107,11 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
     # Check if plugin has a venv directory
     if plugin_location:
         plugin_location = os.path.normpath(plugin_location)
-        if not plugin_location.startswith(lab_dirs.PLUGIN_DIR):
-            print(f"Plugin location {plugin_location} is not in {lab_dirs.PLUGIN_DIR}")
-            raise Exception(f"Plugin location {plugin_location} is not in {lab_dirs.PLUGIN_DIR}")
+        from lab.dirs import get_plugin_dir
+        plugin_dir_root = get_plugin_dir()
+        if not plugin_location.startswith(plugin_dir_root):
+            print(f"Plugin location {plugin_location} is not in {plugin_dir_root}")
+            raise Exception(f"Plugin location {plugin_location} is not in {plugin_dir_root}")
         if os.path.exists(os.path.join(plugin_location, "venv")) and os.path.isdir(
             os.path.join(plugin_location, "venv")
         ):
@@ -178,11 +180,12 @@ async def read_process_output(process, job_id):
         print("Worker Process stopped by user")
     else:
         print(f"ERROR: Worker Process ended with exit code {returncode}.")
-    with open(GLOBAL_LOG_PATH, "a") as log:
+    with open(get_global_log_path(), "a") as log:
         log.write(f"Inference Server Terminated with {returncode}.\n")
         log.flush()
     # so we should delete the pid file:
-    pid_file = os.path.join(lab_dirs.TEMP_DIR, f"worker_job_{job_id}.pid")
+    from lab.dirs import get_temp_dir
+    pid_file = os.path.join(get_temp_dir(), f"worker_job_{job_id}.pid")
     if os.path.exists(pid_file):
         os.remove(pid_file)
     # Clean up resources after process ends
@@ -212,7 +215,7 @@ async def async_run_python_daemon_and_update_status(
             break
 
     # Open a file to write the output to:
-    log = open(GLOBAL_LOG_PATH, "a")
+    log = open(get_global_log_path(), "a")
 
     # Check if plugin has a venv directory
     if plugin_location:
@@ -240,7 +243,8 @@ async def async_run_python_daemon_and_update_status(
     )
 
     pid = process.pid
-    pid_file = os.path.join(lab_dirs.TEMP_DIR, f"worker_job_{job_id}.pid")
+    from lab.dirs import get_temp_dir
+    pid_file = os.path.join(get_temp_dir(), f"worker_job_{job_id}.pid")
     with open(pid_file, "w") as f:
         f.write(str(pid))
 

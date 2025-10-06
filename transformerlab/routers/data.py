@@ -38,7 +38,8 @@ logging.basicConfig(level=logging.ERROR)
 
 
 # Configure logging
-GLOBAL_LOG_PATH = dirs.GLOBAL_LOG_PATH
+from lab.dirs import get_global_log_path
+GLOBAL_LOG_PATH = get_global_log_path()
 
 
 def log(msg):

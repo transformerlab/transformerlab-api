@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
 from filelock import FileLock
 
-from transformerlab.shared.constants import WORKSPACE_DIR
+from lab.dirs import get_workspace_dir
 
 __all__ = [
     "CERT_DIR",
@@ -20,7 +20,7 @@ __all__ = [
     "ensure_persistent_self_signed_cert",
 ]
 
-CERT_DIR: Path = Path(WORKSPACE_DIR) / "certs"
+CERT_DIR: Path = Path(get_workspace_dir()) / "certs"
 CERT_PATH: Path = CERT_DIR / "server-cert.pem"
 KEY_PATH: Path = CERT_DIR / "server-key.pem"
 

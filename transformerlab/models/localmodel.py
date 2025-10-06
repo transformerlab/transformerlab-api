@@ -130,7 +130,8 @@ class LocalModelStore(modelstore.ModelStore):
         models = ModelService.list_all()
 
         # Add additional metadata to each model
-        models_dir = dirs.MODELS_DIR
+        from lab.dirs import get_models_dir
+        models_dir = get_models_dir()
         for model in models:
             # Only set model["stored_in_filesystem"] to True if the model is a local model and not a Hugging Face model
             if not (model.get("json_data", {}).get("source", "") == "huggingface" and model.get("json_data", {}).get("model_filename", "") == ""):
@@ -182,7 +183,8 @@ class LocalModelStore(modelstore.ModelStore):
         in each model directory.
         """
         provenance = {}
-        models_dir = dirs.MODELS_DIR
+        from lab.dirs import get_models_dir
+        models_dir = get_models_dir()
 
         # Load the tlab_complete_provenance.json file if it exists
         complete_provenance_file = os.path.join(models_dir, "_tlab_complete_provenance.json")
@@ -306,7 +308,8 @@ class LocalModelStore(modelstore.ModelStore):
         """
         Retrieve evaluation data from the _tlab_provenance.json file.
         """
-        models_dir = dirs.MODELS_DIR
+        from lab.dirs import get_models_dir
+        models_dir = get_models_dir()
         evaluations_by_model = {}
 
         # Extract just the model name if model_id contains a path
@@ -378,7 +381,8 @@ class LocalModelStore(modelstore.ModelStore):
 
         if provenance_updated:
             # Save the provenance mapping as a json file
-            provenance_file = os.path.join(dirs.MODELS_DIR, "_tlab_complete_provenance.json")
+            from lab.dirs import get_models_dir
+            provenance_file = os.path.join(get_models_dir(), "_tlab_complete_provenance.json")
             with open(provenance_file, "w") as f:
                 json.dump(provenance_mapping, f)
 

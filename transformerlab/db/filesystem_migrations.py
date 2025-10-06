@@ -1,7 +1,6 @@
 import json
 import os
 
-from lab import dirs as lab_dirs
 from lab.dataset import Dataset as dataset_service
 
 async def migrate_datasets_table_to_filesystem():
@@ -171,7 +170,8 @@ async def migrate_models_table_to_filesystem():
         # Additionally, scan filesystem models directory for legacy models that
         # have info.json but are missing index.json, and create SDK metadata.
         try:
-            models_dir = lab_dirs.MODELS_DIR
+            from lab.dirs import get_models_dir
+            models_dir = get_models_dir()
             if os.path.isdir(models_dir):
                 fs_migrated = 0
                 for entry in os.listdir(models_dir):
