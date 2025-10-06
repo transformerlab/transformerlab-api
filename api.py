@@ -230,7 +230,7 @@ async def migrate_jobs():
         # Archive the legacy jobs table if present (like dataset migration)
         try:
             async with async_session() as session:
-                await session.execute(sqlalchemy_text("ALTER TABLE job RENAME TO archived_job"))
+                await session.execute(sqlalchemy_text("ALTER TABLE job RENAME TO zzz_archived_job"))
                 await session.commit()
         except Exception:
             pass
