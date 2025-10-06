@@ -228,7 +228,7 @@ async def test_run_installer_for_plugin_setup_script_failure():
 
         with (
             patch.object(dirs, "PLUGIN_PRELOADED_GALLERY", gallery_dir),
-            patch.object(lab_dirs, "PLUGIN_DIR", plugin_dir),
+            patch('lab.dirs.get_plugin_dir', return_value=plugin_dir),
             patch("asyncio.create_subprocess_exec") as mock_subprocess,
             patch("transformerlab.routers.plugins.delete_plugin_files_from_workspace") as mock_delete,
         ):

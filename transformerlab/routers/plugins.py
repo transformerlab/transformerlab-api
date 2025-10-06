@@ -196,7 +196,7 @@ async def install_plugin(plugin_id: str):
 
     await copy_plugin_files_to_workspace(plugin_id)
 
-    new_directory = os.path.join(lab_dirs.PLUGIN_DIR, plugin_id)
+    new_directory = os.path.join(lab_dirs.get_plugin_dir(), plugin_id)
     venv_path = os.path.join(new_directory, "venv")
 
     from lab.dirs import get_global_log_path
