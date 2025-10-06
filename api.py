@@ -71,6 +71,7 @@ from lab.dirs import get_workspace_dir
 from lab import dirs as lab_dirs, Experiment, Job
 from lab.dataset import Dataset as dataset_service
 from transformerlab.shared import dirs
+from transformerlab.db.filesystem_migrations import migrate_datasets_table_to_filesystem, migrate_models_table_to_filesystem
 from transformerlab.shared.request_context import set_current_org_id
 from lab.dirs import set_organization_id as lab_set_org_id
 
@@ -406,6 +407,7 @@ async def lifespan(app: FastAPI):
         await install_all_plugins()
     # run the migrations
     asyncio.create_task(migrate())
+    asyncio.create_task(migrate_models_table_to_filesystem())
     asyncio.create_task(migrate_datasets_table_to_filesystem())
     asyncio.create_task(migrate_job_and_experiment_to_filesystem())
     asyncio.create_task(run_over_and_over())
@@ -425,87 +427,7 @@ async def migrate():
             await tasks.convert_all_to_tasks(exp["id"])
 
 
-async def migrate_datasets_table_to_filesystem():
-    """
-    One-time migration: copy rows from the legacy dataset DB table into the filesystem
-    registry via transformerlab-sdk, then drop the table.
-    Safe to run multiple times; it will no-op if table is missing or empty.
-    """
-    try:
-        # Late import to avoid hard dependency during tests without DB
-        from transformerlab.db.session import async_session
-        from sqlalchemy import text as sqlalchemy_text
 
-        # Read existing rows
-        rows = []
-        try:
-            # First check if the table exists
-            async with async_session() as session:
-                result = await session.execute(
-                    sqlalchemy_text("SELECT name FROM sqlite_master WHERE type='table' AND name='dataset'")
-                )
-                exists = result.fetchone() is not None
-            if not exists:
-                return
-            # Migrated db.dataset.get_datasets() to run here as we are deleting that code
-            rows = []
-            async with async_session() as session:
-                result = await session.execute(sqlalchemy_text("SELECT * FROM dataset"))
-                datasets = result.mappings().all()
-                dict_rows = [dict(dataset) for dataset in datasets]
-                for row in dict_rows:
-                    if "json_data" in row and row["json_data"]:
-                        if isinstance(row["json_data"], str):
-                            row["json_data"] = json.loads(row["json_data"])
-                    rows.append(row)
-        except Exception as e:
-            print(f"Failed to read datasets for migration: {e}")
-            rows = []
-
-        migrated = 0
-        for row in rows:
-            dataset_id = str(row.get("dataset_id")) if row.get("dataset_id") is not None else None
-            if not dataset_id:
-                continue
-            location = row.get("location", "local")
-            description = row.get("description", "")
-            size = int(row.get("size", -1)) if row.get("size") is not None else -1
-            json_data = row.get("json_data", {})
-            if isinstance(json_data, str):
-                try:
-                    json_data = json.loads(json_data)
-                except Exception:
-                    json_data = {}
-
-            try:
-                try:
-                    ds = dataset_service.get(dataset_id)
-                except FileNotFoundError:
-                    ds = dataset_service.create(dataset_id)
-                ds.set_metadata(
-                    location=location,
-                    description=description,
-                    size=size,
-                    json_data=json_data,
-                )
-                migrated += 1
-            except Exception:
-                # Best-effort migration; continue
-                continue
-
-        # Drop the legacy table if present
-        try:
-            async with async_session() as session:
-                await session.execute(sqlalchemy_text("ALTER TABLE dataset RENAME TO zzz_archived_dataset"))
-                await session.commit()
-        except Exception:
-            pass
-
-        if migrated:
-            print(f"Datasets migration completed: {migrated} entries migrated to filesystem store.")
-    except Exception as e:
-        # Do not block startup on migration issues
-        print(f"Datasets migration skipped due to error: {e}")
 
 
 async def run_over_and_over():
@@ -562,24 +484,18 @@ app.add_middleware(
 # Middleware to set context var for organization id per request (multitenant)
 @app.middleware("http")
 async def set_org_context(request: Request, call_next):
-    print(f"🔵 MIDDLEWARE START: {request.method} {request.url.path}")
     try:
         org_id = None
         if os.getenv("TFL_MULTITENANT") == "true":
             org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
             org_id = request.cookies.get(org_cookie_name)
-            print(f"ORG ID FROM COOKIE: {org_id}")
-        print(f"SETTING ORG ID: {org_id}")
         set_current_org_id(org_id)
         if lab_set_org_id is not None:
             lab_set_org_id(org_id)
-        print(f"🟢 CALLING HANDLER: {request.method} {request.url.path}")
         response = await call_next(request)
-        print(f"🟡 HANDLER COMPLETE: {request.method} {request.url.path} -> {response.status_code}")
         return response
     finally:
         # Clear at end of request
-        print(f"🔴 CLEARING ORG ID: {request.method} {request.url.path}")
         set_current_org_id(None)
         if lab_set_org_id is not None:
             lab_set_org_id(None)

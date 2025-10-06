@@ -29,17 +29,6 @@ class Plugin(Base):
     type: Mapped[str] = mapped_column(String, index=True, nullable=False)
 
 
-class Model(Base):
-    """Model definition."""
-
-    __tablename__ = "model"
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    model_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
-    name: Mapped[str] = mapped_column(String, nullable=False)
-    json_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
-
-
 class TrainingTemplate(Base):
     """Training template model."""
 

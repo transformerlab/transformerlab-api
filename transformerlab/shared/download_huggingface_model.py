@@ -467,7 +467,8 @@ def download_blocking(model_is_downloaded):
             # Right now the logo is hard coded to assuming if you are downloading one file, you are looking
             # at GGUF
             print("downloading model to workspace/models using filename mode")
-            location = f"{WORKSPACE_DIR}/models/{model_filename}"
+            # Use the model ID (repo name) as the directory name, not the filename
+            location = f"{WORKSPACE_DIR}/models/{secure_filename(model)}/{model_filename}"
             os.makedirs(location, exist_ok=True)
             # Get metadata for single file
             try:
@@ -496,25 +497,33 @@ def download_blocking(model_is_downloaded):
             # Stop progress monitoring
             _cache_stop_monitoring = True
             progress_thread.join(timeout=5)
-            # create a file in that same directory called info.json:
-            info = [
-                {
-                    "model_id": model_filename,
-                    "model_filename": model_filename,
-                    "name": model_filename,
-                    "stored_in_filesystem": True,
-                    "json_data": {
-                        "uniqueId": f"gguf/{model_filename}",
-                        "name": model_filename,
+            # create model metadata using SDK
+            try:
+                from lab.model import Model as ModelService
+                model_service = ModelService.create(model)
+                model_service.set_metadata(
+                    model_id=model,
+                    name=model,
+                    json_data={
+                        "uniqueId": f"gguf/{model}",
+                        "name": model,
                         "description": "A GGUF model downloaded from the HuggingFace Hub",
-                        "architecture": "GGUF",
+                        "source": "huggingface",
+                        "source_id_or_path": model,
                         "huggingface_repo": model,
+                        "model_filename": model_filename if model_filename else "",  # Use specific filename for GGUF
+                        "architecture": "GGUF",
+                        "private": False,
+                        "gated": False,
+                        "model_type": "",
+                        "library_name": "",
+                        "formats": ["GGUF"],
                         "logo": "https://user-images.githubusercontent.com/1991296/230134379-7181e485-c521-4d23-a0d6-f7b3b61ba524.png",
-                    },
-                }
-            ]
-            with open(f"{location}/info.json", "w") as f:
-                f.write(json.dumps(info, indent=2))
+                    }
+                )
+                print(f"Created GGUF model metadata for {model}")
+            except Exception as e:
+                print(f"Warning: Could not create GGUF model metadata for {model}: {e}")
         else:
             try:
                 # Get file metadata before starting download
@@ -548,6 +557,36 @@ def download_blocking(model_is_downloaded):
                 error_msg = f"{type(e).__name__}: {e}"
 
         model_is_downloaded.set()
+        
+        # Create model metadata file for the downloaded model using SDK
+        if not error_msg and returncode == 0:
+            try:
+                # Use SDK to create model metadata
+                from lab.model import Model as ModelService
+                model_service = ModelService.create(model)
+                model_service.set_metadata(
+                    model_id=model,
+                    name=model,
+                    json_data={
+                        "uniqueId": model,
+                        "name": model,
+                        "description": f"Model downloaded from HuggingFace Hub: {model}",
+                        "source": "huggingface",
+                        "source_id_or_path": model,
+                        "huggingface_repo": model,
+                        "model_filename": "",  # Empty for regular HuggingFace models
+                        "architecture": "Unknown",  # Will be updated by the system later
+                        "private": False,
+                        "gated": False,
+                        "model_type": "",
+                        "library_name": "",
+                        "formats": [],
+                    }
+                )
+                print(f"Created model metadata for {model}")
+            except Exception as e:
+                print(f"Warning: Could not create model metadata for {model}: {e}")
+    
     print("Download complete")
 
 
