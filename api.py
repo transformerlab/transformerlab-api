@@ -197,7 +197,7 @@ async def migrate_jobs():
                     else:
                         # Job not found in jobs directory, check if it's in the wrong place
                         # (experiments/{experiment_name}/jobs/{job_id}) from the last month
-                        temp_experiments_dir = f"{lab_dirs.EXPERIMENTS_DIR}_migration_temp"
+                        temp_experiments_dir = f"{lab_dirs.get_experiments_dir()}_migration_temp"
                         if os.path.exists(temp_experiments_dir):
                             wrong_place_job_dir = os.path.join(temp_experiments_dir, str(experiment_name), "jobs", str(job['id']))
                             if os.path.exists(wrong_place_job_dir):
@@ -222,7 +222,7 @@ async def migrate_jobs():
             shutil.rmtree(temp_jobs_dir)
         
         # Clean up temp experiments directory if it was used for job migration
-        temp_experiments_dir = f"{lab_dirs.EXPERIMENTS_DIR}_migration_temp"
+        temp_experiments_dir = f"{lab_dirs.get_experiments_dir()}_migration_temp"
         if os.path.exists(temp_experiments_dir):
             print(f"Cleaning up temp experiments directory after job migration: {temp_experiments_dir}")
             shutil.rmtree(temp_experiments_dir)
@@ -292,10 +292,11 @@ async def migrate_experiments():
         # SDK create clean directories with proper structure, then copy back all the existing files 
         # (preserving user data like models, datasets, configs, etc.)
         temp_experiments_dir = None
-        if os.path.exists(lab_dirs.EXPERIMENTS_DIR):
-            temp_experiments_dir = f"{lab_dirs.EXPERIMENTS_DIR}_migration_temp"
+        experiments_dir = lab_dirs.get_experiments_dir()
+        if os.path.exists(experiments_dir):
+            temp_experiments_dir = f"{experiments_dir}_migration_temp"
             print(f"Moving existing experiments directory to: {temp_experiments_dir}")
-            os.rename(lab_dirs.EXPERIMENTS_DIR, temp_experiments_dir)
+            os.rename(experiments_dir, temp_experiments_dir)
 
         migrated = 0
         for exp in experiments_rows:

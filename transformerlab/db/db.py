@@ -292,9 +292,10 @@ async def export_job_create(experiment_id, job_data_json):
 
 async def experiment_get_all():
     experiments = []
-    if os.path.exists(lab_dirs.EXPERIMENTS_DIR):
-        for exp_dir in os.listdir(lab_dirs.EXPERIMENTS_DIR):
-            exp_path = os.path.join(lab_dirs.EXPERIMENTS_DIR, exp_dir)
+    experiments_dir = lab_dirs.get_experiments_dir()
+    if os.path.exists(experiments_dir):
+        for exp_dir in os.listdir(experiments_dir):
+            exp_path = os.path.join(experiments_dir, exp_dir)
             if os.path.isdir(exp_path):
                 exp_dict = await experiment_get(exp_dir)
                 if exp_dict:
