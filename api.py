@@ -127,7 +127,8 @@ async def migrate_jobs():
                     result = await session.execute(sqlalchemy_text("SELECT * FROM experiment"))
                     experiments = result.mappings().all()
                     for exp in experiments:
-                        experiments_map[exp['id']] = exp['name']
+                        # Ensure consistent string keys for mapping
+                        experiments_map[str(exp['id'])] = exp['name']            
             
             # Get all jobs using raw SQL (can't use jobs_get_by_experiment() as it might be deleted)
             async with async_session() as session:
@@ -164,7 +165,8 @@ async def migrate_jobs():
         migrated = 0
         for job in jobs_rows:
             # Get experiment name from mapping
-            experiment_name = experiments_map.get(job.get('experiment_id'), 'unknown')
+            experiment_id = job.get('experiment_id')
+            experiment_name = experiments_map.get(str(experiment_id), 'unknown')
             
             try:
                 # Create SDK Job
