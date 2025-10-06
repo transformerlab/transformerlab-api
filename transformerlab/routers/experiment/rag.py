@@ -11,6 +11,8 @@ from pydantic import BaseModel
 from transformerlab.shared import dirs
 from lab import Experiment
 
+from werkzeug.utils import secure_filename
+
 
 class EmbedRequest(BaseModel):
     experiment_id: str
@@ -125,7 +127,7 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
     exp_obj = Experiment(experimentId)
     experiment_dir = exp_obj.get_dir()
     documents_dir = os.path.join(experiment_dir, "documents")
-    documents_dir = os.path.join(documents_dir, rag_folder)
+    documents_dir = os.path.join(documents_dir, secure_filename(rag_folder))
     if not os.path.exists(documents_dir):
         return "Error: The RAG folder does not exist in the documents directory."
 
