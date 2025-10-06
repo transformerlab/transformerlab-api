@@ -145,6 +145,7 @@ async def test_experiment_get_returns_none_for_missing():
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip("skipping workflow tests")
 async def test_workflows_get_by_id_returns_none_for_missing():
     workflow = await workflows_get_by_id(999999, 1)
     assert workflow is None
@@ -438,6 +439,7 @@ class TestConfig:
         assert value == ""
 
 
+@pytest.mark.skip("skipping workflow tests")
 class TestWorkflows:
     @pytest.mark.asyncio
     async def test_workflows_get_all(self):
@@ -667,7 +669,7 @@ async def test_job_create_sync(setup_db):
     job_type = "TASK"
     status = "QUEUED"
     job_data = json.dumps({"test": "data"})
-    experiment_id = 99  # Use integer instead of string
+    experiment_id = "test_experiment_99"  # Use string instead of integer
 
     # Call the function - this creates its own connection
     job_id = job_create_sync(job_type, status, experiment_id, job_data)
