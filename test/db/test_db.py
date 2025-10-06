@@ -14,11 +14,6 @@ from transformerlab.db.db import (  # noqa: E402
     experiment_get_by_name,
     get_plugins_of_type,
     get_training_template_by_name,
-    model_local_create,
-    model_local_get,
-    model_local_list,
-    model_local_count,
-    model_local_delete,
     experiment_get_all,
     experiment_create,
     experiment_get,
@@ -92,11 +87,6 @@ import transformerlab.db.session as db  # noqa: E402
 
 import pytest  # noqa: E402
 
-
-@pytest.mark.asyncio
-async def test_model_local_delete_nonexistent():
-    # Should not raise
-    await model_local_delete("nonexistent_model")
 
 
 @pytest.mark.asyncio
@@ -194,16 +184,6 @@ async def test_config_get_returns_none_for_missing():
 pytest_plugins = ("pytest_asyncio",)
 
 
-@pytest.mark.asyncio
-async def test_model_local_list_and_count():
-    await model_local_create("model1", "Model 1", {})
-    await model_local_create("model2", "Model 2", {})
-    models = await model_local_list()
-    count = await model_local_count()
-    assert isinstance(models, list)
-    assert count == len(models)
-    await model_local_delete("model1")
-    await model_local_delete("model2")
 
 
 @pytest.mark.asyncio
@@ -358,20 +338,6 @@ class TestModels:
             assert job.get("status") == "FAILED"
             assert job["job_data"]["error_msg"] == "Test error"
 
-    class TestModels:
-        @pytest.mark.asyncio
-        async def test_model_local_get_nonexistent(self):
-            model = await model_local_get("nonexistent_model")
-            assert model is None
-
-        @pytest.mark.asyncio
-        async def test_model_local_create_duplicate(self):
-            await model_local_create("duplicate_model", "Duplicate Model", {})
-            await model_local_create("duplicate_model", "Duplicate Model Updated", {"key": "value"})
-            model = await model_local_get("duplicate_model")
-            assert model is not None
-            assert model["name"] == "Duplicate Model Updated"
-            assert model["json_data"]["key"] == "value"
 
 
 class TestExperiments:

@@ -68,7 +68,7 @@ from transformerlab.shared import galleries
 from lab.dirs import get_workspace_dir
 from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
-from transformerlab.db.filesystem_migrations import migrate_datasets_table_to_filesystem, migrate_tasks_table_to_filesystem
+from transformerlab.db.filesystem_migrations import migrate_datasets_table_to_filesystem, migrate_models_table_to_filesystem, migrate_tasks_table_to_filesystem
 from transformerlab.shared.request_context import set_current_org_id
 from lab.dirs import set_organization_id as lab_set_org_id
 
@@ -102,6 +102,7 @@ async def lifespan(app: FastAPI):
         await install_all_plugins()
     # run the migrations
     asyncio.create_task(migrate())
+    asyncio.create_task(migrate_models_table_to_filesystem())
     asyncio.create_task(migrate_datasets_table_to_filesystem())
     asyncio.create_task(migrate_tasks_table_to_filesystem())
     asyncio.create_task(run_over_and_over())
@@ -176,24 +177,18 @@ app.add_middleware(
 # Middleware to set context var for organization id per request (multitenant)
 @app.middleware("http")
 async def set_org_context(request: Request, call_next):
-    print(f"🔵 MIDDLEWARE START: {request.method} {request.url.path}")
     try:
         org_id = None
         if os.getenv("TFL_MULTITENANT") == "true":
             org_cookie_name = os.getenv("AUTH_ORGANIZATION_COOKIE_NAME", "tlab_org_id")
             org_id = request.cookies.get(org_cookie_name)
-            print(f"ORG ID FROM COOKIE: {org_id}")
-        print(f"SETTING ORG ID: {org_id}")
         set_current_org_id(org_id)
         if lab_set_org_id is not None:
             lab_set_org_id(org_id)
-        print(f"🟢 CALLING HANDLER: {request.method} {request.url.path}")
         response = await call_next(request)
-        print(f"🟡 HANDLER COMPLETE: {request.method} {request.url.path} -> {response.status_code}")
         return response
     finally:
         # Clear at end of request
-        print(f"🔴 CLEARING ORG ID: {request.method} {request.url.path}")
         set_current_org_id(None)
         if lab_set_org_id is not None:
             lab_set_org_id(None)

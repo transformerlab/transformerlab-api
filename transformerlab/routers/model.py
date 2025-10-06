@@ -29,6 +29,7 @@ from transformerlab.services.job_service import job_update_status
 from lab.dirs import get_workspace_dir
 from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
+from lab.model import Model as ModelService
 
 from werkzeug.utils import secure_filename
 
@@ -289,22 +290,16 @@ async def model_details_from_filesystem(model_id: str):
     # see if the model exists locally
     model_path = get_model_dir(model_id)
     if os.path.isdir(model_path):
-        # Look for model information in info.json
-        info_file = os.path.join(model_path, "info.json")
+        # Look for model information using SDK methods
         try:
-            with open(info_file, "r") as f:
-                filedata = json.load(f)
-                f.close()
+            from lab.model import Model as ModelService
+            model_service = ModelService(model_id)
+            filedata = model_service.get_metadata()
 
-                # NOTE: In some places info.json may be a list and in others not
-                # Once info.json format is finalized we can remove this
-                if isinstance(filedata, list):
-                    filedata = filedata[0]
-
-                # Some models are a single file (possibly of many in a directory, e.g. GGUF)
-                # For models that have model_filename set we should link directly to that specific file
-                if "json_data" in filedata and filedata["json_data"]:
-                    return filedata["json_data"]
+            # Some models are a single file (possibly of many in a directory, e.g. GGUF)
+            # For models that have model_filename set we should link directly to that specific file
+            if "json_data" in filedata and filedata["json_data"]:
+                return filedata["json_data"]
 
         except FileNotFoundError:
             # do nothing: file doesn't exist
@@ -565,8 +560,22 @@ async def download_huggingface_model(
         return {"status": "error", "message": error_msg}
 
     if hugging_face_filename is None:
-        # only save to local database if we are downloading the whole repo
-        await model_local_create(id=hugging_face_id, name=name, json_data=model_details)
+        # only save to local filesystem if we are downloading the whole repo
+        try:
+            model_service = ModelService.create(hugging_face_id)
+            model_service.set_metadata(
+                model_id=hugging_face_id,
+                name=name,
+                json_data=model_details
+            )
+        except FileExistsError:
+            # Model already exists, update it
+            model_service = ModelService.get(hugging_face_id)
+            model_service.set_metadata(
+                model_id=hugging_face_id,
+                name=name,
+                json_data=model_details
+            )
 
     return {"status": "success", "message": "success", "model": model_details, "job_id": job_id}
 
@@ -706,13 +715,7 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
 
     You can manually specify a pre-created job_id if you want to track the progress of the download with
     a defined job_id provided by the API using /job/createId"""
-    print(f"🟣 DOWNLOAD_GALLERY HANDLER START: gallery_id={gallery_id}, job_id={job_id}")
     
-    # Debug: Check what org ID is available in the context
-    from lab.dirs import get_workspace_dir
-    ws = get_workspace_dir()
-    print(f"🟣 WORKSPACE DIR: {ws}")
-
     # Get model details from the gallery
     # If None then return an error
     gallery_entry = get_model_details_from_gallery(gallery_id)
@@ -724,12 +727,24 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
 
     # Fetch pipeline_tag if not present in gallery_entry
     if "pipeline_tag" not in gallery_entry:
-        # First try to get from database
-        model_data = await db.model_local_get(huggingface_id)
-        if model_data and model_data.get("json_data") and "pipeline_tag" in model_data["json_data"]:
-            gallery_entry["pipeline_tag"] = model_data["json_data"]["pipeline_tag"]
-        else:
-            # If not in database, fetch from Hugging Face Hub
+        # First try to get from filesystem
+        try:
+            model_service = ModelService.get(huggingface_id)
+            model_data = model_service.get_metadata()
+            if model_data and model_data.get("json_data") and "pipeline_tag" in model_data["json_data"]:
+                gallery_entry["pipeline_tag"] = model_data["json_data"]["pipeline_tag"]
+            else:
+                    # If not in database, fetch from Hugging Face Hub
+                    try:
+                        api = HfApi()
+                        model_info = api.model_info(huggingface_id)
+                        gallery_entry["pipeline_tag"] = model_info.pipeline_tag
+                    except Exception as e:
+                        # Assume text generation if we can't get the tag
+                        print(f"Error fetching pipeline tag for {huggingface_id}: {type(e).__name__}: {e}")
+                        gallery_entry["pipeline_tag"] = "text-generation"
+        except FileNotFoundError:
+            # Model not found in filesystem, fetch from Hugging Face Hub
             try:
                 api = HfApi()
                 model_info = api.model_info(huggingface_id)
@@ -768,28 +783,64 @@ async def model_provenance(model_id: str):
 @router.get("/model/count_downloaded")
 async def model_count_downloaded():
     # Currently used to determine if user has any downloaded models
-    count = await db.model_local_count()
+    # Use filesystem instead of database
+    models = ModelService.list_all()
+    count = len(models)
     return {"status": "success", "data": count}
 
 
 @router.get("/model/create")
 async def model_local_create(id: str, name: str, json_data={}):
-    await db.model_local_create(model_id=id, name=name, json_data=json_data)
-    return {"message": "model created"}
+    # Use filesystem instead of database
+    try:
+        model_service = ModelService.create(id)
+        model_service.set_metadata(
+            model_id=id,
+            name=name,
+            json_data=json_data
+        )
+        return {"message": "model created"}
+    except FileExistsError:
+        return {"status": "error", "message": f"Model {id} already exists"}
+    except Exception as e:
+        print(f"Error creating model {id}: {e}")
+        return {"status": "error", "message": "Failed to create model due to an internal error."}
 
 
 @router.get("/model/delete")
 async def model_local_delete(model_id: str, delete_from_cache: bool = False):
-    # If this is a locally generated model then actually delete from filesystem
-    # Check for the model stored in a directory based on the model name (i.e. the part after teh slash)
-    root_models_dir = lab_dirs.MODELS_DIR
-    model_dir = model_id.rsplit("/", 1)[-1]
-    info_file = os.path.join(root_models_dir, model_dir, "info.json")
+    # Try to delete from filesystem first using SDK
+    try:
+        model_service = ModelService.get(model_id)
+        # Delete the entire directory
+        model_dir = model_service.get_dir()
+        if os.path.exists(model_dir):
+            shutil.rmtree(model_dir)
+            print(f"Deleted filesystem model: {model_id}")
+    except FileNotFoundError:
+        # Model not found in filesystem, continue with other deletion methods
+        pass
+    except Exception as e:
+        print(f"Error deleting filesystem model {model_id}: {e}")
 
-    if os.path.isfile(info_file):
+    # Also try the legacy method for backward compatibility
+    root_models_dir = lab_dirs.MODELS_DIR
+
+    
+    # Sanitize and validate model_dir
+    unsafe_model_dir = model_id.rsplit("/", 1)[-1]
+    model_dir = os.path.normpath(unsafe_model_dir)
+    candidate_index_file = os.path.join(root_models_dir, model_dir, "index.json")
+    index_file = os.path.abspath(candidate_index_file)
+    models_dir_abs = os.path.abspath(root_models_dir)
+
+    if not index_file.startswith(models_dir_abs):
+        print("ERROR: Invalid index file path")
+
+    elif os.path.isfile(index_file):
         model_path = os.path.join(root_models_dir, model_dir)
         model_path = os.path.abspath(model_path)
-        if not model_path.startswith(os.path.abspath(root_models_dir)):
+        if not model_path.startswith(models_dir_abs):
             print("ERROR: Invalid directory structure")
         print(f"Deleteing {model_path}")
         shutil.rmtree(model_path)
@@ -810,8 +861,6 @@ async def model_local_delete(model_id: str, delete_from_cache: bool = False):
             print("If you want to delete the model from the HuggingFace cache, you must delete it from:")
             print("~/.cache/huggingface/hub/")
 
-    # Delete from the database
-    await db.model_local_delete(model_id=model_id)
     return {"message": "model deleted"}
 
 
@@ -1005,7 +1054,9 @@ async def get_local_hfconfig(model_id: str):
 
 
 async def get_model_from_db(model_id: str):
-    return await db.model_local_get(model_id)
+    # Get model from filesystem
+    model_service = ModelService.get(model_id)
+    return model_service.get_metadata()
 
 
 @router.get("/model/list_local_uninstalled")
@@ -1152,7 +1203,7 @@ async def chat_template(model_name: str):
 @router.get("/model/pipeline_tag")
 async def get_pipeline_tag(model_name: str):
     """
-    Get the pipeline tag for a model from the database or Hugging Face Hub.
+    Get the pipeline tag for a model from the filesystem or Hugging Face Hub.
 
     Args:
         model_name: The Hugging Face model ID (e.g., "mlx-community/Kokoro-82M-bf16")
@@ -1160,21 +1211,21 @@ async def get_pipeline_tag(model_name: str):
     Returns:
         JSON response with status and pipeline tag data
     """
-    print(f"🟠 PIPELINE_TAG HANDLER START: {model_name}")
+    # First try to get from filesystem
+    try:
+        model_service = ModelService.get(model_name)
+        model_data = model_service.get_metadata()
+        if model_data and model_data.get("json_data") and "pipeline_tag" in model_data["json_data"]:
+            pipeline_tag = model_data["json_data"]["pipeline_tag"]
+            return {"status": "success", "data": pipeline_tag, "model_id": model_name}
+    except FileNotFoundError:
+        # Model not found in filesystem, continue with other methods
+        pass
+    except Exception as e:
+        print(f"Error reading filesystem model {model_name}: {e}")
 
-    # Debug: Check what org ID is available in the context
-    from lab.dirs import get_workspace_dir
 
-    ws = get_workspace_dir()
-    print(f"🟠 WORKSPACE DIR: {ws}")
-
-    # First try to get from database
-    model_data = await db.model_local_get(model_name)
-    if model_data and model_data.get("json_data") and "pipeline_tag" in model_data["json_data"]:
-        pipeline_tag = model_data["json_data"]["pipeline_tag"]
-        return {"status": "success", "data": pipeline_tag, "model_id": model_name}
-
-    # If not in database, fetch from Hugging Face Hub
+    # If not in filesystem or database, fetch from Hugging Face Hub
     try:
         api = HfApi()
         model_info = api.model_info(model_name)
