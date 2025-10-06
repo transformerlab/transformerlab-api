@@ -4,6 +4,8 @@ import transformerlab.db.db as db
 import transformerlab.db.workflows as db_workflows
 from transformerlab.services.tasks_service import tasks_service
 from lab.dirs import get_workspace_dir
+import pytest
+
 
 @pytest.mark.skip("skipping until migrations are done")
 async def test_export_experiment(client):
