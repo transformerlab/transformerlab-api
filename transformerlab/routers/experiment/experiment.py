@@ -66,8 +66,13 @@ async def experiment_get(id: str):
     if data is None:
         return {"status": "error", "message": f"Experiment {id} does not exist"}
 
-    # convert the JSON string called config to json object
-    data["config"] = json.loads(data["config"])
+    # convert the JSON string called config to json object if it's a string
+    if isinstance(data["config"], str):
+        try:
+            data["config"] = json.loads(data["config"])
+        except json.JSONDecodeError:
+            data["config"] = {}
+    
     return data
 
 
