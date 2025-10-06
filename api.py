@@ -69,7 +69,6 @@ from transformerlab.shared import shared
 from transformerlab.shared import galleries
 from lab.dirs import get_workspace_dir
 from lab import dirs as lab_dirs, Experiment, Job
-from lab.dataset import Dataset as dataset_service
 from transformerlab.shared import dirs
 from transformerlab.db.filesystem_migrations import migrate_datasets_table_to_filesystem, migrate_models_table_to_filesystem
 from transformerlab.shared.request_context import set_current_org_id
