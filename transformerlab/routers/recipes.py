@@ -3,6 +3,7 @@ from lab import Dataset
 from transformerlab.shared import galleries
 import transformerlab.db.db as db
 import transformerlab.db.jobs as db_jobs
+from transformerlab.services.tasks_service import tasks_service
 from transformerlab.models import model_helper
 import json
 from transformerlab.routers.experiment import workflows
@@ -436,14 +437,14 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
                 # Get plugin name
                 plugin_name = parsed_config.get("plugin_name", "")
 
-                # Create task in database
-                await db.add_task(
+                # Create task in filesystem
+                tasks_service.add_task(
                     name=task_name,
-                    Type=task_type,
-                    inputs=json.dumps(inputs),
-                    config=json.dumps(parsed_config),
+                    task_type=task_type,
+                    inputs=inputs,
+                    config=parsed_config,
                     plugin=plugin_name,
-                    outputs=json.dumps(outputs),
+                    outputs=outputs,
                     experiment_id=experiment_id,
                 )
 

@@ -25,14 +25,6 @@ from transformerlab.db.db import (  # noqa: E402
     save_plugin,
     config_get,
     config_set,
-    add_task,
-    update_task,
-    tasks_get_all,
-    tasks_get_by_type,
-    tasks_get_by_type_in_experiment,
-    delete_task,
-    tasks_delete_all,
-    tasks_get_by_id,
     get_training_template,
     get_training_templates,
     create_training_template,
@@ -139,12 +131,6 @@ async def test_job_cancel_in_progress_jobs_sets_cancelled():
 
 
 @pytest.mark.asyncio
-async def test_tasks_get_by_id_returns_none_for_missing():
-    task = await tasks_get_by_id(999999)
-    assert task is None
-
-
-@pytest.mark.asyncio
 async def test_get_training_template_and_by_name_returns_none_for_missing():
     tmpl = await get_training_template(999999)
     assert tmpl is None
@@ -247,31 +233,6 @@ async def test_experiment_update_and_update_config_and_save_prompt_template(test
     exp_config = json.loads(exp["config"])
     assert exp_config.get("prompt_template") == test_prompt
 
-
-@pytest.mark.asyncio
-async def test_task_crud(test_experiment):
-    await add_task("task1", "TYPE", "{}", "{}", "plugin", "{}", test_experiment)
-    tasks = await tasks_get_all()
-    assert any(t["name"] == "task1" for t in tasks)
-    task = tasks[0]
-    await update_task(task["id"], {"inputs": "[]", "config": "{}", "outputs": "[]", "name": "task1_updated"})
-    updated = await tasks_get_by_id(task["id"])
-    assert updated["name"] == "task1_updated"
-    await delete_task(task["id"])
-    deleted = await tasks_get_by_id(task["id"])
-    assert deleted is None
-
-
-@pytest.mark.asyncio
-async def test_tasks_get_by_type_and_in_experiment(test_experiment):
-    await add_task("task2", "TYPE2", "{}", "{}", "plugin", "{}", test_experiment)
-    by_type = await tasks_get_by_type("TYPE2")
-    assert any(t["name"] == "task2" for t in by_type)
-    by_type_exp = await tasks_get_by_type_in_experiment("TYPE2", test_experiment)
-    assert any(t["name"] == "task2" for t in by_type_exp)
-    await tasks_delete_all()
-    all_tasks = await tasks_get_all()
-    assert len(all_tasks) == 0
 
 
 @pytest.mark.asyncio

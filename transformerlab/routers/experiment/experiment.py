@@ -229,7 +229,8 @@ async def export_experiment_to_recipe(id: str, request: Request):
     # Get tasks for each type (TRAIN, EVAL, GENERATE)
     task_types = ["TRAIN", "EVAL", "GENERATE", "EXPORT"]
     for task_type in task_types:
-        tasks = await db.tasks_get_by_type_in_experiment(task_type, id)
+        from transformerlab.services.tasks_service import tasks_service
+        tasks = tasks_service.tasks_get_by_type_in_experiment(task_type, id)
         for task in tasks:
             task_config = json.loads(task["config"])
 
