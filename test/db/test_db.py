@@ -14,11 +14,6 @@ from transformerlab.db.db import (  # noqa: E402
     experiment_get_by_name,
     get_plugins_of_type,
     get_training_template_by_name,
-    model_local_create,
-    model_local_get,
-    model_local_list,
-    model_local_count,
-    model_local_delete,
     experiment_get_all,
     experiment_create,
     experiment_get,
@@ -31,14 +26,6 @@ from transformerlab.db.db import (  # noqa: E402
     save_plugin,
     config_get,
     config_set,
-    add_task,
-    update_task,
-    tasks_get_all,
-    tasks_get_by_type,
-    tasks_get_by_type_in_experiment,
-    delete_task,
-    tasks_delete_all,
-    tasks_get_by_id,
     get_training_template,
     get_training_templates,
     create_training_template,
@@ -101,11 +88,6 @@ import transformerlab.db.session as db  # noqa: E402
 import pytest  # noqa: E402
 
 
-@pytest.mark.asyncio
-async def test_model_local_delete_nonexistent():
-    # Should not raise
-    await model_local_delete("nonexistent_model")
-
 
 @pytest.mark.asyncio
 async def test_job_get_status_and_error_msg_for_nonexistent():
@@ -147,12 +129,6 @@ async def test_job_cancel_in_progress_jobs_sets_cancelled():
     await job_cancel_in_progress_jobs()
     job = await job_get(job_id)
     assert job.get("status") == "CANCELLED"
-
-
-@pytest.mark.asyncio
-async def test_tasks_get_by_id_returns_none_for_missing():
-    task = await tasks_get_by_id(999999)
-    assert task is None
 
 
 @pytest.mark.asyncio
@@ -208,16 +184,6 @@ async def test_config_get_returns_none_for_missing():
 pytest_plugins = ("pytest_asyncio",)
 
 
-@pytest.mark.asyncio
-async def test_model_local_list_and_count():
-    await model_local_create("model1", "Model 1", {})
-    await model_local_create("model2", "Model 2", {})
-    models = await model_local_list()
-    count = await model_local_count()
-    assert isinstance(models, list)
-    assert count == len(models)
-    await model_local_delete("model1")
-    await model_local_delete("model2")
 
 
 @pytest.mark.asyncio
@@ -268,31 +234,6 @@ async def test_experiment_update_and_update_config_and_save_prompt_template(test
     exp_config = json.loads(exp["config"])
     assert exp_config.get("prompt_template") == test_prompt
 
-
-@pytest.mark.asyncio
-async def test_task_crud(test_experiment):
-    await add_task("task1", "TYPE", "{}", "{}", "plugin", "{}", test_experiment)
-    tasks = await tasks_get_all()
-    assert any(t["name"] == "task1" for t in tasks)
-    task = tasks[0]
-    await update_task(task["id"], {"inputs": "[]", "config": "{}", "outputs": "[]", "name": "task1_updated"})
-    updated = await tasks_get_by_id(task["id"])
-    assert updated["name"] == "task1_updated"
-    await delete_task(task["id"])
-    deleted = await tasks_get_by_id(task["id"])
-    assert deleted is None
-
-
-@pytest.mark.asyncio
-async def test_tasks_get_by_type_and_in_experiment(test_experiment):
-    await add_task("task2", "TYPE2", "{}", "{}", "plugin", "{}", test_experiment)
-    by_type = await tasks_get_by_type("TYPE2")
-    assert any(t["name"] == "task2" for t in by_type)
-    by_type_exp = await tasks_get_by_type_in_experiment("TYPE2", test_experiment)
-    assert any(t["name"] == "task2" for t in by_type_exp)
-    await tasks_delete_all()
-    all_tasks = await tasks_get_all()
-    assert len(all_tasks) == 0
 
 
 @pytest.mark.asyncio
@@ -397,20 +338,6 @@ class TestModels:
             assert job.get("status") == "FAILED"
             assert job["job_data"]["error_msg"] == "Test error"
 
-    class TestModels:
-        @pytest.mark.asyncio
-        async def test_model_local_get_nonexistent(self):
-            model = await model_local_get("nonexistent_model")
-            assert model is None
-
-        @pytest.mark.asyncio
-        async def test_model_local_create_duplicate(self):
-            await model_local_create("duplicate_model", "Duplicate Model", {})
-            await model_local_create("duplicate_model", "Duplicate Model Updated", {"key": "value"})
-            model = await model_local_get("duplicate_model")
-            assert model is not None
-            assert model["name"] == "Duplicate Model Updated"
-            assert model["json_data"]["key"] == "value"
 
 
 class TestExperiments:

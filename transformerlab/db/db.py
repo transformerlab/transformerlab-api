@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import AsyncGenerator
 
 from transformerlab.db.jobs import job_create, job_delete, jobs_get_by_experiment
+from transformerlab.services.tasks_service import tasks_service
 from transformerlab.db.workflows import (
     workflow_delete_by_id,
     workflows_get_from_experiment,
@@ -30,183 +31,6 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session() as session:
         yield session
 
-
-###############
-# MODELS MODEL
-###############
-
-
-async def model_local_list():
-    async with async_session() as session:
-        result = await session.execute(select(models.Model))
-        models_list = result.scalars().all()
-        data = []
-        for model in models_list:
-            row = sqlalchemy_to_dict(model)
-            if "json_data" in row and row["json_data"]:
-                if isinstance(row["json_data"], str):
-                    row["json_data"] = json.loads(row["json_data"])
-            data.append(row)
-        return data
-
-
-async def model_local_count():
-    async with async_session() as session:
-        result = await session.execute(select(models.Model))
-        count = len(result.scalars().all())
-        return count
-
-
-async def model_local_create(model_id, name, json_data):
-    async with async_session() as session:
-        # Upsert using SQLite's ON CONFLICT (model_id) DO UPDATE
-        stmt = insert(models.Model).values(
-            model_id=model_id,
-            name=name,
-            json_data=json_data,
-        )
-        stmt = stmt.on_conflict_do_update(
-            index_elements=["model_id"],
-            set_={"name": name, "json_data": json_data},
-        )
-        await session.execute(stmt)
-        await session.commit()
-
-
-async def model_local_get(model_id):
-    async with async_session() as session:
-        result = await session.execute(select(models.Model).where(models.Model.model_id == model_id))
-        model = result.scalar_one_or_none()
-        if model is None:
-            return None
-        row = sqlalchemy_to_dict(model)
-        if "json_data" in row and row["json_data"]:
-            if isinstance(row["json_data"], str):
-                row["json_data"] = json.loads(row["json_data"])
-        return row
-
-
-async def model_local_delete(model_id):
-    async with async_session() as session:
-        result = await session.execute(select(models.Model).where(models.Model.model_id == model_id))
-        model = result.scalar_one_or_none()
-        if model:
-            await session.delete(model)
-            await session.commit()
-
-
-###############
-# TASKS MODEL
-###############
-
-
-async def add_task(name, Type, inputs, config, plugin, outputs, experiment_id):
-    async with async_session() as session:
-        stmt = insert(models.Task).values(
-            name=name,
-            type=Type,
-            inputs=inputs,
-            config=config,
-            plugin=plugin,
-            outputs=outputs,
-            experiment_id=experiment_id,
-        )
-        await session.execute(stmt)
-        await session.commit()
-    return
-
-
-async def update_task(task_id, new_task):
-    async with async_session() as session:
-        values = {}
-        if "inputs" in new_task:
-            values["inputs"] = new_task["inputs"]
-        if "config" in new_task:
-            values["config"] = new_task["config"]
-        if "outputs" in new_task:
-            values["outputs"] = new_task["outputs"]
-        if "name" in new_task and new_task["name"] != "":
-            values["name"] = new_task["name"]
-        if values:
-            await session.execute(update(models.Task).where(models.Task.id == task_id).values(**values))
-            await session.commit()
-    return
-
-
-async def tasks_get_all():
-    async with async_session() as session:
-        result = await session.execute(select(models.Task).order_by(models.Task.created_at.desc()))
-        tasks = result.scalars().all()
-        data = []
-        for task in tasks:
-            row = sqlalchemy_to_dict(task)
-            data.append(row)
-        return data
-
-
-async def tasks_get_by_type(Type):
-    async with async_session() as session:
-        result = await session.execute(
-            select(models.Task).where(models.Task.type == Type).order_by(models.Task.created_at.desc())
-        )
-        tasks = result.scalars().all()
-        data = []
-        for task in tasks:
-            row = sqlalchemy_to_dict(task)
-            data.append(row)
-        return data
-
-
-async def tasks_get_by_type_in_experiment(Type, experiment_id):
-    async with async_session() as session:
-        result = await session.execute(
-            select(models.Task)
-            .where(models.Task.type == Type, models.Task.experiment_id == experiment_id)
-            .order_by(models.Task.created_at.desc())
-        )
-        tasks = result.scalars().all()
-        data = []
-        for task in tasks:
-            row = sqlalchemy_to_dict(task)
-            data.append(row)
-        return data
-
-
-async def delete_task(task_id):
-    async with async_session() as session:
-        await session.execute(delete(models.Task).where(models.Task.id == task_id))
-        await session.commit()
-    return
-
-
-async def tasks_delete_all():
-    async with async_session() as session:
-        await session.execute(delete(models.Task))
-        await session.commit()
-    return
-
-
-async def tasks_get_by_id(task_id):
-    async with async_session() as session:
-        result = await session.execute(
-            select(models.Task).where(models.Task.id == task_id).order_by(models.Task.created_at.desc()).limit(1)
-        )
-        task = result.scalar_one_or_none()
-        if task is None:
-            return None
-        return sqlalchemy_to_dict(task)
-
-
-async def tasks_get_by_experiment(experiment_id):
-    """Get all tasks for a specific experiment"""
-    async with async_session() as session:
-        result = await session.execute(
-            select(models.Task)
-            .where(models.Task.experiment_id == experiment_id)
-            .order_by(models.Task.created_at.desc())
-        )
-        tasks = result.scalars().all()
-        return [sqlalchemy_to_dict(task) for task in tasks]
 
 
 async def get_training_template(id):
@@ -405,10 +229,10 @@ async def experiment_delete(id):
         result = await session.execute(select(models.Experiment).where(models.Experiment.id == id))
         experiment = result.scalar_one_or_none()
         if experiment:
-            # Delete all associated tasks using the existing delete method
-            tasks = await tasks_get_by_experiment(id)
+            # Delete all associated tasks using the filesystem service
+            tasks = tasks_service.tasks_get_by_experiment(id)
             for task in tasks:
-                await delete_task(task["id"])
+                tasks_service.delete_task(int(task["id"]))
 
             # Delete all associated jobs using the job delete method
             jobs = await jobs_get_by_experiment(id)
