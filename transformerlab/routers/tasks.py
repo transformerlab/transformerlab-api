@@ -3,7 +3,6 @@ import json
 from fastapi import APIRouter, Body
 from werkzeug.utils import secure_filename
 
-import transformerlab.db.db as db
 from lab import Dataset
 from transformerlab.db.jobs import job_create
 from transformerlab.models import model_helper
