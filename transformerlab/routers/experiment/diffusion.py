@@ -461,7 +461,7 @@ async def generate_image(experimentId: int, request: DiffusionRequest, http_requ
 
 
 @router.post("/is_valid_diffusion_model", summary="Check if model is Stable Diffusion")
-async def is_valid_diffusion(request: DiffusionRequest):
+async def is_valid_diffusion(experimentId: str, request: DiffusionRequest):
     """
     Returns {"is_valid_diffusion_model": True/False, "reason": "..."}
     """
