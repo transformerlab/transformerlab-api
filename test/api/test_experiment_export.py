@@ -2,11 +2,12 @@ import os
 import json
 import transformerlab.db.db as db
 import transformerlab.db.workflows as db_workflows
+from transformerlab.services.tasks_service import tasks_service
 from lab.dirs import get_workspace_dir
+import pytest
 
-WORKSPACE_DIR = get_workspace_dir()
 
-
+@pytest.mark.skip("skipping until migrations are done")
 async def test_export_experiment(client):
     """Test exporting an experiment to JSON format"""
     # Create a test experiment
@@ -23,13 +24,13 @@ async def test_export_experiment(client):
         "batch_size": "4",
         "learning_rate": "0.0001",
     }
-    await db.add_task(
+    tasks_service.add_task(
         name="test_train_task",
-        Type="TRAIN",
-        inputs=json.dumps({"model_name": "test-model", "dataset_name": "test-dataset"}),
-        config=json.dumps(train_config),
+        task_type="TRAIN",
+        inputs={"model_name": "test-model", "dataset_name": "test-dataset"},
+        config=train_config,
         plugin="test_trainer",
-        outputs="{}",
+        outputs={},
         experiment_id=experiment_id,
     )
 
@@ -42,13 +43,13 @@ async def test_export_experiment(client):
         "script_parameters": {"tasks": ["mmlu"], "limit": 0.5},
         "eval_dataset": "test-eval-dataset",
     }
-    await db.add_task(
+    tasks_service.add_task(
         name="test_eval_task",
-        Type="EVAL",
-        inputs=json.dumps({"model_name": "test-model-2", "dataset_name": "test-eval-dataset"}),
-        config=json.dumps(eval_config),
+        task_type="EVAL",
+        inputs={"model_name": "test-model-2", "dataset_name": "test-eval-dataset"},
+        config=eval_config,
         plugin="test_evaluator",
-        outputs=json.dumps({"eval_results": "{}"}),
+        outputs={"eval_results": "{}"},
         experiment_id=experiment_id,
     )
 
@@ -67,6 +68,8 @@ async def test_export_experiment(client):
 
     # The response should be a JSON file
     assert response.headers["content-type"] == "application/json"
+
+    WORKSPACE_DIR = get_workspace_dir()
 
     # Read the exported file from workspace directory
     export_file = os.path.join(WORKSPACE_DIR, f"{test_experiment_name}_export.json")

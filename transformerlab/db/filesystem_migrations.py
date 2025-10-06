@@ -2,6 +2,7 @@ import json
 import os
 
 from lab.dataset import Dataset as dataset_service
+from lab.task import Task as task_service
 
 async def migrate_datasets_table_to_filesystem():
     """
@@ -226,3 +227,107 @@ async def migrate_models_table_to_filesystem():
     except Exception as e:
         # Do not block startup on migration issues
         print(f"Models migration skipped due to error: {e}")
+
+
+async def migrate_tasks_table_to_filesystem():
+    """
+    One-time migration: copy rows from the legacy tasks DB table into the filesystem
+    registry via transformerlab-sdk, then drop the table.
+    Safe to run multiple times; it will no-op if table is missing or empty.
+    """
+    try:
+        # Late import to avoid hard dependency during tests without DB
+        from transformerlab.db.session import async_session
+        from sqlalchemy import text as sqlalchemy_text
+
+        # Read existing rows
+        rows = []
+        try:
+            # First check if the table exists
+            async with async_session() as session:
+                result = await session.execute(
+                    sqlalchemy_text("SELECT name FROM sqlite_master WHERE type='table' AND name='tasks'")
+                )
+                exists = result.fetchone() is not None
+            if not exists:
+                return
+            # Migrate db.tasks_get_all() to run here as we are deleting that code
+            rows = []
+            async with async_session() as session:
+                result = await session.execute(sqlalchemy_text("SELECT * FROM tasks"))
+                tasks = result.mappings().all()
+                dict_rows = [dict(task) for task in tasks]
+                for row in dict_rows:
+                    # Handle JSON fields that might be strings
+                    for json_field in ["inputs", "config", "outputs"]:
+                        if json_field in row and row[json_field]:
+                            if isinstance(row[json_field], str):
+                                try:
+                                    row[json_field] = json.loads(row[json_field])
+                                except Exception:
+                                    # If malformed, keep as original string or empty dict
+                                    row[json_field] = {}
+                    rows.append(row)
+        except Exception as e:
+            print(f"Failed to read tasks for migration: {e}")
+            rows = []
+
+        migrated = 0
+        for row in rows:
+            task_id = str(row.get("id")) if row.get("id") is not None else None
+            if not task_id:
+                continue
+            
+            name = row.get("name", "")
+            task_type = row.get("type", "")
+            inputs = row.get("inputs", {})
+            config = row.get("config", {})
+            plugin = row.get("plugin", "")
+            outputs = row.get("outputs", {})
+            experiment_id = row.get("experiment_id")
+            created_at = row.get("created_at")
+            updated_at = row.get("updated_at")
+
+            try:
+                try:
+                    task = task_service.get(task_id)
+                except FileNotFoundError:
+                    task = task_service.create(task_id)
+                
+                task.set_metadata(
+                    name=name,
+                    type=task_type,
+                    inputs=inputs,
+                    config=config,
+                    plugin=plugin,
+                    outputs=outputs,
+                    experiment_id=experiment_id,
+                )
+                
+                # Set the timestamps manually since they come from the database
+                metadata = task.get_metadata()
+                if created_at:
+                    metadata["created_at"] = created_at.isoformat() if hasattr(created_at, 'isoformat') else str(created_at)
+                if updated_at:
+                    metadata["updated_at"] = updated_at.isoformat() if hasattr(updated_at, 'isoformat') else str(updated_at)
+                task._set_json_data(metadata)
+                
+                migrated += 1
+            except Exception as e:
+                print(f"Error migrating task {task_id}: {e}")
+                # Best-effort migration; continue
+                continue
+
+        # Drop the legacy table if present
+        try:
+            async with async_session() as session:
+                await session.execute(sqlalchemy_text("ALTER TABLE tasks RENAME TO zzz_archived_tasks"))
+                await session.commit()
+        except Exception:
+            pass
+
+        if migrated:
+            print(f"Tasks migration completed: {migrated} entries migrated to filesystem store.")
+    except Exception as e:
+        # Do not block startup on migration issues
+        print(f"Tasks migration skipped due to error: {e}")
