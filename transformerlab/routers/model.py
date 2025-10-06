@@ -485,8 +485,8 @@ async def download_huggingface_model(
     hugging_face_filename = model_details.get("huggingface_filename", None)
     allow_patterns = model_details.get("allow_patterns", None)
 
-        from transformerlab.shared import dirs as shared_dirs
-        args = [
+    from transformerlab.shared import dirs as shared_dirs
+    args = [
         f"{shared_dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
         "--model_name",
         hugging_face_id,
