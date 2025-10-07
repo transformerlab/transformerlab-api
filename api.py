@@ -5,7 +5,6 @@ The Entrypoint File for Transformer Lab's API Server.
 import os
 import argparse
 import asyncio
-import shutil
 
 import json
 import signal
@@ -67,21 +66,20 @@ from transformerlab.routers.experiment import workflows
 from transformerlab.routers.experiment import jobs
 from transformerlab.shared import shared
 from transformerlab.shared import galleries
-from lab.dirs import get_workspace_dir, get_jobs_dir
-from lab import dirs as lab_dirs, Experiment, Job
+from lab.dirs import get_workspace_dir
+from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
 from transformerlab.db.filesystem_migrations import (
     migrate_datasets_table_to_filesystem,
     migrate_models_table_to_filesystem,
     migrate_tasks_table_to_filesystem,
+    migrate_job_and_experiment_to_filesystem,
 )
 from transformerlab.shared.request_context import set_current_org_id
 from lab.dirs import set_organization_id as lab_set_org_id
 
 from dotenv import load_dotenv
-from datetime import datetime
 
-JOBS_DIR = get_jobs_dir()
 load_dotenv()
 
 # The following environment variable can be used by other scripts
@@ -94,311 +92,6 @@ os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 # The temporary image directory for transformerlab (default; per-request overrides computed in routes)
 temp_image_dir = os.path.join(get_workspace_dir(), "temp", "images")
 os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
-
-async def migrate_jobs():
-    """Migrate jobs from DB to filesystem"""
-    try:
-        # Late import to avoid hard dependency during tests without DB
-        from transformerlab.db.session import async_session
-        from sqlalchemy import text as sqlalchemy_text
-
-        print("Migrating jobs...")
-        
-        # Read existing job rows from DB using raw SQL (like dataset migration)
-        jobs_rows = []
-        experiments_map = {}  # Map experiment_id to experiment_name
-        try:
-            # First check if the jobs table exists
-            async with async_session() as session:
-                result = await session.execute(
-                    sqlalchemy_text("SELECT name FROM sqlite_master WHERE type='table' AND name='job'")
-                )
-                jobs_table_exists = result.fetchone() is not None
-                
-                # Also check if experiments table exists to get the name mapping
-                result = await session.execute(
-                    sqlalchemy_text("SELECT name FROM sqlite_master WHERE type='table' AND name='zzz_archived_experiment'")
-                )
-                experiments_table_exists = result.fetchone() is not None
-            
-            if not jobs_table_exists:
-                print("No jobs table found, skipping jobs migration.")
-                return
-                
-            # Get experiments mapping first (can't use experiment_get_all() as it might be deleted)
-            if experiments_table_exists:
-                async with async_session() as session:
-                    result = await session.execute(sqlalchemy_text("SELECT * FROM zzz_archived_experiment"))
-                    experiments = result.mappings().all()
-                    for exp in experiments:
-                        # Ensure consistent string keys for mapping
-                        experiments_map[str(exp['id'])] = exp['name']            
-            # Get all jobs using raw SQL (can't use jobs_get_by_experiment() as it might be deleted)
-            async with async_session() as session:
-                result = await session.execute(sqlalchemy_text("SELECT * FROM job"))
-                jobs = result.mappings().all()
-                dict_jobs = [dict(job) for job in jobs]
-                for job in dict_jobs:
-                    # Handle job_data JSON inconsistency (like dataset migration)
-                    if "job_data" in job and job["job_data"]:
-                        if isinstance(job["job_data"], str):
-                            try:
-                                job["job_data"] = json.loads(job["job_data"])
-                            except json.JSONDecodeError:
-                                job["job_data"] = {}
-                    jobs_rows.append(job)
-        except Exception as e:
-            print(f"Failed to read jobs for migration: {e}")
-            jobs_rows = []
-
-        if not jobs_rows:
-            print("No jobs found in DB to migrate.")
-            return
-
-        # Move existing jobs directory to temp if it exists
-        # We do this because the SDK's create() method will fail if directories already exist, so we temporarily move
-        # the existing directories aside, let the SDK create clean directories with proper structure,
-        # then copy back all the existing files (preserving user data like logs, configs, etc.)
-        temp_jobs_dir = None
-        if os.path.exists(JOBS_DIR):
-            temp_jobs_dir = f"{JOBS_DIR}_migration_temp"
-            print(f"Moving existing jobs directory to: {temp_jobs_dir}")
-            os.rename(JOBS_DIR, temp_jobs_dir)
-
-        migrated = 0
-        for job in jobs_rows:
-            # Get experiment name from mapping
-            experiment_id = job.get('experiment_id')
-            if experiment_id is None or experiment_id == -1:
-                experiment_name = 'unknown'
-            else:
-                experiment_name = experiments_map.get(str(experiment_id))
-            
-            try:
-                # Create SDK Job
-                job_obj = Job.create(job['id'])
-                # Update the JSON data with DB data
-                job_obj._update_json_data_field(key="id", value=job["id"])
-                job_obj._update_json_data_field(key="experiment_id", value=experiment_name)  # Use name instead of numeric ID
-                job_obj._update_json_data_field(key="job_data", value=job.get("job_data", {}))
-                job_obj._update_json_data_field(key="status", value=job["status"])
-                job_obj._update_json_data_field(key="type", value=job["type"])
-                job_obj._update_json_data_field(key="progress", value=job.get("progress"))
-                
-                # Copy existing files from temp directory if they exist
-                # This preserves all user data (logs, configs, outputs, etc.) that was in the
-                # original job directories while maintaining the new SDK structure
-                if temp_jobs_dir:
-                    old_job_dir = os.path.join(temp_jobs_dir, str(job['id']))
-                    if os.path.exists(old_job_dir):
-                        new_job_dir = job_obj.get_dir()
-                        # Copy all files except index.json (which we just created)
-                        for item in os.listdir(old_job_dir):
-                            src = os.path.join(old_job_dir, item)
-                            dst = os.path.join(new_job_dir, item)
-                            if os.path.isdir(src):
-                                shutil.copytree(src, dst, dirs_exist_ok=True)
-                            else:
-                                shutil.copy2(src, dst)
-                    else:
-                        # Job not found in jobs directory, check if it's in the wrong place
-                        # (experiments/{experiment_name}/jobs/{job_id}) from the last month
-                        temp_experiments_dir = f"{lab_dirs.get_experiments_dir()}_migration_temp"
-                        if os.path.exists(temp_experiments_dir):
-                            wrong_place_job_dir = os.path.join(temp_experiments_dir, str(experiment_name), "jobs", str(job['id']))
-                            if os.path.exists(wrong_place_job_dir):
-                                new_job_dir = job_obj.get_dir()
-                                # Copy all files except index.json (which we just created)
-                                for item in os.listdir(wrong_place_job_dir):
-                                    src = os.path.join(wrong_place_job_dir, item)
-                                    dst = os.path.join(new_job_dir, item)
-                                    if os.path.isdir(src):
-                                        shutil.copytree(src, dst, dirs_exist_ok=True)
-                                    else:
-                                        shutil.copy2(src, dst)
-                
-                migrated += 1
-            except Exception:
-                # Best-effort migration; continue
-                continue
-
-        # Clean up temp directory
-        if temp_jobs_dir and os.path.exists(temp_jobs_dir):
-            print(f"Cleaning up temp jobs directory: {temp_jobs_dir}")
-            shutil.rmtree(temp_jobs_dir)
-        
-        # Clean up temp experiments directory if it was used for job migration
-        temp_experiments_dir = f"{lab_dirs.get_experiments_dir()}_migration_temp"
-        if os.path.exists(temp_experiments_dir):
-            print(f"Cleaning up temp experiments directory after job migration: {temp_experiments_dir}")
-            shutil.rmtree(temp_experiments_dir)
-
-        # Archive the legacy jobs table if present (like dataset migration)
-        try:
-            async with async_session() as session:
-                await session.execute(sqlalchemy_text("ALTER TABLE job RENAME TO zzz_archived_job"))
-                await session.commit()
-        except Exception:
-            pass
-
-        if migrated:
-            print(f"Jobs migration completed: {migrated} entries migrated to filesystem store.")
-            
-    except Exception as e:
-        # Do not block startup on migration issues
-        print(f"Jobs migration skipped due to error: {e}")
-
-async def migrate_experiments():
-    """Migrate experiments from DB to filesystem following the dataset migration pattern."""
-    try:
-        # Late import to avoid hard dependency during tests without DB
-        from transformerlab.db.session import async_session
-        from sqlalchemy import text as sqlalchemy_text
-
-        print("Migrating experiments...")
-        
-        # Read existing experiment rows from DB using raw SQL (like dataset migration)
-        experiments_rows = []
-        try:
-            # First check if the experiments table exists
-            async with async_session() as session:
-                result = await session.execute(
-                    sqlalchemy_text("SELECT name FROM sqlite_master WHERE type='table' AND name='experiment'")
-                )
-                exists = result.fetchone() is not None
-            if not exists:
-                print("No experiments table found, skipping experiments migration.")
-                return
-                
-            # Get all experiments using raw SQL (can't use experiment_get_all() as it might be deleted)
-            async with async_session() as session:
-                result = await session.execute(sqlalchemy_text("SELECT * FROM experiment"))
-                experiments = result.mappings().all()
-                dict_experiments = [dict(experiment) for experiment in experiments]
-                for exp in dict_experiments:
-                    # Handle config JSON inconsistency (like dataset migration)
-                    if "config" in exp and exp["config"]:
-                        if isinstance(exp["config"], str):
-                            try:
-                                exp["config"] = json.loads(exp["config"])
-                            except json.JSONDecodeError:
-                                exp["config"] = {}
-                    experiments_rows.append(exp)
-        except Exception as e:
-            print(f"Failed to read experiments for migration: {e}")
-            experiments_rows = []
-
-        if not experiments_rows:
-            print("No experiments found in DB to migrate.")
-            return
-
-        # Move existing experiments directory to temp if it exists
-        # We do this because the SDK's create() method will fail if 
-        # directories already exist, so we temporarily move the existing directories aside, let the 
-        # SDK create clean directories with proper structure, then copy back all the existing files 
-        # (preserving user data like models, datasets, configs, etc.)
-        temp_experiments_dir = None
-        experiments_dir = lab_dirs.get_experiments_dir()
-        if os.path.exists(experiments_dir):
-            temp_experiments_dir = f"{experiments_dir}_migration_temp"
-            print(f"Moving existing experiments directory to: {temp_experiments_dir}")
-            os.rename(experiments_dir, temp_experiments_dir)
-
-        migrated = 0
-        for exp in experiments_rows:
-            try:
-                # Create SDK Experiment
-                experiment = Experiment.create(exp['name'])
-                # Update the JSON data with DB data
-                experiment._update_json_data_field(key="id", value=exp["name"])
-                experiment._update_json_data_field(key="db_experiment_id", value=exp["id"])
-                experiment._update_json_data_field(key="config", value=exp.get("config", {}))
-                experiment._update_json_data_field(key="created_at", value=exp.get("created_at", datetime.now().isoformat()))
-                experiment._update_json_data_field(key="updated_at", value=exp.get("updated_at", datetime.now().isoformat()))
-                
-                # Copy existing files from temp directory if they exist
-                # This preserves all user data (models, datasets, configs, etc.) that was in the
-                # original experiment directories while maintaining the new SDK structure
-                if temp_experiments_dir:
-                    old_experiment_dir = os.path.join(temp_experiments_dir, exp['name'])
-                    if os.path.exists(old_experiment_dir):
-                        new_experiment_dir = experiment.get_dir()
-                        for item in os.listdir(old_experiment_dir):
-                            src = os.path.join(old_experiment_dir, item)
-                            dst = os.path.join(new_experiment_dir, item)
-                            if os.path.isdir(src):
-                                shutil.copytree(src, dst, dirs_exist_ok=True)
-                            else:
-                                shutil.copy2(src, dst)
-                
-                migrated += 1
-            except Exception:
-                # Best-effort migration; continue
-                continue
-
-        # Clean up temp directory
-        if temp_experiments_dir and os.path.exists(temp_experiments_dir):
-            print(f"Cleaning up temp experiments directory: {temp_experiments_dir}")
-            shutil.rmtree(temp_experiments_dir)
-
-        # Archive the legacy experiments table if present (like dataset migration)
-        try:
-            async with async_session() as session:
-                await session.execute(sqlalchemy_text("ALTER TABLE experiment RENAME TO zzz_archived_experiment"))
-                await session.commit()
-        except Exception:
-            pass
-
-        if migrated:
-            print(f"Experiments migration completed: {migrated} entries migrated to filesystem store.")
-            
-    except Exception as e:
-        # Do not block startup on migration issues
-        print(f"Experiments migration skipped due to error: {e}")
-
-async def migrate_job_and_experiment_to_filesystem():
-    """Migrate data from DB to filesystem if not already migrated."""
-    
-    try: 
-        # Late import to avoid hard dependency during tests without DB
-        from transformerlab.db.session import async_session
-        from sqlalchemy import text as sqlalchemy_text
-
-        # Check if migration is needed by looking for the existence of old database tables
-        experiments_need_migration = False
-        jobs_need_migration = False
-        
-        try:
-            async with async_session() as session:
-                # Check if experiments table exists
-                result = await session.execute(
-                    sqlalchemy_text("SELECT name FROM sqlite_master WHERE type='table' AND name='experiment'")
-                )
-                experiments_need_migration = result.fetchone() is not None
-                
-                # Check if jobs table exists  
-                result = await session.execute(
-                    sqlalchemy_text("SELECT name FROM sqlite_master WHERE type='table' AND name='job'")
-                )
-                jobs_need_migration = result.fetchone() is not None
-        except Exception as e:
-            print(f"Failed to check for migration tables: {e}")
-            return
-        
-        # If neither needs migration, skip entirely
-        if not experiments_need_migration and not jobs_need_migration:
-            print("No migration needed - tables not found.")
-            return
-        else:
-            if experiments_need_migration:
-                await migrate_experiments()
-            if jobs_need_migration:
-                await migrate_jobs()
-                
-    except Exception as e:
-        print(f"Error during migration: {e}")
-        # Do not block startup on migration issues
-        pass
 
 
 @asynccontextmanager
