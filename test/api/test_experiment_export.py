@@ -10,7 +10,7 @@ async def test_export_experiment(client):
     # Create a test experiment
     test_experiment_name = f"test_export_{os.getpid()}"
     config = {"description": "Test experiment"}
-    experiment_id = await experiment_service.experiment_create(test_experiment_name, config)
+    experiment_id = experiment_service.experiment_create(test_experiment_name, config)
 
     # Add a training task
     train_config = {
@@ -103,6 +103,6 @@ async def test_export_experiment(client):
     # assert len(workflows["test_workflow"]["config"]["edges"]) == 1
 
     # Clean up
-    await experiment_service.experiment_delete(experiment_id)
+    experiment_service.experiment_delete(experiment_id)
     if os.path.exists(export_file):
         os.remove(export_file)
