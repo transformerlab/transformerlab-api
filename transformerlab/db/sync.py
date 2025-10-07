@@ -12,13 +12,27 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.dialects.sqlite import insert
 
 from transformerlab.db.constants import DATABASE_FILE_NAME
-from transformerlab.services.job_service import ALLOWED_JOB_TYPES
 from transformerlab.shared.models import models
 
 
 # Create synchronous engine and session factory
 sync_engine = create_engine(f"sqlite:///{DATABASE_FILE_NAME}", echo=False)
 sync_session_factory = sessionmaker(bind=sync_engine, expire_on_commit=False)
+
+
+# Allowed job types: (Dupicated from job_service = no good)
+ALLOWED_JOB_TYPES = [
+    "TRAIN",
+    "DOWNLOAD_MODEL",
+    "LOAD_MODEL",
+    "TASK",
+    "EVAL",
+    "EXPORT",
+    "UNDEFINED",
+    "GENERATE",
+    "INSTALL_RECIPE_DEPS",
+    "DIFFUSION",
+]
 
 
 def get_sync_session() -> Session:
