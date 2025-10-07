@@ -132,23 +132,6 @@ async def training_jobs_get_all():
         return data
 
 
-# async def training_job_create(template_id, description, experiment_id):
-
-#     job_data = {
-#         "template_id": template_id,
-#         "description": description,
-#     }
-
-#     job_data = json.dumps(job_data)
-
-#     row = await db.execute_insert(
-#         "INSERT INTO job(type, status, experiment_id, job_data) VALUES (?, ?, ?, json(?))",
-#         ("TRAIN", "QUEUED", experiment_id, job_data),
-#     )
-#     await db.commit()  # is this necessary?
-#     return row[0]
-
-
 ####################
 # EXPEORT JOBS MODEL
 # Export jobs use the job_data JSON object to store:
