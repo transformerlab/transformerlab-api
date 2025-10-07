@@ -1,6 +1,8 @@
 import json
 from typing import Optional
 
+from lab import Experiment, Job
+
 import transformerlab.db.jobs as db_jobs
 from transformerlab.db.sync import (
     job_update_status_sync as db_job_update_status_sync,
@@ -9,11 +11,99 @@ from transformerlab.db.sync import (
     job_mark_as_complete_if_running as db_job_mark_as_complete_if_running,
 )
 from transformerlab.shared.models import models
+from transformerlab.experiment_service 
 from sqlalchemy import select
 
+# Allowed job types:
+ALLOWED_JOB_TYPES = [
+    "TRAIN",
+    "DOWNLOAD_MODEL",
+    "LOAD_MODEL",
+    "TASK",
+    "EVAL",
+    "EXPORT",
+    "UNDEFINED",
+    "GENERATE",
+    "INSTALL_RECIPE_DEPS",
+    "DIFFUSION",
+]
 
 # Centralized set of job types that can trigger workflows on completion
 SUPPORTED_WORKFLOW_TRIGGERS = ["TRAIN", "LOAD_MODEL", "EXPORT", "EVAL", "GENERATE", "DOWNLOAD_MODEL"]
+
+
+def job_create(type, status, experiment_id, job_data="{}"):
+    # check if type is allowed
+    if type not in ALLOWED_JOB_TYPES:
+        raise ValueError(f"Job type {type} is not allowed")
+
+    # Ensure job_data is a dict. If it's a string convert it.
+    if isinstance(job_data, str):
+        try:
+            job_data = json.loads(job_data)
+        except Exception:
+            job_data = {}
+
+    # Create experiment if it doesn't exist
+    exp = Experiment(experiment_id)
+
+    # Create job through experiment
+    job = exp.create_job()
+    job.set_type(type)
+    job.update_status(status)
+    job.set_job_data(job_data)
+
+    return job.id
+
+
+def jobs_get_all(experiment_id, type="", status=""):
+    exp_obj = Experiment(experiment_id)
+    return exp_obj.get_jobs(type, status)
+
+
+def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
+    return jobs_get_all(experiment_id, job_type)
+
+
+def jobs_get_by_experiment(experiment_id):
+    """Get all jobs for a specific experiment"""
+    return jobs_get_all(experiment_id)
+
+def job_get(job_id):
+    try:
+        job = Job.get(job_id)
+        return job.get_json_data()
+    except Exception:
+        return None
+
+def job_count_running():
+    return Job.count_running_jobs()
+
+
+def jobs_get_next_queued_job():
+    return Job.get_next_queued_job()
+
+
+def job_delete_all(experiment_id):
+    if experiment_id is not None:
+        experiment = Experiment(experiment_id)
+        experiment.delete_all_jobs()
+
+
+def job_delete(job_id, experiment_id):
+    try:
+        job = Job.get(job_id)
+        if experiment_id is not None and job.get_experiment_id() != experiment_id:
+            return
+        job.delete()
+    except Exception:
+        pass
+
+
+##################################
+# ORIGINAL JOB SERVICE FUNCTIONS
+# Create to support workflows
+##################################
 
 
 async def _trigger_workflows_on_job_completion(job_id: str):
