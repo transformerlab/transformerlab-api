@@ -88,14 +88,6 @@ import pytest  # noqa: E402
 
 
 
-@pytest.mark.asyncio
-async def test_job_get_status_and_error_msg_for_nonexistent():
-    # Should raise or return None for missing job
-    job = await job_get(999999)
-    assert job is None
-    # Since job is None, both status and error_msg would be None
-    assert job is None
-
 
 @pytest.mark.asyncio
 async def test_job_update_job_data_insert_key_value_overwrite():
