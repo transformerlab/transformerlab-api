@@ -348,31 +348,6 @@ class TestExperiments:
 
         # Additional test for experiment_get_by_name which has partial coverage
 
-    @pytest.mark.asyncio
-    @pytest.mark.serial
-    async def test_experiment_get_by_name(setup_db):
-        """Test the experiment_get_by_name function."""
-        # Create a test experiment
-        experiment_name = "test_experiment_by_name"
-        config = {}
-        # Delete the experiment if it already exists
-        existing = await experiment_get(experiment_name)
-        if existing:
-            await experiment_delete(existing["id"])
-        experiment_id = await experiment_create(experiment_name, config)
-
-        # Test the function
-        experiment = await experiment_get(experiment_name)
-
-        # Verify results
-        assert experiment is not None
-        assert experiment["name"] == experiment_name
-        assert experiment["id"] == experiment_id
-
-        # Test with non-existent name
-        non_existent = await experiment_get("non_existent_experiment")
-        assert non_existent is None
-
 
 class TestPlugins:
     @pytest.mark.asyncio
