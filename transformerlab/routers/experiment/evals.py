@@ -30,7 +30,7 @@ async def experiment_add_evaluation(experimentId: str, plugin: Any = Body()):
     if experiment is None:
         return {"message": f"Experiment {experimentId} does not exist"}
 
-    experiment_config = json.loads(experiment["config"])
+    experiment_config = experiment["config"]  # now returns a dict directly
 
     if "evaluations" not in experiment_config:
         experiment_config["evaluations"] = "[]"
@@ -66,7 +66,7 @@ async def experiment_delete_eval(experimentId: str, eval_name: str):
     if experiment is None:
         return {"message": f"Experiment {experimentId} does not exist"}
 
-    experiment_config = json.loads(experiment["config"])
+    experiment_config = experiment["config"]  # now returns a dict directly
 
     if "evaluations" not in experiment_config:
         return {"message": f"Experiment {experimentId} has no evaluations"}

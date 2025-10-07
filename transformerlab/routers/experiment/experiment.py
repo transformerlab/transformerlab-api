@@ -66,13 +66,7 @@ async def experiment_get(id: str):
     if data is None:
         return {"status": "error", "message": f"Experiment {id} does not exist"}
 
-    # convert the JSON string called config to json object if it's a string
-    if isinstance(data["config"], str):
-        try:
-            data["config"] = json.loads(data["config"])
-        except json.JSONDecodeError:
-            data["config"] = {}
-    
+    # config is already parsed as dict in experiment_get
     return data
 
 
@@ -181,8 +175,8 @@ async def export_experiment_to_recipe(id: str, request: Request):
     if data is None:
         return {"status": "error", "message": f"Experiment {id} does not exist"}
 
-    # Get experiment config
-    config = json.loads(data["config"])
+    # Get experiment config - now returns a dict directly
+    config = data["config"]
 
     # Initialize the export structure
     export_data = {

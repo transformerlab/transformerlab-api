@@ -218,7 +218,7 @@ async def test_experiment_update_and_update_config_and_save_prompt_template(test
     test_prompt = '"prompt"'
     await experiment_save_prompt_template(test_experiment, test_prompt)
     exp = await experiment_get(test_experiment)
-    exp_config = json.loads(exp["config"])
+    exp_config = exp["config"]  # now returns a dict directly
     assert exp_config.get("prompt_template") == test_prompt
 
 
