@@ -7,8 +7,8 @@ import sys
 
 from fastapi import APIRouter
 
-import transformerlab.db.db as db
 from transformerlab.services.experiment_service import experiment_get
+from transformerlab.services.job_service import job_create
 import transformerlab.db.jobs as db_jobs
 from lab import dirs as lab_dirs
 from transformerlab.shared import dirs, shared
@@ -103,7 +103,8 @@ async def run_exporter_script(
             params=params,
         )
         job_data_json = json.dumps(job_data)
-        job_id = await db.export_job_create(experiment_id=id, job_data_json=job_data_json)
+        job_id = job_create(type="EXPORT", status="Started", experiment_id=experiment_name, job_data=job_data_json)
+        return job_id
 
     # Setup arguments to pass to plugin
     args = [
