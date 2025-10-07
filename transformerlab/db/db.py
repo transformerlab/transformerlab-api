@@ -1,6 +1,4 @@
 import json
-import os
-import shutil
 
 from sqlalchemy import select, delete, text, update
 from sqlalchemy.dialects.sqlite import insert  # Correct import for SQLite upsert
@@ -20,7 +18,6 @@ from transformerlab.shared.models.models import Config, Plugin
 from transformerlab.db.utils import sqlalchemy_to_dict, sqlalchemy_list_to_dict
 
 from transformerlab.db.session import async_session
-from lab import Experiment, dirs as lab_dirs
 
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
