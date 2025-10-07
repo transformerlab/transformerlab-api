@@ -30,12 +30,12 @@ async def experiment_add_generation(experimentId: str, plugin: Any = Body()):
     if experiment is None:
         return {"message": f"Experiment {experimentId} does not exist"}
 
-    experiment_config = json.loads(experiment["config"])
+    experiment_config = experiment["config"]  # now returns a dict directly
 
-    if "generations" not in experiment_config:
-        experiment_config["generations"] = "[]"
+    if "generations" not in experiment_config or not isinstance(experiment_config.get("generations"), list):
+        experiment_config["generations"] = []
 
-    generations = json.loads(experiment_config["generations"])
+    generations = experiment_config["generations"]
 
     name = plugin["name"]
     plugin_name = plugin["plugin"]
@@ -52,7 +52,7 @@ async def experiment_add_generation(experimentId: str, plugin: Any = Body()):
 
     generations.append(generation)
 
-    experiment_update_config(experimentId, "generations", json.dumps(generations))
+    experiment_update_config(experimentId, "generations", generations)
 
     return {"message": f"Experiment {experimentId} updated with plugin {plugin_name}"}
 
@@ -68,17 +68,17 @@ async def experiment_delete_generation(experimentId: str, generation_name: str):
         if experiment is None:
             return {"message": f"Experiment {experimentId} does not exist"}
 
-        experiment_config = json.loads(experiment["config"])
+        experiment_config = experiment["config"]  # now returns a dict directly
 
-        if "generations" not in experiment_config:
+        if "generations" not in experiment_config or not isinstance(experiment_config.get("generations"), list):
             return {"message": f"Experiment {experimentId} has no generations"}
 
-        generations = json.loads(experiment_config["generations"])
+        generations = experiment_config["generations"]
 
         # remove the generation from the list:
         generations = [e for e in generations if e["name"] != generation_name]
 
-        experiment_update_config(experimentId, "generations", json.dumps(generations))
+        experiment_update_config(experimentId, "generations", generations)
 
         return {"message": f"Generation {generations} deleted from experiment {experimentId}"}
     except Exception as e:
@@ -105,14 +105,14 @@ async def edit_evaluation_generation(experimentId: str, plugin: Any = Body()):
         plugin_name = updated_json["plugin_name"]
         template_name = updated_json["template_name"]
 
-        experiment_config = json.loads(experiment["config"])
+        experiment_config = experiment["config"]  # now returns a dict directly
 
         # updated_json = json.loads(updated_json)
 
-        if "generations" not in experiment_config:
+        if "generations" not in experiment_config or not isinstance(experiment_config.get("generations"), list):
             return {"message": f"Experiment {experimentId} has no generations"}
 
-        generations = json.loads(experiment_config["generations"])
+        generations = experiment_config["generations"]
 
         # Remove fields model_name, model_architecture and plugin_name from the updated_json
         # as they are not needed in the generations list
@@ -126,7 +126,7 @@ async def edit_evaluation_generation(experimentId: str, plugin: Any = Body()):
                 generation["script_parameters"] = updated_json
                 generation["name"] = template_name
 
-        experiment_update_config(experimentId, "generations", json.dumps(generations))
+        experiment_update_config(experimentId, "generations", generations)
 
         return {"message": "OK"}
     except Exception as e:
@@ -172,7 +172,7 @@ async def run_generation_script(experimentId: str, plugin_name: str, generation_
 
     if experiment_details is None:
         return {"message": f"Experiment {experimentId} does not exist"}
-    config = json.loads(experiment_details["config"])
+    config = experiment_details["config"] if isinstance(experiment_details["config"], dict) else json.loads(experiment_details["config"] or "{}")
 
     model_name = config.get("foundation", "")
     if "model_name" in generation_config.keys():
@@ -198,13 +198,15 @@ async def run_generation_script(experimentId: str, plugin_name: str, generation_
     # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
     # and should be done in the API itself
     if "config" in experiment_details:
-        experiment_details["config"] = json.loads(experiment_details["config"])
+        experiment_details["config"] = experiment_details["config"] if isinstance(experiment_details["config"], dict) else json.loads(experiment_details["config"] or "{}")
         if "inferenceParams" in experiment_details["config"]:
-            experiment_details["config"]["inferenceParams"] = json.loads(
-                experiment_details["config"]["inferenceParams"]
-            )
+            if isinstance(experiment_details["config"]["inferenceParams"], str):
+                experiment_details["config"]["inferenceParams"] = json.loads(
+                    experiment_details["config"]["inferenceParams"]
+                )
         if "generations" in experiment_details["config"]:
-            experiment_details["config"]["generations"] = json.loads(experiment_details["config"]["generations"])
+            if isinstance(experiment_details["config"]["generations"], str):
+                experiment_details["config"]["generations"] = json.loads(experiment_details["config"]["generations"])
 
     template_config = generation_config["script_parameters"]
     job_output_file = await shared.get_job_output_file_name(job_id, plugin_name, experimentId)

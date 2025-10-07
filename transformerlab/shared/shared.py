@@ -939,7 +939,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
             # and should be done in the API itself
             if "config" in experiment_details:
-                experiment_details["config"] = json.loads(experiment_details["config"])
+                experiment_details["config"] = experiment_details["config"] if isinstance(experiment_details["config"], dict) else json.loads(experiment_details["config"] or "{}")
                 if "inferenceParams" in experiment_details["config"]:
                     experiment_details["config"]["inferenceParams"] = json.loads(
                         experiment_details["config"]["inferenceParams"]

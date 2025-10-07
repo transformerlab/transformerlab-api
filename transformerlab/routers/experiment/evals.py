@@ -32,10 +32,10 @@ async def experiment_add_evaluation(experimentId: str, plugin: Any = Body()):
 
     experiment_config = experiment["config"]  # now returns a dict directly
 
-    if "evaluations" not in experiment_config:
-        experiment_config["evaluations"] = "[]"
+    if "evaluations" not in experiment_config or not isinstance(experiment_config.get("evaluations"), list):
+        experiment_config["evaluations"] = []
 
-    evaluations = json.loads(experiment_config["evaluations"])
+    evaluations = experiment_config["evaluations"]
 
     name = plugin["name"]
     plugin_name = plugin["plugin"]
@@ -52,7 +52,7 @@ async def experiment_add_evaluation(experimentId: str, plugin: Any = Body()):
 
     evaluations.append(evaluation)
 
-    experiment_update_config(experimentId, "evaluations", json.dumps(evaluations))
+    experiment_update_config(experimentId, "evaluations", evaluations)
 
     return {"message": f"Experiment {experimentId} updated with plugin {plugin_name}"}
 
@@ -68,15 +68,15 @@ async def experiment_delete_eval(experimentId: str, eval_name: str):
 
     experiment_config = experiment["config"]  # now returns a dict directly
 
-    if "evaluations" not in experiment_config:
+    if "evaluations" not in experiment_config or not isinstance(experiment_config.get("evaluations"), list):
         return {"message": f"Experiment {experimentId} has no evaluations"}
 
-    evaluations = json.loads(experiment_config["evaluations"])
+    evaluations = experiment_config["evaluations"]
 
     # remove the evaluation from the list:
     evaluations = [e for e in evaluations if e["name"] != eval_name]
 
-    experiment_update_config(experimentId, "evaluations", json.dumps(evaluations))
+    experiment_update_config(experimentId, "evaluations", evaluations)
 
     return {"message": f"Evaluation {eval_name} deleted from experiment {experimentId}"}
 
@@ -100,14 +100,14 @@ async def edit_evaluation_task(experimentId: str, plugin: Any = Body()):
         plugin_name = updated_json["plugin_name"]
         template_name = updated_json["template_name"]
 
-        experiment_config = json.loads(experiment["config"])
+        experiment_config = experiment["config"]  # now returns a dict directly
 
         # updated_json = json.loads(updated_json)
 
-        if "evaluations" not in experiment_config:
+        if "evaluations" not in experiment_config or not isinstance(experiment_config.get("evaluations"), list):
             return {"message": f"Experiment {experimentId} has no evaluations"}
 
-        evaluations = json.loads(experiment_config["evaluations"])
+        evaluations = experiment_config["evaluations"]
 
         # Remove fields model_name, model_architecture and plugin_name from the updated_json
         # as they are not needed in the evaluations list
@@ -121,7 +121,7 @@ async def edit_evaluation_task(experimentId: str, plugin: Any = Body()):
                 evaluation["script_parameters"] = updated_json
                 evaluation["name"] = template_name
 
-        experiment_update_config(experimentId, "evaluations", json.dumps(evaluations))
+        experiment_update_config(experimentId, "evaluations", evaluations)
 
         return {"message": "OK"}
     except Exception as e:
@@ -164,7 +164,7 @@ async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: 
 
     if experiment_details is None:
         return {"message": f"Experiment {experimentId} does not exist"}
-    config = json.loads(experiment_details["config"])
+    config = experiment_details["config"] if isinstance(experiment_details["config"], dict) else json.loads(experiment_details["config"] or "{}")
 
     model_name = config["foundation"]
     if "model_name" in eval_config.keys():
@@ -193,13 +193,15 @@ async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: 
     # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
     # and should be done in the API itself
     if "config" in experiment_details:
-        experiment_details["config"] = json.loads(experiment_details["config"])
+        experiment_details["config"] = experiment_details["config"] if isinstance(experiment_details["config"], dict) else json.loads(experiment_details["config"] or "{}")
         if "inferenceParams" in experiment_details["config"]:
-            experiment_details["config"]["inferenceParams"] = json.loads(
-                experiment_details["config"]["inferenceParams"]
-            )
+            if isinstance(experiment_details["config"]["inferenceParams"], str):
+                experiment_details["config"]["inferenceParams"] = json.loads(
+                    experiment_details["config"]["inferenceParams"]
+                )
         if "evaluations" in experiment_details["config"]:
-            experiment_details["config"]["evaluations"] = json.loads(experiment_details["config"]["evaluations"])
+            if isinstance(experiment_details["config"]["evaluations"], str):
+                experiment_details["config"]["evaluations"] = json.loads(experiment_details["config"]["evaluations"])
 
     template_config = eval_config["script_parameters"]
     job_output_file = await shared.get_job_output_file_name(job_id, plugin_name, experimentId)

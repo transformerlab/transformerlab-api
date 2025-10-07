@@ -304,9 +304,7 @@ async def server_worker_start(
     elif experiment_id is not None:
         try:
             experiment = experiment_get(experiment_id)
-            experiment_config = experiment["config"]
-            if not isinstance(experiment_config, dict):
-                experiment_config = json.loads(experiment_config)
+            experiment_config = experiment["config"] if isinstance(experiment["config"], dict) else json.loads(experiment["config"] or "{}")
             try:
                 inference_params = experiment_config["inferenceParams"]
             except KeyError:

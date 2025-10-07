@@ -35,7 +35,7 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
     if not os.path.exists(documents_dir):
         return "Error: The RAG folder does not exist in the documents directory"
     experiment_details = experiment_get(id=experimentId)
-    experiment_config = json.loads(experiment_details["config"])
+    experiment_config = experiment_details["config"] if isinstance(experiment_details["config"], dict) else json.loads(experiment_details["config"] or "{}")
     model = experiment_config.get("foundation")
     embedding_model = experiment_config.get("embedding_model")
     if embedding_model is None or embedding_model == "":
@@ -133,7 +133,7 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
         return "Error: The RAG folder does not exist in the documents directory."
 
     experiment_details = experiment_get(id=experimentId)
-    experiment_config = json.loads(experiment_details["config"])
+    experiment_config = experiment_details["config"] if isinstance(experiment_details["config"], dict) else json.loads(experiment_details["config"] or "{}")
     model = experiment_config.get("foundation")
     embedding_model = experiment_config.get("embedding_model")
     if embedding_model is None or embedding_model == "":
@@ -212,7 +212,7 @@ async def embed_text(request: EmbedRequest):
     from sentence_transformers import SentenceTransformer
 
     experiment_details = experiment_get(id=request.experiment_id)
-    experiment_config = json.loads(experiment_details["config"])
+    experiment_config = experiment_details["config"] if isinstance(experiment_details["config"], dict) else json.loads(experiment_details["config"] or "{}")
     embedding_model = experiment_config.get("embedding_model")
     if embedding_model is None or embedding_model == "":
         print("No embedding model found in experiment config, using default")

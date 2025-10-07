@@ -38,7 +38,7 @@ async def run_exporter_script(
     experiment_name = experiment_details["name"]
 
     # Get input model parameters
-    config = json.loads(experiment_details["config"])
+    config = experiment_details["config"] if isinstance(experiment_details["config"], dict) else json.loads(experiment_details["config"] or "{}")
     input_model_id = config["foundation"]
     input_model_id_without_author = input_model_id.split("/")[-1]
     input_model_architecture = config["foundation_model_architecture"]
