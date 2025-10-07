@@ -5,7 +5,6 @@ from typing import Annotated, Optional, Union
 from fastapi import APIRouter, Body
 from pydantic import BaseModel
 
-from lab import dirs
 from transformerlab.shared.batched_requests import process_dataset, process_audio_dataset
 from transformerlab.shared.shared import slugify
 
@@ -49,7 +48,8 @@ async def list_prompts():
     """List the batched prompts that we have on disk"""
 
     batched_prompts = []
-    batched_prompts_dir = dirs.BATCHED_PROMPTS_DIR
+    from lab.dirs import get_batched_prompts_dir
+    batched_prompts_dir = get_batched_prompts_dir()
     for file in os.listdir(batched_prompts_dir):
         if file.endswith(".json"):
             with open(os.path.join(batched_prompts_dir, file), "r") as f:
@@ -71,7 +71,8 @@ async def new_prompt(name: Annotated[str, Body()], prompts: Annotated[Union[list
 
     name = secure_filename(name)
     slug = slugify(name)
-    prompts_dir = dirs.BATCHED_PROMPTS_DIR
+    from lab.dirs import get_batched_prompts_dir
+    prompts_dir = get_batched_prompts_dir()
     prompt_file = os.path.join(prompts_dir, f"{slug}.json")
 
     with open(prompt_file, "w") as f:
@@ -86,8 +87,8 @@ async def delete_prompt(prompt_id: str):
     """Delete a batched prompt"""
 
     prompt_id = secure_filename(prompt_id)
-
-    prompts_dir = dirs.BATCHED_PROMPTS_DIR
+    from lab.dirs import get_batched_prompts_dir
+    prompts_dir = get_batched_prompts_dir()
     prompt_file = os.path.join(prompts_dir, f"{prompt_id}.json")
 
     if os.path.exists(prompt_file):
