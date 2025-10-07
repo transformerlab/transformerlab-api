@@ -12,7 +12,7 @@ def experiment_get_all():
         for exp_dir in os.listdir(experiments_dir):
             exp_path = os.path.join(experiments_dir, exp_dir)
             if os.path.isdir(exp_path):
-                exp_dict = await experiment_get(exp_dir)
+                exp_dict = experiment_get(exp_dir)
                 if exp_dict:
                     experiments.append(exp_dict)
     return experiments
