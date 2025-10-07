@@ -204,6 +204,8 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
                 logging.error(f"Error decoding job_data for job {job_id}. Using empty job_data.")
                 job_data = {}
 
+        job_id_safe = secure_filename(str(job_id))
+
         # Handle sweeps case first
         if sweeps:
             output_file = job_data.get("sweep_output_file", None)
@@ -225,14 +227,13 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
             try:
                 output_file_name = await shared.get_job_output_file_name(job_id)
             except Exception as retry_e:
-                # If still no file after retry, create an empty one using the Job class
+                # If still no file after retry, create an empty one in the jobs directory
                 logging.warning(
                     f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}"
                 )
                 # Use the Job class to get the proper directory and create the file
                 job_obj = Job(job_id)
                 output_file_name = job_obj.get_log_path()
-                # Ensure the directory exists
                 os.makedirs(os.path.dirname(output_file_name), exist_ok=True)
                 with open(output_file_name, "w") as f:
                     f.write("")
