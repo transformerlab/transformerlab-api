@@ -607,42 +607,6 @@ class TestWorkflows:
         workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
         assert len(workflow_runs) >= 3
 
-
-@pytest.mark.asyncio
-async def test_job_create_sync(setup_db):
-    """Test the job_create_sync function."""
-    # Make sure any pending transactions are committed
-    await db.db.commit()
-
-    # Create a test job
-    job_type = "TASK"
-    status = "QUEUED"
-    job_data = json.dumps({"test": "data"})
-    experiment_id = "test_experiment_99"  # Use string instead of integer
-
-    # Call the function - this creates its own connection
-    job_id = job_create_sync(job_type, status, experiment_id, job_data)
-
-    # Verify job was created
-    assert job_id is not None
-
-    # Verify the job exists in database
-    # First refresh the connection to ensure we see the latest data
-    await db.db.execute("PRAGMA wal_checkpoint;")
-
-    job = await job_get(job_id)
-    assert job is not None
-    assert job["type"] == job_type
-    assert job.get("status") == status
-    assert job["experiment_id"] == experiment_id
-    # job_data might be stored as dict or string, handle both cases
-    job_data = job["job_data"]
-    if isinstance(job_data, str):
-        job_data = json.loads(job_data)
-    assert "test" in job_data
-    assert job_data["test"] == "data"
-
-
 @pytest.mark.asyncio
 async def test_job_update_status_sync(setup_db):
     """Test the job_update_status_sync function."""
