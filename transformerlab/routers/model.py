@@ -27,8 +27,6 @@ from transformerlab.models import huggingfacemodel
 from transformerlab.models import filesystemmodel
 from transformerlab.services.job_service import job_update_status
 from lab.dirs import get_workspace_dir
-from lab import dirs as lab_dirs
-from transformerlab.shared import dirs
 from lab.model import Model as ModelService
 
 from werkzeug.utils import secure_filename
@@ -44,7 +42,8 @@ def get_model_dir(model_id: str):
     model_id may be in Hugging Face format
     """
     model_id_without_author = model_id.split("/")[-1]
-    return os.path.join(lab_dirs.MODELS_DIR, model_id_without_author)
+    from lab.dirs import get_models_dir
+    return os.path.join(get_models_dir(), model_id_without_author)
 
 
 def get_current_org_id() -> str | None:
@@ -484,8 +483,9 @@ async def download_huggingface_model(
     hugging_face_filename = model_details.get("huggingface_filename", None)
     allow_patterns = model_details.get("allow_patterns", None)
 
+    from transformerlab.shared import dirs as shared_dirs
     args = [
-        f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
+        f"{shared_dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
         "--model_name",
         hugging_face_id,
         "--job_id",
@@ -498,7 +498,7 @@ async def download_huggingface_model(
     try:
         if os.getenv("TFL_MULTITENANT") == "true" and organization_id:
             # Construct org-specific workspace path manually
-            from lab.dirs import HOME_DIR
+            from lab import HOME_DIR
 
             workspace_dir = os.path.join(HOME_DIR, "orgs", organization_id, "workspace")
             print(f"🔵 CONSTRUCTED ORG WORKSPACE: {workspace_dir}")
@@ -824,7 +824,8 @@ async def model_local_delete(model_id: str, delete_from_cache: bool = False):
         print(f"Error deleting filesystem model {model_id}: {e}")
 
     # Also try the legacy method for backward compatibility
-    root_models_dir = lab_dirs.MODELS_DIR
+    from lab.dirs import get_models_dir
+    root_models_dir = get_models_dir()
 
     
     # Sanitize and validate model_dir
@@ -1002,8 +1003,9 @@ async def install_peft(
 
     model_size = str(model_details.get("size_of_model_in_mb", -1))
     # Prepare script args
+    from transformerlab.shared import dirs as shared_dirs
     args = [
-        f"{dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
+        f"{shared_dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
         "--mode",
         "adaptor",
         "--peft",

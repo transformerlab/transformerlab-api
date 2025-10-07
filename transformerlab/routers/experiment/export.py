@@ -84,7 +84,8 @@ async def run_exporter_script(
 
     output_model_id = secure_filename(output_model_id)
 
-    output_path = os.path.join(lab_dirs.MODELS_DIR, output_model_id)
+    from lab.dirs import get_models_dir
+    output_path = os.path.join(get_models_dir(), output_model_id)
 
     # Create a job in the DB with the details of this export (only if job_id not provided)
     if job_id is None:
