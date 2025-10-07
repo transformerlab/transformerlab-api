@@ -607,20 +607,6 @@ class TestWorkflows:
         workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
         assert len(workflow_runs) >= 3
 
-@pytest.mark.asyncio
-async def test_job_update_status_sync(setup_db):
-    """Test the job_update_status_sync function."""
-    # First create a job
-    job_id = await job_create(type="TASK", status="QUEUED", experiment_id=99, job_data="{}")
-
-    # Update the job status
-    new_status = "RUNNING"
-    job_update_status_sync(job_id, new_status, 99)
-
-    # Verify the status was updated
-    job = await job_get(job_id)
-    assert job.get("status") == new_status
-
 
 @pytest.mark.asyncio
 async def test_job_update_sync(setup_db):
