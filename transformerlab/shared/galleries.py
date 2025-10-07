@@ -8,7 +8,6 @@ import json
 import shutil
 import urllib.request
 
-from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
 
 # This is the list of galleries that are updated remotely
@@ -58,7 +57,8 @@ def get_exp_recipe_gallery():
 
 
 def gallery_cache_file_path(filename: str):
-    return os.path.join(lab_dirs.GALLERIES_CACHE_DIR, filename)
+    from lab.dirs import get_galleries_cache_dir
+    return os.path.join(get_galleries_cache_dir(), filename)
 
 
 def update_gallery_cache_file(filename: str):

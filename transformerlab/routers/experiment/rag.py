@@ -7,6 +7,7 @@ from transformerlab.db.db import experiment_get
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from lab import dirs as lab_dirs
+from transformerlab.shared.dirs import experiment_dir_by_id
 from pydantic import BaseModel
 from transformerlab.shared import dirs
 from lab import Experiment
@@ -64,7 +65,8 @@ async def query(experimentId: str, query: str, settings: str = None, rag_folder:
         return "Error: No RAG Engine has been assigned to this experiment."
 
     # Check if it exists in workspace/plugins:
-    plugin_path = os.path.join(lab_dirs.PLUGIN_DIR, plugin)
+    from lab.dirs import get_plugin_dir
+    plugin_path = os.path.join(get_plugin_dir(), plugin)
     if not os.path.exists(plugin_path):
         return f"Plugin {plugin} does not exist on the filesystem -- you must install or reinstall this plugin."
 
@@ -151,7 +153,8 @@ async def reindex(experimentId: str, rag_folder: str = "rag"):
         return "Error: No RAG Engine has been assigned to this experiment."
 
     # Check if it exists in workspace/plugins:
-    plugin_path = os.path.join(lab_dirs.PLUGIN_DIR, plugin)
+    from lab.dirs import get_plugin_dir
+    plugin_path = os.path.join(get_plugin_dir(), plugin)
     if not os.path.exists(plugin_path):
         return f"Plugin {plugin} does not exist on the filesystem -- you must install or reinstall this plugin."
 

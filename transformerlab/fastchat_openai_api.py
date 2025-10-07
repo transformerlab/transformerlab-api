@@ -46,6 +46,7 @@ from fastchat.protocol.openai_api_protocol import (
 )
 from pydantic import BaseModel as PydanticBaseModel
 from lab import dirs, Experiment
+from transformerlab.shared.dirs import experiment_dir_by_id
 
 WORKER_API_TIMEOUT = 3600
 
@@ -222,16 +223,18 @@ async def check_model(request, bypass_adaptor=False) -> Optional[JSONResponse]:
 def log_prompt(prompt):
     """Log the prompt to the global prompt.log file"""
     MAX_LOG_SIZE_BEFORE_ROTATE = 1000000  # 1MB in bytes
-    if os.path.exists(os.path.join(dirs.LOGS_DIR, "prompt.log")):
-        if os.path.getsize(os.path.join(dirs.LOGS_DIR, "prompt.log")) > MAX_LOG_SIZE_BEFORE_ROTATE:
-            with open(os.path.join(dirs.LOGS_DIR, "prompt.log"), "r") as f:
+    from lab.dirs import get_logs_dir
+    logs_dir = get_logs_dir()
+    if os.path.exists(os.path.join(logs_dir, "prompt.log")):
+        if os.path.getsize(os.path.join(logs_dir, "prompt.log")) > MAX_LOG_SIZE_BEFORE_ROTATE:
+            with open(os.path.join(logs_dir, "prompt.log"), "r") as f:
                 lines = f.readlines()
-            with open(os.path.join(dirs.LOGS_DIR, "prompt.log"), "w") as f:
+            with open(os.path.join(logs_dir, "prompt.log"), "w") as f:
                 f.writelines(lines[-1000:])
-            with open(os.path.join(dirs.LOGS_DIR, f"prompt_{time.strftime('%Y%m%d%H%M%S')}.log"), "w") as f:
+            with open(os.path.join(logs_dir, f"prompt_{time.strftime('%Y%m%d%H%M%S')}.log"), "w") as f:
                 f.writelines(lines[:-1000])
 
-    with open(os.path.join(dirs.LOGS_DIR, "prompt.log"), "a") as f:
+    with open(os.path.join(logs_dir, "prompt.log"), "a") as f:
         log_entry = {}
         log_entry["date"] = time.strftime("%Y-%m-%d %H:%M:%S")
         log_entry["log"] = prompt
@@ -241,7 +244,8 @@ def log_prompt(prompt):
 
 @router.get("/prompt_log", tags=["chat"])
 async def get_prompt_log():
-    return FileResponse(os.path.join(dirs.LOGS_DIR, "prompt.log"))
+    from lab.dirs import get_logs_dir
+    return FileResponse(os.path.join(get_logs_dir(), "prompt.log"))
 
 
 async def check_length(request, prompt, max_tokens):

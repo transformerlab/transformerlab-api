@@ -2,6 +2,8 @@
 
 import os
 from lab import HOME_DIR, dirs
+from lab.dirs import get_workspace_dir
+from transformerlab.db.db import experiment_get
 
 
 """
@@ -15,7 +17,7 @@ You can set any of the above using environment parameters and it will override t
 ROOT_DIR is a legacy variable that we should replace with the above, eventually.
 """
 
-FASTCHAT_LOGS_DIR = os.path.join(dirs.WORKSPACE_DIR, "logs")
+FASTCHAT_LOGS_DIR = os.path.join(get_workspace_dir(), "logs")
 if not os.path.exists(FASTCHAT_LOGS_DIR):
     os.makedirs(FASTCHAT_LOGS_DIR)
 

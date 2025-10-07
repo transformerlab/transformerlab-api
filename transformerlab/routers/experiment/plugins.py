@@ -43,7 +43,8 @@ async def experiment_list_scripts(id: str, type: str = None, filter: str = None)
 
     # print(f"Filtering by {filter_key} with value {filter_value}")
 
-    scripts_dir = lab_dirs.PLUGIN_DIR
+    from lab.dirs import get_plugin_dir
+    scripts_dir = get_plugin_dir()
 
     # now get a list of all the directories in the scripts directory:
     scripts_full_json = []
