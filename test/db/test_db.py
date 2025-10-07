@@ -53,11 +53,6 @@ from transformerlab.db.workflows import (  # noqa: E402
     workflows_get_by_id,
 )
 
-from transformerlab.db.jobs import (  # noqa: E402
-    job_update,
-)
-
-from transformerlab.db.session import job_cancel_in_progress_jobs  # noqa: E402
 import transformerlab.db.session as db  # noqa: E402
 
 
