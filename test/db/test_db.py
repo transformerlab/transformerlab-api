@@ -11,15 +11,8 @@ os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp/workspace"
 
 from transformerlab.db.db import (  # noqa: E402
     delete_plugin,
-    experiment_get,
     get_plugins_of_type,
     get_training_template_by_name,
-    experiment_get_all,
-    experiment_create,
-    experiment_delete,
-    experiment_update,
-    experiment_update_config,
-    experiment_save_prompt_template,
     get_plugins,
     get_plugin,
     save_plugin,
@@ -33,6 +26,7 @@ from transformerlab.db.db import (  # noqa: E402
     export_job_create,
 )
 
+from transformerlab.services import experiment_service  # noqa: E402
 from transformerlab.services.job_service import (  # noqa: E402
     job_update_status as service_job_update_status,
     job_update_status_sync as service_job_update_status_sync,
@@ -126,7 +120,7 @@ async def test_get_training_template_and_by_name_returns_none_for_missing():
 
 @pytest.mark.asyncio
 async def test_experiment_get_returns_none_for_missing():
-    exp = await experiment_get("does_not_exist")
+    exp = await experiment_service.experiment_get("does_not_exist")
     assert exp is None
 
 
@@ -205,19 +199,19 @@ async def test_jobs_get_all_and_by_experiment_and_type(test_experiment):
 
 @pytest.mark.asyncio
 async def test_experiment_update_and_update_config_and_save_prompt_template(test_experiment):
-    await experiment_update(test_experiment, {"foo": "bar"})
-    exp = await experiment_get(test_experiment)
+    await experiment_service.experiment_update(test_experiment, {"foo": "bar"})
+    exp = await experiment_service.experiment_get(test_experiment)
     exp_config = exp["config"]  # now returns a dict directly
     assert exp_config == {"foo": "bar"}
 
-    await experiment_update_config(test_experiment, "baz", 123)
-    exp = await experiment_get(test_experiment)
+    await experiment_service.experiment_update_config(test_experiment, "baz", 123)
+    exp = await experiment_service.experiment_get(test_experiment)
     exp_config = exp["config"]
     assert exp_config.get("baz") == 123
 
     test_prompt = '"prompt"'
-    await experiment_save_prompt_template(test_experiment, test_prompt)
-    exp = await experiment_get(test_experiment)
+    await experiment_service.experiment_save_prompt_template(test_experiment, test_prompt)
+    exp = await experiment_service.experiment_get(test_experiment)
     exp_config = exp["config"]  # now returns a dict directly
     assert exp_config.get("prompt_template") == test_prompt
 
@@ -267,13 +261,13 @@ async def setup_db():
 @pytest.fixture
 async def test_experiment():
     # Setup code to create test_experiment
-    existing = await experiment_get("test_experiment")
+    existing = await experiment_service.experiment_get("test_experiment")
     if existing:
-        await experiment_delete(existing["id"])
-    experiment_id = await experiment_create("test_experiment", {})
+        await experiment_service.experiment_delete(existing["id"])
+    experiment_id = await experiment_service.experiment_create("test_experiment", {})
     yield experiment_id
     # Teardown code to delete test_experiment
-    await experiment_delete(experiment_id)
+    await experiment_service.experiment_delete(experiment_id)
 
 
 # content of test_sample.py
@@ -330,14 +324,14 @@ class TestModels:
 class TestExperiments:
     @pytest.mark.asyncio
     async def test_experiment_get_all(self):
-        experiments = await experiment_get_all()
+        experiments = await experiment_service.experiment_get_all()
         assert isinstance(experiments, list)
 
     @pytest.mark.asyncio
     async def test_experiment_delete(self):
-        experiment_id = await experiment_create("test_experiment_delete", {})
-        await experiment_delete(experiment_id)
-        experiment = await experiment_get(experiment_id)
+        experiment_id = await experiment_service.experiment_create("test_experiment_delete", {})
+        await experiment_service.experiment_delete(experiment_id)
+        experiment = await experiment_service.experiment_get(experiment_id)
         assert experiment is None
 
         # Additional test for experiment_get_by_name which has partial coverage
@@ -490,9 +484,9 @@ class TestWorkflows:
     @pytest.mark.skip(reason="Skipping as it causes db lock issues")
     async def test_experiment_workflow_routes(self, test_experiment):
         # Ensure no duplicate experiment name exists
-        existing = await experiment_get("test_experiment")
+        existing = await experiment_service.experiment_get("test_experiment")
         if existing:
-            await experiment_delete(existing["id"])
+            await experiment_service.experiment_delete(existing["id"])
         # Create a workflow in the experiment
         workflow_id = await workflow_create("test_workflow", "{}", test_experiment)
 
