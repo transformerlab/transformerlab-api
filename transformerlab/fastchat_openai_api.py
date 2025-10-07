@@ -223,6 +223,7 @@ def log_prompt(prompt):
     """Log the prompt to the global prompt.log file"""
     MAX_LOG_SIZE_BEFORE_ROTATE = 1000000  # 1MB in bytes
     from lab.dirs import get_logs_dir
+
     logs_dir = get_logs_dir()
     if os.path.exists(os.path.join(logs_dir, "prompt.log")):
         if os.path.getsize(os.path.join(logs_dir, "prompt.log")) > MAX_LOG_SIZE_BEFORE_ROTATE:
@@ -244,6 +245,7 @@ def log_prompt(prompt):
 @router.get("/prompt_log", tags=["chat"])
 async def get_prompt_log():
     from lab.dirs import get_logs_dir
+
     return FileResponse(os.path.join(get_logs_dir(), "prompt.log"))
 
 
@@ -489,12 +491,12 @@ async def show_available_models():
             for m in models:
                 model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
             return ModelList(data=model_cards)
-        
+
         # If no models, refresh and try again
         await client.post(controller_address + "/refresh_all_workers")
         ret = await client.post(controller_address + "/list_models")
         models = ret.json().get("models", [])
-        
+
     models.sort()
     # TODO: return real model permission details
     model_cards = []
