@@ -21,7 +21,7 @@ from transformerlab.db.workflows import (
     workflow_run_delete,
 )
 from transformerlab.shared.models import models
-from transformerlab.shared.models.models import Config, Plugin
+from transformerlab.shared.models.models import Plugin
 from transformerlab.db.utils import sqlalchemy_to_dict, sqlalchemy_list_to_dict
 
 from transformerlab.db.session import async_session
@@ -462,22 +462,3 @@ async def delete_plugin(name: str):
     return False
 
 
-###############
-# Config MODEL
-###############
-
-
-async def config_get(key: str):
-    async with async_session() as session:
-        result = await session.execute(select(Config.value).where(Config.key == key))
-        row = result.scalar_one_or_none()
-        return row
-
-
-async def config_set(key: str, value: str):
-    stmt = insert(Config).values(key=key, value=value)
-    stmt = stmt.on_conflict_do_update(index_elements=["key"], set_={"value": value})
-    async with async_session() as session:
-        await session.execute(stmt)
-        await session.commit()
-    return

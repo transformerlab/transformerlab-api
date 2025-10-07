@@ -7,16 +7,6 @@ class Base(DeclarativeBase):
     pass
 
 
-class Config(Base):
-    """Configuration key-value store model."""
-
-    __tablename__ = "config"
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    key: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
-    value: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-
-
 # I believe we are not using the following table anymore as the filesystem
 # is being used to track plugins
 class Plugin(Base):

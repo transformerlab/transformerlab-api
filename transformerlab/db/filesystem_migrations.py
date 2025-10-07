@@ -331,3 +331,60 @@ async def migrate_tasks_table_to_filesystem():
     except Exception as e:
         # Do not block startup on migration issues
         print(f"Tasks migration skipped due to error: {e}")
+
+
+async def migrate_config_table_to_filesystem():
+    """
+    One-time migration: copy rows from the legacy config DB table into the filesystem
+    registry via transformerlab-sdk, then drop/rename the table.
+    Safe to run multiple times; it will no-op if table is missing or empty.
+    """
+    try:
+        from transformerlab.db.session import async_session
+        from sqlalchemy import text as sqlalchemy_text
+        from lab.config import Config as fs_config
+
+        # Check table exists
+        async with async_session() as session:
+            result = await session.execute(
+                sqlalchemy_text("SELECT name FROM sqlite_master WHERE type='table' AND name='config'")
+            )
+            exists = result.fetchone() is not None
+        if not exists:
+            return
+
+        # Read rows
+        rows = []
+        try:
+            async with async_session() as session:
+                result = await session.execute(sqlalchemy_text("SELECT key, value FROM config"))
+                rows = [dict(r) for r in result.mappings().all()]
+        except Exception as e:
+            print(f"Failed to read config for migration: {e}")
+            rows = []
+
+        migrated = 0
+        for row in rows:
+            key = row.get("key")
+            if not key:
+                continue
+            value = row.get("value", None)
+            try:
+                fs_config.set_value_by_key(key, value)
+                migrated += 1
+            except Exception as e:
+                print(f"Error migrating config key {key}: {e}")
+                continue
+
+        # Rename legacy table
+        try:
+            async with async_session() as session:
+                await session.execute(sqlalchemy_text("ALTER TABLE config RENAME TO zzz_archived_config"))
+                await session.commit()
+        except Exception:
+            pass
+
+        if migrated:
+            print(f"Config migration completed: {migrated} entries migrated to filesystem store.")
+    except Exception as e:
+        print(f"Config migration skipped due to error: {e}")

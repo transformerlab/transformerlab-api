@@ -71,6 +71,7 @@ from transformerlab.db.filesystem_migrations import (
     migrate_datasets_table_to_filesystem,
     migrate_models_table_to_filesystem,
     migrate_tasks_table_to_filesystem,
+    migrate_config_table_to_filesystem,
 )
 from transformerlab.shared.request_context import set_current_org_id
 from lab.dirs import set_organization_id as lab_set_org_id
@@ -107,6 +108,7 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(migrate_models_table_to_filesystem())
     asyncio.create_task(migrate_datasets_table_to_filesystem())
     asyncio.create_task(migrate_tasks_table_to_filesystem())
+    asyncio.create_task(migrate_config_table_to_filesystem())
     asyncio.create_task(run_over_and_over())
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
     yield
