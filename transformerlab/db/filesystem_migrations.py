@@ -1,8 +1,10 @@
 import json
 import os
+import shutil
 
 from lab.dataset import Dataset as dataset_service
 from lab.task import Task as task_service
+
 
 async def migrate_datasets_table_to_filesystem():
     """
@@ -12,8 +14,8 @@ async def migrate_datasets_table_to_filesystem():
     """
     try:
         # Late import to avoid hard dependency during tests without DB
-        from transformerlab.db.session import async_session
         from sqlalchemy import text as sqlalchemy_text
+        from transformerlab.db.session import async_session
 
         # Read existing rows
         rows = []
@@ -95,9 +97,18 @@ async def migrate_models_table_to_filesystem():
     """
     try:
         # Late import to avoid hard dependency during tests without DB
-        from transformerlab.db.session import async_session
-        from sqlalchemy import text as sqlalchemy_text
+        from lab.dirs import get_models_dir
         from lab.model import Model as model_service
+        from sqlalchemy import text as sqlalchemy_text
+        from transformerlab.db.session import async_session
+        models_dir = get_models_dir()
+
+        # Initialize the exists variable
+        exists = False
+
+        # Drop the pretrained folder if it exists in models directory
+        if os.path.isdir(os.path.join(models_dir, "pretrained")):
+            shutil.rmtree(os.path.join(models_dir, "pretrained"))
 
         # Read existing rows
         rows = []
@@ -160,13 +171,14 @@ async def migrate_models_table_to_filesystem():
                 continue
 
         # Drop the legacy table if present
-        try:
-            async with async_session() as session:
-                await session.execute(sqlalchemy_text("ALTER TABLE model RENAME TO zzz_archived_model"))
-                await session.commit()
-        except Exception as e:
-            print(f"Error dropping models table: {e}")
-            pass
+        if exists:
+            try:
+                async with async_session() as session:
+                    await session.execute(sqlalchemy_text("ALTER TABLE model RENAME TO zzz_archived_model"))
+                    await session.commit()
+            except Exception as e:
+                print(f"Error dropping models table: {e}")
+                pass
 
         # Additionally, scan filesystem models directory for legacy models that
         # have info.json but are missing index.json, and create SDK metadata.
@@ -237,8 +249,8 @@ async def migrate_tasks_table_to_filesystem():
     """
     try:
         # Late import to avoid hard dependency during tests without DB
-        from transformerlab.db.session import async_session
         from sqlalchemy import text as sqlalchemy_text
+        from transformerlab.db.session import async_session
 
         # Read existing rows
         rows = []
