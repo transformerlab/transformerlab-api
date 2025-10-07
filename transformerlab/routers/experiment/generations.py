@@ -6,12 +6,12 @@ import sys
 import urllib
 from typing import Any
 
-from transformerlab.db.db import experiment_get, experiment_update_config
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
 from transformerlab.db.jobs import job_get
 from transformerlab.shared import shared, dirs
 from lab import dirs as lab_dirs
+from transformerlab.services.experiment_service import experiment_get, experiment_update_config
 
 from werkzeug.utils import secure_filename
 
@@ -25,7 +25,7 @@ async def experiment_add_generation(experimentId: str, plugin: Any = Body()):
     directory, we can modify the plugin code for the specific experiment without affecting
     other experiments that use the same plugin."""
 
-    experiment = await experiment_get(experimentId)
+    experiment = experiment_get(experimentId)
 
     if experiment is None:
         return {"message": f"Experiment {experimentId} does not exist"}
@@ -52,7 +52,7 @@ async def experiment_add_generation(experimentId: str, plugin: Any = Body()):
 
     generations.append(generation)
 
-    await experiment_update_config(experimentId, "generations", json.dumps(generations))
+    experiment_update_config(experimentId, "generations", json.dumps(generations))
 
     return {"message": f"Experiment {experimentId} updated with plugin {plugin_name}"}
 
@@ -63,7 +63,7 @@ async def experiment_delete_generation(experimentId: str, generation_name: str):
     and remove the global plugin from the specific experiment."""
     try:
         print("Deleting generation", experimentId, generation_name)
-        experiment = await experiment_get(experimentId)
+        experiment = experiment_get(experimentId)
 
         if experiment is None:
             return {"message": f"Experiment {experimentId} does not exist"}
@@ -78,7 +78,7 @@ async def experiment_delete_generation(experimentId: str, generation_name: str):
         # remove the generation from the list:
         generations = [e for e in generations if e["name"] != generation_name]
 
-        await experiment_update_config(experimentId, "generations", json.dumps(generations))
+        experiment_update_config(experimentId, "generations", json.dumps(generations))
 
         return {"message": f"Generation {generations} deleted from experiment {experimentId}"}
     except Exception as e:
@@ -93,7 +93,7 @@ async def experiment_delete_generation(experimentId: str, generation_name: str):
 async def edit_evaluation_generation(experimentId: str, plugin: Any = Body()):
     """Get the contents of the generation"""
     try:
-        experiment = await experiment_get(experimentId)
+        experiment = experiment_get(experimentId)
 
         # if the experiment does not exist, return an error:
         if experiment is None:
@@ -126,7 +126,7 @@ async def edit_evaluation_generation(experimentId: str, plugin: Any = Body()):
                 generation["script_parameters"] = updated_json
                 generation["name"] = template_name
 
-        await experiment_update_config(experimentId, "generations", json.dumps(generations))
+        experiment_update_config(experimentId, "generations", json.dumps(generations))
 
         return {"message": "OK"}
     except Exception as e:
@@ -137,7 +137,7 @@ async def edit_evaluation_generation(experimentId: str, plugin: Any = Body()):
 @router.get("/get_generation_plugin_file_contents")
 async def get_generation_plugin_file_contents(experimentId: str, plugin_name: str):
     # first get the experiment name:
-    data = await experiment_get(experimentId)
+    data = experiment_get(experimentId)
 
     # if the experiment does not exist, return an error:
     if data is None:
@@ -168,7 +168,7 @@ async def run_generation_script(experimentId: str, plugin_name: str, generation_
     plugin_name = secure_filename(plugin_name)
     generation_name = secure_filename(generation_name)
 
-    experiment_details = await experiment_get(id=experimentId)
+    experiment_details = experiment_get(id=experimentId)
 
     if experiment_details is None:
         return {"message": f"Experiment {experimentId} does not exist"}
@@ -192,6 +192,7 @@ async def run_generation_script(experimentId: str, plugin_name: str, generation_
 
     # Create the input file for the script:
     from lab.dirs import get_temp_dir
+
     input_file = os.path.join(get_temp_dir(), "plugin_input_" + str(plugin_name) + ".json")
 
     # The following two ifs convert nested JSON strings to JSON objects -- this is a hack

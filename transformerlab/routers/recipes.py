@@ -1,13 +1,13 @@
 from fastapi import APIRouter, BackgroundTasks
 from lab import Dataset
 from transformerlab.shared import galleries
-import transformerlab.db.db as db
 import transformerlab.db.jobs as db_jobs
 from transformerlab.services.tasks_service import tasks_service
 from transformerlab.models import model_helper
 import json
 from transformerlab.routers.experiment import workflows
 from transformerlab.services.job_service import job_update_status
+import transformerlab.services.experiment_service as experiment_service
 
 router = APIRouter(prefix="/recipes", tags=["recipes"])
 
@@ -250,11 +250,11 @@ async def create_experiment_for_recipe(id: str, experiment_name: str):
     from transformerlab.routers.experiment import experiment as experiment_router
 
     # Check if experiment already exists
-    existing = await db.experiment_get(experiment_name)
+    existing = experiment_service.experiment_get(experiment_name)
     if existing:
         return {"status": "error", "message": f"Experiment '{experiment_name}' already exists.", "data": {}}
     # Create experiment with blank config
-    experiment_id = await db.experiment_create(name=experiment_name, config={})
+    experiment_id = experiment_service.experiment_create(name=experiment_name, config={})
 
     # Get the recipe
     recipes_gallery = galleries.get_exp_recipe_gallery()

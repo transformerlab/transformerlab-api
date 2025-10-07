@@ -31,7 +31,7 @@ from fastchat.protocol.openai_api_protocol import (
 )
 from transformerlab.db.jobs import job_create, job_update_status
 from transformerlab.db import jobs as db_jobs
-from transformerlab.db.db import experiment_get
+from transformerlab.services.experiment_service import experiment_get
 import transformerlab.db.session as db
 
 from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert
@@ -303,7 +303,7 @@ async def server_worker_start(
     # then we check to see if we are an experiment
     elif experiment_id is not None:
         try:
-            experiment = await experiment_get(experiment_id)
+            experiment = experiment_get(experiment_id)
             experiment_config = experiment["config"]
             if not isinstance(experiment_config, dict):
                 experiment_config = json.loads(experiment_config)
@@ -363,6 +363,7 @@ async def server_worker_start(
     print("Loading plugin loader instead of default worker")
 
     from lab.dirs import get_global_log_path
+
     with open(get_global_log_path(), "a") as global_log:
         global_log.write(f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
 
@@ -375,6 +376,7 @@ async def server_worker_start(
     exitcode = process.returncode
     if exitcode == 99:
         from lab.dirs import get_global_log_path
+
         with open(get_global_log_path(), "a") as global_log:
             global_log.write(
                 "GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources.\n"
@@ -385,6 +387,7 @@ async def server_worker_start(
         }
     if exitcode is not None and exitcode != 0:
         from lab.dirs import get_global_log_path
+
         with open(get_global_log_path(), "a") as global_log:
             global_log.write(f"Error loading model: {model_name} with exit code {exitcode}\n")
         job = await db_jobs.job_get(job_id)
@@ -396,6 +399,7 @@ async def server_worker_start(
             await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
         return {"status": "error", "message": error_msg}
     from lab.dirs import get_global_log_path
+
     with open(get_global_log_path(), "a") as global_log:
         global_log.write(f"Model loaded successfully: {model_name}\n")
     return {"status": "success", "job_id": job_id}

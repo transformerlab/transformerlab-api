@@ -14,7 +14,7 @@ from anyio import open_process
 from anyio.streams.text import TextReceiveStream
 from werkzeug.utils import secure_filename
 
-from transformerlab.db.db import experiment_get
+from transformerlab.services.experiment_service import experiment_get
 from transformerlab.services.job_service import job_update_sync, job_update_status
 import transformerlab.db.jobs as db_jobs
 from transformerlab.routers.experiment.evals import run_evaluation_script
@@ -23,7 +23,6 @@ from lab.dirs import get_global_log_path
 from lab import dirs as lab_dirs, Job, Experiment
 from lab.dirs import get_workspace_dir
 from transformerlab.shared import dirs
-
 
 
 def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs):
@@ -108,6 +107,7 @@ async def async_run_python_script_and_update_status(python_script: list[str], jo
     if plugin_location:
         plugin_location = os.path.normpath(plugin_location)
         from lab.dirs import get_plugin_dir
+
         plugin_dir_root = get_plugin_dir()
         if not plugin_location.startswith(plugin_dir_root):
             print(f"Plugin location {plugin_location} is not in {plugin_dir_root}")
@@ -185,6 +185,7 @@ async def read_process_output(process, job_id):
         log.flush()
     # so we should delete the pid file:
     from lab.dirs import get_temp_dir
+
     pid_file = os.path.join(get_temp_dir(), f"worker_job_{job_id}.pid")
     if os.path.exists(pid_file):
         os.remove(pid_file)
@@ -221,6 +222,7 @@ async def async_run_python_daemon_and_update_status(
     if plugin_location:
         plugin_location = os.path.normpath(plugin_location)
         from lab.dirs import get_plugin_dir
+
         plugin_dir_root = get_plugin_dir()
         if not plugin_location.startswith(plugin_dir_root):
             print(f"Plugin location {plugin_location} is not in {plugin_dir_root}")
@@ -246,6 +248,7 @@ async def async_run_python_daemon_and_update_status(
 
     pid = process.pid
     from lab.dirs import get_temp_dir
+
     pid_file = os.path.join(get_temp_dir(), f"worker_job_{job_id}.pid")
     with open(pid_file, "w") as f:
         f.write(str(pid))
@@ -323,7 +326,7 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
     exp_obj = Experiment(experiment_name)
     output_temp_file_dir = job_obj.get_dir()
 
-    experiment_details = await experiment_get(experiment_name)
+    experiment_details = experiment_get(experiment_name)
 
     # Extract plugin name consistently across all job types
     plugin_name = None
@@ -694,7 +697,9 @@ async def run_job(job_id: str, job_config, experiment_name: str = "default", job
             print(f"Generated {total_configs} configurations for sweep")
 
             # Initialize sweep tracking
-            await db_jobs.job_update_job_data_insert_key_value(job_id, "sweep_total", str(total_configs), experiment_name)
+            await db_jobs.job_update_job_data_insert_key_value(
+                job_id, "sweep_total", str(total_configs), experiment_name
+            )
             await db_jobs.job_update_job_data_insert_key_value(job_id, "sweep_current", "0", experiment_name)
 
             # Get metrics configuration

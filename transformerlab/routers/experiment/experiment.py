@@ -7,7 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Body, Request
 from fastapi.responses import FileResponse
 
-import transformerlab.db.db as db
+import transformerlab.services.experiment_service as experiment_service
 from lab import Dataset, Experiment
 from transformerlab.shared import shared
 from transformerlab.routers.experiment import (
@@ -40,13 +40,10 @@ router.include_router(router=diffusion.router, prefix="/{experimentId}", tags=["
 router.include_router(router=jobs.router, prefix="/{experimentId}", tags=["jobs"])
 
 
-
-
-
 @router.get("/", summary="Get all Experiments", tags=["experiment"])
 async def experiments_get_all():
     """Get a list of all experiments"""
-    return await db.experiment_get_all()
+    return experiment_service.experiment_get_all()
 
 
 @router.get("/create", summary="Create Experiment", tags=["experiment"])
@@ -54,14 +51,13 @@ async def experiments_create(name: str):
     # Apply secure filename validation to the experiment name
     secure_name = secure_filename(name)
 
-    newid = await db.experiment_create(secure_name, {})
+    newid = experiment_service.experiment_create(secure_name, {})
     return newid
 
 
 @router.get("/{id}", summary="Get Experiment by ID", tags=["experiment"])
 async def experiment_get(id: str):
-
-    data = await db.experiment_get(id)
+    data = experiment_service.experiment_get(id)
 
     if data is None:
         return {"status": "error", "message": f"Experiment {id} does not exist"}
@@ -72,37 +68,36 @@ async def experiment_get(id: str):
 
 @router.get("/{id}/delete", tags=["experiment"])
 async def experiments_delete(id: str):
-    await db.experiment_delete(id)
+    experiment_service.experiment_delete(id)
     return {"message": f"Experiment {id} deleted"}
 
 
 @router.get("/{id}/update", tags=["experiment"])
 async def experiments_update(id: str, name: str):
-    await db.experiment_update(id, name)
+    experiment_service.experiment_update(id, name)
     return {"message": f"Experiment {id} updated to {name}"}
 
 
 @router.get("/{id}/update_config", tags=["experiment"])
 async def experiments_update_config(id: str, key: str, value: str):
-    await db.experiment_update_config(id, key, value)
+    experiment_service.experiment_update_config(id, key, value)
     return {"message": f"Experiment {id} updated"}
 
 
 @router.post("/{id}/update_configs", tags=["experiment"])
 async def experiments_update_configs(id: str, updates: Annotated[dict, Body()]):
-    await db.experiment_update_configs(id, updates)
+    experiment_service.experiment_update_configs(id, updates)
     return {"message": f"Experiment {id} configs updated"}
 
 
 @router.post("/{id}/prompt", tags=["experiment"])
 async def experiments_save_prompt_template(id: str, template: Annotated[str, Body()]):
-    await db.experiment_save_prompt_template(id, template)
+    experiment_service.experiment_save_prompt_template(id, template)
     return {"message": f"Experiment {id} prompt template saved"}
 
 
 @router.post("/{id}/save_file_contents", tags=["experiment"])
 async def experiment_save_file_contents(id: str, filename: str, file_contents: Annotated[str, Body()]):
-
     filename = secure_filename(filename)
 
     # remove file extension from file:
@@ -116,7 +111,7 @@ async def experiment_save_file_contents(id: str, filename: str, file_contents: A
 
     exp_obj = Experiment.get(id)
     experiment_dir = exp_obj.get_dir()
-    
+
     # Use Path for secure path construction and validation
     try:
         file_path = Path(experiment_dir).joinpath(f"{filename}{file_ext}").resolve()
@@ -133,7 +128,6 @@ async def experiment_save_file_contents(id: str, filename: str, file_contents: A
 
 @router.get("/{id}/file_contents", tags=["experiment"])
 async def experiment_get_file_contents(id: str, filename: str):
-
     filename = secure_filename(filename)
 
     exp_obj = Experiment.get(id)
@@ -171,7 +165,7 @@ async def export_experiment_to_recipe(id: str, request: Request):
     """Export an experiment to JSON format that matches the recipe gallery structure."""
 
     # Get experiment data
-    data = await db.experiment_get(id)
+    data = experiment_service.experiment_get(id)
     if data is None:
         return {"status": "error", "message": f"Experiment {id} does not exist"}
 
@@ -229,6 +223,7 @@ async def export_experiment_to_recipe(id: str, request: Request):
     task_types = ["TRAIN", "EVAL", "GENERATE", "EXPORT"]
     for task_type in task_types:
         from transformerlab.services.tasks_service import tasks_service
+
         tasks = tasks_service.tasks_get_by_type_in_experiment(task_type, id)
         for task in tasks:
             if not isinstance(task["config"], dict):
@@ -271,7 +266,7 @@ async def export_experiment_to_recipe(id: str, request: Request):
     # for workflow in workflows:
     #     if workflow["status"] != "DELETED":  # Only include active workflows
     #         export_data["workflows"].append({"name": workflow["name"], "config": json.loads(workflow["config"])})
-    
+
     # For now, just ensure workflows is an empty list
     export_data["workflows"] = []
 

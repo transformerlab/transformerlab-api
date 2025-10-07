@@ -8,6 +8,7 @@ import sys
 from fastapi import APIRouter
 
 import transformerlab.db.db as db
+from transformerlab.services.experiment_service import experiment_get
 import transformerlab.db.jobs as db_jobs
 from lab import dirs as lab_dirs
 from transformerlab.shared import dirs, shared
@@ -31,7 +32,7 @@ async def run_exporter_script(
     """
 
     # Load experiment details into config
-    experiment_details = await db.experiment_get(id=id)
+    experiment_details = experiment_get(id=id)
     if experiment_details is None:
         return {"message": f"Experiment {id} does not exist"}
 
@@ -85,6 +86,7 @@ async def run_exporter_script(
     output_model_id = secure_filename(output_model_id)
 
     from lab.dirs import get_models_dir
+
     output_path = os.path.join(get_models_dir(), output_model_id)
 
     # Create a job in the DB with the details of this export (only if job_id not provided)
