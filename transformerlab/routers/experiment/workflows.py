@@ -24,7 +24,6 @@ import json
 import yaml
 import uuid
 
-from lab import dirs
 from transformerlab.shared.shared import slugify
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
@@ -702,7 +701,11 @@ def extract_previous_job_outputs(previous_job):
     job_type = previous_job.get("type")
     job_config = job_data.get("config", {})  # Handle missing config safely
 
-    fuse_pretext = dirs.MODELS_DIR + "/" if hasattr(dirs, "MODELS_DIR") else ""
+    try:
+        from lab.dirs import get_models_dir
+        fuse_pretext = get_models_dir() + "/"
+    except Exception:
+        fuse_pretext = ""
 
     if job_type == "GENERATE":
         # Prefer dataset_id from top-level job_data if present
