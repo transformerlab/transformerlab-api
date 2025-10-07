@@ -25,7 +25,7 @@ router = APIRouter(prefix="/plugins", tags=["plugins"])
 async def experiment_list_scripts(id: str, type: str = None, filter: str = None):
     """List all the scripts in the experiment"""
     # first get the experiment name:
-    data = await experiment_get(id)
+    data = experiment_get(id)
 
     # if the experiment does not exist, return an error:
     if data is None:
