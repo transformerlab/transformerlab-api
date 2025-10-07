@@ -29,7 +29,6 @@ from fastchat.constants import (
 from fastchat.protocol.openai_api_protocol import (
     ErrorResponse,
 )
-
 from transformerlab.db.jobs import job_create, job_update_status
 from transformerlab.db import jobs as db_jobs
 from transformerlab.db.db import experiment_get
