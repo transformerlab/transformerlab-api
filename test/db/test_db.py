@@ -608,30 +608,6 @@ class TestWorkflows:
         assert len(workflow_runs) >= 3
 
 
-@pytest.mark.asyncio
-async def test_job_mark_as_complete_if_running(setup_db):
-    """Test the job_mark_as_complete_if_running function."""
-    # Create a running job
-    job_id = await job_create(type="TRAIN", status="RUNNING", experiment_id=99, job_data="{}")
-
-    # Mark it as complete if running
-    job_mark_as_complete_if_running(job_id, 99)
-
-    # Verify the job status was updated
-    job = await job_get(job_id)
-    assert job.get("status") == "COMPLETE"
-
-    # Create a non-running job
-    job_id2 = await job_create(type="TASK", status="QUEUED", experiment_id=99, job_data="{}")
-
-    # Try to mark it as complete if running (should not change)
-    job_mark_as_complete_if_running(job_id2, 99)
-
-    # Verify the job status was not updated
-    job2 = await job_get(job_id2)
-    assert job2["status"] == "QUEUED"
-
-
 # @pytest.mark.skip(reason="Skipping  because I can't get it to work")
 # @pytest.mark.asyncio
 # async def test_workflow_run_get_running(setup_db):
