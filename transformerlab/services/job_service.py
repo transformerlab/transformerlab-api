@@ -76,6 +76,7 @@ def job_get(job_id):
     except Exception:
         return None
 
+
 def job_count_running():
     return Job.count_running_jobs()
 
@@ -96,6 +97,49 @@ def job_delete(job_id, experiment_id):
         if experiment_id is not None and job.get_experiment_id() != experiment_id:
             return
         job.delete()
+    except Exception:
+        pass
+
+
+def job_update_job_data_insert_key_value(job_id, key, value, experiment_id):
+    try:
+        job = Job.get(job_id)
+        if experiment_id is not None and job.get_experiment_id() != experiment_id:
+            return
+        job.update_job_data_field(key, value)
+    except Exception:
+        pass
+
+
+def job_stop(job_id, experiment_id):
+    print("Stopping job: " + str(job_id))
+    await job_update_job_data_insert_key_value(job_id, "stop", True, experiment_id)
+
+
+def job_update_progress(job_id, progress, experiment_id):
+    """
+    Update the percent complete for this job.
+
+    progress: int representing percent complete
+    """
+    try:
+        job = Job.get(job_id)
+        if experiment_id is not None and job.get_experiment_id() != experiment_id:
+            return
+        job.update_progress(progress)
+    except Exception:
+        pass
+
+
+def job_update_sweep_progress(job_id, value, experiment_id):
+    """
+    Update the 'sweep_progress' key in the job_data JSON column for a given job.
+    """
+    try:
+        job = Job.get(job_id)
+        if experiment_id is not None and job.get_experiment_id() != experiment_id:
+            return
+        job.update_sweep_progress(value)
     except Exception:
         pass
 
@@ -174,6 +218,15 @@ async def job_update(job_id: str, type: str, status: str, experiment_id: Optiona
     """
     # Update the job in the database
     await db_jobs.job_update(job_id, type, status, experiment_id)
+    async def job_update(job_id, type, status, experiment_id):
+    try:
+        job = Job.get(job_id)
+        if experiment_id is not None and job.get_experiment_id() != experiment_id:
+            return
+        job.set_type(type)
+        job.update_status(status)
+    except Exception:
+        pass
 
     # Trigger workflows if job status is COMPLETE
     if status == "COMPLETE":
