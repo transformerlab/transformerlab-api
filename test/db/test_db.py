@@ -33,12 +33,6 @@ from transformerlab.db.db import (  # noqa: E402
     export_job_create,
 )
 
-from transformerlab.db.sync import (  # noqa: E402
-    job_create_sync,
-    job_update_status_sync,  # used in dedicated sync tests
-    job_update_sync,  # used in dedicated sync tests
-    job_mark_as_complete_if_running,  # used in dedicated sync tests
-)
 from transformerlab.services.job_service import (  # noqa: E402
     job_update_status as service_job_update_status,
     job_update_status_sync as service_job_update_status_sync,
