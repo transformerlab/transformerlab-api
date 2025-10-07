@@ -4,7 +4,7 @@ from typing import Optional
 from lab import Experiment, Job
 
 # legacy job_update_status and job_update to avoid conflict
-import transformerlab.db.jobs as db_jobs 
+import transformerlab.db.jobs as db_jobs
 from transformerlab.db.sync import (
     job_update_status_sync as db_job_update_status_sync,
     job_update_sync as db_job_update_sync,
@@ -68,6 +68,7 @@ def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
 def jobs_get_by_experiment(experiment_id):
     """Get all jobs for a specific experiment"""
     return jobs_get_all(experiment_id)
+
 
 def job_get(job_id):
     try:
