@@ -1,7 +1,7 @@
 # Root dir is the parent of the parent of this current directory:
 
 import os
-from lab import HOME_DIR, dirs
+from lab import HOME_DIR
 from lab.dirs import get_workspace_dir
 
 

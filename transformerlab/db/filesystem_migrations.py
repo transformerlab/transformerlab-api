@@ -4,7 +4,7 @@ import shutil
 
 from lab.dataset import Dataset as dataset_service
 from lab.task import Task as task_service
-from lab import Experiment, Job
+from lab import Experiment, Job, dirs as lab_dirs
 from datetime import datetime
 
 

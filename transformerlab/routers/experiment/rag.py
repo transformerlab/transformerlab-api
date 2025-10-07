@@ -6,8 +6,6 @@ import sys
 from transformerlab.db.db import experiment_get
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from lab import dirs as lab_dirs
-from transformerlab.shared.dirs import experiment_dir_by_id
 from pydantic import BaseModel
 from transformerlab.shared import dirs
 from lab import Experiment
