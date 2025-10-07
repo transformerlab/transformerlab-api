@@ -5,7 +5,7 @@ from lab import Experiment
 from lab import dirs as lab_dirs
 
 
-async def experiment_get_all():
+def experiment_get_all():
     experiments = []
     experiments_dir = lab_dirs.get_experiments_dir()
     if os.path.exists(experiments_dir):
@@ -18,12 +18,12 @@ async def experiment_get_all():
     return experiments
 
 
-async def experiment_create(name: str, config: dict) -> str:
+def experiment_create(name: str, config: dict) -> str:
     Experiment.create_with_config(name, config)
     return name
 
 
-async def experiment_get(id):
+def experiment_get(id):
     try:
         exp = Experiment.get(id)
         data = exp.get_json_data()
@@ -39,7 +39,7 @@ async def experiment_get(id):
         return None
 
 
-async def experiment_delete(id):
+def experiment_delete(id):
     try:
         exp = Experiment.get(id)
         exp.delete()
@@ -47,7 +47,7 @@ async def experiment_delete(id):
         pass
 
 
-async def experiment_update(id, config):
+def experiment_update(id, config):
     try:
         exp = Experiment.get(id)
         exp.update_config(config)
@@ -55,7 +55,7 @@ async def experiment_update(id, config):
         pass
 
 
-async def experiment_update_config(id, key, value):
+def experiment_update_config(id, key, value):
     try:
         exp = Experiment.get(id)
         exp.update_config_field(key, value)
@@ -63,7 +63,7 @@ async def experiment_update_config(id, key, value):
         pass
 
 
-async def experiment_save_prompt_template(id, template):
+def experiment_save_prompt_template(id, template):
     try:
         exp_obj = Experiment.get(id)
         exp_obj.update_config_field("prompt_template", template)
@@ -71,7 +71,7 @@ async def experiment_save_prompt_template(id, template):
         pass
 
 
-async def experiment_update_configs(id, updates: dict):
+def experiment_update_configs(id, updates: dict):
     try:
         exp_obj = Experiment.get(id)
         exp_obj.update_config(updates)
