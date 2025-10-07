@@ -1,6 +1,7 @@
 import os
 import json
 import transformerlab.db.db as db
+from transformerlab.services import experiment_service
 from transformerlab.services.tasks_service import tasks_service
 from lab.dirs import get_workspace_dir
 
@@ -10,7 +11,7 @@ async def test_export_experiment(client):
     # Create a test experiment
     test_experiment_name = f"test_export_{os.getpid()}"
     config = {"description": "Test experiment"}
-    experiment_id = await db.experiment_create(test_experiment_name, config)
+    experiment_id = await experiment_service.experiment_create(test_experiment_name, config)
 
     # Add a training task
     train_config = {
@@ -103,6 +104,6 @@ async def test_export_experiment(client):
     # assert len(workflows["test_workflow"]["config"]["edges"]) == 1
 
     # Clean up
-    await db.experiment_delete(experiment_id)
+    await experiment_service.experiment_delete(experiment_id)
     if os.path.exists(export_file):
         os.remove(export_file)
