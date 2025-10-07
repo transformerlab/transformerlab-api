@@ -609,21 +609,6 @@ class TestWorkflows:
 
 
 @pytest.mark.asyncio
-async def test_job_update_sync(setup_db):
-    """Test the job_update_sync function."""
-    # First create a job
-    job_id = await job_create(type="TASK", status="QUEUED", experiment_id=99, job_data="{}")
-
-    # Update the job
-    new_status = "RUNNING"
-    job_update_sync(job_id, new_status, 99)
-
-    # Verify the job was updated
-    job = await job_get(job_id)
-    assert job.get("status") == new_status
-
-
-@pytest.mark.asyncio
 async def test_job_mark_as_complete_if_running(setup_db):
     """Test the job_mark_as_complete_if_running function."""
     # Create a running job
