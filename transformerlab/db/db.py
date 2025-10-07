@@ -132,25 +132,6 @@ async def training_jobs_get_all():
         return data
 
 
-####################
-# EXPEORT JOBS MODEL
-# Export jobs use the job_data JSON object to store:
-# - exporter_name
-# - input_model_id
-# - input_model_architecture
-# - output_model_id
-# - output_model_architecture
-# - output_model_name
-# - output_model_path
-# - params
-####################
-
-
-async def export_job_create(experiment_id, job_data_json):
-    job_id = await job_create(type="EXPORT", status="Started", experiment_id=experiment_id, job_data=job_data_json)
-    return job_id
-
-
 ###############
 # PLUGINS MODEL
 ###############
