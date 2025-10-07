@@ -28,7 +28,6 @@ from transformerlab.db.db import (  # noqa: E402
 from transformerlab.services import experiment_service  # noqa: E402
 from transformerlab.services.job_service import (  # noqa: E402
     job_create,
-    job_get,
     job_update_status as service_job_update_status,
     job_update_status_sync as service_job_update_status_sync,
     job_update_sync as service_job_update_sync,
