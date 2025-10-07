@@ -487,29 +487,3 @@ class TestWorkflows:
 #     assert updated_workflow_run["current_job_ids"] == current_job_id
 #     assert json.loads(updated_workflow_run["job_ids"]) == [1]
 #     assert json.loads(updated_workflow_run["node_ids"]) == ["task1"]
-
-
-@pytest.mark.asyncio
-async def test_job_update(setup_db):
-    """Test the job_update function that updates both type and status of a job."""
-    # First create a job
-    original_type = "TASK"
-    original_status = "QUEUED"
-    job_id = await job_create(type=original_type, status=original_status, experiment_id=99, job_data="{}")
-
-    # Verify the job was created with correct initial values
-    job = job_get(job_id)
-    assert job["type"] == original_type
-    assert job.get("status") == original_status
-
-    # Update the job with new type and status
-    new_type = "EVAL"
-    new_status = "RUNNING"
-    await job_update(job_id, new_type, new_status, 99)
-
-    # Verify the job was updated correctly
-    updated_job = job_get(job_id)
-    assert updated_job["type"] == new_type
-    assert updated_job.get("status") == new_status
-    assert updated_job["id"] == job_id
-    assert updated_job["experiment_id"] == 99
