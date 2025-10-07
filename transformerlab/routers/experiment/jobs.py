@@ -204,8 +204,6 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
                 logging.error(f"Error decoding job_data for job {job_id}. Using empty job_data.")
                 job_data = {}
 
-        job_id_safe = secure_filename(str(job_id))
-
         # Handle sweeps case first
         if sweeps:
             output_file = job_data.get("sweep_output_file", None)
