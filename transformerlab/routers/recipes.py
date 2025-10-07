@@ -1,7 +1,7 @@
 from fastapi import APIRouter, BackgroundTasks
 from lab import Dataset
 from transformerlab.shared import galleries
-import transformerlab.db.jobs as db_jobs
+import transformerlab.services.job_service as job_service
 from transformerlab.services.tasks_service import tasks_service
 from transformerlab.models import model_helper
 import json
@@ -77,7 +77,7 @@ async def _install_recipe_dependencies_job(job_id, id):
     from transformerlab.routers import plugins as plugins_router
 
     try:
-        job = await db_jobs.job_get(job_id)
+        job = job_service.job_get(job_id)
         experiment_id = job["experiment_id"]
         await job_update_status(job_id, "RUNNING", experiment_id=experiment_id)
         recipes_gallery = galleries.get_exp_recipe_gallery()
@@ -126,8 +126,8 @@ async def _install_recipe_dependencies_job(job_id, id):
                 result["status"] = str(e)
             results.append(result)
             progress += 1
-            await db_jobs.job_update_progress(job_id, int(progress * 100 / total), experiment_id)
-            await db_jobs.job_update_job_data_insert_key_value(job_id, "results", results, experiment_id)
+            job_service.job_update_progress(job_id, int(progress * 100 / total), experiment_id)
+            job_service.job_update_job_data_insert_key_value(job_id, "results", results, experiment_id)
         await job_update_status(job_id, "COMPLETE", experiment_id=experiment_id)
     except Exception as e:
         await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=str(e))
@@ -155,7 +155,7 @@ async def install_recipe_model_dependencies(id: str):
             dep_name = dep.get("name")
             if dep_name not in local_model_names:
                 # Create a DOWNLOAD_MODEL job for this model
-                job_id = await db_jobs.job_create(
+                job_id = job_service.job_create(
                     type="DOWNLOAD_MODEL",
                     status="QUEUED",
                     job_data=json.dumps({"model_id": dep_name}),
@@ -194,7 +194,7 @@ async def install_recipe_dependencies(id: str, background_tasks: BackgroundTasks
         return model_result
 
     # Install other dependencies as a background job
-    job_id = await db_jobs.job_create(
+    job_id = job_service.job_create(
         type="INSTALL_RECIPE_DEPS",
         status="QUEUED",
         job_data=json.dumps({"recipe_id": id, "results": [], "progress": 0}),
@@ -232,7 +232,7 @@ async def install_recipe_dependencies(id: str, background_tasks: BackgroundTasks
 @router.get("/jobs/{job_id}/status")
 async def get_install_job_status(job_id: int):
     """Get the status and progress of a dependency installation job."""
-    job = await db_jobs.job_get(job_id)
+    job = job_service.job_get(job_id)
     if not job:
         return {"error": f"Job {job_id} not found."}
     return {

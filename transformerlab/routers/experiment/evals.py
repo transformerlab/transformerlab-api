@@ -7,7 +7,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
-from transformerlab.db.jobs import job_get
+from transformerlab.servcies.job_service import job_get
 from transformerlab.shared import shared
 from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
@@ -157,7 +157,7 @@ async def get_evaluation_plugin_file_contents(experimentId: str, plugin_name: st
 
 @router.get("/run_evaluation_script")
 async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: str, job_id: str):
-    job_config = (await job_get(job_id))["job_data"]
+    job_config = (job_get(job_id))["job_data"]
     eval_config = job_config.get("config", {})
     print(eval_config)
     experiment_details = experiment_get(id=experimentId)

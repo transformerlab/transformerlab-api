@@ -13,7 +13,7 @@ from transformerlab.models import model_helper
 from lab import Dataset
 from lab.dirs import get_workspace_dir
 from transformerlab.shared.shared import slugify
-import transformerlab.db.jobs as db_jobs
+from transformerlab.services.job_service import job_create
 import logging
 
 
@@ -153,6 +153,7 @@ def _setup_diffusion_logger():
     # File handler
     try:
         from lab.dirs import get_global_log_path
+
         file_handler = logging.FileHandler(get_global_log_path(), encoding="utf-8")
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
@@ -423,9 +424,7 @@ async def generate_image(experimentId: str, request: DiffusionRequest, http_requ
                 "config": request_dict,
             }
 
-            job_id = await db_jobs.job_create(
-                type="DIFFUSION", status="QUEUED", job_data=job_config, experiment_id=experimentId
-            )
+            job_id = job_create(type="DIFFUSION", status="QUEUED", job_data=job_config, experiment_id=experimentId)
 
             # Get experiment name for experiment-specific paths
             images_folder = os.path.join(get_images_dir(experimentId), generation_id)

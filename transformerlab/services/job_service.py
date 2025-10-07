@@ -3,7 +3,8 @@ from typing import Optional
 
 from lab import Experiment, Job
 
-import transformerlab.db.jobs as db_jobs
+# legacy job_update_status and job_update to avoid conflict
+import transformerlab.db.jobs as db_jobs 
 from transformerlab.db.sync import (
     job_update_status_sync as db_job_update_status_sync,
     job_update_sync as db_job_update_sync,
@@ -218,15 +219,6 @@ async def job_update(job_id: str, type: str, status: str, experiment_id: Optiona
     """
     # Update the job in the database
     await db_jobs.job_update(job_id, type, status, experiment_id)
-    async def job_update(job_id, type, status, experiment_id):
-    try:
-        job = Job.get(job_id)
-        if experiment_id is not None and job.get_experiment_id() != experiment_id:
-            return
-        job.set_type(type)
-        job.update_status(status)
-    except Exception:
-        pass
 
     # Trigger workflows if job status is COMPLETE
     if status == "COMPLETE":

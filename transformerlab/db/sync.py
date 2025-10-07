@@ -12,7 +12,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.dialects.sqlite import insert
 
 from transformerlab.db.constants import DATABASE_FILE_NAME
-from transformerlab.db.jobs import ALLOWED_JOB_TYPES
+from transformerlab.services.job_service import ALLOWED_JOB_TYPES
 from transformerlab.shared.models import models
 
 

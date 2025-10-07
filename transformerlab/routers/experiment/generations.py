@@ -8,7 +8,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
-from transformerlab.db.jobs import job_get
+from transformerlab.services.job_service import job_get
 from transformerlab.shared import shared, dirs
 from lab import dirs as lab_dirs
 from transformerlab.services.experiment_service import experiment_get, experiment_update_config
@@ -162,7 +162,7 @@ async def get_generation_plugin_file_contents(experimentId: str, plugin_name: st
 
 @router.get("/run_generation_script")
 async def run_generation_script(experimentId: str, plugin_name: str, generation_name: str, job_id: str):
-    job_config = (await job_get(job_id))["job_data"]
+    job_config = (job_get(job_id))["job_data"]
     generation_config = job_config.get("config", {})
     print(generation_config)
     plugin_name = secure_filename(plugin_name)

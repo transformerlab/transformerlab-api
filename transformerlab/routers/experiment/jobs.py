@@ -19,7 +19,7 @@ from transformerlab.routers.serverinfo import watch_file
 from transformerlab.db.db import get_training_template
 from datetime import datetime
 
-import transformerlab.db.jobs as db_jobs
+import transformerlab.services.job_service as job_service
 from transformerlab.services.job_service import job_update_status
 from lab import dirs, Job
 from lab.dirs import get_workspace_dir
@@ -29,13 +29,13 @@ router = APIRouter(prefix="/jobs", tags=["train"])
 
 @router.get("/list")
 async def jobs_get_all(experimentId: str, type: str = "", status: str = ""):
-    jobs = await db_jobs.jobs_get_all(type=type, status=status, experiment_id=experimentId)
+    jobs = job_service.jobs_get_all(type=type, status=status, experiment_id=experimentId)
     return jobs
 
 
 @router.get("/delete/{job_id}")
 async def job_delete(job_id: str, experimentId: str):
-    await db_jobs.job_delete(job_id, experiment_id=experimentId)
+    job_service.job_delete(job_id, experiment_id=experimentId)
     return {"message": "OK"}
 
 
@@ -46,12 +46,12 @@ async def job_create(
     status: str = "CREATED",
     data: str = "{}",
 ):
-    jobid = await db_jobs.job_create(type=type, status=status, job_data=data, experiment_id=experimentId)
+    jobid = job_service.job_create(type=type, status=status, job_data=data, experiment_id=experimentId)
     return jobid
 
 
 async def job_create_task(script: str, job_data: str = "{}", experimentId: str = None):
-    jobid = await db_jobs.job_create(type="UNDEFINED", status="CREATED", job_data=job_data, experiment_id=experimentId)
+    jobid = job_service.job_create(type="UNDEFINED", status="CREATED", job_data=job_data, experiment_id=experimentId)
     return jobid
 
 
@@ -62,10 +62,10 @@ async def job_update(job_id: str, status: str, experimentId: str):
 
 
 async def start_next_job():
-    num_running_jobs = await db_jobs.job_count_running()
+    num_running_jobs = job_service.job_count_running()
     if num_running_jobs > 0:
         return {"message": "A job is already running"}
-    nextjob = await db_jobs.jobs_get_next_queued_job()
+    nextjob = job_service.jobs_get_next_queued_job()
     if nextjob:
         print(f"Starting Next Job in Queue: {nextjob}")
         print("Starting job: " + str(nextjob["id"]))
@@ -87,19 +87,19 @@ async def start_next_job():
 async def stop_job(job_id: str, experimentId: str):
     # The way a job is stopped is simply by adding "stop: true" to the job_data
     # This will be checked by the plugin as it runs
-    await db_jobs.job_stop(job_id, experiment_id=experimentId)
+    job_service.job_stop(job_id, experiment_id=experimentId)
     return {"message": "OK"}
 
 
 @router.get("/delete_all")
 async def job_delete_all(experimentId: str):
-    await db_jobs.job_delete_all(experiment_id=experimentId)
+    job_service.job_delete_all(experiment_id=experimentId)
     return {"message": "OK"}
 
 
 @router.get("/{job_id}")
 async def get_training_job(job_id: str):
-    job = await db_jobs.job_get(job_id)
+    job = job_service.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     return job
@@ -108,7 +108,7 @@ async def get_training_job(job_id: str):
 @router.get("/{job_id}/output")
 async def get_training_job_output(job_id: str, sweeps: bool = False):
     # First get the template Id from this job:
-    job = await db_jobs.job_get(job_id)
+    job = job_service.job_get(job_id)
     if job is None:
         return {"checkpoints": []}
     job_data = job["job_data"]
@@ -170,7 +170,7 @@ async def update_training_template(
     try:
         configObject = json.loads(config)
         datasets = configObject["dataset_name"]
-        await db_jobs.update_training_template(template_id, name, description, type, datasets, config)
+        job_service.update_training_template(template_id, name, description, type, datasets, config)
     except JSONDecodeError as e:
         logging.error(f"JSON decode error: {e}")
         return {"status": "error", "message": "An error occurred while processing the request."}
@@ -187,7 +187,7 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
     Enhanced version combining the best of both train and jobs routers.
     """
     try:
-        job = await db_jobs.job_get(job_id)
+        job = job_service.job_get(job_id)
         job_data = job["job_data"]
 
         # Handle both dict and JSON string formats
@@ -269,7 +269,7 @@ async def stream_detailed_json_report(job_id: str, file_name: str):
 
 @router.get("/{job_id}/get_additional_details")
 async def stream_job_additional_details(job_id: str, task: str = "view"):
-    job = await db_jobs.job_get(job_id)
+    job = job_service.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -304,7 +304,7 @@ async def stream_job_additional_details(job_id: str, task: str = "view"):
 
 @router.get("/{job_id}/get_figure_json")
 async def get_figure_path(job_id: str):
-    job = await db_jobs.job_get(job_id)
+    job = job_service.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -319,7 +319,7 @@ async def get_figure_path(job_id: str):
 
 @router.get("/{job_id}/get_generated_dataset")
 async def get_generated_dataset(job_id: str):
-    job = await db_jobs.job_get(job_id)
+    job = job_service.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     # Get experiment name
@@ -346,7 +346,7 @@ async def get_generated_dataset(job_id: str):
 @router.get("/{job_id}/get_eval_images")
 async def get_eval_images(job_id: str):
     """Get list of evaluation images for a job"""
-    job = await db_jobs.job_get(job_id)
+    job = job_service.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -391,7 +391,7 @@ async def get_eval_images(job_id: str):
 @router.get("/{job_id}/image/{filename}")
 async def get_eval_image(job_id: str, filename: str):
     """Serve individual evaluation image files"""
-    job = await db_jobs.job_get(job_id)
+    job = job_service.job_get(job_id)
     if job is None:
         return Response("Job not found", status_code=404)
     job_data = job["job_data"]
@@ -440,7 +440,7 @@ async def get_checkpoints(job_id: str, request: Request):
         return {"checkpoints": []}
 
     """Get list of checkpoints for a job"""
-    job = await db_jobs.job_get(job_id)
+    job = job_service.job_get(job_id)
     job_data = job["job_data"]
 
     # Check if the job has a supports_checkpoints flag

@@ -8,8 +8,7 @@ import sys
 from fastapi import APIRouter
 
 from transformerlab.services.experiment_service import experiment_get
-from transformerlab.services.job_service import job_create
-import transformerlab.db.jobs as db_jobs
+from transformerlab.services.job_service import job_create, job_get
 from lab import dirs as lab_dirs
 from transformerlab.shared import dirs, shared
 
@@ -152,7 +151,7 @@ async def run_exporter_script(
                 f.write(f"\nError:\n{stderr_str}")
 
             if process.returncode != 0:
-                job = await db_jobs.job_get(job_id)
+                job = job_get(job_id)
                 experiment_id = job["experiment_id"]
                 await job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
                 return {
@@ -164,7 +163,7 @@ async def run_exporter_script(
         import logging
 
         logging.error(f"Failed to export model. Exception: {e}")
-        job = await db_jobs.job_get(job_id)
+        job = job_get(job_id)
         experiment_id = job["experiment_id"]
         await job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
         return {"message": "Failed to export model due to an internal error."}
