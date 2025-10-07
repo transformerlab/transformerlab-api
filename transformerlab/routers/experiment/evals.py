@@ -7,7 +7,7 @@ from typing import Any
 
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
-from transformerlab.servcies.job_service import job_get
+from transformerlab.services.job_service import job_get
 from transformerlab.shared import shared
 from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
