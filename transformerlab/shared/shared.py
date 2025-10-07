@@ -19,11 +19,9 @@ from transformerlab.services.job_service import job_update_sync, job_update_stat
 import transformerlab.db.jobs as db_jobs
 from transformerlab.routers.experiment.evals import run_evaluation_script
 from transformerlab.routers.experiment.generations import run_generation_script
-from lab.dirs import GLOBAL_LOG_PATH
-from lab.dirs import get_workspace_dir
+from lab.dirs import get_workspace_dir, get_global_log_path
 from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
-
 
 
 def popen_and_call(onExit, input="", output_file=None, *popenArgs, **popenKWArgs):
@@ -178,7 +176,7 @@ async def read_process_output(process, job_id):
         print("Worker Process stopped by user")
     else:
         print(f"ERROR: Worker Process ended with exit code {returncode}.")
-    with open(GLOBAL_LOG_PATH, "a") as log:
+    with open(get_global_log_path(), "a") as log:
         log.write(f"Inference Server Terminated with {returncode}.\n")
         log.flush()
     # so we should delete the pid file:
@@ -212,7 +210,7 @@ async def async_run_python_daemon_and_update_status(
             break
 
     # Open a file to write the output to:
-    log = open(GLOBAL_LOG_PATH, "a")
+    log = open(get_global_log_path(), "a")
 
     # Check if plugin has a venv directory
     if plugin_location:
