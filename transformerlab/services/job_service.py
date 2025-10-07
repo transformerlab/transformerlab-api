@@ -12,7 +12,6 @@ from transformerlab.db.sync import (
     job_mark_as_complete_if_running as db_job_mark_as_complete_if_running,
 )
 from transformerlab.shared.models import models
-from transformerlab.experiment_service 
 from sqlalchemy import select
 
 # Allowed job types:
