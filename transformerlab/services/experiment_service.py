@@ -1,4 +1,5 @@
 import os
+import json
 
 from lab import Experiment
 from lab import dirs as lab_dirs
@@ -25,7 +26,15 @@ async def experiment_create(name: str, config: dict) -> str:
 async def experiment_get(id):
     try:
         exp = Experiment.get(id)
-        return exp.get_json_data()
+        data = exp.get_json_data()
+        # Parse config field from JSON string to dict if needed
+        config = data.get("config", {})
+        if isinstance(config, str):
+            try:
+                data["config"] = json.loads(config)
+            except json.JSONDecodeError:
+                data["config"] = {}
+        return data
     except Exception:
         return None
 
