@@ -7,7 +7,6 @@ from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-import transformerlab.db.db as db
 
 # MCP client imports
 try:
