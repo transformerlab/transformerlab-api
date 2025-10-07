@@ -28,7 +28,6 @@ def test_diffusion_generate_success(client):
 
     with (
         patch("transformerlab.plugins.image_diffusion.main.get_pipeline") as mock_get_pipeline,
-        patch("transformerlab.db.db.experiment_get", return_value={"id": experiment_id, "name": "test-exp-name"}),
         patch("transformerlab.plugins.image_diffusion.main.diffusion_generate_job", return_value=None),
         patch("transformerlab.routers.experiment.diffusion.db_jobs.job_create", return_value=1),
         patch("transformerlab.routers.experiment.diffusion.db_jobs.job_get", return_value={"status": "COMPLETE"}),
@@ -415,9 +414,9 @@ def test_create_dataset_existing_dataset(client):
                 return mock_dataset
             else:
                 raise FileNotFoundError(f"Directory for Dataset with id '{dataset_id}' not found")
-        
+
         mock_dataset_get.side_effect = mock_get_side_effect
-        
+
         mock_image = MagicMock()
         mock_image.id = "test-id"
         mock_find_image.return_value = mock_image
