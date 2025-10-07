@@ -385,7 +385,7 @@ async def migrate_jobs():
                 jobs = result.mappings().all()
                 dict_jobs = [dict(job) for job in jobs]
                 for job in dict_jobs:
-                    # Handle job_data JSON inconsistency (like dataset migration)
+                    # Handle job_data JSON inconsistency (might be string or dict)
                     if "job_data" in job and job["job_data"]:
                         if isinstance(job["job_data"], str):
                             try:
@@ -484,7 +484,7 @@ async def migrate_jobs():
             print(f"Cleaning up temp experiments directory after job migration: {temp_experiments_dir}")
             shutil.rmtree(temp_experiments_dir)
 
-        # Archive the legacy jobs table if present (like dataset migration)
+        # Archive the legacy jobs table if present
         try:
             async with async_session() as session:
                 await session.execute(sqlalchemy_text("ALTER TABLE job RENAME TO zzz_archived_job"))
@@ -501,7 +501,7 @@ async def migrate_jobs():
 
 
 async def migrate_experiments():
-    """Migrate experiments from DB to filesystem following the dataset migration pattern."""
+    """Migrate experiments from DB to filesystem."""
     try:
         # Late import to avoid hard dependency during tests without DB
         from transformerlab.db.session import async_session
@@ -509,7 +509,7 @@ async def migrate_experiments():
 
         print("Migrating experiments...")
 
-        # Read existing experiment rows from DB using raw SQL (like dataset migration)
+        # Read existing experiment rows from DB using raw SQL
         experiments_rows = []
         try:
             # First check if the experiments table exists
@@ -597,7 +597,7 @@ async def migrate_experiments():
             print(f"Cleaning up temp experiments directory: {temp_experiments_dir}")
             shutil.rmtree(temp_experiments_dir)
 
-        # Archive the legacy experiments table if present (like dataset migration)
+        # Archive the legacy experiments table if present
         try:
             async with async_session() as session:
                 await session.execute(sqlalchemy_text("ALTER TABLE experiment RENAME TO zzz_archived_experiment"))
