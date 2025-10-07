@@ -207,12 +207,12 @@ async def test_jobs_get_all_and_by_experiment_and_type(test_experiment):
 async def test_experiment_update_and_update_config_and_save_prompt_template(test_experiment):
     await experiment_update(test_experiment, {"foo": "bar"})
     exp = await experiment_get(test_experiment)
-    exp_config = json.loads(exp["config"])  # should be a string containing JSON
+    exp_config = exp["config"]  # now returns a dict directly
     assert exp_config == {"foo": "bar"}
 
     await experiment_update_config(test_experiment, "baz", 123)
     exp = await experiment_get(test_experiment)
-    exp_config = json.loads(exp["config"])
+    exp_config = exp["config"]
     assert exp_config.get("baz") == 123
 
     test_prompt = '"prompt"'
