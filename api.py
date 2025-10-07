@@ -29,9 +29,9 @@ from fastchat.constants import (
 from fastchat.protocol.openai_api_protocol import (
     ErrorResponse,
 )
-from transformerlab.db.jobs import job_create, job_update_status
-from transformerlab.db import jobs as db_jobs
+
 from transformerlab.services.experiment_service import experiment_get
+from transformerlab.services.job_service import job_create, job_get, job_update_status
 import transformerlab.db.session as db
 
 from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert
@@ -358,7 +358,7 @@ async def server_worker_start(
         json.dumps(inference_params),
     ]
 
-    job_id = await job_create(type="LOAD_MODEL", status="STARTED", job_data="{}", experiment_id=experiment_id)
+    job_id = job_create(type="LOAD_MODEL", status="STARTED", job_data="{}", experiment_id=experiment_id)
 
     print("Loading plugin loader instead of default worker")
 
@@ -390,13 +390,13 @@ async def server_worker_start(
 
         with open(get_global_log_path(), "a") as global_log:
             global_log.write(f"Error loading model: {model_name} with exit code {exitcode}\n")
-        job = await db_jobs.job_get(job_id)
+        job = job_get(job_id)
         error_msg = None
         if job and job.get("job_data"):
             error_msg = job["job_data"].get("error_msg")
         if not error_msg:
             error_msg = f"Exit code {exitcode}"
-            await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
+            job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
         return {"status": "error", "message": error_msg}
     from lab.dirs import get_global_log_path
 
