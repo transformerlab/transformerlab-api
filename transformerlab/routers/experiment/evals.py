@@ -186,7 +186,9 @@ async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: 
 
     # Create the input file for the script:
     from lab.dirs import get_temp_dir
-    input_file = os.path.join(get_temp_dir(), "plugin_input_" + str(plugin_name) + ".json")
+
+    plugin_json_file = "plugin_input_" + secure_filename(str(plugin_name)) + ".json"
+    input_file = os.path.join(get_temp_dir(), plugin_json_file)
 
     # The following two ifs convert nested JSON strings to JSON objects -- this is a hack
     # and should be done in the API itself
