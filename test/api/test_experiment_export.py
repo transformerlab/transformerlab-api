@@ -1,6 +1,5 @@
 import os
 import json
-import transformerlab.db.db as db
 from transformerlab.services import experiment_service
 from transformerlab.services.tasks_service import tasks_service
 from lab.dirs import get_workspace_dir
