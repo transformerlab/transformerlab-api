@@ -157,7 +157,7 @@ async def _trigger_workflows_on_job_completion(job_id: str):
     """
     try:
         # Get the job details
-        job = await db_jobs.job_get(job_id)
+        job = job_get(job_id)
         if not job:
             return
 

@@ -29,8 +29,7 @@ def test_diffusion_generate_success(client):
     with (
         patch("transformerlab.plugins.image_diffusion.main.get_pipeline") as mock_get_pipeline,
         patch("transformerlab.plugins.image_diffusion.main.diffusion_generate_job", return_value=None),
-        patch("transformerlab.routers.experiment.diffusion.db_jobs.job_create", return_value=1),
-        patch("transformerlab.routers.experiment.diffusion.db_jobs.job_get", return_value={"status": "COMPLETE"}),
+        patch("transformerlab.routers.experiment.diffusion.job_create", return_value=1),
         patch("transformerlab.routers.experiment.diffusion.get_images_dir", return_value="test/tmp"),
         patch("builtins.open", mock_open(read_data=json.dumps(mock_output_data))),
         patch("os.remove"),
