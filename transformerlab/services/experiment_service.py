@@ -1,0 +1,70 @@
+import os
+
+from lab import Experiment
+from lab import dirs as lab_dirs
+
+
+async def experiment_get_all():
+    experiments = []
+    experiments_dir = lab_dirs.get_experiments_dir()
+    if os.path.exists(experiments_dir):
+        for exp_dir in os.listdir(experiments_dir):
+            exp_path = os.path.join(experiments_dir, exp_dir)
+            if os.path.isdir(exp_path):
+                exp_dict = await experiment_get(exp_dir)
+                if exp_dict:
+                    experiments.append(exp_dict)
+    return experiments
+
+
+async def experiment_create(name: str, config: dict) -> str:
+    Experiment.create_with_config(name, config)
+    return name
+
+
+async def experiment_get(id):
+    try:
+        exp = Experiment.get(id)
+        return exp.get_json_data()
+    except Exception:
+        return None
+
+
+async def experiment_delete(id):
+    try:
+        exp = Experiment.get(id)
+        exp.delete()
+    except Exception:
+        pass
+
+
+async def experiment_update(id, config):
+    try:
+        exp = Experiment.get(id)
+        exp.update_config(config)
+    except Exception:
+        pass
+
+
+async def experiment_update_config(id, key, value):
+    try:
+        exp = Experiment.get(id)
+        exp.update_config_field(key, value)
+    except Exception:
+        pass
+
+
+async def experiment_save_prompt_template(id, template):
+    try:
+        exp_obj = Experiment.get(id)
+        exp_obj.update_config_field("prompt_template", template)
+    except Exception:
+        pass
+
+
+async def experiment_update_configs(id, updates: dict):
+    try:
+        exp_obj = Experiment.get(id)
+        exp_obj.update_config(updates)
+    except Exception:
+        pass

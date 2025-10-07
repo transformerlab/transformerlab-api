@@ -5,13 +5,13 @@ import subprocess
 import sys
 from typing import Any
 
-from transformerlab.db.db import experiment_get, experiment_update_config
 from fastapi import APIRouter, Body
 from fastapi.responses import FileResponse
 from transformerlab.db.jobs import job_get
 from transformerlab.shared import shared
 from lab import dirs as lab_dirs
 from transformerlab.shared import dirs
+from transformerlab.services.experiment_service import experiment_get, experiment_update_config
 
 from werkzeug.utils import secure_filename
 
@@ -25,7 +25,7 @@ async def experiment_add_evaluation(experimentId: str, plugin: Any = Body()):
     directory, we can modify the plugin code for the specific experiment without affecting
     other experiments that use the same plugin."""
 
-    experiment = await experiment_get(experimentId)
+    experiment = experiment_get(experimentId)
 
     if experiment is None:
         return {"message": f"Experiment {experimentId} does not exist"}
@@ -52,7 +52,7 @@ async def experiment_add_evaluation(experimentId: str, plugin: Any = Body()):
 
     evaluations.append(evaluation)
 
-    await experiment_update_config(experimentId, "evaluations", json.dumps(evaluations))
+    experiment_update_config(experimentId, "evaluations", json.dumps(evaluations))
 
     return {"message": f"Experiment {experimentId} updated with plugin {plugin_name}"}
 
@@ -61,7 +61,7 @@ async def experiment_add_evaluation(experimentId: str, plugin: Any = Body()):
 async def experiment_delete_eval(experimentId: str, eval_name: str):
     """Delete an evaluation from an experiment. This will delete the directory in the experiment
     and remove the global plugin from the specific experiment."""
-    experiment = await experiment_get(experimentId)
+    experiment = experiment_get(experimentId)
 
     if experiment is None:
         return {"message": f"Experiment {experimentId} does not exist"}
@@ -76,7 +76,7 @@ async def experiment_delete_eval(experimentId: str, eval_name: str):
     # remove the evaluation from the list:
     evaluations = [e for e in evaluations if e["name"] != eval_name]
 
-    await experiment_update_config(experimentId, "evaluations", json.dumps(evaluations))
+    experiment_update_config(experimentId, "evaluations", json.dumps(evaluations))
 
     return {"message": f"Evaluation {eval_name} deleted from experiment {experimentId}"}
 
@@ -88,7 +88,7 @@ async def experiment_delete_eval(experimentId: str, eval_name: str):
 async def edit_evaluation_task(experimentId: str, plugin: Any = Body()):
     """Get the contents of the evaluation"""
     try:
-        experiment = await experiment_get(experimentId)
+        experiment = experiment_get(experimentId)
 
         # if the experiment does not exist, return an error:
         if experiment is None:
@@ -121,7 +121,7 @@ async def edit_evaluation_task(experimentId: str, plugin: Any = Body()):
                 evaluation["script_parameters"] = updated_json
                 evaluation["name"] = template_name
 
-        await experiment_update_config(experimentId, "evaluations", json.dumps(evaluations))
+        experiment_update_config(experimentId, "evaluations", json.dumps(evaluations))
 
         return {"message": "OK"}
     except Exception as e:
@@ -132,7 +132,7 @@ async def edit_evaluation_task(experimentId: str, plugin: Any = Body()):
 @router.get("/get_evaluation_plugin_file_contents")
 async def get_evaluation_plugin_file_contents(experimentId: str, plugin_name: str):
     # first get the experiment name:
-    data = await experiment_get(experimentId)
+    data = experiment_get(experimentId)
 
     # if the experiment does not exist, return an error:
     if data is None:
@@ -160,7 +160,7 @@ async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: 
     job_config = (await job_get(job_id))["job_data"]
     eval_config = job_config.get("config", {})
     print(eval_config)
-    experiment_details = await experiment_get(id=experimentId)
+    experiment_details = experiment_get(id=experimentId)
 
     if experiment_details is None:
         return {"message": f"Experiment {experimentId} does not exist"}
@@ -278,7 +278,7 @@ async def run_evaluation_script(experimentId: str, plugin_name: str, eval_name: 
 async def get_output(experimentId: str, eval_name: str):
     """Get the output of an evaluation"""
     eval_name = secure_filename(eval_name)  # sanitize the input
-    data = await experiment_get(experimentId)
+    data = experiment_get(experimentId)
     # if the experiment does not exist, return an error:
     if data is None:
         return {"message": f"Experiment {experimentId} does not exist"}

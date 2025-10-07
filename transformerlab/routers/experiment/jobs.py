@@ -143,12 +143,6 @@ async def get_training_job_output(job_id: str, sweeps: bool = False):
 
     plugin_name = template_config["plugin_name"]
 
-    # Now we need the current experiment id from the job:
-    # experiment_id = job["experiment_id"]
-    # Then get the experiment name:
-    # experiment = await db_jobs.experiment_get(experiment_id)
-    # experiment_name = experiment["name"]
-
     # Now we can get the output.txt from the plugin which is stored in
     # /workspace/experiments/{experiment_name}/plugins/{plugin_name}/output.txt
     output_file = f"{dirs.plugin_dir_by_name(plugin_name)}/output.txt"

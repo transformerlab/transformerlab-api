@@ -28,7 +28,6 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-
 async def get_training_template(id):
     async with async_session() as session:
         result = await session.execute(select(models.TrainingTemplate).where(models.TrainingTemplate.id == id))
@@ -170,75 +169,6 @@ async def training_jobs_get_all():
 async def export_job_create(experiment_id, job_data_json):
     job_id = await job_create(type="EXPORT", status="Started", experiment_id=experiment_id, job_data=job_data_json)
     return job_id
-
-
-###################
-# EXPERIMENTS MODEL
-###################
-
-
-async def experiment_get_all():
-    experiments = []
-    experiments_dir = lab_dirs.get_experiments_dir()
-    if os.path.exists(experiments_dir):
-        for exp_dir in os.listdir(experiments_dir):
-            exp_path = os.path.join(experiments_dir, exp_dir)
-            if os.path.isdir(exp_path):
-                exp_dict = await experiment_get(exp_dir)
-                if exp_dict:
-                    experiments.append(exp_dict)
-    return experiments
-
-
-async def experiment_create(name: str, config: dict) -> str:
-    Experiment.create_with_config(name, config)
-    return name
-
-async def experiment_get(id):
-    try:
-        exp_obj = Experiment.get(id)
-        return exp_obj.get_json_data()
-    except Exception:
-        return None
-
-# TODO: Need to change this, How we handle experiment_delete?
-async def experiment_delete(id):
-    try:
-        exp_obj = Experiment.get(id)
-        shutil.rmtree(exp_obj.get_dir())
-    except Exception:
-        pass
-
-async def experiment_update(id, config):
-    try:
-        exp_obj = Experiment.get(id)
-        exp_obj.update_config(config)
-    except Exception:
-        pass
-
-
-async def experiment_update_config(id, key, value):
-    try:
-        exp_obj = Experiment.get(id)
-        exp_obj.update_config_field(key, value)
-    except Exception:
-        pass
-
-
-async def experiment_save_prompt_template(id, template):
-    try:
-        exp_obj = Experiment.get(id)
-        exp_obj.update_config_field("prompt_template", template)
-    except Exception:
-        pass
-
-
-async def experiment_update_configs(id, updates: dict):
-    try:
-        exp_obj = Experiment.get(id)
-        exp_obj.update_config(updates)
-    except Exception:
-        pass
 
 
 ###############

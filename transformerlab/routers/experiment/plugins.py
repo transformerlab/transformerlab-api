@@ -7,7 +7,8 @@ from typing import Annotated
 from fastapi import APIRouter, Body
 import httpx
 
-from transformerlab.db.db import experiment_get, save_plugin
+from transformerlab.db.db import save_plugin
+from transformerlab.services.experiment_service import experiment_get
 
 from transformerlab.shared import shared, dirs
 from lab import dirs as lab_dirs
@@ -24,7 +25,7 @@ router = APIRouter(prefix="/plugins", tags=["plugins"])
 async def experiment_list_scripts(id: str, type: str = None, filter: str = None):
     """List all the scripts in the experiment"""
     # first get the experiment name:
-    data = await experiment_get(id)
+    data = experiment_get(id)
 
     # if the experiment does not exist, return an error:
     if data is None:
@@ -44,6 +45,7 @@ async def experiment_list_scripts(id: str, type: str = None, filter: str = None)
     # print(f"Filtering by {filter_key} with value {filter_value}")
 
     from lab.dirs import get_plugin_dir
+
     scripts_dir = get_plugin_dir()
 
     # now get a list of all the directories in the scripts directory:
@@ -169,7 +171,7 @@ async def plugin_save_file_contents(id: str, pluginId: str, filename: str, file_
 
     filename = secure_filename(filename)
 
-    data = await experiment_get(id)
+    data = experiment_get(id)
     # if the experiment does not exist, return an error:
     if data is None:
         return {"message": f"Experiment {id} does not exist"}
@@ -206,7 +208,7 @@ async def plugin_get_file_contents(id: str, pluginId: str, filename: str):
 
     filename = secure_filename(filename)
 
-    data = await experiment_get(id)
+    data = experiment_get(id)
     # if the experiment does not exist, return an error:
     if data is None:
         return {"message": f"Experiment {id} does not exist"}
@@ -239,7 +241,7 @@ async def plugin_get_file_contents(id: str, pluginId: str, filename: str):
 async def plugin_list_files(id: str, pluginId: str):
     global allowed_extensions
 
-    data = await experiment_get(id)
+    data = experiment_get(id)
     # if the experiment does not exist, return an error:
     if data is None:
         return {"message": f"Experiment {id} does not exist"}
@@ -267,7 +269,7 @@ async def plugin_create_new_file(id: str, pluginId: str, filename: str):
 
     filename = secure_filename(filename)
 
-    data = await experiment_get(id)
+    data = experiment_get(id)
     # if the experiment does not exist, return an error:
     if data is None:
         return {"message": f"Experiment {id} does not exist"}
@@ -307,7 +309,7 @@ async def plugin_delete_file(id: str, pluginId: str, filename: str):
 
     filename = secure_filename(filename)
 
-    data = await experiment_get(id)
+    data = experiment_get(id)
     # if the experiment does not exist, return an error:
     if data is None:
         return {"message": f"Experiment {id} does not exist"}
@@ -343,7 +345,7 @@ async def plugin_delete_file(id: str, pluginId: str, filename: str):
 async def plugin_new_plugin_directory(id: str, pluginId: str):
     global allowed_extensions
 
-    data = await experiment_get(id)
+    data = experiment_get(id)
     # if the experiment does not exist, return an error:
     if data is None:
         return {"message": f"Experiment {id} does not exist"}
