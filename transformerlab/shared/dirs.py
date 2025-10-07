@@ -3,7 +3,6 @@
 import os
 from lab import HOME_DIR, dirs
 from lab.dirs import get_workspace_dir
-from transformerlab.db.db import experiment_get
 
 
 """
