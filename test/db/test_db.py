@@ -24,8 +24,6 @@ from transformerlab.db.db import (  # noqa: E402
     get_plugins,
     get_plugin,
     save_plugin,
-    config_get,
-    config_set,
     get_training_template,
     get_training_templates,
     create_training_template,
@@ -33,6 +31,7 @@ from transformerlab.db.db import (  # noqa: E402
     delete_training_template,
     export_job_create,
 )
+from lab.config import Config as fs_config  # noqa: E402
 
 from transformerlab.db.sync import (  # noqa: E402
     job_create_sync,
@@ -177,7 +176,7 @@ async def test_get_plugins_of_type_returns_list():
 
 @pytest.mark.asyncio
 async def test_config_get_returns_none_for_missing():
-    value = await config_get("missing_config_key")
+    value = fs_config.get_value_by_key("missing_config_key")
     assert value is None
 
 
@@ -419,23 +418,23 @@ class TestPlugins:
 class TestConfig:
     @pytest.mark.asyncio
     async def test_config_set_and_get(self):
-        await config_set("test_key", "test_value")
-        value = await config_get("test_key")
+        fs_config.set_value_by_key("test_key", "test_value")
+        value = fs_config.get_value_by_key("test_key")
         assert value == "test_value"
         # now try to set the same key with a different value
-        await config_set("test_key", "test_value2")
-        value = await config_get("test_key")
+        fs_config.set_value_by_key("test_key", "test_value2")
+        value = fs_config.get_value_by_key("test_key")
         assert value == "test_value2"
         # now try to get a key that does not exist
-        value = await config_get("test_key2_SHOULD_NOT_EXIST")
+        value = fs_config.get_value_by_key("test_key2_SHOULD_NOT_EXIST")
         assert value is None
         # now try to set a key with None value
-        await config_set("test_key3", None)
-        value = await config_get("test_key3")
+        fs_config.set_value_by_key("test_key3", None)
+        value = fs_config.get_value_by_key("test_key3")
         assert value is None
         # now try to set a key with empty string value
-        await config_set("test_key4", "")
-        value = await config_get("test_key4")
+        fs_config.set_value_by_key("test_key4", "")
+        value = fs_config.get_value_by_key("test_key4")
         assert value == ""
 
 

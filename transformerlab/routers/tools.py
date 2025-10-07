@@ -7,7 +7,6 @@ from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-import transformerlab.db.db as db
 
 # MCP client imports
 try:
@@ -64,7 +63,8 @@ async def get_all_tools():
         # Get MCP server config directly from database
         mcp_config = None
         try:
-            config_text = await db.config_get(key="MCP_SERVER")
+            from lab.config import Config as fs_config
+            config_text = fs_config.get_value_by_key("MCP_SERVER")
             if config_text:
                 mcp_config = json.loads(config_text)
         except Exception:

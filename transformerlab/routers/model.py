@@ -4,7 +4,6 @@ import shutil
 import datetime
 import dateutil.relativedelta
 from typing import Annotated
-import transformerlab.db.db as db
 import transformerlab.db.jobs as db_jobs
 from fastapi import APIRouter, Body
 from fastchat.model.model_adapter import get_conversation_template
@@ -311,7 +310,8 @@ async def model_details_from_filesystem(model_id: str):
 async def login_to_huggingface():
     from huggingface_hub import get_token, login
 
-    token = await db.config_get("HuggingfaceUserAccessToken")
+    from lab.config import Config as fs_config
+    token = fs_config.get_value_by_key("HuggingfaceUserAccessToken")
 
     saved_token_in_hf_cache = get_token()
     # print(f"Saved token in HF cache: {saved_token_in_hf_cache}")
@@ -342,7 +342,8 @@ async def login_to_wandb():
     # TODO: Move all of these logins and their tests to another router outside 'model' to maintain clarity
     import wandb
 
-    token = await db.config_get("WANDB_API_KEY")
+    from lab.config import Config as fs_config
+    token = fs_config.get_value_by_key("WANDB_API_KEY")
 
     if token is None:
         return {"message": "WANDB_API not set"}
@@ -372,7 +373,8 @@ def test_wandb_login():
 
 @router.get(path="/model/set_openai_api_key")
 async def set_openai_api_key():
-    token = await db.config_get("OPENAI_API_KEY")
+    from lab.config import Config as fs_config
+    token = fs_config.get_value_by_key("OPENAI_API_KEY")
     if not token or token == "":
         return {"message": "OPENAI_API_KEY not configured in database"}
 
@@ -386,7 +388,8 @@ async def set_openai_api_key():
 
 @router.get(path="/model/set_anthropic_api_key")
 async def set_anthropic_api_key():
-    token = await db.config_get("ANTHROPIC_API_KEY")
+    from lab.config import Config as fs_config
+    token = fs_config.get_value_by_key("ANTHROPIC_API_KEY")
     if not token or token == "":
         return {"message": "ANTHROPIC_API_KEY not configured in database"}
 
@@ -400,7 +403,8 @@ async def set_anthropic_api_key():
 
 @router.get(path="/model/set_custom_api_key")
 async def set_custom_api_key():
-    token_str = await db.config_get("CUSTOM_MODEL_API_KEY")
+    from lab.config import Config as fs_config
+    token_str = fs_config.get_value_by_key("CUSTOM_MODEL_API_KEY")
     if not token_str or token_str == "":
         return {"message": "CUSTOM_MODEL_API_KEY not configured in database"}
 

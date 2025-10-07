@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-import transformerlab.db.db as db
+from lab.config import Config as fs_config
 
 
 router = APIRouter(prefix="/config", tags=["config"])
@@ -7,11 +7,11 @@ router = APIRouter(prefix="/config", tags=["config"])
 
 @router.get("/get/{key}", summary="")
 async def config_get(key: str):
-    value = await db.config_get(key=key)
+    value = fs_config.get_value_by_key(key)
     return value
 
 
 @router.get("/set", summary="")
 async def config_set(k: str, v: str):
-    await db.config_set(key=k, value=v)
+    fs_config.set_value_by_key(k, v)
     return {"key": k, "value": v}
