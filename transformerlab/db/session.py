@@ -7,10 +7,10 @@ from sqlalchemy.orm import sessionmaker
 from transformerlab.db.constants import DATABASE_FILE_NAME, DATABASE_URL
 from lab.dirs import get_workspace_dir
 from transformerlab.shared.models import models
-from lab import Experiment, Job
-from lab.dirs import get_jobs_dir
-
-JOBS_DIR = get_jobs_dir()
+from transformerlab.services.experiment_init import (
+    seed_default_experiments,
+    cancel_in_progress_jobs,
+)
 
 
 # --- SQLAlchemy Async Engine ---
@@ -84,45 +84,17 @@ async def init():
 
     print("✅ SEED DATA")
     # Note: Experiment seeding is now handled by filesystem-based experiments
-    for name in ["alpha", "beta", "gamma"]:
-        try:
-            # Check if experiment exists in filesystem
-            exp = Experiment.get(name)
-            if not exp:
-                # Create the experiment in filesystem
-                Experiment.create(name)
-        except Exception:
-            pass
+    seed_default_experiments()
 
     # On startup, look for any jobs that are in the RUNNING state and set them to CANCELLED instead:
     # This is to handle the case where the server is restarted while a job is running.
-    await job_cancel_in_progress_jobs()
+    cancel_in_progress_jobs()
     # Run migrations
     await migrate_workflows_non_preserving()
     # await init_sql_model()
 
     return
 
-
-async def job_cancel_in_progress_jobs():
-    """Cancel all jobs that are currently in RUNNING state using filesystem-based Job system."""    
-    # Check if JOBS_DIR exists
-    if not os.path.exists(JOBS_DIR):
-        return
-    
-    # Iterate through all job directories
-    for entry in os.listdir(JOBS_DIR):
-        job_path = os.path.join(JOBS_DIR, entry)
-        if os.path.isdir(job_path):
-            try:
-                job = Job.get(entry)
-                if job.get_status() == "RUNNING":
-                    job.update_status("CANCELLED")
-                    print(f"Cancelled running job: {entry}")
-            except Exception:
-                # If we can't access the job, continue to the next one
-                pass
-    return
 
 
 async def migrate_workflows_non_preserving():
