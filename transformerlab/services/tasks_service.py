@@ -26,17 +26,17 @@ class TasksService:
         """Get all tasks of a specific type"""
         return self.task_service.list_by_type(task_type)
 
-    def tasks_get_by_experiment(self, experiment_id: int) -> List[Dict[str, Any]]:
+    def tasks_get_by_experiment(self, experiment_id: str) -> List[Dict[str, Any]]:
         """Get all tasks for a specific experiment"""
         return self.task_service.list_by_experiment(experiment_id)
 
-    def tasks_get_by_type_in_experiment(self, task_type: str, experiment_id: int) -> List[Dict[str, Any]]:
+    def tasks_get_by_type_in_experiment(self, task_type: str, experiment_id: str) -> List[Dict[str, Any]]:
         """Get all tasks of a specific type in a specific experiment"""
         return self.task_service.list_by_type_in_experiment(task_type, experiment_id)
 
     def add_task(self, name: str, task_type: str, inputs: Dict[str, Any], 
                       config: Dict[str, Any], plugin: str, outputs: Dict[str, Any], 
-                      experiment_id: Optional[int]) -> str:
+                      experiment_id: Optional[str]) -> str:
         """Create a new task"""
         # Generate a unique ID for the task
         task_id = str(uuid.uuid4())
