@@ -7,10 +7,6 @@ from sqlalchemy.orm import sessionmaker
 from transformerlab.db.constants import DATABASE_FILE_NAME, DATABASE_URL
 from lab.dirs import get_workspace_dir
 from transformerlab.shared.models import models
-from transformerlab.services.experiment_init import (
-    seed_default_experiments,
-    cancel_in_progress_jobs,
-)
 
 
 # --- SQLAlchemy Async Engine ---
@@ -82,13 +78,6 @@ async def init():
 
     print("✅ Database initialized")
 
-    print("✅ SEED DATA")
-    # Note: Experiment seeding is now handled by filesystem-based experiments
-    seed_default_experiments()
-
-    # On startup, look for any jobs that are in the RUNNING state and set them to CANCELLED instead:
-    # This is to handle the case where the server is restarted while a job is running.
-    cancel_in_progress_jobs()
     # Run migrations
     await migrate_workflows_non_preserving()
     # await init_sql_model()

@@ -32,6 +32,7 @@ from fastchat.protocol.openai_api_protocol import (
 
 from transformerlab.services.experiment_service import experiment_get
 from transformerlab.services.job_service import job_create, job_get, job_update_status
+from transformerlab.services.experiment_init import seed_default_experiments, cancel_in_progress_jobs
 import transformerlab.db.session as db
 
 from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert
@@ -101,6 +102,11 @@ async def lifespan(app: FastAPI):
     galleries.update_gallery_cache()
     spawn_fastchat_controller_subprocess()
     await db.init()
+    print("✅ SEED DATA")
+    # Initialize experiments and cancel any running jobs
+    seed_default_experiments()
+    cancel_in_progress_jobs()
+    
     if "--reload" in sys.argv:
         await install_all_plugins()
     # run the migrations
