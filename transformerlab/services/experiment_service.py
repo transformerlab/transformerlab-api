@@ -74,9 +74,6 @@ def experiment_save_prompt_template(id, template):
 def experiment_update_configs(id, updates: dict):
     try:
         exp_obj = Experiment.get(id)
-        print("Updating")
-        print(exp_obj.get_json_data())
         exp_obj.update_config(updates)
-        print(exp_obj.get_json_data())
     except Exception as e:
         print(f"Error updating experiment config: {e}")
