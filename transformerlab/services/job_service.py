@@ -98,8 +98,8 @@ def job_delete(job_id, experiment_id):
         if experiment_id is not None and job.get_experiment_id() != experiment_id:
             return
         job.delete()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error deleting job {job_id}: {e}")
 
 
 def job_update_job_data_insert_key_value(job_id, key, value, experiment_id):
@@ -108,8 +108,8 @@ def job_update_job_data_insert_key_value(job_id, key, value, experiment_id):
         if experiment_id is not None and job.get_experiment_id() != experiment_id:
             return
         job.update_job_data_field(key, value)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error updating job {job_id}: {e}")
 
 
 def job_stop(job_id, experiment_id):
@@ -128,8 +128,8 @@ def job_update_progress(job_id, progress, experiment_id):
         if experiment_id is not None and job.get_experiment_id() != experiment_id:
             return
         job.update_progress(progress)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error updating job {job_id}: {e}")
 
 
 def job_update_sweep_progress(job_id, value, experiment_id):
@@ -141,8 +141,8 @@ def job_update_sweep_progress(job_id, value, experiment_id):
         if experiment_id is not None and job.get_experiment_id() != experiment_id:
             return
         job.update_sweep_progress(value)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error updating sweep job {job_id}: {e}")
 
 
 ##################################
