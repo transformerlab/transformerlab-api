@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
 from transformerlab.db.constants import DATABASE_FILE_NAME, DATABASE_URL
-from transformerlab.shared.constants import WORKSPACE_DIR
+from lab.dirs import get_workspace_dir
 from transformerlab.shared.models import models
 
 
@@ -31,7 +31,7 @@ async def init():
     """
     global db
     # Migrate database from old location if necessary
-    old_db_base = os.path.join(WORKSPACE_DIR, "llmlab.sqlite3")
+    old_db_base = os.path.join(get_workspace_dir(), "llmlab.sqlite3")
     if os.path.exists(old_db_base):
         if not os.path.exists(DATABASE_FILE_NAME):
             for ext in ["", "-wal", "-shm"]:
