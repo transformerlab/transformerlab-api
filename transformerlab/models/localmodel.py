@@ -133,7 +133,7 @@ class LocalModelStore(modelstore.ModelStore):
         models_dir = get_models_dir()
         for model in models:
             # Only set model["stored_in_filesystem"] to True if the model is a local model and not a Hugging Face model
-            if not (model.get("json_data", {}).get("source", "") == "huggingface" and model.get("json_data", {}).get("model_filename", "") == ""):
+            if not model.get("json_data", {}).get("source", "") == "huggingface" and not model.get("json_data", {}).get("model_filename", "") == "":
                 # tells the app this model was loaded from workspace directory
                 model["stored_in_filesystem"] = True
 
