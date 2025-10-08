@@ -29,10 +29,12 @@ from fastchat.constants import (
 from fastchat.protocol.openai_api_protocol import (
     ErrorResponse,
 )
-from transformerlab.db.jobs import job_create, job_update_status
-from transformerlab.db import jobs as db_jobs
-from transformerlab.db.db import experiment_get
+
+from transformerlab.services.experiment_service import experiment_get
+from transformerlab.services.job_service import job_create, job_get, job_update_status
+from transformerlab.services.experiment_init import seed_default_experiments, cancel_in_progress_jobs
 import transformerlab.db.session as db
+
 from transformerlab.shared.ssl_utils import ensure_persistent_self_signed_cert
 from transformerlab.routers import (
     data,
@@ -71,6 +73,7 @@ from transformerlab.db.filesystem_migrations import (
     migrate_datasets_table_to_filesystem,
     migrate_models_table_to_filesystem,
     migrate_tasks_table_to_filesystem,
+    migrate_job_and_experiment_to_filesystem,
 )
 from transformerlab.shared.request_context import set_current_org_id
 from lab.dirs import set_organization_id as lab_set_org_id
@@ -90,8 +93,6 @@ os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 temp_image_dir = os.path.join(get_workspace_dir(), "temp", "images")
 os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
 
-from transformerlab.routers.job_sdk import get_xmlrpc_router, get_trainer_xmlrpc_router  # noqa: E402
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -101,11 +102,17 @@ async def lifespan(app: FastAPI):
     galleries.update_gallery_cache()
     spawn_fastchat_controller_subprocess()
     await db.init()
+    print("✅ SEED DATA")
+    # Initialize experiments and cancel any running jobs
+    seed_default_experiments()
+    cancel_in_progress_jobs()
+    
     if "--reload" in sys.argv:
         await install_all_plugins()
     # run the migrations
     asyncio.create_task(migrate_models_table_to_filesystem())
     asyncio.create_task(migrate_datasets_table_to_filesystem())
+    asyncio.create_task(migrate_job_and_experiment_to_filesystem())
     asyncio.create_task(migrate_tasks_table_to_filesystem())
     asyncio.create_task(run_over_and_over())
     print("FastAPI LIFESPAN: 🏁 🏁 🏁 Begin API Server 🏁 🏁 🏁", flush=True)
@@ -214,8 +221,6 @@ app.include_router(tools.router)
 app.include_router(recipes.router)
 app.include_router(batched_prompts.router)
 app.include_router(fastchat_openai_api.router)
-app.include_router(get_xmlrpc_router())
-app.include_router(get_trainer_xmlrpc_router())
 
 # Authentication and session management routes
 if os.getenv("TFL_MULTITENANT") == "true":
@@ -289,7 +294,7 @@ async def server_worker_start(
     eight_bit: bool = False,
     cpu_offload: bool = False,
     inference_engine: str = "default",
-    experiment_id: int = None,
+    experiment_id: str = None,
     inference_params: str = "",
     request: Request = None,
 ):
@@ -303,10 +308,8 @@ async def server_worker_start(
     # then we check to see if we are an experiment
     elif experiment_id is not None:
         try:
-            experiment = await experiment_get(experiment_id)
-            experiment_config = experiment["config"]
-            if not isinstance(experiment_config, dict):
-                experiment_config = json.loads(experiment_config)
+            experiment = experiment_get(experiment_id)
+            experiment_config = experiment["config"] if isinstance(experiment["config"], dict) else json.loads(experiment["config"] or "{}")
             try:
                 inference_params = experiment_config["inferenceParams"]
             except KeyError:
@@ -358,11 +361,12 @@ async def server_worker_start(
         json.dumps(inference_params),
     ]
 
-    job_id = await job_create(type="LOAD_MODEL", status="STARTED", job_data="{}", experiment_id=experiment_id)
+    job_id = job_create(type="LOAD_MODEL", status="STARTED", job_data="{}", experiment_id=experiment_id)
 
     print("Loading plugin loader instead of default worker")
 
     from lab.dirs import get_global_log_path
+
     with open(get_global_log_path(), "a") as global_log:
         global_log.write(f"🏃 Loading Inference Server for {model_name} with {inference_params}\n")
 
@@ -375,6 +379,7 @@ async def server_worker_start(
     exitcode = process.returncode
     if exitcode == 99:
         from lab.dirs import get_global_log_path
+
         with open(get_global_log_path(), "a") as global_log:
             global_log.write(
                 "GPU (CUDA) Out of Memory: Please try a smaller model or a different inference engine. Restarting the server may free up resources.\n"
@@ -385,17 +390,19 @@ async def server_worker_start(
         }
     if exitcode is not None and exitcode != 0:
         from lab.dirs import get_global_log_path
+
         with open(get_global_log_path(), "a") as global_log:
             global_log.write(f"Error loading model: {model_name} with exit code {exitcode}\n")
-        job = await db_jobs.job_get(job_id)
+        job = job_get(job_id)
         error_msg = None
         if job and job.get("job_data"):
             error_msg = job["job_data"].get("error_msg")
         if not error_msg:
             error_msg = f"Exit code {exitcode}"
-            await job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
+            job_update_status(job_id, "FAILED", experiment_id=experiment_id, error_msg=error_msg)
         return {"status": "error", "message": error_msg}
     from lab.dirs import get_global_log_path
+
     with open(get_global_log_path(), "a") as global_log:
         global_log.write(f"Model loaded successfully: {model_name}\n")
     return {"status": "success", "job_id": job_id}
