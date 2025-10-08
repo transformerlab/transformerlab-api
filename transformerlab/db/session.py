@@ -95,7 +95,6 @@ async def init():
 
     return
 
-
 async def migrate_workflows_non_preserving():
     """
     Migration function that renames workflows table as backup and creates new table
