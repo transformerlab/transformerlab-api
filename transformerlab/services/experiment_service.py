@@ -35,45 +35,48 @@ def experiment_get(id):
             except json.JSONDecodeError:
                 data["config"] = {}
         return data
-    except Exception:
-        return None
+    except Exception as e:
+        print(f"Error getting experiment {id}: {e}")
 
 
 def experiment_delete(id):
     try:
         exp = Experiment.get(id)
         exp.delete()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error deleting experiment {id}: {e}")
 
 
 def experiment_update(id, config):
     try:
         exp = Experiment.get(id)
         exp.update_config(config)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error updating experiment {id}: {e}")
 
 
 def experiment_update_config(id, key, value):
     try:
         exp = Experiment.get(id)
         exp.update_config_field(key, value)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error updating experiment config key {key}: {e}")
 
 
 def experiment_save_prompt_template(id, template):
     try:
         exp_obj = Experiment.get(id)
         exp_obj.update_config_field("prompt_template", template)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error saving prompt template: {e}")
 
 
 def experiment_update_configs(id, updates: dict):
     try:
         exp_obj = Experiment.get(id)
+        print("Updating")
+        print(exp_obj.get_json_data())
         exp_obj.update_config(updates)
-    except Exception:
-        pass
+        print(exp_obj.get_json_data())
+    except Exception as e:
+        print(f"Error updating experiment config: {e}")
