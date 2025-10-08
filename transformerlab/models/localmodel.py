@@ -112,6 +112,8 @@ class LocalModelStore(modelstore.ModelStore):
             else:
                 print("Model ID not found in model data.")
                 print(model)
+                continue
+            
             if is_sentence_transformer_model(model_id):
                 embedding_models.append(model)
             else:
@@ -132,6 +134,11 @@ class LocalModelStore(modelstore.ModelStore):
         from lab.dirs import get_models_dir
         models_dir = get_models_dir()
         for model in models:
+            if model == {} or model is None or model == "":
+                print("Model entry not found, skipping")
+                # Remove model from models list
+                models.remove(model)
+                continue
             # Only set model["stored_in_filesystem"] to True if the model is a local model and not a Hugging Face model
             if not model.get("json_data", {}).get("source", "") == "huggingface" and not model.get("json_data", {}).get("model_filename", "") == "":
                 # tells the app this model was loaded from workspace directory
