@@ -45,7 +45,7 @@ from fastchat.protocol.openai_api_protocol import (
     UsageInfo,
 )
 from pydantic import BaseModel as PydanticBaseModel
-from transformerlab.shared.dirs import experiment_dir_by_id
+from lab import Experiment
 
 WORKER_API_TIMEOUT = 3600
 
@@ -94,7 +94,7 @@ class ChatCompletionRequest(BaseModel):
 
 
 class AudioRequest(BaseModel):
-    experiment_id: int
+    experiment_id: str
     model: str
     adaptor: Optional[str] = ""
     text: str
@@ -223,6 +223,7 @@ def log_prompt(prompt):
     """Log the prompt to the global prompt.log file"""
     MAX_LOG_SIZE_BEFORE_ROTATE = 1000000  # 1MB in bytes
     from lab.dirs import get_logs_dir
+
     logs_dir = get_logs_dir()
     if os.path.exists(os.path.join(logs_dir, "prompt.log")):
         if os.path.getsize(os.path.join(logs_dir, "prompt.log")) > MAX_LOG_SIZE_BEFORE_ROTATE:
@@ -244,6 +245,7 @@ def log_prompt(prompt):
 @router.get("/prompt_log", tags=["chat"])
 async def get_prompt_log():
     from lab.dirs import get_logs_dir
+
     return FileResponse(os.path.join(get_logs_dir(), "prompt.log"))
 
 
@@ -489,12 +491,12 @@ async def show_available_models():
             for m in models:
                 model_cards.append(ModelCard(id=m, root=m, permission=[ModelPermission()]))
             return ModelList(data=model_cards)
-        
+
         # If no models, refresh and try again
         await client.post(controller_address + "/refresh_all_workers")
         ret = await client.post(controller_address + "/list_models")
         models = ret.json().get("models", [])
-        
+
     models.sort()
     # TODO: return real model permission details
     model_cards = []
@@ -512,7 +514,10 @@ async def create_audio_tts(request: AudioRequest):
         elif isinstance(error_check_ret, dict) and "model_name" in error_check_ret.keys():
             request.model = error_check_ret["model_name"]
 
-    experiment_dir = await experiment_dir_by_id(request.experiment_id)
+    # TODO: Change this
+    exp_obj = Experiment.get(request.experiment_id)
+    experiment_dir = exp_obj.get_dir()
+
     audio_dir = os.path.join(experiment_dir, "audio")
     os.makedirs(audio_dir, exist_ok=True)
 
@@ -542,8 +547,9 @@ async def create_audio_tts(request: AudioRequest):
 
 
 @router.post("/v1/audio/upload_reference", tags=["audio"])
-async def upload_audio_reference(experimentId: int, audio: UploadFile = File(...)):
-    experiment_dir = await experiment_dir_by_id(experimentId)
+async def upload_audio_reference(experimentId: str, audio: UploadFile = File(...)):
+    exp_obj = Experiment(experimentId)
+    experiment_dir = exp_obj.get_dir()
     uploaded_audio_dir = os.path.join(experiment_dir, "uploaded_audio")
     os.makedirs(uploaded_audio_dir, exist_ok=True)
 

@@ -7,8 +7,8 @@ import sys
 
 from fastapi import APIRouter
 
-import transformerlab.db.db as db
-import transformerlab.db.jobs as db_jobs
+from transformerlab.services.experiment_service import experiment_get
+from transformerlab.services.job_service import job_create, job_get
 from lab import dirs as lab_dirs
 from transformerlab.shared import dirs, shared
 
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/export", tags=["export"])
 
 @router.get("/run_exporter_script")
 async def run_exporter_script(
-    id: int, plugin_name: str, plugin_architecture: str, plugin_params: str = "{}", job_id: str = None
+    id: str, plugin_name: str, plugin_architecture: str, plugin_params: str = "{}", job_id: str = None
 ):
     """
     plugin_name: the id of the exporter plugin to run
@@ -31,14 +31,14 @@ async def run_exporter_script(
     """
 
     # Load experiment details into config
-    experiment_details = await db.experiment_get(id=id)
+    experiment_details = experiment_get(id=id)
     if experiment_details is None:
         return {"message": f"Experiment {id} does not exist"}
 
     experiment_name = experiment_details["name"]
 
     # Get input model parameters
-    config = json.loads(experiment_details["config"])
+    config = experiment_details["config"] if isinstance(experiment_details["config"], dict) else json.loads(experiment_details["config"] or "{}")
     input_model_id = config["foundation"]
     input_model_id_without_author = input_model_id.split("/")[-1]
     input_model_architecture = config["foundation_model_architecture"]
@@ -85,6 +85,7 @@ async def run_exporter_script(
     output_model_id = secure_filename(output_model_id)
 
     from lab.dirs import get_models_dir
+
     output_path = os.path.join(get_models_dir(), output_model_id)
 
     # Create a job in the DB with the details of this export (only if job_id not provided)
@@ -101,7 +102,8 @@ async def run_exporter_script(
             params=params,
         )
         job_data_json = json.dumps(job_data)
-        job_id = await db.export_job_create(experiment_id=id, job_data_json=job_data_json)
+        job_id = job_create(type="EXPORT", status="Started", experiment_id=experiment_name, job_data=job_data_json)
+        return job_id
 
     # Setup arguments to pass to plugin
     args = [
@@ -149,7 +151,7 @@ async def run_exporter_script(
                 f.write(f"\nError:\n{stderr_str}")
 
             if process.returncode != 0:
-                job = await db_jobs.job_get(job_id)
+                job = job_get(job_id)
                 experiment_id = job["experiment_id"]
                 await job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
                 return {
@@ -161,7 +163,7 @@ async def run_exporter_script(
         import logging
 
         logging.error(f"Failed to export model. Exception: {e}")
-        job = await db_jobs.job_get(job_id)
+        job = job_get(job_id)
         experiment_id = job["experiment_id"]
         await job_update_status(job_id=job_id, status="FAILED", experiment_id=experiment_id)
         return {"message": "Failed to export model due to an internal error."}

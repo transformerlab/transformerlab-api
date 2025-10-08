@@ -4,7 +4,7 @@ from fastapi import APIRouter, Body
 from werkzeug.utils import secure_filename
 
 from lab import Dataset
-from transformerlab.db.jobs import job_create
+from transformerlab.services.job_service import job_create
 from transformerlab.models import model_helper
 from transformerlab.services.tasks_service import tasks_service
 
@@ -34,7 +34,7 @@ async def tasks_get_by_type(type: str):
 @router.get(
     "/list_by_type_in_experiment", summary="Returns all the tasks of a certain type in a certain experiment, e.g TRAIN"
 )
-async def tasks_get_by_type_in_experiment(type: str, experiment_id: int):
+async def tasks_get_by_type_in_experiment(type: str, experiment_id: str):
     tasks = tasks_service.tasks_get_by_type_in_experiment(type, experiment_id)
     return tasks
 
@@ -216,7 +216,7 @@ async def queue_task(task_id: int, input_override: str = "{}", output_override: 
         for key in output_override.keys():
             job_data["config"][key] = output_override[key]
         job_data["plugin"] = task_to_queue["plugin"]
-    job_id = await job_create(
+    job_id = job_create(
         type=("EXPORT" if job_type == "EXPORT" else job_type),
         status=job_status,
         experiment_id=task_to_queue["experiment_id"],

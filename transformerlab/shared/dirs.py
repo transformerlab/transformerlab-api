@@ -1,11 +1,9 @@
 # Root dir is the parent of the parent of this current directory:
 
 import os
-from lab import HOME_DIR, dirs
+from lab import HOME_DIR
 from lab.dirs import get_workspace_dir
-from transformerlab.db.db import experiment_get
 
-from werkzeug.utils import secure_filename
 
 """
 TFL_SOURCE_CODE_DIR is the directory where the source code is stored.
@@ -49,18 +47,6 @@ else:
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-async def experiment_dir_by_id(experiment_id: int) -> str:
-    if experiment_id is not None:
-        experiment = await experiment_get(experiment_id)
-    else:
-        print("Error: experiment_id is None")
-        experiments_dir = dirs.get_experiments_dir()
-        return os.path.join(experiments_dir, "error")
-
-    experiment_name = experiment["name"]
-    return dirs.experiment_dir_by_name(experiment_name)
-
-
 # PLUGIN_PRELOADED_GALLERY
 PLUGIN_PRELOADED_GALLERY = os.path.join(TFL_SOURCE_CODE_DIR, "transformerlab", "plugins")
 
@@ -74,51 +60,3 @@ GALLERIES_LOCAL_FALLBACK_DIR = os.path.join(TFL_SOURCE_CODE_DIR, "transformerlab
 
 # TEMPORARY: We want to move jobs back into the root directory instead of under experiment
 # But for now we need to leave this here.
-
-
-def experiment_dir_by_name(experiment_name: str) -> str:
-    experiments_dir = dirs.get_experiments_dir()
-    return os.path.join(experiments_dir, experiment_name)
-
-
-def job_dir_by_experiment_and_id(experiment_name: str, job_id: str) -> str:
-    """
-    Get the job directory path for a given experiment and job ID.
-    Uses new structure: WORKSPACE_DIR/experiments/experiment_name/jobs/job_id/
-    Args:
-        experiment_name: Name of the experiment
-        job_id: Job ID (will be sanitized with secure_filename)
-    Returns:
-        Path to the job directory
-    """
-    job_id_safe = secure_filename(str(job_id))
-    experiment_dir = experiment_dir_by_name(experiment_name)
-    job_dir = os.path.join(experiment_dir, "jobs", job_id_safe)
-    os.makedirs(job_dir, exist_ok=True)
-    return job_dir
-
-
-def get_job_output_dir(experiment_name: str, job_id: str) -> str:
-    """
-    Get the job output directory, with backward compatibility.
-    First tries new structure (under experiment),
-    then falls back to old structure if needed.
-    Args:
-        experiment_name: Name of the experiment
-        job_id: Job ID
-    Returns:
-        Path to the job output directory
-    """
-    # Try new structure first
-    new_job_dir = job_dir_by_experiment_and_id(experiment_name, job_id)
-    if os.path.exists(new_job_dir):
-        return new_job_dir
-
-    # Fall back to old structure for backward compatibility
-    job_id_safe = secure_filename(str(job_id))
-    old_job_dir = os.path.join(get_workspace_dir(), "jobs", job_id_safe)
-    if os.path.exists(old_job_dir):
-        return old_job_dir
-
-    # If neither exists, return new structure (will be created when needed)
-    return new_job_dir

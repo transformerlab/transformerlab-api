@@ -1,7 +1,6 @@
 import os
 import shutil
 import aiosqlite
-from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
@@ -79,31 +78,11 @@ async def init():
 
     print("✅ Database initialized")
 
-    print("✅ SEED DATA")
-    async with async_session() as session:
-        for name in ["alpha", "beta", "gamma"]:
-            # Check if experiment already exists
-            exists = await session.execute(select(models.Experiment).where(models.Experiment.name == name))
-            if not exists.scalar_one_or_none():
-                session.add(models.Experiment(name=name, config={}))
-        await session.commit()
-
-    # On startup, look for any jobs that are in the RUNNING state and set them to CANCELLED instead:
-    # This is to handle the case where the server is restarted while a job is running.
-    await job_cancel_in_progress_jobs()
     # Run migrations
     await migrate_workflows_non_preserving()
     # await init_sql_model()
 
     return
-
-
-async def job_cancel_in_progress_jobs():
-    async with async_session() as session:
-        await session.execute(update(models.Job).where(models.Job.status == "RUNNING").values(status="CANCELLED"))
-        await session.commit()
-    return
-
 
 async def migrate_workflows_non_preserving():
     """
