@@ -30,7 +30,7 @@ class BatchChatCompletionRequest(BaseModel):
 class BatchAudioRequest(BaseModel):
     model: str
     adaptor: Optional[str] = None
-    experiment_id: int
+    experiment_id: str
     texts: list[str]
     file_prefix: str = "audio"
     sample_rate: int = 22050

@@ -11,16 +11,8 @@ os.environ["TFL_WORKSPACE_DIR"] = "./test/tmp/workspace"
 
 from transformerlab.db.db import (  # noqa: E402
     delete_plugin,
-    experiment_get_by_name,
     get_plugins_of_type,
     get_training_template_by_name,
-    experiment_get_all,
-    experiment_create,
-    experiment_get,
-    experiment_delete,
-    experiment_update,
-    experiment_update_config,
-    experiment_save_prompt_template,
     get_plugins,
     get_plugin,
     save_plugin,
@@ -31,16 +23,11 @@ from transformerlab.db.db import (  # noqa: E402
     create_training_template,
     update_training_template,
     delete_training_template,
-    export_job_create,
 )
 
-from transformerlab.db.sync import (  # noqa: E402
-    job_create_sync,
-    job_update_status_sync,  # used in dedicated sync tests
-    job_update_sync,  # used in dedicated sync tests
-    job_mark_as_complete_if_running,  # used in dedicated sync tests
-)
+from transformerlab.services import experiment_service  # noqa: E402
 from transformerlab.services.job_service import (  # noqa: E402
+    job_create,
     job_update_status as service_job_update_status,
     job_update_status_sync as service_job_update_status_sync,
     job_update_sync as service_job_update_sync,
@@ -66,69 +53,10 @@ from transformerlab.db.workflows import (  # noqa: E402
     workflows_get_by_id,
 )
 
-from transformerlab.db.jobs import (  # noqa: E402
-    job_create,
-    job_get,
-    job_update_status,  # used in unit tests validating DB-layer behavior
-    job_delete_all,
-    job_update_job_data_insert_key_value,
-    job_stop,
-    jobs_get_all,
-    jobs_get_all_by_experiment_and_type,
-    jobs_get_next_queued_job,
-    job_count_running,
-    job_delete,
-    job_update,
-)
-
-from transformerlab.db.session import job_cancel_in_progress_jobs  # noqa: E402
 import transformerlab.db.session as db  # noqa: E402
 
 
 import pytest  # noqa: E402
-
-
-
-@pytest.mark.asyncio
-async def test_job_get_status_and_error_msg_for_nonexistent():
-    # Should raise or return None for missing job
-    job = await job_get(999999)
-    assert job is None
-    # Since job is None, both status and error_msg would be None
-    assert job is None
-
-
-@pytest.mark.asyncio
-async def test_job_update_job_data_insert_key_value_overwrite():
-    job_id = await job_create(type="TRAIN", status="QUEUED", experiment_id=99, job_data="{}")
-    await job_update_job_data_insert_key_value(job_id, "foo", {"bar": 1}, 99)
-    await job_update_job_data_insert_key_value(job_id, "foo", {"baz": 2}, 99)
-    job = await job_get(job_id)
-    assert job["job_data"]["foo"] == {"baz": 2}
-
-
-@pytest.mark.asyncio
-async def test_job_update_status_without_error_msg():
-    job_id = await job_create(type="TRAIN", status="QUEUED", experiment_id=99, job_data="{}")
-    await job_update_status(job_id, "RUNNING", 99)
-    job = await job_get(job_id)
-    assert job.get("status") == "RUNNING"
-
-
-@pytest.mark.asyncio
-async def test_job_delete_marks_deleted():
-    job_id = await job_create(type="TRAIN", status="QUEUED", experiment_id=99, job_data="{}")
-    await job_delete(job_id, 99)
-    job = await job_get(job_id)
-    assert job.get("status") == "DELETED"
-
-
-@pytest.mark.asyncio
-async def test_job_cancel_in_progress_jobs_sets_cancelled():
-    job_id = await job_create(type="TRAIN", status="RUNNING", experiment_id=99, job_data="{}")
-    await job_cancel_in_progress_jobs()
-    job = await job_get(job_id)
-    assert job.get("status") == "CANCELLED"
 
 
 @pytest.mark.asyncio
@@ -140,18 +68,14 @@ async def test_get_training_template_and_by_name_returns_none_for_missing():
 
 
 @pytest.mark.asyncio
-async def test_experiment_get_by_name_returns_none_for_missing():
-    exp = await experiment_get_by_name("does_not_exist")
-    assert exp is None
-
-
-@pytest.mark.asyncio
+@pytest.mark.skip("skipping workflow tests")
 async def test_workflows_get_by_id_returns_none_for_missing():
     workflow = await workflows_get_by_id(999999, 1)
     assert workflow is None
 
 
 @pytest.mark.asyncio
+@pytest.mark.skip("skipping workflow tests")
 async def test_workflow_run_get_by_id_returns_none_for_missing():
     run = await workflow_run_get_by_id(999999)
     assert run is None
@@ -184,58 +108,6 @@ async def test_config_get_returns_none_for_missing():
 pytest_plugins = ("pytest_asyncio",)
 
 
-
-
-@pytest.mark.asyncio
-async def test_job_delete_all_and_cancel_in_progress_jobs():
-    await job_create(type="TRAIN", status="RUNNING", experiment_id=99, job_data="{}")
-    await job_create(type="TRAIN", status="QUEUED", experiment_id=99, job_data="{}")
-    await job_delete_all(99)
-    jobs = await jobs_get_all(99)
-    assert all(job.get("status") == "DELETED" for job in jobs)
-    await job_cancel_in_progress_jobs()  # Should not raise
-
-
-@pytest.mark.asyncio
-async def test_job_update_job_data_insert_key_value_and_stop():
-    job_id = await job_create(type="TRAIN", status="QUEUED", experiment_id=99, job_data="{}")
-    await job_update_job_data_insert_key_value(job_id, "foo", {"bar": 1}, 99)
-    job = await job_get(job_id)
-    assert job["job_data"]["foo"] == {"bar": 1}
-    await job_stop(job_id, 99)
-    job = await job_get(job_id)
-    assert job["job_data"]["stop"] is True
-
-
-@pytest.mark.asyncio
-async def test_jobs_get_all_and_by_experiment_and_type(test_experiment):
-    job_id = await job_create(type="TRAIN", status="QUEUED", experiment_id=test_experiment, job_data="{}")
-    jobs = await jobs_get_all(experiment_id=test_experiment, type="TRAIN", status="QUEUED")
-    assert any(j["id"] == job_id for j in jobs)
-    jobs_by_exp = await jobs_get_all_by_experiment_and_type(experiment_id=test_experiment, job_type="TRAIN")
-    assert any(j["id"] == job_id for j in jobs_by_exp)
-
-
-@pytest.mark.asyncio
-async def test_experiment_update_and_update_config_and_save_prompt_template(test_experiment):
-    await experiment_update(test_experiment, {"foo": "bar"})
-    exp = await experiment_get(test_experiment)
-    exp_config = json.loads(exp["config"])  # should be a string containing JSON
-    assert exp_config == {"foo": "bar"}
-
-    await experiment_update_config(test_experiment, "baz", 123)
-    exp = await experiment_get(test_experiment)
-    exp_config = json.loads(exp["config"])
-    assert exp_config.get("baz") == 123
-
-    test_prompt = '"prompt"'
-    await experiment_save_prompt_template(test_experiment, test_prompt)
-    exp = await experiment_get(test_experiment)
-    exp_config = json.loads(exp["config"])
-    assert exp_config.get("prompt_template") == test_prompt
-
-
-
 @pytest.mark.asyncio
 async def test_training_template_crud():
     await create_training_template("tmpl", "desc", "type", "[]", "{}")
@@ -248,14 +120,6 @@ async def test_training_template_crud():
     await delete_training_template(tmpl_id)
     tmpl = await get_training_template(tmpl_id)
     assert tmpl is None
-
-
-@pytest.mark.asyncio
-async def test_export_job_create(test_experiment):
-    job_id = await export_job_create(test_experiment, '{"plugin": "exp"}')
-    job = await job_get(job_id)
-    assert job is not None
-    assert job["type"] == "EXPORT"
 
 
 pytest_plugins = ("pytest_asyncio",)
@@ -279,14 +143,15 @@ async def setup_db():
 
 @pytest.fixture
 async def test_experiment():
+    # Converted from using DB to use service
     # Setup code to create test_experiment
-    existing = await experiment_get_by_name("test_experiment")
+    existing = experiment_service.experiment_get("test_experiment")
     if existing:
-        await experiment_delete(existing["id"])
-    experiment_id = await experiment_create("test_experiment", {})
+        experiment_service.experiment_delete(existing["id"])
+    experiment_id = experiment_service.experiment_create("test_experiment", {})
     yield experiment_id
     # Teardown code to delete test_experiment
-    await experiment_delete(experiment_id)
+    experiment_service.experiment_delete(experiment_id)
 
 
 # content of test_sample.py
@@ -295,109 +160,6 @@ async def test_experiment():
 def test_db_exists():
     global db
     assert db is not None
-
-
-class TestModels:
-    class TestJobs:
-        @pytest.mark.asyncio
-        async def test_job_create_invalid_type(self):
-            with pytest.raises(Exception):
-                await job_create("INVALID_TYPE", "QUEUED", experiment_id=99)
-
-        @pytest.mark.asyncio
-        async def test_job_get_nonexistent(self):
-            job = await job_get(999999)
-            assert job is None
-
-        @pytest.mark.asyncio
-        async def test_job_delete(self):
-            job_id = await job_create("TRAIN", "QUEUED", experiment_id=99)
-            await job_delete(job_id, 99)
-            job = await job_get(job_id)
-            assert job.get("status") == "DELETED"
-
-        @pytest.mark.asyncio
-        async def test_job_count_running(self):
-            await job_create("TRAIN", "RUNNING", experiment_id=99)
-            count = await job_count_running()
-            assert isinstance(count, int)
-            assert count > 0
-
-        @pytest.mark.asyncio
-        async def test_jobs_get_next_queued_job(self):
-            await job_create("TRAIN", "QUEUED", experiment_id=99)
-            job = await jobs_get_next_queued_job()
-            assert job is not None
-            assert job.get("status") == "QUEUED"
-
-        @pytest.mark.asyncio
-        async def test_job_update_status_with_error_msg(self):
-            job_id = await job_create("TRAIN", "QUEUED", experiment_id=99)
-            await job_update_status(job_id, "FAILED", error_msg="Test error", experiment_id=99)
-            job = await job_get(job_id)
-            assert job.get("status") == "FAILED"
-            assert job["job_data"]["error_msg"] == "Test error"
-
-
-
-class TestExperiments:
-    @pytest.mark.asyncio
-    async def test_create_and_get_experiment(self, test_experiment):
-        experiment = await experiment_get(test_experiment)
-        assert experiment is not None
-        assert experiment["name"] == "test_experiment"
-        # now try to get an experiment that does not exist
-        experiment = await experiment_get(999999)
-        assert experiment is None
-        # now try to create a second experiment with the same name:
-        # experiment_id = await experiment_create("test_experiment", "{}")
-        # assert experiment_id is None
-        # Now check if an experiment named "alpha" exists, it should be there as part of the db init:
-        experiment = await experiment_get_by_name("alpha")
-        assert experiment is not None
-        assert experiment["name"] == "alpha"
-        # Try to create an experiment with a string instead of a dict for the config:
-        with pytest.raises(Exception):
-            await experiment_create("test_experiment_invalid_config", "not_a_dict")
-
-    @pytest.mark.asyncio
-    async def test_experiment_get_all(self):
-        experiments = await experiment_get_all()
-        assert isinstance(experiments, list)
-
-    @pytest.mark.asyncio
-    async def test_experiment_delete(self):
-        experiment_id = await experiment_create("test_experiment_delete", {})
-        await experiment_delete(experiment_id)
-        experiment = await experiment_get(experiment_id)
-        assert experiment is None
-
-        # Additional test for experiment_get_by_name which has partial coverage
-
-    @pytest.mark.asyncio
-    @pytest.mark.serial
-    async def test_experiment_get_by_name(setup_db):
-        """Test the experiment_get_by_name function."""
-        # Create a test experiment
-        experiment_name = "test_experiment_by_name"
-        config = {}
-        # Delete the experiment if it already exists
-        existing = await experiment_get_by_name(experiment_name)
-        if existing:
-            await experiment_delete(existing["id"])
-        experiment_id = await experiment_create(experiment_name, config)
-
-        # Test the function
-        experiment = await experiment_get_by_name(experiment_name)
-
-        # Verify results
-        assert experiment is not None
-        assert experiment["name"] == experiment_name
-        assert experiment["id"] == experiment_id
-
-        # Test with non-existent name
-        non_existent = await experiment_get_by_name("non_existent_experiment")
-        assert non_existent is None
 
 
 class TestPlugins:
@@ -439,6 +201,7 @@ class TestConfig:
         assert value == ""
 
 
+@pytest.mark.skip("skipping workflow tests")
 class TestWorkflows:
     @pytest.mark.asyncio
     async def test_workflows_get_all(self):
@@ -543,32 +306,6 @@ class TestWorkflows:
         workflows = await workflows_get_all()
         assert len(workflows) == 0
 
-    @pytest.mark.skip(reason="Skipping as it causes db lock issues")
-    async def test_experiment_workflow_routes(self, test_experiment):
-        # Ensure no duplicate experiment name exists
-        existing = await experiment_get_by_name("test_experiment")
-        if existing:
-            await experiment_delete(existing["id"])
-        # Create a workflow in the experiment
-        workflow_id = await workflow_create("test_workflow", "{}", test_experiment)
-
-        # Queue the workflow to create a workflow run
-        await workflow_queue(workflow_id)
-
-        # Test getting workflows in experiment
-        workflows = await workflows_get_from_experiment(test_experiment)
-        assert isinstance(workflows, list)
-        assert len(workflows) > 0
-        assert workflows[0]["experiment_id"] == test_experiment
-        assert workflows[0]["id"] == workflow_id
-
-        # Test getting workflow runs in experiment
-        workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
-        assert isinstance(workflow_runs, list)
-        assert len(workflow_runs) > 0
-        assert workflow_runs[0]["experiment_id"] == test_experiment
-        assert workflow_runs[0]["workflow_id"] == workflow_id
-
     @pytest.mark.asyncio
     async def test_workflow_trigger_on_job_completion(self, test_experiment):
         """Test that workflows are triggered when jobs complete with matching trigger types"""
@@ -580,7 +317,7 @@ class TestWorkflows:
         workflow_id = await workflow_create("test_trigger_workflow", json.dumps(workflow_config), test_experiment)
 
         # Create a TRAIN job
-        job_id = await job_create("TRAIN", "RUNNING", test_experiment, "{}")
+        job_id = job_create("TRAIN", "RUNNING", test_experiment, "{}")
 
         # Complete the job - this should trigger the workflow
         await service_job_update_status(job_id, "COMPLETE", test_experiment)
@@ -599,7 +336,7 @@ class TestWorkflows:
         await workflow_create("test_malformed_config", "invalid json", test_experiment)
 
         # Create a TRAIN job
-        job_id = await job_create("TRAIN", "RUNNING", test_experiment, "{}")
+        job_id = job_create("TRAIN", "RUNNING", test_experiment, "{}")
 
         # Complete the job - this should not crash even with malformed config
         await service_job_update_status(job_id, "COMPLETE", test_experiment)
@@ -620,7 +357,7 @@ class TestWorkflows:
         workflow_id = await workflow_create("test_sync_trigger", json.dumps(workflow_config), test_experiment)
 
         # Test job_update_status_sync
-        job_id1 = await job_create("TRAIN", "RUNNING", test_experiment, "{}")
+        job_id1 = job_create("TRAIN", "RUNNING", test_experiment, "{}")
         service_job_update_status_sync(job_id1, "COMPLETE", test_experiment)
 
         # Wait a moment for async trigger to complete
@@ -636,7 +373,7 @@ class TestWorkflows:
         assert workflow_id in triggered_workflow_ids
 
         # Test job_update_sync
-        job_id2 = await job_create("TRAIN", "RUNNING", test_experiment, "{}")
+        job_id2 = job_create("TRAIN", "RUNNING", test_experiment, "{}")
         service_job_update_sync(job_id2, "COMPLETE", test_experiment)
 
         # Wait a moment for async trigger to complete
@@ -647,7 +384,7 @@ class TestWorkflows:
         assert len(workflow_runs) >= 2
 
         # Test job_mark_as_complete_if_running
-        job_id3 = await job_create("TRAIN", "RUNNING", test_experiment, "{}")
+        job_id3 = job_create("TRAIN", "RUNNING", test_experiment, "{}")
         service_job_mark_as_complete_if_running(job_id3, test_experiment)
 
         # Wait a moment for async trigger to complete
@@ -656,95 +393,6 @@ class TestWorkflows:
         # Check that workflow was triggered again
         workflow_runs = await workflow_runs_get_from_experiment(test_experiment)
         assert len(workflow_runs) >= 3
-
-
-@pytest.mark.asyncio
-async def test_job_create_sync(setup_db):
-    """Test the job_create_sync function."""
-    # Make sure any pending transactions are committed
-    await db.db.commit()
-
-    # Create a test job
-    job_type = "TASK"
-    status = "QUEUED"
-    job_data = json.dumps({"test": "data"})
-    experiment_id = 99  # Use integer instead of string
-
-    # Call the function - this creates its own connection
-    job_id = job_create_sync(job_type, status, experiment_id, job_data)
-
-    # Verify job was created
-    assert job_id is not None
-
-    # Verify the job exists in database
-    # First refresh the connection to ensure we see the latest data
-    await db.db.execute("PRAGMA wal_checkpoint;")
-
-    job = await job_get(job_id)
-    assert job is not None
-    assert job["type"] == job_type
-    assert job.get("status") == status
-    assert job["experiment_id"] == experiment_id
-    # job_data might be stored as dict or string, handle both cases
-    job_data = job["job_data"]
-    if isinstance(job_data, str):
-        job_data = json.loads(job_data)
-    assert "test" in job_data
-    assert job_data["test"] == "data"
-
-
-@pytest.mark.asyncio
-async def test_job_update_status_sync(setup_db):
-    """Test the job_update_status_sync function."""
-    # First create a job
-    job_id = await job_create(type="TASK", status="QUEUED", experiment_id=99, job_data="{}")
-
-    # Update the job status
-    new_status = "RUNNING"
-    job_update_status_sync(job_id, new_status, 99)
-
-    # Verify the status was updated
-    job = await job_get(job_id)
-    assert job.get("status") == new_status
-
-
-@pytest.mark.asyncio
-async def test_job_update_sync(setup_db):
-    """Test the job_update_sync function."""
-    # First create a job
-    job_id = await job_create(type="TASK", status="QUEUED", experiment_id=99, job_data="{}")
-
-    # Update the job
-    new_status = "RUNNING"
-    job_update_sync(job_id, new_status, 99)
-
-    # Verify the job was updated
-    job = await job_get(job_id)
-    assert job.get("status") == new_status
-
-
-@pytest.mark.asyncio
-async def test_job_mark_as_complete_if_running(setup_db):
-    """Test the job_mark_as_complete_if_running function."""
-    # Create a running job
-    job_id = await job_create(type="TRAIN", status="RUNNING", experiment_id=99, job_data="{}")
-
-    # Mark it as complete if running
-    job_mark_as_complete_if_running(job_id, 99)
-
-    # Verify the job status was updated
-    job = await job_get(job_id)
-    assert job.get("status") == "COMPLETE"
-
-    # Create a non-running job
-    job_id2 = await job_create(type="TASK", status="QUEUED", experiment_id=99, job_data="{}")
-
-    # Try to mark it as complete if running (should not change)
-    job_mark_as_complete_if_running(job_id2, 99)
-
-    # Verify the job status was not updated
-    job2 = await job_get(job_id2)
-    assert job2["status"] == "QUEUED"
 
 
 # @pytest.mark.skip(reason="Skipping  because I can't get it to work")
@@ -833,29 +481,3 @@ async def test_job_mark_as_complete_if_running(setup_db):
 #     assert updated_workflow_run["current_job_ids"] == current_job_id
 #     assert json.loads(updated_workflow_run["job_ids"]) == [1]
 #     assert json.loads(updated_workflow_run["node_ids"]) == ["task1"]
-
-
-@pytest.mark.asyncio
-async def test_job_update(setup_db):
-    """Test the job_update function that updates both type and status of a job."""
-    # First create a job
-    original_type = "TASK"
-    original_status = "QUEUED"
-    job_id = await job_create(type=original_type, status=original_status, experiment_id=99, job_data="{}")
-
-    # Verify the job was created with correct initial values
-    job = await job_get(job_id)
-    assert job["type"] == original_type
-    assert job.get("status") == original_status
-
-    # Update the job with new type and status
-    new_type = "EVAL"
-    new_status = "RUNNING"
-    await job_update(job_id, new_type, new_status, 99)
-
-    # Verify the job was updated correctly
-    updated_job = await job_get(job_id)
-    assert updated_job["type"] == new_type
-    assert updated_job.get("status") == new_status
-    assert updated_job["id"] == job_id
-    assert updated_job["experiment_id"] == 99

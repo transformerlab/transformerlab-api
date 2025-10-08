@@ -12,7 +12,6 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.dialects.sqlite import insert
 
 from transformerlab.db.constants import DATABASE_FILE_NAME
-from transformerlab.db.jobs import ALLOWED_JOB_TYPES
 from transformerlab.shared.models import models
 
 
@@ -21,12 +20,27 @@ sync_engine = create_engine(f"sqlite:///{DATABASE_FILE_NAME}", echo=False)
 sync_session_factory = sessionmaker(bind=sync_engine, expire_on_commit=False)
 
 
+# Allowed job types: (Dupicated from job_service = no good)
+ALLOWED_JOB_TYPES = [
+    "TRAIN",
+    "DOWNLOAD_MODEL",
+    "LOAD_MODEL",
+    "TASK",
+    "EVAL",
+    "EXPORT",
+    "UNDEFINED",
+    "GENERATE",
+    "INSTALL_RECIPE_DEPS",
+    "DIFFUSION",
+]
+
+
 def get_sync_session() -> Session:
     """Get a synchronous SQLAlchemy session."""
     return sync_session_factory()
 
 
-def job_create_sync(type, status, experiment_id: int, job_data="{}"):
+def job_create_sync(type, status, experiment_id: str, job_data="{}"):
     """
     Synchronous version of job_create function for use with XML-RPC.
     """
@@ -60,7 +74,7 @@ def job_create_sync(type, status, experiment_id: int, job_data="{}"):
         return None
 
 
-def job_update_status_sync(job_id: int, status: str, experiment_id: int, error_msg=None):
+def job_update_status_sync(job_id: int, status: str, experiment_id: str, error_msg=None):
     """
     Synchronous version of job status update for use with XML-RPC.
     """
@@ -78,7 +92,7 @@ def job_update_status_sync(job_id: int, status: str, experiment_id: int, error_m
         print("Error updating job status: " + str(e))
 
 
-def job_update_sync(job_id: int, status: str, experiment_id: int):
+def job_update_sync(job_id: int, status: str, experiment_id: str):
     """
     Synchronous version of job_update.
     This is used by popen_and_call function which can only support synchronous functions.
@@ -98,7 +112,7 @@ def job_update_sync(job_id: int, status: str, experiment_id: int):
         print("Error updating job status: " + str(e))
 
 
-def job_mark_as_complete_if_running(job_id: int, experiment_id: int):
+def job_mark_as_complete_if_running(job_id: int, experiment_id: str):
     """
     Synchronous update to jobs that only marks a job as "COMPLETE" if it is currently "RUNNING".
     This avoids updating "stopped" jobs and marking them as complete.

@@ -5,7 +5,6 @@ import datetime
 import dateutil.relativedelta
 from typing import Annotated
 import transformerlab.db.db as db
-import transformerlab.db.jobs as db_jobs
 from fastapi import APIRouter, Body
 from fastchat.model.model_adapter import get_conversation_template
 from huggingface_hub import snapshot_download, create_repo, upload_folder, HfApi, list_repo_tree
@@ -25,6 +24,7 @@ from transformerlab.models import model_helper
 from transformerlab.models import basemodel
 from transformerlab.models import huggingfacemodel
 from transformerlab.models import filesystemmodel
+import transformerlab.services.job_service as job_service
 from transformerlab.services.job_service import job_update_status
 from lab.dirs import get_workspace_dir
 from lab.model import Model as ModelService
@@ -43,6 +43,7 @@ def get_model_dir(model_id: str):
     """
     model_id_without_author = model_id.split("/")[-1]
     from lab.dirs import get_models_dir
+
     return os.path.join(get_models_dir(), model_id_without_author)
 
 
@@ -292,6 +293,7 @@ async def model_details_from_filesystem(model_id: str):
         # Look for model information using SDK methods
         try:
             from lab.model import Model as ModelService
+
             model_service = ModelService(model_id)
             filedata = model_service.get_metadata()
 
@@ -475,7 +477,7 @@ async def download_huggingface_model(
     hugging_face_id: str,
     model_details: str = {},
     job_id: int | None = None,
-    experiment_id: int = None,
+    experiment_id: str = None,
     organization_id: str | None = None,
 ):
     """
@@ -491,11 +493,13 @@ async def download_huggingface_model(
     - message: error message if status is "error"
     """
     if job_id is None:
-        job_id = await db_jobs.job_create(
+        job_id = job_service.job_create(
             type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id, job_data="{}"
         )
     else:
-        await db_jobs.job_update(job_id=job_id, type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id)
+        await job_service.job_update(
+            job_id=job_id, type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id
+        )
 
     # try to figure out model details from model_details object
     # default is empty object so can't assume any of this exists
@@ -505,6 +509,7 @@ async def download_huggingface_model(
     allow_patterns = model_details.get("allow_patterns", None)
 
     from transformerlab.shared import dirs as shared_dirs
+
     args = [
         f"{shared_dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
         "--model_name",
@@ -549,7 +554,7 @@ async def download_huggingface_model(
         if exitcode == 77:
             # This means we got a GatedRepoError
             # The user needs to agree to terms on HuggingFace to download
-            job = await db_jobs.job_get(job_id)
+            job = job_service.job_get(job_id)
             error_msg = None
             if job and job.get("job_data"):
                 error_msg = job["job_data"].get("error_msg")
@@ -557,7 +562,7 @@ async def download_huggingface_model(
             return {"status": "unauthorized", "message": error_msg}
 
         elif exitcode != 0:
-            job = await db_jobs.job_get(job_id)
+            job = job_service.job_get(job_id)
             error_msg = None
             if job and job.get("job_data"):
                 error_msg = job["job_data"].get("error_msg")
@@ -584,25 +589,17 @@ async def download_huggingface_model(
         # only save to local filesystem if we are downloading the whole repo
         try:
             model_service = ModelService.create(hugging_face_id)
-            model_service.set_metadata(
-                model_id=hugging_face_id,
-                name=name,
-                json_data=model_details
-            )
+            model_service.set_metadata(model_id=hugging_face_id, name=name, json_data=model_details)
         except FileExistsError:
             # Model already exists, update it
             model_service = ModelService.get(hugging_face_id)
-            model_service.set_metadata(
-                model_id=hugging_face_id,
-                name=name,
-                json_data=model_details
-            )
+            model_service.set_metadata(model_id=hugging_face_id, name=name, json_data=model_details)
 
     return {"status": "success", "message": "success", "model": model_details, "job_id": job_id}
 
 
 @router.get(path="/model/download_from_huggingface")
-async def download_model_by_huggingface_id(model: str, job_id: int | None = None, experiment_id: int = None):
+async def download_model_by_huggingface_id(model: str, job_id: int | None = None, experiment_id: str = None):
     """Takes a specific model string that must match huggingface ID to download
     This function will not be able to infer out description etc of the model
     since it is not in the gallery"""
@@ -680,12 +677,7 @@ on the model's Huggingface page."
 
 
 @router.get(path="/model/download_gguf_file")
-async def download_gguf_file_from_repo(
-    model: str,
-    filename: str,
-    job_id: int | None = None,
-    experiment_id: int = None,
-):
+async def download_gguf_file_from_repo(model: str, filename: str, job_id: int | None = None, experiment_id: str = None):
     """Download a specific GGUF file from a GGUF repository"""
 
     # First get the model details to validate this is a GGUF repo
@@ -730,13 +722,13 @@ async def download_gguf_file_from_repo(
 
 
 @router.get(path="/model/download_model_from_gallery")
-async def download_model_from_gallery(gallery_id: str, job_id: int | None = None, experiment_id: int = None):
+async def download_model_from_gallery(gallery_id: str, job_id: int | None = None, experiment_id: str = None):
     """Provide a reference to a model in the gallery, and we will download it
     from huggingface
 
     You can manually specify a pre-created job_id if you want to track the progress of the download with
     a defined job_id provided by the API using /job/createId"""
-    
+
     # Get model details from the gallery
     # If None then return an error
     gallery_entry = get_model_details_from_gallery(gallery_id)
@@ -755,15 +747,15 @@ async def download_model_from_gallery(gallery_id: str, job_id: int | None = None
             if model_data and model_data.get("json_data") and "pipeline_tag" in model_data["json_data"]:
                 gallery_entry["pipeline_tag"] = model_data["json_data"]["pipeline_tag"]
             else:
-                    # If not in database, fetch from Hugging Face Hub
-                    try:
-                        api = HfApi()
-                        model_info = api.model_info(huggingface_id)
-                        gallery_entry["pipeline_tag"] = model_info.pipeline_tag
-                    except Exception as e:
-                        # Assume text generation if we can't get the tag
-                        print(f"Error fetching pipeline tag for {huggingface_id}: {type(e).__name__}: {e}")
-                        gallery_entry["pipeline_tag"] = "text-generation"
+                # If not in database, fetch from Hugging Face Hub
+                try:
+                    api = HfApi()
+                    model_info = api.model_info(huggingface_id)
+                    gallery_entry["pipeline_tag"] = model_info.pipeline_tag
+                except Exception as e:
+                    # Assume text generation if we can't get the tag
+                    print(f"Error fetching pipeline tag for {huggingface_id}: {type(e).__name__}: {e}")
+                    gallery_entry["pipeline_tag"] = "text-generation"
         except FileNotFoundError:
             # Model not found in filesystem, fetch from Hugging Face Hub
             try:
@@ -815,11 +807,7 @@ async def model_local_create(id: str, name: str, json_data={}):
     # Use filesystem instead of database
     try:
         model_service = ModelService.create(id)
-        model_service.set_metadata(
-            model_id=id,
-            name=name,
-            json_data=json_data
-        )
+        model_service.set_metadata(model_id=id, name=name, json_data=json_data)
         return {"message": "model created"}
     except FileExistsError:
         return {"status": "error", "message": f"Model {id} already exists"}
@@ -846,9 +834,9 @@ async def model_local_delete(model_id: str, delete_from_cache: bool = False):
 
     # Also try the legacy method for backward compatibility
     from lab.dirs import get_models_dir
+
     root_models_dir = get_models_dir()
 
-    
     # Sanitize and validate model_dir
     unsafe_model_dir = model_id.rsplit("/", 1)[-1]
     model_dir = os.path.normpath(unsafe_model_dir)
@@ -884,7 +872,6 @@ async def model_local_delete(model_id: str, delete_from_cache: bool = False):
             print("~/.cache/huggingface/hub/")
 
     return {"message": "model deleted"}
-
 
 
 @router.post("/model/pefts")
@@ -924,12 +911,7 @@ async def model_delete_peft(model_id: str, peft: str):
 
 
 @router.post("/model/install_peft")
-async def install_peft(
-    peft: str,
-    model_id: str,
-    job_id: int | None = None,
-    experiment_id: int = None,
-):
+async def install_peft(peft: str, model_id: str, job_id: int | None = None, experiment_id: str = None):
     api = HfApi()
 
     try:
@@ -1016,15 +998,18 @@ async def install_peft(
     print(f"Model Details: {model_details}")
     # Create or update job
     if job_id is None:
-        job_id = await db_jobs.job_create(
+        job_id = job_service.job_create(
             type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id, job_data="{}"
         )
     else:
-        await db_jobs.job_update(job_id=job_id, type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id)
+        await job_service.job_update(
+            job_id=job_id, type="DOWNLOAD_MODEL", status="STARTED", experiment_id=experiment_id
+        )
 
     model_size = str(model_details.get("size_of_model_in_mb", -1))
     # Prepare script args
     from transformerlab.shared import dirs as shared_dirs
+
     args = [
         f"{shared_dirs.TFL_SOURCE_CODE_DIR}/transformerlab/shared/download_huggingface_model.py",
         "--mode",
@@ -1042,6 +1027,7 @@ async def install_peft(
     # Multitenant: pass workspace_dir explicitly so the script uses the correct org path
     try:
         from lab.dirs import get_workspace_dir
+
         workspace_dir = get_workspace_dir()
         args += ["--workspace_dir", workspace_dir]
     except Exception:
@@ -1246,7 +1232,6 @@ async def get_pipeline_tag(model_name: str):
         pass
     except Exception as e:
         print(f"Error reading filesystem model {model_name}: {e}")
-
 
     # If not in filesystem or database, fetch from Hugging Face Hub
     try:
