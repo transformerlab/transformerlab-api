@@ -10,9 +10,6 @@ from transformerlab.shared.models import models
 from lab import Experiment, Job
 from lab.dirs import get_jobs_dir
 
-JOBS_DIR = get_jobs_dir()
-
-
 # --- SQLAlchemy Async Engine ---
 # This engine is the core entry point to the database.
 # It is created once and can be imported elsewhere.
@@ -107,12 +104,12 @@ async def init():
 async def job_cancel_in_progress_jobs():
     """Cancel all jobs that are currently in RUNNING state using filesystem-based Job system."""    
     # Check if JOBS_DIR exists
-    if not os.path.exists(JOBS_DIR):
+    if not os.path.exists(get_jobs_dir()):
         return
     
     # Iterate through all job directories
-    for entry in os.listdir(JOBS_DIR):
-        job_path = os.path.join(JOBS_DIR, entry)
+    for entry in os.listdir(get_jobs_dir()):
+        job_path = os.path.join(get_jobs_dir(), entry)
         if os.path.isdir(job_path):
             try:
                 job = Job.get(entry)
