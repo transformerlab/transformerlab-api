@@ -104,12 +104,13 @@ async def init():
 async def job_cancel_in_progress_jobs():
     """Cancel all jobs that are currently in RUNNING state using filesystem-based Job system."""    
     # Check if JOBS_DIR exists
-    if not os.path.exists(get_jobs_dir()):
+    jobs_dir = get_jobs_dir()
+    if not os.path.exists(jobs_dir):
         return
     
     # Iterate through all job directories
-    for entry in os.listdir(get_jobs_dir()):
-        job_path = os.path.join(get_jobs_dir(), entry)
+    for entry in os.listdir(jobs_dir):
+        job_path = os.path.join(jobs_dir, entry)
         if os.path.isdir(job_path):
             try:
                 job = Job.get(entry)
