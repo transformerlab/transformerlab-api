@@ -49,6 +49,7 @@ from transformerlab.routers import (
     tools,
     batched_prompts,
     recipes,
+    remote,
 )
 import torch
 
@@ -220,6 +221,7 @@ app.include_router(prompts.router)
 app.include_router(tools.router)
 app.include_router(recipes.router)
 app.include_router(batched_prompts.router)
+app.include_router(remote.router)
 app.include_router(fastchat_openai_api.router)
 
 # Authentication and session management routes
