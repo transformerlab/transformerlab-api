@@ -81,11 +81,6 @@ def get_model_details_from_gallery(model_id: str):
     return result
 
 
-@router.get("/healthz")  # TODO: why isn't this /model/helathz?
-async def healthz():
-    return {"message": "OK"}
-
-
 @router.get("/model/gallery")
 async def model_gallery_list_all():
     gallery = galleries.get_models_gallery()

@@ -93,6 +93,12 @@ os.environ["_TFL_SOURCE_CODE_DIR"] = dirs.TFL_SOURCE_CODE_DIR
 temp_image_dir = os.path.join(get_workspace_dir(), "temp", "images")
 os.environ["TLAB_TEMP_IMAGE_DIR"] = str(temp_image_dir)
 
+# Check if anything is stored in GPU_ORCHESTRATION_SERVER, and if so, print a message
+if os.getenv("GPU_ORCHESTRATION_SERVER"):
+    print(
+        f"🚀 GPU Orchestration Server mode enabled. Using server: {os.getenv('GPU_ORCHESTRATION_SERVER')}:{os.getenv('GPU_ORCHESTRATION_SERVER_PORT', '80')}"
+    )
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -106,7 +112,7 @@ async def lifespan(app: FastAPI):
     # Initialize experiments and cancel any running jobs
     seed_default_experiments()
     cancel_in_progress_jobs()
-    
+
     if "--reload" in sys.argv:
         await install_all_plugins()
     # run the migrations
@@ -309,7 +315,11 @@ async def server_worker_start(
     elif experiment_id is not None:
         try:
             experiment = experiment_get(experiment_id)
-            experiment_config = experiment["config"] if isinstance(experiment["config"], dict) else json.loads(experiment["config"] or "{}")
+            experiment_config = (
+                experiment["config"]
+                if isinstance(experiment["config"], dict)
+                else json.loads(experiment["config"] or "{}")
+            )
             try:
                 inference_params = experiment_config["inferenceParams"]
             except KeyError:
@@ -466,6 +476,21 @@ async def server_worker_health(request: Request):
         result.append({"id": model_data.id})
 
     return result
+
+
+@app.get("/healthz")
+async def healthz():
+    """
+    Health check endpoint to verify server status and mode.
+    """
+    gpu_orchestration_server = os.getenv("GPU_ORCHESTRATION_SERVER", "")
+    mode = "gpu_orchestration" if gpu_orchestration_server else "local"
+
+    return {
+        "message": "OK",
+        "mode": mode,
+        "gpu_orchestration_server": gpu_orchestration_server,
+    }
 
 
 # Add an endpoint that serves the static files in the ~/.transformerlab/webapp directory:
