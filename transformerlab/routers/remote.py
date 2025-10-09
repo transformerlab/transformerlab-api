@@ -15,6 +15,7 @@ async def launch_remote(
     experimentId: str,
     cluster_name: str = Form(...),
     command: str = Form("echo 'Hello World'"),
+    task_name: Optional[str] = Form(None),
     cpus: Optional[str] = Form(None),
     memory: Optional[str] = Form(None),
     disk_space: Optional[str] = Form(None),
@@ -44,6 +45,10 @@ async def launch_remote(
         "cluster_name": cluster_name,
         "command": command,
     }
+    
+    # Use task_name as job_name if provided, otherwise fall back to cluster_name
+    job_name = task_name if task_name else cluster_name
+    request_data["job_name"] = job_name
     
     # Add optional parameters if provided
     if cpus:
@@ -124,7 +129,7 @@ async def launch_remote(
                 
                 # Create the task with remote_task=True
                 task_id = tasks_service.add_task(
-                    name=cluster_name,
+                    name=task_name if task_name else cluster_name,
                     task_type="REMOTE",
                     inputs={},
                     config=task_config,
