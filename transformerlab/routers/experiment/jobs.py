@@ -658,6 +658,6 @@ async def launch_remote(
     except httpx.TimeoutException:
         return {"status": "error", "message": "Request to Lattice orchestrator timed out"}
     except httpx.RequestError as e:
-        return {"status": "error", "message": f"Request error: {str(e)}"}
+        return {"status": "error", "message": "Request error occurred"}
     except Exception as e:
-        return {"status": "error", "message": f"Unexpected error: {str(e)}"}
+        return {"status": "error", "message": "Unexpected error occurred"}
