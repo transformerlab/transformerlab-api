@@ -521,7 +521,7 @@ async def launch_remote(
     setup: Optional[str] = Form(None),
 ):
     """
-    Launch a remote instance via Lattice orchestrator
+    Launch a remote instance via Lattice orchestrator and create a job with remote_task=True
     """
     # Get environment variables
     gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
@@ -537,7 +537,7 @@ async def launch_remote(
     if not gpu_orchestrator_api_key:
         return {"status": "error", "message": "GPU_ORCHESTRATION_SERVER_API_KEY environment variable not set"}
     
-    # Prepare the request data
+    # Prepare the request data for Lattice orchestrator
     request_data = {
         "cluster_name": cluster_name,
         "command": command,
@@ -558,6 +558,7 @@ async def launch_remote(
         request_data["setup"] = setup
     
     gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/launch"
+    
     try:
         # Make the request to the Lattice orchestrator
         async with httpx.AsyncClient() as client:
@@ -572,7 +573,82 @@ async def launch_remote(
             )
             
             if response.status_code == 200:
-                return {"status": "success", "data": response.json()}
+                # Create a job with remote_task=True to track this remote execution
+                job_data = {
+                    "remote_task": True,
+                    "cluster_name": cluster_name,
+                    "command": command,
+                    "lattice_response": response.json(),
+                    "gpu_orchestrator_url": gpu_orchestrator_url,
+                }
+                
+                # Add optional parameters to job data
+                if cpus:
+                    job_data["cpus"] = cpus
+                if memory:
+                    job_data["memory"] = memory
+                if disk_space:
+                    job_data["disk_space"] = disk_space
+                if accelerators:
+                    job_data["accelerators"] = accelerators
+                if num_nodes:
+                    job_data["num_nodes"] = num_nodes
+                if setup:
+                    job_data["setup"] = setup
+                
+                # Create a task with remote_task=True so it appears in the filesystem
+                from transformerlab.services.tasks_service import tasks_service
+                
+                task_config = {
+                    "cluster_name": cluster_name,
+                    "command": command,
+                    "gpu_orchestrator_url": gpu_orchestrator_url,
+                    "gpu_orchestrator_port": gpu_orchestrator_port,
+                    "gpu_orchestrator_api_key": gpu_orchestrator_api_key,
+                    "lattice_response": response.json(),
+                }
+                
+                # Add optional parameters to task config
+                if cpus:
+                    task_config["cpus"] = cpus
+                if memory:
+                    task_config["memory"] = memory
+                if disk_space:
+                    task_config["disk_space"] = disk_space
+                if accelerators:
+                    task_config["accelerators"] = accelerators
+                if num_nodes:
+                    task_config["num_nodes"] = num_nodes
+                if setup:
+                    task_config["setup"] = setup
+                
+                # Create the task with remote_task=True
+                task_id = tasks_service.add_task(
+                    name=cluster_name,
+                    task_type="REMOTE",
+                    inputs={},
+                    config=task_config,
+                    plugin="remote_orchestrator",
+                    outputs={},
+                    experiment_id=experimentId,
+                    remote_task=True
+                )
+                
+                # Also create a job to track this remote task
+                job_id = job_service.job_create(
+                    type="REMOTE",
+                    status="COMPLETE",  # Mark as complete since it's handled by Lattice
+                    experiment_id=experimentId,
+                    job_data=json.dumps(job_data)
+                )
+                
+                return {
+                    "status": "success", 
+                    "data": response.json(),
+                    "task_id": task_id,
+                    "job_id": job_id,
+                    "message": "Remote instance launched successfully"
+                }
             else:
                 return {
                     "status": "error", 

@@ -36,7 +36,7 @@ class TasksService:
 
     def add_task(self, name: str, task_type: str, inputs: Dict[str, Any], 
                       config: Dict[str, Any], plugin: str, outputs: Dict[str, Any], 
-                      experiment_id: Optional[str]) -> str:
+                      experiment_id: Optional[str], remote_task: bool = False) -> str:
         """Create a new task"""
         # Generate a unique ID for the task
         task_id = str(uuid.uuid4())
@@ -50,7 +50,8 @@ class TasksService:
                 config=config,
                 plugin=plugin,
                 outputs=outputs,
-                experiment_id=experiment_id
+                experiment_id=experiment_id,
+                remote_task=remote_task
             )
             return task_id
         except FileExistsError:
@@ -64,7 +65,8 @@ class TasksService:
                 config=config,
                 plugin=plugin,
                 outputs=outputs,
-                experiment_id=experiment_id
+                experiment_id=experiment_id,
+                remote_task=remote_task
             )
             return task_id
 

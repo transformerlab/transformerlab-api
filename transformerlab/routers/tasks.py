@@ -130,6 +130,11 @@ async def queue_task(task_id: int, input_override: str = "{}", output_override: 
     task_to_queue = await tasks_service.tasks_get_by_id(task_id)
     if task_to_queue is None:
         return {"message": "TASK NOT FOUND"}
+    
+    # Skip remote tasks - they are handled by the launch_remote route, not the job queue
+    if task_to_queue.get("remote_task", False):
+        return {"message": "REMOTE TASK - Cannot queue remote tasks, use launch_remote endpoint instead"}
+    
     job_type = task_to_queue["type"]
     job_status = "QUEUED"
     job_data = {}
