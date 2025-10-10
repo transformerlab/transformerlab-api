@@ -55,7 +55,6 @@ import torch
 
 try:
     from pynvml import nvmlShutdown
-
     HAS_AMD = False
 except Exception:
     from pyrsmi import rocml
