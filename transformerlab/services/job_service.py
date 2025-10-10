@@ -26,6 +26,7 @@ ALLOWED_JOB_TYPES = [
     "GENERATE",
     "INSTALL_RECIPE_DEPS",
     "DIFFUSION",
+    "REMOTE",
 ]
 
 # Centralized set of job types that can trigger workflows on completion
