@@ -75,7 +75,8 @@ def job_get(job_id):
     try:
         job = Job.get(job_id)
         return job.get_json_data()
-    except Exception:
+    except Exception as e:
+        print("Error getting job data", e)
         return None
 
 
