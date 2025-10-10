@@ -182,12 +182,15 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
             # Try to get output file name with fallback logic
             output_file_name = await shared.get_job_output_file_name(job_id)
 
-        # Read and return the file content
+        # Read and return the file content as JSON array of lines
         if os.path.exists(output_file_name):
+            lines = []
             with open(output_file_name, "r") as f:
-                return f.read()
+                for line in f:
+                    lines.append(line.rstrip('\n'))  # Remove trailing newline
+            return lines
         else:
-            return "Output file not found"
+            return ["Output file not found"]
 
     except ValueError as e:
         # If the value error starts with "No output file found for job" then wait 4 seconds and try again
@@ -198,10 +201,13 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
             try:
                 output_file_name = await shared.get_job_output_file_name(job_id)
                 if os.path.exists(output_file_name):
+                    lines = []
                     with open(output_file_name, "r") as f:
-                        return f.read()
+                        for line in f:
+                            lines.append(line.rstrip('\n'))  # Remove trailing newline
+                    return lines
                 else:
-                    return "Output file not found after retry"
+                    return ["Output file not found after retry"]
             except Exception as retry_e:
                 # If still no file after retry, create an empty one in the jobs directory
                 logging.warning(
@@ -213,14 +219,14 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
                 os.makedirs(os.path.dirname(output_file_name), exist_ok=True)
                 with open(output_file_name, "w") as f:
                     f.write("")
-                return ""
+                return []
         else:
             logging.error(f"ValueError in get_tasks_job_output: {e}")
-            return "An internal error has occurred!"
+            return ["An internal error has occurred!"]
     except Exception as e:
         # Handle general error
         logging.error(f"Error in get_tasks_job_output: {e}")
-        return "An internal error has occurred!"
+        return ["An internal error has occurred!"]
 
 
 # Templates
