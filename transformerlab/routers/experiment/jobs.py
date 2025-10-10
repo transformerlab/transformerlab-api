@@ -162,10 +162,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
         if job is None:
             return "Job not found"
 
-        if job.get("job_data") is not None and job.get("job_data") != {}:
-            job_data = job.get("job_data")
-        else:
-            job_data = job
+        job_data = job.get("job_data", {})
 
         # Handle both dict and JSON string formats
         if not isinstance(job_data, dict):
@@ -274,10 +271,7 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
     try:
         job = job_service.job_get(job_id)
 
-        if job.get("job_data") is not None and job.get("job_data") != {}:
-            job_data = job.get("job_data")
-        else:
-            job_data = job
+        job_data = job.get("job_data", {})
 
 
         # Handle both dict and JSON string formats
