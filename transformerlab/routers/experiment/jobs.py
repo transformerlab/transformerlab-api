@@ -180,6 +180,8 @@ async def update_training_template(
     return {"status": "success"}
 
 
+
+
 @router.get("/{job_id}/stream_output")
 async def stream_job_output(job_id: str, sweeps: bool = False):
     """
@@ -187,8 +189,16 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
     Enhanced version combining the best of both train and jobs routers.
     """
     try:
-        job = job_service.job_get(job_id)
-        job_data = job["job_data"]
+        print("Job ID: " + str(job_id))
+        job_data = job_service.job_get(job_id)
+        # job_data = job["job_data"]
+        # print(f"Output file name: {output_file_name}")
+        # print("Job data: " + str(job_data))
+        print("COMING TILL HERE")
+        print("JOB DATA: " + str(job_data))
+
+        # print("JOB DATA TYPE: " + type(job_data))
+        
 
         # Handle both dict and JSON string formats
         if not isinstance(job_data, dict):
@@ -197,6 +207,8 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
             except JSONDecodeError:
                 logging.error(f"Error decoding job_data for job {job_id}. Using empty job_data.")
                 job_data = {}
+
+        print("CROSSING IF CONDITION")
 
         # Handle sweeps case first
         if sweeps:
@@ -207,8 +219,10 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
                 # Fall back to regular output file logic
                 output_file_name = await shared.get_job_output_file_name(job_id)
         else:
+            print("GOING INTO NOT SWEEPS")
             # Try to get output file name with fallback logic
             output_file_name = await shared.get_job_output_file_name(job_id)
+    
 
     except ValueError as e:
         # If the value error starts with "No output file found for job" then wait 4 seconds and try again
