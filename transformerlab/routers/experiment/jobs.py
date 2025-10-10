@@ -5,10 +5,8 @@ import os
 import csv
 import pandas as pd
 import logging
-import httpx
-from fastapi import APIRouter, Body, Response, Request, Form
+from fastapi import APIRouter, Body, Response, Request
 from fastapi.responses import StreamingResponse, FileResponse
-from typing import Optional
 
 from transformerlab.shared import shared
 from typing import Annotated
