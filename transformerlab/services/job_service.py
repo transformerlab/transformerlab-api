@@ -73,11 +73,7 @@ def jobs_get_by_experiment(experiment_id):
 
 def job_get(job_id):
     try:
-        from lab.dirs import get_jobs_dir
-        print("Jobs dir: ", get_jobs_dir())
         job = Job.get(job_id)
-        job_data = job.get_json_data()
-        print("Job data inside: ", str(job_data))
         return job.get_json_data()
     except Exception as e:
         print("Error getting job data", e)
