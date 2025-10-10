@@ -267,7 +267,13 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
     Enhanced version combining the best of both train and jobs routers.
     """
     try:
-        job_data = job_service.job_get(job_id)        
+        job = job_service.job_get(job_id)
+
+        if job.get("job_data") is not None and job.get("job_data") != {}:
+            job_data = job.get("job_data")
+        else:
+            job_data = job
+
 
         # Handle both dict and JSON string formats
         if not isinstance(job_data, dict):
