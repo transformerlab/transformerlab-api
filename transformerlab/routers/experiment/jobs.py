@@ -159,7 +159,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
     """
     try:
         job = job_service.job_get(job_id)
-        if job_data is None:
+        if job is None:
             return "Job not found"
 
         if job.get("job_data") is not None and job.get("job_data") != {}:
