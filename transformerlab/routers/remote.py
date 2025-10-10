@@ -22,7 +22,7 @@ async def launch_remote(
     setup: Optional[str] = Form(None),
 ):
     """
-    Launch a remote instance via Lattice orchestrator and create a task with remote_task=True
+    Launch a remote instance via Lattice orchestrator and create a task with remote_task attribute as True
     """
     # Get environment variables
     gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
