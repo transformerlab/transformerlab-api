@@ -31,7 +31,7 @@ markitdown[all]
 hf_xet
 macmon-python
 transformerlab-inference==0.2.50
-transformerlab==0.0.26
+transformerlab==0.0.27
 diffusers==0.33.1
 nvidia-ml-py
 mcp[cli]
