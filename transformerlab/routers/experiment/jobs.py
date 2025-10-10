@@ -158,9 +158,14 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
     Uses the same logic as stream_job_output but returns content directly.
     """
     try:
-        job_data = job_service.job_get(job_id)
+        job = job_service.job_get(job_id)
         if job_data is None:
             return "Job not found"
+
+        if job.get("job_data") is not None and job.get("job_data") != {}:
+            job_data = job.get("job_data")
+        else:
+            job_data = job
 
         # Handle both dict and JSON string formats
         if not isinstance(job_data, dict):
