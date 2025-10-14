@@ -67,9 +67,9 @@ async def launch_remote(
             outbound_headers = {
                 "Content-Type": "application/x-www-form-urlencoded"
             }
-            incoming_auth = request.headers.get("authorization")
+            incoming_auth = request.headers.get("AUTHORIZATION")
             if incoming_auth:
-                outbound_headers["Authorization"] = incoming_auth
+                outbound_headers["AUTHORIZATION"] = incoming_auth
 
             response = await client.post(
                 f"{gpu_orchestrator_url}",
