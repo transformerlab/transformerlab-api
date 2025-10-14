@@ -160,12 +160,14 @@ async def get_plugin(slug: str):
 
 async def save_plugin(name: str, type: str):
     async with async_session() as session:
-        plugin = await session.get(Plugin, name)
-        if plugin:
-            plugin.type = type
-        else:
+        # Plugin primary key is integer id, so we must query by unique name
+        result = await session.execute(select(Plugin).where(Plugin.name == name))
+        plugin = result.scalar_one_or_none()
+        if plugin is None:
             plugin = Plugin(name=name, type=type)
             session.add(plugin)
+        else:
+            plugin.type = type
         await session.commit()
     return
 
