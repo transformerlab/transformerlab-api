@@ -151,6 +151,86 @@ async def get_training_job_output(job_id: str, sweeps: bool = False):
     return output
 
 
+@router.get("/{job_id}/tasks_output")
+async def get_tasks_job_output(job_id: str, sweeps: bool = False):
+    """
+    Get Tasks job output with robust error handling.
+    Uses the same logic as stream_job_output but returns content directly.
+    """
+    try:
+        job = job_service.job_get(job_id)
+        if job is None:
+            return "Job not found"
+
+        job_data = job.get("job_data", {})
+
+        # Handle both dict and JSON string formats
+        if not isinstance(job_data, dict):
+            try:
+                job_data = json.loads(job_data)
+            except JSONDecodeError:
+                logging.error(f"Error decoding job_data for job {job_id}. Using empty job_data.")
+                job_data = {}
+
+        # Handle sweeps case first
+        if sweeps:
+            output_file = job_data.get("sweep_output_file", None)
+            if output_file is not None and os.path.exists(output_file):
+                output_file_name = output_file
+            else:
+                # Fall back to regular output file logic
+                output_file_name = await shared.get_job_output_file_name(job_id)
+        else:
+            # Try to get output file name with fallback logic
+            output_file_name = await shared.get_job_output_file_name(job_id)
+
+        # Read and return the file content as JSON array of lines
+        if os.path.exists(output_file_name):
+            lines = []
+            with open(output_file_name, "r") as f:
+                for line in f:
+                    lines.append(line.rstrip('\n'))  # Remove trailing newline
+            return lines
+        else:
+            return ["Output file not found"]
+
+    except ValueError as e:
+        # If the value error starts with "No output file found for job" then wait 4 seconds and try again
+        # because the file might not have been created yet
+        if str(e).startswith("No output file found for job"):
+            logging.info(f"Output file not found for job {job_id}, retrying in 4 seconds...")
+            await asyncio.sleep(4)
+            try:
+                output_file_name = await shared.get_job_output_file_name(job_id)
+                if os.path.exists(output_file_name):
+                    lines = []
+                    with open(output_file_name, "r") as f:
+                        for line in f:
+                            lines.append(line.rstrip('\n'))  # Remove trailing newline
+                    return lines
+                else:
+                    return ["Output file not found after retry"]
+            except Exception as retry_e:
+                # If still no file after retry, create an empty one in the jobs directory
+                logging.warning(
+                    f"Still no output file found for job {job_id} after retry, creating empty file: {retry_e}"
+                )
+                # Use the Job class to get the proper directory and create the file
+                job_obj = Job(job_id)
+                output_file_name = job_obj.get_log_path()
+                os.makedirs(os.path.dirname(output_file_name), exist_ok=True)
+                with open(output_file_name, "w") as f:
+                    f.write("")
+                return []
+        else:
+            logging.error(f"ValueError in get_tasks_job_output: {e}")
+            return ["An internal error has occurred!"]
+    except Exception as e:
+        # Handle general error
+        logging.error(f"Error in get_tasks_job_output: {e}")
+        return ["An internal error has occurred!"]
+
+
 # Templates
 
 
@@ -180,6 +260,8 @@ async def update_training_template(
     return {"status": "success"}
 
 
+
+
 @router.get("/{job_id}/stream_output")
 async def stream_job_output(job_id: str, sweeps: bool = False):
     """
@@ -188,7 +270,9 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
     """
     try:
         job = job_service.job_get(job_id)
-        job_data = job["job_data"]
+
+        job_data = job.get("job_data", {})
+
 
         # Handle both dict and JSON string formats
         if not isinstance(job_data, dict):
@@ -209,6 +293,7 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
         else:
             # Try to get output file name with fallback logic
             output_file_name = await shared.get_job_output_file_name(job_id)
+    
 
     except ValueError as e:
         # If the value error starts with "No output file found for job" then wait 4 seconds and try again
@@ -504,3 +589,5 @@ async def get_checkpoints(job_id: str, request: Request):
         "model_name": model_name,
         "adaptor_name": adaptor_name,
     }
+
+

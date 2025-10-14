@@ -18,7 +18,7 @@ async def tasks_get_all():
 
 
 @router.get("/{task_id}/get", summary="Gets all the data for a single task")
-async def tasks_get_by_id(task_id: int):
+async def tasks_get_by_id(task_id: str):
     task = tasks_service.tasks_get_by_id(task_id)
     if task is None:
         return {"message": "NOT FOUND"}
@@ -40,7 +40,7 @@ async def tasks_get_by_type_in_experiment(type: str, experiment_id: str):
 
 
 @router.put("/{task_id}/update", summary="Updates a task with new information")
-async def update_task(task_id: int, new_task: dict = Body()):
+async def update_task(task_id: str, new_task: dict = Body()):
     # Perform secure_filename before updating the task
     if "name" in new_task:
         new_task["name"] = secure_filename(new_task["name"])
@@ -52,7 +52,7 @@ async def update_task(task_id: int, new_task: dict = Body()):
 
 
 @router.get("/{task_id}/delete", summary="Deletes a task")
-async def delete_task(task_id: int):
+async def delete_task(task_id: str):
     success = tasks_service.delete_task(task_id)
     if success:
         return {"message": "OK"}
@@ -126,10 +126,15 @@ async def tasks_delete_all():
 
 
 @router.get("/{task_id}/queue", summary="Queue a task to run")
-async def queue_task(task_id: int, input_override: str = "{}", output_override: str = "{}"):
+async def queue_task(task_id: str, input_override: str = "{}", output_override: str = "{}"):
     task_to_queue = await tasks_service.tasks_get_by_id(task_id)
     if task_to_queue is None:
         return {"message": "TASK NOT FOUND"}
+    
+    # Skip remote tasks - they are handled by the launch_remote route, not the job queue
+    if task_to_queue.get("remote_task", False):
+        return {"message": "REMOTE TASK - Cannot queue remote tasks, use launch_remote endpoint instead"}
+    
     job_type = task_to_queue["type"]
     job_status = "QUEUED"
     job_data = {}
