@@ -8,6 +8,8 @@ in run.sh for multitenant mode. Supports both mount-s3 (Linux) and s3fs (macOS).
 import os
 import platform
 import subprocess
+import shutil
+import psutil
 
 
 def is_macos() -> bool:
@@ -28,45 +30,30 @@ def get_s3_mount_command() -> str:
         return "mount-s3"
 
 
-def check_remote_path_exists_and_has_files(remote_path: str) -> bool:
+def is_fuse_mount(path):
     """
-    Check if the BUCKET_REMOTE_PATH exists and contains any files.
-
+    Check if the given path is mounted as a FUSE filesystem.
+    
     Args:
-        remote_path: The path to check for existence and files
-
+        path: The path to check for FUSE mount
+        
     Returns:
-        True if the path exists and has files, False otherwise
+        Tuple of (is_fuse, fstype, mountpoint) where:
+        - is_fuse: Boolean indicating if it's a FUSE mount
+        - fstype: Filesystem type (None if not FUSE)
+        - mountpoint: Mount point (None if not FUSE)
     """
-    try:
-        # Check if path exists
-        if not os.path.exists(remote_path):
-            print(f"Remote path {remote_path} does not exist")
-            return False
+    # Resolve to absolute and real path (no symlinks)
+    path = os.path.realpath(os.path.expanduser(path))
+    for part in psutil.disk_partitions(all=True):
+        if path.startswith(part.mountpoint):
+            # FUSE filesystems usually have "fuse" in fstype
+            if "fuse" in part.fstype.lower():
+                return True, part.fstype, part.mountpoint
+    return False, None, None
 
-        # Check if it's a directory and has files
-        if os.path.isdir(remote_path):
-            # Check if directory has any files or subdirectories
-            try:
-                files = os.listdir(remote_path)
-                has_content = len(files) > 0
-                if not has_content:
-                    print(f"Remote path {remote_path} exists but is empty")
-                    return False
-                else:
-                    print(f"Remote path {remote_path} exists and has content")
-                    return True
-            except OSError:
-                print(f"Remote path {remote_path} exists but cannot be read")
-                return False
-        else:
-            # It's a file, so it exists
-            print(f"Remote path {remote_path} exists as a file")
-            return True
 
-    except Exception as e:
-        print(f"Error checking remote path {remote_path}: {e}")
-        return False
+
 
 def run_s3_mount_command(bucket_name: str, remote_workspace_dir: str, profile: str = "transformerlab-s3") -> bool:
     """
@@ -94,7 +81,7 @@ def run_s3_mount_command(bucket_name: str, remote_workspace_dir: str, profile: s
             cmd = ["s3fs", bucket_name, remote_workspace_dir, "-o", f"profile={profile}"]
         else:
             # mount-s3 command for Linux
-            cmd = ["mount-s3", "--profile", profile, bucket_name, remote_workspace_dir]
+            cmd = ["mount-s3", "--profile", profile, bucket_name, remote_workspace_dir, "--allow-overwrite", "--allow-delete"]
         
         print(f"Running mount command: {' '.join(cmd)}")
 
@@ -161,13 +148,21 @@ def setup_user_s3_mount(user_id: str, organization_id: str | None = None) -> boo
         print(f"Organization: {org_dir}")
         print(f"Bucket: {bucket_name}, Remote path: {bucket_remote_path}")
 
-        # Create the directory if it doesn't exist
-        os.makedirs(bucket_remote_path, exist_ok=True)
-
-        # Check if the remote path exists and has files
-        if check_remote_path_exists_and_has_files(bucket_remote_path):
-            print(f"Remote path {bucket_remote_path} already exists with content, skipping mount")
+        # Check if the path is already a FUSE mount
+        is_fuse, fstype, mountpoint = is_fuse_mount(bucket_remote_path)
+        if is_fuse:
+            print(f"Path {bucket_remote_path} is already a FUSE mount ({fstype}), skipping mount")
             return True
+
+        # If not a FUSE mount, delete the directory if it exists and recreate it
+        if os.path.exists(bucket_remote_path):
+            print(f"Removing existing directory {bucket_remote_path} (not a FUSE mount)")
+            shutil.rmtree(bucket_remote_path)
+        
+        # Create the directory
+        os.makedirs(bucket_remote_path, exist_ok=True)
+        print(f"Created directory: {bucket_remote_path}")
+
 
         # Run the S3 mount command (mount-s3 for Linux, s3fs for macOS)
         success = run_s3_mount_command(bucket_name, bucket_remote_path)
