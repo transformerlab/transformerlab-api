@@ -1,6 +1,6 @@
 import os
 import httpx
-from fastapi import APIRouter, Form
+from fastapi import APIRouter, Form, Request
 from typing import Optional
 
 from transformerlab.services.tasks_service import tasks_service
@@ -10,6 +10,7 @@ router = APIRouter(prefix="/remote", tags=["remote"])
 
 @router.post("/launch")
 async def launch_remote(
+    request: Request,
     experimentId: str,
     cluster_name: str = Form(...),
     command: str = Form("echo 'Hello World'"),
@@ -27,17 +28,12 @@ async def launch_remote(
     # Get environment variables
     gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
     gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
-    gpu_orchestrator_api_key = os.getenv("GPU_ORCHESTRATION_SERVER_API_KEY")
     
     if not gpu_orchestrator_url:
         return {"status": "error", "message": "GPU_ORCHESTRATION_SERVER environment variable not set"}
     
     if not gpu_orchestrator_port:
         return {"status": "error", "message": "GPU_ORCHESTRATION_SERVER_PORT environment variable not set"}
-    
-    if not gpu_orchestrator_api_key:
-        return {"status": "error", "message": "GPU_ORCHESTRATION_SERVER_API_KEY environment variable not set"}
-    
     # Prepare the request data for Lattice orchestrator
     request_data = {
         "cluster_name": cluster_name,
@@ -67,13 +63,19 @@ async def launch_remote(
     try:
         # Make the request to the Lattice orchestrator
         async with httpx.AsyncClient() as client:
+            # Build headers: prefer configured API key, otherwise forward incoming Authorization header
+            outbound_headers = {
+                "Content-Type": "application/x-www-form-urlencoded"
+            }
+            incoming_auth = request.headers.get("AUTHORIZATION")
+            if incoming_auth:
+                outbound_headers["AUTHORIZATION"] = incoming_auth
+
             response = await client.post(
                 f"{gpu_orchestrator_url}",
-                headers={
-                    "Authorization": f"Bearer {gpu_orchestrator_api_key}",
-                    "Content-Type": "application/x-www-form-urlencoded"
-                },
+                headers=outbound_headers,
                 data=request_data,
+                cookies=request.cookies,
                 timeout=30.0
             )
             
@@ -84,7 +86,6 @@ async def launch_remote(
                     "command": command,
                     "gpu_orchestrator_url": gpu_orchestrator_url,
                     "gpu_orchestrator_port": gpu_orchestrator_port,
-                    "gpu_orchestrator_api_key": gpu_orchestrator_api_key,
                     "lattice_response": response.json(),
                 }
                 
