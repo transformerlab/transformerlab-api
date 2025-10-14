@@ -162,7 +162,7 @@ def setup_user_s3_mount(user_id: str, organization_id: str | None = None) -> boo
         # Create the directory
         os.makedirs(bucket_remote_path, exist_ok=True)
         print(f"Created directory: {bucket_remote_path}")
-        
+
 
         # Run the S3 mount command (mount-s3 for Linux, s3fs for macOS)
         success = run_s3_mount_command(bucket_name, bucket_remote_path)
