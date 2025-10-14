@@ -68,7 +68,6 @@ def check_remote_path_exists_and_has_files(remote_path: str) -> bool:
         print(f"Error checking remote path {remote_path}: {e}")
         return False
 
-
 def run_s3_mount_command(bucket_name: str, remote_workspace_dir: str, profile: str = "transformerlab-s3") -> bool:
     """
     Run the appropriate S3 mounting command (mount-s3 for Linux, s3fs for macOS).

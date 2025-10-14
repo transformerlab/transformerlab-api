@@ -6,9 +6,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body
 
-from transformerlab.db.db import experiment_get
 
-from lab import dirs
+from lab import Experiment
 
 from werkzeug.utils import secure_filename
 from fastapi.responses import FileResponse
@@ -18,17 +17,10 @@ router = APIRouter(prefix="/conversations", tags=["conversations"])
 
 
 @router.get(path="/list")
-async def get_conversations(experimentId: int):
-    # first get the experiment name:
-    data = await experiment_get(experimentId)
-
-    # if the experiment does not exist, return an error:
-    if data is None:
-        return {"message": f"Experiment {experimentId} does not exist"}
-
-    experiment_name = data["name"]
-
-    experiment_dir = dirs.experiment_dir_by_name(experiment_name)
+async def get_conversations(experimentId: str):
+    exp_obj = Experiment.get(experimentId)
+    experiment_dir = exp_obj.get_dir()
+    
     conversation_dir = experiment_dir + "/conversations/"
 
     # make directory if it does not exist:
@@ -64,21 +56,12 @@ async def get_conversations(experimentId: int):
 
 @router.post(path="/save")
 async def save_conversation(
-    experimentId: int, conversation_id: Annotated[str, Body()], conversation: Annotated[str, Body()]
+    experimentId: str, conversation_id: Annotated[str, Body()], conversation: Annotated[str, Body()]
 ):
-    # first get the experiment name:
-    data = await experiment_get(experimentId)
-
     conversation_id = secure_filename(conversation_id)
+    exp_obj = Experiment.get(experimentId)
+    experiment_dir = exp_obj.get_dir()
 
-    # if the experiment does not exist, return an error:
-    if data is None:
-        return {"message": f"Experiment {experimentId} does not exist"}
-
-    experiment_name = data["name"]
-
-    # The following prevents path traversal attacks:
-    experiment_dir = dirs.experiment_dir_by_name(experiment_name)
     conversation_dir = "conversations/"
     final_path = (
         Path(experiment_dir)
@@ -97,20 +80,11 @@ async def save_conversation(
 
 
 @router.delete(path="/delete")
-async def delete_conversation(experimentId: int, conversation_id: str):
-    # first get the experiment name:
-    data = await experiment_get(experimentId)
+async def delete_conversation(experimentId: str, conversation_id: str):
+    exp_obj = Experiment.get(experimentId)
+    experiment_dir = exp_obj.get_dir()
 
     conversation_id = secure_filename(conversation_id)
-
-    # if the experiment does not exist, return an error:
-    if data is None:
-        return {"message": f"Experiment {id} does not exist"}
-
-    experiment_name = data["name"]
-
-    # The following prevents path traversal attacks:
-    experiment_dir = dirs.experiment_dir_by_name(experiment_name)
     conversation_dir = "conversations/"
     final_path = (
         Path(experiment_dir)
@@ -128,17 +102,9 @@ async def delete_conversation(experimentId: int, conversation_id: str):
 
 
 @router.get(path="/list_audio")
-async def list_audio(experimentId: int):
-    # first get the experiment name:
-    data = await experiment_get(experimentId)
-
-    # if the experiment does not exist, return an error:
-    if data is None:
-        return {"message": f"Experiment {experimentId} does not exist"}
-
-    experiment_name = secure_filename(data["name"])
-
-    experiment_dir = dirs.experiment_dir_by_name(experiment_name)
+async def list_audio(experimentId: str):
+    exp_obj = Experiment.get(experimentId)
+    experiment_dir = exp_obj.get_dir()
     audio_dir = os.path.join(experiment_dir, "audio")
     os.makedirs(name=audio_dir, exist_ok=True)
 
@@ -164,17 +130,9 @@ async def list_audio(experimentId: int):
 
 
 @router.get(path="/download_audio")
-async def download_audio(experimentId: int, filename: str):
-    # first get the experiment name:
-    data = await experiment_get(experimentId)
-
-    # if the experiment does not exist, return an error:
-    if data is None:
-        return {"message": f"Experiment {experimentId} does not exist"}
-
-    experiment_name = data["name"]
-
-    experiment_dir = dirs.experiment_dir_by_name(experiment_name)
+async def download_audio(experimentId: str, filename: str):
+    exp_obj = Experiment.get(experimentId)
+    experiment_dir = exp_obj.get_dir()
     audio_dir = os.path.join(experiment_dir, "audio")
 
     # now download the audio file
@@ -189,7 +147,7 @@ async def download_audio(experimentId: int, filename: str):
 
 # NOTE: For this endpoint, you must pass the metadata id (the .json file name), not the specific audio file name.
 @router.delete(path="/delete_audio")
-async def delete_audio(experimentId: int, id: str):
+async def delete_audio(experimentId: str, id: str):
     """
     Delete an audio file associated with a specific experiment.
 
@@ -218,16 +176,8 @@ async def delete_audio(experimentId: int, id: str):
                         {"message": "Experiment <experimentId> does not exist"}
                         {"message": "Audio file <filename> does not exist in experiment <experimentId>"}
     """
-    # first get the experiment name:
-    data = await experiment_get(experimentId)
-
-    # if the experiment does not exist, return an error:
-    if data is None:
-        return {"message": f"Experiment {experimentId} does not exist"}
-
-    experiment_name = data["name"]
-
-    experiment_dir = dirs.experiment_dir_by_name(experiment_name)
+    exp_obj = Experiment.get(experimentId)
+    experiment_dir = exp_obj.get_dir()
     audio_dir = os.path.join(experiment_dir, "audio")
     
     # Delete the metadata file (.json)
