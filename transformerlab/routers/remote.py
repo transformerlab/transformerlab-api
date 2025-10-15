@@ -3,7 +3,6 @@ import httpx
 from fastapi import APIRouter, Form, Request
 from typing import Optional
 
-from transformerlab.services.tasks_service import tasks_service
 
 router = APIRouter(prefix="/remote", tags=["remote"])
 
