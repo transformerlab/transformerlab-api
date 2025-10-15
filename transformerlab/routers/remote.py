@@ -80,46 +80,11 @@ async def launch_remote(
             )
             
             if response.status_code == 200:
-                # Create a task with remote_task=True so it appears in the filesystem
-                task_config = {
-                    "cluster_name": cluster_name,
-                    "command": command,
-                    "gpu_orchestrator_url": gpu_orchestrator_url,
-                    "gpu_orchestrator_port": gpu_orchestrator_port,
-                    "lattice_response": response.json(),
-                }
-                
-                # Add optional parameters to task config
-                if cpus:
-                    task_config["cpus"] = cpus
-                if memory:
-                    task_config["memory"] = memory
-                if disk_space:
-                    task_config["disk_space"] = disk_space
-                if accelerators:
-                    task_config["accelerators"] = accelerators
-                if num_nodes:
-                    task_config["num_nodes"] = num_nodes
-                if setup:
-                    task_config["setup"] = setup
-                
-                # Create the task with remote_task=True
-                task_id = tasks_service.add_task(
-                    name=task_name if task_name else cluster_name,
-                    task_type="REMOTE",
-                    inputs={},
-                    config=task_config,
-                    plugin="remote_orchestrator",
-                    outputs={},
-                    experiment_id=experimentId,
-                    remote_task=True
-                )
-                
+                # Do not create a task here; frontend creates task separately.
                 return {
-                    "status": "success", 
+                    "status": "success",
                     "data": response.json(),
-                    "task_id": task_id,
-                    "message": "Remote instance launched successfully"
+                    "message": "Remote instance launched successfully",
                 }
             else:
                 return {
