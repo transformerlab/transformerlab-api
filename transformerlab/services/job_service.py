@@ -320,8 +320,7 @@ def _trigger_workflows_on_job_completion_sync(job_id: str):
         job = Job.get(job_id)
         job_type = job.get_type()
         # Get experiment_id from job data to match the type expected by workflow functions
-        job_data = job_get(job_id)
-        experiment_id = job_data.get("experiment_id") if job_data else None
+        experiment_id = job.get_experiment_id()
         
         if not experiment_id:
             return
