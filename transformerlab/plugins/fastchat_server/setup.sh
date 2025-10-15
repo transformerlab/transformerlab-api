@@ -7,3 +7,5 @@ fi
 
 # For GPT OSS
 uv pip install "kernels>=0.9.0" "peft>=0.17.0" "trl>=0.21.0" "trackio"
+
+uv pip install "timm==1.0.20"

@@ -178,6 +178,8 @@ importlib-metadata==7.1.0
     # via
     #   controlnet-aux
     #   diffusers
+iniconfig==2.1.0
+    # via pytest
 isodate==0.7.2
     # via azure-ai-documentintelligence
 jinja2==3.1.4
@@ -300,6 +302,7 @@ packaging==24.1
     #   onnxruntime
     #   peft
     #   pooch
+    #   pytest
     #   scikit-image
     #   tensorboard
     #   tensorboardx
@@ -326,6 +329,8 @@ platformdirs==4.3.6
     # via
     #   pooch
     #   wandb
+pluggy==1.6.0
+    # via pytest
 pooch==1.8.2
     # via librosa
 prompt-toolkit==3.0.50
@@ -372,11 +377,14 @@ pydub==0.25.1
 pygments==2.19.1
     # via
     #   markdown2
+    #   pytest
     #   rich
 pyjwt==2.10.1
     # via
     #   msal
     #   workos
+pytest==8.4.2
+    # via transformerlab
 python-dateutil==2.9.0.post0
     # via pandas
 python-dotenv==1.0.1
@@ -520,7 +528,7 @@ timm==1.0.15
     # via
     #   -r requirements.in
     #   controlnet-aux
-tokenizers==0.21.1
+tokenizers==0.22.1
     # via transformers
 torch==2.8.0
     # via
@@ -549,10 +557,12 @@ tqdm==4.66.5
     #   sentence-transformers
     #   transformers
 transformerlab==0.0.28
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   transformerlab-inference
 transformerlab-inference==0.2.50
     # via -r requirements.in
-transformers==4.55.2
+transformers==4.57.1
     # via
     #   -r requirements.in
     #   peft
