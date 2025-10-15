@@ -563,7 +563,7 @@ transformerlab==0.0.28
     # via
     #   -r requirements-rocm.in
     #   transformerlab-inference
-transformerlab-inference==0.2.50
+transformerlab-inference==0.2.51
     # via -r requirements-rocm.in
 transformers==4.57.1
     # via
