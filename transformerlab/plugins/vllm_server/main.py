@@ -42,6 +42,11 @@ real_plugin_dir = os.path.realpath(os.path.dirname(__file__))
 python_executable = get_python_executable(real_plugin_dir)
 
 port = int(parameters.get("port", 8000))
+max_model_len = int(parameters.get("max_model_len", 0))
+if max_model_len <= 0:
+    max_model_len = None
+else:
+    max_model_len = str(max_model_len)
 print("Starting vLLM server...", file=sys.stderr)
 
 os.makedirs(TEMP_IMAGE_DIR, exist_ok=True)
@@ -62,9 +67,11 @@ vllm_args = [
     "--enforce-eager",
     "--allowed-local-media-path",
     str(TEMP_IMAGE_DIR),
-    "--max-model-len",
-    "4096",
 ]
+
+# Add max model length if provided
+if max_model_len is not None:
+    vllm_args.extend(["--max-model-len", max_model_len])
 
 # Add tensor parallel size if multiple GPUs are available
 num_gpus = torch.cuda.device_count()
