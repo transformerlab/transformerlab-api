@@ -192,7 +192,7 @@ async def job_update_status(
         experiment_id: The experiment ID (required for most operations, optional for backward compatibility)
         error_msg: Optional error message to add to job data
     """
-    # Update the job status in the database using SDK Job class
+    # Update the job status using SDK Job class
     try:
         job = Job.get(job_id)
         if experiment_id is not None and job.get_experiment_id() != experiment_id:
@@ -200,7 +200,9 @@ async def job_update_status(
         job.update_status(status)
         if error_msg:
             job.set_error_message(error_msg)
-    except Exception:
+    except Exception as e:
+        print(f"Error updating job {job_id}: {e}")
+        
         pass
 
     # Trigger workflows if job status is COMPLETE
@@ -225,7 +227,8 @@ async def job_update(job_id: str, type: str, status: str, experiment_id: Optiona
             return
         job.set_type(type)
         job.update_status(status)
-    except Exception:
+    except Exception as e:
+        print(f"Error updating job {job_id}: {e}")
         pass
 
     # Trigger workflows if job status is COMPLETE
@@ -245,7 +248,7 @@ def job_update_status_sync(
         experiment_id: The experiment ID (required for most operations, optional for backward compatibility)
         error_msg: Optional error message to add to job data
     """
-    # Update the job status in the database using SDK Job class
+    # Update the job status using SDK Job class
     try:
         job = Job.get(job_id)
         if experiment_id is not None and job.get_experiment_id() != experiment_id:
@@ -253,7 +256,8 @@ def job_update_status_sync(
         job.update_status(status)
         if error_msg:
             job.set_error_message(error_msg)
-    except Exception:
+    except Exception as e:
+        print(f"Error updating job {job_id}: {e}")
         pass
 
     # Trigger workflows if job status is COMPLETE
@@ -276,7 +280,8 @@ def job_update_sync(job_id: str, status: str, experiment_id: Optional[str] = Non
         if experiment_id is not None and job.get_experiment_id() != experiment_id:
             return
         job.update_status(status)
-    except Exception:
+    except Exception as e:
+        print(f"Error updating job {job_id}: {e}")
         pass
 
     # Trigger workflows if job status is COMPLETE
@@ -304,7 +309,8 @@ def job_update_type_and_status_sync(job_id: str, job_type: str, status: str, exp
         # Trigger workflows if job status is COMPLETE
         if status == "COMPLETE":
             _trigger_workflows_on_job_completion_sync(job_id)
-    except Exception:
+    except Exception as e:
+        print(f"Error updating job {job_id}: {e}")
         pass
 
 
@@ -379,5 +385,6 @@ def job_mark_as_complete_if_running(job_id: int, experiment_id: int) -> None:
         if job.get_status() == "RUNNING":
             job.update_status("COMPLETE")
             _trigger_workflows_on_job_completion_sync(job_id)
-    except Exception:
+    except Exception as e:
+        print(f"Error marking job {job_id} as complete: {e}")
         pass
