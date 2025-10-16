@@ -40,7 +40,6 @@ load_env_files() {
 
 # Load environment variables
 load_env_files
-
 # echo "Your shell is $SHELL"
 # echo "Conda's binary is at ${CONDA_BIN}"
 # echo "Your current directory is $(pwd)"
