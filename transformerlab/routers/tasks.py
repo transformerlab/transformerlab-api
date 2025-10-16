@@ -127,14 +127,14 @@ async def tasks_delete_all():
 
 @router.get("/{task_id}/queue", summary="Queue a task to run")
 async def queue_task(task_id: str, input_override: str = "{}", output_override: str = "{}"):
-    task_to_queue = await tasks_service.tasks_get_by_id(task_id)
+    task_to_queue = tasks_service.tasks_get_by_id(task_id)
     if task_to_queue is None:
         return {"message": "TASK NOT FOUND"}
-    
+
     # Skip remote tasks - they are handled by the launch_remote route, not the job queue
     if task_to_queue.get("remote_task", False):
         return {"message": "REMOTE TASK - Cannot queue remote tasks, use launch_remote endpoint instead"}
-    
+
     job_type = task_to_queue["type"]
     job_status = "QUEUED"
     job_data = {}

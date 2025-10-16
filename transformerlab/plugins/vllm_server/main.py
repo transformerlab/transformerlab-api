@@ -62,6 +62,8 @@ vllm_args = [
     "--enforce-eager",
     "--allowed-local-media-path",
     str(TEMP_IMAGE_DIR),
+    "--max-model-len",
+    "4096",
 ]
 
 # Add tensor parallel size if multiple GPUs are available
