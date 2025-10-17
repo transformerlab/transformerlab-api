@@ -1,0 +1,8 @@
+[
+  {
+    "name": "Test Script Example",
+    "description": "Runs transformerlab-sdk/test_script.py and uploads its directory to remote.",
+    "subdir": "test_script_task"
+  }
+]
+

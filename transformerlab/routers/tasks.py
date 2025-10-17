@@ -1,6 +1,7 @@
 import json
 
-from fastapi import APIRouter, Body, Request
+from fastapi import APIRouter, Body, Request, Form
+from typing import Optional
 import os
 import tempfile
 import shutil
@@ -259,22 +260,22 @@ async def tasks_gallery_list():
 @router.post("/import_from_gallery", summary="Import a task from transformerlab/galleries tasks subdirectory")
 async def import_task_from_gallery(
     request: Request,
-    subdir: str,
-    experiment_id: str | None = None,
-    upload: bool = True,
-    repo_url: str | None = None,
+    subdir: str = Form(...),
+    experiment_id: Optional[str] = Form(None),
+    upload: Optional[bool] = Form(True),
+    repo_url: Optional[str] = Form(None),
 ):
     """
     Clone the specific tasks/<subdir> from transformerlab/galleries and create a REMOTE task using task.json.
     If task.json includes an "upload_dir" key, run a test upload using transformerlab-sdk/test_script.py facilities later.
     """
     # Prepare temp directory for shallow clone of specific path
-    repo_url = "https://github.com/transformerlab/galleries.git"
+    remote_repo_url = "https://github.com/transformerlab/galleries.git"
     tmp_dir = tempfile.mkdtemp(prefix="tlab_tasks_gallery_")
     try:
         # Sparse checkout only the requested subdir
         subprocess.check_call(["git", "init"], cwd=tmp_dir)
-        subprocess.check_call(["git", "remote", "add", "origin", repo_url], cwd=tmp_dir)
+        subprocess.check_call(["git", "remote", "add", "origin", remote_repo_url], cwd=tmp_dir)
         subprocess.check_call(["git", "config", "core.sparseCheckout", "true"], cwd=tmp_dir)
         sparse_info_dir = os.path.join(tmp_dir, ".git", "info")
         os.makedirs(sparse_info_dir, exist_ok=True)
