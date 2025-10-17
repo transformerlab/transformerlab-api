@@ -281,7 +281,8 @@ async def tasks_local_gallery_list():
                             "name": task_data.get("name", item),
                             "description": task_data.get("description", ""),
                             "subdir": item,
-                            "source": "local"
+                            "source": "local",
+                            "tag": task_data.get("tag", "OTHER")
                         })
                     except Exception as e:
                         print(f"Error reading {task_json_path}: {e}")
@@ -489,6 +490,7 @@ async def export_task_to_local_gallery(
     task_name: str = Form(...),
     description: str = Form(...),
     source_task_id: str = Form(...),
+    tag: str = Form("OTHER"),
     experiment_id: Optional[str] = Form(None),
 ):
     """
@@ -524,7 +526,8 @@ async def export_task_to_local_gallery(
             "outputs": source_task.get("outputs", {}),
             "config": source_task.get("config", {}),
             "source": "local_gallery",
-            "imported_from": source_task_id
+            "imported_from": source_task_id,
+            "tag": tag
         }
         
         task_json_path = os.path.join(task_dir, "task.json")
