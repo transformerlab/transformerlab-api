@@ -1,9 +1,7 @@
 [
-  {
-    "name": "Test Script Example",
-    "description": "Runs transformerlab-sdk/test_script.py and uploads its directory to remote.",
-    "tag": "TRAIN"
-  }
+    {
+        "name": "test-script-remote",
+        "description": "Example remote task that uses transformerlab-sdk test_script and uploads its directory.",
+        "tag": "TRAIN"
+    }
 ]
-
-
