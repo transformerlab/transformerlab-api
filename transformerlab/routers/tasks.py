@@ -321,8 +321,13 @@ async def import_task_from_gallery(
             f.write(f"tasks/{subdir}\n")
         subprocess.check_call(["git", "pull", "--depth", "1", "origin", "main"], cwd=tmp_dir)
 
-        task_dir = os.path.join(tmp_dir, "tasks", subdir)
-        if not task_dir.startswith(tmp_dir):
+        # Validate subdir: reject traversal and normalize path
+        if os.path.isabs(subdir) or ".." in subdir or "/" in subdir or "\\" in subdir or not subdir.strip():
+            return {"status": "error", "message": "Invalid subdirectory name"}
+        base_tasks_dir = os.path.join(tmp_dir, "tasks")
+        task_dir = os.path.normpath(os.path.join(base_tasks_dir, subdir))
+        # Make sure the resolved path is within the expected tasks dir
+        if not task_dir.startswith(base_tasks_dir + os.sep):
             return {"status": "error", "message": "Invalid task directory"}
         task_json_path = os.path.join(task_dir, "task.json")
         if not os.path.isfile(task_json_path):
