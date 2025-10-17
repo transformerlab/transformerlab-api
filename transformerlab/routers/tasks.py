@@ -255,7 +255,8 @@ async def tasks_gallery_list():
         gallery = galleries.get_tasks_gallery()
         return {"status": "success", "data": gallery}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        print(f"Error fetching task gallery: {e}")
+        return {"status": "error", "message": "An error occurred while fetching the task gallery"}
 
 
 @router.get("/local_gallery", summary="Returns local tasks-gallery entries from workspace")
@@ -290,7 +291,8 @@ async def tasks_local_gallery_list():
         
         return {"status": "success", "data": local_tasks}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        print(f"Error fetching local task gallery: {e}")
+        return {"status": "error", "message": "An error occurred while fetching the local task gallery"}
 
 
 @router.post("/import_from_gallery", summary="Import a task from transformerlab/galleries tasks subdirectory")
@@ -475,7 +477,8 @@ async def import_task_from_gallery(
     except subprocess.CalledProcessError as e:
         return {"status": "error", "message": f"Git error: {e}"}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        print(f"Error importing task from gallery: {e}")
+        return {"status": "error", "message": "An error occurred while importing the task from the gallery"}
     finally:
         try:
             shutil.rmtree(tmp_dir)
@@ -535,7 +538,8 @@ async def export_task_to_local_gallery(
         
         return {"status": "success", "task_dir": task_dir_name}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        print(f"Error exporting task to local gallery: {e}")
+        return {"status": "error", "message": "An error occurred while exporting the task to the local gallery"}
 
 
 @router.post("/import_from_local_gallery", summary="Import a task from local tasks-gallery")
@@ -602,4 +606,5 @@ async def import_task_from_local_gallery(
             return {"status": "success", "task_id": task_id, "action": "created"}
 
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        print(f"Error importing task from local gallery: {e}")
+        return {"status": "error", "message": "An error occurred while creating the task"}
