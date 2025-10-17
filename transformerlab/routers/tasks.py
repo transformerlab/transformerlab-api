@@ -322,6 +322,8 @@ async def import_task_from_gallery(
         subprocess.check_call(["git", "pull", "--depth", "1", "origin", "main"], cwd=tmp_dir)
 
         task_dir = os.path.join(tmp_dir, "tasks", subdir)
+        if not task_dir.startswith(tmp_dir):
+            return {"status": "error", "message": "Invalid task directory"}
         task_json_path = os.path.join(task_dir, "task.json")
         if not os.path.isfile(task_json_path):
             return {"status": "error", "message": f"task.json not found in tasks/{subdir}"}
@@ -557,6 +559,8 @@ async def import_task_from_local_gallery(
         workspace_dir = get_workspace_dir()
         local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
         task_dir = os.path.join(local_gallery_dir, subdir)
+        if not task_dir.startswith(local_gallery_dir):
+            return {"status": "error", "message": "Invalid task directory"}
         task_json_path = os.path.join(task_dir, "task.json")
         
         if not os.path.isfile(task_json_path):
