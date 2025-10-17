@@ -475,7 +475,8 @@ async def import_task_from_gallery(
 
         return {"status": "success", "task_id": task_id}
     except subprocess.CalledProcessError as e:
-        return {"status": "error", "message": f"Git error: {e}"}
+        print(f"Git error: {e}")
+        return {"status": "error", "message": "An error occurred while importing the task from the gallery"}
     except Exception as e:
         print(f"Error importing task from gallery: {e}")
         return {"status": "error", "message": "An error occurred while importing the task from the gallery"}
