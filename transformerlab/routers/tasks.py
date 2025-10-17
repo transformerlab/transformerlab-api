@@ -317,8 +317,7 @@ async def import_task_from_gallery(
         os.makedirs(sparse_info_dir, exist_ok=True)
         with open(os.path.join(sparse_info_dir, "sparse-checkout"), "w") as f:
             f.write(f"tasks/{subdir}\n")
-        # For testing: pull from specific branch containing tasks library scaffolding
-        subprocess.check_call(["git", "pull", "--depth", "1", "origin", "add/tasks-library-v1"], cwd=tmp_dir)
+        subprocess.check_call(["git", "pull", "--depth", "1", "origin", "main"], cwd=tmp_dir)
 
         task_dir = os.path.join(tmp_dir, "tasks", subdir)
         task_json_path = os.path.join(task_dir, "task.json")
