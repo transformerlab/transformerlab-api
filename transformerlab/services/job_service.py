@@ -3,16 +3,7 @@ from typing import Optional
 
 from lab import Experiment, Job
 
-# legacy job_update_status and job_update to avoid conflict
-import transformerlab.db.jobs as db_jobs
-from transformerlab.db.sync import (
-    job_update_status_sync as db_job_update_status_sync,
-    job_update_sync as db_job_update_sync,
-    get_sync_session,
-    job_mark_as_complete_if_running as db_job_mark_as_complete_if_running,
-)
-from transformerlab.shared.models import models
-from sqlalchemy import select
+
 
 # Allowed job types:
 ALLOWED_JOB_TYPES = [
@@ -201,8 +192,18 @@ async def job_update_status(
         experiment_id: The experiment ID (required for most operations, optional for backward compatibility)
         error_msg: Optional error message to add to job data
     """
-    # Update the job status in the database
-    await db_jobs.job_update_status(job_id, status, experiment_id, error_msg)
+    # Update the job status using SDK Job class
+    try:
+        job = Job.get(job_id)
+        if experiment_id is not None and job.get_experiment_id() != experiment_id:
+            return
+        job.update_status(status)
+        if error_msg:
+            job.set_error_message(error_msg)
+    except Exception as e:
+        print(f"Error updating job {job_id}: {e}")
+        
+        pass
 
     # Trigger workflows if job status is COMPLETE
     if status == "COMPLETE":
@@ -219,8 +220,16 @@ async def job_update(job_id: str, type: str, status: str, experiment_id: Optiona
         status: The new status to set
         experiment_id: The experiment ID (required for most operations, optional for backward compatibility)
     """
-    # Update the job in the database
-    await db_jobs.job_update(job_id, type, status, experiment_id)
+    # Update the job in the database using SDK Job class
+    try:
+        job = Job.get(job_id)
+        if experiment_id is not None and job.get_experiment_id() != experiment_id:
+            return
+        job.set_type(type)
+        job.update_status(status)
+    except Exception as e:
+        print(f"Error updating job {job_id}: {e}")
+        pass
 
     # Trigger workflows if job status is COMPLETE
     if status == "COMPLETE":
@@ -239,8 +248,17 @@ def job_update_status_sync(
         experiment_id: The experiment ID (required for most operations, optional for backward compatibility)
         error_msg: Optional error message to add to job data
     """
-    # Update the job status in the database
-    db_job_update_status_sync(job_id, status, experiment_id, error_msg)
+    # Update the job status using SDK Job class
+    try:
+        job = Job.get(job_id)
+        if experiment_id is not None and job.get_experiment_id() != experiment_id:
+            return
+        job.update_status(status)
+        if error_msg:
+            job.set_error_message(error_msg)
+    except Exception as e:
+        print(f"Error updating job {job_id}: {e}")
+        pass
 
     # Trigger workflows if job status is COMPLETE
     if status == "COMPLETE":
@@ -256,89 +274,117 @@ def job_update_sync(job_id: str, status: str, experiment_id: Optional[str] = Non
         status: The new status to set
         experiment_id: The experiment ID (required for most operations, optional for backward compatibility)
     """
-    # Update the job in the database
-    db_job_update_sync(job_id, status, experiment_id)
+    # Update the job in the database using SDK Job class
+    try:
+        job = Job.get(job_id)
+        if experiment_id is not None and job.get_experiment_id() != experiment_id:
+            return
+        job.update_status(status)
+    except Exception as e:
+        print(f"Error updating job {job_id}: {e}")
+        pass
 
     # Trigger workflows if job status is COMPLETE
     if status == "COMPLETE":
         _trigger_workflows_on_job_completion_sync(job_id)
 
 
+def job_update_type_and_status_sync(job_id: str, job_type: str, status: str, experiment_id: Optional[str] = None):
+    """
+    Synchronous version of job update for both type and status.
+
+    Args:
+        job_id: The ID of the job to update
+        job_type: The new type to set
+        status: The new status to set
+        experiment_id: The experiment ID (required for most operations, optional for backward compatibility)
+    """
+    try:
+        job = Job.get(job_id)
+        if experiment_id is not None and job.get_experiment_id() != experiment_id:
+            return
+        job.set_type(job_type)
+        job.update_status(status)
+        
+        # Trigger workflows if job status is COMPLETE
+        if status == "COMPLETE":
+            _trigger_workflows_on_job_completion_sync(job_id)
+    except Exception as e:
+        print(f"Error updating job {job_id}: {e}")
+        pass
+
+
 def _trigger_workflows_on_job_completion_sync(job_id: str):
     """
     Sync version of workflow triggering for use in sync contexts
+    Note: This function cannot be truly sync since it needs to use async database operations.
+    It should be called from an async context or we should use a sync database session.
+    For now, we'll leave it as-is but it may need to be refactored.
     """
     try:
-        with get_sync_session() as session:
-            # 1. Get job details (sync)
-            job_result = session.execute(
-                select(models.Job.type, models.Job.experiment_id).where(models.Job.id == job_id)
-            )
-            job_row = job_result.fetchone()
-            if not job_row:
-                return
+        # 1. Get job details using SDK
+        job = Job.get(job_id)
+        job_type = job.get_type()
+        # Get experiment_id from job data to match the type expected by workflow functions
+        experiment_id = job.get_experiment_id()
+        
+        if not experiment_id:
+            return
 
-            job_type = job_row[0]
-            experiment_id = job_row[1]
+        # 2. Check if job type is supported
+        supported_triggers = SUPPORTED_WORKFLOW_TRIGGERS
+        if job_type not in supported_triggers:
+            return
 
-            # 2. Check if job type is supported
-            supported_triggers = SUPPORTED_WORKFLOW_TRIGGERS
-            if job_type not in supported_triggers:
-                return
-
-            # 4. Get workflows with matching trigger (sync)
-            workflows_result = session.execute(
-                select(models.Workflow.id, models.Workflow.config).where(models.Workflow.experiment_id == experiment_id)
-            )
-
-            triggered_workflow_ids = []
-
-            for workflow_row in workflows_result:
-                workflow_id = workflow_row[0]
-                config = workflow_row[1]
-
-                # Parse config and check triggers
-                try:
-                    if isinstance(config, str):
-                        config = json.loads(config)
-                    elif not isinstance(config, dict):
-                        continue
-
-                    triggers = config.get("triggers", [])
-
-                    if job_type in triggers:
-                        triggered_workflow_ids.append(workflow_id)
-
-                except (json.JSONDecodeError, TypeError):
-                    continue
-
-            # 5. Queue workflows (sync)
-            for workflow_id in triggered_workflow_ids:
-                # Get workflow name
-                workflow_result = session.execute(select(models.Workflow.name).where(models.Workflow.id == workflow_id))
-                workflow_name = workflow_result.scalar_one_or_none()
-
-                # Create workflow run using model object (same as async version)
-                workflow_run = models.WorkflowRun(
-                    workflow_id=workflow_id,
-                    workflow_name=workflow_name,
-                    job_ids="[]",
-                    node_ids="[]",
-                    status="QUEUED",
-                    current_tasks="[]",
-                    current_job_ids="[]",
-                    experiment_id=experiment_id,
-                )
-                session.add(workflow_run)
-
-            session.commit()
+        # 3. Get workflows with matching trigger using async database operations
+        # Note: This is a limitation - we can't easily do async operations in a sync context
+        # For now, we'll import the async function and call it
+        
+        # This is not ideal but necessary for now
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # We're already in an async context, create a task
+                asyncio.create_task(_trigger_workflows_async(job_id, job_type, experiment_id))
+            else:
+                # We're not in an async context, run it
+                asyncio.run(_trigger_workflows_async(job_id, job_type, experiment_id))
+        except RuntimeError:
+            # No event loop, create one
+            asyncio.run(_trigger_workflows_async(job_id, job_type, experiment_id))
+            
     except Exception as e:
         print(f"Error triggering workflows for job {job_id}: {e}")
 
+async def _trigger_workflows_async(job_id: str, job_type: str, experiment_id: str):
+    """Helper async function to trigger workflows"""
+    try:
+        from transformerlab.routers.experiment.workflows import workflows_get_by_trigger_type
+        
+        # Get workflows with matching trigger
+        triggered_workflow_ids = await workflows_get_by_trigger_type(experiment_id, job_type)
+        
+        # Queue workflows
+        if triggered_workflow_ids:
+            from transformerlab.db.workflows import workflow_queue
+            
+            for workflow_id in triggered_workflow_ids:
+                await workflow_queue(workflow_id)
+    except Exception as e:
+        print(f"Error in async workflow triggering for job {job_id}: {e}")
+
 
 def job_mark_as_complete_if_running(job_id: int, experiment_id: int) -> None:
-    """Service wrapper: call db.sync.job_mark_as_complete_if_running and then trigger workflows."""
-    # We cannot know from the db function whether an update occurred,
-    # but it's safe to attempt the trigger; it will read the type and queue accordingly.
-    db_job_mark_as_complete_if_running(job_id, experiment_id)
-    _trigger_workflows_on_job_completion_sync(job_id)
+    """Service wrapper: mark job as complete if running and then trigger workflows."""
+    try:
+        job = Job.get(job_id)
+        if experiment_id is not None and job.get_experiment_id() != experiment_id:
+            return
+        # Only update if currently running
+        if job.get_status() == "RUNNING":
+            job.update_status("COMPLETE")
+            _trigger_workflows_on_job_completion_sync(job_id)
+    except Exception as e:
+        print(f"Error marking job {job_id} as complete: {e}")
+        pass
