@@ -16,6 +16,7 @@ from transformerlab.models import model_helper
 from transformerlab.services.tasks_service import tasks_service
 from transformerlab.shared import galleries
 from transformerlab.shared.shared import slugify
+from lab.dirs import get_workspace_dir
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -257,6 +258,40 @@ async def tasks_gallery_list():
         return {"status": "error", "message": str(e)}
 
 
+@router.get("/local_gallery", summary="Returns local tasks-gallery entries from workspace")
+async def tasks_local_gallery_list():
+    """List tasks available in the local workspace tasks-gallery directory."""
+    try:
+        workspace_dir = get_workspace_dir()
+        local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
+        
+        if not os.path.exists(local_gallery_dir):
+            return {"status": "success", "data": []}
+        
+        local_tasks = []
+        for item in os.listdir(local_gallery_dir):
+            task_dir = os.path.join(local_gallery_dir, item)
+            if os.path.isdir(task_dir):
+                task_json_path = os.path.join(task_dir, "task.json")
+                if os.path.isfile(task_json_path):
+                    try:
+                        with open(task_json_path) as f:
+                            task_data = json_lib.load(f)
+                        local_tasks.append({
+                            "name": task_data.get("name", item),
+                            "description": task_data.get("description", ""),
+                            "subdir": item,
+                            "source": "local"
+                        })
+                    except Exception as e:
+                        print(f"Error reading {task_json_path}: {e}")
+                        continue
+        
+        return {"status": "success", "data": local_tasks}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
 @router.post("/import_from_gallery", summary="Import a task from transformerlab/galleries tasks subdirectory")
 async def import_task_from_gallery(
     request: Request,
@@ -425,3 +460,56 @@ async def import_task_from_gallery(
             shutil.rmtree(tmp_dir)
         except Exception:
             pass
+
+
+@router.post("/export_to_local_gallery", summary="Import a REMOTE task to local tasks-gallery")
+async def export_task_to_local_gallery(
+    request: Request,
+    task_name: str = Form(...),
+    description: str = Form(...),
+    source_task_id: str = Form(...),
+    experiment_id: Optional[str] = Form(None),
+):
+    """
+    Import an existing REMOTE task to the local tasks-gallery directory.
+    Creates <task_name>/task.json in WORKSPACE_DIR/tasks-gallery/.
+    """
+    try:
+        # Get the source task
+        source_task = tasks_service.tasks_get_by_id(source_task_id)
+        if not source_task:
+            return {"status": "error", "message": f"Source task {source_task_id} not found"}
+        
+        if not source_task.get("remote_task", False):
+            return {"status": "error", "message": "Source task must be a REMOTE task"}
+        
+        # Create local gallery directory structure
+        workspace_dir = get_workspace_dir()
+        local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
+        os.makedirs(local_gallery_dir, exist_ok=True)
+        
+        # Create task directory
+        task_dir_name = slugify(task_name)
+        task_dir = os.path.join(local_gallery_dir, task_dir_name)
+        os.makedirs(task_dir, exist_ok=True)
+        
+        # Create task.json for local gallery
+        local_task_data = {
+            "name": task_name,
+            "description": description,
+            "type": "REMOTE",
+            "plugin": source_task.get("plugin", "remote_task"),
+            "inputs": source_task.get("inputs", {}),
+            "outputs": source_task.get("outputs", {}),
+            "config": source_task.get("config", {}),
+            "source": "local_gallery",
+            "imported_from": source_task_id
+        }
+        
+        task_json_path = os.path.join(task_dir, "task.json")
+        with open(task_json_path, "w") as f:
+            json_lib.dump(local_task_data, f, indent=2)
+        
+        return {"status": "success", "task_dir": task_dir_name}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
