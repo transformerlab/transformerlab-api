@@ -1,6 +1,7 @@
-# Inspired by Phil Schmid's TRL Script: https://github.com/philschmid/deep-learning-pytorch-huggingface/blob/main/training/fine-tune-multimodal-llms-with-trl.ipynb
+from transformerlab.sdk.v1.train import tlab_trainer
 import os
 import torch
+from lab.dirs import WORKSPACE_DIR
 
 if torch.cuda.is_available():
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -10,9 +11,6 @@ from jinja2 import Environment
 from peft import LoraConfig, PeftModel
 from transformers import AutoModelForVision2Seq, AutoProcessor, BitsAndBytesConfig, Qwen2VLProcessor, AutoConfig
 from trl import SFTConfig, SFTTrainer
-from transformerlab.plugin import WORKSPACE_DIR
-from transformerlab.sdk.v1.train import tlab_trainer
-
 from qwen_vl_utils import process_vision_info
 
 jinja_environment = Environment()
@@ -20,6 +18,9 @@ jinja_environment = Environment()
 
 @tlab_trainer.job_wrapper()
 def train_vlm():
+    # Inspired by Phil Schmid's TRL Script: https://github.com/philschmid/deep-learning-pytorch-huggingface/blob/main/training/fine-tune-multimodal-llms-with-trl.ipynb
+
+    print("Training VLM...")
     # Load dataset using tlab_trainer
     datasets = tlab_trainer.load_dataset()
     dataset = datasets["train"]
