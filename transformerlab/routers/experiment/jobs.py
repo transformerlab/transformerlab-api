@@ -526,8 +526,41 @@ async def get_checkpoints(job_id: str, request: Request):
 
     """Get list of checkpoints for a job"""
     job = job_service.job_get(job_id)
+    if job is None:
+        return {"checkpoints": []}
+    
     job_data = job["job_data"]
 
+    # First try to use the new SDK method to get checkpoints
+    try:
+        from lab.job import Job
+        
+        # Get checkpoints using the SDK method
+        sdk_job = Job(job_id)
+        checkpoint_paths = sdk_job.get_checkpoint_paths()
+        
+        if checkpoint_paths and len(checkpoint_paths) > 0:
+            checkpoints = []
+            for checkpoint_path in checkpoint_paths:
+                try:
+                    stat = os.stat(checkpoint_path)
+                    modified_time = stat.st_mtime
+                    filesize = stat.st_size
+                    # Format the timestamp as ISO 8601 string
+                    formatted_time = datetime.fromtimestamp(modified_time).isoformat()
+                    filename = os.path.basename(checkpoint_path)
+                    checkpoints.append({"filename": filename, "date": formatted_time, "size": filesize})
+                except Exception as e:
+                    logging.error(f"Error getting stat for checkpoint {checkpoint_path}: {e}")
+                    continue
+            
+            # Sort checkpoints by filename in reverse (descending) order for consistent ordering
+            checkpoints.sort(key=lambda x: x["filename"], reverse=True)
+            return {"checkpoints": checkpoints}
+    except Exception as e:
+        logging.info(f"SDK checkpoint method failed for job {job_id}, falling back to legacy method: {e}")
+
+    # Fallback to the original logic if SDK method doesn't work or returns nothing
     # Check if the job has a supports_checkpoints flag
     # if "supports_checkpoints" not in job_data or not job_data["supports_checkpoints"]:
     #     return {"checkpoints": []}
@@ -589,5 +622,82 @@ async def get_checkpoints(job_id: str, request: Request):
         "model_name": model_name,
         "adaptor_name": adaptor_name,
     }
+
+
+@router.get("/{job_id}/artifacts")
+async def get_artifacts(job_id: str, request: Request):
+    if job_id is None or job_id == "" or job_id == "-1":
+        return {"artifacts": []}
+
+    """Get list of artifacts for a job"""
+    job = job_service.job_get(job_id)
+    if job is None:
+        return {"artifacts": []}
+    
+    job_data = job["job_data"]
+
+    # First try to use the new SDK method to get artifacts
+    try:
+        from lab.job import Job
+        
+        # Get artifacts using the SDK method
+        sdk_job = Job(job_id)
+        artifact_paths = sdk_job.get_artifact_paths()
+        
+        if artifact_paths:
+            artifacts = []
+            for artifact_path in artifact_paths:
+                try:
+                    stat = os.stat(artifact_path)
+                    modified_time = stat.st_mtime
+                    filesize = stat.st_size
+                    # Format the timestamp as ISO 8601 string
+                    formatted_time = datetime.fromtimestamp(modified_time).isoformat()
+                    filename = os.path.basename(artifact_path)
+                    artifacts.append({"filename": filename, "date": formatted_time, "size": filesize})
+                except Exception as e:
+                    logging.error(f"Error getting stat for artifact {artifact_path}: {e}")
+                    continue
+            
+            # Sort artifacts by filename in reverse (descending) order for consistent ordering
+            artifacts.sort(key=lambda x: x["filename"], reverse=True)
+            return {"artifacts": artifacts}
+    except Exception as e:
+        logging.info(f"SDK artifact method failed for job {job_id}, falling back to legacy method: {e}")
+
+    # Fallback to the original logic if SDK method doesn't work or returns nothing
+    # Get artifacts directory from job_data or use default location
+    artifacts_dir = job_data.get("artifacts_dir")
+    if not artifacts_dir:
+        # Use the SDK's artifacts directory structure
+        from lab.dirs import get_job_artifacts_dir
+        artifacts_dir = get_job_artifacts_dir(job_id)
+    
+    if not artifacts_dir or not os.path.exists(artifacts_dir):
+        return {"artifacts": []}
+
+    artifacts = []
+    try:
+        for filename in os.listdir(artifacts_dir):
+            file_path = os.path.join(artifacts_dir, filename)
+            if os.path.isfile(file_path):
+                try:
+                    stat = os.stat(file_path)
+                    modified_time = stat.st_mtime
+                    filesize = stat.st_size
+                    # Format the timestamp as ISO 8601 string
+                    formatted_time = datetime.fromtimestamp(modified_time).isoformat()
+                except Exception as e:
+                    logging.error(f"Error getting stat for file {file_path}: {e}")
+                    formatted_time = None
+                    filesize = None
+                artifacts.append({"filename": filename, "date": formatted_time, "size": filesize})
+    except OSError as e:
+        logging.error(f"Error reading artifacts directory {artifacts_dir}: {e}")
+
+    # Sort artifacts by filename in reverse (descending) order for consistent ordering
+    artifacts.sort(key=lambda x: x["filename"], reverse=True)
+
+    return {"artifacts": artifacts}
 
 
