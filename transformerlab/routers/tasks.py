@@ -72,6 +72,13 @@ async def delete_task(task_id: str):
 async def add_task(new_task: dict = Body()):
     # Perform secure_filename before adding the task
     new_task["name"] = secure_filename(new_task["name"])
+    # Support optional remote_task flag to mark remote task templates
+    remote_task_flag = False
+    try:
+        remote_task_flag = bool(new_task.get("remote_task", False))
+    except Exception:
+        remote_task_flag = False
+
     tasks_service.add_task(
         new_task["name"],
         new_task["type"],
@@ -80,6 +87,7 @@ async def add_task(new_task: dict = Body()):
         new_task["plugin"],
         new_task["outputs"],
         new_task["experiment_id"],
+        remote_task=remote_task_flag,
     )
     if new_task["type"] == "TRAIN":
         if not isinstance(new_task["config"], dict):
