@@ -568,15 +568,20 @@ async def import_task_from_local_gallery(
         task_dir = os.path.normpath(os.path.join(local_gallery_dir, subdir))
         local_gallery_dir_real = os.path.realpath(local_gallery_dir)
         task_dir_real = os.path.realpath(task_dir)
-        if not task_dir_real.startswith(local_gallery_dir_real + os.sep):
+        common_path = os.path.commonpath([local_gallery_dir_real, task_dir_real])
+        if common_path != local_gallery_dir_real:
             print(f"Invalid task directory: {task_dir_real} not in {local_gallery_dir_real}")
             return {"status": "error", "message": "Invalid task directory"}
         task_json_path = os.path.join(task_dir, "task.json")
         
-        if not os.path.isfile(task_json_path):
+        task_json_real = os.path.realpath(task_json_path)
+        if not task_json_real.startswith(local_gallery_dir_real + os.sep):
+            print(f"Invalid task.json path: {task_json_real} not in {local_gallery_dir_real}")
+            return {"status": "error", "message": "Invalid task.json path"}
+        if not os.path.isfile(task_json_real):
             return {"status": "error", "message": f"task.json not found in local gallery: {subdir}"}
 
-        with open(task_json_path) as f:
+        with open(task_json_real) as f:
             task_def = json_lib.load(f)
 
         # Build task fields, marking as remote
