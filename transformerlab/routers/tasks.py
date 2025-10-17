@@ -389,7 +389,8 @@ async def import_task_from_gallery(
                         subprocess.check_call(["git", "clone", "--depth", "1", repo_url, repo_tmp])
                         dir_to_upload = repo_tmp
                     except Exception as e:
-                        return {"status": "error", "message": f"Failed to clone repo for upload: {e}"}
+                        print(f"Failed to clone repo for upload: {e}")
+                        return {"status": "error", "message": "An error occurred while cloning the repository"}
 
                 if not dir_to_upload or not os.path.isdir(dir_to_upload):
                     return {"status": "error", "message": f"Upload directory not found: {dir_to_upload}"}
