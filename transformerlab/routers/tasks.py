@@ -1,12 +1,20 @@
 import json
 
-from fastapi import APIRouter, Body
+from fastapi import APIRouter, Body, Request
+import os
+import tempfile
+import shutil
+import json as json_lib
+import subprocess
+import httpx
 from werkzeug.utils import secure_filename
 
 from lab import Dataset
 from transformerlab.services.job_service import job_create
 from transformerlab.models import model_helper
 from transformerlab.services.tasks_service import tasks_service
+from transformerlab.shared import galleries
+from transformerlab.shared.shared import slugify
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -228,3 +236,158 @@ async def queue_task(task_id: str, input_override: str = "{}", output_override: 
         job_data=json.dumps(job_data),
     )
     return {"id": job_id}
+
+
+@router.get("/gallery", summary="Returns task gallery entries from remote cache")
+async def tasks_gallery_list():
+    """List tasks available in the remote galleries index."""
+    try:
+        gallery = galleries.get_tasks_gallery()
+        return {"status": "success", "data": gallery}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@router.post("/import_from_gallery", summary="Import a task from transformerlab/galleries tasks subdirectory")
+async def import_task_from_gallery(
+    request: Request,
+    subdir: str,
+    experiment_id: str | None = None,
+    upload: bool = True,
+    repo_url: str | None = None,
+):
+    """
+    Clone the specific tasks/<subdir> from transformerlab/galleries and create a REMOTE task using task.json.
+    If task.json includes an "upload_dir" key, run a test upload using transformerlab-sdk/test_script.py facilities later.
+    """
+    # Prepare temp directory for shallow clone of specific path
+    repo_url = "https://github.com/transformerlab/galleries.git"
+    tmp_dir = tempfile.mkdtemp(prefix="tlab_tasks_gallery_")
+    try:
+        # Sparse checkout only the requested subdir
+        subprocess.check_call(["git", "init"], cwd=tmp_dir)
+        subprocess.check_call(["git", "remote", "add", "origin", repo_url], cwd=tmp_dir)
+        subprocess.check_call(["git", "config", "core.sparseCheckout", "true"], cwd=tmp_dir)
+        sparse_info_dir = os.path.join(tmp_dir, ".git", "info")
+        os.makedirs(sparse_info_dir, exist_ok=True)
+        with open(os.path.join(sparse_info_dir, "sparse-checkout"), "w") as f:
+            f.write(f"tasks/{subdir}\n")
+        subprocess.check_call(["git", "pull", "--depth", "1", "origin", "main"], cwd=tmp_dir)
+
+        task_dir = os.path.join(tmp_dir, "tasks", subdir)
+        task_json_path = os.path.join(task_dir, "task.json")
+        if not os.path.isfile(task_json_path):
+            return {"status": "error", "message": f"task.json not found in tasks/{subdir}"}
+
+        with open(task_json_path) as f:
+            task_def = json_lib.load(f)
+
+        # Build task fields, marking as remote
+        task_name = slugify(task_def.get("name", subdir))
+        task_type = task_def.get("type", "REMOTE")
+        inputs = task_def.get("inputs", {})
+        config = task_def.get("config", {})
+        plugin = task_def.get("plugin", "remote_task")
+        outputs = task_def.get("outputs", {})
+
+        task_id = tasks_service.add_task(
+            name=task_name,
+            task_type=task_type,
+            inputs=inputs,
+            config=config,
+            plugin=plugin,
+            outputs=outputs,
+            experiment_id=experiment_id,
+            remote_task=True,
+        )
+
+        # Optional: if task.json suggests a folder to upload, we will just record it in config
+        upload_dir = task_def.get("upload_dir")
+        if upload_dir:
+            # Extend config to include upload_dir hint; optionally perform remote upload if requested
+            try:
+                task_obj = tasks_service.tasks_get_by_id(task_id)
+                if isinstance(task_obj.get("config"), str):
+                    task_obj["config"] = json_lib.loads(task_obj["config"]) if task_obj["config"] else {}
+                task_obj["config"]["upload_dir_hint"] = upload_dir
+                tasks_service.update_task(task_id, {"config": task_obj["config"]})
+            except Exception:
+                pass
+
+        # Optional remote upload flow to GPU orchestrator
+        if upload:
+            try:
+                # Determine directory to upload
+                dir_to_upload = None
+                if upload_dir and os.path.isabs(upload_dir):
+                    dir_to_upload = upload_dir
+                elif upload_dir:
+                    dir_to_upload = os.path.normpath(os.path.join(task_dir, upload_dir))
+                elif repo_url:
+                    # If explicit repo_url provided, do a separate sparse clone of that URL root
+                    repo_tmp = tempfile.mkdtemp(prefix="tlab_repo_upload_")
+                    try:
+                        subprocess.check_call(["git", "clone", "--depth", "1", repo_url, repo_tmp])
+                        dir_to_upload = repo_tmp
+                    except Exception as e:
+                        return {"status": "error", "message": f"Failed to clone repo for upload: {e}"}
+                else:
+                    dir_to_upload = task_dir
+
+                if not dir_to_upload or not os.path.isdir(dir_to_upload):
+                    return {"status": "error", "message": f"Upload directory not found: {dir_to_upload}"}
+
+                # Archive directory
+                archive_path = os.path.join(tmp_dir, f"{slugify(task_name)}.tar.gz")
+                subprocess.check_call(["tar", "-czf", archive_path, "-C", dir_to_upload, "."])
+
+                # Post to GPU orchestrator upload endpoint
+                gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
+                gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
+                upload_endpoint = os.getenv("GPU_ORCHESTRATION_UPLOAD_ENDPOINT", "/api/v1/files/upload")
+                if not gpu_orchestrator_url or not gpu_orchestrator_port:
+                    # If orchestrator not configured, just attach local path hint
+                    try:
+                        task_obj = tasks_service.tasks_get_by_id(task_id)
+                        if isinstance(task_obj.get("config"), str):
+                            task_obj["config"] = json_lib.loads(task_obj["config"]) if task_obj["config"] else {}
+                        task_obj["config"]["local_upload_archive"] = archive_path
+                        tasks_service.update_task(task_id, {"config": task_obj["config"]})
+                    except Exception:
+                        pass
+                else:
+                    dest = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}{upload_endpoint}"
+                    async with httpx.AsyncClient(timeout=60.0) as client:
+                        headers = {}
+                        incoming_auth = request.headers.get("AUTHORIZATION")
+                        if incoming_auth:
+                            headers["AUTHORIZATION"] = incoming_auth
+                        files = {"file": (os.path.basename(archive_path), open(archive_path, "rb"), "application/gzip")}
+                        resp = await client.post(dest, headers=headers, files=files, cookies=request.cookies)
+                        if resp.status_code == 200:
+                            remote_info = resp.json()
+                            remote_path = remote_info.get("path") or remote_info.get("remote_path") or remote_info
+                            try:
+                                task_obj = tasks_service.tasks_get_by_id(task_id)
+                                if isinstance(task_obj.get("config"), str):
+                                    task_obj["config"] = json_lib.loads(task_obj["config"]) if task_obj["config"] else {}
+                                task_obj["config"]["remote_upload_path"] = remote_path
+                                tasks_service.update_task(task_id, {"config": task_obj["config"]})
+                            except Exception:
+                                pass
+                        else:
+                            return {"status": "error", "message": f"Upload failed: {resp.status_code} {resp.text}"}
+
+            except Exception as e:
+                return {"status": "error", "message": f"Upload exception: {e}"}
+
+        return {"status": "success", "task_id": task_id}
+    except subprocess.CalledProcessError as e:
+        return {"status": "error", "message": f"Git error: {e}"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        try:
+            shutil.rmtree(tmp_dir)
+        except Exception:
+            pass
