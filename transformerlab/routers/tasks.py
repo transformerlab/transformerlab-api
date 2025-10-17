@@ -479,7 +479,8 @@ async def import_task_from_gallery(
                                 return {"status": "error", "message": f"Upload failed: {resp.status_code} {resp.text}"}
 
             except Exception as e:
-                return {"status": "error", "message": f"Upload exception: {e}"}
+                print(f"Upload exception: {e}")
+                return {"status": "error", "message": "An error occurred while uploading the task"}
 
         return {"status": "success", "task_id": task_id}
     except subprocess.CalledProcessError as e:
