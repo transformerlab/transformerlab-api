@@ -335,16 +335,37 @@ async def import_task_from_gallery(
         plugin = task_def.get("plugin", "remote_task")
         outputs = task_def.get("outputs", {})
 
-        task_id = tasks_service.add_task(
-            name=task_name,
-            task_type=task_type,
-            inputs=inputs,
-            config=config,
-            plugin=plugin,
-            outputs=outputs,
-            experiment_id=experiment_id,
-            remote_task=True,
-        )
+        # Check if task already exists and update instead of creating duplicate
+        existing_tasks = tasks_service.tasks_get_all()
+        existing_task = None
+        for task in existing_tasks:
+            if task.get("name") == task_name and task.get("remote_task", False):
+                existing_task = task
+                break
+
+        if existing_task:
+            # Update existing task
+            task_id = existing_task["id"]
+            tasks_service.update_task(task_id, {
+                "name": task_name,
+                "inputs": inputs,
+                "config": config,
+                "outputs": outputs,
+                "plugin": plugin
+            })
+            task_id = existing_task["id"]
+        else:
+            # Create new task
+            task_id = tasks_service.add_task(
+                name=task_name,
+                task_type=task_type,
+                inputs=inputs,
+                config=config,
+                plugin=plugin,
+                outputs=outputs,
+                experiment_id=experiment_id,
+                remote_task=True,
+            )
 
         # Optional: if task.json suggests a folder to upload, we will just record it in config
         # Optional remote upload flow to GPU orchestrator
@@ -511,5 +532,72 @@ async def export_task_to_local_gallery(
             json_lib.dump(local_task_data, f, indent=2)
         
         return {"status": "success", "task_dir": task_dir_name}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+@router.post("/import_from_local_gallery", summary="Import a task from local tasks-gallery")
+async def import_task_from_local_gallery(
+    request: Request,
+    subdir: str = Form(...),
+    experiment_id: Optional[str] = Form(None),
+):
+    """
+    Import a task from the local tasks-gallery directory.
+    Creates a REMOTE task from the local gallery task.json.
+    """
+    try:
+        workspace_dir = get_workspace_dir()
+        local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
+        task_dir = os.path.join(local_gallery_dir, subdir)
+        task_json_path = os.path.join(task_dir, "task.json")
+        
+        if not os.path.isfile(task_json_path):
+            return {"status": "error", "message": f"task.json not found in local gallery: {subdir}"}
+
+        with open(task_json_path) as f:
+            task_def = json_lib.load(f)
+
+        # Build task fields, marking as remote
+        task_name = slugify(task_def.get("name", subdir))
+        task_type = task_def.get("type", "REMOTE")
+        inputs = task_def.get("inputs", {})
+        config = task_def.get("config", {})
+        plugin = task_def.get("plugin", "remote_task")
+        outputs = task_def.get("outputs", {})
+
+        # Check if task already exists and update instead of creating duplicate
+        existing_tasks = tasks_service.tasks_get_all()
+        existing_task = None
+        for task in existing_tasks:
+            if task.get("name") == task_name and task.get("remote_task", False):
+                existing_task = task
+                break
+
+        if existing_task:
+            # Update existing task
+            task_id = existing_task["id"]
+            tasks_service.update_task(task_id, {
+                "name": task_name,
+                "inputs": inputs,
+                "config": config,
+                "outputs": outputs,
+                "plugin": plugin
+            })
+            return {"status": "success", "task_id": task_id, "action": "updated"}
+        else:
+            # Create new task
+            task_id = tasks_service.add_task(
+                name=task_name,
+                task_type=task_type,
+                inputs=inputs,
+                config=config,
+                plugin=plugin,
+                outputs=outputs,
+                experiment_id=experiment_id,
+                remote_task=True,
+            )
+            return {"status": "success", "task_id": task_id, "action": "created"}
+
     except Exception as e:
         return {"status": "error", "message": str(e)}
