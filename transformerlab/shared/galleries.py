@@ -16,7 +16,7 @@ DATA_GALLERY_FILE = "dataset-gallery.json"
 MODEL_GROUP_GALLERY_FILE = "model-group-gallery.json"
 EXP_RECIPES_GALLERY_FILE = "exp-recipe-gallery.json"
 # Tasks gallery main file
-TASKS_GALLERY_FILE = "tasks-gallery.json"
+TASKS_GALLERY_FILE = "task-gallery.json"
 GALLERY_FILES = [
     MODEL_GALLERY_FILE,
     DATA_GALLERY_FILE,
