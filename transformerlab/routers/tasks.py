@@ -280,7 +280,8 @@ async def import_task_from_gallery(
         os.makedirs(sparse_info_dir, exist_ok=True)
         with open(os.path.join(sparse_info_dir, "sparse-checkout"), "w") as f:
             f.write(f"tasks/{subdir}\n")
-        subprocess.check_call(["git", "pull", "--depth", "1", "origin", "main"], cwd=tmp_dir)
+        # For testing: pull from specific branch containing tasks library scaffolding
+        subprocess.check_call(["git", "pull", "--depth", "1", "origin", "add/tasks-library-v1"], cwd=tmp_dir)
 
         task_dir = os.path.join(tmp_dir, "tasks", subdir)
         task_json_path = os.path.join(task_dir, "task.json")
@@ -310,28 +311,12 @@ async def import_task_from_gallery(
         )
 
         # Optional: if task.json suggests a folder to upload, we will just record it in config
-        upload_dir = task_def.get("upload_dir")
-        if upload_dir:
-            # Extend config to include upload_dir hint; optionally perform remote upload if requested
-            try:
-                task_obj = tasks_service.tasks_get_by_id(task_id)
-                if isinstance(task_obj.get("config"), str):
-                    task_obj["config"] = json_lib.loads(task_obj["config"]) if task_obj["config"] else {}
-                task_obj["config"]["upload_dir_hint"] = upload_dir
-                tasks_service.update_task(task_id, {"config": task_obj["config"]})
-            except Exception:
-                pass
-
         # Optional remote upload flow to GPU orchestrator
         if upload:
             try:
-                # Determine directory to upload
-                dir_to_upload = None
-                if upload_dir and os.path.isabs(upload_dir):
-                    dir_to_upload = upload_dir
-                elif upload_dir:
-                    dir_to_upload = os.path.normpath(os.path.join(task_dir, upload_dir))
-                elif repo_url:
+                # Determine directory to upload: base task directory by default
+                dir_to_upload = task_dir
+                if repo_url:
                     # If explicit repo_url provided, do a separate sparse clone of that URL root
                     repo_tmp = tempfile.mkdtemp(prefix="tlab_repo_upload_")
                     try:
@@ -339,52 +324,92 @@ async def import_task_from_gallery(
                         dir_to_upload = repo_tmp
                     except Exception as e:
                         return {"status": "error", "message": f"Failed to clone repo for upload: {e}"}
-                else:
-                    dir_to_upload = task_dir
 
                 if not dir_to_upload or not os.path.isdir(dir_to_upload):
                     return {"status": "error", "message": f"Upload directory not found: {dir_to_upload}"}
 
-                # Archive directory
-                archive_path = os.path.join(tmp_dir, f"{slugify(task_name)}.tar.gz")
-                subprocess.check_call(["tar", "-czf", archive_path, "-C", dir_to_upload, "."])
+                # Stage files under a temp 'src' directory and exclude task.json
+                src_stage = os.path.join(tmp_dir, "src")
+                os.makedirs(src_stage, exist_ok=True)
+                files_to_copy = [f for f in os.listdir(dir_to_upload) if f != "task.json"]
+                # If no files besides task.json, skip upload
+                has_files_to_upload = len(files_to_copy) > 0
+                if has_files_to_upload:
+                    for name in files_to_copy:
+                        src_path = os.path.join(dir_to_upload, name)
+                        dest_path = os.path.join(src_stage, name)
+                        if os.path.isdir(src_path):
+                            shutil.copytree(src_path, dest_path)
+                        else:
+                            shutil.copy2(src_path, dest_path)
 
                 # Post to GPU orchestrator upload endpoint
                 gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
                 gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
-                upload_endpoint = os.getenv("GPU_ORCHESTRATION_UPLOAD_ENDPOINT", "/api/v1/files/upload")
+                # Legacy upload endpoint var no longer used when mirroring frontend
                 if not gpu_orchestrator_url or not gpu_orchestrator_port:
                     # If orchestrator not configured, just attach local path hint
                     try:
                         task_obj = tasks_service.tasks_get_by_id(task_id)
                         if isinstance(task_obj.get("config"), str):
                             task_obj["config"] = json_lib.loads(task_obj["config"]) if task_obj["config"] else {}
-                        task_obj["config"]["local_upload_archive"] = archive_path
+                        if has_files_to_upload:
+                            task_obj["config"]["local_upload_staged_dir"] = src_stage
                         tasks_service.update_task(task_id, {"config": task_obj["config"]})
                     except Exception:
                         pass
                 else:
-                    dest = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}{upload_endpoint}"
-                    async with httpx.AsyncClient(timeout=60.0) as client:
-                        headers = {}
-                        incoming_auth = request.headers.get("AUTHORIZATION")
-                        if incoming_auth:
-                            headers["AUTHORIZATION"] = incoming_auth
-                        files = {"file": (os.path.basename(archive_path), open(archive_path, "rb"), "application/gzip")}
-                        resp = await client.post(dest, headers=headers, files=files, cookies=request.cookies)
-                        if resp.status_code == 200:
-                            remote_info = resp.json()
-                            remote_path = remote_info.get("path") or remote_info.get("remote_path") or remote_info
-                            try:
-                                task_obj = tasks_service.tasks_get_by_id(task_id)
-                                if isinstance(task_obj.get("config"), str):
-                                    task_obj["config"] = json_lib.loads(task_obj["config"]) if task_obj["config"] else {}
-                                task_obj["config"]["remote_upload_path"] = remote_path
-                                tasks_service.update_task(task_id, {"config": task_obj["config"]})
-                            except Exception:
-                                pass
-                        else:
-                            return {"status": "error", "message": f"Upload failed: {resp.status_code} {resp.text}"}
+                    # Only attempt upload if we actually staged files
+                    if has_files_to_upload:
+                        # Build multipart form to mirror frontend DirectoryUpload
+                        dest = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/upload"
+                        files_form = []
+                        # Walk src_stage and add each file, preserving relative path inside src/
+                        for root, _, filenames in os.walk(src_stage):
+                            for filename in filenames:
+                                full_path = os.path.join(root, filename)
+                                rel_path = os.path.relpath(full_path, src_stage)
+                                # Prefix with src/ like the packed structure
+                                upload_name = f"src/{rel_path}"
+                                with open(full_path, "rb") as f:
+                                    files_form.append(("dir_files", (upload_name, f.read(), "application/octet-stream")))
+
+                        form_data = {"dir_name": slugify(task_name)}
+
+                        async with httpx.AsyncClient(timeout=120.0) as client:
+                            headers = {}
+                            incoming_auth = request.headers.get("AUTHORIZATION")
+                            if incoming_auth:
+                                headers["AUTHORIZATION"] = incoming_auth
+
+                            resp = await client.post(
+                                dest,
+                                headers=headers,
+                                files=files_form,
+                                data=form_data,
+                                cookies=request.cookies,
+                            )
+                            if resp.status_code == 200:
+                                remote_info = resp.json()
+                                # Try to read path similar to frontend handler
+                                remote_path = (
+                                    remote_info.get("data", {})
+                                    .get("uploaded_files", {})
+                                    .get("dir_files", {})
+                                    .get("uploaded_dir")
+                                )
+                                if not remote_path:
+                                    remote_path = remote_info.get("path") or remote_info.get("remote_path") or remote_info
+                                try:
+                                    task_obj = tasks_service.tasks_get_by_id(task_id)
+                                    if isinstance(task_obj.get("config"), str):
+                                        task_obj["config"] = json_lib.loads(task_obj["config"]) if task_obj["config"] else {}
+                                    task_obj["config"]["remote_upload_path"] = remote_path
+                                    tasks_service.update_task(task_id, {"config": task_obj["config"]})
+                                except Exception:
+                                    pass
+                            else:
+                                return {"status": "error", "message": f"Upload failed: {resp.status_code} {resp.text}"}
 
             except Exception as e:
                 return {"status": "error", "message": f"Upload exception: {e}"}
