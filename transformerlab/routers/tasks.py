@@ -565,8 +565,11 @@ async def import_task_from_local_gallery(
     try:
         workspace_dir = get_workspace_dir()
         local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
-        task_dir = os.path.join(local_gallery_dir, subdir)
-        if not task_dir.startswith(local_gallery_dir):
+        task_dir = os.path.normpath(os.path.join(local_gallery_dir, subdir))
+        local_gallery_dir_real = os.path.realpath(local_gallery_dir)
+        task_dir_real = os.path.realpath(task_dir)
+        if not task_dir_real.startswith(local_gallery_dir_real + os.sep):
+            print(f"Invalid task directory: {task_dir_real} not in {local_gallery_dir_real}")
             return {"status": "error", "message": "Invalid task directory"}
         task_json_path = os.path.join(task_dir, "task.json")
         
