@@ -313,17 +313,10 @@ def do_download(repo_id, queue, allow_patterns=None, mode="model"):
 
 
 def cancel_check():
+    print("Job ID", job_id)
     try:
-        db = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
-        db.execute("PRAGMA journal_mode=WAL")
-        db.execute("PRAGMA synchronous=normal")
-        db.execute("PRAGMA busy_timeout=30000")
-        status = db.execute("SELECT job_data FROM job WHERE id=?", (job_id,)).fetchone()
-        db.close()
-
-        if status:
-            job_data = json.loads(status[0])
-            return job_data.get("status") == "cancelled"
+        job = Job.get(job_id)
+        return job.get_status() == "cancelled"
     except Exception as e:
         print(f"Warning: cancel_check() failed: {e}", file=sys.stderr)
     return False
@@ -402,14 +395,10 @@ def download_blocking(model_is_downloaded):
 
     print(job_data)
 
-    # Connect to the DB to start the job and then close
-    # Need to set these PRAGMAs every time as they get reset per connection
-    db = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
-    db.execute("PRAGMA journal_mode=WAL")
-    db.execute("PRAGMA synchronous=normal")
-    db.execute("PRAGMA busy_timeout=30000")
-    db.execute("UPDATE job SET progress=?, job_data=json(?) WHERE id=?", (0, job_data, job_id))
-    db.close()
+    # Initialize job data using SDK
+    job = Job.get(job_id)
+    job.update_progress(0)
+    job.set_job_data(job_data)
 
     # Check if model is gated before starting download
     if mode == "adaptor":
@@ -603,26 +592,18 @@ def main():
     if error_msg:
         print(f"Error downloading: {error_msg}")
 
-        # save to job database
-        job_data = json.dumps({"error_msg": str(error_msg)})
+        # Set status to FAILED by default
+        # But returncode 77 means the model was gated and unauthorized.
         status = "FAILED"
         if returncode == 77:
             status = "UNAUTHORIZED"
 
-        # Need to set these PRAGMAs every time as they get reset per connection
-        db = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
-        db.execute("PRAGMA journal_mode=WAL")
-        db.execute("PRAGMA synchronous=normal")
-        db.execute("PRAGMA busy_timeout=30000")
-
         # If the error is that the database is locked then this call might also fail
         # for the same reason! Better catch and at least print a message.
         try:
-            db.execute(
-                "UPDATE job SET status=?, job_data=json(?)\
-                    WHERE id=?",
-                (status, job_data, job_id),
-            )
+            job = Job.get(job_id)
+            job.update_status(status)
+            job.update_job_data_field("error_msg", str(error_msg))
         except sqlite3.OperationalError:
             # NOTE: If we fail to write to the database the app won't get
             # the right error message. So set a different
@@ -630,7 +611,6 @@ def main():
             print(error_msg)
             returncode = 74  # IOERR
 
-        db.close()
         exit(returncode)
 
 
