@@ -143,7 +143,7 @@ def get_downloaded_size_from_cache(repo_id, file_metadata):
         return 0
 
 
-def update_database_progress(job_id, workspace_dir, model_name, downloaded_bytes, total_bytes):
+def update_job_progress(job_id, model_name, downloaded_bytes, total_bytes):
     """Update progress in the database"""
     try:
         job = Job.get(job_id)
@@ -153,19 +153,17 @@ def update_database_progress(job_id, workspace_dir, model_name, downloaded_bytes
         progress_pct = (downloaded_bytes / total_bytes * 100) if total_bytes > 0 else 0
         job.update_progress(progress_pct)
 
-        # Other job info stored in the database
-        job_data = json.dumps(
-            {
-                "downloaded": downloaded_mb,
-                "model": model_name,
-                "total_size_in_mb": total_mb,
-                "total_size_of_model_in_mb": total_mb,
-                "progress_pct": progress_pct,
-                "bytes_downloaded": downloaded_bytes,
-                "total_bytes": total_bytes,
-                "monitoring_type": "cache_based",
-            }
-        )
+        # Set more data in job_data
+        job_data = {
+            "downloaded": downloaded_mb,
+            "model": model_name,
+            "total_size_in_mb": total_mb,
+            "total_size_of_model_in_mb": total_mb,
+            "progress_pct": progress_pct,
+            "bytes_downloaded": downloaded_bytes,
+            "total_bytes": total_bytes,
+            "monitoring_type": "cache_based",
+        }
         job.set_job_data(job_data)
 
         print(f"Cache Progress: {progress_pct:.2f}% ({downloaded_mb:.1f} MB / {total_mb:.1f} MB)")
@@ -185,8 +183,8 @@ def cache_progress_monitor(job_id, workspace_dir, model_name, repo_id, file_meta
         try:
             downloaded_bytes = get_downloaded_size_from_cache(repo_id, file_metadata)
 
-            # Update database
-            update_database_progress(job_id, workspace_dir, model_name, downloaded_bytes, total_bytes)
+            # Update job
+            update_job_progress(job_id, model_name, downloaded_bytes, total_bytes)
 
             # Check if download is complete
             if downloaded_bytes >= total_bytes * 0.99:  # 99% complete
@@ -313,7 +311,6 @@ def do_download(repo_id, queue, allow_patterns=None, mode="model"):
 
 
 def cancel_check():
-    print("Job ID", job_id)
     try:
         job = Job.get(job_id)
         return job.get_status() == "cancelled"
@@ -375,23 +372,19 @@ def download_blocking(model_is_downloaded):
     # NOTE: For now storing size in two fields.
     # Will remove total_size_of_model_in_mb in the future.
     if mode == "adaptor":
-        job_data = json.dumps(
-            {
-                "downloaded": 0,
-                "model": peft,
-                "total_size_in_mb": total_size_of_model_in_mb,
-                "total_size_of_model_in_mb": total_size_of_model_in_mb,
-            }
-        )
+        job_data = {
+            "downloaded": 0,
+            "model": peft,
+            "total_size_in_mb": total_size_of_model_in_mb,
+            "total_size_of_model_in_mb": total_size_of_model_in_mb,
+        }
     else:
-        job_data = json.dumps(
-            {
-                "downloaded": 0,
-                "model": model,
-                "total_size_in_mb": total_size_of_model_in_mb,
-                "total_size_of_model_in_mb": total_size_of_model_in_mb,
-            }
-        )
+        job_data = {
+            "downloaded": 0,
+            "model": model,
+            "total_size_in_mb": total_size_of_model_in_mb,
+            "total_size_of_model_in_mb": total_size_of_model_in_mb,
+        }
 
     print(job_data)
 
