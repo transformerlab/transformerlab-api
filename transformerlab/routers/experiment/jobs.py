@@ -49,8 +49,8 @@ async def jobs_stream(experimentId: str, type: str = "", status: str = ""):
             yield "data: [DONE]\n\n"
             
         except Exception as e:
-            logging.error(f"Error in jobs_stream: {e}")
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            print(f"Error in jobs_stream: {e}")
+            yield f"data: {json.dumps({'error': 'An internal error has occurred!'})}\n\n"
             yield "data: [DONE]\n\n"
     
     return StreamingResponse(
