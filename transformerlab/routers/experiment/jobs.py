@@ -33,6 +33,37 @@ async def jobs_get_all(experimentId: str, type: str = "", status: str = ""):
     return jobs
 
 
+@router.get("/stream")
+async def jobs_stream(experimentId: str, type: str = "", status: str = ""):
+    """
+    Stream jobs as they become available for faster loading.
+    Returns jobs one by one as they are found, avoiding the slow jobs_get_all.
+    """
+    async def generate_jobs():
+        try:
+            # Use the new streaming service function
+            for job in job_service.jobs_get_all_streaming(experimentId, type, status):
+                yield f"data: {json.dumps(job)}\n\n"
+            
+            # Send completion signal
+            yield "data: [DONE]\n\n"
+            
+        except Exception as e:
+            logging.error(f"Error in jobs_stream: {e}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            yield "data: [DONE]\n\n"
+    
+    return StreamingResponse(
+        generate_jobs(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+        },
+    )
+
+
 @router.get("/delete/{job_id}")
 async def job_delete(job_id: str, experimentId: str):
     job_service.job_delete(job_id, experiment_id=experimentId)

@@ -53,6 +53,15 @@ def jobs_get_all(experiment_id, type="", status=""):
     return exp_obj.get_jobs(type, status)
 
 
+def jobs_get_all_streaming(experiment_id, type="", status=""):
+    """
+    Get jobs one by one for streaming, using the SDK's streaming method.
+    Returns a generator that yields jobs as they are loaded.
+    """
+    exp_obj = Experiment(experiment_id)
+    return exp_obj.get_jobs_streaming(type, status)
+
+
 def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
     return jobs_get_all(experiment_id, job_type)
 
