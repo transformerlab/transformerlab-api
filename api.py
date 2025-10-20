@@ -486,11 +486,15 @@ async def healthz():
     """
     gpu_orchestration_server = os.getenv("GPU_ORCHESTRATION_SERVER", "")
     mode = "gpu_orchestration" if gpu_orchestration_server else "local"
+    
+    # Get the port from the environment or use default
+    port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT", "")
 
     return {
         "message": "OK",
         "mode": mode,
         "gpu_orchestration_server": gpu_orchestration_server,
+        "gpu_orchestration_server_port": port,
     }
 
 
