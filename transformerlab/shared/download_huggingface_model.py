@@ -11,7 +11,7 @@ from pathlib import Path
 from multiprocessing import Process, Queue
 from werkzeug.utils import secure_filename
 
-from lab import HOME_DIR
+from lab import HOME_DIR, Job
 
 
 DATABASE_FILE_NAME = f"{HOME_DIR}/llmlab.sqlite3"
@@ -32,6 +32,7 @@ error_msg = False
 # Global variables for cache-based progress tracking
 _cache_stop_monitoring = False
 
+
 def get_repo_file_metadata(repo_id, allow_patterns=None):
     """
     Get metadata for all files in a HuggingFace repo.
@@ -39,56 +40,59 @@ def get_repo_file_metadata(repo_id, allow_patterns=None):
     """
     try:
         print(f"Fetching file metadata for {repo_id}...")
-        
+
         # Get list of files in the repo
         files = list_repo_files(repo_id)
-        
+
         # Filter out git files
-        files = [f for f in files if not f.startswith('.git')]
-        
+        files = [f for f in files if not f.startswith(".git")]
+
         # Filter by allow_patterns if provided
         if allow_patterns:
             import fnmatch
+
             filtered_files = []
             for file in files:
                 if any(fnmatch.fnmatch(file, pattern) for pattern in allow_patterns):
                     filtered_files.append(file)
             files = filtered_files
-        
+
         # Get file sizes using HfFileSystem
         fs = HfFileSystem()
         file_metadata = {}
         total_size = 0
-        
+
         for file in files:
             try:
                 # Get file info including size
                 file_info = fs.info(f"{repo_id}/{file}")
-                file_size = file_info.get('size', 0)
+                file_size = file_info.get("size", 0)
                 file_metadata[file] = file_size
                 total_size += file_size
                 print(f"  {file}: {file_size / 1024 / 1024:.1f} MB")
             except Exception as e:
                 print(f"  Warning: Could not get size for {file}: {e}")
                 file_metadata[file] = 0
-        
+
         print(f"Total repo size: {total_size / 1024 / 1024:.1f} MB ({len(files)} files)")
         return file_metadata, total_size
-        
+
     except Exception as e:
         print(f"Error getting repo metadata: {e}")
         return {}, 0
 
+
 def get_cache_dir_for_repo(repo_id):
     """Get the HuggingFace cache directory for a specific repo"""
     from huggingface_hub.constants import HF_HUB_CACHE
-    
+
     # Convert repo_id to cache-safe name (same logic as huggingface_hub)
     # repo_name = re.sub(r'[^\w\-_.]', '-', repo_id)
     # Replace / with --
     repo_name = repo_id.replace("/", "--")
 
     return os.path.join(HF_HUB_CACHE, f"models--{repo_name}")
+
 
 def get_downloaded_size_from_cache(repo_id, file_metadata):
     """
@@ -97,33 +101,33 @@ def get_downloaded_size_from_cache(repo_id, file_metadata):
     """
     try:
         cache_dir = get_cache_dir_for_repo(repo_id)
-                
+
         if not os.path.exists(cache_dir):
             return 0
-        
+
         # Look in the snapshots directory for the latest commit
         snapshots_dir = os.path.join(cache_dir, "snapshots")
         if not os.path.exists(snapshots_dir):
             return 0
-        
+
         # Get the most recent snapshot (highest timestamp or lexicographically last)
         try:
             commits = os.listdir(snapshots_dir)
             if not commits:
                 return 0
-            
+
             # Use the lexicographically last commit (usually the latest)
             latest_commit = sorted(commits)[-1]
             snapshot_path = os.path.join(snapshots_dir, latest_commit)
         except Exception:
             return 0
-        
+
         downloaded_size = 0
-        
+
         # Check each expected file
         for filename, expected_size in file_metadata.items():
             file_path = os.path.join(snapshot_path, filename)
-            
+
             if os.path.exists(file_path):
                 try:
                     actual_size = os.path.getsize(file_path)
@@ -131,26 +135,26 @@ def get_downloaded_size_from_cache(repo_id, file_metadata):
                     downloaded_size += min(actual_size, expected_size)
                 except Exception:
                     pass
-        
+
         return downloaded_size
-        
+
     except Exception as e:
         print(f"Error checking cache: {e}")
         return 0
 
-def update_database_progress(job_id, workspace_dir, model_name, downloaded_bytes, total_bytes):
+
+def update_job_progress(job_id, model_name, downloaded_bytes, total_bytes):
     """Update progress in the database"""
     try:
-        db = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
-        db.execute("PRAGMA journal_mode=WAL")
-        db.execute("PRAGMA synchronous=normal")
-        db.execute("PRAGMA busy_timeout=30000")
-        
+        job = Job.get(job_id)
+
         downloaded_mb = downloaded_bytes / 1024 / 1024
         total_mb = total_bytes / 1024 / 1024
         progress_pct = (downloaded_bytes / total_bytes * 100) if total_bytes > 0 else 0
-        
-        job_data = json.dumps({
+        job.update_progress(progress_pct)
+
+        # Set more data in job_data
+        job_data = {
             "downloaded": downloaded_mb,
             "model": model_name,
             "total_size_in_mb": total_mb,
@@ -158,19 +162,15 @@ def update_database_progress(job_id, workspace_dir, model_name, downloaded_bytes
             "progress_pct": progress_pct,
             "bytes_downloaded": downloaded_bytes,
             "total_bytes": total_bytes,
-            "monitoring_type": "cache_based"
-        })
-        
-        db.execute(
-            "UPDATE job SET job_data=json(?), progress=? WHERE id=?",
-            (job_data, progress_pct, job_id)
-        )
-        db.close()
-        
+            "monitoring_type": "cache_based",
+        }
+        job.set_job_data(job_data)
+
         print(f"Cache Progress: {progress_pct:.2f}% ({downloaded_mb:.1f} MB / {total_mb:.1f} MB)")
-        
+
     except Exception as e:
         print(f"Failed to update database progress: {e}")
+
 
 def cache_progress_monitor(job_id, workspace_dir, model_name, repo_id, file_metadata, total_bytes):
     """
@@ -178,26 +178,25 @@ def cache_progress_monitor(job_id, workspace_dir, model_name, repo_id, file_meta
     Runs in a separate thread.
     """
     global _cache_stop_monitoring
-    
+
     while not _cache_stop_monitoring:
         try:
             downloaded_bytes = get_downloaded_size_from_cache(repo_id, file_metadata)
-            
-            # Update database
-            update_database_progress(job_id, workspace_dir, model_name, downloaded_bytes, total_bytes)
 
-                        
+            # Update job
+            update_job_progress(job_id, model_name, downloaded_bytes, total_bytes)
+
             # Check if download is complete
             if downloaded_bytes >= total_bytes * 0.99:  # 99% complete
                 print("Download appears to be complete")
                 break
-                
+
             time.sleep(2)  # Check every 2 seconds
-            
+
         except Exception as e:
             print(f"Error in progress monitor: {e}")
             time.sleep(5)  # Wait longer on error
-    
+
     print("Progress monitoring stopped")
 
 
@@ -313,16 +312,8 @@ def do_download(repo_id, queue, allow_patterns=None, mode="model"):
 
 def cancel_check():
     try:
-        db = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
-        db.execute("PRAGMA journal_mode=WAL")
-        db.execute("PRAGMA synchronous=normal")
-        db.execute("PRAGMA busy_timeout=30000")
-        status = db.execute("SELECT job_data FROM job WHERE id=?", (job_id,)).fetchone()
-        db.close()
-
-        if status:
-            job_data = json.loads(status[0])
-            return job_data.get("status") == "cancelled"
+        job = Job.get(job_id)
+        return job.get_status() == "cancelled"
     except Exception as e:
         print(f"Warning: cancel_check() failed: {e}", file=sys.stderr)
     return False
@@ -381,34 +372,26 @@ def download_blocking(model_is_downloaded):
     # NOTE: For now storing size in two fields.
     # Will remove total_size_of_model_in_mb in the future.
     if mode == "adaptor":
-        job_data = json.dumps(
-            {
-                "downloaded": 0,
-                "model": peft,
-                "total_size_in_mb": total_size_of_model_in_mb,
-                "total_size_of_model_in_mb": total_size_of_model_in_mb,
-            }
-        )
+        job_data = {
+            "downloaded": 0,
+            "model": peft,
+            "total_size_in_mb": total_size_of_model_in_mb,
+            "total_size_of_model_in_mb": total_size_of_model_in_mb,
+        }
     else:
-        job_data = json.dumps(
-            {
-                "downloaded": 0,
-                "model": model,
-                "total_size_in_mb": total_size_of_model_in_mb,
-                "total_size_of_model_in_mb": total_size_of_model_in_mb,
-            }
-        )
+        job_data = {
+            "downloaded": 0,
+            "model": model,
+            "total_size_in_mb": total_size_of_model_in_mb,
+            "total_size_of_model_in_mb": total_size_of_model_in_mb,
+        }
 
     print(job_data)
 
-    # Connect to the DB to start the job and then close
-    # Need to set these PRAGMAs every time as they get reset per connection
-    db = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
-    db.execute("PRAGMA journal_mode=WAL")
-    db.execute("PRAGMA synchronous=normal")
-    db.execute("PRAGMA busy_timeout=30000")
-    db.execute("UPDATE job SET progress=?, job_data=json(?) WHERE id=?", (0, job_data, job_id))
-    db.close()
+    # Initialize job data using SDK
+    job = Job.get(job_id)
+    job.update_progress(0)
+    job.set_job_data(job_data)
 
     # Check if model is gated before starting download
     if mode == "adaptor":
@@ -431,24 +414,24 @@ def download_blocking(model_is_downloaded):
         try:
             # Get file metadata before starting download
             file_metadata, actual_total_size = get_repo_file_metadata(peft)
-            
+
             # Start progress monitoring thread
             progress_thread = Thread(
                 target=cache_progress_monitor,
                 args=(job_id, WORKSPACE_DIR, peft, peft, file_metadata, actual_total_size),
-                daemon=True
+                daemon=True,
             )
             progress_thread.start()
-            
+
             result = launch_snapshot_with_cancel(repo_id=peft)
             if result == "cancelled":
                 returncode = 1
                 error_msg = "Download was cancelled"
-            
+
             # Stop progress monitoring
             _cache_stop_monitoring = True
             progress_thread.join(timeout=5)
-            
+
             model_is_downloaded.set()
         except GatedRepoError:
             returncode = 77
@@ -474,32 +457,29 @@ def download_blocking(model_is_downloaded):
             try:
                 fs = HfFileSystem()
                 file_info = fs.info(f"{model}/{model_filename}")
-                file_size = file_info.get('size', total_size_of_model_in_mb * 1024 * 1024)
+                file_size = file_info.get("size", total_size_of_model_in_mb * 1024 * 1024)
                 file_metadata = {model_filename: file_size}
             except Exception:
                 file_metadata = {model_filename: total_size_of_model_in_mb * 1024 * 1024}
                 file_size = total_size_of_model_in_mb * 1024 * 1024
-            
+
             # Start progress monitoring thread
             progress_thread = Thread(
                 target=cache_progress_monitor,
                 args=(job_id, WORKSPACE_DIR, model_filename, model, file_metadata, file_size),
-                daemon=True
+                daemon=True,
             )
             progress_thread.start()
-            
-            hf_hub_download(
-                repo_id=model,
-                filename=model_filename,
-                local_dir=location
-            )
-            
+
+            hf_hub_download(repo_id=model, filename=model_filename, local_dir=location)
+
             # Stop progress monitoring
             _cache_stop_monitoring = True
             progress_thread.join(timeout=5)
             # create model metadata using SDK
             try:
                 from lab.model import Model as ModelService
+
                 model_service = ModelService.create(model)
                 model_service.set_metadata(
                     model_id=model,
@@ -519,7 +499,7 @@ def download_blocking(model_is_downloaded):
                         "library_name": "",
                         "formats": ["GGUF"],
                         "logo": "https://user-images.githubusercontent.com/1991296/230134379-7181e485-c521-4d23-a0d6-f7b3b61ba524.png",
-                    }
+                    },
                 )
                 print(f"Created GGUF model metadata for {model}")
             except Exception as e:
@@ -528,20 +508,20 @@ def download_blocking(model_is_downloaded):
             try:
                 # Get file metadata before starting download
                 file_metadata, actual_total_size = get_repo_file_metadata(model, allow_patterns)
-                
+
                 # Start progress monitoring thread
                 progress_thread = Thread(
                     target=cache_progress_monitor,
                     args=(job_id, WORKSPACE_DIR, model, model, file_metadata, actual_total_size),
-                    daemon=True
+                    daemon=True,
                 )
                 progress_thread.start()
-                
+
                 result = launch_snapshot_with_cancel(repo_id=model, allow_patterns=allow_patterns)
                 if result == "cancelled":
                     returncode = 1
                     error_msg = "Download was cancelled"
-                
+
                 # Stop progress monitoring
                 _cache_stop_monitoring = True
                 progress_thread.join(timeout=5)
@@ -557,12 +537,13 @@ def download_blocking(model_is_downloaded):
                 error_msg = f"{type(e).__name__}: {e}"
 
         model_is_downloaded.set()
-        
+
         # Create model metadata file for the downloaded model using SDK
         if not error_msg and returncode == 0:
             try:
                 # Use SDK to create model metadata
                 from lab.model import Model as ModelService
+
                 model_service = ModelService.create(model)
                 model_service.set_metadata(
                     model_id=model,
@@ -581,12 +562,12 @@ def download_blocking(model_is_downloaded):
                         "model_type": "",
                         "library_name": "",
                         "formats": [],
-                    }
+                    },
                 )
                 print(f"Created model metadata for {model}")
             except Exception as e:
                 print(f"Warning: Could not create model metadata for {model}: {e}")
-    
+
     print("Download complete")
 
 
@@ -604,26 +585,18 @@ def main():
     if error_msg:
         print(f"Error downloading: {error_msg}")
 
-        # save to job database
-        job_data = json.dumps({"error_msg": str(error_msg)})
+        # Set status to FAILED by default
+        # But returncode 77 means the model was gated and unauthorized.
         status = "FAILED"
         if returncode == 77:
             status = "UNAUTHORIZED"
 
-        # Need to set these PRAGMAs every time as they get reset per connection
-        db = sqlite3.connect(DATABASE_FILE_NAME, isolation_level=None)
-        db.execute("PRAGMA journal_mode=WAL")
-        db.execute("PRAGMA synchronous=normal")
-        db.execute("PRAGMA busy_timeout=30000")
-
         # If the error is that the database is locked then this call might also fail
         # for the same reason! Better catch and at least print a message.
         try:
-            db.execute(
-                "UPDATE job SET status=?, job_data=json(?)\
-                    WHERE id=?",
-                (status, job_data, job_id),
-            )
+            job = Job.get(job_id)
+            job.update_status(status)
+            job.update_job_data_field("error_msg", str(error_msg))
         except sqlite3.OperationalError:
             # NOTE: If we fail to write to the database the app won't get
             # the right error message. So set a different
@@ -631,7 +604,6 @@ def main():
             print(error_msg)
             returncode = 74  # IOERR
 
-        db.close()
         exit(returncode)
 
 
