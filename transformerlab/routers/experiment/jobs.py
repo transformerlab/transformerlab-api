@@ -64,6 +64,21 @@ async def jobs_stream(experimentId: str, type: str = "", status: str = ""):
     )
 
 
+@router.get("/ids")
+async def jobs_get_ids(experimentId: str, type: str = "", status: str = ""):
+    """
+    Get job IDs quickly without loading full job data.
+    Returns just the job IDs that match the filters.
+    """
+    try:
+        job_ids = job_service.jobs_get_ids(experimentId, type, status)
+        return {"job_ids": job_ids}
+        
+    except Exception as e:
+        logging.error(f"Error getting job IDs: {e}")
+        return {"error": str(e), "job_ids": []}
+
+
 @router.get("/delete/{job_id}")
 async def job_delete(job_id: str, experimentId: str):
     job_service.job_delete(job_id, experiment_id=experimentId)

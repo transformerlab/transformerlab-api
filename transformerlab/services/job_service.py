@@ -62,6 +62,15 @@ def jobs_get_all_streaming(experiment_id, type="", status=""):
     return exp_obj.get_jobs_streaming(type, status)
 
 
+def jobs_get_ids(experiment_id, type="", status=""):
+    """
+    Get job IDs quickly without loading full job data.
+    Returns just the job IDs that match the filters.
+    """
+    exp_obj = Experiment(experiment_id)
+    return exp_obj.get_job_ids(type, status)
+
+
 def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
     return jobs_get_all(experiment_id, job_type)
 
