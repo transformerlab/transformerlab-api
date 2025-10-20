@@ -20,7 +20,7 @@ def is_macos() -> bool:
 def get_s3_mount_command() -> str:
     """
     Get the appropriate S3 mounting command based on the platform.
-    
+
     Returns:
         The command to use for S3 mounting ('mount-s3' for Linux, 's3fs' for macOS)
     """
@@ -33,10 +33,10 @@ def get_s3_mount_command() -> str:
 def is_fuse_mount(path):
     """
     Check if the given path is mounted as a FUSE filesystem.
-    
+
     Args:
         path: The path to check for FUSE mount
-        
+
     Returns:
         Tuple of (is_fuse, fstype, mountpoint) where:
         - is_fuse: Boolean indicating if it's a FUSE mount
@@ -53,8 +53,6 @@ def is_fuse_mount(path):
     return False, None, None
 
 
-
-
 def run_s3_mount_command(bucket_name: str, remote_workspace_dir: str, profile: str = "transformerlab-s3") -> bool:
     """
     Run the appropriate S3 mounting command (mount-s3 for Linux, s3fs for macOS).
@@ -68,12 +66,14 @@ def run_s3_mount_command(bucket_name: str, remote_workspace_dir: str, profile: s
         True if mount command succeeded, False otherwise
     """
     try:
+        from lab import HOME_DIR
+
         # Create the remote workspace directory if it doesn't exist
         os.makedirs(remote_workspace_dir, exist_ok=True)
         print(f"Created/verified remote workspace directory: {remote_workspace_dir}")
 
         mount_command = get_s3_mount_command()
-        
+
         if mount_command == "s3fs":
             # s3fs command for macOS
             # s3fs supports AWS profiles through ~/.aws/credentials
@@ -81,8 +81,20 @@ def run_s3_mount_command(bucket_name: str, remote_workspace_dir: str, profile: s
             cmd = ["s3fs", bucket_name, remote_workspace_dir, "-o", f"profile={profile}"]
         else:
             # mount-s3 command for Linux
-            cmd = ["mount-s3", "--profile", profile, bucket_name, remote_workspace_dir, "--allow-overwrite", "--allow-delete"]
-        
+            cmd = [
+                "mount-s3",
+                "--profile",
+                profile,
+                bucket_name,
+                remote_workspace_dir,
+                "--allow-overwrite",
+                "--allow-delete",
+                "--debug",
+                "--debug-crt",
+                "--log-directory",
+                f"{HOME_DIR}/s3-mount-logs",
+            ]
+
         print(f"Running mount command: {' '.join(cmd)}")
 
         result = subprocess.run(
@@ -158,11 +170,10 @@ def setup_user_s3_mount(user_id: str, organization_id: str | None = None) -> boo
         if os.path.exists(bucket_remote_path):
             print(f"Removing existing directory {bucket_remote_path} (not a FUSE mount)")
             shutil.rmtree(bucket_remote_path)
-        
+
         # Create the directory
         os.makedirs(bucket_remote_path, exist_ok=True)
         print(f"Created directory: {bucket_remote_path}")
-
 
         # Run the S3 mount command (mount-s3 for Linux, s3fs for macOS)
         success = run_s3_mount_command(bucket_name, bucket_remote_path)
