@@ -75,8 +75,8 @@ async def jobs_get_ids(experimentId: str, type: str = "", status: str = ""):
         return {"job_ids": job_ids}
         
     except Exception as e:
-        logging.error(f"Error getting job IDs: {e}")
-        return {"error": str(e), "job_ids": []}
+        print(f"Error getting job IDs: {e}")
+        return {"error": "An internal error has occurred!", "job_ids": []}
 
 
 @router.get("/delete/{job_id}")
