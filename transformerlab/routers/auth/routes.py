@@ -50,7 +50,7 @@ async def get_current_user_info(
             if user_id:
                 success = setup_user_s3_mount(str(user_id), organization_id)
                 if not success:
-                    print(f"S3 mount setup failed for user {user_id} via auth/me")
+                    print("S3 mount setup failed via auth/me")
     except Exception as exc:
         # Don't let S3 mount errors break the auth/me endpoint
         print(f"Error setting up S3 mount for user: {exc}")
