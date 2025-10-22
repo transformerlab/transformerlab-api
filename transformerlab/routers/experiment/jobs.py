@@ -624,6 +624,7 @@ async def get_checkpoints(job_id: str, request: Request):
     }
 
 
+<<<<<<< Updated upstream
 @router.get("/{job_id}/artifacts")
 async def get_artifacts(job_id: str, request: Request):
     if job_id is None or job_id == "" or job_id == "-1":
@@ -699,5 +700,195 @@ async def get_artifacts(job_id: str, request: Request):
     artifacts.sort(key=lambda x: x["filename"], reverse=True)
 
     return {"artifacts": artifacts}
+=======
+@router.get("/{job_id}/models")
+async def get_models(job_id: str, request: Request):
+    if job_id is None or job_id == "" or job_id == "-1":
+        return {"models": []}
+
+    """Get list of models for a job"""
+    job = job_service.job_get(job_id)
+    job_data = job["job_data"]
+
+    # Models are stored in the job's models directory
+    models_dir = dirs.get_job_models_dir(job_id)
+
+    if not os.path.exists(models_dir):
+        return {"models": []}
+
+    models = []
+    try:
+        for item in os.listdir(models_dir):
+            item_path = os.path.join(models_dir, item)
+            if os.path.isdir(item_path):
+                try:
+                    stat = os.stat(item_path)
+                    modified_time = stat.st_mtime
+                    # Format the timestamp as ISO 8601 string
+                    formatted_time = datetime.fromtimestamp(modified_time).isoformat()
+                    models.append({"name": item, "path": item_path, "date": formatted_time})
+                except Exception as e:
+                    logging.error(f"Error getting stat for model {item_path}: {e}")
+    except OSError as e:
+        logging.error(f"Error reading models directory {models_dir}: {e}")
+
+    # Sort models by date descending
+    models.sort(key=lambda x: x["date"], reverse=True)
+
+    return {"models": models}
+
+
+@router.post("/{job_id}/resume_from_checkpoint")
+async def resume_from_checkpoint(
+    job_id: str,
+    experimentId: str,
+    request: Request,
+):
+    """Resume training from a checkpoint by creating a new job with the checkpoint parameter"""
+    try:
+        body = await request.json()
+        checkpoint_name = body.get("checkpoint_name")
+        
+        if not checkpoint_name:
+            return {"status": "error", "message": "checkpoint_name is required"}
+        
+        # Get the original job
+        original_job = job_service.job_get(job_id)
+        if not original_job:
+            return {"status": "error", "message": f"Job {job_id} not found"}
+        
+        original_job_data = original_job.get("job_data", {})
+        if not isinstance(original_job_data, dict):
+            try:
+                original_job_data = json.loads(original_job_data)
+            except Exception:
+                original_job_data = {}
+        
+        # Extract the necessary information from the original job
+        config = original_job_data.get("config", {})
+        if not isinstance(config, dict):
+            try:
+                config = json.loads(config)
+            except Exception:
+                config = {}
+        
+        # Get the checkpoint directory path
+        checkpoints_dir = original_job_data.get("checkpoints_dir", "")
+        if not checkpoints_dir:
+            # Try to construct default path
+            model_name = config.get("model_name", "")
+            adaptor_name = config.get("adaptor_name", "adaptor")
+            workspace_dir = get_workspace_dir()
+            checkpoints_dir = os.path.join(workspace_dir, "adaptors", secure_filename(model_name), adaptor_name)
+        
+        checkpoint_path = os.path.join(checkpoints_dir, checkpoint_name)
+        
+        if not os.path.exists(checkpoint_path):
+            return {"status": "error", "message": f"Checkpoint {checkpoint_name} not found at {checkpoint_path}"}
+        
+        # Get the original command, setup, and script
+        original_command = config.get("command", "")
+        original_setup = config.get("setup", "")
+        original_script_path = config.get("script_path", "")
+        cluster_name = config.get("cluster_name", "")
+        
+        if not original_command:
+            return {"status": "error", "message": "Original job command not found in config"}
+        
+        # Modify the command to include the checkpoint parameter
+        # Add --resume_from_checkpoint parameter to the command
+        if "--resume_from_checkpoint" not in original_command:
+            # Add the checkpoint parameter
+            resume_command = f"{original_command} --resume_from_checkpoint {checkpoint_path} --parent_job_id {job_id}"
+        else:
+            # Replace existing checkpoint parameter
+            import re
+            resume_command = re.sub(
+                r'--resume_from_checkpoint\s+\S+',
+                f'--resume_from_checkpoint {checkpoint_path}',
+                original_command
+            )
+            if "--parent_job_id" not in resume_command:
+                resume_command = f"{resume_command} --parent_job_id {job_id}"
+        
+        # Create new job data for the resumed training
+        new_job_data = {
+            "type": "REMOTE",
+            "status": "QUEUED",
+            "config": {
+                "command": resume_command,
+                "setup": original_setup,
+                "script_path": original_script_path,
+                "cluster_name": cluster_name,
+                "cpus": config.get("cpus"),
+                "memory": config.get("memory"),
+                "disk_space": config.get("disk_space"),
+                "accelerators": config.get("accelerators"),
+                "num_nodes": config.get("num_nodes"),
+                "uploaded_dir_path": config.get("uploaded_dir_path"),
+                "resumed_from_checkpoint": checkpoint_name,
+                "parent_job_id": job_id,
+            },
+            "template_name": original_job_data.get("template_name", "") + " (Resumed)",
+        }
+        
+        # Create the new job
+        new_job_id = job_service.job_create(
+            type="REMOTE",
+            status="CREATED",
+            job_data=json.dumps(new_job_data),
+            experiment_id=experimentId
+        )
+        
+        # Now launch it via the remote orchestrator
+        from ..remote import launch_remote as launch_remote_func
+        
+        # Prepare the form data for launch
+        class FormData:
+            def __init__(self, **kwargs):
+                for key, value in kwargs.items():
+                    setattr(self, key, value)
+        
+        # Call launch_remote to actually start the job
+        launch_result = await launch_remote_func(
+            request=request,
+            experimentId=experimentId,
+            cluster_name=cluster_name,
+            command=resume_command,
+            task_name=f"Resume from {checkpoint_name}",
+            script_path=original_script_path,
+            cpus=config.get("cpus"),
+            memory=config.get("memory"),
+            disk_space=config.get("disk_space"),
+            accelerators=config.get("accelerators"),
+            num_nodes=config.get("num_nodes"),
+            setup=original_setup,
+            uploaded_dir_path=config.get("uploaded_dir_path"),
+        )
+        
+        if launch_result.get("status") == "success":
+            # Update the job status to RUNNING
+            await job_update_status(new_job_id, "RUNNING", experiment_id=experimentId)
+            return {
+                "status": "success",
+                "job_id": new_job_id,
+                "message": f"Training resumed from checkpoint {checkpoint_name}",
+                "launch_result": launch_result
+            }
+        else:
+            # Mark job as failed
+            await job_update_status(new_job_id, "FAILED", experiment_id=experimentId)
+            return {
+                "status": "error",
+                "message": f"Failed to launch remote job: {launch_result.get('message', 'Unknown error')}",
+                "job_id": new_job_id
+            }
+    
+    except Exception as e:
+        logging.error(f"Error resuming from checkpoint: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "message": str(e)}
+>>>>>>> Stashed changes
 
 

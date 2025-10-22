@@ -14,6 +14,7 @@ async def launch_remote(
     cluster_name: str = Form(...),
     command: str = Form("echo 'Hello World'"),
     task_name: Optional[str] = Form(None),
+    script_path: Optional[str] = Form(None),
     cpus: Optional[str] = Form(None),
     memory: Optional[str] = Form(None),
     disk_space: Optional[str] = Form(None),
@@ -82,11 +83,47 @@ async def launch_remote(
             )
             
             if response.status_code == 200:
-                # Do not create a task here; frontend creates task separately.
+                # Create a local job to track this remote execution
+                from transformerlab.services import job_service
+                import json
+                
+                # Prepare job_data with all the config needed for resume
+                job_config = {
+                    "command": command,
+                    "setup": setup,
+                    "script_path": script_path,
+                    "cluster_name": cluster_name,
+                    "cpus": cpus,
+                    "memory": memory,
+                    "disk_space": disk_space,
+                    "accelerators": accelerators,
+                    "num_nodes": num_nodes,
+                    "uploaded_dir_path": uploaded_dir_path,
+                }
+                
+                job_data = {
+                    "type": "REMOTE",
+                    "config": job_config,
+                    "template_name": job_name,
+                    "remote_data": response.json(),
+                }
+                
+                # Create the job
+                job_id = job_service.job_create(
+                    type="REMOTE",
+                    status="RUNNING",
+                    job_data=json.dumps(job_data),
+                    experiment_id=experimentId
+                )
+                
+                result = response.json()
+                result["local_job_id"] = job_id
+                
                 return {
                     "status": "success",
-                    "data": response.json(),
+                    "data": result,
                     "message": "Remote instance launched successfully",
+                    "job_id": job_id,
                 }
             else:
                 return {
