@@ -4,6 +4,7 @@ import json
 from fastapi import APIRouter, Form, Request, File, UploadFile
 from typing import Optional, List
 from transformerlab.services import job_service
+from transformerlab.services.job_service import job_update_status
 
 
 router = APIRouter(prefix="/remote", tags=["remote"])
@@ -144,31 +145,40 @@ async def stop_remote(
     if not gpu_orchestrator_port:
         return {"status": "error", "message": "GPU_ORCHESTRATION_SERVER_PORT environment variable not set"}
     
-    gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/down"
+    # First, cancel the job on the cluster
+    down_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/down"
     
     try:
         # Make the request to the Lattice orchestrator
         async with httpx.AsyncClient() as client:
             # Build headers: prefer configured API key, otherwise forward incoming Authorization header
             outbound_headers = {
-                "Content-Type": "application/x-www-form-urlencoded"
+                "Content-Type": "application/json"
             }
             incoming_auth = request.headers.get("AUTHORIZATION")
             if incoming_auth:
                 outbound_headers["AUTHORIZATION"] = incoming_auth
+            
+            # Bring down the cluster
+            print(f"Bringing down cluster {cluster_name}")
+            # Prepare JSON payload for the orchestrator
+            payload = {
+                "cluster_name": cluster_name,
+                "tlab_job_id": job_id,  # Pass the job_id to the orchestrator
+            }
 
             response = await client.post(
-                f"{gpu_orchestrator_url}",
+                down_url,
                 headers=outbound_headers,
-                data={
-                    "cluster_name": cluster_name,
-                    "tlab_job_id": job_id,  # Pass the job_id to the orchestrator
-                },
+                json=payload,
                 cookies=request.cookies,
                 timeout=30.0
             )
             
             if response.status_code == 200:
+                # Update job status to STOPPED on successful down request
+                await job_update_status(job_id, "STOPPED")
+                
                 return {
                     "status": "success",
                     "data": response.json(),
