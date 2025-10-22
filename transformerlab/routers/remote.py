@@ -1,6 +1,5 @@
 import os
 import httpx
-import json
 from fastapi import APIRouter, Form, Request, File, UploadFile
 from typing import Optional, List
 from transformerlab.services import job_service
@@ -267,3 +266,144 @@ async def upload_directory(
         return {"status": "error", "message": "Request error occurred"}
     except Exception:
         return {"status": "error", "message": "Unexpected error occurred"}
+
+
+async def check_remote_job_status(request: Request, cluster_name: str):
+    """
+    Check the status of jobs running on a remote cluster via the orchestrator.
+    Returns the status of all jobs on the cluster.
+    """
+    # Get environment variables
+    gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
+    gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
+
+
+    
+    if not gpu_orchestrator_url:
+        return {"status": "error", "message": "GPU_ORCHESTRATION_SERVER environment variable not set"}
+    
+    if not gpu_orchestrator_port:
+        return {"status": "error", "message": "GPU_ORCHESTRATION_SERVER_PORT environment variable not set"}
+    
+    # Build the jobs endpoint URL
+    jobs_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/jobs/{cluster_name}"
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            # Build headers: prefer configured API key, otherwise forward incoming Authorization header
+            outbound_headers = {
+                "Content-Type": "application/json"
+            }
+            incoming_auth = request.headers.get("AUTHORIZATION")
+            if incoming_auth:
+                outbound_headers["AUTHORIZATION"] = incoming_auth
+
+            response = await client.get(
+                jobs_url,
+                headers=outbound_headers,
+                cookies=request.cookies,
+                timeout=30.0
+            )
+            
+            if response.status_code == 200:
+                return {
+                    "status": "success",
+                    "data": response.json(),
+                    "message": "Remote job status retrieved successfully",
+                }
+            else:
+                return {
+                    "status": "error", 
+                    "message": f"Orchestrator returned status {response.status_code}: {response.text}"
+                }
+                
+    except httpx.TimeoutException:
+        return {"status": "error", "message": "Request to orchestrator timed out"}
+    except httpx.RequestError:
+        return {"status": "error", "message": "Request error occurred"}
+    except Exception:
+        return {"status": "error", "message": "Unexpected error occurred"}
+
+
+@router.get("/check-status")
+async def check_remote_jobs_status(request: Request):
+    """
+    Simple endpoint to check and update status of REMOTE jobs in LAUNCHING state.
+    This endpoint can be called by the frontend and forwards authentication.
+    """
+    try:
+        # Get all REMOTE jobs in LAUNCHING state across all experiments
+        import transformerlab.services.experiment_service as experiment_service
+        launching_remote_jobs = []
+        
+        # Get all experiments and check for REMOTE jobs in LAUNCHING state
+        experiments = experiment_service.experiment_get_all()
+        print(f"Found {len(experiments)} experiments")
+        for exp in experiments:
+            # Avoid errors of broken migrations in experiments
+            if "id" not in exp:
+                continue
+            exp_jobs = job_service.jobs_get_all(exp["id"], type="REMOTE", status="LAUNCHING")
+            launching_remote_jobs.extend(exp_jobs)
+            print(f"Found {len(exp_jobs)} REMOTE jobs in LAUNCHING state in experiment {exp['id']}")
+        
+        if not launching_remote_jobs:
+            return {"message": "No REMOTE jobs in LAUNCHING state", "updated_jobs": []}
+        
+        updated_jobs = []
+        print(f"Checking {len(launching_remote_jobs)} REMOTE jobs in LAUNCHING state")
+        
+        for job in launching_remote_jobs:
+            print(f"Checking job {job['id']}")
+            job_id = job["id"]
+            job_data = job.get("job_data", {})
+            cluster_name = job_data.get("cluster_name")
+            
+            if not cluster_name:
+                print(f"Warning: Job {job_id} has no cluster_name in job_data")
+                continue
+            
+            # Check the status of jobs on this cluster using the actual request
+            status_response = await check_remote_job_status(request, cluster_name)
+            
+            if status_response["status"] == "success":
+                orchestrator_data = status_response["data"]
+                jobs_on_cluster = orchestrator_data.get("jobs", [])
+                
+                # Check if all jobs on the cluster are in a terminal state (SUCCEEDED or FAILED)
+                all_jobs_finished = True
+                for cluster_job in jobs_on_cluster:
+                    job_status = cluster_job.get("status", "")
+                    # Check for both the enum format and plain string format
+                    if job_status not in ["JobStatus.SUCCEEDED", "JobStatus.FAILED", "SUCCEEDED", "FAILED"]:
+                        all_jobs_finished = False
+                        break
+                
+                if all_jobs_finished and jobs_on_cluster:
+                    # All jobs on the cluster are finished, mark our LAUNCHING job as COMPLETE
+                    await job_update_status(job_id, "COMPLETE", experiment_id=job["experiment_id"])
+                    updated_jobs.append({
+                        "job_id": job_id,
+                        "cluster_name": cluster_name,
+                        "status": "COMPLETE",
+                        "message": "All jobs on cluster completed"
+                    })
+                else:
+                    # Jobs are still running on the cluster
+                    updated_jobs.append({
+                        "job_id": job_id,
+                        "cluster_name": cluster_name,
+                        "status": "LAUNCHING",
+                        "message": "Jobs still running on cluster"
+                    })
+            else:
+                print(f"Error checking status for job {job_id} on cluster {cluster_name}: {status_response.get('message', 'Unknown error')}")
+        
+        return {
+            "status": "success",
+            "updated_jobs": updated_jobs,
+            "message": f"Checked {len(launching_remote_jobs)} REMOTE jobs in LAUNCHING state"
+        }
+        
+    except Exception as e:
+        return {"status": "error", "message": f"Error checking remote job status: {str(e)}"}
