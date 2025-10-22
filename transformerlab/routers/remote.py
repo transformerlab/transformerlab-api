@@ -44,7 +44,8 @@ async def launch_remote(
         for key, value in job_data.items():
             job_service.job_update_job_data_insert_key_value(job_id, key, value, experimentId)
     except Exception as e:
-        return {"status": "error", "message": f"Failed to create job: {str(e)}"}
+        print(f"Failed to create job: {str(e)}")
+        return {"status": "error", "message": "Failed to create job"}
     
     # Get environment variables
     gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
@@ -406,4 +407,5 @@ async def check_remote_jobs_status(request: Request):
         }
         
     except Exception as e:
-        return {"status": "error", "message": f"Error checking remote job status: {str(e)}"}
+        print(f"Error checking remote job status: {str(e)}")
+        return {"status": "error", "message": "Error checking remote job status"}
