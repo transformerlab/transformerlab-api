@@ -105,10 +105,18 @@ async def launch_remote(
                 timeout=30.0
             )
             
+            
             if response.status_code == 200:
+                response_data = response.json()
+                # Store the request_id in job data for later use
+                if "request_id" in response_data:
+                    job_service.job_update_job_data_insert_key_value(
+                        job_id, "orchestrator_request_id", response_data["request_id"], experimentId
+                    )
+                
                 return {
                     "status": "success",
-                    "data": response.json(),
+                    "data": response_data,
                     "job_id": job_id,
                     "message": "Remote instance launched successfully",
                 }
@@ -311,6 +319,62 @@ async def check_remote_job_status(request: Request, cluster_name: str):
                     "status": "success",
                     "data": response.json(),
                     "message": "Remote job status retrieved successfully",
+                }
+            else:
+                return {
+                    "status": "error", 
+                    "message": f"Orchestrator returned status {response.status_code}: {response.text}"
+                }
+                
+    except httpx.TimeoutException:
+        return {"status": "error", "message": "Request to orchestrator timed out"}
+    except httpx.RequestError:
+        return {"status": "error", "message": "Request error occurred"}
+    except Exception:
+        return {"status": "error", "message": "Unexpected error occurred"}
+
+
+@router.get("/logs/{request_id}")
+async def get_orchestrator_logs(request: Request, request_id: str):
+    """
+    Get streaming logs from the orchestrator for a specific request_id.
+    This endpoint forwards authentication to the orchestrator.
+    """
+    # Get environment variables
+    gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
+    gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
+    
+    if not gpu_orchestrator_url:
+        return {"status": "error", "message": "GPU_ORCHESTRATION_SERVER environment variable not set"}
+    
+    if not gpu_orchestrator_port:
+        return {"status": "error", "message": "GPU_ORCHESTRATION_SERVER_PORT environment variable not set"}
+    
+    # Build the logs endpoint URL
+    logs_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/requests/{request_id}/logs"
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            # Build headers: prefer configured API key, otherwise forward incoming Authorization header
+            outbound_headers = {
+                "Content-Type": "application/json"
+            }
+            incoming_auth = request.headers.get("AUTHORIZATION")
+            if incoming_auth:
+                outbound_headers["AUTHORIZATION"] = incoming_auth
+
+            response = await client.get(
+                logs_url,
+                headers=outbound_headers,
+                cookies=request.cookies,
+                timeout=30.0
+            )
+            
+            if response.status_code == 200:
+                return {
+                    "status": "success",
+                    "data": response.text,  # Return raw text for streaming logs
+                    "message": "Orchestrator logs retrieved successfully",
                 }
             else:
                 return {
