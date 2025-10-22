@@ -1,7 +1,9 @@
 import os
 import httpx
+import json
 from fastapi import APIRouter, Form, Request, File, UploadFile
 from typing import Optional, List
+from transformerlab.services import job_service
 
 
 router = APIRouter(prefix="/remote", tags=["remote"])
@@ -23,8 +25,27 @@ async def launch_remote(
     uploaded_dir_path: Optional[str] = Form(None),
 ):
     """
-    Launch a remote instance via Lattice orchestrator and create a task with remote_task attribute as True
+    Launch a remote instance via Lattice orchestrator and create a REMOTE job
     """
+    # First, create a REMOTE job
+    job_data = {
+        "cluster_name": cluster_name,
+        "task_name": task_name,
+        "command": command,
+    }
+    
+    try:
+        job_id = job_service.job_create(
+            type="REMOTE",
+            status="LAUNCHING", 
+            experiment_id=experimentId,
+        )
+        # Update the job data to add fields from job_data (this ensures default fields stay in the job)
+        for key, value in job_data.items():
+            job_service.job_update_job_data_insert_key_value(job_id, key, value, experimentId)
+    except Exception as e:
+        return {"status": "error", "message": f"Failed to create job: {str(e)}"}
+    
     # Get environment variables
     gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
     gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
@@ -34,10 +55,12 @@ async def launch_remote(
     
     if not gpu_orchestrator_port:
         return {"status": "error", "message": "GPU_ORCHESTRATION_SERVER_PORT environment variable not set"}
+    
     # Prepare the request data for Lattice orchestrator
     request_data = {
         "cluster_name": cluster_name,
         "command": command,
+        "tlab_job_id": job_id,  # Pass the job_id to the orchestrator
     }
     
     # Use task_name as job_name if provided, otherwise fall back to cluster_name
@@ -82,11 +105,74 @@ async def launch_remote(
             )
             
             if response.status_code == 200:
-                # Do not create a task here; frontend creates task separately.
                 return {
                     "status": "success",
                     "data": response.json(),
+                    "job_id": job_id,
                     "message": "Remote instance launched successfully",
+                }
+            else:
+                return {
+                    "status": "error", 
+                    "message": f"Lattice orchestrator returned status {response.status_code}: {response.text}"
+                }
+                
+    except httpx.TimeoutException:
+        return {"status": "error", "message": "Request to Lattice orchestrator timed out"}
+    except httpx.RequestError:
+        return {"status": "error", "message": "Request error occurred"}
+    except Exception:
+        return {"status": "error", "message": "Unexpected error occurred"}
+
+
+@router.post("/stop")
+async def stop_remote(
+    request: Request,
+    job_id: str = Form(...),
+    cluster_name: str = Form(...),
+):
+    """
+    Stop a remote instance via Lattice orchestrator by calling instances/down endpoint
+    """
+    # Get environment variables
+    gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
+    gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
+    
+    if not gpu_orchestrator_url:
+        return {"status": "error", "message": "GPU_ORCHESTRATION_SERVER environment variable not set"}
+    
+    if not gpu_orchestrator_port:
+        return {"status": "error", "message": "GPU_ORCHESTRATION_SERVER_PORT environment variable not set"}
+    
+    gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/down"
+    
+    try:
+        # Make the request to the Lattice orchestrator
+        async with httpx.AsyncClient() as client:
+            # Build headers: prefer configured API key, otherwise forward incoming Authorization header
+            outbound_headers = {
+                "Content-Type": "application/x-www-form-urlencoded"
+            }
+            incoming_auth = request.headers.get("AUTHORIZATION")
+            if incoming_auth:
+                outbound_headers["AUTHORIZATION"] = incoming_auth
+
+            response = await client.post(
+                f"{gpu_orchestrator_url}",
+                headers=outbound_headers,
+                data={
+                    "cluster_name": cluster_name,
+                    "tlab_job_id": job_id,  # Pass the job_id to the orchestrator
+                },
+                cookies=request.cookies,
+                timeout=30.0
+            )
+            
+            if response.status_code == 200:
+                return {
+                    "status": "success",
+                    "data": response.json(),
+                    "message": "Remote instance stopped successfully",
                 }
             else:
                 return {
