@@ -23,6 +23,7 @@ def validate_gpu_orchestrator_env_vars():
     if not gpu_orchestrator_port:
         return None, {"status": "error", "message": "GPU_ORCHESTRATION_SERVER_PORT environment variable not set"}
     
+    
     return gpu_orchestrator_url, gpu_orchestrator_port
 
 
