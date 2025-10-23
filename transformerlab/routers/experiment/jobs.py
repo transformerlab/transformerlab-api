@@ -624,7 +624,6 @@ async def get_checkpoints(job_id: str, request: Request):
     }
 
 
-<<<<<<< Updated upstream
 @router.get("/{job_id}/artifacts")
 async def get_artifacts(job_id: str, request: Request):
     if job_id is None or job_id == "" or job_id == "-1":
@@ -700,43 +699,6 @@ async def get_artifacts(job_id: str, request: Request):
     artifacts.sort(key=lambda x: x["filename"], reverse=True)
 
     return {"artifacts": artifacts}
-=======
-@router.get("/{job_id}/models")
-async def get_models(job_id: str, request: Request):
-    if job_id is None or job_id == "" or job_id == "-1":
-        return {"models": []}
-
-    """Get list of models for a job"""
-    job = job_service.job_get(job_id)
-    job_data = job["job_data"]
-
-    # Models are stored in the job's models directory
-    models_dir = dirs.get_job_models_dir(job_id)
-
-    if not os.path.exists(models_dir):
-        return {"models": []}
-
-    models = []
-    try:
-        for item in os.listdir(models_dir):
-            item_path = os.path.join(models_dir, item)
-            if os.path.isdir(item_path):
-                try:
-                    stat = os.stat(item_path)
-                    modified_time = stat.st_mtime
-                    # Format the timestamp as ISO 8601 string
-                    formatted_time = datetime.fromtimestamp(modified_time).isoformat()
-                    models.append({"name": item, "path": item_path, "date": formatted_time})
-                except Exception as e:
-                    logging.error(f"Error getting stat for model {item_path}: {e}")
-    except OSError as e:
-        logging.error(f"Error reading models directory {models_dir}: {e}")
-
-    # Sort models by date descending
-    models.sort(key=lambda x: x["date"], reverse=True)
-
-    return {"models": models}
-
 
 @router.post("/{job_id}/resume_from_checkpoint")
 async def resume_from_checkpoint(
@@ -889,6 +851,4 @@ async def resume_from_checkpoint(
         import traceback
         traceback.print_exc()
         return {"status": "error", "message": str(e)}
->>>>>>> Stashed changes
-
 
