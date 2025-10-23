@@ -47,9 +47,9 @@ async def launch_remote(
     """
     # First, create a REMOTE job
     job_data = {
-        "cluster_name": cluster_name,
         "task_name": task_name,
         "command": command,
+        "cluster_name": cluster_name
     }
     
     try:
@@ -128,6 +128,11 @@ async def launch_remote(
                 if "request_id" in response_data:
                     job_service.job_update_job_data_insert_key_value(
                         job_id, "orchestrator_request_id", response_data["request_id"], experimentId
+                    )
+                # Store the cluster_name in job data for later use
+                if "cluster_name" in response_data:
+                    job_service.job_update_job_data_insert_key_value(
+                        job_id, "cluster_name", response_data["cluster_name"], experimentId
                     )
                 
                 return {
