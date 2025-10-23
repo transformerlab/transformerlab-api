@@ -48,6 +48,12 @@ async def experiment_list_scripts(id: str, type: str = None, filter: str = None)
 
     scripts_dir = get_plugin_dir()
 
+    # Return empty if the plugin directory has orgs in it, meaning we are in multitenant mode logged in and dont need plugins.
+    # TODO: Optimize this later on with similar index as jobs.json
+    print("PLUGIN DIRECTORY: ", scripts_dir)
+    if "orgs" in scripts_dir:
+        return []
+
     # now get a list of all the directories in the scripts directory:
     scripts_full_json = []
 
