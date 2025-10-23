@@ -48,9 +48,9 @@ async def experiment_list_scripts(id: str, type: str = None, filter: str = None)
 
     scripts_dir = get_plugin_dir()
 
-    # Return empty if the plugin directory has orgs in it, meaning we are in multitenant mode logged in and dont need plugins.
+    # Return empty if multitenant mode is enabled as we don't need plugins in this mode.
     # TODO: Optimize this later on with similar index as jobs.json
-    if "orgs" in scripts_dir:
+    if os.getenv("TFL_MULTITENANT") == "true":
         return []
 
     # now get a list of all the directories in the scripts directory:

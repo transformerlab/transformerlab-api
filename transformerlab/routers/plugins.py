@@ -313,9 +313,10 @@ async def list_plugins() -> list[object]:
     from lab.dirs import get_plugin_dir
     local_workspace_gallery_directory = get_plugin_dir()
 
-    # Return empty if the plugin directory has orgs in it, meaning we are in multitenant mode logged in and dont need plugins.
+
+    # Return empty if multitenant mode is enabled as we don't need plugins in this mode.
     # TODO: Optimize this later on with similar index as jobs.json
-    if "orgs" in local_workspace_gallery_directory:
+    if os.getenv("TFL_MULTITENANT") == "true":
         return []
 
     # now get the local workspace gallery
