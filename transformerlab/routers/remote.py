@@ -422,7 +422,6 @@ async def check_remote_jobs_status(request: Request):
         print(f"Checking {len(launching_remote_jobs)} REMOTE jobs in LAUNCHING state")
         
         for job in launching_remote_jobs:
-            print(f"Checking job {job['id']}")
             job_id = job["id"]
             job_data = job.get("job_data", {})
             cluster_name = job_data.get("cluster_name")
