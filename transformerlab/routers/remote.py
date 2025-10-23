@@ -408,14 +408,12 @@ async def check_remote_jobs_status(request: Request):
         
         # Get all experiments and check for REMOTE jobs in LAUNCHING state
         experiments = experiment_service.experiment_get_all()
-        print(f"Found {len(experiments)} experiments")
         for exp in experiments:
             # Avoid errors of broken migrations in experiments
             if "id" not in exp:
                 continue
             exp_jobs = job_service.jobs_get_all(exp["id"], type="REMOTE", status="LAUNCHING")
             launching_remote_jobs.extend(exp_jobs)
-            print(f"Found {len(exp_jobs)} REMOTE jobs in LAUNCHING state in experiment {exp['id']}")
         
         if not launching_remote_jobs:
             return {"message": "No REMOTE jobs in LAUNCHING state", "updated_jobs": []}
@@ -424,7 +422,6 @@ async def check_remote_jobs_status(request: Request):
         print(f"Checking {len(launching_remote_jobs)} REMOTE jobs in LAUNCHING state")
         
         for job in launching_remote_jobs:
-            print(f"Checking job {job['id']}")
             job_id = job["id"]
             job_data = job.get("job_data", {})
             cluster_name = job_data.get("cluster_name")
