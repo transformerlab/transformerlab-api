@@ -9,6 +9,23 @@ from transformerlab.services.job_service import job_update_status
 router = APIRouter(prefix="/remote", tags=["remote"])
 
 
+def validate_gpu_orchestrator_env_vars():
+    """
+    Validate that required GPU orchestrator environment variables are set.
+    Returns a tuple of (url, port) if valid, or (None, error_response) if invalid.
+    """
+    gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
+    gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
+    
+    if not gpu_orchestrator_url:
+        return None, {"status": "error", "message": "GPU_ORCHESTRATION_SERVER environment variable not set"}
+    
+    if not gpu_orchestrator_port:
+        return None, {"status": "error", "message": "GPU_ORCHESTRATION_SERVER_PORT environment variable not set"}
+    
+    return gpu_orchestrator_url, gpu_orchestrator_port
+
+
 @router.post("/launch")
 async def launch_remote(
     request: Request,
@@ -47,15 +64,13 @@ async def launch_remote(
         print(f"Failed to create job: {str(e)}")
         return {"status": "error", "message": "Failed to create job"}
     
-    # Get environment variables
-    gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
-    gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
-    
-    if not gpu_orchestrator_url:
-        return {"status": "error", "message": "GPU_ORCHESTRATION_SERVER environment variable not set"}
-    
-    if not gpu_orchestrator_port:
-        return {"status": "error", "message": "GPU_ORCHESTRATION_SERVER_PORT environment variable not set"}
+    # Validate environment variables
+    result = validate_gpu_orchestrator_env_vars()
+    gpu_orchestrator_url, gpu_orchestrator_port = result
+    if isinstance(gpu_orchestrator_url, dict):
+        return gpu_orchestrator_url  # Error response
+    elif isinstance(gpu_orchestrator_port, dict):
+        return gpu_orchestrator_port  # Error response
     
     # Prepare the request data for Lattice orchestrator
     request_data = {
@@ -143,15 +158,13 @@ async def stop_remote(
     """
     Stop a remote instance via Lattice orchestrator by calling instances/down endpoint
     """
-    # Get environment variables
-    gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
-    gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
-    
-    if not gpu_orchestrator_url:
-        return {"status": "error", "message": "GPU_ORCHESTRATION_SERVER environment variable not set"}
-    
-    if not gpu_orchestrator_port:
-        return {"status": "error", "message": "GPU_ORCHESTRATION_SERVER_PORT environment variable not set"}
+    # Validate environment variables
+    result = validate_gpu_orchestrator_env_vars()
+    gpu_orchestrator_url, gpu_orchestrator_port = result
+    if isinstance(gpu_orchestrator_url, dict):
+        return gpu_orchestrator_url  # Error response
+    elif isinstance(gpu_orchestrator_port, dict):
+        return gpu_orchestrator_port  # Error response
     
     # First, cancel the job on the cluster
     down_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/down"
@@ -215,16 +228,13 @@ async def upload_directory(
     """
     Upload a directory to the remote Lattice orchestrator for later use in cluster launches
     """
-    # Get environment variables
-    gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
-    gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
-    
-    if not gpu_orchestrator_url:
-        return {"status": "error", "message": "GPU_ORCHESTRATION_SERVER environment variable not set"}
-    
-    if not gpu_orchestrator_port:
-        return {"status": "error", "message": "GPU_ORCHESTRATION_SERVER_PORT environment variable not set"}
-    
+    # Validate environment variables
+    result = validate_gpu_orchestrator_env_vars()
+    gpu_orchestrator_url, gpu_orchestrator_port = result
+    if isinstance(gpu_orchestrator_url, dict):
+        return gpu_orchestrator_url  # Error response
+    elif isinstance(gpu_orchestrator_port, dict):
+        return gpu_orchestrator_port  # Error response
     gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/upload"
     
     try:
@@ -282,17 +292,13 @@ async def check_remote_job_status(request: Request, cluster_name: str):
     Check the status of jobs running on a remote cluster via the orchestrator.
     Returns the status of all jobs on the cluster.
     """
-    # Get environment variables
-    gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
-    gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
-
-
-    
-    if not gpu_orchestrator_url:
-        return {"status": "error", "message": "GPU_ORCHESTRATION_SERVER environment variable not set"}
-    
-    if not gpu_orchestrator_port:
-        return {"status": "error", "message": "GPU_ORCHESTRATION_SERVER_PORT environment variable not set"}
+    # Validate environment variables
+    result = validate_gpu_orchestrator_env_vars()
+    gpu_orchestrator_url, gpu_orchestrator_port = result
+    if isinstance(gpu_orchestrator_url, dict):
+        return gpu_orchestrator_url  # Error response
+    elif isinstance(gpu_orchestrator_port, dict):
+        return gpu_orchestrator_port  # Error response
     
     # Build the jobs endpoint URL
     jobs_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/jobs/{cluster_name}"
@@ -340,15 +346,13 @@ async def get_orchestrator_logs(request: Request, request_id: str):
     Get streaming logs from the orchestrator for a specific request_id.
     This endpoint forwards authentication to the orchestrator.
     """
-    # Get environment variables
-    gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
-    gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
-    
-    if not gpu_orchestrator_url:
-        return {"status": "error", "message": "GPU_ORCHESTRATION_SERVER environment variable not set"}
-    
-    if not gpu_orchestrator_port:
-        return {"status": "error", "message": "GPU_ORCHESTRATION_SERVER_PORT environment variable not set"}
+    # Validate environment variables
+    result = validate_gpu_orchestrator_env_vars()
+    gpu_orchestrator_url, gpu_orchestrator_port = result
+    if isinstance(gpu_orchestrator_url, dict):
+        return gpu_orchestrator_url  # Error response
+    elif isinstance(gpu_orchestrator_port, dict):
+        return gpu_orchestrator_port  # Error response
     
     # Build the logs endpoint URL
     logs_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/requests/{request_id}/logs"
