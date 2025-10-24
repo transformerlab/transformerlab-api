@@ -675,6 +675,16 @@ async def install_task_from_gallery(
     # Prepare temp directory for shallow clone of specific path
     remote_repo_url = "https://github.com/transformerlab/galleries.git"
     tmp_dir = tempfile.mkdtemp(prefix="tlab_tasks_gallery_")
+     # Validate id: reject traversal and normalize path (move before any use)
+    if os.path.isabs(id) or ".." in id or "/" in id or "\\" in id or not id.strip():
+        return {"status": "error", "message": "Invalid task id"}
+    # Also check normalized/resolved task dir is within base dir early
+    base_tasks_dir = os.path.join(tmp_dir, "tasks")
+    canonical_base_tasks_dir = os.path.normpath(os.path.realpath(base_tasks_dir))
+    task_dir = os.path.normpath(os.path.join(canonical_base_tasks_dir, id))
+    canonical_task_dir = os.path.normpath(os.path.realpath(task_dir))
+    if os.path.commonpath([canonical_base_tasks_dir, canonical_task_dir]) != canonical_base_tasks_dir:
+        return {"status": "error", "message": "Invalid task directory"}
     try:
         # Sparse checkout only the requested task
         subprocess.check_call(["git", "init"], cwd=tmp_dir)
@@ -686,16 +696,6 @@ async def install_task_from_gallery(
             f.write(f"tasks/{id}\n")
         subprocess.check_call(["git", "pull", "--depth", "1", "origin", "main"], cwd=tmp_dir)
 
-        # Validate id: reject traversal and normalize path
-        if os.path.isabs(id) or ".." in id or "/" in id or "\\" in id or not id.strip():
-            return {"status": "error", "message": "Invalid task id"}
-        base_tasks_dir = os.path.join(tmp_dir, "tasks")
-        # Make sure the resolved path is within the expected tasks dir
-        canonical_base_tasks_dir = os.path.normpath(os.path.realpath(base_tasks_dir))
-        task_dir = os.path.normpath(os.path.join(canonical_base_tasks_dir, id))
-        canonical_task_dir = os.path.normpath(os.path.realpath(task_dir))
-        if os.path.commonpath([canonical_base_tasks_dir, canonical_task_dir]) != canonical_base_tasks_dir:
-            return {"status": "error", "message": "Invalid task directory"}
         task_json_path = os.path.join(canonical_task_dir, "task.json")
         if not os.path.isfile(task_json_path):
             return {"status": "error", "message": "task.json not found in the specifiedtask directory"}
