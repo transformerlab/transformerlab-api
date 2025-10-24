@@ -690,9 +690,9 @@ async def install_task_from_gallery(
         if os.path.isabs(id) or ".." in id or "/" in id or "\\" in id or not id.strip():
             return {"status": "error", "message": "Invalid task id"}
         base_tasks_dir = os.path.join(tmp_dir, "tasks")
-        task_dir = os.path.normpath(os.path.join(base_tasks_dir, id))
         # Make sure the resolved path is within the expected tasks dir
         canonical_base_tasks_dir = os.path.normpath(os.path.realpath(base_tasks_dir))
+        task_dir = os.path.normpath(os.path.join(canonical_base_tasks_dir, id))
         canonical_task_dir = os.path.normpath(os.path.realpath(task_dir))
         if os.path.commonpath([canonical_base_tasks_dir, canonical_task_dir]) != canonical_base_tasks_dir:
             return {"status": "error", "message": "Invalid task directory"}
