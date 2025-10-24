@@ -445,23 +445,23 @@ async def get_task_file_content(task_dir: str, file_path: str):
         full_file_path_real = os.path.realpath(full_file_path)
         
         # Security check: ensure the file is within the src directory
-        if os.path.commonpath([src_dir_real, full_file_path_real]) != src_dir_real:
+        if not full_file_path_real.startswith(src_dir_real + os.sep):
             return {"status": "error", "message": "Invalid file path"}
         
-        if not os.path.exists(full_file_path):
+        if not os.path.exists(full_file_path_real):
             return {"status": "error", "message": "File not found"}
         
-        if not os.path.isfile(full_file_path):
+        if not os.path.isfile(full_file_path_real):
             return {"status": "error", "message": "Path is not a file"}
         
         # Read file content
         try:
-            with open(full_file_path, 'r', encoding='utf-8') as f:
+            with open(full_file_path_real, 'r', encoding='utf-8') as f:
                 content = f.read()
         except UnicodeDecodeError:
             # If UTF-8 fails, try reading as binary and return base64 encoded content
             import base64
-            with open(full_file_path, 'rb') as f:
+            with open(full_file_path_real, 'rb') as f:
                 binary_content = f.read()
                 content = base64.b64encode(binary_content).decode('utf-8')
                 return {
