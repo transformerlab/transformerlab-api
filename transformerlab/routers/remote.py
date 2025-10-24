@@ -257,7 +257,8 @@ async def upload_directory(
         # Create unique directory for this upload
         import uuid
         upload_id = str(uuid.uuid4())
-        local_storage_dir = os.path.join(local_uploads_dir, f"upload_{upload_id}")
+        base_upload_dir = f"upload_{upload_id}"
+        local_storage_dir = os.path.join(local_uploads_dir, base_upload_dir)
         os.makedirs(local_storage_dir, exist_ok=True)
         
         # Store files locally
@@ -305,13 +306,13 @@ async def upload_directory(
             
             if response.status_code == 200:
                 response_data = response.json()
-                # Add local storage path to response
-                response_data["local_storage_path"] = local_storage_dir
+                # Add local storage path to response (just the folder name)
+                response_data["local_storage_path"] = base_upload_dir
                 return {
                     "status": "success",
                     "data": response_data,
                     "message": "Directory uploaded successfully",
-                    "local_storage_path": local_storage_dir
+                    "local_storage_path": base_upload_dir
                 }
             else:
                 return {

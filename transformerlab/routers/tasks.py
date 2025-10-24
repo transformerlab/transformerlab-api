@@ -685,6 +685,11 @@ async def export_task_to_local_gallery(
         local_upload_staged_dir = source_config.get("local_upload_staged_dir")
         local_upload_copy = source_config.get("local_upload_copy")
         
+        # local_upload_copy is just a folder name, we need to construct the full path
+        if local_upload_copy:
+            workspace_dir = get_workspace_dir()
+            local_upload_copy = os.path.join(workspace_dir, "uploads", local_upload_copy)
+        
         local_files_dir = local_upload_staged_dir or local_upload_copy
         if local_files_dir and os.path.exists(local_files_dir):
             # Copy files from local storage
