@@ -522,7 +522,7 @@ async def import_task_from_gallery(
         canonical_task_dir = os.path.normpath(os.path.realpath(local_task_dir))
         if os.path.commonpath([trusted_gallery_root, canonical_task_dir]) != trusted_gallery_root:
             return {"status": "error", "message": "Attempted access outside trusted gallery directory"}
-        task_json_path = os.path.join(local_task_dir, "task.json")
+        task_json_path = os.path.join(canonical_task_dir, "task.json")
         
         if not os.path.isfile(task_json_path):
             return {"status": "error", "message": f"task.json not found in local task directory: {task_dir_name}"}
@@ -694,7 +694,7 @@ async def install_task_from_gallery(
         canonical_task_dir = os.path.normpath(os.path.realpath(task_dir))
         if os.path.commonpath([canonical_base_tasks_dir, canonical_task_dir]) != canonical_base_tasks_dir:
             return {"status": "error", "message": "Invalid task directory"}
-        task_json_path = os.path.join(task_dir, "task.json")
+        task_json_path = os.path.join(canonical_task_dir, "task.json")
         if not os.path.isfile(task_json_path):
             return {"status": "error", "message": "task.json not found in the specifiedtask directory"}
 
