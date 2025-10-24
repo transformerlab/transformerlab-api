@@ -345,20 +345,28 @@ async def get_task_files(task_dir: str):
         if common_path != local_gallery_dir_real:
             return {"status": "error", "message": "Invalid task directory"}
         
-        if not os.path.exists(task_path):
+         # Use the validated real path for all subsequent file operations
+        if not os.path.exists(task_path_real):
             return {"status": "error", "message": "Task directory not found"}
         
         # Check for src directory
-        src_dir = os.path.join(task_path, "src")
+        src_dir = os.path.join(task_path_real, "src")
         if not os.path.exists(src_dir):
             return {"status": "success", "data": {"files": [], "count": 0}}
+
+        # Security check: ensure src_dir is within the local_gallery_dir
+        src_dir_real = os.path.realpath(src_dir)
+        # Note: reuse local_gallery_dir_real from above
+        common_src_path = os.path.commonpath([local_gallery_dir_real, src_dir_real])
+        if common_src_path != local_gallery_dir_real:
+            return {"status": "error", "message": "Invalid src directory"}
         
         # Get all files in src directory recursively
         files = []
-        for root, dirs, filenames in os.walk(src_dir):
+        for root, dirs, filenames in os.walk(src_dir_real):
             for filename in filenames:
                 # Get relative path from src directory
-                rel_path = os.path.relpath(os.path.join(root, filename), src_dir)
+                rel_path = os.path.relpath(os.path.join(root, filename), src_dir_real)
                 files.append(rel_path)
         
         return {"status": "success", "data": {"files": files, "count": len(files)}}
