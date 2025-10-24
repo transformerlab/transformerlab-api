@@ -341,12 +341,17 @@ async def get_task_files(task_dir: str):
     Get the list of files in the src/ directory of a task in the local tasks-gallery.
     """
     try:
+        # Disallow absolute paths and path traversal
+        if os.path.isabs(task_dir) or ".." in task_dir.split(os.sep):
+            return {"status": "error", "message": "Invalid task directory"}
+            
         workspace_dir = get_workspace_dir()
         local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
         task_path = os.path.normpath(os.path.join(local_gallery_dir, task_dir))
         
         # Security check: ensure the task path is within the local gallery directory
         local_gallery_dir_real = os.path.realpath(local_gallery_dir)
+        task_path = os.path.normpath(os.path.join(local_gallery_dir_real, task_dir))
         task_path_real = os.path.realpath(task_path)
         common_path = os.path.commonpath([local_gallery_dir_real, task_path_real])
         
@@ -471,6 +476,7 @@ async def import_task_from_gallery(
             try:
                 # Get the src directory from local installation
                 src_dir = os.path.join(local_task_dir, "src")
+                
                 if os.path.exists(src_dir):
                     # Validate that src_dir is within the trusted tasks-gallery location
                     canonical_src_dir = os.path.normpath(os.path.realpath(src_dir))
@@ -497,10 +503,10 @@ async def import_task_from_gallery(
                         dest = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/upload"
                         files_form = []
                         # Walk src_dir and add each file, preserving relative path inside src/
-                        for root, _, filenames in os.walk(src_dir):
+                        for root, _, filenames in os.walk(canonical_src_dir):
                             for filename in filenames:
                                 full_path = os.path.join(root, filename)
-                                rel_path = os.path.relpath(full_path, src_dir)
+                                rel_path = os.path.relpath(full_path, canonical_src_dir)
                                 # Prefix with src/ like the packed structure
                                 upload_name = f"src/{rel_path}"
                                 with open(full_path, "rb") as f:
