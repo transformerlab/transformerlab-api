@@ -675,8 +675,18 @@ async def install_task_from_gallery(
     # Prepare temp directory for shallow clone of specific path
     remote_repo_url = "https://github.com/transformerlab/galleries.git"
     tmp_dir = tempfile.mkdtemp(prefix="tlab_tasks_gallery_")
-     # Validate id: reject traversal and normalize path (move before any use)
-    if os.path.isabs(id) or ".." in id or "/" in id or "\\" in id or not id.strip():
+     # Strictly validate task ID: must be a simple directory name (alphanumeric / underscores / hyphens only, no traversal, no absolute or empty names)
+    import re
+    id_candidate = secure_filename(id)
+    if (
+        os.path.isabs(id) or
+        ".." in id or
+        "/" in id or
+        "\\" in id or
+        not id.strip() or
+        not re.match(r'^[A-Za-z0-9_-]+$', id) or
+        id_candidate != id  # secure_filename modifies the input, so reject
+    ):
         return {"status": "error", "message": "Invalid task id"}
     # Also check normalized/resolved task dir is within base dir early
     base_tasks_dir = os.path.join(tmp_dir, "tasks")
@@ -698,7 +708,7 @@ async def install_task_from_gallery(
 
         task_json_path = os.path.join(canonical_task_dir, "task.json")
         if not os.path.isfile(task_json_path):
-            return {"status": "error", "message": "task.json not found in the specifiedtask directory"}
+            return {"status": "error", "message": "task.json not found in the specified task directory"}
 
         with open(task_json_path) as f:
             task_def = json_lib.load(f)
@@ -737,6 +747,9 @@ async def install_task_from_gallery(
                 or not name.strip()):
                 continue  # skip invalid file/folder names
             src_path = os.path.join(task_dir, name)
+            # Prevent copying symlinks or non-files from the remote repo to local gallery (defense-in-depth)
+            if os.path.islink(src_path) or not os.path.isfile(src_path):
+                continue
             dest_path = os.path.join(src_dir, name)
 
             # Resolve and check source path strictly inside task_dir
@@ -750,6 +763,10 @@ async def install_task_from_gallery(
             canonical_dest_path = os.path.normpath(os.path.realpath(dest_path))
             if os.path.commonpath([canonical_src_dir, canonical_dest_path]) != canonical_src_dir:
                 continue  # skip files that "escape" the intended dest dir
+
+            # Defensive: reject any src_path that escapes task_dir before any file operation
+            if os.path.commonpath([canonical_task_dir, canonical_src_path]) != canonical_task_dir:
+                continue
 
             # Skip symlinks
             if os.path.islink(src_path):
