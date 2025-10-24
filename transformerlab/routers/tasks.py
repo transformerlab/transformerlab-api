@@ -511,6 +511,25 @@ async def import_task_from_gallery(
         return {"status": "error", "message": "Failed to get task directory name from installation"}
     
     # Validate task_dir_name before using it as a path component
+    import re
+    candidate = secure_filename(task_dir_name)
+    # defensive pattern: basic checks for directory name safety
+    if (
+        os.path.isabs(task_dir_name)
+        or ".." in task_dir_name
+        or "/" in task_dir_name
+        or "\\" in task_dir_name
+        or not task_dir_name.strip()
+        or not re.match(r'^[A-Za-z0-9_-]+$', task_dir_name)
+        or candidate != task_dir_name
+    ):
+        return {"status": "error", "message": "Invalid task directory name"}
+    # Check normalized/resolved path containment: ensure that the path is within workspace/tasks-gallery
+    base_gallery_dir = os.path.join(get_workspace_dir(), "tasks-gallery")
+    canonical_base_gallery_dir = os.path.normpath(os.path.realpath(base_gallery_dir))
+    canonical_task_dir = os.path.normpath(os.path.realpath(os.path.join(canonical_base_gallery_dir, task_dir_name)))
+    if os.path.commonpath([canonical_base_gallery_dir, canonical_task_dir]) != canonical_base_gallery_dir:
+        return {"status": "error", "message": "Invalid task directory (not contained within gallery base)"}
     if os.path.isabs(task_dir_name) or ".." in task_dir_name or "/" in task_dir_name or "\\" in task_dir_name or not task_dir_name.strip():
         return {"status": "error", "message": "Invalid task directory name (import)"}
     
