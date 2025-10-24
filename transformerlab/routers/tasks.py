@@ -678,7 +678,8 @@ async def export_task_to_local_gallery(
         if isinstance(source_config, str):
             try:
                 source_config = json_lib.loads(source_config)
-            except:
+            except Exception as e:
+                print(f"Error loading source config: {e}")
                 source_config = {}
         
         # Check for local upload files in both possible config fields
