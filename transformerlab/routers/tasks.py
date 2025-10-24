@@ -441,9 +441,11 @@ async def get_task_file_content(task_dir: str, file_path: str):
         
         # Construct the full file path
         full_file_path = os.path.normpath(os.path.join(src_dir_real, file_path))
+
+        full_file_path_real = os.path.realpath(full_file_path)
         
         # Security check: ensure the file is within the src directory
-        if not full_file_path.startswith(src_dir_real + os.sep) and full_file_path != src_dir_real:
+        if os.path.commonpath([src_dir_real, full_file_path_real]) != src_dir_real:
             return {"status": "error", "message": "Invalid file path"}
         
         if not os.path.exists(full_file_path):
