@@ -359,7 +359,9 @@ async def get_task_files(task_dir: str):
         task_path_real = os.path.realpath(task_path)
         common_path = os.path.commonpath([local_gallery_dir_real, task_path_real])
         
-        if common_path != local_gallery_dir_real:
+        # Ensure that the task_path_real is a strict subdirectory of local_gallery_dir_real
+        # (not equal to the gallery directory itself, can't escape via symlinks or traversal)
+        if not (task_path_real.startswith(local_gallery_dir_real + os.sep)):
             return {"status": "error", "message": "Invalid task directory"}
         
          # Use the validated real path for all subsequent file operations
@@ -478,9 +480,7 @@ async def import_task_from_gallery(
         # Optional: Upload files to GPU orchestrator if requested
         if upload:
             try:
-                # Get the src directory from local installation
                 # Validate security for src_dir
-
                 src_dir = os.path.normpath(os.path.join(local_task_dir, "src"))
                 if os.path.exists(src_dir):
                     # Validate that src_dir is within the trusted tasks-gallery location
