@@ -747,13 +747,17 @@ async def install_task_from_gallery(
                 or not name.strip()):
                 continue  # skip invalid file/folder names
             src_path = os.path.join(task_dir, name)
+            # Canonicalize and strictly validate source path is inside allowed directory before accessing
+            canonical_task_dir = os.path.normpath(os.path.realpath(task_dir))
+            canonical_src_path = os.path.normpath(os.path.realpath(src_path))
+            if os.path.commonpath([canonical_task_dir, canonical_src_path]) != canonical_task_dir:
+                continue  # skip: file path escapes from task_dir
             # Prevent copying symlinks or non-files from the remote repo to local gallery (defense-in-depth)
-            if os.path.islink(src_path) or not os.path.isfile(src_path):
+            if os.path.islink(canonical_src_path) or not os.path.isfile(canonical_src_path):
                 continue
             dest_path = os.path.join(src_dir, name)
 
             # Resolve and check source path strictly inside task_dir
-            canonical_task_dir = os.path.normpath(os.path.realpath(task_dir))
             canonical_src_path = os.path.normpath(os.path.realpath(src_path))
             if os.path.commonpath([canonical_task_dir, canonical_src_path]) != canonical_task_dir:
                 continue  # skip files that "escape" the intended source dir
