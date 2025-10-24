@@ -574,13 +574,12 @@ async def import_task_from_gallery(
             try:
                 # Validate security for src_dir
                 src_dir = os.path.normpath(os.path.join(local_task_dir, "src"))
-                if os.path.exists(src_dir):
-                    # Validate that src_dir is within the trusted tasks-gallery location
-                    canonical_src_dir = os.path.normpath(os.path.realpath(src_dir))
-                    trusted_gallery_root = os.path.normpath(os.path.realpath(os.path.join(get_workspace_dir(), "tasks-gallery")))
-                     # Ensure src_dir is strictly contained within trusted gallery root directory using commonpath
-                    if os.path.commonpath([trusted_gallery_root, canonical_src_dir]) != trusted_gallery_root:
-                        return {"status": "error", "message": "Attempted upload from outside trusted gallery directory"}
+                canonical_src_dir = os.path.normpath(os.path.realpath(src_dir))
+                trusted_gallery_root = os.path.normpath(os.path.realpath(os.path.join(get_workspace_dir(), "tasks-gallery")))
+                # Ensure src_dir is strictly contained within trusted gallery root directory using commonpath
+                if os.path.commonpath([trusted_gallery_root, canonical_src_dir]) != trusted_gallery_root:
+                    return {"status": "error", "message": "Attempted upload from outside trusted gallery directory"}
+                if os.path.exists(canonical_src_dir):
                     # Post to GPU orchestrator upload endpoint
                     gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
                     gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
@@ -599,6 +598,12 @@ async def import_task_from_gallery(
                         # Build multipart form to mirror frontend DirectoryUpload
                         dest = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/upload"
                         files_form = []
+                        # Extra containment & directory check for defense-in-depth before walking filesystem
+                        if (
+                            os.path.commonpath([trusted_gallery_root, canonical_src_dir]) != trusted_gallery_root
+                            or not os.path.isdir(canonical_src_dir)
+                        ):
+                            return {"status": "error", "message": "Upload directory is outside trusted gallery or not a directory"}
                         # Walk src_dir and add each file, preserving relative path inside src/
                         for root, _, filenames in os.walk(canonical_src_dir):
                             for filename in filenames:
@@ -722,8 +727,31 @@ async def install_task_from_gallery(
         
         files_to_copy = [f for f in os.listdir(task_dir) if f != "task.json"]
         for name in files_to_copy:
+            # Validate name is a plain filename (no traversal, no directory separators, not abs, not symlink)
+            if (os.path.isabs(name)
+                or "/" in name
+                or "\\" in name
+                or ".." in name
+                or not name.strip()):
+                continue  # skip invalid file/folder names
             src_path = os.path.join(task_dir, name)
             dest_path = os.path.join(src_dir, name)
+
+            # Resolve and check source path strictly inside task_dir
+            canonical_task_dir = os.path.normpath(os.path.realpath(task_dir))
+            canonical_src_path = os.path.normpath(os.path.realpath(src_path))
+            if os.path.commonpath([canonical_task_dir, canonical_src_path]) != canonical_task_dir:
+                continue  # skip files that "escape" the intended source dir
+
+            # Also check destination directory stays inside src_dir
+            canonical_src_dir = os.path.normpath(os.path.realpath(src_dir))
+            canonical_dest_path = os.path.normpath(os.path.realpath(dest_path))
+            if os.path.commonpath([canonical_src_dir, canonical_dest_path]) != canonical_src_dir:
+                continue  # skip files that "escape" the intended dest dir
+
+            # Skip symlinks
+            if os.path.islink(src_path):
+                continue
             if os.path.isdir(src_path):
                 shutil.copytree(src_path, dest_path)
             else:
