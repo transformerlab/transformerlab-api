@@ -389,6 +389,10 @@ async def import_task_from_gallery(
     if not task_dir_name:
         return {"status": "error", "message": "Failed to get task directory name from installation"}
     
+    # Validate task_dir_name before using it as a path component
+    if os.path.isabs(task_dir_name) or ".." in task_dir_name or "/" in task_dir_name or "\\" in task_dir_name or not task_dir_name.strip():
+        return {"status": "error", "message": "Invalid task directory name (import)"}
+    
     # Now create the task in the experiment using the locally installed task
     try:
         workspace_dir = get_workspace_dir()
