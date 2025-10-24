@@ -357,7 +357,6 @@ async def get_task_files(task_dir: str):
         local_gallery_dir_real = os.path.realpath(local_gallery_dir)
         task_path = os.path.normpath(os.path.join(local_gallery_dir_real, task_dir))
         task_path_real = os.path.realpath(task_path)
-        common_path = os.path.commonpath([local_gallery_dir_real, task_path_real])
         
         # Ensure that the task_path_real is a strict subdirectory of local_gallery_dir_real
         # (not equal to the gallery directory itself, can't escape via symlinks or traversal)
