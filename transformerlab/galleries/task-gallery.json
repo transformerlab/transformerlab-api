@@ -1,6 +1,6 @@
 [
     {
-        "id": "test-script-remote",
+        "id": "test_script_task",
         "name": "test-script-remote",
         "description": "Example remote task that uses transformerlab-sdk test_script and uploads its directory.",
         "tag": "TRAIN"
