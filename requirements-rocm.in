@@ -33,7 +33,7 @@ macmon-python
 mcp[cli]
 transformerlab==0.0.29
 transformerlab-inference==0.2.51
-transformerlab==0.0.30
+transformerlab==0.0.39
 diffusers==0.33.1
 pyrsmi
 controlnet_aux==0.0.10

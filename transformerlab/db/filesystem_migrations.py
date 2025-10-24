@@ -285,6 +285,23 @@ async def migrate_tasks_table_to_filesystem():
             print(f"Failed to read tasks for migration: {e}")
             rows = []
 
+        # Get experiments mapping to convert numeric IDs to names
+        experiments_map = {}
+        try:
+            async with async_session() as session:
+                result = await session.execute(
+                    sqlalchemy_text("SELECT name FROM sqlite_master WHERE type='table' AND name='experiment'")
+                )
+                experiments_table_exists = result.fetchone() is not None
+                
+                if experiments_table_exists:
+                    result = await session.execute(sqlalchemy_text("SELECT * FROM experiment"))
+                    experiments = result.mappings().all()
+                    for exp in experiments:
+                        experiments_map[str(exp["id"])] = exp["name"]
+        except Exception as e:
+            print(f"Could not get experiments mapping: {e}")
+
         migrated = 0
         for row in rows:
             task_id = str(row.get("id")) if row.get("id") is not None else None
@@ -300,6 +317,13 @@ async def migrate_tasks_table_to_filesystem():
             experiment_id = row.get("experiment_id")
             created_at = row.get("created_at")
             updated_at = row.get("updated_at")
+
+            # Convert numeric experiment_id to experiment name if needed
+            if experiment_id and str(experiment_id).isdigit():
+                experiment_name = experiments_map.get(str(experiment_id))
+                if experiment_name:
+                    experiment_id = experiment_name
+                    print(f"Converting task {task_id} experiment_id from {row.get('experiment_id')} to {experiment_name}")
 
             try:
                 try:
