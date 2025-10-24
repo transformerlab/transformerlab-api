@@ -479,8 +479,9 @@ async def import_task_from_gallery(
         if upload:
             try:
                 # Get the src directory from local installation
-                src_dir = os.path.join(local_task_dir, "src")
-                
+                # Validate security for src_dir
+
+                src_dir = os.path.normpath(os.path.join(local_task_dir, "src"))
                 if os.path.exists(src_dir):
                     # Validate that src_dir is within the trusted tasks-gallery location
                     canonical_src_dir = os.path.normpath(os.path.realpath(src_dir))
