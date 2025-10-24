@@ -1,4 +1,5 @@
 import json
+import time
 
 from fastapi import APIRouter, Body, Request, Form
 from typing import Optional
@@ -281,7 +282,7 @@ async def tasks_local_gallery_list():
                         local_tasks.append({
                             "name": task_data.get("name", item),
                             "description": task_data.get("description", ""),
-                            "subdir": item,
+                            "task_dir": item,
                             "source": "local",
                             "tag": task_data.get("tag", "OTHER")
                         })
@@ -298,46 +299,39 @@ async def tasks_local_gallery_list():
 @router.post("/import_from_gallery", summary="Import a task from transformerlab/galleries tasks subdirectory")
 async def import_task_from_gallery(
     request: Request,
-    subdir: str = Form(...),
+    id: str = Form(...),
     experiment_id: Optional[str] = Form(None),
     upload: Optional[bool] = Form(True),
     repo_url: Optional[str] = Form(None),
 ):
     """
-    Clone the specific tasks/<subdir> from transformerlab/galleries and create a REMOTE task using task.json.
-    If task.json includes an "upload_dir" key, run a test upload using transformerlab-sdk/test_script.py facilities later.
+    Clone the specific tasks/<id> from transformerlab/galleries and create a REMOTE task using task.json.
+    This function now installs the task locally first, then creates a task in the experiment.
     """
-    # Prepare temp directory for shallow clone of specific path
-    remote_repo_url = "https://github.com/transformerlab/galleries.git"
-    tmp_dir = tempfile.mkdtemp(prefix="tlab_tasks_gallery_")
+    # First, install the task locally
+    install_result = await install_task_from_gallery(id, repo_url)
+    if install_result.get("status") != "success":
+        return install_result
+    
+    task_dir_name = install_result.get("task_dir")
+    if not task_dir_name:
+        return {"status": "error", "message": "Failed to get task directory name from installation"}
+    
+    # Now create the task in the experiment using the locally installed task
     try:
-        # Sparse checkout only the requested subdir
-        subprocess.check_call(["git", "init"], cwd=tmp_dir)
-        subprocess.check_call(["git", "remote", "add", "origin", remote_repo_url], cwd=tmp_dir)
-        subprocess.check_call(["git", "config", "core.sparseCheckout", "true"], cwd=tmp_dir)
-        sparse_info_dir = os.path.join(tmp_dir, ".git", "info")
-        os.makedirs(sparse_info_dir, exist_ok=True)
-        with open(os.path.join(sparse_info_dir, "sparse-checkout"), "w") as f:
-            f.write(f"tasks/{subdir}\n")
-        subprocess.check_call(["git", "pull", "--depth", "1", "origin", "main"], cwd=tmp_dir)
-
-        # Validate subdir: reject traversal and normalize path
-        if os.path.isabs(subdir) or ".." in subdir or "/" in subdir or "\\" in subdir or not subdir.strip():
-            return {"status": "error", "message": "Invalid subdirectory name"}
-        base_tasks_dir = os.path.join(tmp_dir, "tasks")
-        task_dir = os.path.normpath(os.path.join(base_tasks_dir, subdir))
-        # Make sure the resolved path is within the expected tasks dir
-        if not task_dir.startswith(base_tasks_dir + os.sep):
-            return {"status": "error", "message": "Invalid task directory"}
-        task_json_path = os.path.join(task_dir, "task.json")
+        workspace_dir = get_workspace_dir()
+        local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
+        local_task_dir = os.path.join(local_gallery_dir, task_dir_name)
+        task_json_path = os.path.join(local_task_dir, "task.json")
+        
         if not os.path.isfile(task_json_path):
-            return {"status": "error", "message": f"task.json not found in tasks/{subdir}"}
+            return {"status": "error", "message": f"task.json not found in local task directory: {task_dir_name}"}
 
         with open(task_json_path) as f:
             task_def = json_lib.load(f)
 
         # Build task fields, marking as remote
-        task_name = slugify(task_def.get("name", subdir))
+        task_name = slugify(task_def.get("name", task_dir_name))
         task_type = task_def.get("type", "REMOTE")
         inputs = task_def.get("inputs", {})
         config = task_def.get("config", {})
@@ -362,7 +356,6 @@ async def import_task_from_gallery(
                 "outputs": outputs,
                 "plugin": plugin
             })
-            task_id = existing_task["id"]
         else:
             # Create new task
             task_id = tasks_service.add_task(
@@ -376,66 +369,35 @@ async def import_task_from_gallery(
                 remote_task=True,
             )
 
-        # Optional: if task.json suggests a folder to upload, we will just record it in config
-        # Optional remote upload flow to GPU orchestrator
+        # Optional: Upload files to GPU orchestrator if requested
         if upload:
             try:
-                # Determine directory to upload: base task directory by default
-                dir_to_upload = task_dir
-                if repo_url:
-                    # If explicit repo_url provided, do a separate sparse clone of that URL root
-                    repo_tmp = tempfile.mkdtemp(prefix="tlab_repo_upload_")
-                    try:
-                        subprocess.check_call(["git", "clone", "--depth", "1", repo_url, repo_tmp])
-                        dir_to_upload = repo_tmp
-                    except Exception as e:
-                        print(f"Failed to clone repo for upload: {e}")
-                        return {"status": "error", "message": "An error occurred while cloning the repository"}
-
-                if not dir_to_upload or not os.path.isdir(dir_to_upload):
-                    return {"status": "error", "message": f"Upload directory not found: {dir_to_upload}"}
-
-                # Stage files under a temp 'src' directory and exclude task.json
-                src_stage = os.path.join(tmp_dir, "src")
-                os.makedirs(src_stage, exist_ok=True)
-                files_to_copy = [f for f in os.listdir(dir_to_upload) if f != "task.json"]
-                # If no files besides task.json, skip upload
-                has_files_to_upload = len(files_to_copy) > 0
-                if has_files_to_upload:
-                    for name in files_to_copy:
-                        src_path = os.path.join(dir_to_upload, name)
-                        dest_path = os.path.join(src_stage, name)
-                        if os.path.isdir(src_path):
-                            shutil.copytree(src_path, dest_path)
-                        else:
-                            shutil.copy2(src_path, dest_path)
-
-                # Post to GPU orchestrator upload endpoint
-                gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
-                gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
-                # Legacy upload endpoint var no longer used when mirroring frontend
-                if not gpu_orchestrator_url or not gpu_orchestrator_port:
-                    # If orchestrator not configured, just attach local path hint
-                    try:
-                        task_obj = tasks_service.tasks_get_by_id(task_id)
-                        if isinstance(task_obj.get("config"), str):
-                            task_obj["config"] = json_lib.loads(task_obj["config"]) if task_obj["config"] else {}
-                        if has_files_to_upload:
-                            task_obj["config"]["local_upload_staged_dir"] = src_stage
-                        tasks_service.update_task(task_id, {"config": task_obj["config"]})
-                    except Exception:
-                        pass
-                else:
-                    # Only attempt upload if we actually staged files
-                    if has_files_to_upload:
+                # Get the src directory from local installation
+                src_dir = os.path.join(local_task_dir, "src")
+                if os.path.exists(src_dir):
+                    # Post to GPU orchestrator upload endpoint
+                    gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
+                    gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
+                    
+                    if not gpu_orchestrator_url or not gpu_orchestrator_port:
+                        # If orchestrator not configured, just attach local path hint
+                        try:
+                            task_obj = tasks_service.tasks_get_by_id(task_id)
+                            if isinstance(task_obj.get("config"), str):
+                                task_obj["config"] = json_lib.loads(task_obj["config"]) if task_obj["config"] else {}
+                            task_obj["config"]["local_upload_staged_dir"] = src_dir
+                            tasks_service.update_task(task_id, {"config": task_obj["config"]})
+                        except Exception:
+                            pass
+                    else:
                         # Build multipart form to mirror frontend DirectoryUpload
                         dest = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/upload"
                         files_form = []
-                        # Walk src_stage and add each file, preserving relative path inside src/
-                        for root, _, filenames in os.walk(src_stage):
+                        # Walk src_dir and add each file, preserving relative path inside src/
+                        for root, _, filenames in os.walk(src_dir):
                             for filename in filenames:
                                 full_path = os.path.join(root, filename)
-                                rel_path = os.path.relpath(full_path, src_stage)
+                                rel_path = os.path.relpath(full_path, src_dir)
                                 # Prefix with src/ like the packed structure
                                 upload_name = f"src/{rel_path}"
                                 with open(full_path, "rb") as f:
@@ -483,12 +445,101 @@ async def import_task_from_gallery(
                 return {"status": "error", "message": "An error occurred while uploading the task"}
 
         return {"status": "success", "task_id": task_id}
-    except subprocess.CalledProcessError as e:
-        print(f"Git error: {e}")
-        return {"status": "error", "message": "An error occurred while importing the task from the gallery"}
     except Exception as e:
         print(f"Error importing task from gallery: {e}")
         return {"status": "error", "message": "An error occurred while importing the task from the gallery"}
+
+
+@router.post("/install_from_gallery", summary="Install a task from transformerlab/galleries to local tasks-gallery")
+async def install_task_from_gallery(
+    id: str = Form(...),
+    repo_url: Optional[str] = Form(None),
+):
+    """
+    Clone the specific tasks/<id> from transformerlab/galleries and store it in workspace/tasks-gallery/.
+    This installs the task locally without creating a task in any experiment.
+    """
+    # Prepare temp directory for shallow clone of specific path
+    remote_repo_url = "https://github.com/transformerlab/galleries.git"
+    tmp_dir = tempfile.mkdtemp(prefix="tlab_tasks_gallery_")
+    try:
+        # Sparse checkout only the requested task
+        subprocess.check_call(["git", "init"], cwd=tmp_dir)
+        subprocess.check_call(["git", "remote", "add", "origin", remote_repo_url], cwd=tmp_dir)
+        subprocess.check_call(["git", "config", "core.sparseCheckout", "true"], cwd=tmp_dir)
+        sparse_info_dir = os.path.join(tmp_dir, ".git", "info")
+        os.makedirs(sparse_info_dir, exist_ok=True)
+        with open(os.path.join(sparse_info_dir, "sparse-checkout"), "w") as f:
+            f.write(f"tasks/{id}\n")
+        subprocess.check_call(["git", "pull", "--depth", "1", "origin", "main"], cwd=tmp_dir)
+
+        # Validate id: reject traversal and normalize path
+        if os.path.isabs(id) or ".." in id or "/" in id or "\\" in id or not id.strip():
+            return {"status": "error", "message": "Invalid task id"}
+        base_tasks_dir = os.path.join(tmp_dir, "tasks")
+        task_dir = os.path.normpath(os.path.join(base_tasks_dir, id))
+        # Make sure the resolved path is within the expected tasks dir
+        if not task_dir.startswith(base_tasks_dir + os.sep):
+            return {"status": "error", "message": "Invalid task directory"}
+        task_json_path = os.path.join(task_dir, "task.json")
+        if not os.path.isfile(task_json_path):
+            return {"status": "error", "message": f"task.json not found in tasks/{id}"}
+
+        with open(task_json_path) as f:
+            task_def = json_lib.load(f)
+
+        # Create local tasks-gallery directory structure
+        workspace_dir = get_workspace_dir()
+        local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
+        os.makedirs(local_gallery_dir, exist_ok=True)
+        
+        # Create task directory in local gallery
+        task_name = slugify(task_def.get("name", id))
+        task_dir_name = slugify(task_name)
+        local_task_dir = os.path.join(local_gallery_dir, task_dir_name)
+        
+        # Check if task already exists locally
+        if os.path.exists(local_task_dir):
+            return {"status": "error", "message": f"Task '{task_name}' is already installed locally"}
+        
+        os.makedirs(local_task_dir, exist_ok=True)
+        
+        # Copy task.json to local gallery
+        local_task_json_path = os.path.join(local_task_dir, "task.json")
+        shutil.copy2(task_json_path, local_task_json_path)
+        
+        # Copy all other files to local gallery (excluding task.json)
+        src_dir = os.path.join(local_task_dir, "src")
+        os.makedirs(src_dir, exist_ok=True)
+        
+        files_to_copy = [f for f in os.listdir(task_dir) if f != "task.json"]
+        for name in files_to_copy:
+            src_path = os.path.join(task_dir, name)
+            dest_path = os.path.join(src_dir, name)
+            if os.path.isdir(src_path):
+                shutil.copytree(src_path, dest_path)
+            else:
+                shutil.copy2(src_path, dest_path)
+        
+        # Create metadata file for installation info
+        metadata = {
+            "installed_from": "gallery",
+            "gallery_id": id,
+            "install_date": json_lib.dumps({"$date": {"$numberLong": str(int(time.time() * 1000))}}),
+            "version": task_def.get("version", "1.0.0")
+        }
+        metadata_path = os.path.join(local_task_dir, "metadata.json")
+        with open(metadata_path, "w") as f:
+            json_lib.dump(metadata, f, indent=2)
+        
+        return {"status": "success", "task_dir": task_dir_name, "message": f"Task '{task_name}' installed successfully"}
+        
+    except subprocess.CalledProcessError as e:
+        print(f"Git error: {e}")
+        return {"status": "error", "message": "An error occurred while installing the task from the gallery"}
+    except Exception as e:
+        print(f"Error installing task from gallery: {e}")
+        return {"status": "error", "message": "An error occurred while installing the task from the gallery"}
     finally:
         try:
             shutil.rmtree(tmp_dir)
@@ -546,6 +597,40 @@ async def export_task_to_local_gallery(
         with open(task_json_path, "w") as f:
             json_lib.dump(local_task_data, f, indent=2)
         
+        # Copy files from local storage if they exist
+        src_dir = os.path.join(task_dir, "src")
+        os.makedirs(src_dir, exist_ok=True)
+        
+        # Check if source task has local files stored
+        source_config = source_task.get("config", {})
+        if isinstance(source_config, str):
+            try:
+                source_config = json_lib.loads(source_config)
+            except:
+                source_config = {}
+        
+        local_upload_staged_dir = source_config.get("local_upload_staged_dir")
+        if local_upload_staged_dir and os.path.exists(local_upload_staged_dir):
+            # Copy files from local storage
+            for root, _, filenames in os.walk(local_upload_staged_dir):
+                for filename in filenames:
+                    src_path = os.path.join(root, filename)
+                    rel_path = os.path.relpath(src_path, local_upload_staged_dir)
+                    dest_path = os.path.join(src_dir, rel_path)
+                    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+                    shutil.copy2(src_path, dest_path)
+        
+        # Create metadata file for export info
+        metadata = {
+            "exported_from": "experiment",
+            "source_task_id": source_task_id,
+            "export_date": json_lib.dumps({"$date": {"$numberLong": str(int(time.time() * 1000))}}),
+            "has_files": os.path.exists(src_dir) and len(os.listdir(src_dir)) > 0
+        }
+        metadata_path = os.path.join(task_dir, "metadata.json")
+        with open(metadata_path, "w") as f:
+            json_lib.dump(metadata, f, indent=2)
+        
         return {"status": "success", "task_dir": task_dir_name}
     except Exception as e:
         print(f"Error exporting task to local gallery: {e}")
@@ -555,7 +640,7 @@ async def export_task_to_local_gallery(
 @router.post("/import_from_local_gallery", summary="Import a task from local tasks-gallery")
 async def import_task_from_local_gallery(
     request: Request,
-    subdir: str = Form(...),
+    task_dir: str = Form(...),
     experiment_id: Optional[str] = Form(None),
 ):
     """
@@ -565,27 +650,27 @@ async def import_task_from_local_gallery(
     try:
         workspace_dir = get_workspace_dir()
         local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
-        task_dir = os.path.normpath(os.path.join(local_gallery_dir, subdir))
+        task_path = os.path.normpath(os.path.join(local_gallery_dir, task_dir))
         local_gallery_dir_real = os.path.realpath(local_gallery_dir)
-        task_dir_real = os.path.realpath(task_dir)
-        common_path = os.path.commonpath([local_gallery_dir_real, task_dir_real])
+        task_path_real = os.path.realpath(task_path)
+        common_path = os.path.commonpath([local_gallery_dir_real, task_path_real])
         if common_path != local_gallery_dir_real:
-            print(f"Invalid task directory: {task_dir_real} not in {local_gallery_dir_real}")
+            print(f"Invalid task directory: {task_path_real} not in {local_gallery_dir_real}")
             return {"status": "error", "message": "Invalid task directory"}
-        task_json_path = os.path.join(task_dir, "task.json")
+        task_json_path = os.path.join(task_path, "task.json")
         
         task_json_real = os.path.realpath(task_json_path)
         if not task_json_real.startswith(local_gallery_dir_real + os.sep):
             print(f"Invalid task.json path: {task_json_real} not in {local_gallery_dir_real}")
             return {"status": "error", "message": "Invalid task.json path"}
         if not os.path.isfile(task_json_real):
-            return {"status": "error", "message": f"task.json not found in local gallery: {subdir}"}
+            return {"status": "error", "message": f"task.json not found in local gallery: {task_dir}"}
 
         with open(task_json_real) as f:
             task_def = json_lib.load(f)
 
         # Build task fields, marking as remote
-        task_name = slugify(task_def.get("name", subdir))
+        task_name = slugify(task_def.get("name", task_dir))
         task_type = task_def.get("type", "REMOTE")
         inputs = task_def.get("inputs", {})
         config = task_def.get("config", {})
