@@ -593,7 +593,9 @@ async def install_task_from_gallery(
         base_tasks_dir = os.path.join(tmp_dir, "tasks")
         task_dir = os.path.normpath(os.path.join(base_tasks_dir, id))
         # Make sure the resolved path is within the expected tasks dir
-        if not task_dir.startswith(base_tasks_dir + os.sep):
+        canonical_base_tasks_dir = os.path.normpath(os.path.realpath(base_tasks_dir))
+        canonical_task_dir = os.path.normpath(os.path.realpath(task_dir))
+        if os.path.commonpath([canonical_base_tasks_dir, canonical_task_dir]) != canonical_base_tasks_dir:
             return {"status": "error", "message": "Invalid task directory"}
         task_json_path = os.path.join(task_dir, "task.json")
         if not os.path.isfile(task_json_path):
