@@ -696,7 +696,7 @@ async def install_task_from_gallery(
             return {"status": "error", "message": "Invalid task directory"}
         task_json_path = os.path.join(task_dir, "task.json")
         if not os.path.isfile(task_json_path):
-            return {"status": "error", "message": f"task.json not found in tasks/{id}"}
+            return {"status": "error", "message": "task.json not found in the specifiedtask directory"}
 
         with open(task_json_path) as f:
             task_def = json_lib.load(f)
