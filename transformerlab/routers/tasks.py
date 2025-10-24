@@ -681,13 +681,17 @@ async def export_task_to_local_gallery(
             except:
                 source_config = {}
         
+        # Check for local upload files in both possible config fields
         local_upload_staged_dir = source_config.get("local_upload_staged_dir")
-        if local_upload_staged_dir and os.path.exists(local_upload_staged_dir):
+        local_upload_copy = source_config.get("local_upload_copy")
+        
+        local_files_dir = local_upload_staged_dir or local_upload_copy
+        if local_files_dir and os.path.exists(local_files_dir):
             # Copy files from local storage
-            for root, _, filenames in os.walk(local_upload_staged_dir):
+            for root, _, filenames in os.walk(local_files_dir):
                 for filename in filenames:
                     src_path = os.path.join(root, filename)
-                    rel_path = os.path.relpath(src_path, local_upload_staged_dir)
+                    rel_path = os.path.relpath(src_path, local_files_dir)
                     dest_path = os.path.join(src_dir, rel_path)
                     os.makedirs(os.path.dirname(dest_path), exist_ok=True)
                     shutil.copy2(src_path, dest_path)
