@@ -450,7 +450,8 @@ async def import_task_from_gallery(
                     # Validate that src_dir is within the trusted tasks-gallery location
                     canonical_src_dir = os.path.normpath(os.path.realpath(src_dir))
                     trusted_gallery_root = os.path.normpath(os.path.realpath(os.path.join(get_workspace_dir(), "tasks-gallery")))
-                    if not canonical_src_dir.startswith(trusted_gallery_root + os.sep):
+                     # Ensure src_dir is strictly contained within trusted gallery root directory using commonpath
+                    if os.path.commonpath([trusted_gallery_root, canonical_src_dir]) != trusted_gallery_root:
                         return {"status": "error", "message": "Attempted upload from outside trusted gallery directory"}
                     # Post to GPU orchestrator upload endpoint
                     gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
