@@ -393,7 +393,12 @@ async def import_task_from_gallery(
     try:
         workspace_dir = get_workspace_dir()
         local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
-        local_task_dir = os.path.join(local_gallery_dir, task_dir_name)
+        local_task_dir = os.path.normpath(os.path.join(local_gallery_dir, task_dir_name))
+        # Make sure the resolved path is within the expected tasks-gallery dir
+        trusted_gallery_root = os.path.normpath(os.path.realpath(local_gallery_dir))
+        canonical_task_dir = os.path.normpath(os.path.realpath(local_task_dir))
+        if os.path.commonpath([trusted_gallery_root, canonical_task_dir]) != trusted_gallery_root:
+            return {"status": "error", "message": "Attempted access outside trusted gallery directory"}
         task_json_path = os.path.join(local_task_dir, "task.json")
         
         if not os.path.isfile(task_json_path):
