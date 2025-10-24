@@ -759,11 +759,18 @@ async def install_task_from_gallery(
         files_to_copy = [f for f in os.listdir(task_dir) if f != "task.json"]
         for name in files_to_copy:
             # Validate name is a plain filename (no traversal, no directory separators, not abs, not symlink)
-            if (os.path.isabs(name)
+            # Reject any absolute paths, traversal, or names containing any path separator for this platform
+            sep_violates = (os.sep in name) if os.sep != "/" else False
+            altsep_violates = (os.altsep in name) if os.altsep else False
+            if (
+                os.path.isabs(name)
                 or "/" in name
                 or "\\" in name
                 or ".." in name
-                or not name.strip()):
+                or not name.strip()
+                or sep_violates
+                or altsep_violates
+            ):
                 continue  # skip invalid file/folder names
             src_path = os.path.join(task_dir, name)
             # Canonicalize and strictly validate source path is inside allowed directory before accessing
@@ -773,17 +780,19 @@ async def install_task_from_gallery(
                 continue  # skip: file path escapes from task_dir
             if os.path.islink(canonical_src_path):
                 continue  # skip symlinks before any file/directory operations
-            dest_path = os.path.join(src_dir, name)
 
             
 
             # Also check destination directory stays inside src_dir
             canonical_src_dir = os.path.normpath(os.path.realpath(src_dir))
-            canonical_dest_path = os.path.normpath(os.path.realpath(dest_path))
+            canonical_dest_path = os.path.normpath(os.path.realpath(os.path.join(canonical_src_dir, name)))
             if os.path.commonpath([canonical_src_dir, canonical_dest_path]) != canonical_src_dir:
                 continue  # skip files that "escape" the intended dest dir
 
             # Only operate on canonical_src_path after passing all validation checks
+            # EXTRA DEFENSE: Re-validate containment immediately before copying
+            if os.path.commonpath([canonical_task_dir, canonical_src_path]) != canonical_task_dir:
+                continue  # skip: containment violation, possible path escape
             if os.path.isdir(canonical_src_path):
                 shutil.copytree(canonical_src_path, canonical_dest_path)
             elif os.path.isfile(canonical_src_path):
