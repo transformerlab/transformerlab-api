@@ -296,6 +296,78 @@ async def tasks_local_gallery_list():
         return {"status": "error", "message": "An error occurred while fetching the local task gallery"}
 
 
+@router.delete("/local_gallery/{task_dir}", summary="Delete a task from local tasks-gallery")
+async def delete_task_from_local_gallery(task_dir: str):
+    """
+    Delete a task from the local tasks-gallery directory.
+    """
+    try:
+        workspace_dir = get_workspace_dir()
+        local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
+        task_path = os.path.normpath(os.path.join(local_gallery_dir, task_dir))
+        
+        # Security check: ensure the task path is within the local gallery directory
+        local_gallery_dir_real = os.path.realpath(local_gallery_dir)
+        task_path_real = os.path.realpath(task_path)
+        common_path = os.path.commonpath([local_gallery_dir_real, task_path_real])
+        
+        if common_path != local_gallery_dir_real:
+            return {"status": "error", "message": "Invalid task directory"}
+        
+        if not os.path.exists(task_path):
+            return {"status": "error", "message": "Task directory not found"}
+        
+        # Remove the task directory
+        shutil.rmtree(task_path)
+        
+        return {"status": "success", "message": f"Task '{task_dir}' deleted successfully"}
+        
+    except Exception as e:
+        print(f"Error deleting task from local gallery: {e}")
+        return {"status": "error", "message": "An error occurred while deleting the task"}
+
+
+@router.get("/local_gallery/{task_dir}/files", summary="Get files for a task in local tasks-gallery")
+async def get_task_files(task_dir: str):
+    """
+    Get the list of files in the src/ directory of a task in the local tasks-gallery.
+    """
+    try:
+        workspace_dir = get_workspace_dir()
+        local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
+        task_path = os.path.normpath(os.path.join(local_gallery_dir, task_dir))
+        
+        # Security check: ensure the task path is within the local gallery directory
+        local_gallery_dir_real = os.path.realpath(local_gallery_dir)
+        task_path_real = os.path.realpath(task_path)
+        common_path = os.path.commonpath([local_gallery_dir_real, task_path_real])
+        
+        if common_path != local_gallery_dir_real:
+            return {"status": "error", "message": "Invalid task directory"}
+        
+        if not os.path.exists(task_path):
+            return {"status": "error", "message": "Task directory not found"}
+        
+        # Check for src directory
+        src_dir = os.path.join(task_path, "src")
+        if not os.path.exists(src_dir):
+            return {"status": "success", "data": {"files": [], "count": 0}}
+        
+        # Get all files in src directory recursively
+        files = []
+        for root, dirs, filenames in os.walk(src_dir):
+            for filename in filenames:
+                # Get relative path from src directory
+                rel_path = os.path.relpath(os.path.join(root, filename), src_dir)
+                files.append(rel_path)
+        
+        return {"status": "success", "data": {"files": files, "count": len(files)}}
+        
+    except Exception as e:
+        print(f"Error getting task files: {e}")
+        return {"status": "error", "message": "An error occurred while getting task files"}
+
+
 @router.post("/import_from_gallery", summary="Import a task from transformerlab/galleries tasks subdirectory")
 async def import_task_from_gallery(
     request: Request,
