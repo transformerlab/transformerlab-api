@@ -752,15 +752,11 @@ async def install_task_from_gallery(
             canonical_src_path = os.path.normpath(os.path.realpath(src_path))
             if os.path.commonpath([canonical_task_dir, canonical_src_path]) != canonical_task_dir:
                 continue  # skip: file path escapes from task_dir
-            # Prevent copying symlinks or non-files from the remote repo to local gallery (defense-in-depth)
-            if os.path.islink(canonical_src_path) or not os.path.isfile(canonical_src_path):
-                continue
+            if os.path.islink(canonical_src_path):
+                continue  # skip symlinks before any file/directory operations
             dest_path = os.path.join(src_dir, name)
 
-            # Resolve and check source path strictly inside task_dir
-            canonical_src_path = os.path.normpath(os.path.realpath(src_path))
-            if os.path.commonpath([canonical_task_dir, canonical_src_path]) != canonical_task_dir:
-                continue  # skip files that "escape" the intended source dir
+            
 
             # Also check destination directory stays inside src_dir
             canonical_src_dir = os.path.normpath(os.path.realpath(src_dir))
@@ -768,17 +764,13 @@ async def install_task_from_gallery(
             if os.path.commonpath([canonical_src_dir, canonical_dest_path]) != canonical_src_dir:
                 continue  # skip files that "escape" the intended dest dir
 
-            # Defensive: reject any src_path that escapes task_dir before any file operation
-            if os.path.commonpath([canonical_task_dir, canonical_src_path]) != canonical_task_dir:
-                continue
-
-            # Skip symlinks
-            if os.path.islink(src_path):
-                continue
-            if os.path.isdir(src_path):
-                shutil.copytree(src_path, dest_path)
+            # Only operate on canonical_src_path after passing all validation checks
+            if os.path.isdir(canonical_src_path):
+                shutil.copytree(canonical_src_path, canonical_dest_path)
+            elif os.path.isfile(canonical_src_path):
+                shutil.copy2(canonical_src_path, canonical_dest_path)
             else:
-                shutil.copy2(src_path, dest_path)
+                continue  # skip: invalid file type
         
         # Create metadata file for installation info
         metadata = {
