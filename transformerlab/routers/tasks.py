@@ -394,6 +394,99 @@ async def get_task_files(task_dir: str):
         return {"status": "error", "message": "An error occurred while getting task files"}
 
 
+@router.get("/local_gallery/{task_dir}/files/{file_path:path}", summary="Get content of a specific file in a task")
+async def get_task_file_content(task_dir: str, file_path: str):
+    """
+    Get the content of a specific file in the src/ directory of a task in the local tasks-gallery.
+    """
+    try:
+        # Restrict task_dir to a simple, safe name
+        safe_task_dir = secure_filename(task_dir)
+        if not safe_task_dir or safe_task_dir != task_dir:
+            return {"status": "error", "message": "Invalid task directory"}
+        # Disallow absolute paths and path traversal (defense in depth)
+        if os.path.isabs(task_dir) or ".." in task_dir.split(os.sep):
+            return {"status": "error", "message": "Invalid task directory"}
+            
+        # Validate file_path to prevent directory traversal
+        if ".." in file_path or file_path.startswith("/") or file_path.startswith("\\"):
+            return {"status": "error", "message": "Invalid file path"}
+            
+        workspace_dir = get_workspace_dir()
+        local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
+        task_path = os.path.normpath(os.path.join(local_gallery_dir, task_dir))
+        
+        # Security check: ensure the task path is within the local gallery directory
+        local_gallery_dir_real = os.path.realpath(local_gallery_dir)
+        task_path = os.path.normpath(os.path.join(local_gallery_dir_real, task_dir))
+        task_path_real = os.path.realpath(task_path)
+        
+        # Ensure that the task_path_real is a strict subdirectory of local_gallery_dir_real
+        if not (task_path_real.startswith(local_gallery_dir_real + os.sep)):
+            return {"status": "error", "message": "Invalid task directory"}
+        
+        if not os.path.exists(task_path_real):
+            return {"status": "error", "message": "Task directory not found"}
+        
+        # Check for src directory
+        src_dir = os.path.join(task_path_real, "src")
+        if not os.path.exists(src_dir):
+            return {"status": "error", "message": "Source directory not found"}
+
+        # Security check: ensure src_dir is within the local_gallery_dir
+        src_dir_real = os.path.realpath(src_dir)
+        common_src_path = os.path.commonpath([task_path_real, src_dir_real])
+        if common_src_path != task_path_real:
+            return {"status": "error", "message": "Invalid src directory"}
+        
+        # Construct the full file path
+        full_file_path = os.path.normpath(os.path.join(src_dir_real, file_path))
+        
+        # Security check: ensure the file is within the src directory
+        if not full_file_path.startswith(src_dir_real + os.sep) and full_file_path != src_dir_real:
+            return {"status": "error", "message": "Invalid file path"}
+        
+        if not os.path.exists(full_file_path):
+            return {"status": "error", "message": "File not found"}
+        
+        if not os.path.isfile(full_file_path):
+            return {"status": "error", "message": "Path is not a file"}
+        
+        # Read file content
+        try:
+            with open(full_file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+        except UnicodeDecodeError:
+            # If UTF-8 fails, try reading as binary and return base64 encoded content
+            import base64
+            with open(full_file_path, 'rb') as f:
+                binary_content = f.read()
+                content = base64.b64encode(binary_content).decode('utf-8')
+                return {
+                    "status": "success", 
+                    "data": {
+                        "content": content,
+                        "encoding": "base64",
+                        "filename": os.path.basename(file_path),
+                        "filepath": file_path
+                    }
+                }
+        
+        return {
+            "status": "success", 
+            "data": {
+                "content": content,
+                "encoding": "utf-8",
+                "filename": os.path.basename(file_path),
+                "filepath": file_path
+            }
+        }
+        
+    except Exception as e:
+        print(f"Error getting task file content: {e}")
+        return {"status": "error", "message": "An error occurred while getting task file content"}
+
+
 @router.post("/import_from_gallery", summary="Import a task from transformerlab/galleries tasks subdirectory")
 async def import_task_from_gallery(
     request: Request,
