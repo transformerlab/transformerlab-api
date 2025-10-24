@@ -341,7 +341,11 @@ async def get_task_files(task_dir: str):
     Get the list of files in the src/ directory of a task in the local tasks-gallery.
     """
     try:
-        # Disallow absolute paths and path traversal
+        # Restrict task_dir to a simple, safe name
+        safe_task_dir = secure_filename(task_dir)
+        if not safe_task_dir or safe_task_dir != task_dir:
+            return {"status": "error", "message": "Invalid task directory"}
+        # Disallow absolute paths and path traversal (defense in depth)
         if os.path.isabs(task_dir) or ".." in task_dir.split(os.sep):
             return {"status": "error", "message": "Invalid task directory"}
             
@@ -370,8 +374,8 @@ async def get_task_files(task_dir: str):
         # Security check: ensure src_dir is within the local_gallery_dir
         src_dir_real = os.path.realpath(src_dir)
         # Note: reuse local_gallery_dir_real from above
-        common_src_path = os.path.commonpath([local_gallery_dir_real, src_dir_real])
-        if common_src_path != local_gallery_dir_real:
+        common_src_path = os.path.commonpath([task_path_real, src_dir_real])
+        if common_src_path != task_path_real:
             return {"status": "error", "message": "Invalid src directory"}
         
         # Get all files in src directory recursively
