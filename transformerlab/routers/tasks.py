@@ -466,10 +466,7 @@ async def get_task_file_content(task_dir: str, file_path: str):
         if os.path.isabs(task_dir) or ".." in task_dir.split(os.sep):
             return {"status": "error", "message": "Invalid task directory"}
             
-        # Validate file_path to prevent directory traversal
-        if ".." in file_path or file_path.startswith("/") or file_path.startswith("\\"):
-            return {"status": "error", "message": "Invalid file path"}
-            
+
         workspace_dir = get_workspace_dir()
         local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
         task_path = os.path.normpath(os.path.join(local_gallery_dir, task_dir))
@@ -502,7 +499,10 @@ async def get_task_file_content(task_dir: str, file_path: str):
         
         full_file_path_real = os.path.realpath(full_file_path)
         # Ensure that the full_file_path_real is strictly within src_dir_real
-        if not (full_file_path_real.startswith(src_dir_real + os.sep) or full_file_path_real == src_dir_real):
+        # Use os.path.commonpath for robust containment check
+        # The file cannot be the src_dir itself; must be a strict subpath
+        file_containment = os.path.commonpath([src_dir_real, full_file_path_real])
+        if file_containment != src_dir_real or full_file_path_real == src_dir_real:
             return {"status": "error", "message": "Invalid file path"}
 
         if not os.path.exists(full_file_path_real):
