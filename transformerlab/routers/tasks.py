@@ -371,16 +371,20 @@ async def get_task_files(task_dir: str):
     try:
         workspace_dir = get_workspace_dir()
         local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
-        # Enhanced validation: block empty, dot, dot-dot, and any path separator
+        # Sanitize task_dir using secure_filename
+        safe_task_dir = secure_filename(task_dir)
+        # Block if secure_filename changes the value suspiciously or results in empty dir
         if (
-            not task_dir 
-            or task_dir.strip() in (".", "..") 
-            or "/" in task_dir 
-            or "\\" in task_dir 
-            or os.path.sep in task_dir 
+            not task_dir
+            or not safe_task_dir
+            or safe_task_dir != task_dir
+            or safe_task_dir.strip() in (".", "..")
+            or "/" in safe_task_dir
+            or "\\" in safe_task_dir 
+            or os.path.sep in safe_task_dir 
         ):
             return {"status": "error", "message": "Invalid task directory"}
-        task_path = os.path.normpath(os.path.join(local_gallery_dir, task_dir))
+        task_path = os.path.normpath(os.path.join(local_gallery_dir, safe_task_dir))
         
         # Security check: ensure the task path is within the local gallery directory
         local_gallery_dir_real = os.path.realpath(local_gallery_dir)
