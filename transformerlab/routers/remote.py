@@ -41,6 +41,7 @@ async def create_remote_job(
     num_nodes: Optional[int] = Form(None),
     setup: Optional[str] = Form(None),
     uploaded_dir_path: Optional[str] = Form(None),
+    shutdown_after_completion: Optional[bool] = Form(False),
 ):
     """
     Create a remote job without launching it. Returns job info for frontend to show placeholder.
@@ -67,6 +68,8 @@ async def create_remote_job(
         job_data["setup"] = setup
     if uploaded_dir_path:
         job_data["uploaded_dir_path"] = uploaded_dir_path
+    if shutdown_after_completion:
+        job_data["shutdown_after_completion"] = shutdown_after_completion
     
     try:
         job_id = job_service.job_create(
@@ -103,6 +106,7 @@ async def launch_remote(
     num_nodes: Optional[int] = Form(None),
     setup: Optional[str] = Form(None),
     uploaded_dir_path: Optional[str] = Form(None),
+    shutdown_after_completion: Optional[bool] = Form(False),
 ):
     """
     Launch a remote instance via Lattice orchestrator. If job_id is provided, use existing job, otherwise create new one.
@@ -118,6 +122,10 @@ async def launch_remote(
             "command": command,
             "cluster_name": cluster_name
         }
+        
+        # Add shutdown_after_completion if provided
+        if shutdown_after_completion:
+            job_data["shutdown_after_completion"] = shutdown_after_completion
         
         try:
             job_id = job_service.job_create(
@@ -557,12 +565,43 @@ async def check_remote_jobs_status(request: Request):
                 if all_jobs_finished and jobs_on_cluster:
                     # All jobs on the cluster are finished, mark our LAUNCHING job as COMPLETE
                     await job_update_status(job_id, "COMPLETE", experiment_id=job["experiment_id"])
-                    updated_jobs.append({
-                        "job_id": job_id,
-                        "cluster_name": cluster_name,
-                        "status": "COMPLETE",
-                        "message": "All jobs on cluster completed"
-                    })
+                    
+                    # Check if shutdown_after_completion is enabled
+                    shutdown_after_completion = job_data.get("shutdown_after_completion", False)
+                    if shutdown_after_completion:
+                        # Call the remote/down endpoint to shutdown the instance
+                        try:
+                            shutdown_response = await stop_remote(request, job_id, cluster_name)
+                            if shutdown_response.get("status") == "success":
+                                updated_jobs.append({
+                                    "job_id": job_id,
+                                    "cluster_name": cluster_name,
+                                    "status": "COMPLETE",
+                                    "message": "All jobs on cluster completed and instance shutdown"
+                                })
+                            else:
+                                print(f"Error shutting down cluster {cluster_name} after job completion: {shutdown_response.get('message', 'Unknown error')}")
+                                updated_jobs.append({
+                                    "job_id": job_id,
+                                    "cluster_name": cluster_name,
+                                    "status": "COMPLETE",
+                                    "message": "All jobs on cluster completed but shutdown failed"
+                                })
+                        except Exception as e:
+                            print(f"Error shutting down cluster {cluster_name} after job completion: {str(e)}")
+                            updated_jobs.append({
+                                "job_id": job_id,
+                                "cluster_name": cluster_name,
+                                "status": "COMPLETE",
+                                "message": "All jobs on cluster completed but shutdown failed"
+                            })
+                    else:
+                        updated_jobs.append({
+                            "job_id": job_id,
+                            "cluster_name": cluster_name,
+                            "status": "COMPLETE",
+                            "message": "All jobs on cluster completed"
+                        })
                 else:
                     # Jobs are still running on the cluster
                     updated_jobs.append({
