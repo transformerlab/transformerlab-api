@@ -365,6 +365,15 @@ async def get_task_files(task_dir: str):
     try:
         workspace_dir = get_workspace_dir()
         local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
+        # Enhanced validation: block empty, dot, dot-dot, and any path separator
+        if (
+            not task_dir 
+            or task_dir.strip() in (".", "..") 
+            or "/" in task_dir 
+            or "\\" in task_dir 
+            or os.path.sep in task_dir 
+        ):
+            return {"status": "error", "message": "Invalid task directory"}
         task_path = os.path.normpath(os.path.join(local_gallery_dir, task_dir))
         
         # Security check: ensure the task path is within the local gallery directory
@@ -372,23 +381,45 @@ async def get_task_files(task_dir: str):
         task_path_real = os.path.realpath(task_path)
         common_path = os.path.commonpath([local_gallery_dir_real, task_path_real])
         
-        if common_path != local_gallery_dir_real:
+        # Ensure the target is strictly within (but not exactly) the gallery directory
+        if common_path != local_gallery_dir_real or task_path_real == local_gallery_dir_real:
             return {"status": "error", "message": "Invalid task directory"}
         
         if not os.path.exists(task_path_real):
             return {"status": "error", "message": "Task directory not found"}
+
+        # Extra symlink protection: use os.lstat, block symlinks and non-dirs
+        import stat
+        stat_info = os.lstat(task_path)
+        if not stat.S_ISDIR(stat_info.st_mode):
+            return {"status": "error", "message": "Invalid task directory (not a directory)"}
+        if stat.S_ISLNK(stat_info.st_mode):
+            return {"status": "error", "message": "Invalid task directory (symlink)"}
+
+        # Optional: block symlink children in the target folder
+        for entry in os.listdir(task_path):
+            entry_path = os.path.join(task_path, entry)
+            try:
+                entry_stat = os.lstat(entry_path)
+                if stat.S_ISLNK(entry_stat.st_mode):
+                    return {"status": "error", "message": "Directory contains symlinked entries, cannot list files"}
+            except Exception:
+                continue
         
         # Check for src directory
         src_dir = os.path.join(task_path_real, "src")
-        if not os.path.exists(src_dir):
-            return {"status": "success", "data": {"files": [], "count": 0}}
+        # Security check: ensure src_dir is within the expected task_path
+        src_dir_real = os.path.realpath(src_dir)
+        if os.path.commonpath([src_dir_real, task_path_real]) != task_path_real:
+            return {"status": "error", "message": "Invalid src directory for task"}
+        if not os.path.exists(src_dir_real):            return {"status": "success", "data": {"files": [], "count": 0}}
         
         # Get all files in src directory recursively
         files = []
-        for root, dirs, filenames in os.walk(src_dir):
+        for root, dirs, filenames in os.walk(src_dir_real):
             for filename in filenames:
                 # Get relative path from src directory
-                rel_path = os.path.relpath(os.path.join(root, filename), src_dir)
+                rel_path = os.path.relpath(os.path.join(root, filename), src_dir_real)
                 files.append(rel_path)
         
         return {"status": "success", "data": {"files": files, "count": len(files)}}
