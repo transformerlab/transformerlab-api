@@ -507,25 +507,23 @@ async def get_task_file_content(task_dir: str, file_path: str):
         if not os.path.exists(src_dir):
             return {"status": "error", "message": "Source directory not found"}
 
-        # Validate and sanitize file_path before constructing the full path
-        # Remove dangerous elements from file_path
-        safe_file_path = secure_filename(file_path)
-        if not safe_file_path or safe_file_path != file_path:
-            return {"status": "error", "message": "Invalid file path"}
-        # Reject absolute paths
-        if os.path.isabs(file_path):
+        # Build the normalized absolute full path, then verify containment in src_dir_real
+        # - Reject absolute paths and suspicious path segments
+        if os.path.isabs(file_path) or ".." in file_path.split(os.sep):
             return {"status": "error", "message": "Invalid file path"}
 
-        # Security check: ensure src_dir is within the local_gallery_dir
         src_dir_real = os.path.realpath(src_dir)
         common_src_path = os.path.commonpath([task_path_real, src_dir_real])
         if common_src_path != task_path_real:
             return {"status": "error", "message": "Invalid src directory"}
         
-        full_file_path_real = os.path.realpath(os.path.join(src_dir_real, file_path))
-        # Ensure that the full_file_path_real is strictly within src_dir_real, i.e., no breakout allowed
-        if os.path.commonpath([src_dir_real, full_file_path_real]) != src_dir_real or full_file_path_real == src_dir_real:
+        # Join and normalize the requested path
+        target_path = os.path.normpath(os.path.join(src_dir_real, file_path))
+        # Ensure that the resulting path is still within src_dir_real, and is not the directory itself
+        if not target_path.startswith(src_dir_real + os.sep) or target_path == src_dir_real:
             return {"status": "error", "message": "Invalid file path"}
+
+        full_file_path_real = target_path
 
         if not os.path.exists(full_file_path_real):
             return {"status": "error", "message": "File not found"}
