@@ -27,8 +27,8 @@ def validate_gpu_orchestrator_env_vars():
     return gpu_orchestrator_url, gpu_orchestrator_port
 
 
-@router.post("/launch")
-async def launch_remote(
+@router.post("/create-job")
+async def create_remote_job(
     request: Request,
     experimentId: str,
     cluster_name: str = Form(...),
@@ -43,7 +43,7 @@ async def launch_remote(
     uploaded_dir_path: Optional[str] = Form(None),
 ):
     """
-    Launch a remote instance via Lattice orchestrator and create a REMOTE job
+    Create a remote job without launching it. Returns job info for frontend to show placeholder.
     """
     # First, create a REMOTE job
     job_data = {
@@ -51,6 +51,22 @@ async def launch_remote(
         "command": command,
         "cluster_name": cluster_name
     }
+    
+    # Add optional parameters if provided
+    if cpus:
+        job_data["cpus"] = cpus
+    if memory:
+        job_data["memory"] = memory
+    if disk_space:
+        job_data["disk_space"] = disk_space
+    if accelerators:
+        job_data["accelerators"] = accelerators
+    if num_nodes:
+        job_data["num_nodes"] = num_nodes
+    if setup:
+        job_data["setup"] = setup
+    if uploaded_dir_path:
+        job_data["uploaded_dir_path"] = uploaded_dir_path
     
     try:
         job_id = job_service.job_create(
@@ -61,9 +77,60 @@ async def launch_remote(
         # Update the job data to add fields from job_data (this ensures default fields stay in the job)
         for key, value in job_data.items():
             job_service.job_update_job_data_insert_key_value(job_id, key, value, experimentId)
+        
+        return {
+            "status": "success",
+            "job_id": job_id,
+            "message": "Remote job created successfully",
+        }
     except Exception as e:
         print(f"Failed to create job: {str(e)}")
         return {"status": "error", "message": "Failed to create job"}
+
+
+@router.post("/launch")
+async def launch_remote(
+    request: Request,
+    experimentId: str,
+    job_id: Optional[str] = Form(None),
+    cluster_name: str = Form(...),
+    command: str = Form("echo 'Hello World'"),
+    task_name: Optional[str] = Form(None),
+    cpus: Optional[str] = Form(None),
+    memory: Optional[str] = Form(None),
+    disk_space: Optional[str] = Form(None),
+    accelerators: Optional[str] = Form(None),
+    num_nodes: Optional[int] = Form(None),
+    setup: Optional[str] = Form(None),
+    uploaded_dir_path: Optional[str] = Form(None),
+):
+    """
+    Launch a remote instance via Lattice orchestrator. If job_id is provided, use existing job, otherwise create new one.
+    """
+    # If job_id is provided, use existing job, otherwise create a new one
+    if job_id:
+        # Use existing job
+        pass
+    else:
+        # Create a new REMOTE job
+        job_data = {
+            "task_name": task_name,
+            "command": command,
+            "cluster_name": cluster_name
+        }
+        
+        try:
+            job_id = job_service.job_create(
+                type="REMOTE",
+                status="LAUNCHING", 
+                experiment_id=experimentId,
+            )
+            # Update the job data to add fields from job_data (this ensures default fields stay in the job)
+            for key, value in job_data.items():
+                job_service.job_update_job_data_insert_key_value(job_id, key, value, experimentId)
+        except Exception as e:
+            print(f"Failed to create job: {str(e)}")
+            return {"status": "error", "message": "Failed to create job"}
     
     # Validate environment variables
     result = validate_gpu_orchestrator_env_vars()
