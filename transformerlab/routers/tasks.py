@@ -396,17 +396,21 @@ async def get_task_files(task_dir: str):
 
         # Extra symlink protection: use os.lstat, block symlinks and non-dirs
         import stat
-        stat_info = os.lstat(task_path)
+        stat_info = os.lstat(task_path_real)
         if not stat.S_ISDIR(stat_info.st_mode):
             return {"status": "error", "message": "Invalid task directory (not a directory)"}
         if stat.S_ISLNK(stat_info.st_mode):
             return {"status": "error", "message": "Invalid task directory (symlink)"}
 
         # Optional: block symlink children in the target folder
-        for entry in os.listdir(task_path):
-            entry_path = os.path.join(task_path, entry)
+        for entry in os.listdir(task_path_real):
+            entry_path = os.path.join(task_path_real, entry)
+            entry_path_real = os.path.realpath(entry_path)
+            # Ensure entry_path is within the verified task_path_real directory
+            if os.path.commonpath([entry_path_real, task_path_real]) != task_path_real:
+                return {"status": "error", "message": "Directory contains invalid entries, cannot list files"}
             try:
-                entry_stat = os.lstat(entry_path)
+                entry_stat = os.lstat(entry_path_real)
                 if stat.S_ISLNK(entry_stat.st_mode):
                     return {"status": "error", "message": "Directory contains symlinked entries, cannot list files"}
             except Exception:
@@ -418,8 +422,15 @@ async def get_task_files(task_dir: str):
         src_dir_real = os.path.realpath(src_dir)
         if os.path.commonpath([src_dir_real, task_path_real]) != task_path_real:
             return {"status": "error", "message": "Invalid src directory for task"}
-        if not os.path.exists(src_dir_real):            
+        if not os.path.exists(src_dir_real):
             return {"status": "success", "data": {"files": [], "count": 0}}
+
+        # Ensure src_dir_real is a real directory and not a symlink
+        src_stat = os.lstat(src_dir_real)
+        if not stat.S_ISDIR(src_stat.st_mode):
+            return {"status": "error", "message": "Invalid src directory (not a directory)"}
+        if stat.S_ISLNK(src_stat.st_mode):
+            return {"status": "error", "message": "Invalid src directory (symlink)"}
         
         # Get all files in src directory recursively
         files = []
