@@ -108,7 +108,7 @@ async def process_dataset(
     top_p=1.0,
     min_idx=0,
     max_idx=None,
-    min_p = 0.0,
+    min_p=0.0,
 ):
     """
     Process a list of conversations that each contain messages.
@@ -215,6 +215,7 @@ async def process_audio_dataset(
 
     ordered_responses = [responses[i] for i in sorted(responses.keys())]
     return ordered_responses
+
 
 # async def process_dataset(
 #     examples,

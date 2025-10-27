@@ -10,7 +10,6 @@ import json
 import errno
 
 
-
 async def list_models():
     try:
         ollama_model_library = ollama_models_library_dir()
@@ -174,6 +173,7 @@ class OllamaModel(basemodel.BaseModel):
 
         # Create a directory for the model. Make sure it doesn't exist already.
         from lab.dirs import get_models_dir
+
         output_path = os.path.join(get_models_dir(), output_model_id)
         if os.path.exists(output_path):
             raise FileExistsError(errno.EEXIST, "Directory already exists", output_path)

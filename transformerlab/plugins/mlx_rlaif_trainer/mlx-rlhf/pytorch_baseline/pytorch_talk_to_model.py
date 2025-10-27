@@ -1,6 +1,7 @@
 """
 Created by Andrew Silva on 5/11/2024
 """
+
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import argparse
@@ -28,34 +29,32 @@ if __name__ == "__main__":
     )
     arg_parse.add_argument(
         "--max-context",
-        '-c',
+        "-c",
         type=int,
         default=1024,
-        help="The maximum number of tokens from the ongoing conversation that should be wrapped up as context"
+        help="The maximum number of tokens from the ongoing conversation that should be wrapped up as context",
     )
-    arg_parse.add_argument(
-        "--temp", type=float, default=0.0, help="The sampling temperature"
-    )
+    arg_parse.add_argument("--temp", type=float, default=0.0, help="The sampling temperature")
     args = arg_parse.parse_args()
 
-    DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    DEVICE = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer)
     model = AutoModelForCausalLM.from_pretrained(args.model).to(DEVICE)
 
     print("Type your message to the chat bot below:")
-    output_message = ''
+    output_message = ""
     while True:
         input_str = input(">>>")
-        input_message = f'{output_message}\nUser: {input_str}\nSystem:'
+        input_message = f"{output_message}\nUser: {input_str}\nSystem:"
         input_message = tokenizer(input_message)
-        input_message = input_message['input_ids'][-args.max_context:]
+        input_message = input_message["input_ids"][-args.max_context :]
         with torch.no_grad():
             output_message = model.generate(
                 input_ids=torch.tensor(input_message, device=DEVICE).unsqueeze(0),
                 max_new_tokens=args.max_tokens,
                 temperature=args.temp,
-                do_sample=args.temp > 0
+                do_sample=args.temp > 0,
             )
-        output_message = tokenizer.decode(output_message[0, len(input_message):])
-        output_message = f'System: {output_message.split("User:")[0].split("</s>")[0]}'
-        print(f'{output_message}')
+        output_message = tokenizer.decode(output_message[0, len(input_message) :])
+        output_message = f"System: {output_message.split('User:')[0].split('</s>')[0]}"
+        print(f"{output_message}")

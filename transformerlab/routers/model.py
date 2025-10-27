@@ -333,27 +333,29 @@ async def login_to_huggingface():
     except Exception:
         return {"message": "Login failed"}
 
+
 @router.get(path="/model/logout_from_huggingface")
 async def logout_from_huggingface():
-   # Logout from Hugging Face using the huggingface_hub logout function.
+    # Logout from Hugging Face using the huggingface_hub logout function.
 
-   from huggingface_hub import logout
-   import os
-  
-   try:
-       logout()
-       print("Successfully logged out from Hugging Face")
-      
-       # Also clear the token file manually as a backup
-       # The token is stored at ~/.huggingface/token according to the comment
-       token_file = os.path.expanduser("~/.huggingface/token")
-       if os.path.exists(token_file):
-           os.remove(token_file)
-      
-       return {"message": "OK"}
-      
-   except Exception:
-       return {"message": "Logout failed"}
+    from huggingface_hub import logout
+    import os
+
+    try:
+        logout()
+        print("Successfully logged out from Hugging Face")
+
+        # Also clear the token file manually as a backup
+        # The token is stored at ~/.huggingface/token according to the comment
+        token_file = os.path.expanduser("~/.huggingface/token")
+        if os.path.exists(token_file):
+            os.remove(token_file)
+
+        return {"message": "OK"}
+
+    except Exception:
+        return {"message": "Logout failed"}
+
 
 @router.get(path="/model/login_to_wandb")
 async def login_to_wandb():
