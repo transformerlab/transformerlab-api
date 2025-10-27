@@ -10,6 +10,7 @@ import shutil
 import json as json_lib
 import subprocess
 import httpx
+import re
 from werkzeug.utils import secure_filename
 
 from lab import Dataset
@@ -458,6 +459,11 @@ async def get_task_file_content(task_dir: str, file_path: str):
     Get the content of a specific file in the src/ directory of a task in the local tasks-gallery.
     """
     try:
+        # Validate file_path to prevent path traversal and ensure simple file names (alphanumerics, underscores, hyphens, dot-ext)
+        # This regex allows e.g. "main.py", "my_file.txt", "sample-1.js"
+        if not re.fullmatch(r'[A-Za-z0-9_\-\.]+', file_path) or ".." in file_path or file_path.startswith(".") or file_path.count('.') > 1:
+            return {"status": "error", "message": "Invalid file path"}
+
         # Restrict task_dir to a simple, safe name
         safe_task_dir = secure_filename(task_dir)
         if not safe_task_dir or safe_task_dir != task_dir:
@@ -506,10 +512,8 @@ async def get_task_file_content(task_dir: str, file_path: str):
         safe_file_path = secure_filename(file_path)
         if not safe_file_path or safe_file_path != file_path:
             return {"status": "error", "message": "Invalid file path"}
-        if os.path.isabs(file_path) or any(segment in ('..', '.') for segment in file_path.split(os.sep)):
-            return {"status": "error", "message": "Invalid file path"}
-        # Disallow path separators to restrict to files within src directory only
-        if "/" in file_path or os.sep in file_path:
+        # Reject absolute paths
+        if os.path.isabs(file_path):
             return {"status": "error", "message": "Invalid file path"}
 
         # Security check: ensure src_dir is within the local_gallery_dir
@@ -518,15 +522,9 @@ async def get_task_file_content(task_dir: str, file_path: str):
         if common_src_path != task_path_real:
             return {"status": "error", "message": "Invalid src directory"}
         
-        # Construct the full file path
-        full_file_path = os.path.normpath(os.path.join(src_dir_real, file_path))
-        
-        full_file_path_real = os.path.realpath(full_file_path)
-        # Ensure that the full_file_path_real is strictly within src_dir_real
-        # Use os.path.commonpath for robust containment check
-        # The file cannot be the src_dir itself; must be a strict subpath
-        file_containment = os.path.commonpath([src_dir_real, full_file_path_real])
-        if file_containment != src_dir_real or full_file_path_real == src_dir_real:
+        full_file_path_real = os.path.realpath(os.path.join(src_dir_real, file_path))
+        # Ensure that the full_file_path_real is strictly within src_dir_real, i.e., no breakout allowed
+        if os.path.commonpath([src_dir_real, full_file_path_real]) != src_dir_real or full_file_path_real == src_dir_real:
             return {"status": "error", "message": "Invalid file path"}
 
         if not os.path.exists(full_file_path_real):
