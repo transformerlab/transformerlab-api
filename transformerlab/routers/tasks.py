@@ -1,3 +1,4 @@
+
 import json
 import time
 
@@ -302,15 +303,6 @@ async def delete_task_from_local_gallery(task_dir: str):
     Delete a task from the local tasks-gallery directory.
     """
     try:
-        # Explicitly reject path traversal and abnormal names
-        if (
-            not task_dir
-            or task_dir in {".", ".."}
-            or os.path.sep in task_dir
-            or (os.path.altsep and os.path.altsep in task_dir)
-            or os.path.isabs(task_dir)
-        ):
-            return {"status": "error", "message": "Invalid task directory"}
         workspace_dir = get_workspace_dir()
         local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
         task_path = os.path.normpath(os.path.join(local_gallery_dir, task_dir))
@@ -318,15 +310,16 @@ async def delete_task_from_local_gallery(task_dir: str):
         # Security check: ensure the task path is within the local gallery directory
         local_gallery_dir_real = os.path.realpath(local_gallery_dir)
         task_path_real = os.path.realpath(task_path)
-        # Ensure the target is a *subdirectory* (not equal) of the gallery dir
-        if not task_path_real.startswith(local_gallery_dir_real + os.sep):
+        common_path = os.path.commonpath([local_gallery_dir_real, task_path_real])
+        
+        if common_path != local_gallery_dir_real:
             return {"status": "error", "message": "Invalid task directory"}
         
-        if not os.path.exists(task_path_real):
+        if not os.path.exists(task_path):
             return {"status": "error", "message": "Task directory not found"}
         
         # Remove the task directory
-        shutil.rmtree(task_path_real)
+        shutil.rmtree(task_path)
         
         return {"status": "success", "message": f"Task '{task_dir}' deleted successfully"}
         
@@ -341,50 +334,32 @@ async def get_task_files(task_dir: str):
     Get the list of files in the src/ directory of a task in the local tasks-gallery.
     """
     try:
-        # Restrict task_dir to a simple, safe name
-        safe_task_dir = secure_filename(task_dir)
-        if not safe_task_dir or safe_task_dir != task_dir:
-            return {"status": "error", "message": "Invalid task directory"}
-        # Disallow absolute paths and path traversal (defense in depth)
-        if os.path.isabs(task_dir) or ".." in task_dir.split(os.sep):
-            return {"status": "error", "message": "Invalid task directory"}
-            
         workspace_dir = get_workspace_dir()
         local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
         task_path = os.path.normpath(os.path.join(local_gallery_dir, task_dir))
         
         # Security check: ensure the task path is within the local gallery directory
         local_gallery_dir_real = os.path.realpath(local_gallery_dir)
-        task_path = os.path.normpath(os.path.join(local_gallery_dir_real, task_dir))
         task_path_real = os.path.realpath(task_path)
+        common_path = os.path.commonpath([local_gallery_dir_real, task_path_real])
         
-        # Ensure that the task_path_real is a strict subdirectory of local_gallery_dir_real
-        # (not equal to the gallery directory itself, can't escape via symlinks or traversal)
-        if not (task_path_real.startswith(local_gallery_dir_real + os.sep)):
+        if common_path != local_gallery_dir_real:
             return {"status": "error", "message": "Invalid task directory"}
         
-         # Use the validated real path for all subsequent file operations
-        if not os.path.exists(task_path_real):
+        if not os.path.exists(task_path):
             return {"status": "error", "message": "Task directory not found"}
         
         # Check for src directory
-        src_dir = os.path.join(task_path_real, "src")
+        src_dir = os.path.join(task_path, "src")
         if not os.path.exists(src_dir):
             return {"status": "success", "data": {"files": [], "count": 0}}
-
-        # Security check: ensure src_dir is within the local_gallery_dir
-        src_dir_real = os.path.realpath(src_dir)
-        # Note: reuse local_gallery_dir_real from above
-        common_src_path = os.path.commonpath([task_path_real, src_dir_real])
-        if common_src_path != task_path_real:
-            return {"status": "error", "message": "Invalid src directory"}
         
         # Get all files in src directory recursively
         files = []
-        for root, dirs, filenames in os.walk(src_dir_real):
+        for root, dirs, filenames in os.walk(src_dir):
             for filename in filenames:
                 # Get relative path from src directory
-                rel_path = os.path.relpath(os.path.join(root, filename), src_dir_real)
+                rel_path = os.path.relpath(os.path.join(root, filename), src_dir)
                 files.append(rel_path)
         
         return {"status": "success", "data": {"files": files, "count": len(files)}}
@@ -392,6 +367,7 @@ async def get_task_files(task_dir: str):
     except Exception as e:
         print(f"Error getting task files: {e}")
         return {"status": "error", "message": "An error occurred while getting task files"}
+
 
 
 @router.get("/local_gallery/{task_dir}/files/{file_path:path}", summary="Get content of a specific file in a task")
@@ -441,27 +417,21 @@ async def get_task_file_content(task_dir: str, file_path: str):
         
         # Construct the full file path
         full_file_path = os.path.normpath(os.path.join(src_dir_real, file_path))
-
-        full_file_path_real = os.path.realpath(full_file_path)
         
-        # Security check: ensure the file is within the src directory
-        if not full_file_path_real.startswith(src_dir_real + os.sep):
-            return {"status": "error", "message": "Invalid file path"}
-        
-        if not os.path.exists(full_file_path_real):
+        if not os.path.exists(full_file_path):
             return {"status": "error", "message": "File not found"}
         
-        if not os.path.isfile(full_file_path_real):
+        if not os.path.isfile(full_file_path):
             return {"status": "error", "message": "Path is not a file"}
         
         # Read file content
         try:
-            with open(full_file_path_real, 'r', encoding='utf-8') as f:
+            with open(full_file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
         except UnicodeDecodeError:
             # If UTF-8 fails, try reading as binary and return base64 encoded content
             import base64
-            with open(full_file_path_real, 'rb') as f:
+            with open(full_file_path, 'rb') as f:
                 binary_content = f.read()
                 content = base64.b64encode(binary_content).decode('utf-8')
                 return {
@@ -510,40 +480,12 @@ async def import_task_from_gallery(
     if not task_dir_name:
         return {"status": "error", "message": "Failed to get task directory name from installation"}
     
-    # Validate task_dir_name before using it as a path component
-    import re
-    candidate = secure_filename(task_dir_name)
-    # defensive pattern: basic checks for directory name safety
-    if (
-        os.path.isabs(task_dir_name)
-        or ".." in task_dir_name
-        or "/" in task_dir_name
-        or "\\" in task_dir_name
-        or not task_dir_name.strip()
-        or not re.match(r'^[A-Za-z0-9_-]+$', task_dir_name)
-        or candidate != task_dir_name
-    ):
-        return {"status": "error", "message": "Invalid task directory name"}
-    # Check normalized/resolved path containment: ensure that the path is within workspace/tasks-gallery
-    base_gallery_dir = os.path.join(get_workspace_dir(), "tasks-gallery")
-    canonical_base_gallery_dir = os.path.normpath(os.path.realpath(base_gallery_dir))
-    canonical_task_dir = os.path.normpath(os.path.realpath(os.path.join(canonical_base_gallery_dir, task_dir_name)))
-    if os.path.commonpath([canonical_base_gallery_dir, canonical_task_dir]) != canonical_base_gallery_dir:
-        return {"status": "error", "message": "Invalid task directory (not contained within gallery base)"}
-    if os.path.isabs(task_dir_name) or ".." in task_dir_name or "/" in task_dir_name or "\\" in task_dir_name or not task_dir_name.strip():
-        return {"status": "error", "message": "Invalid task directory name (import)"}
-    
     # Now create the task in the experiment using the locally installed task
     try:
         workspace_dir = get_workspace_dir()
         local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
-        local_task_dir = os.path.normpath(os.path.join(local_gallery_dir, task_dir_name))
-        # Make sure the resolved path is within the expected tasks-gallery dir
-        trusted_gallery_root = os.path.normpath(os.path.realpath(local_gallery_dir))
-        canonical_task_dir = os.path.normpath(os.path.realpath(local_task_dir))
-        if os.path.commonpath([trusted_gallery_root, canonical_task_dir]) != trusted_gallery_root:
-            return {"status": "error", "message": "Attempted access outside trusted gallery directory"}
-        task_json_path = os.path.join(canonical_task_dir, "task.json")
+        local_task_dir = os.path.join(local_gallery_dir, task_dir_name)
+        task_json_path = os.path.join(local_task_dir, "task.json")
         
         if not os.path.isfile(task_json_path):
             return {"status": "error", "message": f"task.json not found in local task directory: {task_dir_name}"}
@@ -593,14 +535,9 @@ async def import_task_from_gallery(
         # Optional: Upload files to GPU orchestrator if requested
         if upload:
             try:
-                # Validate security for src_dir
-                src_dir = os.path.normpath(os.path.join(local_task_dir, "src"))
-                canonical_src_dir = os.path.normpath(os.path.realpath(src_dir))
-                trusted_gallery_root = os.path.normpath(os.path.realpath(os.path.join(get_workspace_dir(), "tasks-gallery")))
-                # Ensure src_dir is strictly contained within trusted gallery root directory using commonpath
-                if os.path.commonpath([trusted_gallery_root, canonical_src_dir]) != trusted_gallery_root:
-                    return {"status": "error", "message": "Attempted upload from outside trusted gallery directory"}
-                if os.path.exists(canonical_src_dir):
+                # Get the src directory from local installation
+                src_dir = os.path.join(local_task_dir, "src")
+                if os.path.exists(src_dir):
                     # Post to GPU orchestrator upload endpoint
                     gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
                     gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
@@ -619,17 +556,11 @@ async def import_task_from_gallery(
                         # Build multipart form to mirror frontend DirectoryUpload
                         dest = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/upload"
                         files_form = []
-                        # Extra containment & directory check for defense-in-depth before walking filesystem
-                        if (
-                            os.path.commonpath([trusted_gallery_root, canonical_src_dir]) != trusted_gallery_root
-                            or not os.path.isdir(canonical_src_dir)
-                        ):
-                            return {"status": "error", "message": "Upload directory is outside trusted gallery or not a directory"}
                         # Walk src_dir and add each file, preserving relative path inside src/
-                        for root, _, filenames in os.walk(canonical_src_dir):
+                        for root, _, filenames in os.walk(src_dir):
                             for filename in filenames:
                                 full_path = os.path.join(root, filename)
-                                rel_path = os.path.relpath(full_path, canonical_src_dir)
+                                rel_path = os.path.relpath(full_path, src_dir)
                                 # Prefix with src/ like the packed structure
                                 upload_name = f"src/{rel_path}"
                                 with open(full_path, "rb") as f:
@@ -694,26 +625,6 @@ async def install_task_from_gallery(
     # Prepare temp directory for shallow clone of specific path
     remote_repo_url = "https://github.com/transformerlab/galleries.git"
     tmp_dir = tempfile.mkdtemp(prefix="tlab_tasks_gallery_")
-     # Strictly validate task ID: must be a simple directory name (alphanumeric / underscores / hyphens only, no traversal, no absolute or empty names)
-    import re
-    id_candidate = secure_filename(id)
-    if (
-        os.path.isabs(id) or
-        ".." in id or
-        "/" in id or
-        "\\" in id or
-        not id.strip() or
-        not re.match(r'^[A-Za-z0-9_-]+$', id) or
-        id_candidate != id  # secure_filename modifies the input, so reject
-    ):
-        return {"status": "error", "message": "Invalid task id"}
-    # Also check normalized/resolved task dir is within base dir early
-    base_tasks_dir = os.path.join(tmp_dir, "tasks")
-    canonical_base_tasks_dir = os.path.normpath(os.path.realpath(base_tasks_dir))
-    task_dir = os.path.normpath(os.path.join(canonical_base_tasks_dir, id))
-    canonical_task_dir = os.path.normpath(os.path.realpath(task_dir))
-    if os.path.commonpath([canonical_base_tasks_dir, canonical_task_dir]) != canonical_base_tasks_dir:
-        return {"status": "error", "message": "Invalid task directory"}
     try:
         # Sparse checkout only the requested task
         subprocess.check_call(["git", "init"], cwd=tmp_dir)
@@ -725,9 +636,17 @@ async def install_task_from_gallery(
             f.write(f"tasks/{id}\n")
         subprocess.check_call(["git", "pull", "--depth", "1", "origin", "main"], cwd=tmp_dir)
 
-        task_json_path = os.path.join(canonical_task_dir, "task.json")
+        # Validate id: reject traversal and normalize path
+        if os.path.isabs(id) or ".." in id or "/" in id or "\\" in id or not id.strip():
+            return {"status": "error", "message": "Invalid task id"}
+        base_tasks_dir = os.path.join(tmp_dir, "tasks")
+        task_dir = os.path.normpath(os.path.join(base_tasks_dir, id))
+        # Make sure the resolved path is within the expected tasks dir
+        if not task_dir.startswith(base_tasks_dir + os.sep):
+            return {"status": "error", "message": "Invalid task directory"}
+        task_json_path = os.path.join(task_dir, "task.json")
         if not os.path.isfile(task_json_path):
-            return {"status": "error", "message": "task.json not found in the specified task directory"}
+            return {"status": "error", "message": f"task.json not found in tasks/{id}"}
 
         with open(task_json_path) as f:
             task_def = json_lib.load(f)
@@ -758,47 +677,12 @@ async def install_task_from_gallery(
         
         files_to_copy = [f for f in os.listdir(task_dir) if f != "task.json"]
         for name in files_to_copy:
-            # Validate name is a plain filename (no traversal, no directory separators, not abs, not symlink)
-            # Reject any absolute paths, traversal, or names containing any path separator for this platform
-            sep_violates = (os.sep in name) if os.sep != "/" else False
-            altsep_violates = (os.altsep in name) if os.altsep else False
-            if (
-                os.path.isabs(name)
-                or "/" in name
-                or "\\" in name
-                or ".." in name
-                or not name.strip()
-                or sep_violates
-                or altsep_violates
-            ):
-                continue  # skip invalid file/folder names
             src_path = os.path.join(task_dir, name)
-            # Canonicalize and strictly validate source path is inside allowed directory before accessing
-            canonical_task_dir = os.path.normpath(os.path.realpath(task_dir))
-            canonical_src_path = os.path.normpath(os.path.realpath(src_path))
-            if os.path.commonpath([canonical_task_dir, canonical_src_path]) != canonical_task_dir:
-                continue  # skip: file path escapes from task_dir
-            if os.path.islink(canonical_src_path):
-                continue  # skip symlinks before any file/directory operations
-
-            
-
-            # Also check destination directory stays inside src_dir
-            canonical_src_dir = os.path.normpath(os.path.realpath(src_dir))
-            canonical_dest_path = os.path.normpath(os.path.realpath(os.path.join(canonical_src_dir, name)))
-            if os.path.commonpath([canonical_src_dir, canonical_dest_path]) != canonical_src_dir:
-                continue  # skip files that "escape" the intended dest dir
-
-            # Only operate on canonical_src_path after passing all validation checks
-            # EXTRA DEFENSE: Re-validate containment immediately before copying
-            if os.path.commonpath([canonical_task_dir, canonical_src_path]) != canonical_task_dir:
-                continue  # skip: containment violation, possible path escape
-            if os.path.isdir(canonical_src_path):
-                shutil.copytree(canonical_src_path, canonical_dest_path)
-            elif os.path.isfile(canonical_src_path):
-                shutil.copy2(canonical_src_path, canonical_dest_path)
+            dest_path = os.path.join(src_dir, name)
+            if os.path.isdir(src_path):
+                shutil.copytree(src_path, dest_path)
             else:
-                continue  # skip: invalid file type
+                shutil.copy2(src_path, dest_path)
         
         # Create metadata file for installation info
         metadata = {
