@@ -81,7 +81,7 @@ class MLXAudioWorker(BaseModelWorker):
         stream = params.get("stream", False)
         voice = params.get("voice", None)
         lang_code = params.get("lang_code", None)
-        
+
         audio_dir = params.get("audio_dir", None)
         if not audio_dir:
             audio_dir = os.path.join(WORKSPACE_DIR, "audio")
@@ -106,7 +106,7 @@ class MLXAudioWorker(BaseModelWorker):
             }
             if lang_code:
                 kwargs["lang_code"] = lang_code
-            
+
             generate_audio(**kwargs)
 
             # Also save the parameters and metadata used to generate the audio
@@ -123,7 +123,7 @@ class MLXAudioWorker(BaseModelWorker):
                 "top_p": top_p,
                 "date": datetime.now().isoformat(),  # Store the real date and time
             }
-            
+
             metadata_file = os.path.join(audio_dir, f"{file_prefix}.json")
             with open(metadata_file, "w") as f:
                 json.dump(metadata, f)
@@ -209,7 +209,6 @@ def main():
     )
     parser.add_argument("--parameters", type=str, default="{}")
     parser.add_argument("--plugin_dir", type=str)
-
 
     args, unknown = parser.parse_known_args()
 

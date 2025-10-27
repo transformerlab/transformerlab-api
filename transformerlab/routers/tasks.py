@@ -148,11 +148,11 @@ async def queue_task(task_id: str, input_override: str = "{}", output_override: 
     task_to_queue = await tasks_service.tasks_get_by_id(task_id)
     if task_to_queue is None:
         return {"message": "TASK NOT FOUND"}
-    
+
     # Skip remote tasks - they are handled by the launch_remote route, not the job queue
     if task_to_queue.get("remote_task", False):
         return {"message": "REMOTE TASK - Cannot queue remote tasks, use launch_remote endpoint instead"}
-    
+
     job_type = task_to_queue["type"]
     job_status = "QUEUED"
     job_data = {}
@@ -265,10 +265,10 @@ async def tasks_local_gallery_list():
     try:
         workspace_dir = get_workspace_dir()
         local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
-        
+
         if not os.path.exists(local_gallery_dir):
             return {"status": "success", "data": []}
-        
+
         local_tasks = []
         for item in os.listdir(local_gallery_dir):
             task_dir = os.path.join(local_gallery_dir, item)
@@ -278,17 +278,19 @@ async def tasks_local_gallery_list():
                     try:
                         with open(task_json_path) as f:
                             task_data = json_lib.load(f)
-                        local_tasks.append({
-                            "name": task_data.get("name", item),
-                            "description": task_data.get("description", ""),
-                            "subdir": item,
-                            "source": "local",
-                            "tag": task_data.get("tag", "OTHER")
-                        })
+                        local_tasks.append(
+                            {
+                                "name": task_data.get("name", item),
+                                "description": task_data.get("description", ""),
+                                "subdir": item,
+                                "source": "local",
+                                "tag": task_data.get("tag", "OTHER"),
+                            }
+                        )
                     except Exception as e:
                         print(f"Error reading {task_json_path}: {e}")
                         continue
-        
+
         return {"status": "success", "data": local_tasks}
     except Exception as e:
         print(f"Error fetching local task gallery: {e}")
@@ -355,13 +357,9 @@ async def import_task_from_gallery(
         if existing_task:
             # Update existing task
             task_id = existing_task["id"]
-            tasks_service.update_task(task_id, {
-                "name": task_name,
-                "inputs": inputs,
-                "config": config,
-                "outputs": outputs,
-                "plugin": plugin
-            })
+            tasks_service.update_task(
+                task_id, {"name": task_name, "inputs": inputs, "config": config, "outputs": outputs, "plugin": plugin}
+            )
             task_id = existing_task["id"]
         else:
             # Create new task
@@ -439,7 +437,9 @@ async def import_task_from_gallery(
                                 # Prefix with src/ like the packed structure
                                 upload_name = f"src/{rel_path}"
                                 with open(full_path, "rb") as f:
-                                    files_form.append(("dir_files", (upload_name, f.read(), "application/octet-stream")))
+                                    files_form.append(
+                                        ("dir_files", (upload_name, f.read(), "application/octet-stream"))
+                                    )
 
                         form_data = {"dir_name": slugify(task_name)}
 
@@ -466,11 +466,15 @@ async def import_task_from_gallery(
                                     .get("uploaded_dir")
                                 )
                                 if not remote_path:
-                                    remote_path = remote_info.get("path") or remote_info.get("remote_path") or remote_info
+                                    remote_path = (
+                                        remote_info.get("path") or remote_info.get("remote_path") or remote_info
+                                    )
                                 try:
                                     task_obj = tasks_service.tasks_get_by_id(task_id)
                                     if isinstance(task_obj.get("config"), str):
-                                        task_obj["config"] = json_lib.loads(task_obj["config"]) if task_obj["config"] else {}
+                                        task_obj["config"] = (
+                                            json_lib.loads(task_obj["config"]) if task_obj["config"] else {}
+                                        )
                                     task_obj["config"]["remote_upload_path"] = remote_path
                                     tasks_service.update_task(task_id, {"config": task_obj["config"]})
                                 except Exception:
@@ -514,20 +518,20 @@ async def export_task_to_local_gallery(
         source_task = tasks_service.tasks_get_by_id(source_task_id)
         if not source_task:
             return {"status": "error", "message": f"Source task {source_task_id} not found"}
-        
+
         if not source_task.get("remote_task", False):
             return {"status": "error", "message": "Source task must be a REMOTE task"}
-        
+
         # Create local gallery directory structure
         workspace_dir = get_workspace_dir()
         local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
         os.makedirs(local_gallery_dir, exist_ok=True)
-        
+
         # Create task directory
         task_dir_name = slugify(task_name)
         task_dir = os.path.join(local_gallery_dir, task_dir_name)
         os.makedirs(task_dir, exist_ok=True)
-        
+
         # Create task.json for local gallery
         local_task_data = {
             "name": task_name,
@@ -539,13 +543,13 @@ async def export_task_to_local_gallery(
             "config": source_task.get("config", {}),
             "source": "local_gallery",
             "imported_from": source_task_id,
-            "tag": tag
+            "tag": tag,
         }
-        
+
         task_json_path = os.path.join(task_dir, "task.json")
         with open(task_json_path, "w") as f:
             json_lib.dump(local_task_data, f, indent=2)
-        
+
         return {"status": "success", "task_dir": task_dir_name}
     except Exception as e:
         print(f"Error exporting task to local gallery: {e}")
@@ -573,7 +577,7 @@ async def import_task_from_local_gallery(
             print(f"Invalid task directory: {task_dir_real} not in {local_gallery_dir_real}")
             return {"status": "error", "message": "Invalid task directory"}
         task_json_path = os.path.join(task_dir, "task.json")
-        
+
         task_json_real = os.path.realpath(task_json_path)
         if not task_json_real.startswith(local_gallery_dir_real + os.sep):
             print(f"Invalid task.json path: {task_json_real} not in {local_gallery_dir_real}")
@@ -603,13 +607,9 @@ async def import_task_from_local_gallery(
         if existing_task:
             # Update existing task
             task_id = existing_task["id"]
-            tasks_service.update_task(task_id, {
-                "name": task_name,
-                "inputs": inputs,
-                "config": config,
-                "outputs": outputs,
-                "plugin": plugin
-            })
+            tasks_service.update_task(
+                task_id, {"name": task_name, "inputs": inputs, "config": config, "outputs": outputs, "plugin": plugin}
+            )
             return {"status": "success", "task_id": task_id, "action": "updated"}
         else:
             # Create new task

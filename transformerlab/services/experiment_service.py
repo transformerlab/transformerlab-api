@@ -25,6 +25,9 @@ def experiment_create(name: str, config: dict) -> str:
 
 def experiment_get(id):
     try:
+        if not id or id == "undefined":
+            id = "alpha"
+
         exp = Experiment.get(id)
         data = exp.get_json_data()
         # Parse config field from JSON string to dict if needed

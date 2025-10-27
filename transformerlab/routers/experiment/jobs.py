@@ -189,7 +189,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
             lines = []
             with open(output_file_name, "r") as f:
                 for line in f:
-                    lines.append(line.rstrip('\n'))  # Remove trailing newline
+                    lines.append(line.rstrip("\n"))  # Remove trailing newline
             return lines
         else:
             return ["Output file not found"]
@@ -206,7 +206,7 @@ async def get_tasks_job_output(job_id: str, sweeps: bool = False):
                     lines = []
                     with open(output_file_name, "r") as f:
                         for line in f:
-                            lines.append(line.rstrip('\n'))  # Remove trailing newline
+                            lines.append(line.rstrip("\n"))  # Remove trailing newline
                     return lines
                 else:
                     return ["Output file not found after retry"]
@@ -260,8 +260,6 @@ async def update_training_template(
     return {"status": "success"}
 
 
-
-
 @router.get("/{job_id}/stream_output")
 async def stream_job_output(job_id: str, sweeps: bool = False):
     """
@@ -272,7 +270,6 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
         job = job_service.job_get(job_id)
 
         job_data = job.get("job_data", {})
-
 
         # Handle both dict and JSON string formats
         if not isinstance(job_data, dict):
@@ -293,7 +290,6 @@ async def stream_job_output(job_id: str, sweeps: bool = False):
         else:
             # Try to get output file name with fallback logic
             output_file_name = await shared.get_job_output_file_name(job_id)
-    
 
     except ValueError as e:
         # If the value error starts with "No output file found for job" then wait 4 seconds and try again
@@ -528,17 +524,17 @@ async def get_checkpoints(job_id: str, request: Request):
     job = job_service.job_get(job_id)
     if job is None:
         return {"checkpoints": []}
-    
+
     job_data = job["job_data"]
 
     # First try to use the new SDK method to get checkpoints
     try:
         from lab.job import Job
-        
+
         # Get checkpoints using the SDK method
         sdk_job = Job(job_id)
         checkpoint_paths = sdk_job.get_checkpoint_paths()
-        
+
         if checkpoint_paths and len(checkpoint_paths) > 0:
             checkpoints = []
             for checkpoint_path in checkpoint_paths:
@@ -553,7 +549,7 @@ async def get_checkpoints(job_id: str, request: Request):
                 except Exception as e:
                     logging.error(f"Error getting stat for checkpoint {checkpoint_path}: {e}")
                     continue
-            
+
             # Sort checkpoints by filename in reverse (descending) order for consistent ordering
             checkpoints.sort(key=lambda x: x["filename"], reverse=True)
             return {"checkpoints": checkpoints}
@@ -633,17 +629,17 @@ async def get_artifacts(job_id: str, request: Request):
     job = job_service.job_get(job_id)
     if job is None:
         return {"artifacts": []}
-    
+
     job_data = job["job_data"]
 
     # First try to use the new SDK method to get artifacts
     try:
         from lab.job import Job
-        
+
         # Get artifacts using the SDK method
         sdk_job = Job(job_id)
         artifact_paths = sdk_job.get_artifact_paths()
-        
+
         if artifact_paths:
             artifacts = []
             for artifact_path in artifact_paths:
@@ -658,7 +654,7 @@ async def get_artifacts(job_id: str, request: Request):
                 except Exception as e:
                     logging.error(f"Error getting stat for artifact {artifact_path}: {e}")
                     continue
-            
+
             # Sort artifacts by filename in reverse (descending) order for consistent ordering
             artifacts.sort(key=lambda x: x["filename"], reverse=True)
             return {"artifacts": artifacts}
@@ -671,8 +667,9 @@ async def get_artifacts(job_id: str, request: Request):
     if not artifacts_dir:
         # Use the SDK's artifacts directory structure
         from lab.dirs import get_job_artifacts_dir
+
         artifacts_dir = get_job_artifacts_dir(job_id)
-    
+
     if not artifacts_dir or not os.path.exists(artifacts_dir):
         return {"artifacts": []}
 
@@ -699,5 +696,3 @@ async def get_artifacts(job_id: str, request: Request):
     artifacts.sort(key=lambda x: x["filename"], reverse=True)
 
     return {"artifacts": artifacts}
-
-

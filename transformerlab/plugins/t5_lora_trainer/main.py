@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 
 import torch
+
 if torch.cuda.is_available():
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     os.environ["HIP_VISIBLE_DEVICES"] = "0"
@@ -32,6 +33,7 @@ from transformers import (
 
 from transformerlab.sdk.v1.train import tlab_trainer
 from transformerlab.plugin import TEMP_DIR
+
 
 @dataclass
 class LoraArguments:
@@ -76,7 +78,7 @@ class T5LoraTrainer:
         self.train_dataset = datasets["train"]
         self.test_dataset = datasets["test"]
         self.dataset = DatasetDict({"train": self.train_dataset, "test": self.test_dataset})
-        
+
         print(f"Train dataset size: {len(self.train_dataset)}")
         print(f"Test dataset size: {len(self.test_dataset)}")
         return
@@ -142,33 +144,30 @@ class T5LoraTrainer:
         print(f"Keys of tokenized dataset: {list(self.tokenized_dataset['train'].features)}")
 
         # save datasets to disk for later easy loading
-        self.tokenized_dataset["train"].save_to_disk(os.path.join(TEMP_DIR, 'data', 'train'))
-        self.tokenized_dataset["test"].save_to_disk(os.path.join(TEMP_DIR, 'data', 'eval'))
+        self.tokenized_dataset["train"].save_to_disk(os.path.join(TEMP_DIR, "data", "train"))
+        self.tokenized_dataset["test"].save_to_disk(os.path.join(TEMP_DIR, "data", "eval"))
 
     def load_model(self):
         """Load base model for training"""
-        self.model = AutoModelForSeq2SeqLM.from_pretrained(
-            tlab_trainer.params.model_name, 
-            device_map="auto"
-        )
+        self.model = AutoModelForSeq2SeqLM.from_pretrained(tlab_trainer.params.model_name, device_map="auto")
 
     def train(self):
         """Main training function using tlab_trainer wrapper for progress tracking"""
         config = tlab_trainer.params._config
-        
+
         # Load and process dataset
         self.load_dataset()
         self.tokenize_dataset()
         self.preprocess()
-        
+
         # Load model
         self.load_model()
-        
+
         # Get LoRA config parameters
         lora_r = int(config.get("lora_r", 8))
         lora_alpha = int(config.get("lora_alpha", 16))
         lora_dropout = float(config.get("lora_dropout", 0.05))
-        
+
         # Setup LoRA configuration
         lora_config = LoraConfig(
             r=lora_r,
@@ -178,12 +177,12 @@ class T5LoraTrainer:
             bias="none",
             task_type=TaskType.SEQ_2_SEQ_LM,
         )
-        
+
         # Prepare model for int8 training with LoRA
         self.model = prepare_model_for_kbit_training(self.model)
         self.model = get_peft_model(self.model, lora_config)
         self.model.print_trainable_parameters()
-        
+
         # Setup data collator
         label_pad_token_id = -100
         data_collator = DataCollatorForSeq2Seq(
@@ -192,11 +191,11 @@ class T5LoraTrainer:
             label_pad_token_id=label_pad_token_id,
             pad_to_multiple_of=8,
         )
-        
+
         # Create output directory if it doesn't exist
         output_dir = config.get("output_dir")
         os.makedirs(output_dir, exist_ok=True)
-        
+
         # Define training arguments
         training_args = Seq2SeqTrainingArguments(
             output_dir=output_dir,
@@ -209,27 +208,27 @@ class T5LoraTrainer:
             save_strategy="no",
             report_to=tlab_trainer.report_to,
         )
-        
+
         # Create Trainer instance with progress callback
         self.trainer = Seq2SeqTrainer(
             model=self.model,
             args=training_args,
             data_collator=data_collator,
             train_dataset=self.tokenized_dataset["train"],
-            callbacks=[tlab_trainer.create_progress_callback(framework="huggingface")]
+            callbacks=[tlab_trainer.create_progress_callback(framework="huggingface")],
         )
-        
+
         # Disable cache for training
         self.model.config.use_cache = False
-        
+
         # Run training
         self.trainer.train()
-        
+
         # Save model
         adaptor_output_dir = config.get("adaptor_output_dir")
         self.trainer.model.save_pretrained(adaptor_output_dir)
         self.tokenizer.save_pretrained(adaptor_output_dir)
-        
+
         # Create TransformerLab model entry
         fused_model_name = config.get("adaptor_name", "t5-lora-finetuned")
         model_architecture = "T5ForConditionalGeneration"
@@ -240,21 +239,22 @@ class T5LoraTrainer:
             "lora_dropout": lora_dropout,
             "dataset": config.get("dataset_name"),
         }
-        
+
         tlab_trainer.create_transformerlab_model(
             fused_model_name=fused_model_name,
             model_architecture=model_architecture,
             json_data=json_data,
-            output_dir=adaptor_output_dir
+            output_dir=adaptor_output_dir,
         )
-        
+
         return "Training completed successfully"
 
-    
+
 # Start the training
 @tlab_trainer.job_wrapper()
 def run_training():
     trainer = T5LoraTrainer()
     trainer.train()
+
 
 run_training()

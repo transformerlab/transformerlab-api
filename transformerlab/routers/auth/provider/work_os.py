@@ -62,9 +62,7 @@ class WorkOSProvider(AuthProvider):
             client_id=client_id or os.getenv("AUTH_CLIENT_ID"),
         )
 
-    def get_authorization_url(
-        self, *, redirect_uri: str, provider: Optional[str] = None
-    ) -> str:
+    def get_authorization_url(self, *, redirect_uri: str, provider: Optional[str] = None) -> str:
         return self._client.user_management.get_authorization_url(
             provider=provider or "authkit",
             redirect_uri=redirect_uri,
@@ -98,30 +96,22 @@ class WorkOSProvider(AuthProvider):
         )
         return WorkOSSession(session)
 
-    def load_sealed_session(
-        self, *, sealed_session: str, cookie_password: str
-    ) -> AuthSession:
+    def load_sealed_session(self, *, sealed_session: str, cookie_password: str) -> AuthSession:
         session = self._client.user_management.load_sealed_session(
             sealed_session=sealed_session,
             cookie_password=cookie_password,
         )
         return WorkOSSession(session)
 
-    def create_organization(
-        self, *, name: str, domains: Optional[List[str]] = None
-    ) -> Organization:
+    def create_organization(self, *, name: str, domains: Optional[List[str]] = None) -> Organization:
         params = {"name": name}
         if domains:
-            params["domain_data"] = [
-                {"domain": domain, "state": "pending"} for domain in domains
-            ]
+            params["domain_data"] = [{"domain": domain, "state": "pending"} for domain in domains]
         organization = self._client.organizations.create_organization(**params)
         return Organization(id=organization.id, name=organization.name)
 
     def get_organization(self, *, organization_id: str) -> Organization:
-        organization = self._client.organizations.get_organization(
-            organization_id=organization_id
-        )
+        organization = self._client.organizations.get_organization(organization_id=organization_id)
         return Organization(id=organization.id, name=organization.name)
 
     def delete_organization(self, *, organization_id: str) -> None:
@@ -160,9 +150,7 @@ class WorkOSProvider(AuthProvider):
             role=getattr(membership, "role", None),
         )
 
-    def delete_organization_membership(
-        self, *, organization_membership_id: str
-    ) -> None:
+    def delete_organization_membership(self, *, organization_membership_id: str) -> None:
         self._client.user_management.delete_organization_membership(
             organization_membership_id=organization_membership_id
         )

@@ -19,6 +19,7 @@ def generate_config():
     tlab_gen.progress_update(30)
 
     from transformerlab.plugin import WORKSPACE_DIR
+
     tlab_gen.params.documents_dir = os.path.join(
         WORKSPACE_DIR, "experiments", tlab_gen.params.experiment_name, "documents", docs
     )
@@ -144,6 +145,7 @@ def run_yourbench():
 
     # Get the yourbench directory path
     from transformerlab.plugin import WORKSPACE_DIR
+
     current_dir = os.path.join(WORKSPACE_DIR, "plugins", "yourbench_data_gen")
 
     # Run yourbench with the configuration
