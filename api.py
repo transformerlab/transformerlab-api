@@ -55,7 +55,6 @@ import torch
 
 try:
     from pynvml import nvmlShutdown
-
     HAS_AMD = False
 except Exception:
     from pyrsmi import rocml
@@ -487,7 +486,6 @@ async def healthz():
     """
     gpu_orchestration_server = os.getenv("GPU_ORCHESTRATION_SERVER", "")
     mode = "gpu_orchestration" if gpu_orchestration_server else "local"
-
     # Get the port from the environment or use default
     port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT", "")
 

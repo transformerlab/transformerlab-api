@@ -83,7 +83,7 @@ async def test_delete_plugin_files_from_workspace():
     # Create a temporary plugin directory structure
     with tempfile.TemporaryDirectory() as temp_dir:
         # Mock the get_plugin_dir function to use our temp directory
-        with patch("lab.dirs.get_plugin_dir", return_value=temp_dir):
+        with patch('lab.dirs.get_plugin_dir', return_value=temp_dir):
             test_plugin_id = "test_plugin_to_delete"
             plugin_path = os.path.join(temp_dir, test_plugin_id)
 
@@ -110,7 +110,7 @@ async def test_delete_plugin_files_from_workspace_nonexistent():
     from transformerlab.routers.plugins import delete_plugin_files_from_workspace
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        with patch("lab.dirs.get_plugin_dir", return_value=temp_dir):
+        with patch('lab.dirs.get_plugin_dir', return_value=temp_dir):
             # This should not raise an error even if plugin doesn't exist
             await delete_plugin_files_from_workspace("nonexistent_plugin")
 
@@ -140,8 +140,8 @@ async def test_copy_plugin_files_to_workspace():
 
         with (
             patch.object(dirs, "PLUGIN_PRELOADED_GALLERY", gallery_dir),
-            patch("lab.dirs.get_plugin_dir", return_value=plugin_dir),
-            patch("lab.dirs.plugin_dir_by_name", lambda x: os.path.join(plugin_dir, x)),
+            patch('lab.dirs.get_plugin_dir', return_value=plugin_dir),
+            patch('lab.dirs.plugin_dir_by_name', lambda x: os.path.join(plugin_dir, x)),
         ):
             # Copy the plugin
             await copy_plugin_files_to_workspace(test_plugin_id)
@@ -180,7 +180,7 @@ async def test_run_installer_for_plugin_with_missing_setup_script():
 
         with (
             patch.object(dirs, "PLUGIN_PRELOADED_GALLERY", gallery_dir),
-            patch("lab.dirs.get_plugin_dir", return_value=plugin_dir),
+            patch('lab.dirs.get_plugin_dir', return_value=plugin_dir),
             patch("transformerlab.routers.plugins.delete_plugin_files_from_workspace") as mock_delete,
         ):
             mock_delete.return_value = None
@@ -227,7 +227,7 @@ async def test_run_installer_for_plugin_setup_script_failure():
 
         with (
             patch.object(dirs, "PLUGIN_PRELOADED_GALLERY", gallery_dir),
-            patch("lab.dirs.get_plugin_dir", return_value=plugin_dir),
+            patch('lab.dirs.get_plugin_dir', return_value=plugin_dir),
             patch("asyncio.create_subprocess_exec") as mock_subprocess,
             patch("transformerlab.routers.plugins.delete_plugin_files_from_workspace") as mock_delete,
         ):

@@ -203,10 +203,8 @@ def test_logout_from_huggingface_success(client):
     ):
         response = client.get("/model/logout_from_huggingface")
         assert response.status_code == 200
-
         data = response.json()
         assert data["message"] == "OK"
-
         # Verify logout was called
         mock_logout.assert_called_once()
         # Verify token file removal was attempted
