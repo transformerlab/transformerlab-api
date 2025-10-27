@@ -305,8 +305,14 @@ async def delete_task_from_local_gallery(task_dir: str):
     try:
         workspace_dir = get_workspace_dir()
         local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
-        # Additional validation: block empty, dot, and dot-dot entries
-        if not task_dir or task_dir.strip() in (".", ".."):
+        # Enhanced validation: block empty, dot, dot-dot, and any path separator
+        if (
+            not task_dir 
+            or task_dir.strip() in (".", "..") 
+            or "/" in task_dir 
+            or "\\" in task_dir 
+            or os.path.sep in task_dir 
+        ):
             return {"status": "error", "message": "Invalid task directory"}
         task_path = os.path.normpath(os.path.join(local_gallery_dir, task_dir))
         
@@ -322,9 +328,24 @@ async def delete_task_from_local_gallery(task_dir: str):
         if not os.path.exists(task_path):
             return {"status": "error", "message": "Task directory not found"}
         
-        # Ensure it's a directory and not a symlink
-        if not os.path.isdir(task_path) or os.path.islink(task_path):
-            return {"status": "error", "message": "Invalid task directory"}
+        # Extra symlink protection: use os.lstat, block symlinks and non-dirs
+        stat_info = os.lstat(task_path)
+        import stat
+        if not stat.S_ISDIR(stat_info.st_mode):
+            return {"status": "error", "message": "Invalid task directory (not a directory)"}
+        if stat.S_ISLNK(stat_info.st_mode):
+            return {"status": "error", "message": "Invalid task directory (symlink)"}
+
+        # Optional: block symlink children in the target folder
+        for entry in os.listdir(task_path):
+            entry_path = os.path.join(task_path, entry)
+            try:
+                entry_stat = os.lstat(entry_path)
+                if stat.S_ISLNK(entry_stat.st_mode):
+                    return {"status": "error", "message": "Directory contains symlinked entries, cannot delete"}
+            except Exception:
+                continue
+
         
         # Remove the task directory
         shutil.rmtree(task_path)
