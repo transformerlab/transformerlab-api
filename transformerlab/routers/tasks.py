@@ -412,7 +412,8 @@ async def get_task_files(task_dir: str):
         src_dir_real = os.path.realpath(src_dir)
         if os.path.commonpath([src_dir_real, task_path_real]) != task_path_real:
             return {"status": "error", "message": "Invalid src directory for task"}
-        if not os.path.exists(src_dir_real):            return {"status": "success", "data": {"files": [], "count": 0}}
+        if not os.path.exists(src_dir_real):            
+            return {"status": "success", "data": {"files": [], "count": 0}}
         
         # Get all files in src directory recursively
         files = []
