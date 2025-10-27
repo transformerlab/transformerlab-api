@@ -751,7 +751,6 @@ async def install_task_from_gallery(
     Clone the specific tasks/<id> from transformerlab/galleries and store it in workspace/tasks-gallery/.
     This installs the task locally without creating a task in any experiment.
     """
-    import shutil, os
 
     def safe_copyfile(src, dst):
         shutil.copyfile(src, dst)
