@@ -5,8 +5,8 @@ name: Test for Install and Serving (macOS)
 on:
   push:
     branches: ["main"]
-  # pull_request:
-  #   branches: ["main"]
+  pull_request:
+    branches: ["main"]
 
 jobs:
   build:
