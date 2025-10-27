@@ -183,6 +183,7 @@ def test_workflow_update_config(client):
     # Cleanup
     client.get(f"/experiment/1/workflows/delete/{workflow_id}")
 
+
 def test_workflow_task_isolation_success(client):
     """Test that workflows can find tasks in their own experiment with correct type."""
     # Create a TRAIN task in experiment 1
