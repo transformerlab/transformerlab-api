@@ -305,6 +305,9 @@ async def delete_task_from_local_gallery(task_dir: str):
     try:
         workspace_dir = get_workspace_dir()
         local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
+        # Additional validation: block empty, dot, and dot-dot entries
+        if not task_dir or task_dir.strip() in (".", ".."):
+            return {"status": "error", "message": "Invalid task directory"}
         task_path = os.path.normpath(os.path.join(local_gallery_dir, task_dir))
         
         # Security check: ensure the task path is within the local gallery directory
@@ -312,11 +315,16 @@ async def delete_task_from_local_gallery(task_dir: str):
         task_path_real = os.path.realpath(task_path)
         common_path = os.path.commonpath([local_gallery_dir_real, task_path_real])
         
-        if common_path != local_gallery_dir_real:
+        # Ensure the target is strictly within (but not exactly) the gallery directory
+        if common_path != local_gallery_dir_real or task_path_real == local_gallery_dir_real:
             return {"status": "error", "message": "Invalid task directory"}
         
         if not os.path.exists(task_path):
             return {"status": "error", "message": "Task directory not found"}
+        
+        # Ensure it's a directory and not a symlink
+        if not os.path.isdir(task_path) or os.path.islink(task_path):
+            return {"status": "error", "message": "Invalid task directory"}
         
         # Remove the task directory
         shutil.rmtree(task_path)
