@@ -352,10 +352,26 @@ async def delete_task_from_local_gallery(task_dir: str):
                     return {"status": "error", "message": "Directory contains symlinked entries, cannot delete"}
             except Exception:
                 continue
-
         
         # Remove the task directory
-        shutil.rmtree(task_path)
+        
+        for dirpath, dirnames, filenames in os.walk(task_path, topdown=False):
+            for f in filenames:
+                try:
+                    os.remove(os.path.join(dirpath, f))
+                except FileNotFoundError:
+                    pass
+            for d in dirnames:
+                try:
+                    os.rmdir(os.path.join(dirpath, d))
+                except (FileNotFoundError, OSError):
+                    pass
+        try:
+            os.rmdir(task_path)
+        # Sometimes the directory change is reflected slowly in the filesystem, so we need to wait a bit
+        except FileNotFoundError:
+            pass
+
         
         return {"status": "success", "message": f"Task '{task_dir}' deleted successfully"}
         
@@ -735,6 +751,21 @@ async def install_task_from_gallery(
     Clone the specific tasks/<id> from transformerlab/galleries and store it in workspace/tasks-gallery/.
     This installs the task locally without creating a task in any experiment.
     """
+    import shutil, os
+
+    def safe_copyfile(src, dst):
+        shutil.copyfile(src, dst)
+        try:
+            # skip chmod/copy permissions, which FUSE rejects
+            shutil.copystat(src, dst)
+        except PermissionError:
+            pass
+        except OSError as e:
+            if e.errno == 1:  # Operation not permitted
+                pass
+            else:
+                raise
+
     # Prepare temp directory for shallow clone of specific path
     remote_repo_url = "https://github.com/transformerlab/galleries.git"
     tmp_dir = tempfile.mkdtemp(prefix="tlab_tasks_gallery_")
@@ -768,12 +799,12 @@ async def install_task_from_gallery(
         workspace_dir = get_workspace_dir()
         local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
         os.makedirs(local_gallery_dir, exist_ok=True)
-        
+
         # Create task directory in local gallery
         task_name = slugify(task_def.get("name", id))
         task_dir_name = slugify(task_name)
         local_task_dir = os.path.join(local_gallery_dir, task_dir_name)
-        
+
         # Check if task already exists locally
         if os.path.exists(local_task_dir):
             return {"status": "error", "message": f"Task '{task_name}' is already installed locally"}
@@ -782,8 +813,8 @@ async def install_task_from_gallery(
         
         # Copy task.json to local gallery
         local_task_json_path = os.path.join(local_task_dir, "task.json")
-        shutil.copy2(task_json_path, local_task_json_path)
-        
+        safe_copyfile(task_json_path, local_task_json_path)
+
         # Copy all other files to local gallery (excluding task.json)
         src_dir = os.path.join(local_task_dir, "src")
         os.makedirs(src_dir, exist_ok=True)
@@ -795,8 +826,8 @@ async def install_task_from_gallery(
             if os.path.isdir(src_path):
                 shutil.copytree(src_path, dest_path)
             else:
-                shutil.copy2(src_path, dest_path)
-        
+                safe_copyfile(src_path, dest_path)
+
         # Create metadata file for installation info
         metadata = {
             "installed_from": "gallery",
