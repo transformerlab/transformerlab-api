@@ -466,6 +466,19 @@ async def get_task_file_content(task_dir: str, file_path: str):
         if os.path.isabs(task_dir) or ".." in task_dir.split(os.sep):
             return {"status": "error", "message": "Invalid task directory"}
             
+        # Defensive file_path validation
+        if (
+            not file_path or
+            os.path.isabs(file_path) or
+            "\x00" in file_path or
+            any(part == ".." for part in file_path.split(os.sep))
+        ):
+            return {"status": "error", "message": "Invalid file path"}
+
+        # Optionally, enforce basename safety (for files, not subdirs)
+        filename_check = secure_filename(os.path.basename(file_path))
+        if filename_check != os.path.basename(file_path):
+            return {"status": "error", "message": "Unsafe file name"}
 
         workspace_dir = get_workspace_dir()
         local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
@@ -487,6 +500,17 @@ async def get_task_file_content(task_dir: str, file_path: str):
         src_dir = os.path.join(task_path_real, "src")
         if not os.path.exists(src_dir):
             return {"status": "error", "message": "Source directory not found"}
+
+        # Validate and sanitize file_path before constructing the full path
+        # Remove dangerous elements from file_path
+        safe_file_path = secure_filename(file_path)
+        if not safe_file_path or safe_file_path != file_path:
+            return {"status": "error", "message": "Invalid file path"}
+        if os.path.isabs(file_path) or any(segment in ('..', '.') for segment in file_path.split(os.sep)):
+            return {"status": "error", "message": "Invalid file path"}
+        # Disallow path separators to restrict to files within src directory only
+        if "/" in file_path or os.sep in file_path:
+            return {"status": "error", "message": "Invalid file path"}
 
         # Security check: ensure src_dir is within the local_gallery_dir
         src_dir_real = os.path.realpath(src_dir)
