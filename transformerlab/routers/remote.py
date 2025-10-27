@@ -69,6 +69,10 @@ async def create_remote_job(
     if uploaded_dir_path:
         job_data["uploaded_dir_path"] = uploaded_dir_path
     if shutdown_after_completion:
+        # Convert string "true"/"false" to boolean
+        if isinstance(shutdown_after_completion, str):
+            shutdown_after_completion = shutdown_after_completion.lower() == "true"
+    
         job_data["shutdown_after_completion"] = shutdown_after_completion
     
     try:
@@ -235,6 +239,7 @@ async def stop_remote(
     request: Request,
     job_id: str = Form(...),
     cluster_name: str = Form(...),
+    mark_stopped: bool = Form(True),
 ):
     """
     Stop a remote instance via Lattice orchestrator by calling instances/down endpoint
@@ -277,7 +282,7 @@ async def stop_remote(
                 timeout=30.0
             )
             
-            if response.status_code == 200:
+            if response.status_code == 200 and mark_stopped:
                 # Update job status to STOPPED on successful down request
                 await job_update_status(job_id, "STOPPED")
                 
@@ -571,7 +576,7 @@ async def check_remote_jobs_status(request: Request):
                     if shutdown_after_completion:
                         # Call the remote/down endpoint to shutdown the instance
                         try:
-                            shutdown_response = await stop_remote(request, job_id, cluster_name)
+                            shutdown_response = await stop_remote(request, job_id, cluster_name, mark_stopped=False)
                             if shutdown_response.get("status") == "success":
                                 updated_jobs.append({
                                     "job_id": job_id,

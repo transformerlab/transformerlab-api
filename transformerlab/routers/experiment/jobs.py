@@ -5,7 +5,7 @@ import os
 import csv
 import pandas as pd
 import logging
-from fastapi import APIRouter, Body, Response, Request
+from fastapi import APIRouter, Request, Body, Response
 from fastapi.responses import StreamingResponse, FileResponse
 
 from transformerlab.shared import shared
@@ -28,8 +28,8 @@ router = APIRouter(prefix="/jobs", tags=["train"])
 
 
 @router.get("/list")
-async def jobs_get_all(experimentId: str, type: str = "", status: str = ""):
-    jobs = job_service.jobs_get_all(type=type, status=status, experiment_id=experimentId)
+async def jobs_get_all(experimentId: str, type: str = "", status: str = "", request: Request = None):
+    jobs = job_service.jobs_get_all(type=type, status=status, experiment_id=experimentId, cookies=request.cookies if request else None)
     return jobs
 
 

@@ -48,18 +48,18 @@ def job_create(type, status, experiment_id, job_data="{}"):
     return job.id
 
 
-def jobs_get_all(experiment_id, type="", status=""):
+def jobs_get_all(experiment_id, type="", status="", cookies=None):
     exp_obj = Experiment(experiment_id)
-    return exp_obj.get_jobs(type, status)
+    return exp_obj.get_jobs(type, status, cookies=cookies)
 
 
-def jobs_get_all_by_experiment_and_type(experiment_id, job_type):
-    return jobs_get_all(experiment_id, job_type)
+def jobs_get_all_by_experiment_and_type(experiment_id, job_type, cookies=None):
+    return jobs_get_all(experiment_id, job_type, cookies=cookies)
 
 
-def jobs_get_by_experiment(experiment_id):
+def jobs_get_by_experiment(experiment_id, cookies=None):
     """Get all jobs for a specific experiment"""
-    return jobs_get_all(experiment_id)
+    return jobs_get_all(experiment_id, cookies=cookies)
 
 
 def job_get(job_id):
