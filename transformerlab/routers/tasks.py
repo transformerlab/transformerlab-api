@@ -314,15 +314,21 @@ async def delete_task_from_local_gallery(task_dir: str):
             or os.path.sep in task_dir 
         ):
             return {"status": "error", "message": "Invalid task directory"}
-        task_path = os.path.normpath(os.path.join(local_gallery_dir, task_dir))
+
+        # Use secure_filename for additional sanitization
+        safe_task_dir = secure_filename(task_dir)
+        if safe_task_dir != task_dir:
+            return {"status": "error", "message": "Invalid task directory"}
+        task_path = os.path.normpath(os.path.join(local_gallery_dir, safe_task_dir))
         
-        # Security check: ensure the task path is within the local gallery directory
+        # Security check: ensure the task path is strictly within the local gallery directory,
+        # after resolving symlinks and normalization. This prevents path traversal and symlink attacks.        
         local_gallery_dir_real = os.path.realpath(local_gallery_dir)
         task_path_real = os.path.realpath(task_path)
-        common_path = os.path.commonpath([local_gallery_dir_real, task_path_real])
-        
-        # Ensure the target is strictly within (but not exactly) the gallery directory
-        if common_path != local_gallery_dir_real or task_path_real == local_gallery_dir_real:
+        if (
+            not os.path.commonpath([local_gallery_dir_real, task_path_real]) == local_gallery_dir_real
+            or task_path_real == local_gallery_dir_real
+        ):
             return {"status": "error", "message": "Invalid task directory"}
         
         if not os.path.exists(task_path):
@@ -479,20 +485,25 @@ async def get_task_file_content(task_dir: str, file_path: str):
         # Construct the full file path
         full_file_path = os.path.normpath(os.path.join(src_dir_real, file_path))
         
-        if not os.path.exists(full_file_path):
+        full_file_path_real = os.path.realpath(full_file_path)
+        # Ensure that the full_file_path_real is strictly within src_dir_real
+        if not (full_file_path_real.startswith(src_dir_real + os.sep) or full_file_path_real == src_dir_real):
+            return {"status": "error", "message": "Invalid file path"}
+
+        if not os.path.exists(full_file_path_real):
             return {"status": "error", "message": "File not found"}
         
-        if not os.path.isfile(full_file_path):
+        if not os.path.isfile(full_file_path_real):
             return {"status": "error", "message": "Path is not a file"}
         
         # Read file content
         try:
-            with open(full_file_path, 'r', encoding='utf-8') as f:
+            with open(full_file_path_real, 'r', encoding='utf-8') as f:
                 content = f.read()
         except UnicodeDecodeError:
             # If UTF-8 fails, try reading as binary and return base64 encoded content
             import base64
-            with open(full_file_path, 'rb') as f:
+            with open(full_file_path_real, 'rb') as f:
                 binary_content = f.read()
                 content = base64.b64encode(binary_content).decode('utf-8')
                 return {
@@ -545,7 +556,10 @@ async def import_task_from_gallery(
     try:
         workspace_dir = get_workspace_dir()
         local_gallery_dir = os.path.join(workspace_dir, "tasks-gallery")
-        local_task_dir = os.path.join(local_gallery_dir, task_dir_name)
+        local_task_dir = os.path.normpath(os.path.join(local_gallery_dir, task_dir_name))
+        # Ensure that the task dir is within the local_gallery_dir
+        if not local_task_dir.startswith(local_gallery_dir + os.sep):
+            return {"status": "error", "message": "Invalid task directory"}
         task_json_path = os.path.join(local_task_dir, "task.json")
         
         if not os.path.isfile(task_json_path):
@@ -597,8 +611,11 @@ async def import_task_from_gallery(
         if upload:
             try:
                 # Get the src directory from local installation
-                src_dir = os.path.join(local_task_dir, "src")
-                if os.path.exists(src_dir):
+                src_dir_real = os.path.normpath(os.path.join(local_task_dir, "src"))
+                # Validate src_dir is within the intended gallery structure
+                if not src_dir_real.startswith(local_task_dir + os.sep):
+                    return {"status": "error", "message": "Invalid src directory"}
+                if os.path.exists(src_dir_real):
                     # Post to GPU orchestrator upload endpoint
                     gpu_orchestrator_url = os.getenv("GPU_ORCHESTRATION_SERVER")
                     gpu_orchestrator_port = os.getenv("GPU_ORCHESTRATION_SERVER_PORT")
@@ -609,7 +626,7 @@ async def import_task_from_gallery(
                             task_obj = tasks_service.tasks_get_by_id(task_id)
                             if isinstance(task_obj.get("config"), str):
                                 task_obj["config"] = json_lib.loads(task_obj["config"]) if task_obj["config"] else {}
-                            task_obj["config"]["local_upload_staged_dir"] = src_dir
+                            task_obj["config"]["local_upload_staged_dir"] = src_dir_real
                             tasks_service.update_task(task_id, {"config": task_obj["config"]})
                         except Exception:
                             pass
@@ -618,10 +635,10 @@ async def import_task_from_gallery(
                         dest = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/upload"
                         files_form = []
                         # Walk src_dir and add each file, preserving relative path inside src/
-                        for root, _, filenames in os.walk(src_dir):
+                        for root, _, filenames in os.walk(src_dir_real):
                             for filename in filenames:
                                 full_path = os.path.join(root, filename)
-                                rel_path = os.path.relpath(full_path, src_dir)
+                                rel_path = os.path.relpath(full_path, src_dir_real)
                                 # Prefix with src/ like the packed structure
                                 upload_name = f"src/{rel_path}"
                                 with open(full_path, "rb") as f:
