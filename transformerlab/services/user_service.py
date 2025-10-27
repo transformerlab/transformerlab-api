@@ -7,7 +7,6 @@ from fastapi import Request
 from transformerlab.routers.auth.provider.auth_provider import AuthUser
 from transformerlab.shared.s3_mount import setup_user_s3_mount
 
-
 class UserService:
     async def on_after_login(
         self,
@@ -31,3 +30,5 @@ class UserService:
 
 
 user_service = UserService()
+
+

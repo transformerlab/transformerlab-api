@@ -65,7 +65,6 @@ def get_tasks_gallery():
 
 def gallery_cache_file_path(filename: str):
     from lab.dirs import get_galleries_cache_dir
-
     return os.path.join(get_galleries_cache_dir(), filename)
 
 

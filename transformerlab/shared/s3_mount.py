@@ -88,7 +88,7 @@ def run_s3_mount_command(bucket_name: str, remote_workspace_dir: str, profile: s
                 bucket_name,
                 remote_workspace_dir,
                 "--allow-overwrite",
-                "--allow-delete",
+                "--allow-delete"
             ]
 
         if os.getenv("TFL_DEBUG") == "true":
@@ -98,9 +98,7 @@ def run_s3_mount_command(bucket_name: str, remote_workspace_dir: str, profile: s
                 if not os.path.exists(f"{HOME_DIR}/s3-mount-logs/s3fs.log"):
                     open(f"{HOME_DIR}/s3-mount-logs/s3fs.log", "w").close()
                 # s3fs debug options: -d for debug, --curldbg for curl debug, --logfile for log file, dbglevel=info
-                cmd.extend(
-                    ["-d", "-o", "curldbg", "-o", f"logfile={HOME_DIR}/s3-mount-logs/s3fs.log", "-o", "dbglevel=info"]
-                )
+                cmd.extend(["-d", "-o", "curldbg", "-o",f"logfile={HOME_DIR}/s3-mount-logs/s3fs.log", "-o", "dbglevel=info"])
             else:
                 # mount-s3 debug options (keep existing)
                 cmd.extend(["--debug", "--debug-crt", "--log-directory", f"{HOME_DIR}/s3-mount-logs"])
