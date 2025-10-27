@@ -299,8 +299,11 @@ async def upload_directory(
     dir_name: Optional[str] = Form(None),
 ):
     """
-    Upload a directory to the remote Lattice orchestrator for later use in cluster launches
+    Upload a directory to the remote Lattice orchestrator for later use in cluster launches.
+    Files are stored locally first, then sent to orchestrator.
     """
+    from lab.dirs import get_workspace_dir
+    
     # Validate environment variables
     result = validate_gpu_orchestrator_env_vars()
     gpu_orchestrator_url, gpu_orchestrator_port = result
@@ -310,7 +313,34 @@ async def upload_directory(
         return gpu_orchestrator_port  # Error response
     gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/upload"
     
+    # Store files locally first
+    local_storage_dir = None
     try:
+        # Create local storage directory
+        workspace_dir = get_workspace_dir()
+        local_uploads_dir = os.path.join(workspace_dir, "uploads")
+        os.makedirs(local_uploads_dir, exist_ok=True)
+        
+        # Create unique directory for this upload
+        import uuid
+        upload_id = str(uuid.uuid4())
+        base_upload_dir = f"upload_{upload_id}"
+        local_storage_dir = os.path.join(local_uploads_dir, base_upload_dir)
+        os.makedirs(local_storage_dir, exist_ok=True)
+        
+        # Store files locally
+        for file in dir_files:
+            # Reset file pointer to beginning
+            await file.seek(0)
+            content = await file.read()
+            
+            # Create directory structure if filename contains path separators
+            file_path = os.path.join(local_storage_dir, file.filename)
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            
+            with open(file_path, "wb") as f:
+                f.write(content)
+        
         # Prepare the request data for Lattice orchestrator
         files_data = []
         form_data = {}
@@ -319,8 +349,9 @@ async def upload_directory(
         if dir_name:
             form_data["dir_name"] = dir_name
         
-        # Prepare files for upload
+        # Prepare files for upload (reset file pointers)
         for file in dir_files:
+            await file.seek(0)
             files_data.append(("dir_files", (file.filename, await file.read(), file.content_type)))
         
         # Make the request to the Lattice orchestrator
@@ -341,10 +372,14 @@ async def upload_directory(
             )
             
             if response.status_code == 200:
+                response_data = response.json()
+                # Add local storage path to response (just the folder name)
+                response_data["local_storage_path"] = base_upload_dir
                 return {
                     "status": "success",
-                    "data": response.json(),
+                    "data": response_data,
                     "message": "Directory uploaded successfully",
+                    "local_storage_path": base_upload_dir
                 }
             else:
                 return {
@@ -356,7 +391,8 @@ async def upload_directory(
         return {"status": "error", "message": "Request to Lattice orchestrator timed out"}
     except httpx.RequestError:
         return {"status": "error", "message": "Request error occurred"}
-    except Exception:
+    except Exception as e:
+        print(f"Upload error: {e}")
         return {"status": "error", "message": "Unexpected error occurred"}
 
 
