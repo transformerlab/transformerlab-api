@@ -206,7 +206,7 @@ def test_logout_from_huggingface_success(client):
 
         data = response.json()
         assert data["message"] == "OK"
-        
+
         # Verify logout was called
         mock_logout.assert_called_once()
         # Verify token file removal was attempted

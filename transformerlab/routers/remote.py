@@ -285,7 +285,7 @@ async def upload_directory(
     Files are stored locally first, then sent to orchestrator.
     """
     from lab.dirs import get_workspace_dir
-    
+
     # Validate environment variables
     result = validate_gpu_orchestrator_env_vars()
     gpu_orchestrator_url, gpu_orchestrator_port = result
@@ -294,7 +294,7 @@ async def upload_directory(
     elif isinstance(gpu_orchestrator_port, dict):
         return gpu_orchestrator_port  # Error response
     gpu_orchestrator_url = f"{gpu_orchestrator_url}:{gpu_orchestrator_port}/api/v1/instances/upload"
-    
+
     # Store files locally first
     local_storage_dir = None
     try:
@@ -302,27 +302,28 @@ async def upload_directory(
         workspace_dir = get_workspace_dir()
         local_uploads_dir = os.path.join(workspace_dir, "uploads")
         os.makedirs(local_uploads_dir, exist_ok=True)
-        
+
         # Create unique directory for this upload
         import uuid
+
         upload_id = str(uuid.uuid4())
         base_upload_dir = f"upload_{upload_id}"
         local_storage_dir = os.path.join(local_uploads_dir, base_upload_dir)
         os.makedirs(local_storage_dir, exist_ok=True)
-        
+
         # Store files locally
         for file in dir_files:
             # Reset file pointer to beginning
             await file.seek(0)
             content = await file.read()
-            
+
             # Create directory structure if filename contains path separators
             file_path = os.path.join(local_storage_dir, file.filename)
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            
+
             with open(file_path, "wb") as f:
                 f.write(content)
-        
+
         # Prepare the request data for Lattice orchestrator
         files_data = []
         form_data = {}
@@ -330,7 +331,7 @@ async def upload_directory(
         # Add dir_name if provided
         if dir_name:
             form_data["dir_name"] = dir_name
-        
+
         # Prepare files for upload (reset file pointers)
         for file in dir_files:
             await file.seek(0)
@@ -361,7 +362,7 @@ async def upload_directory(
                     "status": "success",
                     "data": response_data,
                     "message": "Directory uploaded successfully",
-                    "local_storage_path": base_upload_dir
+                    "local_storage_path": base_upload_dir,
                 }
             else:
                 return {

@@ -35,4 +35,8 @@ def test_register_process_single_and_multiple_pids():
             plugin.register_process(1)
     finally:
         if original_env is not None:
+<<<<<<< HEAD
             os.environ["LLM_LAB_ROOT_PATH"] = original_env
+=======
+            os.environ["LLM_LAB_ROOT_PATH"] = original_env
+>>>>>>> 4d94ff88dec6844ce1dd2075fbf59ae44cb7b101

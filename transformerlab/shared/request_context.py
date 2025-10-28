@@ -13,4 +13,7 @@ def set_current_org_id(organization_id: Optional[str]) -> None:
 
 def get_current_org_id() -> Optional[str]:
     return _current_org_id.get()
+<<<<<<< HEAD
 
+=======
+>>>>>>> 4d94ff88dec6844ce1dd2075fbf59ae44cb7b101
