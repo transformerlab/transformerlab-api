@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+if file "$0" | grep -q "CRLF"; then
+    echo ":wrench: Detected CRLF line endings. Converting to LF..."
+    sed -i 's/\r$//' "$0"
+    exec bash "$0" "$@"
+fi
+
 if ! command -v rocminfo &> /dev/null; then
     uv pip install bitsandbytes
     uv pip install git+https://github.com/triton-lang/triton.git@main#subdirectory=python/triton_kernels
