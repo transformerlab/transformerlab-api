@@ -197,7 +197,6 @@ async def launch_remote(
                 launch_config = {
                     "command": command,
                     "setup": setup,
-                    "script_path": script_path,
                     "cluster_name": cluster_name,
                     "cpus": cpus,
                     "memory": memory,
@@ -304,7 +303,6 @@ async def upload_directory(
     Upload a directory to the remote Lattice orchestrator for later use in cluster launches.
     Files are stored locally first, then sent to orchestrator.
     """
-    from lab.dirs import get_workspace_dir
 
     # Validate environment variables
     result = validate_gpu_orchestrator_env_vars()
