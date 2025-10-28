@@ -6,6 +6,7 @@ import sys
 import time
 import requests
 import torch
+import threading
 
 from fastchat.constants import TEMP_IMAGE_DIR
 
@@ -71,9 +72,6 @@ if num_gpus > 1:
 
 vllm_proc = subprocess.Popen(vllm_args, stdout=None, stderr=subprocess.PIPE)
 
-for line in iter(vllm_proc.stderr.readline, b""):
-    print("[vLLM]", line.decode().strip(), file=sys.stderr)
-
 # Wait for vLLM server to be ready
 vllm_url = f"http://localhost:{port}/v1/models"
 timeout = 300  # seconds
@@ -109,8 +107,30 @@ proxy_proc = subprocess.Popen(proxy_args, stdout=None, stderr=subprocess.PIPE)
 # this will allow transformer lab to kill both later
 register_process([proxy_proc.pid, vllm_proc.pid])
 
-# read output:
-for line in iter(proxy_proc.stderr.readline, b""):
-    print(line, file=sys.stderr)
 
-print("Vllm worker exited", file=sys.stderr)
+# Read output from both processes (vLLM and proxy) simultaneously
+def read_stream(proc, prefix):
+    """Read from a process stderr and print with prefix"""
+    for line in iter(proc.stderr.readline, b""):
+        if line:
+            print(f"[{prefix}]", line.decode().strip(), file=sys.stderr)
+
+
+# Create threads to read from both processes
+vllm_thread = threading.Thread(target=read_stream, args=(vllm_proc, "vLLM"), daemon=True)
+proxy_thread = threading.Thread(target=read_stream, args=(proxy_proc, "Proxy"), daemon=True)
+
+vllm_thread.start()
+proxy_thread.start()
+
+# Wait for either process to exit
+while vllm_proc.poll() is None and proxy_proc.poll() is None:
+    time.sleep(1)
+
+# If one exits, report which one
+if vllm_proc.poll() is not None:
+    print(f"vLLM process exited with code {vllm_proc.poll()}", file=sys.stderr)
+if proxy_proc.poll() is not None:
+    print(f"Proxy process exited with code {proxy_proc.poll()}", file=sys.stderr)
+
+print("Server exited", file=sys.stderr)
